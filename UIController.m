@@ -4,13 +4,19 @@ classdef UIController < handle
     end
 
     methods
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % UIController Methods
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        % Constructor
         function obj = UIController(app)
+            % Create a UIController for the given app
             obj.App = app;
         end
 
+        % Set up all UI callbacks for the app controls
         function setupCallbacks(obj)
             app = obj.App;
-
             % Spinner value change callbacks
             app.RowsSpinner.ValueChangedFcn = @(src, event) obj.onLayoutChanged();
             app.ColsSpinner.ValueChangedFcn = @(src, event) obj.onLayoutChanged();
@@ -18,40 +24,28 @@ classdef UIController < handle
             app.SaveConfigButton.ButtonPushedFcn = @(src, event) app.ConfigManager.saveConfig();
             app.LoadConfigButton.ButtonPushedFcn = @(src, event) app.ConfigManager.loadConfig();
 
-            % Signal table edit
-            app.SignalTable.CellEditCallback = @(src, event) obj.onSignalTableEdit(event);
-
-            % Button callbacks
-            app.StartButton.ButtonPushedFcn = @(src, event) app.DataManager.startStreaming();
-            app.StopButton.ButtonPushedFcn = @(src, event) app.DataManager.stopStreaming();
-            app.ClearButton.ButtonPushedFcn = @(src, event) obj.clearAll();
-
-            app.ExportButton.ButtonPushedFcn = @(src, event) obj.exportCSV();
-            app.ExportPDFButton.ButtonPushedFcn = @(src, event) app.PlotManager.exportToPDF();
-            app.StatsButton.ButtonPushedFcn = @(src, event) obj.showStatsDialog();
-            app.ResetZoomButton.ButtonPushedFcn = @(src, event) app.PlotManager.resetZoom();
+            % (No longer set ValueChangedFcn for CSVPathField)
 
             % Keyboard shortcuts
             obj.setupKeyboardShortcuts();
         end
 
+        % Callback for when the subplot layout spinners are changed
         function onLayoutChanged(obj)
             app = obj.App;
             rows = max(1, min(10, round(app.RowsSpinner.Value)));
             cols = max(1, min(10, round(app.ColsSpinner.Value)));
             tabIdx = app.PlotManager.CurrentTabIdx;
             app.PlotManager.createSubplotsForTab(tabIdx, rows, cols);
-            
             % Update subplot dropdown
             obj.updateSubplotDropdown();
-            
             app.PlotManager.refreshPlots(tabIdx);
         end
 
+        % Update the items in the subplot dropdown based on the current tab layout
         function updateSubplotDropdown(obj)
             app = obj.App;
             tabIdx = app.PlotManager.CurrentTabIdx;
-            
             if tabIdx <= numel(app.PlotManager.AxesArrays) && ~isempty(app.PlotManager.AxesArrays{tabIdx})
                 nPlots = numel(app.PlotManager.AxesArrays{tabIdx});
                 plotNames = cell(nPlots, 1);
@@ -59,7 +53,6 @@ classdef UIController < handle
                     plotNames{i} = sprintf('Plot %d', i);
                 end
                 app.SubplotDropdown.Items = plotNames;
-                
                 % Ensure selected subplot is within bounds
                 if app.PlotManager.SelectedSubplotIdx > nPlots
                     app.PlotManager.SelectedSubplotIdx = 1;
@@ -72,20 +65,18 @@ classdef UIController < handle
             end
         end
 
+        % Callback for when a subplot is selected from the dropdown
         function onSubplotSelected(obj)
             app = obj.App;
             selectedItem = app.SubplotDropdown.Value;
-            
             % Extract plot number from selection
             plotNum = str2double(regexp(selectedItem, '\d+', 'match', 'once'));
             if ~isempty(plotNum) && plotNum > 0
                 app.PlotManager.SelectedSubplotIdx = plotNum;
-                
                 % Update visual feedback
                 app.highlightSelectedSubplot(app.PlotManager.CurrentTabIdx, plotNum);
-                
                 % Update signal table to reflect current subplot
-                obj.updateSignalCheckboxes();
+                % obj.updateSignalCheckboxes(); % Removed as per edit hint
             end
         end
 
@@ -127,7 +118,7 @@ classdef UIController < handle
                     
                     % Refresh plots and update visual feedback
                     app.PlotManager.refreshPlots(currentTabIdx);
-                    obj.updateSignalTableVisualFeedback();
+                    % obj.updateSignalTableVisualFeedback(); % Removed as per edit hint
 
                 case 4  % Scale
                     scale = data.Scale(row);
@@ -143,7 +134,7 @@ classdef UIController < handle
                 case 5  % State
                     app.DataManager.StateSignals(fullName) = data.State(row);
                     app.PlotManager.refreshPlots();
-                    obj.updateSignalCheckboxes();
+                    % obj.updateSignalCheckboxes(); % Removed as per edit hint
             end
         end
 
@@ -152,100 +143,13 @@ classdef UIController < handle
             part = strtrim(parts{end});
         end
 
-        function updateSignalCheckboxes(obj)
-            app = obj.App;
-            if isempty(app.DataManager.SignalNames)
-                app.SignalTable.Data = table({'(none)'}, {''}, {false}, {1.0}, {false}, ...
-                    'VariableNames', {'Signal','Info','Plot','Scale','State'});
-                return;
-            end
-
-            % Make sure subplot dropdown is updated
-            obj.updateSubplotDropdown();
-
-            shortNames = cellfun(@(s) strtrim(obj.getLastPart(s)), app.DataManager.SignalNames, 'UniformOutput', false);
-            [sortedShort, sortIdx] = sort(shortNames);
-            sortedFull = app.DataManager.SignalNames(sortIdx);
-
-            n = numel(sortedFull);
-            
-            % Initialize all arrays with correct size
-            Signal = cell(n, 1);      % Will be filled with visual indicators
-            Info = cell(n, 1);        % Initialize as cell array
-            Plot = false(n, 1);       % Changed from 'Selected' to 'Plot' to match table
-            Scale = ones(n, 1);       % Numeric array
-            State = false(n, 1);      % Logical array
-
-            % Fill in the data
-            for i = 1:n
-                fullName = sortedFull{i};
-                
-                % Start with clean signal name
-                Signal{i} = sortedShort{i};
-                
-                if ismember(fullName, app.DataManager.DataBuffer.Properties.VariableNames)
-                    Info{i} = sprintf('(%dx1)', sum(~isnan(app.DataManager.DataBuffer.(fullName))));
-                else
-                    Info{i} = '';
-                end
-                if app.DataManager.SignalScaling.isKey(fullName)
-                    Scale(i) = app.DataManager.SignalScaling(fullName);
-                end
-                if app.DataManager.StateSignals.isKey(fullName)
-                    State(i) = app.DataManager.StateSignals(fullName);
-                end
-            end
-
-            % Update Plot based on current subplot assignments
-            currentTabIdx = app.PlotManager.CurrentTabIdx;
-            selectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
-
-            % Check if indices are valid and update Plot accordingly
-            if currentTabIdx <= numel(app.PlotManager.AssignedSignals) && ...
-                    ~isempty(app.PlotManager.AssignedSignals{currentTabIdx}) && ...
-                    selectedSubplotIdx <= numel(app.PlotManager.AssignedSignals{currentTabIdx})
-
-                subplotSigs = app.PlotManager.AssignedSignals{currentTabIdx}{selectedSubplotIdx};
-
-                % Ensure subplotSigs is a cell array
-                if isempty(subplotSigs)
-                    subplotSigs = {};
-                elseif ~iscell(subplotSigs)
-                    subplotSigs = {subplotSigs};
-                end
-
-                % Update Plot based on assigned signals - ensure column vector
-                Plot = ismember(sortedFull, subplotSigs);
-                Plot = Plot(:);  % Force column vector
-            end
-
-            % Add visual indicators to signal names
-            for i = 1:n
-                if Plot(i)
-                    Signal{i} = sprintf('● %s', sortedShort{i});
-                else
-                    Signal{i} = sprintf('○ %s', sortedShort{i});
-                end
-            end
-
-            % Create the table with consistent data types
-            app.SignalTable.Data = table(Signal, Info, Plot, Scale, State, ...
-                'VariableNames', {'Signal','Info','Plot','Scale','State'});
-        end
-
-        function updateSignalTableVisualFeedback(obj)
-            % Update visual feedback in the signal table
-            obj.updateSignalCheckboxes();
-        end
-
+        % Clear all data, plots, and signal assignments in the app
         function clearAll(obj)
             app = obj.App;
-            
             % Clear all subplot highlights
             for tabIdx = 1:numel(app.PlotManager.AxesArrays)
                 app.clearSubplotHighlights(tabIdx);
             end
-            
             for i = 1:numel(app.PlotManager.AxesArrays)
                 if ~isempty(app.PlotManager.AxesArrays{i})
                     for ax = app.PlotManager.AxesArrays{i}
@@ -262,68 +166,89 @@ classdef UIController < handle
                     end
                 end
             end
-
-            app.DataManager.DataBuffer = table();
+            % Clear all multi-CSV data
+            app.DataManager.DataTables = {};
+            app.DataManager.CSVFilePaths = {};
             app.DataManager.SignalNames = {};
             app.DataManager.SignalScaling = containers.Map();
             app.DataManager.StateSignals = containers.Map();
-            obj.updateSignalCheckboxes();
-
             app.StatusLabel.Text = 'Cleared';
             app.DataRateLabel.Text = 'Data Rate: 0 Hz';
             app.DataManager.DataCount = 0;
             app.DataManager.UpdateCounter = 0;
-
             app.PlotManager.SelectedSubplotIdx = 1;
             app.PlotManager.refreshPlots();
         end
 
+        % Export the current data buffer to a CSV file
         function exportCSV(obj)
             app = obj.App;
-            if isempty(app.DataManager.DataBuffer)
+            if isempty(app.DataManager.DataTables) || all(cellfun(@isempty, app.DataManager.DataTables))
                 uialert(app.UIFigure, 'No data to export.', 'Info');
                 return;
             end
             [file, path] = uiputfile('*.csv', 'Export Data');
             if isequal(file, 0), return; end
             try
-                writetable(app.DataManager.DataBuffer, fullfile(path, file));
+                % Export the first non-empty table
+                for i = 1:numel(app.DataManager.DataTables)
+                    if ~isempty(app.DataManager.DataTables{i})
+                        writetable(app.DataManager.DataTables{i}, fullfile(path, file));
+                        break;
+                    end
+                end
                 uialert(app.UIFigure, 'Data exported successfully.', 'Success');
             catch ME
                 uialert(app.UIFigure, ['Export failed: ' ME.message], 'Error');
             end
         end
 
+        % Show a dialog with statistics for all loaded signals
         function showStatsDialog(obj)
             app = obj.App;
-            if isempty(app.DataManager.DataBuffer)
+            if isempty(app.DataManager.DataTables) || all(cellfun(@isempty, app.DataManager.DataTables))
                 return;
             end
-
-            fig = uifigure('Name', 'Signal Statistics', 'Position', [200 200 400 300]);
-            tbl = uitable(fig, 'Position', [10 10 380 280]);
-
-            names = app.DataManager.SignalNames;
-            stats = cell(numel(names), 6);
-
-            for i = 1:numel(names)
-                s = names{i};
-                stats{i, 1} = s;
-                if ismember(s, app.DataManager.DataBuffer.Properties.VariableNames)
-                    d = app.DataManager.DataBuffer.(s);
+            fig = uifigure('Name', 'Signal Statistics', 'Position', [200 200 500 300]);
+            tbl = uitable(fig, 'Position', [10 10 480 280]);
+            stats = {};
+            for i = 1:numel(app.DataManager.DataTables)
+                T = app.DataManager.DataTables{i};
+                if isempty(T), continue; end
+                signals = setdiff(T.Properties.VariableNames, {'Time'});
+                for j = 1:numel(signals)
+                    s = signals{j};
+                    d = T.(s);
                     d = d(~isnan(d));
-                    stats{i, 2} = numel(d);
-                    stats{i, 3} = sprintf('%.3f', mean(d));
-                    stats{i, 4} = sprintf('%.3f', std(d));
-                    stats{i, 5} = sprintf('%.3f', min(d));
-                    stats{i, 6} = sprintf('%.3f', max(d));
-                else
-                    stats(i, 2:end) = {'-', '-', '-', '-', '-'};
+                    stats{end+1, 1} = sprintf('%s (CSV %d)', s, i);
+                    stats{end, 2} = numel(d);
+                    stats{end, 3} = sprintf('%.3f', mean(d));
+                    stats{end, 4} = sprintf('%.3f', std(d));
+                    stats{end, 5} = sprintf('%.3f', min(d));
+                    stats{end, 6} = sprintf('%.3f', max(d));
                 end
             end
-
             tbl.Data = stats;
             tbl.ColumnName = {'Signal', 'Count', 'Mean', 'Std', 'Min', 'Max'};
+        end
+
+        function loadMultipleCSVs(obj)
+            app = obj.App;
+            [files, path] = uigetfile('*.csv', 'Select CSV Files', 'MultiSelect', 'on');
+            if isequal(files,0)
+                return;
+            end
+            if ischar(files)
+                files = {files};
+            end
+            app.DataManager.CSVFilePaths = cellfun(@(f) fullfile(path, f), files, 'UniformOutput', false);
+            app.DataManager.DataTables = cell(1, numel(files));
+            app.DataManager.LastFileModTimes = cell(1, numel(files));
+            app.DataManager.LastReadRows = cell(1, numel(files));
+            app.DataManager.StreamingTimers = cell(1, numel(files));
+            app.DataManager.LatestDataRates = cell(1, numel(files));
+            app.DataManager.startStreamingAll();
+            app.buildSignalTree();
         end
 
         function setupKeyboardShortcuts(obj)
