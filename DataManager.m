@@ -1,4 +1,4 @@
-% Updated DataManager.m - Fixed streaming with file monitoring and timeout
+% Updated DataManager.m - Fixed streaming with file monitoring and timeout - REMOVED REDUNDANT DRAWNOW
 classdef DataManager < handle
     properties
         App
@@ -46,7 +46,7 @@ classdef DataManager < handle
             app.StatusLabel.Text = '🔄 Streaming...';
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
             app.StreamingInfoLabel.Text = sprintf('Streaming %d CSV(s): %s', numel(obj.CSVFilePaths), strjoin(obj.CSVFilePaths, ', '));
-            drawnow;
+            % REMOVED: drawnow; - not needed here
         end
 
         function startStreamingForCSV(obj, idx)
@@ -145,7 +145,7 @@ classdef DataManager < handle
             end
             obj.StreamingTimers{idx} = timer(...
                 'ExecutionMode', 'fixedRate', ...
-                'Period', 0.5, ...
+                'Period', 0.01, ...
                 'TimerFcn', @(~,~) obj.checkForUpdates(idx));
             start(obj.StreamingTimers{idx});
             obj.LastUpdateTime = datetime('now');
@@ -161,19 +161,19 @@ classdef DataManager < handle
                     % Check for timeout
                     if datetime('now') - obj.LastUpdateTime > seconds(obj.TimeoutDuration)
                         obj.handleTimeout(idx);
-                        drawnow;
+                        % REMOVED: drawnow; - not needed in timer callback
                         return;
                     end
-                    drawnow;
+                    % REMOVED: drawnow; - not needed in timer callback
                     return;
                 end
                 % File has changed - read new data
                 obj.readNewData(idx);
                 obj.LastUpdateTime = datetime('now');
-                drawnow;
+                % REMOVED: drawnow; - not needed in timer callback
             catch
                 obj.stopStreamingForCSV(idx);
-                drawnow;
+                % REMOVED: drawnow; - not needed in timer callback
             end
         end
 
@@ -351,7 +351,7 @@ classdef DataManager < handle
             obj.stopStreamingForCSV(idx);
             obj.App.DataRateLabel.Text = sprintf('📊 Rate: 0 Hz | Total: %d samples (CSV %d)', height(obj.DataTables{idx}), idx);
             obj.App.StreamingInfoLabel.Text = sprintf('Timeout: %s', fileName);
-            drawnow;
+            % REMOVED: drawnow; - not needed here
         end
 
         function stopStreamingAll(obj)
@@ -363,7 +363,7 @@ classdef DataManager < handle
             obj.App.StatusLabel.FontColor = [0.5 0.5 0.5];
             obj.App.DataRateLabel.Text = '📊 Final: stopped all CSVs';
             obj.App.StreamingInfoLabel.Text = 'Streaming stopped.';
-            drawnow;
+            % REMOVED: drawnow; - not needed here
         end
 
         function stopStreamingForCSV(obj, idx)

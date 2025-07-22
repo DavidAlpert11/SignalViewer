@@ -207,7 +207,7 @@ classdef PlotManager < handle
                                 ax.YLimMode = 'auto';
                             else
                                 % During streaming, keep reasonable defaults
-                                axis(ax, 'auto');
+                                ax.
                                 ax.XLimMode = 'manual';
                                 ax.YLimMode = 'manual';
                             end
