@@ -18,9 +18,6 @@ classdef UIController < handle
         function setupCallbacks(obj)
             app = obj.App;
             % Spinner value change callbacks
-            app.RowsSpinner.ValueChangedFcn = @(src, event) obj.onLayoutChanged();
-            app.ColsSpinner.ValueChangedFcn = @(src, event) obj.onLayoutChanged();
-            app.SubplotDropdown.ValueChangedFcn = @(src, event) obj.onSubplotSelected();
             app.SaveConfigButton.ButtonPushedFcn = @(src, event) app.ConfigManager.saveConfig();
             app.LoadConfigButton.ButtonPushedFcn = @(src, event) app.ConfigManager.loadConfig();
 
@@ -275,8 +272,6 @@ classdef UIController < handle
                         obj.exportCSV();
                     case 'p'
                         app.PlotManager.exportToPDF();
-                    case 'r'
-                        app.PlotManager.resetZoom();
                     case 't'
                         obj.showStatsDialog();
                 end

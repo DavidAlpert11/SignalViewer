@@ -96,6 +96,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.MainTabGroup = uitabgroup(app.UIFigure, ...
                 'Position', [320 1 880 799]);
 
+
             %=== Create Enhanced Components ===%
             app.createEnhancedComponents();
 
@@ -115,7 +116,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
         function createEnhancedComponents(app)
             % Enhanced layout with LIGHT MODE styling
             % Only keep controls that are actually used in the current workflow
-            % (Tab management and signal table controls are removed)
 
             % Modern menu bar at the top
             fileMenu = uimenu(app.UIFigure, 'Text', 'File');
@@ -129,7 +129,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(actionsMenu, 'Text', '⏹️ Stop', 'MenuSelectedFcn', @(src, event) app.menuStop());
             uimenu(actionsMenu, 'Text', '🗑️ Clear', 'MenuSelectedFcn', @(src, event) app.menuClear());
             uimenu(actionsMenu, 'Text', '📈 Statistics', 'MenuSelectedFcn', @(src, event) app.menuStatistics());
-            uimenu(actionsMenu, 'Text', '🔍 Reset Zoom', 'MenuSelectedFcn', @(src, event) app.menuResetZoom());
 
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
@@ -139,75 +138,30 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(viewMenu, 'Text', 'Sync Zoom', 'MenuSelectedFcn', @(src, event) app.menuToggleSyncZoom());
             uimenu(viewMenu, 'Text', 'Cursor', 'MenuSelectedFcn', @(src, event) app.menuToggleCursor());
 
-            % Undo/Redo buttons
-            app.UndoButton = uibutton(app.ControlPanel, 'push', 'Text', 'Undo', 'Position', [20 370 60 22], 'ButtonPushedFcn', @(src, event) app.undoAssignment());
-            app.RedoButton = uibutton(app.ControlPanel, 'push', 'Text', 'Redo', 'Position', [90 370 60 22], 'ButtonPushedFcn', @(src, event) app.redoAssignment());
-
-            % Auto Scale button
-            app.AutoScaleButton = uibutton(app.ControlPanel, 'push', 'Text', 'Auto Scale All', 'Position', [160 370 80 22], ...
+            % ONLY Auto Scale and Refresh CSV buttons at the top
+            app.AutoScaleButton = uibutton(app.ControlPanel, 'push', 'Text', 'Auto Scale All', ...
+                'Position', [20 740 120 30], ...
                 'ButtonPushedFcn', @(src, event) app.autoScaleCurrentSubplot(), ...
-                'Tooltip', 'Auto-scale all subplots in current tab to fit data');
-            % Template and refresh buttons
-            app.SaveTemplateButton = uibutton(app.ControlPanel, 'push', 'Text', 'Save Template', 'Position', [20 400 100 22], 'ButtonPushedFcn', @(src, event) app.saveTemplate());
-            app.LoadTemplateButton = uibutton(app.ControlPanel, 'push', 'Text', 'Load Template', 'Position', [130 400 100 22], 'ButtonPushedFcn', @(src, event) app.loadTemplate());
-            app.RefreshCSVsButton = uibutton(app.ControlPanel, 'push', 'Text', 'Refresh CSVs', 'Position', [240 400 70 22], 'ButtonPushedFcn', @(src, event) app.refreshCSVs());
+                'Tooltip', 'Auto-scale all subplots in current tab to fit data', ...
+                'FontSize', 11, 'FontWeight', 'bold');
 
-            % Edit Notes/Tags button
-            app.EditNotesButton = uibutton(app.ControlPanel, 'push', 'Text', 'Edit Notes/Tags', 'Position', [20 430 120 22], 'ButtonPushedFcn', @(src, event) app.editSubplotMetadata());
+            app.RefreshCSVsButton = uibutton(app.ControlPanel, 'push', 'Text', 'Refresh CSVs', ...
+                'Position', [150 740 120 30], ...
+                'ButtonPushedFcn', @(src, event) app.refreshCSVs(), ...
+                'FontSize', 11, 'FontWeight', 'bold');
 
-            % Manage Templates button
-            app.ManageTemplatesButton = uibutton(app.ControlPanel, 'push', 'Text', 'Manage Templates', 'Position', [150 430 120 22], 'ButtonPushedFcn', @(src, event) app.manageTemplates());
-
-            % Layout spinners with light styling
-            uilabel(app.ControlPanel, 'Text', 'Current Tab Layout:', ...
-                'Position', [20 640 120 22], ...
-                'FontColor', [0.1 0.1 0.1], ...      % Dark text
-                'FontWeight', 'bold');
-
-            uilabel(app.ControlPanel, 'Text', 'Rows:', ...
-                'Position', [20 620 40 22], ...
-                'FontColor', [0.1 0.1 0.1], ...
-                'FontWeight', 'bold');
-            app.RowsSpinner = uispinner(app.ControlPanel, ...
-                'Position', [60 620 50 22], ...
-                'Limits', [1 10], ...
-                'Value', 2, ...
-                'BackgroundColor', [1 1 1], ...      % White background
-                'FontColor', [0.1 0.1 0.1]);        % Dark text
-
-            uilabel(app.ControlPanel, 'Text', 'Cols:', ...
-                'Position', [130 620 40 22], ...
-                'FontColor', [0.1 0.1 0.1], ...
-                'FontWeight', 'bold');
-            app.ColsSpinner = uispinner(app.ControlPanel, ...
-                'Position', [170 620 50 22], ...
-                'Limits', [1 10], ...
-                'Value', 1, ...
-                'BackgroundColor', [1 1 1], ...      % White background
-                'FontColor', [0.1 0.1 0.1]);        % Dark text
-
-            % Subplot dropdown with light styling
-            uilabel(app.ControlPanel, 'Text', 'Current Subplot:', ...
-                'Position', [20 590 100 22], ...
-                'FontColor', [0.1 0.1 0.1], ...
-                'FontWeight', 'bold');
-            app.SubplotDropdown = uidropdown(app.ControlPanel, ...
-                'Position', [130 590 110 22], ...
-                'Items', {'Plot 1'}, ...
-                'Value', 'Plot 1', ...
-                'BackgroundColor', [1 1 1], ...      % White background
-                'FontColor', [0.1 0.1 0.1]);        % Dark text
-
-            % Search box for signals
+            % Search box for signals - moved up and made wider
             app.SignalSearchField = uieditfield(app.ControlPanel, 'text', ...
-                'Position', [20 340 280 22], ...
+                'Position', [20 710 280 25], ...
                 'Placeholder', 'Search signals...', ...
-                'ValueChangingFcn', @(src, event) app.filterSignals(event.Value));
+                'ValueChangingFcn', @(src, event) app.filterSignals(event.Value), ...
+                'FontSize', 11);
 
-            % Signal selection tree
+            % LARGE Signal selection tree - takes up most of the panel
             app.SignalTree = uitree(app.ControlPanel, ...
-                'Position', [20 130 280 200], ...
-                'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged());
+                'Position', [20 200 280 500], ... % Much larger: 500px height instead of 200px
+                'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ...
+                'FontSize', 11);
             try
                 app.SignalTree.Multiselect = 'on';
             end
@@ -220,35 +174,35 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(cm, 'Text', 'Clear All Signals from Subplot', 'MenuSelectedFcn', @(src, event) app.clearAllSignalsFromSubplot());
             app.SignalTree.ContextMenu = cm;
 
-            % Table for editing scale and state for selected signals
+            % LARGER Table for editing scale and state for selected signals
             app.SignalPropsTable = uitable(app.ControlPanel, ...
-                'Position', [20 20 280 100], ...  % Reduced height to avoid overlap
+                'Position', [20 80 280 110], ... % Increased height from 100 to 110
                 'ColumnName', {'Signal', 'Scale', 'State', 'Color', 'LineWidth'}, ...
                 'ColumnEditable', [false true true false true], ... % Color not editable by typing
-                'CellEditCallback', @(src, event) app.onSignalPropsEdit(event));
+                'CellEditCallback', @(src, event) app.onSignalPropsEdit(event), ...
+                'FontSize', 10);
 
-            % Move status labels to top of control panel to avoid overlap
+            % Status labels at the very top
             app.StatusLabel = uilabel(app.ControlPanel, ...
-                'Position', [20 700 280 22], ...  % Moved to top
+                'Position', [20 25 280 15], ... % Smaller and at very top
                 'Text', 'Ready', ...
                 'FontColor', [0.2 0.2 0.2], ...
-                'FontSize', 12, ...
+                'FontSize', 10, ...
                 'FontWeight', 'bold');
 
             app.DataRateLabel = uilabel(app.ControlPanel, ...
-                'Position', [20 680 280 22], ...  % Below status label
+                'Position', [20 55 140 15], ... % Moved to bottom left
                 'Text', 'Data Rate: 0 Hz', ...
                 'FontColor', [0.2 0.2 0.2], ...
-                'FontSize', 10);
+                'FontSize', 9);
 
-            % StreamingInfoLabel below data rate
+            % StreamingInfoLabel at bottom right
             app.StreamingInfoLabel = uilabel(app.ControlPanel, ...
-                'Position', [20 660 280 22], ...  % Below data rate label
+                'Position', [160 65 140 15], ... % Bottom right
                 'Text', '', ...
                 'FontColor', [0.2 0.2 0.2], ...
-                'FontSize', 10);
+                'FontSize', 9);
         end
-
         function editSubplotMetadata(app)
             tabIdx = app.PlotManager.CurrentTabIdx;
             subplotIdx = app.PlotManager.SelectedSubplotIdx;
@@ -282,64 +236,167 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
 
         function highlightSelectedSubplot(app, tabIdx, subplotIdx)
-            % Highlight the currently selected subplot with a colored border
+            % Highlight the currently selected subplot with only an outer border
             if tabIdx <= numel(app.PlotManager.AxesArrays) && ...
                     ~isempty(app.PlotManager.AxesArrays{tabIdx}) && ...
                     subplotIdx <= numel(app.PlotManager.AxesArrays{tabIdx})
 
-                % Clear previous highlights
-                app.clearSubplotHighlights(tabIdx);
+                % FORCE clear ALL highlights in this tab first
+                for i = 1:numel(app.PlotManager.AxesArrays{tabIdx})
+                    ax = app.PlotManager.AxesArrays{tabIdx}(i);
+                    if isvalid(ax)
+                        % Reset to normal styling
+                        ax.XColor = [0.15 0.15 0.15];
+                        ax.YColor = [0.15 0.15 0.15];
+                        ax.LineWidth = 1;
+                        ax.Box = 'on';
 
-                % Add highlight to selected subplot
+                        % Remove any existing highlight borders
+                        if isstruct(ax.UserData) && isfield(ax.UserData, 'HighlightBorders')
+                            borders = ax.UserData.HighlightBorders;
+                            for j = 1:numel(borders)
+                                if isvalid(borders(j))
+                                    delete(borders(j));
+                                end
+                            end
+                            ax.UserData = rmfield(ax.UserData, 'HighlightBorders');
+                        end
+
+                        % Also remove any plot objects that might be highlight borders
+                        % (in case UserData tracking failed)
+                        children = get(ax, 'Children');
+                        for j = 1:numel(children)
+                            child = children(j);
+                            if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
+                                    child.LineWidth == 6 && ...
+                                    isequal(child.Color, app.CurrentHighlightColor)
+                                delete(child);
+                            end
+                        end
+                    end
+                end
+
+                % NOW add border to ONLY the selected subplot
                 ax = app.PlotManager.AxesArrays{tabIdx}(subplotIdx);
                 if isvalid(ax)
-                    % Only highlight the title, not the axes border
-                    originalTitle = ax.Title.String;
-                    if ~contains(originalTitle, '★')
-                        ax.Title.String = sprintf('★ %s', originalTitle);
+                    % Add a border using plot lines
+                    hold(ax, 'on');
+
+                    % Get current axis limits
+                    xlims = ax.XLim;
+                    ylims = ax.YLim;
+
+                    % Create border lines around the perimeter
+                    topBorder = plot(ax, xlims, [ylims(2) ylims(2)], ...
+                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+
+                    bottomBorder = plot(ax, xlims, [ylims(1) ylims(1)], ...
+                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+
+                    leftBorder = plot(ax, [xlims(1) xlims(1)], ylims, ...
+                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+
+                    rightBorder = plot(ax, [xlims(2) xlims(2)], ylims, ...
+                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+
+                    hold(ax, 'off');
+
+                    % Store the borders for later removal
+                    if ~isstruct(ax.UserData)
+                        ax.UserData = struct();
                     end
-                    ax.Title.Color = app.CurrentHighlightColor;
-                    ax.Title.FontWeight = 'bold';
-                    % Always keep axes border dark gray
-                    ax.XColor = [0.15 0.15 0.15];
-                    ax.YColor = [0.15 0.15 0.15];
-                    ax.LineWidth = 1;
+                    ax.UserData.HighlightBorders = [topBorder, bottomBorder, leftBorder, rightBorder];
                 end
             end
-            % --- NEW: Highlight signals in the tree for this subplot ---
+
+            % Update signal tree to reflect current tab/subplot assignments
             if tabIdx <= numel(app.PlotManager.AssignedSignals) && ...
                     subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
                 assigned = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
-                % Find and select nodes in SignalTree matching assigned signals
-                allNodes = app.SignalTree.Children;
-                selectedNodes = [];
-                for i = 1:numel(allNodes)
-                    csvNode = allNodes(i);
-                    for j = 1:numel(csvNode.Children)
-                        sigNode = csvNode.Children(j);
-                        isAssigned = false;
-                        for k = 1:numel(assigned)
-                            if isequal(sigNode.NodeData, assigned{k})
-                                isAssigned = true;
-                                selectedNodes = [selectedNodes sigNode];
-                                break;
+
+                % Update visual indicators and selection in signal tree
+                app.PlotManager.updateSignalTreeVisualIndicators(assigned);
+
+                % Update signal properties table
+                app.updateSignalPropsTable(assigned);
+            end
+        end
+
+        function forceClearAllHighlights(app, tabIdx)
+            % NUCLEAR option: remove ALL green elements from all subplots
+            if nargin < 2
+                % If no tabIdx specified, clear all tabs
+                for t = 1:numel(app.PlotManager.AxesArrays)
+                    app.forceClearAllHighlights(t);
+                end
+                return;
+            end
+
+            if tabIdx <= numel(app.PlotManager.AxesArrays) && ...
+                    ~isempty(app.PlotManager.AxesArrays{tabIdx})
+
+                for i = 1:numel(app.PlotManager.AxesArrays{tabIdx})
+                    ax = app.PlotManager.AxesArrays{tabIdx}(i);
+                    if isvalid(ax)
+                        % FORCE reset axes properties
+                        ax.XColor = [0.15 0.15 0.15];
+                        ax.YColor = [0.15 0.15 0.15];
+                        ax.LineWidth = 1;
+                        ax.Box = 'on';
+
+                        % Get ALL children
+                        children = get(ax, 'Children');
+                        toDelete = [];
+
+                        for j = 1:numel(children)
+                            child = children(j);
+
+                            % Delete ANY green objects or thick lines
+                            shouldDelete = false;
+
+                            if isa(child, 'matlab.graphics.chart.primitive.Line')
+                                % Check if it's green (any shade)
+                                if length(child.Color) >= 3
+                                    if child.Color(2) > 0.5 && child.Color(1) < 0.5 && child.Color(3) < 0.5
+                                        shouldDelete = true; % Greenish color
+                                    end
+                                end
+
+                                % Check if it's a thick line (likely border)
+                                if child.LineWidth >= 4
+                                    shouldDelete = true;
+                                end
+
+                                % Check if it matches our highlight color exactly
+                                if isequal(child.Color, app.CurrentHighlightColor)
+                                    shouldDelete = true;
+                                end
+
+                                % Check if it's a line with empty DisplayName (typical of borders)
+                                if isprop(child, 'DisplayName') && isempty(child.DisplayName) && child.LineWidth > 2
+                                    shouldDelete = true;
+                                end
+                            end
+
+                            if shouldDelete
+                                toDelete = [toDelete, child];
                             end
                         end
-                        if isAssigned
-                            % If isAssigned, prefix sigNode.Text with '✔ ' (if not already present)
-                            % Else, remove the prefix if present
-                            if ~startsWith(sigNode.Text, '✔ ')
-                                sigNode.Text = sprintf('✔ %s', sigNode.Text);
-                            end
-                        else
-                            % If not assigned, remove the prefix if present
-                            if startsWith(sigNode.Text, '✔ ')
-                                sigNode.Text = strrep(sigNode.Text, '✔ ', '');
-                            end
-                        end
+
+                        % Delete all flagged objects
+                        delete(toDelete);
+
+                        % Clear UserData completely
+                        ax.UserData = struct();
                     end
                 end
-                app.SignalTree.SelectedNodes = selectedNodes;
+
+                % Refresh the plots to restore proper data
+                app.PlotManager.refreshPlots(tabIdx);
             end
         end
 
@@ -351,23 +408,31 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 for i = 1:numel(app.PlotManager.AxesArrays{tabIdx})
                     ax = app.PlotManager.AxesArrays{tabIdx}(i);
                     if isvalid(ax)
-                        % Reset to default light mode styling
+                        % Reset ALL axes to normal styling - NO GREEN COLORS
                         ax.XColor = [0.15 0.15 0.15];     % Dark gray axes
                         ax.YColor = [0.15 0.15 0.15];
                         ax.LineWidth = 1;
+                        ax.Box = 'on';
 
-                        % Remove star from title
-                        originalTitle = ax.Title.String;
-                        if contains(originalTitle, '★')
-                            ax.Title.String = strrep(originalTitle, '★ ', '');
-                            ax.Title.Color = [0.15 0.15 0.15];  % Dark text
-                            ax.Title.FontWeight = 'normal';
+                        % Remove highlight borders using UserData
+                        if isstruct(ax.UserData) && isfield(ax.UserData, 'HighlightBorders')
+                            borders = ax.UserData.HighlightBorders;
+                            for j = 1:numel(borders)
+                                if isvalid(borders(j))
+                                    delete(borders(j));
+                                end
+                            end
+                            ax.UserData = rmfield(ax.UserData, 'HighlightBorders');
+                        end
+
+                        % Initialize UserData if needed
+                        if ~isstruct(ax.UserData)
+                            ax.UserData = struct();
                         end
                     end
                 end
             end
         end
-
         function onSignalTreeSelectionChanged(app, event)
             % Callback for when the user selects signals in the tree.
             % Assigns selected signals to the current subplot and updates the properties table.
@@ -561,6 +626,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
         function autoScaleCurrentSubplot(app)
             % Auto-scale ALL subplots in the current tab
             tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
 
             if tabIdx <= numel(app.PlotManager.AxesArrays)
                 axesArray = app.PlotManager.AxesArrays{tabIdx};
@@ -584,6 +650,14 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 else
                     app.StatusLabel.Text = '⚠️ No plots with data to auto-scale';
                     app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                end
+
+                % IMPORTANT: Restore highlight after auto-scaling
+                % The highlight borders need to be redrawn with new axis limits
+                if scaledCount > 0
+                    % Small delay to let auto-scaling complete
+                    pause(0.05);
+                    app.highlightSelectedSubplot(tabIdx, subplotIdx);
                 end
             end
         end
@@ -740,9 +814,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
         function menuStatistics(app)
             app.UIController.showStatsDialog();
         end
-        function menuResetZoom(app)
-            app.PlotManager.resetZoom();
-        end
+
         function menuToggleSyncZoom(app)
             % Toggle sync zoom state
             if ~isprop(app, 'SyncZoomState') || isempty(app.SyncZoomState)
