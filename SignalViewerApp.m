@@ -41,6 +41,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
         SubplotHighlightBoxes
         CurrentHighlightColor = [0.2 0.8 0.4]  % Green highlight color
 
+
+        PDFReportTitle = 'Signal Analysis Report'
+        PDFReportAuthor = ''
+        PDFReportDate = datetime('now')
+        SubplotCaptions = {}      % Cell array {tabIdx}{subplotIdx} = 'caption text'
+        SubplotDescriptions = {}  % Cell array {tabIdx}{subplotIdx} = 'description text'
+
         % Subsystems
         PlotManager
         DataManager
@@ -399,6 +406,81 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.PlotManager.refreshPlots(tabIdx);
             end
         end
+
+        function initializeCaptionArrays(app, tabIdx, numSubplots)
+            % Initialize caption arrays for a specific tab
+
+            % Ensure arrays are large enough
+            while numel(app.SubplotCaptions) < tabIdx
+                app.SubplotCaptions{end+1} = {};
+            end
+            while numel(app.SubplotDescriptions) < tabIdx
+                app.SubplotDescriptions{end+1} = {};
+            end
+
+            % Initialize subplot captions for this tab
+            app.SubplotCaptions{tabIdx} = cell(1, numSubplots);
+            app.SubplotDescriptions{tabIdx} = cell(1, numSubplots);
+
+            % Set default captions
+            for i = 1:numSubplots
+                if isempty(app.SubplotCaptions{tabIdx}{i})
+                    app.SubplotCaptions{tabIdx}{i} = sprintf('Figure %d.%d', tabIdx, i);
+                end
+                if isempty(app.SubplotDescriptions{tabIdx}{i})
+                    app.SubplotDescriptions{tabIdx}{i} = sprintf('Signal plot for Tab %d, Subplot %d', tabIdx, i);
+                end
+            end
+        end
+
+        function editSubplotCaption(app, tabIdx, subplotIdx)
+            % Edit caption and description for a specific subplot
+
+            % Ensure arrays are initialized
+            if numel(app.SubplotCaptions) < tabIdx || numel(app.SubplotCaptions{tabIdx}) < subplotIdx
+                nPlots = app.PlotManager.TabLayouts{tabIdx}(1) * app.PlotManager.TabLayouts{tabIdx}(2);
+                app.initializeCaptionArrays(tabIdx, nPlots);
+            end
+
+            % Get current values
+            currentCaption = app.SubplotCaptions{tabIdx}{subplotIdx};
+            currentDescription = app.SubplotDescriptions{tabIdx}{subplotIdx};
+
+            % Create dialog
+            d = dialog('Name', 'Edit Figure Caption', 'Position', [300 300 450 300]);
+
+            % Caption label and field
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 250 80 20], ...
+                'String', 'Caption:', 'HorizontalAlignment', 'left');
+            captionField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [20 225 410 25], ...
+                'String', currentCaption, 'HorizontalAlignment', 'left');
+
+            % Description label and field
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 190 80 20], ...
+                'String', 'Description:', 'HorizontalAlignment', 'left');
+            descField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [20 120 410 65], ...
+                'String', currentDescription, 'Max', 3, 'HorizontalAlignment', 'left');
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Save', ...
+                'Position', [280 20 60 25], 'Callback', @(~,~) saveCaption());
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [350 20 60 25], 'Callback', @(~,~) close(d));
+
+            function saveCaption()
+                % Save the new caption and description
+                app.SubplotCaptions{tabIdx}{subplotIdx} = captionField.String;
+                app.SubplotDescriptions{tabIdx}{subplotIdx} = descField.String;
+
+                % Update status
+                app.StatusLabel.Text = sprintf('✅ Caption updated for Plot %d.%d', tabIdx, subplotIdx);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                close(d);
+                app.restoreFocus();
+            end
+        end
+
 
         function clearSubplotHighlights(app, tabIdx)
             % Clear all subplot highlights for a given tab
@@ -785,11 +867,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
         function saveConfig(app)
             % Delegate to ConfigManager
             app.ConfigManager.saveConfig();
+            figure(app.UIFigure);
         end
 
         function loadConfig(app)
             % Delegate to ConfigManager
             app.ConfigManager.loadConfig();
+            figure(app.UIFigure);
         end
         function saveSession(app)
             % Save the current app session to a .mat file
@@ -831,9 +915,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 session.SignalStyles = struct();
             end
 
+            session.SubplotCaptions = app.SubplotCaptions;
+            session.SubplotDescriptions = app.SubplotDescriptions;
+
             save(fullfile(path, file), 'session');
             app.StatusLabel.Text = '✅ Session saved successfully';
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            figure(app.UIFigure);
         end
         function loadSession(app)
             % Load a session from a .mat file
@@ -894,6 +982,18 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.SignalStyles = session.SignalStyles;
             end
 
+            if isfield(session, 'SubplotCaptions')
+                app.SubplotCaptions = session.SubplotCaptions;
+            else
+                app.SubplotCaptions = {};
+            end
+
+            if isfield(session, 'SubplotDescriptions')
+                app.SubplotDescriptions = session.SubplotDescriptions;
+            else
+                app.SubplotDescriptions = {};
+            end
+
             app.buildSignalTree();
             app.PlotManager.refreshPlots();
 
@@ -902,6 +1002,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
             app.StatusLabel.Text = '✅ Session loaded successfully';
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            figure(app.UIFigure);
         end
 
         function autoScaleAllTabs(app)

@@ -327,31 +327,6 @@ classdef PlotManager < handle
             end
         end
 
-        function zoomSubplotToFit(obj, tabIdx, subplotIdx)
-            % Auto-fit zoom for specific subplot
-            try
-                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
-                    return;
-                end
-
-                ax = obj.AxesArrays{tabIdx}(subplotIdx);
-                if ~isvalid(ax)
-                    return;
-                end
-
-                % Auto-scale the subplot
-                ax.XLimMode = 'auto';
-                ax.YLimMode = 'auto';
-                axis(ax, 'auto');
-
-                obj.App.StatusLabel.Text = sprintf('🔍 Plot %d zoomed to fit', subplotIdx);
-                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
-
-            catch ME
-                obj.App.StatusLabel.Text = '✅ PDF exported successfully';
-                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
-            end
-        end
 
         function clearSubplot(obj, tabIdx, subplotIdx)
             % Clear all signals from a specific subplot
@@ -448,9 +423,14 @@ classdef PlotManager < handle
                 % ADD COMBINED CONTEXT MENU with both data tips and export options
                 cm = uicontextmenu(obj.App.UIFigure);
 
+                % Caption editing - NEW
+                uimenu(cm, 'Text', '📝 Edit Caption & Description', ...
+                    'MenuSelectedFcn', @(src, event) obj.App.editSubplotCaption(tabIdx, i));
+
                 % Data tips toggle - always available
                 uimenu(cm, 'Text', '🎯 Toggle Data Tips', ...
-                    'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax));
+                    'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax), ...
+                    'Separator', 'on');
 
                 % Export options - always available
                 uimenu(cm, 'Text', '📊 Export to MATLAB Figure', ...
@@ -461,10 +441,6 @@ classdef PlotManager < handle
                 uimenu(cm, 'Text', '💾 Save as Image', ...
                     'MenuSelectedFcn', @(src, event) obj.saveSubplotAsImage(tabIdx, i));
 
-                % Plot operations - always available
-                uimenu(cm, 'Text', '🔍 Zoom to Fit', ...
-                    'MenuSelectedFcn', @(src, event) obj.zoomSubplotToFit(tabIdx, i), ...
-                    'Separator', 'on');
                 uimenu(cm, 'Text', '🗑️ Clear Subplot', ...
                     'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
 
@@ -477,6 +453,101 @@ classdef PlotManager < handle
             obj.App.PlotManager.refreshPlots(tabIdx);
             % Highlight the selected subplot
             obj.App.highlightSelectedSubplot(tabIdx, obj.SelectedSubplotIdx);
+            obj.App.initializeCaptionArrays(tabIdx, nPlots);
+        end
+
+        function showPDFExportDialog(obj)
+            app = obj.App;
+
+            % Check if there are plots to export
+            if obj.CurrentTabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{obj.CurrentTabIdx})
+                app.StatusLabel.Text = '⚠️ No plots to export';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            % Create PDF export dialog
+            d = dialog('Name', 'PDF Export Options', 'Position', [300 300 500 550]);
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 510 460 25], ...
+                'String', 'PDF Report Export Options:', 'FontSize', 12, 'FontWeight', 'bold');
+
+            % Report settings
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 475 100 20], ...
+                'String', 'Report Title:', 'HorizontalAlignment', 'left');
+            titleField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [130 475 350 25], ...
+                'String', app.PDFReportTitle, 'HorizontalAlignment', 'left');
+
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 440 100 20], ...
+                'String', 'Author:', 'HorizontalAlignment', 'left');
+            authorField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [130 440 350 25], ...
+                'String', app.PDFReportAuthor, 'HorizontalAlignment', 'left');
+
+            % Export scope options
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 400 460 20], ...
+                'String', 'Export Scope:', 'FontSize', 11, 'FontWeight', 'bold');
+
+            % Export option buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 360 460 30], ...
+                'String', '📊 Current Tab Only (with captions)', ...
+                'Callback', @(~,~) exportPDFAndClose(1));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 325 460 30], ...
+                'String', '📚 All Tabs (with captions)', ...
+                'Callback', @(~,~) exportPDFAndClose(2));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 290 460 30], ...
+                'String', '📋 Current Tab - Active Subplots Only (with data)', ...
+                'Callback', @(~,~) exportPDFAndClose(3));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 255 460 30], ...
+                'String', '🗂️ All Tabs - Active Subplots Only (with data)', ...
+                'Callback', @(~,~) exportPDFAndClose(4));
+
+            % Options
+            includeTableCheck = uicontrol('Parent', d, 'Style', 'checkbox', 'Position', [20 210 460 20], ...
+                'String', 'Include signal statistics table', 'Value', 1);
+
+            includeTOCCheck = uicontrol('Parent', d, 'Style', 'checkbox', 'Position', [20 185 460 20], ...
+                'String', 'Include table of contents', 'Value', 1);
+
+            % Info text
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 140 460 35], ...
+                'String', 'The PDF will include figure numbers, captions, descriptions, and a professional report layout.', ...
+                'FontSize', 10, 'HorizontalAlignment', 'center');
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [400 20 80 30], 'Callback', @(~,~) close(d));
+
+            function exportPDFAndClose(option)
+                % Save report settings
+                app.PDFReportTitle = titleField.String;
+                app.PDFReportAuthor = authorField.String;
+
+                % Call appropriate PDF export function
+                options = struct();
+                options.includeStats = includeTableCheck.Value;
+                options.includeTOC = includeTOCCheck.Value;
+
+                switch option
+                    case 1
+                        obj.createReportPDF('currentTab', options);
+                    case 2
+                        obj.createReportPDF('allTabs', options);
+                    case 3
+                        obj.createReportPDF('currentTabActive', options);
+                    case 4
+                        obj.createReportPDF('allTabsActive', options);
+                end
+                close(d);
+                app.restoreFocus();
+            end
         end
         % **MAIN METHOD: Improved refreshPlots with streaming optimization - NO CLEARING DURING STREAMING**
         function refreshPlots(obj, tabIndices)
@@ -1277,114 +1348,138 @@ classdef PlotManager < handle
         end
 
         function exportToPDF(obj)
-            if obj.CurrentTabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{obj.CurrentTabIdx})
-                obj.App.StatusLabel.Text = '⚠️ No plots to export';
-                obj.App.StatusLabel.FontColor = [0.9 0.6 0.2];
-                obj.App.restoreFocus();
+            % Show PDF export dialog instead of direct export
+            obj.showPDFExportDialog();
+        end
+
+        function createReportPDF(obj, scope, options)
+            app = obj.App;
+
+            % Get save location
+            defaultName = sprintf('%s_%s.pdf', strrep(app.PDFReportTitle, ' ', '_'), datestr(now, 'yyyymmdd'));
+            [file, path] = uiputfile('*.pdf', 'Save PDF Report', defaultName);
+            if isequal(file, 0)
+                app.restoreFocus();
                 return;
             end
 
-            [file, path] = uiputfile('*.pdf', 'Export Plots to PDF');
-            if isequal(file, 0), return; end
+            fullPath = fullfile(path, file);
 
             try
-                exportFig = figure('Visible', 'off', 'Position', [100 100 800 600], 'Color', [1 1 1]);
-                axes_array = obj.AxesArrays{obj.CurrentTabIdx};
-                [rows, cols] = size(reshape(1:numel(axes_array), obj.TabLayouts{obj.CurrentTabIdx}));
+                app.StatusLabel.Text = '📄 Generating PDF report...';
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                drawnow;
 
-                for i = 1:numel(axes_array)
-                    sourceAx = axes_array(i);
-                    if ~isvalid(sourceAx)
-                        continue;
-                    end
+                % Determine which plots to include
+                plotsToInclude = obj.determinePlotsToInclude(scope);
 
-                    subplot(rows, cols, i);
-                    currentAx = gca;
-
-                    % Get all children and filter out highlight borders
-                    allChildren = allchild(sourceAx);
-                    validChildren = [];
-
-                    % Get highlight borders to exclude
-                    highlightBorders = [];
-                    if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
-                        highlightBorders = sourceAx.UserData.HighlightBorders;
-                    end
-
-                    % Filter children: only copy actual signal plots (exclude highlight borders)
-                    for j = 1:numel(allChildren)
-                        child = allChildren(j);
-
-                        % Skip if it's a highlight border
-                        isHighlightBorder = false;
-                        for k = 1:numel(highlightBorders)
-                            if isequal(child, highlightBorders(k))
-                                isHighlightBorder = true;
-                                break;
-                            end
-                        end
-
-                        if isHighlightBorder
-                            continue;
-                        end
-
-                        % Only copy line objects that represent actual signals
-                        if isa(child, 'matlab.graphics.chart.primitive.Line')
-                            % Check if it has a meaningful DisplayName or is a real signal plot
-                            if (isprop(child, 'DisplayName') && ~isempty(child.DisplayName) && ~strcmp(child.DisplayName, '')) || ...
-                                    (child.LineWidth <= 3) % Real signals usually have normal line width
-                                validChildren = [validChildren; child];
-                            end
-                        end
-                    end
-
-                    % Copy only the valid signal plots
-                    if ~isempty(validChildren)
-                        copyobj(validChildren, currentAx);
-                    end
-
-                    % Copy axes properties but use normal colors
-                    title(currentAx, sourceAx.Title.String, 'Color', 'black');
-                    xlabel(currentAx, sourceAx.XLabel.String, 'Color', 'black');
-                    ylabel(currentAx, sourceAx.YLabel.String, 'Color', 'black');
-
-                    % Set normal axes styling (no green highlights)
-                    set(currentAx, 'Color', [1 1 1], 'XColor', [0.15 0.15 0.15], 'YColor', [0.15 0.15 0.15]);
-                    grid(currentAx, 'on');
-
-                    % Copy axis limits
-                    currentAx.XLim = sourceAx.XLim;
-                    currentAx.YLim = sourceAx.YLim;
-
-                    % Create legend from valid signal plots only
-                    legendEntries = {};
-                    legendHandles = [];
-                    for j = 1:numel(currentAx.Children)
-                        child = currentAx.Children(j);
-                        if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
-                                isprop(child, 'DisplayName') && ...
-                                ~isempty(child.DisplayName) && ~strcmp(child.DisplayName, '')
-                            legendHandles = [legendHandles; child];
-                            legendEntries{end+1} = child.DisplayName;
-                        end
-                    end
-
-                    if ~isempty(legendHandles)
-                        legend(currentAx, legendHandles, legendEntries, 'Location', 'best');
-                    end
+                if isempty(plotsToInclude)
+                    app.StatusLabel.Text = '⚠️ No plots to include in PDF';
+                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                    return;
                 end
 
-                print(exportFig, fullfile(path, file), '-dpdf', '-fillpage');
-                close(exportFig);
-                obj.App.StatusLabel.Text = '✅ PDF exported successfully';
-                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+                fprintf('Debug: Found %d plots to include\n', size(plotsToInclude, 1));
+                fprintf('Debug: Output path: %s\n', fullPath);
+
+                % Create temporary figure for report generation
+                reportFig = figure('Visible', 'off', 'Position', [100 100 800 600], ...
+                    'Color', [1 1 1], 'PaperType', 'a4', 'PaperOrientation', 'portrait');
+
+                % Generate report
+                obj.generatePDFReport(reportFig, plotsToInclude, options, fullPath);
+
+                % Clean up
+                close(reportFig);
+
+                % Check if file was created
+                if exist(fullPath, 'file')
+                    app.StatusLabel.Text = sprintf('✅ PDF report saved: %s', file);
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    fprintf('Debug: PDF file created successfully at: %s\n', fullPath);
+
+                    % Ask if user wants to open the PDF
+                    answer = questdlg('PDF created successfully. Open it now?', 'PDF Export', 'Yes', 'No', 'Yes');
+                    if strcmp(answer, 'Yes')
+                        try
+                            if ispc
+                                winopen(fullPath);
+                            elseif ismac
+                                system(['open "' fullPath '"']);
+                            else
+                                system(['xdg-open "' fullPath '"']);
+                            end
+                        catch
+                            fprintf('Could not open PDF automatically\n');
+                        end
+                    end
+                else
+                    app.StatusLabel.Text = '❌ PDF file was not created';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    fprintf('Debug: PDF file was not created at: %s\n', fullPath);
+                end
 
             catch ME
-                if exist('exportFig', 'var') && isvalid(exportFig)
-                    close(exportFig);
+                if exist('reportFig', 'var') && isvalid(reportFig)
+                    close(reportFig);
                 end
-                obj.App.StatusLabel.Text = ['❌ Export failed: ' ME.message];
-                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+                app.StatusLabel.Text = ['❌ PDF generation failed: ' ME.message];
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                fprintf('Debug: Error during PDF generation: %s\n', ME.message);
+                fprintf('Debug: Stack trace:\n');
+                for i = 1:length(ME.stack)
+                    fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
+                end
+            end
+
+            app.restoreFocus();
+        end
+
+        function generatePDFReport(obj, reportFig, plotsToInclude, options, outputPath)
+            app = obj.App;
+
+            try
+                % Create a single PDF with multiple figures per page to avoid append issues
+
+                % Calculate how many plots we can fit per page
+                totalPlots = size(plotsToInclude, 1);
+
+                % Page 1: Title page only
+                clf(reportFig);
+                obj.createTitlePage(reportFig, options);
+                print(reportFig, outputPath, '-dpdf', '-fillpage');
+
+                % Create subsequent pages with plots
+                figureNumber = 1;
+                plotIndex = 1;
+
+                while plotIndex <= totalPlots
+                    clf(reportFig);
+
+                    % Put one plot per page for best quality
+                    tabIdx = plotsToInclude(plotIndex, 1);
+                    subplotIdx = plotsToInclude(plotIndex, 2);
+
+                    obj.createPlotPage(reportFig, tabIdx, subplotIdx, figureNumber, options);
+
+                    % Save as separate file (avoiding append issue)
+                    [pathStr, name, ext] = fileparts(outputPath);
+                    pageFileName = fullfile(pathStr, sprintf('%s_Figure%d%s', name, figureNumber, ext));
+                    print(reportFig, pageFileName, '-dpdf', '-fillpage');
+
+                    plotIndex = plotIndex + 1;
+                    figureNumber = figureNumber + 1;
+
+                    % Update progress
+                    app.StatusLabel.Text = sprintf('📄 Created Figure %d of %d', figureNumber-1, totalPlots);
+                    drawnow;
+                end
+
+                % Update final status
+                app.StatusLabel.Text = sprintf('✅ Created %d PDF files: 1 title + %d figures', totalPlots + 1, totalPlots);
+
+            catch ME
+                error('PDF generation failed: %s', ME.message);
             end
         end
 
@@ -1634,8 +1729,238 @@ classdef PlotManager < handle
                 obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
+        function plotsToInclude = determinePlotsToInclude(obj, scope)
+            plotsToInclude = [];
+
+            switch scope
+                case 'currentTab'
+                    tabIdx = obj.CurrentTabIdx;
+                    if tabIdx <= numel(obj.AxesArrays) && ~isempty(obj.AxesArrays{tabIdx})
+                        for i = 1:numel(obj.AxesArrays{tabIdx})
+                            plotsToInclude(end+1,:) = [tabIdx, i];
+                        end
+                    end
+
+                case 'allTabs'
+                    for tabIdx = 1:numel(obj.AxesArrays)
+                        if ~isempty(obj.AxesArrays{tabIdx})
+                            for i = 1:numel(obj.AxesArrays{tabIdx})
+                                plotsToInclude(end+1,:) = [tabIdx, i];
+                            end
+                        end
+                    end
+
+                case 'currentTabActive'
+                    tabIdx = obj.CurrentTabIdx;
+                    if tabIdx <= numel(obj.AssignedSignals)
+                        for i = 1:numel(obj.AssignedSignals{tabIdx})
+                            if ~isempty(obj.AssignedSignals{tabIdx}{i})
+                                plotsToInclude(end+1,:) = [tabIdx, i];
+                            end
+                        end
+                    end
+
+                case 'allTabsActive'
+                    for tabIdx = 1:numel(obj.AssignedSignals)
+                        for i = 1:numel(obj.AssignedSignals{tabIdx})
+                            if ~isempty(obj.AssignedSignals{tabIdx}{i})
+                                plotsToInclude(end+1,:) = [tabIdx, i];
+                            end
+                        end
+                    end
+            end
+        end
+
+        function createTitlePage(obj, fig, options)
+            app = obj.App;
+
+            % Create title page layout
+            ax = axes('Parent', fig, 'Position', [0.1 0.1 0.8 0.8], 'Visible', 'off');
+
+            % Title
+            text(ax, 0.5, 0.8, app.PDFReportTitle, 'FontSize', 24, 'FontWeight', 'bold', ...
+                'HorizontalAlignment', 'center', 'Units', 'normalized');
+
+            % Author
+            if ~isempty(app.PDFReportAuthor)
+                text(ax, 0.5, 0.7, ['Author: ' app.PDFReportAuthor], 'FontSize', 14, ...
+                    'HorizontalAlignment', 'center', 'Units', 'normalized');
+            end
+
+            % Date
+            text(ax, 0.5, 0.6, ['Generated: ' datestr(now, 'yyyy-mm-dd HH:MM')], ...
+                'FontSize', 12, 'HorizontalAlignment', 'center', 'Units', 'normalized');
+
+            % Summary info
+            numTabs = numel(obj.AxesArrays);
+            totalPlots = 0;
+            for i = 1:numTabs
+                if ~isempty(obj.AxesArrays{i})
+                    totalPlots = totalPlots + numel(obj.AxesArrays{i});
+                end
+            end
+
+            summaryText = sprintf('Report contains %d tabs with %d total plots', numTabs, totalPlots);
+            text(ax, 0.5, 0.4, summaryText, 'FontSize', 12, ...
+                'HorizontalAlignment', 'center', 'Units', 'normalized');
+        end
+
+        function createPlotPage(obj, fig, tabIdx, subplotIdx, figureNumber, options)
+            app = obj.App;
+
+            % Get source axes
+            if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                return;
+            end
+
+            sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
+            if ~isvalid(sourceAx)
+                return;
+            end
+
+            % Create main plot area (leave space for caption at bottom)
+            plotAx = axes('Parent', fig, 'Position', [0.1 0.35 0.8 0.55]);
+
+            % Copy plot content (excluding highlight borders)
+            obj.copyPlotContent(sourceAx, plotAx);
+
+            % Add figure title above the plot
+            title(plotAx, sprintf('Figure %d: Tab %d, Plot %d', figureNumber, tabIdx, subplotIdx), ...
+                'FontSize', 16, 'FontWeight', 'bold');
+
+            % Add caption and description below the plot
+            obj.addCaptionToPage(fig, tabIdx, subplotIdx, figureNumber);
+        end
 
 
+
+
+
+        function copyPlotContent(obj, sourceAx, targetAx)
+            % Copy plot content excluding highlight borders
+            allChildren = allchild(sourceAx);
+            validChildren = [];
+
+            % Get highlight borders to exclude
+            highlightBorders = [];
+            if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                highlightBorders = sourceAx.UserData.HighlightBorders;
+            end
+
+            % Filter children: exclude highlight borders
+            for i = 1:numel(allChildren)
+                child = allChildren(i);
+
+                % Skip if it's a highlight border
+                isHighlightBorder = false;
+                for j = 1:numel(highlightBorders)
+                    if isequal(child, highlightBorders(j))
+                        isHighlightBorder = true;
+                        break;
+                    end
+                end
+
+                if ~isHighlightBorder && isa(child, 'matlab.graphics.chart.primitive.Line')
+                    validChildren = [validChildren; child];
+                end
+            end
+
+            % Copy valid children
+            if ~isempty(validChildren)
+                copyobj(validChildren, targetAx);
+            end
+
+            % Copy axes properties
+            targetAx.XLabel.String = sourceAx.XLabel.String;
+            targetAx.YLabel.String = sourceAx.YLabel.String;
+            targetAx.XLim = sourceAx.XLim;
+            targetAx.YLim = sourceAx.YLim;
+
+            % Set normal styling
+            targetAx.XColor = [0.15 0.15 0.15];
+            targetAx.YColor = [0.15 0.15 0.15];
+            targetAx.LineWidth = 1;
+            grid(targetAx, 'on');
+
+            % Add legend if there are labeled plots
+            legendEntries = {};
+            for i = 1:numel(targetAx.Children)
+                child = targetAx.Children(i);
+                if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
+                        isprop(child, 'DisplayName') && ~isempty(child.DisplayName)
+                    legendEntries{end+1} = child.DisplayName;
+                end
+            end
+
+            if ~isempty(legendEntries)
+                legend(targetAx, legendEntries, 'Location', 'best');
+            end
+        end
+
+
+
+
+
+        function addCaptionToPage(obj, fig, tabIdx, subplotIdx, figureNumber)
+            app = obj.App;
+
+            % Get caption and description
+            caption = '';
+            description = '';
+
+            if numel(app.SubplotCaptions) >= tabIdx && ...
+                    numel(app.SubplotCaptions{tabIdx}) >= subplotIdx && ...
+                    ~isempty(app.SubplotCaptions{tabIdx}{subplotIdx})
+                caption = app.SubplotCaptions{tabIdx}{subplotIdx};
+            end
+
+            if numel(app.SubplotDescriptions) >= tabIdx && ...
+                    numel(app.SubplotDescriptions{tabIdx}) >= subplotIdx && ...
+                    ~isempty(app.SubplotDescriptions{tabIdx}{subplotIdx})
+                description = app.SubplotDescriptions{tabIdx}{subplotIdx};
+            end
+
+            % Default caption if empty
+            if isempty(caption)
+                caption = sprintf('Plot for Tab %d, Subplot %d', tabIdx, subplotIdx);
+            end
+
+            % Default description if empty
+            if isempty(description)
+                description = 'No description provided.';
+            end
+
+            % Create caption area - larger space for text
+            captionAx = axes('Parent', fig, 'Position', [0.1 0.05 0.8 0.25], 'Visible', 'off');
+
+            % Caption title (bold)
+            text(captionAx, 0.05, 0.85, sprintf('Figure %d: %s', figureNumber, caption), ...
+                'FontSize', 14, 'FontWeight', 'bold', 'Units', 'normalized', ...
+                'VerticalAlignment', 'top', 'Interpreter', 'none');
+
+            % Description (normal text, wrapped)
+            text(captionAx, 0.05, 0.65, description, ...
+                'FontSize', 11, 'Units', 'normalized', ...
+                'VerticalAlignment', 'top', 'Interpreter', 'none');
+
+            % Add assigned signals info - FIXED: REMOVED FontStyle
+            if tabIdx <= numel(obj.AssignedSignals) && ...
+                    subplotIdx <= numel(obj.AssignedSignals{tabIdx})
+                assignedSignals = obj.AssignedSignals{tabIdx}{subplotIdx};
+                if ~isempty(assignedSignals)
+                    signalNames = {};
+                    for i = 1:numel(assignedSignals)
+                        signalNames{end+1} = assignedSignals{i}.Signal;
+                    end
+                    signalText = sprintf('Signals: %s', strjoin(signalNames, ', '));
+
+                    text(captionAx, 0.05, 0.35, signalText, ...
+                        'FontSize', 10, 'Units', 'normalized', ...
+                        'VerticalAlignment', 'top', 'Interpreter', 'none');
+                    % REMOVED: 'FontStyle', 'italic'
+                end
+            end
+        end
         % Set crosshair position from mouse click
         function setCrosshairFromClick(obj, ax, ~)
             if ~obj.App.CursorState

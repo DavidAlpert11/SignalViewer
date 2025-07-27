@@ -39,7 +39,9 @@ classdef ConfigManager < handle
             try
                 % Validate data before saving
                 if ~obj.validateAppData()
-                    uialert(app.UIFigure, 'Invalid application data. Cannot save configuration.', 'Validation Error');
+                    app.StatusLabel.Text = '❌ Invalid application data. Cannot save configuration';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    app.restoreFocus();
                     return;
                 end
 
@@ -62,7 +64,6 @@ classdef ConfigManager < handle
 
                 % Update status
                 app.StatusLabel.Text = sprintf('✅ Config saved: %s', file);
-                uialert(app.UIFigure, 'Configuration saved successfully.', 'Success');
 
             catch ME
                 obj.handleError(ME, 'Save failed');
@@ -84,7 +85,9 @@ classdef ConfigManager < handle
             try
                 % Validate file exists and is readable
                 if ~isfile(customPath)
-                    uialert(app.UIFigure, 'Configuration file not found.', 'File Error');
+                    app.StatusLabel.Text = '❌ Configuration file not found';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    app.restoreFocus();
                     return;
                 end
 
@@ -95,6 +98,7 @@ classdef ConfigManager < handle
                         'No Data Loaded', ...
                         'Options', {'Load CSVs First', 'Cancel'}, ...
                         'DefaultOption', 'Load CSVs First');
+                    app.restoreFocus();
 
                     if strcmp(answer, 'Load CSVs First')
                         app.UIController.loadMultipleCSVs();
@@ -107,7 +111,9 @@ classdef ConfigManager < handle
                 % Load and validate config file format
                 loaded = load(customPath);
                 if ~isfield(loaded, 'config')
-                    uialert(app.UIFigure, 'Invalid configuration file format.', 'Format Error');
+                    app.StatusLabel.Text = '❌ Invalid configuration file format';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    app.restoreFocus();
                     return;
                 end
 
@@ -130,6 +136,7 @@ classdef ConfigManager < handle
                     answer = uiconfirm(app.UIFigure, msg, 'Signal Mismatch', ...
                         'Options', {'Load Anyway (Partial)', 'Cancel'}, ...
                         'DefaultOption', 'Cancel');
+                    app.restoreFocus();
 
                     if strcmp(answer, 'Cancel')
                         return;
@@ -143,10 +150,8 @@ classdef ConfigManager < handle
                 % Show success message with compatibility info
                 if isCompatible
                     app.StatusLabel.Text = sprintf('✅ Config loaded: %s', extractAfter(customPath, max(strfind(customPath, filesep))));
-                    uialert(app.UIFigure, 'Configuration loaded successfully.', 'Success');
                 else
                     app.StatusLabel.Text = sprintf('⚠️ Config partially loaded: %s', extractAfter(customPath, max(strfind(customPath, filesep))));
-                    uialert(app.UIFigure, sprintf('Configuration partially loaded.\n%d signals were missing.', length(missingSignals)), 'Partial Success');
                 end
 
             catch ME
@@ -211,7 +216,8 @@ classdef ConfigManager < handle
             else
                 config.SignalStyles = struct();
             end
-
+            config.SubplotCaptions = app.SubplotCaptions;
+            config.SubplotDescriptions = app.SubplotDescriptions;
             % Metadata
             config.ConfigVersion = '2.0';
             config.SaveTimestamp = datetime('now');
@@ -291,13 +297,31 @@ classdef ConfigManager < handle
                     app.SignalStyles = config.SignalStyles;
                 end
 
+                if isfield(config, 'SubplotMetadata')
+                    app.SubplotMetadata = config.SubplotMetadata;
+                end
+
+                if isfield(config, 'SignalStyles')
+                    app.SignalStyles = config.SignalStyles;
+                end
+
+                % ADD THESE LINES:
+                if isfield(config, 'SubplotCaptions')
+                    app.SubplotCaptions = config.SubplotCaptions;
+                end
+
+                if isfield(config, 'SubplotDescriptions')
+                    app.SubplotDescriptions = config.SubplotDescriptions;
+                end
+
                 % Refresh the interface
                 app.buildSignalTree();
                 app.PlotManager.refreshPlots();
 
             catch ME
                 fprintf('Error applying configuration: %s\n', ME.message);
-                uialert(app.UIFigure, ['Configuration load failed: ' ME.message], 'Error');
+                app.StatusLabel.Text = ['❌ Configuration load failed: ' ME.message];
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
 
@@ -475,7 +499,8 @@ classdef ConfigManager < handle
             app = obj.App;
 
             errorMsg = sprintf('%s: %s', context, ME.message);
-            uialert(app.UIFigure, errorMsg, 'Error');
+            app.StatusLabel.Text = ['❌ ' errorMsg];
+            app.StatusLabel.FontColor = [0.9 0.3 0.3];
 
             % Log error details
             fprintf('ConfigManager Error (%s):\n', context);
@@ -495,6 +520,7 @@ classdef ConfigManager < handle
                 'Recovery Options', ...
                 'Options', {'Load Default', 'Try Again', 'Cancel'}, ...
                 'DefaultOption', 'Load Default');
+            app.restoreFocus();
 
             switch answer
                 case 'Load Default'
@@ -512,7 +538,8 @@ classdef ConfigManager < handle
                 defaultConfig = obj.createDefaultConfig();
                 obj.applyConfiguration(defaultConfig);
                 obj.App.StatusLabel.Text = '🔄 Default config loaded';
-                uialert(obj.App.UIFigure, 'Default configuration loaded.', 'Recovery');
+                app.StatusLabel.Text = '✅ Default configuration loaded';
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
             catch ME
                 obj.handleError(ME, 'Default config load failed');
             end

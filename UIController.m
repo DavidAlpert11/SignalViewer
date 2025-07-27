@@ -99,6 +99,66 @@ classdef UIController < handle
             end
         end
 
+        function exportAllCSVsAsIs(obj)
+            app = obj.App;
+
+            % Ask user to select export folder
+            exportFolder = uigetdir(pwd, 'Select Folder to Save All CSVs As-Is');
+            if isequal(exportFolder, 0)
+                app.restoreFocus();
+                return;
+            end
+
+            try
+                % Create subfolder with timestamp
+                timestamp = datestr(now, 'yyyymmdd_HHMMSS');
+                exportSubfolder = fullfile(exportFolder, sprintf('CSV_AsIs_%s', timestamp));
+
+                if ~exist(exportSubfolder, 'dir')
+                    mkdir(exportSubfolder);
+                end
+
+                exportedCount = 0;
+                exportedFiles = {};
+
+                % Save each loaded CSV as-is
+                for i = 1:numel(app.DataManager.DataTables)
+                    if ~isempty(app.DataManager.DataTables{i})
+                        % Generate filename from original or generic
+                        if i <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{i})
+                            [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{i});
+                            fileName = sprintf('%s.csv', originalName);
+                        else
+                            fileName = sprintf('CSV_%d.csv', i);
+                        end
+
+                        fullPath = fullfile(exportSubfolder, fileName);
+
+                        % Save the complete table as-is
+                        writetable(app.DataManager.DataTables{i}, fullPath);
+
+                        exportedCount = exportedCount + 1;
+                        exportedFiles{end+1} = fileName;
+                    end
+                end
+
+                % Update status
+                if exportedCount > 0
+                    app.StatusLabel.Text = sprintf('✅ Saved %d CSVs as-is', exportedCount);
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                else
+                    app.StatusLabel.Text = '⚠️ No CSVs to save';
+                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                end
+
+            catch ME
+                app.StatusLabel.Text = ['❌ Save failed: ' ME.message];
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+
+            app.restoreFocus();
+        end
+
         % Callback for when a subplot is selected from the dropdown
         function onSubplotSelected(obj)
             app = obj.App;
@@ -308,87 +368,375 @@ classdef UIController < handle
             app.highlightSelectedSubplot(app.PlotManager.CurrentTabIdx, 1);
         end
 
-        % Export the current data buffer to a CSV file
-        function exportCSV(obj)
+        function exportCurrentSubplot(obj)
             app = obj.App;
-            if isempty(app.DataManager.DataTables) || all(cellfun(@isempty, app.DataManager.DataTables))
-                uialert(app.UIFigure, 'No data to export.', 'Info');
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get signals assigned to current subplot
+            if tabIdx <= numel(app.PlotManager.AssignedSignals) && ...
+                    subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+            else
+                assignedSignals = {};
+            end
+
+            if isempty(assignedSignals)
+                app.StatusLabel.Text = '⚠️ No signals in current subplot';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
                 return;
             end
 
+            obj.exportSignalsToFolder(assignedSignals, sprintf('Tab%d_Plot%d', tabIdx, subplotIdx));
+        end
+
+        function exportCurrentTabActiveSubplots(obj)
+            app = obj.App;
+            tabIdx = app.PlotManager.CurrentTabIdx;
+
+            % Collect all signals from subplots that have signals
+            allSignals = {};
+            activeSubplots = [];
+
+            if tabIdx <= numel(app.PlotManager.AssignedSignals)
+                for subplotIdx = 1:numel(app.PlotManager.AssignedSignals{tabIdx})
+                    signals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+                    if ~isempty(signals)
+                        allSignals = [allSignals, signals];
+                        activeSubplots(end+1) = subplotIdx;
+                    end
+                end
+            end
+
+            if isempty(allSignals)
+                app.StatusLabel.Text = '⚠️ No active subplots in current tab';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            obj.exportSignalsToFolder(allSignals, sprintf('Tab%d_ActiveSubplots', tabIdx));
+        end
+
+        function exportCurrentTabAllSignals(obj)
+            app = obj.App;
+
+            % Export all signals from all CSVs (not filtered by subplot assignment)
+            allSignals = {};
+            for i = 1:numel(app.DataManager.DataTables)
+                if ~isempty(app.DataManager.DataTables{i})
+                    signals = setdiff(app.DataManager.DataTables{i}.Properties.VariableNames, {'Time'});
+                    for j = 1:numel(signals)
+                        sigInfo = struct('CSVIdx', i, 'Signal', signals{j});
+                        allSignals{end+1} = sigInfo;
+                    end
+                end
+            end
+
+            if isempty(allSignals)
+                app.StatusLabel.Text = '⚠️ No signals available';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            obj.exportSignalsToFolder(allSignals, sprintf('Tab%d_AllSignals', tabIdx));
+        end
+
+        function exportAllTabsActiveSubplots(obj)
+            app = obj.App;
+
+            % Collect signals from all active subplots across all tabs
+            allSignals = {};
+
+            for tabIdx = 1:numel(app.PlotManager.AssignedSignals)
+                for subplotIdx = 1:numel(app.PlotManager.AssignedSignals{tabIdx})
+                    signals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+                    if ~isempty(signals)
+                        allSignals = [allSignals, signals];
+                    end
+                end
+            end
+
+            if isempty(allSignals)
+                app.StatusLabel.Text = '⚠️ No active subplots found';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            obj.exportSignalsToFolder(allSignals, 'AllTabs_ActiveSubplots');
+        end
+
+       
+
+
+        
+
+        
+
+        
+
+        
+
+        function exportSignalsToFolder(obj, signalList, folderSuffix)
+            app = obj.App;
+
             % Ask user to select export folder
-            exportFolder = uigetdir(pwd, 'Select Folder to Export All CSVs');
+            exportFolder = uigetdir(pwd, 'Select Folder to Export CSVs');
             if isequal(exportFolder, 0)
+                app.restoreFocus();
                 return;
             end
 
             try
+                % Create subfolder with timestamp
+                timestamp = datestr(now, 'yyyymmdd_HHMMSS');
+                exportSubfolder = fullfile(exportFolder, sprintf('CSV_Export_%s_%s', folderSuffix, timestamp));
+
+                if ~exist(exportSubfolder, 'dir')
+                    mkdir(exportSubfolder);
+                end
+
+                % Group signals by CSV
+                csvGroups = containers.Map('KeyType', 'int32', 'ValueType', 'any');
+
+                for i = 1:numel(signalList)
+                    sigInfo = signalList{i};
+                    csvIdx = sigInfo.CSVIdx;
+
+                    if csvGroups.isKey(csvIdx)
+                        csvGroups(csvIdx) = [csvGroups(csvIdx), {sigInfo.Signal}];
+                    else
+                        csvGroups(csvIdx) = {sigInfo.Signal};
+                    end
+                end
+
                 exportedCount = 0;
                 exportedFiles = {};
 
-                % Export each non-empty CSV table
-                for i = 1:numel(app.DataManager.DataTables)
-                    if ~isempty(app.DataManager.DataTables{i})
-                        % Generate filename
-                        if i <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{i})
-                            % Use original filename if available
-                            [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{i});
-                            fileName = sprintf('%s.csv', originalName);
-                        else
-                            % Generate generic name
-                            fileName = sprintf('CSV_%d.csv', i);
+                % Export each CSV group
+                csvIndices = cell2mat(csvGroups.keys);
+                for csvIdx = csvIndices
+                    if csvIdx <= numel(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{csvIdx})
+                        T = app.DataManager.DataTables{csvIdx};
+                        signalsToExport = csvGroups(csvIdx);
+
+                        % Create export table with Time and selected signals
+                        exportTable = table();
+                        exportTable.Time = T.Time;
+
+                        for j = 1:numel(signalsToExport)
+                            sigName = signalsToExport{j};
+                            if ismember(sigName, T.Properties.VariableNames)
+                                exportTable.(sigName) = T.(sigName);
+                            end
                         end
 
-                        fullPath = fullfile(exportFolder, fileName);
+                        % Generate filename
+                        if csvIdx <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{csvIdx})
+                            [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{csvIdx});
+                            fileName = sprintf('%s_filtered.csv', originalName);
+                        else
+                            fileName = sprintf('CSV_%d_filtered.csv', csvIdx);
+                        end
 
-                        % Export the table
-                        writetable(app.DataManager.DataTables{i}, fullPath);
+                        fullPath = fullfile(exportSubfolder, fileName);
+                        writetable(exportTable, fullPath);
 
                         exportedCount = exportedCount + 1;
                         exportedFiles{end+1} = fileName;
                     end
                 end
 
-                % Show success message with details
+                % Update status
                 if exportedCount > 0
-                    fileList = strjoin(exportedFiles, '\n• ');
-                    successMsg = sprintf('Successfully exported %d CSV files to:\n%s\n\nFiles:\n• %s', ...
-                        exportedCount, exportFolder, fileList);
-
-                    uialert(app.UIFigure, successMsg, 'Export Complete', 'Icon', 'success');
-
-                    % Update status
-                    app.StatusLabel.Text = sprintf('📁 Exported %d CSVs to folder', exportedCount);
+                    app.StatusLabel.Text = sprintf('✅ Exported %d filtered CSVs to %s', exportedCount, folderSuffix);
                     app.StatusLabel.FontColor = [0.2 0.6 0.9];
-
-                    % Ask if user wants to open the folder
-                    answer = uiconfirm(app.UIFigure, ...
-                        'Would you like to open the export folder?', ...
-                        'Open Folder?', ...
-                        'Options', {'Yes', 'No'}, ...
-                        'DefaultOption', 'Yes');
-                    figure(app.UIFigure); % Force focus back to main window
-
-                    if strcmp(answer, 'Yes')
-                        try
-                            if ispc
-                                winopen(exportFolder);
-                            elseif ismac
-                                system(['open "' exportFolder '"']);
-                            else
-                                system(['xdg-open "' exportFolder '"']);
-                            end
-                        catch
-                            % If opening fails, just continue
-                        end
-                    end
                 else
-                    uialert(app.UIFigure, 'No data tables found to export.', 'No Data');
+                    app.StatusLabel.Text = '⚠️ No valid signals to export';
+                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
                 end
 
             catch ME
-                uialert(app.UIFigure, ['Export failed: ' ME.message], 'Error');
+                app.StatusLabel.Text = ['❌ Export failed: ' ME.message];
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
+
+            app.restoreFocus();
+        end
+
+        function exportAllTabsAllSignals(obj)
+            app = obj.App;
+
+            % Export all signals from all CSVs
+            allSignals = {};
+            for i = 1:numel(app.DataManager.DataTables)
+                if ~isempty(app.DataManager.DataTables{i})
+                    signals = setdiff(app.DataManager.DataTables{i}.Properties.VariableNames, {'Time'});
+                    for j = 1:numel(signals)
+                        sigInfo = struct('CSVIdx', i, 'Signal', signals{j});
+                        allSignals{end+1} = sigInfo;
+                    end
+                end
+            end
+
+            if isempty(allSignals)
+                app.StatusLabel.Text = '⚠️ No signals available';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            obj.exportSignalsToFolder(allSignals, 'AllTabs_AllSignals');
+        end
+
+        function showExportCSVDialog(obj)
+            app = obj.App;
+
+            % Check if there's any data to export
+            if isempty(app.DataManager.DataTables) || all(cellfun(@isempty, app.DataManager.DataTables))
+                app.StatusLabel.Text = '⚠️ No data to export';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            % Create export options dialog using traditional controls
+            d = dialog('Name', 'CSV Export Options', 'Position', [300 300 450 480]);
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 440 410 25], ...
+                'String', 'Select Export Scope:', 'FontSize', 12, 'FontWeight', 'bold');
+
+            % Current selection info
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            infoText = sprintf('Current: Tab %d, Subplot %d', tabIdx, subplotIdx);
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 415 410 20], ...
+                'String', infoText, 'FontSize', 10, 'HorizontalAlignment', 'center', ...
+                'ForegroundColor', [0.2 0.6 0.9]);
+
+            % Export option buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 360 410 35], ...
+                'String', '📊 Current Subplot Only (signals in selected subplot)', ...
+                'Callback', @(~,~) exportAndClose(1));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 320 410 35], ...
+                'String', '📋 Current Tab - Active Subplots (subplots with signals)', ...
+                'Callback', @(~,~) exportAndClose(2));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 280 410 35], ...
+                'String', '📑 Current Tab - All Signals', ...
+                'Callback', @(~,~) exportAndClose(3));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 240 410 35], ...
+                'String', '📚 All Tabs - Active Subplots (subplots with signals)', ...
+                'Callback', @(~,~) exportAndClose(4));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 200 410 35], ...
+                'String', '🗂️ All Tabs - All Signals', ...
+                'Callback', @(~,~) exportAndClose(5));
+
+            % NEW: Save CSVs As-Is option
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 160 410 35], ...
+                'String', '💾 Save All CSVs As-Is (original loaded data)', ...
+                'Callback', @(~,~) exportAndClose(6), ...
+                'BackgroundColor', [0.9 0.95 1]);
+
+            % Info text
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 125 410 25], ...
+                'String', 'Filtered exports create new CSVs. "As-Is" saves original loaded data.', ...
+                'FontSize', 10, 'HorizontalAlignment', 'center');
+
+            % Cancel button
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [350 20 80 30], 'Callback', @(~,~) close(d));
+            function exportAllCSVsAsIs(obj)
+                app = obj.App;
+
+                % Ask user to select export folder
+                exportFolder = uigetdir(pwd, 'Select Folder to Save All CSVs As-Is');
+                if isequal(exportFolder, 0)
+                    app.restoreFocus();
+                    return;
+                end
+
+                try
+                    % Create subfolder with timestamp
+                    timestamp = datestr(now, 'yyyymmdd_HHMMSS');
+                    exportSubfolder = fullfile(exportFolder, sprintf('CSV_AsIs_%s', timestamp));
+
+                    if ~exist(exportSubfolder, 'dir')
+                        mkdir(exportSubfolder);
+                    end
+
+                    exportedCount = 0;
+                    exportedFiles = {};
+
+                    % Save each loaded CSV as-is
+                    for i = 1:numel(app.DataManager.DataTables)
+                        if ~isempty(app.DataManager.DataTables{i})
+                            % Generate filename from original or generic
+                            if i <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{i})
+                                [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{i});
+                                fileName = sprintf('%s.csv', originalName);
+                            else
+                                fileName = sprintf('CSV_%d.csv', i);
+                            end
+
+                            fullPath = fullfile(exportSubfolder, fileName);
+
+                            % Save the complete table as-is
+                            writetable(app.DataManager.DataTables{i}, fullPath);
+
+                            exportedCount = exportedCount + 1;
+                            exportedFiles{end+1} = fileName;
+                        end
+                    end
+
+                    % Update status
+                    if exportedCount > 0
+                        app.StatusLabel.Text = sprintf('✅ Saved %d CSVs as-is', exportedCount);
+                        app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    else
+                        app.StatusLabel.Text = '⚠️ No CSVs to save';
+                        app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                    end
+
+                catch ME
+                    app.StatusLabel.Text = ['❌ Save failed: ' ME.message];
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                end
+
+                app.restoreFocus();
+            end
+            function exportAndClose(option)
+                % Call appropriate export function and close dialog
+                switch option
+                    case 1
+                        obj.exportCurrentSubplot();
+                    case 2
+                        obj.exportCurrentTabActiveSubplots();
+                    case 3
+                        obj.exportCurrentTabAllSignals();
+                    case 4
+                        obj.exportAllTabsActiveSubplots();
+                    case 5
+                        obj.exportAllTabsAllSignals();
+                    case 6
+                        obj.exportAllCSVsAsIs();  % NEW
+                end
+                close(d);
+                app.restoreFocus();
+            end
+        end
+        % Export the current data buffer to a CSV file
+        function exportCSV(obj)
+            % Show export options dialog instead of direct export
+            obj.showExportCSVDialog();
         end
 
         % Show a dialog with statistics for all loaded signals

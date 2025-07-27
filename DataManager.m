@@ -279,14 +279,14 @@ classdef DataManager < handle
                     % Use outerjoin for different column structures
                     mergedData = outerjoin(existingData, newData, ...
                         'Keys', 'Time', 'MergeKeys', true, 'Type', 'full');
-                    
+
                     % Clean up duplicate columns from outerjoin
                     mergedData = obj.cleanupJoinedData(mergedData);
                 end
-                
+
                 % Sort by time
                 mergedData = sortrows(mergedData, 'Time');
-                
+
             catch ME
                 % Fallback: just append new data
                 fprintf('Merge error, using simple append: %s\n', ME.message);
@@ -302,25 +302,25 @@ classdef DataManager < handle
                 return;
             end
             vars = cleanedData.Properties.VariableNames;
-            
+
             leftCols = contains(vars, '_left');
             rightCols = contains(vars, '_right');
-            
+
             for i = find(leftCols)
                 leftName = vars{i};
                 baseName = erase(leftName, '_left');
                 rightName = strcat(baseName, '_right');
-                
+
                 if ismember(rightName, vars)
                     % Combine left and right columns (right takes precedence for non-NaN)
                     leftData = cleanedData.(leftName);
                     rightData = cleanedData.(rightName);
-                    
+
                     % Use right data where available, left data otherwise
                     combinedData = leftData;
                     validRight = ~isnan(rightData);
                     combinedData(validRight) = rightData(validRight);
-                    
+
                     cleanedData.(baseName) = combinedData;
                     cleanedData.(leftName) = [];
                     cleanedData.(rightName) = [];
@@ -419,7 +419,7 @@ classdef DataManager < handle
                 % uialert(obj.App.UIFigure, ['Error reading CSV file: ' ME.message], 'Error');
             end
         end
-        
+
         % Add cleanup method
         function delete(obj)
             % Cleanup when object is destroyed
