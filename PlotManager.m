@@ -170,8 +170,11 @@ classdef PlotManager < handle
                 obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
-                uialert(obj.App.UIFigure, ['Export failed: ' ME.message], 'Export Error');
+                obj.App.StatusLabel.Text = ['Export failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
+            obj.App.restoreFocus(); % Restore focus after context menu action
+
         end
         function copySubplotToClipboard(obj, tabIdx, subplotIdx)
             % Copy subplot to clipboard as image
@@ -233,8 +236,8 @@ classdef PlotManager < handle
                 obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
-                uialert(obj.App.UIFigure, ['Copy failed: ' ME.message], 'Copy Error');
-            end
+                obj.App.StatusLabel.Text = ['❌ Copy failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];            end
         end
 
         function saveSubplotAsImage(obj, tabIdx, subplotIdx)
@@ -319,7 +322,8 @@ classdef PlotManager < handle
                 obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
-                uialert(obj.App.UIFigure, ['Save failed: ' ME.message], 'Save Error');
+                obj.App.StatusLabel.Text = ['❌ Zoom failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
 
@@ -344,7 +348,8 @@ classdef PlotManager < handle
                 obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
-                uialert(obj.App.UIFigure, ['Zoom failed: ' ME.message], 'Zoom Error');
+                obj.App.StatusLabel.Text = '✅ PDF exported successfully';
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
             end
         end
 
@@ -365,7 +370,8 @@ classdef PlotManager < handle
                 obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
-                uialert(obj.App.UIFigure, ['Clear failed: ' ME.message], 'Clear Error');
+                obj.App.StatusLabel.Text = ['❌ Clear failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
 
@@ -439,20 +445,31 @@ classdef PlotManager < handle
                 % Add click callback for subplot selection
                 ax.ButtonDownFcn = @(src, event) obj.selectSubplot(tabIdx, i);
 
-                % ADD CONTEXT MENU for right-click options
+                % ADD COMBINED CONTEXT MENU with both data tips and export options
                 cm = uicontextmenu(obj.App.UIFigure);
+
+                % Data tips toggle - always available
+                uimenu(cm, 'Text', '🎯 Toggle Data Tips', ...
+                    'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax));
+
+                % Export options - always available
                 uimenu(cm, 'Text', '📊 Export to MATLAB Figure', ...
-                    'MenuSelectedFcn', @(src, event) obj.exportSubplotToFigure(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) obj.exportSubplotToFigure(tabIdx, i), ...
+                    'Separator', 'on');
                 uimenu(cm, 'Text', '📋 Copy to Clipboard', ...
                     'MenuSelectedFcn', @(src, event) obj.copySubplotToClipboard(tabIdx, i));
                 uimenu(cm, 'Text', '💾 Save as Image', ...
                     'MenuSelectedFcn', @(src, event) obj.saveSubplotAsImage(tabIdx, i));
+
+                % Plot operations - always available
                 uimenu(cm, 'Text', '🔍 Zoom to Fit', ...
-                    'MenuSelectedFcn', @(src, event) obj.zoomSubplotToFit(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) obj.zoomSubplotToFit(tabIdx, i), ...
+                    'Separator', 'on');
                 uimenu(cm, 'Text', '🗑️ Clear Subplot', ...
                     'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
-                ax.ContextMenu = cm;
 
+                % IMPORTANT: Set context menu BEFORE enabling any cursor modes
+                ax.ContextMenu = cm;
                 obj.AxesArrays{tabIdx}(i) = ax;
             end
 
@@ -1261,7 +1278,9 @@ classdef PlotManager < handle
 
         function exportToPDF(obj)
             if obj.CurrentTabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{obj.CurrentTabIdx})
-                uialert(obj.App.UIFigure, 'No plots to export.', 'Info');
+                obj.App.StatusLabel.Text = '⚠️ No plots to export';
+                obj.App.StatusLabel.FontColor = [0.9 0.6 0.2];
+                obj.App.restoreFocus();
                 return;
             end
 
@@ -1357,17 +1376,76 @@ classdef PlotManager < handle
 
                 print(exportFig, fullfile(path, file), '-dpdf', '-fillpage');
                 close(exportFig);
-                uialert(obj.App.UIFigure, '✅ PDF exported successfully!', 'Success');
+                obj.App.StatusLabel.Text = '✅ PDF exported successfully';
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
                 if exist('exportFig', 'var') && isvalid(exportFig)
                     close(exportFig);
                 end
-                uialert(obj.App.UIFigure, ['❌ Export failed: ' ME.message], 'Error');
+                obj.App.StatusLabel.Text = ['❌ Export failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
 
+        function enableDataTipsMode(obj, ax)
+            % Enable data tips mode - user can click data points, right-click to exit
+            try
+                % Enable datacursor mode
+                fig = ancestor(ax, 'figure');
+                dcm = datacursormode(fig);
+                dcm.Enable = 'on';
+                dcm.DisplayStyle = 'datatip';
+                dcm.SnapToDataVertex = 'on';
+                dcm.UpdateFcn = @(obj_dcm, event_obj) obj.customDataTipText(obj_dcm, event_obj);
 
+                % Update axes interactions
+                ax.Interactions = [dataTipInteraction];
+
+                % Show instructions
+                obj.App.StatusLabel.Text = '🎯 Data Tips Mode: Click data points for info, right-click to exit';
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                % Create exit context menu for data tips mode
+                exitCm = uicontextmenu(obj.App.UIFigure);
+                uimenu(exitCm, 'Text', '❌ Exit Data Tips Mode', ...
+                    'MenuSelectedFcn', @(src, event) obj.exitDataTipsMode(ax));
+
+                % Temporarily replace context menu
+                ax.UserData.OriginalContextMenu = ax.ContextMenu;
+                ax.ContextMenu = exitCm;
+
+            catch ME
+                obj.App.StatusLabel.Text = '❌ Error enabling data tips mode';
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
+
+        function exitDataTipsMode(obj, ax)
+            % Exit data tips mode and restore normal context menu
+            try
+                % Disable datacursor mode
+                fig = ancestor(ax, 'figure');
+                dcm = datacursormode(fig);
+                dcm.Enable = 'off';
+
+                % Restore normal interactions
+                ax.Interactions = [panInteraction, zoomInteraction];
+
+                % Restore original context menu
+                if isstruct(ax.UserData) && isfield(ax.UserData, 'OriginalContextMenu')
+                    ax.ContextMenu = ax.UserData.OriginalContextMenu;
+                    ax.UserData = rmfield(ax.UserData, 'OriginalContextMenu');
+                end
+
+                obj.App.StatusLabel.Text = '✅ Exited data tips mode';
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = '❌ Error exiting data tips mode';
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
 
         % Enable synchronized zoom/pan (link x-limits of all axes)
         function enableSyncZoom(obj)
@@ -1521,33 +1599,96 @@ classdef PlotManager < handle
                 end
             end
         end
-        % Enable data cursor mode (data tips) for all axes
-        function enableCursorMode(obj)
-            for i = 1:numel(obj.AxesArrays)
-                if ~isempty(obj.AxesArrays{i})
-                    for ax = obj.AxesArrays{i}
-                        if isvalid(ax) && isgraphics(ax)
-                            try
-                                ax.Interactions = [dataTipInteraction];
-                            end
-                        end
-                    end
+
+
+
+        function toggleDataTipsForAxes(obj, ax)
+            % Toggle data tips while preserving the context menu
+            try
+                % Check if data tips are currently enabled by looking at datacursormode
+                fig = ancestor(ax, 'figure');
+                dcm = datacursormode(fig);
+
+                if strcmp(dcm.Enable, 'on')
+                    % Data tips are ON - turn them OFF
+                    dcm.Enable = 'off';
+                    ax.Interactions = [panInteraction, zoomInteraction];
+                    obj.App.StatusLabel.Text = '🎯 Data tips disabled - right-click for options';
+                    obj.App.StatusLabel.FontColor = [0.5 0.5 0.5];
+                else
+                    % Data tips are OFF - turn them ON but keep context menu
+                    dcm.Enable = 'on';
+                    dcm.DisplayStyle = 'datatip';
+                    dcm.SnapToDataVertex = 'on';
+                    dcm.UpdateFcn = @(obj_dcm, event_obj) obj.customDataTipText(obj_dcm, event_obj);
+
+                    % Set interactions to include data tips
+                    ax.Interactions = [dataTipInteraction, panInteraction, zoomInteraction];
+
+                    obj.App.StatusLabel.Text = '🎯 Data tips enabled - left-click data points, right-click for menu';
+                    obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
                 end
+
+            catch ME
+                obj.App.StatusLabel.Text = sprintf('❌ Error toggling data tips: %s', ME.message);
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
 
-        % Disable data cursor mode, restore default pan/zoom for all axes
-        function disableCursorMode(obj)
-            for i = 1:numel(obj.AxesArrays)
-                if ~isempty(obj.AxesArrays{i})
-                    for ax = obj.AxesArrays{i}
-                        if isvalid(ax) && isgraphics(ax)
-                            try
-                                ax.Interactions = [panInteraction zoomInteraction];
-                            end
-                        end
-                    end
+
+        % Set crosshair position from mouse click
+        function setCrosshairFromClick(obj, ax, ~)
+            if ~obj.App.CursorState
+                return;
+            end
+
+            try
+                % Get click position
+                mousePos = ax.CurrentPoint;
+                newX = mousePos(1, 1);
+
+                % Check if X is within bounds
+                xlims = ax.XLim;
+                if newX >= xlims(1) && newX <= xlims(2)
+                    obj.setCrosshairX(newX);
                 end
+            catch
+                % Ignore errors
+            end
+        end
+
+
+        % Custom data tip text function (like SDI)
+        function txt = customDataTipText(obj, ~, event_obj)
+            % Get position and target
+            pos = get(event_obj, 'Position');
+            target = get(event_obj, 'Target');
+
+            % Get signal name from DisplayName
+            signalName = get(target, 'DisplayName');
+            if isempty(signalName)
+                signalName = 'Signal';
+            end
+
+            % Format like SDI: Signal name, Time, Value
+            txt = {
+                ['Signal: ' signalName], ...
+                ['Time: ' num2str(pos(1), '%.6f')], ...
+                ['Value: ' num2str(pos(2), '%.6f')]
+                };
+
+            % Add index if available
+            try
+                % Find the closest data point index
+                xdata = get(target, 'XData');
+                ydata = get(target, 'YData');
+
+                if ~isempty(xdata) && ~isempty(ydata)
+                    [~, idx] = min(abs(xdata - pos(1)));
+                    txt{end+1} = ['Index: ' num2str(idx)];
+                end
+            catch
+                % Skip index if can't determine
             end
         end
         % New method to update visual indicators in signal tree

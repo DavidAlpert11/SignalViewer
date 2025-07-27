@@ -9,6 +9,8 @@ classdef PlotManager < handle
         SelectedSubplotIdx
         CurrentTabIdx
         GridLayouts
+        TabControls
+        MainTabGridLayouts
         % Add properties for stable streaming
         AxesLimits  % Store current limits to prevent jumping
         LastDataTime % Track last data time for each axes
@@ -28,6 +30,8 @@ classdef PlotManager < handle
             obj.AssignedSignals = {};
             obj.TabLayouts = {};
             obj.GridLayouts = {};
+            obj.TabControls = {};
+            obj.MainTabGridLayouts = {};
             obj.LinkedAxes = matlab.graphics.axis.Axes.empty;
             obj.CurrentTabIdx = 1;
             obj.SelectedSubplotIdx = 1;
@@ -38,36 +42,337 @@ classdef PlotManager < handle
         % Initialize the plot manager (create the first tab)
         function initialize(obj)
             obj.createFirstTab();
+            obj.setupTabCallbacks();
         end
 
-        % Create the first tab with default layout and context menu
         function createFirstTab(obj)
-            % Create first tab with LIGHT MODE styling
-            tab = uitab(obj.App.MainTabGroup, 'Title', 'Tab 1 ❌', ...
+            % Create first tab with LIGHT MODE styling - NO X icon initially
+            tab = uitab(obj.App.MainTabGroup, 'Title', 'Tab 1', ...
                 'BackgroundColor', [0.98 0.98 0.98]);
-            % Add context menu for closing
-            cm = uicontextmenu(obj.App.UIFigure);
-            uimenu(cm, 'Text', 'Close Tab', 'MenuSelectedFcn', @(src, event) obj.deleteTabByHandle(tab));
-            tab.ContextMenu = cm;
-            obj.PlotTabs{1} = tab;
-            obj.GridLayouts{1} = uigridlayout(tab, [2, 1], ...
-                'BackgroundColor', [0.98 0.98 0.98]);   % Light background
-            obj.AxesArrays{1} = matlab.ui.control.UIAxes.empty;
 
+            % Create a parent layout with 2 rows: [control panel; plot area]
+            mainLayout = uigridlayout(tab, [2, 1]);
+            mainLayout.RowHeight = {60, '1x'}; % Top row: fixed 60px, Bottom: fills remaining space
+            mainLayout.ColumnWidth = {'1x'}; % Single column fills width
+
+            % Initialize all arrays for the first tab
+            obj.PlotTabs{1} = tab;
+            obj.GridLayouts{1} = [];  % Will be assigned in createSubplotsForTab
+            obj.AxesArrays{1} = matlab.ui.control.UIAxes.empty;
+            obj.TabLayouts{1} = [2, 1];
+            obj.AxesLimits{1} = {};
+            obj.LastDataTime{1} = {};
+            obj.TabControls{1} = [];
+
+            % Store the main layout for this tab
+            if ~isprop(obj, 'MainTabGridLayouts')
+                obj.MainTabGridLayouts = {};
+            end
+            obj.MainTabGridLayouts{1} = mainLayout;
+
+            % Initialize assigned signals for the first tab
             obj.AssignedSignals{1} = cell(2, 1);
             for i = 1:2
                 obj.AssignedSignals{1}{i} = {};
             end
 
-            obj.TabLayouts{1} = [2, 1];
+            % ADD CONTROLS FIRST (they go in row 1)
+            obj.addTabControls(1);
+
+            % THEN CREATE SUBPLOTS (they go in row 2)
             obj.createSubplotsForTab(1, 2, 1);
+
             obj.CurrentTabIdx = 1;
-            
+
             % Highlight the first subplot
             obj.App.highlightSelectedSubplot(1, 1);
 
-            % Ensure the + tab exists
+            % Ensure the + tab exists at the end
             obj.ensurePlusTab();
+            obj.ensurePlusTabAtEnd();
+
+            % Update tab titles to show/hide X icons appropriately
+            obj.updateTabTitles();
+        end
+        function exportSubplotToFigure(obj, tabIdx, subplotIdx)
+            % Export a specific subplot to a new MATLAB figure
+            try
+                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                    return;
+                end
+
+                sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
+                if ~isvalid(sourceAx)
+                    return;
+                end
+
+                % Create new figure
+                newFig = figure('Name', sprintf('Tab %d - Plot %d', tabIdx, subplotIdx), ...
+                    'Position', [100 100 800 600], ...
+                    'Color', [1 1 1]);
+
+                % Create axes in the new figure
+                newAx = axes(newFig);
+
+                % Copy all children from source to new axes
+                allChildren = allchild(sourceAx);
+                validChildren = [];
+                legendEntries = {};
+
+                % Filter children: only copy actual signal plots (lines with DisplayName)
+                for i = 1:numel(allChildren)
+                    child = allChildren(i);
+
+                    % Only copy line objects that represent actual signals
+                    if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
+                            isprop(child, 'DisplayName') && ...
+                            ~isempty(child.DisplayName) && ...
+                            ~strcmp(child.DisplayName, '')
+
+                        validChildren = [validChildren; child];
+                        legendEntries{end+1} = child.DisplayName;
+                    end
+                end
+
+                % Copy only the valid signal plots
+                if ~isempty(validChildren)
+                    copyobj(validChildren, newAx);
+                end
+
+                % Copy axes properties
+                newAx.XLabel.String = sourceAx.XLabel.String;
+                newAx.YLabel.String = sourceAx.YLabel.String;
+                newAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
+                newAx.XLim = sourceAx.XLim;
+                newAx.YLim = sourceAx.YLim;
+
+                % Copy grid settings
+                grid(newAx, 'on');
+                newAx.XGrid = sourceAx.XGrid;
+                newAx.YGrid = sourceAx.YGrid;
+                newAx.XMinorGrid = sourceAx.XMinorGrid;
+                newAx.YMinorGrid = sourceAx.YMinorGrid;
+                newAx.GridAlpha = sourceAx.GridAlpha;
+                newAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
+
+                % ALWAYS use normal axes colors in export (not green highlight)
+                newAx.XColor = [0.15 0.15 0.15];
+                newAx.YColor = [0.15 0.15 0.15];
+                newAx.LineWidth = 1;
+
+                % Add legend only if we have valid entries
+                if ~isempty(legendEntries)
+                    legend(newAx, legendEntries, 'Location', 'best');
+                end
+
+                % Update status
+                obj.App.StatusLabel.Text = sprintf('📊 Exported Plot %d to MATLAB Figure', subplotIdx);
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = ['Export failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+            obj.App.restoreFocus(); % Restore focus after context menu action
+
+        end
+        function copySubplotToClipboard(obj, tabIdx, subplotIdx)
+            % Copy subplot to clipboard as image
+            try
+                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                    return;
+                end
+
+                sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
+                if ~isvalid(sourceAx)
+                    return;
+                end
+
+                % Create temporary figure for export
+                tempFig = figure('Visible', 'off', 'Position', [0 0 800 600]);
+                tempAx = axes(tempFig);
+
+                % Copy content excluding highlight borders
+                allChildren = allchild(sourceAx);
+                validChildren = [];
+
+                % Filter out highlight border lines
+                highlightBorders = [];
+                if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                    highlightBorders = sourceAx.UserData.HighlightBorders;
+                end
+
+                for i = 1:numel(allChildren)
+                    child = allChildren(i);
+                    % Only copy if it's not a highlight border
+                    if ~any(highlightBorders == child)
+                        validChildren = [validChildren; child];
+                    end
+                end
+
+                % Copy only the valid children
+                if ~isempty(validChildren)
+                    copyobj(validChildren, tempAx);
+                end
+
+                tempAx.XLabel.String = sourceAx.XLabel.String;
+                tempAx.YLabel.String = sourceAx.YLabel.String;
+                tempAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
+                tempAx.XLim = sourceAx.XLim;
+                tempAx.YLim = sourceAx.YLim;
+
+                % Set normal colors
+                tempAx.XColor = [0.15 0.15 0.15];
+                tempAx.YColor = [0.15 0.15 0.15];
+                tempAx.LineWidth = 1;
+
+                % Copy to clipboard
+                print(tempFig, '-dbitmap');
+
+                % Clean up
+                close(tempFig);
+
+                obj.App.StatusLabel.Text = sprintf('📋 Plot %d copied to clipboard', subplotIdx);
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = ['❌ Copy failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];            end
+        end
+
+        function saveSubplotAsImage(obj, tabIdx, subplotIdx)
+            % Save subplot as image file
+            try
+                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                    return;
+                end
+
+                sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
+                if ~isvalid(sourceAx)
+                    return;
+                end
+
+                % Get save location
+                defaultName = sprintf('Tab%d_Plot%d.png', tabIdx, subplotIdx);
+                [file, path] = uiputfile({'*.png', 'PNG Files'; '*.jpg', 'JPEG Files'; ...
+                    '*.pdf', 'PDF Files'; '*.svg', 'SVG Files'}, ...
+                    'Save Plot As', defaultName);
+
+                if isequal(file, 0)
+                    return;
+                end
+
+                % Create temporary figure for export
+                tempFig = figure('Visible', 'off', 'Position', [0 0 800 600], 'Color', [1 1 1]);
+                tempAx = axes(tempFig);
+
+                % Copy content excluding highlight borders
+                allChildren = allchild(sourceAx);
+                validChildren = [];
+
+                % Filter out highlight border lines
+                highlightBorders = [];
+                if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                    highlightBorders = sourceAx.UserData.HighlightBorders;
+                end
+
+                for i = 1:numel(allChildren)
+                    child = allChildren(i);
+                    % Only copy if it's not a highlight border
+                    if ~any(highlightBorders == child)
+                        validChildren = [validChildren; child];
+                    end
+                end
+
+                % Copy only the valid children
+                if ~isempty(validChildren)
+                    copyobj(validChildren, tempAx);
+                end
+
+                tempAx.XLabel.String = sourceAx.XLabel.String;
+                tempAx.YLabel.String = sourceAx.YLabel.String;
+                tempAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
+                tempAx.XLim = sourceAx.XLim;
+                tempAx.YLim = sourceAx.YLim;
+
+                % Set normal colors
+                tempAx.XColor = [0.15 0.15 0.15];
+                tempAx.YColor = [0.15 0.15 0.15];
+                tempAx.LineWidth = 1;
+
+                % Save file
+                [~, ~, ext] = fileparts(file);
+                fullPath = fullfile(path, file);
+
+                switch lower(ext)
+                    case '.png'
+                        print(tempFig, fullPath, '-dpng', '-r300');
+                    case '.jpg'
+                        print(tempFig, fullPath, '-djpeg', '-r300');
+                    case '.pdf'
+                        print(tempFig, fullPath, '-dpdf', '-fillpage');
+                    case '.svg'
+                        print(tempFig, fullPath, '-dsvg');
+                end
+
+                % Clean up
+                close(tempFig);
+
+                obj.App.StatusLabel.Text = sprintf('💾 Plot %d saved as %s', subplotIdx, file);
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = ['❌ Zoom failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
+
+        function zoomSubplotToFit(obj, tabIdx, subplotIdx)
+            % Auto-fit zoom for specific subplot
+            try
+                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                    return;
+                end
+
+                ax = obj.AxesArrays{tabIdx}(subplotIdx);
+                if ~isvalid(ax)
+                    return;
+                end
+
+                % Auto-scale the subplot
+                ax.XLimMode = 'auto';
+                ax.YLimMode = 'auto';
+                axis(ax, 'auto');
+
+                obj.App.StatusLabel.Text = sprintf('🔍 Plot %d zoomed to fit', subplotIdx);
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = '✅ PDF exported successfully';
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+        end
+
+        function clearSubplot(obj, tabIdx, subplotIdx)
+            % Clear all signals from a specific subplot
+            try
+                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                    return;
+                end
+
+                % Clear assigned signals for this subplot
+                obj.AssignedSignals{tabIdx}{subplotIdx} = {};
+
+                % Refresh the plot to show the cleared state
+                obj.refreshPlots(tabIdx);
+
+                obj.App.StatusLabel.Text = sprintf('🗑️ Plot %d cleared', subplotIdx);
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = ['❌ Clear failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
         end
 
         % Create subplots for a given tab with specified rows and columns
@@ -91,26 +396,35 @@ classdef PlotManager < handle
                 delete(obj.GridLayouts{tabIdx});
             end
 
-            % Create new grid layout and uiaxes
-            obj.GridLayouts{tabIdx} = uigridlayout(obj.PlotTabs{tabIdx}, [rows, cols], 'BackgroundColor', [1 1 1]);
+            % Get the main layout for this tab
+            mainLayout = obj.MainTabGridLayouts{tabIdx};
+
+            % Create the subplot grid inside the second row of the main layout
+            plotGrid = uigridlayout(mainLayout, [rows, cols]);
+            plotGrid.Layout.Row = 2;
+            plotGrid.Layout.Column = 1;
+            plotGrid.BackgroundColor = [1 1 1];
+            obj.GridLayouts{tabIdx} = plotGrid;
+
             nPlots = rows * cols;
             obj.AxesArrays{tabIdx} = gobjects(1, nPlots);
-            
+
             % Initialize limits tracking for this tab
             obj.AxesLimits{tabIdx} = cell(1, nPlots);
             obj.LastDataTime{tabIdx} = cell(1, nPlots);
-            
+
+            % SINGLE LOOP - NOT DUPLICATED
             for i = 1:nPlots
                 ax = uiaxes(obj.GridLayouts{tabIdx});
                 ax.Layout.Row = ceil(i/cols);
                 ax.Layout.Column = mod(i-1, cols)+1;
-                
+
                 % Set up proper axes styling with grid enabled by default
                 ax.Color = [1 1 1];
                 ax.Box = 'on';
                 ax.XLabel.String = 'Time';
                 ax.YLabel.String = 'Value';
-                
+
                 % Enable grid and minor grid by default
                 grid(ax, 'on');
                 ax.XGrid = 'on';
@@ -119,27 +433,51 @@ classdef PlotManager < handle
                 ax.YMinorGrid = 'on';
                 ax.GridAlpha = 0.3;
                 ax.MinorGridAlpha = 0.1;
-                
+
                 % DON'T set any default limits - let MATLAB auto-scale
-                % Leave axes in 'auto' mode initially
                 ax.XLimMode = 'auto';
                 ax.YLimMode = 'auto';
-                
+
                 % Initialize limits tracking with empty values
                 obj.AxesLimits{tabIdx}{i} = struct('XLim', [], 'YLim', [], 'HasData', false);
                 obj.LastDataTime{tabIdx}{i} = 0;
-                
+
                 % Add click callback for subplot selection
                 ax.ButtonDownFcn = @(src, event) obj.selectSubplot(tabIdx, i);
+
+                % ADD COMBINED CONTEXT MENU with both data tips and export options
+                cm = uicontextmenu(obj.App.UIFigure);
+
+                % Data tips toggle - always available
+                uimenu(cm, 'Text', '🎯 Toggle Data Tips', ...
+                    'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax));
+
+                % Export options - always available
+                uimenu(cm, 'Text', '📊 Export to MATLAB Figure', ...
+                    'MenuSelectedFcn', @(src, event) obj.exportSubplotToFigure(tabIdx, i), ...
+                    'Separator', 'on');
+                uimenu(cm, 'Text', '📋 Copy to Clipboard', ...
+                    'MenuSelectedFcn', @(src, event) obj.copySubplotToClipboard(tabIdx, i));
+                uimenu(cm, 'Text', '💾 Save as Image', ...
+                    'MenuSelectedFcn', @(src, event) obj.saveSubplotAsImage(tabIdx, i));
+
+                % Plot operations - always available
+                uimenu(cm, 'Text', '🔍 Zoom to Fit', ...
+                    'MenuSelectedFcn', @(src, event) obj.zoomSubplotToFit(tabIdx, i), ...
+                    'Separator', 'on');
+                uimenu(cm, 'Text', '🗑️ Clear Subplot', ...
+                    'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
+
+                % IMPORTANT: Set context menu BEFORE enabling any cursor modes
+                ax.ContextMenu = cm;
                 obj.AxesArrays{tabIdx}(i) = ax;
             end
-            
+
             % Immediately refresh plots for this tab so checked signals are shown
             obj.App.PlotManager.refreshPlots(tabIdx);
             % Highlight the selected subplot
             obj.App.highlightSelectedSubplot(tabIdx, obj.SelectedSubplotIdx);
         end
-
         % **MAIN METHOD: Improved refreshPlots with streaming optimization - NO CLEARING DURING STREAMING**
         function refreshPlots(obj, tabIndices)
             if ~isprop(obj.App, 'DataManager') || isempty(obj.App.DataManager) || ~isvalid(obj.App.DataManager)
@@ -151,10 +489,10 @@ classdef PlotManager < handle
             if isempty(obj.App.DataManager.DataTables) || all(cellfun(@isempty, obj.App.DataManager.DataTables))
                 return;
             end
-            
+
             % Track axes that need final auto-scaling
             axesToAutoScale = [];
-            
+
             for tabIdx = tabIndices
                 if tabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{tabIdx})
                     continue;
@@ -162,29 +500,29 @@ classdef PlotManager < handle
                 axesArr = obj.AxesArrays{tabIdx};
                 assignments = obj.AssignedSignals{tabIdx};
                 n = min(numel(axesArr), numel(assignments));
-                
+
                 for k = 1:n
                     ax = axesArr(k);
-                    
+
                     % Validate axes exists and is valid before proceeding
                     if ~isvalid(ax) || ~isgraphics(ax)
                         continue;
                     end
-                    
+
                     % Store current limits and check streaming state
                     currentXLim = ax.XLim;
                     currentYLim = ax.YLim;
                     hasExistingData = ~isempty(ax.Children);
                     isStreaming = obj.App.DataManager.IsRunning;
-                    
+
                     % **CONDITIONAL CLEARING - only clear if not streaming or no existing data**
                     shouldClearAndRecreate = ~isStreaming || ~hasExistingData;
-                    
+
                     if shouldClearAndRecreate
                         % Full refresh: clear everything
                         delete(ax.Children);
                     end
-                    
+
                     % Restore and maintain grid settings (always)
                     grid(ax, 'on');
                     ax.XGrid = 'on';
@@ -193,10 +531,10 @@ classdef PlotManager < handle
                     ax.YMinorGrid = 'on';
                     ax.GridAlpha = 0.3;
                     ax.MinorGridAlpha = 0.1;
-                    
+
                     hold(ax, 'on');
                     sigs = assignments{k};
-                    
+
                     if isempty(sigs)
                         % No signals assigned - let axes auto-scale or keep existing limits
                         if shouldClearAndRecreate
@@ -207,7 +545,7 @@ classdef PlotManager < handle
                                 ax.YLimMode = 'auto';
                             else
                                 % During streaming, keep reasonable defaults
-                                ax.
+                                axis(ax, 'auto');
                                 ax.XLimMode = 'manual';
                                 ax.YLimMode = 'manual';
                             end
@@ -222,49 +560,49 @@ classdef PlotManager < handle
                         hold(ax, 'off');
                         continue;
                     end
-                    
+
                     % Collect all time and value data for limit calculation
                     allTimeData = [];
                     allValueData = [];
                     plotHandles = [];
                     plotLabels = {};
                     assignedSignalNames = {};
-                    
+
                     % Use axes ColorOrder for default colors
                     colorOrder = ax.ColorOrder;
                     nColors = size(colorOrder,1);
                     colorIdx = 1;
-                    
+
                     % Plot all signals
                     for j = 1:numel(sigs)
                         sigInfo = sigs{j};
                         sigName = sigInfo.Signal;
                         assignedSignalNames{end+1} = sigName;
-                        
+
                         T = obj.App.DataManager.DataTables{sigInfo.CSVIdx};
                         if ~ismember(sigName, T.Properties.VariableNames)
                             continue;
                         end
-                        
+
                         validData = ~isnan(T.(sigName));
                         if ~any(validData)
                             continue;
                         end
-                        
+
                         timeData = T.Time(validData);
                         signalData = T.(sigName)(validData);
-                        
+
                         % Apply scaling
                         scaleFactor = 1.0;
                         if obj.App.DataManager.SignalScaling.isKey(sigName)
                             scaleFactor = obj.App.DataManager.SignalScaling(sigName);
                         end
                         scaledData = signalData * scaleFactor;
-                        
+
                         % Collect data for limit calculation
                         allTimeData = [allTimeData; timeData];
                         allValueData = [allValueData; scaledData];
-                        
+
                         % Use custom color and line width if set
                         color = [];
                         width = 2;
@@ -284,13 +622,13 @@ classdef PlotManager < handle
                             color = colorOrder(mod(colorIdx-1, nColors)+1, :);
                             colorIdx = colorIdx + 1;
                         end
-                        
+
                         % Check if it's a state signal
                         isStateSignal = false;
                         if obj.App.DataManager.StateSignals.isKey(sigName)
                             isStateSignal = obj.App.DataManager.StateSignals(sigName);
                         end
-                        
+
                         if isStateSignal
                             % State signals: always recreate (vertical lines are simple)
                             obj.removeSignalPlot(ax, sigName);
@@ -312,19 +650,19 @@ classdef PlotManager < handle
                             end
                         end
                     end
-                    
+
                     % Remove plots for signals no longer assigned (only during streaming)
                     if ~shouldClearAndRecreate
                         obj.removeUnassignedSignalPlots(ax, assignedSignalNames);
                     end
-                    
+
                     % Show legend for regular signals
                     if ~isempty(plotHandles)
                         legend(ax, plotHandles, plotLabels, 'Location', 'best');
                     else
                         legend(ax, 'off');
                     end
-                    
+
                     % **Smart limit management - FORCE AUTO-SCALING FOR NON-STREAMING**
                     if ~isempty(allTimeData) && ~isempty(allValueData)
                         if isStreaming
@@ -359,11 +697,11 @@ classdef PlotManager < handle
                             end
                         end
                     end
-                    
+
                     hold(ax, 'off');
                 end
             end
-            
+
             % **SIMPLIFIED: Auto-scale at the end only if needed**
             if ~isempty(axesToAutoScale)
                 for ax = axesToAutoScale
@@ -378,19 +716,83 @@ classdef PlotManager < handle
                 % Single drawnow at the very end
                 drawnow;
             end
-            
+
             % Link all axes in all tabs on the x-axis
             obj.linkAllAxes();
-            
+
             % Restore highlight after refresh
             obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
+        end
+
+        function onTabLayoutChanged(obj, tabIdx, newRows, newCols)
+            % Handle layout changes from tab-specific controls
+            currentLayout = obj.TabLayouts{tabIdx};
+
+            if ~isempty(newRows)
+                rows = newRows;
+                cols = currentLayout(2);
+                % Update the cols spinner to match current value
+                if isfield(obj.TabControls{tabIdx}, 'ColsSpinner')
+                    obj.TabControls{tabIdx}.ColsSpinner.Value = cols;
+                end
+            elseif ~isempty(newCols)
+                rows = currentLayout(1);
+                cols = newCols;
+                % Update the rows spinner to match current value
+                if isfield(obj.TabControls{tabIdx}, 'RowsSpinner')
+                    obj.TabControls{tabIdx}.RowsSpinner.Value = rows;
+                end
+            else
+                return;
+            end
+
+            % Apply the layout change
+            obj.createSubplotsForTab(tabIdx, rows, cols);
+
+            % Update the subplot dropdown
+            obj.updateTabSubplotDropdown(tabIdx);
+
+            % Refresh plots if there are any signals assigned
+            obj.App.PlotManager.refreshPlots(tabIdx);
+
+            % Highlight the current subplot
+            obj.App.highlightSelectedSubplot(tabIdx, obj.SelectedSubplotIdx);
+        end
+
+        function onSubplotSelected(obj, tabIdx, selectedValue)
+            % Handle subplot selection from tab-specific dropdown
+            plotNum = str2double(regexp(selectedValue, '\d+', 'match', 'once'));
+            if ~isempty(plotNum) && plotNum > 0
+                obj.SelectedSubplotIdx = plotNum;
+                obj.App.highlightSelectedSubplot(tabIdx, plotNum);
+            end
+        end
+
+        function updateTabSubplotDropdown(obj, tabIdx)
+            % Update the subplot dropdown for a specific tab
+            if tabIdx <= numel(obj.TabControls) && ~isempty(obj.TabControls{tabIdx})
+                nPlots = obj.TabLayouts{tabIdx}(1) * obj.TabLayouts{tabIdx}(2);
+                plotItems = cell(nPlots, 1);
+                for i = 1:nPlots
+                    plotItems{i} = sprintf('Plot %d', i);
+                end
+
+                dropdown = obj.TabControls{tabIdx}.SubplotDropdown;
+                dropdown.Items = plotItems;
+
+                % Ensure selected subplot is within bounds
+                if obj.SelectedSubplotIdx > nPlots
+                    obj.SelectedSubplotIdx = 1;
+                end
+                dropdown.Value = sprintf('Plot %d', obj.SelectedSubplotIdx);
+            end
         end
 
         % **NEW METHOD: Update existing signal plot or create new one**
         function h = updateOrCreateSignalPlot(obj, ax, sigName, timeData, scaledData, color, width)
             % Find existing line for this signal
             existingLine = obj.findSignalPlot(ax, sigName);
-            
+
             if ~isempty(existingLine)
                 % Update existing line data
                 existingLine.XData = timeData;
@@ -410,13 +812,13 @@ classdef PlotManager < handle
             if isempty(ax.Children)
                 return;
             end
-            
+
             % Look for line with matching DisplayName
             for i = 1:numel(ax.Children)
                 child = ax.Children(i);
                 if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
-                   isprop(child, 'DisplayName') && ...
-                   strcmp(child.DisplayName, sigName)
+                        isprop(child, 'DisplayName') && ...
+                        strcmp(child.DisplayName, sigName)
                     line = child;
                     return;
                 end
@@ -436,7 +838,7 @@ classdef PlotManager < handle
             if isempty(ax.Children)
                 return;
             end
-            
+
             % Delete all line objects
             linesToDelete = [];
             for i = 1:numel(ax.Children)
@@ -445,7 +847,7 @@ classdef PlotManager < handle
                     linesToDelete = [linesToDelete, child];
                 end
             end
-            
+
             for line = linesToDelete
                 if isvalid(line)
                     delete(line);
@@ -458,19 +860,19 @@ classdef PlotManager < handle
             if isempty(ax.Children)
                 return;
             end
-            
+
             % Find lines that are not in the assigned list
             linesToDelete = [];
             for i = 1:numel(ax.Children)
                 child = ax.Children(i);
                 if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
-                   isprop(child, 'DisplayName') && ...
-                   ~isempty(child.DisplayName) && ...
-                   ~ismember(child.DisplayName, assignedSignalNames)
+                        isprop(child, 'DisplayName') && ...
+                        ~isempty(child.DisplayName) && ...
+                        ~ismember(child.DisplayName, assignedSignalNames)
                     linesToDelete = [linesToDelete, child];
                 end
             end
-            
+
             % Delete unassigned lines
             for line = linesToDelete
                 if isvalid(line)
@@ -486,25 +888,25 @@ classdef PlotManager < handle
             dataXMax = max(allTimeData);
             dataYMin = min(allValueData);
             dataYMax = max(allValueData);
-            
+
             % Calculate ranges and padding
             xRange = dataXMax - dataXMin;
             yRange = dataYMax - dataYMin;
-            
+
             if xRange > 0
                 xPadding = 0.05 * xRange;
                 newXLim = [dataXMin - xPadding, dataXMax + xPadding];
             else
                 newXLim = [dataXMin - 1, dataXMax + 1];
             end
-            
+
             if yRange > 0
                 yPadding = 0.1 * yRange;
                 newYLim = [dataYMin - yPadding, dataYMax + yPadding];
             else
                 newYLim = [dataYMin - 0.1, dataYMax + 0.1];
             end
-            
+
             % During streaming: expand limits if needed, don't shrink
             if hasExistingData
                 finalXLim = [min(currentXLim(1), newXLim(1)), max(currentXLim(2), newXLim(2))];
@@ -513,7 +915,7 @@ classdef PlotManager < handle
                 finalXLim = newXLim;
                 finalYLim = newYLim;
             end
-            
+
             % Set limits
             ax.XLim = finalXLim;
             ax.YLim = finalYLim;
@@ -545,10 +947,10 @@ classdef PlotManager < handle
                 plot(ax, timeData, valueData, 'Color', color, 'LineWidth', 2, 'DisplayName', label);
                 return;
             end
-            
+
             % Use a tolerance for floating-point changes
             changeIdx = find([true; abs(diff(valueData)) > 1e-8]);
-            
+
             % Use current Y limits if they exist and are reasonable
             if length(currentYLim) == 2 && currentYLim(2) > currentYLim(1) && ~isequal(currentYLim, [0 1])
                 yLimits = currentYLim;
@@ -561,7 +963,7 @@ classdef PlotManager < handle
                     yLimits = [min(valueData) - 0.5, max(valueData) + 0.5];
                 end
             end
-            
+
             if isempty(changeIdx)
                 t = timeData(1);
                 plot(ax, [t t], yLimits, 'Color', color, 'LineWidth', 2, 'DisplayName', label);
@@ -583,63 +985,195 @@ classdef PlotManager < handle
         end
 
         function selectSubplot(obj, tabIdx, subplotIdx)
+            % Update the selected subplot index
             obj.SelectedSubplotIdx = subplotIdx;
-            obj.App.highlightSelectedSubplot(tabIdx, subplotIdx);
-            
-            val = sprintf('Plot %d', subplotIdx);
-            if any(strcmp(val, obj.App.SubplotDropdown.Items))
-                obj.App.SubplotDropdown.Value = val;
-            end
-        end
 
+            % Clear ALL highlights in this tab first
+            obj.App.clearSubplotHighlights(tabIdx);
+
+            % Highlight the newly selected subplot
+            obj.App.highlightSelectedSubplot(tabIdx, subplotIdx);
+
+            % Update the tab-specific subplot dropdown
+            if tabIdx <= numel(obj.TabControls) && ~isempty(obj.TabControls{tabIdx}) && ...
+                    isfield(obj.TabControls{tabIdx}, 'SubplotDropdown')
+
+                val = sprintf('Plot %d', subplotIdx);
+                dropdown = obj.TabControls{tabIdx}.SubplotDropdown;
+
+                if any(strcmp(val, dropdown.Items))
+                    dropdown.Value = val;
+                end
+            end
+
+            % Update signal tree for the newly selected subplot
+            obj.updateSignalTreeForCurrentTab();
+        end
         function addNewTab(obj, ~, ~)
             rows = 2; cols = 1;
-            tabNum = numel(obj.PlotTabs) + 1;
+
+            % Count real tabs (excluding + tab)
+            realTabCount = 0;
+            for i = 1:numel(obj.PlotTabs)
+                if ~strcmp(obj.PlotTabs{i}.Title, '+')
+                    realTabCount = realTabCount + 1;
+                end
+            end
+
+            newTabNum = realTabCount + 1;
+
+            % Create new tab WITHOUT X in title initially
+            tab = uitab(obj.App.MainTabGroup, 'Title', sprintf('Tab %d', newTabNum), ...
+                'BackgroundColor', [0.98 0.98 0.98]);
+
+            % Find + tab position
             plusTabIdx = find(cellfun(@(t) strcmp(t.Title, '+'), obj.PlotTabs));
+
             if ~isempty(plusTabIdx)
-                tab = uitab(obj.App.MainTabGroup, 'Title', sprintf('Tab %d ❌', plusTabIdx), ...
-                    'BackgroundColor', [0.98 0.98 0.98]);
-                cm = uicontextmenu(obj.App.UIFigure);
-                uimenu(cm, 'Text', 'Close Tab', 'MenuSelectedFcn', @(src, event) obj.deleteTabByHandle(tab));
-                tab.ContextMenu = cm;
+                % Insert new tab before + tab
+                newTabIdx = plusTabIdx;
                 obj.PlotTabs = [obj.PlotTabs(1:plusTabIdx-1), {tab}, obj.PlotTabs(plusTabIdx:end)];
-                obj.GridLayouts = [obj.GridLayouts(1:plusTabIdx-1), {uigridlayout(tab, [rows, cols], 'BackgroundColor', [0.98 0.98 0.98])}, obj.GridLayouts(plusTabIdx:end)];
+                obj.GridLayouts = [obj.GridLayouts(1:plusTabIdx-1), {[]}, obj.GridLayouts(plusTabIdx:end)];
                 obj.AxesArrays = [obj.AxesArrays(1:plusTabIdx-1), {matlab.ui.control.UIAxes.empty}, obj.AxesArrays(plusTabIdx:end)];
                 obj.AssignedSignals = [obj.AssignedSignals(1:plusTabIdx-1), {{}}, obj.AssignedSignals(plusTabIdx:end)];
                 obj.TabLayouts = [obj.TabLayouts(1:plusTabIdx-1), {[rows, cols]}, obj.TabLayouts(plusTabIdx:end)];
                 obj.AxesLimits = [obj.AxesLimits(1:plusTabIdx-1), {{}}, obj.AxesLimits(plusTabIdx:end)];
                 obj.LastDataTime = [obj.LastDataTime(1:plusTabIdx-1), {{}}, obj.LastDataTime(plusTabIdx:end)];
-                tabNum = plusTabIdx;
+                obj.TabControls = [obj.TabControls(1:plusTabIdx-1), {[]}, obj.TabControls(plusTabIdx:end)];
+                obj.MainTabGridLayouts = [obj.MainTabGridLayouts(1:plusTabIdx-1), {[]}, obj.MainTabGridLayouts(plusTabIdx:end)];
             else
-                tab = uitab(obj.App.MainTabGroup, 'Title', sprintf('Tab %d ❌', tabNum), ...
-                    'BackgroundColor', [0.98 0.98 0.98]);
-                cm = uicontextmenu(obj.App.UIFigure);
-                uimenu(cm, 'Text', 'Close Tab', 'MenuSelectedFcn', @(src, event) obj.deleteTabByHandle(tab));
-                tab.ContextMenu = cm;
+                % Add to end (no + tab exists)
+                newTabIdx = numel(obj.PlotTabs) + 1;
                 obj.PlotTabs{end+1} = tab;
-                obj.GridLayouts{end+1} = uigridlayout(tab, [rows, cols], 'BackgroundColor', [0.98 0.98 0.98]);
+                obj.GridLayouts{end+1} = [];
                 obj.AxesArrays{end+1} = matlab.ui.control.UIAxes.empty;
                 obj.AssignedSignals{end+1} = {};
                 obj.TabLayouts{end+1} = [rows, cols];
                 obj.AxesLimits{end+1} = {};
                 obj.LastDataTime{end+1} = {};
+                obj.TabControls{end+1} = [];
+                obj.MainTabGridLayouts{end+1} = [];
             end
-            obj.createSubplotsForTab(tabNum, rows, cols);
-            obj.CurrentTabIdx = tabNum;
+
+            % Create main layout for the new tab WITH FIXED CONTROL HEIGHT
+            mainLayout = uigridlayout(tab, [2, 1]);
+            mainLayout.RowHeight = {60, '1x'}; % FIXED: Top row 60px, Bottom fills remaining space
+            mainLayout.ColumnWidth = {'1x'};
+            obj.MainTabGridLayouts{newTabIdx} = mainLayout;
+
+            % Initialize assigned signals for new tab
+            nPlots = rows * cols;
+            obj.AssignedSignals{newTabIdx} = cell(nPlots, 1);
+            for i = 1:nPlots
+                obj.AssignedSignals{newTabIdx}{i} = {};
+            end
+
+            % Add tab-specific controls FIRST (they go in row 1)
+            obj.addTabControls(newTabIdx);
+
+            % THEN create subplots (they go in row 2)
+            obj.createSubplotsForTab(newTabIdx, rows, cols);
+
+            % Switch to the new tab
+            obj.CurrentTabIdx = newTabIdx;
             obj.App.MainTabGroup.SelectedTab = tab;
-            obj.ensurePlusTab();
+
+            % Ensure + tab is at the end and UI is ordered correctly
+            obj.ensurePlusTabAtEnd();
+
+            % Update tab titles to show X icons appropriately
+            obj.updateTabTitles();
+
+            % Update signal tree for the new tab
+            obj.updateSignalTreeForCurrentTab();
         end
-        
+        function updateTabTitles(obj)
+            % Update tab titles - NO X icons, use double-click to close
+            realTabs = [];
+
+            % Find all real tabs (not + tabs)
+            for i = 1:numel(obj.PlotTabs)
+                if ~strcmp(obj.PlotTabs{i}.Title, '+') && ~contains(obj.PlotTabs{i}.Title, '+')
+                    realTabs = [realTabs i];
+                end
+            end
+
+            % Update titles based on number of real tabs
+            for i = 1:numel(realTabs)
+                tabIdx = realTabs(i);
+                tab = obj.PlotTabs{tabIdx};
+
+                if numel(realTabs) > 1
+                    % Multiple tabs: show clean title and add double-click callback
+                    tab.Title = sprintf('Tab %d', i);
+
+                    % Add double-click callback for closing
+                    try
+                        tab.ButtonDownFcn = @(src, event) obj.handleTabClick(tab, event);
+                    end
+
+                else
+                    % Only one tab: clean title, no close functionality
+                    tab.Title = sprintf('Tab %d', i);
+                    tab.ButtonDownFcn = [];
+                end
+            end
+        end
+        function handleTabClick(obj, tab, event)
+            % Handle tab clicks - double-click to close
+            persistent lastClickTime lastClickedTab
+
+            currentTime = now;
+
+            % Check if this is a double-click (within 0.5 seconds)
+            if ~isempty(lastClickTime) && ~isempty(lastClickedTab) && ...
+                    (currentTime - lastClickTime) < (0.5/86400) && ...
+                    lastClickedTab == tab
+
+                % Double-click detected - close the tab
+                obj.deleteTabByHandle(tab);
+
+                % Reset
+                lastClickTime = [];
+                lastClickedTab = [];
+            else
+                % Single click - just record the time and tab
+                lastClickTime = currentTime;
+                lastClickedTab = tab;
+            end
+        end
+        function reorderUITabs(obj)
+            % Reorder the actual UI tabs to match our PlotTabs array order
+            tabGroup = obj.App.MainTabGroup;
+
+            % Get current children and reorder them
+            for i = 1:numel(obj.PlotTabs)
+                tab = obj.PlotTabs{i};
+                if isvalid(tab)
+                    % Move tab to correct position in the UI
+                    uistack(tab, 'bottom');
+                end
+            end
+
+            % Now stack them in reverse order to get correct left-to-right order
+            for i = numel(obj.PlotTabs):-1:1
+                tab = obj.PlotTabs{i};
+                if isvalid(tab)
+                    uistack(tab, 'top');
+                end
+            end
+        end
+
         function deleteCurrentTab(obj)
             if numel(obj.PlotTabs) <= 2
                 return;
             end
-            
+
             currentIdx = obj.CurrentTabIdx;
             if strcmp(obj.PlotTabs{currentIdx}.Title, '+')
                 return;
             end
-            
+
             delete(obj.PlotTabs{currentIdx});
             obj.PlotTabs(currentIdx) = [];
             obj.GridLayouts(currentIdx) = [];
@@ -648,20 +1182,91 @@ classdef PlotManager < handle
             obj.TabLayouts(currentIdx) = [];
             obj.AxesLimits(currentIdx) = [];
             obj.LastDataTime(currentIdx) = [];
-            
+
             if currentIdx > numel(obj.PlotTabs)-1
                 obj.CurrentTabIdx = numel(obj.PlotTabs)-1;
             end
-            
+
             obj.App.MainTabGroup.SelectedTab = obj.PlotTabs{obj.CurrentTabIdx};
             obj.ensurePlusTab();
         end
-        
+
         function deleteTabByHandle(obj, tab)
             idx = find(cellfun(@(t) t == tab, obj.PlotTabs));
             if ~isempty(idx)
-                obj.CurrentTabIdx = idx;
-                obj.deleteCurrentTab();
+                % Don't allow deleting if it's the + tab
+                if strcmp(tab.Title, '+') || contains(tab.Title, '+')
+                    return;
+                end
+
+                % Count real tabs
+                realTabs = 0;
+                for i = 1:numel(obj.PlotTabs)
+                    if ~strcmp(obj.PlotTabs{i}.Title, '+') && ~contains(obj.PlotTabs{i}.Title, '+')
+                        realTabs = realTabs + 1;
+                    end
+                end
+
+                % Don't allow deleting the last real tab
+                if realTabs <= 1
+                    return;
+                end
+
+                % Delete the tab
+                delete(tab);
+                obj.PlotTabs(idx) = [];
+
+                % Only remove from other arrays if within bounds
+                if idx <= numel(obj.GridLayouts)
+                    obj.GridLayouts(idx) = [];
+                end
+                if idx <= numel(obj.AxesArrays)
+                    obj.AxesArrays(idx) = [];
+                end
+                if idx <= numel(obj.AssignedSignals)
+                    obj.AssignedSignals(idx) = [];
+                end
+                if idx <= numel(obj.TabLayouts)
+                    obj.TabLayouts(idx) = [];
+                end
+                if idx <= numel(obj.AxesLimits)
+                    obj.AxesLimits(idx) = [];
+                end
+                if idx <= numel(obj.LastDataTime)
+                    obj.LastDataTime(idx) = [];
+                end
+
+                % Adjust current tab index if necessary
+                if obj.CurrentTabIdx >= idx
+                    obj.CurrentTabIdx = max(1, obj.CurrentTabIdx - 1);
+                end
+
+                % Switch to a valid tab
+                validTabFound = false;
+                for i = 1:numel(obj.PlotTabs)
+                    if ~strcmp(obj.PlotTabs{i}.Title, '+') && ~contains(obj.PlotTabs{i}.Title, '+')
+                        obj.CurrentTabIdx = i;
+                        obj.App.MainTabGroup.SelectedTab = obj.PlotTabs{i};
+                        validTabFound = true;
+                        break;
+                    end
+                end
+
+                if ~validTabFound
+                    % If no valid tab found, create a new one
+                    obj.createFirstTab();
+                    return;
+                end
+
+                % Update tab titles (this will hide X if only one tab remains)
+                obj.updateTabTitles();
+
+                % Ensure + tab stays at the end
+                obj.ensurePlusTabAtEnd();
+
+                % Update UI
+                obj.App.UIController.updateSubplotDropdown();
+                obj.updateSignalTreeForCurrentTab();
             end
         end
 
@@ -673,7 +1278,9 @@ classdef PlotManager < handle
 
         function exportToPDF(obj)
             if obj.CurrentTabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{obj.CurrentTabIdx})
-                uialert(obj.App.UIFigure, 'No plots to export.', 'Info');
+                obj.App.StatusLabel.Text = '⚠️ No plots to export';
+                obj.App.StatusLabel.FontColor = [0.9 0.6 0.2];
+                obj.App.restoreFocus();
                 return;
             end
 
@@ -686,95 +1293,156 @@ classdef PlotManager < handle
                 [rows, cols] = size(reshape(1:numel(axes_array), obj.TabLayouts{obj.CurrentTabIdx}));
 
                 for i = 1:numel(axes_array)
+                    sourceAx = axes_array(i);
+                    if ~isvalid(sourceAx)
+                        continue;
+                    end
+
                     subplot(rows, cols, i);
-                    copyobj(allchild(axes_array(i)), gca);
-                    title(axes_array(i).Title.String, 'Color', 'black');
-                    xlabel(axes_array(i).XLabel.String, 'Color', 'black');
-                    ylabel(axes_array(i).YLabel.String, 'Color', 'black');
-                    set(gca, 'Color', [1 1 1], 'XColor', [0.15 0.15 0.15], 'YColor', [0.15 0.15 0.15]);
-                    grid on;
+                    currentAx = gca;
+
+                    % Get all children and filter out highlight borders
+                    allChildren = allchild(sourceAx);
+                    validChildren = [];
+
+                    % Get highlight borders to exclude
+                    highlightBorders = [];
+                    if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                        highlightBorders = sourceAx.UserData.HighlightBorders;
+                    end
+
+                    % Filter children: only copy actual signal plots (exclude highlight borders)
+                    for j = 1:numel(allChildren)
+                        child = allChildren(j);
+
+                        % Skip if it's a highlight border
+                        isHighlightBorder = false;
+                        for k = 1:numel(highlightBorders)
+                            if isequal(child, highlightBorders(k))
+                                isHighlightBorder = true;
+                                break;
+                            end
+                        end
+
+                        if isHighlightBorder
+                            continue;
+                        end
+
+                        % Only copy line objects that represent actual signals
+                        if isa(child, 'matlab.graphics.chart.primitive.Line')
+                            % Check if it has a meaningful DisplayName or is a real signal plot
+                            if (isprop(child, 'DisplayName') && ~isempty(child.DisplayName) && ~strcmp(child.DisplayName, '')) || ...
+                                    (child.LineWidth <= 3) % Real signals usually have normal line width
+                                validChildren = [validChildren; child];
+                            end
+                        end
+                    end
+
+                    % Copy only the valid signal plots
+                    if ~isempty(validChildren)
+                        copyobj(validChildren, currentAx);
+                    end
+
+                    % Copy axes properties but use normal colors
+                    title(currentAx, sourceAx.Title.String, 'Color', 'black');
+                    xlabel(currentAx, sourceAx.XLabel.String, 'Color', 'black');
+                    ylabel(currentAx, sourceAx.YLabel.String, 'Color', 'black');
+
+                    % Set normal axes styling (no green highlights)
+                    set(currentAx, 'Color', [1 1 1], 'XColor', [0.15 0.15 0.15], 'YColor', [0.15 0.15 0.15]);
+                    grid(currentAx, 'on');
+
+                    % Copy axis limits
+                    currentAx.XLim = sourceAx.XLim;
+                    currentAx.YLim = sourceAx.YLim;
+
+                    % Create legend from valid signal plots only
+                    legendEntries = {};
+                    legendHandles = [];
+                    for j = 1:numel(currentAx.Children)
+                        child = currentAx.Children(j);
+                        if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
+                                isprop(child, 'DisplayName') && ...
+                                ~isempty(child.DisplayName) && ~strcmp(child.DisplayName, '')
+                            legendHandles = [legendHandles; child];
+                            legendEntries{end+1} = child.DisplayName;
+                        end
+                    end
+
+                    if ~isempty(legendHandles)
+                        legend(currentAx, legendHandles, legendEntries, 'Location', 'best');
+                    end
                 end
 
                 print(exportFig, fullfile(path, file), '-dpdf', '-fillpage');
                 close(exportFig);
                 uialert(obj.App.UIFigure, '✅ PDF exported successfully!', 'Success');
+
             catch ME
-                uialert(obj.App.UIFigure, ['❌ Export failed: ' ME.message], 'Error');
+                if exist('exportFig', 'var') && isvalid(exportFig)
+                    close(exportFig);
+                end
+                obj.App.StatusLabel.Text = ['❌ Export failed: ' ME.message];
+obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
 
-        function resetZoom(obj)
-            if obj.CurrentTabIdx <= numel(obj.AxesArrays)
-                for ax = obj.AxesArrays{obj.CurrentTabIdx}
-                    if ~isvalid(ax) || ~isgraphics(ax)
-                        continue;
-                    end
-                    
-                    % Clear stored limits 
-                    if obj.CurrentTabIdx <= numel(obj.AxesLimits)
-                        for k = 1:numel(obj.AxesLimits{obj.CurrentTabIdx})
-                            if ~isempty(obj.AxesLimits{obj.CurrentTabIdx}{k})
-                                obj.AxesLimits{obj.CurrentTabIdx}{k}.HasData = false;
-                            end
-                        end
-                    end
-                    
-                    % Manually calculate limits from existing plot data instead of using auto
-                    if ~isempty(ax.Children)
-                        allXData = [];
-                        allYData = [];
-                        
-                        % Extract data from all line objects
-                        for child = ax.Children'
-                            if isa(child, 'matlab.graphics.chart.primitive.Line')
-                                xData = child.XData;
-                                yData = child.YData;
-                                if ~isempty(xData) && ~isempty(yData)
-                                    allXData = [allXData, xData];
-                                    allYData = [allYData, yData];
-                                end
-                            end
-                        end
-                        
-                        % Calculate proper limits from data
-                        if ~isempty(allXData) && ~isempty(allYData)
-                            xMin = min(allXData);
-                            xMax = max(allXData);
-                            yMin = min(allYData);
-                            yMax = max(allYData);
-                            
-                            % Add padding
-                            xRange = xMax - xMin;
-                            yRange = yMax - yMin;
-                            
-                            if xRange > 0
-                                xPadding = 0.05 * xRange;
-                                ax.XLim = [xMin - xPadding, xMax + xPadding];
-                            else
-                                ax.XLim = [xMin - 1, xMax + 1];
-                            end
-                            
-                            if yRange > 0
-                                yPadding = 0.1 * yRange;
-                                ax.YLim = [yMin - yPadding, yMax + yPadding];
-                            else
-                                ax.YLim = [yMin - 0.1, yMax + 0.1];
-                            end
-                        else
-                            % No data, use default
-                            ax.XLim = [0 10];
-                            ax.YLim = [-1 1];
-                        end
-                    else
-                        % No children, use default
-                        ax.XLim = [0 10];
-                        ax.YLim = [-1 1];
-                    end
-                    
-                    % Always stay in manual mode - NO AUTO MODE
-                    ax.XLimMode = 'manual';
-                    ax.YLimMode = 'manual';
+        function enableDataTipsMode(obj, ax)
+            % Enable data tips mode - user can click data points, right-click to exit
+            try
+                % Enable datacursor mode
+                fig = ancestor(ax, 'figure');
+                dcm = datacursormode(fig);
+                dcm.Enable = 'on';
+                dcm.DisplayStyle = 'datatip';
+                dcm.SnapToDataVertex = 'on';
+                dcm.UpdateFcn = @(obj_dcm, event_obj) obj.customDataTipText(obj_dcm, event_obj);
+
+                % Update axes interactions
+                ax.Interactions = [dataTipInteraction];
+
+                % Show instructions
+                obj.App.StatusLabel.Text = '🎯 Data Tips Mode: Click data points for info, right-click to exit';
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                % Create exit context menu for data tips mode
+                exitCm = uicontextmenu(obj.App.UIFigure);
+                uimenu(exitCm, 'Text', '❌ Exit Data Tips Mode', ...
+                    'MenuSelectedFcn', @(src, event) obj.exitDataTipsMode(ax));
+
+                % Temporarily replace context menu
+                ax.UserData.OriginalContextMenu = ax.ContextMenu;
+                ax.ContextMenu = exitCm;
+
+            catch ME
+                obj.App.StatusLabel.Text = '❌ Error enabling data tips mode';
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
+
+        function exitDataTipsMode(obj, ax)
+            % Exit data tips mode and restore normal context menu
+            try
+                % Disable datacursor mode
+                fig = ancestor(ax, 'figure');
+                dcm = datacursormode(fig);
+                dcm.Enable = 'off';
+
+                % Restore normal interactions
+                ax.Interactions = [panInteraction, zoomInteraction];
+
+                % Restore original context menu
+                if isstruct(ax.UserData) && isfield(ax.UserData, 'OriginalContextMenu')
+                    ax.ContextMenu = ax.UserData.OriginalContextMenu;
+                    ax.UserData = rmfield(ax.UserData, 'OriginalContextMenu');
                 end
+
+                obj.App.StatusLabel.Text = '✅ Exited data tips mode';
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = '❌ Error exiting data tips mode';
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
             end
         end
 
@@ -790,7 +1458,82 @@ classdef PlotManager < handle
                 linkaxes(allAxes, 'x');
             end
         end
+        function addTabControls(obj, tabIdx)
+            % Add layout and subplot controls in row 1 of the main layout
+            mainLayout = obj.MainTabGridLayouts{tabIdx};
 
+            % Create control panel in row 1 of the main layout
+            controlPanel = uipanel(mainLayout, ...
+                'BackgroundColor', [0.85 0.85 0.85], ...
+                'BorderType', 'line', ...
+                'BorderWidth', 2, ...
+                'Title', 'Layout Controls', ...
+                'FontSize', 12, ...
+                'FontWeight', 'bold');
+
+            % Set the layout position AFTER creating the panel
+            controlPanel.Layout.Row = 1;
+            controlPanel.Layout.Column = 1;
+
+            % Get current layout for this tab
+            currentLayout = obj.TabLayouts{tabIdx};
+            currentRows = currentLayout(1);
+            currentCols = currentLayout(2);
+
+            % Layout controls within the panel
+            controlY = 20;
+
+            uilabel(controlPanel, 'Text', 'Rows:', ...
+                'Position', [20 controlY 50 25], ...
+                'FontWeight', 'bold', ...
+                'FontSize', 11);
+
+            rowsSpinner = uispinner(controlPanel, ...
+                'Position', [75 controlY 60 25], ...
+                'Limits', [1 10], ...
+                'Value', currentRows, ...
+                'FontSize', 10, ...
+                'ValueChangedFcn', @(src, event) obj.onTabLayoutChanged(tabIdx, src.Value, []));
+
+            uilabel(controlPanel, 'Text', 'Cols:', ...
+                'Position', [150 controlY 50 25], ...
+                'FontWeight', 'bold', ...
+                'FontSize', 11);
+
+            colsSpinner = uispinner(controlPanel, ...
+                'Position', [205 controlY 60 25], ...
+                'Limits', [1 10], ...
+                'Value', currentCols, ...
+                'FontSize', 10, ...
+                'ValueChangedFcn', @(src, event) obj.onTabLayoutChanged(tabIdx, [], src.Value));
+
+            % Subplot selection
+            uilabel(controlPanel, 'Text', 'Current Subplot:', ...
+                'Position', [290 controlY 100 25], ...
+                'FontWeight', 'bold', ...
+                'FontSize', 11);
+
+            % Calculate subplot options
+            nPlots = currentRows * currentCols;
+            plotItems = cell(nPlots, 1);
+            for i = 1:nPlots
+                plotItems{i} = sprintf('Plot %d', i);
+            end
+
+            subplotDropdown = uidropdown(controlPanel, ...
+                'Position', [400 controlY 120 25], ...
+                'Items', plotItems, ...
+                'Value', sprintf('Plot %d', obj.SelectedSubplotIdx), ...
+                'FontSize', 10, ...
+                'ValueChangedFcn', @(src, event) obj.onSubplotSelected(tabIdx, src.Value));
+
+            % Store references to update them later
+            obj.TabControls{tabIdx} = struct(...
+                'Panel', controlPanel, ...
+                'RowsSpinner', rowsSpinner, ...
+                'ColsSpinner', colsSpinner, ...
+                'SubplotDropdown', subplotDropdown);
+        end
         % Disable synchronized zoom/pan (unlink x-limits of all axes)
         function disableSyncZoom(obj)
             allAxes = [];
@@ -803,55 +1546,263 @@ classdef PlotManager < handle
                 linkaxes(allAxes, 'off');
             end
         end
+        function setupTabCallbacks(obj)
+            % Set up callbacks for tab selection to handle + tab clicks
+            obj.App.MainTabGroup.SelectionChangedFcn = @(src, event) obj.onTabSelectionChanged(event);
+        end
+        function updateSignalTreeForTabChange(app)
+            % Update signal tree when switching tabs
+            if ~isempty(app.PlotManager) && isvalid(app.PlotManager)
+                app.PlotManager.updateSignalTreeForCurrentTab();
+            end
+        end
+        function addNewTabFromPlus(obj)
+            % Simply call the regular addNewTab method
+            obj.addNewTab();
+        end
 
-        % Enable data cursor mode (data tips) for all axes
-        function enableCursorMode(obj)
-            for i = 1:numel(obj.AxesArrays)
-                if ~isempty(obj.AxesArrays{i})
-                    for ax = obj.AxesArrays{i}
-                        if isvalid(ax) && isgraphics(ax)
-                            try
-                                ax.Interactions = [dataTipInteraction];
-                            end
-                        end
+        function onTabSelectionChanged(obj, event)
+            % Handle tab selection changes, including + tab clicks
+            selectedTab = event.NewValue;
+
+            % Check if the selected tab is the + tab
+            if strcmp(selectedTab.Title, '+')
+                % Create a new tab instead of staying on the + tab
+                obj.addNewTabFromPlus();
+            else
+                % Update current tab index for regular tabs
+                tabIdx = find(cellfun(@(t) t == selectedTab, obj.PlotTabs));
+                if ~isempty(tabIdx)
+                    % Make sure we're not counting the + tab
+                    plusTabIdx = find(cellfun(@(t) strcmp(t.Title, '+'), obj.PlotTabs));
+                    if ~isempty(plusTabIdx) && tabIdx == plusTabIdx
+                        return; % Don't set current tab to + tab
                     end
+
+                    % Clear highlights from previous tab
+                    if obj.CurrentTabIdx ~= tabIdx
+                        obj.App.clearSubplotHighlights(obj.CurrentTabIdx);
+                    end
+
+                    % Update current tab index
+                    obj.CurrentTabIdx = tabIdx;
+
+                    % Ensure + tab is at the end when switching tabs
+                    obj.ensurePlusTabAtEnd();
+
+                    % Update signal tree to reflect current tab's assigned signals
+                    obj.updateSignalTreeForCurrentTab();
+
+                    % Highlight current subplot in the new tab
+                    obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
                 end
             end
         end
 
-        % Disable data cursor mode, restore default pan/zoom for all axes
-        function disableCursorMode(obj)
-            for i = 1:numel(obj.AxesArrays)
-                if ~isempty(obj.AxesArrays{i})
-                    for ax = obj.AxesArrays{i}
-                        if isvalid(ax) && isgraphics(ax)
-                            try
-                                ax.Interactions = [panInteraction zoomInteraction];
-                            end
+
+
+        function toggleDataTipsForAxes(obj, ax)
+            % Toggle data tips while preserving the context menu
+            try
+                % Check if data tips are currently enabled by looking at datacursormode
+                fig = ancestor(ax, 'figure');
+                dcm = datacursormode(fig);
+
+                if strcmp(dcm.Enable, 'on')
+                    % Data tips are ON - turn them OFF
+                    dcm.Enable = 'off';
+                    ax.Interactions = [panInteraction, zoomInteraction];
+                    obj.App.StatusLabel.Text = '🎯 Data tips disabled - right-click for options';
+                    obj.App.StatusLabel.FontColor = [0.5 0.5 0.5];
+                else
+                    % Data tips are OFF - turn them ON but keep context menu
+                    dcm.Enable = 'on';
+                    dcm.DisplayStyle = 'datatip';
+                    dcm.SnapToDataVertex = 'on';
+                    dcm.UpdateFcn = @(obj_dcm, event_obj) obj.customDataTipText(obj_dcm, event_obj);
+
+                    % Set interactions to include data tips
+                    ax.Interactions = [dataTipInteraction, panInteraction, zoomInteraction];
+
+                    obj.App.StatusLabel.Text = '🎯 Data tips enabled - left-click data points, right-click for menu';
+                    obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+                end
+
+            catch ME
+                obj.App.StatusLabel.Text = sprintf('❌ Error toggling data tips: %s', ME.message);
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
+
+
+        % Set crosshair position from mouse click
+        function setCrosshairFromClick(obj, ax, ~)
+            if ~obj.App.CursorState
+                return;
+            end
+
+            try
+                % Get click position
+                mousePos = ax.CurrentPoint;
+                newX = mousePos(1, 1);
+
+                % Check if X is within bounds
+                xlims = ax.XLim;
+                if newX >= xlims(1) && newX <= xlims(2)
+                    obj.setCrosshairX(newX);
+                end
+            catch
+                % Ignore errors
+            end
+        end
+
+
+        % Custom data tip text function (like SDI)
+        function txt = customDataTipText(obj, ~, event_obj)
+            % Get position and target
+            pos = get(event_obj, 'Position');
+            target = get(event_obj, 'Target');
+
+            % Get signal name from DisplayName
+            signalName = get(target, 'DisplayName');
+            if isempty(signalName)
+                signalName = 'Signal';
+            end
+
+            % Format like SDI: Signal name, Time, Value
+            txt = {
+                ['Signal: ' signalName], ...
+                ['Time: ' num2str(pos(1), '%.6f')], ...
+                ['Value: ' num2str(pos(2), '%.6f')]
+                };
+
+            % Add index if available
+            try
+                % Find the closest data point index
+                xdata = get(target, 'XData');
+                ydata = get(target, 'YData');
+
+                if ~isempty(xdata) && ~isempty(ydata)
+                    [~, idx] = min(abs(xdata - pos(1)));
+                    txt{end+1} = ['Index: ' num2str(idx)];
+                end
+            catch
+                % Skip index if can't determine
+            end
+        end
+        % New method to update visual indicators in signal tree
+        function updateSignalTreeVisualIndicators(obj, assignedSignals)
+            % Update checkmarks in signal tree based on assigned signals
+            allNodes = obj.App.SignalTree.Children;
+            selectedNodes = [];
+
+            for i = 1:numel(allNodes)
+                csvNode = allNodes(i);
+                for j = 1:numel(csvNode.Children)
+                    sigNode = csvNode.Children(j);
+                    isAssigned = false;
+
+                    % Check if this signal is assigned to current subplot
+                    for k = 1:numel(assignedSignals)
+                        if isequal(sigNode.NodeData, assignedSignals{k})
+                            isAssigned = true;
+                            selectedNodes = [selectedNodes sigNode];
+                            break;
+                        end
+                    end
+
+                    % Update visual indicator
+                    if isAssigned
+                        % Add checkmark if not already present
+                        if ~startsWith(sigNode.Text, '✔ ')
+                            sigNode.Text = sprintf('✔ %s', strrep(sigNode.Text, '✔ ', ''));
+                        end
+                    else
+                        % Remove checkmark if present
+                        if startsWith(sigNode.Text, '✔ ')
+                            sigNode.Text = strrep(sigNode.Text, '✔ ', '');
                         end
                     end
                 end
             end
+
+            % Select the assigned signal nodes in the tree
+            obj.App.SignalTree.SelectedNodes = selectedNodes;
         end
+        % New method to ensure + tab stays at the end
+        function ensurePlusTabAtEnd(obj)
+            % Find the + tab
+            plusTabIdx = find(cellfun(@(t) strcmp(t.Title, '+'), obj.PlotTabs));
+
+            if ~isempty(plusTabIdx)
+                % If + tab is not at the very end, move it
+                if plusTabIdx < numel(obj.PlotTabs)
+                    % Remove + tab from current position in PlotTabs array
+                    plusTab = obj.PlotTabs{plusTabIdx};
+                    obj.PlotTabs(plusTabIdx) = [];
+
+                    % Add + tab to the end of PlotTabs array
+                    obj.PlotTabs{end+1} = plusTab;
+                end
+            else
+                % No + tab exists, create one at the end
+                plusTab = uitab(obj.App.MainTabGroup, 'Title', '+');
+                obj.PlotTabs{end+1} = plusTab;
+            end
+
+            % Ensure the actual UI tab order matches our array order
+            obj.reorderUITabs();
+        end
+
+
+        % New method to update signal tree based on current tab
+        function updateSignalTreeForCurrentTab(obj)
+            % Update the signal tree to show which signals are assigned to the current subplot
+            tabIdx = obj.CurrentTabIdx;
+            subplotIdx = obj.SelectedSubplotIdx;
+
+            % Clear current selection in signal tree
+            if ~isempty(obj.App.SignalTree) && isvalid(obj.App.SignalTree)
+                obj.App.SignalTree.SelectedNodes = [];
+            end
+
+            % Get assigned signals for current subplot
+            assignedSignals = {};
+            if tabIdx <= numel(obj.AssignedSignals) && ...
+                    subplotIdx <= numel(obj.AssignedSignals{tabIdx})
+                assignedSignals = obj.AssignedSignals{tabIdx}{subplotIdx};
+            end
+
+            % Update the visual indicators in the signal tree
+            obj.updateSignalTreeVisualIndicators(assignedSignals);
+
+            % Update the signal properties table
+            if ismethod(obj.App, 'updateSignalPropsTable')
+                obj.App.updateSignalPropsTable(assignedSignals);
+            end
+        end
+
     end
+
 
     methods (Access = private)
         function ensurePlusTab(obj)
-            % Remove any existing + tab
+            % Check if + tab already exists
             plusTabIdx = find(cellfun(@(t) strcmp(t.Title, '+'), obj.PlotTabs));
-            if ~isempty(plusTabIdx)
-                delete(obj.PlotTabs{plusTabIdx});
-                obj.PlotTabs(plusTabIdx) = [];
-                obj.GridLayouts(plusTabIdx) = [];
-                obj.AxesArrays(plusTabIdx) = [];
-                obj.AssignedSignals(plusTabIdx) = [];
-                obj.TabLayouts(plusTabIdx) = [];
-                obj.AxesLimits(plusTabIdx) = [];
-                obj.LastDataTime(plusTabIdx) = [];
+
+            if isempty(plusTabIdx)
+                % No + tab exists, create one
+                plusTab = uitab(obj.App.MainTabGroup, 'Title', '+');
+                obj.PlotTabs{end+1} = plusTab;
+
+                % Don't add to other arrays since + tab has no content
+                % Just ensure arrays are properly sized for real tabs only
             end
-            % Add + tab at the end (no close icon)
-            plusTab = uitab(obj.App.MainTabGroup, 'Title', '+');
-            obj.PlotTabs{end+1} = plusTab;
+
+            % Set up tab selection callback if not already done
+            if isempty(obj.App.MainTabGroup.SelectionChangedFcn)
+                obj.setupTabCallbacks();
+            end
         end
     end
 end

@@ -35,6 +35,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
         AutoScaleCheckbox
         StatusLabel
         DataRateLabel
+        CursorState = false
 
         % Visual Enhancement Properties
         SubplotHighlightBoxes
@@ -117,26 +118,25 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Enhanced layout with LIGHT MODE styling
             % Only keep controls that are actually used in the current workflow
 
-            % Modern menu bar at the top
             fileMenu = uimenu(app.UIFigure, 'Text', 'File');
-            uimenu(fileMenu, 'Text', '💾 Save Config', 'MenuSelectedFcn', @(src, event) app.saveConfig());
-            uimenu(fileMenu, 'Text', '📁 Load Config', 'MenuSelectedFcn', @(src, event) app.loadConfig());
-            uimenu(fileMenu, 'Text', '💾 Save Session', 'MenuSelectedFcn', @(src, event) app.saveSession());
-            uimenu(fileMenu, 'Text', '📁 Load Session', 'MenuSelectedFcn', @(src, event) app.loadSession());
+            uimenu(fileMenu, 'Text', '💾 Save Layout Config', 'MenuSelectedFcn', @(src, event) app.saveConfig());
+            uimenu(fileMenu, 'Text', '📁 Load Layout Config', 'MenuSelectedFcn', @(src, event) app.loadConfig());
+            uimenu(fileMenu, 'Text', '💾 Save Full Session', 'MenuSelectedFcn', @(src, event) app.saveSession());
+            uimenu(fileMenu, 'Text', '📁 Load Full Session', 'MenuSelectedFcn', @(src, event) app.loadSession());
 
+            % Update the actions menu in createEnhancedComponents method:
             actionsMenu = uimenu(app.UIFigure, 'Text', 'Actions');
-            uimenu(actionsMenu, 'Text', '▶️ Start', 'MenuSelectedFcn', @(src, event) app.menuStart());
+            uimenu(actionsMenu, 'Text', '▶️ Start (Load CSVs)', 'MenuSelectedFcn', @(src, event) app.menuStart());
+            uimenu(actionsMenu, 'Text', '➕ Add More CSVs', 'MenuSelectedFcn', @(src, event) app.menuAddMoreCSVs());
             uimenu(actionsMenu, 'Text', '⏹️ Stop', 'MenuSelectedFcn', @(src, event) app.menuStop());
-            uimenu(actionsMenu, 'Text', '🗑️ Clear', 'MenuSelectedFcn', @(src, event) app.menuClear());
+            uimenu(actionsMenu, 'Text', '🗑️ Clear Plots Only', 'MenuSelectedFcn', @(src, event) app.menuClearPlotsOnly());
+            uimenu(actionsMenu, 'Text', '🗑️ Clear Everything', 'MenuSelectedFcn', @(src, event) app.menuClearAll());
             uimenu(actionsMenu, 'Text', '📈 Statistics', 'MenuSelectedFcn', @(src, event) app.menuStatistics());
 
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
 
-            viewMenu = uimenu(app.UIFigure, 'Text', 'View');
-            uimenu(viewMenu, 'Text', 'Sync Zoom', 'MenuSelectedFcn', @(src, event) app.menuToggleSyncZoom());
-            uimenu(viewMenu, 'Text', 'Cursor', 'MenuSelectedFcn', @(src, event) app.menuToggleCursor());
 
             % ONLY Auto Scale and Refresh CSV buttons at the top
             app.AutoScaleButton = uibutton(app.ControlPanel, 'push', 'Text', 'Auto Scale All', ...
@@ -450,7 +450,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Update the signal properties table for the selected signals
             app.updateSignalPropsTable(selectedSignals);
         end
-
+        function tf = hasSignalsLoaded(app)
+            % Check if we have signals loaded and signal tree populated
+            tf = ~isempty(app.DataManager.SignalNames) && ...
+                ~isempty(app.SignalTree.Children) && ...
+                ~isempty(app.DataManager.DataTables) && ...
+                any(~cellfun(@isempty, app.DataManager.DataTables));
+        end
         function updateSignalPropsTable(app, selectedSignals)
             % Update the properties table for the selected signals.
             % Each row: {Signal, Scale, State, Color, LineWidth}
@@ -551,7 +557,74 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 end
             end
         end
+        function [isCompatible, missingSignals, extraSignals] = checkConfigCompatibility(app, config)
+            % Check if loaded signals are compatible with config
+            isCompatible = true;
+            missingSignals = {};
+            extraSignals = {};
 
+            if ~isfield(config, 'AssignedSignals') || isempty(config.AssignedSignals)
+                return;
+            end
+
+            % Get all signals referenced in the config
+            configSignals = {};
+            for tabIdx = 1:numel(config.AssignedSignals)
+                for subplotIdx = 1:numel(config.AssignedSignals{tabIdx})
+                    assignments = config.AssignedSignals{tabIdx}{subplotIdx};
+                    for i = 1:numel(assignments)
+                        if isstruct(assignments{i}) && isfield(assignments{i}, 'Signal')
+                            configSignals{end+1} = assignments{i}.Signal;
+                        end
+                    end
+                end
+            end
+            configSignals = unique(configSignals);
+
+            % Check for missing signals (in config but not loaded)
+            currentSignals = app.DataManager.SignalNames;
+            missingSignals = setdiff(configSignals, currentSignals);
+
+            % Check for extra signals (loaded but not in config) - just for info
+            extraSignals = setdiff(currentSignals, configSignals);
+
+            % Consider incompatible if critical signals are missing
+            if ~isempty(missingSignals)
+                isCompatible = false;
+            end
+        end
+        function restoreFocus(app)
+            % Restore focus to the main application window
+            try
+                figure(app.UIFigure);
+                drawnow;
+            catch
+                % Ignore errors
+            end
+        end
+        function enableDataTipsByDefault(app)
+            % Don't enable data tips by default to avoid context menu conflicts
+            % User can enable them via right-click menu
+            for i = 1:numel(app.PlotManager.AxesArrays)
+                if ~isempty(app.PlotManager.AxesArrays{i})
+                    for ax = app.PlotManager.AxesArrays{i}
+                        if isgraphics(ax, 'axes')
+                            try
+                                % Only enable pan and zoom by default
+                                ax.Interactions = [panInteraction, zoomInteraction];
+
+                                % Ensure datacursormode is OFF by default
+                                dcm = datacursormode(ancestor(ax, 'figure'));
+                                dcm.Enable = 'off';
+
+                            catch
+                                % Ignore errors
+                            end
+                        end
+                    end
+                end
+            end
+        end
         % Add a stub for building the signal tree (to be implemented)
         function buildSignalTree(app)
             % Build a tree UI grouped by CSV, with signals as children
@@ -594,6 +667,23 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(multiCm, 'Text', 'Remove all from Subplot', 'MenuSelectedFcn', @(src, event) app.removeSelectedSignalsFromSubplot());
             app.SignalTree.ContextMenu = multiCm;
             % Do NOT auto-start streaming here to avoid recursion
+
+            % % Enable crosshair cursor by default if data is loaded
+            % if ~isempty(app.DataManager.DataTables) && any(~cellfun(@isempty, app.DataManager.DataTables))
+            %     if ~app.CursorState
+            %         app.CursorState = true;
+            %         app.PlotManager.enableCursorMode();
+            %         if ~isempty(app.CursorMenuItem)
+            %             app.CursorMenuItem.Text = '🎯 Disable Crosshair Cursor';
+            %         end
+            %     end
+            % end
+
+            % Enable ONLY data tips by default when data is loaded (NOT crosshair cursor)
+            if ~isempty(app.DataManager.DataTables) && any(~cellfun(@isempty, app.DataManager.DataTables))
+                app.enableDataTipsByDefault();
+                % Do NOT enable crosshair by default
+            end
         end
 
         function filterSignals(app, searchText)
@@ -661,6 +751,17 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 end
             end
         end
+        function menuClearPlotsOnly(app)
+            app.UIController.clearPlotsOnly();
+        end
+
+        function menuClearAll(app)
+            app.UIController.clearAll();
+        end
+        function menuAddMoreCSVs(app)
+            app.UIController.addMoreCSVs();
+            figure(app.UIFigure);
+        end
         function initializeVisualEnhancements(app)
             % Initialize subplot highlight system
             app.SubplotHighlightBoxes = {};
@@ -681,11 +782,20 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
         % Rest of the methods remain the same but with drawnow removed where unnecessary...
         % [Continue with other methods but removing redundant drawnow calls]
+        function saveConfig(app)
+            % Delegate to ConfigManager
+            app.ConfigManager.saveConfig();
+        end
 
+        function loadConfig(app)
+            % Delegate to ConfigManager
+            app.ConfigManager.loadConfig();
+        end
         function saveSession(app)
             % Save the current app session to a .mat file
             [file, path] = uiputfile('*.mat', 'Save Session');
             if isequal(file, 0), return; end
+
             session = struct();
             session.CSVFilePaths = app.DataManager.CSVFilePaths;
             session.SignalScaling = app.DataManager.SignalScaling;
@@ -694,29 +804,57 @@ classdef SignalViewerApp < matlab.apps.AppBase
             session.TabLayouts = app.PlotManager.TabLayouts;
             session.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
             session.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
-            session.RowsSpinnerValue = app.RowsSpinner.Value;
-            session.ColsSpinnerValue = app.ColsSpinner.Value;
-            session.AutoScale = app.AutoScaleCheckbox.Value;
-            session.SubplotMetadata = app.SubplotMetadata; % Save metadata
-            session.SignalStyles = app.SignalStyles; % Save styles
-            save(fullfile(path, file), 'session');
-            uialert(app.UIFigure, 'Session saved successfully.', 'Success');
-        end
 
+            % Get current tab's layout values from TabControls instead of non-existent spinners
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            if tabIdx <= numel(app.PlotManager.TabControls) && ~isempty(app.PlotManager.TabControls{tabIdx})
+                session.RowsSpinnerValue = app.PlotManager.TabControls{tabIdx}.RowsSpinner.Value;
+                session.ColsSpinnerValue = app.PlotManager.TabControls{tabIdx}.ColsSpinner.Value;
+            else
+                % Fallback to current layout if TabControls not available
+                currentLayout = app.PlotManager.TabLayouts{tabIdx};
+                session.RowsSpinnerValue = currentLayout(1);
+                session.ColsSpinnerValue = currentLayout(2);
+            end
+
+            session.AutoScale = true; % Default value since AutoScaleCheckbox doesn't exist
+
+            if isprop(app, 'SubplotMetadata')
+                session.SubplotMetadata = app.SubplotMetadata;
+            else
+                session.SubplotMetadata = {};
+            end
+
+            if isprop(app, 'SignalStyles')
+                session.SignalStyles = app.SignalStyles;
+            else
+                session.SignalStyles = struct();
+            end
+
+            save(fullfile(path, file), 'session');
+            app.StatusLabel.Text = '✅ Session saved successfully';
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
         function loadSession(app)
             % Load a session from a .mat file
             [file, path] = uigetfile('*.mat', 'Load Session');
             if isequal(file, 0), return; end
+
             loaded = load(fullfile(path, file));
             if ~isfield(loaded, 'session')
-                uialert(app.UIFigure, 'Invalid session file.', 'Error');
+                app.StatusLabel.Text = '❌ Invalid session file';
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                app.restoreFocus();
                 return;
             end
+
             session = loaded.session;
+
             % Restore CSVs
             app.DataManager.CSVFilePaths = session.CSVFilePaths;
             app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
             app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
+
             for i = 1:numel(session.CSVFilePaths)
                 if isfile(session.CSVFilePaths{i})
                     opts = detectImportOptions(session.CSVFilePaths{i});
@@ -731,22 +869,72 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     app.DataManager.DataTables{i} = [];
                 end
             end
+
             app.DataManager.SignalScaling = session.SignalScaling;
             app.DataManager.StateSignals = session.StateSignals;
             app.PlotManager.AssignedSignals = session.AssignedSignals;
             app.PlotManager.TabLayouts = session.TabLayouts;
             app.PlotManager.CurrentTabIdx = session.CurrentTabIdx;
             app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
-            app.RowsSpinner.Value = session.RowsSpinnerValue;
-            app.ColsSpinner.Value = session.ColsSpinnerValue;
-            app.AutoScaleCheckbox.Value = session.AutoScale;
-            app.SubplotMetadata = session.SubplotMetadata; % Load metadata
-            app.SignalStyles = session.SignalStyles; % Load styles
+
+            % Set tab layouts using the saved values
+            if isfield(session, 'RowsSpinnerValue') && isfield(session, 'ColsSpinnerValue')
+                tabIdx = app.PlotManager.CurrentTabIdx;
+                if tabIdx <= numel(app.PlotManager.TabControls) && ~isempty(app.PlotManager.TabControls{tabIdx})
+                    app.PlotManager.TabControls{tabIdx}.RowsSpinner.Value = session.RowsSpinnerValue;
+                    app.PlotManager.TabControls{tabIdx}.ColsSpinner.Value = session.ColsSpinnerValue;
+                end
+            end
+
+            if isfield(session, 'SubplotMetadata')
+                app.SubplotMetadata = session.SubplotMetadata;
+            end
+
+            if isfield(session, 'SignalStyles')
+                app.SignalStyles = session.SignalStyles;
+            end
+
             app.buildSignalTree();
             app.PlotManager.refreshPlots();
-            uialert(app.UIFigure, 'Session loaded successfully.', 'Success');
+
+            % AUTO-SCALE ALL PLOTS AFTER LOADING SESSION
+            app.autoScaleAllTabs();
+
+            app.StatusLabel.Text = '✅ Session loaded successfully';
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
 
+        function autoScaleAllTabs(app)
+            % Auto-scale all subplots in all tabs
+            scaledCount = 0;
+
+            for tabIdx = 1:numel(app.PlotManager.AxesArrays)
+                if ~isempty(app.PlotManager.AxesArrays{tabIdx})
+                    axesArray = app.PlotManager.AxesArrays{tabIdx};
+
+                    for i = 1:numel(axesArray)
+                        ax = axesArray(i);
+                        if isvalid(ax) && isgraphics(ax) && ~isempty(ax.Children)
+                            % Force auto-scaling on each subplot that has data
+                            ax.XLimMode = 'auto';
+                            ax.YLimMode = 'auto';
+                            axis(ax, 'auto');
+                            scaledCount = scaledCount + 1;
+                        end
+                    end
+                end
+            end
+
+            % Update status
+            if scaledCount > 0
+                app.StatusLabel.Text = sprintf('📐 Auto-scaled %d plots across all tabs', scaledCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                % Small delay to let auto-scaling complete, then restore highlight
+                pause(0.05);
+                app.highlightSelectedSubplot(app.PlotManager.CurrentTabIdx, app.PlotManager.SelectedSubplotIdx);
+            end
+        end
         % Helper function to assign selected signals in the tree to the current subplot
         function assignSelectedSignalsToCurrentSubplot(app)
             % Assign all signals currently selected in the tree to the current subplot
@@ -798,18 +986,20 @@ classdef SignalViewerApp < matlab.apps.AppBase
         % Menu callback functions
         function menuStart(app)
             app.UIController.loadMultipleCSVs();
+            figure(app.UIFigure);
         end
         function menuStop(app)
             app.DataManager.stopStreamingAll();
+            figure(app.UIFigure);
         end
-        function menuClear(app)
-            app.UIController.clearAll();
-        end
+
         function menuExportCSV(app)
             app.UIController.exportCSV();
+            figure(app.UIFigure);
         end
         function menuExportPDF(app)
             app.PlotManager.exportToPDF();
+            figure(app.UIFigure);
         end
         function menuStatistics(app)
             app.UIController.showStatsDialog();
@@ -829,17 +1019,16 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
         function menuToggleCursor(app)
             % Toggle cursor mode state
-            if ~isprop(app, 'CursorState') || isempty(app.CursorState)
-                app.CursorState = false;
-            end
             app.CursorState = ~app.CursorState;
+
             if app.CursorState
                 app.PlotManager.enableCursorMode();
+                app.CursorMenuItem.Text = '🎯 Disable Crosshair Cursor';
             else
                 app.PlotManager.disableCursorMode();
+                app.CursorMenuItem.Text = '🎯 Enable Crosshair Cursor';
             end
         end
-
         % Add other necessary methods...
         function setupAxesDropTargets(app)
             % Set up each axes as a drop target for drag-and-drop signal assignment
