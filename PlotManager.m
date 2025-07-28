@@ -1419,9 +1419,7 @@ classdef PlotManager < handle
                     return;
                 end
 
-                fprintf('Debug: Found %d plots to include\n', size(plotsToInclude, 1));
-                fprintf('Debug: Output path: %s\n', fullPath);
-
+          
                 % Create temporary figure for report generation
                 reportFig = figure('Visible', 'off', 'Position', [100 100 800 600], ...
                     'Color', [1 1 1], 'PaperType', 'a4', 'PaperOrientation', 'portrait');
@@ -1436,7 +1434,6 @@ classdef PlotManager < handle
                 if exist(fullPath, 'file')
                     app.StatusLabel.Text = sprintf('✅ PDF report saved: %s', file);
                     app.StatusLabel.FontColor = [0.2 0.6 0.9];
-                    fprintf('Debug: PDF file created successfully at: %s\n', fullPath);
 
                     % Ask if user wants to open the PDF
                     answer = questdlg('PDF created successfully. Open it now?', 'PDF Export', 'Yes', 'No', 'Yes');
@@ -1456,7 +1453,6 @@ classdef PlotManager < handle
                 else
                     app.StatusLabel.Text = '❌ PDF file was not created';
                     app.StatusLabel.FontColor = [0.9 0.3 0.3];
-                    fprintf('Debug: PDF file was not created at: %s\n', fullPath);
                 end
 
             catch ME
@@ -2381,7 +2377,7 @@ classdef PlotManager < handle
             processedText = fliplr(text);
 
             % Debug output to see what's happening
-            fprintf('Original: "%s" -> Processed: "%s"\n', text, processedText);
+            % fprintf('Original: "%s" -> Processed: "%s"\n', text, processedText);
         end
         function isHebrew = containsHebrew(obj, text)
             % Check if text contains Hebrew characters (Unicode range 1424-1535)
