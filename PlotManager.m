@@ -14,6 +14,7 @@ classdef PlotManager < handle
         % Add properties for stable streaming
         AxesLimits  % Store current limits to prevent jumping
         LastDataTime % Track last data time for each axes
+
     end
 
     methods
@@ -424,7 +425,7 @@ classdef PlotManager < handle
                 cm = uicontextmenu(obj.App.UIFigure);
 
                 % Caption editing - NEW
-                uimenu(cm, 'Text', '📝 Edit Caption & Description', ...
+                uimenu(cm, 'Text', '📝 Edit Title, Caption & Description', ...
                     'MenuSelectedFcn', @(src, event) obj.App.editSubplotCaption(tabIdx, i));
 
                 % Data tips toggle - always available
@@ -466,74 +467,113 @@ classdef PlotManager < handle
                 return;
             end
 
-            % Create PDF export dialog
-            d = dialog('Name', 'PDF Export Options', 'Position', [300 300 500 550]);
+            % Create PDF export dialog - English only
+            d = dialog('Name', 'PDF Export Options', 'Position', [250 250 650 700]);
 
             % Title
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 510 460 25], ...
-                'String', 'PDF Report Export Options:', 'FontSize', 12, 'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 660 610 25], ...
+                'String', 'PDF Report Export Options', 'FontSize', 14, 'FontWeight', 'bold');
 
             % Report settings
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 475 100 20], ...
-                'String', 'Report Title:', 'HorizontalAlignment', 'left');
-            titleField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [130 475 350 25], ...
-                'String', app.PDFReportTitle, 'HorizontalAlignment', 'left');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 625 120 20], ...
+                'String', 'Report Title:', 'FontWeight', 'bold');
+            titleField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [150 625 480 25], ...
+                'String', app.PDFReportTitle, 'HorizontalAlignment', 'left', 'FontSize', 11);
 
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 440 100 20], ...
-                'String', 'Author:', 'HorizontalAlignment', 'left');
-            authorField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [130 440 350 25], ...
-                'String', app.PDFReportAuthor, 'HorizontalAlignment', 'left');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 590 120 20], ...
+                'String', 'Author:', 'FontWeight', 'bold');
+            authorField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [150 590 480 25], ...
+                'String', app.PDFReportAuthor, 'HorizontalAlignment', 'left', 'FontSize', 11);
+
+            % Figure label language setting
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 555 120 20], ...
+                'String', 'Figure Label:', 'FontWeight', 'bold');
+
+            figureLanguageDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 555 150 25], ...
+                'String', {'Figure', 'איור'}, ...
+                'FontSize', 10, 'Value', 1);
+
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [310 555 320 20], ...
+                'String', 'Choose label language for "Figure 1:", "Figure 2:" etc.', ...
+                'FontSize', 9, 'ForegroundColor', [0.5 0.5 0.5]);
+
+            % Predefined titles
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 520 120 20], ...
+                'String', 'Quick Titles:', 'FontSize', 10);
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Signal Analysis Report', ...
+                'Position', [150 520 150 25], 'FontSize', 9, ...
+                'Callback', @(~,~) set(titleField, 'String', 'Signal Analysis Report'));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Data Analysis Report', ...
+                'Position', [310 520 150 25], 'FontSize', 9, ...
+                'Callback', @(~,~) set(titleField, 'String', 'Data Analysis Report'));
+
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'דוח ניתוח אותות', ...
+                'Position', [470 520 150 25], 'FontSize', 9, ...
+                'Callback', @(~,~) set(titleField, 'String', 'דוח ניתוח אותות'));
+
+            % Language support note
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 485 610 25], ...
+                'String', 'Note: Hebrew text will be automatically right-aligned. You can mix Hebrew and English.', ...
+                'FontSize', 9, 'ForegroundColor', [0.2 0.6 0.9]);
 
             % Export scope options
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 400 460 20], ...
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 445 610 20], ...
                 'String', 'Export Scope:', 'FontSize', 11, 'FontWeight', 'bold');
 
             % Export option buttons
             uicontrol('Parent', d, 'Style', 'pushbutton', ...
-                'Position', [20 360 460 30], ...
-                'String', '📊 Current Tab Only (with captions)', ...
+                'Position', [20 405 610 30], ...
+                'String', '📊 Current Tab Only (with captions and titles)', ...
                 'Callback', @(~,~) exportPDFAndClose(1));
 
             uicontrol('Parent', d, 'Style', 'pushbutton', ...
-                'Position', [20 325 460 30], ...
-                'String', '📚 All Tabs (with captions)', ...
+                'Position', [20 370 610 30], ...
+                'String', '📚 All Tabs (with captions and titles)', ...
                 'Callback', @(~,~) exportPDFAndClose(2));
 
             uicontrol('Parent', d, 'Style', 'pushbutton', ...
-                'Position', [20 290 460 30], ...
+                'Position', [20 335 610 30], ...
                 'String', '📋 Current Tab - Active Subplots Only (with data)', ...
                 'Callback', @(~,~) exportPDFAndClose(3));
 
             uicontrol('Parent', d, 'Style', 'pushbutton', ...
-                'Position', [20 255 460 30], ...
+                'Position', [20 300 610 30], ...
                 'String', '🗂️ All Tabs - Active Subplots Only (with data)', ...
                 'Callback', @(~,~) exportPDFAndClose(4));
 
             % Options
-            includeTableCheck = uicontrol('Parent', d, 'Style', 'checkbox', 'Position', [20 210 460 20], ...
-                'String', 'Include signal statistics table', 'Value', 1);
+            includeTableCheck = uicontrol('Parent', d, 'Style', 'checkbox', 'Position', [20 255 610 20], ...
+                'String', 'Include signal statistics table', 'Value', 0);
 
-            includeTOCCheck = uicontrol('Parent', d, 'Style', 'checkbox', 'Position', [20 185 460 20], ...
-                'String', 'Include table of contents', 'Value', 1);
+            includeTOCCheck = uicontrol('Parent', d, 'Style', 'checkbox', 'Position', [20 230 610 20], ...
+                'String', 'Include table of contents', 'Value', 0);
 
             % Info text
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 140 460 35], ...
-                'String', 'The PDF will include figure numbers, captions, descriptions, and a professional report layout.', ...
-                'FontSize', 10, 'HorizontalAlignment', 'center');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 170 610 50], ...
+                'String', 'The PDF will include figure numbers, captions, descriptions, and subplot titles. Each subplot can have its own title and caption that you can edit by right-clicking on the subplot.', ...
+                'FontSize', 9, 'HorizontalAlignment', 'center');
 
             % Buttons
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
-                'Position', [400 20 80 30], 'Callback', @(~,~) close(d));
+                'Position', [550 20 80 30], 'Callback', @(~,~) close(d));
 
             function exportPDFAndClose(option)
                 % Save report settings
                 app.PDFReportTitle = titleField.String;
                 app.PDFReportAuthor = authorField.String;
 
+                % Get figure label language
+                figureLabels = {'Figure', 'איור'};
+                app.PDFFigureLabel = figureLabels{figureLanguageDropdown.Value};
+
                 % Call appropriate PDF export function
                 options = struct();
                 options.includeStats = includeTableCheck.Value;
                 options.includeTOC = includeTOCCheck.Value;
+                options.figureLabel = app.PDFFigureLabel;
 
                 switch option
                     case 1
@@ -1439,50 +1479,82 @@ classdef PlotManager < handle
             app = obj.App;
 
             try
-                % Create a single PDF with multiple figures per page to avoid append issues
-
-                % Calculate how many plots we can fit per page
+                % Simple approach: Create one large figure with all content
                 totalPlots = size(plotsToInclude, 1);
 
-                % Page 1: Title page only
+                % Create a very tall figure to accommodate all pages
+                figHeight = 600 + (totalPlots * 400); % Title space + plots
+                set(reportFig, 'Position', [100 100 800 figHeight]);
+
                 clf(reportFig);
-                obj.createTitlePage(reportFig, options);
-                print(reportFig, outputPath, '-dpdf', '-fillpage');
 
-                % Create subsequent pages with plots
+                % Create title section at the top
+                titleAx = axes('Parent', reportFig, 'Position', [0.05 0.85 0.9 0.1], 'Visible', 'off');
+                obj.createTitlePageContent(titleAx, options);
+
+                % Create each plot in its own section
                 figureNumber = 1;
-                plotIndex = 1;
+                plotSpacing = 0.8 / totalPlots; % Divide remaining 80% of figure among plots
 
-                while plotIndex <= totalPlots
-                    clf(reportFig);
+                for i = 1:totalPlots
+                    tabIdx = plotsToInclude(i, 1);
+                    subplotIdx = plotsToInclude(i, 2);
 
-                    % Put one plot per page for best quality
-                    tabIdx = plotsToInclude(plotIndex, 1);
-                    subplotIdx = plotsToInclude(plotIndex, 2);
+                    % Calculate position for this plot
+                    yTop = 0.8 - (i-1) * plotSpacing;
+                    yBottom = yTop - plotSpacing * 0.9; % Leave some space between plots
+                    plotHeight = plotSpacing * 0.6; % 60% for plot
+                    captionHeight = plotSpacing * 0.3; % 30% for caption
 
-                    obj.createPlotPage(reportFig, tabIdx, subplotIdx, figureNumber, options);
+                    % Create plot area
+                    plotAx = axes('Parent', reportFig, 'Position', [0.1 yBottom + captionHeight, 0.8 plotHeight]);
 
-                    % Save as separate file (avoiding append issue)
-                    [pathStr, name, ext] = fileparts(outputPath);
-                    pageFileName = fullfile(pathStr, sprintf('%s_Figure%d%s', name, figureNumber, ext));
-                    print(reportFig, pageFileName, '-dpdf', '-fillpage');
+                    % Get source data and plot
+                    if tabIdx <= numel(obj.AxesArrays) && subplotIdx <= numel(obj.AxesArrays{tabIdx})
+                        sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
+                        if isvalid(sourceAx)
+                            obj.copyPlotContent(sourceAx, plotAx);
 
-                    plotIndex = plotIndex + 1;
+                            % *** NEW: Add subplot title to the plot itself ***
+                            subplotTitle = obj.getSubplotTitle(app, tabIdx, subplotIdx);
+                            if obj.containsHebrew(subplotTitle)
+                                processedTitle = obj.processHebrewText(subplotTitle);
+                            else
+                                processedTitle = subplotTitle;
+                            end
+
+                            title(plotAx, processedTitle, 'FontSize', 14, 'FontWeight', 'bold');
+                        end
+                    end
+
+                    % Add caption below plot
+                    captionAx = axes('Parent', reportFig, 'Position', [0.1 yBottom 0.8 captionHeight], 'Visible', 'off');
+                    obj.addCaptionContent(captionAx, tabIdx, subplotIdx, figureNumber);
+
                     figureNumber = figureNumber + 1;
 
                     % Update progress
-                    app.StatusLabel.Text = sprintf('📄 Created Figure %d of %d', figureNumber-1, totalPlots);
+                    app.StatusLabel.Text = sprintf('📄 Adding figure %d of %d...', figureNumber-1, totalPlots);
                     drawnow;
                 end
 
-                % Update final status
-                app.StatusLabel.Text = sprintf('✅ Created %d PDF files: 1 title + %d figures', totalPlots + 1, totalPlots);
+                % Print the entire figure as one PDF
+                print(reportFig, outputPath, '-dpdf', '-fillpage');
+
+                % Reset figure size
+                set(reportFig, 'Position', [100 100 800 600]);
+
+                app.StatusLabel.Text = sprintf('✅ Created single PDF with title + %d figures', totalPlots);
 
             catch ME
+                % Reset figure size in case of error
+                try
+                    set(reportFig, 'Position', [100 100 800 600]);
+                catch
+                end
                 error('PDF generation failed: %s', ME.message);
             end
         end
-
         function enableDataTipsMode(obj, ax)
             % Enable data tips mode - user can click data points, right-click to exit
             try
@@ -1516,6 +1588,126 @@ classdef PlotManager < handle
             end
         end
 
+
+        function createTitlePageContent(obj, ax, options)
+            app = obj.App;
+
+            axis(ax, 'off');
+
+            % Process Hebrew text
+            processedTitle = obj.processHebrewText(app.PDFReportTitle);
+            processedAuthor = obj.processHebrewText(app.PDFReportAuthor);
+
+            % Check if title is Hebrew
+            titleIsHebrew = obj.containsHebrew(app.PDFReportTitle);
+            authorIsHebrew = obj.containsHebrew(app.PDFReportAuthor);
+
+            % Title - adjust alignment based on language
+            if titleIsHebrew
+                text(ax, 0.95, 0.8, processedTitle, 'FontSize', 18, 'FontWeight', 'bold', ...
+                    'HorizontalAlignment', 'right', 'Units', 'normalized');
+            else
+                text(ax, 0.5, 0.8, app.PDFReportTitle, 'FontSize', 18, 'FontWeight', 'bold', ...
+                    'HorizontalAlignment', 'center', 'Units', 'normalized');
+            end
+
+            % Author - adjust alignment based on language
+            if ~isempty(app.PDFReportAuthor)
+                if authorIsHebrew
+                    text(ax, 0.95, 0.5, ['Author: ' processedAuthor], 'FontSize', 12, ...
+                        'HorizontalAlignment', 'right', 'Units', 'normalized');
+                else
+                    text(ax, 0.5, 0.5, ['Author: ' app.PDFReportAuthor], 'FontSize', 12, ...
+                        'HorizontalAlignment', 'center', 'Units', 'normalized');
+                end
+            end
+
+            % Date (always center)
+            text(ax, 0.5, 0.2, ['Generated: ' datestr(now, 'yyyy-mm-dd HH:MM')], ...
+                'FontSize', 10, 'HorizontalAlignment', 'center', 'Units', 'normalized');
+        end
+
+        function addCaptionContent(obj, captionAx, tabIdx, subplotIdx, figureNumber)
+            app = obj.App;
+
+            % Get caption and description
+            caption = '';
+            description = '';
+
+            if numel(app.SubplotCaptions) >= tabIdx && ...
+                    numel(app.SubplotCaptions{tabIdx}) >= subplotIdx && ...
+                    ~isempty(app.SubplotCaptions{tabIdx}{subplotIdx})
+                caption = app.SubplotCaptions{tabIdx}{subplotIdx};
+            end
+
+            if numel(app.SubplotDescriptions) >= tabIdx && ...
+                    numel(app.SubplotDescriptions{tabIdx}) >= subplotIdx && ...
+                    ~isempty(app.SubplotDescriptions{tabIdx}{subplotIdx})
+                description = app.SubplotDescriptions{tabIdx}{subplotIdx};
+            end
+
+            % Default values if empty
+            if isempty(caption)
+                caption = sprintf('Caption for subplot %d', subplotIdx);
+            end
+            if isempty(description)
+                description = 'No description provided.';
+            end
+
+            % Check if text is Hebrew and process accordingly
+            captionIsHebrew = obj.containsHebrew(caption);
+            descriptionIsHebrew = obj.containsHebrew(description);
+
+            % *** FIX: Handle figure label and caption properly ***
+            figureLabel = app.PDFFigureLabel; % 'Figure' or 'איור'
+
+            if strcmp(figureLabel, 'איור')
+                % Hebrew label: Build Hebrew-style sentence and process as Hebrew
+                % Format: "איור 1: שתיים" (not reversed parts)
+                fullCaptionText = sprintf('איור %d: %s', figureNumber, caption);
+                processedCaptionText = obj.processHebrewText(fullCaptionText);
+                labelAlign = 'right';
+                labelX = 0.95;
+            else
+                % English label: Build English-style sentence
+                if captionIsHebrew
+                    % English label but Hebrew caption
+                    processedCaption = obj.processHebrewText(caption);
+                    fullCaptionText = sprintf('%s %d: %s', figureLabel, figureNumber, processedCaption);
+                    labelAlign = 'right';  % Right align because caption is Hebrew
+                    labelX = 0.95;
+                else
+                    % Both English
+                    fullCaptionText = sprintf('%s %d: %s', figureLabel, figureNumber, caption);
+                    labelAlign = 'left';
+                    labelX = 0.05;
+                end
+                processedCaptionText = fullCaptionText;
+            end
+
+            % Process description
+            if descriptionIsHebrew
+                processedDescription = obj.processHebrewText(description);
+                descAlign = 'right';
+                descX = 0.95;
+            else
+                processedDescription = description;
+                descAlign = 'left';
+                descX = 0.05;
+            end
+
+            % Add figure label and caption
+            text(captionAx, labelX, 0.8, processedCaptionText, ...
+                'FontSize', 10, 'FontWeight', 'bold', 'Units', 'normalized', ...
+                'VerticalAlignment', 'top', 'Interpreter', 'none', ...
+                'HorizontalAlignment', labelAlign);
+
+            % Add description
+            text(captionAx, descX, 0.5, processedDescription, ...
+                'FontSize', 9, 'Units', 'normalized', ...
+                'VerticalAlignment', 'top', 'Interpreter', 'none', ...
+                'HorizontalAlignment', descAlign);
+        end
         function exitDataTipsMode(obj, ax)
             % Exit data tips mode and restore normal context menu
             try
@@ -1981,7 +2173,121 @@ classdef PlotManager < handle
                 % Ignore errors
             end
         end
+        function createPDFFromImages(obj, imageFiles, outputPath)
+            % Create a single PDF from multiple images
 
+            if isempty(imageFiles)
+                error('No images to convert to PDF');
+            end
+
+            % Create a temporary figure for PDF assembly
+            pdfFig = figure('Visible', 'off', 'Position', [100 100 800 600], ...
+                'Color', [1 1 1], 'PaperType', 'a4', 'PaperOrientation', 'portrait');
+
+            try
+                for i = 1:numel(imageFiles)
+                    % Clear figure
+                    clf(pdfFig);
+
+                    % Read and display the image
+                    img = imread(imageFiles{i});
+
+                    % Create axes that fills the entire figure
+                    ax = axes('Parent', pdfFig, 'Position', [0 0 1 1]);
+
+                    % Display image
+                    imshow(img, 'Parent', ax);
+                    axis(ax, 'off');
+
+                    % Print to PDF
+                    if i == 1
+                        % First page: create new PDF
+                        print(pdfFig, outputPath, '-dpdf', '-fillpage', '-r300');
+                    else
+                        % This is the tricky part - we need to append without using -append
+                        % Solution: Use temporary files and system command if available
+                        tempPdfFile = [tempname '.pdf'];
+                        print(pdfFig, tempPdfFile, '-dpdf', '-fillpage', '-r300');
+
+                        % Try to combine using system tools
+                        success = obj.appendPDFPage(outputPath, tempPdfFile);
+
+                        if ~success
+                            % Fallback: create individual files
+                            [pathStr, name, ext] = fileparts(outputPath);
+                            backupFile = fullfile(pathStr, sprintf('%s_page%02d%s', name, i, ext));
+                            copyfile(tempPdfFile, backupFile);
+                            fprintf('Created backup file: %s\n', backupFile);
+                        end
+
+                        % Clean up temp file
+                        if exist(tempPdfFile, 'file')
+                            delete(tempPdfFile);
+                        end
+                    end
+                end
+
+            catch ME
+                if isvalid(pdfFig)
+                    close(pdfFig);
+                end
+                rethrow(ME);
+            end
+
+            % Clean up
+            close(pdfFig);
+        end
+
+        function success = appendPDFPage(obj, mainPdfFile, pagePdfFile)
+            success = false;
+
+            try
+                % Method 1: Try using MATLAB's built-in approach with exportgraphics (R2020a+)
+                if exist('exportgraphics', 'file')
+                    % This method might work in newer MATLAB versions
+                    % For now, we'll use a different approach
+                end
+
+                % Method 2: Try system command (if ghostscript is available)
+                if ispc
+                    % Windows: try using ghostscript if available
+                    gsCommand = sprintf('gswin64c -dNOPAUSE -sDEVICE=pdfwrite -sOUTPUTFILE=temp_combined.pdf -dBATCH "%s" "%s"', ...
+                        mainPdfFile, pagePdfFile);
+
+                    [status, ~] = system(gsCommand);
+                    if status == 0 && exist('temp_combined.pdf', 'file')
+                        movefile('temp_combined.pdf', mainPdfFile);
+                        success = true;
+                        return;
+                    end
+                end
+
+                % Method 3: Manual approach - read both PDFs and combine
+                % This is complex and would require a PDF library
+
+                % For now, we'll return false and let the calling function handle it
+                success = false;
+
+            catch
+                success = false;
+            end
+        end
+
+        function subplotTitle = getSubplotTitle(obj, app, tabIdx, subplotIdx)
+            % Get subplot title, with fallback to default
+            subplotTitle = '';
+
+            if numel(app.SubplotTitles) >= tabIdx && ...
+                    numel(app.SubplotTitles{tabIdx}) >= subplotIdx && ...
+                    ~isempty(app.SubplotTitles{tabIdx}{subplotIdx})
+                subplotTitle = app.SubplotTitles{tabIdx}{subplotIdx};
+            end
+
+            % Default if empty
+            if isempty(subplotTitle)
+                subplotTitle = sprintf('Subplot %d', subplotIdx);
+            end
+        end
 
         % Custom data tip text function (like SDI)
         function txt = customDataTipText(obj, ~, event_obj)
@@ -2054,6 +2360,47 @@ classdef PlotManager < handle
 
             % Select the assigned signal nodes in the tree
             obj.App.SignalTree.SelectedNodes = selectedNodes;
+        end
+
+        function processedText = processHebrewText(obj, text)
+            % Fix Hebrew display in MATLAB by reversing text properly
+
+            if isempty(text)
+                processedText = text;
+                return;
+            end
+
+            % If text doesn't contain Hebrew, return as-is
+            if ~obj.containsHebrew(text)
+                processedText = text;
+                return;
+            end
+
+            % For text containing Hebrew, reverse the entire string.
+            % This handles mixed Hebrew-English text and Hebrew-only text.
+            processedText = fliplr(text);
+
+            % Debug output to see what's happening
+            fprintf('Original: "%s" -> Processed: "%s"\n', text, processedText);
+        end
+        function isHebrew = containsHebrew(obj, text)
+            % Check if text contains Hebrew characters (Unicode range 1424-1535)
+            isHebrew = false;
+
+            if isempty(text)
+                return;
+            end
+
+            % Convert to double to check Unicode values
+            try
+                unicodeValues = double(text);
+                % Hebrew characters are typically in range 1424-1535 (0x0590-0x05FF)
+                hebrewRange = (unicodeValues >= 1424 & unicodeValues <= 1535);
+                isHebrew = any(hebrewRange);
+            catch
+                % If conversion fails, assume it's not Hebrew
+                isHebrew = false;
+            end
         end
         % New method to ensure + tab stays at the end
         function ensurePlusTabAtEnd(obj)

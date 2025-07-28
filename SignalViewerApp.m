@@ -45,9 +45,10 @@ classdef SignalViewerApp < matlab.apps.AppBase
         PDFReportTitle = 'Signal Analysis Report'
         PDFReportAuthor = ''
         PDFReportDate = datetime('now')
-        SubplotCaptions = {}      % Cell array {tabIdx}{subplotIdx} = 'caption text'
-        SubplotDescriptions = {}  % Cell array {tabIdx}{subplotIdx} = 'description text'
-
+        PDFFigureLabel = 'Figure'      % ADD THIS LINE
+        SubplotCaptions = {}
+        SubplotDescriptions = {}
+        SubplotTitles = {}
         % Subsystems
         PlotManager
         DataManager
@@ -82,6 +83,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
         SignalStyles % containers.Map or struct for color/width per signal
         StreamingInfoLabel % Label for streaming info
         AutoScaleButton
+        PDFReportLanguage = 'English'  % או 'Hebrew'
     end
 
     methods
@@ -417,24 +419,30 @@ classdef SignalViewerApp < matlab.apps.AppBase
             while numel(app.SubplotDescriptions) < tabIdx
                 app.SubplotDescriptions{end+1} = {};
             end
+            while numel(app.SubplotTitles) < tabIdx
+                app.SubplotTitles{end+1} = {};
+            end
 
-            % Initialize subplot captions for this tab
+            % Initialize subplot arrays for this tab
             app.SubplotCaptions{tabIdx} = cell(1, numSubplots);
             app.SubplotDescriptions{tabIdx} = cell(1, numSubplots);
+            app.SubplotTitles{tabIdx} = cell(1, numSubplots);
 
-            % Set default captions
+            % Set default values
             for i = 1:numSubplots
                 if isempty(app.SubplotCaptions{tabIdx}{i})
-                    app.SubplotCaptions{tabIdx}{i} = sprintf('Figure %d.%d', tabIdx, i);
+                    app.SubplotCaptions{tabIdx}{i} = sprintf('Caption for subplot %d', i);
                 end
                 if isempty(app.SubplotDescriptions{tabIdx}{i})
-                    app.SubplotDescriptions{tabIdx}{i} = sprintf('Signal plot for Tab %d, Subplot %d', tabIdx, i);
+                    app.SubplotDescriptions{tabIdx}{i} = sprintf('Description for Tab %d, Subplot %d', tabIdx, i);
+                end
+                if isempty(app.SubplotTitles{tabIdx}{i})
+                    app.SubplotTitles{tabIdx}{i} = sprintf('Subplot %d', i);
                 end
             end
         end
-
         function editSubplotCaption(app, tabIdx, subplotIdx)
-            % Edit caption and description for a specific subplot
+            % Edit caption, description, and title for a specific subplot
 
             % Ensure arrays are initialized
             if numel(app.SubplotCaptions) < tabIdx || numel(app.SubplotCaptions{tabIdx}) < subplotIdx
@@ -443,44 +451,66 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
 
             % Get current values
-            currentCaption = app.SubplotCaptions{tabIdx}{subplotIdx};
-            currentDescription = app.SubplotDescriptions{tabIdx}{subplotIdx};
+            currentTitle = '';
+            currentCaption = '';
+            currentDescription = '';
+
+            if numel(app.SubplotTitles) >= tabIdx && numel(app.SubplotTitles{tabIdx}) >= subplotIdx
+                currentTitle = app.SubplotTitles{tabIdx}{subplotIdx};
+            end
+            if numel(app.SubplotCaptions) >= tabIdx && numel(app.SubplotCaptions{tabIdx}) >= subplotIdx
+                currentCaption = app.SubplotCaptions{tabIdx}{subplotIdx};
+            end
+            if numel(app.SubplotDescriptions) >= tabIdx && numel(app.SubplotDescriptions{tabIdx}) >= subplotIdx
+                currentDescription = app.SubplotDescriptions{tabIdx}{subplotIdx};
+            end
 
             % Create dialog
-            d = dialog('Name', 'Edit Figure Caption', 'Position', [300 300 450 300]);
+            d = dialog('Name', 'Edit Figure Content', 'Position', [300 300 500 400]);
+
+            % Subplot title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 350 100 20], ...
+                'String', 'Subplot Title:', 'HorizontalAlignment', 'left', 'FontWeight', 'bold');
+            titleField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [20 325 460 25], ...
+                'String', currentTitle, 'HorizontalAlignment', 'left');
 
             % Caption label and field
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 250 80 20], ...
-                'String', 'Caption:', 'HorizontalAlignment', 'left');
-            captionField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [20 225 410 25], ...
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 290 100 20], ...
+                'String', 'Caption:', 'HorizontalAlignment', 'left', 'FontWeight', 'bold');
+            captionField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [20 265 460 25], ...
                 'String', currentCaption, 'HorizontalAlignment', 'left');
 
             % Description label and field
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 190 80 20], ...
-                'String', 'Description:', 'HorizontalAlignment', 'left');
-            descField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [20 120 410 65], ...
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 230 100 20], ...
+                'String', 'Description:', 'HorizontalAlignment', 'left', 'FontWeight', 'bold');
+            descField = uicontrol('Parent', d, 'Style', 'edit', 'Position', [20 150 460 75], ...
                 'String', currentDescription, 'Max', 3, 'HorizontalAlignment', 'left');
+
+            % Help text
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 110 460 35], ...
+                'String', 'You can write in Hebrew or English. Hebrew text will be automatically right-aligned in the PDF. The subplot title will appear above the plot.', ...
+                'FontSize', 9, 'HorizontalAlignment', 'left', 'ForegroundColor', [0.5 0.5 0.5]);
 
             % Buttons
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Save', ...
-                'Position', [280 20 60 25], 'Callback', @(~,~) saveCaption());
+                'Position', [320 20 60 25], 'Callback', @(~,~) saveContent());
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
-                'Position', [350 20 60 25], 'Callback', @(~,~) close(d));
+                'Position', [390 20 60 25], 'Callback', @(~,~) close(d));
 
-            function saveCaption()
-                % Save the new caption and description
+            function saveContent()
+                % Save the new title, caption and description
+                app.SubplotTitles{tabIdx}{subplotIdx} = titleField.String;
                 app.SubplotCaptions{tabIdx}{subplotIdx} = captionField.String;
                 app.SubplotDescriptions{tabIdx}{subplotIdx} = descField.String;
 
                 % Update status
-                app.StatusLabel.Text = sprintf('✅ Caption updated for Plot %d.%d', tabIdx, subplotIdx);
+                app.StatusLabel.Text = sprintf('✅ Content updated for Plot %d.%d', tabIdx, subplotIdx);
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
 
                 close(d);
                 app.restoreFocus();
             end
         end
-
 
         function clearSubplotHighlights(app, tabIdx)
             % Clear all subplot highlights for a given tab
