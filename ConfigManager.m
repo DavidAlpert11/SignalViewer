@@ -45,6 +45,11 @@ classdef ConfigManager < handle
                     return;
                 end
 
+                if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
+                    config.DerivedSignals = app.SignalOperations.DerivedSignals;
+                    config.OperationHistory = app.SignalOperations.OperationHistory;
+                end
+
                 config = obj.buildConfigStruct();
 
                 % Create backup if file exists
@@ -142,6 +147,22 @@ classdef ConfigManager < handle
                         return;
                     end
                     % If "Load Anyway", continue with partial loading
+                end
+
+                if isfield(config, 'DerivedSignals')
+                    app.SignalOperations.DerivedSignals = config.DerivedSignals;
+
+                    % Update signal names with derived signals
+                    derivedNames = keys(config.DerivedSignals);
+                    for i = 1:length(derivedNames)
+                        if ~ismember(derivedNames{i}, app.DataManager.SignalNames)
+                            app.DataManager.SignalNames{end+1} = derivedNames{i};
+                        end
+                    end
+                end
+
+                if isfield(config, 'OperationHistory')
+                    app.SignalOperations.OperationHistory = config.OperationHistory;
                 end
 
                 % Apply configuration

@@ -151,6 +151,16 @@ classdef DataManager < handle
             obj.LastUpdateTime = datetime('now');
         end
 
+
+        % Add this method to better integrate with derived signals:
+        function updateDerivedSignalsAfterStream(obj)
+            % This could be called after new data arrives to update derived signals
+            % if they depend on streaming data
+            if isprop(obj.App, 'SignalOperations') && ~isempty(obj.App.SignalOperations)
+                % Could implement automatic recalculation of derived signals here
+                % if desired for real-time derived signal updates
+            end
+        end
         function checkForUpdates(obj, idx)
             if ~isprop(obj.App, 'DataManager') || isempty(obj.App.DataManager) || ~isvalid(obj.App.DataManager)
                 return;
@@ -259,6 +269,7 @@ classdef DataManager < handle
                     obj.updateStreamingStatus(idx, currentRows);
                     % Update plots for streaming
                     obj.App.PlotManager.updateAllPlotsForStreaming();
+                    obj.updateDerivedSignalsAfterStream(idx);
                     % Update status label
                     obj.App.StatusLabel.Text = '🔄 Streaming...';
                     obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
@@ -422,13 +433,16 @@ classdef DataManager < handle
 
         % Add cleanup method
         function delete(obj)
-            % Cleanup when object is destroyed
+            % Ensure all timers are properly cleaned up
             for i = 1:numel(obj.StreamingTimers)
                 if ~isempty(obj.StreamingTimers{i}) && isvalid(obj.StreamingTimers{i})
-                    stop(obj.StreamingTimers{i});
+                    if strcmp(obj.StreamingTimers{i}.Running, 'on')
+                        stop(obj.StreamingTimers{i});
+                    end
                     delete(obj.StreamingTimers{i});
                 end
             end
+            obj.StreamingTimers = {};
         end
     end
 end

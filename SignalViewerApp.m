@@ -5,7 +5,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
         UIFigure
         ControlPanel
         MainTabGroup
-
+        SignalOperations
         % Enhanced color schemes
         Colors = [
             0.2 0.6 0.9;    % Blue
@@ -115,6 +115,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.PlotManager.initialize();
             app.DataManager   = DataManager(app);
             app.ConfigManager = ConfigManager(app);
+            app.SignalOperations = SignalOperationsManager(app);
             app.UIController  = UIController(app);
 
             %=== Connect Callbacks ===%
@@ -142,6 +143,29 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(actionsMenu, 'Text', '🗑️ Clear Everything', 'MenuSelectedFcn', @(src, event) app.menuClearAll());
             uimenu(actionsMenu, 'Text', '📈 Statistics', 'MenuSelectedFcn', @(src, event) app.menuStatistics());
 
+            % SIGNAL OPERATIONS MENU - Main menu item (not submenu)
+            operationsMenu = uimenu(app.UIFigure, 'Text', 'Operations');
+
+            % Single Signal Operations
+            singleSubMenu = uimenu(operationsMenu, 'Text', '🔢 Single Signal');
+            uimenu(singleSubMenu, 'Text', '∂ Derivative', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showSingleSignalDialog('derivative'));
+            uimenu(singleSubMenu, 'Text', '∫ Integral', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showSingleSignalDialog('integral'));
+
+            % Multi Signal Operations
+            multiSubMenu = uimenu(operationsMenu, 'Text', '📈 Multi Signal');
+            uimenu(multiSubMenu, 'Text', '− Subtract (A - B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('subtract'));
+            uimenu(multiSubMenu, 'Text', '+ Add (A + B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('add'));
+            uimenu(multiSubMenu, 'Text', '× Multiply (A × B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('multiply'));
+            uimenu(multiSubMenu, 'Text', '÷ Divide (A ÷ B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('divide'));
+            uimenu(multiSubMenu, 'Text', '‖‖ Norm of Signals', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showNormDialog());
+
+            % Custom Code
+            uimenu(operationsMenu, 'Text', '💻 Custom MATLAB Code', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showCustomCodeDialog(), 'Separator', 'on');
+
+            % Management
+            managementSubMenu = uimenu(operationsMenu, 'Text', '⚙️ Management');
+            uimenu(managementSubMenu, 'Text', '📋 Operation History', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationHistory());
+            uimenu(managementSubMenu, 'Text', '🗑️ Clear All Derived Signals', 'MenuSelectedFcn', @(src, event) app.confirmAndClearDerivedSignals());
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
@@ -211,6 +235,27 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 'Text', '', ...
                 'FontColor', [0.2 0.2 0.2], ...
                 'FontSize', 9);
+        end
+
+
+        function confirmAndClearDerivedSignals(app)
+            % Confirm before clearing all derived signals
+            if isempty(app.SignalOperations.DerivedSignals)
+                uialert(app.UIFigure, 'No derived signals to clear.', 'No Derived Signals');
+                return;
+            end
+
+            numDerived = length(keys(app.SignalOperations.DerivedSignals));
+            answer = uiconfirm(app.UIFigure, ...
+                sprintf('Clear all %d derived signals?', numDerived), ...
+                'Confirm Clear', 'Options', {'Clear All', 'Cancel'}, ...
+                'DefaultOption', 'Cancel', 'Icon', 'warning');
+
+            if strcmp(answer, 'Clear All')
+                app.SignalOperations.clearAllDerivedSignals();
+                app.StatusLabel.Text = sprintf('🗑️ Cleared %d derived signals', numDerived);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
         end
         function editSubplotMetadata(app)
             tabIdx = app.PlotManager.CurrentTabIdx;
@@ -332,6 +377,312 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
                 % Update signal properties table
                 app.updateSignalPropsTable(assigned);
+            end
+        end
+
+        function clearAllSignalsFromSubplot(app)
+            % Clear all signals from a specific folder (CSV or Derived) from ALL subplots
+
+            % Get currently selected node
+            selectedNodes = app.SignalTree.SelectedNodes;
+            if isempty(selectedNodes)
+                uialert(app.UIFigure, 'Please select a CSV folder or Derived Signals folder first.', 'No Selection');
+                return;
+            end
+
+            selectedNode = selectedNodes(1);
+
+            % Determine what type of clearing to do based on selected node
+            if contains(selectedNode.Text, 'CSV') || contains(selectedNode.Text, '.csv')
+                % CSV folder selected - clear all signals from this CSV
+                app.clearSignalsFromCSVFolder(selectedNode);
+
+            elseif contains(selectedNode.Text, 'Derived Signals')
+                % Derived Signals folder selected - clear all derived signals
+                app.clearAllDerivedSignalsFromSubplots();
+
+            else
+                % Individual signal selected - clear just this signal from all subplots
+                if isfield(selectedNode.NodeData, 'Signal')
+                    app.clearSpecificSignalFromAllSubplots(selectedNode.NodeData);
+                else
+                    uialert(app.UIFigure, 'Please select a CSV folder, Derived Signals folder, or specific signal.', 'Invalid Selection');
+                end
+            end
+        end
+
+        function clearSignalsFromCSVFolder(app, csvNode)
+            % Clear all signals from a specific CSV from all subplots
+
+            % Extract CSV index from node
+            csvIndex = app.getCSVIndexFromNode(csvNode);
+            if csvIndex == -1
+                uialert(app.UIFigure, 'Could not determine CSV index.', 'Error');
+                return;
+            end
+
+            % Get all signals from this CSV
+            if csvIndex <= numel(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{csvIndex})
+                T = app.DataManager.DataTables{csvIndex};
+                csvSignals = setdiff(T.Properties.VariableNames, {'Time'});
+            else
+                csvSignals = {};
+            end
+
+            if isempty(csvSignals)
+                uialert(app.UIFigure, 'No signals found in selected CSV.', 'No Signals');
+                return;
+            end
+
+            % Confirm action
+            answer = uiconfirm(app.UIFigure, ...
+                sprintf('Remove all signals from "%s" from ALL subplots in ALL tabs?\n\nSignals to remove: %s', ...
+                csvNode.Text, strjoin(csvSignals, ', ')), ...
+                'Confirm Clear CSV Signals', ...
+                'Options', {'Remove All', 'Cancel'}, ...
+                'DefaultOption', 'Cancel', 'Icon', 'warning');
+
+            if strcmp(answer, 'Cancel')
+                return;
+            end
+
+            % FIXED: Remove signals from ALL subplots in ALL tabs
+            removedCount = 0;
+
+            % Make sure AssignedSignals structure exists for all tabs
+            numTabs = numel(app.PlotManager.AxesArrays);
+
+            for tabIdx = 1:numTabs
+                % Ensure this tab exists in AssignedSignals
+                if tabIdx > numel(app.PlotManager.AssignedSignals)
+                    continue; % Skip if tab doesn't have assignments yet
+                end
+
+                % Get number of subplots in this tab
+                if ~isempty(app.PlotManager.AxesArrays{tabIdx})
+                    numSubplots = numel(app.PlotManager.AxesArrays{tabIdx});
+                else
+                    continue; % Skip if no subplots
+                end
+
+                % Process each subplot in this tab
+                for subplotIdx = 1:numSubplots
+                    % Ensure this subplot exists in AssignedSignals
+                    if subplotIdx > numel(app.PlotManager.AssignedSignals{tabIdx})
+                        continue; % Skip if subplot doesn't have assignments yet
+                    end
+
+                    assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+                    if isempty(assignedSignals)
+                        continue; % Skip empty subplots
+                    end
+
+                    % Filter out signals from this CSV
+                    filteredSignals = {};
+                    for i = 1:numel(assignedSignals)
+                        signal = assignedSignals{i};
+
+                        % Check if this signal is from the CSV we want to remove
+                        if isfield(signal, 'CSVIdx') && signal.CSVIdx == csvIndex
+                            removedCount = removedCount + 1;
+                            % Don't add to filteredSignals (i.e., remove it)
+                        else
+                            filteredSignals{end+1} = signal; %#ok<AGROW>
+                        end
+                    end
+
+                    % Update the assignments for this subplot
+                    app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = filteredSignals;
+                end
+            end
+
+            % Refresh ALL plots in ALL tabs
+            for tabIdx = 1:numTabs
+                app.PlotManager.refreshPlots(tabIdx);
+            end
+
+            % Clear tree selection
+            app.SignalTree.SelectedNodes = [];
+
+            % Update status
+            if removedCount > 0
+                app.StatusLabel.Text = sprintf('🗑️ Removed %d signal assignments from "%s" across all tabs', removedCount, csvNode.Text);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = sprintf('ℹ️ No signals from "%s" were assigned to any subplots', csvNode.Text);
+                app.StatusLabel.FontColor = [0.5 0.5 0.5];
+            end
+        end
+        function clearAllDerivedSignalsFromSubplots(app)
+            % Clear all derived signals from all subplots
+
+            if isempty(app.SignalOperations.DerivedSignals)
+                uialert(app.UIFigure, 'No derived signals to clear.', 'No Derived Signals');
+                return;
+            end
+
+            derivedNames = keys(app.SignalOperations.DerivedSignals);
+
+            % Confirm action
+            answer = uiconfirm(app.UIFigure, ...
+                sprintf('Remove all derived signals from ALL subplots in ALL tabs?\n\nDerived signals: %s', ...
+                strjoin(derivedNames, ', ')), ...
+                'Confirm Clear Derived Signals', ...
+                'Options', {'Remove All', 'Cancel'}, ...
+                'DefaultOption', 'Cancel', 'Icon', 'warning');
+
+            if strcmp(answer, 'Cancel')
+                return;
+            end
+
+            % FIXED: Remove derived signals from ALL subplots in ALL tabs
+            removedCount = 0;
+            numTabs = numel(app.PlotManager.AxesArrays);
+
+            for tabIdx = 1:numTabs
+                % Ensure this tab exists in AssignedSignals
+                if tabIdx > numel(app.PlotManager.AssignedSignals)
+                    continue;
+                end
+
+                % Get number of subplots in this tab
+                if ~isempty(app.PlotManager.AxesArrays{tabIdx})
+                    numSubplots = numel(app.PlotManager.AxesArrays{tabIdx});
+                else
+                    continue;
+                end
+
+                % Process each subplot in this tab
+                for subplotIdx = 1:numSubplots
+                    % Ensure this subplot exists in AssignedSignals
+                    if subplotIdx > numel(app.PlotManager.AssignedSignals{tabIdx})
+                        continue;
+                    end
+
+                    assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+                    if isempty(assignedSignals)
+                        continue;
+                    end
+
+                    % Filter out derived signals (CSVIdx = -1)
+                    filteredSignals = {};
+                    for i = 1:numel(assignedSignals)
+                        signal = assignedSignals{i};
+
+                        % Check if this is a derived signal
+                        if isfield(signal, 'CSVIdx') && signal.CSVIdx == -1
+                            removedCount = removedCount + 1;
+                            % Don't add to filteredSignals (i.e., remove it)
+                        else
+                            filteredSignals{end+1} = signal; %#ok<AGROW>
+                        end
+                    end
+
+                    % Update the assignments for this subplot
+                    app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = filteredSignals;
+                end
+            end
+
+            % Refresh ALL plots in ALL tabs
+            for tabIdx = 1:numTabs
+                app.PlotManager.refreshPlots(tabIdx);
+            end
+
+            % Clear tree selection
+            app.SignalTree.SelectedNodes = [];
+
+            % Update status
+            if removedCount > 0
+                app.StatusLabel.Text = sprintf('🗑️ Removed %d derived signal assignments from all subplots', removedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'ℹ️ No derived signals were assigned to any subplots';
+                app.StatusLabel.FontColor = [0.5 0.5 0.5];
+            end
+        end
+
+        function clearSpecificSignalFromAllSubplots(app, signalData)
+            % Clear a specific signal from all subplots
+
+            signalName = signalData.Signal;
+            csvIdx = signalData.CSVIdx;
+
+            % Confirm action
+            answer = uiconfirm(app.UIFigure, ...
+                sprintf('Remove signal "%s" from all subplots?', signalName), ...
+                'Confirm Clear Signal', ...
+                'Options', {'Remove', 'Cancel'}, ...
+                'DefaultOption', 'Cancel', 'Icon', 'question');
+
+            if strcmp(answer, 'Cancel')
+                return;
+            end
+
+            % Remove signal from all subplots
+            removedCount = 0;
+            for tabIdx = 1:numel(app.PlotManager.AssignedSignals)
+                for subplotIdx = 1:numel(app.PlotManager.AssignedSignals{tabIdx})
+                    assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+                    % Filter out this specific signal
+                    filteredSignals = {};
+                    for i = 1:numel(assignedSignals)
+                        signal = assignedSignals{i};
+                        if ~(signal.CSVIdx == csvIdx && strcmp(signal.Signal, signalName))
+                            filteredSignals{end+1} = signal; %#ok<AGROW>
+                        else
+                            removedCount = removedCount + 1;
+                        end
+                    end
+
+                    app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = filteredSignals;
+                end
+            end
+
+            % Refresh all plots
+            app.PlotManager.refreshPlots();
+
+            % Clear tree selection
+            app.SignalTree.SelectedNodes = [];
+
+            % Update status
+            app.StatusLabel.Text = sprintf('🗑️ Removed signal "%s" from %d subplots', signalName, removedCount);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        function csvIndex = getCSVIndexFromNode(app, csvNode)
+            % Extract CSV index from node text or data
+            csvIndex = -1;
+
+            % Try to get from NodeData first
+            if isfield(csvNode.NodeData, 'CSVIdx')
+                csvIndex = csvNode.NodeData.CSVIdx;
+                return;
+            end
+
+            % Try to extract from text pattern
+            nodeText = csvNode.Text;
+
+            % Look for patterns like "CSV1:", "data1.csv", etc.
+            if contains(nodeText, 'CSV')
+                % Extract number after CSV
+                csvMatch = regexp(nodeText, 'CSV(\d+)', 'tokens');
+                if ~isempty(csvMatch)
+                    csvIndex = str2double(csvMatch{1}{1});
+                    return;
+                end
+            end
+
+            % Try to match with actual CSV file names
+            for i = 1:numel(app.DataManager.CSVFilePaths)
+                [~, fileName, ext] = fileparts(app.DataManager.CSVFilePaths{i});
+                fullFileName = [fileName ext];
+                if contains(nodeText, fullFileName)
+                    csvIndex = i;
+                    return;
+                end
             end
         end
 
@@ -546,21 +897,43 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
         function onSignalTreeSelectionChanged(app, event)
-            % Callback for when the user selects signals in the tree.
-            % Assigns selected signals to the current subplot and updates the properties table.
             selectedNodes = app.SignalTree.SelectedNodes;
+
+            % If no nodes selected, don't change anything
+            if isempty(selectedNodes)
+                return;
+            end
+
+            % Count how many actual signals are selected
+            signalCount = 0;
             selectedSignals = {};
+
             for k = 1:numel(selectedNodes)
-                if isfield(selectedNodes(k).NodeData, 'CSVIdx')
-                    selectedSignals{end+1} = selectedNodes(k).NodeData; %#ok<AGROW>
+                node = selectedNodes(k);
+
+                % Skip folder nodes and operation nodes
+                if isstruct(node.NodeData) && isfield(node.NodeData, 'Type')
+                    % Skip these types: folder nodes, operations, etc.
+                    continue;
+                end
+
+                % Count actual signals
+                if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    selectedSignals{end+1} = node.NodeData; %#ok<AGROW>
+                    signalCount = signalCount + 1;
                 end
             end
-            tabIdx = app.PlotManager.CurrentTabIdx;
-            subplotIdx = app.PlotManager.SelectedSubplotIdx;
-            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = selectedSignals;
-            app.PlotManager.refreshPlots(tabIdx);
-            % Update the signal properties table for the selected signals
-            app.updateSignalPropsTable(selectedSignals);
+
+            % ONLY update if we have actual signals selected
+            % If user clicked on folder, signalCount will be 0 and nothing happens
+            if signalCount > 0
+                tabIdx = app.PlotManager.CurrentTabIdx;
+                subplotIdx = app.PlotManager.SelectedSubplotIdx;
+                app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = selectedSignals;
+                app.PlotManager.refreshPlots(tabIdx);
+                app.updateSignalPropsTable(selectedSignals);
+            end
+            % If signalCount == 0, we do nothing - subplot keeps its current signals
         end
         function tf = hasSignalsLoaded(app)
             % Check if we have signals loaded and signal tree populated
@@ -773,28 +1146,15 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     sigNode.ContextMenu = cm;
                 end
             end
-            % Multi-select context menu for the tree
-            multiCm = uicontextmenu(app.UIFigure);
-            uimenu(multiCm, 'Text', 'Add all to Subplot', 'MenuSelectedFcn', @(src, event) app.addSelectedSignalsToSubplot());
-            uimenu(multiCm, 'Text', 'Remove all from Subplot', 'MenuSelectedFcn', @(src, event) app.removeSelectedSignalsFromSubplot());
-            app.SignalTree.ContextMenu = multiCm;
-            % Do NOT auto-start streaming here to avoid recursion
-
-            % % Enable crosshair cursor by default if data is loaded
-            % if ~isempty(app.DataManager.DataTables) && any(~cellfun(@isempty, app.DataManager.DataTables))
-            %     if ~app.CursorState
-            %         app.CursorState = true;
-            %         app.PlotManager.enableCursorMode();
-            %         if ~isempty(app.CursorMenuItem)
-            %             app.CursorMenuItem.Text = '🎯 Disable Crosshair Cursor';
-            %         end
-            %     end
-            % end
 
             % Enable ONLY data tips by default when data is loaded (NOT crosshair cursor)
             if ~isempty(app.DataManager.DataTables) && any(~cellfun(@isempty, app.DataManager.DataTables))
                 app.enableDataTipsByDefault();
                 % Do NOT enable crosshair by default
+            end
+            % Add derived signals section (but NOT operations)
+            if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
+                app.SignalOperations.addDerivedSignalsToTree();
             end
         end
 

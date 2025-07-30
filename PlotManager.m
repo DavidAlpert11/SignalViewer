@@ -8,6 +8,7 @@ classdef PlotManager < handle
         LinkedAxes
         SelectedSubplotIdx
         CurrentTabIdx
+        LastSignalUpdateTimes  
         GridLayouts
         TabControls
         MainTabGridLayouts
@@ -445,6 +446,10 @@ classdef PlotManager < handle
                 uimenu(cm, 'Text', '🗑️ Clear Subplot', ...
                     'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
 
+
+                uimenu(cm, 'Text', '⚙️ Create Derived Signal', ...
+                    'MenuSelectedFcn', @(src, event) obj.showDerivedSignalMenu(tabIdx, i), ...
+                    'Separator', 'on');
                 % IMPORTANT: Set context menu BEFORE enabling any cursor modes
                 ax.ContextMenu = cm;
                 obj.AxesArrays{tabIdx}(i) = ax;
@@ -690,18 +695,26 @@ classdef PlotManager < handle
                         sigName = sigInfo.Signal;
                         assignedSignalNames{end+1} = sigName;
 
-                        T = obj.App.DataManager.DataTables{sigInfo.CSVIdx};
-                        if ~ismember(sigName, T.Properties.VariableNames)
-                            continue;
+                        if sigInfo.CSVIdx == -1  % Derived signal indicator
+                            % Get derived signal data
+                            [timeData, signalData] = obj.App.SignalOperations.getSignalData(sigName);
+                            if isempty(timeData)
+                                continue;
+                            end
+                            validData = true(size(timeData));  % Derived signals are already clean
+                        else
+                            % Original signal data
+                            T = obj.App.DataManager.DataTables{sigInfo.CSVIdx};
+                            if ~ismember(sigName, T.Properties.VariableNames)
+                                continue;
+                            end
+                            validData = ~isnan(T.(sigName));
+                            if ~any(validData)
+                                continue;
+                            end
+                            timeData = T.Time(validData);
+                            signalData = T.(sigName)(validData);
                         end
-
-                        validData = ~isnan(T.(sigName));
-                        if ~any(validData)
-                            continue;
-                        end
-
-                        timeData = T.Time(validData);
-                        signalData = T.(sigName)(validData);
 
                         % Apply scaling
                         scaleFactor = 1.0;
@@ -833,6 +846,29 @@ classdef PlotManager < handle
 
             % Restore highlight after refresh
             obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
+        end
+
+        function showDerivedSignalMenu(obj, tabIdx, subplotIdx)
+            % Show submenu for creating derived signals from current subplot
+            if tabIdx <= numel(obj.AssignedSignals) && subplotIdx <= numel(obj.AssignedSignals{tabIdx})
+                assignedSignals = obj.AssignedSignals{tabIdx}{subplotIdx};
+                if ~isempty(assignedSignals)
+                    % Create context submenu
+                    cm = uicontextmenu(obj.App.UIFigure);
+                    uimenu(cm, 'Text', '∂ Derivative', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showSingleSignalDialog('derivative'));
+                    uimenu(cm, 'Text', '∫ Integral', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showSingleSignalDialog('integral'));
+                    if length(assignedSignals) >= 2
+                        uimenu(cm, 'Text', '− Subtract', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showDualSignalDialog('subtract'));
+                        uimenu(cm, 'Text', '‖‖ Norm', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showNormDialog());
+                    end
+                    uimenu(cm, 'Text', '💻 Custom Code', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showCustomCodeDialog());
+
+                    % Show the menu at mouse position
+                    cm.Visible = 'on';
+                else
+                    uialert(obj.App.UIFigure, 'No signals assigned to this subplot.', 'No Signals');
+                end
+            end
         end
 
         function onTabLayoutChanged(obj, tabIdx, newRows, newCols)
@@ -1419,7 +1455,7 @@ classdef PlotManager < handle
                     return;
                 end
 
-          
+
                 % Create temporary figure for report generation
                 reportFig = figure('Visible', 'off', 'Position', [100 100 800 600], ...
                     'Color', [1 1 1], 'PaperType', 'a4', 'PaperOrientation', 'portrait');

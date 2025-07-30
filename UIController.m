@@ -466,16 +466,16 @@ classdef UIController < handle
             obj.exportSignalsToFolder(allSignals, 'AllTabs_ActiveSubplots');
         end
 
-       
 
 
-        
 
-        
 
-        
 
-        
+
+
+
+
+
 
         function exportSignalsToFolder(obj, signalList, folderSuffix)
             app = obj.App;
@@ -786,7 +786,14 @@ classdef UIController < handle
             app.DataManager.startStreamingAll();
             app.buildSignalTree();
         end
-
+        function signalNames = getAllSignalsIncludingDerived(obj)
+            % Get all available signals including derived ones
+            signalNames = obj.App.DataManager.SignalNames;
+            if isprop(obj.App, 'SignalOperations') && ~isempty(obj.App.SignalOperations.DerivedSignals)
+                derivedNames = keys(obj.App.SignalOperations.DerivedSignals);
+                signalNames = [signalNames, derivedNames];
+            end
+        end
         function setupKeyboardShortcuts(obj)
             app = obj.App;
             app.UIFigure.KeyPressFcn = @(src, event) obj.keyPressHandler(event);
@@ -797,6 +804,11 @@ classdef UIController < handle
             if isempty(event.Modifier), return; end
             if ismember('control', event.Modifier)
                 switch event.Key
+                    case 'o'  % Ctrl+O for operations menu
+                        % Show operations menu or dialog
+                        obj.App.SignalOperations.showCustomCodeDialog();
+                    case 'h'  % Ctrl+H for operation history
+                        obj.App.SignalOperations.showOperationHistory();
                     case 's'
                         if ~app.DataManager.IsRunning
                             app.DataManager.startStreaming();
