@@ -143,7 +143,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(actionsMenu, 'Text', '🗑️ Clear Everything', 'MenuSelectedFcn', @(src, event) app.menuClearAll());
             uimenu(actionsMenu, 'Text', '📈 Statistics', 'MenuSelectedFcn', @(src, event) app.menuStatistics());
 
-            % SIGNAL OPERATIONS MENU - Main menu item (not submenu)
             operationsMenu = uimenu(app.UIFigure, 'Text', 'Operations');
 
             % Single Signal Operations
@@ -159,13 +158,19 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(multiSubMenu, 'Text', '÷ Divide (A ÷ B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('divide'));
             uimenu(multiSubMenu, 'Text', '‖‖ Norm of Signals', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showNormDialog());
 
-            % Custom Code
-            uimenu(operationsMenu, 'Text', '💻 Custom MATLAB Code', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showCustomCodeDialog(), 'Separator', 'on');
+            % Quick Operations - NEW!
+            quickSubMenu = uimenu(operationsMenu, 'Text', '⚡ Quick Operations');
+            uimenu(quickSubMenu, 'Text', '📊 Vector Magnitude', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickVectorMagnitude());
+            uimenu(quickSubMenu, 'Text', '📈 Moving Average', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickMovingAverage());
+            uimenu(quickSubMenu, 'Text', '🌊 FFT Analysis', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickFFT());
+            uimenu(quickSubMenu, 'Text', '📏 RMS Calculation', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickRMS());
+            uimenu(quickSubMenu, 'Text', '📊 Signal Average', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickAverage());
 
             % Management
             managementSubMenu = uimenu(operationsMenu, 'Text', '⚙️ Management');
             uimenu(managementSubMenu, 'Text', '📋 Operation History', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationHistory());
             uimenu(managementSubMenu, 'Text', '🗑️ Clear All Derived Signals', 'MenuSelectedFcn', @(src, event) app.confirmAndClearDerivedSignals());
+
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
@@ -204,7 +209,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
             % Add context menu for clearing all signals from subplot
             cm = uicontextmenu(app.UIFigure);
-            uimenu(cm, 'Text', 'Clear All Signals from Subplot', 'MenuSelectedFcn', @(src, event) app.clearAllSignalsFromSubplot());
+
+
             app.SignalTree.ContextMenu = cm;
 
             % LARGER Table for editing scale and state for selected signals
@@ -380,36 +386,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
 
-        function clearAllSignalsFromSubplot(app)
-            % Clear all signals from a specific folder (CSV or Derived) from ALL subplots
 
-            % Get currently selected node
-            selectedNodes = app.SignalTree.SelectedNodes;
-            if isempty(selectedNodes)
-                uialert(app.UIFigure, 'Please select a CSV folder or Derived Signals folder first.', 'No Selection');
-                return;
-            end
-
-            selectedNode = selectedNodes(1);
-
-            % Determine what type of clearing to do based on selected node
-            if contains(selectedNode.Text, 'CSV') || contains(selectedNode.Text, '.csv')
-                % CSV folder selected - clear all signals from this CSV
-                app.clearSignalsFromCSVFolder(selectedNode);
-
-            elseif contains(selectedNode.Text, 'Derived Signals')
-                % Derived Signals folder selected - clear all derived signals
-                app.clearAllDerivedSignalsFromSubplots();
-
-            else
-                % Individual signal selected - clear just this signal from all subplots
-                if isfield(selectedNode.NodeData, 'Signal')
-                    app.clearSpecificSignalFromAllSubplots(selectedNode.NodeData);
-                else
-                    uialert(app.UIFigure, 'Please select a CSV folder, Derived Signals folder, or specific signal.', 'Invalid Selection');
-                end
-            end
-        end
 
         function clearSignalsFromCSVFolder(app, csvNode)
             % Clear all signals from a specific CSV from all subplots
@@ -913,14 +890,22 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
                 % Skip folder nodes and operation nodes
                 if isstruct(node.NodeData) && isfield(node.NodeData, 'Type')
-                    % Skip these types: folder nodes, operations, etc.
-                    continue;
+                    nodeType = node.NodeData.Type;
+                    % Skip folder nodes but allow derived signal nodes
+                    if strcmp(nodeType, 'derived_signals_folder') || strcmp(nodeType, 'operations')
+                        continue;
+                    end
                 end
 
-                % Count actual signals
+                % Count actual signals (both original and derived)
                 if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
                     selectedSignals{end+1} = node.NodeData; %#ok<AGROW>
                     signalCount = signalCount + 1;
+
+                    % Debug output for derived signals
+                    if isfield(node.NodeData, 'IsDerived') && node.NodeData.IsDerived
+                        fprintf('Selected derived signal: %s\n', node.NodeData.Signal);
+                    end
                 end
             end
 
@@ -932,6 +917,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = selectedSignals;
                 app.PlotManager.refreshPlots(tabIdx);
                 app.updateSignalPropsTable(selectedSignals);
+
+                % Debug output
+                fprintf('Assigned %d signals to subplot %d.%d\n', signalCount, tabIdx, subplotIdx);
             end
             % If signalCount == 0, we do nothing - subplot keeps its current signals
         end
@@ -1138,11 +1126,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
                             break;
                         end
                     end
-                    if isAssigned
-                        uimenu(cm, 'Text', 'Remove from Subplot', 'MenuSelectedFcn', @(src, event) app.removeSignalFromSubplot(sigNode.NodeData));
-                    else
-                        uimenu(cm, 'Text', 'Add to Subplot', 'MenuSelectedFcn', @(src, event) app.addSignalToSubplot(sigNode.NodeData));
-                    end
+                    % if isAssigned
+                    %     uimenu(cm, 'Text', 'Remove from Subplot', 'MenuSelectedFcn', @(src, event) app.removeSignalFromSubplot(sigNode.NodeData));
+                    % else
+                    %     uimenu(cm, 'Text', 'Add to Subplot', 'MenuSelectedFcn', @(src, event) app.addSignalToSubplot(sigNode.NodeData));
+                    % end
                     sigNode.ContextMenu = cm;
                 end
             end
@@ -1153,36 +1141,142 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 % Do NOT enable crosshair by default
             end
             % Add derived signals section (but NOT operations)
-            if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
-                app.SignalOperations.addDerivedSignalsToTree();
-            end
+            % if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
+            %     app.SignalOperations.addDerivedSignalsToTree();
+            % end
         end
 
+
+        
+
         function filterSignals(app, searchText)
-            % Filter the signal tree based on search text
+            % Enhanced filter with auto-expand functionality
+
+            % Clear existing tree
             delete(app.SignalTree.Children);
+
             if isempty(searchText)
                 searchText = '';
             end
+
+            hasFilteredResults = false;
+            nodesToExpand = {};  % Keep track of nodes to expand
+
+            % Process each CSV file
             for i = 1:numel(app.DataManager.CSVFilePaths)
                 [~, csvName, ext] = fileparts(app.DataManager.CSVFilePaths{i});
                 csvDisplay = [csvName ext];
                 T = app.DataManager.DataTables{i};
                 if isempty(T), continue; end
+
                 signals = setdiff(T.Properties.VariableNames, {'Time'});
+
                 % Filter signals by search text
+                filteredSignals = signals;
                 if ~isempty(searchText)
                     mask = contains(lower(signals), lower(searchText));
-                    signals = signals(mask);
+                    filteredSignals = signals(mask);
                 end
-                if isempty(signals)
-                    continue;
+
+                % Only create CSV node if it has filtered signals OR no search is active
+                if ~isempty(filteredSignals) || isempty(searchText)
+                    csvNode = uitreenode(app.SignalTree, 'Text', csvDisplay);
+
+                    % Add signals to this CSV node
+                    for j = 1:numel(filteredSignals)
+                        child = uitreenode(csvNode, 'Text', filteredSignals{j});
+                        child.NodeData = struct('CSVIdx', i, 'Signal', filteredSignals{j});
+                    end
+
+                    % Mark for expansion if we have search results
+                    if ~isempty(searchText) && ~isempty(filteredSignals)
+                        nodesToExpand{end+1} = csvNode;
+                        hasFilteredResults = true;
+                    end
                 end
-                csvNode = uitreenode(app.SignalTree, 'Text', csvDisplay);
-                for j = 1:numel(signals)
-                    child = uitreenode(csvNode, 'Text', signals{j});
-                    child.NodeData = struct('CSVIdx', i, 'Signal', signals{j});
+            end
+
+            % Add derived signals section if they exist
+            if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
+                derivedNames = keys(app.SignalOperations.DerivedSignals);
+
+                % Filter derived signals
+                filteredDerived = derivedNames;
+                if ~isempty(searchText)
+                    mask = contains(lower(derivedNames), lower(searchText));
+                    filteredDerived = derivedNames(mask);
                 end
+
+                % Only create derived signals node if it has filtered signals OR no search is active
+                if ~isempty(filteredDerived) || isempty(searchText)
+                    derivedNode = uitreenode(app.SignalTree, 'Text', '⚙️ Derived Signals', ...
+                        'NodeData', struct('Type', 'derived_signals_folder'));
+
+                    for i = 1:length(filteredDerived)
+                        signalName = filteredDerived{i};
+                        derivedData = app.SignalOperations.DerivedSignals(signalName);
+
+                        % Create icon based on operation type
+                        switch derivedData.Operation.Type
+                            case 'single'
+                                if strcmp(derivedData.Operation.Operation, 'derivative')
+                                    icon = '∂';
+                                else
+                                    icon = '∫';
+                                end
+                            case 'dual'
+                                opIcons = containers.Map({'subtract', 'add', 'multiply', 'divide'}, {'−', '+', '×', '÷'});
+                                if isKey(opIcons, derivedData.Operation.Operation)
+                                    icon = opIcons(derivedData.Operation.Operation);
+                                else
+                                    icon = '⚙️';
+                                end
+                            case 'norm'
+                                icon = '‖‖';
+                            case {'quick_vector_magnitude', 'quick_moving_average', 'quick_fft', 'quick_rms', 'quick_average'}
+                                icon = '⚡';
+                            otherwise
+                                icon = '🔄';
+                        end
+
+                        child = uitreenode(derivedNode, 'Text', sprintf('%s %s', icon, signalName));
+                        child.NodeData = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
+
+                        % Add context menu for derived signals
+                        cm = uicontextmenu(app.UIFigure);
+                        uimenu(cm, 'Text', '🗑️ Delete Signal', ...
+                            'MenuSelectedFcn', @(src, event) app.SignalOperations.confirmDeleteDerivedSignal(signalName));
+                        uimenu(cm, 'Text', '📋 Show Details', ...
+                            'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationDetails(derivedData.Operation));
+                        uimenu(cm, 'Text', '💾 Export Signal', ...
+                            'MenuSelectedFcn', @(src, event) app.SignalOperations.exportDerivedSignal(signalName));
+                        child.ContextMenu = cm;
+                    end
+
+                    % Mark for expansion if we have search results in derived signals
+                    if ~isempty(searchText) && ~isempty(filteredDerived)
+                        nodesToExpand{end+1} = derivedNode;
+                        hasFilteredResults = true;
+                    end
+                end
+            end
+
+            % AUTO-EXPAND: Expand all nodes that have filtered results
+            if hasFilteredResults && ~isempty(nodesToExpand)
+                % Small delay to ensure tree is fully built
+                pause(0.05);
+
+                % Expand all marked nodes
+                for i = 1:length(nodesToExpand)
+                    try
+                        nodesToExpand{i}.expand();
+                    catch
+                        % Ignore expansion errors - might not be supported in all MATLAB versions
+                    end
+                end
+
+                % Force UI update
+                drawnow;
             end
         end
         function autoScaleCurrentSubplot(app)

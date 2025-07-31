@@ -8,7 +8,7 @@ classdef PlotManager < handle
         LinkedAxes
         SelectedSubplotIdx
         CurrentTabIdx
-        LastSignalUpdateTimes  
+        LastSignalUpdateTimes
         GridLayouts
         TabControls
         MainTabGridLayouts
@@ -447,9 +447,6 @@ classdef PlotManager < handle
                     'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
 
 
-                uimenu(cm, 'Text', '⚙️ Create Derived Signal', ...
-                    'MenuSelectedFcn', @(src, event) obj.showDerivedSignalMenu(tabIdx, i), ...
-                    'Separator', 'on');
                 % IMPORTANT: Set context menu BEFORE enabling any cursor modes
                 ax.ContextMenu = cm;
                 obj.AxesArrays{tabIdx}(i) = ax;
@@ -461,6 +458,9 @@ classdef PlotManager < handle
             obj.App.highlightSelectedSubplot(tabIdx, obj.SelectedSubplotIdx);
             obj.App.initializeCaptionArrays(tabIdx, nPlots);
         end
+
+
+
 
         function showPDFExportDialog(obj)
             app = obj.App;
@@ -753,19 +753,22 @@ classdef PlotManager < handle
                             isStateSignal = obj.App.DataManager.StateSignals(sigName);
                         end
 
+                        % Always remove existing signal representation (line or xline)
+                        obj.removeSignalPlot(ax, sigName);
+
                         if isStateSignal
-                            % State signals: always recreate (vertical lines are simple)
-                            obj.removeSignalPlot(ax, sigName);
-                            obj.plotStateSignalStable(ax, timeData, scaledData, color, sigName, currentYLim);
+                            % State signals: draw vertical xlines
+                            obj.plotStateSignalStable(ax, timeData, scaledData, color, sigName, currentYLim, width);
                         else
                             % Regular signals: update existing or create new
                             if shouldClearAndRecreate
-                                % Create new plot
-                                h = plot(ax, timeData, scaledData, 'LineWidth', width, 'Color', color, 'DisplayName', sigName);
+                                h = plot(ax, timeData, scaledData, ...
+                                    'LineWidth', width, ...
+                                    'Color', color, ...
+                                    'DisplayName', sigName);
                                 plotHandles(end+1) = h;
                                 plotLabels{end+1} = sigName;
                             else
-                                % Update existing plot or create if not found
                                 h = obj.updateOrCreateSignalPlot(ax, sigName, timeData, scaledData, color, width);
                                 if ~isempty(h)
                                     plotHandles(end+1) = h;
@@ -974,11 +977,22 @@ classdef PlotManager < handle
 
         % **NEW METHOD: Remove specific signal plot**
         function removeSignalPlot(obj, ax, sigName)
+            % Remove regular plot line
             line = obj.findSignalPlot(ax, sigName);
             if ~isempty(line) && isvalid(line)
                 delete(line);
             end
+
+            % Remove any matching xline objects tagged with the signal name
+            allXLines = findall(ax, 'Type', 'ConstantLine');  % includes xline
+            for k = 1:numel(allXLines)
+                h = allXLines(k);
+                if isprop(h, 'Tag') && strcmp(h.Tag, ['state_' sigName])
+                    delete(h);
+                end
+            end
         end
+
 
         % **NEW METHOD: Remove all signal plots**
         function removeAllSignalPlots(obj, ax)
@@ -1008,22 +1022,25 @@ classdef PlotManager < handle
                 return;
             end
 
-            % Find lines that are not in the assigned list
-            linesToDelete = [];
+            % Find lines and xlines not in the assigned list
+            itemsToDelete = [];
             for i = 1:numel(ax.Children)
                 child = ax.Children(i);
-                if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
+                isLine = strcmp(child.Type, 'line');
+                isXLine = strcmp(child.Type, 'constantline');  % More robust than isa()
+
+                if (isLine || isXLine) && ...
                         isprop(child, 'DisplayName') && ...
                         ~isempty(child.DisplayName) && ...
                         ~ismember(child.DisplayName, assignedSignalNames)
-                    linesToDelete = [linesToDelete, child];
+                    itemsToDelete = [itemsToDelete, child]; %#ok<AGROW>
                 end
             end
 
-            % Delete unassigned lines
-            for line = linesToDelete
-                if isvalid(line)
-                    delete(line);
+            % Delete unassigned plots/xlines
+            for item = itemsToDelete
+                if isvalid(item)
+                    delete(item);
                 end
             end
         end
@@ -1089,42 +1106,42 @@ classdef PlotManager < handle
         end
 
         % **UPDATED METHOD: Improved state signal plotting**
-        function plotStateSignalStable(obj, ax, timeData, valueData, color, label, currentYLim)
-            if length(timeData) < 2
-                plot(ax, timeData, valueData, 'Color', color, 'LineWidth', 2, 'DisplayName', label);
+        function plotStateSignalStable(obj, ax, timeData, valueData, color, label, currentYLim, lineWidth)
+            if isempty(timeData)
                 return;
             end
 
-            % Use a tolerance for floating-point changes
+            % Use a tolerance to detect state changes
             changeIdx = find([true; abs(diff(valueData)) > 1e-8]);
 
-            % Use current Y limits if they exist and are reasonable
-            if length(currentYLim) == 2 && currentYLim(2) > currentYLim(1) && ~isequal(currentYLim, [0 1])
-                yLimits = currentYLim;
+            % If all values are the same, use only the first timestamp
+            if isempty(changeIdx)
+                changeTimes = timeData(1);
             else
-                if min(valueData) ~= max(valueData)
-                    yRange = max(valueData) - min(valueData);
-                    yPadding = 0.1 * yRange;
-                    yLimits = [min(valueData) - yPadding, max(valueData) + yPadding];
-                else
-                    yLimits = [min(valueData) - 0.5, max(valueData) + 0.5];
-                end
+                changeTimes = timeData(changeIdx);
             end
 
-            if isempty(changeIdx)
-                t = timeData(1);
-                plot(ax, [t t], yLimits, 'Color', color, 'LineWidth', 2, 'DisplayName', label);
-            else
-                for k = 1:numel(changeIdx)
-                    t = timeData(changeIdx(k));
-                    if k == 1
-                        plot(ax, [t t], yLimits, 'Color', color, 'LineWidth', 2, 'DisplayName', label);
-                    else
-                        plot(ax, [t t], yLimits, 'Color', color, 'LineWidth', 2);
-                    end
+            for k = 1:numel(changeTimes)
+                t = changeTimes(k);
+                h = xline(ax, t, '--', ...
+                    'Color', color, ...
+                    'LineWidth', lineWidth, ...
+                    'Alpha', 0.6, ...
+                    'Label', label, ...
+                    'DisplayName', label, ...
+                    'LabelOrientation', 'horizontal', ...
+                    'LabelVerticalAlignment', 'middle');
+
+                % Only the first xline gets the label
+                if k > 1
+                    h.Label = '';
                 end
+
+                % Optional: Tag the line for easier cleanup
+                h.Tag = ['state_' label];
             end
         end
+
 
         function updateAllPlotsForStreaming(obj)
             % Optimized streaming updates - uses existing line update mechanism

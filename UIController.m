@@ -71,6 +71,7 @@ classdef UIController < handle
 
             % Update signal tree to include new signals
             app.buildSignalTree();
+            app.PlotManager.refreshPlots();
 
             % Update status
             app.StatusLabel.Text = sprintf('➕ Added %d new CSV(s). Total: %d', numNewCSVs, numel(app.DataManager.CSVFilePaths));
@@ -785,6 +786,7 @@ classdef UIController < handle
             app.DataManager.LatestDataRates = cell(1, numel(files));
             app.DataManager.startStreamingAll();
             app.buildSignalTree();
+            app.PlotManager.refreshPlots();
         end
         function signalNames = getAllSignalsIncludingDerived(obj)
             % Get all available signals including derived ones
@@ -804,9 +806,6 @@ classdef UIController < handle
             if isempty(event.Modifier), return; end
             if ismember('control', event.Modifier)
                 switch event.Key
-                    case 'o'  % Ctrl+O for operations menu
-                        % Show operations menu or dialog
-                        obj.App.SignalOperations.showCustomCodeDialog();
                     case 'h'  % Ctrl+H for operation history
                         obj.App.SignalOperations.showOperationHistory();
                     case 's'
