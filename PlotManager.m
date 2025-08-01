@@ -2142,66 +2142,7 @@ classdef PlotManager < handle
 
 
 
-        function addCaptionToPage(obj, fig, tabIdx, subplotIdx, figureNumber)
-            app = obj.App;
-
-            % Get caption and description
-            caption = '';
-            description = '';
-
-            if numel(app.SubplotCaptions) >= tabIdx && ...
-                    numel(app.SubplotCaptions{tabIdx}) >= subplotIdx && ...
-                    ~isempty(app.SubplotCaptions{tabIdx}{subplotIdx})
-                caption = app.SubplotCaptions{tabIdx}{subplotIdx};
-            end
-
-            if numel(app.SubplotDescriptions) >= tabIdx && ...
-                    numel(app.SubplotDescriptions{tabIdx}) >= subplotIdx && ...
-                    ~isempty(app.SubplotDescriptions{tabIdx}{subplotIdx})
-                description = app.SubplotDescriptions{tabIdx}{subplotIdx};
-            end
-
-            % Default caption if empty
-            if isempty(caption)
-                caption = sprintf('Plot for Tab %d, Subplot %d', tabIdx, subplotIdx);
-            end
-
-            % Default description if empty
-            if isempty(description)
-                description = 'No description provided.';
-            end
-
-            % Create caption area - larger space for text
-            captionAx = axes('Parent', fig, 'Position', [0.1 0.05 0.8 0.25], 'Visible', 'off');
-
-            % Caption title (bold)
-            text(captionAx, 0.05, 0.85, sprintf('Figure %d: %s', figureNumber, caption), ...
-                'FontSize', 14, 'FontWeight', 'bold', 'Units', 'normalized', ...
-                'VerticalAlignment', 'top', 'Interpreter', 'none');
-
-            % Description (normal text, wrapped)
-            text(captionAx, 0.05, 0.65, description, ...
-                'FontSize', 11, 'Units', 'normalized', ...
-                'VerticalAlignment', 'top', 'Interpreter', 'none');
-
-            % Add assigned signals info - FIXED: REMOVED FontStyle
-            if tabIdx <= numel(obj.AssignedSignals) && ...
-                    subplotIdx <= numel(obj.AssignedSignals{tabIdx})
-                assignedSignals = obj.AssignedSignals{tabIdx}{subplotIdx};
-                if ~isempty(assignedSignals)
-                    signalNames = {};
-                    for i = 1:numel(assignedSignals)
-                        signalNames{end+1} = assignedSignals{i}.Signal;
-                    end
-                    signalText = sprintf('Signals: %s', strjoin(signalNames, ', '));
-
-                    text(captionAx, 0.05, 0.35, signalText, ...
-                        'FontSize', 10, 'Units', 'normalized', ...
-                        'VerticalAlignment', 'top', 'Interpreter', 'none');
-                    % REMOVED: 'FontStyle', 'italic'
-                end
-            end
-        end
+        addCaptionToPage
         % Set crosshair position from mouse click
         function setCrosshairFromClick(obj, ax, ~)
             if ~obj.App.CursorState

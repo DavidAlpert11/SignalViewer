@@ -61,7 +61,9 @@ classdef SignalOperationsManager < handle
             % Result name
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 140 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
-            defaultName = sprintf('%s_%s', signalNames{1}, lower(operationType));
+
+            % Use curly braces to prevent subscript interpretation
+            defaultName = sprintf('%s_{%s}', signalNames{1}, lower(operationType));
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
                 'Position', [150 140 250 25], 'String', defaultName, ...
                 'HorizontalAlignment', 'left');
@@ -106,7 +108,7 @@ classdef SignalOperationsManager < handle
 
             function updateDefaultName()
                 selectedSignal = signalNames{signalDropdown.Value};
-                newName = sprintf('%s_%s', selectedSignal, lower(operationType));
+                newName = sprintf('%s_{%s}', selectedSignal, lower(operationType));
                 nameField.String = newName;
             end
 
@@ -322,13 +324,15 @@ classdef SignalOperationsManager < handle
             % Result name
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 100 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
-            defaultName = sprintf('%s_%s_%s', signalNames{1}, lower(operationType), signalNames{min(2, end)});
+
+            % Use curly braces to prevent subscript interpretation
+            defaultName = sprintf('%s_{%s}_%s', signalNames{1}, lower(operationType), signalNames{min(2, end)});
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
                 'Position', [150 100 250 25], 'String', defaultName, ...
                 'HorizontalAlignment', 'left');
 
             % Update name when signals change
-            updateName = @(~,~) set(nameField, 'String', sprintf('%s_%s_%s', ...
+            updateName = @(~,~) set(nameField, 'String', sprintf('%s_{%s}_%s', ...
                 signalNames{signalADropdown.Value}, lower(operationType), signalNames{signalBDropdown.Value}));
             signalADropdown.Callback = updateName;
             signalBDropdown.Callback = updateName;
@@ -484,9 +488,8 @@ classdef SignalOperationsManager < handle
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 80 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
-                'Position', [150 80 250 25], 'String', 'signals_norm', ...
+                'Position', [150 80 250 25], 'String', 'signals_{norm}', ...
                 'HorizontalAlignment', 'left');
-
             % Buttons
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
                 'Position', [320 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
@@ -1301,6 +1304,7 @@ classdef SignalOperationsManager < handle
                     'MenuSelectedFcn', @(src, event) obj.showOperationDetails(derivedData.Operation));
                 uimenu(cm, 'Text', '💾 Export Signal', ...
                     'MenuSelectedFcn', @(src, event) obj.exportDerivedSignal(signalName));
+
                 child.ContextMenu = cm;
             end
         end
@@ -1552,7 +1556,7 @@ classdef SignalOperationsManager < handle
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 70 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
-                'Position', [150 70 230 25], 'String', 'vector_magnitude', ...
+                'Position', [150 70 230 25], 'String', 'vector_{magnitude}', ...
                 'HorizontalAlignment', 'left');
 
             % Buttons
@@ -1611,7 +1615,7 @@ classdef SignalOperationsManager < handle
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
-                'Position', [150 90 230 25], 'String', 'moving_average', ...
+                'Position', [150 90 230 25], 'String', 'moving_{average}', ...
                 'HorizontalAlignment', 'left');
 
             % Buttons
@@ -1668,7 +1672,7 @@ classdef SignalOperationsManager < handle
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
-                'Position', [150 90 230 25], 'String', 'fft_magnitude', ...
+                'Position', [150 90 230 25], 'String', 'fft_{magnitude}', ...
                 'HorizontalAlignment', 'left');
 
             % Buttons
@@ -1721,7 +1725,7 @@ classdef SignalOperationsManager < handle
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
-                'Position', [150 90 230 25], 'String', 'rms_windowed', ...
+                'Position', [150 90 230 25], 'String', 'rms_{windowed}', ...
                 'HorizontalAlignment', 'left');
 
             % Buttons
@@ -1772,7 +1776,7 @@ classdef SignalOperationsManager < handle
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 70 120 20], ...
                 'String', 'Result Name:', 'FontWeight', 'bold');
             nameField = uicontrol('Parent', d, 'Style', 'edit', ...
-                'Position', [150 70 230 25], 'String', 'signal_average', ...
+                'Position', [150 70 230 25], 'String', 'signal_{average}', ...
                 'HorizontalAlignment', 'left');
 
             % Buttons
@@ -2222,31 +2226,53 @@ classdef SignalOperationsManager < handle
                         end
                     case 'dual'
                         opIcons = containers.Map({'subtract', 'add', 'multiply', 'divide'}, {'−', '+', '×', '÷'});
-                        icon = opIcons(derivedData.Operation.Operation);
+                        if isKey(opIcons, derivedData.Operation.Operation)
+                            icon = opIcons(derivedData.Operation.Operation);
+                        else
+                            icon = '⚙️';
+                        end
                     case 'norm'
                         icon = '‖‖';
+                    case {'quick_vector_magnitude', 'quick_moving_average', 'quick_fft', 'quick_rms', 'quick_average'}
+                        icon = '⚡';
                     otherwise
                         icon = '🔄';
                 end
 
                 child = uitreenode(derivedNode, 'Text', sprintf('%s %s', icon, signalName));
-
-                % CRITICAL FIX: Store the CLEAN signal name, not the formatted one
                 child.NodeData = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
-
-                % Add context menu for derived signals
-                cm = uicontextmenu(obj.App.UIFigure);
-                uimenu(cm, 'Text', '🗑️ Delete Signal', ...
-                    'MenuSelectedFcn', @(src, event) obj.confirmDeleteDerivedSignal(signalName));
-                uimenu(cm, 'Text', '📋 Show Details', ...
-                    'MenuSelectedFcn', @(src, event) obj.showOperationDetails(derivedData.Operation));
-                uimenu(cm, 'Text', '💾 Export Signal', ...
-                    'MenuSelectedFcn', @(src, event) obj.exportDerivedSignal(signalName));
-                child.ContextMenu = cm;
             end
 
+            % SIMPLE FIX: Always expand derived signals and add to expanded list
+            if ~isprop(obj.App, 'ExpandedTreeNodes')
+                obj.App.ExpandedTreeNodes = string.empty;
+            end
+
+            derivedNodeText = '⚙️ Derived Signals';
+
+            % Add to expanded nodes list if not already there
+            if ~any(strcmp(derivedNodeText, obj.App.ExpandedTreeNodes))
+                obj.App.ExpandedTreeNodes(end+1) = derivedNodeText;
+            end
+
+            % Force expansion immediately
+            try
+                derivedNode.expand();
+                fprintf('Auto-expanded derived signals node\n');
+            catch
+                try
+                    derivedNode.Expanded = true;
+                    fprintf('Set derived signals node Expanded=true\n');
+                catch
+                    fprintf('Could not expand derived signals node\n');
+                end
+            end
+
+            % REMOVED: Don't store node reference - not needed for simple solution
+            % obj.App.DerivedSignalsNode = derivedNode;
+
             % Debug output
-            fprintf('Added %d derived signals to tree\n', length(derivedNames));
+            fprintf('Added %d derived signals to tree (auto-expanded)\n', length(derivedNames));
         end
 
         function confirmDeleteDerivedSignal(obj, signalName)

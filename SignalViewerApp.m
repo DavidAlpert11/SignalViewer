@@ -6,6 +6,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
         ControlPanel
         MainTabGroup
         SignalOperations
+        ExpandedTreeNodes = string.empty
+        DerivedSignalsNode
         % Enhanced color schemes
         Colors = [
             0.2 0.6 0.9;    % Blue
@@ -21,6 +23,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             ];
 
         % Controls
+        HiddenSignals  % containers.Map to track hidden signals
         RowsSpinner
         ColsSpinner
         SubplotDropdown
@@ -175,7 +178,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
 
-
             % ONLY Auto Scale and Refresh CSV buttons at the top
             app.AutoScaleButton = uibutton(app.ControlPanel, 'push', 'Text', 'Auto Scale All', ...
                 'Position', [20 740 120 30], ...
@@ -212,7 +214,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
 
             app.SignalTree.ContextMenu = cm;
-
+            app.setupMultiSelectionContextMenu();
             % LARGER Table for editing scale and state for selected signals
             app.SignalPropsTable = uitable(app.ControlPanel, ...
                 'Position', [20 80 280 110], ... % Increased height from 100 to 110
@@ -241,6 +243,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 'Text', '', ...
                 'FontColor', [0.2 0.2 0.2], ...
                 'FontSize', 9);
+
+            % After creating app.SignalTree, add:
+            app.SignalTree.NodeExpandedFcn = @(src, event) app.onTreeNodeExpanded(event.Node.Text);
+            app.SignalTree.NodeCollapsedFcn = @(src, event) app.onTreeNodeCollapsed(event.Node.Text);
+
         end
 
 
@@ -295,83 +302,462 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
 
-        function highlightSelectedSubplot(app, tabIdx, subplotIdx)
-            % Highlight the currently selected subplot with only an outer border
-            if tabIdx <= numel(app.PlotManager.AxesArrays) && ...
-                    ~isempty(app.PlotManager.AxesArrays{tabIdx}) && ...
-                    subplotIdx <= numel(app.PlotManager.AxesArrays{tabIdx})
 
-                % FORCE clear ALL highlights in this tab first
-                for i = 1:numel(app.PlotManager.AxesArrays{tabIdx})
-                    ax = app.PlotManager.AxesArrays{tabIdx}(i);
-                    if isvalid(ax)
-                        % Reset to normal styling
-                        ax.XColor = [0.15 0.15 0.15];
-                        ax.YColor = [0.15 0.15 0.15];
-                        ax.LineWidth = 1;
-                        ax.Box = 'on';
+        % Advanced signal filtering dialog
+        function showAdvancedSignalFilter(app)
+            % Create advanced filter dialog
+            d = dialog('Name', 'Advanced Signal Filtering', ...
+                'Position', [200 200 600 500], 'Resize', 'off');
 
-                        % Remove any existing highlight borders
-                        if isstruct(ax.UserData) && isfield(ax.UserData, 'HighlightBorders')
-                            borders = ax.UserData.HighlightBorders;
-                            for j = 1:numel(borders)
-                                if isvalid(borders(j))
-                                    delete(borders(j));
-                                end
-                            end
-                            ax.UserData = rmfield(ax.UserData, 'HighlightBorders');
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 460 560 25], ...
+                'String', 'Advanced Signal Filtering & Management', ...
+                'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Filter by properties section
+            filterPanel = uipanel('Parent', d, 'Position', [20 320 560 130], ...
+                'Title', 'Filter by Properties', 'FontWeight', 'bold');
+
+            % Scale filter
+            uicontrol('Parent', filterPanel, 'Style', 'text', 'Position', [20 90 100 20], ...
+                'String', 'Scale Factor:', 'FontWeight', 'bold');
+            uicontrol('Parent', filterPanel, 'Style', 'text', 'Position', [20 65 40 20], ...
+                'String', 'Min:');
+            scaleMinField = uicontrol('Parent', filterPanel, 'Style', 'edit', ...
+                'Position', [65 65 60 20], 'String', '', 'HorizontalAlignment', 'left');
+            uicontrol('Parent', filterPanel, 'Style', 'text', 'Position', [135 65 40 20], ...
+                'String', 'Max:');
+            scaleMaxField = uicontrol('Parent', filterPanel, 'Style', 'edit', ...
+                'Position', [180 65 60 20], 'String', '', 'HorizontalAlignment', 'left');
+
+            % Signal type filter
+            uicontrol('Parent', filterPanel, 'Style', 'text', 'Position', [280 90 100 20], ...
+                'String', 'Signal Type:', 'FontWeight', 'bold');
+            typeDropdown = uicontrol('Parent', filterPanel, 'Style', 'popupmenu', ...
+                'Position', [280 65 120 25], ...
+                'String', {'All Signals', 'Regular Only', 'State Only', 'Assigned Only', 'Unassigned Only'});
+
+            % CSV filter
+            uicontrol('Parent', filterPanel, 'Style', 'text', 'Position', [20 35 100 20], ...
+                'String', 'CSV Source:', 'FontWeight', 'bold');
+            csvNames = {'All CSVs'};
+            for i = 1:numel(app.DataManager.CSVFilePaths)
+                [~, name, ext] = fileparts(app.DataManager.CSVFilePaths{i});
+                csvNames{end+1} = sprintf('CSV %d: %s%s', i, name, ext);
+            end
+            csvDropdown = uicontrol('Parent', filterPanel, 'Style', 'popupmenu', ...
+                'Position', [20 10 220 25], 'String', csvNames);
+
+            % Apply filters button
+            uicontrol('Parent', filterPanel, 'Style', 'pushbutton', 'String', 'Apply Filters', ...
+                'Position', [450 35 80 30], 'Callback', @(~,~) applyFilters(), ...
+                'FontWeight', 'bold');
+
+            % Results section
+            resultsPanel = uipanel('Parent', d, 'Position', [20 150 560 160], ...
+                'Title', 'Filter Results', 'FontWeight', 'bold');
+
+            uicontrol('Parent', resultsPanel, 'Style', 'text', 'Position', [20 120 200 20], ...
+                'String', 'Filtered Signals:', 'FontWeight', 'bold');
+
+            resultsListbox = uicontrol('Parent', resultsPanel, 'Style', 'listbox', ...
+                'Position', [20 20 350 95], 'Max', 100); % Allow multiple selection
+
+            % Actions for filtered signals
+            uicontrol('Parent', resultsPanel, 'Style', 'pushbutton', 'String', 'Assign Selected to Current Subplot', ...
+                'Position', [380 80 160 25], 'Callback', @(~,~) assignFilteredSignals());
+            uicontrol('Parent', resultsPanel, 'Style', 'pushbutton', 'String', 'Bulk Edit Selected', ...
+                'Position', [380 50 160 25], 'Callback', @(~,~) bulkEditFiltered());
+            uicontrol('Parent', resultsPanel, 'Style', 'pushbutton', 'String', 'Export Selected to CSV', ...
+                'Position', [380 20 160 25], 'Callback', @(~,~) exportFilteredSignals());
+
+            % Quick actions section
+            quickPanel = uipanel('Parent', d, 'Position', [20 50 560 90], ...
+                'Title', 'Quick Actions', 'FontWeight', 'bold');
+
+            uicontrol('Parent', quickPanel, 'Style', 'pushbutton', 'String', 'Show All Hidden Signals', ...
+                'Position', [20 40 150 25], 'Callback', @(~,~) showAllHiddenSignals());
+            uicontrol('Parent', quickPanel, 'Style', 'pushbutton', 'String', 'Reset All Signal Properties', ...
+                'Position', [180 40 150 25], 'Callback', @(~,~) resetAllProperties());
+            uicontrol('Parent', quickPanel, 'Style', 'pushbutton', 'String', 'Auto-Color All Signals', ...
+                'Position', [340 40 150 25], 'Callback', @(~,~) autoColorSignals());
+
+            % Statistics
+            uicontrol('Parent', quickPanel, 'Style', 'text', 'Position', [20 10 520 20], ...
+                'String', sprintf('Total Signals: %d | Currently Assigned: %d | State Signals: %d', ...
+                getTotalSignalCount(), getAssignedSignalCount(), getStateSignalCount()), ...
+                'FontSize', 9, 'HorizontalAlignment', 'left');
+
+            % Close button
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Close', ...
+                'Position', [500 10 80 30], 'Callback', @(~,~) close(d));
+
+            % Store filtered results
+            filteredSignals = {};
+
+            function applyFilters()
+                filteredSignals = {};
+
+                % Get filter criteria
+                minScale = str2double(scaleMinField.String);
+                maxScale = str2double(scaleMaxField.String);
+                if isnan(minScale), minScale = -inf; end
+                if isnan(maxScale), maxScale = inf; end
+
+                typeFilter = typeDropdown.Value;
+                csvFilter = csvDropdown.Value;
+
+                % Get current assignments for filtering
+                tabIdx = app.PlotManager.CurrentTabIdx;
+                subplotIdx = app.PlotManager.SelectedSubplotIdx;
+                assignedSignals = {};
+                if tabIdx <= numel(app.PlotManager.AssignedSignals) && subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                    assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+                end
+
+                % Filter each CSV
+                for i = 1:numel(app.DataManager.DataTables)
+                    T = app.DataManager.DataTables{i};
+                    if isempty(T), continue; end
+
+                    % CSV filter
+                    if csvFilter > 1 && csvFilter-1 ~= i
+                        continue;
+                    end
+
+                    signals = setdiff(T.Properties.VariableNames, {'Time'});
+
+                    for j = 1:numel(signals)
+                        signalName = signals{j};
+                        signalInfo = struct('CSVIdx', i, 'Signal', signalName);
+
+                        % Scale filter
+                        scale = 1.0;
+                        if app.DataManager.SignalScaling.isKey(signalName)
+                            scale = app.DataManager.SignalScaling(signalName);
+                        end
+                        if scale < minScale || scale > maxScale
+                            continue;
                         end
 
-                        % Also remove any plot objects that might be highlight borders
-                        % (in case UserData tracking failed)
-                        children = get(ax, 'Children');
-                        for j = 1:numel(children)
-                            child = children(j);
-                            if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
-                                    child.LineWidth == 6 && ...
-                                    isequal(child.Color, app.CurrentHighlightColor)
-                                delete(child);
+                        % Type filter
+                        isState = false;
+                        if app.DataManager.StateSignals.isKey(signalName)
+                            isState = app.DataManager.StateSignals(signalName);
+                        end
+
+                        isAssigned = false;
+                        for k = 1:numel(assignedSignals)
+                            if isequal(assignedSignals{k}, signalInfo)
+                                isAssigned = true;
+                                break;
                             end
                         end
+
+                        switch typeFilter
+                            case 2 % Regular only
+                                if isState, continue; end
+                            case 3 % State only
+                                if ~isState, continue; end
+                            case 4 % Assigned only
+                                if ~isAssigned, continue; end
+                            case 5 % Unassigned only
+                                if isAssigned, continue; end
+                        end
+
+                        % Add to filtered results
+                        filteredSignals{end+1} = signalInfo;
                     end
                 end
 
-                % NOW add border to ONLY the selected subplot
-                ax = app.PlotManager.AxesArrays{tabIdx}(subplotIdx);
-                if isvalid(ax)
-                    % Add a border using plot lines
-                    hold(ax, 'on');
-
-                    % Get current axis limits
-                    xlims = ax.XLim;
-                    ylims = ax.YLim;
-
-                    % Create border lines around the perimeter
-                    topBorder = plot(ax, xlims, [ylims(2) ylims(2)], ...
-                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
-                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
-
-                    bottomBorder = plot(ax, xlims, [ylims(1) ylims(1)], ...
-                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
-                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
-
-                    leftBorder = plot(ax, [xlims(1) xlims(1)], ylims, ...
-                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
-                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
-
-                    rightBorder = plot(ax, [xlims(2) xlims(2)], ylims, ...
-                        'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
-                        'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
-
-                    hold(ax, 'off');
-
-                    % Store the borders for later removal
-                    if ~isstruct(ax.UserData)
-                        ax.UserData = struct();
+                % Update results listbox
+                if isempty(filteredSignals)
+                    resultsListbox.String = {'No signals match the filter criteria'};
+                    resultsListbox.Value = 1;
+                else
+                    displayNames = cell(numel(filteredSignals), 1);
+                    for i = 1:numel(filteredSignals)
+                        signal = filteredSignals{i};
+                        [~, csvName, ext] = fileparts(app.DataManager.CSVFilePaths{signal.CSVIdx});
+                        displayNames{i} = sprintf('%s (CSV%d: %s%s)', signal.Signal, signal.CSVIdx, csvName, ext);
                     end
-                    ax.UserData.HighlightBorders = [topBorder, bottomBorder, leftBorder, rightBorder];
+                    resultsListbox.String = displayNames;
+                    resultsListbox.Value = 1:min(10, length(displayNames)); % Select first 10
+                end
+
+                app.StatusLabel.Text = sprintf('🔍 Found %d signals matching filter criteria', numel(filteredSignals));
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+
+            function assignFilteredSignals()
+                if isempty(filteredSignals)
+                    return;
+                end
+
+                selectedIndices = resultsListbox.Value;
+                if isempty(selectedIndices) || (length(selectedIndices) == 1 && strcmp(resultsListbox.String{1}, 'No signals match the filter criteria'))
+                    return;
+                end
+
+                signalsToAssign = filteredSignals(selectedIndices);
+
+                tabIdx = app.PlotManager.CurrentTabIdx;
+                subplotIdx = app.PlotManager.SelectedSubplotIdx;
+                app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = signalsToAssign;
+
+                app.buildSignalTree();
+                app.PlotManager.refreshPlots(tabIdx);
+                app.updateSignalPropsTable(signalsToAssign);
+
+                app.StatusLabel.Text = sprintf('📌 Assigned %d filtered signals to subplot', length(selectedIndices));
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+
+            function bulkEditFiltered()
+                if isempty(filteredSignals)
+                    return;
+                end
+
+                selectedIndices = resultsListbox.Value;
+                if isempty(selectedIndices)
+                    return;
+                end
+
+                % Create mini bulk edit dialog
+                bd = dialog('Name', 'Bulk Edit Filtered Signals', 'Position', [350 350 400 250]);
+
+                uicontrol('Parent', bd, 'Style', 'text', 'Position', [20 210 360 25], ...
+                    'String', sprintf('Bulk Edit %d Filtered Signals', length(selectedIndices)), ...
+                    'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+                % Scale
+                uicontrol('Parent', bd, 'Style', 'text', 'Position', [20 170 100 20], ...
+                    'String', 'Set Scale:', 'FontWeight', 'bold');
+                bulkScaleField = uicontrol('Parent', bd, 'Style', 'edit', ...
+                    'Position', [130 170 80 25], 'String', '1.0');
+                uicontrol('Parent', bd, 'Style', 'pushbutton', 'String', 'Apply', ...
+                    'Position', [220 170 60 25], 'Callback', @(~,~) applyBulkScaleFiltered());
+
+                % State
+                uicontrol('Parent', bd, 'Style', 'pushbutton', 'String', 'Mark as State', ...
+                    'Position', [20 130 120 30], 'Callback', @(~,~) applyBulkStateFiltered(true));
+                uicontrol('Parent', bd, 'Style', 'pushbutton', 'String', 'Mark as Regular', ...
+                    'Position', [150 130 120 30], 'Callback', @(~,~) applyBulkStateFiltered(false));
+
+                uicontrol('Parent', bd, 'Style', 'pushbutton', 'String', 'Close', ...
+                    'Position', [300 20 80 30], 'Callback', @(~,~) close(bd));
+
+                function applyBulkScaleFiltered()
+                    newScale = str2double(bulkScaleField.String);
+                    if isnan(newScale), newScale = 1.0; end
+
+                    for i = selectedIndices
+                        if i <= length(filteredSignals)
+                            app.DataManager.SignalScaling(filteredSignals{i}.Signal) = newScale;
+                        end
+                    end
+                    app.PlotManager.refreshPlots();
+                    close(bd);
+                end
+
+                function applyBulkStateFiltered(isState)
+                    for i = selectedIndices
+                        if i <= length(filteredSignals)
+                            app.DataManager.StateSignals(filteredSignals{i}.Signal) = isState;
+                        end
+                    end
+                    app.PlotManager.refreshPlots();
+                    close(bd);
                 end
             end
+
+            function exportFilteredSignals()
+                % Export filtered signals to CSV - implementation similar to existing export
+                if isempty(filteredSignals)
+                    return;
+                end
+
+                selectedIndices = resultsListbox.Value;
+                if isempty(selectedIndices)
+                    return;
+                end
+
+                signalsToExport = filteredSignals(selectedIndices);
+                app.UIController.exportSignalsToFolder(signalsToExport, 'FilteredSignals');
+            end
+
+            function showAllHiddenSignals()
+                if isprop(app, 'HiddenSignals')
+                    app.HiddenSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+                end
+                app.buildSignalTree();
+                app.StatusLabel.Text = '👁️ Showing all previously hidden signals';
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+
+            function resetAllProperties()
+                % Reset all signal properties to defaults
+                answer = uiconfirm(d, 'Reset ALL signal properties to defaults?', 'Confirm Reset', ...
+                    'Options', {'Reset All', 'Cancel'}, 'DefaultOption', 'Cancel');
+
+                if strcmp(answer, 'Reset All')
+                    app.DataManager.SignalScaling = containers.Map('KeyType', 'char', 'ValueType', 'double');
+                    app.DataManager.StateSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+                    app.SignalStyles = struct();
+
+                    % Reinitialize with defaults
+                    app.DataManager.initializeSignalMaps();
+                    app.PlotManager.refreshPlots();
+
+                    app.StatusLabel.Text = '🔄 Reset all signal properties to defaults';
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                end
+            end
+
+            function autoColorSignals()
+                % Auto-assign colors from color palette
+                colorPalette = app.Colors; % Use the app's color palette
+
+                if isempty(app.SignalStyles)
+                    app.SignalStyles = struct();
+                end
+
+                colorIndex = 1;
+                colorCount = 0;
+
+                for i = 1:numel(app.DataManager.DataTables)
+                    T = app.DataManager.DataTables{i};
+                    if isempty(T), continue; end
+
+                    signals = setdiff(T.Properties.VariableNames, {'Time'});
+                    for j = 1:numel(signals)
+                        signalName = signals{j};
+
+                        if ~isfield(app.SignalStyles, signalName)
+                            app.SignalStyles.(signalName) = struct();
+                        end
+
+                        app.SignalStyles.(signalName).Color = colorPalette(colorIndex, :);
+                        colorIndex = colorIndex + 1;
+                        if colorIndex > size(colorPalette, 1)
+                            colorIndex = 1;
+                        end
+                        colorCount = colorCount + 1;
+                    end
+                end
+
+                app.PlotManager.refreshPlots();
+                app.StatusLabel.Text = sprintf('🎨 Auto-colored %d signals', colorCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+
+            function total = getTotalSignalCount()
+                total = 0;
+                for i = 1:numel(app.DataManager.DataTables)
+                    if ~isempty(app.DataManager.DataTables{i})
+                        signals = setdiff(app.DataManager.DataTables{i}.Properties.VariableNames, {'Time'});
+                        total = total + numel(signals);
+                    end
+                end
+            end
+
+            function assigned = getAssignedSignalCount()
+                assigned = 0;
+                tabIdx = app.PlotManager.CurrentTabIdx;
+                subplotIdx = app.PlotManager.SelectedSubplotIdx;
+                if tabIdx <= numel(app.PlotManager.AssignedSignals) && subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                    assigned = numel(app.PlotManager.AssignedSignals{tabIdx}{subplotIdx});
+                end
+            end
+
+            function stateCount = getStateSignalCount()
+                stateCount = 0;
+                stateKeys = keys(app.DataManager.StateSignals);
+                for i = 1:length(stateKeys)
+                    if app.DataManager.StateSignals(stateKeys{i})
+                        stateCount = stateCount + 1;
+                    end
+                end
+            end
+        end
+
+        function highlightSelectedSubplot(app, tabIdx, subplotIdx)
+            % % Highlight the currently selected subplot with only an outer border
+            % if tabIdx <= numel(app.PlotManager.AxesArrays) && ...
+            %         ~isempty(app.PlotManager.AxesArrays{tabIdx}) && ...
+            %         subplotIdx <= numel(app.PlotManager.AxesArrays{tabIdx})
+            %
+            %     % FORCE clear ALL highlights in this tab first
+            %     for i = 1:numel(app.PlotManager.AxesArrays{tabIdx})
+            %         ax = app.PlotManager.AxesArrays{tabIdx}(i);
+            %         if isvalid(ax)
+            %             % Reset to normal styling
+            %             ax.XColor = [0.15 0.15 0.15];
+            %             ax.YColor = [0.15 0.15 0.15];
+            %             ax.LineWidth = 1;
+            %             ax.Box = 'on';
+            %
+            %             % Remove any existing highlight borders
+            %             if isstruct(ax.UserData) && isfield(ax.UserData, 'HighlightBorders')
+            %                 borders = ax.UserData.HighlightBorders;
+            %                 for j = 1:numel(borders)
+            %                     if isvalid(borders(j))
+            %                         delete(borders(j));
+            %                     end
+            %                 end
+            %                 ax.UserData = rmfield(ax.UserData, 'HighlightBorders');
+            %             end
+            %
+            %             % Also remove any plot objects that might be highlight borders
+            %             % (in case UserData tracking failed)
+            %             children = get(ax, 'Children');
+            %             for j = 1:numel(children)
+            %                 child = children(j);
+            %                 if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
+            %                         child.LineWidth == 6 && ...
+            %                         isequal(child.Color, app.CurrentHighlightColor)
+            %                     delete(child);
+            %                 end
+            %             end
+            %         end
+            %     end
+            %
+            %     % NOW add border to ONLY the selected subplot
+            %     ax = app.PlotManager.AxesArrays{tabIdx}(subplotIdx);
+            %     if isvalid(ax)
+            %         % Add a border using plot lines
+            %         hold(ax, 'on');
+            %
+            %         % Get current axis limits
+            %         xlims = ax.XLim;
+            %         ylims = ax.YLim;
+            %
+            %         % Create border lines around the perimeter
+            %         topBorder = plot(ax, xlims, [ylims(2) ylims(2)], ...
+            %             'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+            %             'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+            %
+            %         bottomBorder = plot(ax, xlims, [ylims(1) ylims(1)], ...
+            %             'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+            %             'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+            %
+            %         leftBorder = plot(ax, [xlims(1) xlims(1)], ylims, ...
+            %             'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+            %             'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+            %
+            %         rightBorder = plot(ax, [xlims(2) xlims(2)], ylims, ...
+            %             'Color', app.CurrentHighlightColor, 'LineWidth', 6, ...
+            %             'Clipping', 'off', 'DisplayName', '', 'HandleVisibility', 'off');
+            %
+            %         hold(ax, 'off');
+            %
+            %         % Store the borders for later removal
+            %         if ~isstruct(ax.UserData)
+            %             ax.UserData = struct();
+            %         end
+            %         ax.UserData.HighlightBorders = [topBorder, bottomBorder, leftBorder, rightBorder];
+            %     end
+            % end
 
             % Update signal tree to reflect current tab/subplot assignments
             if tabIdx <= numel(app.PlotManager.AssignedSignals) && ...
@@ -577,6 +963,512 @@ classdef SignalViewerApp < matlab.apps.AppBase
             else
                 app.StatusLabel.Text = 'ℹ️ No derived signals were assigned to any subplots';
                 app.StatusLabel.FontColor = [0.5 0.5 0.5];
+            end
+        end
+
+
+        % Add signal to current subplot
+        function addSignalToCurrentSubplot(app, signalInfo)
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Check if already assigned
+            for i = 1:numel(currentAssignments)
+                if isequal(currentAssignments{i}, signalInfo)
+                    app.StatusLabel.Text = sprintf('⚠️ Signal "%s" already assigned', signalInfo.Signal);
+                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                    return;
+                end
+            end
+
+            % Add to assignments
+            currentAssignments{end+1} = signalInfo;
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = currentAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+            app.updateSignalPropsTable(currentAssignments);
+
+            app.StatusLabel.Text = sprintf('➕ Added "%s" to subplot', signalInfo.Signal);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        % Remove signal from current subplot
+        function removeSignalFromCurrentSubplot(app, signalInfo)
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Find and remove the signal
+            newAssignments = {};
+            removed = false;
+            for i = 1:numel(currentAssignments)
+                if isequal(currentAssignments{i}, signalInfo)
+                    removed = true;
+                    % Skip this signal (don't add to newAssignments)
+                else
+                    newAssignments{end+1} = currentAssignments{i};
+                end
+            end
+
+            if removed
+                app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = newAssignments;
+
+                % Refresh visuals
+                app.buildSignalTree();
+                app.PlotManager.refreshPlots(tabIdx);
+                app.updateSignalPropsTable(newAssignments);
+
+                app.StatusLabel.Text = sprintf('❌ Removed "%s" from subplot', signalInfo.Signal);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = sprintf('⚠️ Signal "%s" not found in subplot', signalInfo.Signal);
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+
+        % Edit signal properties without assignment
+        function editSignalProperties(app, signalInfo)
+            signalName = signalInfo.Signal;
+
+            % Create properties dialog
+            d = dialog('Name', sprintf('Properties: %s', signalName), ...
+                'Position', [300 300 450 350], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 310 410 25], ...
+                'String', sprintf('Signal Properties: %s', signalName), ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Scale
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 270 100 20], ...
+                'String', 'Scale Factor:', 'FontWeight', 'bold');
+
+            currentScale = 1.0;
+            if app.DataManager.SignalScaling.isKey(signalName)
+                currentScale = app.DataManager.SignalScaling(signalName);
+            end
+
+            scaleField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [130 270 100 25], 'String', num2str(currentScale), ...
+                'HorizontalAlignment', 'left');
+
+            % State signal checkbox
+            currentState = false;
+            if app.DataManager.StateSignals.isKey(signalName)
+                currentState = app.DataManager.StateSignals(signalName);
+            end
+
+            stateCheck = uicontrol('Parent', d, 'Style', 'checkbox', ...
+                'Position', [20 230 250 20], 'String', 'State Signal (vertical lines)', ...
+                'Value', currentState);
+
+            % Color selection
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 190 100 20], ...
+                'String', 'Line Color:', 'FontWeight', 'bold');
+
+            % Get current color
+            currentColor = [0 0.4470 0.7410]; % Default MATLAB blue
+            if ~isempty(app.SignalStyles) && isfield(app.SignalStyles, signalName)
+                if isfield(app.SignalStyles.(signalName), 'Color')
+                    currentColor = app.SignalStyles.(signalName).Color;
+                end
+            end
+
+            colorButton = uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [130 190 100 25], 'String', 'Choose Color', ...
+                'BackgroundColor', currentColor, ...
+                'Callback', @(src,~) chooseColor(src));
+
+            % Line width
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 150 100 20], ...
+                'String', 'Line Width:', 'FontWeight', 'bold');
+
+            currentWidth = 2;
+            if ~isempty(app.SignalStyles) && isfield(app.SignalStyles, signalName)
+                if isfield(app.SignalStyles.(signalName), 'LineWidth')
+                    currentWidth = app.SignalStyles.(signalName).LineWidth;
+                end
+            end
+
+            widthField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [130 150 80 25], 'String', num2str(currentWidth), ...
+                'HorizontalAlignment', 'left');
+
+            % Signal filtering section
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 110 200 20], ...
+                'String', 'Signal Filtering:', 'FontWeight', 'bold');
+
+            filterCheck = uicontrol('Parent', d, 'Style', 'checkbox', ...
+                'Position', [20 80 150 20], 'String', 'Hide from tree view', ...
+                'Value', false);
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Apply', ...
+                'Position', [270 20 80 30], 'Callback', @(~,~) applyProperties(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [360 20 80 30], 'Callback', @(~,~) close(d));
+
+            function chooseColor(src)
+                newColor = uisetcolor(src.BackgroundColor, sprintf('Choose color for %s', signalName));
+                if length(newColor) == 3 % User didn't cancel
+                    src.BackgroundColor = newColor;
+                end
+            end
+
+            function applyProperties()
+                try
+                    % Apply scale
+                    newScale = str2double(scaleField.String);
+                    if isnan(newScale) || newScale == 0
+                        newScale = 1.0;
+                    end
+                    app.DataManager.SignalScaling(signalName) = newScale;
+
+                    % Apply state
+                    app.DataManager.StateSignals(signalName) = logical(stateCheck.Value);
+
+                    % Apply visual properties
+                    if isempty(app.SignalStyles)
+                        app.SignalStyles = struct();
+                    end
+                    if ~isfield(app.SignalStyles, signalName)
+                        app.SignalStyles.(signalName) = struct();
+                    end
+
+                    app.SignalStyles.(signalName).Color = colorButton.BackgroundColor;
+
+                    newWidth = str2double(widthField.String);
+                    if isnan(newWidth) || newWidth <= 0
+                        newWidth = 2;
+                    end
+                    app.SignalStyles.(signalName).LineWidth = newWidth;
+
+                    % Handle filtering
+                    if ~isprop(app, 'HiddenSignals')
+                        app.HiddenSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+                    end
+                    app.HiddenSignals([signalName '_CSV' num2str(signalInfo.CSVIdx)]) = filterCheck.Value;
+
+                    % Refresh plots if signal is currently displayed
+                    app.PlotManager.refreshPlots();
+                    app.buildSignalTree(); % Refresh tree in case filtering changed
+
+                    app.StatusLabel.Text = sprintf('✅ Updated properties for "%s"', signalName);
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                    close(d);
+
+                catch ME
+                    uialert(d, sprintf('Error applying properties: %s', ME.message), 'Error');
+                end
+            end
+        end
+
+        % Show signal preview
+        function showSignalPreview(app, signalInfo)
+            try
+                % FIXED: Use SignalOperationsManager.getSignalData for both regular and derived signals
+                if signalInfo.CSVIdx == -1
+                    % Derived signal - use SignalOperations to get data
+                    [timeData, signalData] = app.SignalOperations.getSignalData(signalInfo.Signal);
+                    signalSource = 'Derived Signal';
+                else
+                    % Regular CSV signal - use DataManager
+                    T = app.DataManager.DataTables{signalInfo.CSVIdx};
+                    if isempty(T) || ~ismember(signalInfo.Signal, T.Properties.VariableNames)
+                        app.StatusLabel.Text = sprintf('⚠️ Signal "%s" not found', signalInfo.Signal);
+                        return;
+                    end
+
+                    timeData = T.Time;
+                    signalData = T.(signalInfo.Signal);
+                    signalSource = sprintf('CSV %d', signalInfo.CSVIdx);
+
+                    % Apply scaling if exists
+                    if app.DataManager.SignalScaling.isKey(signalInfo.Signal)
+                        signalData = signalData * app.DataManager.SignalScaling(signalInfo.Signal);
+                    end
+
+                    % Remove NaN values
+                    validIdx = ~isnan(signalData);
+                    timeData = timeData(validIdx);
+                    signalData = signalData(validIdx);
+                end
+
+                if isempty(timeData)
+                    app.StatusLabel.Text = sprintf('⚠️ No valid data for "%s"', signalInfo.Signal);
+                    return;
+                end
+
+                % Create preview figure
+                fig = figure('Name', sprintf('Preview: %s', signalInfo.Signal), ...
+                    'Position', [200 200 800 400]);
+
+                % Get color if custom color is set
+                plotColor = [0 0.4470 0.7410]; % default
+                if ~isempty(app.SignalStyles) && isfield(app.SignalStyles, signalInfo.Signal)
+                    if isfield(app.SignalStyles.(signalInfo.Signal), 'Color')
+                        plotColor = app.SignalStyles.(signalInfo.Signal).Color;
+                    end
+                end
+
+                plot(timeData, signalData, 'LineWidth', 2, 'Color', plotColor);
+                title(sprintf('Signal Preview: %s (%s)', signalInfo.Signal, signalSource), 'FontSize', 14);
+                xlabel('Time');
+                ylabel('Value');
+                grid on;
+
+                % Add basic statistics as text
+                stats = sprintf('Mean: %.3f | Std: %.3f | Min: %.3f | Max: %.3f | Samples: %d', ...
+                    mean(signalData), std(signalData), min(signalData), max(signalData), length(signalData));
+
+                annotation(fig, 'textbox', [0.1 0.02 0.8 0.05], 'String', stats, ...
+                    'HorizontalAlignment', 'center', 'FontSize', 10, ...
+                    'BackgroundColor', [0.9 0.9 0.9], 'EdgeColor', 'none');
+
+            catch ME
+                app.StatusLabel.Text = sprintf('❌ Preview failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
+        % Assign all signals from CSV
+        function assignAllSignalsFromCSV(app, csvIdx)
+            T = app.DataManager.DataTables{csvIdx};
+            if isempty(T), return; end
+
+            signals = setdiff(T.Properties.VariableNames, {'Time'});
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Create signal info structures
+            newAssignments = {};
+            for i = 1:numel(signals)
+                newAssignments{end+1} = struct('CSVIdx', csvIdx, 'Signal', signals{i});
+            end
+
+            % Replace current assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = newAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+            app.updateSignalPropsTable(newAssignments);
+
+            app.StatusLabel.Text = sprintf('📌 Assigned %d signals from CSV %d', numel(signals), csvIdx);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        % Remove all signals from CSV
+        function removeAllSignalsFromCSV(app, csvIdx)
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Filter out signals from this CSV
+            newAssignments = {};
+            removedCount = 0;
+            for i = 1:numel(currentAssignments)
+                if currentAssignments{i}.CSVIdx == csvIdx
+                    removedCount = removedCount + 1;
+                else
+                    newAssignments{end+1} = currentAssignments{i};
+                end
+            end
+
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = newAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+            app.updateSignalPropsTable(newAssignments);
+
+            app.StatusLabel.Text = sprintf('❌ Removed %d signals from CSV %d', removedCount, csvIdx);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        % Bulk edit signal properties
+        function bulkEditSignalProperties(app, csvIdx)
+            T = app.DataManager.DataTables{csvIdx};
+            if isempty(T), return; end
+
+            signals = setdiff(T.Properties.VariableNames, {'Time'});
+            [~, csvName, ext] = fileparts(app.DataManager.CSVFilePaths{csvIdx});
+
+            % Create bulk edit dialog
+            d = dialog('Name', sprintf('Bulk Edit: %s%s', csvName, ext), ...
+                'Position', [250 250 500 400], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 360 460 25], ...
+                'String', sprintf('Bulk Edit Properties for %s (%d signals)', [csvName ext], numel(signals)), ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 330 150 20], ...
+                'String', 'Select Signals to Edit:', 'FontWeight', 'bold');
+
+            signalListbox = uicontrol('Parent', d, 'Style', 'listbox', ...
+                'Position', [20 250 460 75], 'String', signals, 'Max', length(signals), ...
+                'Value', 1:length(signals)); % Select all by default
+
+            % Bulk operations
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 220 200 20], ...
+                'String', 'Bulk Operations:', 'FontWeight', 'bold');
+
+            % Scale factor
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 190 120 20], ...
+                'String', 'Set Scale Factor:', 'FontWeight', 'bold');
+            scaleField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 190 80 25], 'String', '1.0', 'HorizontalAlignment', 'left');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Apply to Selected', ...
+                'Position', [240 190 120 25], 'Callback', @(~,~) applyBulkScale());
+
+            % State signals
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Mark Selected as State Signals', ...
+                'Position', [20 150 200 30], 'Callback', @(~,~) applyBulkState(true));
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Mark Selected as Regular Signals', ...
+                'Position', [230 150 200 30], 'Callback', @(~,~) applyBulkState(false));
+
+            % Color assignment
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 110 120 20], ...
+                'String', 'Set Color:', 'FontWeight', 'bold');
+            colorButton = uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [150 110 80 25], 'String', 'Choose', ...
+                'BackgroundColor', [0 0.4470 0.7410], ...
+                'Callback', @(src,~) chooseColor(src));
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Apply to Selected', ...
+                'Position', [240 110 120 25], 'Callback', @(~,~) applyBulkColor());
+
+            % Line width
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 70 120 20], ...
+                'String', 'Set Line Width:', 'FontWeight', 'bold');
+            widthField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 70 80 25], 'String', '2', 'HorizontalAlignment', 'left');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Apply to Selected', ...
+                'Position', [240 70 120 25], 'Callback', @(~,~) applyBulkWidth());
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Close', ...
+                'Position', [400 20 80 30], 'Callback', @(~,~) close(d));
+
+            function chooseColor(src)
+                newColor = uisetcolor(src.BackgroundColor, 'Choose bulk color');
+                if length(newColor) == 3
+                    src.BackgroundColor = newColor;
+                end
+            end
+
+            function applyBulkScale()
+                selectedIndices = signalListbox.Value;
+                newScale = str2double(scaleField.String);
+                if isnan(newScale) || newScale == 0
+                    newScale = 1.0;
+                end
+
+                for i = selectedIndices
+                    app.DataManager.SignalScaling(signals{i}) = newScale;
+                end
+
+                app.PlotManager.refreshPlots();
+                app.StatusLabel.Text = sprintf('✅ Applied scale %.2f to %d signals', newScale, length(selectedIndices));
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+
+            function applyBulkState(isState)
+                selectedIndices = signalListbox.Value;
+
+                for i = selectedIndices
+                    app.DataManager.StateSignals(signals{i}) = isState;
+                end
+
+                app.PlotManager.refreshPlots();
+                stateStr = char("state" * isState + "regular" * (~isState));
+                app.StatusLabel.Text = sprintf('✅ Marked %d signals as %s', length(selectedIndices), stateStr);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+
+            function applyBulkColor()
+                selectedIndices = signalListbox.Value;
+                newColor = colorButton.BackgroundColor;
+
+                if isempty(selectedIndices)
+                    uialert(d, 'Please select signals to apply color to.', 'No Selection');
+                    return;
+                end
+
+                if isempty(app.SignalStyles)
+                    app.SignalStyles = struct();
+                end
+
+                try
+                    % Apply color to selected signals
+                    for i = selectedIndices
+                        signalName = signals{i};
+                        if ~isfield(app.SignalStyles, signalName)
+                            app.SignalStyles.(signalName) = struct();
+                        end
+                        app.SignalStyles.(signalName).Color = newColor;
+                    end
+
+                    % Refresh plots to show new colors
+                    app.PlotManager.refreshPlots();
+
+                    % Update status
+                    colorStr = sprintf('RGB(%.2f,%.2f,%.2f)', newColor(1), newColor(2), newColor(3));
+                    app.StatusLabel.Text = sprintf('✅ Applied color %s to %d signals', colorStr, length(selectedIndices));
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                catch ME
+                    uialert(d, sprintf('Error applying color: %s', ME.message), 'Error');
+                end
+            end
+
+            function applyBulkWidth()
+                selectedIndices = signalListbox.Value;
+                newWidth = str2double(widthField.String);
+                if isnan(newWidth) || newWidth <= 0
+                    newWidth = 2;
+                end
+
+                if isempty(selectedIndices)
+                    uialert(d, 'Please select signals to apply line width to.', 'No Selection');
+                    return;
+                end
+
+                if isempty(app.SignalStyles)
+                    app.SignalStyles = struct();
+                end
+
+                try
+                    % Apply line width to selected signals
+                    for i = selectedIndices
+                        signalName = signals{i};
+                        if ~isfield(app.SignalStyles, signalName)
+                            app.SignalStyles.(signalName) = struct();
+                        end
+                        app.SignalStyles.(signalName).LineWidth = newWidth;
+                    end
+
+                    % Refresh plots to show new line widths
+                    app.PlotManager.refreshPlots();
+
+                    % Update status
+                    app.StatusLabel.Text = sprintf('✅ Applied line width %.1f to %d signals', newWidth, length(selectedIndices));
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                catch ME
+                    uialert(d, sprintf('Error applying line width: %s', ME.message), 'Error');
+                end
             end
         end
 
@@ -876,22 +1768,14 @@ classdef SignalViewerApp < matlab.apps.AppBase
         function onSignalTreeSelectionChanged(app, event)
             selectedNodes = app.SignalTree.SelectedNodes;
 
-            % If no nodes selected, don't change anything
-            if isempty(selectedNodes)
-                return;
-            end
-
-            % Count how many actual signals are selected
-            signalCount = 0;
+            % Get signal info from selected nodes
             selectedSignals = {};
-
             for k = 1:numel(selectedNodes)
                 node = selectedNodes(k);
 
                 % Skip folder nodes and operation nodes
                 if isstruct(node.NodeData) && isfield(node.NodeData, 'Type')
                     nodeType = node.NodeData.Type;
-                    % Skip folder nodes but allow derived signal nodes
                     if strcmp(nodeType, 'derived_signals_folder') || strcmp(nodeType, 'operations')
                         continue;
                     end
@@ -900,28 +1784,24 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 % Count actual signals (both original and derived)
                 if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
                     selectedSignals{end+1} = node.NodeData; %#ok<AGROW>
-                    signalCount = signalCount + 1;
-
-                    % Debug output for derived signals
-                    if isfield(node.NodeData, 'IsDerived') && node.NodeData.IsDerived
-                        fprintf('Selected derived signal: %s\n', node.NodeData.Signal);
-                    end
                 end
             end
 
-            % ONLY update if we have actual signals selected
-            % If user clicked on folder, signalCount will be 0 and nothing happens
-            if signalCount > 0
-                tabIdx = app.PlotManager.CurrentTabIdx;
-                subplotIdx = app.PlotManager.SelectedSubplotIdx;
-                app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = selectedSignals;
-                app.PlotManager.refreshPlots(tabIdx);
-                app.updateSignalPropsTable(selectedSignals);
+            % ALWAYS update the properties table with selected signals
+            app.updateSignalPropsTable(selectedSignals);
 
-                % Debug output
-                fprintf('Assigned %d signals to subplot %d.%d\n', signalCount, tabIdx, subplotIdx);
+            % Update status based on selection
+            signalCount = numel(selectedSignals);
+            if signalCount == 1
+                app.StatusLabel.Text = sprintf('Selected: %s (right-click for options)', selectedSignals{1}.Signal);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            elseif signalCount > 1
+                app.StatusLabel.Text = sprintf('Selected: %d signals (right-click for options)', signalCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'No signals selected';
+                app.StatusLabel.FontColor = [0.5 0.5 0.5];
             end
-            % If signalCount == 0, we do nothing - subplot keeps its current signals
         end
         function tf = hasSignalsLoaded(app)
             % Check if we have signals loaded and signal tree populated
@@ -934,19 +1814,29 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Update the properties table for the selected signals.
             % Each row: {Signal, Scale, State, Color, LineWidth}
             n = numel(selectedSignals);
+
+            if n == 0
+                % No signals selected - show empty table
+                app.SignalPropsTable.Data = {};
+                return;
+            end
+
             data = cell(n, 5);
             for i = 1:n
                 sigInfo = selectedSignals{i};
                 sigName = sigInfo.Signal;
+
                 % Get scale and state from DataManager
                 scale = 1.0;
                 if app.DataManager.SignalScaling.isKey(sigName)
                     scale = app.DataManager.SignalScaling(sigName);
                 end
+
                 state = false;
                 if app.DataManager.StateSignals.isKey(sigName)
                     state = app.DataManager.StateSignals(sigName);
                 end
+
                 % Get color and line width from SignalStyles
                 color = [0 0.4470 0.7410]; % default MATLAB blue
                 width = 2;
@@ -955,24 +1845,33 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     if isfield(style, 'Color'), color = style.Color; end
                     if isfield(style, 'LineWidth'), width = style.LineWidth; end
                 end
-                data{i,1} = sigName;
+
+                % FIXED: Just show signal name without checkmark
+                data{i,1} = sigName;  % No checkmark here
                 data{i,2} = scale;
                 data{i,3} = state;
                 data{i,4} = mat2str(color); % Store as string
                 data{i,5} = width;
             end
+
             app.SignalPropsTable.Data = data;
+
             % Set custom cell renderer for color column
             app.SignalPropsTable.CellSelectionCallback = @(src, event) app.onSignalPropsCellSelect(event);
         end
-
         function onSignalPropsEdit(app, event)
             % Callback for when the user edits scale or state in the properties table.
-            % Updates DataManager and re-assigns signals to the current subplot.
+            % Updates DataManager and refreshes plots if signal is currently displayed.
+
             data = app.SignalPropsTable.Data;
+            if isempty(data)
+                return;
+            end
+
             row = event.Indices(1);
             col = event.Indices(2);
             sigName = data{row,1};
+
             if col == 2 % Scale
                 scale = event.NewData;
                 if ischar(scale) || isstring(scale)
@@ -985,9 +1884,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     data{row,2} = 1.0;
                     app.SignalPropsTable.Data = data;
                 end
+
             elseif col == 3 % State
-                % Always update state and refresh plot
+                % Always update state
                 app.DataManager.StateSignals(sigName) = logical(event.NewData);
+
             elseif col == 5 % LineWidth
                 width = event.NewData;
                 if ischar(width) || isstring(width)
@@ -1002,13 +1903,17 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     app.SignalPropsTable.Data = data;
                 end
             end
-            % REMOVED: drawnow; - Let MATLAB update the table UI naturally
-            pause(0.01); % Give a tiny delay for the value to commit
-            % Use helper to re-assign signals and refresh plot
-            app.assignSelectedSignalsToCurrentSubplot();
-            app.PlotManager.refreshPlots();
-        end
 
+            % Small delay for value to commit
+            pause(0.01);
+
+            % Refresh plots (will only affect plots where this signal is assigned)
+            app.PlotManager.refreshPlots();
+
+            % Update status
+            app.StatusLabel.Text = sprintf('✅ Updated %s properties', sigName);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
         function onSignalPropsCellSelect(app, event)
             % Handle color picker for Color column
             if isempty(event.Indices), return; end
@@ -1100,55 +2005,155 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
         % Add a stub for building the signal tree (to be implemented)
         function buildSignalTree(app)
+            % No need to read expanded state from UI - use stored state instead
+
             % Build a tree UI grouped by CSV, with signals as children
             delete(app.SignalTree.Children);
-            app.filterSignals(app.SignalSearchField.Value);
-            % After building the tree, set up axes drop targets
-            app.setupAxesDropTargets();
-            % Add per-signal context menu for removal and addition
-            allNodes = app.SignalTree.Children;
+
+            % Get current subplot assignments for visual indicators
             tabIdx = app.PlotManager.CurrentTabIdx;
             subplotIdx = app.PlotManager.SelectedSubplotIdx;
-            assigned = {};
+            assignedSignals = {};
             if tabIdx <= numel(app.PlotManager.AssignedSignals) && subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
-                assigned = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+                assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
             end
-            for i = 1:numel(allNodes)
-                csvNode = allNodes(i);
-                for j = 1:numel(csvNode.Children)
-                    sigNode = csvNode.Children(j);
-                    cm = uicontextmenu(app.UIFigure);
-                    % Add 'Remove from Subplot' if assigned
-                    isAssigned = false;
-                    for k = 1:numel(assigned)
-                        if isequal(sigNode.NodeData, assigned{k})
-                            isAssigned = true;
-                            break;
+
+            % Store created CSV nodes for later expansion restoration
+            createdNodes = {};
+
+            % Process each CSV file
+            for i = 1:numel(app.DataManager.CSVFilePaths)
+                [~, csvName, ext] = fileparts(app.DataManager.CSVFilePaths{i});
+                csvDisplay = [csvName ext];
+                T = app.DataManager.DataTables{i};
+                if isempty(T), continue; end
+
+                signals = setdiff(T.Properties.VariableNames, {'Time'});
+
+                % Apply search filter if active
+                if ~isempty(app.SignalSearchField.Value)
+                    mask = contains(lower(signals), lower(app.SignalSearchField.Value));
+                    signals = signals(mask);
+                end
+
+                % Create CSV node only if it has signals
+                if ~isempty(signals)
+                    csvNode = uitreenode(app.SignalTree, 'Text', csvDisplay);
+
+                    % Store the node for later expansion restoration
+                    createdNodes{end+1} = struct('Node', csvNode, 'Text', csvDisplay);
+
+                    % Add CSV-level context menu for bulk operations
+                    csvContextMenu = uicontextmenu(app.UIFigure);
+                    uimenu(csvContextMenu, 'Text', '📌 Assign All to Current Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.assignAllSignalsFromCSV(i));
+                    uimenu(csvContextMenu, 'Text', '❌ Remove All from Current Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromCSV(i));
+                    uimenu(csvContextMenu, 'Text', '⚙️ Bulk Edit Properties', ...
+                        'MenuSelectedFcn', @(src, event) app.bulkEditSignalProperties(i), 'Separator', 'on');
+                    csvNode.ContextMenu = csvContextMenu;
+
+                    % Add signals to this CSV node
+                    for j = 1:numel(signals)
+                        signalName = signals{j};
+
+                        % Check if this signal is assigned to current subplot
+                        isAssigned = false;
+                        signalInfo = struct('CSVIdx', i, 'Signal', signalName);
+                        for k = 1:numel(assignedSignals)
+                            if isequal(assignedSignals{k}, signalInfo)
+                                isAssigned = true;
+                                break;
+                            end
                         end
+
+                        displayText = signalName;
+                        child = uitreenode(csvNode, 'Text', displayText);
+                        child.NodeData = signalInfo;
                     end
-                    % if isAssigned
-                    %     uimenu(cm, 'Text', 'Remove from Subplot', 'MenuSelectedFcn', @(src, event) app.removeSignalFromSubplot(sigNode.NodeData));
-                    % else
-                    %     uimenu(cm, 'Text', 'Add to Subplot', 'MenuSelectedFcn', @(src, event) app.addSignalToSubplot(sigNode.NodeData));
-                    % end
-                    sigNode.ContextMenu = cm;
                 end
             end
 
-            % Enable ONLY data tips by default when data is loaded (NOT crosshair cursor)
+            % Add derived signals section if they exist
+            if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
+                app.SignalOperations.addDerivedSignalsToTree();
+
+                % SIMPLIFIED: Find the derived signals node after creation instead of storing reference
+                for i = 1:numel(app.SignalTree.Children)
+                    node = app.SignalTree.Children(i);
+                    if strcmp(node.Text, '⚙️ Derived Signals')
+                        createdNodes{end+1} = struct('Node', node, 'Text', '⚙️ Derived Signals');
+                        break;
+                    end
+                end
+            end
+
+            % Restore expanded state for previously expanded nodes
+            % Initialize ExpandedTreeNodes property if it doesn't exist
+            if ~isprop(app, 'ExpandedTreeNodes')
+                app.ExpandedTreeNodes = string.empty;
+            end
+
+            for i = 1:length(createdNodes)
+                nodeInfo = createdNodes{i};
+                node = nodeInfo.Node;
+                nodeText = nodeInfo.Text;
+
+                % Check if this node should be expanded
+                if any(strcmp(nodeText, app.ExpandedTreeNodes))
+                    try
+                        node.expand();
+                        fprintf('Restored expansion for: %s\n', nodeText);
+                    catch
+                        % If expand() method doesn't work, try alternative
+                        try
+                            node.Expanded = true;
+                            fprintf('Set Expanded=true for: %s\n', nodeText);
+                        catch
+                            fprintf('Failed to expand: %s\n', nodeText);
+                        end
+                    end
+                end
+            end
+
+            % FIXED: Set up tree callbacks to track expansion/collapse
+            % These callbacks work for ALL nodes in the tree, including derived signals
+            app.SignalTree.NodeExpandedFcn = @(src, event) app.onTreeNodeExpanded(event.Node.Text);
+            app.SignalTree.NodeCollapsedFcn = @(src, event) app.onTreeNodeCollapsed(event.Node.Text);
+
+            % Setup axes drop targets and enable data tips
+            app.setupAxesDropTargets();
             if ~isempty(app.DataManager.DataTables) && any(~cellfun(@isempty, app.DataManager.DataTables))
                 app.enableDataTipsByDefault();
-                % Do NOT enable crosshair by default
             end
-            % Add derived signals section (but NOT operations)
-            % if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
-            %     app.SignalOperations.addDerivedSignalsToTree();
-            % end
+        end
+        % Also add these helper methods to your SignalViewerApp class:
+
+        function onTreeNodeExpanded(app, csvNodeText)
+            % Call this when a node is manually expanded
+            if ~isprop(app, 'ExpandedTreeNodes')
+                app.ExpandedTreeNodes = string.empty;
+            end
+
+            if ~any(strcmp(csvNodeText, app.ExpandedTreeNodes))
+                app.ExpandedTreeNodes(end+1) = csvNodeText;
+            end
+
+            % DEBUG: Track expansion
+            fprintf('Node expanded: %s\n', csvNodeText);
         end
 
+        function onTreeNodeCollapsed(app, csvNodeText)
+            % Call this when a node is manually collapsed
+            if ~isprop(app, 'ExpandedTreeNodes')
+                app.ExpandedTreeNodes = string.empty;
+            end
 
-        
+            app.ExpandedTreeNodes = app.ExpandedTreeNodes(~strcmp(app.ExpandedTreeNodes, csvNodeText));
 
+            % DEBUG: Track collapse
+            fprintf('Node collapsed: %s\n', csvNodeText);
+        end
         function filterSignals(app, searchText)
             % Enhanced filter with auto-expand functionality
 
@@ -1278,6 +2283,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 % Force UI update
                 drawnow;
             end
+
         end
         function autoScaleCurrentSubplot(app)
             % Auto-scale ALL subplots in the current tab
@@ -1407,6 +2413,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
             figure(app.UIFigure);
         end
+
+
         function loadSession(app)
             % Load a session from a .mat file
             [file, path] = uigetfile('*.mat', 'Load Session');
@@ -1519,6 +2527,419 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 pause(0.05);
                 app.highlightSelectedSubplot(app.PlotManager.CurrentTabIdx, app.PlotManager.SelectedSubplotIdx);
             end
+        end
+
+        function setupMultiSelectionContextMenu(app)
+            % Create a persistent context menu for the tree
+            app.SignalTree.ContextMenu = uicontextmenu(app.UIFigure);
+
+            % Set up the context menu opening function
+            app.SignalTree.ContextMenu.ContextMenuOpeningFcn = @(src, event) app.onTreeContextMenuOpening();
+        end
+
+        function onTreeContextMenuOpening(app)
+            % Get selected nodes
+            selectedNodes = app.SignalTree.SelectedNodes;
+
+            % Clear existing menu items
+            delete(app.SignalTree.ContextMenu.Children);
+
+            if isempty(selectedNodes)
+                % No selection - show general options
+                uimenu(app.SignalTree.ContextMenu, 'Text', 'No signals selected', 'Enable', 'off');
+                return;
+            end
+
+            % Get actual signal nodes (not folders)
+            selectedSignals = {};
+            for k = 1:numel(selectedNodes)
+                node = selectedNodes(k);
+                if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    selectedSignals{end+1} = node.NodeData; %#ok<AGROW>
+                end
+            end
+
+            if isempty(selectedSignals)
+                uimenu(app.SignalTree.ContextMenu, 'Text', 'No signals selected', 'Enable', 'off');
+                return;
+            end
+
+            % Get current assignments to determine what actions are available
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            currentAssignments = {};
+            if tabIdx <= numel(app.PlotManager.AssignedSignals) && subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+            end
+
+            % FIXED: Separate the signals more carefully
+            assignedSignals = {};
+            unassignedSignals = {};
+
+            for i = 1:numel(selectedSignals)
+                isAssigned = false;
+                signalInfo = selectedSignals{i};
+
+                % More robust comparison
+                for j = 1:numel(currentAssignments)
+                    currentSignal = currentAssignments{j};
+                    if isstruct(currentSignal) && isstruct(signalInfo) && ...
+                            isfield(currentSignal, 'CSVIdx') && isfield(signalInfo, 'CSVIdx') && ...
+                            isfield(currentSignal, 'Signal') && isfield(signalInfo, 'Signal') && ...
+                            currentSignal.CSVIdx == signalInfo.CSVIdx && ...
+                            strcmp(currentSignal.Signal, signalInfo.Signal)
+                        isAssigned = true;
+                        break;
+                    end
+                end
+
+                if isAssigned
+                    assignedSignals{end+1} = selectedSignals{i};
+                else
+                    unassignedSignals{end+1} = selectedSignals{i};
+                end
+            end
+
+            % Create appropriate menu items
+            if ~isempty(unassignedSignals)
+                if numel(unassignedSignals) == 1
+                    uimenu(app.SignalTree.ContextMenu, 'Text', '➕ Add to Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.addSelectedSignalsToSubplot(unassignedSignals));
+                else
+                    uimenu(app.SignalTree.ContextMenu, 'Text', sprintf('➕ Add %d Signals to Subplot', numel(unassignedSignals)), ...
+                        'MenuSelectedFcn', @(src, event) app.addSelectedSignalsToSubplot(unassignedSignals));
+                end
+            end
+
+            if ~isempty(assignedSignals)
+                if numel(assignedSignals) == 1
+                    uimenu(app.SignalTree.ContextMenu, 'Text', '❌ Remove from Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.removeSelectedSignalsFromSubplot(assignedSignals));
+                else
+                    uimenu(app.SignalTree.ContextMenu, 'Text', sprintf('❌ Remove %d Signals from Subplot', numel(assignedSignals)), ...
+                        'MenuSelectedFcn', @(src, event) app.removeSelectedSignalsFromSubplot(assignedSignals));
+                end
+            end
+
+            % Preview option
+            if numel(selectedSignals) == 1
+                uimenu(app.SignalTree.ContextMenu, 'Text', '📊 Quick Preview', ...
+                    'MenuSelectedFcn', @(src, event) app.showSignalPreview(selectedSignals{1}), ...
+                    'Separator', 'on');
+            else
+                uimenu(app.SignalTree.ContextMenu, 'Text', sprintf('📊 Preview %d Signals', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.previewSelectedSignals(selectedSignals), ...
+                    'Separator', 'on');
+            end
+        end
+        function removeSelectedSignalsFromSubplot(app, signalsToRemove)
+            if isempty(signalsToRemove)
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Remove all specified signals
+            newAssignments = {};
+            removedCount = 0;
+
+            for i = 1:numel(currentAssignments)
+                shouldKeep = true;
+                for j = 1:numel(signalsToRemove)
+                    if isequal(currentAssignments{i}, signalsToRemove{j})
+                        shouldKeep = false;
+                        removedCount = removedCount + 1;
+                        break;
+                    end
+                end
+
+                if shouldKeep
+                    newAssignments{end+1} = currentAssignments{i};
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = newAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+
+            % Keep showing properties of selected signals (not just assigned ones)
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = {};
+            for k = 1:numel(selectedNodes)
+                node = selectedNodes(k);
+                if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    selectedSignals{end+1} = node.NodeData;
+                end
+            end
+            app.updateSignalPropsTable(selectedSignals);
+
+            if removedCount > 0
+                app.StatusLabel.Text = sprintf('❌ Removed %d signal(s) from subplot', removedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'No selected signals were assigned';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+
+        % Add selected signals to current subplot
+        function addSelectedSignals(app)
+            selectedNodes = app.SignalTree.SelectedNodes;
+
+            % Get signal info from selected nodes
+            selectedSignals = {};
+            for k = 1:numel(selectedNodes)
+                node = selectedNodes(k);
+                if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    selectedSignals{end+1} = node.NodeData; %#ok<AGROW>
+                end
+            end
+
+            if isempty(selectedSignals)
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Add only signals that aren't already assigned
+            addedCount = 0;
+            for i = 1:numel(selectedSignals)
+                signalInfo = selectedSignals{i};
+
+                % Check if already assigned
+                alreadyAssigned = false;
+                for j = 1:numel(currentAssignments)
+                    if isequal(currentAssignments{j}, signalInfo)
+                        alreadyAssigned = true;
+                        break;
+                    end
+                end
+
+                if ~alreadyAssigned
+                    currentAssignments{end+1} = signalInfo;
+                    addedCount = addedCount + 1;
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = currentAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+            app.updateSignalPropsTable(currentAssignments);
+
+            if addedCount > 0
+                app.StatusLabel.Text = sprintf('➕ Added %d signal(s) to subplot', addedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'All selected signals already assigned';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+
+
+        function addSelectedSignalsToSubplot(app, signalsToAdd)
+            if isempty(signalsToAdd)
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Add all signals that aren't already assigned
+            addedCount = 0;
+            for i = 1:numel(signalsToAdd)
+                signalInfo = signalsToAdd{i};
+
+                % Check if already assigned
+                alreadyAssigned = false;
+                for j = 1:numel(currentAssignments)
+                    if isequal(currentAssignments{j}, signalInfo)
+                        alreadyAssigned = true;
+                        break;
+                    end
+                end
+
+                if ~alreadyAssigned
+                    currentAssignments{end+1} = signalInfo;
+                    addedCount = addedCount + 1;
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = currentAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+
+            % Keep showing properties of selected signals (not just assigned ones)
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = {};
+            for k = 1:numel(selectedNodes)
+                node = selectedNodes(k);
+                if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    selectedSignals{end+1} = node.NodeData;
+                end
+            end
+            app.updateSignalPropsTable(selectedSignals);
+
+            if addedCount > 0
+                app.StatusLabel.Text = sprintf('➕ Added %d signal(s) to subplot', addedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'All selected signals already assigned';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+        % Remove selected signals from current subplot
+        function removeSelectedSignals(app)
+            selectedNodes = app.SignalTree.SelectedNodes;
+
+            % Get signal info from selected nodes
+            selectedSignals = {};
+            for k = 1:numel(selectedNodes)
+                node = selectedNodes(k);
+                if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    selectedSignals{end+1} = node.NodeData; %#ok<AGROW>
+                end
+            end
+
+            if isempty(selectedSignals)
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Remove selected signals
+            newAssignments = {};
+            removedCount = 0;
+
+            for i = 1:numel(currentAssignments)
+                shouldKeep = true;
+                for j = 1:numel(selectedSignals)
+                    if isequal(currentAssignments{i}, selectedSignals{j})
+                        shouldKeep = false;
+                        removedCount = removedCount + 1;
+                        break;
+                    end
+                end
+
+                if shouldKeep
+                    newAssignments{end+1} = currentAssignments{i};
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = newAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+            app.updateSignalPropsTable(newAssignments);
+
+            if removedCount > 0
+                app.StatusLabel.Text = sprintf('❌ Removed %d signal(s) from subplot', removedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'No selected signals were assigned';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+
+        % Preview multiple selected signals
+        function previewSelectedSignals(app, signalsToPreview)
+            if isempty(signalsToPreview)
+                return;
+            end
+
+            % Create preview figure with subplots
+            numSignals = numel(signalsToPreview);
+            rows = ceil(sqrt(numSignals));
+            cols = ceil(numSignals / rows);
+
+            fig = figure('Name', sprintf('Preview: %d Selected Signals', numSignals), ...
+                'Position', [100 100 1200 800]);
+
+            for i = 1:numSignals
+                signalInfo = signalsToPreview{i};
+
+                try
+                    % FIXED: Use SignalOperationsManager.getSignalData for both regular and derived signals
+                    if signalInfo.CSVIdx == -1
+                        % Derived signal - use SignalOperations to get data
+                        [timeData, signalData] = app.SignalOperations.getSignalData(signalInfo.Signal);
+                        signalSource = sprintf('Derived');
+                    else
+                        % Regular CSV signal - use DataManager
+                        T = app.DataManager.DataTables{signalInfo.CSVIdx};
+                        if isempty(T) || ~ismember(signalInfo.Signal, T.Properties.VariableNames)
+                            continue;
+                        end
+
+                        timeData = T.Time;
+                        signalData = T.(signalInfo.Signal);
+                        signalSource = sprintf('CSV %d', signalInfo.CSVIdx);
+
+                        % Apply scaling if exists
+                        if app.DataManager.SignalScaling.isKey(signalInfo.Signal)
+                            signalData = signalData * app.DataManager.SignalScaling(signalInfo.Signal);
+                        end
+
+                        % Remove NaN values
+                        validIdx = ~isnan(signalData);
+                        timeData = timeData(validIdx);
+                        signalData = signalData(validIdx);
+                    end
+
+                    if isempty(timeData)
+                        continue;
+                    end
+
+                    % Create subplot
+                    subplot(rows, cols, i);
+
+                    % Get color if custom color is set
+                    plotColor = [0 0.4470 0.7410]; % default
+                    if ~isempty(app.SignalStyles) && isfield(app.SignalStyles, signalInfo.Signal)
+                        if isfield(app.SignalStyles.(signalInfo.Signal), 'Color')
+                            plotColor = app.SignalStyles.(signalInfo.Signal).Color;
+                        end
+                    end
+
+                    plot(timeData, signalData, 'LineWidth', 1.5, 'Color', plotColor);
+                    title(sprintf('%s (%s)', signalInfo.Signal, signalSource), 'FontSize', 10);
+                    xlabel('Time');
+                    ylabel('Value');
+                    grid on;
+
+                catch ME
+                    % Skip signals that can't be plotted
+                    fprintf('Warning: Could not preview signal %s: %s\n', signalInfo.Signal, ME.message);
+                end
+            end
+
+            app.StatusLabel.Text = sprintf('📊 Previewing %d selected signals', numSignals);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
         % Helper function to assign selected signals in the tree to the current subplot
         function assignSelectedSignalsToCurrentSubplot(app)

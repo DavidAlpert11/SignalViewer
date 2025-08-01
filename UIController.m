@@ -274,11 +274,14 @@ classdef UIController < handle
                 app.PlotManager.updateSignalTreeVisualIndicators({});
             end
 
+            % FIXED: Don't clear derived signals in clearPlotsOnly - only clear plot assignments
+            % Derived signals should remain available for future use
+
             % Reset selected subplot
             app.PlotManager.SelectedSubplotIdx = 1;
 
             % Update status
-            app.StatusLabel.Text = '🗑️ Plots cleared (CSVs still loaded)';
+            app.StatusLabel.Text = '🗑️ Plots cleared (CSVs and derived signals still loaded)';
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             % Refresh to show empty plots
@@ -287,7 +290,6 @@ classdef UIController < handle
             % Highlight the first subplot
             app.highlightSelectedSubplot(app.PlotManager.CurrentTabIdx, 1);
         end
-
         function clearAll(obj)
             app = obj.App;
             % Disable cursor first
@@ -340,6 +342,11 @@ classdef UIController < handle
             app.DataManager.DataCount = 0;
             app.DataManager.UpdateCounter = 0;
 
+            % FIXED: Clear ALL derived signals when doing clearAll
+            if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
+                app.SignalOperations.clearAllDerivedSignals();
+            end
+
             % Clear signal tree completely
             if ~isempty(app.SignalTree) && isvalid(app.SignalTree)
                 delete(app.SignalTree.Children);
@@ -357,7 +364,7 @@ classdef UIController < handle
             app.PlotManager.SelectedSubplotIdx = 1;
 
             % Update status labels
-            app.StatusLabel.Text = '🗑️ Everything cleared';
+            app.StatusLabel.Text = '🗑️ Everything cleared (including derived signals)';
             app.StatusLabel.FontColor = [0.5 0.5 0.5];
             app.DataRateLabel.Text = 'Data Rate: 0 Hz';
             app.StreamingInfoLabel.Text = '';
@@ -497,24 +504,31 @@ classdef UIController < handle
                     mkdir(exportSubfolder);
                 end
 
-                % Group signals by CSV
+                % FIXED: Group signals by CSV AND handle derived signals separately
                 csvGroups = containers.Map('KeyType', 'int32', 'ValueType', 'any');
+                derivedSignals = {};
 
                 for i = 1:numel(signalList)
                     sigInfo = signalList{i};
                     csvIdx = sigInfo.CSVIdx;
 
-                    if csvGroups.isKey(csvIdx)
-                        csvGroups(csvIdx) = [csvGroups(csvIdx), {sigInfo.Signal}];
+                    if csvIdx == -1
+                        % Derived signal
+                        derivedSignals{end+1} = sigInfo;
                     else
-                        csvGroups(csvIdx) = {sigInfo.Signal};
+                        % Regular CSV signal
+                        if csvGroups.isKey(csvIdx)
+                            csvGroups(csvIdx) = [csvGroups(csvIdx), {sigInfo.Signal}];
+                        else
+                            csvGroups(csvIdx) = {sigInfo.Signal};
+                        end
                     end
                 end
 
                 exportedCount = 0;
                 exportedFiles = {};
 
-                % Export each CSV group
+                % Export CSV groups (regular signals)
                 csvIndices = cell2mat(csvGroups.keys);
                 for csvIdx = csvIndices
                     if csvIdx <= numel(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{csvIdx})
@@ -548,9 +562,31 @@ classdef UIController < handle
                     end
                 end
 
+                % FIXED: Export derived signals separately
+                for i = 1:numel(derivedSignals)
+                    sigInfo = derivedSignals{i};
+                    signalName = sigInfo.Signal;
+
+                    % Get derived signal data
+                    [timeData, signalData] = app.SignalOperations.getSignalData(signalName);
+
+                    if ~isempty(timeData)
+                        % Create export table
+                        exportTable = table(timeData, signalData, 'VariableNames', {'Time', signalName});
+
+                        % Generate filename
+                        fileName = sprintf('Derived_%s.csv', signalName);
+                        fullPath = fullfile(exportSubfolder, fileName);
+                        writetable(exportTable, fullPath);
+
+                        exportedCount = exportedCount + 1;
+                        exportedFiles{end+1} = fileName;
+                    end
+                end
+
                 % Update status
                 if exportedCount > 0
-                    app.StatusLabel.Text = sprintf('✅ Exported %d filtered CSVs to %s', exportedCount, folderSuffix);
+                    app.StatusLabel.Text = sprintf('✅ Exported %d CSVs (including derived signals) to %s', exportedCount, folderSuffix);
                     app.StatusLabel.FontColor = [0.2 0.6 0.9];
                 else
                     app.StatusLabel.Text = '⚠️ No valid signals to export';

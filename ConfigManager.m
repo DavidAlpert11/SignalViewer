@@ -281,6 +281,22 @@ classdef ConfigManager < handle
                     end
                 end
 
+                if isfield(config, 'DerivedSignals') && isprop(app, 'SignalOperations')
+                    app.SignalOperations.DerivedSignals = config.DerivedSignals;
+
+                    % Update signal names with derived signals
+                    derivedNames = keys(config.DerivedSignals);
+                    for i = 1:length(derivedNames)
+                        if ~ismember(derivedNames{i}, app.DataManager.SignalNames)
+                            app.DataManager.SignalNames{end+1} = derivedNames{i};
+                        end
+                    end
+                end
+
+                if isfield(config, 'OperationHistory') && isprop(app, 'SignalOperations')
+                    app.SignalOperations.OperationHistory = config.OperationHistory;
+                end
+
                 if isfield(config, 'AssignedSignals')
                     % Filter out assignments for signals that don't exist
                     filteredAssignments = config.AssignedSignals;
