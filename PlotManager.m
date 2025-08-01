@@ -113,6 +113,8 @@ classdef PlotManager < handle
                     'Position', [100 100 800 600], ...
                     'Color', [1 1 1]);
 
+
+
                 % Create axes in the new figure
                 newAx = axes(newFig);
 
@@ -606,6 +608,8 @@ classdef PlotManager < handle
                 return;
             end
 
+            usedSignalNames = containers.Map();
+
             % Track axes that need final auto-scaling
             axesToAutoScale = [];
 
@@ -649,7 +653,29 @@ classdef PlotManager < handle
                     ax.MinorGridAlpha = 0.1;
 
                     hold(ax, 'on');
-                    sigs = assignments{k};
+                    assigned = assignments{k};
+                    expanded = {};
+
+                    for idx = 1:numel(assigned)
+                        sig = assigned{idx};
+
+                        % Add the assigned signal
+                        expanded{end+1} = sig;
+
+                        % Add its explicitly linked signals (if any)
+                        if obj.App.LinkingManager.AutoLinkEnabled
+                            % optional flag
+                            linkedGroup = obj.App.LinkingManager.getLinkedSignals(sig);
+                            for l = 1:numel(linkedGroup)
+                                if ~isequal(linkedGroup{l}, sig)
+                                    expanded{end+1} = linkedGroup{l};
+                                end
+                            end
+                        end
+                    end
+
+                    sigs = expanded;
+
 
                     if isempty(sigs)
                         % No signals assigned - let axes auto-scale or keep existing limits
@@ -683,18 +709,95 @@ classdef PlotManager < handle
                     plotHandles = [];
                     plotLabels = {};
                     assignedSignalNames = {};
-
                     % Use axes ColorOrder for default colors
                     colorOrder = ax.ColorOrder;
                     nColors = size(colorOrder,1);
                     colorIdx = 1;
 
+                    % Count occurrences of each signal base name
+                    baseNameCounts = containers.Map();  % baseName -> count
+                    for j = 1:numel(sigs)
+                        base = sigs{j}.Signal;
+                        if isKey(baseNameCounts, base)
+                            baseNameCounts(base) = baseNameCounts(base) + 1;
+                        else
+                            baseNameCounts(base) = 1;
+                        end
+                    end
+
                     % Plot all signals
                     for j = 1:numel(sigs)
                         sigInfo = sigs{j};
-                        sigName = sigInfo.Signal;
-                        assignedSignalNames{end+1} = sigName;
+                        baseName = sigs{j}.Signal;
+                        csvIdx = sigs{j}.CSVIdx;
 
+                        % Determine CSV label
+                        if csvIdx == -1
+                            csvLabel = 'derived';
+                        else
+                            [~, csvLabel, ~] = fileparts(obj.App.DataManager.CSVFilePaths{csvIdx});
+                        end
+
+                        % Check if suffixing is needed
+                        needSuffix = baseNameCounts(baseName) > 1;
+
+                        % Track and generate suffix
+
+
+                        suffix = '';
+                        if ~isKey(usedSignalNames, baseName)
+                            % First time we see this base name
+                            info = struct('count', 1, 'csvs', {{csvLabel}});
+
+                            if needSuffix
+                                if strcmp(csvLabel, 'derived')
+                                    suffix = '_derived';
+                                else
+                                    % Check how many different CSVs contain this baseName
+                                    nCSV = 0;
+                                    for jj = 1:numel(sigs)
+                                        if strcmp(sigs{jj}.Signal, baseName)
+                                            if sigs{jj}.CSVIdx == -1
+                                                label = 'derived';
+                                            else
+                                                [~, label, ~] = fileparts(obj.App.DataManager.CSVFilePaths{sigs{jj}.CSVIdx});
+                                            end
+                                            if ~exist('uniqueCSVLabels','var')
+                                                uniqueCSVLabels = {label};
+                                            elseif ~any(strcmp(uniqueCSVLabels, label))
+                                                uniqueCSVLabels{end+1} = label;
+                                            end
+                                        end
+                                    end
+
+                                    if numel(uniqueCSVLabels) > 1
+                                        suffix = ['_' csvLabel];  % signal from different CSVs → use CSV name
+                                    else
+                                        suffix = '_1';  % only one CSV → use _1, _2 etc.
+                                    end
+                                end
+                            end
+
+                            usedSignalNames(baseName) = info;
+
+                        else
+                            % Already seen before — assign appropriate suffix
+                            info = usedSignalNames(baseName);
+                            info.count = info.count + 1;
+
+                            if any(strcmp(info.csvs, csvLabel))
+                                suffix = ['_' num2str(info.count)];  % same CSV → _2, _3, etc.
+                            else
+                                suffix = ['_' csvLabel];  % new CSV
+                                info.csvs{end+1} = csvLabel;
+                            end
+
+                            usedSignalNames(baseName) = info;
+                        end
+
+                        % Final name used for plot/legend
+                        sigName = [baseName suffix];
+                        assignedSignalNames{end+1} = sigName;
                         if sigInfo.CSVIdx == -1  % Derived signal indicator
                             % Get derived signal data
                             [timeData, signalData] = obj.App.SignalOperations.getSignalData(sigName);
@@ -705,15 +808,15 @@ classdef PlotManager < handle
                         else
                             % Original signal data
                             T = obj.App.DataManager.DataTables{sigInfo.CSVIdx};
-                            if ~ismember(sigName, T.Properties.VariableNames)
+                            if ~ismember(baseName, T.Properties.VariableNames)
                                 continue;
                             end
-                            validData = ~isnan(T.(sigName));
+                            validData = ~isnan(T.(baseName));
                             if ~any(validData)
                                 continue;
                             end
                             timeData = T.Time(validData);
-                            signalData = T.(sigName)(validData);
+                            signalData = T.(baseName)(validData);
                         end
 
                         % Apply scaling
@@ -779,7 +882,7 @@ classdef PlotManager < handle
                     end
 
                     % Remove plots for signals no longer assigned (only during streaming)
-                    if ~shouldClearAndRecreate
+                    if ~shouldClearAndRecreate && isStreaming
                         obj.removeUnassignedSignalPlots(ax, assignedSignalNames);
                     end
 

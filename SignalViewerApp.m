@@ -8,6 +8,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
         SignalOperations
         ExpandedTreeNodes = string.empty
         DerivedSignalsNode
+        LinkingManager
+        LinkedNodes         % containers.Map - stores node linking relationships
+        LinkedSignals       % containers.Map - stores individual signal links
+        LinkingGroups       % cell array - groups of linked nodes/signals
+        ShowLinkIndicators  % logical - show visual link indicators in tree
+        AutoLinkMode        % string - 'off', 'nodes', 'signals', 'patterns'
+        LinkingRules        % struct array - custom linking rules
         % Enhanced color schemes
         Colors = [
             0.2 0.6 0.9;    % Blue
@@ -90,6 +97,15 @@ classdef SignalViewerApp < matlab.apps.AppBase
     end
 
     methods
+
+        function createLinkingMenu(app)
+            % Create linking menu - called AFTER LinkingManager is initialized
+            linkingMenu = uimenu(app.UIFigure, 'Text', 'Linking');
+            uimenu(linkingMenu, 'Text', '🔗 Configure Signal Linking', 'MenuSelectedFcn', @(src, event) app.LinkingManager.showLinkingDialog());
+            uimenu(linkingMenu, 'Text', '📊 Generate Comparison Analysis', 'MenuSelectedFcn', @(src, event) app.LinkingManager.showComparisonDialog());
+            uimenu(linkingMenu, 'Text', '⚡ Quick Link Selected Nodes', 'MenuSelectedFcn', @(src, event) app.LinkingManager.quickLinkSelected());
+            uimenu(linkingMenu, 'Text', '🔓 Clear All Links', 'MenuSelectedFcn', @(src, event) app.LinkingManager.clearAllLinks());
+        end
         function app = SignalViewerApp()
             %=== Create UI with LIGHT MODE styling ===%
             app.UIFigure = uifigure('Name', 'Signal Viewer Pro', ...
@@ -120,6 +136,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.ConfigManager = ConfigManager(app);
             app.SignalOperations = SignalOperationsManager(app);
             app.UIController  = UIController(app);
+            app.LinkingManager = LinkingManager(app);
+            app.createLinkingMenu();
 
             %=== Connect Callbacks ===%
             app.UIController.setupCallbacks();
@@ -177,6 +195,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
+
+
 
             % ONLY Auto Scale and Refresh CSV buttons at the top
             app.AutoScaleButton = uibutton(app.ControlPanel, 'push', 'Text', 'Auto Scale All', ...
@@ -2778,6 +2798,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 if ~alreadyAssigned
                     currentAssignments{end+1} = signalInfo;
                     addedCount = addedCount + 1;
+
+                    % NEW: Apply linking for this signal
+                    if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
+                        app.LinkingManager.applyLinking(signalInfo);
+                    end
                 end
             end
 
@@ -2788,7 +2813,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.buildSignalTree();
             app.PlotManager.refreshPlots(tabIdx);
 
-            % Keep showing properties of selected signals (not just assigned ones)
+            % Update signal properties table
             selectedNodes = app.SignalTree.SelectedNodes;
             selectedSignals = {};
             for k = 1:numel(selectedNodes)
