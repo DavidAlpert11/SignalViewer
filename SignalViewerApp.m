@@ -3040,32 +3040,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
         function menuStatistics(app)
             app.UIController.showStatsDialog();
+            figure(app.UIFigure);
         end
 
-        function menuToggleSyncZoom(app)
-            % Toggle sync zoom state
-            if ~isprop(app, 'SyncZoomState') || isempty(app.SyncZoomState)
-                app.SyncZoomState = false;
-            end
-            app.SyncZoomState = ~app.SyncZoomState;
-            if app.SyncZoomState
-                app.PlotManager.enableSyncZoom();
-            else
-                app.PlotManager.disableSyncZoom();
-            end
-        end
-        function menuToggleCursor(app)
-            % Toggle cursor mode state
-            app.CursorState = ~app.CursorState;
-
-            if app.CursorState
-                app.PlotManager.enableCursorMode();
-                app.CursorMenuItem.Text = '🎯 Disable Crosshair Cursor';
-            else
-                app.PlotManager.disableCursorMode();
-                app.CursorMenuItem.Text = '🎯 Enable Crosshair Cursor';
-            end
-        end
         % Add other necessary methods...
         function setupAxesDropTargets(app)
             % Set up each axes as a drop target for drag-and-drop signal assignment
