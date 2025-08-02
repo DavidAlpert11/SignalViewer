@@ -195,6 +195,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
+            uimenu(exportMenu, 'Text', '📂 Open Plot Browser View', 'MenuSelectedFcn', @(src, event) app.menuExportToPlotBrowser());
+            uimenu(exportMenu, 'Text', '📡 Export to SDI', ...
+                'MenuSelectedFcn', @(src, event) app.PlotManager.exportToSDI());
 
 
 
@@ -3031,6 +3034,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
         function menuExportPDF(app)
             app.PlotManager.exportToPDF();
             figure(app.UIFigure);
+        end
+        function menuExportToPlotBrowser(app)
+            app.PlotManager.exportTabsToPlotBrowser();
         end
         function menuStatistics(app)
             app.UIController.showStatsDialog();

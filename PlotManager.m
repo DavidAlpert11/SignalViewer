@@ -1548,6 +1548,306 @@ classdef PlotManager < handle
             obj.showPDFExportDialog();
         end
 
+        function exportTabsToPlotBrowser(obj)
+            if isempty(obj.AxesArrays)
+                uialert(obj.App.UIFigure, 'No plots to export.', 'Export Error');
+                return;
+            end
+
+            numTabs = numel(obj.AxesArrays);
+
+            for tabIdx = 1:numTabs
+                axesArray = obj.AxesArrays{tabIdx};
+                if isempty(axesArray) || ~any(isgraphics(axesArray, 'axes'))
+                    continue;
+                end
+
+                % Create new figure for this tab
+                fig = figure('Name', sprintf('Plot Browser - Tab %d', tabIdx), ...
+                    'NumberTitle', 'off', ...
+                    'Color', 'w', ...
+                    'Units', 'normalized', ...
+                    'Position', [0.1 0.1 0.8 0.8]);
+
+                % Create subplot layout
+                numSubplots = numel(axesArray);
+                rows = ceil(sqrt(numSubplots));
+                cols = ceil(numSubplots / rows);
+
+                for i = 1:numSubplots
+                    oldAx = axesArray(i);
+                    if ~isgraphics(oldAx, 'axes')
+                        continue;
+                    end
+
+                    newAx = subplot(rows, cols, i, 'Parent', fig);
+                    titleStr = oldAx.Title.String;
+                    if isempty(titleStr)
+                        titleStr = sprintf('Subplot %d', i);
+                    end
+                    title(newAx, titleStr);
+                    xlabel(newAx, oldAx.XLabel.String);
+                    ylabel(newAx, oldAx.YLabel.String);
+
+                    % === Apply styling ===
+                    % grid(newAx, 'on');
+                    % grid(newAx, 'minor');
+                    % box(newAx, 'on');
+
+                    % Copy line objects
+                    lines = findall(oldAx, 'Type', 'line');
+                    for line = flipud(lines')  % preserve draw order
+                        plot(newAx, line.XData, line.YData, ...
+                            'DisplayName', line.DisplayName, ...
+                            'Color', line.Color, ...
+                            'LineWidth', line.LineWidth, ...
+                            'LineStyle', line.LineStyle);
+                    end
+                    grid on; grid minor; box on;
+
+                    legend(newAx, 'show');
+                end
+
+                % Turn on the Plot Browser
+                plotbrowser(fig, 'on');
+            end
+        end
+
+        function exportToSDI(obj)
+            % Export signals from signal tree to Simulink Data Inspector
+            % Uses addToRun instead of addSignal for better control and metadata
+            Simulink.sdi.clear;
+
+            app = obj.App;
+
+            try
+                % Check if we have any data to export
+                if isempty(app.DataManager.DataTables) || all(cellfun(@isempty, app.DataManager.DataTables))
+                    uialert(app.UIFigure, 'No data available to export to SDI.', 'No Data');
+                    return;
+                end
+
+                % Check if SDI is available
+                if ~license('test', 'Simulink')
+                    uialert(app.UIFigure, 'Simulink Data Inspector requires Simulink license.', 'License Required');
+                    return;
+                end
+
+                rootNodes = app.SignalTree.Children;
+
+                if isempty(rootNodes)
+                    uialert(app.UIFigure, 'No signals found in signal tree.', 'No Signals');
+                    return;
+                end
+
+                totalSignalsAdded = 0;
+
+                % Process each root node (CSV file)
+                for i = 1:numel(rootNodes)
+                    csvNode = rootNodes(i);
+                    csvName = string(csvNode.Text);
+
+                    % Skip derived signals folder for now
+                    if contains(csvName, 'Derived Signals') || contains(csvName, '⚙️')
+                        continue;
+                    end
+
+                    % Create SDI run per CSV with metadata
+                    try
+                        % Basic createRun call - some MATLAB versions don't support name-value pairs
+                        runID = Simulink.sdi.createRun(char(csvName));
+
+                        fprintf('Processing CSV: %s (Run ID: %d)\n', csvName, runID);
+
+                        % Recursively add signals
+                        signalCount = traverse(csvNode, csvName, runID);
+                        totalSignalsAdded = totalSignalsAdded + signalCount;
+
+                        fprintf('  Added %d signals to run\n', signalCount);
+
+                    catch ME
+                        fprintf('Error creating run for %s: %s\n', csvName, ME.message);
+                        continue;
+                    end
+                end
+
+                if totalSignalsAdded > 0
+                    % Open SDI view
+                    try
+                        Simulink.sdi.view;
+                        app.StatusLabel.Text = sprintf('✅ Exported %d signals to SDI', totalSignalsAdded);
+                        app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    catch
+                        app.StatusLabel.Text = sprintf('✅ Exported %d signals to SDI (manual view required)', totalSignalsAdded);
+                        app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    end
+                else
+                    app.StatusLabel.Text = '⚠️ No signals were exported to SDI';
+                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                end
+
+            catch ME
+                fprintf('Error in exportToSDI: %s\n', ME.message);
+                app.StatusLabel.Text = sprintf('❌ SDI export failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+
+                % Show detailed error dialog
+                uialert(app.UIFigure, sprintf('Export to SDI failed:\n%s', ME.message), 'Export Error');
+            end
+
+            % ---------- Nested helper function ----------
+            function count = traverse(node, prefix, runID)
+                count = 0;
+
+                if isempty(node.Children)
+                    return;
+                end
+
+                for j = 1:numel(node.Children)
+                    child = node.Children(j);
+                    childName = string(child.Text);
+
+                    % Remove any checkmarks from the display name
+                    cleanChildName = strrep(childName, '✔ ', '');
+                    fullName = prefix + "/" + cleanChildName;
+
+                    if isempty(child.Children)
+                        % It's a signal leaf - process it
+                        if processSignalLeaf(child, fullName, runID)
+                            count = count + 1;
+                        end
+                    else
+                        % Recurse into child nodes (shouldn't happen in current structure)
+                        count = count + traverse(child, fullName, runID);
+                    end
+                end
+            end
+
+            % ---------- Signal processing helper ----------
+            function success = processSignalLeaf(node, fullName, runID)
+                success = false;
+
+                try
+                    % Validate node structure
+                    if ~isprop(node, 'NodeData') || isempty(node.NodeData)
+                        return;
+                    end
+
+                    signalStruct = node.NodeData;
+
+                    % Validate signal structure
+                    if ~isstruct(signalStruct) || ~isfield(signalStruct, "CSVIdx") || ~isfield(signalStruct, "Signal")
+                        return;
+                    end
+
+                    csvIdx = signalStruct.CSVIdx;
+                    baseName = signalStruct.Signal;
+
+                    % Get signal data based on type
+                    if csvIdx == -1
+                        % Derived signal - skip for now or handle separately
+                        fprintf('  Skipping derived signal: %s\n', baseName);
+                        return;
+                    else
+                        % CSV signal
+                        if csvIdx > length(app.DataManager.DataTables) || csvIdx < 1
+                            fprintf('  Warning: Invalid CSV index %d for signal %s\n', csvIdx, fullName);
+                            return;
+                        end
+
+                        T = app.DataManager.DataTables{csvIdx};
+
+                        if isempty(T) || ~ismember(baseName, T.Properties.VariableNames)
+                            fprintf('  Warning: Signal %s not found in CSV %d\n', baseName, csvIdx);
+                            return;
+                        end
+
+                        timeData = T.Time;
+                        signalData = T.(baseName);
+                    end
+
+                    % Validate and clean data
+                    if isempty(timeData) || isempty(signalData) || length(timeData) ~= length(signalData)
+                        fprintf('  Warning: Invalid data dimensions for signal %s\n', fullName);
+                        return;
+                    end
+
+                    % Remove NaN values
+                    valid = ~isnan(timeData) & ~isnan(signalData) & isfinite(timeData) & isfinite(signalData);
+
+                    if ~any(valid)
+                        fprintf('  Warning: No valid data points for signal %s\n', fullName);
+                        return;
+                    end
+
+                    % Clean data
+                    timeData = timeData(valid);
+                    signalData = signalData(valid);
+
+                    % Apply scaling if it exists
+                    if isfield(app.DataManager, 'SignalScaling') && ...
+                            isa(app.DataManager.SignalScaling, 'containers.Map') && ...
+                            app.DataManager.SignalScaling.isKey(baseName)
+                        scaleFactor = app.DataManager.SignalScaling(baseName);
+                        signalData = signalData * scaleFactor;
+                    end
+
+                    % Sort by time if necessary
+                    if ~issorted(timeData)
+                        [timeData, sortIdx] = sort(timeData);
+                        signalData = signalData(sortIdx);
+                    end
+
+                    % Create timeseries with proper properties
+                    ts = timeseries(signalData, timeData);
+                    ts.Name = baseName;  % Ensure char for compatibility
+                    ts.DataInfo.Units = '';    % Add units if available
+
+                    % Use addToRun for better control
+                    try
+                        % Basic addToRun call without name-value pairs for compatibility
+                        sigID = Simulink.sdi.addToRun(runID, 'vars', ts);
+
+                        if sigID > 0
+                            success = true;
+                            fprintf('    ✓ Added signal: %s (ID: %d)\n', fullName, sigID);
+                        else
+                            fprintf('  Warning: Failed to add signal %s to SDI\n', fullName);
+                        end
+
+                    catch addError
+                        fprintf('  Error adding signal %s: %s\n', fullName, addError.message);
+                    end
+
+                catch ME
+                    fprintf('  Error processing signal %s: %s\n', fullName, ME.message);
+                end
+            end
+        end
+
+
+        % function traverse(node, prefix)
+        %     % If it's a leaf node (signal)
+        %     if isempty(node.Children)
+        %         sigName = node.Text;
+        %         fullName = strjoin([prefix, sigName], '/');
+        %
+        %         if isKey(app.DataManager.SignalDataMap, sigName)
+        %             signalStruct = app.DataManager.SignalDataMap(sigName);
+        %             t = signalStruct.Time;
+        %             y = signalStruct.Data;
+        %
+        %             ts = timeseries(y, t, 'Name', fullName);
+        %             tsList{end+1} = ts;
+        %             nameList{end+1} = fullName;
+        %         end
+        %     else
+        %         for k = 1:numel(node.Children)
+        %             traverse(node.Children(k), [prefix, node.Text]);
+        %         end
+        %     end
+        % end
+
         function createReportPDF(obj, scope, options)
             app = obj.App;
 

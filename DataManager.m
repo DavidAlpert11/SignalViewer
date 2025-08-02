@@ -49,6 +49,24 @@ classdef DataManager < handle
             % REMOVED: drawnow; - not needed here
         end
 
+        function sigInfo = getSignalInfoByFullName(obj, fullName)
+            sigInfo = [];
+
+            for csvIdx = 1:numel(obj.DataTables)
+                T = obj.DataTables{csvIdx};
+                varNames = T.Properties.VariableNames;
+                for v = 1:numel(varNames)
+                    if contains(fullName, varNames{v})
+                        sigInfo.Reader = @(~) deal(T.Time, T.(varNames{v}));
+                        sigInfo.BaseSignalName = varNames{v};
+                        sigInfo.CSVIdx = csvIdx;
+                        return;
+                    end
+                end
+            end
+        end
+
+
         function startStreamingForCSV(obj, idx)
             % Initialize file monitoring for this CSV
             if ~obj.initializeFileMonitoring(idx)
