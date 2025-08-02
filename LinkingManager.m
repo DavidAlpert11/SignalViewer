@@ -195,6 +195,7 @@ classdef LinkingManager < handle
 
             obj.App.StatusLabel.Text = sprintf('Created link group with %d CSVs', length(csvIndices));
             obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+            obj.AutoLinkEnabled = true;
         end
 
         function clearAllLinks(obj)
@@ -555,7 +556,29 @@ classdef LinkingManager < handle
             end
 
             if ~isempty(reportLines)
-                msgbox(strjoin(reportLines, newline), 'Comparison Report', 'help');
+                % Parse reportLines into signal names and rows
+                tableData = {};
+                currentSignal = '';
+                for i = 1:numel(reportLines)
+                    line = strtrim(reportLines{i});
+                    if startsWith(line, 'Signal:')
+                        currentSignal = extractAfter(line, 'Signal: ');
+                    else
+                        parts = split(line, ':');
+                        if numel(parts) == 2
+                            tableData(end+1, :) = {currentSignal, strtrim(parts{1}), str2double(erase(parts{2}, '% error'))}; %#ok<AGROW>
+                        end
+                    end
+                end
+
+                % Create new figure with uitable
+                f = figure('Name', 'Comparison Report', 'NumberTitle', 'off', 'Position', [100, 100, 600, 400]);
+                t = uitable(f, 'Data', tableData, ...
+                    'ColumnName', {'Signal', 'Label', 'Error (%)'}, ...
+                    'ColumnWidth', {150, 200, 100}, ...
+                    'RowName', [], ...
+                    'Units', 'normalized', ...
+                    'Position', [0 0 1 1]);
             else
                 msgbox('No signals available for comparison.', 'Empty', 'warn');
             end
