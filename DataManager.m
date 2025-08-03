@@ -299,6 +299,64 @@ classdef DataManager < handle
             end
         end
 
+        function tf = validateSessionData(obj)
+            % More lenient validation that allows saving in most cases
+            tf = true; % Start optimistic
+
+            try
+                % Only check critical failures, not empty data
+
+                % Check if DataManager object itself is valid
+                if ~isvalid(obj)
+                    tf = false;
+                    return;
+                end
+
+                % Check if essential properties exist (don't worry if they're empty)
+                requiredProps = {'SignalNames', 'DataTables', 'CSVFilePaths', 'SignalScaling', 'StateSignals'};
+                for i = 1:length(requiredProps)
+                    if ~isprop(obj, requiredProps{i})
+                        tf = false;
+                        return;
+                    end
+                end
+
+                % Check if containers.Map properties are the right type (can be empty)
+                if ~isa(obj.SignalScaling, 'containers.Map')
+                    tf = false;
+                    return;
+                end
+
+                if ~isa(obj.StateSignals, 'containers.Map')
+                    tf = false;
+                    return;
+                end
+
+                % Check if cell array properties are the right type (can be empty)
+                if ~iscell(obj.SignalNames)
+                    tf = false;
+                    return;
+                end
+
+                if ~iscell(obj.DataTables)
+                    tf = false;
+                    return;
+                end
+
+                if ~iscell(obj.CSVFilePaths)
+                    tf = false;
+                    return;
+                end
+
+                % If we get here, all essential checks passed
+                tf = true;
+
+            catch
+                % If any error occurs during validation, assume it's OK to save
+                tf = true;
+            end
+        end
+
         function mergedData = mergeNewData(obj, existingData, newData)
             try
                 % Simple concatenation if column structures are identical

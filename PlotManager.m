@@ -713,12 +713,12 @@ classdef PlotManager < handle
                         if shouldClearAndRecreate
                             % Only set defaults if we cleared everything and not streaming
                             if ~isStreaming
-                                % Let auto-scaling handle empty axes
-                                ax.XLimMode = 'auto';
-                                ax.YLimMode = 'auto';
+                                % Let auto-scaling handle empty axes using helper method
+                                obj.forceAutoScale(ax);
                             else
                                 % During streaming, keep reasonable defaults
-                                axis(ax, 'auto');
+                                ax.XLim = [0 10];
+                                ax.YLim = [-1 1];
                                 ax.XLimMode = 'manual';
                                 ax.YLimMode = 'manual';
                             end
@@ -807,16 +807,21 @@ classdef PlotManager < handle
                             currentEnhancedLabel = obj.generateEnhancedCSVLabel(csvIdx);
                         end
 
-                        % Determine suffix based on the three cases
+                        % Determine suffix based on signal name conflicts in UI tree
                         suffix = '';
-                        needSuffix = length(signalSources) > 1;
+
+                        % Check if this signal name exists elsewhere in the UI tree (across all tabs/axes)
+                        hasConflictInUITree = obj.checkSignalNameConflictInUITree(baseName, tabIdx, k);
+
+                        % Apply suffix if there are multiple sources OR if there's a conflict in UI tree
+                        needSuffix = length(signalSources) > 1 || hasConflictInUITree;
 
                         if needSuffix
                             % Count how many different CSVs have this signal
                             uniqueCSVs = unique(signalSources);
                             currentCSVCount = csvCounter(currentEnhancedLabel);
 
-                            if length(uniqueCSVs) == 1
+                            if length(uniqueCSVs) == 1 && ~hasConflictInUITree
                                 % Case 1: Multiple signals from SAME CSV → use _1, _2, _3...
                                 if ~isKey(usedSignalNames, baseName)
                                     % First occurrence from this CSV
@@ -840,7 +845,7 @@ classdef PlotManager < handle
                                 suffix = ['_{' num2str(counter),'}'];
 
                             else
-                                % Case 2 or 3: Multiple signals from DIFFERENT CSVs
+                                % Case 2, 3, or UI tree conflict: Multiple signals from DIFFERENT CSVs or conflict exists
                                 if currentCSVCount > 1
                                     % This CSV has multiple instances - need both CSV name and counter
                                     if ~isKey(usedSignalNames, baseName)
@@ -868,7 +873,7 @@ classdef PlotManager < handle
                                 end
                             end
                         else
-                            % Only one instance total - no suffix needed
+                            % Only one instance total and no UI tree conflict - no suffix needed
                             suffix = '';
                         end
                         % Final name used for plot/legend
@@ -969,33 +974,30 @@ classdef PlotManager < handle
                         legend(ax, 'off');
                     end
 
-                    % **Smart limit management - FORCE AUTO-SCALING FOR NON-STREAMING**
+                    % **Smart limit management - IMPROVED AUTO-SCALING**
                     if ~isempty(allTimeData) && ~isempty(allValueData)
                         if isStreaming
                             % Streaming mode: manually expand limits based on data
                             obj.updateLimitsForStreaming(ax, allTimeData, allValueData, currentXLim, currentYLim, hasExistingData);
                         else
-                            % Not streaming: FORCE auto-scaling immediately
-                            ax.XLimMode = 'auto';
-                            ax.YLimMode = 'auto';
-                            axis(ax, 'auto');
-                            % Switch back to manual to prevent future changes
-                            ax.XLimMode = 'manual';
-                            ax.YLimMode = 'manual';
+                            % Not streaming: FORCE auto-scaling using helper method
+                            obj.forceAutoScale(ax);
                         end
                     else
                         % No data case
                         if hasExistingData && ~shouldClearAndRecreate
+                            % Keep existing limits if we have existing data but no new data
                             ax.XLim = currentXLim;
                             ax.YLim = currentYLim;
                             ax.XLimMode = 'manual';
                             ax.YLimMode = 'manual';
                         else
-                            % Empty plot - let auto-scaling work
+                            % Empty plot - handle differently based on streaming state
                             if ~isStreaming
-                                ax.XLimMode = 'auto';
-                                ax.YLimMode = 'auto';
+                                % Not streaming and no data: use auto-scale helper for consistency
+                                obj.forceAutoScale(ax);
                             else
+                                % Streaming but no data: set reasonable defaults
                                 ax.XLim = [0 10];
                                 ax.YLim = [-1 1];
                                 ax.XLimMode = 'manual';
@@ -1028,6 +1030,31 @@ classdef PlotManager < handle
 
             % Restore highlight after refresh
             obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
+        end
+
+        function success = forceAutoScale(obj, ax)
+            % Force auto-scaling on an axes - same logic as AutoScaleButton
+            success = false;
+            try
+                if isvalid(ax) && isgraphics(ax) && ~isempty(ax.Children)
+                    % Force auto-scaling
+                    ax.XLimMode = 'auto';
+                    ax.YLimMode = 'auto';
+                    axis(ax, 'auto');
+
+                    % Small pause to ensure auto-scaling completes
+                    pause(0.005);
+
+                    % Switch back to manual to prevent future automatic changes
+                    ax.XLimMode = 'manual';
+                    ax.YLimMode = 'manual';
+
+                    success = true; % Successfully auto-scaled
+                end
+            catch ME
+                % Log error but don't fail
+                fprintf('Warning: Auto-scale failed for axes: %s\n', ME.message);
+            end
         end
 
         function showDerivedSignalMenu(obj, tabIdx, subplotIdx)
@@ -2739,6 +2766,96 @@ classdef PlotManager < handle
 
             catch
                 success = false;
+            end
+        end
+
+
+        function hasConflict = checkSignalNameConflictInUITree(obj, signalName, currentTabIdx, currentAxesIdx)
+            % Check if the given signal name exists ANYWHERE in the data (assigned or available)
+            hasConflict = false;
+
+            % Method 1: Check in all other axes assignments
+            for tabIdx = 1:numel(obj.AssignedSignals)
+                assignments = obj.AssignedSignals{tabIdx};
+
+                for axesIdx = 1:numel(assignments)
+                    % Skip the current axes we're processing
+                    if tabIdx == currentTabIdx && axesIdx == currentAxesIdx
+                        continue;
+                    end
+
+                    % Check all assigned signals in this axes
+                    assignedSigs = assignments{axesIdx};
+                    for sigIdx = 1:numel(assignedSigs)
+                        if strcmp(assignedSigs{sigIdx}.Signal, signalName)
+                            hasConflict = true;
+                            return;
+                        end
+                    end
+                end
+            end
+
+            % Method 2: Check if this signal name exists in multiple CSV files
+            % (This ensures suffix even if signal isn't assigned elsewhere yet)
+            signalCount = 0;
+
+            % Count occurrences across all CSV files
+            if isprop(obj.App, 'DataManager') && ~isempty(obj.App.DataManager.DataTables)
+                for csvIdx = 1:numel(obj.App.DataManager.DataTables)
+                    T = obj.App.DataManager.DataTables{csvIdx};
+                    if ~isempty(T) && ismember(signalName, T.Properties.VariableNames)
+                        signalCount = signalCount + 1;
+                    end
+                end
+            end
+
+            % Also check derived signals
+            if isprop(obj.App, 'SignalOperations') && ~isempty(obj.App.SignalOperations)
+                try
+                    derivedSignals = obj.App.SignalOperations.getAllDerivedSignalNames();
+                    if any(strcmp(derivedSignals, signalName))
+                        signalCount = signalCount + 1;
+                    end
+                catch
+                    % Ignore errors if method doesn't exist
+                end
+            end
+
+            % If the same signal name exists in more than one source, it needs suffix
+            if signalCount > 1
+                hasConflict = true;
+                return;
+            end
+
+            % Method 3: Check the signal tree structure for duplicate names
+            % This catches cases where the signal might be available but not yet assigned
+            if isprop(obj.App, 'SignalTree') && ~isempty(obj.App.SignalTree)
+                try
+                    allNodes = obj.App.SignalTree.Children;
+                    sourceCount = 0;
+
+                    for i = 1:numel(allNodes)
+                        csvNode = allNodes(i);
+                        if ~isempty(csvNode.Children)
+                            for j = 1:numel(csvNode.Children)
+                                sigNode = csvNode.Children(j);
+                                if isprop(sigNode, 'NodeData') && ~isempty(sigNode.NodeData)
+                                    nodeSignalName = sigNode.NodeData.Signal;
+                                    if strcmp(nodeSignalName, signalName)
+                                        sourceCount = sourceCount + 1;
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if sourceCount > 1
+                        hasConflict = true;
+                        return;
+                    end
+                catch
+                    % Ignore errors if signal tree structure is different
+                end
             end
         end
 

@@ -2468,6 +2468,29 @@ classdef SignalOperationsManager < handle
             end
         end
 
+        % Add this method to your SignalOperations class if it doesn't exist
+        function derivedSignalNames = getAllDerivedSignalNames(obj)
+            % Get all derived signal names from whatever storage mechanism you use
+            derivedSignalNames = {};
+
+            try
+                % If you store derived signals in a Map or similar structure
+                if isprop(obj, 'DerivedSignals') && isa(obj.DerivedSignals, 'containers.Map')
+                    derivedSignalNames = keys(obj.DerivedSignals);
+                elseif isprop(obj.App.DataManager, 'DerivedSignals') && isa(obj.App.DataManager.DerivedSignals, 'containers.Map')
+                    derivedSignalNames = keys(obj.App.DataManager.DerivedSignals);
+                end
+
+                % Convert cell array to ensure compatibility
+                if ~iscell(derivedSignalNames)
+                    derivedSignalNames = {derivedSignalNames};
+                end
+
+            catch
+                % Return empty if structure doesn't exist or error occurs
+                derivedSignalNames = {};
+            end
+        end
 
         function exportDerivedSignal(obj, signalName)
             % Export a single derived signal to CSV

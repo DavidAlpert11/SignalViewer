@@ -133,6 +133,19 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.PlotManager = PlotManager(app);
             app.PlotManager.initialize();
             app.DataManager   = DataManager(app);
+
+            % Ensure essential properties exist
+            if ~isprop(app.DataManager, 'SignalNames') || isempty(app.DataManager.SignalNames)
+                app.DataManager.SignalNames = {};
+            end
+
+            if ~isprop(app.DataManager, 'SignalScaling') || isempty(app.DataManager.SignalScaling)
+                app.DataManager.SignalScaling = containers.Map('KeyType', 'char', 'ValueType', 'double');
+            end
+
+            if ~isprop(app.DataManager, 'StateSignals') || isempty(app.DataManager.StateSignals)
+                app.DataManager.StateSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+            end
             app.ConfigManager = ConfigManager(app);
             app.SignalOperations = SignalOperationsManager(app);
             app.UIController  = UIController(app);
@@ -143,6 +156,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.UIController.setupCallbacks();
             %=== Initialize visual enhancements ===%
             app.initializeVisualEnhancements();
+            app.debugSessionData()
         end
 
         function createEnhancedComponents(app)
@@ -150,8 +164,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Only keep controls that are actually used in the current workflow
 
             fileMenu = uimenu(app.UIFigure, 'Text', 'File');
-            uimenu(fileMenu, 'Text', '💾 Save Layout Config', 'MenuSelectedFcn', @(src, event) app.saveConfig());
-            uimenu(fileMenu, 'Text', '📁 Load Layout Config', 'MenuSelectedFcn', @(src, event) app.loadConfig());
+            uimenu(fileMenu, 'Text', '💾 Save Layout Config', 'MenuSelectedFcn', @(src, event) app.ConfigManager.saveConfig());
+            uimenu(fileMenu, 'Text', '📁 Load Layout Config', 'MenuSelectedFcn', @(src, event) app.ConfigManager.loadConfig());
+
             uimenu(fileMenu, 'Text', '💾 Save Full Session', 'MenuSelectedFcn', @(src, event) app.saveSession());
             uimenu(fileMenu, 'Text', '📁 Load Full Session', 'MenuSelectedFcn', @(src, event) app.loadSession());
 
@@ -2388,136 +2403,633 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.ConfigManager.loadConfig();
             figure(app.UIFigure);
         end
+        % =========================================================================
+        % IMPROVED SESSION VALIDATION WITH DEBUGGING - Add to SignalViewerApp.m
+        % =========================================================================
+
+        function [isValid, errorDetails] = validateSessionData(obj)
+            % Enhanced validation with detailed error reporting
+            isValid = true;
+            errorDetails = {};
+
+            try
+                % === CHECK 1: Essential Objects Exist ===
+                if ~isprop(obj, 'DataManager') || isempty(obj.DataManager)
+                    isValid = false;
+                    errorDetails{end+1} = 'DataManager is missing or empty';
+                elseif ~isvalid(obj.DataManager)
+                    isValid = false;
+                    errorDetails{end+1} = 'DataManager is not valid';
+                end
+
+                if ~isprop(obj, 'PlotManager') || isempty(obj.PlotManager)
+                    isValid = false;
+                    errorDetails{end+1} = 'PlotManager is missing or empty';
+                elseif ~isvalid(obj.PlotManager)
+                    isValid = false;
+                    errorDetails{end+1} = 'PlotManager is not valid';
+                end
+
+                % === CHECK 2: DataManager Properties ===
+                if isValid && isprop(obj, 'DataManager') && ~isempty(obj.DataManager)
+                    % Check SignalNames
+                    if ~isprop(obj.DataManager, 'SignalNames')
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.SignalNames property missing';
+                    elseif ~iscell(obj.DataManager.SignalNames)
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.SignalNames is not a cell array';
+                    end
+
+                    % Check DataTables
+                    if ~isprop(obj.DataManager, 'DataTables')
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.DataTables property missing';
+                    elseif ~iscell(obj.DataManager.DataTables)
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.DataTables is not a cell array';
+                    end
+
+                    % Check CSVFilePaths
+                    if ~isprop(obj.DataManager, 'CSVFilePaths')
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.CSVFilePaths property missing';
+                    elseif ~iscell(obj.DataManager.CSVFilePaths)
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.CSVFilePaths is not a cell array';
+                    end
+
+                    % Check SignalScaling
+                    if ~isprop(obj.DataManager, 'SignalScaling')
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.SignalScaling property missing';
+                    elseif ~isa(obj.DataManager.SignalScaling, 'containers.Map')
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.SignalScaling is not a containers.Map';
+                    end
+
+                    % Check StateSignals
+                    if ~isprop(obj.DataManager, 'StateSignals')
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.StateSignals property missing';
+                    elseif ~isa(obj.DataManager.StateSignals, 'containers.Map')
+                        isValid = false;
+                        errorDetails{end+1} = 'DataManager.StateSignals is not a containers.Map';
+                    end
+                end
+
+                % === CHECK 3: PlotManager Properties ===
+                if isValid && isprop(obj, 'PlotManager') && ~isempty(obj.PlotManager)
+                    % Check AssignedSignals
+                    if ~isprop(obj.PlotManager, 'AssignedSignals')
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.AssignedSignals property missing';
+                    elseif ~iscell(obj.PlotManager.AssignedSignals)
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.AssignedSignals is not a cell array';
+                    end
+
+                    % Check TabLayouts
+                    if ~isprop(obj.PlotManager, 'TabLayouts')
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.TabLayouts property missing';
+                    elseif ~iscell(obj.PlotManager.TabLayouts)
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.TabLayouts is not a cell array';
+                    end
+
+                    % Check CurrentTabIdx
+                    if ~isprop(obj.PlotManager, 'CurrentTabIdx')
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.CurrentTabIdx property missing';
+                    elseif ~isnumeric(obj.PlotManager.CurrentTabIdx)
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.CurrentTabIdx is not numeric';
+                    end
+
+                    % Check SelectedSubplotIdx
+                    if ~isprop(obj.PlotManager, 'SelectedSubplotIdx')
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.SelectedSubplotIdx property missing';
+                    elseif ~isnumeric(obj.PlotManager.SelectedSubplotIdx)
+                        isValid = false;
+                        errorDetails{end+1} = 'PlotManager.SelectedSubplotIdx is not numeric';
+                    end
+                end
+
+                % === CHECK 4: Optional Components (don't fail if missing) ===
+                % These are warnings, not failures
+                if isprop(obj, 'SignalOperations') && ~isempty(obj.SignalOperations)
+                    if ~isprop(obj.SignalOperations, 'DerivedSignals')
+                        errorDetails{end+1} = 'Warning: SignalOperations.DerivedSignals missing';
+                    elseif ~isa(obj.SignalOperations.DerivedSignals, 'containers.Map')
+                        errorDetails{end+1} = 'Warning: SignalOperations.DerivedSignals is not a containers.Map';
+                    end
+                end
+
+            catch ME
+                isValid = false;
+                errorDetails{end+1} = sprintf('Validation error: %s', ME.message);
+            end
+        end
+
+        function debugSessionData(app)
+            % Debug function to check what's wrong with session data
+            fprintf('\n=== SESSION DATA DEBUG REPORT ===\n');
+
+            % Check app object
+            fprintf('App object: %s\n', class(app));
+
+            % Check DataManager
+            if isprop(app, 'DataManager')
+                fprintf('DataManager exists: %s\n', mat2str(~isempty(app.DataManager)));
+                if ~isempty(app.DataManager)
+                    fprintf('DataManager valid: %s\n', mat2str(isvalid(app.DataManager)));
+                    fprintf('DataManager class: %s\n', class(app.DataManager));
+
+                    % Check DataManager properties
+                    props = {'SignalNames', 'DataTables', 'CSVFilePaths', 'SignalScaling', 'StateSignals'};
+                    for i = 1:length(props)
+                        prop = props{i};
+                        if isprop(app.DataManager, prop)
+                            val = app.DataManager.(prop);
+                            fprintf('  %s: %s (%s)\n', prop, mat2str(~isempty(val)), class(val));
+                        else
+                            fprintf('  %s: MISSING\n', prop);
+                        end
+                    end
+                end
+            else
+                fprintf('DataManager: MISSING\n');
+            end
+
+            % Check PlotManager
+            if isprop(app, 'PlotManager')
+                fprintf('PlotManager exists: %s\n', mat2str(~isempty(app.PlotManager)));
+                if ~isempty(app.PlotManager)
+                    fprintf('PlotManager valid: %s\n', mat2str(isvalid(app.PlotManager)));
+                    fprintf('PlotManager class: %s\n', class(app.PlotManager));
+
+                    % Check PlotManager properties
+                    props = {'AssignedSignals', 'TabLayouts', 'CurrentTabIdx', 'SelectedSubplotIdx'};
+                    for i = 1:length(props)
+                        prop = props{i};
+                        if isprop(app.PlotManager, prop)
+                            val = app.PlotManager.(prop);
+                            fprintf('  %s: %s (%s)\n', prop, mat2str(~isempty(val)), class(val));
+                        else
+                            fprintf('  %s: MISSING\n', prop);
+                        end
+                    end
+                end
+            else
+                fprintf('PlotManager: MISSING\n');
+            end
+
+            % Run validation and show results
+            [isValid, errorDetails] = app.validateSessionData();
+            fprintf('\nValidation Result: %s\n', mat2str(isValid));
+            if ~isValid
+                fprintf('Errors:\n');
+                for i = 1:length(errorDetails)
+                    fprintf('  %d. %s\n', i, errorDetails{i});
+                end
+            end
+
+            fprintf('\n=== END DEBUG REPORT ===\n');
+        end
         function saveSession(app)
-            % Save the current app session to a .mat file
             [file, path] = uiputfile('*.mat', 'Save Session');
             if isequal(file, 0), return; end
 
-            session = struct();
-            session.CSVFilePaths = app.DataManager.CSVFilePaths;
-            session.SignalScaling = app.DataManager.SignalScaling;
-            session.StateSignals = app.DataManager.StateSignals;
-            session.AssignedSignals = app.PlotManager.AssignedSignals;
-            session.TabLayouts = app.PlotManager.TabLayouts;
-            session.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
-            session.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
+            try
+                % === SKIP VALIDATION - JUST SAVE ===
+                % Comment out or remove this validation block:
+                % if ~app.DataManager.validateSessionData()
+                %     answer = uiconfirm(app.UIFigure, ...
+                %         'Session data validation failed. Continue saving anyway?', ...
+                %         'Validation Failed', ...
+                %         'Options', {'Save Anyway', 'Cancel'}, ...
+                %         'DefaultOption', 'Cancel', 'Icon', 'warning');
+                %
+                %     if strcmp(answer, 'Cancel')
+                %         app.restoreFocus();
+                %         return;
+                %     end
+                % end
 
-            % Get current tab's layout values from TabControls instead of non-existent spinners
-            tabIdx = app.PlotManager.CurrentTabIdx;
-            if tabIdx <= numel(app.PlotManager.TabControls) && ~isempty(app.PlotManager.TabControls{tabIdx})
-                session.RowsSpinnerValue = app.PlotManager.TabControls{tabIdx}.RowsSpinner.Value;
-                session.ColsSpinnerValue = app.PlotManager.TabControls{tabIdx}.ColsSpinner.Value;
-            else
-                % Fallback to current layout if TabControls not available
-                currentLayout = app.PlotManager.TabLayouts{tabIdx};
-                session.RowsSpinnerValue = currentLayout(1);
-                session.ColsSpinnerValue = currentLayout(2);
+                session = struct();
+
+                % === SAFE DATA EXTRACTION ===
+                % Core data with error handling
+                try
+                    session.CSVFilePaths = app.DataManager.CSVFilePaths;
+                catch
+                    session.CSVFilePaths = {};
+                end
+
+                try
+                    session.SignalScaling = app.DataManager.SignalScaling;
+                catch
+                    session.SignalScaling = containers.Map();
+                end
+
+                try
+                    session.StateSignals = app.DataManager.StateSignals;
+                catch
+                    session.StateSignals = containers.Map();
+                end
+
+                try
+                    session.SignalNames = app.DataManager.SignalNames;
+                catch
+                    session.SignalNames = {};
+                end
+
+                % === PLOT MANAGER DATA ===
+                try
+                    session.AssignedSignals = app.PlotManager.AssignedSignals;
+                catch
+                    session.AssignedSignals = {};
+                end
+
+                try
+                    session.TabLayouts = app.PlotManager.TabLayouts;
+                catch
+                    session.TabLayouts = {[2, 1]};
+                end
+
+                try
+                    session.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
+                catch
+                    session.CurrentTabIdx = 1;
+                end
+
+                try
+                    session.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
+                catch
+                    session.SelectedSubplotIdx = 1;
+                end
+
+                % === TAB COUNT ===
+                try
+                    session.NumTabs = numel(app.PlotManager.TabLayouts);
+                catch
+                    session.NumTabs = 1;
+                end
+
+                % === TAB CONTROLS ===
+                session.TabControlsData = {};
+                try
+                    if isprop(app.PlotManager, 'TabControls') && ~isempty(app.PlotManager.TabControls)
+                        session.TabControlsData = cell(1, numel(app.PlotManager.TabControls));
+                        for i = 1:numel(app.PlotManager.TabControls)
+                            if ~isempty(app.PlotManager.TabControls{i})
+                                session.TabControlsData{i} = struct(...
+                                    'RowsValue', app.PlotManager.TabControls{i}.RowsSpinner.Value, ...
+                                    'ColsValue', app.PlotManager.TabControls{i}.ColsSpinner.Value);
+                            end
+                        end
+                    end
+                catch
+                    session.TabControlsData = {};
+                end
+
+                % === UI STATE (ALL OPTIONAL) ===
+                session.SubplotMetadata = app.safeGetProperty('SubplotMetadata', {});
+                session.SignalStyles = app.safeGetProperty('SignalStyles', struct());
+                session.SubplotCaptions = app.safeGetProperty('SubplotCaptions', {});
+                session.SubplotDescriptions = app.safeGetProperty('SubplotDescriptions', {});
+                session.SubplotTitles = app.safeGetProperty('SubplotTitles', {});
+                session.ExpandedTreeNodes = app.safeGetProperty('ExpandedTreeNodes', string.empty);
+
+                % === DERIVED SIGNALS ===
+                try
+                    if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
+                        session.DerivedSignals = app.SignalOperations.DerivedSignals;
+                        session.OperationHistory = app.safeGetSubProperty(app.SignalOperations, 'OperationHistory', {});
+                        session.OperationCounter = app.safeGetSubProperty(app.SignalOperations, 'OperationCounter', 0);
+                    else
+                        session.DerivedSignals = containers.Map();
+                        session.OperationHistory = {};
+                        session.OperationCounter = 0;
+                    end
+                catch
+                    session.DerivedSignals = containers.Map();
+                    session.OperationHistory = {};
+                    session.OperationCounter = 0;
+                end
+
+                % === LINKING SYSTEM ===
+                try
+                    if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
+                        session.LinkedGroups = app.safeGetSubProperty(app.LinkingManager, 'LinkedGroups', {});
+                        session.AutoLinkEnabled = app.safeGetSubProperty(app.LinkingManager, 'AutoLinkEnabled', false);
+                        session.LinkingMode = app.safeGetSubProperty(app.LinkingManager, 'LinkingMode', 'nodes');
+                    else
+                        session.LinkedGroups = {};
+                        session.AutoLinkEnabled = false;
+                        session.LinkingMode = 'nodes';
+                    end
+                catch
+                    session.LinkedGroups = {};
+                    session.AutoLinkEnabled = false;
+                    session.LinkingMode = 'nodes';
+                end
+
+                % === APP PREFERENCES ===
+                session.PDFReportTitle = app.safeGetProperty('PDFReportTitle', 'Signal Analysis Report');
+                session.PDFReportAuthor = app.safeGetProperty('PDFReportAuthor', '');
+                session.PDFFigureLabel = app.safeGetProperty('PDFFigureLabel', 'Figure');
+
+                % === METADATA ===
+                session.SessionVersion = '2.1';
+                session.MatlabVersion = version();
+                session.SaveTimestamp = datetime('now');
+
+                % === SAVE ===
+                save(fullfile(path, file), 'session', '-v7.3');
+
+                app.StatusLabel.Text = sprintf('✅ Session saved: %s', file);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                app.StatusLabel.Text = sprintf('❌ Save failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                fprintf('Session save error: %s\n', ME.message);
             end
 
-            session.AutoScale = true; % Default value since AutoScaleCheckbox doesn't exist
-
-            if isprop(app, 'SubplotMetadata')
-                session.SubplotMetadata = app.SubplotMetadata;
-            else
-                session.SubplotMetadata = {};
-            end
-
-            if isprop(app, 'SignalStyles')
-                session.SignalStyles = app.SignalStyles;
-            else
-                session.SignalStyles = struct();
-            end
-
-            session.SubplotCaptions = app.SubplotCaptions;
-            session.SubplotDescriptions = app.SubplotDescriptions;
-
-            save(fullfile(path, file), 'session');
-            app.StatusLabel.Text = '✅ Session saved successfully';
-            app.StatusLabel.FontColor = [0.2 0.6 0.9];
-            figure(app.UIFigure);
+            app.restoreFocus();
         end
 
+        function value = safeGetProperty(obj, varargin)
+            % Safely get property value with default fallback
+            % Usage: obj.safeGetProperty(propName, defaultValue)
+            % OR:    obj.safeGetProperty(subObj, propName, defaultValue)
+
+            try
+                if nargin == 3  % obj.safeGetProperty(propName, defaultValue)
+                    propName = varargin{1};
+                    defaultValue = varargin{2};
+
+                    if isprop(obj, propName) && ~isempty(obj.(propName))
+                        value = obj.(propName);
+                    else
+                        value = defaultValue;
+                    end
+
+                elseif nargin == 4  % obj.safeGetProperty(subObj, propName, defaultValue)
+                    subObj = varargin{1};
+                    propName = varargin{2};
+                    defaultValue = varargin{3};
+
+                    if isprop(subObj, propName) && ~isempty(subObj.(propName))
+                        value = subObj.(propName);
+                    else
+                        value = defaultValue;
+                    end
+                else
+                    error('Invalid number of arguments');
+                end
+            catch
+                if nargin >= 3
+                    value = varargin{end};  % Use last argument as default
+                else
+                    value = [];
+                end
+            end
+        end
 
         function loadSession(app)
-            % Load a session from a .mat file
             [file, path] = uigetfile('*.mat', 'Load Session');
             if isequal(file, 0), return; end
 
-            loaded = load(fullfile(path, file));
-            if ~isfield(loaded, 'session')
-                app.StatusLabel.Text = '❌ Invalid session file';
-                app.StatusLabel.FontColor = [0.9 0.3 0.3];
-                app.restoreFocus();
-                return;
-            end
+            try
+                loaded = load(fullfile(path, file));
+                if ~isfield(loaded, 'session')
+                    app.StatusLabel.Text = '❌ Invalid session file format';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    app.restoreFocus();
+                    return;
+                end
 
-            session = loaded.session;
+                session = loaded.session;
 
-            % Restore CSVs
-            app.DataManager.CSVFilePaths = session.CSVFilePaths;
-            app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
-            app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
+                % === RESTORE CSV DATA ===
+                app.DataManager.CSVFilePaths = session.CSVFilePaths;
+                app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
+                app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
 
-            for i = 1:numel(session.CSVFilePaths)
-                if isfile(session.CSVFilePaths{i})
-                    opts = detectImportOptions(session.CSVFilePaths{i});
-                    opts = setvartype(opts, 'double');
-                    T = readtable(session.CSVFilePaths{i}, opts);
-                    if ~ismember('Time', T.Properties.VariableNames)
-                        T.Properties.VariableNames{1} = 'Time';
+                for i = 1:numel(session.CSVFilePaths)
+                    if isfile(session.CSVFilePaths{i})
+                        app.DataManager.readInitialData(i);
+                    else
+                        app.DataManager.DataTables{i} = [];
                     end
-                    T = sortrows(T, 'Time');
-                    app.DataManager.DataTables{i} = T;
-                else
-                    app.DataManager.DataTables{i} = [];
+                end
+
+                app.DataManager.SignalScaling = session.SignalScaling;
+                app.DataManager.StateSignals = session.StateSignals;
+                if isfield(session, 'SignalNames')
+                    app.DataManager.SignalNames = session.SignalNames;
+                end
+
+                % === RESTORE DERIVED SIGNALS ===
+                if isfield(session, 'DerivedSignals') && isprop(app, 'SignalOperations')
+                    app.SignalOperations.DerivedSignals = session.DerivedSignals;
+
+                    derivedNames = keys(session.DerivedSignals);
+                    for i = 1:length(derivedNames)
+                        if ~ismember(derivedNames{i}, app.DataManager.SignalNames)
+                            app.DataManager.SignalNames{end+1} = derivedNames{i};
+                        end
+                    end
+
+                    if isfield(session, 'OperationHistory')
+                        app.SignalOperations.OperationHistory = session.OperationHistory;
+                    end
+                    if isfield(session, 'OperationCounter')
+                        app.SignalOperations.OperationCounter = session.OperationCounter;
+                    end
+                end
+
+                % === RESTORE LINKING SYSTEM ===
+                if isfield(session, 'LinkedGroups') && isprop(app, 'LinkingManager')
+                    app.LinkingManager.LinkedGroups = session.LinkedGroups;
+                    if isfield(session, 'AutoLinkEnabled')
+                        app.LinkingManager.AutoLinkEnabled = session.AutoLinkEnabled;
+                    end
+                    if isfield(session, 'LinkingMode')
+                        app.LinkingManager.LinkingMode = session.LinkingMode;
+                    end
+                end
+
+                % === CRITICAL: CREATE REQUIRED TABS FIRST ===
+                requiredTabs = numel(session.TabLayouts);
+                currentTabs = numel(app.PlotManager.PlotTabs);
+
+                % Remove + tab temporarily if it exists
+                plusTabIdx = [];
+                for i = 1:numel(app.PlotManager.PlotTabs)
+                    if strcmp(app.PlotManager.PlotTabs{i}.Title, '+')
+                        plusTabIdx = i;
+                        break;
+                    end
+                end
+
+                if ~isempty(plusTabIdx)
+                    delete(app.PlotManager.PlotTabs{plusTabIdx});
+                    app.PlotManager.PlotTabs(plusTabIdx) = [];
+                    currentTabs = currentTabs - 1;
+                end
+
+                % Create additional tabs if needed
+                while numel(app.PlotManager.PlotTabs) < requiredTabs
+                    app.PlotManager.addNewTab();
+                end
+
+                % === RESTORE PLOT MANAGER DATA ===
+                app.PlotManager.TabLayouts = session.TabLayouts;
+                app.PlotManager.AssignedSignals = session.AssignedSignals;
+                app.PlotManager.CurrentTabIdx = min(session.CurrentTabIdx, requiredTabs);
+                app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
+
+                % === RECREATE EACH TAB WITH CORRECT LAYOUT ===
+                for tabIdx = 1:requiredTabs
+                    if tabIdx <= numel(session.TabLayouts)
+                        layout = session.TabLayouts{tabIdx};
+                        rows = layout(1);
+                        cols = layout(2);
+
+                        % Recreate subplots for this tab
+                        app.PlotManager.createSubplotsForTab(tabIdx, rows, cols);
+
+                        % Restore tab controls if available
+                        if isfield(session, 'TabControlsData') && ...
+                                tabIdx <= numel(session.TabControlsData) && ...
+                                ~isempty(session.TabControlsData{tabIdx})
+
+                            if tabIdx <= numel(app.PlotManager.TabControls) && ...
+                                    ~isempty(app.PlotManager.TabControls{tabIdx})
+                                app.PlotManager.TabControls{tabIdx}.RowsSpinner.Value = rows;
+                                app.PlotManager.TabControls{tabIdx}.ColsSpinner.Value = cols;
+                            end
+                        end
+                    end
+                end
+
+                % === RESTORE UI STATE ===
+                if isfield(session, 'SubplotMetadata')
+                    app.SubplotMetadata = session.SubplotMetadata;
+                end
+                if isfield(session, 'SignalStyles')
+                    app.SignalStyles = session.SignalStyles;
+                end
+                if isfield(session, 'SubplotCaptions')
+                    app.SubplotCaptions = session.SubplotCaptions;
+                end
+                if isfield(session, 'SubplotDescriptions')
+                    app.SubplotDescriptions = session.SubplotDescriptions;
+                end
+                if isfield(session, 'SubplotTitles')
+                    app.SubplotTitles = session.SubplotTitles;
+                end
+                if isfield(session, 'ExpandedTreeNodes')
+                    app.ExpandedTreeNodes = session.ExpandedTreeNodes;
+                end
+                if isfield(session, 'PDFReportTitle')
+                    app.PDFReportTitle = session.PDFReportTitle;
+                end
+                if isfield(session, 'PDFReportAuthor')
+                    app.PDFReportAuthor = session.PDFReportAuthor;
+                end
+                if isfield(session, 'PDFFigureLabel')
+                    app.PDFFigureLabel = session.PDFFigureLabel;
+                end
+
+                % === REBUILD UI AND REFRESH ===
+                app.buildSignalTree();
+
+                % Refresh plots for all tabs
+                for tabIdx = 1:requiredTabs
+                    app.PlotManager.refreshPlots(tabIdx);
+                end
+
+                % Auto-scale and restore current tab
+                app.autoScaleAllTabs();
+                app.PlotManager.ensurePlusTabAtEnd();
+                app.PlotManager.updateTabTitles();
+
+                % Set current tab
+                if app.PlotManager.CurrentTabIdx <= numel(app.PlotManager.PlotTabs)
+                    app.MainTabGroup.SelectedTab = app.PlotManager.PlotTabs{app.PlotManager.CurrentTabIdx};
+                end
+
+                app.StatusLabel.Text = sprintf('✅ Session loaded: %s', file);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                app.StatusLabel.Text = sprintf('❌ Load failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                fprintf('Session load error: %s\n', ME.message);
+                for i = 1:length(ME.stack)
+                    fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
                 end
             end
 
-            app.DataManager.SignalScaling = session.SignalScaling;
-            app.DataManager.StateSignals = session.StateSignals;
-            app.PlotManager.AssignedSignals = session.AssignedSignals;
-            app.PlotManager.TabLayouts = session.TabLayouts;
-            app.PlotManager.CurrentTabIdx = session.CurrentTabIdx;
-            app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
+            app.restoreFocus();
+        end
 
-            % Set tab layouts using the saved values
-            if isfield(session, 'RowsSpinnerValue') && isfield(session, 'ColsSpinnerValue')
-                tabIdx = app.PlotManager.CurrentTabIdx;
-                if tabIdx <= numel(app.PlotManager.TabControls) && ~isempty(app.PlotManager.TabControls{tabIdx})
-                    app.PlotManager.TabControls{tabIdx}.RowsSpinner.Value = session.RowsSpinnerValue;
-                    app.PlotManager.TabControls{tabIdx}.ColsSpinner.Value = session.ColsSpinnerValue;
+        function showSessionLoadSummary(obj, session, missingCSVs)
+            % Show summary of what was loaded in the session
+            summary = sprintf('Session Load Summary:\n\n');
+            summary = [summary sprintf('• CSV Files: %d loaded', numel(session.CSVFilePaths))];
+            if ~isempty(missingCSVs)
+                summary = [summary sprintf(' (%d missing)', numel(missingCSVs))];
+            end
+            summary = [summary sprintf('\n• Tabs: %d', numel(session.TabLayouts))];
+            summary = [summary sprintf('\n• Signal Assignments: %d tabs configured', numel(session.AssignedSignals))];
+            if isfield(session, 'DerivedSignals')
+                derivedCount = length(keys(session.DerivedSignals));
+                summary = [summary sprintf('\n• Derived Signals: %d restored', derivedCount)];
+            end
+            if isfield(session, 'LinkedGroups')
+                summary = [summary sprintf('\n• Link Groups: %d restored', numel(session.LinkedGroups))];
+            end
+
+            uialert(obj.UIFigure, summary, 'Session Loaded Successfully', 'Icon', 'success');
+        end
+
+
+        function newPaths = browseForMissingCSVs(obj, originalPaths)
+            % Interactive dialog to browse for missing CSV files
+            newPaths = originalPaths;
+            for i = 1:numel(originalPaths)
+                if ~isfile(originalPaths{i})
+                    [~, fileName, ext] = fileparts(originalPaths{i});
+                    [file, path] = uigetfile('*.csv', sprintf('Locate missing file: %s%s', fileName, ext));
+                    if ~isequal(file, 0)
+                        newPaths{i} = fullfile(path, file);
+                    end
                 end
             end
+        end
 
-            if isfield(session, 'SubplotMetadata')
-                app.SubplotMetadata = session.SubplotMetadata;
+        function checksum = calculateSessionChecksum(obj, session)
+            % Generate a simple checksum for session integrity
+            try
+                % Create a string representation of key fields
+                keyFields = {'CSVFilePaths', 'AssignedSignals', 'TabLayouts'};
+                checksumData = '';
+                for i = 1:length(keyFields)
+                    if isfield(session, keyFields{i})
+                        checksumData = [checksumData, mat2str(session.(keyFields{i}))];
+                    end
+                end
+                checksum = num2str(java.lang.String(checksumData).hashCode());
+            catch
+                checksum = 'unknown';
             end
-
-            if isfield(session, 'SignalStyles')
-                app.SignalStyles = session.SignalStyles;
-            end
-
-            if isfield(session, 'SubplotCaptions')
-                app.SubplotCaptions = session.SubplotCaptions;
-            else
-                app.SubplotCaptions = {};
-            end
-
-            if isfield(session, 'SubplotDescriptions')
-                app.SubplotDescriptions = session.SubplotDescriptions;
-            else
-                app.SubplotDescriptions = {};
-            end
-
-            app.buildSignalTree();
-            app.PlotManager.refreshPlots();
-
-            % AUTO-SCALE ALL PLOTS AFTER LOADING SESSION
-            app.autoScaleAllTabs();
-
-            app.StatusLabel.Text = '✅ Session loaded successfully';
-            app.StatusLabel.FontColor = [0.2 0.6 0.9];
-            figure(app.UIFigure);
         end
 
         function autoScaleAllTabs(app)
