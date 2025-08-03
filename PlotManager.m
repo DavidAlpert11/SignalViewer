@@ -244,6 +244,37 @@ classdef PlotManager < handle
                 obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];            end
         end
 
+        function enhancedCsvLabel = generateEnhancedCSVLabel(obj, csvIdx)
+            if csvIdx == -1
+                enhancedCsvLabel = 'derived';
+                return;
+            end
+
+            csvPath = obj.App.DataManager.CSVFilePaths{csvIdx};
+            [csvDir, csvName, csvExt] = fileparts(csvPath);
+            [~, folderName] = fileparts(csvDir);  % Get parent folder name
+
+            % Check if there are other CSVs with the same filename
+            currentFileName = [csvName csvExt];
+            hasConflict = false;
+
+            for k = 1:numel(obj.App.DataManager.CSVFilePaths)
+                if k == csvIdx, continue; end  % Skip self
+                [~, otherName, otherExt] = fileparts(obj.App.DataManager.CSVFilePaths{k});
+                if strcmp([otherName otherExt], currentFileName)
+                    hasConflict = true;
+                    break;
+                end
+            end
+
+            if hasConflict
+                % Multiple CSVs have same filename - include folder name
+                enhancedCsvLabel = [folderName '_' csvName];
+            else
+                % Unique filename - use just the CSV name
+                enhancedCsvLabel = csvName;
+            end
+        end
         function saveSubplotAsImage(obj, tabIdx, subplotIdx)
             % Save subplot as image file
             try
@@ -744,57 +775,102 @@ classdef PlotManager < handle
                         % Track and generate suffix
 
 
-                        suffix = '';
-                        if ~isKey(usedSignalNames, baseName)
-                            % First time we see this base name
-                            info = struct('count', 1, 'csvs', {{csvLabel}});
+                        % Analyze signal naming requirements for this baseName
+                        signalSources = {};  % Cell array to store enhanced labels
+                        csvCounter = containers.Map('KeyType', 'char', 'ValueType', 'int32');
 
-                            if needSuffix
-                                if strcmp(csvLabel, 'derived')
-                                    suffix = '_derived';
+                        % Collect all sources of this signal name
+                        for jj = 1:numel(sigs)
+                            if strcmp(sigs{jj}.Signal, baseName)
+                                if sigs{jj}.CSVIdx == -1
+                                    enhancedLabel = 'derived';
                                 else
-                                    % Check how many different CSVs contain this baseName
-                                    nCSV = 0;
-                                    for jj = 1:numel(sigs)
-                                        if strcmp(sigs{jj}.Signal, baseName)
-                                            if sigs{jj}.CSVIdx == -1
-                                                label = 'derived';
-                                            else
-                                                [~, label, ~] = fileparts(obj.App.DataManager.CSVFilePaths{sigs{jj}.CSVIdx});
-                                            end
-                                            if ~exist('uniqueCSVLabels','var')
-                                                uniqueCSVLabels = {label};
-                                            elseif ~any(strcmp(uniqueCSVLabels, label))
-                                                uniqueCSVLabels{end+1} = label;
-                                            end
-                                        end
-                                    end
+                                    enhancedLabel = obj.generateEnhancedCSVLabel(sigs{jj}.CSVIdx);
+                                end
 
-                                    if numel(uniqueCSVLabels) > 1
-                                        suffix = ['_' csvLabel];  % signal from different CSVs → use CSV name
-                                    else
-                                        suffix = '_1';  % only one CSV → use _1, _2 etc.
-                                    end
+                                % Add to sources list
+                                signalSources{end+1} = enhancedLabel;
+
+                                % Count occurrences per CSV
+                                if csvCounter.isKey(enhancedLabel)
+                                    csvCounter(enhancedLabel) = csvCounter(enhancedLabel) + 1;
+                                else
+                                    csvCounter(enhancedLabel) = 1;
                                 end
                             end
-
-                            usedSignalNames(baseName) = info;
-
-                        else
-                            % Already seen before — assign appropriate suffix
-                            info = usedSignalNames(baseName);
-                            info.count = info.count + 1;
-
-                            if any(strcmp(info.csvs, csvLabel))
-                                suffix = ['_' num2str(info.count)];  % same CSV → _2, _3, etc.
-                            else
-                                suffix = ['_' csvLabel];  % new CSV
-                                info.csvs{end+1} = csvLabel;
-                            end
-
-                            usedSignalNames(baseName) = info;
                         end
 
+                        % Get current signal's enhanced label
+                        if csvIdx == -1
+                            currentEnhancedLabel = 'derived';
+                        else
+                            currentEnhancedLabel = obj.generateEnhancedCSVLabel(csvIdx);
+                        end
+
+                        % Determine suffix based on the three cases
+                        suffix = '';
+                        needSuffix = length(signalSources) > 1;
+
+                        if needSuffix
+                            % Count how many different CSVs have this signal
+                            uniqueCSVs = unique(signalSources);
+                            currentCSVCount = csvCounter(currentEnhancedLabel);
+
+                            if length(uniqueCSVs) == 1
+                                % Case 1: Multiple signals from SAME CSV → use _1, _2, _3...
+                                if ~isKey(usedSignalNames, baseName)
+                                    % First occurrence from this CSV
+                                    usedSignalNames(baseName) = struct('csvCounters', containers.Map('KeyType', 'char', 'ValueType', 'int32'));
+                                end
+
+                                info = usedSignalNames(baseName);
+                                csvCounters = info.csvCounters;
+
+                                if csvCounters.isKey(currentEnhancedLabel)
+                                    counter = csvCounters(currentEnhancedLabel) + 1;
+                                else
+                                    counter = 1;
+                                end
+                                csvCounters(currentEnhancedLabel) = counter;
+
+                                % Update the stored info
+                                info.csvCounters = csvCounters;
+                                usedSignalNames(baseName) = info;
+
+                                suffix = ['_{' num2str(counter),'}'];
+
+                            else
+                                % Case 2 or 3: Multiple signals from DIFFERENT CSVs
+                                if currentCSVCount > 1
+                                    % This CSV has multiple instances - need both CSV name and counter
+                                    if ~isKey(usedSignalNames, baseName)
+                                        usedSignalNames(baseName) = struct('csvCounters', containers.Map('KeyType', 'char', 'ValueType', 'int32'));
+                                    end
+
+                                    info = usedSignalNames(baseName);
+                                    csvCounters = info.csvCounters;
+
+                                    if csvCounters.isKey(currentEnhancedLabel)
+                                        counter = csvCounters(currentEnhancedLabel) + 1;
+                                    else
+                                        counter = 1;
+                                    end
+                                    csvCounters(currentEnhancedLabel) = counter;
+
+                                    % Update the stored info
+                                    info.csvCounters = csvCounters;
+                                    usedSignalNames(baseName) = info;
+
+                                    suffix = ['_{' currentEnhancedLabel '_' num2str(counter),'}'];
+                                else
+                                    % Single instance from this CSV → use CSV name (possibly with folder)
+                                    suffix = ['_{' currentEnhancedLabel,'}'];
+                                end
+                            end
+                        else
+                            % Only one instance total - no suffix needed
+                            suffix = '';
+                        end
                         % Final name used for plot/legend
                         sigName = [baseName suffix];
                         assignedSignalNames{end+1} = sigName;
