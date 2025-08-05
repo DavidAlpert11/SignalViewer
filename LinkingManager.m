@@ -437,7 +437,7 @@ classdef LinkingManager < handle
             msgbox(msg, 'Link Groups Test', 'help');
         end
 
-        function generateComparison(obj, groupDropdown, analysisDropdown, signalDropdown, dialog)
+        function generateComparison(obj, groupDropdown, analysisDropdown, signalDropdown, ~)
             if isempty(obj.LinkedGroups)
                 msgbox('No link groups available for comparison.', 'No Links', 'warn');
                 return;
@@ -512,8 +512,8 @@ classdef LinkingManager < handle
                 end
 
                 % Reference = mean
-                ref = nanmean(aligned, 1);
-                errors = nanmean(abs((aligned - ref) ./ max(abs(ref), eps)), 2) * 100;
+                ref = mean(aligned, 1);
+                errors = mean(abs((aligned - ref) ./ max(abs(ref), eps)), 2) * 100;
 
                 % Append to report
                 reportLines{end+1} = sprintf('Signal: %s', sig);
@@ -541,8 +541,8 @@ classdef LinkingManager < handle
                         title(['Difference: ' sig], 'Interpreter', 'none');
 
                     case 'Statistical Summary'
-                        meanVals = nanmean(aligned, 1);
-                        stdVals = nanstd(aligned, 0, 1);
+                        meanVals = mean(aligned, 1);
+                        stdVals = std(aligned, 0, 1);
                         fill([commonTime fliplr(commonTime)], ...
                             [meanVals+stdVals fliplr(meanVals-stdVals)], ...
                             [0.8 0.8 1], 'EdgeColor', 'none');

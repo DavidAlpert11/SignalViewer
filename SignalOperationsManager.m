@@ -193,7 +193,7 @@ classdef SignalOperationsManager < handle
             obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
 
-        function result = computeDerivative(obj, timeData, signalData, params)
+        function result = computeDerivative(~, timeData, signalData, params)
             % Compute numerical derivative
             result = struct();
 
@@ -229,7 +229,7 @@ classdef SignalOperationsManager < handle
             result.Data = derivData;
         end
 
-        function result = computeIntegral(obj, timeData, signalData, params)
+        function result = computeIntegral(~, timeData, signalData, params)
             % Compute numerical integral
             result = struct();
 
@@ -792,7 +792,7 @@ classdef SignalOperationsManager < handle
                 };
         end
 
-        function match = isSubsequence(obj, text, searchTerm)
+        function match = isSubsequence(~, text, searchTerm)
             % Check if searchTerm is a subsequence of text
             % Example: "tmp" matches "temperature"
             match = false;
@@ -815,7 +815,7 @@ classdef SignalOperationsManager < handle
             match = searchIdx > length(searchTerm);
         end
 
-        function match = acronymMatch(obj, text, searchTerm)
+        function match = acronymMatch(~, text, searchTerm)
             % Match acronyms - e.g., "xyz" matches "x_position (CSV1: xyz_data)"
             match = false;
 
@@ -837,7 +837,7 @@ classdef SignalOperationsManager < handle
             end
 
             % Check if search term matches acronym
-            match = strcmp(lower(searchTerm), acronym) || contains(acronym, lower(searchTerm));
+            match = strcmpi(searchTerm, acronym) || contains(acronym, lower(searchTerm));
         end
 
 
@@ -988,7 +988,7 @@ classdef SignalOperationsManager < handle
             % If we get here, signal was not found
             fprintf('Warning: Signal "%s" (clean: "%s") not found in derived signals or CSV data\n', signalName, cleanSignalName);
         end
-        function [commonTime, alignedA, alignedB] = alignTwoSignals(obj, timeA, dataA, timeB, dataB, interpMethod, timeRangeOption)
+        function [commonTime, alignedA, alignedB] = alignTwoSignals(~, timeA, dataA, timeB, dataB, interpMethod, timeRangeOption)
             % Align two signals to a common time base
 
             % Determine time range
@@ -1026,7 +1026,7 @@ classdef SignalOperationsManager < handle
             alignedB = alignedB(validIdx);
         end
 
-        function [commonTime, alignedData] = alignMultipleSignals(obj, timeData, signalData, interpMethod, timeRangeOption)
+        function [commonTime, alignedData] = alignMultipleSignals(~, timeData, signalData, interpMethod, timeRangeOption)
             % Align multiple signals to a common time base
 
             % Find time range
@@ -1822,7 +1822,7 @@ classdef SignalOperationsManager < handle
             end
         end
 
-        function showOperationDetails(obj, operation)
+        function showOperationDetails(~, operation)
             % Show detailed information about an operation
             d = dialog('Name', 'Operation Details', 'Position', [300 300 500 400], 'Resize', 'on');
 
@@ -1993,7 +1993,7 @@ classdef SignalOperationsManager < handle
                 signalDataExists = true;
 
                 for i = 1:length(inputSignals)
-                    [timeData, signalData] = signalOps.getSignalData(inputSignals{i});
+                    [timeData, ~] = signalOps.getSignalData(inputSignals{i});
                     if isempty(timeData)
                         signalDataExists = false;
                         fprintf('Warning: Input signal "%s" no longer exists for derived signal "%s"\n', ...
@@ -2035,7 +2035,7 @@ classdef SignalOperationsManager < handle
 
         % ADD these new recalculation methods:
 
-        function success = recalculateQuickSingleSignalOperation(obj, signalOps, operation)
+        function success = recalculateQuickSingleSignalOperation(~, signalOps, operation)
             % Recalculate quick single signal operations
 
             success = false;
@@ -2113,7 +2113,7 @@ classdef SignalOperationsManager < handle
             end
         end
 
-        function success = recalculateQuickMultiSignalOperation(obj, signalOps, operation)
+        function success = recalculateQuickMultiSignalOperation(~, signalOps, operation)
             % Recalculate quick multi signal operations
 
             success = false;
@@ -2159,13 +2159,13 @@ classdef SignalOperationsManager < handle
                 fprintf('Warning: Failed to recalculate quick multi signal operation: %s\n', ME.message);
             end
         end
-        function success = recalculateSingleSignalOperation(obj, signalOps, operation)
+        function success = recalculateSingleSignalOperation(~, signalOps, operation)
             % Recalculate single signal operations (derivative, integral)
 
             success = false;
 
             inputSignal = operation.InputSignals{1};
-            [timeData, signalData, sourceInfo] = signalOps.getSignalData(inputSignal);
+            [timeData, signalData, ~] = signalOps.getSignalData(inputSignal);
 
             if isempty(timeData)
                 return; % Signal no longer exists
@@ -2297,8 +2297,8 @@ classdef SignalOperationsManager < handle
             signalA = operation.InputSignals{1};
             signalB = operation.InputSignals{2};
 
-            [timeA, dataA, sourceInfoA] = signalOps.getSignalData(signalA);
-            [timeB, dataB, sourceInfoB] = signalOps.getSignalData(signalB);
+            [timeA, dataA, ~] = signalOps.getSignalData(signalA);
+            [timeB, dataB, ~] = signalOps.getSignalData(signalB);
 
             if isempty(timeA) || isempty(timeB)
                 return; % One or both signals no longer exist
@@ -2434,7 +2434,7 @@ classdef SignalOperationsManager < handle
             end
         end
 
-        function match = checkTimeBasesMatch(obj, timeA, timeB)
+        function match = checkTimeBasesMatch(~, timeA, timeB)
             % Check if two time vectors have matching time bases (within tolerance)
 
             if length(timeA) ~= length(timeB)

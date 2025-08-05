@@ -381,7 +381,7 @@ classdef DataManager < handle
             end
         end
 
-        function cleanedData = cleanupJoinedData(obj, joinedData)
+        function cleanedData = cleanupJoinedData(~, joinedData)
             % Clean up outerjoin results by handling _left/_right suffixes
             cleanedData = joinedData;
             if ~istable(cleanedData)
@@ -415,7 +415,7 @@ classdef DataManager < handle
             end
         end
 
-        function updateStreamingStatus(obj, idx, newRowCount)
+        function updateStreamingStatus(obj, idx, ~)
             % Update status labels with streaming information for a specific CSV
             app = obj.App;
             % Calculate data rate using Time column if possible
@@ -488,7 +488,7 @@ classdef DataManager < handle
             fileName = [name, ext];
         end
 
-        function tf = validateCSV(obj, filePath)
+        function tf = validateCSV(~, filePath)
             tf = false;
             if ~isfile(filePath)
                 return;

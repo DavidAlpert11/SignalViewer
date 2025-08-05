@@ -233,7 +233,7 @@ classdef UIController < handle
             end
         end
 
-        function part = getLastPart(obj, s)
+        function part = getLastPart(~, s)
             parts = split(s, ':');
             part = strtrim(parts{end});
         end

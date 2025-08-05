@@ -15,7 +15,7 @@ classdef PlotManager < handle
         % Add properties for stable streaming
         AxesLimits  % Store current limits to prevent jumping
         LastDataTime % Track last data time for each axes
-
+        XAxisSignals
     end
 
     methods
@@ -51,7 +51,6 @@ classdef PlotManager < handle
             % Create first tab with LIGHT MODE styling - NO X icon initially
             tab = uitab(obj.App.MainTabGroup, 'Title', 'Tab 1', ...
                 'BackgroundColor', [0.98 0.98 0.98]);
-
             % Create a parent layout with 2 rows: [control panel; plot area]
             mainLayout = uigridlayout(tab, [2, 1]);
             mainLayout.RowHeight = {60, '1x'}; % Top row: fixed 60px, Bottom: fills remaining space
@@ -147,8 +146,8 @@ classdef PlotManager < handle
                 newAx.XLabel.String = sourceAx.XLabel.String;
                 newAx.YLabel.String = sourceAx.YLabel.String;
                 newAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
-                newAx.XLim = sourceAx.XLim;
-                newAx.YLim = sourceAx.YLim;
+                % newAx.XLim = sourceAx.XLim;
+                % newAx.YLim = sourceAx.YLim;
 
                 % Copy grid settings
                 grid(newAx, 'on');
@@ -222,8 +221,8 @@ classdef PlotManager < handle
                 tempAx.XLabel.String = sourceAx.XLabel.String;
                 tempAx.YLabel.String = sourceAx.YLabel.String;
                 tempAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
-                tempAx.XLim = sourceAx.XLim;
-                tempAx.YLim = sourceAx.YLim;
+                % tempAx.XLim = sourceAx.XLim;
+                % tempAx.YLim = sourceAx.YLim;
 
                 % Set normal colors
                 tempAx.XColor = [0.15 0.15 0.15];
@@ -327,8 +326,8 @@ classdef PlotManager < handle
                 tempAx.XLabel.String = sourceAx.XLabel.String;
                 tempAx.YLabel.String = sourceAx.YLabel.String;
                 tempAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
-                tempAx.XLim = sourceAx.XLim;
-                tempAx.YLim = sourceAx.YLim;
+                % tempAx.XLim = sourceAx.XLim;
+                % tempAx.YLim = sourceAx.YLim;
 
                 % Set normal colors
                 tempAx.XColor = [0.15 0.15 0.15];
@@ -452,6 +451,8 @@ classdef PlotManager < handle
                 obj.AxesLimits{tabIdx}{i} = struct('XLim', [], 'YLim', [], 'HasData', false);
                 obj.LastDataTime{tabIdx}{i} = 0;
 
+
+                obj.XAxisSignals{tabIdx, i} = 'Time';
                 % Add click callback for subplot selection
                 ax.ButtonDownFcn = @(src, event) obj.selectSubplot(tabIdx, i);
 
@@ -479,6 +480,9 @@ classdef PlotManager < handle
                 uimenu(cm, 'Text', '🗑️ Clear Subplot', ...
                     'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
 
+                uimenu(cm, 'Text', '⏱️ Reset X-Axis to Time', ...
+                    'MenuSelectedFcn', @(src, event) obj.resetXAxisToTime(tabIdx, i), ...
+                    'Separator', 'on');
 
                 % IMPORTANT: Set context menu BEFORE enabling any cursor modes
                 ax.ContextMenu = cm;
@@ -493,7 +497,10 @@ classdef PlotManager < handle
         end
 
 
-
+        function resetXAxisToTime(obj, tabIdx, subplotIdx)
+            obj.XAxisSignals{tabIdx, subplotIdx} = 'Time';
+            obj.refreshPlots(tabIdx);
+        end
 
         function showPDFExportDialog(obj)
             app = obj.App;
@@ -687,6 +694,17 @@ classdef PlotManager < handle
                     assigned = assignments{k};
                     expanded = {};
 
+                    xSignal = obj.XAxisSignals{tabIdx, k};
+
+                    if ischar(xSignal) && strcmp(xSignal, 'Time')
+                        ax.XLabel.String = 'Time';
+                    elseif isstruct(xSignal) && isfield(xSignal, 'Signal')
+                        % ax.XLabel.String = [xSignal.Signal,create_suffix(obj,csvCounter, xSignal.Signal, tabIdx, k,signalSources,currentEnhancedLabel,usedSignalNames)];
+                        ax.XLabel.String = [xSignal.Signal];
+                    else
+                        ax.XLabel.String = 'X';
+                    end
+
                     for idx = 1:numel(assigned)
                         sig = assigned{idx};
 
@@ -717,22 +735,25 @@ classdef PlotManager < handle
                                 obj.forceAutoScale(ax);
                             else
                                 % During streaming, keep reasonable defaults
-                                ax.XLim = [0 10];
-                                ax.YLim = [-1 1];
+                                % ax.XLim = [0 10];
+                                % ax.YLim = [-1 1];
                                 ax.XLimMode = 'manual';
                                 ax.YLimMode = 'manual';
                             end
                         else
                             % Keep existing limits and remove all signal plots
                             obj.removeAllSignalPlots(ax);
-                            ax.XLim = currentXLim;
-                            ax.YLim = currentYLim;
+                            % ax.XLim = currentXLim;
+                            % ax.YLim = currentYLim;
                             ax.XLimMode = 'manual';
                             ax.YLimMode = 'manual';
                         end
                         hold(ax, 'off');
+                        % Set dynamic X-axis label
+
                         continue;
                     end
+
 
                     % Collect all time and value data for limit calculation
                     allTimeData = [];
@@ -756,6 +777,7 @@ classdef PlotManager < handle
                         end
                     end
 
+
                     % Plot all signals
                     for j = 1:numel(sigs)
                         sigInfo = sigs{j};
@@ -766,7 +788,7 @@ classdef PlotManager < handle
                         if csvIdx == -1
                             csvLabel = 'derived';
                         else
-                            [~, csvLabel, ~] = fileparts(obj.App.DataManager.CSVFilePaths{csvIdx});
+                            [~, ~, ~] = fileparts(obj.App.DataManager.CSVFilePaths{csvIdx});
                         end
 
                         % Check if suffixing is needed
@@ -807,77 +829,14 @@ classdef PlotManager < handle
                             currentEnhancedLabel = obj.generateEnhancedCSVLabel(csvIdx);
                         end
 
+
                         % Determine suffix based on signal name conflicts in UI tree
-                        suffix = '';
+                        suffix = create_suffix(obj,csvCounter, baseName, tabIdx, k,signalSources,currentEnhancedLabel,usedSignalNames);
 
-                        % Check if this signal name exists elsewhere in the UI tree (across all tabs/axes)
-                        hasConflictInUITree = obj.checkSignalNameConflictInUITree(baseName, tabIdx, k);
 
-                        % Apply suffix if there are multiple sources OR if there's a conflict in UI tree
-                        needSuffix = length(signalSources) > 1 || hasConflictInUITree;
-
-                        if needSuffix
-                            % Count how many different CSVs have this signal
-                            uniqueCSVs = unique(signalSources);
-                            currentCSVCount = csvCounter(currentEnhancedLabel);
-
-                            if length(uniqueCSVs) == 1 && ~hasConflictInUITree
-                                % Case 1: Multiple signals from SAME CSV → use _1, _2, _3...
-                                if ~isKey(usedSignalNames, baseName)
-                                    % First occurrence from this CSV
-                                    usedSignalNames(baseName) = struct('csvCounters', containers.Map('KeyType', 'char', 'ValueType', 'int32'));
-                                end
-
-                                info = usedSignalNames(baseName);
-                                csvCounters = info.csvCounters;
-
-                                if csvCounters.isKey(currentEnhancedLabel)
-                                    counter = csvCounters(currentEnhancedLabel) + 1;
-                                else
-                                    counter = 1;
-                                end
-                                csvCounters(currentEnhancedLabel) = counter;
-
-                                % Update the stored info
-                                info.csvCounters = csvCounters;
-                                usedSignalNames(baseName) = info;
-
-                                suffix = ['_{' num2str(counter),'}'];
-
-                            else
-                                % Case 2, 3, or UI tree conflict: Multiple signals from DIFFERENT CSVs or conflict exists
-                                if currentCSVCount > 1
-                                    % This CSV has multiple instances - need both CSV name and counter
-                                    if ~isKey(usedSignalNames, baseName)
-                                        usedSignalNames(baseName) = struct('csvCounters', containers.Map('KeyType', 'char', 'ValueType', 'int32'));
-                                    end
-
-                                    info = usedSignalNames(baseName);
-                                    csvCounters = info.csvCounters;
-
-                                    if csvCounters.isKey(currentEnhancedLabel)
-                                        counter = csvCounters(currentEnhancedLabel) + 1;
-                                    else
-                                        counter = 1;
-                                    end
-                                    csvCounters(currentEnhancedLabel) = counter;
-
-                                    % Update the stored info
-                                    info.csvCounters = csvCounters;
-                                    usedSignalNames(baseName) = info;
-
-                                    suffix = ['_{' currentEnhancedLabel '_' num2str(counter),'}'];
-                                else
-                                    % Single instance from this CSV → use CSV name (possibly with folder)
-                                    suffix = ['_{' currentEnhancedLabel,'}'];
-                                end
-                            end
-                        else
-                            % Only one instance total and no UI tree conflict - no suffix needed
-                            suffix = '';
-                        end
                         % Final name used for plot/legend
                         sigName = [baseName suffix];
+
                         assignedSignalNames{end+1} = sigName;
                         if sigInfo.CSVIdx == -1  % Derived signal indicator
                             % Get derived signal data
@@ -896,7 +855,22 @@ classdef PlotManager < handle
                             if ~any(validData)
                                 continue;
                             end
-                            timeData = T.Time(validData);
+                            % Use selected X-axis signal for this subplot
+                            xSignal = obj.XAxisSignals{tabIdx, k};
+                            useTimeAsX = ischar(xSignal) && strcmp(xSignal, 'Time');
+
+                            if useTimeAsX
+                                xData = T.Time(validData);
+                            elseif isstruct(xSignal)
+                                % Verify the struct matches current CSV
+                                if xSignal.CSVIdx == sigInfo.CSVIdx && ismember(xSignal.Signal, T.Properties.VariableNames)
+                                    xData = T.(xSignal.Signal)(validData);
+                                else
+                                    xData = T.Time(validData);  % fallback
+                                end
+                            else
+                                xData = T.Time(validData);  % fallback
+                            end
                             signalData = T.(baseName)(validData);
                         end
 
@@ -908,7 +882,7 @@ classdef PlotManager < handle
                         scaledData = signalData * scaleFactor;
 
                         % Collect data for limit calculation
-                        allTimeData = [allTimeData; timeData];
+                        allTimeData = [allTimeData; xData];
                         allValueData = [allValueData; scaledData];
 
                         % Use custom color and line width if set
@@ -942,24 +916,26 @@ classdef PlotManager < handle
 
                         if isStateSignal
                             % State signals: draw vertical xlines
-                            obj.plotStateSignalStable(ax, timeData, scaledData, color, sigName, currentYLim, width);
+                            obj.plotStateSignalStable(ax, xData, scaledData, color, sigName, currentYLim, width);
                         else
                             % Regular signals: update existing or create new
                             if shouldClearAndRecreate
-                                h = plot(ax, timeData, scaledData, ...
+                                h = plot(ax, xData, scaledData, ...
                                     'LineWidth', width, ...
                                     'Color', color, ...
                                     'DisplayName', sigName);
                                 plotHandles(end+1) = h;
                                 plotLabels{end+1} = sigName;
                             else
-                                h = obj.updateOrCreateSignalPlot(ax, sigName, timeData, scaledData, color, width);
+                                h = obj.updateOrCreateSignalPlot(ax, sigName, xData, scaledData, color, width);
                                 if ~isempty(h)
                                     plotHandles(end+1) = h;
                                     plotLabels{end+1} = sigName;
                                 end
                             end
                         end
+
+
                     end
 
                     % Remove plots for signals no longer assigned (only during streaming)
@@ -987,8 +963,8 @@ classdef PlotManager < handle
                         % No data case
                         if hasExistingData && ~shouldClearAndRecreate
                             % Keep existing limits if we have existing data but no new data
-                            ax.XLim = currentXLim;
-                            ax.YLim = currentYLim;
+                            % ax.XLim = currentXLim;
+                            % ax.YLim = currentYLim;
                             ax.XLimMode = 'manual';
                             ax.YLimMode = 'manual';
                         else
@@ -998,8 +974,8 @@ classdef PlotManager < handle
                                 obj.forceAutoScale(ax);
                             else
                                 % Streaming but no data: set reasonable defaults
-                                ax.XLim = [0 10];
-                                ax.YLim = [-1 1];
+                                % ax.XLim = [0 10];
+                                % ax.YLim = [-1 1];
                                 ax.XLimMode = 'manual';
                                 ax.YLimMode = 'manual';
                             end
@@ -1030,9 +1006,77 @@ classdef PlotManager < handle
 
             % Restore highlight after refresh
             obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
+            autoScaleCurrentSubplot(obj.App);
         end
+        function suffix = create_suffix(obj, csvCounter,baseName, tabIdx, k,signalSources,currentEnhancedLabel,usedSignalNames)
+            % Check if this signal name exists elsewhere in the UI tree (across all tabs/axes)
+            hasConflictInUITree = obj.checkSignalNameConflictInUITree(baseName, tabIdx, k);
 
-        function success = forceAutoScale(obj, ax)
+            % Apply suffix if there are multiple sources OR if there's a conflict in UI tree
+            needSuffix = length(signalSources) > 1 || hasConflictInUITree;
+
+            if needSuffix
+                % Count how many different CSVs have this signal
+                uniqueCSVs = unique(signalSources);
+                currentCSVCount = csvCounter(currentEnhancedLabel);
+
+                if length(uniqueCSVs) == 1 && ~hasConflictInUITree
+                    % Case 1: Multiple signals from SAME CSV → use _1, _2, _3...
+                    if ~isKey(usedSignalNames, baseName)
+                        % First occurrence from this CSV
+                        usedSignalNames(baseName) = struct('csvCounters', containers.Map('KeyType', 'char', 'ValueType', 'int32'));
+                    end
+
+                    info = usedSignalNames(baseName);
+                    csvCounters = info.csvCounters;
+
+                    if csvCounters.isKey(currentEnhancedLabel)
+                        counter = csvCounters(currentEnhancedLabel) + 1;
+                    else
+                        counter = 1;
+                    end
+                    csvCounters(currentEnhancedLabel) = counter;
+
+                    % Update the stored info
+                    info.csvCounters = csvCounters;
+                    usedSignalNames(baseName) = info;
+
+                    suffix = ['_{' num2str(counter),'}'];
+
+                else
+                    % Case 2, 3, or UI tree conflict: Multiple signals from DIFFERENT CSVs or conflict exists
+                    if currentCSVCount > 1
+                        % This CSV has multiple instances - need both CSV name and counter
+                        if ~isKey(usedSignalNames, baseName)
+                            usedSignalNames(baseName) = struct('csvCounters', containers.Map('KeyType', 'char', 'ValueType', 'int32'));
+                        end
+
+                        info = usedSignalNames(baseName);
+                        csvCounters = info.csvCounters;
+
+                        if csvCounters.isKey(currentEnhancedLabel)
+                            counter = csvCounters(currentEnhancedLabel) + 1;
+                        else
+                            counter = 1;
+                        end
+                        csvCounters(currentEnhancedLabel) = counter;
+
+                        % Update the stored info
+                        info.csvCounters = csvCounters;
+                        usedSignalNames(baseName) = info;
+
+                        suffix = ['_{' currentEnhancedLabel '_' num2str(counter),'}'];
+                    else
+                        % Single instance from this CSV → use CSV name (possibly with folder)
+                        suffix = ['_{' currentEnhancedLabel,'}'];
+                    end
+                end
+            else
+                % Only one instance total and no UI tree conflict - no suffix needed
+                suffix = '';
+            end
+        end
+        function success = forceAutoScale(~, ax)
             % Force auto-scaling on an axes - same logic as AutoScaleButton
             success = false;
             try
@@ -1163,7 +1207,7 @@ classdef PlotManager < handle
         end
 
         % **NEW METHOD: Find existing signal plot by name**
-        function line = findSignalPlot(obj, ax, sigName)
+        function line = findSignalPlot(~, ax, sigName)
             line = [];
             if isempty(ax.Children)
                 return;
@@ -1201,7 +1245,7 @@ classdef PlotManager < handle
 
 
         % **NEW METHOD: Remove all signal plots**
-        function removeAllSignalPlots(obj, ax)
+        function removeAllSignalPlots(~, ax)
             if isempty(ax.Children)
                 return;
             end
@@ -1223,7 +1267,7 @@ classdef PlotManager < handle
         end
 
         % **NEW METHOD: Remove plots for unassigned signals**
-        function removeUnassignedSignalPlots(obj, ax, assignedSignalNames)
+        function removeUnassignedSignalPlots(~, ax, assignedSignalNames)
             if isempty(ax.Children)
                 return;
             end
@@ -1252,7 +1296,7 @@ classdef PlotManager < handle
         end
 
         % **NEW METHOD: Update limits during streaming**
-        function updateLimitsForStreaming(obj, ax, allTimeData, allValueData, currentXLim, currentYLim, hasExistingData)
+        function updateLimitsForStreaming(~, ax, allTimeData, allValueData, currentXLim, currentYLim, hasExistingData)
             % Calculate new limits based on data
             dataXMin = min(allTimeData);
             dataXMax = max(allTimeData);
@@ -1287,32 +1331,41 @@ classdef PlotManager < handle
             end
 
             % Set limits
-            ax.XLim = finalXLim;
-            ax.YLim = finalYLim;
+            % ax.XLim = finalXLim;
+            % ax.YLim = finalYLim;
             ax.XLimMode = 'manual';
             ax.YLimMode = 'manual';
         end
 
         % **NEW METHOD: Link all axes**
         function linkAllAxes(obj)
-            allAxes = [];
+            allAxesToLink = [];
+
             for i = 1:numel(obj.AxesArrays)
                 if ~isempty(obj.AxesArrays{i})
                     for j = 1:numel(obj.AxesArrays{i})
                         ax = obj.AxesArrays{i}(j);
                         if isvalid(ax) && isgraphics(ax)
-                            allAxes = [allAxes, ax];
+                            % Check if this subplot uses 'Time' as X-axis
+                            if ischar(obj.XAxisSignals{i, j}) && strcmp(obj.XAxisSignals{i, j}, 'Time')
+                                allAxesToLink = [allAxesToLink, ax];
+                            else
+                                % Unlink this individual axis if not using 'Time'
+                                linkaxes(ax, 'off');
+                            end
                         end
                     end
                 end
             end
-            if ~isempty(allAxes)
-                linkaxes(allAxes, 'x');
+
+            if ~isempty(allAxesToLink)
+                linkaxes(allAxesToLink, 'x');
             end
         end
 
+
         % **UPDATED METHOD: Improved state signal plotting**
-        function plotStateSignalStable(obj, ax, timeData, valueData, color, label, currentYLim, lineWidth)
+        function plotStateSignalStable(~, ax, timeData, valueData, color, label, ~, lineWidth)
             if isempty(timeData)
                 return;
             end
@@ -1489,7 +1542,7 @@ classdef PlotManager < handle
                 end
             end
         end
-        function handleTabClick(obj, tab, event)
+        function handleTabClick(obj, tab, ~)
             % Handle tab clicks - double-click to close
             persistent lastClickTime lastClickedTab
 
@@ -2144,7 +2197,7 @@ classdef PlotManager < handle
         end
 
 
-        function createTitlePageContent(obj, ax, options)
+        function createTitlePageContent(obj, ax, ~)
             app = obj.App;
 
             axis(ax, 'off');
@@ -2518,7 +2571,7 @@ classdef PlotManager < handle
             end
         end
 
-        function createTitlePage(obj, fig, options)
+        function createTitlePage(obj, fig, ~)
             app = obj.App;
 
             % Create title page layout
@@ -2552,7 +2605,7 @@ classdef PlotManager < handle
                 'HorizontalAlignment', 'center', 'Units', 'normalized');
         end
 
-        function createPlotPage(obj, fig, tabIdx, subplotIdx, figureNumber, options)
+        function createPlotPage(obj, fig, tabIdx, subplotIdx, figureNumber, ~)
             app = obj.App;
 
             % Get source axes
@@ -2583,7 +2636,7 @@ classdef PlotManager < handle
 
 
 
-        function copyPlotContent(obj, sourceAx, targetAx)
+        function copyPlotContent(~, sourceAx, targetAx)
             % Copy plot content excluding highlight borders
             allChildren = allchild(sourceAx);
             validChildren = [];
@@ -2620,8 +2673,8 @@ classdef PlotManager < handle
             % Copy axes properties
             targetAx.XLabel.String = sourceAx.XLabel.String;
             targetAx.YLabel.String = sourceAx.YLabel.String;
-            targetAx.XLim = sourceAx.XLim;
-            targetAx.YLim = sourceAx.YLim;
+            % targetAx.XLim = sourceAx.XLim;
+            % targetAx.YLim = sourceAx.YLim;
 
             % Set normal styling
             targetAx.XColor = [0.15 0.15 0.15];
@@ -2734,7 +2787,7 @@ classdef PlotManager < handle
             close(pdfFig);
         end
 
-        function success = appendPDFPage(obj, mainPdfFile, pagePdfFile)
+        function success = appendPDFPage(~, mainPdfFile, pagePdfFile)
             success = false;
 
             try
@@ -2859,7 +2912,7 @@ classdef PlotManager < handle
             end
         end
 
-        function subplotTitle = getSubplotTitle(obj, app, tabIdx, subplotIdx)
+        function subplotTitle = getSubplotTitle(~, app, tabIdx, subplotIdx)
             % Get subplot title, with fallback to default
             subplotTitle = '';
 
@@ -2876,7 +2929,7 @@ classdef PlotManager < handle
         end
 
         % Custom data tip text function (like SDI)
-        function txt = customDataTipText(obj, ~, event_obj)
+        function txt = customDataTipText(~, ~, event_obj)
             % Get position and target
             pos = get(event_obj, 'Position');
             target = get(event_obj, 'Target');
@@ -2969,7 +3022,7 @@ classdef PlotManager < handle
             % Debug output to see what's happening
             % fprintf('Original: "%s" -> Processed: "%s"\n', text, processedText);
         end
-        function isHebrew = containsHebrew(obj, text)
+        function isHebrew = containsHebrew(~, text)
             % Check if text contains Hebrew characters (Unicode range 1424-1535)
             isHebrew = false;
 
@@ -3047,7 +3100,7 @@ classdef PlotManager < handle
     methods (Access = private)
         function ensurePlusTab(obj)
             % Check if + tab already exists
-            plusTabIdx = find(cellfun(@(t) strcmp(t.Title, '+'), obj.PlotTabs));
+            plusTabIdx = find(cellfun(@(t) strcmp(t.Title, '+'), obj.PlotTabs), 1);
 
             if isempty(plusTabIdx)
                 % No + tab exists, create one

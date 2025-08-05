@@ -27,97 +27,102 @@ classdef ConfigManager < handle
         end
 
         function saveConfig(obj, customPath)
-    % Enhanced save configuration - now handles optional customPath
-    app = obj.App;
+            % Enhanced save configuration - now handles optional customPath
+            app = obj.App;
 
-    if nargin < 2 || isempty(customPath)
-        [file, path] = uiputfile('*.mat', 'Save Configuration', obj.ConfigFile);
-        if isequal(file, 0), return; end
-        customPath = fullfile(path, file);
-    end
-
-    try
-        if ~obj.validateAppData()
-            app.StatusLabel.Text = '❌ Invalid application data - cannot save configuration';
-            app.StatusLabel.FontColor = [0.9 0.3 0.3];
-            app.restoreFocus();
-            return;
-        end
-
-        config = struct();
-        
-        % === CORE CONFIGURATION ===
-        config.AssignedSignals = app.PlotManager.AssignedSignals;
-        config.TabLayouts = app.PlotManager.TabLayouts;
-        config.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
-        config.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
-        config.NumTabs = numel(app.PlotManager.TabLayouts);
-
-        % === SIGNAL PROPERTIES ===
-        config.SignalScaling = app.DataManager.SignalScaling;
-        config.StateSignals = app.DataManager.StateSignals;
-
-        % === UI STATE ===
-        config.SubplotMetadata = app.safeGetProperty('SubplotMetadata', {});
-        config.SignalStyles = app.safeGetProperty('SignalStyles', struct());
-        config.SubplotCaptions = app.safeGetProperty('SubplotCaptions', {});
-        config.SubplotDescriptions = app.safeGetProperty('SubplotDescriptions', {});
-        config.SubplotTitles = app.safeGetProperty('SubplotTitles', {});
-        config.ExpandedTreeNodes = app.safeGetProperty('ExpandedTreeNodes', string.empty);
-        
-        % === TAB CONTROLS STATE ===
-        config.TabControlsData = {};
-        try
-            if isprop(app.PlotManager, 'TabControls') && ~isempty(app.PlotManager.TabControls)
-                config.TabControlsData = cell(1, numel(app.PlotManager.TabControls));
-                for i = 1:numel(app.PlotManager.TabControls)
-                    if ~isempty(app.PlotManager.TabControls{i})
-                        config.TabControlsData{i} = struct(...
-                            'RowsValue', app.PlotManager.TabControls{i}.RowsSpinner.Value, ...
-                            'ColsValue', app.PlotManager.TabControls{i}.ColsSpinner.Value);
-                    end
-                end
+            if nargin < 2 || isempty(customPath)
+                [file, path] = uiputfile('*.mat', 'Save Configuration', obj.ConfigFile);
+                if isequal(file, 0), return; end
+                customPath = fullfile(path, file);
             end
-        catch
-            config.TabControlsData = {};
+
+            try
+                if ~obj.validateAppData()
+                    app.StatusLabel.Text = '❌ Invalid application data - cannot save configuration';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    app.restoreFocus();
+                    return;
+                end
+
+                config = struct();
+
+                % === CORE CONFIGURATION ===
+                config.AssignedSignals = app.PlotManager.AssignedSignals;
+                config.TabLayouts = app.PlotManager.TabLayouts;
+                config.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
+                config.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
+                config.NumTabs = numel(app.PlotManager.TabLayouts);
+
+                % === SIGNAL PROPERTIES ===
+                config.SignalScaling = app.DataManager.SignalScaling;
+                config.StateSignals = app.DataManager.StateSignals;
+
+                % === UI STATE ===
+                config.SubplotMetadata = app.safeGetProperty('SubplotMetadata', {});
+                config.SignalStyles = app.safeGetProperty('SignalStyles', struct());
+                config.SubplotCaptions = app.safeGetProperty('SubplotCaptions', {});
+                config.SubplotDescriptions = app.safeGetProperty('SubplotDescriptions', {});
+                config.SubplotTitles = app.safeGetProperty('SubplotTitles', {});
+                config.ExpandedTreeNodes = app.safeGetProperty('ExpandedTreeNodes', string.empty);
+
+                % === TAB CONTROLS STATE ===
+                config.TabControlsData = {};
+                try
+                    if isprop(app.PlotManager, 'TabControls') && ~isempty(app.PlotManager.TabControls)
+                        config.TabControlsData = cell(1, numel(app.PlotManager.TabControls));
+                        for i = 1:numel(app.PlotManager.TabControls)
+                            if ~isempty(app.PlotManager.TabControls{i})
+                                config.TabControlsData{i} = struct(...
+                                    'RowsValue', app.PlotManager.TabControls{i}.RowsSpinner.Value, ...
+                                    'ColsValue', app.PlotManager.TabControls{i}.ColsSpinner.Value);
+                            end
+                        end
+                    end
+                catch
+                    config.TabControlsData = {};
+                end
+
+                % === DERIVED SIGNALS ===
+                if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
+                    config.DerivedSignals = app.SignalOperations.DerivedSignals;
+                    config.OperationHistory = app.SignalOperations.OperationHistory;
+                    config.OperationCounter = app.SignalOperations.OperationCounter;
+                end
+
+                % === LINKING CONFIGURATION ===
+                if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
+                    config.LinkedGroups = app.LinkingManager.LinkedGroups;
+                    config.AutoLinkEnabled = app.LinkingManager.AutoLinkEnabled;
+                    config.LinkingMode = app.LinkingManager.LinkingMode;
+                end
+
+                % === METADATA ===
+                config.ConfigVersion = '2.1';
+                config.MatlabVersion = version();
+                config.SaveTimestamp = datetime('now');
+
+                if isfile(customPath)
+                    obj.createBackup(customPath);
+                end
+                
+                try
+                    config.XAxisSignals = app.XAxisSignals;
+                catch
+                    config.XAxisSignals = {};
+                end
+                save(customPath, 'config', '-v7.3');
+                obj.LastSavedConfig = config;
+
+                [~, fileName] = fileparts(customPath);
+                app.StatusLabel.Text = sprintf('✅ Config saved: %s.mat', fileName);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.handleError(ME, 'Save failed');
+            end
+
+            app.restoreFocus();
         end
-
-        % === DERIVED SIGNALS ===
-        if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
-            config.DerivedSignals = app.SignalOperations.DerivedSignals;
-            config.OperationHistory = app.SignalOperations.OperationHistory;
-            config.OperationCounter = app.SignalOperations.OperationCounter;
-        end
-
-        % === LINKING CONFIGURATION ===
-        if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
-            config.LinkedGroups = app.LinkingManager.LinkedGroups;
-            config.AutoLinkEnabled = app.LinkingManager.AutoLinkEnabled;
-            config.LinkingMode = app.LinkingManager.LinkingMode;
-        end
-        
-        % === METADATA ===
-        config.ConfigVersion = '2.1';
-        config.MatlabVersion = version();
-        config.SaveTimestamp = datetime('now');
-
-        if isfile(customPath)
-            obj.createBackup(customPath);
-        end
-
-        save(customPath, 'config', '-v7.3');
-        obj.LastSavedConfig = config;
-
-        [~, fileName] = fileparts(customPath);
-        app.StatusLabel.Text = sprintf('✅ Config saved: %s.mat', fileName);
-        app.StatusLabel.FontColor = [0.2 0.6 0.9];
-
-    catch ME
-        obj.handleError(ME, 'Save failed');
-    end
-    
-    app.restoreFocus();
-end
 
         function value = getOrDefault(obj, propName, defaultValue)
             % Safely get property value with default fallback
@@ -127,7 +132,7 @@ end
                 value = defaultValue;
             end
         end
-        
+
 
         function showConfigLoadSummary(obj, config, isCompatible, missingSignals)
             % Show summary of configuration load results
@@ -160,7 +165,7 @@ end
                 if length(missingSignals) > 10
                     details = [details sprintf('  ... and %d more\n', length(missingSignals) - 10)];
                 end
-                details = [details sprintf('\n')];
+                details = [details newline];
             end
 
             if ~isempty(extraSignals)
@@ -505,7 +510,7 @@ end
             end
         end
 
-        function tf = validateConfigVersion(obj, config)
+        function tf = validateConfigVersion(~, config)
             % Validate configuration version compatibility
             tf = true;
 
@@ -524,7 +529,7 @@ end
             end
         end
 
-        function createBackup(obj, filePath)
+        function createBackup(~, filePath)
             % Create backup of existing configuration file
             try
                 [path, name, ext] = fileparts(filePath);
@@ -535,7 +540,7 @@ end
             end
         end
 
-        function value = safeGet(obj, source, defaultValue)
+        function value = safeGet(~, source, defaultValue)
             % Safely get value with default fallback
             try
                 if isempty(source)
@@ -587,85 +592,89 @@ end
         end
 
         function loadConfig(obj, customPath)
-    % Enhanced load configuration - now handles optional customPath
-    app = obj.App;
+            % Enhanced load configuration - now handles optional customPath
+            app = obj.App;
 
-    if nargin < 2 || isempty(customPath)
-        [file, path] = uigetfile('*.mat', 'Load Configuration');
-        if isequal(file, 0), return; end
-        customPath = fullfile(path, file);
-    end
+            if nargin < 2 || isempty(customPath)
+                [file, path] = uigetfile('*.mat', 'Load Configuration');
+                if isequal(file, 0), return; end
+                customPath = fullfile(path, file);
+            end
 
-    try
-        if ~isfile(customPath)
-            app.StatusLabel.Text = '❌ Configuration file not found';
-            app.StatusLabel.FontColor = [0.9 0.3 0.3];
-            app.restoreFocus();
-            return;
-        end
-
-        if ~app.hasSignalsLoaded()
-            answer = uiconfirm(app.UIFigure, ...
-                'No CSV data loaded. Load CSV files first to apply this configuration.', ...
-                'No Data Loaded', ...
-                'Options', {'Load CSVs First', 'Load Config Only', 'Cancel'}, ...
-                'DefaultOption', 'Load CSVs First');
-            
-            switch answer
-                case 'Load CSVs First'
-                    app.UIController.loadMultipleCSVs();
+            try
+                if ~isfile(customPath)
+                    app.StatusLabel.Text = '❌ Configuration file not found';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
                     app.restoreFocus();
                     return;
-                case 'Cancel'
+                end
+
+                if ~app.hasSignalsLoaded()
+                    answer = uiconfirm(app.UIFigure, ...
+                        'No CSV data loaded. Load CSV files first to apply this configuration.', ...
+                        'No Data Loaded', ...
+                        'Options', {'Load CSVs First', 'Load Config Only', 'Cancel'}, ...
+                        'DefaultOption', 'Load CSVs First');
+
+                    switch answer
+                        case 'Load CSVs First'
+                            app.UIController.loadMultipleCSVs();
+                            app.restoreFocus();
+                            return;
+                        case 'Cancel'
+                            app.restoreFocus();
+                            return;
+                    end
+                end
+
+                loaded = load(customPath);
+                if ~isfield(loaded, 'config')
+                    app.StatusLabel.Text = '❌ Invalid configuration file format';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
                     app.restoreFocus();
                     return;
-            end
-        end
+                end
 
-        loaded = load(customPath);
-        if ~isfield(loaded, 'config')
-            app.StatusLabel.Text = '❌ Invalid configuration file format';
-            app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                config = loaded.config;
+
+                % === CHECK COMPATIBILITY ===
+                [isCompatible, missingSignals, ~] = app.checkConfigCompatibility(config);
+
+                if ~isCompatible && ~isempty(missingSignals)
+                    answer = uiconfirm(app.UIFigure, ...
+                        sprintf('Some configured signals are missing. Continue with partial loading?\n\nMissing: %s', ...
+                        strjoin(missingSignals(1:min(5,end)), ', ')), ...
+                        'Signal Compatibility', ...
+                        'Options', {'Load Compatible Parts', 'Cancel'}, ...
+                        'DefaultOption', 'Load Compatible Parts');
+
+                    if strcmp(answer, 'Cancel')
+                        app.restoreFocus();
+                        return;
+                    end
+                end
+
+                % === APPLY CONFIGURATION ===
+                obj.applyConfiguration(config);
+
+                [~, fileName] = fileparts(customPath);
+                if isCompatible
+                    app.StatusLabel.Text = sprintf('✅ Config loaded: %s.mat', fileName);
+                else
+                    app.StatusLabel.Text = sprintf('⚠️ Config partially loaded: %s.mat', fileName);
+                end
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                
+
+                if isfield(config, 'XAxisSignals')
+                    app.PlotManager.XAxisSignals = config.XAxisSignals;
+                end
+            catch ME
+                obj.handleError(ME, 'Load failed');
+            end
+
             app.restoreFocus();
-            return;
         end
-
-        config = loaded.config;
-
-        % === CHECK COMPATIBILITY ===
-        [isCompatible, missingSignals, extraSignals] = app.checkConfigCompatibility(config);
-        
-        if ~isCompatible && ~isempty(missingSignals)
-            answer = uiconfirm(app.UIFigure, ...
-                sprintf('Some configured signals are missing. Continue with partial loading?\n\nMissing: %s', ...
-                strjoin(missingSignals(1:min(5,end)), ', ')), ...
-                'Signal Compatibility', ...
-                'Options', {'Load Compatible Parts', 'Cancel'}, ...
-                'DefaultOption', 'Load Compatible Parts');
-            
-            if strcmp(answer, 'Cancel')
-                app.restoreFocus();
-                return;
-            end
-        end
-
-        % === APPLY CONFIGURATION ===
-        obj.applyConfiguration(config);
-
-        [~, fileName] = fileparts(customPath);
-        if isCompatible
-            app.StatusLabel.Text = sprintf('✅ Config loaded: %s.mat', fileName);
-        else
-            app.StatusLabel.Text = sprintf('⚠️ Config partially loaded: %s.mat', fileName);
-        end
-        app.StatusLabel.FontColor = [0.2 0.6 0.9];
-
-    catch ME
-        obj.handleError(ME, 'Load failed');
-    end
-    
-    app.restoreFocus();
-end
         function loadDefaultConfig(obj)
             % Load default configuration
             try

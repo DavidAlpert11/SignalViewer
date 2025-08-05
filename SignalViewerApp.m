@@ -156,7 +156,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.UIController.setupCallbacks();
             %=== Initialize visual enhancements ===%
             app.initializeVisualEnhancements();
-            app.debugSessionData()
         end
 
         function createEnhancedComponents(app)
@@ -1803,7 +1802,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 end
             end
         end
-        function onSignalTreeSelectionChanged(app, event)
+        function onSignalTreeSelectionChanged(app, ~)
             selectedNodes = app.SignalTree.SelectedNodes;
 
             % Get signal info from selected nodes
@@ -2406,198 +2405,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
         % =========================================================================
         % IMPROVED SESSION VALIDATION WITH DEBUGGING - Add to SignalViewerApp.m
         % =========================================================================
-
-        function [isValid, errorDetails] = validateSessionData(obj)
-            % Enhanced validation with detailed error reporting
-            isValid = true;
-            errorDetails = {};
-
-            try
-                % === CHECK 1: Essential Objects Exist ===
-                if ~isprop(obj, 'DataManager') || isempty(obj.DataManager)
-                    isValid = false;
-                    errorDetails{end+1} = 'DataManager is missing or empty';
-                elseif ~isvalid(obj.DataManager)
-                    isValid = false;
-                    errorDetails{end+1} = 'DataManager is not valid';
-                end
-
-                if ~isprop(obj, 'PlotManager') || isempty(obj.PlotManager)
-                    isValid = false;
-                    errorDetails{end+1} = 'PlotManager is missing or empty';
-                elseif ~isvalid(obj.PlotManager)
-                    isValid = false;
-                    errorDetails{end+1} = 'PlotManager is not valid';
-                end
-
-                % === CHECK 2: DataManager Properties ===
-                if isValid && isprop(obj, 'DataManager') && ~isempty(obj.DataManager)
-                    % Check SignalNames
-                    if ~isprop(obj.DataManager, 'SignalNames')
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.SignalNames property missing';
-                    elseif ~iscell(obj.DataManager.SignalNames)
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.SignalNames is not a cell array';
-                    end
-
-                    % Check DataTables
-                    if ~isprop(obj.DataManager, 'DataTables')
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.DataTables property missing';
-                    elseif ~iscell(obj.DataManager.DataTables)
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.DataTables is not a cell array';
-                    end
-
-                    % Check CSVFilePaths
-                    if ~isprop(obj.DataManager, 'CSVFilePaths')
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.CSVFilePaths property missing';
-                    elseif ~iscell(obj.DataManager.CSVFilePaths)
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.CSVFilePaths is not a cell array';
-                    end
-
-                    % Check SignalScaling
-                    if ~isprop(obj.DataManager, 'SignalScaling')
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.SignalScaling property missing';
-                    elseif ~isa(obj.DataManager.SignalScaling, 'containers.Map')
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.SignalScaling is not a containers.Map';
-                    end
-
-                    % Check StateSignals
-                    if ~isprop(obj.DataManager, 'StateSignals')
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.StateSignals property missing';
-                    elseif ~isa(obj.DataManager.StateSignals, 'containers.Map')
-                        isValid = false;
-                        errorDetails{end+1} = 'DataManager.StateSignals is not a containers.Map';
-                    end
-                end
-
-                % === CHECK 3: PlotManager Properties ===
-                if isValid && isprop(obj, 'PlotManager') && ~isempty(obj.PlotManager)
-                    % Check AssignedSignals
-                    if ~isprop(obj.PlotManager, 'AssignedSignals')
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.AssignedSignals property missing';
-                    elseif ~iscell(obj.PlotManager.AssignedSignals)
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.AssignedSignals is not a cell array';
-                    end
-
-                    % Check TabLayouts
-                    if ~isprop(obj.PlotManager, 'TabLayouts')
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.TabLayouts property missing';
-                    elseif ~iscell(obj.PlotManager.TabLayouts)
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.TabLayouts is not a cell array';
-                    end
-
-                    % Check CurrentTabIdx
-                    if ~isprop(obj.PlotManager, 'CurrentTabIdx')
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.CurrentTabIdx property missing';
-                    elseif ~isnumeric(obj.PlotManager.CurrentTabIdx)
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.CurrentTabIdx is not numeric';
-                    end
-
-                    % Check SelectedSubplotIdx
-                    if ~isprop(obj.PlotManager, 'SelectedSubplotIdx')
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.SelectedSubplotIdx property missing';
-                    elseif ~isnumeric(obj.PlotManager.SelectedSubplotIdx)
-                        isValid = false;
-                        errorDetails{end+1} = 'PlotManager.SelectedSubplotIdx is not numeric';
-                    end
-                end
-
-                % === CHECK 4: Optional Components (don't fail if missing) ===
-                % These are warnings, not failures
-                if isprop(obj, 'SignalOperations') && ~isempty(obj.SignalOperations)
-                    if ~isprop(obj.SignalOperations, 'DerivedSignals')
-                        errorDetails{end+1} = 'Warning: SignalOperations.DerivedSignals missing';
-                    elseif ~isa(obj.SignalOperations.DerivedSignals, 'containers.Map')
-                        errorDetails{end+1} = 'Warning: SignalOperations.DerivedSignals is not a containers.Map';
-                    end
-                end
-
-            catch ME
-                isValid = false;
-                errorDetails{end+1} = sprintf('Validation error: %s', ME.message);
-            end
-        end
-
-        function debugSessionData(app)
-            % Debug function to check what's wrong with session data
-            fprintf('\n=== SESSION DATA DEBUG REPORT ===\n');
-
-            % Check app object
-            fprintf('App object: %s\n', class(app));
-
-            % Check DataManager
-            if isprop(app, 'DataManager')
-                fprintf('DataManager exists: %s\n', mat2str(~isempty(app.DataManager)));
-                if ~isempty(app.DataManager)
-                    fprintf('DataManager valid: %s\n', mat2str(isvalid(app.DataManager)));
-                    fprintf('DataManager class: %s\n', class(app.DataManager));
-
-                    % Check DataManager properties
-                    props = {'SignalNames', 'DataTables', 'CSVFilePaths', 'SignalScaling', 'StateSignals'};
-                    for i = 1:length(props)
-                        prop = props{i};
-                        if isprop(app.DataManager, prop)
-                            val = app.DataManager.(prop);
-                            fprintf('  %s: %s (%s)\n', prop, mat2str(~isempty(val)), class(val));
-                        else
-                            fprintf('  %s: MISSING\n', prop);
-                        end
-                    end
-                end
-            else
-                fprintf('DataManager: MISSING\n');
-            end
-
-            % Check PlotManager
-            if isprop(app, 'PlotManager')
-                fprintf('PlotManager exists: %s\n', mat2str(~isempty(app.PlotManager)));
-                if ~isempty(app.PlotManager)
-                    fprintf('PlotManager valid: %s\n', mat2str(isvalid(app.PlotManager)));
-                    fprintf('PlotManager class: %s\n', class(app.PlotManager));
-
-                    % Check PlotManager properties
-                    props = {'AssignedSignals', 'TabLayouts', 'CurrentTabIdx', 'SelectedSubplotIdx'};
-                    for i = 1:length(props)
-                        prop = props{i};
-                        if isprop(app.PlotManager, prop)
-                            val = app.PlotManager.(prop);
-                            fprintf('  %s: %s (%s)\n', prop, mat2str(~isempty(val)), class(val));
-                        else
-                            fprintf('  %s: MISSING\n', prop);
-                        end
-                    end
-                end
-            else
-                fprintf('PlotManager: MISSING\n');
-            end
-
-            % Run validation and show results
-            [isValid, errorDetails] = app.validateSessionData();
-            fprintf('\nValidation Result: %s\n', mat2str(isValid));
-            if ~isValid
-                fprintf('Errors:\n');
-                for i = 1:length(errorDetails)
-                    fprintf('  %d. %s\n', i, errorDetails{i});
-                end
-            end
-
-            fprintf('\n=== END DEBUG REPORT ===\n');
-        end
         function saveSession(app)
             [file, path] = uiputfile('*.mat', 'Save Session');
             if isequal(file, 0), return; end
@@ -2746,19 +2553,24 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 session.SessionVersion = '2.1';
                 session.MatlabVersion = version();
                 session.SaveTimestamp = datetime('now');
-
+                try
+                    session.XAxisSignals = app.PlotManager.XAxisSignals;
+                catch
+                    session.XAxisSignals = {};  % fallback
+                end
                 % === SAVE ===
                 save(fullfile(path, file), 'session', '-v7.3');
 
                 app.StatusLabel.Text = sprintf('✅ Session saved: %s', file);
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
-
+                
+              
             catch ME
                 app.StatusLabel.Text = sprintf('❌ Save failed: %s', ME.message);
                 app.StatusLabel.FontColor = [0.9 0.3 0.3];
                 fprintf('Session save error: %s\n', ME.message);
             end
-
+            
             app.restoreFocus();
         end
 
@@ -2946,7 +2758,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 if isfield(session, 'PDFFigureLabel')
                     app.PDFFigureLabel = session.PDFFigureLabel;
                 end
-
+                if isfield(session, 'XAxisSignals')
+                    app.XAxisSignals = session.XAxisSignals;
+                end
                 % === REBUILD UI AND REFRESH ===
                 app.buildSignalTree();
 
@@ -3001,36 +2815,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
 
 
-        function newPaths = browseForMissingCSVs(obj, originalPaths)
-            % Interactive dialog to browse for missing CSV files
-            newPaths = originalPaths;
-            for i = 1:numel(originalPaths)
-                if ~isfile(originalPaths{i})
-                    [~, fileName, ext] = fileparts(originalPaths{i});
-                    [file, path] = uigetfile('*.csv', sprintf('Locate missing file: %s%s', fileName, ext));
-                    if ~isequal(file, 0)
-                        newPaths{i} = fullfile(path, file);
-                    end
-                end
-            end
-        end
-
-        function checksum = calculateSessionChecksum(obj, session)
-            % Generate a simple checksum for session integrity
-            try
-                % Create a string representation of key fields
-                keyFields = {'CSVFilePaths', 'AssignedSignals', 'TabLayouts'};
-                checksumData = '';
-                for i = 1:length(keyFields)
-                    if isfield(session, keyFields{i})
-                        checksumData = [checksumData, mat2str(session.(keyFields{i}))];
-                    end
-                end
-                checksum = num2str(java.lang.String(checksumData).hashCode());
-            catch
-                checksum = 'unknown';
-            end
-        end
 
         function autoScaleAllTabs(app)
             % Auto-scale all subplots in all tabs
@@ -3166,7 +2950,28 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     'MenuSelectedFcn', @(src, event) app.previewSelectedSignals(selectedSignals), ...
                     'Separator', 'on');
             end
+
+            if numel(selectedSignals) == 1
+                signalInfo = selectedSignals{1};  % has fields: Signal, CSVIdx
+                uimenu(app.SignalTree.ContextMenu, 'Text', '📈 Set as X-Axis', ...
+                    'MenuSelectedFcn', @(src, event) app.setSignalAsXAxis(signalInfo));
+            end
+
         end
+
+        function setSignalAsXAxis(app, signalInfo)
+            % Get the active subplot location
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Overwrite the X-axis assignment for this subplot only
+            app.PlotManager.XAxisSignals{tabIdx, subplotIdx} = signalInfo;
+
+            % Refresh only the current tab
+            app.PlotManager.refreshPlots(tabIdx);
+        end
+
+
         function removeSelectedSignalsFromSubplot(app, signalsToRemove)
             if isempty(signalsToRemove)
                 return;
@@ -3509,7 +3314,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Do NOT auto-start streaming here to avoid recursion
         end
 
-        function colors = assignCSVColors(app, n)
+        function colors = assignCSVColors(~, n)
             % Assign a unique color to each CSV from a palette
             palette = [ ...
                 0.2 0.6 0.9;    % Blue
