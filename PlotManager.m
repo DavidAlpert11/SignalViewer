@@ -795,8 +795,6 @@ classdef PlotManager < handle
                         needSuffix = baseNameCounts(baseName) > 1;
 
                         % Track and generate suffix
-
-
                         % Analyze signal naming requirements for this baseName
                         signalSources = {};  % Cell array to store enhanced labels
                         csvCounter = containers.Map('KeyType', 'char', 'ValueType', 'int32');
@@ -829,24 +827,21 @@ classdef PlotManager < handle
                             currentEnhancedLabel = obj.generateEnhancedCSVLabel(csvIdx);
                         end
 
-
                         % Determine suffix based on signal name conflicts in UI tree
                         suffix = create_suffix(obj,csvCounter, baseName, tabIdx, k,signalSources,currentEnhancedLabel,usedSignalNames);
 
-
                         % Final name used for plot/legend
                         sigName = [baseName suffix];
-
                         assignedSignalNames{end+1} = sigName;
-                        if sigInfo.CSVIdx == -1  % Derived signal indicator
-                            % Get derived signal data
+
+                        % GET SIGNAL DATA (both original and derived)
+                        if sigInfo.CSVIdx == -1  % Derived signal
                             [timeData, signalData] = obj.App.SignalOperations.getSignalData(sigName);
                             if isempty(timeData)
                                 continue;
                             end
                             validData = true(size(timeData));  % Derived signals are already clean
-                        else
-                            % Original signal data
+                        else  % Original signal
                             T = obj.App.DataManager.DataTables{sigInfo.CSVIdx};
                             if ~ismember(baseName, T.Properties.VariableNames)
                                 continue;
@@ -855,24 +850,66 @@ classdef PlotManager < handle
                             if ~any(validData)
                                 continue;
                             end
-                            % Use selected X-axis signal for this subplot
-                            xSignal = obj.XAxisSignals{tabIdx, k};
-                            useTimeAsX = ischar(xSignal) && strcmp(xSignal, 'Time');
-
-                            if useTimeAsX
-                                xData = T.Time(validData);
-                            elseif isstruct(xSignal)
-                                % Verify the struct matches current CSV
-                                if xSignal.CSVIdx == sigInfo.CSVIdx && ismember(xSignal.Signal, T.Properties.VariableNames)
-                                    xData = T.(xSignal.Signal)(validData);
-                                else
-                                    xData = T.Time(validData);  % fallback
-                                end
-                            else
-                                xData = T.Time(validData);  % fallback
-                            end
+                            timeData = T.Time(validData);
                             signalData = T.(baseName)(validData);
                         end
+
+                        % ============= CONSISTENT X-AXIS HANDLING FOR BOTH SIGNAL TYPES =============
+                        % Get the X-axis signal setting for this subplot
+                        xAxisSetting = obj.XAxisSignals{tabIdx, k};
+                        useTimeAsX = ischar(xAxisSetting) && strcmp(xAxisSetting, 'Time');
+
+                        if useTimeAsX || isempty(xAxisSetting)
+                            % Use time as X-axis (default behavior)
+                            xData = timeData;
+
+                        elseif isstruct(xAxisSetting) && isfield(xAxisSetting, 'Signal')
+                            % Custom X-axis signal requested
+                            try
+                                % Get the custom X-axis signal data
+                                [customXTime, customXData] = obj.App.SignalOperations.getSignalData(xAxisSetting.Signal);
+
+                                if ~isempty(customXTime) && ~isempty(customXData)
+                                    % We have valid custom X-axis data
+
+                                    % Check if we need to align time bases
+                                    if length(customXTime) == length(timeData) && all(abs(customXTime - timeData) < 1e-6)
+                                        % Same time base - no interpolation needed
+                                        xData = customXData;
+                                    else
+                                        % Different time bases - interpolate current signal to match custom X-axis time
+                                        try
+                                            % Interpolate current signal to custom X-axis time base
+                                            interpolatedSignal = interp1(timeData, signalData, customXTime, 'linear', 'extrap');
+
+                                            % Update signal data to match custom X-axis time base
+                                            signalData = interpolatedSignal;
+                                            timeData = customXTime;  % Update timeData for consistency
+                                            xData = customXData;     % Use custom signal as X-axis
+
+                                        catch ME
+                                            % Interpolation failed - fallback to time
+                                            fprintf('Warning: X-axis interpolation failed for signal %s: %s\n', sigName, ME.message);
+                                            xData = timeData;
+                                        end
+                                    end
+                                else
+                                    % Custom X-axis signal not found or empty - fallback to time
+                                    fprintf('Warning: Custom X-axis signal not found, using time for %s\n', sigName);
+                                    xData = timeData;
+                                end
+
+                            catch ME
+                                % Error getting custom X-axis - fallback to time
+                                fprintf('Warning: Error getting custom X-axis for %s: %s\n', sigName, ME.message);
+                                xData = timeData;
+                            end
+
+                        else
+                            % Invalid X-axis setting - fallback to time
+                            xData = timeData;
+                        end
+                        % ============= END CONSISTENT X-AXIS HANDLING =============
 
                         % Apply scaling
                         scaleFactor = 1.0;
@@ -882,7 +919,7 @@ classdef PlotManager < handle
                         scaledData = signalData * scaleFactor;
 
                         % Collect data for limit calculation
-                        allTimeData = [allTimeData; xData];
+                        allTimeData = [allTimeData; xData];  % Now consistently using xData
                         allValueData = [allValueData; scaledData];
 
                         % Use custom color and line width if set
@@ -934,8 +971,11 @@ classdef PlotManager < handle
                                 end
                             end
                         end
-
-
+                        if (numel(sigs)==1)
+                            ax.YLabel.String = (sigName);
+                        else
+                            ax.YLabel.String = ('Value');
+                        end
                     end
 
                     % Remove plots for signals no longer assigned (only during streaming)
@@ -2359,13 +2399,7 @@ classdef PlotManager < handle
             mainLayout = obj.MainTabGridLayouts{tabIdx};
 
             % Create control panel in row 1 of the main layout
-            controlPanel = uipanel(mainLayout, ...
-                'BackgroundColor', [0.85 0.85 0.85], ...
-                'BorderType', 'line', ...
-                'BorderWidth', 2, ...
-                'Title', 'Layout Controls', ...
-                'FontSize', 12, ...
-                'FontWeight', 'bold');
+            controlPanel = uipanel(mainLayout);
 
             % Set the layout position AFTER creating the panel
             controlPanel.Layout.Row = 1;

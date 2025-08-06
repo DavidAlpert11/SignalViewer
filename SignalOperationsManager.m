@@ -1293,19 +1293,17 @@ classdef SignalOperationsManager < handle
                 end
 
                 child = uitreenode(derivedNode, 'Text', sprintf('%s %s', icon, signalName));
-                child.NodeData = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true, ...
-                    'Operation', derivedData.Operation);
+                child.NodeData = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
 
-                % Add context menu for derived signals
-                cm = uicontextmenu(obj.App.UIFigure);
-                uimenu(cm, 'Text', '🗑️ Delete Signal', ...
-                    'MenuSelectedFcn', @(src, event) obj.deleteDerivedSignal(signalName));
-                uimenu(cm, 'Text', '📋 Show Operation Details', ...
-                    'MenuSelectedFcn', @(src, event) obj.showOperationDetails(derivedData.Operation));
-                uimenu(cm, 'Text', '💾 Export Signal', ...
-                    'MenuSelectedFcn', @(src, event) obj.exportDerivedSignal(signalName));
+                % ADD DYNAMIC CONTEXT MENU FOR DERIVED SIGNALS
+                derivedSignalContextMenu = uicontextmenu(obj.App.UIFigure);
 
-                child.ContextMenu = cm;
+                % Set the context menu opening function to handle multi-selection
+                signalInfo = struct('CSVIdx', -1, 'Signal', signalName);
+                derivedSignalContextMenu.ContextMenuOpeningFcn = @(src, event) obj.App.updateDerivedSignalContextMenu(derivedSignalContextMenu, signalInfo);
+
+                % Assign context menu to the derived signal node
+                child.ContextMenu = derivedSignalContextMenu;
             end
         end
 
@@ -1409,9 +1407,21 @@ classdef SignalOperationsManager < handle
                 dt = mean(diff(cleanTime));
                 fs = 1/dt;
 
-                % Apply windowing
+                % Apply windowing - FIXED VERSION
                 N = length(cleanSignal);
-                windowedSignal = cleanSignal .* hann(N);
+
+                % Create Hanning window manually if hann() function is not available
+                try
+                    % Try to use the Signal Processing Toolbox function
+                    window = hann(N);
+                catch
+                    % Create Hanning window manually
+                    n = 0:N-1;
+                    window = 0.5 * (1 - cos(2*pi*n/(N-1)))';
+                    fprintf('Using manual Hanning window (Signal Processing Toolbox not available)\n');
+                end
+
+                windowedSignal = cleanSignal .* window;
 
                 % Compute FFT
                 Y = fft(windowedSignal);
@@ -2077,7 +2087,18 @@ classdef SignalOperationsManager < handle
                         dt = mean(diff(cleanTime));
                         fs = 1/dt;
                         N = length(cleanSignal);
-                        windowedSignal = cleanSignal .* hann(N);
+
+                        % Create Hanning window manually if hann() function is not available
+                        try
+                            % Try to use the Signal Processing Toolbox function
+                            window = hann(N);
+                        catch
+                            % Create Hanning window manually
+                            n = 0:N-1;
+                            window = 0.5 * (1 - cos(2*pi*n/(N-1)))';
+                        end
+
+                        windowedSignal = cleanSignal .* window;
                         Y = fft(windowedSignal);
                         f = (0:floor(N/2)-1) * fs/N;
 
@@ -2208,6 +2229,14 @@ classdef SignalOperationsManager < handle
                 return;
             end
 
+            % Get current subplot assignments for visual indicators
+            tabIdx = obj.App.PlotManager.CurrentTabIdx;
+            subplotIdx = obj.App.PlotManager.SelectedSubplotIdx;
+            assignedSignals = {};
+            if tabIdx <= numel(obj.App.PlotManager.AssignedSignals) && subplotIdx <= numel(obj.App.PlotManager.AssignedSignals{tabIdx})
+                assignedSignals = obj.App.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+            end
+
             derivedNode = uitreenode(obj.App.SignalTree, 'Text', '⚙️ Derived Signals', ...
                 'NodeData', struct('Type', 'derived_signals_folder'));
 
@@ -2241,6 +2270,46 @@ classdef SignalOperationsManager < handle
 
                 child = uitreenode(derivedNode, 'Text', sprintf('%s %s', icon, signalName));
                 child.NodeData = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
+
+                % ============= ADD CONTEXT MENU FOR EACH DERIVED SIGNAL NODE =============
+                % Add context menu for derived signals - INDIVIDUAL NODE MENU
+                derivedSignalContextMenu = uicontextmenu(obj.App.UIFigure);
+
+                % Check if this derived signal is assigned to current subplot
+                signalInfo = struct('CSVIdx', -1, 'Signal', signalName);
+                isAssigned = false;
+                for k = 1:numel(assignedSignals)
+                    if isequal(assignedSignals{k}, signalInfo)
+                        isAssigned = true;
+                        break;
+                    end
+                end
+
+                % Add appropriate menu items
+                if isAssigned
+                    uimenu(derivedSignalContextMenu, 'Text', '❌ Remove from Subplot', ...
+                        'MenuSelectedFcn', @(src, event) obj.App.removeSignalFromCurrentSubplot(signalInfo));
+                else
+                    uimenu(derivedSignalContextMenu, 'Text', '➕ Add to Subplot', ...
+                        'MenuSelectedFcn', @(src, event) obj.App.addSignalToCurrentSubplot(signalInfo));
+                end
+
+                uimenu(derivedSignalContextMenu, 'Text', '📊 Quick Preview', ...
+                    'MenuSelectedFcn', @(src, event) obj.App.showSignalPreview(signalInfo), ...
+                    'Separator', 'on');
+
+                uimenu(derivedSignalContextMenu, 'Text', '🗑️ Delete Signal', ...
+                    'MenuSelectedFcn', @(src, event) obj.confirmDeleteDerivedSignal(signalName));
+
+                uimenu(derivedSignalContextMenu, 'Text', '📋 Show Details', ...
+                    'MenuSelectedFcn', @(src, event) obj.showOperationDetails(derivedData.Operation));
+
+                uimenu(derivedSignalContextMenu, 'Text', '💾 Export Signal', ...
+                    'MenuSelectedFcn', @(src, event) obj.exportDerivedSignal(signalName));
+
+                % Assign context menu to the derived signal node
+                child.ContextMenu = derivedSignalContextMenu;
+                % ============= END CONTEXT MENU ADDITION =============
             end
 
             % SIMPLE FIX: Always expand derived signals and add to expanded list
@@ -2267,9 +2336,6 @@ classdef SignalOperationsManager < handle
                     fprintf('Could not expand derived signals node\n');
                 end
             end
-
-            % REMOVED: Don't store node reference - not needed for simple solution
-            % obj.App.DerivedSignalsNode = derivedNode;
 
             % Debug output
             fprintf('Added %d derived signals to tree (auto-expanded)\n', length(derivedNames));
@@ -2491,7 +2557,23 @@ classdef SignalOperationsManager < handle
                 derivedSignalNames = {};
             end
         end
+        function window = createHanningWindow(obj, N)
+            % Create Hanning window with fallback for missing Signal Processing Toolbox
+            try
+                % Try to use the Signal Processing Toolbox function
+                window = hann(N);
+            catch
+                % Create Hanning window manually using the mathematical definition
+                % Hanning window: w(n) = 0.5 * (1 - cos(2*pi*n/(N-1)))
+                n = 0:N-1;
+                window = 0.5 * (1 - cos(2*pi*n/(N-1)))';
 
+                % Optional: Log that we're using manual implementation
+                if obj.App.DataManager.IsRunning  % Only log during first use
+                    fprintf('Info: Using manual Hanning window (Signal Processing Toolbox not detected)\n');
+                end
+            end
+        end
         function exportDerivedSignal(obj, signalName)
             % Export a single derived signal to CSV
             if ~obj.DerivedSignals.isKey(signalName)
