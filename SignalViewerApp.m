@@ -107,21 +107,52 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(linkingMenu, 'Text', '⚡ Quick Link Selected Nodes', 'MenuSelectedFcn', @(src, event) app.LinkingManager.quickLinkSelected());
             uimenu(linkingMenu, 'Text', '🔓 Clear All Links', 'MenuSelectedFcn', @(src, event) app.LinkingManager.clearAllLinks());
         end
+
+        % 2. OpenGL Warning - Add this check in constructor:
+        function checkAndOptimizeGraphics(app)
+            try
+                info = opengl('info');
+                if info.Software
+                    % Try to switch to hardware
+                    try
+                        opengl('hardware');
+                        fprintf('Switched to hardware OpenGL rendering.\n');
+                    catch
+                        fprintf('Using software OpenGL - graphics may be slower.\n');
+                        % Apply performance optimizations
+                        app.UIFigure.Renderer = 'painters';
+                    end
+                end
+            catch
+                % OpenGL info not available - continue normally
+            end
+        end
         function app = SignalViewerApp()
-            %=== Create UI with RESIZABLE styling ===%
+            % Create UIFigure
             app.UIFigure = uifigure('Name', 'Signal Viewer Pro', ...
                 'Position', [100 100 1200 800], ...
                 'Color', [0.94 0.94 0.94], ...
-                'Resize', 'on', ...  % Enable resizing
-                'SizeChangedFcn', @(src, event) app.onFigureResize());  % Add resize callback
+                'Resize', 'on');
 
-            % Control Panel - will be resized dynamically
+            % Check graphics after figure creation
+            app.checkAndOptimizeGraphics();
+
+            % Set resize callback
+%             app.UIFigure.SizeChangedFcn = @(src, event) app.onFigureResize();
+            % CRITICAL: Disable AutoResizeChildren FIRST
+            app.UIFigure.AutoResizeChildren = 'off';
+
+%             % THEN set the resize callback
+            app.UIFigure.SizeChangedFcn = @(src, event) app.onFigureResize();
+
+            % Create panels with AutoResizeChildren disabled
             app.ControlPanel = uipanel(app.UIFigure, ...
-                'Position', [1 1 318 799]);
+                'Position', [1 1 318 799], ...
+                'AutoResizeChildren', 'off');
 
-            % Main Tab Group - will be resized dynamically
             app.MainTabGroup = uitabgroup(app.UIFigure, ...
-                'Position', [320 1 880 799]);
+                'Position', [320 1 880 799], ...
+                'AutoResizeChildren', 'off');
 
             %=== Create Enhanced Components ===%
             app.createEnhancedComponents();
@@ -3960,204 +3991,158 @@ classdef SignalViewerApp < matlab.apps.AppBase
             if isequal(file, 0), return; end
 
             try
-                % === SKIP VALIDATION - JUST SAVE ===
-                % Comment out or remove this validation block:
-                % if ~app.DataManager.validateSessionData()
-                %     answer = uiconfirm(app.UIFigure, ...
-                %         'Session data validation failed. Continue saving anyway?', ...
-                %         'Validation Failed', ...
-                %         'Options', {'Save Anyway', 'Cancel'}, ...
-                %         'DefaultOption', 'Cancel', 'Icon', 'warning');
-                %
-                %     if strcmp(answer, 'Cancel')
-                %         app.restoreFocus();
-                %         return;
-                %     end
-                % end
-
                 session = struct();
 
-                % === SAFE DATA EXTRACTION ===
-                % Core data with error handling
-                try
-                    session.CSVFilePaths = app.DataManager.CSVFilePaths;
-                catch
-                    session.CSVFilePaths = {};
-                end
+                % === METADATA ===
+                session.SessionVersion = '3.0';
+                session.MatlabVersion = version();
+                session.SaveTimestamp = datetime('now');
 
-                try
-                    session.SignalScaling = app.DataManager.SignalScaling;
-                catch
-                    session.SignalScaling = containers.Map();
-                end
+                % === DATA MANAGER STATE ===
+                session.CSVFilePaths = app.safeGetProperty('DataManager', 'CSVFilePaths', {});
+                session.SignalNames = app.safeGetProperty('DataManager', 'SignalNames', {});
+                session.SignalScaling = app.safeGetProperty('DataManager', 'SignalScaling', containers.Map());
+                session.StateSignals = app.safeGetProperty('DataManager', 'StateSignals', containers.Map());
+                session.CSVColors = app.safeGetProperty('CSVColors', {});
 
-                try
-                    session.StateSignals = app.DataManager.StateSignals;
-                catch
-                    session.StateSignals = containers.Map();
-                end
+                % === PLOT MANAGER STATE ===
+                session.AssignedSignals = app.safeGetProperty('PlotManager', 'AssignedSignals', {});
+                session.TabLayouts = app.safeGetProperty('PlotManager', 'TabLayouts', {[2,1]});
+                session.CurrentTabIdx = app.safeGetProperty('PlotManager', 'CurrentTabIdx', 1);
+                session.SelectedSubplotIdx = app.safeGetProperty('PlotManager', 'SelectedSubplotIdx', 1);
+                session.XAxisSignals = app.safeGetProperty('PlotManager', 'XAxisSignals', {});
+                session.TabLinkedAxes = app.safeGetProperty('PlotManager', 'TabLinkedAxes', []);
 
-                try
-                    session.SignalNames = app.DataManager.SignalNames;
-                catch
-                    session.SignalNames = {};
-                end
+                % === TAB CONTROLS STATE ===
+                session.TabControlsData = app.extractTabControlsData();
 
-                % === PLOT MANAGER DATA ===
-                try
-                    session.AssignedSignals = app.PlotManager.AssignedSignals;
-                catch
-                    session.AssignedSignals = {};
-                end
-
-                try
-                    session.TabLayouts = app.PlotManager.TabLayouts;
-                catch
-                    session.TabLayouts = {[2, 1]};
-                end
-
-                try
-                    session.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
-                catch
-                    session.CurrentTabIdx = 1;
-                end
-
-                try
-                    session.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
-                catch
-                    session.SelectedSubplotIdx = 1;
-                end
-
-                % === TAB COUNT ===
-                try
-                    session.NumTabs = numel(app.PlotManager.TabLayouts);
-                catch
-                    session.NumTabs = 1;
-                end
-
-                % === TAB CONTROLS ===
-                session.TabControlsData = {};
-                try
-                    if isprop(app.PlotManager, 'TabControls') && ~isempty(app.PlotManager.TabControls)
-                        session.TabControlsData = cell(1, numel(app.PlotManager.TabControls));
-                        for i = 1:numel(app.PlotManager.TabControls)
-                            if ~isempty(app.PlotManager.TabControls{i})
-                                session.TabControlsData{i} = struct(...
-                                    'RowsValue', app.PlotManager.TabControls{i}.RowsSpinner.Value, ...
-                                    'ColsValue', app.PlotManager.TabControls{i}.ColsSpinner.Value);
-                            end
-                        end
-                    end
-                catch
-                    session.TabControlsData = {};
-                end
-
-                % === UI STATE (ALL OPTIONAL) ===
-                session.SubplotMetadata = app.safeGetProperty('SubplotMetadata', {});
-                session.SignalStyles = app.safeGetProperty('SignalStyles', struct());
+                % === UI STATE ===
                 session.SubplotCaptions = app.safeGetProperty('SubplotCaptions', {});
                 session.SubplotDescriptions = app.safeGetProperty('SubplotDescriptions', {});
                 session.SubplotTitles = app.safeGetProperty('SubplotTitles', {});
+                session.SubplotMetadata = app.safeGetProperty('SubplotMetadata', {});
+                session.SignalStyles = app.safeGetProperty('SignalStyles', struct());
+                session.HiddenSignals = app.safeGetProperty('HiddenSignals', containers.Map());
                 session.ExpandedTreeNodes = app.safeGetProperty('ExpandedTreeNodes', string.empty);
 
+                % === PDF SETTINGS ===
+                session.PDFReportTitle = app.safeGetProperty('PDFReportTitle', 'Signal Analysis Report');
+                session.PDFReportAuthor = app.safeGetProperty('PDFReportAuthor', '');
+                session.PDFFigureLabel = app.safeGetProperty('PDFFigureLabel', 'Figure');
+                session.PDFReportLanguage = app.safeGetProperty('PDFReportLanguage', 'English');
+
                 % === DERIVED SIGNALS ===
-                try
-                    if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
-                        session.DerivedSignals = app.SignalOperations.DerivedSignals;
-                        session.OperationHistory = app.safeGetSubProperty(app.SignalOperations, 'OperationHistory', {});
-                        session.OperationCounter = app.safeGetSubProperty(app.SignalOperations, 'OperationCounter', 0);
-                    else
-                        session.DerivedSignals = containers.Map();
-                        session.OperationHistory = {};
-                        session.OperationCounter = 0;
-                    end
-                catch
+                if app.hasValidProperty('SignalOperations')
+                    session.DerivedSignals = app.safeGetProperty('SignalOperations', 'DerivedSignals', containers.Map());
+                    session.OperationHistory = app.safeGetProperty('SignalOperations', 'OperationHistory', {});
+                    session.OperationCounter = app.safeGetProperty('SignalOperations', 'OperationCounter', 0);
+                else
                     session.DerivedSignals = containers.Map();
                     session.OperationHistory = {};
                     session.OperationCounter = 0;
                 end
 
                 % === LINKING SYSTEM ===
-                try
-                    if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
-                        session.LinkedGroups = app.safeGetSubProperty(app.LinkingManager, 'LinkedGroups', {});
-                        session.AutoLinkEnabled = app.safeGetSubProperty(app.LinkingManager, 'AutoLinkEnabled', false);
-                        session.LinkingMode = app.safeGetSubProperty(app.LinkingManager, 'LinkingMode', 'nodes');
-                    else
-                        session.LinkedGroups = {};
-                        session.AutoLinkEnabled = false;
-                        session.LinkingMode = 'nodes';
-                    end
-                catch
+                if app.hasValidProperty('LinkingManager')
+                    session.LinkedGroups = app.safeGetProperty('LinkingManager', 'LinkedGroups', {});
+                    session.AutoLinkEnabled = app.safeGetProperty('LinkingManager', 'AutoLinkEnabled', false);
+                    session.LinkingMode = app.safeGetProperty('LinkingManager', 'LinkingMode', 'nodes');
+                else
                     session.LinkedGroups = {};
                     session.AutoLinkEnabled = false;
                     session.LinkingMode = 'nodes';
                 end
 
-                % === APP PREFERENCES ===
-                session.PDFReportTitle = app.safeGetProperty('PDFReportTitle', 'Signal Analysis Report');
-                session.PDFReportAuthor = app.safeGetProperty('PDFReportAuthor', '');
-                session.PDFFigureLabel = app.safeGetProperty('PDFFigureLabel', 'Figure');
+                % === VALIDATION ===
+                session.NumTabs = numel(session.TabLayouts);
+                session.NumCSVs = numel(session.CSVFilePaths);
+                session.NumSignals = numel(session.SignalNames);
 
-                % === METADATA ===
-                session.SessionVersion = '2.1';
-                session.MatlabVersion = version();
-                session.SaveTimestamp = datetime('now');
-                try
-                    session.XAxisSignals = app.PlotManager.XAxisSignals;
-                catch
-                    session.XAxisSignals = {};  % fallback
-                end
-
-                % === PER-TAB AXIS LINKING ===
-                try
-                    if isprop(app.PlotManager, 'TabLinkedAxes')
-                        session.TabLinkedAxes = app.PlotManager.TabLinkedAxes;
-                    else
-                        session.TabLinkedAxes = [];
-                    end
-                catch
-                    session.TabLinkedAxes = [];
-                end
                 % === SAVE ===
                 save(fullfile(path, file), 'session', '-v7.3');
 
                 app.StatusLabel.Text = sprintf('✅ Session saved: %s', file);
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
 
-
             catch ME
                 app.StatusLabel.Text = sprintf('❌ Save failed: %s', ME.message);
                 app.StatusLabel.FontColor = [0.9 0.3 0.3];
-                fprintf('Session save error: %s\n', ME.message);
+                app.logError('Session Save', ME);
             end
 
             app.restoreFocus();
         end
 
-        function value = safeGetProperty(obj, varargin)
-            % Safely get property value with default fallback
-            % Usage: obj.safeGetProperty(propName, defaultValue)
-            % OR:    obj.safeGetProperty(subObj, propName, defaultValue)
+        function tabControlsData = extractTabControlsData(app)
+            % Extract tab controls data safely
+            tabControlsData = {};
+            try
+                if app.hasValidProperty('PlotManager') && isprop(app.PlotManager, 'TabControls')
+                    tabControls = app.PlotManager.TabControls;
+                    tabControlsData = cell(1, numel(tabControls));
+
+                    for i = 1:numel(tabControls)
+                        if ~isempty(tabControls{i}) && isstruct(tabControls{i})
+                            controls = tabControls{i};
+                            data = struct();
+
+                            if isfield(controls, 'RowsSpinner') && isvalid(controls.RowsSpinner)
+                                data.RowsValue = controls.RowsSpinner.Value;
+                            else
+                                data.RowsValue = 2;
+                            end
+
+                            if isfield(controls, 'ColsSpinner') && isvalid(controls.ColsSpinner)
+                                data.ColsValue = controls.ColsSpinner.Value;
+                            else
+                                data.ColsValue = 1;
+                            end
+
+                            if isfield(controls, 'LinkAxesToggle') && isvalid(controls.LinkAxesToggle)
+                                data.LinkAxesValue = controls.LinkAxesToggle.Value;
+                            else
+                                data.LinkAxesValue = false;
+                            end
+
+                            tabControlsData{i} = data;
+                        end
+                    end
+                end
+            catch ME
+                fprintf('Warning: Could not extract tab controls data: %s\n', ME.message);
+                tabControlsData = {};
+            end
+        end
+
+        function tf = hasValidProperty(app, propName)
+            % Check if property exists and is valid
+            tf = isprop(app, propName) && ~isempty(app.(propName)) && isvalid(app.(propName));
+        end
+
+        function value = safeGetProperty(app, varargin)
+            % Enhanced safe property getter
+            % Usage: app.safeGetProperty(propName, defaultValue)
+            %    or: app.safeGetProperty(subObj, propName, defaultValue)
 
             try
-                if nargin == 3  % obj.safeGetProperty(propName, defaultValue)
+                if nargin == 3  % app.safeGetProperty(propName, defaultValue)
                     propName = varargin{1};
                     defaultValue = varargin{2};
 
-                    if isprop(obj, propName) && ~isempty(obj.(propName))
-                        value = obj.(propName);
+                    if isprop(app, propName) && ~isempty(app.(propName))
+                        value = app.(propName);
                     else
                         value = defaultValue;
                     end
 
-                elseif nargin == 4  % obj.safeGetProperty(subObj, propName, defaultValue)
-                    subObj = varargin{1};
+                elseif nargin == 4  % app.safeGetProperty(subObj, propName, defaultValue)
+                    subObjName = varargin{1};
                     propName = varargin{2};
                     defaultValue = varargin{3};
 
-                    if isprop(subObj, propName) && ~isempty(subObj.(propName))
-                        value = subObj.(propName);
+                    if isprop(app, subObjName) && ~isempty(app.(subObjName)) && ...
+                            isprop(app.(subObjName), propName) && ~isempty(app.(subObjName).(propName))
+                        value = app.(subObjName).(propName);
                     else
                         value = defaultValue;
                     end
@@ -4165,11 +4150,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     error('Invalid number of arguments');
                 end
             catch
-                if nargin >= 3
-                    value = varargin{end};  % Use last argument as default
-                else
-                    value = [];
-                end
+                value = varargin{end};  % Use last argument as default
             end
         end
 
@@ -4188,179 +4169,27 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
                 session = loaded.session;
 
-                % === RESTORE CSV DATA ===
-                app.DataManager.CSVFilePaths = session.CSVFilePaths;
-                app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
-                app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
-
-                for i = 1:numel(session.CSVFilePaths)
-                    if isfile(session.CSVFilePaths{i})
-                        app.DataManager.readInitialData(i);
-                    else
-                        app.DataManager.DataTables{i} = [];
-                    end
+                % === VALIDATE SESSION ===
+                if ~app.validateSession(session)
+                    return;
                 end
 
-                app.DataManager.SignalScaling = session.SignalScaling;
-                app.DataManager.StateSignals = session.StateSignals;
-                if isfield(session, 'SignalNames')
-                    app.DataManager.SignalNames = session.SignalNames;
-                end
+                % === CLEAR CURRENT STATE ===
+                app.clearCurrentSession();
 
-                % === RESTORE DERIVED SIGNALS ===
-                if isfield(session, 'DerivedSignals') && isprop(app, 'SignalOperations')
-                    app.SignalOperations.DerivedSignals = session.DerivedSignals;
+                % === RESTORE DATA ===
+                app.restoreDataManager(session);
+                app.restoreSignalOperations(session);
+                app.restoreLinkingManager(session);
 
-                    derivedNames = keys(session.DerivedSignals);
-                    for i = 1:length(derivedNames)
-                        if ~ismember(derivedNames{i}, app.DataManager.SignalNames)
-                            app.DataManager.SignalNames{end+1} = derivedNames{i};
-                        end
-                    end
-
-                    if isfield(session, 'OperationHistory')
-                        app.SignalOperations.OperationHistory = session.OperationHistory;
-                    end
-                    if isfield(session, 'OperationCounter')
-                        app.SignalOperations.OperationCounter = session.OperationCounter;
-                    end
-                end
-
-                % === RESTORE LINKING SYSTEM ===
-                if isfield(session, 'LinkedGroups') && isprop(app, 'LinkingManager')
-                    app.LinkingManager.LinkedGroups = session.LinkedGroups;
-                    if isfield(session, 'AutoLinkEnabled')
-                        app.LinkingManager.AutoLinkEnabled = session.AutoLinkEnabled;
-                    end
-                    if isfield(session, 'LinkingMode')
-                        app.LinkingManager.LinkingMode = session.LinkingMode;
-                    end
-                end
-
-                % === CRITICAL: CREATE REQUIRED TABS FIRST ===
-                requiredTabs = numel(session.TabLayouts);
-                currentTabs = numel(app.PlotManager.PlotTabs);
-
-                % Remove + tab temporarily if it exists
-                plusTabIdx = [];
-                for i = 1:numel(app.PlotManager.PlotTabs)
-                    if strcmp(app.PlotManager.PlotTabs{i}.Title, '+')
-                        plusTabIdx = i;
-                        break;
-                    end
-                end
-
-                if ~isempty(plusTabIdx)
-                    delete(app.PlotManager.PlotTabs{plusTabIdx});
-                    app.PlotManager.PlotTabs(plusTabIdx) = [];
-                    currentTabs = currentTabs - 1;
-                end
-
-                % Create additional tabs if needed
-                while numel(app.PlotManager.PlotTabs) < requiredTabs
-                    app.PlotManager.addNewTab();
-                end
-
-                % === RESTORE PLOT MANAGER DATA ===
-                app.PlotManager.TabLayouts = session.TabLayouts;
-                app.PlotManager.AssignedSignals = session.AssignedSignals;
-                app.PlotManager.CurrentTabIdx = min(session.CurrentTabIdx, requiredTabs);
-                app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
-
-                % === RECREATE EACH TAB WITH CORRECT LAYOUT ===
-                for tabIdx = 1:requiredTabs
-                    if tabIdx <= numel(session.TabLayouts)
-                        layout = session.TabLayouts{tabIdx};
-                        rows = layout(1);
-                        cols = layout(2);
-
-                        % Recreate subplots for this tab
-                        app.PlotManager.createSubplotsForTab(tabIdx, rows, cols);
-
-                        % Restore tab controls if available
-                        if isfield(session, 'TabControlsData') && ...
-                                tabIdx <= numel(session.TabControlsData) && ...
-                                ~isempty(session.TabControlsData{tabIdx})
-
-                            if tabIdx <= numel(app.PlotManager.TabControls) && ...
-                                    ~isempty(app.PlotManager.TabControls{tabIdx})
-                                app.PlotManager.TabControls{tabIdx}.RowsSpinner.Value = rows;
-                                app.PlotManager.TabControls{tabIdx}.ColsSpinner.Value = cols;
-                            end
-                        end
-                    end
-                end
+                % === RESTORE PLOT STRUCTURE ===
+                app.restorePlotStructure(session);
 
                 % === RESTORE UI STATE ===
-                if isfield(session, 'SubplotMetadata')
-                    app.SubplotMetadata = session.SubplotMetadata;
-                end
-                if isfield(session, 'SignalStyles')
-                    app.SignalStyles = session.SignalStyles;
-                end
-                if isfield(session, 'SubplotCaptions')
-                    app.SubplotCaptions = session.SubplotCaptions;
-                end
-                if isfield(session, 'SubplotDescriptions')
-                    app.SubplotDescriptions = session.SubplotDescriptions;
-                end
-                if isfield(session, 'SubplotTitles')
-                    app.SubplotTitles = session.SubplotTitles;
-                end
-                if isfield(session, 'ExpandedTreeNodes')
-                    app.ExpandedTreeNodes = session.ExpandedTreeNodes;
-                end
-                if isfield(session, 'PDFReportTitle')
-                    app.PDFReportTitle = session.PDFReportTitle;
-                end
-                if isfield(session, 'PDFReportAuthor')
-                    app.PDFReportAuthor = session.PDFReportAuthor;
-                end
-                if isfield(session, 'PDFFigureLabel')
-                    app.PDFFigureLabel = session.PDFFigureLabel;
-                end
-                if isfield(session, 'XAxisSignals')
-                    app.XAxisSignals = session.XAxisSignals;
-                end
+                app.restoreUIState(session);
 
-                % === RESTORE PER-TAB AXIS LINKING ===
-                if isfield(session, 'TabLinkedAxes') && isprop(app.PlotManager, 'TabLinkedAxes')
-                    app.PlotManager.TabLinkedAxes = session.TabLinkedAxes;
-
-                    % Update the UI toggles to reflect the restored state
-                    for i = 1:length(app.PlotManager.TabLinkedAxes)
-                        if i <= length(app.PlotManager.TabControls) && ...
-                                ~isempty(app.PlotManager.TabControls{i}) && ...
-                                isfield(app.PlotManager.TabControls{i}, 'LinkAxesToggle')
-                            app.PlotManager.TabControls{i}.LinkAxesToggle.Value = app.PlotManager.TabLinkedAxes(i);
-                        end
-                    end
-                end
-
-                % === REBUILD UI AND REFRESH ===
-                app.buildSignalTree();
-
-                % Refresh plots for all tabs
-                for tabIdx = 1:requiredTabs
-                    app.PlotManager.refreshPlots(tabIdx);
-                end
-
-                % Apply per-tab axis linking after plots are refreshed
-                for tabIdx = 1:length(app.PlotManager.TabLinkedAxes)
-                    if app.PlotManager.TabLinkedAxes(tabIdx)
-                        app.PlotManager.linkTabAxes(tabIdx);
-                    end
-                end
-
-                % Auto-scale and restore current tab
-                app.autoScaleAllTabs();
-                app.PlotManager.ensurePlusTabAtEnd();
-                app.PlotManager.updateTabTitles();
-
-                % Set current tab
-                if app.PlotManager.CurrentTabIdx <= numel(app.PlotManager.PlotTabs)
-                    app.MainTabGroup.SelectedTab = app.PlotManager.PlotTabs{app.PlotManager.CurrentTabIdx};
-                end
+                % === FINALIZE ===
+                app.finalizeSessionLoad(session);
 
                 app.StatusLabel.Text = sprintf('✅ Session loaded: %s', file);
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
@@ -4368,14 +4197,284 @@ classdef SignalViewerApp < matlab.apps.AppBase
             catch ME
                 app.StatusLabel.Text = sprintf('❌ Load failed: %s', ME.message);
                 app.StatusLabel.FontColor = [0.9 0.3 0.3];
-                fprintf('Session load error: %s\n', ME.message);
-                for i = 1:length(ME.stack)
-                    fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
-                end
+                app.logError('Session Load', ME);
             end
 
             app.restoreFocus();
         end
+
+        function logError(app, context, ME)
+            % Enhanced error logging
+            fprintf('=== %s Error ===\n', context);
+            fprintf('Message: %s\n', ME.message);
+            fprintf('Stack:\n');
+            for i = 1:length(ME.stack)
+                fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
+            end
+            fprintf('================\n');
+        end
+
+        function finalizeSessionLoad(app, session)
+            % Finalize session loading
+
+            % Rebuild signal tree
+            app.buildSignalTree();
+
+            % Refresh all plots
+            for tabIdx = 1:numel(app.PlotManager.TabLayouts)
+                app.PlotManager.refreshPlots(tabIdx);
+            end
+
+            % Apply per-tab axis linking
+            if isfield(session, 'TabLinkedAxes')
+                for tabIdx = 1:length(app.PlotManager.TabLinkedAxes)
+                    if tabIdx <= length(app.PlotManager.TabLinkedAxes) && app.PlotManager.TabLinkedAxes(tabIdx)
+                        app.PlotManager.linkTabAxes(tabIdx);
+                    end
+                end
+            end
+
+            % Restore tree expanded state
+            if isfield(session, 'ExpandedTreeNodes')
+                app.restoreTreeExpandedState();
+            end
+
+            % Ensure + tab at end
+            app.PlotManager.ensurePlusTabAtEnd();
+            app.PlotManager.updateTabTitles();
+
+            % Set current tab
+            if app.PlotManager.CurrentTabIdx <= numel(app.PlotManager.PlotTabs)
+                app.MainTabGroup.SelectedTab = app.PlotManager.PlotTabs{app.PlotManager.CurrentTabIdx};
+            end
+
+            % Highlight current subplot
+            app.highlightSelectedSubplot(app.PlotManager.CurrentTabIdx, app.PlotManager.SelectedSubplotIdx);
+
+            % Update status
+            fprintf('Session loaded successfully: %d tabs, %d CSVs, %d signals\n', ...
+                session.NumTabs, session.NumCSVs, session.NumSignals);
+        end
+
+        function restorePlotStructure(app, session)
+            % Restore plot structure (tabs, layouts, assignments)
+
+            % Remove + tab temporarily
+            plusTabIdx = [];
+            for i = 1:numel(app.PlotManager.PlotTabs)
+                if strcmp(app.PlotManager.PlotTabs{i}.Title, '+')
+                    plusTabIdx = i;
+                    break;
+                end
+            end
+
+            if ~isempty(plusTabIdx)
+                delete(app.PlotManager.PlotTabs{plusTabIdx});
+                app.PlotManager.PlotTabs(plusTabIdx) = [];
+            end
+
+            % Create required tabs
+            requiredTabs = numel(session.TabLayouts);
+            while numel(app.PlotManager.PlotTabs) < requiredTabs
+                app.PlotManager.addNewTab();
+            end
+
+            % Restore layouts and assignments
+            app.PlotManager.TabLayouts = session.TabLayouts;
+            app.PlotManager.AssignedSignals = session.AssignedSignals;
+            app.PlotManager.CurrentTabIdx = min(session.CurrentTabIdx, requiredTabs);
+            app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
+
+            % Restore X-axis signals
+            if isfield(session, 'XAxisSignals')
+                app.PlotManager.XAxisSignals = session.XAxisSignals;
+            end
+
+            % Restore per-tab linking
+            if isfield(session, 'TabLinkedAxes')
+                app.PlotManager.TabLinkedAxes = session.TabLinkedAxes;
+            end
+
+            % Recreate each tab with correct layout
+            for tabIdx = 1:requiredTabs
+                layout = session.TabLayouts{tabIdx};
+                app.PlotManager.createSubplotsForTab(tabIdx, layout(1), layout(2));
+            end
+
+            % Restore tab controls
+            if isfield(session, 'TabControlsData')
+                app.restoreTabControls(session.TabControlsData);
+            end
+        end
+
+
+        function restoreTabControls(app, tabControlsData)
+            % Restore tab controls state
+            for i = 1:min(numel(tabControlsData), numel(app.PlotManager.TabControls))
+                if ~isempty(tabControlsData{i}) && ~isempty(app.PlotManager.TabControls{i})
+                    data = tabControlsData{i};
+                    controls = app.PlotManager.TabControls{i};
+
+                    if isfield(data, 'RowsValue') && isfield(controls, 'RowsSpinner')
+                        controls.RowsSpinner.Value = data.RowsValue;
+                    end
+
+                    if isfield(data, 'ColsValue') && isfield(controls, 'ColsSpinner')
+                        controls.ColsSpinner.Value = data.ColsValue;
+                    end
+
+                    if isfield(data, 'LinkAxesValue') && isfield(controls, 'LinkAxesToggle')
+                        controls.LinkAxesToggle.Value = data.LinkAxesValue;
+                    end
+                end
+            end
+        end
+
+        function restoreUIState(app, session)
+            % Restore UI state
+            uiStateFields = {'SubplotCaptions', 'SubplotDescriptions', 'SubplotTitles', ...
+                'SubplotMetadata', 'SignalStyles', 'HiddenSignals', ...
+                'ExpandedTreeNodes', 'PDFReportTitle', 'PDFReportAuthor', ...
+                'PDFFigureLabel', 'PDFReportLanguage'};
+
+            for i = 1:numel(uiStateFields)
+                field = uiStateFields{i};
+                if isfield(session, field)
+                    try
+                        app.(field) = session.(field);
+                    catch ME
+                        fprintf('Warning: Could not restore %s: %s\n', field, ME.message);
+                    end
+                end
+            end
+        end
+        function restoreLinkingManager(app, session)
+            % Restore LinkingManager state
+            if app.hasValidProperty('LinkingManager')
+                if isfield(session, 'LinkedGroups')
+                    app.LinkingManager.LinkedGroups = session.LinkedGroups;
+                end
+
+                if isfield(session, 'AutoLinkEnabled')
+                    app.LinkingManager.AutoLinkEnabled = session.AutoLinkEnabled;
+                end
+
+                if isfield(session, 'LinkingMode')
+                    app.LinkingManager.LinkingMode = session.LinkingMode;
+                end
+            end
+        end
+
+        function restoreSignalOperations(app, session)
+            % Restore SignalOperations state
+            if app.hasValidProperty('SignalOperations')
+                if isfield(session, 'DerivedSignals')
+                    app.SignalOperations.DerivedSignals = session.DerivedSignals;
+
+                    % Add derived signal names to main signal list
+                    derivedNames = keys(session.DerivedSignals);
+                    for i = 1:length(derivedNames)
+                        if ~ismember(derivedNames{i}, app.DataManager.SignalNames)
+                            app.DataManager.SignalNames{end+1} = derivedNames{i};
+                        end
+                    end
+                end
+
+                if isfield(session, 'OperationHistory')
+                    app.SignalOperations.OperationHistory = session.OperationHistory;
+                end
+
+                if isfield(session, 'OperationCounter')
+                    app.SignalOperations.OperationCounter = session.OperationCounter;
+                end
+            end
+        end
+
+        function restoreDataManager(app, session)
+            % Restore DataManager state
+            app.DataManager.CSVFilePaths = session.CSVFilePaths;
+            app.DataManager.SignalNames = session.SignalNames;
+            app.DataManager.SignalScaling = session.SignalScaling;
+            app.DataManager.StateSignals = session.StateSignals;
+
+            % Reload CSV data
+            app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
+            for i = 1:numel(session.CSVFilePaths)
+                if isfile(session.CSVFilePaths{i})
+                    app.DataManager.readInitialData(i);
+                end
+            end
+
+            if isfield(session, 'CSVColors')
+                app.CSVColors = session.CSVColors;
+            else
+                app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
+            end
+        end
+
+
+        function clearCurrentSession(app)
+            % Clear current session state
+            try
+                app.DataManager.stopStreamingAll();
+                app.DataManager.clearData();
+                app.PlotManager.AssignedSignals = {};
+                app.SignalTree.Children.delete();
+            catch ME
+                fprintf('Warning during session clear: %s\n', ME.message);
+            end
+        end
+
+        function tf = validateSession(app, session)
+            % Validate session before loading
+            tf = true;
+
+            try
+                % Check version compatibility
+                if isfield(session, 'SessionVersion')
+                    if str2double(session.SessionVersion) < 2.0
+                        answer = uiconfirm(app.UIFigure, ...
+                            'This session was saved with an older version. Continue loading?', ...
+                            'Version Compatibility', ...
+                            'Options', {'Continue', 'Cancel'}, ...
+                            'DefaultOption', 'Cancel');
+                        if strcmp(answer, 'Cancel')
+                            tf = false;
+                            return;
+                        end
+                    end
+                end
+
+                % Check for missing files
+                if isfield(session, 'CSVFilePaths')
+                    missingFiles = {};
+                    for i = 1:numel(session.CSVFilePaths)
+                        if ~isfile(session.CSVFilePaths{i})
+                            missingFiles{end+1} = session.CSVFilePaths{i};
+                        end
+                    end
+
+                    if ~isempty(missingFiles)
+                        answer = uiconfirm(app.UIFigure, ...
+                            sprintf('Some CSV files are missing. Continue?\n\nMissing: %s', ...
+                            strjoin(missingFiles, '\n')), ...
+                            'Missing Files', ...
+                            'Options', {'Continue', 'Cancel'}, ...
+                            'DefaultOption', 'Continue');
+                        if strcmp(answer, 'Cancel')
+                            tf = false;
+                            return;
+                        end
+                    end
+                end
+
+            catch ME
+                uialert(app.UIFigure, sprintf('Session validation failed: %s', ME.message), 'Validation Error');
+                tf = false;
+            end
+        end
+
+
 
         function showSessionLoadSummary(obj, session, missingCSVs)
             % Show summary of what was loaded in the session
