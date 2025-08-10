@@ -108,19 +108,20 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(linkingMenu, 'Text', '🔓 Clear All Links', 'MenuSelectedFcn', @(src, event) app.LinkingManager.clearAllLinks());
         end
         function app = SignalViewerApp()
-            %=== Create UI with LIGHT MODE styling ===%
+            %=== Create UI with RESIZABLE styling ===%
             app.UIFigure = uifigure('Name', 'Signal Viewer Pro', ...
                 'Position', [100 100 1200 800], ...
-                'Color', [0.94 0.94 0.94]);  % Light gray background
+                'Color', [0.94 0.94 0.94], ...
+                'Resize', 'on', ...  % Enable resizing
+                'SizeChangedFcn', @(src, event) app.onFigureResize());  % Add resize callback
 
-            % Light Mode Control Panel
+            % Control Panel - will be resized dynamically
             app.ControlPanel = uipanel(app.UIFigure, ...
                 'Position', [1 1 318 799]);
 
-            % Main Tab Group (default light styling)
+            % Main Tab Group - will be resized dynamically
             app.MainTabGroup = uitabgroup(app.UIFigure, ...
                 'Position', [320 1 880 799]);
-
 
             %=== Create Enhanced Components ===%
             app.createEnhancedComponents();
@@ -152,20 +153,133 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.UIController.setupCallbacks();
             %=== Initialize visual enhancements ===%
             app.initializeVisualEnhancements();
+            app.setupDynamicResizing();
+        end
+
+        function setupDynamicResizing(app)
+            % Configure the layout for dynamic resizing
+            app.UIFigure.AutoResizeChildren = 'off';  % We'll handle resizing manually
+
+            % Set minimum window size
+            app.UIFigure.WindowState = 'normal';
+
+            % Initial resize to ensure proper layout
+            app.onFigureResize();
+        end
+
+        function onFigureResize(app)
+            % Get current figure size
+            figPos = app.UIFigure.Position;
+            figWidth = figPos(3);
+            figHeight = figPos(4);
+
+            % Minimum size constraints
+            minWidth = 800;
+            minHeight = 600;
+
+            if figWidth < minWidth || figHeight < minHeight
+                app.UIFigure.Position = [figPos(1), figPos(2), max(figWidth, minWidth), max(figHeight, minHeight)];
+                figWidth = max(figWidth, minWidth);
+                figHeight = max(figHeight, minHeight);
+            end
+
+            % Calculate panel dimensions (control panel takes 25% of width, min 250px, max 400px)
+            controlPanelWidth = max(250, min(400, figWidth * 0.25));
+            plotPanelX = controlPanelWidth + 2;
+            plotPanelWidth = figWidth - plotPanelX;
+
+            % Resize control panel
+            app.ControlPanel.Position = [1, 1, controlPanelWidth, figHeight];
+
+            % Resize main tab group (plot area)
+            app.MainTabGroup.Position = [plotPanelX, 1, plotPanelWidth, figHeight];
+
+            % Resize components within control panel
+            app.resizeControlPanelComponents(controlPanelWidth, figHeight);
+        end
+
+        function resizeControlPanelComponents(app, panelWidth, panelHeight)
+            % Resize components within the control panel based on new dimensions
+
+            margin = 20;
+            componentWidth = panelWidth - 2 * margin;
+
+            % Auto Scale button
+            if isvalid(app.AutoScaleButton)
+                buttonWidth = min(120, (componentWidth - 10) / 2);
+                app.AutoScaleButton.Position = [margin, panelHeight - 60, buttonWidth, 30];
+            end
+
+            % Refresh CSVs button
+            if isvalid(app.RefreshCSVsButton)
+                buttonWidth = min(120, (componentWidth - 10) / 2);
+                app.RefreshCSVsButton.Position = [margin + buttonWidth + 10, panelHeight - 60, buttonWidth, 30];
+            end
+
+            % Search field
+            if isvalid(app.SignalSearchField)
+                app.SignalSearchField.Position = [margin, panelHeight - 90, componentWidth, 25];
+            end
+
+            % Calculate space for bottom components (status labels + remove button + some padding)
+            bottomSpace = 100; % Space reserved for bottom components
+
+            % Properties table - MAKE IT MUCH LARGER
+            if isvalid(app.SignalPropsTable)
+                % Table gets 25% of available space (was fixed 85px)
+                tableHeight = max(120, floor((panelHeight - 150 - bottomSpace) * 0.25)); % Minimum 120px, 25% of available space
+                tableY = bottomSpace + 30; % Position above bottom components
+                app.SignalPropsTable.Position = [margin, tableY, componentWidth, tableHeight];
+
+                % Adjust column widths proportionally
+                if componentWidth > 200
+                    colWidths = {25, floor(componentWidth*0.35), 50, 40, 45, floor(componentWidth*0.15)};
+                    app.SignalPropsTable.ColumnWidth = colWidths;
+                end
+            else
+                tableHeight = 120;
+                tableY = bottomSpace + 30;
+            end
+
+            % Signal tree - takes remaining space above the properties table
+            if isvalid(app.SignalTree)
+                treeY = tableY + tableHeight + 10; % Start above the table
+                treeHeight = max(200, panelHeight - 120 - treeY); % Remaining space
+                app.SignalTree.Position = [margin, treeY, componentWidth, treeHeight];
+            end
+
+            % Remove button - positioned above status labels
+            if isvalid(app.RemoveSelectedSignalsButton)
+                app.RemoveSelectedSignalsButton.Position = [margin, bottomSpace, componentWidth, 20];
+            end
+
+            % Status labels at the very bottom
+            if isvalid(app.StatusLabel)
+                app.StatusLabel.Position = [margin, 25, componentWidth, 15];
+            end
+
+            if isvalid(app.DataRateLabel)
+                labelWidth = componentWidth / 2 - 5;
+                app.DataRateLabel.Position = [margin, 55, labelWidth, 15];
+            end
+
+            if isvalid(app.StreamingInfoLabel)
+                labelWidth = componentWidth / 2 - 5;
+                app.StreamingInfoLabel.Position = [margin + labelWidth + 10, 55, labelWidth, 15];
+            end
         end
 
         function createEnhancedComponents(app)
-            % Enhanced layout with LIGHT MODE styling
-            % Only keep controls that are actually used in the current workflow
+            % Enhanced layout with ALL original menus and components
 
+            % FILE MENU
             fileMenu = uimenu(app.UIFigure, 'Text', 'File');
             uimenu(fileMenu, 'Text', '💾 Save Layout Config', 'MenuSelectedFcn', @(src, event) app.ConfigManager.saveConfig());
             uimenu(fileMenu, 'Text', '📁 Load Layout Config', 'MenuSelectedFcn', @(src, event) app.ConfigManager.loadConfig());
-
             uimenu(fileMenu, 'Text', '💾 Save Full Session', 'MenuSelectedFcn', @(src, event) app.saveSession());
             uimenu(fileMenu, 'Text', '📁 Load Full Session', 'MenuSelectedFcn', @(src, event) app.loadSession());
 
-            % Update the actions menu in createEnhancedComponents method:
+            % ACTIONS MENU
             actionsMenu = uimenu(app.UIFigure, 'Text', 'Actions');
             uimenu(actionsMenu, 'Text', '▶️ Start (Load CSVs)', 'MenuSelectedFcn', @(src, event) app.menuStart());
             uimenu(actionsMenu, 'Text', '➕ Add More CSVs', 'MenuSelectedFcn', @(src, event) app.menuAddMoreCSVs());
@@ -174,6 +288,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(actionsMenu, 'Text', '🗑️ Clear Everything', 'MenuSelectedFcn', @(src, event) app.menuClearAll());
             uimenu(actionsMenu, 'Text', '📈 Statistics', 'MenuSelectedFcn', @(src, event) app.menuStatistics());
 
+            % OPERATIONS MENU
             operationsMenu = uimenu(app.UIFigure, 'Text', 'Operations');
 
             % Single Signal Operations
@@ -189,7 +304,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(multiSubMenu, 'Text', '÷ Divide (A ÷ B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('divide'));
             uimenu(multiSubMenu, 'Text', '‖‖ Norm of Signals', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showNormDialog());
 
-            % Quick Operations - NEW!
+            % Quick Operations
             quickSubMenu = uimenu(operationsMenu, 'Text', '⚡ Quick Operations');
             uimenu(quickSubMenu, 'Text', '📊 Vector Magnitude', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickVectorMagnitude());
             uimenu(quickSubMenu, 'Text', '📈 Moving Average', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickMovingAverage());
@@ -202,16 +317,25 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(managementSubMenu, 'Text', '📋 Operation History', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationHistory());
             uimenu(managementSubMenu, 'Text', '🗑️ Clear All Derived Signals', 'MenuSelectedFcn', @(src, event) app.confirmAndClearDerivedSignals());
 
+            % EXPORT MENU
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
             uimenu(exportMenu, 'Text', '📂 Open Plot Browser View', 'MenuSelectedFcn', @(src, event) app.menuExportToPlotBrowser());
-            uimenu(exportMenu, 'Text', '📡 Export to SDI', ...
-                'MenuSelectedFcn', @(src, event) app.PlotManager.exportToSDI());
+            uimenu(exportMenu, 'Text', '📡 Export to SDI', 'MenuSelectedFcn', @(src, event) app.PlotManager.exportToSDI());
 
+            % NEW VIEW MENU for layout control
+            viewMenu = uimenu(app.UIFigure, 'Text', 'View');
+            uimenu(viewMenu, 'Text', '🔍 Zoom In', 'MenuSelectedFcn', @(src, event) app.zoomInterface(1.1));
+            uimenu(viewMenu, 'Text', '🔍 Zoom Out', 'MenuSelectedFcn', @(src, event) app.zoomInterface(0.9));
+            uimenu(viewMenu, 'Text', '🎯 Reset Zoom', 'MenuSelectedFcn', @(src, event) app.resetInterfaceZoom());
+            uimenu(viewMenu, 'Text', '⬅️ Narrow Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.2), 'Separator', 'on');
+            uimenu(viewMenu, 'Text', '➡️ Wide Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.35));
+            uimenu(viewMenu, 'Text', '🎯 Default Layout', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.25));
 
+            % CONTROL PANEL COMPONENTS (initial positions - will be adjusted by resize)
 
-            % ONLY Auto Scale and Refresh CSV buttons at the top
+            % Top buttons
             app.AutoScaleButton = uibutton(app.ControlPanel, 'push', 'Text', 'Auto Scale All', ...
                 'Position', [20 740 120 30], ...
                 'ButtonPushedFcn', @(src, event) app.autoScaleCurrentSubplot(), ...
@@ -223,83 +347,75 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 'ButtonPushedFcn', @(src, event) app.refreshCSVs(), ...
                 'FontSize', 11, 'FontWeight', 'bold');
 
-            % Search box for signals - moved up and made wider
+            % Search box
             app.SignalSearchField = uieditfield(app.ControlPanel, 'text', ...
                 'Position', [20 710 280 25], ...
                 'Placeholder', 'Search signals...', ...
                 'ValueChangingFcn', @(src, event) app.filterSignals(event.Value), ...
                 'FontSize', 11);
 
-            % LARGE Signal selection tree - takes up most of the panel
+            % Signal tree - main component
             app.SignalTree = uitree(app.ControlPanel, ...
-                'Position', [20 200 280 500], ... % Much larger: 500px height instead of 200px
-                'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ... % Remove src, event parameters
+                'Position', [20 200 280 500], ...
+                'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ...
                 'FontSize', 11);
 
-            % Set up tree properties with version compatibility
+            % Set up tree properties
             try
                 app.SignalTree.Multiselect = 'on';
             catch
                 % Multiselect not available in older versions
             end
 
-            % Enable drag-and-drop for the signal tree (MATLAB R2021b+)
             try
                 app.SignalTree.Draggable = 'on';
             catch
                 % Draggable not available in older versions
             end
 
-            % Add context menu for clearing all signals from subplot
+            % Context menu setup
             cm = uicontextmenu(app.UIFigure);
             app.SignalTree.ContextMenu = cm;
             app.setupMultiSelectionContextMenu();
 
-
-
-
-            app.SignalTree.ContextMenu = cm;
-            app.setupMultiSelectionContextMenu();
-            % LARGER Table for editing scale and state for selected signals
+            % Properties table
             app.SignalPropsTable = uitable(app.ControlPanel, ...
-                'Position', [20 110 280 85], ... % Moved up to make room for button
-                'ColumnName', {'☐', 'Signal', 'Scale', 'State', 'Color', 'LineWidth'}, ... % Added checkbox column
-                'ColumnWidth', {25, 100, 50, 40, 45, 60}, ... % Set column widths
-                'ColumnEditable', [true false true true false true], ... % Make checkbox column editable
+                'Position', [20 110 280 85], ...
+                'ColumnName', {'☐', 'Signal', 'Scale', 'State', 'Color', 'LineWidth'}, ...
+                'ColumnWidth', {25, 100, 50, 40, 45, 60}, ...
+                'ColumnEditable', [true false true true false true], ...
                 'CellEditCallback', @(src, event) app.onSignalPropsEdit(event), ...
                 'CellSelectionCallback', @(src, event) app.onSignalPropsSelection(event), ...
                 'FontSize', 10);
 
-            % Add Remove Selected button right below the table
+            % Remove button
             app.RemoveSelectedSignalsButton = uibutton(app.ControlPanel, 'push', ...
                 'Text', '🗑️ Remove Selected from Subplot', ...
                 'Position', [20 85 280 20], ...
                 'ButtonPushedFcn', @(src, event) app.removeSelectedSignalsFromTable(), ...
                 'FontSize', 9, 'Enable', 'off');
 
-
-
-            % Status labels at the very top
+            % Status labels at bottom
             app.StatusLabel = uilabel(app.ControlPanel, ...
-                'Position', [20 25 280 15], ... % Smaller and at very top
+                'Position', [20 25 280 15], ...
                 'Text', 'Ready', ...
                 'FontColor', [0.2 0.2 0.2], ...
                 'FontSize', 10, ...
                 'FontWeight', 'bold');
 
             app.DataRateLabel = uilabel(app.ControlPanel, ...
-                'Position', [20 55 140 15], ... % Moved to bottom left
+                'Position', [20 55 140 15], ...
                 'Text', 'Data Rate: 0 Hz', ...
                 'FontColor', [0.2 0.2 0.2], ...
                 'FontSize', 9);
 
-            % StreamingInfoLabel at bottom right
             app.StreamingInfoLabel = uilabel(app.ControlPanel, ...
-                'Position', [160 65 140 15], ... % Bottom right
+                'Position', [160 65 140 15], ...
                 'Text', '', ...
                 'FontColor', [0.2 0.2 0.2], ...
                 'FontSize', 9);
 
+            % Set up tree expansion callbacks
             try
                 app.SignalTree.NodeExpandedFcn = @(src, event) app.safeNodeExpanded(src, event);
                 app.SignalTree.NodeCollapsedFcn = @(src, event) app.safeNodeCollapsed(src, event);
@@ -309,6 +425,41 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
 
+        % Additional helper methods for layout control
+        function zoomInterface(app, factor)
+            % Zoom the interface by scaling the window
+            currentPos = app.UIFigure.Position;
+            newWidth = currentPos(3) * factor;
+            newHeight = currentPos(4) * factor;
+
+            % Keep window centered
+            deltaWidth = newWidth - currentPos(3);
+            deltaHeight = newHeight - currentPos(4);
+
+            app.UIFigure.Position = [currentPos(1) - deltaWidth/2, currentPos(2) - deltaHeight/2, newWidth, newHeight];
+        end
+
+        function resetInterfaceZoom(app)
+            % Reset to default size
+            app.UIFigure.Position = [100 100 1200 800];
+        end
+
+        function adjustControlPanelRatio(app, ratio)
+            % Adjust the control panel to take a specific ratio of the window width
+            figPos = app.UIFigure.Position;
+            figWidth = figPos(3);
+
+            % Force a specific control panel width
+            controlPanelWidth = max(250, min(500, figWidth * ratio));
+
+            % Temporarily override the automatic calculation
+            app.ControlPanel.Position(3) = controlPanelWidth;
+            app.MainTabGroup.Position(1) = controlPanelWidth + 2;
+            app.MainTabGroup.Position(3) = figWidth - controlPanelWidth - 2;
+
+            % Resize control panel components
+            app.resizeControlPanelComponents(controlPanelWidth, figPos(4));
+        end
         function safeNodeExpanded(app, src, event)
             try
                 if isfield(event, 'Node') && isprop(event.Node, 'Text')
