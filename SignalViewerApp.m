@@ -158,7 +158,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
         function setupDynamicResizing(app)
             % Configure the layout for dynamic resizing
-            app.UIFigure.AutoResizeChildren = 'off';  % We'll handle resizing manually
+            %             app.UIFigure.AutoResizeChildren = 'off';  % We'll handle resizing manually
 
             % Set minimum window size
             app.UIFigure.WindowState = 'normal';
@@ -227,7 +227,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Properties table - MAKE IT MUCH LARGER
             if isvalid(app.SignalPropsTable)
                 % Table gets 25% of available space (was fixed 85px)
-                tableHeight = max(120, floor((panelHeight - 150 - bottomSpace) * 0.25)); % Minimum 120px, 25% of available space
+                tableHeight = max(150, floor((panelHeight - 150 - bottomSpace) * 0.25)); % Minimum 120px, 25% of available space
                 tableY = bottomSpace + 30; % Position above bottom components
                 app.SignalPropsTable.Position = [margin, tableY, componentWidth, tableHeight];
 
@@ -326,9 +326,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
             % NEW VIEW MENU for layout control
             viewMenu = uimenu(app.UIFigure, 'Text', 'View');
-            uimenu(viewMenu, 'Text', '🔍 Zoom In', 'MenuSelectedFcn', @(src, event) app.zoomInterface(1.1));
-            uimenu(viewMenu, 'Text', '🔍 Zoom Out', 'MenuSelectedFcn', @(src, event) app.zoomInterface(0.9));
-            uimenu(viewMenu, 'Text', '🎯 Reset Zoom', 'MenuSelectedFcn', @(src, event) app.resetInterfaceZoom());
+            %             uimenu(viewMenu, 'Text', '🔍 Zoom In', 'MenuSelectedFcn', @(src, event) app.zoomInterface(1.1));
+            %             uimenu(viewMenu, 'Text', '🔍 Zoom Out', 'MenuSelectedFcn', @(src, event) app.zoomInterface(0.9));
+            %             uimenu(viewMenu, 'Text', '🎯 Reset Zoom', 'MenuSelectedFcn', @(src, event) app.resetInterfaceZoom());
             uimenu(viewMenu, 'Text', '⬅️ Narrow Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.2), 'Separator', 'on');
             uimenu(viewMenu, 'Text', '➡️ Wide Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.35));
             uimenu(viewMenu, 'Text', '🎯 Default Layout', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.25));
@@ -1001,6 +1001,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.updateSignalPropsTable(assigned);
             end
         end
+
 
 
 
@@ -2387,6 +2388,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
             if ~isempty(app.DataManager.DataTables) && any(~cellfun(@isempty, app.DataManager.DataTables))
                 app.enableDataTipsByDefault();
             end
+            app.restoreTreeExpandedState();
+
         end
 
         function fixDerivedSignalContextMenus(app, derivedSignalsNode)
@@ -3524,64 +3527,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
 
-        function addMultipleSignalsToCurrentSubplot(app, signalsToAdd)
-            % Add multiple signals to current subplot
-            if isempty(signalsToAdd)
-                return;
-            end
-
-            tabIdx = app.PlotManager.CurrentTabIdx;
-            subplotIdx = app.PlotManager.SelectedSubplotIdx;
-
-            % Get current assignments
-            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
-
-            % Add all signals that aren't already assigned
-            addedCount = 0;
-            for i = 1:numel(signalsToAdd)
-                signalInfo = signalsToAdd{i};
-
-                % Check if already assigned
-                alreadyAssigned = false;
-                for j = 1:numel(currentAssignments)
-                    if isequal(currentAssignments{j}, signalInfo)
-                        alreadyAssigned = true;
-                        break;
-                    end
-                end
-
-                if ~alreadyAssigned
-                    currentAssignments{end+1} = signalInfo;
-                    addedCount = addedCount + 1;
-
-                    % Apply linking for this signal
-                    if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
-                        app.LinkingManager.applyLinking(signalInfo);
-                    end
-                end
-            end
-
-            % Update assignments
-            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = currentAssignments;
-
-            % Refresh visuals
-            app.buildSignalTree();
-            app.PlotManager.refreshPlots(tabIdx);
-
-            % Update signal properties table to show current selection
-            selectedNodes = app.SignalTree.SelectedNodes;
-            selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
-            app.updateSignalPropsTable(selectedSignals);
-
-            % Update status
-            if addedCount > 0
-                app.StatusLabel.Text = sprintf('➕ Added %d signal(s) to subplot', addedCount);
-                app.StatusLabel.FontColor = [0.2 0.6 0.9];
-            else
-                app.StatusLabel.Text = 'All selected signals already assigned';
-                app.StatusLabel.FontColor = [0.9 0.6 0.2];
-            end
-        end
 
         function removeMultipleSignalsFromCurrentSubplot(app, signalsToRemove)
             % Remove multiple signals from current subplot
@@ -5105,6 +5050,130 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.buildSignalTree();
             app.PlotManager.refreshPlots();
             % Do NOT auto-start streaming here to avoid recursion
+        end
+
+        % Fix for SignalViewerApp.m - Replace the addMultipleSignalsToCurrentSubplot method
+
+        function addMultipleSignalsToCurrentSubplot(app, signalsToAdd)
+            % Add multiple signals to current subplot - uses existing PlotManager methods
+            if isempty(signalsToAdd)
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % SAVE EXPANDED STATE BEFORE ANY CHANGES
+            app.saveTreeExpandedState();
+
+            % Use PlotManager's safe method
+            addedCount = app.PlotManager.addSignalsToSubplot(tabIdx, subplotIdx, signalsToAdd);
+
+            % Apply linking for added signals
+            if addedCount > 0 && isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
+                for i = 1:numel(signalsToAdd)
+                    app.LinkingManager.applyLinking(signalsToAdd{i});
+                end
+            end
+
+            % Instead of full rebuild, just update visual indicators
+            if addedCount > 0
+                % Get current assignments for visual update
+                currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+                % USE EXISTING PlotManager method - it already handles everything correctly
+                app.PlotManager.updateSignalTreeVisualIndicators(currentAssignments);
+
+                % Refresh plots
+                app.PlotManager.refreshPlots(tabIdx);
+
+                % Update properties table
+                selectedNodes = app.SignalTree.SelectedNodes;
+                selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
+                app.updateSignalPropsTable(selectedSignals);
+            end
+
+            % RESTORE EXPANDED STATE AFTER UPDATES
+            app.restoreTreeExpandedState();
+
+            % Update status
+            if addedCount > 0
+                app.StatusLabel.Text = sprintf('➕ Added %d signal(s) to subplot %d', addedCount, subplotIdx);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'All selected signals already assigned';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+
+
+        function saveTreeExpandedState(app)
+            % Save the current expanded state of all tree nodes
+            if isempty(app.SignalTree) || isempty(app.SignalTree.Children)
+                return;
+            end
+
+            % Clear previous state
+            app.ExpandedTreeNodes = string.empty;
+
+            % Save expanded state of all root nodes
+            for i = 1:numel(app.SignalTree.Children)
+                node = app.SignalTree.Children(i);
+                try
+                    % Check if node is expanded (different methods for different MATLAB versions)
+                    isExpanded = false;
+                    if isprop(node, 'Expanded')
+                        isExpanded = node.Expanded;
+                    elseif isprop(node, 'NodeExpanded')
+                        isExpanded = node.NodeExpanded;
+                    else
+                        % For older versions, assume expanded if has visible children
+                        isExpanded = ~isempty(node.Children);
+                    end
+
+                    if isExpanded
+                        app.ExpandedTreeNodes(end+1) = string(node.Text);
+                    end
+                catch
+                    % Ignore errors - just skip this node
+                end
+            end
+        end
+
+
+        function restoreTreeExpandedState(app)
+            % Restore the previously saved expanded state
+            if isempty(app.ExpandedTreeNodes) || isempty(app.SignalTree.Children)
+                return;
+            end
+
+            % Small delay to ensure tree is fully built
+            pause(0.01);
+
+            % Restore expanded state
+            for i = 1:numel(app.SignalTree.Children)
+                node = app.SignalTree.Children(i);
+                nodeText = string(node.Text);
+
+                % Check if this node should be expanded
+                if any(strcmp(nodeText, app.ExpandedTreeNodes))
+                    try
+                        % Try different methods to expand the node
+                        if isprop(node, 'expand') && isa(node.expand, 'function_handle')
+                            node.expand();
+                        elseif isprop(node, 'Expanded')
+                            node.Expanded = true;
+                        elseif isprop(node, 'NodeExpanded')
+                            node.NodeExpanded = true;
+                        end
+                    catch
+                        % Ignore expansion errors
+                    end
+                end
+            end
+
+            % Force UI update
+            drawnow;
         end
 
         function colors = assignCSVColors(~, n)

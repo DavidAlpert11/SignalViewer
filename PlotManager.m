@@ -19,6 +19,7 @@ classdef PlotManager < handle
         TabSwitchTimer % Timer for smooth tab switching
         TabLinkedAxes % Per-tab axis linking state (logical array)
         TabLinkedAxesObjects % Per-tab linked axes objects (cell array)
+        LastAddedCount
     end
 
     methods
@@ -82,7 +83,7 @@ classdef PlotManager < handle
             for i = 1:2
                 obj.AssignedSignals{1}{i} = {};
             end
-            
+
             % Initialize per-tab linking state
             obj.TabLinkedAxes(1) = false;  % First tab starts unlinked
             obj.TabLinkedAxesObjects{1} = [];
@@ -402,6 +403,8 @@ classdef PlotManager < handle
             end
 
             obj.TabLayouts{tabIdx} = [rows, cols];
+            obj.ensureAssignedSignalsMatchLayout(tabIdx);
+
 
             % Delete old axes and grid layout
             if ~isempty(obj.AxesArrays{tabIdx})
@@ -457,28 +460,44 @@ classdef PlotManager < handle
                 ax.XLimMode = 'auto';
                 ax.YLimMode = 'auto';
 
+                % *** CRITICAL FIX: Enable interactions for ALL tabs including Tab 1 ***
+                try
+                    ax.Interactions = [panInteraction, zoomInteraction];
+                catch
+                    % Fallback for older MATLAB versions
+                    ax.Toolbar.Visible = 'on';
+                end
+
                 % Initialize limits tracking with empty values
                 obj.AxesLimits{tabIdx}{i} = struct('XLim', [], 'YLim', [], 'HasData', false);
                 obj.LastDataTime{tabIdx}{i} = 0;
 
-
                 obj.XAxisSignals{tabIdx, i} = 'Time';
+
                 % Add click callback for subplot selection
                 ax.ButtonDownFcn = @(src, event) obj.selectSubplot(tabIdx, i);
 
-                % ADD COMBINED CONTEXT MENU with both data tips and export options
+                % ADD CONTEXT MENU with all options including zoom
                 cm = uicontextmenu(obj.App.UIFigure);
 
-                % Caption editing - NEW
+                % Caption editing
                 uimenu(cm, 'Text', '📝 Edit Title, Caption & Description', ...
                     'MenuSelectedFcn', @(src, event) obj.App.editSubplotCaption(tabIdx, i));
 
-                % Data tips toggle - always available
+                % Data tips toggle
                 uimenu(cm, 'Text', '🎯 Toggle Data Tips', ...
                     'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax), ...
                     'Separator', 'on');
 
-                % Export options - always available
+                % Zoom options - ADD THESE
+                uimenu(cm, 'Text', '🔍 Auto Scale This Plot', ...
+                    'MenuSelectedFcn', @(src, event) obj.autoScaleSingleSubplot(ax), ...
+                    'Separator', 'on');
+
+                uimenu(cm, 'Text', '🔍 Zoom to Fit All Data', ...
+                    'MenuSelectedFcn', @(src, event) obj.zoomToFitData(ax));
+
+                % Export options
                 uimenu(cm, 'Text', '📊 Export to MATLAB Figure', ...
                     'MenuSelectedFcn', @(src, event) obj.exportSubplotToFigure(tabIdx, i), ...
                     'Separator', 'on');
@@ -1470,6 +1489,7 @@ classdef PlotManager < handle
             % Update signal tree for the newly selected subplot
             obj.updateSignalTreeForCurrentTab();
         end
+
         function addNewTab(obj, ~, ~)
             rows = 2; cols = 1;
 
@@ -1528,12 +1548,15 @@ classdef PlotManager < handle
             for i = 1:nPlots
                 obj.AssignedSignals{newTabIdx}{i} = {};
             end
-            
+
             % Initialize per-tab linking state for new tab
             while length(obj.TabLinkedAxes) < newTabIdx
                 obj.TabLinkedAxes(end+1) = false;
                 obj.TabLinkedAxesObjects{end+1} = [];
             end
+
+            % *** ADD THIS LINE HERE - BEFORE addTabControls: ***
+            obj.validateSelectedSubplotIdx(newTabIdx);
 
             % Add tab-specific controls FIRST (they go in row 1)
             obj.addTabControls(newTabIdx);
@@ -1553,10 +1576,11 @@ classdef PlotManager < handle
 
             % Update signal tree for the new tab
             obj.updateSignalTreeForCurrentTab();
-            
+
             % Update per-tab axis linking for the new tab
             obj.updateTabLinkAxes(newTabIdx);
         end
+
         function updateTabTitles(obj)
             % Update tab titles - NO X icons, use double-click to close
             realTabs = [];
@@ -1589,11 +1613,21 @@ classdef PlotManager < handle
                 end
             end
         end
-        function handleTabClick(obj, tab, ~)
-            % Handle tab clicks - double-click to close
+
+        function handleTabClick(obj, tab, event)
+            % Handle tab clicks - double-click to close, Ctrl+Click for quick close
             persistent lastClickTime lastClickedTab
 
             currentTime = now;
+
+            % Check for Ctrl+Click (quick delete)
+            if ~isempty(event) && isfield(event, 'Source') && isprop(event.Source, 'CurrentModifier')
+                modifiers = event.Source.CurrentModifier;
+                if any(strcmp(modifiers, 'control'))
+                    obj.deleteTabByHandle(tab);
+                    return;
+                end
+            end
 
             % Check if this is a double-click (within 0.5 seconds)
             if ~isempty(lastClickTime) && ~isempty(lastClickedTab) && ...
@@ -1684,6 +1718,8 @@ classdef PlotManager < handle
 
                 % Delete the tab
                 delete(tab);
+
+                % *** IMPORTANT: Remove from ALL arrays at the same index ***
                 obj.PlotTabs(idx) = [];
 
                 % Only remove from other arrays if within bounds
@@ -1704,6 +1740,20 @@ classdef PlotManager < handle
                 end
                 if idx <= numel(obj.LastDataTime)
                     obj.LastDataTime(idx) = [];
+                end
+                if idx <= numel(obj.TabControls)
+                    obj.TabControls(idx) = [];
+                end
+                if idx <= numel(obj.MainTabGridLayouts)
+                    obj.MainTabGridLayouts(idx) = [];
+                end
+
+                % *** CRITICAL: Also clean up linking arrays ***
+                if idx <= length(obj.TabLinkedAxes)
+                    obj.TabLinkedAxes(idx) = [];
+                end
+                if idx <= length(obj.TabLinkedAxesObjects)
+                    obj.TabLinkedAxesObjects(idx) = [];
                 end
 
                 % Adjust current tab index if necessary
@@ -1728,15 +1778,41 @@ classdef PlotManager < handle
                     return;
                 end
 
-                % Update tab titles (this will hide X if only one tab remains)
+                % Update tab titles
                 obj.updateTabTitles();
 
                 % Ensure + tab stays at the end
                 obj.ensurePlusTabAtEnd();
 
                 % Update UI
-                obj.App.UIController.updateSubplotDropdown();
+                if ismethod(obj.App.UIController, 'updateSubplotDropdown')
+                    obj.App.UIController.updateSubplotDropdown();
+                end
                 obj.updateSignalTreeForCurrentTab();
+
+                % Important: Refresh current tab to ensure everything works
+                obj.validateAndFixSubplotIndex();
+            end
+        end
+
+        % FIX 5: Add validation method to clean up after deletions
+
+        function validateAndFixSubplotIndex(obj)
+            % Ensure SelectedSubplotIdx is valid for current tab after deletions
+            tabIdx = obj.CurrentTabIdx;
+
+            if tabIdx <= numel(obj.AssignedSignals) && ~isempty(obj.AssignedSignals{tabIdx})
+                maxSubplotIdx = numel(obj.AssignedSignals{tabIdx});
+
+                if obj.SelectedSubplotIdx > maxSubplotIdx
+                    obj.SelectedSubplotIdx = 1;
+
+                    % Update dropdown if it exists
+                    if tabIdx <= numel(obj.TabControls) && ~isempty(obj.TabControls{tabIdx}) && ...
+                            isfield(obj.TabControls{tabIdx}, 'SubplotDropdown')
+                        obj.TabControls{tabIdx}.SubplotDropdown.Value = 'Plot 1';
+                    end
+                end
             end
         end
 
@@ -2398,26 +2474,25 @@ classdef PlotManager < handle
                     obj.TabLinkedAxes(end+1) = false;
                     obj.TabLinkedAxesObjects{end+1} = [];
                 end
-                
+
                 % Enable linking for this tab
                 obj.TabLinkedAxes(i) = true;
                 obj.linkTabAxes(i);
-                
+
                 % Update the UI toggle if it exists
                 if i <= length(obj.TabControls) && ~isempty(obj.TabControls{i}) && ...
-                   isfield(obj.TabControls{i}, 'LinkAxesToggle')
+                        isfield(obj.TabControls{i}, 'LinkAxesToggle')
                     obj.TabControls{i}.LinkAxesToggle.Value = true;
                 end
             end
         end
+
         function addTabControls(obj, tabIdx)
             % Add layout and subplot controls in row 1 of the main layout
             mainLayout = obj.MainTabGridLayouts{tabIdx};
 
             % Create control panel in row 1 of the main layout
             controlPanel = uipanel(mainLayout);
-
-            % Set the layout position AFTER creating the panel
             controlPanel.Layout.Row = 1;
             controlPanel.Layout.Column = 1;
 
@@ -2431,33 +2506,26 @@ classdef PlotManager < handle
 
             uilabel(controlPanel, 'Text', 'Rows:', ...
                 'Position', [20 controlY 50 25], ...
-                'FontWeight', 'bold', ...
-                'FontSize', 11);
+                'FontWeight', 'bold', 'FontSize', 11);
 
             rowsSpinner = uispinner(controlPanel, ...
                 'Position', [75 controlY 60 25], ...
-                'Limits', [1 10], ...
-                'Value', currentRows, ...
-                'FontSize', 10, ...
+                'Limits', [1 10], 'Value', currentRows, 'FontSize', 10, ...
                 'ValueChangedFcn', @(src, event) obj.onTabLayoutChanged(tabIdx, src.Value, []));
 
             uilabel(controlPanel, 'Text', 'Cols:', ...
                 'Position', [150 controlY 50 25], ...
-                'FontWeight', 'bold', ...
-                'FontSize', 11);
+                'FontWeight', 'bold', 'FontSize', 11);
 
             colsSpinner = uispinner(controlPanel, ...
                 'Position', [205 controlY 60 25], ...
-                'Limits', [1 10], ...
-                'Value', currentCols, ...
-                'FontSize', 10, ...
+                'Limits', [1 10], 'Value', currentCols, 'FontSize', 10, ...
                 'ValueChangedFcn', @(src, event) obj.onTabLayoutChanged(tabIdx, [], src.Value));
 
             % Subplot selection
             uilabel(controlPanel, 'Text', 'Current Subplot:', ...
                 'Position', [290 controlY 100 25], ...
-                'FontWeight', 'bold', ...
-                'FontSize', 11);
+                'FontWeight', 'bold', 'FontSize', 11);
 
             % Calculate subplot options
             nPlots = currentRows * currentCols;
@@ -2466,21 +2534,28 @@ classdef PlotManager < handle
                 plotItems{i} = sprintf('Plot %d', i);
             end
 
+            % Ensure SelectedSubplotIdx is valid for this tab
+            validSubplotIdx = obj.SelectedSubplotIdx;
+            if validSubplotIdx > nPlots
+                validSubplotIdx = 1;
+                obj.SelectedSubplotIdx = 1;
+            end
+
             subplotDropdown = uidropdown(controlPanel, ...
                 'Position', [400 controlY 120 25], ...
                 'Items', plotItems, ...
-                'Value', sprintf('Plot %d', obj.SelectedSubplotIdx), ...
+                'Value', sprintf('Plot %d', validSubplotIdx), ...
                 'FontSize', 10, ...
                 'ValueChangedFcn', @(src, event) obj.onSubplotSelected(tabIdx, src.Value));
 
-            % Add Link Axes toggle button for this tab
+            % *** CRITICAL FIX: Use dynamic tab finding instead of static tabIdx ***
             linkAxesToggle = uibutton(controlPanel, 'state', ...
                 'Position', [530 controlY 100 25], ...
                 'Text', 'Link Tab Axes', ...
                 'FontSize', 9, ...
                 'Tooltip', 'Link X-axes of all subplots in this tab only', ...
-                'ValueChangedFcn', @(src, event) obj.onTabLinkAxesToggle(tabIdx, src.Value));
-            
+                'ValueChangedFcn', @(src, event) obj.onTabLinkAxesToggleDynamic(src, event));
+
             % Set initial state
             if tabIdx <= length(obj.TabLinkedAxes)
                 linkAxesToggle.Value = obj.TabLinkedAxes(tabIdx);
@@ -2496,6 +2571,35 @@ classdef PlotManager < handle
                 'SubplotDropdown', subplotDropdown, ...
                 'LinkAxesToggle', linkAxesToggle);
         end
+
+        function onTabLinkAxesToggleDynamic(obj, src, event)
+            % Find which tab this toggle belongs to by searching through TabControls
+            actualTabIdx = obj.findTabIndexFromControl(src);
+
+            if actualTabIdx > 0
+                % Call the original method with the CORRECT tab index
+                obj.onTabLinkAxesToggle(actualTabIdx, src.Value);
+            else
+                % Fallback: use current tab
+                obj.onTabLinkAxesToggle(obj.CurrentTabIdx, src.Value);
+            end
+        end
+
+        % FIX 3: Add helper method to find correct tab index
+
+        function tabIdx = findTabIndexFromControl(obj, control)
+            % Find which tab contains the given control
+            tabIdx = 0;
+
+            for i = 1:numel(obj.TabControls)
+                if ~isempty(obj.TabControls{i}) && ...
+                        isfield(obj.TabControls{i}, 'LinkAxesToggle') && ...
+                        obj.TabControls{i}.LinkAxesToggle == control
+                    tabIdx = i;
+                    return;
+                end
+            end
+        end
         % Disable synchronized zoom/pan (unlink x-limits of all axes)
         function disableSyncZoom(obj)
             % Disable linking for all tabs (legacy function - now uses per-tab approach)
@@ -2503,10 +2607,10 @@ classdef PlotManager < handle
                 if obj.TabLinkedAxes(i)
                     obj.TabLinkedAxes(i) = false;
                     obj.unlinkTabAxes(i);
-                    
+
                     % Update the UI toggle if it exists
                     if i <= length(obj.TabControls) && ~isempty(obj.TabControls{i}) && ...
-                       isfield(obj.TabControls{i}, 'LinkAxesToggle')
+                            isfield(obj.TabControls{i}, 'LinkAxesToggle')
                         obj.TabControls{i}.LinkAxesToggle.Value = false;
                     end
                 end
@@ -2516,22 +2620,22 @@ classdef PlotManager < handle
         % New per-tab axis linking functions
         function onTabLinkAxesToggle(obj, tabIdx, isLinked)
             % Handle tab-specific axis linking toggle
-            
+
             % Ensure arrays are large enough
             while length(obj.TabLinkedAxes) < tabIdx
                 obj.TabLinkedAxes(end+1) = false;
                 obj.TabLinkedAxesObjects{end+1} = [];
             end
-            
+
             % Update state
             obj.TabLinkedAxes(tabIdx) = isLinked;
-            
+
             if isLinked
                 obj.linkTabAxes(tabIdx);
             else
                 obj.unlinkTabAxes(tabIdx);
             end
-            
+
             % Update status
             if isLinked
                 obj.App.StatusLabel.Text = sprintf('🔗 Linked axes for Tab %d', tabIdx);
@@ -2547,11 +2651,11 @@ classdef PlotManager < handle
             if tabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{tabIdx})
                 return;
             end
-            
+
             % Group axes by their X-axis signal for linking
             % Only link axes that share the same X-axis signal
             xAxisGroups = containers.Map('KeyType', 'char', 'ValueType', 'any');
-            
+
             for j = 1:numel(obj.AxesArrays{tabIdx})
                 ax = obj.AxesArrays{tabIdx}(j);
                 if isvalid(ax) && isgraphics(ax)
@@ -2562,7 +2666,7 @@ classdef PlotManager < handle
                             xAxisSignal = obj.XAxisSignals{tabIdx, j};
                         end
                     end
-                    
+
                     % Group axes by their X-axis signal
                     if isKey(xAxisGroups, xAxisSignal)
                         axGroup = xAxisGroups(xAxisSignal);
@@ -2573,7 +2677,7 @@ classdef PlotManager < handle
                     end
                 end
             end
-            
+
             % Link axes within each X-axis group
             allLinkedAxes = [];
             xAxisKeys = keys(xAxisGroups);
@@ -2586,7 +2690,7 @@ classdef PlotManager < handle
                     allLinkedAxes = [allLinkedAxes, axesToLink];
                 end
             end
-            
+
             % Store all linked axes for this tab
             obj.TabLinkedAxesObjects{tabIdx} = allLinkedAxes;
         end
@@ -2596,7 +2700,7 @@ classdef PlotManager < handle
             if tabIdx > numel(obj.TabLinkedAxesObjects) || isempty(obj.TabLinkedAxesObjects{tabIdx})
                 return;
             end
-            
+
             % Unlink the previously linked axes in this tab
             linkedAxes = obj.TabLinkedAxesObjects{tabIdx};
             if ~isempty(linkedAxes)
@@ -2606,7 +2710,7 @@ classdef PlotManager < handle
                     end
                 end
             end
-            
+
             % Clear the linked axes list for this tab
             obj.TabLinkedAxesObjects{tabIdx} = [];
         end
@@ -2669,8 +2773,8 @@ classdef PlotManager < handle
 
                     % Create timer to handle UI updates after tab is visually switched
                     obj.TabSwitchTimer = timer('ExecutionMode', 'singleShot', ...
-                                             'StartDelay', 0.001, ... % Very short delay
-                                             'TimerFcn', @(~,~) obj.finishTabSwitch(previousTabIdx));
+                        'StartDelay', 0.001, ... % Very short delay
+                        'TimerFcn', @(~,~) obj.finishTabSwitch(previousTabIdx));
                     start(obj.TabSwitchTimer);
                 end
             end
@@ -3248,6 +3352,93 @@ classdef PlotManager < handle
             % Debug output to see what's happening
             % fprintf('Original: "%s" -> Processed: "%s"\n', text, processedText);
         end
+
+        function ensureAssignedSignalsMatchLayout(obj, tabIdx)
+            % Ensure AssignedSignals array matches the current tab layout
+            if tabIdx > numel(obj.TabLayouts) || tabIdx > numel(obj.AssignedSignals)
+                return;
+            end
+
+            layout = obj.TabLayouts{tabIdx};
+            expectedSubplots = layout(1) * layout(2);
+
+            % Check if AssignedSignals matches the layout
+            if numel(obj.AssignedSignals{tabIdx}) ~= expectedSubplots
+                % Resize AssignedSignals to match layout
+                oldAssignments = obj.AssignedSignals{tabIdx};
+                obj.AssignedSignals{tabIdx} = cell(expectedSubplots, 1);
+
+                % Copy old assignments up to the limit
+                for i = 1:min(numel(oldAssignments), expectedSubplots)
+                    obj.AssignedSignals{tabIdx}{i} = oldAssignments{i};
+                end
+
+                % Initialize remaining cells
+                for i = (numel(oldAssignments)+1):expectedSubplots
+                    obj.AssignedSignals{tabIdx}{i} = {};
+                end
+            end
+
+            % Reset subplot index if it's out of bounds
+            if obj.SelectedSubplotIdx > expectedSubplots
+                obj.SelectedSubplotIdx = 1;
+
+                % Update app's dropdown if it exists
+                obj.App.PlotManager.updateTabSubplotDropdown(tabIdx);
+            end
+        end
+
+    
+        function addedCount = addSignalsToSubplot(obj, tabIdx, subplotIdx, signalsToAdd)
+            % PlotManager method to safely add signals to a subplot
+            % RETURNS the number of signals actually added
+
+            % Ensure layout consistency first
+            obj.ensureAssignedSignalsMatchLayout(tabIdx);
+
+            % Validate subplot index
+            if subplotIdx > numel(obj.AssignedSignals{tabIdx})
+                fprintf('Warning: Subplot index %d exceeds available subplots (%d)\n', ...
+                    subplotIdx, numel(obj.AssignedSignals{tabIdx}));
+                addedCount = 0;  % RETURN 0 instead of just return
+                return;
+            end
+
+            % Get current assignments safely
+            currentAssignments = obj.AssignedSignals{tabIdx}{subplotIdx};
+            if isempty(currentAssignments)
+                currentAssignments = {};
+            end
+
+            % Add signals
+            addedCount = 0;
+            for i = 1:numel(signalsToAdd)
+                signalInfo = signalsToAdd{i};
+
+                % Check if already assigned
+                alreadyAssigned = false;
+                for j = 1:numel(currentAssignments)
+                    if isequal(currentAssignments{j}, signalInfo)
+                        alreadyAssigned = true;
+                        break;
+                    end
+                end
+
+                if ~alreadyAssigned
+                    currentAssignments{end+1} = signalInfo;
+                    addedCount = addedCount + 1;
+                end
+            end
+
+            % Update assignments
+            obj.AssignedSignals{tabIdx}{subplotIdx} = currentAssignments;
+
+            % OPTIONAL: Store in property if you want both approaches
+            obj.LastAddedCount = addedCount;
+
+            % RETURN the count (this was missing!)
+            % addedCount is automatically returned since it's the output parameter
+        end
         function isHebrew = containsHebrew(~, text)
             % Check if text contains Hebrew characters (Unicode range 1424-1535)
             isHebrew = false;
@@ -3291,7 +3482,23 @@ classdef PlotManager < handle
             % Ensure the actual UI tab order matches our array order
             obj.reorderUITabs();
         end
+        function validateSelectedSubplotIdx(obj, tabIdx)
+            % Ensure SelectedSubplotIdx is valid for the given tab
+            if tabIdx <= numel(obj.TabLayouts)
+                layout = obj.TabLayouts{tabIdx};
+                maxSubplots = layout(1) * layout(2);
 
+                if obj.SelectedSubplotIdx > maxSubplots
+                    obj.SelectedSubplotIdx = 1;
+
+                    % Update dropdown if it exists
+                    if tabIdx <= numel(obj.TabControls) && ~isempty(obj.TabControls{tabIdx}) && ...
+                            isfield(obj.TabControls{tabIdx}, 'SubplotDropdown')
+                        obj.TabControls{tabIdx}.SubplotDropdown.Value = 'Plot 1';
+                    end
+                end
+            end
+        end
 
         % New method to update signal tree based on current tab
         function updateSignalTreeForCurrentTab(obj)
