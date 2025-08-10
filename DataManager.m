@@ -97,14 +97,14 @@ classdef DataManager < handle
         function isValidCSV = validateCSVFormat(obj, T, filePath)
             % Validate that the CSV format is correct (header count matches data count)
             isValidCSV = false;
-            
+
             if isempty(T) || ~istable(T)
                 return;
             end
-            
+
             % Get the number of columns from the table
             numTableCols = width(T);
-            
+
             % Read the raw file to check the actual data structure
             try
                 % Read just the first few lines to check format
@@ -112,14 +112,14 @@ classdef DataManager < handle
                 if fid == -1
                     return;
                 end
-                
+
                 % Read header line
                 headerLine = fgetl(fid);
                 if headerLine == -1
                     fclose(fid);
                     return;
                 end
-                
+
                 % Count header columns (split by common delimiters)
                 if contains(headerLine, ',')
                     headerCols = strsplit(headerLine, ',');
@@ -131,15 +131,15 @@ classdef DataManager < handle
                     headerCols = strsplit(headerLine, ' ');
                 end
                 numHeaderCols = length(headerCols);
-                
+
                 % Read first data line
                 dataLine = fgetl(fid);
                 fclose(fid);
-                
+
                 if dataLine == -1
                     return;
                 end
-                
+
                 % Count data columns
                 if contains(dataLine, ',')
                     dataCols = strsplit(dataLine, ',');
@@ -151,7 +151,7 @@ classdef DataManager < handle
                     dataCols = strsplit(dataLine, ' ');
                 end
                 numDataCols = length(dataCols);
-                
+
                 % Validate: header count should match data count AND table width
                 if numHeaderCols == numDataCols && numTableCols == numHeaderCols
                     isValidCSV = true;
@@ -163,7 +163,7 @@ classdef DataManager < handle
                     fprintf('  Data: %d columns\n', numDataCols);
                     fprintf('  Table: %d columns\n', numTableCols);
                 end
-                
+
             catch ME
                 fprintf('Error validating CSV format: %s\n', ME.message);
                 return;
@@ -200,7 +200,7 @@ classdef DataManager < handle
                 obj.DataTables{idx} = [];
                 return;
             end
-            
+
             % Validate CSV format (header vs data column count)
             if ~obj.validateCSVFormat(T, filePath)
                 obj.DataTables{idx} = [];
@@ -212,7 +212,7 @@ classdef DataManager < handle
                     'Unsupported CSV Format', 'Icon', 'error');
                 return;
             end
-            
+
             % ALWAYS treat the first column as Time, regardless of its original name
             if ~isempty(T.Properties.VariableNames)
                 T.Properties.VariableNames{1} = 'Time';
@@ -220,7 +220,7 @@ classdef DataManager < handle
                 obj.DataTables{idx} = [];
                 return;
             end
-            
+
             % Verify Time column exists (should always be true now)
             if ~any(strcmp('Time', T.Properties.VariableNames))
                 obj.DataTables{idx} = [];
@@ -342,7 +342,7 @@ classdef DataManager < handle
                 if isempty(T)
                     return;
                 end
-                
+
                 % Validate CSV format (header vs data column count) for streaming
                 if ~obj.validateCSVFormat(T, filePath)
                     [~, fileName, ext] = fileparts(filePath);
@@ -356,14 +356,14 @@ classdef DataManager < handle
                     end
                     return;
                 end
-                
+
                 % ALWAYS treat the first column as Time, regardless of its original name
                 if ~isempty(T.Properties.VariableNames)
                     T.Properties.VariableNames{1} = 'Time';
                 else
                     return;
                 end
-                
+
                 % Verify Time column exists (should always be true now)
                 if ~any(strcmp('Time', T.Properties.VariableNames))
                     return;
@@ -610,6 +610,167 @@ classdef DataManager < handle
                 tf = true;
             catch ME
                 % uialert(obj.App.UIFigure, ['Error reading CSV file: ' ME.message], 'Error');
+            end
+        end
+
+        % Add this method to DataManager.m in the methods section
+
+        function clearData(obj)
+            % Clear all data and reset the DataManager state
+
+            try
+                % Stop all streaming first
+                obj.stopStreamingAll();
+
+                % Clear data tables and related arrays
+                obj.DataTables = {};
+                obj.SignalNames = {};
+                obj.CSVFilePaths = {};
+                obj.LastFileModTimes = {};
+                obj.LastReadRows = {};
+                obj.LatestDataRates = {};
+
+                % Reset containers.Map objects
+                obj.SignalScaling = containers.Map('KeyType', 'char', 'ValueType', 'double');
+                obj.StateSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+
+                % Reset counters and flags
+                obj.IsRunning = false;
+                obj.DataCount = 0;
+                obj.UpdateCounter = 0;
+                obj.LastUpdateTime = datetime('now');
+
+                % Update UI status
+                if isprop(obj, 'App') && ~isempty(obj.App) && isvalid(obj.App)
+                    obj.App.StatusLabel.Text = '🗑️ Data cleared';
+                    obj.App.StatusLabel.FontColor = [0.5 0.5 0.5];
+                    obj.App.DataRateLabel.Text = 'Data Rate: 0 Hz';
+                    obj.App.StreamingInfoLabel.Text = '';
+                end
+
+            catch ME
+                fprintf('Warning during data clear: %s\n', ME.message);
+            end
+        end
+
+        % Also add this helper method for partial clearing
+        function clearCSVData(obj, csvIndex)
+            % Clear data for a specific CSV
+
+            try
+                if csvIndex > 0 && csvIndex <= numel(obj.DataTables)
+                    % Stop streaming for this specific CSV
+                    obj.stopStreamingForCSV(csvIndex);
+
+                    % Clear data for this CSV
+                    obj.DataTables{csvIndex} = [];
+
+                    if numel(obj.LastFileModTimes) >= csvIndex
+                        obj.LastFileModTimes{csvIndex} = [];
+                    end
+
+                    if numel(obj.LastReadRows) >= csvIndex
+                        obj.LastReadRows{csvIndex} = 0;
+                    end
+
+                    if numel(obj.LatestDataRates) >= csvIndex
+                        obj.LatestDataRates{csvIndex} = 0;
+                    end
+
+                    % Update signal names (remove signals that only existed in this CSV)
+                    obj.updateSignalNamesAfterClear();
+                end
+
+            catch ME
+                fprintf('Warning during CSV data clear: %s\n', ME.message);
+            end
+        end
+
+        function updateSignalNamesAfterClear(obj)
+            % Update signal names after clearing some CSV data
+
+            try
+                % Rebuild signal names from remaining data tables
+                allSignals = {};
+                for k = 1:numel(obj.DataTables)
+                    if ~isempty(obj.DataTables{k}) && istable(obj.DataTables{k})
+                        tableSignals = setdiff(obj.DataTables{k}.Properties.VariableNames, {'Time'});
+                        allSignals = union(allSignals, tableSignals);
+                    end
+                end
+
+                obj.SignalNames = allSignals;
+
+                % Clean up signal maps for removed signals
+                obj.cleanupSignalMaps();
+
+            catch ME
+                fprintf('Warning during signal names update: %s\n', ME.message);
+            end
+        end
+
+        function cleanupSignalMaps(obj)
+            % Clean up signal scaling and state maps for signals that no longer exist
+
+            try
+                % Get current signal scaling keys
+                if ~isempty(obj.SignalScaling) && isa(obj.SignalScaling, 'containers.Map')
+                    scalingKeys = keys(obj.SignalScaling);
+                    for i = 1:length(scalingKeys)
+                        if ~ismember(scalingKeys{i}, obj.SignalNames)
+                            obj.SignalScaling.remove(scalingKeys{i});
+                        end
+                    end
+                end
+
+                % Get current state signals keys
+                if ~isempty(obj.StateSignals) && isa(obj.StateSignals, 'containers.Map')
+                    stateKeys = keys(obj.StateSignals);
+                    for i = 1:length(stateKeys)
+                        if ~ismember(stateKeys{i}, obj.SignalNames)
+                            obj.StateSignals.remove(stateKeys{i});
+                        end
+                    end
+                end
+
+            catch ME
+                fprintf('Warning during signal maps cleanup: %s\n', ME.message);
+            end
+        end
+
+        % Enhanced reset method
+        function reset(obj)
+            % Complete reset of DataManager to initial state
+
+            try
+                % Clear all data
+                obj.clearData();
+
+                % Reinitialize all properties to their default state
+                obj.SignalNames = {};
+                obj.DataTables = {};
+                obj.SignalScaling = containers.Map('KeyType', 'char', 'ValueType', 'double');
+                obj.StateSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+                obj.IsRunning = false;
+                obj.DataCount = 0;
+                obj.UpdateCounter = 0;
+                obj.LastUpdateTime = datetime('now');
+                obj.CSVFilePaths = {};
+                obj.LastFileModTimes = {};
+                obj.LastReadRows = {};
+                obj.StreamingTimers = {};
+                obj.LatestDataRates = {};
+
+                % Update UI if available
+                if isprop(obj, 'App') && ~isempty(obj.App) && isvalid(obj.App)
+                    obj.App.StatusLabel.Text = '🔄 Reset complete';
+                    obj.App.StatusLabel.FontColor = [0.5 0.5 0.5];
+                    obj.App.DataRateLabel.Text = 'Data Rate: 0 Hz';
+                    obj.App.StreamingInfoLabel.Text = '';
+                end
+
+            catch ME
+                fprintf('Warning during DataManager reset: %s\n', ME.message);
             end
         end
 

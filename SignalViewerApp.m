@@ -138,11 +138,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.checkAndOptimizeGraphics();
 
             % Set resize callback
-%             app.UIFigure.SizeChangedFcn = @(src, event) app.onFigureResize();
+            %             app.UIFigure.SizeChangedFcn = @(src, event) app.onFigureResize();
             % CRITICAL: Disable AutoResizeChildren FIRST
             app.UIFigure.AutoResizeChildren = 'off';
 
-%             % THEN set the resize callback
+            %             % THEN set the resize callback
             app.UIFigure.SizeChangedFcn = @(src, event) app.onFigureResize();
 
             % Create panels with AutoResizeChildren disabled
@@ -4012,6 +4012,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 session.SelectedSubplotIdx = app.safeGetProperty('PlotManager', 'SelectedSubplotIdx', 1);
                 session.XAxisSignals = app.safeGetProperty('PlotManager', 'XAxisSignals', {});
                 session.TabLinkedAxes = app.safeGetProperty('PlotManager', 'TabLinkedAxes', []);
+                session.CustomYLabels = app.safeGetProperty('PlotManager', 'CustomYLabels', containers.Map());
 
                 % === TAB CONTROLS STATE ===
                 session.TabControlsData = app.extractTabControlsData();
@@ -4120,17 +4121,20 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
 
         function value = safeGetProperty(app, varargin)
-            % Enhanced safe property getter
-            % Usage: app.safeGetProperty(propName, defaultValue)
-            %    or: app.safeGetProperty(subObj, propName, defaultValue)
+            % Enhanced safe property getter with containers.Map support
 
             try
                 if nargin == 3  % app.safeGetProperty(propName, defaultValue)
                     propName = varargin{1};
                     defaultValue = varargin{2};
 
-                    if isprop(app, propName) && ~isempty(app.(propName))
-                        value = app.(propName);
+                    if isprop(app, propName)
+                        propValue = app.(propName);
+                        if ~isempty(propValue)
+                            value = propValue;
+                        else
+                            value = defaultValue;
+                        end
                     else
                         value = defaultValue;
                     end
@@ -4141,67 +4145,177 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     defaultValue = varargin{3};
 
                     if isprop(app, subObjName) && ~isempty(app.(subObjName)) && ...
-                            isprop(app.(subObjName), propName) && ~isempty(app.(subObjName).(propName))
-                        value = app.(subObjName).(propName);
+                            isprop(app.(subObjName), propName)
+                        propValue = app.(subObjName).(propName);
+                        if ~isempty(propValue)
+                            value = propValue;
+                        else
+                            value = defaultValue;
+                        end
                     else
                         value = defaultValue;
                     end
                 else
                     error('Invalid number of arguments');
                 end
+
+                % Special handling for containers.Map
+                if isa(value, 'containers.Map') && value.Count == 0
+                    value = defaultValue;
+                end
+
             catch
                 value = varargin{end};  % Use last argument as default
             end
         end
 
-        function loadSession(app)
-            [file, path] = uigetfile('*.mat', 'Load Session');
-            if isequal(file, 0), return; end
+ function loadSession(app)
+    [file, path] = uigetfile('*.mat', 'Load Session');
+    if isequal(file, 0), return; end
 
-            try
-                loaded = load(fullfile(path, file));
-                if ~isfield(loaded, 'session')
-                    app.StatusLabel.Text = '❌ Invalid session file format';
-                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
-                    app.restoreFocus();
-                    return;
-                end
-
-                session = loaded.session;
-
-                % === VALIDATE SESSION ===
-                if ~app.validateSession(session)
-                    return;
-                end
-
-                % === CLEAR CURRENT STATE ===
-                app.clearCurrentSession();
-
-                % === RESTORE DATA ===
-                app.restoreDataManager(session);
-                app.restoreSignalOperations(session);
-                app.restoreLinkingManager(session);
-
-                % === RESTORE PLOT STRUCTURE ===
-                app.restorePlotStructure(session);
-
-                % === RESTORE UI STATE ===
-                app.restoreUIState(session);
-
-                % === FINALIZE ===
-                app.finalizeSessionLoad(session);
-
-                app.StatusLabel.Text = sprintf('✅ Session loaded: %s', file);
-                app.StatusLabel.FontColor = [0.2 0.6 0.9];
-
-            catch ME
-                app.StatusLabel.Text = sprintf('❌ Load failed: %s', ME.message);
-                app.StatusLabel.FontColor = [0.9 0.3 0.3];
-                app.logError('Session Load', ME);
-            end
-
+    try
+        loaded = load(fullfile(path, file));
+        if ~isfield(loaded, 'session')
+            app.StatusLabel.Text = '❌ Invalid session file format';
+            app.StatusLabel.FontColor = [0.9 0.3 0.3];
             app.restoreFocus();
+            return;
         end
+
+        session = loaded.session;
+        
+        % === VALIDATE SESSION ===
+        if ~app.validateSession(session)
+            return;
+        end
+        
+        % === CRITICAL: RESTORE IN CORRECT ORDER ===
+        % 1. Clear current state
+        app.clearCurrentSession();
+        
+        % 2. Restore PLOT STRUCTURE FIRST (before loading data)
+        app.restorePlotStructureFirst(session);
+        
+        % 3. Then restore data and other components
+        app.restoreDataManager(session);
+        app.restoreSignalOperations(session);
+        app.restoreLinkingManager(session);
+        
+        % 4. Restore UI state
+        app.restoreUIState(session);
+        
+        % 5. Finalize
+        app.finalizeSessionLoad(session);
+        
+        app.StatusLabel.Text = sprintf('✅ Session loaded: %s', file);
+        app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        
+    catch ME
+        app.StatusLabel.Text = sprintf('❌ Load failed: %s', ME.message);
+        app.StatusLabel.FontColor = [0.9 0.3 0.3];
+        app.logError('Session Load', ME);
+        
+        % Show detailed error for debugging
+        fprintf('Session Load Error Details:\n');
+        fprintf('Message: %s\n', ME.message);
+        for i = 1:length(ME.stack)
+            fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
+        end
+    end
+    
+    app.restoreFocus();
+ end
+
+ function restorePlotStructureFirst(app, session)
+    % Restore plot structure without refreshing plots
+    
+    % Remove + tab temporarily
+    plusTabIdx = [];
+    for i = 1:numel(app.PlotManager.PlotTabs)
+        if strcmp(app.PlotManager.PlotTabs{i}.Title, '+')
+            plusTabIdx = i;
+            break;
+        end
+    end
+    
+    if ~isempty(plusTabIdx)
+        delete(app.PlotManager.PlotTabs{plusTabIdx});
+        app.PlotManager.PlotTabs(plusTabIdx) = [];
+    end
+    
+    % Create required tabs
+    requiredTabs = numel(session.TabLayouts);
+    while numel(app.PlotManager.PlotTabs) < requiredTabs
+        app.PlotManager.addNewTab();
+    end
+    
+    % CRITICAL: Initialize AssignedSignals FIRST with correct structure
+    app.PlotManager.TabLayouts = session.TabLayouts;
+    app.PlotManager.AssignedSignals = cell(1, requiredTabs);
+    
+    % Initialize each tab's assignments
+    for tabIdx = 1:requiredTabs
+        layout = session.TabLayouts{tabIdx};
+        numSubplots = layout(1) * layout(2);
+        app.PlotManager.AssignedSignals{tabIdx} = cell(numSubplots, 1);
+        
+        % Initialize empty assignments
+        for subplotIdx = 1:numSubplots
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = {};
+        end
+    end
+    
+    % Now restore the actual assignments from session
+    if isfield(session, 'AssignedSignals') && ~isempty(session.AssignedSignals)
+        for tabIdx = 1:min(requiredTabs, numel(session.AssignedSignals))
+            if ~isempty(session.AssignedSignals{tabIdx})
+                sessionAssignments = session.AssignedSignals{tabIdx};
+                for subplotIdx = 1:min(numel(app.PlotManager.AssignedSignals{tabIdx}), numel(sessionAssignments))
+                    if ~isempty(sessionAssignments{subplotIdx})
+                        app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = sessionAssignments{subplotIdx};
+                    end
+                end
+            end
+        end
+    end
+    
+    % Set other PlotManager properties
+    app.PlotManager.CurrentTabIdx = min(session.CurrentTabIdx, requiredTabs);
+    app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
+    
+    % Restore X-axis signals
+    if isfield(session, 'XAxisSignals')
+        app.PlotManager.XAxisSignals = session.XAxisSignals;
+    end
+    
+    % Restore per-tab linking
+    if isfield(session, 'TabLinkedAxes')
+        app.PlotManager.TabLinkedAxes = session.TabLinkedAxes;
+    end
+    
+    % Restore custom Y labels
+    if isfield(session, 'CustomYLabels')
+        try
+            app.PlotManager.CustomYLabels = session.CustomYLabels;
+        catch
+            app.PlotManager.CustomYLabels = containers.Map();
+        end
+    else
+        app.PlotManager.CustomYLabels = containers.Map();
+    end
+    
+    % NOW create the visual subplot structure
+    for tabIdx = 1:requiredTabs
+        layout = session.TabLayouts{tabIdx};
+        app.PlotManager.createSubplotsForTab(tabIdx, layout(1), layout(2));
+    end
+    
+    % Restore tab controls
+    if isfield(session, 'TabControlsData')
+        app.restoreTabControls(session.TabControlsData);
+    end
+end
+
 
         function logError(app, context, ME)
             % Enhanced error logging
@@ -4232,6 +4346,23 @@ classdef SignalViewerApp < matlab.apps.AppBase
                         app.PlotManager.linkTabAxes(tabIdx);
                     end
                 end
+            end
+
+            if isfield(session, 'CustomYLabels')
+                try
+                    app.PlotManager.CustomYLabels = session.CustomYLabels;
+                catch
+                    % Handle conversion issues (e.g., from struct to containers.Map)
+                    app.PlotManager.CustomYLabels = containers.Map();
+                    if isstruct(session.CustomYLabels)
+                        fieldNames = fieldnames(session.CustomYLabels);
+                        for i = 1:length(fieldNames)
+                            app.PlotManager.CustomYLabels(fieldNames{i}) = session.CustomYLabels.(fieldNames{i});
+                        end
+                    end
+                end
+            else
+                app.PlotManager.CustomYLabels = containers.Map();
             end
 
             % Restore tree expanded state
@@ -4279,6 +4410,12 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.PlotManager.addNewTab();
             end
 
+
+            % Restore custom Y-axis labels with migration support
+            if app.hasValidProperty('PlotManager')
+                app.PlotManager.migrateCustomYLabels(session);
+                app.PlotManager.validateCustomYLabels();
+            end
             % Restore layouts and assignments
             app.PlotManager.TabLayouts = session.TabLayouts;
             app.PlotManager.AssignedSignals = session.AssignedSignals;
@@ -4391,33 +4528,98 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
 
         function restoreDataManager(app, session)
-            % Restore DataManager state
-            app.DataManager.CSVFilePaths = session.CSVFilePaths;
-            app.DataManager.SignalNames = session.SignalNames;
-            app.DataManager.SignalScaling = session.SignalScaling;
-            app.DataManager.StateSignals = session.StateSignals;
+    % Restore DataManager state without triggering plot refresh
+    
+    app.DataManager.CSVFilePaths = session.CSVFilePaths;
+    app.DataManager.SignalNames = session.SignalNames;
+    app.DataManager.SignalScaling = session.SignalScaling;
+    app.DataManager.StateSignals = session.StateSignals;
+    
+    % Reload CSV data WITHOUT refreshing plots
+    app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
+    for i = 1:numel(session.CSVFilePaths)
+        if isfile(session.CSVFilePaths{i})
+            app.readInitialDataSilent(i);  % Use silent version
+        end
+    end
+    
+    if isfield(session, 'CSVColors')
+        app.CSVColors = session.CSVColors;
+    else
+        app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
+    end
+end
 
-            % Reload CSV data
-            app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
-            for i = 1:numel(session.CSVFilePaths)
-                if isfile(session.CSVFilePaths{i})
-                    app.DataManager.readInitialData(i);
-                end
-            end
-
-            if isfield(session, 'CSVColors')
-                app.CSVColors = session.CSVColors;
-            else
-                app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
+function readInitialDataSilent(app, idx)
+    % Read CSV data without triggering UI updates
+    
+    filePath = app.DataManager.CSVFilePaths{idx};
+    if ~isfile(filePath)
+        app.DataManager.DataTables{idx} = [];
+        return;
+    end
+    
+    try
+        fileInfo = dir(filePath);
+        if ~isstruct(fileInfo) || isempty(fileInfo) || fileInfo(1).bytes == 0
+            app.DataManager.DataTables{idx} = [];
+            return;
+        end
+        
+        opts = detectImportOptions(filePath);
+        if isempty(opts.VariableNames)
+            app.DataManager.DataTables{idx} = [];
+            return;
+        end
+        
+        opts = setvartype(opts, 'double');
+        T = readtable(filePath, opts);
+        
+        if ~istable(T) || isempty(T)
+            app.DataManager.DataTables{idx} = [];
+            return;
+        end
+        
+        % Validate CSV format
+        if ~app.DataManager.validateCSVFormat(T, filePath)
+            app.DataManager.DataTables{idx} = [];
+            return;
+        end
+        
+        % Set first column as Time
+        if ~isempty(T.Properties.VariableNames)
+            T.Properties.VariableNames{1} = 'Time';
+        else
+            app.DataManager.DataTables{idx} = [];
+            return;
+        end
+        
+        app.DataManager.DataTables{idx} = T;
+        app.DataManager.LastReadRows{idx} = height(T);
+        
+        % Update signal names
+        allSignals = {};
+        for k = 1:numel(app.DataManager.DataTables)
+            if ~isempty(app.DataManager.DataTables{k})
+                allSignals = union(allSignals, setdiff(app.DataManager.DataTables{k}.Properties.VariableNames, {'Time'}));
             end
         end
-
+        app.DataManager.SignalNames = allSignals;
+        app.DataManager.initializeSignalMaps();
+        
+        % DON'T refresh plots or build signal tree here
+        
+    catch ME
+        fprintf('Silent data read failed for CSV %d: %s\n', idx, ME.message);
+        app.DataManager.DataTables{idx} = [];
+    end
+end
 
         function clearCurrentSession(app)
             % Clear current session state
             try
                 app.DataManager.stopStreamingAll();
-                app.DataManager.clearData();
+%                 app.DataManager.clearData();
                 app.PlotManager.AssignedSignals = {};
                 app.SignalTree.Children.delete();
             catch ME

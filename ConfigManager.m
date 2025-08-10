@@ -53,6 +53,12 @@ classdef ConfigManager < handle
                 config.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
                 config.NumTabs = numel(app.PlotManager.TabLayouts);
 
+                % ADD THIS LINE:
+                if isprop(app.PlotManager, 'CustomYLabels') && ~isempty(app.PlotManager.CustomYLabels)
+                    config.CustomYLabels = app.PlotManager.CustomYLabels;
+                else
+                    config.CustomYLabels = containers.Map();
+                end
                 % === SIGNAL PROPERTIES ===
                 config.SignalScaling = app.DataManager.SignalScaling;
                 config.StateSignals = app.DataManager.StateSignals;
@@ -104,13 +110,13 @@ classdef ConfigManager < handle
                 if isfile(customPath)
                     obj.createBackup(customPath);
                 end
-                
+
                 try
                     config.XAxisSignals = app.XAxisSignals;
                 catch
                     config.XAxisSignals = {};
                 end
-                
+
                 % === PER-TAB AXIS LINKING ===
                 try
                     if isprop(app.PlotManager, 'TabLinkedAxes')
@@ -231,7 +237,7 @@ classdef ConfigManager < handle
             config.TabLayouts = app.PlotManager.TabLayouts;
             config.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
             config.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
-            
+
             % Per-tab axis linking
             if isprop(app.PlotManager, 'TabLinkedAxes')
                 config.TabLinkedAxes = app.PlotManager.TabLinkedAxes;
@@ -356,6 +362,24 @@ classdef ConfigManager < handle
                     app.PlotManager.AssignedSignals = filteredAssignments;
                 end
 
+                if isfield(config, 'CustomYLabels')
+                    try
+                        app.PlotManager.CustomYLabels = config.CustomYLabels;
+                    catch
+                        % Handle conversion issues
+                        app.PlotManager.CustomYLabels = containers.Map();
+                        if isstruct(config.CustomYLabels)
+                            fieldNames = fieldnames(config.CustomYLabels);
+                            for i = 1:length(fieldNames)
+                                app.PlotManager.CustomYLabels(fieldNames{i}) = config.CustomYLabels.(fieldNames{i});
+                            end
+                        end
+                    end
+                else
+                    % Initialize if not present
+                    app.PlotManager.CustomYLabels = containers.Map();
+                end
+
                 % === RESTORE OTHER SETTINGS ===
                 if isfield(config, 'CurrentTabIdx')
                     app.PlotManager.CurrentTabIdx = min(config.CurrentTabIdx, numel(app.PlotManager.PlotTabs));
@@ -384,16 +408,16 @@ classdef ConfigManager < handle
                 if isfield(config, 'ExpandedTreeNodes')
                     app.ExpandedTreeNodes = config.ExpandedTreeNodes;
                 end
-                
+
                 % === RESTORE PER-TAB AXIS LINKING ===
                 if isfield(config, 'TabLinkedAxes') && isprop(app.PlotManager, 'TabLinkedAxes')
                     app.PlotManager.TabLinkedAxes = config.TabLinkedAxes;
-                    
+
                     % Update the UI toggles to reflect the restored state
                     for i = 1:length(app.PlotManager.TabLinkedAxes)
                         if i <= length(app.PlotManager.TabControls) && ...
-                           ~isempty(app.PlotManager.TabControls{i}) && ...
-                           isfield(app.PlotManager.TabControls{i}, 'LinkAxesToggle')
+                                ~isempty(app.PlotManager.TabControls{i}) && ...
+                                isfield(app.PlotManager.TabControls{i}, 'LinkAxesToggle')
                             app.PlotManager.TabControls{i}.LinkAxesToggle.Value = app.PlotManager.TabLinkedAxes(i);
                         end
                     end
@@ -406,7 +430,7 @@ classdef ConfigManager < handle
                 for tabIdx = 1:numel(app.PlotManager.TabLayouts)
                     app.PlotManager.refreshPlots(tabIdx);
                 end
-                
+
                 % Apply per-tab axis linking after plots are refreshed
                 for tabIdx = 1:length(app.PlotManager.TabLinkedAxes)
                     if app.PlotManager.TabLinkedAxes(tabIdx)
@@ -417,10 +441,43 @@ classdef ConfigManager < handle
                 app.PlotManager.ensurePlusTabAtEnd();
                 app.PlotManager.updateTabTitles();
 
+                obj.cleanupCustomYLabels();  % Clean up invalid references
+
             catch ME
                 fprintf('Error applying configuration: %s\n', ME.message);
                 app.StatusLabel.Text = ['❌ Configuration load failed: ' ME.message];
                 app.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
+
+        function cleanupCustomYLabels(obj)
+            % Clean up custom Y-axis labels for non-existent subplots
+
+            try
+                if ~isprop(obj, 'CustomYLabels') || isempty(obj.CustomYLabels)
+                    return;
+                end
+
+                % Get valid subplot keys
+                validKeys = {};
+                for tabIdx = 1:numel(obj.TabLayouts)
+                    layout = obj.TabLayouts{tabIdx};
+                    numSubplots = layout(1) * layout(2);
+                    for subplotIdx = 1:numSubplots
+                        validKeys{end+1} = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
+                    end
+                end
+
+                % Remove invalid keys
+                currentKeys = keys(obj.CustomYLabels);
+                for i = 1:length(currentKeys)
+                    if ~ismember(currentKeys{i}, validKeys)
+                        obj.CustomYLabels.remove(currentKeys{i});
+                    end
+                end
+
+            catch ME
+                fprintf('Warning: CustomYLabels cleanup failed: %s\n', ME.message);
             end
         end
         function recreateTabs(obj, config)
@@ -703,7 +760,7 @@ classdef ConfigManager < handle
                     app.StatusLabel.Text = sprintf('⚠️ Config partially loaded: %s.mat', fileName);
                 end
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
-                
+
 
                 if isfield(config, 'XAxisSignals')
                     app.PlotManager.XAxisSignals = config.XAxisSignals;

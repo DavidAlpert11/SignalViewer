@@ -20,6 +20,7 @@ classdef PlotManager < handle
         TabLinkedAxes % Per-tab axis linking state (logical array)
         TabLinkedAxesObjects % Per-tab linked axes objects (cell array)
         LastAddedCount
+        CustomYLabels
     end
 
     methods
@@ -46,6 +47,190 @@ classdef PlotManager < handle
             obj.TabSwitchTimer = [];  % Initialize tab switch timer
             obj.TabLinkedAxes = [];  % Initialize per-tab linking states
             obj.TabLinkedAxesObjects = {};  % Initialize per-tab linked axes
+            obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+        end
+
+        function validateCustomYLabels(obj)
+            % Validate and initialize CustomYLabels property
+
+            try
+                if ~isprop(obj, 'CustomYLabels') || isempty(obj.CustomYLabels)
+                    obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+                elseif ~isa(obj.CustomYLabels, 'containers.Map')
+                    % Convert from other formats if needed
+                    oldLabels = obj.CustomYLabels;
+                    obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+
+                    if isstruct(oldLabels)
+                        fieldNames = fieldnames(oldLabels);
+                        for i = 1:length(fieldNames)
+                            obj.CustomYLabels(fieldNames{i}) = oldLabels.(fieldNames{i});
+                        end
+                    end
+                end
+            catch ME
+                fprintf('Warning: Could not validate CustomYLabels: %s\n', ME.message);
+                obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+            end
+        end
+
+        function migrateCustomYLabels(obj, loadedData)
+            % Migrate CustomYLabels from different formats
+
+            try
+                if isfield(loadedData, 'CustomYLabels')
+                    customLabels = loadedData.CustomYLabels;
+
+                    if isa(customLabels, 'containers.Map')
+                        % Already correct format
+                        obj.CustomYLabels = customLabels;
+
+                    elseif isstruct(customLabels)
+                        % Convert from struct
+                        obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+                        fieldNames = fieldnames(customLabels);
+                        for i = 1:length(fieldNames)
+                            obj.CustomYLabels(fieldNames{i}) = customLabels.(fieldNames{i});
+                        end
+
+                    elseif iscell(customLabels)
+                        % Convert from cell array (if keys and values are separate)
+                        obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+                        if numel(customLabels) >= 2 && iscell(customLabels{1}) && iscell(customLabels{2})
+                            keys = customLabels{1};
+                            values = customLabels{2};
+                            for i = 1:min(length(keys), length(values))
+                                obj.CustomYLabels(keys{i}) = values{i};
+                            end
+                        end
+
+                    else
+                        % Unknown format - initialize empty
+                        obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+                    end
+                else
+                    % Not present in loaded data - initialize empty
+                    obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+                end
+
+            catch ME
+                fprintf('Warning: CustomYLabels migration failed: %s\n', ME.message);
+                obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+            end
+        end
+        function labelWithUnits = addUnitsToYLabel(obj, signalName, baseSignalName)
+            % Add units to Y-axis label if available
+
+            try
+                % Check if signal has associated units
+                if isprop(obj.App, 'SignalUnits') && ~isempty(obj.App.SignalUnits)
+                    if isfield(obj.App.SignalUnits, baseSignalName)
+                        units = obj.App.SignalUnits.(baseSignalName);
+                        if ~isempty(units)
+                            labelWithUnits = sprintf('%s (%s)', signalName, units);
+                            return;
+                        end
+                    end
+                end
+
+                % Check for common signal name patterns and suggest units
+                labelWithUnits = obj.inferUnitsFromSignalName(signalName);
+
+            catch
+                % Fallback to signal name without units
+                labelWithUnits = signalName;
+            end
+        end
+
+        function labelWithUnits = inferUnitsFromSignalName(~, signalName)
+            % Infer units based on common signal naming patterns
+
+            signalLower = lower(signalName);
+
+            % Common patterns and their likely units
+            if contains(signalLower, {'temp', 'temperature'})
+                labelWithUnits = sprintf('%s (°C)', signalName);
+            elseif contains(signalLower, {'press', 'pressure'})
+                labelWithUnits = sprintf('%s (Pa)', signalName);
+            elseif contains(signalLower, {'volt', 'voltage'})
+                labelWithUnits = sprintf('%s (V)', signalName);
+            elseif contains(signalLower, {'current'})
+                labelWithUnits = sprintf('%s (A)', signalName);
+            elseif contains(signalLower, {'power'})
+                labelWithUnits = sprintf('%s (W)', signalName);
+            elseif contains(signalLower, {'freq', 'frequency'})
+                labelWithUnits = sprintf('%s (Hz)', signalName);
+            elseif contains(signalLower, {'speed', 'velocity'})
+                labelWithUnits = sprintf('%s (m/s)', signalName);
+            elseif contains(signalLower, {'accel', 'acceleration'})
+                labelWithUnits = sprintf('%s (m/s²)', signalName);
+            elseif contains(signalLower, {'force'})
+                labelWithUnits = sprintf('%s (N)', signalName);
+            elseif contains(signalLower, {'distance', 'position', 'displacement'})
+                labelWithUnits = sprintf('%s (m)', signalName);
+            elseif contains(signalLower, {'angle', 'rotation'})
+                labelWithUnits = sprintf('%s (rad)', signalName);
+            elseif contains(signalLower, {'flow', 'rate'})
+                labelWithUnits = sprintf('%s (L/s)', signalName);
+            elseif contains(signalLower, {'mass'})
+                labelWithUnits = sprintf('%s (kg)', signalName);
+            elseif contains(signalLower, {'time', 'duration'})
+                labelWithUnits = sprintf('%s (s)', signalName);
+            elseif contains(signalLower, {'percent', '%'})
+                labelWithUnits = sprintf('%s (%%)', signalName);
+            else
+                % No units inferred
+                labelWithUnits = signalName;
+            end
+        end
+
+        function setCustomYAxisLabel(obj, tabIdx, subplotIdx, customLabel)
+            % Allow manual override of Y-axis label
+
+            if tabIdx <= numel(obj.AxesArrays) && subplotIdx <= numel(obj.AxesArrays{tabIdx})
+                ax = obj.AxesArrays{tabIdx}(subplotIdx);
+                if isvalid(ax)
+                    ax.YLabel.String = customLabel;
+
+                    % Store custom label to prevent automatic override
+                    if ~isprop(obj, 'CustomYLabels')
+                        obj.CustomYLabels = containers.Map();
+                    end
+
+                    labelKey = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
+                    obj.CustomYLabels(labelKey) = customLabel;
+                end
+            end
+        end
+
+        function hasCustomLabel = hasCustomYLabel(obj, tabIdx, subplotIdx)
+            % Check if subplot has a custom Y-axis label
+
+            hasCustomLabel = false;
+
+            try
+                if isprop(obj, 'CustomYLabels') && ~isempty(obj.CustomYLabels)
+                    labelKey = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
+                    hasCustomLabel = obj.CustomYLabels.isKey(labelKey);
+                end
+            catch
+                hasCustomLabel = false;
+            end
+        end
+
+        function clearCustomYLabel(obj, tabIdx, subplotIdx)
+            % Clear custom Y-axis label for a subplot
+
+            try
+                if isprop(obj, 'CustomYLabels') && ~isempty(obj.CustomYLabels)
+                    labelKey = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
+                    if obj.CustomYLabels.isKey(labelKey)
+                        obj.CustomYLabels.remove(labelKey);
+                    end
+                end
+            catch
+                % Ignore errors
+            end
         end
 
         % Initialize the plot manager (create the first tab)
@@ -489,13 +674,13 @@ classdef PlotManager < handle
                     'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax), ...
                     'Separator', 'on');
 
-                % Zoom options - ADD THESE
-                uimenu(cm, 'Text', '🔍 Auto Scale This Plot', ...
-                    'MenuSelectedFcn', @(src, event) obj.autoScaleSingleSubplot(ax), ...
-                    'Separator', 'on');
-
-                uimenu(cm, 'Text', '🔍 Zoom to Fit All Data', ...
-                    'MenuSelectedFcn', @(src, event) obj.zoomToFitData(ax));
+                %                 % Zoom options - ADD THESE
+                %                 uimenu(cm, 'Text', '🔍 Auto Scale This Plot', ...
+                %                     'MenuSelectedFcn', @(src, event) obj.autoScaleSingleSubplot(ax), ...
+                %                     'Separator', 'on');
+                %
+                %                 uimenu(cm, 'Text', '🔍 Zoom to Fit All Data', ...
+                %                     'MenuSelectedFcn', @(src, event) obj.zoomToFitData(ax));
 
                 % Export options
                 uimenu(cm, 'Text', '📊 Export to MATLAB Figure', ...
@@ -675,15 +860,66 @@ classdef PlotManager < handle
                 return;
             end
 
-            usedSignalNames = containers.Map();
+            % === CRITICAL BOUNDS CHECKING AND STRUCTURE VALIDATION ===
 
-            % Track axes that need final auto-scaling
-            axesToAutoScale = [];
+            % 1. Validate and initialize AssignedSignals if needed
+            if isempty(obj.AssignedSignals)
+                obj.AssignedSignals = {};
+            end
 
-            for tabIdx = tabIndices
-                if tabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{tabIdx})
+            % 2. Ensure AssignedSignals has correct number of tabs
+            numTabs = numel(obj.AxesArrays);
+            while numel(obj.AssignedSignals) < numTabs
+                obj.AssignedSignals{end+1} = {};
+            end
+
+            % 3. Validate each tab's structure
+            for checkTabIdx = 1:numTabs
+                if isempty(obj.AxesArrays{checkTabIdx})
                     continue;
                 end
+
+                expectedSubplots = numel(obj.AxesArrays{checkTabIdx});
+
+                % Ensure this tab has assignments
+                if checkTabIdx > numel(obj.AssignedSignals) || isempty(obj.AssignedSignals{checkTabIdx})
+                    obj.AssignedSignals{checkTabIdx} = cell(expectedSubplots, 1);
+                    for i = 1:expectedSubplots
+                        obj.AssignedSignals{checkTabIdx}{i} = {};
+                    end
+                else
+                    % Ensure assignments match subplot count
+                    currentAssignments = obj.AssignedSignals{checkTabIdx};
+                    if numel(currentAssignments) < expectedSubplots
+                        % Extend assignments
+                        for i = (numel(currentAssignments)+1):expectedSubplots
+                            currentAssignments{i} = {};
+                        end
+                        obj.AssignedSignals{checkTabIdx} = currentAssignments;
+                    end
+                end
+            end
+
+            % 4. Filter tabIndices to only valid tabs
+            validTabIndices = [];
+            for tabIdx = tabIndices
+                if tabIdx <= numel(obj.AxesArrays) && ~isempty(obj.AxesArrays{tabIdx}) && ...
+                        tabIdx <= numel(obj.AssignedSignals) && ~isempty(obj.AssignedSignals{tabIdx})
+                    validTabIndices = [validTabIndices, tabIdx];
+                end
+            end
+
+            if isempty(validTabIndices)
+                fprintf('Warning: No valid tabs to refresh\n');
+                return;
+            end
+
+            % === REST OF ORIGINAL refreshPlots METHOD ===
+            usedSignalNames = containers.Map();
+            axesToAutoScale = [];
+
+            for tabIdx = validTabIndices
+                % Now we know these are safe to access
                 axesArr = obj.AxesArrays{tabIdx};
                 assignments = obj.AssignedSignals{tabIdx};
                 n = min(numel(axesArr), numel(assignments));
@@ -720,16 +956,33 @@ classdef PlotManager < handle
                     ax.MinorGridAlpha = 0.1;
 
                     hold(ax, 'on');
-                    assigned = assignments{k};
+
+                    % BOUNDS CHECK: Ensure assignments{k} exists
+                    if k > numel(assignments)
+                        assigned = {};
+                    else
+                        assigned = assignments{k};
+                    end
+
                     expanded = {};
 
-                    xSignal = obj.XAxisSignals{tabIdx, k};
+                    % Get X-axis signal safely
+                    xSignal = 'Time'; % Default
+                    try
+                        if size(obj.XAxisSignals, 1) >= tabIdx && size(obj.XAxisSignals, 2) >= k
+                            if ~isempty(obj.XAxisSignals{tabIdx, k})
+                                xSignal = obj.XAxisSignals{tabIdx, k};
+                            end
+                        end
+                    catch
+                        % Use default if XAxisSignals access fails
+                        xSignal = 'Time';
+                    end
 
                     if ischar(xSignal) && strcmp(xSignal, 'Time')
                         ax.XLabel.String = 'Time';
                     elseif isstruct(xSignal) && isfield(xSignal, 'Signal')
-                        % ax.XLabel.String = [xSignal.Signal,create_suffix(obj,csvCounter, xSignal.Signal, tabIdx, k,signalSources,currentEnhancedLabel,usedSignalNames)];
-                        ax.XLabel.String = [xSignal.Signal];
+                        ax.XLabel.String = xSignal.Signal;
                     else
                         ax.XLabel.String = 'X';
                     end
@@ -1000,10 +1253,44 @@ classdef PlotManager < handle
                                 end
                             end
                         end
-                        if (numel(sigs)==1)
-                            ax.YLabel.String = (sigName);
+                        if obj.hasCustomYLabel(tabIdx, k)
+                            labelKey = sprintf('Tab%d_Plot%d', tabIdx, k);
+                            ax.YLabel.String = obj.CustomYLabels(labelKey);
+
+                        elseif numel(sigs) == 1
+                            % Single signal: use signal name as Y-axis label
+                            singleSig = sigs{1};
+
+                            % Use the processed name with suffix if available
+                            if ~isempty(assignedSignalNames)
+                                displayName = assignedSignalNames{1};
+                            else
+                                displayName = singleSig.Signal;
+                            end
+
+                            % Add units and scaling info
+                            labelWithUnits = obj.addUnitsToYLabel(displayName, singleSig.Signal);
+
+                            % Add scaling indicator if signal is scaled
+                            if obj.App.DataManager.SignalScaling.isKey(singleSig.Signal)
+                                scaleFactor = obj.App.DataManager.SignalScaling(singleSig.Signal);
+                                if scaleFactor ~= 1.0
+                                    labelWithUnits = sprintf('%s (×%.2f)', labelWithUnits, scaleFactor);
+                                end
+                            end
+
+                            ax.YLabel.String = labelWithUnits;
+
+                        elseif numel(sigs) > 1
+                            % Multiple signals: check for common units
+                            commonUnits = obj.findCommonUnits(sigs);
+                            if ~isempty(commonUnits)
+                                ax.YLabel.String = sprintf('Value (%s)', commonUnits);
+                            else
+                                ax.YLabel.String = 'Value';
+                            end
                         else
-                            ax.YLabel.String = ('Value');
+                            ax.YLabel.String = 'Value';
                         end
                     end
 
@@ -1077,6 +1364,120 @@ classdef PlotManager < handle
             obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
             autoScaleCurrentSubplot(obj.App);
         end
+
+        function commonUnits = findCommonUnits(obj, sigs)
+            % Find common units among multiple signals
+
+            commonUnits = '';
+
+            try
+                if numel(sigs) < 2
+                    return;
+                end
+
+                % Get units for each signal
+                allUnits = {};
+                for i = 1:numel(sigs)
+                    signalName = sigs{i}.Signal;
+
+                    % Try to get units from signal units storage
+                    units = '';
+                    if isprop(obj.App, 'SignalUnits') && ~isempty(obj.App.SignalUnits)
+                        if isfield(obj.App.SignalUnits, signalName)
+                            units = obj.App.SignalUnits.(signalName);
+                        end
+                    end
+
+                    % If no stored units, try to infer from name
+                    if isempty(units)
+                        labelWithUnits = obj.inferUnitsFromSignalName(signalName);
+                        % Extract units from the inferred label
+                        unitsMatch = regexp(labelWithUnits, '\(([^)]+)\)', 'tokens');
+                        if ~isempty(unitsMatch)
+                            units = unitsMatch{1}{1};
+                        end
+                    end
+
+                    allUnits{i} = units;
+                end
+
+                % Check if all signals have the same units
+                if ~isempty(allUnits{1})
+                    allSame = true;
+                    firstUnits = allUnits{1};
+
+                    for i = 2:numel(allUnits)
+                        if ~strcmp(allUnits{i}, firstUnits)
+                            allSame = false;
+                            break;
+                        end
+                    end
+
+                    if allSame
+                        commonUnits = firstUnits;
+                    end
+                end
+
+            catch
+                % Return empty if any error occurs
+                commonUnits = '';
+            end
+        end
+
+        % Optional: Add a context menu option to set custom Y-axis labels
+        function addYAxisLabelContextMenu(obj, ax, tabIdx, subplotIdx)
+            % Add context menu option for custom Y-axis labels
+
+            try
+                % Get existing context menu or create new one
+                if isempty(ax.ContextMenu)
+                    cm = uicontextmenu(obj.App.UIFigure);
+                    ax.ContextMenu = cm;
+                else
+                    cm = ax.ContextMenu;
+                end
+
+                % Add Y-axis label option
+                uimenu(cm, 'Text', '📝 Set Y-axis Label', ...
+                    'MenuSelectedFcn', @(src, event) obj.showYAxisLabelDialog(tabIdx, subplotIdx), ...
+                    'Separator', 'on');
+
+            catch ME
+                fprintf('Could not add Y-axis label context menu: %s\n', ME.message);
+            end
+        end
+
+        function showYAxisLabelDialog(obj, tabIdx, subplotIdx)
+            % Show dialog to set custom Y-axis label
+
+            try
+                % Get current label
+                currentLabel = '';
+                if tabIdx <= numel(obj.AxesArrays) && subplotIdx <= numel(obj.AxesArrays{tabIdx})
+                    ax = obj.AxesArrays{tabIdx}(subplotIdx);
+                    if isvalid(ax)
+                        currentLabel = ax.YLabel.String;
+                    end
+                end
+
+                % Create input dialog
+                answer = inputdlg({'Y-axis Label:'}, 'Set Y-axis Label', 1, {currentLabel});
+
+                if ~isempty(answer) && ~isempty(answer{1})
+                    % Set custom label
+                    obj.setCustomYAxisLabel(tabIdx, subplotIdx, answer{1});
+
+                    % Update status
+                    obj.App.StatusLabel.Text = sprintf('✅ Y-axis label updated for Plot %d', subplotIdx);
+                    obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+                end
+
+            catch ME
+                obj.App.StatusLabel.Text = sprintf('❌ Error setting Y-axis label: %s', ME.message);
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
+
         function suffix = create_suffix(obj, csvCounter,baseName, tabIdx, k,signalSources,currentEnhancedLabel,usedSignalNames)
             % Check if this signal name exists elsewhere in the UI tree (across all tabs/axes)
             hasConflictInUITree = obj.checkSignalNameConflictInUITree(baseName, tabIdx, k);
@@ -3388,7 +3789,7 @@ classdef PlotManager < handle
             end
         end
 
-    
+
         function addedCount = addSignalsToSubplot(obj, tabIdx, subplotIdx, signalsToAdd)
             % PlotManager method to safely add signals to a subplot
             % RETURNS the number of signals actually added
