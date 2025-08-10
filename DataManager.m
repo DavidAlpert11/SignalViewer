@@ -94,6 +94,82 @@ classdef DataManager < handle
             end
         end
 
+        function isValidCSV = validateCSVFormat(obj, T, filePath)
+            % Validate that the CSV format is correct (header count matches data count)
+            isValidCSV = false;
+            
+            if isempty(T) || ~istable(T)
+                return;
+            end
+            
+            % Get the number of columns from the table
+            numTableCols = width(T);
+            
+            % Read the raw file to check the actual data structure
+            try
+                % Read just the first few lines to check format
+                fid = fopen(filePath, 'r');
+                if fid == -1
+                    return;
+                end
+                
+                % Read header line
+                headerLine = fgetl(fid);
+                if headerLine == -1
+                    fclose(fid);
+                    return;
+                end
+                
+                % Count header columns (split by common delimiters)
+                if contains(headerLine, ',')
+                    headerCols = strsplit(headerLine, ',');
+                elseif contains(headerLine, ';')
+                    headerCols = strsplit(headerLine, ';');
+                elseif contains(headerLine, sprintf('\t'))
+                    headerCols = strsplit(headerLine, sprintf('\t'));
+                else
+                    headerCols = strsplit(headerLine, ' ');
+                end
+                numHeaderCols = length(headerCols);
+                
+                % Read first data line
+                dataLine = fgetl(fid);
+                fclose(fid);
+                
+                if dataLine == -1
+                    return;
+                end
+                
+                % Count data columns
+                if contains(dataLine, ',')
+                    dataCols = strsplit(dataLine, ',');
+                elseif contains(dataLine, ';')
+                    dataCols = strsplit(dataLine, ';');
+                elseif contains(dataLine, sprintf('\t'))
+                    dataCols = strsplit(dataLine, sprintf('\t'));
+                else
+                    dataCols = strsplit(dataLine, ' ');
+                end
+                numDataCols = length(dataCols);
+                
+                % Validate: header count should match data count AND table width
+                if numHeaderCols == numDataCols && numTableCols == numHeaderCols
+                    isValidCSV = true;
+                else
+                    % Log the mismatch for debugging
+                    [~, fileName, ext] = fileparts(filePath);
+                    fprintf('CSV Format Error in %s%s:\n', fileName, ext);
+                    fprintf('  Headers: %d columns\n', numHeaderCols);
+                    fprintf('  Data: %d columns\n', numDataCols);
+                    fprintf('  Table: %d columns\n', numTableCols);
+                end
+                
+            catch ME
+                fprintf('Error validating CSV format: %s\n', ME.message);
+                return;
+            end
+        end
+
         function readInitialData(obj, idx)
             filePath = obj.CSVFilePaths{idx};
             if ~isfile(filePath)
@@ -124,14 +200,28 @@ classdef DataManager < handle
                 obj.DataTables{idx} = [];
                 return;
             end
-            if ~ismember('Time', T.Properties.VariableNames)
-                if ~isempty(T.Properties.VariableNames)
-                    T.Properties.VariableNames{1} = 'Time';
-                else
-                    obj.DataTables{idx} = [];
-                    return;
-                end
+            
+            % Validate CSV format (header vs data column count)
+            if ~obj.validateCSVFormat(T, filePath)
+                obj.DataTables{idx} = [];
+                [~, fileName, ext] = fileparts(filePath);
+                obj.App.StatusLabel.Text = sprintf('❌ CSV format error: %s%s - header/data column mismatch', fileName, ext);
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+                uialert(obj.App.UIFigure, ...
+                    sprintf('CSV format error in "%s%s":\n\nThe number of header columns does not match the number of data columns.\n\nThis CSV format is not supported. Please check your CSV file format.', fileName, ext), ...
+                    'Unsupported CSV Format', 'Icon', 'error');
+                return;
             end
+            
+            % ALWAYS treat the first column as Time, regardless of its original name
+            if ~isempty(T.Properties.VariableNames)
+                T.Properties.VariableNames{1} = 'Time';
+            else
+                obj.DataTables{idx} = [];
+                return;
+            end
+            
+            % Verify Time column exists (should always be true now)
             if ~any(strcmp('Time', T.Properties.VariableNames))
                 obj.DataTables{idx} = [];
                 return;
@@ -252,13 +342,29 @@ classdef DataManager < handle
                 if isempty(T)
                     return;
                 end
-                if ~ismember('Time', T.Properties.VariableNames)
-                    if ~isempty(T.Properties.VariableNames)
-                        T.Properties.VariableNames{1} = 'Time';
-                    else
-                        return;
+                
+                % Validate CSV format (header vs data column count) for streaming
+                if ~obj.validateCSVFormat(T, filePath)
+                    [~, fileName, ext] = fileparts(filePath);
+                    obj.App.StatusLabel.Text = sprintf('❌ Streaming stopped: %s%s format error', fileName, ext);
+                    obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    % Stop the streaming timer for this CSV
+                    if numel(obj.StreamingTimers) >= idx && ~isempty(obj.StreamingTimers{idx})
+                        stop(obj.StreamingTimers{idx});
+                        delete(obj.StreamingTimers{idx});
+                        obj.StreamingTimers{idx} = [];
                     end
+                    return;
                 end
+                
+                % ALWAYS treat the first column as Time, regardless of its original name
+                if ~isempty(T.Properties.VariableNames)
+                    T.Properties.VariableNames{1} = 'Time';
+                else
+                    return;
+                end
+                
+                % Verify Time column exists (should always be true now)
                 if ~any(strcmp('Time', T.Properties.VariableNames))
                     return;
                 end

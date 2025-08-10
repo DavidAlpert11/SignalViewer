@@ -16,6 +16,9 @@ classdef PlotManager < handle
         AxesLimits  % Store current limits to prevent jumping
         LastDataTime % Track last data time for each axes
         XAxisSignals
+        TabSwitchTimer % Timer for smooth tab switching
+        TabLinkedAxes % Per-tab axis linking state (logical array)
+        TabLinkedAxesObjects % Per-tab linked axes objects (cell array)
     end
 
     methods
@@ -39,6 +42,9 @@ classdef PlotManager < handle
             obj.SelectedSubplotIdx = 1;
             obj.AxesLimits = {};  % Initialize limits tracking
             obj.LastDataTime = {};  % Initialize time tracking
+            obj.TabSwitchTimer = [];  % Initialize tab switch timer
+            obj.TabLinkedAxes = [];  % Initialize per-tab linking states
+            obj.TabLinkedAxesObjects = {};  % Initialize per-tab linked axes
         end
 
         % Initialize the plot manager (create the first tab)
@@ -76,6 +82,10 @@ classdef PlotManager < handle
             for i = 1:2
                 obj.AssignedSignals{1}{i} = {};
             end
+            
+            % Initialize per-tab linking state
+            obj.TabLinkedAxes(1) = false;  % First tab starts unlinked
+            obj.TabLinkedAxesObjects{1} = [];
 
             % ADD CONTROLS FIRST (they go in row 1)
             obj.addTabControls(1);
@@ -1195,6 +1205,9 @@ classdef PlotManager < handle
             % Refresh plots if there are any signals assigned
             obj.App.PlotManager.refreshPlots(tabIdx);
 
+            % Update per-tab axis linking after layout change
+            obj.updateTabLinkAxes(tabIdx);
+
             % Highlight the current subplot
             obj.App.highlightSelectedSubplot(tabIdx, obj.SelectedSubplotIdx);
         end
@@ -1377,29 +1390,14 @@ classdef PlotManager < handle
             ax.YLimMode = 'manual';
         end
 
-        % **NEW METHOD: Link all axes**
+        % **UPDATED METHOD: Per-tab axis linking**
         function linkAllAxes(obj)
-            allAxesToLink = [];
-
+            % This function is now deprecated in favor of per-tab linking
+            % Apply per-tab linking for all tabs based on their individual settings
             for i = 1:numel(obj.AxesArrays)
-                if ~isempty(obj.AxesArrays{i})
-                    for j = 1:numel(obj.AxesArrays{i})
-                        ax = obj.AxesArrays{i}(j);
-                        if isvalid(ax) && isgraphics(ax)
-                            % Check if this subplot uses 'Time' as X-axis
-                            if ischar(obj.XAxisSignals{i, j}) && strcmp(obj.XAxisSignals{i, j}, 'Time')
-                                allAxesToLink = [allAxesToLink, ax];
-                            else
-                                % Unlink this individual axis if not using 'Time'
-                                linkaxes(ax, 'off');
-                            end
-                        end
-                    end
+                if i <= length(obj.TabLinkedAxes) && obj.TabLinkedAxes(i)
+                    obj.linkTabAxes(i);
                 end
-            end
-
-            if ~isempty(allAxesToLink)
-                linkaxes(allAxesToLink, 'x');
             end
         end
 
@@ -1530,6 +1528,12 @@ classdef PlotManager < handle
             for i = 1:nPlots
                 obj.AssignedSignals{newTabIdx}{i} = {};
             end
+            
+            % Initialize per-tab linking state for new tab
+            while length(obj.TabLinkedAxes) < newTabIdx
+                obj.TabLinkedAxes(end+1) = false;
+                obj.TabLinkedAxesObjects{end+1} = [];
+            end
 
             % Add tab-specific controls FIRST (they go in row 1)
             obj.addTabControls(newTabIdx);
@@ -1549,6 +1553,9 @@ classdef PlotManager < handle
 
             % Update signal tree for the new tab
             obj.updateSignalTreeForCurrentTab();
+            
+            % Update per-tab axis linking for the new tab
+            obj.updateTabLinkAxes(newTabIdx);
         end
         function updateTabTitles(obj)
             % Update tab titles - NO X icons, use double-click to close
@@ -2382,16 +2389,25 @@ classdef PlotManager < handle
             end
         end
 
-        % Enable synchronized zoom/pan (link x-limits of all axes)
+        % Enable synchronized zoom/pan (per-tab linking approach)
         function enableSyncZoom(obj)
-            allAxes = [];
+            % Enable linking for all tabs (legacy function - now uses per-tab approach)
             for i = 1:numel(obj.AxesArrays)
-                if ~isempty(obj.AxesArrays{i})
-                    allAxes = [allAxes, obj.AxesArrays{i}(:)'];
+                % Ensure arrays are large enough
+                while length(obj.TabLinkedAxes) < i
+                    obj.TabLinkedAxes(end+1) = false;
+                    obj.TabLinkedAxesObjects{end+1} = [];
                 end
-            end
-            if ~isempty(allAxes)
-                linkaxes(allAxes, 'x');
+                
+                % Enable linking for this tab
+                obj.TabLinkedAxes(i) = true;
+                obj.linkTabAxes(i);
+                
+                % Update the UI toggle if it exists
+                if i <= length(obj.TabControls) && ~isempty(obj.TabControls{i}) && ...
+                   isfield(obj.TabControls{i}, 'LinkAxesToggle')
+                    obj.TabControls{i}.LinkAxesToggle.Value = true;
+                end
             end
         end
         function addTabControls(obj, tabIdx)
@@ -2457,23 +2473,148 @@ classdef PlotManager < handle
                 'FontSize', 10, ...
                 'ValueChangedFcn', @(src, event) obj.onSubplotSelected(tabIdx, src.Value));
 
+            % Add Link Axes toggle button for this tab
+            linkAxesToggle = uibutton(controlPanel, 'state', ...
+                'Position', [530 controlY 100 25], ...
+                'Text', 'Link Tab Axes', ...
+                'FontSize', 9, ...
+                'Tooltip', 'Link X-axes of all subplots in this tab only', ...
+                'ValueChangedFcn', @(src, event) obj.onTabLinkAxesToggle(tabIdx, src.Value));
+            
+            % Set initial state
+            if tabIdx <= length(obj.TabLinkedAxes)
+                linkAxesToggle.Value = obj.TabLinkedAxes(tabIdx);
+            else
+                linkAxesToggle.Value = false;
+            end
+
             % Store references to update them later
             obj.TabControls{tabIdx} = struct(...
                 'Panel', controlPanel, ...
                 'RowsSpinner', rowsSpinner, ...
                 'ColsSpinner', colsSpinner, ...
-                'SubplotDropdown', subplotDropdown);
+                'SubplotDropdown', subplotDropdown, ...
+                'LinkAxesToggle', linkAxesToggle);
         end
         % Disable synchronized zoom/pan (unlink x-limits of all axes)
         function disableSyncZoom(obj)
-            allAxes = [];
-            for i = 1:numel(obj.AxesArrays)
-                if ~isempty(obj.AxesArrays{i})
-                    allAxes = [allAxes, obj.AxesArrays{i}(:)'];
+            % Disable linking for all tabs (legacy function - now uses per-tab approach)
+            for i = 1:length(obj.TabLinkedAxes)
+                if obj.TabLinkedAxes(i)
+                    obj.TabLinkedAxes(i) = false;
+                    obj.unlinkTabAxes(i);
+                    
+                    % Update the UI toggle if it exists
+                    if i <= length(obj.TabControls) && ~isempty(obj.TabControls{i}) && ...
+                       isfield(obj.TabControls{i}, 'LinkAxesToggle')
+                        obj.TabControls{i}.LinkAxesToggle.Value = false;
+                    end
                 end
             end
-            if ~isempty(allAxes)
-                linkaxes(allAxes, 'off');
+        end
+
+        % New per-tab axis linking functions
+        function onTabLinkAxesToggle(obj, tabIdx, isLinked)
+            % Handle tab-specific axis linking toggle
+            
+            % Ensure arrays are large enough
+            while length(obj.TabLinkedAxes) < tabIdx
+                obj.TabLinkedAxes(end+1) = false;
+                obj.TabLinkedAxesObjects{end+1} = [];
+            end
+            
+            % Update state
+            obj.TabLinkedAxes(tabIdx) = isLinked;
+            
+            if isLinked
+                obj.linkTabAxes(tabIdx);
+            else
+                obj.unlinkTabAxes(tabIdx);
+            end
+            
+            % Update status
+            if isLinked
+                obj.App.StatusLabel.Text = sprintf('🔗 Linked axes for Tab %d', tabIdx);
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                obj.App.StatusLabel.Text = sprintf('🔓 Unlinked axes for Tab %d', tabIdx);
+                obj.App.StatusLabel.FontColor = [0.6 0.6 0.6];
+            end
+        end
+
+        function linkTabAxes(obj, tabIdx)
+            % Link all axes within a specific tab only
+            if tabIdx > numel(obj.AxesArrays) || isempty(obj.AxesArrays{tabIdx})
+                return;
+            end
+            
+            % Group axes by their X-axis signal for linking
+            % Only link axes that share the same X-axis signal
+            xAxisGroups = containers.Map('KeyType', 'char', 'ValueType', 'any');
+            
+            for j = 1:numel(obj.AxesArrays{tabIdx})
+                ax = obj.AxesArrays{tabIdx}(j);
+                if isvalid(ax) && isgraphics(ax)
+                    % Get the X-axis signal for this subplot
+                    xAxisSignal = 'Time'; % default
+                    if size(obj.XAxisSignals, 1) >= tabIdx && size(obj.XAxisSignals, 2) >= j
+                        if ischar(obj.XAxisSignals{tabIdx, j}) && ~isempty(obj.XAxisSignals{tabIdx, j})
+                            xAxisSignal = obj.XAxisSignals{tabIdx, j};
+                        end
+                    end
+                    
+                    % Group axes by their X-axis signal
+                    if isKey(xAxisGroups, xAxisSignal)
+                        axGroup = xAxisGroups(xAxisSignal);
+                        axGroup{end+1} = ax;
+                        xAxisGroups(xAxisSignal) = axGroup;
+                    else
+                        xAxisGroups(xAxisSignal) = {ax};
+                    end
+                end
+            end
+            
+            % Link axes within each X-axis group
+            allLinkedAxes = [];
+            xAxisKeys = keys(xAxisGroups);
+            for k = 1:length(xAxisKeys)
+                axGroup = xAxisGroups(xAxisKeys{k});
+                if length(axGroup) > 1
+                    % Convert cell array to array of axes
+                    axesToLink = [axGroup{:}];
+                    linkaxes(axesToLink, 'x');
+                    allLinkedAxes = [allLinkedAxes, axesToLink];
+                end
+            end
+            
+            % Store all linked axes for this tab
+            obj.TabLinkedAxesObjects{tabIdx} = allLinkedAxes;
+        end
+
+        function unlinkTabAxes(obj, tabIdx)
+            % Unlink all axes within a specific tab
+            if tabIdx > numel(obj.TabLinkedAxesObjects) || isempty(obj.TabLinkedAxesObjects{tabIdx})
+                return;
+            end
+            
+            % Unlink the previously linked axes in this tab
+            linkedAxes = obj.TabLinkedAxesObjects{tabIdx};
+            if ~isempty(linkedAxes)
+                for i = 1:length(linkedAxes)
+                    if isvalid(linkedAxes(i))
+                        linkaxes(linkedAxes(i), 'off');
+                    end
+                end
+            end
+            
+            % Clear the linked axes list for this tab
+            obj.TabLinkedAxesObjects{tabIdx} = [];
+        end
+
+        function updateTabLinkAxes(obj, tabIdx)
+            % Update axis linking for a tab after subplot changes
+            if tabIdx <= length(obj.TabLinkedAxes) && obj.TabLinkedAxes(tabIdx)
+                obj.linkTabAxes(tabIdx);
             end
         end
         function setupTabCallbacks(obj)
@@ -2509,23 +2650,74 @@ classdef PlotManager < handle
                         return; % Don't set current tab to + tab
                     end
 
-                    % Clear highlights from previous tab
-                    if obj.CurrentTabIdx ~= tabIdx
-                        obj.App.clearSubplotHighlights(obj.CurrentTabIdx);
+                    % Only proceed if we're actually switching to a different tab
+                    if obj.CurrentTabIdx == tabIdx
+                        return; % Already on this tab, no need to do anything
                     end
 
-                    % Update current tab index
+                    % Store previous tab for cleanup
+                    previousTabIdx = obj.CurrentTabIdx;
+
+                    % Update current tab index FIRST (minimal operation)
                     obj.CurrentTabIdx = tabIdx;
 
-                    % Ensure + tab is at the end when switching tabs
-                    obj.ensurePlusTabAtEnd();
+                    % Defer expensive operations using timer for smooth switching
+                    if ~isempty(obj.TabSwitchTimer) && isvalid(obj.TabSwitchTimer)
+                        stop(obj.TabSwitchTimer);
+                        delete(obj.TabSwitchTimer);
+                    end
 
-                    % Update signal tree to reflect current tab's assigned signals
-                    obj.updateSignalTreeForCurrentTab();
-
-                    % Highlight current subplot in the new tab
-                    obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
+                    % Create timer to handle UI updates after tab is visually switched
+                    obj.TabSwitchTimer = timer('ExecutionMode', 'singleShot', ...
+                                             'StartDelay', 0.001, ... % Very short delay
+                                             'TimerFcn', @(~,~) obj.finishTabSwitch(previousTabIdx));
+                    start(obj.TabSwitchTimer);
                 end
+            end
+        end
+
+        function finishTabSwitch(obj, previousTabIdx)
+            % Complete the tab switch operations after visual transition
+            try
+                % Clear highlights from previous tab (if valid)
+                if previousTabIdx > 0 && previousTabIdx <= numel(obj.AxesArrays)
+                    obj.App.clearSubplotHighlights(previousTabIdx);
+                end
+
+                % Update signal tree indicators only (don't rebuild entire tree)
+                obj.updateSignalTreeIndicatorsOnly();
+
+                % Highlight current subplot in the new tab
+                obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
+
+                % Clean up timer
+                if ~isempty(obj.TabSwitchTimer) && isvalid(obj.TabSwitchTimer)
+                    delete(obj.TabSwitchTimer);
+                    obj.TabSwitchTimer = [];
+                end
+            catch ME
+                fprintf('Error in finishTabSwitch: %s\n', ME.message);
+            end
+        end
+
+        function updateSignalTreeIndicatorsOnly(obj)
+            % Lightweight update of signal tree indicators without rebuilding the tree
+            tabIdx = obj.CurrentTabIdx;
+            subplotIdx = obj.SelectedSubplotIdx;
+
+            % Get assigned signals for current subplot
+            assignedSignals = {};
+            if tabIdx <= numel(obj.AssignedSignals) && ...
+                    subplotIdx <= numel(obj.AssignedSignals{tabIdx})
+                assignedSignals = obj.AssignedSignals{tabIdx}{subplotIdx};
+            end
+
+            % Update visual indicators (lightweight operation)
+            obj.updateSignalTreeVisualIndicators(assignedSignals);
+
+            % Update the signal properties table
+            if ismethod(obj.App, 'updateSignalPropsTable')
+                obj.App.updateSignalPropsTable(assignedSignals);
             end
         end
 
@@ -3104,32 +3296,21 @@ classdef PlotManager < handle
         % New method to update signal tree based on current tab
         function updateSignalTreeForCurrentTab(obj)
             % Update the signal tree to show which signals are assigned to the current subplot
-            tabIdx = obj.CurrentTabIdx;
-            subplotIdx = obj.SelectedSubplotIdx;
-
-            % Clear current selection in signal tree
-            if ~isempty(obj.App.SignalTree) && isvalid(obj.App.SignalTree)
-                obj.App.SignalTree.SelectedNodes = [];
-            end
-
-            % Get assigned signals for current subplot
-            assignedSignals = {};
-            if tabIdx <= numel(obj.AssignedSignals) && ...
-                    subplotIdx <= numel(obj.AssignedSignals{tabIdx})
-                assignedSignals = obj.AssignedSignals{tabIdx}{subplotIdx};
-            end
-
-            % Update the visual indicators in the signal tree
-            obj.updateSignalTreeVisualIndicators(assignedSignals);
-
-            % Update the signal properties table
-            if ismethod(obj.App, 'updateSignalPropsTable')
-                obj.App.updateSignalPropsTable(assignedSignals);
-            end
+            % Use the lightweight version for better performance
+            obj.updateSignalTreeIndicatorsOnly();
         end
 
     end
 
+    methods
+        function delete(obj)
+            % Clean up timer when PlotManager is destroyed
+            if ~isempty(obj.TabSwitchTimer) && isvalid(obj.TabSwitchTimer)
+                stop(obj.TabSwitchTimer);
+                delete(obj.TabSwitchTimer);
+            end
+        end
+    end
 
     methods (Access = private)
         function ensurePlusTab(obj)

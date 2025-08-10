@@ -110,6 +110,17 @@ classdef ConfigManager < handle
                 catch
                     config.XAxisSignals = {};
                 end
+                
+                % === PER-TAB AXIS LINKING ===
+                try
+                    if isprop(app.PlotManager, 'TabLinkedAxes')
+                        config.TabLinkedAxes = app.PlotManager.TabLinkedAxes;
+                    else
+                        config.TabLinkedAxes = [];
+                    end
+                catch
+                    config.TabLinkedAxes = [];
+                end
                 save(customPath, 'config', '-v7.3');
                 obj.LastSavedConfig = config;
 
@@ -220,6 +231,13 @@ classdef ConfigManager < handle
             config.TabLayouts = app.PlotManager.TabLayouts;
             config.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
             config.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
+            
+            % Per-tab axis linking
+            if isprop(app.PlotManager, 'TabLinkedAxes')
+                config.TabLinkedAxes = app.PlotManager.TabLinkedAxes;
+            else
+                config.TabLinkedAxes = [];
+            end
 
             % Signal settings
             config.SignalScaling = app.DataManager.SignalScaling;
@@ -366,6 +384,20 @@ classdef ConfigManager < handle
                 if isfield(config, 'ExpandedTreeNodes')
                     app.ExpandedTreeNodes = config.ExpandedTreeNodes;
                 end
+                
+                % === RESTORE PER-TAB AXIS LINKING ===
+                if isfield(config, 'TabLinkedAxes') && isprop(app.PlotManager, 'TabLinkedAxes')
+                    app.PlotManager.TabLinkedAxes = config.TabLinkedAxes;
+                    
+                    % Update the UI toggles to reflect the restored state
+                    for i = 1:length(app.PlotManager.TabLinkedAxes)
+                        if i <= length(app.PlotManager.TabControls) && ...
+                           ~isempty(app.PlotManager.TabControls{i}) && ...
+                           isfield(app.PlotManager.TabControls{i}, 'LinkAxesToggle')
+                            app.PlotManager.TabControls{i}.LinkAxesToggle.Value = app.PlotManager.TabLinkedAxes(i);
+                        end
+                    end
+                end
 
                 % === FINALIZE ===
                 app.buildSignalTree();
@@ -373,6 +405,13 @@ classdef ConfigManager < handle
                 % Refresh all tabs
                 for tabIdx = 1:numel(app.PlotManager.TabLayouts)
                     app.PlotManager.refreshPlots(tabIdx);
+                end
+                
+                % Apply per-tab axis linking after plots are refreshed
+                for tabIdx = 1:length(app.PlotManager.TabLinkedAxes)
+                    if app.PlotManager.TabLinkedAxes(tabIdx)
+                        app.PlotManager.linkTabAxes(tabIdx);
+                    end
                 end
 
                 app.PlotManager.ensurePlusTabAtEnd();

@@ -233,6 +233,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.SignalTree = uitree(app.ControlPanel, ...
                 'Position', [20 200 280 500], ... % Much larger: 500px height instead of 200px
                 'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ...
+                'NodeClickedFcn', @(src, event) app.onSignalTreeNodeClicked(event), ...
                 'FontSize', 11);
             try
                 app.SignalTree.Multiselect = 'on';
@@ -1825,10 +1826,10 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Update status based on selection
             signalCount = numel(selectedSignals);
             if signalCount == 1
-                app.StatusLabel.Text = sprintf('Selected: %s (right-click for options)', selectedSignals{1}.Signal);
+                app.StatusLabel.Text = sprintf('Selected: %s (right-click for options, double-click to toggle)', selectedSignals{1}.Signal);
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
             elseif signalCount > 1
-                app.StatusLabel.Text = sprintf('Selected: %d signals (right-click for options)', signalCount);
+                app.StatusLabel.Text = sprintf('Selected: %d signals (right-click for options, double-click to toggle)', signalCount);
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
             else
                 app.StatusLabel.Text = 'No signals selected';
@@ -1836,6 +1837,50 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
 
 
+        end
+
+        function onSignalTreeNodeClicked(app, event)
+            % Handle double-click to toggle signal assignment to current subplot
+            if strcmp(event.SelectionType, 'double')
+                % Get the clicked node
+                clickedNode = event.Node;
+                
+                % Skip if not a signal node (e.g., CSV folder node)
+                if ~isfield(clickedNode.NodeData, 'CSVIdx') || ~isfield(clickedNode.NodeData, 'Signal')
+                    return;
+                end
+                
+                signalInfo = clickedNode.NodeData;
+                
+                % Check if signal is currently assigned to the current subplot
+                tabIdx = app.PlotManager.CurrentTabIdx;
+                subplotIdx = app.PlotManager.SelectedSubplotIdx;
+                
+                if tabIdx > numel(app.PlotManager.AssignedSignals) || ...
+                   subplotIdx > numel(app.PlotManager.AssignedSignals{tabIdx})
+                    % No assignments yet, so add the signal
+                    app.addSignalToCurrentSubplot(signalInfo);
+                    return;
+                end
+                
+                currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+                
+                % Check if signal is already assigned
+                isAssigned = false;
+                for i = 1:numel(currentAssignments)
+                    if isequal(currentAssignments{i}, signalInfo)
+                        isAssigned = true;
+                        break;
+                    end
+                end
+                
+                % Toggle: if assigned, remove it; if not assigned, add it
+                if isAssigned
+                    app.removeSignalFromCurrentSubplot(signalInfo);
+                else
+                    app.addSignalToCurrentSubplot(signalInfo);
+                end
+            end
         end
         function tf = hasSignalsLoaded(app)
             % Check if we have signals loaded and signal tree populated
@@ -3270,6 +3315,17 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 catch
                     session.XAxisSignals = {};  % fallback
                 end
+                
+                % === PER-TAB AXIS LINKING ===
+                try
+                    if isprop(app.PlotManager, 'TabLinkedAxes')
+                        session.TabLinkedAxes = app.PlotManager.TabLinkedAxes;
+                    else
+                        session.TabLinkedAxes = [];
+                    end
+                catch
+                    session.TabLinkedAxes = [];
+                end
                 % === SAVE ===
                 save(fullfile(path, file), 'session', '-v7.3');
 
@@ -3473,12 +3529,34 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 if isfield(session, 'XAxisSignals')
                     app.XAxisSignals = session.XAxisSignals;
                 end
+                
+                % === RESTORE PER-TAB AXIS LINKING ===
+                if isfield(session, 'TabLinkedAxes') && isprop(app.PlotManager, 'TabLinkedAxes')
+                    app.PlotManager.TabLinkedAxes = session.TabLinkedAxes;
+                    
+                    % Update the UI toggles to reflect the restored state
+                    for i = 1:length(app.PlotManager.TabLinkedAxes)
+                        if i <= length(app.PlotManager.TabControls) && ...
+                           ~isempty(app.PlotManager.TabControls{i}) && ...
+                           isfield(app.PlotManager.TabControls{i}, 'LinkAxesToggle')
+                            app.PlotManager.TabControls{i}.LinkAxesToggle.Value = app.PlotManager.TabLinkedAxes(i);
+                        end
+                    end
+                end
+                
                 % === REBUILD UI AND REFRESH ===
                 app.buildSignalTree();
 
                 % Refresh plots for all tabs
                 for tabIdx = 1:requiredTabs
                     app.PlotManager.refreshPlots(tabIdx);
+                end
+                
+                % Apply per-tab axis linking after plots are refreshed
+                for tabIdx = 1:length(app.PlotManager.TabLinkedAxes)
+                    if app.PlotManager.TabLinkedAxes(tabIdx)
+                        app.PlotManager.linkTabAxes(tabIdx);
+                    end
                 end
 
                 % Auto-scale and restore current tab
