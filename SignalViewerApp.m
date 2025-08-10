@@ -2,6 +2,7 @@
 classdef SignalViewerApp < matlab.apps.AppBase
     properties
         % Main UI
+        RemoveSelectedSignalsButton
         UIFigure
         ControlPanel
         MainTabGroup
@@ -232,29 +233,51 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % LARGE Signal selection tree - takes up most of the panel
             app.SignalTree = uitree(app.ControlPanel, ...
                 'Position', [20 200 280 500], ... % Much larger: 500px height instead of 200px
-                'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ...
-                'NodeClickedFcn', @(src, event) app.onSignalTreeNodeClicked(event), ...
+                'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ... % Remove src, event parameters
                 'FontSize', 11);
+
+            % Set up tree properties with version compatibility
             try
                 app.SignalTree.Multiselect = 'on';
+            catch
+                % Multiselect not available in older versions
             end
+
             % Enable drag-and-drop for the signal tree (MATLAB R2021b+)
             try
                 app.SignalTree.Draggable = 'on';
+            catch
+                % Draggable not available in older versions
             end
+
             % Add context menu for clearing all signals from subplot
             cm = uicontextmenu(app.UIFigure);
+            app.SignalTree.ContextMenu = cm;
+            app.setupMultiSelectionContextMenu();
+
+
 
 
             app.SignalTree.ContextMenu = cm;
             app.setupMultiSelectionContextMenu();
             % LARGER Table for editing scale and state for selected signals
             app.SignalPropsTable = uitable(app.ControlPanel, ...
-                'Position', [20 80 280 110], ... % Increased height from 100 to 110
-                'ColumnName', {'Signal', 'Scale', 'State', 'Color', 'LineWidth'}, ...
-                'ColumnEditable', [false true true false true], ... % Color not editable by typing
+                'Position', [20 110 280 85], ... % Moved up to make room for button
+                'ColumnName', {'☐', 'Signal', 'Scale', 'State', 'Color', 'LineWidth'}, ... % Added checkbox column
+                'ColumnWidth', {25, 100, 50, 40, 45, 60}, ... % Set column widths
+                'ColumnEditable', [true false true true false true], ... % Make checkbox column editable
                 'CellEditCallback', @(src, event) app.onSignalPropsEdit(event), ...
+                'CellSelectionCallback', @(src, event) app.onSignalPropsSelection(event), ...
                 'FontSize', 10);
+
+            % Add Remove Selected button right below the table
+            app.RemoveSelectedSignalsButton = uibutton(app.ControlPanel, 'push', ...
+                'Text', '🗑️ Remove Selected from Subplot', ...
+                'Position', [20 85 280 20], ...
+                'ButtonPushedFcn', @(src, event) app.removeSelectedSignalsFromTable(), ...
+                'FontSize', 9, 'Enable', 'off');
+
+
 
             % Status labels at the very top
             app.StatusLabel = uilabel(app.ControlPanel, ...
@@ -277,10 +300,33 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 'FontColor', [0.2 0.2 0.2], ...
                 'FontSize', 9);
 
-            % After creating app.SignalTree, add:
-            app.SignalTree.NodeExpandedFcn = @(src, event) app.onTreeNodeExpanded(event.Node.Text);
-            app.SignalTree.NodeCollapsedFcn = @(src, event) app.onTreeNodeCollapsed(event.Node.Text);
+            try
+                app.SignalTree.NodeExpandedFcn = @(src, event) app.safeNodeExpanded(src, event);
+                app.SignalTree.NodeCollapsedFcn = @(src, event) app.safeNodeCollapsed(src, event);
+            catch
+                % These callbacks not available in older versions - just ignore
+                fprintf('Note: Tree expansion tracking not available in this MATLAB version\n');
+            end
+        end
 
+        function safeNodeExpanded(app, src, event)
+            try
+                if isfield(event, 'Node') && isprop(event.Node, 'Text')
+                    app.onTreeNodeExpanded(event.Node.Text);
+                end
+            catch ME
+                fprintf('Node expansion error: %s\n', ME.message);
+            end
+        end
+
+        function safeNodeCollapsed(app, src, event)
+            try
+                if isfield(event, 'Node') && isprop(event.Node, 'Text')
+                    app.onTreeNodeCollapsed(event.Node.Text);
+                end
+            catch ME
+                fprintf('Node collapse error: %s\n', ME.message);
+            end
         end
 
 
@@ -1135,12 +1181,12 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 'HorizontalAlignment', 'left');
 
             % Signal filtering section
-%             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 110 200 20], ...
-%                 'String', 'Signal Filtering:', 'FontWeight', 'bold');
+            %             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 110 200 20], ...
+            %                 'String', 'Signal Filtering:', 'FontWeight', 'bold');
 
-%             filterCheck = uicontrol('Parent', d, 'Style', 'checkbox', ...
-%                 'Position', [20 80 150 20], 'String', 'Hide from tree view', ...
-%                 'Value', false);
+            %             filterCheck = uicontrol('Parent', d, 'Style', 'checkbox', ...
+            %                 'Position', [20 80 150 20], 'String', 'Hide from tree view', ...
+            %                 'Value', false);
 
             % Buttons
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Apply', ...
@@ -1844,27 +1890,27 @@ classdef SignalViewerApp < matlab.apps.AppBase
             if strcmp(event.SelectionType, 'double')
                 % Get the clicked node
                 clickedNode = event.Node;
-                
+
                 % Skip if not a signal node (e.g., CSV folder node)
                 if ~isfield(clickedNode.NodeData, 'CSVIdx') || ~isfield(clickedNode.NodeData, 'Signal')
                     return;
                 end
-                
+
                 signalInfo = clickedNode.NodeData;
-                
+
                 % Check if signal is currently assigned to the current subplot
                 tabIdx = app.PlotManager.CurrentTabIdx;
                 subplotIdx = app.PlotManager.SelectedSubplotIdx;
-                
+
                 if tabIdx > numel(app.PlotManager.AssignedSignals) || ...
-                   subplotIdx > numel(app.PlotManager.AssignedSignals{tabIdx})
+                        subplotIdx > numel(app.PlotManager.AssignedSignals{tabIdx})
                     % No assignments yet, so add the signal
                     app.addSignalToCurrentSubplot(signalInfo);
                     return;
                 end
-                
+
                 currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
-                
+
                 % Check if signal is already assigned
                 isAssigned = false;
                 for i = 1:numel(currentAssignments)
@@ -1873,7 +1919,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                         break;
                     end
                 end
-                
+
                 % Toggle: if assigned, remove it; if not assigned, add it
                 if isAssigned
                     app.removeSignalFromCurrentSubplot(signalInfo);
@@ -1890,17 +1936,19 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 any(~cellfun(@isempty, app.DataManager.DataTables));
         end
         function updateSignalPropsTable(app, selectedSignals)
-            % Update the properties table for the selected signals.
-            % Each row: {Signal, Scale, State, Color, LineWidth}
+            % Update the properties table for the selected signals with checkbox selection
             n = numel(selectedSignals);
 
             if n == 0
                 % No signals selected - show empty table
                 app.SignalPropsTable.Data = {};
+                app.RemoveSelectedSignalsButton.Enable = 'off';
                 return;
             end
 
-            data = cell(n, 5);
+            % Create data with checkbox column
+            data = cell(n, 6); % 6 columns now: checkbox, signal, scale, state, color, linewidth
+
             for i = 1:n
                 sigInfo = selectedSignals{i};
                 sigName = sigInfo.Signal;
@@ -1925,22 +1973,26 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     if isfield(style, 'LineWidth'), width = style.LineWidth; end
                 end
 
-                % FIXED: Just show signal name without checkmark
-                data{i,1} = sigName;  % No checkmark here
-                data{i,2} = scale;
-                data{i,3} = state;
-                data{i,4} = mat2str(color); % Store as string
-                data{i,5} = width;
+                % Fill data row
+                data{i,1} = false;  % Checkbox - initially unchecked
+                data{i,2} = sigName;  % Signal name
+                data{i,3} = scale;    % Scale
+                data{i,4} = state;    % State
+                data{i,5} = mat2str(color); % Color as string
+                data{i,6} = width;    % Line width
             end
 
             app.SignalPropsTable.Data = data;
 
+            % Enable the remove button (will be disabled if no checkboxes are checked)
+            app.RemoveSelectedSignalsButton.Enable = 'off';
+
             % Set custom cell renderer for color column
             app.SignalPropsTable.CellSelectionCallback = @(src, event) app.onSignalPropsCellSelect(event);
         end
+
         function onSignalPropsEdit(app, event)
-            % Callback for when the user edits scale or state in the properties table.
-            % Updates DataManager and refreshes plots if signal is currently displayed.
+            % Callback for when the user edits properties in the table
 
             data = app.SignalPropsTable.Data;
             if isempty(data)
@@ -1949,9 +2001,15 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
             row = event.Indices(1);
             col = event.Indices(2);
-            sigName = data{row,1};
 
-            if col == 2 % Scale
+            % Handle different columns (note: columns shifted due to checkbox)
+            if col == 1
+                % Checkbox column - update remove button state
+                app.updateRemoveButtonState();
+                return;
+
+            elseif col == 3 % Scale (was column 2)
+                sigName = data{row,2}; % Signal name in column 2
                 scale = event.NewData;
                 if ischar(scale) || isstring(scale)
                     scale = str2double(scale);
@@ -1960,15 +2018,16 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     app.DataManager.SignalScaling(sigName) = scale;
                 else
                     app.DataManager.SignalScaling(sigName) = 1.0;
-                    data{row,2} = 1.0;
+                    data{row,3} = 1.0;
                     app.SignalPropsTable.Data = data;
                 end
 
-            elseif col == 3 % State
-                % Always update state
+            elseif col == 4 % State (was column 3)
+                sigName = data{row,2};
                 app.DataManager.StateSignals(sigName) = logical(event.NewData);
 
-            elseif col == 5 % LineWidth
+            elseif col == 6 % LineWidth (was column 5)
+                sigName = data{row,2};
                 width = event.NewData;
                 if ischar(width) || isstring(width)
                     width = str2double(width);
@@ -1978,7 +2037,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     if ~isfield(app.SignalStyles, sigName), app.SignalStyles.(sigName) = struct(); end
                     app.SignalStyles.(sigName).LineWidth = width;
                 else
-                    data{row,5} = 2;
+                    data{row,6} = 2;
                     app.SignalPropsTable.Data = data;
                 end
             end
@@ -1990,30 +2049,14 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.PlotManager.refreshPlots();
 
             % Update status
-            app.StatusLabel.Text = sprintf('✅ Updated %s properties', sigName);
-            app.StatusLabel.FontColor = [0.2 0.6 0.9];
-        end
-        function onSignalPropsCellSelect(app, event)
-            % Handle color picker for Color column
-            if isempty(event.Indices), return; end
-            row = event.Indices(1);
-            col = event.Indices(2);
-            if col == 4 % Color column
-                data = app.SignalPropsTable.Data;
-                sigName = data{row,1};
-                oldColor = str2num(data{row,4}); %#ok<ST2NM>
-                if isempty(oldColor), oldColor = [0 0.4470 0.7410]; end
-                newColor = uisetcolor(oldColor, sprintf('Pick color for %s', sigName));
-                if length(newColor) == 3 % user did not cancel
-                    data{row,4} = mat2str(newColor);
-                    app.SignalPropsTable.Data = data;
-                    if isempty(app.SignalStyles), app.SignalStyles = struct(); end
-                    if ~isfield(app.SignalStyles, sigName), app.SignalStyles.(sigName) = struct(); end
-                    app.SignalStyles.(sigName).Color = newColor;
-                    app.PlotManager.refreshPlots();
-                end
+            if col > 1 % Only for non-checkbox edits
+                sigName = data{row,2};
+                app.StatusLabel.Text = sprintf('✅ Updated %s properties', sigName);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
             end
         end
+
+
         function [isCompatible, missingSignals, extraSignals] = checkConfigCompatibility(app, config)
             % Check if loaded signals are compatible with config
             isCompatible = true;
@@ -2083,8 +2126,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
         % Add a stub for building the signal tree (to be implemented)
+
         function buildSignalTree(app)
-            % No need to read expanded state from UI - use stored state instead
+            % Enhanced version with UNIFIED context menu setup
 
             % Build a tree UI grouped by CSV, with signals as children
             delete(app.SignalTree.Children);
@@ -2135,29 +2179,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     % Add signals to this CSV node
                     for j = 1:numel(signals)
                         signalName = signals{j};
-
-                        % Check if this signal is assigned to current subplot
-                        isAssigned = false;
                         signalInfo = struct('CSVIdx', i, 'Signal', signalName);
-                        for k = 1:numel(assignedSignals)
-                            if isequal(assignedSignals{k}, signalInfo)
-                                isAssigned = true;
-                                break;
-                            end
-                        end
 
-                        displayText = signalName;
-                        child = uitreenode(csvNode, 'Text', displayText);
+                        child = uitreenode(csvNode, 'Text', signalName);
                         child.NodeData = signalInfo;
 
-                        % ADD DYNAMIC CONTEXT MENU FOR EACH SIGNAL NODE
-                        signalContextMenu = uicontextmenu(app.UIFigure);
-
-                        % Set the context menu opening function to handle multi-selection
-                        signalContextMenu.ContextMenuOpeningFcn = @(src, event) app.updateSignalContextMenu(signalContextMenu, signalInfo);
-
-                        % Assign the context menu to this signal node
-                        child.ContextMenu = signalContextMenu;
+                        % UNIFIED: Use the SAME context menu system for ALL signals
+                        app.attachMultiSelectionContextMenu(child);
                     end
                 end
             end
@@ -2166,18 +2194,20 @@ classdef SignalViewerApp < matlab.apps.AppBase
             if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
                 app.SignalOperations.addDerivedSignalsToTree();
 
-                % SIMPLIFIED: Find the derived signals node after creation instead of storing reference
+                % Find the derived signals node after creation and fix its context menus
                 for i = 1:numel(app.SignalTree.Children)
                     node = app.SignalTree.Children(i);
                     if strcmp(node.Text, '⚙️ Derived Signals')
                         createdNodes{end+1} = struct('Node', node, 'Text', '⚙️ Derived Signals');
+
+                        % UNIFIED: Fix context menus for all derived signal children
+                        app.fixDerivedSignalContextMenus(node);
                         break;
                     end
                 end
             end
 
             % Restore expanded state for previously expanded nodes
-            % Initialize ExpandedTreeNodes property if it doesn't exist
             if ~isprop(app, 'ExpandedTreeNodes')
                 app.ExpandedTreeNodes = string.empty;
             end
@@ -2191,23 +2221,15 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 if any(strcmp(nodeText, app.ExpandedTreeNodes))
                     try
                         node.expand();
-                        fprintf('Restored expansion for: %s\n', nodeText);
                     catch
-                        % If expand() method doesn't work, try alternative
                         try
                             node.Expanded = true;
-                            fprintf('Set Expanded=true for: %s\n', nodeText);
                         catch
-                            fprintf('Failed to expand: %s\n', nodeText);
+                            % Ignore expansion errors
                         end
                     end
                 end
             end
-
-            % FIXED: Set up tree callbacks to track expansion/collapse
-            % These callbacks work for ALL nodes in the tree, including derived signals
-            app.SignalTree.NodeExpandedFcn = @(src, event) app.onTreeNodeExpanded(event.Node.Text);
-            app.SignalTree.NodeCollapsedFcn = @(src, event) app.onTreeNodeCollapsed(event.Node.Text);
 
             % Setup axes drop targets and enable data tips
             app.setupAxesDropTargets();
@@ -2215,7 +2237,203 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.enableDataTipsByDefault();
             end
         end
-        % Also add these helper methods to your SignalViewerApp class:
+
+        function fixDerivedSignalContextMenus(app, derivedSignalsNode)
+            % Fix context menus for all derived signal children
+            children = derivedSignalsNode.Children;
+            for i = 1:numel(children)
+                child = children(i);
+                if isfield(child.NodeData, 'Signal') && isfield(child.NodeData, 'CSVIdx')
+                    % Replace the context menu with our unified system
+                    app.attachMultiSelectionContextMenu(child);
+                end
+            end
+        end
+
+        function attachMultiSelectionContextMenu(app, signalNode)
+            % Attach a context menu that will dynamically detect multi-selection
+
+            % Create a context menu that will be populated when opened
+            contextMenu = uicontextmenu(app.UIFigure);
+
+            % Set the ContextMenuOpeningFcn to populate the menu dynamically
+            contextMenu.ContextMenuOpeningFcn = @(src, event) app.populateMultiSelectionContextMenu(contextMenu, signalNode.NodeData);
+
+            % Assign to the node
+            signalNode.ContextMenu = contextMenu;
+        end
+
+        function createSignalContextMenu(app, contextMenu, signalInfo)
+            % Create context menu items for a signal node that handles multi-selection
+
+            % Clear any existing items
+            delete(contextMenu.Children);
+
+            % ============= CHECK FOR MULTIPLE SELECTED SIGNALS =============
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
+
+            % If no valid signals selected, use the clicked signal
+            if isempty(selectedSignals)
+                selectedSignals = {signalInfo};
+            end
+
+            % Get current assignments to determine what actions are available
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            currentAssignments = {};
+            if tabIdx <= numel(app.PlotManager.AssignedSignals) && subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+            end
+
+            % Separate assigned and unassigned signals
+            assignedSignals = {};
+            unassignedSignals = {};
+
+            for i = 1:numel(selectedSignals)
+                isAssigned = false;
+                signal = selectedSignals{i};
+
+                % Check if this signal is assigned
+                for j = 1:numel(currentAssignments)
+                    if isequal(currentAssignments{j}, signal)
+                        isAssigned = true;
+                        break;
+                    end
+                end
+
+                if isAssigned
+                    assignedSignals{end+1} = signal;
+                else
+                    unassignedSignals{end+1} = signal;
+                end
+            end
+
+            % ============= ASSIGNMENT/REMOVAL OPERATIONS =============
+            if ~isempty(unassignedSignals)
+                if numel(unassignedSignals) == 1
+                    uimenu(contextMenu, 'Text', '➕ Add to Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                else
+                    uimenu(contextMenu, 'Text', sprintf('➕ Add %d Signals to Subplot', numel(unassignedSignals)), ...
+                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                end
+            end
+
+            if ~isempty(assignedSignals)
+                if numel(assignedSignals) == 1
+                    uimenu(contextMenu, 'Text', '❌ Remove from Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                else
+                    uimenu(contextMenu, 'Text', sprintf('❌ Remove %d Signals from Subplot', numel(assignedSignals)), ...
+                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                end
+            end
+
+            % ============= PREVIEW AND SINGLE SIGNAL OPTIONS =============
+            if numel(selectedSignals) == 1
+                signal = selectedSignals{1};
+
+                uimenu(contextMenu, 'Text', '📊 Quick Preview', ...
+                    'MenuSelectedFcn', @(src, event) app.showSignalPreview(signal), ...
+                    'Separator', 'on');
+
+                uimenu(contextMenu, 'Text', '📈 Set as X-Axis', ...
+                    'MenuSelectedFcn', @(src, event) app.setSignalAsXAxis(signal));
+
+                % Single signal operations
+                operationsMenu = uimenu(contextMenu, 'Text', '🔢 Single Signal Operations', 'Separator', 'on');
+
+                signalName = app.getSignalNameForOperations(signal);
+                uimenu(operationsMenu, 'Text', '∂ Derivative', ...
+                    'MenuSelectedFcn', @(src, event) app.showDerivativeForSelected(signalName));
+                uimenu(operationsMenu, 'Text', '∫ Integral', ...
+                    'MenuSelectedFcn', @(src, event) app.showIntegralForSelected(signalName));
+
+                % Export options for single signal
+                if signal.CSVIdx == -1  % Derived signal
+                    uimenu(contextMenu, 'Text', '📋 Show Operation Details', ...
+                        'MenuSelectedFcn', @(src, event) app.showDerivedSignalDetails(signal.Signal), ...
+                        'Separator', 'on');
+
+                    uimenu(contextMenu, 'Text', '💾 Export Signal', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.exportDerivedSignal(signal.Signal));
+
+                    uimenu(contextMenu, 'Text', '🗑️ Delete Signal', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.confirmDeleteDerivedSignal(signal.Signal));
+                else
+                    uimenu(contextMenu, 'Text', '💾 Export Signal to CSV', ...
+                        'MenuSelectedFcn', @(src, event) app.exportSingleSignalToCSV(signal), ...
+                        'Separator', 'on');
+                end
+
+                uimenu(contextMenu, 'Text', '🗑️ Clear from All Subplots', ...
+                    'MenuSelectedFcn', @(src, event) app.clearSpecificSignalFromAllSubplots(signal), ...
+                    'Separator', 'on');
+
+            else
+                % Multiple signals selected
+                uimenu(contextMenu, 'Text', sprintf('📊 Preview %d Signals', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.previewSelectedSignals(selectedSignals), ...
+                    'Separator', 'on');
+            end
+
+            % ============= MULTI-SIGNAL OPERATIONS =============
+            if numel(selectedSignals) >= 2
+                multiOpsMenu = uimenu(contextMenu, 'Text', sprintf('⚡ Multi-Signal Ops (%d selected)', numel(selectedSignals)), ...
+                    'Separator', 'on');
+
+                uimenu(multiOpsMenu, 'Text', '📊 Vector Magnitude', ...
+                    'MenuSelectedFcn', @(src, event) app.showQuickVectorMagnitudeForSelected(selectedSignals));
+
+                uimenu(multiOpsMenu, 'Text', '📈 Signal Average', ...
+                    'MenuSelectedFcn', @(src, event) app.showQuickAverageForSelected(selectedSignals));
+
+                uimenu(multiOpsMenu, 'Text', '‖‖ Norm of Signals', ...
+                    'MenuSelectedFcn', @(src, event) app.showQuickNormForSelected(selectedSignals));
+
+                % Dual operations for exactly 2 signals
+                if numel(selectedSignals) == 2
+                    dualMenu = uimenu(multiOpsMenu, 'Text', '📈 Dual Operations');
+
+                    signal1Name = app.getSignalNameForOperations(selectedSignals{1});
+                    signal2Name = app.getSignalNameForOperations(selectedSignals{2});
+
+                    uimenu(dualMenu, 'Text', '➕ Add (A + B)', ...
+                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('add', signal1Name, signal2Name));
+                    uimenu(dualMenu, 'Text', '➖ Subtract (A - B)', ...
+                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('subtract', signal1Name, signal2Name));
+                    uimenu(dualMenu, 'Text', '✖️ Multiply (A × B)', ...
+                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('multiply', signal1Name, signal2Name));
+                    uimenu(dualMenu, 'Text', '➗ Divide (A ÷ B)', ...
+                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('divide', signal1Name, signal2Name));
+                end
+
+                % Export multiple signals
+                uimenu(contextMenu, 'Text', sprintf('💾 Export %d Signals to CSV', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.exportMultipleSignalsToCSV(selectedSignals), ...
+                    'Separator', 'on');
+
+                % Clear multiple signals from all subplots
+                uimenu(contextMenu, 'Text', sprintf('🗑️ Clear %d Signals from All Subplots', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.clearMultipleSignalsFromAllSubplots(selectedSignals));
+            end
+
+            % ============= SELECTION INFO =============
+            if numel(selectedSignals) > 1
+                uimenu(contextMenu, 'Text', sprintf('📋 %d signals selected', numel(selectedSignals)), ...
+                    'Enable', 'off', 'Separator', 'on');
+            elseif numel(selectedSignals) == 1
+                signal = selectedSignals{1};
+                if signal.CSVIdx == -1
+                    signalType = 'derived signal';
+                else
+                    signalType = sprintf('CSV %d signal', signal.CSVIdx);
+                end
+                uimenu(contextMenu, 'Text', sprintf('📋 %s: %s', signalType, signal.Signal), ...
+                    'Enable', 'off', 'Separator', 'on');
+            end
+        end
 
         function signalName = getSignalNameForOperations(app, signalInfo)
             % Convert signal info to name format expected by operations
@@ -2617,8 +2835,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
                 % Single signal specific options
                 signalInfo = selectedSignals{1};
-%                 uimenu(contextMenu, 'Text', '⚙️ Edit Properties', ...
-%                     'MenuSelectedFcn', @(src, event) app.editSignalProperties(signalInfo));
+                %                 uimenu(contextMenu, 'Text', '⚙️ Edit Properties', ...
+                %                     'MenuSelectedFcn', @(src, event) app.editSignalProperties(signalInfo));
 
                 uimenu(contextMenu, 'Text', '📈 Set as X-Axis', ...
                     'MenuSelectedFcn', @(src, event) app.setSignalAsXAxis(signalInfo));
@@ -2745,12 +2963,16 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
         function onTreeNodeExpanded(app, csvNodeText)
             % Call this when a node is manually expanded
-            if ~isprop(app, 'ExpandedTreeNodes')
+            if nargin < 2 || isempty(csvNodeText)
+                return; % Safety check for missing arguments
+            end
+
+            if ~isprop(app, 'ExpandedTreeNodes') || isempty(app.ExpandedTreeNodes)
                 app.ExpandedTreeNodes = string.empty;
             end
 
             if ~any(strcmp(csvNodeText, app.ExpandedTreeNodes))
-                app.ExpandedTreeNodes(end+1) = csvNodeText;
+                app.ExpandedTreeNodes(end+1) = string(csvNodeText);
             end
 
             % DEBUG: Track expansion
@@ -2759,8 +2981,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
         function onTreeNodeCollapsed(app, csvNodeText)
             % Call this when a node is manually collapsed
-            if ~isprop(app, 'ExpandedTreeNodes')
+            if nargin < 2 || isempty(csvNodeText)
+                return; % Safety check for missing arguments
+            end
+
+            if ~isprop(app, 'ExpandedTreeNodes') || isempty(app.ExpandedTreeNodes)
                 app.ExpandedTreeNodes = string.empty;
+                return;
             end
 
             app.ExpandedTreeNodes = app.ExpandedTreeNodes(~strcmp(app.ExpandedTreeNodes, csvNodeText));
@@ -2768,8 +2995,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % DEBUG: Track collapse
             fprintf('Node collapsed: %s\n', csvNodeText);
         end
+
         function filterSignals(app, searchText)
-            % Enhanced filter with auto-expand functionality
+            % Enhanced filter with UNIFIED context menu recreation
 
             % Clear existing tree
             delete(app.SignalTree.Children);
@@ -2779,7 +3007,15 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
 
             hasFilteredResults = false;
-            nodesToExpand = {};  % Keep track of nodes to expand
+            nodesToExpand = {};
+
+            % Get current subplot assignments for visual indicators
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            assignedSignals = {};
+            if tabIdx <= numel(app.PlotManager.AssignedSignals) && subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+            end
 
             % Process each CSV file
             for i = 1:numel(app.DataManager.CSVFilePaths)
@@ -2800,11 +3036,28 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 % Only create CSV node if it has filtered signals OR no search is active
                 if ~isempty(filteredSignals) || isempty(searchText)
                     csvNode = uitreenode(app.SignalTree, 'Text', csvDisplay);
+                    csvNode.NodeData = struct('Type', 'csv_folder', 'CSVIdx', i);
+
+                    % Add CSV-level context menu
+                    csvContextMenu = uicontextmenu(app.UIFigure);
+                    uimenu(csvContextMenu, 'Text', '📌 Assign All to Current Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.assignAllSignalsFromCSV(i));
+                    uimenu(csvContextMenu, 'Text', '❌ Remove All from Current Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromCSV(i));
+                    uimenu(csvContextMenu, 'Text', '⚙️ Bulk Edit Properties', ...
+                        'MenuSelectedFcn', @(src, event) app.bulkEditSignalProperties(i), 'Separator', 'on');
+                    csvNode.ContextMenu = csvContextMenu;
 
                     % Add signals to this CSV node
                     for j = 1:numel(filteredSignals)
-                        child = uitreenode(csvNode, 'Text', filteredSignals{j});
-                        child.NodeData = struct('CSVIdx', i, 'Signal', filteredSignals{j});
+                        signalName = filteredSignals{j};
+                        signalInfo = struct('CSVIdx', i, 'Signal', signalName);
+
+                        child = uitreenode(csvNode, 'Text', signalName);
+                        child.NodeData = signalInfo;
+
+                        % UNIFIED: Use the SAME context menu system for filtered signals
+                        app.attachMultiSelectionContextMenu(child);
                     end
 
                     % Mark for expansion if we have search results
@@ -2828,8 +3081,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
                 % Only create derived signals node if it has filtered signals OR no search is active
                 if ~isempty(filteredDerived) || isempty(searchText)
-                    derivedNode = uitreenode(app.SignalTree, 'Text', '⚙️ Derived Signals', ...
-                        'NodeData', struct('Type', 'derived_signals_folder'));
+                    derivedNode = uitreenode(app.SignalTree, 'Text', '⚙️ Derived Signals');
+                    derivedNode.NodeData = struct('Type', 'derived_signals_folder');
 
                     for i = 1:length(filteredDerived)
                         signalName = filteredDerived{i};
@@ -2859,17 +3112,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
                         end
 
                         child = uitreenode(derivedNode, 'Text', sprintf('%s %s', icon, signalName));
-                        child.NodeData = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
+                        signalInfo = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
+                        child.NodeData = signalInfo;
 
-                        % Add context menu for derived signals
-                        cm = uicontextmenu(app.UIFigure);
-                        uimenu(cm, 'Text', '🗑️ Delete Signal', ...
-                            'MenuSelectedFcn', @(src, event) app.SignalOperations.confirmDeleteDerivedSignal(signalName));
-                        uimenu(cm, 'Text', '📋 Show Details', ...
-                            'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationDetails(derivedData.Operation));
-                        uimenu(cm, 'Text', '💾 Export Signal', ...
-                            'MenuSelectedFcn', @(src, event) app.SignalOperations.exportDerivedSignal(signalName));
-                        child.ContextMenu = cm;
+                        % UNIFIED: Use the SAME context menu system for derived signals
+                        app.attachMultiSelectionContextMenu(child);
                     end
 
                     % Mark for expansion if we have search results in derived signals
@@ -2882,23 +3129,473 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
             % AUTO-EXPAND: Expand all nodes that have filtered results
             if hasFilteredResults && ~isempty(nodesToExpand)
-                % Small delay to ensure tree is fully built
                 pause(0.05);
-
-                % Expand all marked nodes
                 for i = 1:length(nodesToExpand)
                     try
                         nodesToExpand{i}.expand();
                     catch
-                        % Ignore expansion errors - might not be supported in all MATLAB versions
+                        % Ignore expansion errors
                     end
                 end
-
-                % Force UI update
                 drawnow;
             end
 
+            % CRITICAL: Reset the tree's context menu to ensure it works
+            if isempty(app.SignalTree.ContextMenu) || ~isvalid(app.SignalTree.ContextMenu)
+                cm = uicontextmenu(app.UIFigure);
+                app.SignalTree.ContextMenu = cm;
+                app.setupMultiSelectionContextMenu();
+            end
+
+            drawnow;
         end
+
+        function handleContextMenuAction(app, action, signalInfo)
+            % Centralized handler for all context menu actions
+            try
+                switch action
+                    case 'add'
+                        app.addSignalToCurrentSubplot(signalInfo);
+                    case 'remove'
+                        app.removeSignalFromCurrentSubplot(signalInfo);
+                    case 'preview'
+                        app.showSignalPreview(signalInfo);
+                    case 'set_x_axis'
+                        app.setSignalAsXAxis(signalInfo);
+                    case 'show_details'
+                        app.showDerivedSignalDetails(signalInfo.Signal);
+                    case 'export_derived'
+                        app.SignalOperations.exportDerivedSignal(signalInfo.Signal);
+                    case 'delete_derived'
+                        app.SignalOperations.confirmDeleteDerivedSignal(signalInfo.Signal);
+                    case 'export_csv'
+                        app.exportSingleSignalToCSV(signalInfo);
+                    case 'clear_all'
+                        app.clearSpecificSignalFromAllSubplots(signalInfo);
+                    otherwise
+                        fprintf('Unknown context menu action: %s\n', action);
+                end
+            catch ME
+                fprintf('Context menu action error (%s): %s\n', action, ME.message);
+            end
+        end
+
+        function createStaticSignalContextMenu(app, contextMenu, signalInfo, assignedSignals)
+            % Create a complete static context menu for a signal that handles multi-selection
+
+            % Check if this signal is assigned to current subplot
+            isAssigned = false;
+            for k = 1:numel(assignedSignals)
+                if isequal(assignedSignals{k}, signalInfo)
+                    isAssigned = true;
+                    break;
+                end
+            end
+
+            % Assignment/Removal options - these will handle multiple signals
+            if isAssigned
+                uimenu(contextMenu, 'Text', '❌ Remove from Subplot', ...
+                    'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('remove', signalInfo));
+            else
+                uimenu(contextMenu, 'Text', '➕ Add to Subplot', ...
+                    'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('add', signalInfo));
+            end
+
+            % Preview and analysis - single signal only
+            uimenu(contextMenu, 'Text', '📊 Quick Preview', ...
+                'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('preview', signalInfo), ...
+                'Separator', 'on');
+
+            uimenu(contextMenu, 'Text', '📈 Set as X-Axis', ...
+                'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('set_x_axis', signalInfo));
+
+            % Multi-signal operations (only show if multiple signals selected)
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
+
+            if numel(selectedSignals) > 1
+                multiMenu = uimenu(contextMenu, 'Text', sprintf('⚡ Multi-Signal Ops (%d selected)', numel(selectedSignals)), ...
+                    'Separator', 'on');
+
+                if numel(selectedSignals) >= 2
+                    uimenu(multiMenu, 'Text', '📊 Vector Magnitude', ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('vector_magnitude', signalInfo));
+
+                    uimenu(multiMenu, 'Text', '📈 Signal Average', ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('signal_average', signalInfo));
+                end
+
+                if numel(selectedSignals) == 2
+                    dualMenu = uimenu(multiMenu, 'Text', '📈 Dual Operations');
+                    uimenu(dualMenu, 'Text', '➕ Add (A + B)', ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('add_signals', signalInfo));
+                    uimenu(dualMenu, 'Text', '➖ Subtract (A - B)', ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('subtract_signals', signalInfo));
+                    uimenu(dualMenu, 'Text', '✖️ Multiply (A × B)', ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('multiply_signals', signalInfo));
+                    uimenu(dualMenu, 'Text', '➗ Divide (A ÷ B)', ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('divide_signals', signalInfo));
+                end
+            end
+
+            % Signal-specific options (single signal)
+            if signalInfo.CSVIdx == -1  % Derived signal
+                uimenu(contextMenu, 'Text', '📋 Show Operation Details', ...
+                    'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('show_details', signalInfo), ...
+                    'Separator', 'on');
+
+                uimenu(contextMenu, 'Text', '💾 Export Signal', ...
+                    'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('export_derived', signalInfo));
+
+                uimenu(contextMenu, 'Text', '🗑️ Delete Signal', ...
+                    'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('delete_derived', signalInfo));
+            else
+                exportMenu = uimenu(contextMenu, 'Text', '💾 Export Options', 'Separator', 'on');
+
+                if numel(selectedSignals) == 1
+                    uimenu(exportMenu, 'Text', '💾 Export This Signal to CSV', ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('export_csv', signalInfo));
+                else
+                    uimenu(exportMenu, 'Text', sprintf('💾 Export %d Signals to CSV', numel(selectedSignals)), ...
+                        'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('export_multiple_csv', signalInfo));
+                end
+            end
+
+            % Global actions
+            if numel(selectedSignals) == 1
+                uimenu(contextMenu, 'Text', '🗑️ Clear from All Subplots', ...
+                    'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('clear_all', signalInfo), ...
+                    'Separator', 'on');
+            else
+                uimenu(contextMenu, 'Text', sprintf('🗑️ Clear %d Signals from All Subplots', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.handleMultiSignalContextMenuAction('clear_multiple_all', signalInfo), ...
+                    'Separator', 'on');
+            end
+        end
+
+        function handleMultiSignalContextMenuAction(app, action, clickedSignalInfo)
+            % Enhanced handler for context menu actions that handles multiple selected signals
+
+            % Get all currently selected signals
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
+
+            % If no multi-selection, fall back to the clicked signal
+            if isempty(selectedSignals)
+                selectedSignals = {clickedSignalInfo};
+            end
+
+            try
+                switch action
+                    case 'add'
+                        % Add all selected signals to current subplot
+                        app.addMultipleSignalsToCurrentSubplot(selectedSignals);
+
+                    case 'remove'
+                        % Remove all selected signals from current subplot
+                        app.removeMultipleSignalsFromCurrentSubplot(selectedSignals);
+
+                    case 'preview'
+                        if numel(selectedSignals) == 1
+                            app.showSignalPreview(selectedSignals{1});
+                        else
+                            app.previewSelectedSignals(selectedSignals);
+                        end
+
+                    case 'set_x_axis'
+                        if numel(selectedSignals) == 1
+                            app.setSignalAsXAxis(selectedSignals{1});
+                        else
+                            app.StatusLabel.Text = '⚠️ Can only set one signal as X-axis';
+                            app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                        end
+
+                    case 'export_csv'
+                        app.exportSingleSignalToCSV(clickedSignalInfo);
+
+                    case 'export_multiple_csv'
+                        app.exportMultipleSignalsToCSV(selectedSignals);
+
+                    case 'clear_all'
+                        app.clearSpecificSignalFromAllSubplots(clickedSignalInfo);
+
+                    case 'clear_multiple_all'
+                        app.clearMultipleSignalsFromAllSubplots(selectedSignals);
+
+                        % Multi-signal operations
+                    case 'vector_magnitude'
+                        app.showQuickVectorMagnitudeForSelected(selectedSignals);
+
+                    case 'signal_average'
+                        app.showQuickAverageForSelected(selectedSignals);
+
+                    case 'add_signals'
+                        if numel(selectedSignals) == 2
+                            app.showDualOperationForSelected('add', ...
+                                app.getSignalNameForOperations(selectedSignals{1}), ...
+                                app.getSignalNameForOperations(selectedSignals{2}));
+                        end
+
+                    case 'subtract_signals'
+                        if numel(selectedSignals) == 2
+                            app.showDualOperationForSelected('subtract', ...
+                                app.getSignalNameForOperations(selectedSignals{1}), ...
+                                app.getSignalNameForOperations(selectedSignals{2}));
+                        end
+
+                    case 'multiply_signals'
+                        if numel(selectedSignals) == 2
+                            app.showDualOperationForSelected('multiply', ...
+                                app.getSignalNameForOperations(selectedSignals{1}), ...
+                                app.getSignalNameForOperations(selectedSignals{2}));
+                        end
+
+                    case 'divide_signals'
+                        if numel(selectedSignals) == 2
+                            app.showDualOperationForSelected('divide', ...
+                                app.getSignalNameForOperations(selectedSignals{1}), ...
+                                app.getSignalNameForOperations(selectedSignals{2}));
+                        end
+
+                        % Single signal operations
+                    case 'show_details'
+                        app.showDerivedSignalDetails(clickedSignalInfo.Signal);
+                    case 'export_derived'
+                        app.SignalOperations.exportDerivedSignal(clickedSignalInfo.Signal);
+                    case 'delete_derived'
+                        app.SignalOperations.confirmDeleteDerivedSignal(clickedSignalInfo.Signal);
+
+                    otherwise
+                        fprintf('Unknown context menu action: %s\n', action);
+                end
+            catch ME
+                fprintf('Context menu action error (%s): %s\n', action, ME.message);
+            end
+        end
+
+        function addMultipleSignalsToCurrentSubplot(app, signalsToAdd)
+            % Add multiple signals to current subplot
+            if isempty(signalsToAdd)
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Add all signals that aren't already assigned
+            addedCount = 0;
+            for i = 1:numel(signalsToAdd)
+                signalInfo = signalsToAdd{i};
+
+                % Check if already assigned
+                alreadyAssigned = false;
+                for j = 1:numel(currentAssignments)
+                    if isequal(currentAssignments{j}, signalInfo)
+                        alreadyAssigned = true;
+                        break;
+                    end
+                end
+
+                if ~alreadyAssigned
+                    currentAssignments{end+1} = signalInfo;
+                    addedCount = addedCount + 1;
+
+                    % Apply linking for this signal
+                    if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
+                        app.LinkingManager.applyLinking(signalInfo);
+                    end
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = currentAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+
+            % Update signal properties table to show current selection
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
+            app.updateSignalPropsTable(selectedSignals);
+
+            % Update status
+            if addedCount > 0
+                app.StatusLabel.Text = sprintf('➕ Added %d signal(s) to subplot', addedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'All selected signals already assigned';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+
+        function removeMultipleSignalsFromCurrentSubplot(app, signalsToRemove)
+            % Remove multiple signals from current subplot
+            if isempty(signalsToRemove)
+                return;
+            end
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Remove selected signals
+            newAssignments = {};
+            removedCount = 0;
+
+            for i = 1:numel(currentAssignments)
+                shouldKeep = true;
+                for j = 1:numel(signalsToRemove)
+                    if isequal(currentAssignments{i}, signalsToRemove{j})
+                        shouldKeep = false;
+                        removedCount = removedCount + 1;
+                        break;
+                    end
+                end
+
+                if shouldKeep
+                    newAssignments{end+1} = currentAssignments{i};
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = newAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+
+            % Keep showing properties of selected signals
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
+            app.updateSignalPropsTable(selectedSignals);
+
+            % Update status
+            if removedCount > 0
+                app.StatusLabel.Text = sprintf('❌ Removed %d signal(s) from subplot', removedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'No selected signals were assigned';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+        end
+
+
+        function clearMultipleSignalsFromAllSubplots(app, signalsToRemove)
+            % Clear multiple signals from all subplots in all tabs
+
+            if isempty(signalsToRemove)
+                return;
+            end
+
+            % Confirm action
+            signalNames = cellfun(@(s) s.Signal, signalsToRemove, 'UniformOutput', false);
+            answer = uiconfirm(app.UIFigure, ...
+                sprintf('Remove %d signals from ALL subplots in ALL tabs?\n\nSignals: %s', ...
+                numel(signalsToRemove), strjoin(signalNames, ', ')), ...
+                'Confirm Clear Multiple Signals', ...
+                'Options', {'Remove All', 'Cancel'}, ...
+                'DefaultOption', 'Cancel', 'Icon', 'warning');
+
+            if strcmp(answer, 'Cancel')
+                return;
+            end
+
+            % Remove signals from all subplots in all tabs
+            removedCount = 0;
+            numTabs = numel(app.PlotManager.AxesArrays);
+
+            for tabIdx = 1:numTabs
+                if tabIdx > numel(app.PlotManager.AssignedSignals)
+                    continue;
+                end
+
+                if ~isempty(app.PlotManager.AxesArrays{tabIdx})
+                    numSubplots = numel(app.PlotManager.AxesArrays{tabIdx});
+                else
+                    continue;
+                end
+
+                for subplotIdx = 1:numSubplots
+                    if subplotIdx > numel(app.PlotManager.AssignedSignals{tabIdx})
+                        continue;
+                    end
+
+                    assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+                    if isempty(assignedSignals)
+                        continue;
+                    end
+
+                    % Filter out signals that should be removed
+                    filteredSignals = {};
+                    for i = 1:numel(assignedSignals)
+                        signal = assignedSignals{i};
+                        shouldKeep = true;
+
+                        for j = 1:numel(signalsToRemove)
+                            if isequal(signal, signalsToRemove{j})
+                                shouldKeep = false;
+                                removedCount = removedCount + 1;
+                                break;
+                            end
+                        end
+
+                        if shouldKeep
+                            filteredSignals{end+1} = signal; %#ok<AGROW>
+                        end
+                    end
+
+                    % Update the assignments for this subplot
+                    app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = filteredSignals;
+                end
+            end
+
+            % Refresh all plots in all tabs
+            for tabIdx = 1:numTabs
+                app.PlotManager.refreshPlots(tabIdx);
+            end
+
+            % Clear tree selection
+            app.SignalTree.SelectedNodes = [];
+
+            % Update status
+            if removedCount > 0
+                app.StatusLabel.Text = sprintf('🗑️ Removed %d signal assignments across all tabs', removedCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'No selected signals were assigned to any subplots';
+                app.StatusLabel.FontColor = [0.5 0.5 0.5];
+            end
+        end
+
+        function selectedSignals = getSelectedSignalsFromNodes(app, selectedNodes)
+            % Extract signal info from selected tree nodes, excluding folder nodes
+            selectedSignals = {};
+
+            for k = 1:numel(selectedNodes)
+                node = selectedNodes(k);
+
+                % Skip folder nodes and operation nodes
+                if isstruct(node.NodeData) && isfield(node.NodeData, 'Type')
+                    nodeType = node.NodeData.Type;
+                    if strcmp(nodeType, 'derived_signals_folder') || strcmp(nodeType, 'operations') || strcmp(nodeType, 'csv_folder')
+                        continue;
+                    end
+                end
+
+                % Include actual signals (both original and derived)
+                if isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    selectedSignals{end+1} = node.NodeData; %#ok<AGROW>
+                end
+            end
+        end
+
         function autoScaleCurrentSubplot(app)
             % Auto-scale ALL subplots in the current tab
             tabIdx = app.PlotManager.CurrentTabIdx;
@@ -3315,7 +4012,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 catch
                     session.XAxisSignals = {};  % fallback
                 end
-                
+
                 % === PER-TAB AXIS LINKING ===
                 try
                     if isprop(app.PlotManager, 'TabLinkedAxes')
@@ -3529,21 +4226,21 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 if isfield(session, 'XAxisSignals')
                     app.XAxisSignals = session.XAxisSignals;
                 end
-                
+
                 % === RESTORE PER-TAB AXIS LINKING ===
                 if isfield(session, 'TabLinkedAxes') && isprop(app.PlotManager, 'TabLinkedAxes')
                     app.PlotManager.TabLinkedAxes = session.TabLinkedAxes;
-                    
+
                     % Update the UI toggles to reflect the restored state
                     for i = 1:length(app.PlotManager.TabLinkedAxes)
                         if i <= length(app.PlotManager.TabControls) && ...
-                           ~isempty(app.PlotManager.TabControls{i}) && ...
-                           isfield(app.PlotManager.TabControls{i}, 'LinkAxesToggle')
+                                ~isempty(app.PlotManager.TabControls{i}) && ...
+                                isfield(app.PlotManager.TabControls{i}, 'LinkAxesToggle')
                             app.PlotManager.TabControls{i}.LinkAxesToggle.Value = app.PlotManager.TabLinkedAxes(i);
                         end
                     end
                 end
-                
+
                 % === REBUILD UI AND REFRESH ===
                 app.buildSignalTree();
 
@@ -3551,7 +4248,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 for tabIdx = 1:requiredTabs
                     app.PlotManager.refreshPlots(tabIdx);
                 end
-                
+
                 % Apply per-tab axis linking after plots are refreshed
                 for tabIdx = 1:length(app.PlotManager.TabLinkedAxes)
                     if app.PlotManager.TabLinkedAxes(tabIdx)
@@ -4073,7 +4770,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     plot(timeData, signalData, 'LineWidth', 1.5, 'Color', plotColor);
                     title(sprintf('%s (%s)', signalInfo.Signal, signalSource), 'FontSize', 10);
                     xlabel('Time');
-                    
+
                     ylabel('Value');
                     grid on;
 
@@ -4086,6 +4783,151 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.StatusLabel.Text = sprintf('📊 Previewing %d selected signals', numSignals);
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
+
+        function updateRemoveButtonState(app)
+            % Enable/disable remove button based on checkbox selections
+            data = app.SignalPropsTable.Data;
+
+            if isempty(data)
+                app.RemoveSelectedSignalsButton.Enable = 'off';
+                return;
+            end
+
+            % Check if any checkboxes are selected
+            hasSelection = false;
+            for i = 1:size(data, 1)
+                if data{i,1} % Checkbox in first column
+                    hasSelection = true;
+                    break;
+                end
+            end
+
+            if hasSelection
+                app.RemoveSelectedSignalsButton.Enable = 'on';
+                app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected from Subplot';
+            else
+                app.RemoveSelectedSignalsButton.Enable = 'off';
+                app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected from Subplot';
+            end
+        end
+
+        % 5. Add new method to handle removing selected signals:
+
+        function removeSelectedSignalsFromTable(app)
+            % Remove signals that are checked in the properties table
+            data = app.SignalPropsTable.Data;
+
+            if isempty(data)
+                return;
+            end
+
+            % Get current subplot assignments
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Find which signals are selected for removal
+            signalsToRemove = {};
+            selectedSignalNames = {};
+
+            for i = 1:size(data, 1)
+                if data{i,1} % Checkbox is checked
+                    signalName = data{i,2};
+                    selectedSignalNames{end+1} = signalName;
+
+                    % Find the corresponding signal info in current assignments
+                    for j = 1:numel(currentAssignments)
+                        if strcmp(currentAssignments{j}.Signal, signalName)
+                            signalsToRemove{end+1} = currentAssignments{j};
+                            break;
+                        end
+                    end
+                end
+            end
+
+            if isempty(signalsToRemove)
+                app.StatusLabel.Text = '⚠️ No signals selected for removal';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            % Confirm removal if multiple signals
+            if numel(signalsToRemove) > 1
+                answer = uiconfirm(app.UIFigure, ...
+                    sprintf('Remove %d selected signals from subplot?', numel(signalsToRemove)), ...
+                    'Confirm Removal', ...
+                    'Options', {'Remove', 'Cancel'}, ...
+                    'DefaultOption', 'Remove', 'Icon', 'question');
+
+                if strcmp(answer, 'Cancel')
+                    return;
+                end
+            end
+
+            % Remove the selected signals
+            newAssignments = {};
+            removedCount = 0;
+
+            for i = 1:numel(currentAssignments)
+                shouldKeep = true;
+                for j = 1:numel(signalsToRemove)
+                    if isequal(currentAssignments{i}, signalsToRemove{j})
+                        shouldKeep = false;
+                        removedCount = removedCount + 1;
+                        break;
+                    end
+                end
+
+                if shouldKeep
+                    newAssignments{end+1} = currentAssignments{i};
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = newAssignments;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+
+            % Update the properties table to show remaining signals
+            app.updateSignalPropsTable(newAssignments);
+
+            % Update status
+            app.StatusLabel.Text = sprintf('🗑️ Removed %d signal(s) from subplot', removedCount);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        % 6. Add method for selection callbacks (for color picking):
+
+        function onSignalPropsCellSelect(app, event)
+            % Handle color picker for Color column and checkbox updates
+            if isempty(event.Indices), return; end
+
+            row = event.Indices(1);
+            col = event.Indices(2);
+
+            if col == 5 % Color column
+                data = app.SignalPropsTable.Data;
+                sigName = data{row,2};
+                oldColor = str2num(data{row,5}); %#ok<ST2NM>
+                if isempty(oldColor), oldColor = [0 0.4470 0.7410]; end
+                newColor = uisetcolor(oldColor, sprintf('Pick color for %s', sigName));
+                if length(newColor) == 3 % user did not cancel
+                    data{row,5} = mat2str(newColor);
+                    app.SignalPropsTable.Data = data;
+                    if isempty(app.SignalStyles), app.SignalStyles = struct(); end
+                    if ~isfield(app.SignalStyles, sigName), app.SignalStyles.(sigName) = struct(); end
+                    app.SignalStyles.(sigName).Color = newColor;
+                    app.PlotManager.refreshPlots();
+                end
+            elseif col == 1 % Checkbox column
+                % Update remove button state when checkbox is clicked
+                pause(0.01); % Small delay for checkbox state to update
+                app.updateRemoveButtonState();
+            end
+        end
+
         % Helper function to assign selected signals in the tree to the current subplot
         function assignSelectedSignalsToCurrentSubplot(app)
             % Assign all signals currently selected in the tree to the current subplot
@@ -4160,6 +5002,118 @@ classdef SignalViewerApp < matlab.apps.AppBase
             figure(app.UIFigure);
         end
 
+        function populateMultiSelectionContextMenu(app, contextMenu, clickedSignalInfo)
+            % This is called WHEN the context menu opens, so it can detect current selection
+
+            % Clear existing menu items
+            delete(contextMenu.Children);
+
+            % Get currently selected signals
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedSignals = app.getSelectedSignalsFromNodes(selectedNodes);
+
+            % If no valid signals selected, use the clicked signal
+            if isempty(selectedSignals)
+                selectedSignals = {clickedSignalInfo};
+            end
+
+            % Get current assignments
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            currentAssignments = {};
+            if tabIdx <= numel(app.PlotManager.AssignedSignals) && subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+            end
+
+            % Separate assigned and unassigned signals
+            assignedSignals = {};
+            unassignedSignals = {};
+
+            for i = 1:numel(selectedSignals)
+                isAssigned = false;
+                signal = selectedSignals{i};
+
+                for j = 1:numel(currentAssignments)
+                    if isequal(currentAssignments{j}, signal)
+                        isAssigned = true;
+                        break;
+                    end
+                end
+
+                if isAssigned
+                    assignedSignals{end+1} = signal;
+                else
+                    unassignedSignals{end+1} = signal;
+                end
+            end
+
+            % ============= CREATE MENU ITEMS =============
+
+            % Assignment/Removal operations
+            if ~isempty(unassignedSignals)
+                if numel(unassignedSignals) == 1
+                    uimenu(contextMenu, 'Text', '➕ Add to Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                else
+                    uimenu(contextMenu, 'Text', sprintf('➕ Add %d Signals to Subplot', numel(unassignedSignals)), ...
+                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                end
+            end
+
+            if ~isempty(assignedSignals)
+                if numel(assignedSignals) == 1
+                    uimenu(contextMenu, 'Text', '❌ Remove from Subplot', ...
+                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                else
+                    uimenu(contextMenu, 'Text', sprintf('❌ Remove %d Signals from Subplot', numel(assignedSignals)), ...
+                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                end
+            end
+
+            % Preview options
+            if numel(selectedSignals) == 1
+                signal = selectedSignals{1};
+                uimenu(contextMenu, 'Text', '📊 Quick Preview', ...
+                    'MenuSelectedFcn', @(src, event) app.showSignalPreview(signal), 'Separator', 'on');
+                uimenu(contextMenu, 'Text', '📈 Set as X-Axis', ...
+                    'MenuSelectedFcn', @(src, event) app.setSignalAsXAxis(signal));
+
+                % Export options
+                uimenu(contextMenu, 'Text', '💾 Export Options', ...
+                    'MenuSelectedFcn', @(src, event) app.exportSingleSignalToCSV(signal), 'Separator', 'on');
+
+                % Clear from all subplots
+                uimenu(contextMenu, 'Text', '🗑️ Clear from All Subplots', ...
+                    'MenuSelectedFcn', @(src, event) app.clearSpecificSignalFromAllSubplots(signal));
+
+            elseif numel(selectedSignals) > 1
+                uimenu(contextMenu, 'Text', sprintf('📊 Preview %d Signals', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.previewSelectedSignals(selectedSignals), 'Separator', 'on');
+
+                % Multi-signal operations
+                multiOpsMenu = uimenu(contextMenu, 'Text', sprintf('⚡ Multi-Signal Ops (%d selected)', numel(selectedSignals)));
+                uimenu(multiOpsMenu, 'Text', '📊 Vector Magnitude', ...
+                    'MenuSelectedFcn', @(src, event) app.showQuickVectorMagnitudeForSelected(selectedSignals));
+                uimenu(multiOpsMenu, 'Text', '📈 Signal Average', ...
+                    'MenuSelectedFcn', @(src, event) app.showQuickAverageForSelected(selectedSignals));
+
+                % Export multiple
+                uimenu(contextMenu, 'Text', sprintf('💾 Export %d Signals to CSV', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.exportMultipleSignalsToCSV(selectedSignals), 'Separator', 'on');
+
+                % Clear multiple from all subplots
+                uimenu(contextMenu, 'Text', sprintf('🗑️ Clear %d Signals from All Subplots', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.clearMultipleSignalsFromAllSubplots(selectedSignals));
+            end
+
+            % Selection info
+            if numel(selectedSignals) > 1
+                uimenu(contextMenu, 'Text', sprintf('📋 %d signals selected', numel(selectedSignals)), ...
+                    'Enable', 'off', 'Separator', 'on');
+            end
+        end
+
+
         % Add other necessary methods...
         function setupAxesDropTargets(app)
             % Set up each axes as a drop target for drag-and-drop signal assignment
@@ -4183,7 +5137,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             node = event.Data;
             if isfield(node.NodeData, 'CSVIdx')
                 sigInfo = node.NodeData;
-                % Add (not replace) the signal to the subplot assignment
+                % Add (nots replace) the signal to the subplot assignment
                 assigned = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
                 % Only add if not already present
                 alreadyAssigned = false;
