@@ -1006,7 +1006,7 @@ classdef PlotManager < handle
                     end
 
                     sigs = expanded;
-
+                    sigs = assigned;
 
                     if isempty(sigs)
                         % No signals assigned - let axes auto-scale or keep existing limits
