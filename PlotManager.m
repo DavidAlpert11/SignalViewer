@@ -124,7 +124,7 @@ classdef PlotManager < handle
 
             obj.App.StatusLabel.Text = sprintf('➕ Added tuple: %s', customLabel);
             obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
-            
+
             % Refresh plots
             obj.refreshPlots(tabIdx);
         end
@@ -370,105 +370,27 @@ classdef PlotManager < handle
             % Update tab titles to show/hide X icons appropriately
             obj.updateTabTitles();
         end
-        function exportSubplotToFigure(obj, tabIdx, subplotIdx)
-            % Export a specific subplot to a new MATLAB figure
-            try
-                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
-                    return;
-                end
 
-                sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
-                if ~isvalid(sourceAx)
-                    return;
-                end
-
-                % Create new figure
-                newFig = figure('Name', sprintf('Tab %d - Plot %d', tabIdx, subplotIdx), ...
-                    'Position', [100 100 800 600], ...
-                    'Color', [1 1 1]);
-
-
-
-                % Create axes in the new figure
-                newAx = axes(newFig);
-
-                % Copy all children from source to new axes
-                allChildren = allchild(sourceAx);
-                validChildren = [];
-                legendEntries = {};
-
-                % Filter children: only copy actual signal plots (lines with DisplayName)
-                for i = 1:numel(allChildren)
-                    child = allChildren(i);
-
-                    % Only copy line objects that represent actual signals
-                    if isa(child, 'matlab.graphics.chart.primitive.Line') && ...
-                            isprop(child, 'DisplayName') && ...
-                            ~isempty(child.DisplayName) && ...
-                            ~strcmp(child.DisplayName, '')
-
-                        validChildren = [validChildren; child];
-                        legendEntries{end+1} = child.DisplayName;
-                    end
-                end
-
-                % Copy only the valid signal plots
-                if ~isempty(validChildren)
-                    copyobj(validChildren, newAx);
-                end
-
-                % Copy axes properties
-                newAx.XLabel.String = sourceAx.XLabel.String;
-                newAx.YLabel.String = sourceAx.YLabel.String;
-                newAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
-                % newAx.XLim = sourceAx.XLim;
-                % newAx.YLim = sourceAx.YLim;
-
-                % Copy grid settings
-                grid(newAx, 'on');
-                newAx.XGrid = sourceAx.XGrid;
-                newAx.YGrid = sourceAx.YGrid;
-                newAx.XMinorGrid = sourceAx.XMinorGrid;
-                newAx.YMinorGrid = sourceAx.YMinorGrid;
-                newAx.GridAlpha = sourceAx.GridAlpha;
-                newAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
-
-                % ALWAYS use normal axes colors in export (not green highlight)
-                newAx.XColor = [0.15 0.15 0.15];
-                newAx.YColor = [0.15 0.15 0.15];
-                newAx.LineWidth = 1;
-
-                % Add legend only if we have valid entries
-                if ~isempty(legendEntries)
-                    legend(newAx, legendEntries, 'Location', 'best');
-                end
-
-                % Update status
-                obj.App.StatusLabel.Text = sprintf('📊 Exported Plot %d to MATLAB Figure', subplotIdx);
-                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
-
-            catch ME
-                obj.App.StatusLabel.Text = ['Export failed: ' ME.message];
-                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
-            end
-            obj.App.restoreFocus(); % Restore focus after context menu action
-
-        end
         function copySubplotToClipboard(obj, tabIdx, subplotIdx)
-            % Copy subplot to clipboard as image
+            % Copy subplot to clipboard as image with metadata (like copyfig)
             try
                 if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
                     return;
                 end
-
                 sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
                 if ~isvalid(sourceAx)
                     return;
                 end
 
-                % Create temporary figure for export
-                tempFig = figure('Visible', 'off', 'Position', [0 0 800 600]);
-                tempAx = axes(tempFig);
+                % Create temporary figure for export with high quality settings
+                tempFig = figure('Visible', 'off', ...
+                    'Position', [0 0 1200 900], ...  % Higher resolution
+                    'Color', 'white', ...
+                    'PaperType', 'usletter', ...
+                    'PaperOrientation', 'landscape');
+
+                % Create axes with better positioning
+                tempAx = axes(tempFig, 'Position', [0.1 0.1 0.8 0.8]);
 
                 % Copy content excluding highlight borders
                 allChildren = allchild(sourceAx);
@@ -493,29 +415,109 @@ classdef PlotManager < handle
                     copyobj(validChildren, tempAx);
                 end
 
+                % Copy axes properties for better fidelity
                 tempAx.XLabel.String = sourceAx.XLabel.String;
                 tempAx.YLabel.String = sourceAx.YLabel.String;
-                tempAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
-                % tempAx.XLim = sourceAx.XLim;
-                % tempAx.YLim = sourceAx.YLim;
 
-                % Set normal colors
+                % Set title from stored subplot title property
+                titleText = '';
+                if numel(obj.App.SubplotTitles) >= tabIdx && numel(obj.App.SubplotTitles{tabIdx}) >= subplotIdx
+                    titleText = obj.App.SubplotTitles{tabIdx}{subplotIdx};
+                end
+                if isempty(titleText)
+                    titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx); % Fallback
+                end
+                tempAx.Title.String = titleText;
+                tempAx.XLim = sourceAx.XLim;
+                tempAx.YLim = sourceAx.YLim;
+                tempAx.XTick = sourceAx.XTick;
+                tempAx.YTick = sourceAx.YTick;
+                tempAx.XTickLabel = sourceAx.XTickLabel;
+                tempAx.YTickLabel = sourceAx.YTickLabel;
+
+                % Copy grid settings
+                tempAx.XGrid = sourceAx.XGrid;
+                tempAx.YGrid = sourceAx.YGrid;
+                tempAx.XMinorGrid = sourceAx.XMinorGrid;
+                tempAx.YMinorGrid = sourceAx.YMinorGrid;
+                tempAx.GridAlpha = sourceAx.GridAlpha;
+                tempAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
+
+                % Set professional appearance
                 tempAx.XColor = [0.15 0.15 0.15];
                 tempAx.YColor = [0.15 0.15 0.15];
-                tempAx.LineWidth = 1;
+                tempAx.LineWidth = 1.2;
+                tempAx.FontSize = 11;
+                tempAx.FontWeight = 'normal';
 
-                % Copy to clipboard
-                print(tempFig, '-dbitmap');
+                % Copy legend if it exists
+                sourceLegend = legend(sourceAx);
+                if ~isempty(sourceLegend) && isvalid(sourceLegend)
+                    tempLegend = legend(tempAx);
+                    if ~isempty(tempLegend)
+                        tempLegend.String = sourceLegend.String;
+                        tempLegend.Location = sourceLegend.Location;
+                        tempLegend.FontSize = sourceLegend.FontSize;
+                        tempLegend.Box = sourceLegend.Box;
+                    end
+                end
+
+                % Use copygraphics for high-quality copy with metadata
+                % This is the modern MATLAB equivalent of the "Copy Figure" functionality
+                copygraphics(tempFig, ...
+                    'ContentType', 'auto', ...      % Automatically determine best format
+                    'BackgroundColor', 'white', ... % Ensure white background
+                    'Resolution', 300);             % High DPI for crisp output
+
+                % Alternative: For even higher quality, you can use specific formats
+                % copygraphics(tempFig, 'ContentType', 'vector', 'BackgroundColor', 'white');
 
                 % Clean up
                 close(tempFig);
 
-                obj.App.StatusLabel.Text = sprintf('📋 Plot %d copied to clipboard', subplotIdx);
+                obj.App.StatusLabel.Text = sprintf('📋 Plot %d copied to clipboard (high quality)', subplotIdx);
                 obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
-                obj.App.StatusLabel.Text = ['❌ Copy failed: ' ME.message];
-                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];            end
+                % Fallback to old method if copygraphics fails
+                try
+                    tempFig = figure('Visible', 'off', 'Position', [0 0 800 600]);
+                    tempAx = axes(tempFig);
+
+                    % Basic copy for fallback
+                    allChildren = allchild(sourceAx);
+                    validChildren = [];
+                    highlightBorders = [];
+                    if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                        highlightBorders = sourceAx.UserData.HighlightBorders;
+                    end
+
+                    for i = 1:numel(allChildren)
+                        child = allChildren(i);
+                        if ~any(highlightBorders == child)
+                            validChildren = [validChildren; child];
+                        end
+                    end
+
+                    if ~isempty(validChildren)
+                        copyobj(validChildren, tempAx);
+                    end
+
+                    tempAx.XLabel.String = sourceAx.XLabel.String;
+                    tempAx.YLabel.String = sourceAx.YLabel.String;
+                    tempAx.Title.String = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
+
+                    print(tempFig, '-dbitmap');
+                    close(tempFig);
+
+                    obj.App.StatusLabel.Text = sprintf('📋 Plot %d copied to clipboard (fallback mode)', subplotIdx);
+                    obj.App.StatusLabel.FontColor = [0.8 0.6 0.2];
+
+                catch ME2
+                    obj.App.StatusLabel.Text = ['❌ Copy failed: ' ME2.message];
+                    obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+                end
+            end
         end
 
         function enhancedCsvLabel = generateEnhancedCSVLabel(obj, csvIdx)
@@ -636,7 +638,140 @@ classdef PlotManager < handle
             end
         end
 
+        function saveSubplotAsFig(obj, tabIdx, subplotIdx)
+            % Save subplot as MATLAB .fig file
+            try
+                if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                    return;
+                end
+                sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
+                if ~isvalid(sourceAx)
+                    return;
+                end
 
+                % Get save location
+                defaultName = sprintf('Tab%d_Plot%d.fig', tabIdx, subplotIdx);
+                [file, path] = uiputfile({'*.fig', 'MATLAB Figure Files (*.fig)'}, ...
+                    'Save Plot As Figure', defaultName);
+                if isequal(file, 0)
+                    return;
+                end
+                fullPath = fullfile(path, file);
+                tempFig = figure('Visible','off');
+                newAx = copyobj(sourceAx, tempFig);
+                set(newAx, 'Units', 'normalized', 'Position', [0.13 0.11 0.775 0.815]);
+
+
+
+                % Get title from stored property or fallback
+                titleText = '';
+                if numel(obj.App.SubplotTitles) >= tabIdx && numel(obj.App.SubplotTitles{tabIdx}) >= subplotIdx
+                    titleText = obj.App.SubplotTitles{tabIdx}{subplotIdx};
+                end
+                if isempty(titleText)
+                    titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx); % fallback
+                end
+
+                % Set the title on the copied axes
+                title(newAx, titleText);
+                tempFig.Visible = 1;
+
+                savefig(tempFig, fullPath);
+                % Create temporary figure for export
+                %                 tempFig = figure('Visible', 'on', ...
+                %                     'Position', [0 0 1200 900], ...
+                %                     'Color', 'white', ...
+                %                     'Name', sprintf('Tab %d - Plot %d', tabIdx, subplotIdx));
+
+                %                 % Create axes with better positioning
+                %                 tempAx = axes(tempFig, 'Position', [0.1 0.1 0.8 0.8]);
+                %
+                %                 % Copy content excluding highlight borders
+                %                 allChildren = allchild(sourceAx);
+                %                 validChildren = [];
+                %
+                %                 % Filter out highlight border lines
+                %                 highlightBorders = [];
+                %                 if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                %                     highlightBorders = sourceAx.UserData.HighlightBorders;
+                %                 end
+                %
+                %                 for i = 1:numel(allChildren)
+                %                     child = allChildren(i);
+                %                     % Only copy if it's not a highlight border
+                %                     if ~any(highlightBorders == child)
+                %                         validChildren = [validChildren; child];
+                %                     end
+                %                 end
+                %
+                %                 % Copy only the valid children
+                %                 if ~isempty(validChildren)
+                %                     copyobj(validChildren, tempAx);
+                %                 end
+                %
+                %                 % Copy axes properties for better fidelity
+                %                 tempAx.XLabel.String = sourceAx.XLabel.String;
+                %                 tempAx.YLabel.String = sourceAx.YLabel.String;
+                %
+                %                 % Set title from stored subplot title property
+                %                 titleText = '';
+                %                 if numel(obj.App.SubplotTitles) >= tabIdx && numel(obj.App.SubplotTitles{tabIdx}) >= subplotIdx
+                %                     titleText = obj.App.SubplotTitles{tabIdx}{subplotIdx};
+                %                 end
+                %                 if isempty(titleText)
+                %                     titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx); % Fallback
+                %                 end
+                %                 tempAx.Title.String = titleText;
+                %
+                %                 tempAx.XLim = sourceAx.XLim;
+                %                 tempAx.YLim = sourceAx.YLim;
+                %                 tempAx.XTick = sourceAx.XTick;
+                %                 tempAx.YTick = sourceAx.YTick;
+                %                 tempAx.XTickLabel = sourceAx.XTickLabel;
+                %                 tempAx.YTickLabel = sourceAx.YTickLabel;
+                %
+                %                 % Copy grid settings
+                %                 tempAx.XGrid = sourceAx.XGrid;
+                %                 tempAx.YGrid = sourceAx.YGrid;
+                %                 tempAx.XMinorGrid = sourceAx.XMinorGrid;
+                %                 tempAx.YMinorGrid = sourceAx.YMinorGrid;
+                %                 tempAx.GridAlpha = sourceAx.GridAlpha;
+                %                 tempAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
+                %
+                %                 % Set professional appearance
+                %                 tempAx.XColor = [0.15 0.15 0.15];
+                %                 tempAx.YColor = [0.15 0.15 0.15];
+                %                 tempAx.LineWidth = 1.2;
+                %                 tempAx.FontSize = 11;
+                %                 tempAx.FontWeight = 'normal';
+                %
+                %                 % Copy legend if it exists
+                %                 sourceLegend = legend(sourceAx);
+                %                 if ~isempty(sourceLegend) && isvalid(sourceLegend)
+                %                     tempLegend = legend(tempAx);
+                %                     if ~isempty(tempLegend)
+                %                         tempLegend.String = sourceLegend.String;
+                %                         tempLegend.Location = sourceLegend.Location;
+                %                         tempLegend.FontSize = sourceLegend.FontSize;
+                %                         tempLegend.Box = sourceLegend.Box;
+                %                     end
+                %                 end
+                %
+                %                 % Save as .fig file
+                %                 fullPath = fullfile(path, file);
+                %                 savefig(tempFig, fullPath);
+
+                % Clean up
+                close(tempFig);
+
+                obj.App.StatusLabel.Text = sprintf('💾 Plot %d saved as %s', subplotIdx, file);
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                obj.App.StatusLabel.Text = ['❌ Save failed: ' ME.message];
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+            end
+        end
         function clearSubplot(obj, tabIdx, subplotIdx)
             % Clear all signals from a specific subplot
             try
@@ -777,6 +912,9 @@ classdef PlotManager < handle
                 uimenu(cm, 'Text', '💾 Save as Image', ...
                     'MenuSelectedFcn', @(src, event) obj.saveSubplotAsImage(tabIdx, i));
 
+                uimenu(cm, 'Text', '💾 Save as Fig', ...
+                    'MenuSelectedFcn', @(src, event) obj.saveSubplotAsFig(tabIdx, i));
+
                 uimenu(cm, 'Text', '🗑️ Clear Subplot', ...
                     'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
 
@@ -803,118 +941,118 @@ classdef PlotManager < handle
         end
 
         function plotTupleSignals(obj, ax, tabIdx, subplotIdx)
-    % Clear and set up axes for tuple plotting
-    delete(ax.Children);
-    hold(ax, 'on');
+            % Clear and set up axes for tuple plotting
+            delete(ax.Children);
+            hold(ax, 'on');
 
-    % Enable grid
-    grid(ax, 'on');
-    ax.XGrid = 'on';
-    ax.YGrid = 'on';
-    ax.XMinorGrid = 'on';
-    ax.YMinorGrid = 'on';
-    ax.GridAlpha = 0.3;
-    ax.MinorGridAlpha = 0.1;
+            % Enable grid
+            grid(ax, 'on');
+            ax.XGrid = 'on';
+            ax.YGrid = 'on';
+            ax.XMinorGrid = 'on';
+            ax.YMinorGrid = 'on';
+            ax.GridAlpha = 0.3;
+            ax.MinorGridAlpha = 0.1;
 
-    if subplotIdx > numel(obj.TupleSignals{tabIdx}) || isempty(obj.TupleSignals{tabIdx}{subplotIdx})
-        % No tuples - show empty plot with instructions
-        text(ax, 0.5, 0.5, 'Tuple Mode: Right-click to add X-Y signal pairs', ...
-            'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
-            'Units', 'normalized', 'FontSize', 12, 'Color', [0.5 0.5 0.5]);
-        ax.XLabel.String = 'X Signal';
-        ax.YLabel.String = 'Y Signal';
-        hold(ax, 'off');
-        return;
-    end
+            if subplotIdx > numel(obj.TupleSignals{tabIdx}) || isempty(obj.TupleSignals{tabIdx}{subplotIdx})
+                % No tuples - show empty plot with instructions
+                text(ax, 0.5, 0.5, 'Tuple Mode: Right-click to add X-Y signal pairs', ...
+                    'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+                    'Units', 'normalized', 'FontSize', 12, 'Color', [0.5 0.5 0.5]);
+                ax.XLabel.String = 'X Signal';
+                ax.YLabel.String = 'Y Signal';
+                hold(ax, 'off');
+                return;
+            end
 
-    tuples = obj.TupleSignals{tabIdx}{subplotIdx};
-    plotHandles = [];
-    plotLabels = {};
+            tuples = obj.TupleSignals{tabIdx}{subplotIdx};
+            plotHandles = [];
+            plotLabels = {};
 
-    for i = 1:numel(tuples)
-        tuple = tuples{i};
+            for i = 1:numel(tuples)
+                tuple = tuples{i};
 
-        try
-            % Get X signal data
-            if tuple.XSignal.CSVIdx == -1
-                [~, xData] = obj.App.SignalOperations.getSignalData(tuple.XSignal.Signal);
-            else
-                T = obj.App.DataManager.DataTables{tuple.XSignal.CSVIdx};
-                if ismember(tuple.XSignal.Signal, T.Properties.VariableNames)
-                    xData = T.(tuple.XSignal.Signal);
-                    % Apply scaling
-                    if obj.App.DataManager.SignalScaling.isKey(tuple.XSignal.Signal)
-                        xData = xData * obj.App.DataManager.SignalScaling(tuple.XSignal.Signal);
+                try
+                    % Get X signal data
+                    if tuple.XSignal.CSVIdx == -1
+                        [~, xData] = obj.App.SignalOperations.getSignalData(tuple.XSignal.Signal);
+                    else
+                        T = obj.App.DataManager.DataTables{tuple.XSignal.CSVIdx};
+                        if ismember(tuple.XSignal.Signal, T.Properties.VariableNames)
+                            xData = T.(tuple.XSignal.Signal);
+                            % Apply scaling
+                            if obj.App.DataManager.SignalScaling.isKey(tuple.XSignal.Signal)
+                                xData = xData * obj.App.DataManager.SignalScaling(tuple.XSignal.Signal);
+                            end
+                        else
+                            continue;
+                        end
                     end
-                else
+
+                    % Get Y signal data
+                    if tuple.YSignal.CSVIdx == -1
+                        [~, yData] = obj.App.SignalOperations.getSignalData(tuple.YSignal.Signal);
+                    else
+                        T = obj.App.DataManager.DataTables{tuple.YSignal.CSVIdx};
+                        if ismember(tuple.YSignal.Signal, T.Properties.VariableNames)
+                            yData = T.(tuple.YSignal.Signal);
+                            % Apply scaling
+                            if obj.App.DataManager.SignalScaling.isKey(tuple.YSignal.Signal)
+                                yData = yData * obj.App.DataManager.SignalScaling(tuple.YSignal.Signal);
+                            end
+                        else
+                            continue;
+                        end
+                    end
+
+                    % Remove NaN values
+                    validIdx = ~isnan(xData) & ~isnan(yData);
+                    xData = xData(validIdx);
+                    yData = yData(validIdx);
+
+                    if isempty(xData) || isempty(yData)
+                        continue;
+                    end
+
+                    % Plot tuple
+                    h = plot(ax, xData, yData, '-', ...
+                        'LineWidth', 2, ...
+                        'MarkerSize', 4, ...
+                        'Color', tuple.Color, ...
+                        'DisplayName', tuple.Label);
+
+                    plotHandles(end+1) = h;
+                    plotLabels{end+1} = tuple.Label;
+
+                catch ME
+                    fprintf('Error plotting tuple %d: %s\n', i, ME.message);
                     continue;
                 end
             end
 
-            % Get Y signal data
-            if tuple.YSignal.CSVIdx == -1
-                [~, yData] = obj.App.SignalOperations.getSignalData(tuple.YSignal.Signal);
+            % Set axis labels based on number of tuples
+            if numel(tuples) == 1
+                % Single tuple - show axis labels with signal names
+                firstTuple = tuples{1};
+                ax.XLabel.String = obj.addUnitsToYLabel(firstTuple.XSignal.Signal, firstTuple.XSignal.Signal);
+                ax.YLabel.String = obj.addUnitsToYLabel(firstTuple.YSignal.Signal, firstTuple.YSignal.Signal);
+            elseif numel(tuples) > 1
+                % Multiple tuples - hide axis labels to avoid confusion
+                ax.XLabel.String = '';
+                ax.YLabel.String = '';
             else
-                T = obj.App.DataManager.DataTables{tuple.YSignal.CSVIdx};
-                if ismember(tuple.YSignal.Signal, T.Properties.VariableNames)
-                    yData = T.(tuple.YSignal.Signal);
-                    % Apply scaling
-                    if obj.App.DataManager.SignalScaling.isKey(tuple.YSignal.Signal)
-                        yData = yData * obj.App.DataManager.SignalScaling(tuple.YSignal.Signal);
-                    end
-                else
-                    continue;
-                end
+                % No valid tuples plotted
+                ax.XLabel.String = 'X Signal';
+                ax.YLabel.String = 'Y Signal';
             end
 
-            % Remove NaN values
-            validIdx = ~isnan(xData) & ~isnan(yData);
-            xData = xData(validIdx);
-            yData = yData(validIdx);
-
-            if isempty(xData) || isempty(yData)
-                continue;
+            % Add legend
+            if ~isempty(plotHandles)
+                legend(ax, plotHandles, plotLabels, 'Location', 'best');
             end
 
-            % Plot tuple
-            h = plot(ax, xData, yData, '-', ...
-                'LineWidth', 2, ...
-                'MarkerSize', 4, ...
-                'Color', tuple.Color, ...
-                'DisplayName', tuple.Label);
-
-            plotHandles(end+1) = h;
-            plotLabels{end+1} = tuple.Label;
-
-        catch ME
-            fprintf('Error plotting tuple %d: %s\n', i, ME.message);
-            continue;
+            hold(ax, 'off');
         end
-    end
-
-    % Set axis labels based on number of tuples
-    if numel(tuples) == 1
-        % Single tuple - show axis labels with signal names
-        firstTuple = tuples{1};
-        ax.XLabel.String = obj.addUnitsToYLabel(firstTuple.XSignal.Signal, firstTuple.XSignal.Signal);
-        ax.YLabel.String = obj.addUnitsToYLabel(firstTuple.YSignal.Signal, firstTuple.YSignal.Signal);
-    elseif numel(tuples) > 1
-        % Multiple tuples - hide axis labels to avoid confusion
-        ax.XLabel.String = '';
-        ax.YLabel.String = '';
-    else
-        % No valid tuples plotted
-        ax.XLabel.String = 'X Signal';
-        ax.YLabel.String = 'Y Signal';
-    end
-
-    % Add legend
-    if ~isempty(plotHandles)
-        legend(ax, plotHandles, plotLabels, 'Location', 'best');
-    end
-
-    hold(ax, 'off');
-end
 
 
         function showPDFExportDialog(obj)
