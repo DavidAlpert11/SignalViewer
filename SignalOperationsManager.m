@@ -2341,6 +2341,1097 @@ classdef SignalOperationsManager < handle
             fprintf('Added %d derived signals to tree (auto-expanded)\n', length(derivedNames));
         end
 
+        % Add these methods to SignalOperationsManager.m
+
+        function showSingleSignalDialogWithPreselection(obj, operationType, preselectedSignal)
+            % Create dialog for single signal operations with pre-selected signal
+            d = dialog('Name', sprintf('%s Operation', operationType), ...
+                'Position', [300 300 450 300], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 260 410 25], ...
+                'String', sprintf('Compute %s of Signal', operationType), ...
+                'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 220 120 20], ...
+                'String', 'Selected Signal:', 'FontWeight', 'bold');
+
+            signalNames = obj.getAllAvailableSignals();
+
+            % Find the index of the pre-selected signal
+            preselectedIndex = 1;
+            for i = 1:length(signalNames)
+                if strcmp(signalNames{i}, preselectedSignal)
+                    preselectedIndex = i;
+                    break;
+                end
+            end
+
+            signalDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 220 250 25], 'String', signalNames, 'Value', preselectedIndex);
+
+            % Method selection (operation-specific)
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 180 120 20], ...
+                'String', 'Method:', 'FontWeight', 'bold');
+
+            switch lower(operationType)
+                case 'derivative'
+                    methods = {'Gradient (recommended)', 'Forward Difference', 'Backward Difference', 'Central Difference'};
+                    defaultMethod = 1;
+                case 'integral'
+                    methods = {'Cumulative Trapezoidal', 'Cumulative Simpson', 'Running Sum'};
+                    defaultMethod = 1;
+                otherwise
+                    methods = {'Default'};
+                    defaultMethod = 1;
+            end
+
+            methodDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 180 250 25], 'String', methods, 'Value', defaultMethod);
+
+            % Result name - AUTO-GENERATED based on selected signal
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 140 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            % Extract clean signal name for result
+            cleanSignalName = obj.extractCleanSignalName(preselectedSignal);
+            defaultName = sprintf('%s_%s', cleanSignalName, lower(operationType));
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 140 250 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Update name when signal changes
+            signalDropdown.Callback = @(src, ~) updateDefaultName();
+
+            % Options (operation-specific)
+            optionsPanel = uipanel('Parent', d, 'Position', [20 60 410 70], ...
+                'Title', 'Options', 'FontWeight', 'bold');
+
+            switch lower(operationType)
+                case 'derivative'
+                    smoothingCheck = uicontrol('Parent', optionsPanel, 'Style', 'checkbox', ...
+                        'Position', [10 30 200 20], 'String', 'Apply smoothing filter', 'Value', 0);
+                    windowSizeLabel = uicontrol('Parent', optionsPanel, 'Style', 'text', ...
+                        'Position', [10 5 100 20], 'String', 'Window size:');
+                    windowSizeEdit = uicontrol('Parent', optionsPanel, 'Style', 'edit', ...
+                        'Position', [120 5 50 20], 'String', '5', 'Enable', 'off');
+
+                    smoothingCheck.Callback = @(src, ~) set(windowSizeEdit, 'Enable', ...
+                        char("on" * src.Value + "off" * (1-src.Value)));
+
+                case 'integral'
+                    initialValueCheck = uicontrol('Parent', optionsPanel, 'Style', 'checkbox', ...
+                        'Position', [10 30 200 20], 'String', 'Set initial value', 'Value', 0);
+                    initialValueLabel = uicontrol('Parent', optionsPanel, 'Style', 'text', ...
+                        'Position', [10 5 100 20], 'String', 'Initial value:');
+                    initialValueEdit = uicontrol('Parent', optionsPanel, 'Style', 'edit', ...
+                        'Position', [120 5 50 20], 'String', '0', 'Enable', 'off');
+
+                    initialValueCheck.Callback = @(src, ~) set(initialValueEdit, 'Enable', ...
+                        char("on" * src.Value + "off" * (1-src.Value)));
+            end
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [250 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [340 15 80 30], 'Callback', @(~,~) close(d));
+
+            function updateDefaultName()
+                selectedSignal = signalNames{signalDropdown.Value};
+                cleanName = obj.extractCleanSignalName(selectedSignal);
+                newName = sprintf('%s_%s', cleanName, lower(operationType));
+                nameField.String = newName;
+            end
+
+            function computeAndClose()
+                params = struct();
+                params.SignalName = signalNames{signalDropdown.Value};
+                params.Method = methods{methodDropdown.Value};
+                params.ResultName = strtrim(nameField.String);
+
+                % Add operation-specific parameters
+                switch lower(operationType)
+                    case 'derivative'
+                        params.ApplySmoothing = smoothingCheck.Value;
+                        if params.ApplySmoothing
+                            params.WindowSize = str2double(windowSizeEdit.String);
+                        end
+                    case 'integral'
+                        params.SetInitialValue = initialValueCheck.Value;
+                        if params.SetInitialValue
+                            params.InitialValue = str2double(initialValueEdit.String);
+                        end
+                end
+
+                % Validate inputs
+                if isempty(params.ResultName)
+                    uialert(d, 'Please enter a result name.', 'Invalid Input');
+                    return;
+                end
+
+                % Execute operation
+                obj.executeSingleSignalOperation(operationType, params);
+                close(d);
+            end
+        end
+
+        function showDualSignalDialogWithPreselection(obj, operationType, preselectedSignalA, preselectedSignalB)
+            % Dialog for two-signal operations with pre-selected signals
+            d = dialog('Name', sprintf('%s Operation', operationType), ...
+                'Position', [300 300 500 350], 'Resize', 'off');
+
+            % Title
+            opSymbols = containers.Map({'subtract', 'add', 'multiply', 'divide'}, ...
+                {'−', '+', '×', '÷'});
+            opSymbol = opSymbols(lower(operationType));
+
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 310 460 25], ...
+                'String', sprintf('Signal A %s Signal B', opSymbol), ...
+                'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            signalNames = obj.getAllAvailableSignals();
+
+            % Find indices of pre-selected signals
+            indexA = 1;
+            indexB = min(2, length(signalNames));
+
+            for i = 1:length(signalNames)
+                if strcmp(signalNames{i}, preselectedSignalA)
+                    indexA = i;
+                end
+                if strcmp(signalNames{i}, preselectedSignalB)
+                    indexB = i;
+                end
+            end
+
+            % Signal A selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 270 120 20], ...
+                'String', 'Signal A:', 'FontWeight', 'bold');
+            signalADropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 270 250 25], 'String', signalNames, 'Value', indexA);
+
+            % Signal B selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 230 120 20], ...
+                'String', 'Signal B:', 'FontWeight', 'bold');
+            signalBDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 230 250 25], 'String', signalNames, 'Value', indexB);
+
+            % Interpolation options
+            interpPanel = uipanel('Parent', d, 'Position', [20 140 460 80], ...
+                'Title', 'Time Alignment & Interpolation', 'FontWeight', 'bold');
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 45 120 20], ...
+                'String', 'Interpolation:', 'FontWeight', 'bold');
+            interpDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 45 150 25], ...
+                'String', {'Linear', 'Cubic Spline', 'PCHIP', 'Nearest'}, 'Value', 1);
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 15 120 20], ...
+                'String', 'Time Range:', 'FontWeight', 'bold');
+            rangeDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 15 150 25], ...
+                'String', {'Intersection (common)', 'Union (all data)', 'Signal A range', 'Signal B range'}, ...
+                'Value', 1);
+
+            % Result name - AUTO-GENERATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 100 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            % Generate default name from pre-selected signals
+            cleanNameA = obj.extractCleanSignalName(preselectedSignalA);
+            cleanNameB = obj.extractCleanSignalName(preselectedSignalB);
+            defaultName = sprintf('%s_%s_%s', cleanNameA, lower(operationType), cleanNameB);
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 100 250 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Update name when signals change
+            updateName = @(~,~) set(nameField, 'String', sprintf('%s_%s_%s', ...
+                obj.extractCleanSignalName(signalNames{signalADropdown.Value}), lower(operationType), ...
+                obj.extractCleanSignalName(signalNames{signalBDropdown.Value})));
+            signalADropdown.Callback = updateName;
+            signalBDropdown.Callback = updateName;
+
+            % Preview button
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Preview', ...
+                'Position', [150 50 80 30], 'Callback', @(~,~) showPreview());
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [320 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [410 15 80 30], 'Callback', @(~,~) close(d));
+
+            function showPreview()
+                % Show preview implementation (same as original)
+                try
+                    signalA = signalNames{signalADropdown.Value};
+                    signalB = signalNames{signalBDropdown.Value};
+
+                    [timeA, dataA] = obj.getSignalData(signalA);
+                    [timeB, dataB] = obj.getSignalData(signalB);
+
+                    interpMethods = {'linear', 'spline', 'pchip', 'nearest'};
+                    interpMethod = interpMethods{interpDropdown.Value};
+
+                    [commonTime, alignedA, alignedB] = obj.alignTwoSignals(timeA, dataA, timeB, dataB, ...
+                        interpMethod, rangeDropdown.Value);
+
+                    % Create preview figure
+                    fig = figure('Name', 'Signal Alignment Preview', 'Position', [100 100 800 600]);
+
+                    subplot(3,1,1);
+                    plot(timeA, dataA, 'b-', 'LineWidth', 1.5); hold on;
+                    plot(timeB, dataB, 'r-', 'LineWidth', 1.5);
+                    legend({signalA, signalB}, 'Location', 'best');
+                    title('Original Signals');
+                    grid on;
+
+                    subplot(3,1,2);
+                    plot(commonTime, alignedA, 'b-', 'LineWidth', 1.5); hold on;
+                    plot(commonTime, alignedB, 'r-', 'LineWidth', 1.5);
+                    legend({[signalA ' (aligned)'], [signalB ' (aligned)']}, 'Location', 'best');
+                    title('Aligned Signals');
+                    grid on;
+
+                    subplot(3,1,3);
+                    switch lower(operationType)
+                        case 'subtract'
+                            resultData = alignedA - alignedB;
+                            opStr = sprintf('%s - %s', signalA, signalB);
+                        case 'add'
+                            resultData = alignedA + alignedB;
+                            opStr = sprintf('%s + %s', signalA, signalB);
+                        case 'multiply'
+                            resultData = alignedA .* alignedB;
+                            opStr = sprintf('%s × %s', signalA, signalB);
+                        case 'divide'
+                            resultData = alignedA ./ alignedB;
+                            opStr = sprintf('%s ÷ %s', signalA, signalB);
+                    end
+                    plot(commonTime, resultData, 'g-', 'LineWidth', 2);
+                    title(sprintf('Result: %s', opStr));
+                    grid on;
+
+                catch ME
+                    uialert(d, sprintf('Preview error: %s', ME.message), 'Preview Failed');
+                end
+            end
+
+            function computeAndClose()
+                try
+                    params = struct();
+                    params.SignalA = signalNames{signalADropdown.Value};
+                    params.SignalB = signalNames{signalBDropdown.Value};
+                    params.ResultName = strtrim(nameField.String);
+
+                    interpMethods = {'linear', 'spline', 'pchip', 'nearest'};
+                    params.InterpolationMethod = interpMethods{interpDropdown.Value};
+                    params.TimeRange = rangeDropdown.Value;
+
+                    % Validate inputs
+                    if isempty(params.ResultName)
+                        uialert(d, 'Please enter a result name.', 'Invalid Input');
+                        return;
+                    end
+
+                    if strcmp(params.SignalA, params.SignalB)
+                        uialert(d, 'Please select different signals for A and B.', 'Invalid Input');
+                        return;
+                    end
+
+                    % Execute operation
+                    obj.executeDualSignalOperation(operationType, params);
+                    close(d);
+
+                catch ME
+                    uialert(d, sprintf('Error: %s', ME.message), 'Operation Failed');
+                end
+            end
+        end
+
+        function showQuickMovingAverageWithPreselection(obj, preselectedSignal)
+            % Quick dialog for moving average with pre-selected signal
+            d = dialog('Name', 'Moving Average', 'Position', [300 300 400 220], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 180 360 25], ...
+                'String', 'Apply Moving Average to Signal', ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 150 120 20], ...
+                'String', 'Selected Signal:', 'FontWeight', 'bold');
+
+            signalNames = obj.getAllAvailableSignals();
+            preselectedIndex = 1;
+            for i = 1:length(signalNames)
+                if strcmp(signalNames{i}, preselectedSignal)
+                    preselectedIndex = i;
+                    break;
+                end
+            end
+
+            signalDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 150 230 25], 'String', signalNames, 'Value', preselectedIndex);
+
+            % Window size
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 120 120 20], ...
+                'String', 'Window Size:', 'FontWeight', 'bold');
+            windowField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 120 100 25], 'String', '100', ...
+                'HorizontalAlignment', 'left');
+
+            % Result name - AUTO-GENERATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            cleanSignalName = obj.extractCleanSignalName(preselectedSignal);
+            defaultName = sprintf('%s_rms', cleanSignalName);
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 90 230 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [220 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [310 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                signalName = signalNames{signalDropdown.Value};
+                windowSize = str2double(windowField.String);
+                resultName = strtrim(nameField.String);
+
+                if isnan(windowSize) || windowSize < 1
+                    uialert(d, 'Please enter a valid window size (>= 1).', 'Invalid Input');
+                    return;
+                end
+
+                if isempty(resultName)
+                    uialert(d, 'Please enter a result name.', 'Invalid Input');
+                    return;
+                end
+
+                obj.executeRMS(signalName, windowSize, resultName);
+                close(d);
+            end
+        end
+
+        function showQuickVectorMagnitudeWithPreselection(obj, preselectedSignals)
+            % Quick dialog for vector magnitude with pre-selected signals
+            d = dialog('Name', 'Vector Magnitude', 'Position', [300 300 400 300], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 260 360 25], ...
+                'String', 'Compute Vector Magnitude of Multiple Signals', ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 230 120 20], ...
+                'String', 'Selected Signals:', 'FontWeight', 'bold');
+
+            signalNames = obj.getAllAvailableSignals();
+
+            % Find indices of pre-selected signals
+            preselectedIndices = [];
+            for i = 1:length(preselectedSignals)
+                for j = 1:length(signalNames)
+                    if strcmp(signalNames{j}, preselectedSignals{i})
+                        preselectedIndices(end+1) = j;
+                        break;
+                    end
+                end
+            end
+
+            signalListbox = uicontrol('Parent', d, 'Style', 'listbox', ...
+                'Position', [20 150 360 75], 'String', signalNames, 'Max', length(signalNames), ...
+                'Value', preselectedIndices);
+
+            % Result name - AUTO-GENERATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 120 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            defaultName = sprintf('vector_magnitude_%d_signals', length(preselectedSignals));
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 120 230 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Show selected count
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 360 20], ...
+                'String', sprintf('%d signals pre-selected for vector magnitude calculation', length(preselectedSignals)), ...
+                'FontSize', 9, 'ForegroundColor', [0.2 0.6 0.9]);
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [220 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [310 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                selectedIndices = signalListbox.Value;
+                if length(selectedIndices) < 2
+                    uialert(d, 'Please select at least 2 signals.', 'Invalid Selection');
+                    return;
+                end
+
+                resultName = strtrim(nameField.String);
+                if isempty(resultName)
+                    uialert(d, 'Please enter a result name.', 'Invalid Input');
+                    return;
+                end
+
+                selectedSignals = signalNames(selectedIndices);
+                obj.executeVectorMagnitude(selectedSignals, resultName);
+                close(d);
+            end
+        end
+
+        function showSimplifiedDualSignalDialog(obj, operationType, signal1Name, signal2Name)
+            % Simplified dialog for dual signal operations with fixed signal selection
+            opSymbols = containers.Map({'add', 'subtract', 'multiply', 'divide'}, ...
+                {'+', '−', '×', '÷'});
+            opSymbol = opSymbols(lower(operationType));
+
+            d = dialog('Name', sprintf('%s Operation', operationType), ...
+                'Position', [300 300 450 300], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 260 410 25], ...
+                'String', sprintf('Signal A %s Signal B', opSymbol), ...
+                'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Show selected signals (read-only)
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 220 80 20], ...
+                'String', 'Signal A:', 'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [110 220 320 20], ...
+                'String', signal1Name, 'FontWeight', 'normal', ...
+                'BackgroundColor', [0.9 0.9 0.9], 'HorizontalAlignment', 'left');
+
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 190 80 20], ...
+                'String', 'Signal B:', 'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [110 190 320 20], ...
+                'String', signal2Name, 'FontWeight', 'normal', ...
+                'BackgroundColor', [0.9 0.9 0.9], 'HorizontalAlignment', 'left');
+
+            % Interpolation options
+            interpPanel = uipanel('Parent', d, 'Position', [20 100 410 80], ...
+                'Title', 'Time Alignment & Interpolation', 'FontWeight', 'bold');
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 45 120 20], ...
+                'String', 'Interpolation:', 'FontWeight', 'bold');
+            interpDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 45 150 25], ...
+                'String', {'Linear', 'Cubic Spline', 'PCHIP', 'Nearest'}, 'Value', 1);
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 15 120 20], ...
+                'String', 'Time Range:', 'FontWeight', 'bold');
+            rangeDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 15 150 25], ...
+                'String', {'Intersection (common)', 'Union (all data)', 'Signal A range', 'Signal B range'}, ...
+                'Value', 1);
+
+            % Result name - auto-generated
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 70 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            cleanNameA = obj.extractCleanSignalName(signal1Name);
+            cleanNameB = obj.extractCleanSignalName(signal2Name);
+            defaultName = sprintf('%s_%s_%s', cleanNameA, lower(operationType), cleanNameB);
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 70 280 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [270 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [360 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                try
+                    params = struct();
+                    params.SignalA = signal1Name;
+                    params.SignalB = signal2Name;
+                    params.ResultName = strtrim(nameField.String);
+
+                    interpMethods = {'linear', 'spline', 'pchip', 'nearest'};
+                    params.InterpolationMethod = interpMethods{interpDropdown.Value};
+                    params.TimeRange = rangeDropdown.Value;
+
+                    % Validate inputs
+                    if isempty(params.ResultName)
+                        uialert(d, 'Please enter a result name.', 'Invalid Input');
+                        return;
+                    end
+
+                    % Execute operation
+                    obj.executeDualSignalOperation(operationType, params);
+                    close(d);
+
+                catch ME
+                    uialert(d, sprintf('Error: %s', ME.message), 'Operation Failed');
+                end
+            end
+        end
+
+        function showSimplifiedMultiSignalDialog(obj, operationType, selectedSignalNames)
+            % Simplified dialog for multi-signal operations with fixed signal selection
+            d = dialog('Name', sprintf('%s Operation', operationType), ...
+                'Position', [300 300 500 400], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 360 460 25], ...
+                'String', sprintf('%s of Selected Signals', operationType), ...
+                'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Show selected signals (read-only list)
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 330 150 20], ...
+                'String', 'Selected Signals:', 'FontWeight', 'bold');
+
+            signalListbox = uicontrol('Parent', d, 'Style', 'listbox', ...
+                'Position', [20 250 460 75], 'String', selectedSignalNames, 'Enable', 'off');
+
+            % Operation-specific options
+            switch lower(operationType)
+                case 'norm'
+                    % Norm type
+                    uicontrol('Parent', d, 'Style', 'text', 'Position', [20 220 120 20], ...
+                        'String', 'Norm Type:', 'FontWeight', 'bold');
+                    normDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                        'Position', [150 220 150 25], ...
+                        'String', {'L1 (Manhattan)', 'L2 (Euclidean)', 'L∞ (Maximum)'}, 'Value', 2);
+            end
+
+            % Interpolation options (for all multi-signal operations)
+            interpPanel = uipanel('Parent', d, 'Position', [20 120 460 80], ...
+                'Title', 'Time Alignment & Interpolation', 'FontWeight', 'bold');
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 45 120 20], ...
+                'String', 'Interpolation:', 'FontWeight', 'bold');
+            interpDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 45 150 25], ...
+                'String', {'Linear', 'Cubic Spline', 'PCHIP', 'Nearest'}, 'Value', 1);
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 15 120 20], ...
+                'String', 'Time Range:', 'FontWeight', 'bold');
+            rangeDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 15 150 25], ...
+                'String', {'Intersection (common)', 'Union (all data)'}, 'Value', 1);
+
+            % Result name - auto-generated
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 80 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            switch lower(operationType)
+                case 'vector magnitude'
+                    defaultName = sprintf('vector_magnitude_%d_signals', length(selectedSignalNames));
+                case 'signal average'
+                    defaultName = sprintf('signal_average_%d_signals', length(selectedSignalNames));
+                case 'norm'
+                    defaultName = sprintf('norm_%d_signals', length(selectedSignalNames));
+            end
+
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 80 330 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [320 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [410 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                try
+                    resultName = strtrim(nameField.String);
+                    if isempty(resultName)
+                        uialert(d, 'Please enter a result name.', 'Invalid Input');
+                        return;
+                    end
+
+                    switch lower(operationType)
+                        case 'vector magnitude'
+                            obj.executeVectorMagnitude(selectedSignalNames, resultName);
+                        case 'signal average'
+                            obj.executeSignalAverage(selectedSignalNames, resultName);
+                        case 'norm'
+                            params = struct();
+                            params.SelectedSignals = selectedSignalNames;
+                            params.ResultName = resultName;
+                            params.NormType = normDropdown.Value;
+
+                            interpMethods = {'linear', 'spline', 'pchip', 'nearest'};
+                            params.InterpolationMethod = interpMethods{interpDropdown.Value};
+                            params.TimeRange = rangeDropdown.Value;
+
+                            obj.executeNormOperation(params);
+                    end
+
+                    close(d);
+
+                catch ME
+                    uialert(d, sprintf('Error: %s', ME.message), 'Operation Failed');
+                end
+            end
+        end
+
+        function showQuickAverageWithPreselection(obj, preselectedSignals)
+            % Quick dialog for signal averaging with pre-selected signals
+            d = dialog('Name', 'Signal Average', 'Position', [300 300 400 300], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 260 360 25], ...
+                'String', 'Average Multiple Signals', ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 230 120 20], ...
+                'String', 'Selected Signals:', 'FontWeight', 'bold');
+
+            signalNames = obj.getAllAvailableSignals();
+
+            % Find indices of pre-selected signals
+            preselectedIndices = [];
+            for i = 1:length(preselectedSignals)
+                for j = 1:length(signalNames)
+                    if strcmp(signalNames{j}, preselectedSignals{i})
+                        preselectedIndices(end+1) = j;
+                        break;
+                    end
+                end
+            end
+
+            signalListbox = uicontrol('Parent', d, 'Style', 'listbox', ...
+                'Position', [20 150 360 75], 'String', signalNames, 'Max', length(signalNames), ...
+                'Value', preselectedIndices);
+
+            % Result name - AUTO-GENERATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 120 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            defaultName = sprintf('signal_average_%d_signals', length(preselectedSignals));
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 120 230 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Show selected count
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 360 20], ...
+                'String', sprintf('%d signals pre-selected for averaging', length(preselectedSignals)), ...
+                'FontSize', 9, 'ForegroundColor', [0.2 0.6 0.9]);
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [220 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [310 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                selectedIndices = signalListbox.Value;
+                if length(selectedIndices) < 2
+                    uialert(d, 'Please select at least 2 signals.', 'Invalid Selection');
+                    return;
+                end
+
+                resultName = strtrim(nameField.String);
+                if isempty(resultName)
+                    uialert(d, 'Please enter a result name.', 'Invalid Input');
+                    return;
+                end
+
+                selectedSignals = signalNames(selectedIndices);
+                obj.executeSignalAverage(selectedSignals, resultName);
+                close(d);
+            end
+        end
+
+        function showNormDialogWithPreselection(obj, preselectedSignals)
+            % Dialog for norm operation with pre-selected signals
+            d = dialog('Name', 'Norm Operation', 'Position', [300 300 500 400], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 360 460 25], ...
+                'String', 'Compute Norm of Multiple Signals', ...
+                'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 330 120 20], ...
+                'String', 'Selected Signals:', 'FontWeight', 'bold');
+
+            signalNames = obj.getAllAvailableSignals();
+
+            % Find indices of pre-selected signals
+            preselectedIndices = [];
+            for i = 1:length(preselectedSignals)
+                for j = 1:length(signalNames)
+                    if strcmp(signalNames{j}, preselectedSignals{i})
+                        preselectedIndices(end+1) = j;
+                        break;
+                    end
+                end
+            end
+
+            signalListbox = uicontrol('Parent', d, 'Style', 'listbox', ...
+                'Position', [150 260 250 70], 'String', signalNames, 'Max', length(signalNames), ...
+                'Value', preselectedIndices);
+
+            % Norm type
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 220 120 20], ...
+                'String', 'Norm Type:', 'FontWeight', 'bold');
+            normDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 220 150 25], ...
+                'String', {'L1 (Manhattan)', 'L2 (Euclidean)', 'L∞ (Maximum)'}, 'Value', 2);
+
+            % Interpolation options
+            interpPanel = uipanel('Parent', d, 'Position', [20 120 460 80], ...
+                'Title', 'Time Alignment & Interpolation', 'FontWeight', 'bold');
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 45 120 20], ...
+                'String', 'Interpolation:', 'FontWeight', 'bold');
+            interpDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 45 150 25], ...
+                'String', {'Linear', 'Cubic Spline', 'PCHIP', 'Nearest'}, 'Value', 1);
+
+            uicontrol('Parent', interpPanel, 'Style', 'text', 'Position', [10 15 120 20], ...
+                'String', 'Time Range:', 'FontWeight', 'bold');
+            rangeDropdown = uicontrol('Parent', interpPanel, 'Style', 'popupmenu', ...
+                'Position', [140 15 150 25], ...
+                'String', {'Intersection (common)', 'Union (all data)'}, 'Value', 1);
+
+            % Result name - AUTO-GENERATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 80 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            defaultName = sprintf('norm_%d_signals', length(preselectedSignals));
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 80 250 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Show selected count
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 50 460 20], ...
+                'String', sprintf('%d signals pre-selected for norm calculation', length(preselectedSignals)), ...
+                'FontSize', 9, 'ForegroundColor', [0.2 0.6 0.9]);
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [320 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [410 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                try
+                    selectedIndices = signalListbox.Value;
+                    if length(selectedIndices) < 2
+                        uialert(d, 'Please select at least 2 signals.', 'Invalid Selection');
+                        return;
+                    end
+
+                    params = struct();
+                    params.SelectedSignals = signalNames(selectedIndices);
+                    params.ResultName = strtrim(nameField.String);
+                    params.NormType = normDropdown.Value;
+
+                    interpMethods = {'linear', 'spline', 'pchip', 'nearest'};
+                    params.InterpolationMethod = interpMethods{interpDropdown.Value};
+                    params.TimeRange = rangeDropdown.Value;
+
+                    % Validate inputs
+                    if isempty(params.ResultName)
+                        uialert(d, 'Please enter a result name.', 'Invalid Input');
+                        return;
+                    end
+
+                    % Execute operation
+                    obj.executeNormOperation(params);
+                    close(d);
+
+                catch ME
+                    uialert(d, sprintf('Error: %s', ME.message), 'Operation Failed');
+                end
+            end
+        end
+
+        function showSimplifiedQuickOperation(obj, operationType, preselectedSignalName)
+            % Simplified quick operation dialog
+            d = dialog('Name', sprintf('%s Operation', operationType), ...
+                'Position', [300 300 400 200], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 160 360 25], ...
+                'String', sprintf('%s for Selected Signal', operationType), ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Show selected signal (read-only)
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 130 120 20], ...
+                'String', 'Selected Signal:', 'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [150 130 230 20], ...
+                'String', preselectedSignalName, 'FontWeight', 'normal', ...
+                'BackgroundColor', [0.9 0.9 0.9], 'HorizontalAlignment', 'left');
+
+            % Operation-specific parameters
+            switch lower(operationType)
+                case 'moving average'
+                    uicontrol('Parent', d, 'Style', 'text', 'Position', [20 100 120 20], ...
+                        'String', 'Window Size:', 'FontWeight', 'bold');
+                    paramField = uicontrol('Parent', d, 'Style', 'edit', ...
+                        'Position', [150 100 80 25], 'String', '20');
+
+                case 'rms calculation'
+                    uicontrol('Parent', d, 'Style', 'text', 'Position', [20 100 120 20], ...
+                        'String', 'Window Size:', 'FontWeight', 'bold');
+                    paramField = uicontrol('Parent', d, 'Style', 'edit', ...
+                        'Position', [150 100 80 25], 'String', '100');
+
+                case 'fft analysis'
+                    uicontrol('Parent', d, 'Style', 'text', 'Position', [20 100 120 20], ...
+                        'String', 'Output Type:', 'FontWeight', 'bold');
+                    paramField = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                        'Position', [150 100 150 25], 'String', {'Magnitude', 'Magnitude (dB)', 'Phase'});
+            end
+
+            % Result name - auto-generated
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 70 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            cleanSignalName = obj.extractCleanSignalName(preselectedSignalName);
+            switch lower(operationType)
+                case 'moving average'
+                    defaultName = sprintf('%s_moving_avg', cleanSignalName);
+                case 'rms calculation'
+                    defaultName = sprintf('%s_rms', cleanSignalName);
+                case 'fft analysis'
+                    defaultName = sprintf('%s_fft_magnitude', cleanSignalName);
+            end
+
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 70 230 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [220 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [310 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                try
+                    resultName = strtrim(nameField.String);
+                    if isempty(resultName)
+                        uialert(d, 'Please enter a result name.', 'Invalid Input');
+                        return;
+                    end
+
+                    switch lower(operationType)
+                        case 'moving average'
+                            windowSize = str2double(paramField.String);
+                            if isnan(windowSize) || windowSize < 1
+                                uialert(d, 'Please enter a valid window size (>= 1).', 'Invalid Input');
+                                return;
+                            end
+                            obj.executeMovingAverage(preselectedSignalName, windowSize, resultName);
+
+                        case 'rms calculation'
+                            windowSize = str2double(paramField.String);
+                            if isnan(windowSize) || windowSize < 1
+                                uialert(d, 'Please enter a valid window size (>= 1).', 'Invalid Input');
+                                return;
+                            end
+                            obj.executeRMS(preselectedSignalName, windowSize, resultName);
+
+                        case 'fft analysis'
+                            outputType = paramField.Value;
+                            obj.executeFFT(preselectedSignalName, outputType, resultName);
+                    end
+
+                    close(d);
+
+                catch ME
+                    uialert(d, sprintf('Error: %s', ME.message), 'Operation Failed');
+                end
+            end
+        end
+        function cleanName = extractCleanSignalName(obj, signalName)
+            % Extract clean signal name from formatted signal name
+            % Remove CSV identifiers and format indicators
+
+            cleanName = signalName;
+
+            % Remove "(CSV#: filename)" pattern
+            cleanName = regexprep(cleanName, '\s*\(CSV\d+:.*?\)', '');
+
+            % Remove "(Derived)" pattern
+            cleanName = strrep(cleanName, ' (Derived)', '');
+
+            % Remove operation icons and spaces
+            cleanName = regexprep(cleanName, '^[∂∫−+×÷‖⚡🔄💻]\s*', '');
+
+            % Replace spaces and special characters with underscores for valid variable names
+            cleanName = regexprep(cleanName, '[^\w]', '_');
+
+            % Remove multiple consecutive underscores
+            cleanName = regexprep(cleanName, '_+', '_');
+
+            % Remove leading/trailing underscores
+            cleanName = regexprep(cleanName, '^_+|_+$', '');
+
+            % Ensure it's not empty
+            if isempty(cleanName)
+                cleanName = 'signal';
+            end
+        end
+
+        function showQuickFFTWithPreselection(obj, preselectedSignal)
+            % Quick dialog for FFT analysis with pre-selected signal
+            d = dialog('Name', 'FFT Analysis', 'Position', [300 300 400 220], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 180 360 25], ...
+                'String', 'FFT Analysis', ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 150 120 20], ...
+                'String', 'Selected Signal:', 'FontWeight', 'bold');
+
+            signalNames = obj.getAllAvailableSignals();
+            preselectedIndex = 1;
+            for i = 1:length(signalNames)
+                if strcmp(signalNames{i}, preselectedSignal)
+                    preselectedIndex = i;
+                    break;
+                end
+            end
+
+            signalDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 150 230 25], 'String', signalNames, 'Value', preselectedIndex);
+
+            % Output type
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 120 120 20], ...
+                'String', 'Output Type:', 'FontWeight', 'bold');
+            typeDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 120 230 25], 'String', {'Magnitude', 'Magnitude (dB)', 'Phase'});
+
+            % Result name - AUTO-GENERATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            cleanSignalName = obj.extractCleanSignalName(preselectedSignal);
+            defaultName = sprintf('%s_fft_magnitude', cleanSignalName);
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 90 230 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [220 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [310 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                signalName = signalNames{signalDropdown.Value};
+                outputType = typeDropdown.Value;
+                resultName = strtrim(nameField.String);
+
+                if isempty(resultName)
+                    uialert(d, 'Please enter a result name.', 'Invalid Input');
+                    return;
+                end
+
+                obj.executeFFT(signalName, outputType, resultName);
+                close(d);
+            end
+        end
+
+        function showQuickRMSWithPreselection(obj, preselectedSignal)
+            % Quick dialog for RMS calculation with pre-selected signal
+            d = dialog('Name', 'RMS Calculation', 'Position', [300 300 400 220], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 180 360 25], ...
+                'String', 'Windowed RMS Calculation', ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Signal selection - PRE-POPULATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 150 120 20], ...
+                'String', 'Selected Signal:', 'FontWeight', 'bold');
+
+            signalNames = obj.getAllAvailableSignals();
+            preselectedIndex = 1;
+            for i = 1:length(signalNames)
+                if strcmp(signalNames{i}, preselectedSignal)
+                    preselectedIndex = i;
+                    break;
+                end
+            end
+
+            signalDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 150 230 25], 'String', signalNames, 'Value', preselectedIndex);
+
+            % Window size
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 120 120 20], ...
+                'String', 'Window Size:', 'FontWeight', 'bold');
+            windowField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 120 100 25], 'String', '100', ...
+                'HorizontalAlignment', 'left');
+
+            % Result name - AUTO-GENERATED
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            cleanSignalName = obj.extractCleanSignalName(preselectedSignal);
+            defaultName = sprintf('%s_rms', cleanSignalName);
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 90 230 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Update name when signal changes
+            signalDropdown.Callback = @(src, ~) updateName();
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [220 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [310 15 80 30], 'Callback', @(~,~) close(d));
+
+            function updateName()
+                selectedSignal = signalNames{signalDropdown.Value};
+                cleanName = obj.extractCleanSignalName(selectedSignal);
+                nameField.String = sprintf('%s_rms', cleanName);
+            end
+
+            function computeAndClose()
+                signalName = signalNames{signalDropdown.Value};
+                windowSize = str2double(windowField.String);
+                resultName = strtrim(nameField.String);
+
+                if isnan(windowSize) || windowSize < 1
+                    uialert(d, 'Please enter a valid window size (>= 1).', 'Invalid Input');
+                    return;
+                end
+
+                if isempty(resultName)
+                    uialert(d, 'Please enter a result name.', 'Invalid Input');
+                    return;
+                end
+
+                obj.executeRMS(signalName, windowSize, resultName);
+                close(d);
+            end
+        end
+
         function confirmDeleteDerivedSignal(obj, signalName)
             % Confirm before deleting a derived signal
             % answer = uiconfirm(obj.App.UIFigure, ...
@@ -2557,6 +3648,9 @@ classdef SignalOperationsManager < handle
                 derivedSignalNames = {};
             end
         end
+        % Add these missing functions to SignalOperationsManager.m
+
+
         function window = createHanningWindow(obj, N)
             % Create Hanning window with fallback for missing Signal Processing Toolbox
             try
@@ -2571,6 +3665,118 @@ classdef SignalOperationsManager < handle
                 % Optional: Log that we're using manual implementation
                 if obj.App.DataManager.IsRunning  % Only log during first use
                     fprintf('Info: Using manual Hanning window (Signal Processing Toolbox not detected)\n');
+                end
+            end
+        end
+
+        function showSimplifiedSingleSignalDialog(obj, operationType, preselectedSignalName)
+            % Simplified dialog for single signal operations with fixed signal selection
+            d = dialog('Name', sprintf('%s Operation', operationType), ...
+                'Position', [300 300 400 250], 'Resize', 'off');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 210 360 25], ...
+                'String', sprintf('Compute %s of Signal', operationType), ...
+                'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % Show selected signal (read-only)
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 180 120 20], ...
+                'String', 'Selected Signal:', 'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [150 180 230 20], ...
+                'String', preselectedSignalName, 'FontWeight', 'normal', ...
+                'BackgroundColor', [0.9 0.9 0.9], 'HorizontalAlignment', 'left');
+
+            % Method selection
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 140 120 20], ...
+                'String', 'Method:', 'FontWeight', 'bold');
+
+            switch lower(operationType)
+                case 'derivative'
+                    methods = {'Gradient (recommended)', 'Forward Difference', 'Backward Difference', 'Central Difference'};
+                case 'integral'
+                    methods = {'Cumulative Trapezoidal', 'Cumulative Simpson', 'Running Sum'};
+                otherwise
+                    methods = {'Default'};
+            end
+
+            methodDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 140 230 25], 'String', methods, 'Value', 1);
+
+            % Result name - auto-generated
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 100 120 20], ...
+                'String', 'Result Name:', 'FontWeight', 'bold');
+
+            cleanSignalName = obj.extractCleanSignalName(preselectedSignalName);
+            defaultName = sprintf('%s_%s', cleanSignalName, lower(operationType));
+            nameField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [150 100 230 25], 'String', defaultName, ...
+                'HorizontalAlignment', 'left');
+
+            % Options (only for operations that need them)
+            if strcmp(lower(operationType), 'derivative')
+                % Smoothing option
+                smoothingCheck = uicontrol('Parent', d, 'Style', 'checkbox', ...
+                    'Position', [20 70 200 20], 'String', 'Apply smoothing filter', 'Value', 0);
+                windowSizeEdit = uicontrol('Parent', d, 'Style', 'edit', ...
+                    'Position', [230 70 50 20], 'String', '5', 'Enable', 'off');
+
+                smoothingCheck.Callback = @(src, ~) set(windowSizeEdit, 'Enable', ...
+                    char("on" * src.Value + "off" * (1-src.Value)));
+            elseif strcmp(lower(operationType), 'integral')
+                % Initial value option
+                initialValueCheck = uicontrol('Parent', d, 'Style', 'checkbox', ...
+                    'Position', [20 70 200 20], 'String', 'Set initial value', 'Value', 0);
+                initialValueEdit = uicontrol('Parent', d, 'Style', 'edit', ...
+                    'Position', [230 70 50 20], 'String', '0', 'Enable', 'off');
+
+                initialValueCheck.Callback = @(src, ~) set(initialValueEdit, 'Enable', ...
+                    char("on" * src.Value + "off" * (1-src.Value)));
+            end
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Compute', ...
+                'Position', [220 15 80 30], 'Callback', @(~,~) computeAndClose(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [310 15 80 30], 'Callback', @(~,~) close(d));
+
+            function computeAndClose()
+                try
+                    params = struct();
+                    params.SignalName = preselectedSignalName;
+                    params.Method = methods{methodDropdown.Value};
+                    params.ResultName = strtrim(nameField.String);
+
+                    % Add operation-specific parameters
+                    switch lower(operationType)
+                        case 'derivative'
+                            if exist('smoothingCheck', 'var')
+                                params.ApplySmoothing = smoothingCheck.Value;
+                                if params.ApplySmoothing
+                                    params.WindowSize = str2double(windowSizeEdit.String);
+                                end
+                            end
+                        case 'integral'
+                            if exist('initialValueCheck', 'var')
+                                params.SetInitialValue = initialValueCheck.Value;
+                                if params.SetInitialValue
+                                    params.InitialValue = str2double(initialValueEdit.String);
+                                end
+                            end
+                    end
+
+                    % Validate inputs
+                    if isempty(params.ResultName)
+                        uialert(d, 'Please enter a result name.', 'Invalid Input');
+                        return;
+                    end
+
+                    % Execute operation
+                    obj.executeSingleSignalOperation(operationType, params);
+                    close(d);
+
+                catch ME
+                    uialert(d, sprintf('Error: %s', ME.message), 'Operation Failed');
                 end
             end
         end

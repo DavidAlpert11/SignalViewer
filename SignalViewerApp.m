@@ -319,34 +319,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
             uimenu(actionsMenu, 'Text', '🗑️ Clear Everything', 'MenuSelectedFcn', @(src, event) app.menuClearAll());
             uimenu(actionsMenu, 'Text', '📈 Statistics', 'MenuSelectedFcn', @(src, event) app.menuStatistics());
 
-            % OPERATIONS MENU
-            operationsMenu = uimenu(app.UIFigure, 'Text', 'Operations');
-
-            % Single Signal Operations
-            singleSubMenu = uimenu(operationsMenu, 'Text', '🔢 Single Signal');
-            uimenu(singleSubMenu, 'Text', '∂ Derivative', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showSingleSignalDialog('derivative'));
-            uimenu(singleSubMenu, 'Text', '∫ Integral', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showSingleSignalDialog('integral'));
-
-            % Multi Signal Operations
-            multiSubMenu = uimenu(operationsMenu, 'Text', '📈 Multi Signal');
-            uimenu(multiSubMenu, 'Text', '− Subtract (A - B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('subtract'));
-            uimenu(multiSubMenu, 'Text', '+ Add (A + B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('add'));
-            uimenu(multiSubMenu, 'Text', '× Multiply (A × B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('multiply'));
-            uimenu(multiSubMenu, 'Text', '÷ Divide (A ÷ B)', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialog('divide'));
-            uimenu(multiSubMenu, 'Text', '‖‖ Norm of Signals', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showNormDialog());
-
-            % Quick Operations
-            quickSubMenu = uimenu(operationsMenu, 'Text', '⚡ Quick Operations');
-            uimenu(quickSubMenu, 'Text', '📊 Vector Magnitude', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickVectorMagnitude());
-            uimenu(quickSubMenu, 'Text', '📈 Moving Average', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickMovingAverage());
-            uimenu(quickSubMenu, 'Text', '🌊 FFT Analysis', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickFFT());
-            uimenu(quickSubMenu, 'Text', '📏 RMS Calculation', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickRMS());
-            uimenu(quickSubMenu, 'Text', '📊 Signal Average', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickAverage());
-
-            % Management
-            managementSubMenu = uimenu(operationsMenu, 'Text', '⚙️ Management');
-            uimenu(managementSubMenu, 'Text', '📋 Operation History', 'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationHistory());
-            uimenu(managementSubMenu, 'Text', '🗑️ Clear All Derived Signals', 'MenuSelectedFcn', @(src, event) app.confirmAndClearDerivedSignals());
 
             % EXPORT MENU
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
@@ -360,6 +332,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
             %             uimenu(viewMenu, 'Text', '🔍 Zoom In', 'MenuSelectedFcn', @(src, event) app.zoomInterface(1.1));
             %             uimenu(viewMenu, 'Text', '🔍 Zoom Out', 'MenuSelectedFcn', @(src, event) app.zoomInterface(0.9));
             %             uimenu(viewMenu, 'Text', '🎯 Reset Zoom', 'MenuSelectedFcn', @(src, event) app.resetInterfaceZoom());
+            % In the VIEW MENU section, add:
+            uimenu(viewMenu, 'Text', '👁️ Manage Hidden Signals', ...
+                'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
             uimenu(viewMenu, 'Text', '⬅️ Narrow Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.2), 'Separator', 'on');
             uimenu(viewMenu, 'Text', '➡️ Wide Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.35));
             uimenu(viewMenu, 'Text', '🎯 Default Layout', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.25));
@@ -2309,9 +2284,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
         % Add a stub for building the signal tree (to be implemented)
-
         function buildSignalTree(app)
-            % Enhanced version with UNIFIED context menu setup
+            % Enhanced version with hidden signal filtering
+
+            % Initialize hidden signals map
+            app.initializeHiddenSignalsMap();
 
             % Build a tree UI grouped by CSV, with signals as children
             delete(app.SignalTree.Children);
@@ -2342,8 +2319,19 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     signals = signals(mask);
                 end
 
-                % Create CSV node only if it has signals
-                if ~isempty(signals)
+                % Filter out hidden signals
+                visibleSignals = {};
+                for j = 1:numel(signals)
+                    signalName = signals{j};
+                    signalInfo = struct('CSVIdx', i, 'Signal', signalName);
+
+                    if ~app.isSignalHidden(signalInfo)
+                        visibleSignals{end+1} = signalName;
+                    end
+                end
+
+                % Create CSV node only if it has visible signals
+                if ~isempty(visibleSignals)
                     csvNode = uitreenode(app.SignalTree, 'Text', csvDisplay);
 
                     % Store the node for later expansion restoration
@@ -2357,17 +2345,22 @@ classdef SignalViewerApp < matlab.apps.AppBase
                         'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromCSV(i));
                     uimenu(csvContextMenu, 'Text', '⚙️ Bulk Edit Properties', ...
                         'MenuSelectedFcn', @(src, event) app.bulkEditSignalProperties(i), 'Separator', 'on');
+
+                    % Add hidden signals management
+                    uimenu(csvContextMenu, 'Text', '👁️ Manage Hidden Signals', ...
+                        'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
+
                     csvNode.ContextMenu = csvContextMenu;
 
-                    % Add signals to this CSV node
-                    for j = 1:numel(signals)
-                        signalName = signals{j};
+                    % Add visible signals to this CSV node
+                    for j = 1:numel(visibleSignals)
+                        signalName = visibleSignals{j};
                         signalInfo = struct('CSVIdx', i, 'Signal', signalName);
 
                         child = uitreenode(csvNode, 'Text', signalName);
                         child.NodeData = signalInfo;
 
-                        % UNIFIED: Use the SAME context menu system for ALL signals
+                        % Use the enhanced context menu system for all signals
                         app.attachMultiSelectionContextMenu(child);
                     end
                 end
@@ -2375,17 +2368,75 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
             % Add derived signals section if they exist
             if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
-                app.SignalOperations.addDerivedSignalsToTree();
+                % Filter derived signals for hidden ones
+                derivedNames = keys(app.SignalOperations.DerivedSignals);
+                visibleDerivedSignals = {};
 
-                % Find the derived signals node after creation and fix its context menus
-                for i = 1:numel(app.SignalTree.Children)
-                    node = app.SignalTree.Children(i);
-                    if strcmp(node.Text, '⚙️ Derived Signals')
-                        createdNodes{end+1} = struct('Node', node, 'Text', '⚙️ Derived Signals');
+                for i = 1:length(derivedNames)
+                    signalName = derivedNames{i};
+                    signalInfo = struct('CSVIdx', -1, 'Signal', signalName);
 
-                        % UNIFIED: Fix context menus for all derived signal children
-                        app.fixDerivedSignalContextMenus(node);
-                        break;
+                    % Apply search filter if active
+                    searchMatch = true;
+                    if ~isempty(app.SignalSearchField.Value)
+                        searchMatch = contains(lower(signalName), lower(app.SignalSearchField.Value));
+                    end
+
+                    if searchMatch && ~app.isSignalHidden(signalInfo)
+                        visibleDerivedSignals{end+1} = signalName;
+                    end
+                end
+
+                % Only create derived signals node if there are visible derived signals
+                if ~isempty(visibleDerivedSignals)
+                    derivedNode = uitreenode(app.SignalTree, 'Text', '⚙️ Derived Signals');
+                    derivedNode.NodeData = struct('Type', 'derived_signals_folder');
+
+                    createdNodes{end+1} = struct('Node', derivedNode, 'Text', '⚙️ Derived Signals');
+
+                    % Add derived signals management context menu
+                    derivedContextMenu = uicontextmenu(app.UIFigure);
+                    uimenu(derivedContextMenu, 'Text', '📋 Operation History', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationHistory());
+                    uimenu(derivedContextMenu, 'Text', '🗑️ Clear All Derived Signals', ...
+                        'MenuSelectedFcn', @(src, event) app.confirmAndClearDerivedSignals());
+                    uimenu(derivedContextMenu, 'Text', '👁️ Manage Hidden Signals', ...
+                        'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
+                    derivedNode.ContextMenu = derivedContextMenu;
+
+                    for i = 1:length(visibleDerivedSignals)
+                        signalName = visibleDerivedSignals{i};
+                        derivedData = app.SignalOperations.DerivedSignals(signalName);
+
+                        % Create icon based on operation type
+                        switch derivedData.Operation.Type
+                            case 'single'
+                                if strcmp(derivedData.Operation.Operation, 'derivative')
+                                    icon = '∂';
+                                else
+                                    icon = '∫';
+                                end
+                            case 'dual'
+                                opIcons = containers.Map({'subtract', 'add', 'multiply', 'divide'}, {'−', '+', '×', '÷'});
+                                if isKey(opIcons, derivedData.Operation.Operation)
+                                    icon = opIcons(derivedData.Operation.Operation);
+                                else
+                                    icon = '⚙️';
+                                end
+                            case 'norm'
+                                icon = '‖‖';
+                            case {'quick_vector_magnitude', 'quick_moving_average', 'quick_fft', 'quick_rms', 'quick_average'}
+                                icon = '⚡';
+                            otherwise
+                                icon = '🔄';
+                        end
+
+                        child = uitreenode(derivedNode, 'Text', sprintf('%s %s', icon, signalName));
+                        signalInfo = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
+                        child.NodeData = signalInfo;
+
+                        % Use the enhanced context menu system for derived signals
+                        app.attachMultiSelectionContextMenu(child);
                     end
                 end
             end
@@ -2420,7 +2471,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.enableDataTipsByDefault();
             end
             app.restoreTreeExpandedState();
-
         end
 
         function fixDerivedSignalContextMenus(app, derivedSignalsNode)
@@ -2628,7 +2678,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 % Format: "signal_name (CSV1: filename)"
                 if numel(app.DataManager.CSVFilePaths) > 1
                     [~, csvName, ext] = fileparts(app.DataManager.CSVFilePaths{signalInfo.CSVIdx});
-                    signalName = sprintf('%s (CSV%d: %s%s)', signalInfo.Signal, signalInfo.CSVIdx, csvName, ext);
+                    signalName = sprintf('%s (CSV%d: %s)', signalInfo.Signal, signalInfo.CSVIdx, csvName);
                 else
                     signalName = signalInfo.Signal;
                 end
@@ -3053,15 +3103,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 % Quick Single Signal Operations
                 quickSingleMenu = uimenu(contextMenu, 'Text', '⚡ Quick Single Operations');
 
+                % Replace the quick operations callbacks with:
                 uimenu(quickSingleMenu, 'Text', '🌊 Moving Average', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickMovingAverageForSelected(signalInfo));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedQuickOperation('Moving Average', signalNameForOps));
                 uimenu(quickSingleMenu, 'Text', '📊 FFT Analysis', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickFFTForSelected(signalInfo));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedQuickOperation('FFT Analysis', signalNameForOps));
                 uimenu(quickSingleMenu, 'Text', '📏 RMS Calculation', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickRMSForSelected(signalInfo));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedQuickOperation('RMS Calculation', signalNameForOps));
             elseif numel(selectedSignals) == 2
                 % Dual Signal Operations (exactly 2 signals)
                 dualOpsMenu = uimenu(contextMenu, 'Text', '📈 Dual Signal Operations', 'Separator', 'on');
@@ -3070,16 +3118,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 signal2Name = app.getSignalNameForOperations(selectedSignals{2});
 
                 uimenu(dualOpsMenu, 'Text', '➕ Add (A + B)', ...
-                    'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('add', signal1Name, signal2Name));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedDualSignalDialog('add', signal1Name, signal2Name));
                 uimenu(dualOpsMenu, 'Text', '➖ Subtract (A - B)', ...
-                    'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('subtract', signal1Name, signal2Name));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedDualSignalDialog('subtract', signal1Name, signal2Name));
                 uimenu(dualOpsMenu, 'Text', '✖️ Multiply (A × B)', ...
-                    'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('multiply', signal1Name, signal2Name));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedDualSignalDialog('multiply', signal1Name, signal2Name));
                 uimenu(dualOpsMenu, 'Text', '➗ Divide (A ÷ B)', ...
-                    'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('divide', signal1Name, signal2Name));
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedDualSignalDialog('divide', signal1Name, signal2Name));
             end
 
             % ============= MULTI-SIGNAL OPERATIONS =============
@@ -3088,13 +3133,11 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 multiOpsMenu = uimenu(contextMenu, 'Text', '⚡ Multi-Signal Operations', 'Separator', 'on');
 
                 uimenu(multiOpsMenu, 'Text', '📊 Vector Magnitude', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickVectorMagnitudeForSelected(selectedSignals));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedMultiSignalDialog('Vector Magnitude', selectedSignalNames));
                 uimenu(multiOpsMenu, 'Text', '📈 Signal Average', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickAverageForSelected(selectedSignals));
-
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedMultiSignalDialog('Signal Average', selectedSignalNames));
                 uimenu(multiOpsMenu, 'Text', '‖‖ Norm of Signals', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickNormForSelected(selectedSignals));
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedMultiSignalDialog('Norm', selectedSignalNames));
 
                 % Advanced multi-signal operations
                 if numel(selectedSignals) >= 3
@@ -3182,7 +3225,10 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
 
         function filterSignals(app, searchText)
-            % Enhanced filter with UNIFIED context menu recreation
+            % Enhanced filter with hidden signal support and UNIFIED context menu recreation
+
+            % Initialize hidden signals map
+            app.initializeHiddenSignalsMap();
 
             % Clear existing tree
             delete(app.SignalTree.Children);
@@ -3211,15 +3257,29 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
                 signals = setdiff(T.Properties.VariableNames, {'Time'});
 
-                % Filter signals by search text
-                filteredSignals = signals;
-                if ~isempty(searchText)
-                    mask = contains(lower(signals), lower(searchText));
-                    filteredSignals = signals(mask);
+                % Filter signals by search text AND hidden status
+                filteredSignals = {};
+                for j = 1:numel(signals)
+                    signalName = signals{j};
+                    signalInfo = struct('CSVIdx', i, 'Signal', signalName);
+
+                    % Check search filter
+                    searchMatch = true;
+                    if ~isempty(searchText)
+                        searchMatch = contains(lower(signalName), lower(searchText));
+                    end
+
+                    % Check if signal is hidden
+                    isHidden = app.isSignalHidden(signalInfo);
+
+                    % Include signal if it matches search AND is not hidden
+                    if searchMatch && ~isHidden
+                        filteredSignals{end+1} = signalName;
+                    end
                 end
 
                 % Only create CSV node if it has filtered signals OR no search is active
-                if ~isempty(filteredSignals) || isempty(searchText)
+                if ~isempty(filteredSignals) || (isempty(searchText) && ~isempty(signals))
                     csvNode = uitreenode(app.SignalTree, 'Text', csvDisplay);
                     csvNode.NodeData = struct('Type', 'csv_folder', 'CSVIdx', i);
 
@@ -3231,6 +3291,8 @@ classdef SignalViewerApp < matlab.apps.AppBase
                         'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromCSV(i));
                     uimenu(csvContextMenu, 'Text', '⚙️ Bulk Edit Properties', ...
                         'MenuSelectedFcn', @(src, event) app.bulkEditSignalProperties(i), 'Separator', 'on');
+                    uimenu(csvContextMenu, 'Text', '👁️ Manage Hidden Signals', ...
+                        'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
                     csvNode.ContextMenu = csvContextMenu;
 
                     % Add signals to this CSV node
@@ -3241,7 +3303,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                         child = uitreenode(csvNode, 'Text', signalName);
                         child.NodeData = signalInfo;
 
-                        % UNIFIED: Use the SAME context menu system for filtered signals
+                        % UNIFIED: Use the enhanced context menu system for filtered signals
                         app.attachMultiSelectionContextMenu(child);
                     end
 
@@ -3257,17 +3319,41 @@ classdef SignalViewerApp < matlab.apps.AppBase
             if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations.DerivedSignals)
                 derivedNames = keys(app.SignalOperations.DerivedSignals);
 
-                % Filter derived signals
-                filteredDerived = derivedNames;
-                if ~isempty(searchText)
-                    mask = contains(lower(derivedNames), lower(searchText));
-                    filteredDerived = derivedNames(mask);
+                % Filter derived signals by search text AND hidden status
+                filteredDerived = {};
+                for i = 1:length(derivedNames)
+                    signalName = derivedNames{i};
+                    signalInfo = struct('CSVIdx', -1, 'Signal', signalName);
+
+                    % Check search filter
+                    searchMatch = true;
+                    if ~isempty(searchText)
+                        searchMatch = contains(lower(signalName), lower(searchText));
+                    end
+
+                    % Check if signal is hidden
+                    isHidden = app.isSignalHidden(signalInfo);
+
+                    % Include signal if it matches search AND is not hidden
+                    if searchMatch && ~isHidden
+                        filteredDerived{end+1} = signalName;
+                    end
                 end
 
                 % Only create derived signals node if it has filtered signals OR no search is active
-                if ~isempty(filteredDerived) || isempty(searchText)
+                if ~isempty(filteredDerived) || (isempty(searchText) && ~isempty(derivedNames))
                     derivedNode = uitreenode(app.SignalTree, 'Text', '⚙️ Derived Signals');
                     derivedNode.NodeData = struct('Type', 'derived_signals_folder');
+
+                    % Add management context menu
+                    derivedContextMenu = uicontextmenu(app.UIFigure);
+                    uimenu(derivedContextMenu, 'Text', '📋 Operation History', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationHistory());
+                    uimenu(derivedContextMenu, 'Text', '🗑️ Clear All Derived Signals', ...
+                        'MenuSelectedFcn', @(src, event) app.confirmAndClearDerivedSignals());
+                    uimenu(derivedContextMenu, 'Text', '👁️ Manage Hidden Signals', ...
+                        'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
+                    derivedNode.ContextMenu = derivedContextMenu;
 
                     for i = 1:length(filteredDerived)
                         signalName = filteredDerived{i};
@@ -3300,7 +3386,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                         signalInfo = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
                         child.NodeData = signalInfo;
 
-                        % UNIFIED: Use the SAME context menu system for derived signals
+                        % UNIFIED: Use the enhanced context menu system for derived signals
                         app.attachMultiSelectionContextMenu(child);
                     end
 
@@ -4169,152 +4255,152 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
         end
 
- function loadSession(app)
-    [file, path] = uigetfile('*.mat', 'Load Session');
-    if isequal(file, 0), return; end
+        function loadSession(app)
+            [file, path] = uigetfile('*.mat', 'Load Session');
+            if isequal(file, 0), return; end
 
-    try
-        loaded = load(fullfile(path, file));
-        if ~isfield(loaded, 'session')
-            app.StatusLabel.Text = '❌ Invalid session file format';
-            app.StatusLabel.FontColor = [0.9 0.3 0.3];
+            try
+                loaded = load(fullfile(path, file));
+                if ~isfield(loaded, 'session')
+                    app.StatusLabel.Text = '❌ Invalid session file format';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    app.restoreFocus();
+                    return;
+                end
+
+                session = loaded.session;
+
+                % === VALIDATE SESSION ===
+                if ~app.validateSession(session)
+                    return;
+                end
+
+                % === CRITICAL: RESTORE IN CORRECT ORDER ===
+                % 1. Clear current state
+                app.clearCurrentSession();
+
+                % 2. Restore PLOT STRUCTURE FIRST (before loading data)
+                app.restorePlotStructureFirst(session);
+
+                % 3. Then restore data and other components
+                app.restoreDataManager(session);
+                app.restoreSignalOperations(session);
+                app.restoreLinkingManager(session);
+
+                % 4. Restore UI state
+                app.restoreUIState(session);
+
+                % 5. Finalize
+                app.finalizeSessionLoad(session);
+
+                app.StatusLabel.Text = sprintf('✅ Session loaded: %s', file);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                app.StatusLabel.Text = sprintf('❌ Load failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                app.logError('Session Load', ME);
+
+                % Show detailed error for debugging
+                fprintf('Session Load Error Details:\n');
+                fprintf('Message: %s\n', ME.message);
+                for i = 1:length(ME.stack)
+                    fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
+                end
+            end
+
             app.restoreFocus();
-            return;
         end
 
-        session = loaded.session;
-        
-        % === VALIDATE SESSION ===
-        if ~app.validateSession(session)
-            return;
-        end
-        
-        % === CRITICAL: RESTORE IN CORRECT ORDER ===
-        % 1. Clear current state
-        app.clearCurrentSession();
-        
-        % 2. Restore PLOT STRUCTURE FIRST (before loading data)
-        app.restorePlotStructureFirst(session);
-        
-        % 3. Then restore data and other components
-        app.restoreDataManager(session);
-        app.restoreSignalOperations(session);
-        app.restoreLinkingManager(session);
-        
-        % 4. Restore UI state
-        app.restoreUIState(session);
-        
-        % 5. Finalize
-        app.finalizeSessionLoad(session);
-        
-        app.StatusLabel.Text = sprintf('✅ Session loaded: %s', file);
-        app.StatusLabel.FontColor = [0.2 0.6 0.9];
-        
-    catch ME
-        app.StatusLabel.Text = sprintf('❌ Load failed: %s', ME.message);
-        app.StatusLabel.FontColor = [0.9 0.3 0.3];
-        app.logError('Session Load', ME);
-        
-        % Show detailed error for debugging
-        fprintf('Session Load Error Details:\n');
-        fprintf('Message: %s\n', ME.message);
-        for i = 1:length(ME.stack)
-            fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
-        end
-    end
-    
-    app.restoreFocus();
- end
+        function restorePlotStructureFirst(app, session)
+            % Restore plot structure without refreshing plots
 
- function restorePlotStructureFirst(app, session)
-    % Restore plot structure without refreshing plots
-    
-    % Remove + tab temporarily
-    plusTabIdx = [];
-    for i = 1:numel(app.PlotManager.PlotTabs)
-        if strcmp(app.PlotManager.PlotTabs{i}.Title, '+')
-            plusTabIdx = i;
-            break;
-        end
-    end
-    
-    if ~isempty(plusTabIdx)
-        delete(app.PlotManager.PlotTabs{plusTabIdx});
-        app.PlotManager.PlotTabs(plusTabIdx) = [];
-    end
-    
-    % Create required tabs
-    requiredTabs = numel(session.TabLayouts);
-    while numel(app.PlotManager.PlotTabs) < requiredTabs
-        app.PlotManager.addNewTab();
-    end
-    
-    % CRITICAL: Initialize AssignedSignals FIRST with correct structure
-    app.PlotManager.TabLayouts = session.TabLayouts;
-    app.PlotManager.AssignedSignals = cell(1, requiredTabs);
-    
-    % Initialize each tab's assignments
-    for tabIdx = 1:requiredTabs
-        layout = session.TabLayouts{tabIdx};
-        numSubplots = layout(1) * layout(2);
-        app.PlotManager.AssignedSignals{tabIdx} = cell(numSubplots, 1);
-        
-        % Initialize empty assignments
-        for subplotIdx = 1:numSubplots
-            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = {};
-        end
-    end
-    
-    % Now restore the actual assignments from session
-    if isfield(session, 'AssignedSignals') && ~isempty(session.AssignedSignals)
-        for tabIdx = 1:min(requiredTabs, numel(session.AssignedSignals))
-            if ~isempty(session.AssignedSignals{tabIdx})
-                sessionAssignments = session.AssignedSignals{tabIdx};
-                for subplotIdx = 1:min(numel(app.PlotManager.AssignedSignals{tabIdx}), numel(sessionAssignments))
-                    if ~isempty(sessionAssignments{subplotIdx})
-                        app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = sessionAssignments{subplotIdx};
+            % Remove + tab temporarily
+            plusTabIdx = [];
+            for i = 1:numel(app.PlotManager.PlotTabs)
+                if strcmp(app.PlotManager.PlotTabs{i}.Title, '+')
+                    plusTabIdx = i;
+                    break;
+                end
+            end
+
+            if ~isempty(plusTabIdx)
+                delete(app.PlotManager.PlotTabs{plusTabIdx});
+                app.PlotManager.PlotTabs(plusTabIdx) = [];
+            end
+
+            % Create required tabs
+            requiredTabs = numel(session.TabLayouts);
+            while numel(app.PlotManager.PlotTabs) < requiredTabs
+                app.PlotManager.addNewTab();
+            end
+
+            % CRITICAL: Initialize AssignedSignals FIRST with correct structure
+            app.PlotManager.TabLayouts = session.TabLayouts;
+            app.PlotManager.AssignedSignals = cell(1, requiredTabs);
+
+            % Initialize each tab's assignments
+            for tabIdx = 1:requiredTabs
+                layout = session.TabLayouts{tabIdx};
+                numSubplots = layout(1) * layout(2);
+                app.PlotManager.AssignedSignals{tabIdx} = cell(numSubplots, 1);
+
+                % Initialize empty assignments
+                for subplotIdx = 1:numSubplots
+                    app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = {};
+                end
+            end
+
+            % Now restore the actual assignments from session
+            if isfield(session, 'AssignedSignals') && ~isempty(session.AssignedSignals)
+                for tabIdx = 1:min(requiredTabs, numel(session.AssignedSignals))
+                    if ~isempty(session.AssignedSignals{tabIdx})
+                        sessionAssignments = session.AssignedSignals{tabIdx};
+                        for subplotIdx = 1:min(numel(app.PlotManager.AssignedSignals{tabIdx}), numel(sessionAssignments))
+                            if ~isempty(sessionAssignments{subplotIdx})
+                                app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = sessionAssignments{subplotIdx};
+                            end
+                        end
                     end
                 end
             end
+
+            % Set other PlotManager properties
+            app.PlotManager.CurrentTabIdx = min(session.CurrentTabIdx, requiredTabs);
+            app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
+
+            % Restore X-axis signals
+            if isfield(session, 'XAxisSignals')
+                app.PlotManager.XAxisSignals = session.XAxisSignals;
+            end
+
+            % Restore per-tab linking
+            if isfield(session, 'TabLinkedAxes')
+                app.PlotManager.TabLinkedAxes = session.TabLinkedAxes;
+            end
+
+            % Restore custom Y labels
+            if isfield(session, 'CustomYLabels')
+                try
+                    app.PlotManager.CustomYLabels = session.CustomYLabels;
+                catch
+                    app.PlotManager.CustomYLabels = containers.Map();
+                end
+            else
+                app.PlotManager.CustomYLabels = containers.Map();
+            end
+
+            % NOW create the visual subplot structure
+            for tabIdx = 1:requiredTabs
+                layout = session.TabLayouts{tabIdx};
+                app.PlotManager.createSubplotsForTab(tabIdx, layout(1), layout(2));
+            end
+
+            % Restore tab controls
+            if isfield(session, 'TabControlsData')
+                app.restoreTabControls(session.TabControlsData);
+            end
         end
-    end
-    
-    % Set other PlotManager properties
-    app.PlotManager.CurrentTabIdx = min(session.CurrentTabIdx, requiredTabs);
-    app.PlotManager.SelectedSubplotIdx = session.SelectedSubplotIdx;
-    
-    % Restore X-axis signals
-    if isfield(session, 'XAxisSignals')
-        app.PlotManager.XAxisSignals = session.XAxisSignals;
-    end
-    
-    % Restore per-tab linking
-    if isfield(session, 'TabLinkedAxes')
-        app.PlotManager.TabLinkedAxes = session.TabLinkedAxes;
-    end
-    
-    % Restore custom Y labels
-    if isfield(session, 'CustomYLabels')
-        try
-            app.PlotManager.CustomYLabels = session.CustomYLabels;
-        catch
-            app.PlotManager.CustomYLabels = containers.Map();
-        end
-    else
-        app.PlotManager.CustomYLabels = containers.Map();
-    end
-    
-    % NOW create the visual subplot structure
-    for tabIdx = 1:requiredTabs
-        layout = session.TabLayouts{tabIdx};
-        app.PlotManager.createSubplotsForTab(tabIdx, layout(1), layout(2));
-    end
-    
-    % Restore tab controls
-    if isfield(session, 'TabControlsData')
-        app.restoreTabControls(session.TabControlsData);
-    end
-end
 
 
         function logError(app, context, ME)
@@ -4528,98 +4614,98 @@ end
         end
 
         function restoreDataManager(app, session)
-    % Restore DataManager state without triggering plot refresh
-    
-    app.DataManager.CSVFilePaths = session.CSVFilePaths;
-    app.DataManager.SignalNames = session.SignalNames;
-    app.DataManager.SignalScaling = session.SignalScaling;
-    app.DataManager.StateSignals = session.StateSignals;
-    
-    % Reload CSV data WITHOUT refreshing plots
-    app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
-    for i = 1:numel(session.CSVFilePaths)
-        if isfile(session.CSVFilePaths{i})
-            app.readInitialDataSilent(i);  % Use silent version
-        end
-    end
-    
-    if isfield(session, 'CSVColors')
-        app.CSVColors = session.CSVColors;
-    else
-        app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
-    end
-end
+            % Restore DataManager state without triggering plot refresh
 
-function readInitialDataSilent(app, idx)
-    % Read CSV data without triggering UI updates
-    
-    filePath = app.DataManager.CSVFilePaths{idx};
-    if ~isfile(filePath)
-        app.DataManager.DataTables{idx} = [];
-        return;
-    end
-    
-    try
-        fileInfo = dir(filePath);
-        if ~isstruct(fileInfo) || isempty(fileInfo) || fileInfo(1).bytes == 0
-            app.DataManager.DataTables{idx} = [];
-            return;
-        end
-        
-        opts = detectImportOptions(filePath);
-        if isempty(opts.VariableNames)
-            app.DataManager.DataTables{idx} = [];
-            return;
-        end
-        
-        opts = setvartype(opts, 'double');
-        T = readtable(filePath, opts);
-        
-        if ~istable(T) || isempty(T)
-            app.DataManager.DataTables{idx} = [];
-            return;
-        end
-        
-        % Validate CSV format
-        if ~app.DataManager.validateCSVFormat(T, filePath)
-            app.DataManager.DataTables{idx} = [];
-            return;
-        end
-        
-        % Set first column as Time
-        if ~isempty(T.Properties.VariableNames)
-            T.Properties.VariableNames{1} = 'Time';
-        else
-            app.DataManager.DataTables{idx} = [];
-            return;
-        end
-        
-        app.DataManager.DataTables{idx} = T;
-        app.DataManager.LastReadRows{idx} = height(T);
-        
-        % Update signal names
-        allSignals = {};
-        for k = 1:numel(app.DataManager.DataTables)
-            if ~isempty(app.DataManager.DataTables{k})
-                allSignals = union(allSignals, setdiff(app.DataManager.DataTables{k}.Properties.VariableNames, {'Time'}));
+            app.DataManager.CSVFilePaths = session.CSVFilePaths;
+            app.DataManager.SignalNames = session.SignalNames;
+            app.DataManager.SignalScaling = session.SignalScaling;
+            app.DataManager.StateSignals = session.StateSignals;
+
+            % Reload CSV data WITHOUT refreshing plots
+            app.DataManager.DataTables = cell(1, numel(session.CSVFilePaths));
+            for i = 1:numel(session.CSVFilePaths)
+                if isfile(session.CSVFilePaths{i})
+                    app.readInitialDataSilent(i);  % Use silent version
+                end
+            end
+
+            if isfield(session, 'CSVColors')
+                app.CSVColors = session.CSVColors;
+            else
+                app.CSVColors = app.assignCSVColors(numel(session.CSVFilePaths));
             end
         end
-        app.DataManager.SignalNames = allSignals;
-        app.DataManager.initializeSignalMaps();
-        
-        % DON'T refresh plots or build signal tree here
-        
-    catch ME
-        fprintf('Silent data read failed for CSV %d: %s\n', idx, ME.message);
-        app.DataManager.DataTables{idx} = [];
-    end
-end
+
+        function readInitialDataSilent(app, idx)
+            % Read CSV data without triggering UI updates
+
+            filePath = app.DataManager.CSVFilePaths{idx};
+            if ~isfile(filePath)
+                app.DataManager.DataTables{idx} = [];
+                return;
+            end
+
+            try
+                fileInfo = dir(filePath);
+                if ~isstruct(fileInfo) || isempty(fileInfo) || fileInfo(1).bytes == 0
+                    app.DataManager.DataTables{idx} = [];
+                    return;
+                end
+
+                opts = detectImportOptions(filePath);
+                if isempty(opts.VariableNames)
+                    app.DataManager.DataTables{idx} = [];
+                    return;
+                end
+
+                opts = setvartype(opts, 'double');
+                T = readtable(filePath, opts);
+
+                if ~istable(T) || isempty(T)
+                    app.DataManager.DataTables{idx} = [];
+                    return;
+                end
+
+                % Validate CSV format
+                if ~app.DataManager.validateCSVFormat(T, filePath)
+                    app.DataManager.DataTables{idx} = [];
+                    return;
+                end
+
+                % Set first column as Time
+                if ~isempty(T.Properties.VariableNames)
+                    T.Properties.VariableNames{1} = 'Time';
+                else
+                    app.DataManager.DataTables{idx} = [];
+                    return;
+                end
+
+                app.DataManager.DataTables{idx} = T;
+                app.DataManager.LastReadRows{idx} = height(T);
+
+                % Update signal names
+                allSignals = {};
+                for k = 1:numel(app.DataManager.DataTables)
+                    if ~isempty(app.DataManager.DataTables{k})
+                        allSignals = union(allSignals, setdiff(app.DataManager.DataTables{k}.Properties.VariableNames, {'Time'}));
+                    end
+                end
+                app.DataManager.SignalNames = allSignals;
+                app.DataManager.initializeSignalMaps();
+
+                % DON'T refresh plots or build signal tree here
+
+            catch ME
+                fprintf('Silent data read failed for CSV %d: %s\n', idx, ME.message);
+                app.DataManager.DataTables{idx} = [];
+            end
+        end
 
         function clearCurrentSession(app)
             % Clear current session state
             try
                 app.DataManager.stopStreamingAll();
-%                 app.DataManager.clearData();
+                %                 app.DataManager.clearData();
                 app.PlotManager.AssignedSignals = {};
                 app.SignalTree.Children.delete();
             catch ME
@@ -5524,7 +5610,7 @@ end
         end
 
         function populateMultiSelectionContextMenu(app, contextMenu, clickedSignalInfo)
-            % This is called WHEN the context menu opens, so it can detect current selection
+            % Enhanced context menu with all operations and hide functionality
 
             % Clear existing menu items
             delete(contextMenu.Children);
@@ -5568,9 +5654,7 @@ end
                 end
             end
 
-            % ============= CREATE MENU ITEMS =============
-
-            % Assignment/Removal operations
+            % ============= ASSIGNMENT/REMOVAL OPERATIONS =============
             if ~isempty(unassignedSignals)
                 if numel(unassignedSignals) == 1
                     uimenu(contextMenu, 'Text', '➕ Add to Subplot', ...
@@ -5591,50 +5675,363 @@ end
                 end
             end
 
-            % Preview options
+            % ============= SINGLE SIGNAL OPERATIONS =============
             if numel(selectedSignals) == 1
                 signal = selectedSignals{1};
+
+                % Preview and basic options
                 uimenu(contextMenu, 'Text', '📊 Quick Preview', ...
                     'MenuSelectedFcn', @(src, event) app.showSignalPreview(signal), 'Separator', 'on');
                 uimenu(contextMenu, 'Text', '📈 Set as X-Axis', ...
                     'MenuSelectedFcn', @(src, event) app.setSignalAsXAxis(signal));
 
-                % Export options
-                uimenu(contextMenu, 'Text', '💾 Export Options', ...
-                    'MenuSelectedFcn', @(src, event) app.exportSingleSignalToCSV(signal), 'Separator', 'on');
+                % === SINGLE SIGNAL OPERATIONS SUBMENU ===
+                singleOpsMenu = uimenu(contextMenu, 'Text', '🔢 Single Signal Operations', 'Separator', 'on');
 
-                % Clear from all subplots
+                % Convert signal to proper format for operations
+                signalNameForOps = app.getSignalNameForOperations(signal);
+
+                % In the single signal operations section, replace:
+                uimenu(singleOpsMenu, 'Text', '∂ Derivative', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedSingleSignalDialog('derivative', signalNameForOps));
+                uimenu(singleOpsMenu, 'Text', '∫ Integral', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showSimplifiedSingleSignalDialog('integral', signalNameForOps));
+                % Quick single operations - pass the signal directly for immediate execution
+                quickSingleMenu = uimenu(singleOpsMenu, 'Text', '⚡ Quick Operations', 'Separator', 'on');
+                uimenu(quickSingleMenu, 'Text', '🌊 Moving Average', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickMovingAverageWithPreselection(signalNameForOps));
+                uimenu(quickSingleMenu, 'Text', '📊 FFT Analysis', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickFFTWithPreselection(signalNameForOps));
+                uimenu(quickSingleMenu, 'Text', '📏 RMS Calculation', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickRMSWithPreselection(signalNameForOps));
+
+                % Hide/Show option for single signal
+                if app.isSignalHidden(signal)
+                    uimenu(contextMenu, 'Text', '👁️ Show Signal in Tree', ...
+                        'MenuSelectedFcn', @(src, event) app.showSignalInTree(signal), 'Separator', 'on');
+                else
+                    uimenu(contextMenu, 'Text', '🙈 Hide Signal from Tree', ...
+                        'MenuSelectedFcn', @(src, event) app.hideSignalFromTree(signal), 'Separator', 'on');
+                end
+
+                % Signal-specific options
+                if signal.CSVIdx == -1  % Derived signal
+                    uimenu(contextMenu, 'Text', '📋 Show Operation Details', ...
+                        'MenuSelectedFcn', @(src, event) app.showDerivedSignalDetails(signal.Signal), 'Separator', 'on');
+                    uimenu(contextMenu, 'Text', '💾 Export Derived Signal', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.exportDerivedSignal(signal.Signal));
+                    uimenu(contextMenu, 'Text', '🗑️ Delete Derived Signal', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.confirmDeleteDerivedSignal(signal.Signal));
+                else
+                    uimenu(contextMenu, 'Text', '💾 Export Signal to CSV', ...
+                        'MenuSelectedFcn', @(src, event) app.exportSingleSignalToCSV(signal), 'Separator', 'on');
+                end
+
                 uimenu(contextMenu, 'Text', '🗑️ Clear from All Subplots', ...
                     'MenuSelectedFcn', @(src, event) app.clearSpecificSignalFromAllSubplots(signal));
 
-            elseif numel(selectedSignals) > 1
+            elseif numel(selectedSignals) >= 2
+                % ============= MULTI-SIGNAL OPERATIONS =============
+
+                % Preview for multiple signals
                 uimenu(contextMenu, 'Text', sprintf('📊 Preview %d Signals', numel(selectedSignals)), ...
                     'MenuSelectedFcn', @(src, event) app.previewSelectedSignals(selectedSignals), 'Separator', 'on');
 
-                % Multi-signal operations
-                multiOpsMenu = uimenu(contextMenu, 'Text', sprintf('⚡ Multi-Signal Ops (%d selected)', numel(selectedSignals)));
-                uimenu(multiOpsMenu, 'Text', '📊 Vector Magnitude', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickVectorMagnitudeForSelected(selectedSignals));
-                uimenu(multiOpsMenu, 'Text', '📈 Signal Average', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickAverageForSelected(selectedSignals));
+                % === DUAL SIGNAL OPERATIONS (exactly 2 signals) ===
+                if numel(selectedSignals) == 2
+                    dualOpsMenu = uimenu(contextMenu, 'Text', '📈 Dual Signal Operations', 'Separator', 'on');
 
-                % Export multiple
+                    % Convert signals to proper format for operations
+                    signal1Name = app.getSignalNameForOperations(selectedSignals{1});
+                    signal2Name = app.getSignalNameForOperations(selectedSignals{2});
+
+                    uimenu(dualOpsMenu, 'Text', '➕ Add (A + B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('add', signal1Name, signal2Name));
+                    uimenu(dualOpsMenu, 'Text', '➖ Subtract (A - B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('subtract', signal1Name, signal2Name));
+                    uimenu(dualOpsMenu, 'Text', '✖️ Multiply (A × B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('multiply', signal1Name, signal2Name));
+                    uimenu(dualOpsMenu, 'Text', '➗ Divide (A ÷ B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('divide', signal1Name, signal2Name));
+                end
+
+                % === MULTI-SIGNAL OPERATIONS (2+ signals) ===
+                multiOpsMenu = uimenu(contextMenu, 'Text', '⚡ Multi-Signal Operations', 'Separator', 'on');
+
+                % Convert all selected signals to proper format
+                selectedSignalNames = cell(length(selectedSignals), 1);
+                for i = 1:length(selectedSignals)
+                    selectedSignalNames{i} = app.getSignalNameForOperations(selectedSignals{i});
+                end
+
+                uimenu(multiOpsMenu, 'Text', '📊 Vector Magnitude', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickVectorMagnitudeWithPreselection(selectedSignalNames));
+                uimenu(multiOpsMenu, 'Text', '📈 Signal Average', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickAverageWithPreselection(selectedSignalNames));
+                uimenu(multiOpsMenu, 'Text', '‖‖ Norm of Signals', ...
+                    'MenuSelectedFcn', @(src, event) app.SignalOperations.showNormDialogWithPreselection(selectedSignalNames));
+
+                % Hide/Show options for multiple signals
+                hideShowMenu = uimenu(contextMenu, 'Text', '👁️ Hide/Show Options', 'Separator', 'on');
+                uimenu(hideShowMenu, 'Text', sprintf('🙈 Hide %d Signals from Tree', numel(selectedSignals)), ...
+                    'MenuSelectedFcn', @(src, event) app.hideMultipleSignalsFromTree(selectedSignals));
+                uimenu(hideShowMenu, 'Text', '👁️ Show All Hidden Signals', ...
+                    'MenuSelectedFcn', @(src, event) app.showAllHiddenSignals());
+
+                % Export and clear options
                 uimenu(contextMenu, 'Text', sprintf('💾 Export %d Signals to CSV', numel(selectedSignals)), ...
                     'MenuSelectedFcn', @(src, event) app.exportMultipleSignalsToCSV(selectedSignals), 'Separator', 'on');
-
-                % Clear multiple from all subplots
                 uimenu(contextMenu, 'Text', sprintf('🗑️ Clear %d Signals from All Subplots', numel(selectedSignals)), ...
                     'MenuSelectedFcn', @(src, event) app.clearMultipleSignalsFromAllSubplots(selectedSignals));
             end
+
+            % === OPERATION HISTORY AND MANAGEMENT ===
+            managementMenu = uimenu(contextMenu, 'Text', '⚙️ Management', 'Separator', 'on');
+            uimenu(managementMenu, 'Text', '📋 Operation History', ...
+                'MenuSelectedFcn', @(src, event) app.SignalOperations.showOperationHistory());
+            uimenu(managementMenu, 'Text', '🗑️ Clear All Derived Signals', ...
+                'MenuSelectedFcn', @(src, event) app.confirmAndClearDerivedSignals());
 
             % Selection info
             if numel(selectedSignals) > 1
                 uimenu(contextMenu, 'Text', sprintf('📋 %d signals selected', numel(selectedSignals)), ...
                     'Enable', 'off', 'Separator', 'on');
+            elseif numel(selectedSignals) == 1
+                signal = selectedSignals{1};
+                if signal.CSVIdx == -1
+                    signalType = 'derived signal';
+                else
+                    signalType = sprintf('CSV %d signal', signal.CSVIdx);
+                end
+                uimenu(contextMenu, 'Text', sprintf('📋 %s: %s', signalType, signal.Signal), ...
+                    'Enable', 'off', 'Separator', 'on');
             end
         end
 
+        % Add these methods to SignalViewerApp.m
 
+        function initializeHiddenSignalsMap(app)
+            % Initialize the hidden signals map if it doesn't exist
+            if ~isprop(app, 'HiddenSignals') || isempty(app.HiddenSignals)
+                app.HiddenSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+            end
+        end
+
+        function signalKey = getSignalKey(app, signalInfo)
+            % Create a unique key for a signal
+            if signalInfo.CSVIdx == -1
+                % Derived signal
+                signalKey = sprintf('DERIVED_%s', signalInfo.Signal);
+            else
+                % Regular signal
+                signalKey = sprintf('CSV%d_%s', signalInfo.CSVIdx, signalInfo.Signal);
+            end
+        end
+
+        function tf = isSignalHidden(app, signalInfo)
+            % Check if a signal is hidden
+            app.initializeHiddenSignalsMap();
+            signalKey = app.getSignalKey(signalInfo);
+            tf = app.HiddenSignals.isKey(signalKey) && app.HiddenSignals(signalKey);
+        end
+
+        function hideSignalFromTree(app, signalInfo)
+            % Hide a signal from the tree view
+            app.initializeHiddenSignalsMap();
+            signalKey = app.getSignalKey(signalInfo);
+            app.HiddenSignals(signalKey) = true;
+
+            % Rebuild tree to apply hiding
+            app.buildSignalTree();
+
+            % Update status
+            app.StatusLabel.Text = sprintf('🙈 Hidden signal: %s', signalInfo.Signal);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        function showSignalInTree(app, signalInfo)
+            % Show a previously hidden signal in the tree view
+            app.initializeHiddenSignalsMap();
+            signalKey = app.getSignalKey(signalInfo);
+
+            if app.HiddenSignals.isKey(signalKey)
+                app.HiddenSignals(signalKey) = false;
+            end
+
+            % Rebuild tree to apply changes
+            app.buildSignalTree();
+
+            % Update status
+            app.StatusLabel.Text = sprintf('👁️ Showing signal: %s', signalInfo.Signal);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        function hideMultipleSignalsFromTree(app, selectedSignals)
+            % Hide multiple signals from the tree view
+            app.initializeHiddenSignalsMap();
+
+            hiddenCount = 0;
+            for i = 1:numel(selectedSignals)
+                signalKey = app.getSignalKey(selectedSignals{i});
+                if ~app.HiddenSignals.isKey(signalKey) || ~app.HiddenSignals(signalKey)
+                    app.HiddenSignals(signalKey) = true;
+                    hiddenCount = hiddenCount + 1;
+                end
+            end
+
+            % Rebuild tree to apply hiding
+            app.buildSignalTree();
+
+            % Update status
+            app.StatusLabel.Text = sprintf('🙈 Hidden %d signals from tree', hiddenCount);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        function showAllHiddenSignals(app)
+            % Show all previously hidden signals
+            app.initializeHiddenSignalsMap();
+
+            % Count currently hidden signals
+            hiddenKeys = keys(app.HiddenSignals);
+            hiddenCount = 0;
+
+            for i = 1:length(hiddenKeys)
+                if app.HiddenSignals(hiddenKeys{i})
+                    hiddenCount = hiddenCount + 1;
+                    app.HiddenSignals(hiddenKeys{i}) = false;
+                end
+            end
+
+            % Rebuild tree to show all signals
+            app.buildSignalTree();
+
+            % Update status
+            if hiddenCount > 0
+                app.StatusLabel.Text = sprintf('👁️ Showing %d previously hidden signals', hiddenCount);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = 'ℹ️ No hidden signals found';
+                app.StatusLabel.FontColor = [0.5 0.5 0.5];
+            end
+        end
+
+        function showHiddenSignalsManager(app)
+            % Show dialog to manage hidden signals
+            app.initializeHiddenSignalsMap();
+
+            % Get all hidden signals
+            hiddenKeys = keys(app.HiddenSignals);
+            hiddenSignalNames = {};
+            hiddenSignalInfos = {};
+
+            for i = 1:length(hiddenKeys)
+                if app.HiddenSignals(hiddenKeys{i})
+                    key = hiddenKeys{i};
+                    % Parse the key to get signal info
+                    if startsWith(key, 'DERIVED_')
+                        signalName = strrep(key, 'DERIVED_', '');
+                        hiddenSignalNames{end+1} = sprintf('🔄 %s (Derived)', signalName);
+                        hiddenSignalInfos{end+1} = struct('CSVIdx', -1, 'Signal', signalName);
+                    elseif startsWith(key, 'CSV')
+                        parts = split(key, '_');
+                        csvIdxStr = strrep(parts{1}, 'CSV', '');
+                        csvIdx = str2double(csvIdxStr);
+                        signalName = strjoin(parts(2:end), '_');
+                        hiddenSignalNames{end+1} = sprintf('📊 %s (CSV %d)', signalName, csvIdx);
+                        hiddenSignalInfos{end+1} = struct('CSVIdx', csvIdx, 'Signal', signalName);
+                    end
+                end
+            end
+
+            if isempty(hiddenSignalNames)
+                uialert(app.UIFigure, 'No hidden signals found.', 'No Hidden Signals');
+                return;
+            end
+
+            % Create management dialog
+            d = dialog('Name', 'Hidden Signals Manager', 'Position', [300 300 500 400], 'Resize', 'on');
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 360 460 25], ...
+                'String', sprintf('Manage Hidden Signals (%d hidden)', length(hiddenSignalNames)), ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % List of hidden signals
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 330 200 20], ...
+                'String', 'Hidden Signals:', 'FontWeight', 'bold');
+
+            hiddenListbox = uicontrol('Parent', d, 'Style', 'listbox', ...
+                'Position', [20 180 460 145], 'String', hiddenSignalNames, 'Max', length(hiddenSignalNames));
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Show Selected', ...
+                'Position', [20 140 120 30], 'Callback', @(~,~) showSelected(), ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Show All', ...
+                'Position', [150 140 120 30], 'Callback', @(~,~) showAll());
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Delete Selected from System', ...
+                'Position', [280 140 200 30], 'Callback', @(~,~) deleteSelected(), ...
+                'BackgroundColor', [0.9 0.3 0.3], 'ForegroundColor', 'white');
+
+            % Statistics
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 100 460 30], ...
+                'String', sprintf('Total signals hidden: %d\nHidden signals remain in memory but are not visible in the tree.', ...
+                length(hiddenSignalNames)), ...
+                'FontSize', 9, 'HorizontalAlignment', 'left');
+
+            % Close button
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Close', ...
+                'Position', [400 20 80 30], 'Callback', @(~,~) close(d));
+
+            function showSelected()
+                selectedIndices = hiddenListbox.Value;
+                if isempty(selectedIndices)
+                    return;
+                end
+
+                for i = selectedIndices
+                    app.showSignalInTree(hiddenSignalInfos{i});
+                end
+
+                close(d);
+            end
+
+            function showAll()
+                app.showAllHiddenSignals();
+                close(d);
+            end
+
+            function deleteSelected()
+                selectedIndices = hiddenListbox.Value;
+                if isempty(selectedIndices)
+                    return;
+                end
+
+                selectedNames = hiddenSignalNames(selectedIndices);
+                answer = uiconfirm(d, ...
+                    sprintf('Permanently delete %d selected signals from the system?\n\nSignals: %s\n\nThis cannot be undone!', ...
+                    length(selectedNames), strjoin(selectedNames, ', ')), ...
+                    'Confirm Permanent Delete', ...
+                    'Options', {'Delete Permanently', 'Cancel'}, ...
+                    'DefaultOption', 'Cancel', 'Icon', 'warning');
+
+                if strcmp(answer, 'Delete Permanently')
+                    for i = selectedIndices
+                        signalInfo = hiddenSignalInfos{i};
+                        if signalInfo.CSVIdx == -1
+                            % Delete derived signal
+                            app.SignalOperations.deleteDerivedSignal(signalInfo.Signal);
+                        else
+                            % For CSV signals, we can only remove from assignments and hide
+                            app.clearSpecificSignalFromAllSubplots(signalInfo);
+                        end
+                    end
+                    close(d);
+                    app.StatusLabel.Text = sprintf('🗑️ Permanently deleted %d signals', length(selectedIndices));
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                end
+            end
+        end
         % Add other necessary methods...
         function setupAxesDropTargets(app)
             % Set up each axes as a drop target for drag-and-drop signal assignment
