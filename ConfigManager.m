@@ -127,6 +127,10 @@ classdef ConfigManager < handle
                 catch
                     config.TabLinkedAxes = [];
                 end
+
+                config.TupleSignals = app.PlotManager.TupleSignals;
+                config.TupleMode = app.PlotManager.TupleMode;
+
                 save(customPath, 'config', '-v7.3');
                 obj.LastSavedConfig = config;
 
@@ -362,6 +366,18 @@ classdef ConfigManager < handle
                     app.PlotManager.AssignedSignals = filteredAssignments;
                 end
 
+                if isfield(config, 'TupleSignals')
+                    app.PlotManager.TupleSignals = config.TupleSignals;
+                else
+                    app.PlotManager.TupleSignals = {};
+                end
+
+                if isfield(config, 'TupleMode')
+                    app.PlotManager.TupleMode = config.TupleMode;
+                else
+                    app.PlotManager.TupleMode = {};
+                end
+
                 if isfield(config, 'CustomYLabels')
                     try
                         app.PlotManager.CustomYLabels = config.CustomYLabels;
@@ -422,6 +438,7 @@ classdef ConfigManager < handle
                         end
                     end
                 end
+
 
                 % === FINALIZE ===
                 app.buildSignalTree();

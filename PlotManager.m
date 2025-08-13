@@ -21,6 +21,9 @@ classdef PlotManager < handle
         TabLinkedAxesObjects % Per-tab linked axes objects (cell array)
         LastAddedCount
         CustomYLabels
+        TupleSignals        % Cell array {tabIdx}{subplotIdx} = {tuple1, tuple2, ...}
+        % Each tuple = struct('XSignal', signalInfo, 'YSignal', signalInfo, 'Label', string)
+        TupleMode          % Cell array {tabIdx}{subplotIdx} = logical (true if in tuple mode)
     end
 
     methods
@@ -48,6 +51,82 @@ classdef PlotManager < handle
             obj.TabLinkedAxes = [];  % Initialize per-tab linking states
             obj.TabLinkedAxesObjects = {};  % Initialize per-tab linked axes
             obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
+            obj.TupleSignals = {};
+            obj.TupleMode = {};
+        end
+
+        function toggleTupleMode(obj, tabIdx, subplotIdx)
+            % Ensure arrays are large enough
+            while numel(obj.TupleMode) < tabIdx
+                obj.TupleMode{end+1} = {};
+            end
+            while numel(obj.TupleMode{tabIdx}) < subplotIdx
+                obj.TupleMode{tabIdx}{end+1} = false;
+            end
+            while numel(obj.TupleSignals) < tabIdx
+                obj.TupleSignals{end+1} = {};
+            end
+            while numel(obj.TupleSignals{tabIdx}) < subplotIdx
+                obj.TupleSignals{tabIdx}{end+1} = {};
+            end
+
+            % Toggle mode
+            obj.TupleMode{tabIdx}{subplotIdx} = ~obj.TupleMode{tabIdx}{subplotIdx};
+
+            if obj.TupleMode{tabIdx}{subplotIdx}
+                % Entering tuple mode - clear regular assignments
+                obj.AssignedSignals{tabIdx}{subplotIdx} = {};
+                obj.App.StatusLabel.Text = sprintf('📊 Tuple mode enabled for Plot %d', subplotIdx);
+            else
+                % Exiting tuple mode - clear tuples
+                obj.TupleSignals{tabIdx}{subplotIdx} = {};
+                obj.App.StatusLabel.Text = sprintf('📈 Regular mode enabled for Plot %d', subplotIdx);
+            end
+            obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            % Refresh plots
+            obj.refreshPlots(tabIdx);
+        end
+
+        % ADD method to add tuple to subplot:
+        function addTupleToSubplot(obj, tabIdx, subplotIdx, xSignalInfo, ySignalInfo, customLabel)
+            % Ensure arrays are initialized
+            while numel(obj.TupleSignals) < tabIdx
+                obj.TupleSignals{end+1} = {};
+            end
+            while numel(obj.TupleSignals{tabIdx}) < subplotIdx
+                obj.TupleSignals{tabIdx}{end+1} = {};
+            end
+            while numel(obj.TupleMode) < tabIdx
+                obj.TupleMode{end+1} = {};
+            end
+            while numel(obj.TupleMode{tabIdx}) < subplotIdx
+                obj.TupleMode{tabIdx}{end+1} = false;
+            end
+
+            % Generate label if not provided
+            if nargin < 6 || isempty(customLabel)
+                customLabel = sprintf('%s vs %s', ySignalInfo.Signal, xSignalInfo.Signal);
+            end
+
+            % Create tuple structure
+            tuple = struct();
+            tuple.XSignal = xSignalInfo;
+            tuple.YSignal = ySignalInfo;
+            tuple.Label = customLabel;
+            tuple.Color = obj.App.Colors(mod(numel(obj.TupleSignals{tabIdx}{subplotIdx}), size(obj.App.Colors, 1)) + 1, :);
+
+            % Add to tuple list
+            obj.TupleSignals{tabIdx}{subplotIdx}{end+1} = tuple;
+
+            % Ensure tuple mode is enabled
+            obj.TupleMode{tabIdx}{subplotIdx} = true;
+
+            obj.App.StatusLabel.Text = sprintf('➕ Added tuple: %s', customLabel);
+            obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+            
+            % Refresh plots
+            obj.refreshPlots(tabIdx);
         end
 
         function validateCustomYLabels(obj)
@@ -674,6 +753,13 @@ classdef PlotManager < handle
                     'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax), ...
                     'Separator', 'on');
 
+                uimenu(cm, 'Text', '🔄 Toggle X-Y Mode (Tuple Plotting)', ...
+                    'MenuSelectedFcn', @(src, event) obj.toggleTupleMode(tabIdx, i), ...
+                    'Separator', 'on');
+
+                uimenu(cm, 'Text', '🗑️ Clear All Tuples', ...
+                    'MenuSelectedFcn', @(src, event) obj.App.clearAllTuples(tabIdx, i));
+
                 %                 % Zoom options - ADD THESE
                 %                 uimenu(cm, 'Text', '🔍 Auto Scale This Plot', ...
                 %                     'MenuSelectedFcn', @(src, event) obj.autoScaleSingleSubplot(ax), ...
@@ -715,6 +801,121 @@ classdef PlotManager < handle
             obj.XAxisSignals{tabIdx, subplotIdx} = 'Time';
             obj.refreshPlots(tabIdx);
         end
+
+        function plotTupleSignals(obj, ax, tabIdx, subplotIdx)
+    % Clear and set up axes for tuple plotting
+    delete(ax.Children);
+    hold(ax, 'on');
+
+    % Enable grid
+    grid(ax, 'on');
+    ax.XGrid = 'on';
+    ax.YGrid = 'on';
+    ax.XMinorGrid = 'on';
+    ax.YMinorGrid = 'on';
+    ax.GridAlpha = 0.3;
+    ax.MinorGridAlpha = 0.1;
+
+    if subplotIdx > numel(obj.TupleSignals{tabIdx}) || isempty(obj.TupleSignals{tabIdx}{subplotIdx})
+        % No tuples - show empty plot with instructions
+        text(ax, 0.5, 0.5, 'Tuple Mode: Right-click to add X-Y signal pairs', ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+            'Units', 'normalized', 'FontSize', 12, 'Color', [0.5 0.5 0.5]);
+        ax.XLabel.String = 'X Signal';
+        ax.YLabel.String = 'Y Signal';
+        hold(ax, 'off');
+        return;
+    end
+
+    tuples = obj.TupleSignals{tabIdx}{subplotIdx};
+    plotHandles = [];
+    plotLabels = {};
+
+    for i = 1:numel(tuples)
+        tuple = tuples{i};
+
+        try
+            % Get X signal data
+            if tuple.XSignal.CSVIdx == -1
+                [~, xData] = obj.App.SignalOperations.getSignalData(tuple.XSignal.Signal);
+            else
+                T = obj.App.DataManager.DataTables{tuple.XSignal.CSVIdx};
+                if ismember(tuple.XSignal.Signal, T.Properties.VariableNames)
+                    xData = T.(tuple.XSignal.Signal);
+                    % Apply scaling
+                    if obj.App.DataManager.SignalScaling.isKey(tuple.XSignal.Signal)
+                        xData = xData * obj.App.DataManager.SignalScaling(tuple.XSignal.Signal);
+                    end
+                else
+                    continue;
+                end
+            end
+
+            % Get Y signal data
+            if tuple.YSignal.CSVIdx == -1
+                [~, yData] = obj.App.SignalOperations.getSignalData(tuple.YSignal.Signal);
+            else
+                T = obj.App.DataManager.DataTables{tuple.YSignal.CSVIdx};
+                if ismember(tuple.YSignal.Signal, T.Properties.VariableNames)
+                    yData = T.(tuple.YSignal.Signal);
+                    % Apply scaling
+                    if obj.App.DataManager.SignalScaling.isKey(tuple.YSignal.Signal)
+                        yData = yData * obj.App.DataManager.SignalScaling(tuple.YSignal.Signal);
+                    end
+                else
+                    continue;
+                end
+            end
+
+            % Remove NaN values
+            validIdx = ~isnan(xData) & ~isnan(yData);
+            xData = xData(validIdx);
+            yData = yData(validIdx);
+
+            if isempty(xData) || isempty(yData)
+                continue;
+            end
+
+            % Plot tuple
+            h = plot(ax, xData, yData, '-', ...
+                'LineWidth', 2, ...
+                'MarkerSize', 4, ...
+                'Color', tuple.Color, ...
+                'DisplayName', tuple.Label);
+
+            plotHandles(end+1) = h;
+            plotLabels{end+1} = tuple.Label;
+
+        catch ME
+            fprintf('Error plotting tuple %d: %s\n', i, ME.message);
+            continue;
+        end
+    end
+
+    % Set axis labels based on number of tuples
+    if numel(tuples) == 1
+        % Single tuple - show axis labels with signal names
+        firstTuple = tuples{1};
+        ax.XLabel.String = obj.addUnitsToYLabel(firstTuple.XSignal.Signal, firstTuple.XSignal.Signal);
+        ax.YLabel.String = obj.addUnitsToYLabel(firstTuple.YSignal.Signal, firstTuple.YSignal.Signal);
+    elseif numel(tuples) > 1
+        % Multiple tuples - hide axis labels to avoid confusion
+        ax.XLabel.String = '';
+        ax.YLabel.String = '';
+    else
+        % No valid tuples plotted
+        ax.XLabel.String = 'X Signal';
+        ax.YLabel.String = 'Y Signal';
+    end
+
+    % Add legend
+    if ~isempty(plotHandles)
+        legend(ax, plotHandles, plotLabels, 'Location', 'best');
+    end
+
+    hold(ax, 'off');
+end
+
 
         function showPDFExportDialog(obj)
             app = obj.App;
@@ -941,6 +1142,19 @@ classdef PlotManager < handle
                     % **CONDITIONAL CLEARING - only clear if not streaming or no existing data**
                     shouldClearAndRecreate = ~isStreaming || ~hasExistingData;
 
+                    % Check for tuple mode with proper bounds checking
+                    isTupleMode = false;
+                    if ~isempty(obj.TupleMode) && tabIdx <= numel(obj.TupleMode) && ...
+                            ~isempty(obj.TupleMode{tabIdx}) && k <= numel(obj.TupleMode{tabIdx})
+                        isTupleMode = obj.TupleMode{tabIdx}{k};
+                    end
+
+                    if isTupleMode
+                        % TUPLE MODE - plot X-Y pairs
+                        obj.plotTupleSignals(ax, tabIdx, k);
+                        continue; % Skip all regular signal plotting logic below
+                    end
+
                     if shouldClearAndRecreate
                         % Full refresh: clear everything
                         delete(ax.Children);
@@ -1148,8 +1362,42 @@ classdef PlotManager < handle
                         elseif isstruct(xAxisSetting) && isfield(xAxisSetting, 'Signal')
                             % Custom X-axis signal requested
                             try
-                                % Get the custom X-axis signal data
-                                [customXTime, customXData] = obj.App.SignalOperations.getSignalData(xAxisSetting.Signal);
+                                % FIXED: Get the custom X-axis signal data using CSV index
+                                if xAxisSetting.CSVIdx == -1
+                                    % Derived signal - use SignalOperations
+                                    [customXTime, customXData] = obj.App.SignalOperations.getSignalData(xAxisSetting.Signal);
+                                else
+                                    % CSV signal - get directly from the specific CSV
+                                    if xAxisSetting.CSVIdx <= numel(obj.App.DataManager.DataTables)
+                                        customXTable = obj.App.DataManager.DataTables{xAxisSetting.CSVIdx};
+
+                                        if ~isempty(customXTable) && ismember(xAxisSetting.Signal, customXTable.Properties.VariableNames)
+                                            customXTime = customXTable.Time;
+                                            customXData = customXTable.(xAxisSetting.Signal);
+
+                                            % Apply scaling if exists
+                                            if obj.App.DataManager.SignalScaling.isKey(xAxisSetting.Signal)
+                                                customXData = customXData * obj.App.DataManager.SignalScaling(xAxisSetting.Signal);
+                                            end
+
+                                            % Remove NaN values
+                                            validXIdx = ~isnan(customXData) & ~isnan(customXTime);
+                                            customXTime = customXTime(validXIdx);
+                                            customXData = customXData(validXIdx);
+                                        else
+                                            % Signal not found in specified CSV - fallback to time
+                                            fprintf('Warning: X-axis signal %s not found in CSV %d, using time\n', ...
+                                                xAxisSetting.Signal, xAxisSetting.CSVIdx);
+                                            xData = timeData;
+                                            continue; % Skip to next signal
+                                        end
+                                    else
+                                        % Invalid CSV index - fallback to time
+                                        fprintf('Warning: Invalid CSV index %d for X-axis signal, using time\n', xAxisSetting.CSVIdx);
+                                        xData = timeData;
+                                        continue; % Skip to next signal
+                                    end
+                                end
 
                                 if ~isempty(customXTime) && ~isempty(customXData)
                                     % We have valid custom X-axis data
@@ -1177,7 +1425,7 @@ classdef PlotManager < handle
                                     end
                                 else
                                     % Custom X-axis signal not found or empty - fallback to time
-                                    fprintf('Warning: Custom X-axis signal not found, using time for %s\n', sigName);
+                                    fprintf('Warning: Custom X-axis signal data is empty, using time for %s\n', sigName);
                                     xData = timeData;
                                 end
 

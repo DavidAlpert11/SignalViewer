@@ -2094,18 +2094,28 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 any(~cellfun(@isempty, app.DataManager.DataTables));
         end
         function updateSignalPropsTable(app, selectedSignals)
-            % Update the properties table for the selected signals with checkbox selection
+            % Enhanced version that shows tuple info in tuple mode
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Check if current subplot is in tuple mode
+            if app.isSubplotInTupleMode(tabIdx, subplotIdx)
+                % Show tuple information instead of regular signal properties
+                app.updateTuplePropsTable(tabIdx, subplotIdx);
+                return;
+            end
+
+            % Regular signal properties table (existing implementation)
             n = numel(selectedSignals);
 
             if n == 0
-                % No signals selected - show empty table
                 app.SignalPropsTable.Data = {};
                 app.RemoveSelectedSignalsButton.Enable = 'off';
                 return;
             end
 
             % Create data with checkbox column
-            data = cell(n, 6); % 6 columns now: checkbox, signal, scale, state, color, linewidth
+            data = cell(n, 6); % 6 columns: checkbox, signal, scale, state, color, linewidth
 
             for i = 1:n
                 sigInfo = selectedSignals{i};
@@ -2132,7 +2142,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 end
 
                 % Fill data row
-                data{i,1} = false;  % Checkbox - initially unchecked
+                data{i,1} = false;  % Checkbox
                 data{i,2} = sigName;  % Signal name
                 data{i,3} = scale;    % Scale
                 data{i,4} = state;    % State
@@ -2141,11 +2151,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
             end
 
             app.SignalPropsTable.Data = data;
-
-            % Enable the remove button (will be disabled if no checkboxes are checked)
             app.RemoveSelectedSignalsButton.Enable = 'off';
-
-            % Set custom cell renderer for color column
             app.SignalPropsTable.CellSelectionCallback = @(src, event) app.onSignalPropsCellSelect(event);
         end
 
@@ -4145,6 +4151,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 session.NumCSVs = numel(session.CSVFilePaths);
                 session.NumSignals = numel(session.SignalNames);
 
+                session.TupleSignals = app.safeGetProperty('PlotManager', 'TupleSignals', {});
+                session.TupleMode = app.safeGetProperty('PlotManager', 'TupleMode', {});
+
                 % === SAVE ===
                 save(fullfile(path, file), 'session', '-v7.3');
 
@@ -4455,7 +4464,17 @@ classdef SignalViewerApp < matlab.apps.AppBase
             if isfield(session, 'ExpandedTreeNodes')
                 app.restoreTreeExpandedState();
             end
+            if isfield(session, 'TupleSignals')
+                app.PlotManager.TupleSignals = session.TupleSignals;
+            else
+                app.PlotManager.TupleSignals = {};
+            end
 
+            if isfield(session, 'TupleMode')
+                app.PlotManager.TupleMode = session.TupleMode;
+            else
+                app.PlotManager.TupleMode = {};
+            end
             % Ensure + tab at end
             app.PlotManager.ensurePlusTabAtEnd();
             app.PlotManager.updateTabTitles();
@@ -5267,46 +5286,107 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
 
-        function updateRemoveButtonState(app)
-            % Enable/disable remove button based on checkbox selections
-            data = app.SignalPropsTable.Data;
 
+        % 5. Add new method to handle removing selected signals:
+        function removeSelectedSignalsFromTable(app)
+            % Enhanced version that handles both regular signals and tuples
+            data = app.SignalPropsTable.Data;
             if isempty(data)
-                app.RemoveSelectedSignalsButton.Enable = 'off';
                 return;
             end
 
-            % Check if any checkboxes are selected
-            hasSelection = false;
-            for i = 1:size(data, 1)
-                if data{i,1} % Checkbox in first column
-                    hasSelection = true;
-                    break;
-                end
-            end
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
 
-            if hasSelection
-                app.RemoveSelectedSignalsButton.Enable = 'on';
-                app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected from Subplot';
+            % Check if we're in tuple mode
+            isTupleMode = app.isSubplotInTupleMode(tabIdx, subplotIdx);
+
+            if isTupleMode
+                % TUPLE MODE: Remove selected tuples
+                app.removeSelectedTuples(tabIdx, subplotIdx, data);
             else
-                app.RemoveSelectedSignalsButton.Enable = 'off';
-                app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected from Subplot';
+                % REGULAR MODE: Remove selected signals (existing logic)
+                app.removeSelectedRegularSignals(tabIdx, subplotIdx, data);
             end
         end
 
-        % 5. Add new method to handle removing selected signals:
+        % ADD new method for removing selected tuples:
+        function removeSelectedTuples(app, tabIdx, subplotIdx, data)
+            % Remove selected tuples from tuple mode subplot
 
-        function removeSelectedSignalsFromTable(app)
-            % Remove signals that are checked in the properties table
-            data = app.SignalPropsTable.Data;
-
-            if isempty(data)
+            if tabIdx > numel(app.PlotManager.TupleSignals) || ...
+                    subplotIdx > numel(app.PlotManager.TupleSignals{tabIdx}) || ...
+                    isempty(app.PlotManager.TupleSignals{tabIdx}{subplotIdx})
+                app.StatusLabel.Text = '⚠️ No tuples to remove';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
                 return;
             end
 
-            % Get current subplot assignments
-            tabIdx = app.PlotManager.CurrentTabIdx;
-            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            % Find which tuples are selected for removal
+            tuplesToRemove = [];
+            selectedTupleNames = {};
+
+            for i = 1:size(data, 1)
+                if size(data, 2) >= 1 && data{i,1} % Checkbox is checked
+                    if size(data, 2) >= 2
+                        tupleName = data{i,2}; % Tuple name is in column 2
+                        selectedTupleNames{end+1} = tupleName;
+                        tuplesToRemove(end+1) = i;
+                    end
+                end
+            end
+
+            if isempty(tuplesToRemove)
+                app.StatusLabel.Text = '⚠️ No tuples selected for removal';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            % Confirm removal if multiple tuples
+            if numel(tuplesToRemove) > 1
+                answer = uiconfirm(app.UIFigure, ...
+                    sprintf('Remove %d selected tuples from subplot?', numel(tuplesToRemove)), ...
+                    'Confirm Tuple Removal', ...
+                    'Options', {'Remove', 'Cancel'}, ...
+                    'DefaultOption', 'Remove', 'Icon', 'question');
+
+                if strcmp(answer, 'Cancel')
+                    return;
+                end
+            end
+
+            % Remove the selected tuples (in reverse order to maintain indices)
+            currentTuples = app.PlotManager.TupleSignals{tabIdx}{subplotIdx};
+            for i = length(tuplesToRemove):-1:1
+                tupleIdx = tuplesToRemove(i);
+                if tupleIdx <= numel(currentTuples)
+                    currentTuples(tupleIdx) = [];
+                end
+            end
+
+            % Update tuple assignments
+            app.PlotManager.TupleSignals{tabIdx}{subplotIdx} = currentTuples;
+
+            % If no tuples left, exit tuple mode
+            if isempty(currentTuples)
+                app.PlotManager.TupleMode{tabIdx}{subplotIdx} = false;
+                app.StatusLabel.Text = sprintf('🗑️ Removed %d tuple(s) - switched back to regular mode', numel(tuplesToRemove));
+            else
+                app.StatusLabel.Text = sprintf('🗑️ Removed %d tuple(s) from subplot', numel(tuplesToRemove));
+            end
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            % Refresh visuals
+            app.PlotManager.refreshPlots(tabIdx);
+
+            % Update the properties table to show remaining tuples
+            app.updateTuplePropsTable(tabIdx, subplotIdx);
+        end
+
+        % ADD new method for removing regular signals (extracted from original logic):
+        function removeSelectedRegularSignals(app, tabIdx, subplotIdx, data)
+            % Remove selected regular signals (original logic)
+
             currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
 
             % Find which signals are selected for removal
@@ -5381,7 +5461,46 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
 
-        % 6. Add method for selection callbacks (for color picking):
+        % ALSO UPDATE the updateRemoveButtonState method to work with tuple mode:
+        function updateRemoveButtonState(app)
+            % Enable/disable remove button based on checkbox selections
+            data = app.SignalPropsTable.Data;
+
+            if isempty(data)
+                app.RemoveSelectedSignalsButton.Enable = 'off';
+                return;
+            end
+
+            % Check if any checkboxes are selected
+            hasSelection = false;
+            for i = 1:size(data, 1)
+                if size(data, 2) >= 1 && data{i,1} % Checkbox in first column
+                    hasSelection = true;
+                    break;
+                end
+            end
+
+            % Check if we're in tuple mode to set appropriate button text
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+            isTupleMode = app.isSubplotInTupleMode(tabIdx, subplotIdx);
+
+            if hasSelection
+                app.RemoveSelectedSignalsButton.Enable = 'on';
+                if isTupleMode
+                    app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected Tuples';
+                else
+                    app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected Signals';
+                end
+            else
+                app.RemoveSelectedSignalsButton.Enable = 'off';
+                if isTupleMode
+                    app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected Tuples';
+                else
+                    app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected Signals';
+                end
+            end
+        end
 
         function onSignalPropsCellSelect(app, event)
             % Handle color picker for Color column and checkbox updates
@@ -5439,10 +5558,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
             % Do NOT auto-start streaming here to avoid recursion
         end
 
-        % Fix for SignalViewerApp.m - Replace the addMultipleSignalsToCurrentSubplot method
 
         function addMultipleSignalsToCurrentSubplot(app, signalsToAdd)
-            % Add multiple signals to current subplot - uses existing PlotManager methods
+            % Enhanced method that handles both regular and tuple mode
             if isempty(signalsToAdd)
                 return;
             end
@@ -5450,6 +5568,39 @@ classdef SignalViewerApp < matlab.apps.AppBase
             tabIdx = app.PlotManager.CurrentTabIdx;
             subplotIdx = app.PlotManager.SelectedSubplotIdx;
 
+            % ADD THIS TUPLE MODE CHECK AT THE BEGINNING:
+            % =============================================
+            % Check if we're in tuple mode for this subplot
+            isTupleMode = false;
+            if tabIdx <= numel(app.PlotManager.TupleMode) && ...
+                    subplotIdx <= numel(app.PlotManager.TupleMode{tabIdx}) && ...
+                    ~isempty(app.PlotManager.TupleMode{tabIdx})
+                isTupleMode = app.PlotManager.TupleMode{tabIdx}{subplotIdx};
+            end
+
+            if isTupleMode
+                % TUPLE MODE: Handle pairs of signals as X-Y tuples
+                if numel(signalsToAdd) < 2
+                    app.StatusLabel.Text = '⚠️ X-Y mode: Please select exactly 2 signals (X and Y)';
+                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                    return;
+                elseif numel(signalsToAdd) > 2
+                    app.StatusLabel.Text = '⚠️ X-Y mode: Too many signals selected. Using first 2 as X-Y pair.';
+                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                    signalsToAdd = signalsToAdd(1:2); % Take only first 2
+                    return;
+                else
+                    signalsToAdd = signalsToAdd(1:2); % Take only first 2
+                end
+
+                % Show tuple naming dialog
+                app.showTupleNamingDialog(tabIdx, subplotIdx, signalsToAdd{1}, signalsToAdd{2});
+                return; % Exit here for tuple mode
+            end
+            % =============================================
+            % END OF TUPLE MODE CHECK
+
+            % KEEP ALL THE EXISTING CODE BELOW EXACTLY AS IT WAS:
             % SAVE EXPANDED STATE BEFORE ANY CHANGES
             app.saveTreeExpandedState();
 
@@ -5492,6 +5643,119 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 app.StatusLabel.FontColor = [0.9 0.6 0.2];
             end
         end
+
+        function showTupleNamingDialog(app, tabIdx, subplotIdx, xSignalInfo, ySignalInfo)
+            % Dialog to name the X-Y tuple with swap functionality
+            d = dialog('Name', 'Configure X-Y Tuple', ...
+                'Position', [400 400 350 220], 'Resize', 'off');
+
+            % Store current signal info (will be swapped if needed)
+            currentXSignal = xSignalInfo;
+            currentYSignal = ySignalInfo;
+
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 180 310 25], ...
+                'String', 'Configure X-Y Signal Pair', ...
+                'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
+
+            % X Signal display
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 150 80 20], ...
+                'String', 'X Signal:', 'FontWeight', 'bold');
+            xSignalDisplay = uicontrol('Parent', d, 'Style', 'text', 'Position', [100 150 200 20], ...
+                'String', currentXSignal.Signal, 'HorizontalAlignment', 'left', ...
+                'BackgroundColor', [0.94 0.94 0.94]);
+
+            % Y Signal display
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 125 80 20], ...
+                'String', 'Y Signal:', 'FontWeight', 'bold');
+            ySignalDisplay = uicontrol('Parent', d, 'Style', 'text', 'Position', [100 125 200 20], ...
+                'String', currentYSignal.Signal, 'HorizontalAlignment', 'left', ...
+                'BackgroundColor', [0.94 0.94 0.94]);
+
+            % Swap button
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', '⇅ Swap', ...
+                'Position', [150 137 150 25], 'Callback', @swapSignals, ...
+                'FontSize', 10, 'FontWeight', 'bold', 'ToolTipString', 'Swap X and Y signals');
+
+            % Tuple name input
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 95 80 20], ...
+                'String', 'Tuple Name:', 'FontWeight', 'bold');
+            defaultLabel = sprintf('%s vs %s', currentYSignal.Signal, currentXSignal.Signal);
+            labelField = uicontrol('Parent', d, 'Style', 'edit', ...
+                'Position', [20 70 310 25], 'String', defaultLabel, ...
+                'HorizontalAlignment', 'left', 'FontSize', 10);
+
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Add Tuple', ...
+                'Position', [180 25 80 30], 'Callback', @addTuple, ...
+                'FontWeight', 'bold');
+            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
+                'Position', [270 25 60 30], 'Callback', @(~,~) close(d));
+
+            % Focus on label field
+            uicontrol(labelField);
+
+            function swapSignals(~, ~)
+                % Swap the X and Y signals
+                tempSignal = currentXSignal;
+                currentXSignal = currentYSignal;
+                currentYSignal = tempSignal;
+
+                % Update the display
+                xSignalDisplay.String = currentXSignal.Signal;
+                ySignalDisplay.String = currentYSignal.Signal;
+
+                % Update the default tuple name
+                updateDefaultLabel();
+            end
+
+            function updateDefaultLabel()
+                % Update the default tuple name when signals change
+                newDefault = sprintf('%s vs %s', currentYSignal.Signal, currentXSignal.Signal);
+                labelField.String = newDefault;
+            end
+
+            function addTuple(~, ~)
+                tupleLabel = labelField.String;
+                if isempty(tupleLabel)
+                    tupleLabel = sprintf('%s vs %s', currentYSignal.Signal, currentXSignal.Signal);
+                end
+
+                % Add the tuple with current (possibly swapped) signals
+                app.PlotManager.addTupleToSubplot(tabIdx, subplotIdx, currentXSignal, currentYSignal, tupleLabel);
+
+                % Update status
+                app.StatusLabel.Text = sprintf('➕ Added X-Y tuple: %s', tupleLabel);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                close(d);
+            end
+        end
+
+        function isTupleMode = isSubplotInTupleMode(app, tabIdx, subplotIdx)
+            isTupleMode = false;
+            if tabIdx <= numel(app.PlotManager.TupleMode) && ...
+                    subplotIdx <= numel(app.PlotManager.TupleMode{tabIdx})
+                isTupleMode = app.PlotManager.TupleMode{tabIdx}{subplotIdx};
+            end
+        end
+
+        % ADD method to clear all tuples:
+        function clearAllTuples(app, tabIdx, subplotIdx)
+            if tabIdx <= numel(app.PlotManager.TupleSignals) && ...
+                    subplotIdx <= numel(app.PlotManager.TupleSignals{tabIdx})
+
+                % Clear tuples and disable tuple mode
+                app.PlotManager.TupleSignals{tabIdx}{subplotIdx} = {};
+                app.PlotManager.TupleMode{tabIdx}{subplotIdx} = false;
+
+                % Refresh plots
+                app.PlotManager.refreshPlots(tabIdx);
+
+                app.StatusLabel.Text = sprintf('🗑️ Cleared all tuples from Plot %d (back to regular mode)', subplotIdx);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+        end
+
 
 
         function saveTreeExpandedState(app)
@@ -6032,6 +6296,45 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 end
             end
         end
+
+        function updateTuplePropsTable(app, tabIdx, subplotIdx)
+            % Show tuple information in properties table
+            if tabIdx <= numel(app.PlotManager.TupleSignals) && ...
+                    subplotIdx <= numel(app.PlotManager.TupleSignals{tabIdx}) && ...
+                    ~isempty(app.PlotManager.TupleSignals{tabIdx}{subplotIdx})
+
+                tuples = app.PlotManager.TupleSignals{tabIdx}{subplotIdx};
+                n = numel(tuples);
+
+                % Modify table headers for tuple mode
+                app.SignalPropsTable.ColumnName = {'☐', 'Tuple Name', 'X Signal', 'Y Signal', 'Color', 'Remove'};
+                app.SignalPropsTable.ColumnWidth = {25, 120, 80, 80, 45, 60};
+                app.SignalPropsTable.ColumnEditable = [true false false false false true];
+
+                data = cell(n, 6);
+                for i = 1:n
+                    tuple = tuples{i};
+                    data{i,1} = false;  % Checkbox
+                    data{i,2} = tuple.Label;  % Tuple name
+                    data{i,3} = tuple.XSignal.Signal;  % X signal
+                    data{i,4} = tuple.YSignal.Signal;  % Y signal
+                    data{i,5} = mat2str(tuple.Color);  % Color
+                    data{i,6} = 'Delete';  % Remove button placeholder
+                end
+
+                app.SignalPropsTable.Data = data;
+                app.RemoveSelectedSignalsButton.Text = '🗑️ Remove Selected Tuples';
+                app.RemoveSelectedSignalsButton.Enable = 'off';
+
+            else
+                % No tuples - show instruction
+                app.SignalPropsTable.ColumnName = {'Info'};
+                app.SignalPropsTable.ColumnWidth = {280};
+                app.SignalPropsTable.ColumnEditable = false;
+                app.SignalPropsTable.Data = {'X-Y Mode: Select 2 signals from tree and add to create tuple'};
+                app.RemoveSelectedSignalsButton.Enable = 'off';
+            end
+        end
         % Add other necessary methods...
         function setupAxesDropTargets(app)
             % Set up each axes as a drop target for drag-and-drop signal assignment
@@ -6078,3 +6381,4 @@ classdef SignalViewerApp < matlab.apps.AppBase
         end
     end
 end
+
