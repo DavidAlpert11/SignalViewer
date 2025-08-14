@@ -35,12 +35,6 @@ classdef SignalViewerApp < matlab.apps.AppBase
         RowsSpinner
         ColsSpinner
         SubplotDropdown
-        StartButton
-        StopButton
-        ClearButton
-        ExportButton
-        ExportPDFButton
-        StatsButton
         ResetZoomButton
         CSVPathField
         AutoScaleCheckbox
@@ -53,10 +47,17 @@ classdef SignalViewerApp < matlab.apps.AppBase
         CurrentHighlightColor = [0.2 0.8 0.4]  % Green highlight color
 
 
-        PDFReportTitle = 'Signal Analysis Report'
-        PDFReportAuthor = ''
-        PDFReportDate = datetime('now')
-        PDFFigureLabel = 'Figure'      % ADD THIS LINE
+        % === PDF Defaults ===
+        PDFReportTitle  = 'Signal Analysis Report';
+        PDFReportAuthor = '';
+        PDFReportDate   = datetime('now');
+        PDFFigureLabel  = 'Figure';   % <-- this was your new line
+
+        % === PPT Defaults ===
+        PPTReportTitle  = 'Signal Analysis Report';
+        PPTReportAuthor = '';
+        PPTReportDate   = datetime('now');
+        PPTFigureLabel  = 'Figure';   % same idea for PPT
         SubplotCaptions = {}
         SubplotDescriptions = {}
         SubplotTitles = {}
@@ -324,6 +325,9 @@ classdef SignalViewerApp < matlab.apps.AppBase
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
             uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
             uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
+            uimenu(exportMenu, 'Text', '📄 Export PPT', 'MenuSelectedFcn', @(src, event) app.menuExportPPT());
+
+
             uimenu(exportMenu, 'Text', '📂 Open Plot Browser View', 'MenuSelectedFcn', @(src, event) app.menuExportToPlotBrowser());
             uimenu(exportMenu, 'Text', '📡 Export to SDI', 'MenuSelectedFcn', @(src, event) app.PlotManager.exportToSDI());
 
@@ -4124,6 +4128,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 session.PDFFigureLabel = app.safeGetProperty('PDFFigureLabel', 'Figure');
                 session.PDFReportLanguage = app.safeGetProperty('PDFReportLanguage', 'English');
 
+                % === PPT SETTINGS (reuse PDF defaults) ===
+                session.PPTReportTitle     = app.safeGetProperty('PPTReportTitle', session.PDFReportTitle);
+                session.PPTReportAuthor    = app.safeGetProperty('PPTReportAuthor', session.PDFReportAuthor);
+                session.PPTFigureLabel     = app.safeGetProperty('PPTFigureLabel', session.PDFFigureLabel);
+                session.PPTReportLanguage  = app.safeGetProperty('PPTReportLanguage', session.PDFReportLanguage);
+
+
                 % === DERIVED SIGNALS ===
                 if app.hasValidProperty('SignalOperations')
                     session.DerivedSignals = app.safeGetProperty('SignalOperations', 'DerivedSignals', containers.Map());
@@ -4574,10 +4585,15 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
         function restoreUIState(app, session)
             % Restore UI state
-            uiStateFields = {'SubplotCaptions', 'SubplotDescriptions', 'SubplotTitles', ...
+            uiStateFields = {
+                'SubplotCaptions', 'SubplotDescriptions', 'SubplotTitles', ...
                 'SubplotMetadata', 'SignalStyles', 'HiddenSignals', ...
-                'ExpandedTreeNodes', 'PDFReportTitle', 'PDFReportAuthor', ...
-                'PDFFigureLabel', 'PDFReportLanguage'};
+                'ExpandedTreeNodes', ...
+                % PDF fields
+                'PDFReportTitle', 'PDFReportAuthor', 'PDFFigureLabel', 'PDFReportLanguage', ...
+                % PPT fields
+                'PPTReportTitle', 'PPTReportAuthor', 'PPTFigureLabel', 'PPTReportLanguage'
+                };
 
             for i = 1:numel(uiStateFields)
                 field = uiStateFields{i};
@@ -4590,6 +4606,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
                 end
             end
         end
+
         function restoreLinkingManager(app, session)
             % Restore LinkingManager state
             if app.hasValidProperty('LinkingManager')
@@ -5865,6 +5882,13 @@ classdef SignalViewerApp < matlab.apps.AppBase
             app.PlotManager.exportToPDF();
             figure(app.UIFigure);
         end
+
+        function menuExportPPT(app)
+            app.PlotManager.exportToPPT();
+            figure(app.UIFigure);
+        end
+
+
         function menuExportToPlotBrowser(app)
             app.PlotManager.exportTabsToPlotBrowser();
         end
