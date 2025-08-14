@@ -192,7 +192,6 @@ classdef LinkingManager < handle
             newGroup.Color = obj.LinkColors(mod(length(obj.LinkedGroups), size(obj.LinkColors, 1)) + 1, :);
 
             obj.LinkedGroups{end+1} = newGroup;
-
             obj.App.StatusLabel.Text = sprintf('Created link group with %d CSVs', length(csvIndices));
             obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
             obj.AutoLinkEnabled = true;
@@ -480,7 +479,10 @@ classdef LinkingManager < handle
             % Plot and compare
             figure('Name', ['Comparison: ' group.Name], 'NumberTitle', 'off');
             tiledlayout('flow');
-            reportLines = {};
+
+            % Store all signal analysis results for sorting
+            signalResults = {};
+            maxErrorPerSignal = [];
 
             for s = 1:numel(targetSignals)
                 sig = targetSignals{s};
@@ -515,10 +517,36 @@ classdef LinkingManager < handle
                 ref = mean(aligned, 1);
                 errors = mean(abs((aligned - ref) ./ max(abs(ref), eps)), 2) * 100;
 
-                % Append to report
-                reportLines{end+1} = sprintf('Signal: %s', sig);
+                % Store results for this signal
+                signalResults{end+1} = struct('signal', sig, 'labels', {labels}, 'errors', errors, ...
+                    'commonTime', commonTime, 'aligned', aligned);
+
+                % Store the MAXIMUM error for this signal across all CSVs
+                maxErrorPerSignal(end+1) = max(errors);
+            end
+
+            % === SORT SIGNALS BY MAXIMUM ERROR (DESCENDING) ===
+            [~, sortIdx] = sort(maxErrorPerSignal, 'descend');
+            signalResults = signalResults(sortIdx);
+
+            % Now create plots and report in sorted order
+            reportLines = {};
+            tableData = {};
+
+            for s = 1:numel(signalResults)
+                result = signalResults{s};
+                sig = result.signal;
+                labels = result.labels;
+                errors = result.errors;
+                commonTime = result.commonTime;
+                aligned = result.aligned;
+
+                % Add to report (now in sorted order)
+                reportLines{end+1} = sprintf('Signal: %s (Max Error: %.2f%%)', sig, max(errors));
                 for i = 1:numel(labels)
                     reportLines{end+1} = sprintf('  %s: %.2f%% error', labels{i}, errors(i));
+                    % Add to table data (sorted by signal max error)
+                    tableData(end+1, :) = {sig, labels{i}, errors(i)}; %#ok<AGROW>
                 end
 
                 % === Plot Depending on Analysis ===
@@ -526,19 +554,19 @@ classdef LinkingManager < handle
                 switch analysisType
                     case 'Overlay Plot'
                         hold on;
-                        for i = 1:numel(valueList)
+                        for i = 1:size(aligned, 1)
                             plot(commonTime, aligned(i,:), 'DisplayName', labels{i}, 'LineWidth', 1.5);
                         end
-                        title(['Overlay: ' sig], 'Interpreter', 'none');
+                        title(sprintf('Overlay: %s (Max: %.2f%%)', sig, max(errors)), 'Interpreter', 'none');
 
                     case 'Difference Plot'
                         hold on;
                         base = aligned(1,:);
-                        for i = 2:numel(valueList)
+                        for i = 2:size(aligned, 1)
                             diff = base - aligned(i,:);
                             plot(commonTime, diff, 'DisplayName', [labels{1} ' - ' labels{i}], 'LineWidth', 1.5);
                         end
-                        title(['Difference: ' sig], 'Interpreter', 'none');
+                        title(sprintf('Difference: %s (Max: %.2f%%)', sig, max(errors)), 'Interpreter', 'none');
 
                     case 'Statistical Summary'
                         meanVals = mean(aligned, 1);
@@ -548,44 +576,50 @@ classdef LinkingManager < handle
                             [0.8 0.8 1], 'EdgeColor', 'none');
                         hold on;
                         plot(commonTime, meanVals, 'b-', 'LineWidth', 2);
-                        title(['Mean ± STD: ' sig], 'Interpreter', 'none');
+                        title(sprintf('Mean ± STD: %s (Max: %.2f%%)', sig, max(errors)), 'Interpreter', 'none');
                 end
 
-                legend({'Mean ± STD'}, 'Location', 'best');
+                legend('Location', 'best');
                 xlabel('Time'); ylabel(sig); grid on;
             end
 
-            if ~isempty(reportLines)
-                % Parse reportLines into signal names and rows
-                tableData = {};
-                currentSignal = '';
-                for i = 1:numel(reportLines)
-                    line = strtrim(reportLines{i});
-                    if startsWith(line, 'Signal:')
-                        currentSignal = extractAfter(line, 'Signal: ');
-                    else
-                        parts = split(line, ':');
-                        if numel(parts) == 2
-                            tableData(end+1, :) = {currentSignal, strtrim(parts{1}), str2double(erase(parts{2}, '% error'))}; %#ok<AGROW>
-                        end
-                    end
-                end
+            if ~isempty(tableData)
+                % Create new figure with sorted uitable
+                f = figure('Name', 'Comparison Report (Sorted by Max Error)', 'NumberTitle', 'off', 'Position', [100, 100, 650, 400]);
 
-                % Create new figure with uitable
-                f = figure('Name', 'Comparison Report', 'NumberTitle', 'off', 'Position', [100, 100, 600, 400]);
+                % Add explanatory text
+                uicontrol(f, 'Style', 'text', 'String', 'Signals sorted by maximum error (highest first)', ...
+                    'Position', [10, 370, 400, 20], 'FontWeight', 'bold', 'HorizontalAlignment', 'left');
+
                 t = uitable(f, 'Data', tableData, ...
-                    'ColumnName', {'Signal', 'Label', 'Error (%)'}, ...
+                    'ColumnName', {'Signal', 'CSV Label', 'Error (%)'}, ...
                     'ColumnWidth', {150, 200, 100}, ...
                     'RowName', [], ...
                     'Units', 'normalized', ...
-                    'Position', [0 0 1 1]);
+                    'Position', [0 0 1 0.9]);
+
+                % Color-code rows by signal for better readability
+                try
+                    % Get unique signals to assign colors
+                    uniqueSignals = unique(tableData(:,1), 'stable');
+                    colors = lines(numel(uniqueSignals));
+
+                    % Create background colors for table rows
+                    bgColors = ones(size(tableData, 1), 3) * 0.95; % Default light gray
+                    for i = 1:numel(uniqueSignals)
+                        signalName = uniqueSignals{i};
+                        signalRows = strcmp(tableData(:,1), signalName);
+                        bgColors(signalRows, :) = repmat(colors(i,:) * 0.3 + 0.7, sum(signalRows), 1); % Light version of color
+                    end
+
+                    t.BackgroundColor = bgColors;
+                catch
+                    % If coloring fails, continue without it
+                end
             else
                 msgbox('No signals available for comparison.', 'Empty', 'warn');
             end
-
-
         end
-
         function csvIdx = getCSVIndexFromNodeText(obj, nodeText)
             csvIdx = 0;
             % Try to find matching CSV file

@@ -2097,6 +2097,10 @@ classdef PlotManager < handle
             % Handle layout changes from tab-specific controls
             currentLayout = obj.TabLayouts{tabIdx};
 
+            % *** NEW: Store old layout for remapping ***
+            oldRows = currentLayout(1);
+            oldCols = currentLayout(2);
+
             if ~isempty(newRows)
                 rows = newRows;
                 cols = currentLayout(2);
@@ -2115,18 +2119,17 @@ classdef PlotManager < handle
                 return;
             end
 
+            % *** NEW: Remap signal assignments before changing layout ***
+            obj.remapSignalAssignmentsForLayoutChange(tabIdx, oldRows, oldCols, rows, cols);
+
             % Apply the layout change
             obj.createSubplotsForTab(tabIdx, rows, cols);
-
             % Update the subplot dropdown
             obj.updateTabSubplotDropdown(tabIdx);
-
             % Refresh plots if there are any signals assigned
             obj.App.PlotManager.refreshPlots(tabIdx);
-
             % Update per-tab axis linking after layout change
             obj.updateTabLinkAxes(tabIdx);
-
             % Highlight the current subplot
             obj.App.highlightSelectedSubplot(tabIdx, obj.SelectedSubplotIdx);
         end
@@ -2739,7 +2742,6 @@ classdef PlotManager < handle
             end
 
             numTabs = numel(obj.AxesArrays);
-
             for tabIdx = 1:numTabs
                 axesArray = obj.AxesArrays{tabIdx};
                 if isempty(axesArray) || ~any(isgraphics(axesArray, 'axes'))
@@ -2764,36 +2766,99 @@ classdef PlotManager < handle
                         continue;
                     end
 
+                    % Create new subplot
                     newAx = subplot(rows, cols, i, 'Parent', fig);
-                    titleStr = oldAx.Title.String;
-                    if isempty(titleStr)
-                        titleStr = sprintf('Subplot %d', i);
+
+                    % Copy ALL children (not just lines)
+                    allChildren = allchild(oldAx);
+
+                    % Filter out highlight borders if they exist
+                    validChildren = [];
+                    if isstruct(oldAx.UserData) && isfield(oldAx.UserData, 'HighlightBorders')
+                        highlightBorders = oldAx.UserData.HighlightBorders;
+                        for j = 1:numel(allChildren)
+                            if ~any(highlightBorders == allChildren(j))
+                                validChildren = [validChildren; allChildren(j)];
+                            end
+                        end
+                    else
+                        validChildren = allChildren;
                     end
-                    title(newAx, titleStr);
-                    xlabel(newAx, oldAx.XLabel.String);
-                    ylabel(newAx, oldAx.YLabel.String);
 
-                    % === Apply styling ===
-                    % grid(newAx, 'on');
-                    % grid(newAx, 'minor');
-                    % box(newAx, 'on');
-
-                    % Copy line objects
-                    lines = findall(oldAx, 'Type', 'line');
-                    for line = flipud(lines')  % preserve draw order
-                        plot(newAx, line.XData, line.YData, ...
-                            'DisplayName', line.DisplayName, ...
-                            'Color', line.Color, ...
-                            'LineWidth', line.LineWidth, ...
-                            'LineStyle', line.LineStyle);
+                    % Copy all valid graphics objects
+                    if ~isempty(validChildren)
+                        copyobj(validChildren, newAx);
                     end
-                    grid on; grid minor; box on;
 
-                    legend(newAx, 'show');
+                    % Copy axes properties
+                    try
+                        % Copy title
+                        titleStr = oldAx.Title.String;
+                        if isempty(titleStr)
+                            titleStr = sprintf('Subplot %d', i);
+                        end
+                        title(newAx, titleStr);
+
+                        % Copy labels
+                        xlabel(newAx, oldAx.XLabel.String);
+                        ylabel(newAx, oldAx.YLabel.String);
+
+                        % Copy axis limits
+                        if all(isfinite(oldAx.XLim))
+                            newAx.XLim = oldAx.XLim;
+                        end
+                        if all(isfinite(oldAx.YLim))
+                            newAx.YLim = oldAx.YLim;
+                        end
+
+                        % Copy tick properties
+                        newAx.XTick = oldAx.XTick;
+                        newAx.YTick = oldAx.YTick;
+                        newAx.XTickLabel = oldAx.XTickLabel;
+                        newAx.YTickLabel = oldAx.YTickLabel;
+
+                        % Copy grid settings
+                        newAx.XGrid = oldAx.XGrid;
+                        newAx.YGrid = oldAx.YGrid;
+                        newAx.XMinorGrid = oldAx.XMinorGrid;
+                        newAx.YMinorGrid = oldAx.YMinorGrid;
+                        newAx.GridAlpha = oldAx.GridAlpha;
+                        newAx.MinorGridAlpha = oldAx.MinorGridAlpha;
+
+                        % Copy appearance
+                        newAx.XColor = oldAx.XColor;
+                        newAx.YColor = oldAx.YColor;
+                        newAx.LineWidth = oldAx.LineWidth;
+                        newAx.FontSize = oldAx.FontSize;
+                        newAx.Box = oldAx.Box;
+
+                        % Copy legend if it exists
+                        sourceLegend = legend(oldAx);
+                        if ~isempty(sourceLegend) && isvalid(sourceLegend)
+                            newLegend = legend(newAx);
+                            if ~isempty(newLegend)
+                                newLegend.String = sourceLegend.String;
+                                newLegend.Location = sourceLegend.Location;
+                                newLegend.FontSize = sourceLegend.FontSize;
+                                newLegend.Box = sourceLegend.Box;
+                                newLegend.Visible = sourceLegend.Visible;
+                            end
+                        end
+
+                    catch ME
+                        fprintf('Warning: Could not copy all properties for subplot %d: %s\n', i, ME.message);
+                    end
                 end
 
                 % Turn on the Plot Browser
                 plotbrowser(fig, 'on');
+
+                % Update status
+                try
+                    obj.App.StatusLabel.Text = sprintf('📂 Exported Tab %d to Plot Browser', tabIdx);
+                    obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+                catch
+                end
             end
         end
 
@@ -3181,587 +3246,587 @@ classdef PlotManager < handle
             app.restoreFocus();
         end
 
-function generatePPTReport(obj, plotsToInclude, options, outputPath)
-    % generatePPTReport(obj, plotsToInclude, options, outputPath)
-    % Creates a PowerPoint file with one slide per requested subplot.
-    % Uses the same reliable approach as copySubplotToClipboard
-    %
-    % plotsToInclude: Nx2 matrix [tabIdx, subplotIdx] rows
-    % options: struct (optional) - can include 'SlideLayout' etc.
-    % outputPath: full path to .pptx file to create
+        function generatePPTReport(obj, plotsToInclude, options, outputPath)
+            % generatePPTReport(obj, plotsToInclude, options, outputPath)
+            % Creates a PowerPoint file with one slide per requested subplot.
+            % Uses the same reliable approach as copySubplotToClipboard
+            %
+            % plotsToInclude: Nx2 matrix [tabIdx, subplotIdx] rows
+            % options: struct (optional) - can include 'SlideLayout' etc.
+            % outputPath: full path to .pptx file to create
 
-    if nargin < 4 || isempty(outputPath)
-        error('Please provide an outputPath for the PowerPoint (e.g. C:\\temp\\report.pptx).');
-    end
-
-    % Ensure file extension
-    [outputDir, fileName, ext] = fileparts(outputPath);
-    if isempty(ext)
-        outputPath = [outputPath '.pptx'];
-    elseif ~strcmpi(ext, '.pptx')
-        warning('Changing extension to .pptx');
-        outputPath = fullfile(outputDir, [fileName '.pptx']);
-    end
-
-    % Ensure output directory exists
-    if ~exist(outputDir, 'dir')
-        mkdir(outputDir);
-    end
-
-    % Delete existing file if it exists
-    if exist(outputPath, 'file')
-        try
-            delete(outputPath);
-            pause(0.1); % Small pause to ensure file is deleted
-        catch
-            warning('Could not delete existing file: %s', outputPath);
-        end
-    end
-
-    import mlreportgen.ppt.*
-
-    app = obj.App;
-    pres = [];
-    tmpImageFiles = {}; % Keep track of temp files for cleanup
-
-    try
-        % Create Presentation - try multiple approaches
-        presentationCreated = false;
-
-        % Method 1: Default presentation
-        try
-            pres = Presentation(outputPath);
-            open(pres);
-            presentationCreated = true;
-        catch
-            % Method 2: Create empty presentation first
-            try
-                pres = Presentation();
-                pres.OutputPath = outputPath;
-                open(pres);
-                presentationCreated = true;
-            catch ME_pres
-                error('Cannot create PowerPoint presentation: %s', ME_pres.message);
+            if nargin < 4 || isempty(outputPath)
+                error('Please provide an outputPath for the PowerPoint (e.g. C:\\temp\\report.pptx).');
             end
-        end
 
-        totalPlots = size(plotsToInclude, 1);
-        figureNumber = 1;
+            % Ensure file extension
+            [outputDir, fileName, ext] = fileparts(outputPath);
+            if isempty(ext)
+                outputPath = [outputPath '.pptx'];
+            elseif ~strcmpi(ext, '.pptx')
+                warning('Changing extension to .pptx');
+                outputPath = fullfile(outputDir, [fileName '.pptx']);
+            end
 
-        % Add title slide if createTitlePageContent method exists
-        try
-            titleSlide = add(pres, 'Title Slide');
+            % Ensure output directory exists
+            if ~exist(outputDir, 'dir')
+                mkdir(outputDir);
+            end
 
-            % Create temporary figure for title content
-            titleFig = figure('Visible', 'off', 'Position', [0 0 800 600], 'Color', 'white');
-            titleAx = axes(titleFig, 'Position', [0.05 0.05 0.9 0.9], 'Visible', 'off');
-
-            % Try to use your existing title page method
-            try
-                obj.createTitlePageContent(titleAx, options);
-
-                % Export title page as image
-                titleImagePath = fullfile(tempdir, sprintf('ppt_title_%d.png', round(now*86400)));
-                tmpImageFiles{end+1} = titleImagePath;
-
-                % Export title
+            % Delete existing file if it exists
+            if exist(outputPath, 'file')
                 try
-                    copygraphics(titleFig, titleImagePath, 'ContentType', 'auto', 'BackgroundColor', 'white', 'Resolution', 300);
+                    delete(outputPath);
+                    pause(0.1); % Small pause to ensure file is deleted
                 catch
-                    try
-                        exportgraphics(titleFig, titleImagePath, 'Resolution', 300, 'BackgroundColor', 'white');
-                    catch
-                        print(titleFig, titleImagePath, '-dpng', '-r300');
-                    end
+                    warning('Could not delete existing file: %s', outputPath);
                 end
+            end
 
-                close(titleFig);
+            import mlreportgen.ppt.*
 
-                % Add title image to slide
-                if exist(titleImagePath, 'file')
-                    titleImg = Picture(titleImagePath);
-                    titleImg.X = '0.5in';
-                    titleImg.Y = '0.5in';
-                    titleImg.Width = '9in';
-                    titleImg.Height = '7in';
-                    add(titleSlide, titleImg);
-                end
+            app = obj.App;
+            pres = [];
+            tmpImageFiles = {}; % Keep track of temp files for cleanup
 
-            catch
-                % Title page creation failed, add simple title
-                close(titleFig);
+            try
+                % Create Presentation - try multiple approaches
+                presentationCreated = false;
+
+                % Method 1: Default presentation
                 try
-                    titleText = 'Analysis Report';
-                    if isfield(options, 'Title')
-                        titleText = options.Title;
-                    end
-
-                    titlePlaceholders = find(titleSlide, 'Title');
-                    if ~isempty(titlePlaceholders)
-                        replace(titlePlaceholders(1), titleText);
-                    end
-
-                    % Add subtitle if available
-                    if isfield(options, 'Subtitle')
-                        subtitlePlaceholders = find(titleSlide, 'Subtitle');
-                        if ~isempty(subtitlePlaceholders)
-                            replace(subtitlePlaceholders(1), options.Subtitle);
-                        end
-                    end
+                    pres = Presentation(outputPath);
+                    open(pres);
+                    presentationCreated = true;
                 catch
-                    % Even simple title failed, continue without title slide
-                end
-            end
-
-        catch
-            % Title slide creation failed completely, skip it
-        end
-
-        % Main loop for plot slides
-        for i = 1:totalPlots
-            tabIdx = plotsToInclude(i,1);
-            subplotIdx = plotsToInclude(i,2);
-
-            % Update status
-            try
-                app.StatusLabel.Text = sprintf('🟦 Creating slide %d of %d...', i, totalPlots);
-                drawnow;
-            catch
-            end
-
-            % Validate source axes
-            if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
-                warning('Skipping invalid indices (%d,%d)', tabIdx, subplotIdx);
-                continue;
-            end
-            
-            sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
-            if ~isvalid(sourceAx)
-                warning('Source axes invalid for (%d,%d)', tabIdx, subplotIdx);
-                continue;
-            end
-
-            % Create high-quality temporary figure
-            tempFig = figure('Visible', 'off', ...
-                'Position', [0 0 1200 900], ...
-                'Color', 'white', ...
-                'PaperType', 'usletter', ...
-                'PaperOrientation', 'landscape', ...
-                'PaperPositionMode', 'auto', ...
-                'InvertHardcopy', 'off');
-
-            % Create axes with better positioning
-            tempAx = axes(tempFig, 'Position', [0.1 0.1 0.8 0.8]);
-
-            try
-                % Copy content excluding highlight borders
-                allChildren = allchild(sourceAx);
-                validChildren = [];
-
-                % Filter out highlight border lines
-                highlightBorders = [];
-                if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
-                    highlightBorders = sourceAx.UserData.HighlightBorders;
-                end
-
-                for j = 1:numel(allChildren)
-                    child = allChildren(j);
-                    % Only copy if it's not a highlight border
-                    if isempty(highlightBorders) || ~any(highlightBorders == child)
-                        validChildren = [validChildren; child]; %#ok<AGROW>
-                    end
-                end
-
-                % Copy only the valid children
-                if ~isempty(validChildren)
-                    copyobj(validChildren, tempAx);
-                end
-
-                % Copy axes properties for better fidelity
-                if isvalid(sourceAx) && isvalid(tempAx)
-                    tempAx.XLabel.String = sourceAx.XLabel.String;
-                    tempAx.YLabel.String = sourceAx.YLabel.String;
-
-                    % Set title from stored subplot title property
-                    titleText = '';
-                    if numel(obj.App.SubplotTitles) >= tabIdx && numel(obj.App.SubplotTitles{tabIdx}) >= subplotIdx
-                        titleText = obj.App.SubplotTitles{tabIdx}{subplotIdx};
-                    end
-                    if isempty(titleText)
-                        titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
-                    end
-                    tempAx.Title.String = titleText;
-
-                    % Copy limits safely
-                    if all(isfinite(sourceAx.XLim))
-                        tempAx.XLim = sourceAx.XLim;
-                    end
-                    if all(isfinite(sourceAx.YLim))
-                        tempAx.YLim = sourceAx.YLim;
-                    end
-
-                    tempAx.XTick = sourceAx.XTick;
-                    tempAx.YTick = sourceAx.YTick;
-                    tempAx.XTickLabel = sourceAx.XTickLabel;
-                    tempAx.YTickLabel = sourceAx.YTickLabel;
-
-                    % Copy grid settings
-                    tempAx.XGrid = sourceAx.XGrid;
-                    tempAx.YGrid = sourceAx.YGrid;
-                    tempAx.XMinorGrid = sourceAx.XMinorGrid;
-                    tempAx.YMinorGrid = sourceAx.YMinorGrid;
-                    tempAx.GridAlpha = sourceAx.GridAlpha;
-                    tempAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
-
-                    % Set professional appearance
-                    tempAx.XColor = [0.15 0.15 0.15];
-                    tempAx.YColor = [0.15 0.15 0.15];
-                    tempAx.LineWidth = 1.2;
-                    tempAx.FontSize = 11;
-                    tempAx.FontWeight = 'normal';
-
-                    % Copy legend if it exists
+                    % Method 2: Create empty presentation first
                     try
-                        sourceLegend = legend(sourceAx);
-                        if ~isempty(sourceLegend) && isvalid(sourceLegend)
-                            tempLegend = legend(tempAx);
-                            if ~isempty(tempLegend)
-                                tempLegend.String = sourceLegend.String;
-                                tempLegend.Location = sourceLegend.Location;
-                                tempLegend.FontSize = sourceLegend.FontSize;
-                                tempLegend.Box = sourceLegend.Box;
-                            end
-                        end
-                    catch
-                        % Legend copy failed, continue without it
+                        pres = Presentation();
+                        pres.OutputPath = outputPath;
+                        open(pres);
+                        presentationCreated = true;
+                    catch ME_pres
+                        error('Cannot create PowerPoint presentation: %s', ME_pres.message);
                     end
                 end
 
-                % Force rendering
-                drawnow;
-                pause(0.1);
+                totalPlots = size(plotsToInclude, 1);
+                figureNumber = 1;
 
-                % Create unique temporary image file
-                tmpImagePath = fullfile(tempdir, sprintf('ppt_plot_%d_%d_%d.png', tabIdx, subplotIdx, round(now*86400)));
-                tmpImageFiles{end+1} = tmpImagePath;
+                % Add title slide if createTitlePageContent method exists
+                try
+                    titleSlide = add(pres, 'Title Slide');
 
-                % Export image using multiple fallback methods
-                imageExported = false;
-                
-                % Try copygraphics first (modern method)
-                if ~imageExported
+                    % Create temporary figure for title content
+                    titleFig = figure('Visible', 'off', 'Position', [0 0 800 600], 'Color', 'white');
+                    titleAx = axes(titleFig, 'Position', [0.05 0.05 0.9 0.9], 'Visible', 'off');
+
+                    % Try to use your existing title page method
                     try
-                        if exist('copygraphics', 'file')
-                            copygraphics(tempFig, tmpImagePath, ...
-                                'ContentType', 'auto', ...
-                                'BackgroundColor', 'white', ...
-                                'Resolution', 300);
-                            imageExported = true;
-                        end
-                    catch
-                        % Continue to next method
-                    end
-                end
+                        obj.createTitlePageContent(titleAx, options);
 
-                % Fallback to exportgraphics
-                if ~imageExported
-                    try
-                        exportgraphics(tempFig, tmpImagePath, ...
-                            'Resolution', 300, ...
-                            'BackgroundColor', 'white');
-                        imageExported = true;
-                    catch
-                        % Continue to next method
-                    end
-                end
+                        % Export title page as image
+                        titleImagePath = fullfile(tempdir, sprintf('ppt_title_%d.png', round(now*86400)));
+                        tmpImageFiles{end+1} = titleImagePath;
 
-                % Final fallback to print
-                if ~imageExported
-                    try
-                        print(tempFig, tmpImagePath, '-dpng', '-r300');
-                        imageExported = true;
-                    catch exportErr
-                        warning('Failed to export plot %d-%d: %s', tabIdx, subplotIdx, exportErr.message);
-                    end
-                end
-
-                % Close temporary figure
-                close(tempFig);
-
-                % Add slide to presentation if image was exported successfully
-                if imageExported && exist(tmpImagePath, 'file')
-                    try
-                        % Add slide - try different layouts
-                        slide = [];
-                        layoutOptions = {'Title and Content', 'Blank', 'Content with Caption'};
-
-                        for layoutIdx = 1:length(layoutOptions)
-                            try
-                                slide = add(pres, layoutOptions{layoutIdx});
-                                break;
-                            catch
-                                continue;
-                            end
-                        end
-
-                        % If no layout worked, try default
-                        if isempty(slide)
-                            slide = add(pres);
-                        end
-
-                        % Add title to slide
-                        slideTitle = titleText; % Use the same title from the plot
+                        % Export title
                         try
-                            % Try to find title placeholder
-                            titlePlaceholders = find(slide, 'Title');
-                            if ~isempty(titlePlaceholders)
-                                replace(titlePlaceholders(1), slideTitle);
-                            else
-                                % Add title manually
-                                titleTextBox = TextBox();
-                                titleTextBox.X = '0.5in';
-                                titleTextBox.Y = '0.3in';
-                                titleTextBox.Width = '9in';
-                                titleTextBox.Height = '0.8in';
+                            copygraphics(titleFig, titleImagePath, 'ContentType', 'auto', 'BackgroundColor', 'white', 'Resolution', 300);
+                        catch
+                            try
+                                exportgraphics(titleFig, titleImagePath, 'Resolution', 300, 'BackgroundColor', 'white');
+                            catch
+                                print(titleFig, titleImagePath, '-dpng', '-r300');
+                            end
+                        end
 
-                                titlePara = Paragraph(slideTitle);
-                                titlePara.FontSize = '20pt';
-                                titlePara.Bold = true;
-                                append(titleTextBox, titlePara);
-                                add(slide, titleTextBox);
+                        close(titleFig);
+
+                        % Add title image to slide
+                        if exist(titleImagePath, 'file')
+                            titleImg = Picture(titleImagePath);
+                            titleImg.X = '0.5in';
+                            titleImg.Y = '0.5in';
+                            titleImg.Width = '9in';
+                            titleImg.Height = '7in';
+                            add(titleSlide, titleImg);
+                        end
+
+                    catch
+                        % Title page creation failed, add simple title
+                        close(titleFig);
+                        try
+                            titleText = 'Analysis Report';
+                            if isfield(options, 'Title')
+                                titleText = options.Title;
+                            end
+
+                            titlePlaceholders = find(titleSlide, 'Title');
+                            if ~isempty(titlePlaceholders)
+                                replace(titlePlaceholders(1), titleText);
+                            end
+
+                            % Add subtitle if available
+                            if isfield(options, 'Subtitle')
+                                subtitlePlaceholders = find(titleSlide, 'Subtitle');
+                                if ~isempty(subtitlePlaceholders)
+                                    replace(subtitlePlaceholders(1), options.Subtitle);
+                                end
                             end
                         catch
-                            % Title addition failed, continue without it
+                            % Even simple title failed, continue without title slide
+                        end
+                    end
+
+                catch
+                    % Title slide creation failed completely, skip it
+                end
+
+                % Main loop for plot slides
+                for i = 1:totalPlots
+                    tabIdx = plotsToInclude(i,1);
+                    subplotIdx = plotsToInclude(i,2);
+
+                    % Update status
+                    try
+                        app.StatusLabel.Text = sprintf('🟦 Creating slide %d of %d...', i, totalPlots);
+                        drawnow;
+                    catch
+                    end
+
+                    % Validate source axes
+                    if tabIdx > numel(obj.AxesArrays) || subplotIdx > numel(obj.AxesArrays{tabIdx})
+                        warning('Skipping invalid indices (%d,%d)', tabIdx, subplotIdx);
+                        continue;
+                    end
+
+                    sourceAx = obj.AxesArrays{tabIdx}(subplotIdx);
+                    if ~isvalid(sourceAx)
+                        warning('Source axes invalid for (%d,%d)', tabIdx, subplotIdx);
+                        continue;
+                    end
+
+                    % Create high-quality temporary figure
+                    tempFig = figure('Visible', 'off', ...
+                        'Position', [0 0 1200 900], ...
+                        'Color', 'white', ...
+                        'PaperType', 'usletter', ...
+                        'PaperOrientation', 'landscape', ...
+                        'PaperPositionMode', 'auto', ...
+                        'InvertHardcopy', 'off');
+
+                    % Create axes with better positioning
+                    tempAx = axes(tempFig, 'Position', [0.1 0.1 0.8 0.8]);
+
+                    try
+                        % Copy content excluding highlight borders
+                        allChildren = allchild(sourceAx);
+                        validChildren = [];
+
+                        % Filter out highlight border lines
+                        highlightBorders = [];
+                        if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                            highlightBorders = sourceAx.UserData.HighlightBorders;
                         end
 
-                        % Add image to slide
-                        try
-                            img = Picture(tmpImagePath);
-
-                            % Try to use content placeholder first
-                            contentPlaceholders = find(slide, 'Content');
-                            if ~isempty(contentPlaceholders)
-                                replace(contentPlaceholders(1), img);
-                            else
-                                % Add image manually with positioning - leave space for caption
-                                img.X = '0.5in';
-                                img.Y = '1.5in';  % Moved down to leave space for caption
-                                img.Width = '9in';
-                                img.Height = '5in'; % Reduced height for caption space
-                                add(slide, img);
+                        for j = 1:numel(allChildren)
+                            child = allChildren(j);
+                            % Only copy if it's not a highlight border
+                            if isempty(highlightBorders) || ~any(highlightBorders == child)
+                                validChildren = [validChildren; child]; %#ok<AGROW>
                             end
-                        catch imgErr
-                            warning('Failed to add image to slide %d: %s', i, imgErr.message);
                         end
 
-                        % Add caption and description using the same method as PDF
-                        try
-                            % Get caption and description using the same logic as PDF function
-                            caption = '';
-                            description = '';
-                            
-                            % Get caption from app.SubplotCaptions (same as PDF)
-                            if numel(app.SubplotCaptions) >= tabIdx && ...
-                                    numel(app.SubplotCaptions{tabIdx}) >= subplotIdx && ...
-                                    ~isempty(app.SubplotCaptions{tabIdx}{subplotIdx})
-                                caption = app.SubplotCaptions{tabIdx}{subplotIdx};
+                        % Copy only the valid children
+                        if ~isempty(validChildren)
+                            copyobj(validChildren, tempAx);
+                        end
+
+                        % Copy axes properties for better fidelity
+                        if isvalid(sourceAx) && isvalid(tempAx)
+                            tempAx.XLabel.String = sourceAx.XLabel.String;
+                            tempAx.YLabel.String = sourceAx.YLabel.String;
+
+                            % Set title from stored subplot title property
+                            titleText = '';
+                            if numel(obj.App.SubplotTitles) >= tabIdx && numel(obj.App.SubplotTitles{tabIdx}) >= subplotIdx
+                                titleText = obj.App.SubplotTitles{tabIdx}{subplotIdx};
                             end
-                            
-                            % Get description from app.SubplotDescriptions (same as PDF)
-                            if numel(app.SubplotDescriptions) >= tabIdx && ...
-                                    numel(app.SubplotDescriptions{tabIdx}) >= subplotIdx && ...
-                                    ~isempty(app.SubplotDescriptions{tabIdx}{subplotIdx})
-                                description = app.SubplotDescriptions{tabIdx}{subplotIdx};
+                            if isempty(titleText)
+                                titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx);
                             end
-                            
-                            % Default values if empty (same as PDF)
-                            if isempty(caption)
-                                caption = sprintf('Caption for subplot %d', subplotIdx);
+                            tempAx.Title.String = titleText;
+
+                            % Copy limits safely
+                            if all(isfinite(sourceAx.XLim))
+                                tempAx.XLim = sourceAx.XLim;
                             end
-                            if isempty(description)
-                                description = 'No description provided.';
+                            if all(isfinite(sourceAx.YLim))
+                                tempAx.YLim = sourceAx.YLim;
                             end
-                            
-                            % Check if text is Hebrew and process accordingly (same as PDF)
+
+                            tempAx.XTick = sourceAx.XTick;
+                            tempAx.YTick = sourceAx.YTick;
+                            tempAx.XTickLabel = sourceAx.XTickLabel;
+                            tempAx.YTickLabel = sourceAx.YTickLabel;
+
+                            % Copy grid settings
+                            tempAx.XGrid = sourceAx.XGrid;
+                            tempAx.YGrid = sourceAx.YGrid;
+                            tempAx.XMinorGrid = sourceAx.XMinorGrid;
+                            tempAx.YMinorGrid = sourceAx.YMinorGrid;
+                            tempAx.GridAlpha = sourceAx.GridAlpha;
+                            tempAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
+
+                            % Set professional appearance
+                            tempAx.XColor = [0.15 0.15 0.15];
+                            tempAx.YColor = [0.15 0.15 0.15];
+                            tempAx.LineWidth = 1.2;
+                            tempAx.FontSize = 11;
+                            tempAx.FontWeight = 'normal';
+
+                            % Copy legend if it exists
                             try
-                                captionIsHebrew = obj.containsHebrew(caption);
-                                descriptionIsHebrew = obj.containsHebrew(description);
-                            catch
-                                captionIsHebrew = false;
-                                descriptionIsHebrew = false;
-                            end
-                            
-                            % Handle figure label and caption properly (same as PDF)
-                            try
-                                figureLabel = app.PDFFigureLabel; % 'Figure' or 'איור'
-                            catch
-                                figureLabel = 'Figure'; % Default to English
-                            end
-                            
-                            if strcmp(figureLabel, 'איור')
-                                % Hebrew label: Build Hebrew-style sentence
-                                fullCaptionText = sprintf('איור %d: %s', i, caption);
-                                try
-                                    processedCaptionText = obj.processHebrewText(fullCaptionText);
-                                catch
-                                    processedCaptionText = fullCaptionText;
-                                end
-                            else
-                                % English label
-                                if captionIsHebrew
-                                    % English label but Hebrew caption
-                                    try
-                                        processedCaption = obj.processHebrewText(caption);
-                                    catch
-                                        processedCaption = caption;
+                                sourceLegend = legend(sourceAx);
+                                if ~isempty(sourceLegend) && isvalid(sourceLegend)
+                                    tempLegend = legend(tempAx);
+                                    if ~isempty(tempLegend)
+                                        tempLegend.String = sourceLegend.String;
+                                        tempLegend.Location = sourceLegend.Location;
+                                        tempLegend.FontSize = sourceLegend.FontSize;
+                                        tempLegend.Box = sourceLegend.Box;
                                     end
-                                    fullCaptionText = sprintf('%s %d: %s', figureLabel, i, processedCaption);
-                                else
-                                    % Both English
-                                    fullCaptionText = sprintf('%s %d: %s', figureLabel, i, caption);
                                 end
-                                processedCaptionText = fullCaptionText;
-                            end
-                            
-                            % Process description (same as PDF)
-                            if descriptionIsHebrew
-                                try
-                                    processedDescription = obj.processHebrewText(description);
-                                catch
-                                    processedDescription = description;
-                                end
-                            else
-                                processedDescription = description;
-                            end
-                            
-                            % Combine caption and description for PowerPoint
-                            fullText = sprintf('%s\n\n%s', processedCaptionText, processedDescription);
-                            
-                            % Create caption+description text box using correct API
-                            captionBox = TextBox();
-                            captionBox.X = '0.5in';
-                            captionBox.Y = '5.8in';  % Position below image
-                            captionBox.Width = '9in';
-                            captionBox.Height = '1.8in'; % Tall enough for both caption and description
-                            
-                            % Use the correct PowerPoint API: Paragraph with add() function
-                            try
-                                % Create paragraph with the full text
-                                captionPara = Paragraph(fullText);
-                                captionPara.FontSize = '11pt';
-                                captionPara.Bold = false;
-                                captionPara.Italic = false;
-                                % Skip color for now to avoid issues
-                                
-                                % Use add() to add paragraph to textbox (not append!)
-                                add(captionBox, captionPara);
-                                
-                                % Add textbox to slide
-                                add(slide, captionBox);
-                                
-                                fprintf('Caption added successfully: %s\n', fullText);
-                                
-                            catch addErr
-                                fprintf('Caption creation failed: %s\n', addErr.message);
-                                % Continue without caption if it fails
-                            end
-                            
-                            fprintf('Caption and description added: %s\n', fullText);
-
-                        catch captionErr
-                            fprintf('Caption+description creation failed: %s\n', captionErr.message);
-                            % Fallback: try simple test caption
-                            try
-                                testCaptionBox = TextBox();
-                                testCaptionBox.X = '1in';
-                                testCaptionBox.Y = '5.8in';
-                                testCaptionBox.Width = '8in';
-                                testCaptionBox.Height = '1.5in';
-                                
-                                testText = sprintf('Figure %d: %s\n\nTest Description: Analysis for Tab %d, Plot %d', ...
-                                    i, slideTitle, tabIdx, subplotIdx);
-                                testPara = Paragraph(testText);
-                                testPara.FontSize = '12pt';
-                                testPara.Bold = true;
-                                testPara.Color = '#000000';
-                                append(testCaptionBox, testPara);
-                                add(slide, testCaptionBox);
-                                
-                                fprintf('Test caption added\n');
-                            catch testErr
-                                fprintf('Even test caption failed: %s\n', testErr.message);
+                            catch
+                                % Legend copy failed, continue without it
                             end
                         end
 
-                    catch slideErr
-                        warning('Error creating slide %d: %s', i, slideErr.message);
+                        % Force rendering
+                        drawnow;
+                        pause(0.1);
+
+                        % Create unique temporary image file
+                        tmpImagePath = fullfile(tempdir, sprintf('ppt_plot_%d_%d_%d.png', tabIdx, subplotIdx, round(now*86400)));
+                        tmpImageFiles{end+1} = tmpImagePath;
+
+                        % Export image using multiple fallback methods
+                        imageExported = false;
+
+                        % Try copygraphics first (modern method)
+                        if ~imageExported
+                            try
+                                if exist('copygraphics', 'file')
+                                    copygraphics(tempFig, tmpImagePath, ...
+                                        'ContentType', 'auto', ...
+                                        'BackgroundColor', 'white', ...
+                                        'Resolution', 300);
+                                    imageExported = true;
+                                end
+                            catch
+                                % Continue to next method
+                            end
+                        end
+
+                        % Fallback to exportgraphics
+                        if ~imageExported
+                            try
+                                exportgraphics(tempFig, tmpImagePath, ...
+                                    'Resolution', 300, ...
+                                    'BackgroundColor', 'white');
+                                imageExported = true;
+                            catch
+                                % Continue to next method
+                            end
+                        end
+
+                        % Final fallback to print
+                        if ~imageExported
+                            try
+                                print(tempFig, tmpImagePath, '-dpng', '-r300');
+                                imageExported = true;
+                            catch exportErr
+                                warning('Failed to export plot %d-%d: %s', tabIdx, subplotIdx, exportErr.message);
+                            end
+                        end
+
+                        % Close temporary figure
+                        close(tempFig);
+
+                        % Add slide to presentation if image was exported successfully
+                        if imageExported && exist(tmpImagePath, 'file')
+                            try
+                                % Add slide - try different layouts
+                                slide = [];
+                                layoutOptions = {'Title and Content', 'Blank', 'Content with Caption'};
+
+                                for layoutIdx = 1:length(layoutOptions)
+                                    try
+                                        slide = add(pres, layoutOptions{layoutIdx});
+                                        break;
+                                    catch
+                                        continue;
+                                    end
+                                end
+
+                                % If no layout worked, try default
+                                if isempty(slide)
+                                    slide = add(pres);
+                                end
+
+                                % Add title to slide
+                                slideTitle = titleText; % Use the same title from the plot
+                                try
+                                    % Try to find title placeholder
+                                    titlePlaceholders = find(slide, 'Title');
+                                    if ~isempty(titlePlaceholders)
+                                        replace(titlePlaceholders(1), slideTitle);
+                                    else
+                                        % Add title manually
+                                        titleTextBox = TextBox();
+                                        titleTextBox.X = '0.5in';
+                                        titleTextBox.Y = '0.3in';
+                                        titleTextBox.Width = '9in';
+                                        titleTextBox.Height = '0.8in';
+
+                                        titlePara = Paragraph(slideTitle);
+                                        titlePara.FontSize = '20pt';
+                                        titlePara.Bold = true;
+                                        append(titleTextBox, titlePara);
+                                        add(slide, titleTextBox);
+                                    end
+                                catch
+                                    % Title addition failed, continue without it
+                                end
+
+                                % Add image to slide
+                                try
+                                    img = Picture(tmpImagePath);
+
+                                    % Try to use content placeholder first
+                                    contentPlaceholders = find(slide, 'Content');
+                                    if ~isempty(contentPlaceholders)
+                                        replace(contentPlaceholders(1), img);
+                                    else
+                                        % Add image manually with positioning - leave space for caption
+                                        img.X = '0.5in';
+                                        img.Y = '1.5in';  % Moved down to leave space for caption
+                                        img.Width = '9in';
+                                        img.Height = '5in'; % Reduced height for caption space
+                                        add(slide, img);
+                                    end
+                                catch imgErr
+                                    warning('Failed to add image to slide %d: %s', i, imgErr.message);
+                                end
+
+                                % Add caption and description using the same method as PDF
+                                try
+                                    % Get caption and description using the same logic as PDF function
+                                    caption = '';
+                                    description = '';
+
+                                    % Get caption from app.SubplotCaptions (same as PDF)
+                                    if numel(app.SubplotCaptions) >= tabIdx && ...
+                                            numel(app.SubplotCaptions{tabIdx}) >= subplotIdx && ...
+                                            ~isempty(app.SubplotCaptions{tabIdx}{subplotIdx})
+                                        caption = app.SubplotCaptions{tabIdx}{subplotIdx};
+                                    end
+
+                                    % Get description from app.SubplotDescriptions (same as PDF)
+                                    if numel(app.SubplotDescriptions) >= tabIdx && ...
+                                            numel(app.SubplotDescriptions{tabIdx}) >= subplotIdx && ...
+                                            ~isempty(app.SubplotDescriptions{tabIdx}{subplotIdx})
+                                        description = app.SubplotDescriptions{tabIdx}{subplotIdx};
+                                    end
+
+                                    % Default values if empty (same as PDF)
+                                    if isempty(caption)
+                                        caption = sprintf('Caption for subplot %d', subplotIdx);
+                                    end
+                                    if isempty(description)
+                                        description = 'No description provided.';
+                                    end
+
+                                    % Check if text is Hebrew and process accordingly (same as PDF)
+                                    try
+                                        captionIsHebrew = obj.containsHebrew(caption);
+                                        descriptionIsHebrew = obj.containsHebrew(description);
+                                    catch
+                                        captionIsHebrew = false;
+                                        descriptionIsHebrew = false;
+                                    end
+
+                                    % Handle figure label and caption properly (same as PDF)
+                                    try
+                                        figureLabel = app.PDFFigureLabel; % 'Figure' or 'איור'
+                                    catch
+                                        figureLabel = 'Figure'; % Default to English
+                                    end
+
+                                    if strcmp(figureLabel, 'איור')
+                                        % Hebrew label: Build Hebrew-style sentence
+                                        fullCaptionText = sprintf('איור %d: %s', i, caption);
+                                        try
+                                            processedCaptionText = obj.processHebrewText(fullCaptionText);
+                                        catch
+                                            processedCaptionText = fullCaptionText;
+                                        end
+                                    else
+                                        % English label
+                                        if captionIsHebrew
+                                            % English label but Hebrew caption
+                                            try
+                                                processedCaption = obj.processHebrewText(caption);
+                                            catch
+                                                processedCaption = caption;
+                                            end
+                                            fullCaptionText = sprintf('%s %d: %s', figureLabel, i, processedCaption);
+                                        else
+                                            % Both English
+                                            fullCaptionText = sprintf('%s %d: %s', figureLabel, i, caption);
+                                        end
+                                        processedCaptionText = fullCaptionText;
+                                    end
+
+                                    % Process description (same as PDF)
+                                    if descriptionIsHebrew
+                                        try
+                                            processedDescription = obj.processHebrewText(description);
+                                        catch
+                                            processedDescription = description;
+                                        end
+                                    else
+                                        processedDescription = description;
+                                    end
+
+                                    % Combine caption and description for PowerPoint
+                                    fullText = sprintf('%s\n\n%s', processedCaptionText, processedDescription);
+
+                                    % Create caption+description text box using correct API
+                                    captionBox = TextBox();
+                                    captionBox.X = '0.5in';
+                                    captionBox.Y = '5.8in';  % Position below image
+                                    captionBox.Width = '9in';
+                                    captionBox.Height = '1.8in'; % Tall enough for both caption and description
+
+                                    % Use the correct PowerPoint API: Paragraph with add() function
+                                    try
+                                        % Create paragraph with the full text
+                                        captionPara = Paragraph(fullText);
+                                        captionPara.FontSize = '11pt';
+                                        captionPara.Bold = false;
+                                        captionPara.Italic = false;
+                                        % Skip color for now to avoid issues
+
+                                        % Use add() to add paragraph to textbox (not append!)
+                                        add(captionBox, captionPara);
+
+                                        % Add textbox to slide
+                                        add(slide, captionBox);
+
+                                        fprintf('Caption added successfully: %s\n', fullText);
+
+                                    catch addErr
+                                        fprintf('Caption creation failed: %s\n', addErr.message);
+                                        % Continue without caption if it fails
+                                    end
+
+                                    fprintf('Caption and description added: %s\n', fullText);
+
+                                catch captionErr
+                                    fprintf('Caption+description creation failed: %s\n', captionErr.message);
+                                    % Fallback: try simple test caption
+                                    try
+                                        testCaptionBox = TextBox();
+                                        testCaptionBox.X = '1in';
+                                        testCaptionBox.Y = '5.8in';
+                                        testCaptionBox.Width = '8in';
+                                        testCaptionBox.Height = '1.5in';
+
+                                        testText = sprintf('Figure %d: %s\n\nTest Description: Analysis for Tab %d, Plot %d', ...
+                                            i, slideTitle, tabIdx, subplotIdx);
+                                        testPara = Paragraph(testText);
+                                        testPara.FontSize = '12pt';
+                                        testPara.Bold = true;
+                                        testPara.Color = '#000000';
+                                        append(testCaptionBox, testPara);
+                                        add(slide, testCaptionBox);
+
+                                        fprintf('Test caption added\n');
+                                    catch testErr
+                                        fprintf('Even test caption failed: %s\n', testErr.message);
+                                    end
+                                end
+
+                            catch slideErr
+                                warning('Error creating slide %d: %s', i, slideErr.message);
+                            end
+                        else
+                            warning('Skipping slide %d due to image export failure', i);
+                        end
+
+                    catch copyErr
+                        warning('Error processing plot %d-%d: %s', tabIdx, subplotIdx, copyErr.message);
+                        if exist('tempFig', 'var') && isvalid(tempFig)
+                            close(tempFig);
+                        end
+                    end
+                end
+
+                % Close presentation
+                if ~isempty(pres) && isa(pres, 'mlreportgen.ppt.Presentation')
+                    close(pres);
+                end
+
+                % Clean up temporary image files
+                for k = 1:length(tmpImageFiles)
+                    try
+                        if exist(tmpImageFiles{k}, 'file')
+                            delete(tmpImageFiles{k});
+                        end
+                    catch
+                    end
+                end
+
+                % Verify file was created
+                if exist(outputPath, 'file')
+                    try
+                        app.StatusLabel.Text = sprintf('✅ PowerPoint created: %s', outputPath);
+                        app.StatusLabel.FontColor = [0.2 0.6 0.2];
+                    catch
                     end
                 else
-                    warning('Skipping slide %d due to image export failure', i);
+                    error('PowerPoint file was not created successfully');
                 end
 
-            catch copyErr
-                warning('Error processing plot %d-%d: %s', tabIdx, subplotIdx, copyErr.message);
-                if exist('tempFig', 'var') && isvalid(tempFig)
-                    close(tempFig);
+            catch ME
+                % Cleanup on error
+                if ~isempty(pres) && isa(pres, 'mlreportgen.ppt.Presentation')
+                    try
+                        close(pres);
+                    catch
+                    end
                 end
-            end
-        end
 
-        % Close presentation
-        if ~isempty(pres) && isa(pres, 'mlreportgen.ppt.Presentation')
-            close(pres);
-        end
-
-        % Clean up temporary image files
-        for k = 1:length(tmpImageFiles)
-            try
-                if exist(tmpImageFiles{k}, 'file')
-                    delete(tmpImageFiles{k});
+                % Clean up temporary files
+                for k = 1:length(tmpImageFiles)
+                    try
+                        if exist(tmpImageFiles{k}, 'file')
+                            delete(tmpImageFiles{k});
+                        end
+                    catch
+                    end
                 end
-            catch
-            end
-        end
 
-        % Verify file was created
-        if exist(outputPath, 'file')
-            try
-                app.StatusLabel.Text = sprintf('✅ PowerPoint created: %s', outputPath);
-                app.StatusLabel.FontColor = [0.2 0.6 0.2];
-            catch
-            end
-        else
-            error('PowerPoint file was not created successfully');
-        end
-
-    catch ME
-        % Cleanup on error
-        if ~isempty(pres) && isa(pres, 'mlreportgen.ppt.Presentation')
-            try
-                close(pres);
-            catch
-            end
-        end
-
-        % Clean up temporary files
-        for k = 1:length(tmpImageFiles)
-            try
-                if exist(tmpImageFiles{k}, 'file')
-                    delete(tmpImageFiles{k});
+                try
+                    app.StatusLabel.Text = sprintf('❌ PPT generation failed: %s', ME.message);
+                    app.StatusLabel.FontColor = [0.8 0.2 0.2];
+                catch
                 end
-            catch
+
+                rethrow(ME);
             end
         end
-
-        try
-            app.StatusLabel.Text = sprintf('❌ PPT generation failed: %s', ME.message);
-            app.StatusLabel.FontColor = [0.8 0.2 0.2];
-        catch
-        end
-
-        rethrow(ME);
-    end
-end
 
         function generatePDFReport(obj, reportFig, plotsToInclude, options, outputPath)
             app = obj.App;
@@ -4938,6 +5003,129 @@ end
             obj.App.SignalTree.SelectedNodes = selectedNodes;
         end
 
+        function remapSignalAssignmentsForLayoutChange(obj, tabIdx, oldRows, oldCols, newRows, newCols)
+            % Remap signal assignments when layout changes to preserve visual positions
+            % Using column-major ordering to keep signals on the left side
+
+            if tabIdx > numel(obj.AssignedSignals) || isempty(obj.AssignedSignals{tabIdx})
+                return;
+            end
+
+            oldAssignments = obj.AssignedSignals{tabIdx};
+            oldNumSubplots = oldRows * oldCols;
+            newNumSubplots = newRows * newCols;
+
+            % Create new assignments array
+            newAssignments = cell(newNumSubplots, 1);
+            for i = 1:newNumSubplots
+                newAssignments{i} = {};
+            end
+
+            % Map old subplot positions to new subplot positions
+            for oldSubplotIdx = 1:min(oldNumSubplots, numel(oldAssignments))
+                if ~isempty(oldAssignments{oldSubplotIdx})
+
+                    % *** FIXED: Convert subplot index to row/col using COLUMN-MAJOR ordering ***
+                    % This ensures 2x1 subplots stay in the left column when expanding to 2x2
+                    [oldRow, oldCol] = obj.subplotIndexToRowCol(oldSubplotIdx, oldRows, oldCols);
+
+                    % Find best matching position in new layout
+                    newSubplotIdx = obj.findBestNewPositionColumnMajor(oldRow, oldCol, oldRows, oldCols, newRows, newCols);
+
+                    if newSubplotIdx <= newNumSubplots && newSubplotIdx > 0
+                        % Preserve the signal assignments in the new position
+                        newAssignments{newSubplotIdx} = oldAssignments{oldSubplotIdx};
+
+                        fprintf('Remapped signals from old subplot %d (%d,%d) to new subplot %d\n', ...
+                            oldSubplotIdx, oldRow, oldCol, newSubplotIdx);
+                    end
+                end
+            end
+
+            % Update the assignments
+            obj.AssignedSignals{tabIdx} = newAssignments;
+        end
+
+        function [row, col] = subplotIndexToRowCol(obj, subplotIdx, rows, cols)
+            % Convert subplot index to row/col using COLUMN-MAJOR ordering
+            % This matches how we want signals to be preserved (left-to-right priority)
+
+            % MATLAB's default subplot numbering:
+            % 2x1: [1]    2x2: [1][2]
+            %      [2]          [3][4]
+            %
+            % We want to treat it as column-major for preservation:
+            % 2x1: [1]    2x2: [1][3]
+            %      [2]          [2][4]
+
+            % Convert to 0-based for easier math
+            idx = subplotIdx - 1;
+
+            % Use MATLAB's default row-major conversion
+            row = floor(idx / cols) + 1;
+            col = mod(idx, cols) + 1;
+        end
+
+        function newSubplotIdx = findBestNewPositionColumnMajor(obj, oldRow, oldCol, oldRows, oldCols, newRows, newCols)
+            % Find the best matching position in the new layout for preserving visual location
+            % Prioritizes keeping signals in the left columns
+
+            % Strategy 1: Direct mapping if the position still exists
+            if oldRow <= newRows && oldCol <= newCols
+                % Convert back to subplot index using row-major (MATLAB's default)
+                newSubplotIdx = (oldRow - 1) * newCols + oldCol;
+                return;
+            end
+
+            % Strategy 2: If expanding columns, try to keep in leftmost available column
+            if newCols > oldCols && oldCol == 1
+                % Keep in first column if possible
+                if oldRow <= newRows
+                    newSubplotIdx = (oldRow - 1) * newCols + 1;  % Column 1
+                    return;
+                end
+            end
+
+            % Strategy 3: Scale the position proportionally
+            % Calculate relative position (0 to 1)
+            relativeRow = (oldRow - 1) / max(1, oldRows - 1);
+            relativeCol = (oldCol - 1) / max(1, oldCols - 1);
+
+            % Map to new grid
+            newRow = round(relativeRow * max(1, newRows - 1)) + 1;
+            newCol = round(relativeCol * max(1, newCols - 1)) + 1;
+
+            % Ensure within bounds
+            newRow = max(1, min(newRows, newRow));
+            newCol = max(1, min(newCols, newCol));
+
+            newSubplotIdx = (newRow - 1) * newCols + newCol;
+        end
+
+        function newSubplotIdx = findBestNewPosition(obj, oldRow, oldCol, oldRows, oldCols, newRows, newCols)
+            % Find the best matching position in the new layout for preserving visual location
+
+            % Strategy 1: Direct mapping if the position still exists
+            if oldRow <= newRows && oldCol <= newCols
+                newSubplotIdx = sub2ind([newRows, newCols], oldRow, oldCol);
+                return;
+            end
+
+            % Strategy 2: Scale the position proportionally
+            % Calculate relative position (0 to 1)
+            relativeRow = (oldRow - 1) / max(1, oldRows - 1);
+            relativeCol = (oldCol - 1) / max(1, oldCols - 1);
+
+            % Map to new grid
+            newRow = round(relativeRow * max(1, newRows - 1)) + 1;
+            newCol = round(relativeCol * max(1, newCols - 1)) + 1;
+
+            % Ensure within bounds
+            newRow = max(1, min(newRows, newRow));
+            newCol = max(1, min(newCols, newCol));
+
+            newSubplotIdx = sub2ind([newRows, newCols], newRow, newCol);
+        end
         function processedText = processHebrewText(obj, text)
             % Fix Hebrew display in MATLAB by reversing text properly
 
