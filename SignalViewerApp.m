@@ -100,6 +100,560 @@ classdef SignalViewerApp < matlab.apps.AppBase
 
     methods
 
+        function populateCSVContextMenu(app, contextMenu, clickedCSVIndex)
+            % Dynamically populate CSV context menu based on selection
+
+            % Clear existing menu items
+            delete(contextMenu.Children);
+
+            % Get all selected CSV nodes
+            selectedNodes = app.SignalTree.SelectedNodes;
+            selectedCSVIndices = [];
+
+            % Find CSV nodes by matching text to CSV filenames
+            for i = 1:numel(selectedNodes)
+                node = selectedNodes(i);
+
+                % Find CSV index by matching the node text to CSV file names
+                csvIdx = app.findCSVIndexByName(node.Text);
+                if csvIdx > 0
+                    selectedCSVIndices(end+1) = csvIdx;
+                end
+            end
+
+            % If no CSV nodes found, use the clicked CSV
+            if isempty(selectedCSVIndices)
+                selectedCSVIndices = clickedCSVIndex;
+            end
+
+            % Remove duplicates and sort
+            selectedCSVIndices = unique(selectedCSVIndices);
+            numSelectedCSVs = length(selectedCSVIndices);
+
+            % Get CSV names for display
+            csvNames = {};
+            for i = 1:length(selectedCSVIndices)
+                csvIdx = selectedCSVIndices(i);
+                if csvIdx <= length(app.DataManager.CSVFilePaths)
+                    [~, name, ext] = fileparts(app.DataManager.CSVFilePaths{csvIdx});
+                    csvNames{end+1} = [name ext];
+                end
+            end
+
+            if numSelectedCSVs == 1
+                % Single CSV selected - show individual options
+                csvIdx = selectedCSVIndices(1);
+                csvName = csvNames{1};
+
+                uimenu(contextMenu, 'Text', '📌 Assign All to Current Subplot', ...
+                    'MenuSelectedFcn', @(src, event) app.assignAllSignalsFromCSV(csvIdx));
+                uimenu(contextMenu, 'Text', '❌ Remove All from Current Subplot', ...
+                    'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromCSV(csvIdx));
+                uimenu(contextMenu, 'Text', '⚙️ Bulk Edit Properties', ...
+                    'MenuSelectedFcn', @(src, event) app.bulkEditSignalProperties(csvIdx), 'Separator', 'on');
+
+                uimenu(contextMenu, 'Text', sprintf('🗑️ Delete "%s"', csvName), ...
+                    'MenuSelectedFcn', @(src, event) app.deleteCSVFromSystem(csvIdx), ...
+                    'Separator', 'on', 'ForegroundColor', [0.8 0.2 0.2]);
+
+            else
+                % Multiple CSVs selected - show bulk options
+                uimenu(contextMenu, 'Text', sprintf('📌 Assign All Signals from %d CSVs', numSelectedCSVs), ...
+                    'MenuSelectedFcn', @(src, event) app.assignAllSignalsFromMultipleCSVs(selectedCSVIndices));
+                uimenu(contextMenu, 'Text', sprintf('❌ Remove All Signals from %d CSVs', numSelectedCSVs), ...
+                    'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromMultipleCSVs(selectedCSVIndices));
+
+                % Create deletion menu text with CSV names
+                if numSelectedCSVs <= 3
+                    % Show all names if 3 or fewer
+                    csvNamesStr = strjoin(csvNames, '", "');
+                    deleteText = sprintf('🗑️ Delete "%s"', csvNamesStr);
+                else
+                    % Show first 2 names + "and X more" if more than 3
+                    csvNamesStr = strjoin(csvNames(1:2), '", "');
+                    deleteText = sprintf('🗑️ Delete "%s" and %d more', csvNamesStr, numSelectedCSVs - 2);
+                end
+
+                uimenu(contextMenu, 'Text', deleteText, ...
+                    'MenuSelectedFcn', @(src, event) app.deleteMultipleCSVsFromSystem(selectedCSVIndices), ...
+                    'Separator', 'on', 'ForegroundColor', [0.8 0.2 0.2]);
+            end
+
+            % Common options
+            uimenu(contextMenu, 'Text', '👁️ Manage Hidden Signals', ...
+                'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
+
+            % Selection info
+            if numSelectedCSVs > 1
+                % Show selected CSV names in info section
+                if numSelectedCSVs <= 5
+                    infoText = sprintf('📋 Selected: %s', strjoin(csvNames, ', '));
+                else
+                    infoText = sprintf('📋 %d CSVs selected: %s, ...', numSelectedCSVs, strjoin(csvNames(1:3), ', '));
+                end
+
+                uimenu(contextMenu, 'Text', infoText, ...
+                    'Enable', 'off', 'Separator', 'on');
+            end
+        end
+
+        function csvIdx = findCSVIndexByName(app, nodeText)
+            % Find CSV index by matching the node text to CSV file names
+            csvIdx = 0;
+
+            for i = 1:length(app.DataManager.CSVFilePaths)
+                [~, name, ext] = fileparts(app.DataManager.CSVFilePaths{i});
+                if strcmp(nodeText, [name ext])
+                    csvIdx = i;
+                    return;
+                end
+            end
+        end
+        function assignAllSignalsFromMultipleCSVs(app, csvIndices)
+            % Assign all signals from multiple CSVs to current subplot
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Collect all signals from selected CSVs
+            allSignals = {};
+            totalSignalCount = 0;
+
+            for i = 1:length(csvIndices)
+                csvIdx = csvIndices(i);
+                if csvIdx <= length(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{csvIdx})
+                    T = app.DataManager.DataTables{csvIdx};
+                    signals = setdiff(T.Properties.VariableNames, {'Time'});
+
+                    for j = 1:length(signals)
+                        signalInfo = struct('CSVIdx', csvIdx, 'Signal', signals{j});
+                        allSignals{end+1} = signalInfo;
+                        totalSignalCount = totalSignalCount + 1;
+                    end
+                end
+            end
+
+            if isempty(allSignals)
+                app.StatusLabel.Text = '⚠️ No signals found in selected CSVs';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            % Replace current assignments with all collected signals
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = allSignals;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+            app.updateSignalPropsTable(allSignals);
+
+            app.StatusLabel.Text = sprintf('📌 Assigned %d signals from %d CSVs', totalSignalCount, length(csvIndices));
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        function removeAllSignalsFromMultipleCSVs(app, csvIndices)
+            % Remove all signals from multiple CSVs from current subplot
+
+            tabIdx = app.PlotManager.CurrentTabIdx;
+            subplotIdx = app.PlotManager.SelectedSubplotIdx;
+
+            % Get current assignments
+            currentAssignments = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+            % Filter out signals from selected CSVs
+            filteredSignals = {};
+            removedCount = 0;
+
+            for i = 1:numel(currentAssignments)
+                signal = currentAssignments{i};
+                shouldKeep = true;
+
+                % Check if this signal is from any of the selected CSVs
+                if ismember(signal.CSVIdx, csvIndices)
+                    shouldKeep = false;
+                    removedCount = removedCount + 1;
+                end
+
+                if shouldKeep
+                    filteredSignals{end+1} = signal;
+                end
+            end
+
+            % Update assignments
+            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = filteredSignals;
+
+            % Refresh visuals
+            app.buildSignalTree();
+            app.PlotManager.refreshPlots(tabIdx);
+            app.updateSignalPropsTable(filteredSignals);
+
+            app.StatusLabel.Text = sprintf('❌ Removed %d signals from %d CSVs', removedCount, length(csvIndices));
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        function deleteCSVFromSystem(app, csvIndex)
+            % Delete a single CSV from the system
+            app.deleteMultipleCSVsFromSystem([csvIndex]);
+        end
+
+        function deleteMultipleCSVsFromSystem(app, csvIndices)
+            % Delete multiple CSVs from the system
+            if isempty(csvIndices)
+                return;
+            end
+
+            % Get CSV information for confirmation
+            csvNames = {};
+            totalSignals = 0;
+
+            for i = 1:length(csvIndices)
+                idx = csvIndices(i);
+                if idx <= length(app.DataManager.CSVFilePaths)
+                    [~, name, ext] = fileparts(app.DataManager.CSVFilePaths{idx});
+                    csvNames{end+1} = [name ext];
+
+                    % Count signals in this CSV
+                    if idx <= length(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{idx})
+                        signals = setdiff(app.DataManager.DataTables{idx}.Properties.VariableNames, {'Time'});
+                        totalSignals = totalSignals + length(signals);
+                    end
+                end
+            end
+
+            if isempty(csvNames)
+                app.StatusLabel.Text = '⚠️ No valid CSVs selected for deletion';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
+
+            % Create confirmation message
+            if length(csvIndices) == 1
+                confirmMsg = sprintf(['Delete CSV file from system?\n\n' ...
+                    'CSV: %s\n' ...
+                    'Signals: %d\n\n' ...
+                    'This will:\n' ...
+                    '• Remove all signals from all subplots\n' ...
+                    '• Clear all related data from memory\n' ...
+                    '• Stop any streaming for this CSV\n\n' ...
+                    'This action cannot be undone!'], ...
+                    csvNames{1}, totalSignals);
+                confirmTitle = 'Confirm CSV Deletion';
+            else
+                confirmMsg = sprintf(['Delete %d CSV files from system?\n\n' ...
+                    'CSVs: %s\n' ...
+                    'Total Signals: %d\n\n' ...
+                    'This will:\n' ...
+                    '• Remove all signals from all subplots\n' ...
+                    '• Clear all related data from memory\n' ...
+                    '• Stop any streaming for these CSVs\n\n' ...
+                    'This action cannot be undone!'], ...
+                    length(csvIndices), strjoin(csvNames, ', '), totalSignals);
+                confirmTitle = 'Confirm Multiple CSV Deletion';
+            end
+
+            % Show confirmation dialog
+            answer = uiconfirm(app.UIFigure, confirmMsg, confirmTitle, ...
+                'Options', {'Delete', 'Cancel'}, ...
+                'DefaultOption', 'Cancel', ...
+                'Icon', 'warning');
+
+            if strcmp(answer, 'Cancel')
+                return;
+            end
+
+            % Perform deletion
+            try
+                app.performCSVDeletion(csvIndices);
+
+                % Update status
+                if length(csvIndices) == 1
+                    app.StatusLabel.Text = sprintf('🗑️ Deleted CSV: %s (%d signals)', csvNames{1}, totalSignals);
+                else
+                    app.StatusLabel.Text = sprintf('🗑️ Deleted %d CSVs (%d total signals)', length(csvIndices), totalSignals);
+                end
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+
+            catch ME
+                app.StatusLabel.Text = sprintf('❌ CSV deletion failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                fprintf('CSV deletion error: %s\n', ME.message);
+            end
+        end
+
+        function performCSVDeletion(app, csvIndices)
+            % Perform the actual CSV deletion process
+
+            % Sort indices in descending order to maintain proper indexing during deletion
+            csvIndices = sort(csvIndices, 'descend');
+
+            % 1. Stop streaming for the CSVs being deleted
+            for i = 1:length(csvIndices)
+                idx = csvIndices(i);
+                if idx <= length(app.DataManager.CSVFilePaths)
+                    try
+                        app.DataManager.stopStreaming(idx);
+                    catch
+                        % Ignore streaming stop errors
+                    end
+                end
+            end
+
+            % 2. Collect signals to be removed from all CSVs being deleted
+            signalsToRemove = {};
+            for i = 1:length(csvIndices)
+                idx = csvIndices(i);
+                if idx <= length(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{idx})
+                    T = app.DataManager.DataTables{idx};
+                    signals = setdiff(T.Properties.VariableNames, {'Time'});
+                    for j = 1:length(signals)
+                        signalInfo = struct('CSVIdx', idx, 'Signal', signals{j});
+                        signalsToRemove{end+1} = signalInfo;
+                    end
+                end
+            end
+
+            % 3. Remove all signals from all subplots
+            if ~isempty(signalsToRemove)
+                app.removeSignalsFromAllSubplots(signalsToRemove);
+            end
+
+            % 4. Remove signals from scaling and state maps
+            for i = 1:length(signalsToRemove)
+                signalName = signalsToRemove{i}.Signal;
+                if app.DataManager.SignalScaling.isKey(signalName)
+                    app.DataManager.SignalScaling.remove(signalName);
+                end
+                if app.DataManager.StateSignals.isKey(signalName)
+                    app.DataManager.StateSignals.remove(signalName);
+                end
+
+                % Remove from signal styles if exists
+                if ~isempty(app.SignalStyles) && isfield(app.SignalStyles, signalName)
+                    app.SignalStyles = rmfield(app.SignalStyles, signalName);
+                end
+
+                % Remove from hidden signals if exists
+                if isprop(app, 'HiddenSignals') && ~isempty(app.HiddenSignals)
+                    signalKey = app.getSignalKey(signalsToRemove{i});
+                    if app.HiddenSignals.isKey(signalKey)
+                        app.HiddenSignals.remove(signalKey);
+                    end
+                end
+            end
+
+            % 5. Delete CSV data and file paths (in reverse order to maintain indices)
+            for i = 1:length(csvIndices)
+                idx = csvIndices(i);
+
+                % Remove from DataTables
+                if idx <= length(app.DataManager.DataTables)
+                    app.DataManager.DataTables(idx) = [];
+                end
+
+                % Remove from CSVFilePaths
+                if idx <= length(app.DataManager.CSVFilePaths)
+                    app.DataManager.CSVFilePaths(idx) = [];
+                end
+
+                % Remove from LastReadRows if it exists
+                if isprop(app.DataManager, 'LastReadRows') && idx <= length(app.DataManager.LastReadRows)
+                    app.DataManager.LastReadRows(idx) = [];
+                end
+
+                % Remove from CSVColors if it exists
+                if isprop(app, 'CSVColors') && idx <= length(app.CSVColors)
+                    app.CSVColors(idx) = [];
+                end
+            end
+
+            % 6. Update CSV indices in all remaining assignments
+            app.updateCSVIndicesAfterDeletion(csvIndices);
+
+            % 7. Rebuild signal names list using existing method
+            app.DataManager.updateSignalNamesAfterClear();
+
+            % 8. Refresh UI
+            app.buildSignalTree();
+            % 9. Refresh all plots in all tabs - FIXED METHOD CALL
+            for tabIdx = 1:numel(app.PlotManager.AxesArrays)
+                if ~isempty(app.PlotManager.AxesArrays{tabIdx})
+                    app.PlotManager.refreshPlots(tabIdx);
+                end
+            end
+
+            % 10. Clear signal properties table if it was showing deleted signals
+            app.SignalPropsTable.Data = {};
+            app.RemoveSelectedSignalsButton.Enable = 'off';
+        end
+
+        function removeSignalsFromAllSubplots(app, signalsToRemove)
+            % Remove specified signals from all subplots in all tabs
+
+            numTabs = numel(app.PlotManager.AxesArrays);
+
+            for tabIdx = 1:numTabs
+                if tabIdx > numel(app.PlotManager.AssignedSignals)
+                    continue;
+                end
+
+                if ~isempty(app.PlotManager.AxesArrays{tabIdx})
+                    numSubplots = numel(app.PlotManager.AxesArrays{tabIdx});
+                else
+                    continue;
+                end
+
+                for subplotIdx = 1:numSubplots
+                    if subplotIdx > numel(app.PlotManager.AssignedSignals{tabIdx})
+                        continue;
+                    end
+
+                    assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+                    if isempty(assignedSignals)
+                        continue;
+                    end
+
+                    % Filter out signals that should be removed
+                    filteredSignals = {};
+                    for i = 1:numel(assignedSignals)
+                        signal = assignedSignals{i};
+                        shouldKeep = true;
+
+                        for j = 1:numel(signalsToRemove)
+                            if isequal(signal, signalsToRemove{j})
+                                shouldKeep = false;
+                                break;
+                            end
+                        end
+
+                        if shouldKeep
+                            filteredSignals{end+1} = signal;
+                        end
+                    end
+
+                    % Update the assignments for this subplot
+                    app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = filteredSignals;
+                end
+            end
+
+            % Also remove from X-axis assignments
+            if isprop(app.PlotManager, 'XAxisSignals') && ~isempty(app.PlotManager.XAxisSignals)
+                for tabIdx = 1:size(app.PlotManager.XAxisSignals, 1)
+                    for subplotIdx = 1:size(app.PlotManager.XAxisSignals, 2)
+                        if ~isempty(app.PlotManager.XAxisSignals{tabIdx, subplotIdx})
+                            currentXAxis = app.PlotManager.XAxisSignals{tabIdx, subplotIdx};
+                            for j = 1:numel(signalsToRemove)
+                                if isequal(currentXAxis, signalsToRemove{j})
+                                    app.PlotManager.XAxisSignals{tabIdx, subplotIdx} = [];
+                                    break;
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        function updateCSVIndicesAfterDeletion(app, deletedIndices)
+            % Update CSV indices in all assignments after CSV deletion
+
+            try
+                % Create mapping from old indices to new indices
+                oldToNewMap = containers.Map('KeyType', 'int32', 'ValueType', 'int32');
+
+                % Calculate new indices
+                newIdx = 1;
+                maxOldIdx = length(app.DataManager.CSVFilePaths) + length(deletedIndices);
+                for oldIdx = 1:maxOldIdx
+                    if ~ismember(oldIdx, deletedIndices)
+                        oldToNewMap(oldIdx) = newIdx;
+                        newIdx = newIdx + 1;
+                    end
+                end
+
+                % Update assignments with better error handling
+                if isprop(app, 'PlotManager') && isprop(app.PlotManager, 'AssignedSignals')
+                    numTabs = numel(app.PlotManager.AssignedSignals);
+                    for tabIdx = 1:numTabs
+                        if tabIdx <= numel(app.PlotManager.AssignedSignals)
+                            numSubplots = numel(app.PlotManager.AssignedSignals{tabIdx});
+                            for subplotIdx = 1:numSubplots
+                                if subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                                    assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+
+                                    for i = 1:length(assignedSignals)
+                                        signal = assignedSignals{i};
+                                        % Check if signal is a struct with CSVIdx field
+                                        if isstruct(signal) && isfield(signal, 'CSVIdx')
+                                            if signal.CSVIdx > 0 && oldToNewMap.isKey(signal.CSVIdx)
+                                                assignedSignals{i}.CSVIdx = oldToNewMap(signal.CSVIdx);
+                                            end
+                                        end
+                                    end
+
+                                    app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = assignedSignals;
+                                end
+                            end
+                        end
+                    end
+                end
+
+                % Update X-axis assignments
+                if isprop(app, 'PlotManager') && isprop(app.PlotManager, 'XAxisSignals') && ~isempty(app.PlotManager.XAxisSignals)
+                    [numTabRows, numSubplotCols] = size(app.PlotManager.XAxisSignals);
+                    for tabIdx = 1:numTabRows
+                        for subplotIdx = 1:numSubplotCols
+                            if ~isempty(app.PlotManager.XAxisSignals{tabIdx, subplotIdx})
+                                xAxisSignal = app.PlotManager.XAxisSignals{tabIdx, subplotIdx};
+
+                                % Check if xAxisSignal is a struct with CSVIdx field
+                                if isstruct(xAxisSignal) && isfield(xAxisSignal, 'CSVIdx')
+                                    if xAxisSignal.CSVIdx > 0 && oldToNewMap.isKey(xAxisSignal.CSVIdx)
+                                        app.PlotManager.XAxisSignals{tabIdx, subplotIdx}.CSVIdx = oldToNewMap(xAxisSignal.CSVIdx);
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
+                % Update hidden signals keys
+                if isprop(app, 'HiddenSignals') && ~isempty(app.HiddenSignals)
+                    hiddenKeys = keys(app.HiddenSignals);
+                    newHiddenSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+
+                    for i = 1:length(hiddenKeys)
+                        key = hiddenKeys{i};
+                        if startsWith(key, 'CSV') && ~startsWith(key, 'CSV-1') % Not derived signal
+                            parts = split(key, '_');
+                            if length(parts) >= 2
+                                csvIdxStr = strrep(parts{1}, 'CSV', '');
+                                oldCsvIdx = str2double(csvIdxStr);
+
+                                if ~isnan(oldCsvIdx) && oldToNewMap.isKey(oldCsvIdx)
+                                    newCsvIdx = oldToNewMap(oldCsvIdx);
+                                    newKey = sprintf('CSV%d_%s', newCsvIdx, strjoin(parts(2:end), '_'));
+                                    newHiddenSignals(newKey) = app.HiddenSignals(key);
+                                end
+                            end
+                        else
+                            % Keep derived signals and other keys as-is
+                            newHiddenSignals(key) = app.HiddenSignals(key);
+                        end
+                    end
+
+                    app.HiddenSignals = newHiddenSignals;
+                end
+
+            catch ME
+                fprintf('Error updating CSV indices: %s\n', ME.message);
+                fprintf('Stack trace:\n');
+                for i = 1:length(ME.stack)
+                    fprintf('  %s at line %d\n', ME.stack(i).name, ME.stack(i).line);
+                end
+            end
+        end
+
         function createLinkingMenu(app)
             % Create linking menu - called AFTER LinkingManager is initialized
             linkingMenu = uimenu(app.UIFigure, 'Text', 'Linking');
@@ -2359,6 +2913,18 @@ classdef SignalViewerApp < matlab.apps.AppBase
                     % Add hidden signals management
                     uimenu(csvContextMenu, 'Text', '👁️ Manage Hidden Signals', ...
                         'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
+
+                    % ADD NEW: CSV Deletion option
+                    uimenu(csvContextMenu, 'Text', '🗑️ Delete CSV from System', ...
+                        'MenuSelectedFcn', @(src, event) app.deleteCSVFromSystem(i), ...
+                        'Separator', 'on', 'ForegroundColor', [0.8 0.2 0.2]);
+
+
+                    % Add CSV-level context menu for bulk operations - DYNAMIC MENU
+                    csvContextMenu = uicontextmenu(app.UIFigure);
+
+                    % Set dynamic context menu that detects multiple CSV selection
+                    csvContextMenu.ContextMenuOpeningFcn = @(src, event) app.populateCSVContextMenu(csvContextMenu, i);
 
                     csvNode.ContextMenu = csvContextMenu;
 

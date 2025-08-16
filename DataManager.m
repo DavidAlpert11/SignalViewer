@@ -687,7 +687,7 @@ classdef DataManager < handle
         end
 
         function updateSignalNamesAfterClear(obj)
-            % Update signal names after clearing some CSV data
+            % Update signal names after clearing some CSV data (ENHANCED VERSION)
 
             try
                 % Rebuild signal names from remaining data tables
@@ -697,6 +697,13 @@ classdef DataManager < handle
                         tableSignals = setdiff(obj.DataTables{k}.Properties.VariableNames, {'Time'});
                         allSignals = union(allSignals, tableSignals);
                     end
+                end
+
+                % Add derived signals if they exist
+                if isprop(obj.App, 'SignalOperations') && ~isempty(obj.App.SignalOperations) && ...
+                        isprop(obj.App.SignalOperations, 'DerivedSignals') && ~isempty(obj.App.SignalOperations.DerivedSignals)
+                    derivedNames = keys(obj.App.SignalOperations.DerivedSignals);
+                    allSignals = union(allSignals, derivedNames);
                 end
 
                 obj.SignalNames = allSignals;
