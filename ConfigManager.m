@@ -13,18 +13,9 @@ classdef ConfigManager < handle
         function obj = ConfigManager(app)
             obj.App = app;
             obj.DefaultConfigPath = fullfile(pwd, obj.ConfigFile);
-            obj.initializeAutoSave();
         end
 
-        function initializeAutoSave(obj)
-            % Initialize auto-save functionality
-            if obj.AutoSaveEnabled
-                obj.AutoSaveTimer = timer('ExecutionMode', 'fixedRate', ...
-                    'Period', obj.AutoSaveInterval, ...
-                    'TimerFcn', @(~,~) obj.autoSaveConfig());
-                start(obj.AutoSaveTimer);
-            end
-        end
+
 
         function saveConfig(obj, customPath)
             % Enhanced save configuration - now handles optional customPath
@@ -37,12 +28,6 @@ classdef ConfigManager < handle
             end
 
             try
-                if ~obj.validateAppData()
-                    app.StatusLabel.Text = '❌ Invalid application data - cannot save configuration';
-                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
-                    app.restoreFocus();
-                    return;
-                end
 
                 config = struct();
 
@@ -145,151 +130,38 @@ classdef ConfigManager < handle
             app.restoreFocus();
         end
 
-        function value = getOrDefault(obj, propName, defaultValue)
-            % Safely get property value with default fallback
-            if isprop(obj, propName) && ~isempty(obj.(propName))
-                value = obj.(propName);
-            else
-                value = defaultValue;
-            end
-        end
-
-
-        function showConfigLoadSummary(obj, config, isCompatible, missingSignals)
-            % Show summary of configuration load results
-            summary = sprintf('Configuration Load Summary:\n\n');
-            summary = [summary sprintf('• Layout: %d tabs configured\n', numel(config.TabLayouts))];
-            summary = [summary sprintf('• Compatibility: %s\n', char("Full" * isCompatible + "Partial" * (~isCompatible)))];
-            if ~isempty(missingSignals)
-                summary = [summary sprintf('• Missing Signals: %d\n', length(missingSignals))];
-            end
-            if isfield(config, 'DerivedSignals')
-                summary = [summary sprintf('• Derived Signals: %d templates loaded\n', length(keys(config.DerivedSignals)))];
-            end
-
-            icon = char("success" * isCompatible + "warning" * (~isCompatible));
-            uialert(obj.App.UIFigure, summary, 'Configuration Loaded', 'Icon', icon);
-        end
-        % Add to ConfigManager.m:
-        function showCompatibilityDetails(obj, config, missingSignals, extraSignals)
-            % Show detailed compatibility information
-            details = sprintf('Configuration Compatibility Details:\n\n');
-            details = [details sprintf('Config Version: %s\n', config.ConfigVersion)];
-            details = [details sprintf('Config Signals: %d\n', config.SignalCount)];
-            details = [details sprintf('Config Tabs: %d\n\n', config.TabCount)];
-
-            if ~isempty(missingSignals)
-                details = [details sprintf('Missing Signals (%d):\n', length(missingSignals))];
-                for i = 1:min(10, length(missingSignals))  % Show max 10
-                    details = [details sprintf('  • %s\n', missingSignals{i})];
-                end
-                if length(missingSignals) > 10
-                    details = [details sprintf('  ... and %d more\n', length(missingSignals) - 10)];
-                end
-                details = [details newline];
-            end
-
-            if ~isempty(extraSignals)
-                details = [details sprintf('Extra Signals (%d):\n', length(extraSignals))];
-                for i = 1:min(5, length(extraSignals))  % Show max 5
-                    details = [details sprintf('  • %s\n', extraSignals{i})];
-                end
-                if length(extraSignals) > 5
-                    details = [details sprintf('  ... and %d more\n', length(extraSignals) - 5)];
-                end
-            end
-
-            uialert(obj.App.UIFigure, details, 'Compatibility Details', 'Icon', 'info');
-        end
-
-        function autoSaveConfig(obj)
-            % Automatic save functionality
-            if obj.hasConfigChanged()
-                try
-                    autoSavePath = fullfile(pwd, 'autosave_config.mat');
-                    obj.saveConfig(autoSavePath);
-                    obj.App.StatusLabel.Text = '💾 Auto-saved';
-                catch ME
-                    fprintf('Auto-save failed: %s\n', ME.message);
-                end
-            end
-        end
-
-        function tf = hasConfigChanged(obj)
-            % Check if configuration has changed since last save
-            if isempty(obj.LastSavedConfig)
-                tf = true;
-                return;
-            end
-
-            try
-                currentConfig = obj.buildConfigStruct();
-                tf = ~isequal(currentConfig, obj.LastSavedConfig);
-            catch
-                tf = true;  % Assume changed if comparison fails
-            end
-        end
-
-        function config = buildConfigStruct(obj)
-            % Build configuration structure - settings only, no data
-            app = obj.App;
-
-            config = struct();
-
-            % Plot manager data (layouts and assignments)
-            config.AssignedSignals = app.PlotManager.AssignedSignals;
-            config.TabLayouts = app.PlotManager.TabLayouts;
-            config.CurrentTabIdx = app.PlotManager.CurrentTabIdx;
-            config.SelectedSubplotIdx = app.PlotManager.SelectedSubplotIdx;
-
-            % Per-tab axis linking
-            if isprop(app.PlotManager, 'TabLinkedAxes')
-                config.TabLinkedAxes = app.PlotManager.TabLinkedAxes;
-            else
-                config.TabLinkedAxes = [];
-            end
-
-            % Signal settings
-            config.SignalScaling = app.DataManager.SignalScaling;
-            config.StateSignals = app.DataManager.StateSignals;
-
-            % App-level settings
-            if isprop(app, 'SubplotMetadata')
-                config.SubplotMetadata = app.SubplotMetadata;
-            else
-                config.SubplotMetadata = {};
-            end
-
-            if isprop(app, 'SignalStyles')
-                config.SignalStyles = app.SignalStyles;
-            else
-                config.SignalStyles = struct();
-            end
-            config.SubplotCaptions = app.SubplotCaptions;
-            config.SubplotDescriptions = app.SubplotDescriptions;
-            % Metadata
-            config.ConfigVersion = '2.0';
-            config.SaveTimestamp = datetime('now');
-        end
         function applyConfiguration(obj, config)
             app = obj.App;
 
+            if isempty(app) || ~isvalid(app)
+                error('Invalid app reference in ConfigManager');
+            end
+
             try
-                % === APPLY SIGNAL SETTINGS FIRST ===
-                if isfield(config, 'SignalScaling')
+                % Apply signal settings with validation
+                if isfield(config, 'SignalScaling') && isa(config.SignalScaling, 'containers.Map')
                     scaleKeys = keys(config.SignalScaling);
                     for i = 1:length(scaleKeys)
-                        if ismember(scaleKeys{i}, app.DataManager.SignalNames)
-                            app.DataManager.SignalScaling(scaleKeys{i}) = config.SignalScaling(scaleKeys{i});
+                        try
+                            if ismember(scaleKeys{i}, app.DataManager.SignalNames)
+                                app.DataManager.SignalScaling(scaleKeys{i}) = config.SignalScaling(scaleKeys{i});
+                            end
+                        catch ME
+                            fprintf('Warning applying signal scaling for %s: %s\n', scaleKeys{i}, ME.message);
                         end
                     end
                 end
 
-                if isfield(config, 'StateSignals')
+                % Apply state signals with validation
+                if isfield(config, 'StateSignals') && isa(config.StateSignals, 'containers.Map')
                     stateKeys = keys(config.StateSignals);
                     for i = 1:length(stateKeys)
-                        if ismember(stateKeys{i}, app.DataManager.SignalNames)
-                            app.DataManager.StateSignals(stateKeys{i}) = config.StateSignals(stateKeys{i});
+                        try
+                            if ismember(stateKeys{i}, app.DataManager.SignalNames)
+                                app.DataManager.StateSignals(stateKeys{i}) = config.StateSignals(stateKeys{i});
+                            end
+                        catch ME
+                            fprintf('Warning applying state signal for %s: %s\n', stateKeys{i}, ME.message);
                         end
                     end
                 end
@@ -458,7 +330,6 @@ classdef ConfigManager < handle
                 app.PlotManager.ensurePlusTabAtEnd();
                 app.PlotManager.updateTabTitles();
 
-                obj.cleanupCustomYLabels();  % Clean up invalid references
 
             catch ME
                 fprintf('Error applying configuration: %s\n', ME.message);
@@ -467,161 +338,6 @@ classdef ConfigManager < handle
             end
         end
 
-        function cleanupCustomYLabels(obj)
-            % Clean up custom Y-axis labels for non-existent subplots
-
-            try
-                if ~isprop(obj, 'CustomYLabels') || isempty(obj.CustomYLabels)
-                    return;
-                end
-
-                % Get valid subplot keys
-                validKeys = {};
-                for tabIdx = 1:numel(obj.TabLayouts)
-                    layout = obj.TabLayouts{tabIdx};
-                    numSubplots = layout(1) * layout(2);
-                    for subplotIdx = 1:numSubplots
-                        validKeys{end+1} = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
-                    end
-                end
-
-                % Remove invalid keys
-                currentKeys = keys(obj.CustomYLabels);
-                for i = 1:length(currentKeys)
-                    if ~ismember(currentKeys{i}, validKeys)
-                        obj.CustomYLabels.remove(currentKeys{i});
-                    end
-                end
-
-            catch ME
-                fprintf('Warning: CustomYLabels cleanup failed: %s\n', ME.message);
-            end
-        end
-        function recreateTabs(obj, config)
-            % Recreate tabs based on configuration
-            app = obj.App;
-
-            if isfield(config, 'TabLayouts') && ~isempty(config.TabLayouts)
-                for tabIdx = 1:numel(config.TabLayouts)
-                    % Create tab if it doesn't exist
-                    while tabIdx > numel(app.PlotManager.PlotTabs)
-                        tab = uitab(app.MainTabGroup, 'Title', sprintf('Tab %d', tabIdx));
-                        app.PlotManager.PlotTabs{end+1} = tab;
-                    end
-
-                    % Recreate subplot layout
-                    layout = config.TabLayouts{tabIdx};
-                    if numel(layout) >= 2
-                        rows = layout(1);
-                        cols = layout(2);
-                        app.PlotManager.createSubplotsForTab(tabIdx, rows, cols);
-                    end
-                end
-            end
-        end
-
-        function applyDataManagerConfig(obj, config)
-            % Apply data manager configuration
-            app = obj.App;
-
-            if isfield(config, 'SignalNames')
-                app.DataManager.SignalNames = config.SignalNames;
-            end
-
-            % Handle multi-CSV structure instead of single DataBuffer
-            if isfield(config, 'DataTables')
-                app.DataManager.DataTables = config.DataTables;
-            end
-
-            if isfield(config, 'CSVFilePaths')
-                app.DataManager.CSVFilePaths = config.CSVFilePaths;
-            end
-
-            if isfield(config, 'SignalScaling')
-                app.DataManager.SignalScaling = config.SignalScaling;
-            end
-
-            if isfield(config, 'StateSignals')
-                app.DataManager.StateSignals = config.StateSignals;
-            end
-        end
-
-        function applyPlotManagerConfig(obj, config)
-            % Apply plot manager configuration
-            app = obj.App;
-
-            if isfield(config, 'AssignedSignals')
-                app.PlotManager.AssignedSignals = config.AssignedSignals;
-            end
-
-            if isfield(config, 'TabLayouts')
-                app.PlotManager.TabLayouts = config.TabLayouts;
-            end
-
-            if isfield(config, 'CurrentTabIdx')
-                app.PlotManager.CurrentTabIdx = config.CurrentTabIdx;
-            end
-
-            if isfield(config, 'SelectedSubplotIdx')
-                app.PlotManager.SelectedSubplotIdx = config.SelectedSubplotIdx;
-            end
-        end
-
-        function applyUIConfig(obj, config)
-            % Apply UI configuration
-            app = obj.App;
-
-            % Apply to current tab's controls instead of non-existent global spinners
-            tabIdx = app.PlotManager.CurrentTabIdx;
-            if tabIdx <= numel(app.PlotManager.TabControls) && ~isempty(app.PlotManager.TabControls{tabIdx})
-                if isfield(config, 'RowsSpinnerValue')
-                    app.PlotManager.TabControls{tabIdx}.RowsSpinner.Value = config.RowsSpinnerValue;
-                end
-
-                if isfield(config, 'ColsSpinnerValue')
-                    app.PlotManager.TabControls{tabIdx}.ColsSpinner.Value = config.ColsSpinnerValue;
-                end
-            end
-
-            % Handle app-level properties if they exist
-            if isfield(config, 'SubplotMetadata')
-                app.SubplotMetadata = config.SubplotMetadata;
-            end
-
-            if isfield(config, 'SignalStyles')
-                app.SignalStyles = config.SignalStyles;
-            end
-
-            % Skip CSVPathField and AutoScaleCheckbox since they don't exist in your current UI
-        end
-        function tf = validateAppData(obj)
-            % Validate application data before saving
-            app = obj.App;
-            tf = true;
-
-            try
-                % Check if essential objects exist
-                if ~isvalid(app.DataManager) || ~isvalid(app.PlotManager)
-                    tf = false;
-                    return;
-                end
-
-                % Validate data types
-                if ~iscell(app.DataManager.SignalNames)
-                    tf = false;
-                    return;
-                end
-
-                % Check DataTables instead of DataBuffer
-                if ~iscell(app.DataManager.DataTables)
-                    tf = false;
-                    return;
-                end
-
-            catch
-                tf = false;
-            end
-        end
 
         function tf = validateConfigVersion(~, config)
             % Validate configuration version compatibility
@@ -653,19 +369,6 @@ classdef ConfigManager < handle
             end
         end
 
-        function value = safeGet(~, source, defaultValue)
-            % Safely get value with default fallback
-            try
-                if isempty(source)
-                    value = defaultValue;
-                else
-                    value = source;
-                end
-            catch
-                value = defaultValue;
-            end
-        end
-
         function handleError(obj, ME, context)
             % Centralized error handling
             app = obj.App;
@@ -680,27 +383,6 @@ classdef ConfigManager < handle
             fprintf('  Stack:\n');
             for i = 1:numel(ME.stack)
                 fprintf('    %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
-            end
-        end
-
-        function offerRecoveryOptions(obj)
-            % Offer recovery options when loading fails
-            app = obj.App;
-
-            answer = uiconfirm(app.UIFigure, ...
-                'Failed to load configuration. Would you like to:', ...
-                'Recovery Options', ...
-                'Options', {'Load Default', 'Try Again', 'Cancel'}, ...
-                'DefaultOption', 'Load Default');
-            app.restoreFocus();
-
-            switch answer
-                case 'Load Default'
-                    obj.loadDefaultConfig();
-                case 'Try Again'
-                    obj.loadConfig();
-                case 'Cancel'
-                    return;
             end
         end
 
@@ -788,43 +470,27 @@ classdef ConfigManager < handle
 
             app.restoreFocus();
         end
-        function loadDefaultConfig(obj)
-            % Load default configuration
-            try
-                defaultConfig = obj.createDefaultConfig();
-                obj.applyConfiguration(defaultConfig);
-                obj.App.StatusLabel.Text = '🔄 Default config loaded';
-                app.StatusLabel.Text = '✅ Default configuration loaded';
-                app.StatusLabel.FontColor = [0.2 0.6 0.9];
-            catch ME
-                obj.handleError(ME, 'Default config load failed');
-            end
-        end
-
-        function config = createDefaultConfig(obj)
-            % Create default configuration structure
-            config = struct();
-            config.SignalNames = {};
-            config.DataBuffer = table();
-            config.SignalScaling = containers.Map();
-            config.StateSignals = containers.Map();
-            config.AssignedSignals = {};
-            config.TabLayouts = {[2, 1]};
-            config.CurrentTabIdx = 1;
-            config.SelectedSubplotIdx = 1;
-            config.RowsSpinnerValue = 2;
-            config.ColsSpinnerValue = 1;
-            config.CSVPath = '';
-            config.AutoScale = true;
-            config.ConfigVersion = '2.0';
-            config.SaveTimestamp = datetime('now');
-        end
 
         function delete(obj)
-            % Cleanup when object is destroyed
-            if ~isempty(obj.AutoSaveTimer) && isvalid(obj.AutoSaveTimer)
-                stop(obj.AutoSaveTimer);
-                delete(obj.AutoSaveTimer);
+            % Enhanced cleanup to prevent memory leaks
+            try
+                % Stop and clean up auto-save timer
+                if ~isempty(obj.AutoSaveTimer) && isvalid(obj.AutoSaveTimer)
+                    if strcmp(obj.AutoSaveTimer.Running, 'on')
+                        stop(obj.AutoSaveTimer);
+                    end
+                    delete(obj.AutoSaveTimer);
+                    obj.AutoSaveTimer = [];
+                end
+
+                % Clear configuration data
+                obj.LastSavedConfig = struct();
+
+                % Break circular reference to App (CRITICAL)
+                obj.App = [];
+
+            catch ME
+                fprintf('Warning during ConfigManager cleanup: %s\n', ME.message);
             end
         end
     end

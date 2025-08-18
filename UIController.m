@@ -14,19 +14,37 @@ classdef UIController < handle
             obj.App = app;
         end
 
-        % Set up all UI callbacks for the app controls
+
         function setupCallbacks(obj)
+            % Setup UI callbacks for the controller
             app = obj.App;
-            % Spinner value change callbacks
-            app.SaveConfigButton.ButtonPushedFcn = @(src, event) app.ConfigManager.saveConfig();
-            app.LoadConfigButton.ButtonPushedFcn = @(src, event) app.ConfigManager.loadConfig();
 
-            % (No longer set ValueChangedFcn for CSVPathField)
+            try
+                % Layout change callbacks
+                if isprop(app, 'RowsSpinner') && ~isempty(app.RowsSpinner)
+                    app.RowsSpinner.ValueChangedFcn = @(~,~) obj.onLayoutChanged();
+                end
 
-            % Keyboard shortcuts
-            obj.setupKeyboardShortcuts();
+                if isprop(app, 'ColsSpinner') && ~isempty(app.ColsSpinner)
+                    app.ColsSpinner.ValueChangedFcn = @(~,~) obj.onLayoutChanged();
+                end
+
+                % Subplot selection callback
+                if isprop(app, 'SubplotDropdown') && ~isempty(app.SubplotDropdown)
+                    app.SubplotDropdown.ValueChangedFcn = @(~,~) obj.onSubplotSelected();
+                end
+
+                % Signal table callback
+                if isprop(app, 'SignalTable') && ~isempty(app.SignalTable)
+                    app.SignalTable.CellEditCallback = @(src, event) obj.onSignalTableEdit(event);
+                end
+
+                fprintf('UIController callbacks setup complete\n');
+
+            catch ME
+                fprintf('Warning: Error setting up UIController callbacks: %s\n', ME.message);
+            end
         end
-
         % Callback for when the subplot layout spinners are changed
         function onLayoutChanged(obj)
             app = obj.App;
@@ -38,44 +56,78 @@ classdef UIController < handle
             obj.updateSubplotDropdown();
             app.PlotManager.refreshPlots(tabIdx);
         end
+
         function addMoreCSVs(obj)
             app = obj.App;
-            [files, path] = uigetfile('*.csv', 'Add More CSV Files', 'MultiSelect', 'on');
-            if isequal(files,0)
-                return;
+
+            try
+                [files, path] = uigetfile('*.csv', 'Add More CSV Files', 'MultiSelect', 'on');
+                if isequal(files,0)
+                    return;
+                end
+                if ischar(files)
+                    files = {files};
+                end
+
+                % Validate input
+                if isempty(files)
+                    return;
+                end
+
+                % Get new file paths
+                newCSVPaths = cellfun(@(f) fullfile(path, f), files, 'UniformOutput', false);
+
+                % BOUNDS CHECK: Ensure DataManager arrays exist
+                if isempty(app.DataManager.CSVFilePaths)
+                    app.DataManager.CSVFilePaths = {};
+                end
+                if isempty(app.DataManager.DataTables)
+                    app.DataManager.DataTables = {};
+                end
+                if isempty(app.DataManager.LastFileModTimes)
+                    app.DataManager.LastFileModTimes = {};
+                end
+                if isempty(app.DataManager.LastReadRows)
+                    app.DataManager.LastReadRows = {};
+                end
+                if isempty(app.DataManager.StreamingTimers)
+                    app.DataManager.StreamingTimers = {};
+                end
+                if isempty(app.DataManager.LatestDataRates)
+                    app.DataManager.LatestDataRates = {};
+                end
+
+                % Append to existing CSVs
+                existingCount = numel(app.DataManager.CSVFilePaths);
+                app.DataManager.CSVFilePaths = [app.DataManager.CSVFilePaths, newCSVPaths];
+
+                % Extend arrays to accommodate new CSVs
+                numNewCSVs = numel(newCSVPaths);
+                app.DataManager.DataTables = [app.DataManager.DataTables, cell(1, numNewCSVs)];
+                app.DataManager.LastFileModTimes = [app.DataManager.LastFileModTimes, cell(1, numNewCSVs)];
+                app.DataManager.LastReadRows = [app.DataManager.LastReadRows, cell(1, numNewCSVs)];
+                app.DataManager.StreamingTimers = [app.DataManager.StreamingTimers, cell(1, numNewCSVs)];
+                app.DataManager.LatestDataRates = [app.DataManager.LatestDataRates, cell(1, numNewCSVs)];
+
+                % Start streaming for the new CSVs only
+                for i = 1:numNewCSVs
+                    csvIdx = existingCount + i;
+                    app.DataManager.startStreamingForCSV(csvIdx);
+                end
+
+                % Update signal tree to include new signals
+                app.buildSignalTree();
+                app.PlotManager.refreshPlots();
+
+                % Update status
+                app.StatusLabel.Text = sprintf('➕ Added %d new CSV(s). Total: %d', numNewCSVs, numel(app.DataManager.CSVFilePaths));
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                app.StatusLabel.Text = sprintf('❌ Failed to add CSVs: %s', ME.message);
+                app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                fprintf('Error in addMoreCSVs: %s\n', ME.message);
             end
-            if ischar(files)
-                files = {files};
-            end
-
-            % Get new file paths
-            newCSVPaths = cellfun(@(f) fullfile(path, f), files, 'UniformOutput', false);
-
-            % Append to existing CSVs
-            existingCount = numel(app.DataManager.CSVFilePaths);
-            app.DataManager.CSVFilePaths = [app.DataManager.CSVFilePaths, newCSVPaths];
-
-            % Extend arrays to accommodate new CSVs
-            numNewCSVs = numel(newCSVPaths);
-            app.DataManager.DataTables = [app.DataManager.DataTables, cell(1, numNewCSVs)];
-            app.DataManager.LastFileModTimes = [app.DataManager.LastFileModTimes, cell(1, numNewCSVs)];
-            app.DataManager.LastReadRows = [app.DataManager.LastReadRows, cell(1, numNewCSVs)];
-            app.DataManager.StreamingTimers = [app.DataManager.StreamingTimers, cell(1, numNewCSVs)];
-            app.DataManager.LatestDataRates = [app.DataManager.LatestDataRates, cell(1, numNewCSVs)];
-
-            % Start streaming for the new CSVs only
-            for i = 1:numNewCSVs
-                csvIdx = existingCount + i;
-                app.DataManager.startStreamingForCSV(csvIdx);
-            end
-
-            % Update signal tree to include new signals
-            app.buildSignalTree();
-            app.PlotManager.refreshPlots();
-
-            % Update status
-            app.StatusLabel.Text = sprintf('➕ Added %d new CSV(s). Total: %d', numNewCSVs, numel(app.DataManager.CSVFilePaths));
-            app.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
         % Update the items in the subplot dropdown based on the current tab layout
         function updateSubplotDropdown(obj)
@@ -98,66 +150,6 @@ classdef UIController < handle
                 app.SubplotDropdown.Value = 'Plot 1';
                 app.PlotManager.SelectedSubplotIdx = 1;
             end
-        end
-
-        function exportAllCSVsAsIs(obj)
-            app = obj.App;
-
-            % Ask user to select export folder
-            exportFolder = uigetdir(pwd, 'Select Folder to Save All CSVs As-Is');
-            if isequal(exportFolder, 0)
-                app.restoreFocus();
-                return;
-            end
-
-            try
-                % Create subfolder with timestamp
-                timestamp = datestr(now, 'yyyymmdd_HHMMSS');
-                exportSubfolder = fullfile(exportFolder, sprintf('CSV_AsIs_%s', timestamp));
-
-                if ~exist(exportSubfolder, 'dir')
-                    mkdir(exportSubfolder);
-                end
-
-                exportedCount = 0;
-                exportedFiles = {};
-
-                % Save each loaded CSV as-is
-                for i = 1:numel(app.DataManager.DataTables)
-                    if ~isempty(app.DataManager.DataTables{i})
-                        % Generate filename from original or generic
-                        if i <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{i})
-                            [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{i});
-                            fileName = sprintf('%s.csv', originalName);
-                        else
-                            fileName = sprintf('CSV_%d.csv', i);
-                        end
-
-                        fullPath = fullfile(exportSubfolder, fileName);
-
-                        % Save the complete table as-is
-                        writetable(app.DataManager.DataTables{i}, fullPath);
-
-                        exportedCount = exportedCount + 1;
-                        exportedFiles{end+1} = fileName;
-                    end
-                end
-
-                % Update status
-                if exportedCount > 0
-                    app.StatusLabel.Text = sprintf('✅ Saved %d CSVs as-is', exportedCount);
-                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
-                else
-                    app.StatusLabel.Text = '⚠️ No CSVs to save';
-                    app.StatusLabel.FontColor = [0.9 0.6 0.2];
-                end
-
-            catch ME
-                app.StatusLabel.Text = ['❌ Save failed: ' ME.message];
-                app.StatusLabel.FontColor = [0.9 0.3 0.3];
-            end
-
-            app.restoreFocus();
         end
 
         % Callback for when a subplot is selected from the dropdown
@@ -398,6 +390,16 @@ classdef UIController < handle
             obj.exportSignalsToFolder(assignedSignals, sprintf('Tab%d_Plot%d', tabIdx, subplotIdx));
         end
 
+        function delete(obj)
+            % Cleanup when UIController is destroyed
+            try
+                % Break circular reference to App (CRITICAL)
+                obj.App = [];
+
+            catch ME
+                fprintf('Warning during UIController cleanup: %s\n', ME.message);
+            end
+        end
         function exportCurrentTabActiveSubplots(obj)
             app = obj.App;
             tabIdx = app.PlotManager.CurrentTabIdx;
@@ -474,19 +476,15 @@ classdef UIController < handle
             obj.exportSignalsToFolder(allSignals, 'AllTabs_ActiveSubplots');
         end
 
-
-
-
-
-
-
-
-
-
-
-
         function exportSignalsToFolder(obj, signalList, folderSuffix)
             app = obj.App;
+
+            % Input validation
+            if isempty(signalList)
+                app.StatusLabel.Text = '⚠️ No signals to export';
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+                return;
+            end
 
             % Ask user to select export folder
             exportFolder = uigetdir(pwd, 'Select Folder to Export CSVs');
@@ -504,89 +502,101 @@ classdef UIController < handle
                     mkdir(exportSubfolder);
                 end
 
-                % FIXED: Group signals by CSV AND handle derived signals separately
+                % Group signals by CSV AND handle derived signals separately
                 csvGroups = containers.Map('KeyType', 'int32', 'ValueType', 'any');
                 derivedSignals = {};
 
                 for i = 1:numel(signalList)
-                    sigInfo = signalList{i};
-                    csvIdx = sigInfo.CSVIdx;
+                    if i <= numel(signalList) % BOUNDS CHECK
+                        sigInfo = signalList{i};
 
-                    if csvIdx == -1
-                        % Derived signal
-                        derivedSignals{end+1} = sigInfo;
-                    else
-                        % Regular CSV signal
-                        if csvGroups.isKey(csvIdx)
-                            csvGroups(csvIdx) = [csvGroups(csvIdx), {sigInfo.Signal}];
+                        % Validate signal info structure
+                        if ~isstruct(sigInfo) || ~isfield(sigInfo, 'CSVIdx') || ~isfield(sigInfo, 'Signal')
+                            continue;
+                        end
+
+                        csvIdx = sigInfo.CSVIdx;
+
+                        if csvIdx == -1
+                            % Derived signal
+                            derivedSignals{end+1} = sigInfo;
                         else
-                            csvGroups(csvIdx) = {sigInfo.Signal};
+                            % BOUNDS CHECK: Validate CSV index
+                            if csvIdx > 0 && csvIdx <= numel(app.DataManager.DataTables)
+                                % Regular CSV signal
+                                if csvGroups.isKey(csvIdx)
+                                    csvGroups(csvIdx) = [csvGroups(csvIdx), {sigInfo.Signal}];
+                                else
+                                    csvGroups(csvIdx) = {sigInfo.Signal};
+                                end
+                            end
                         end
                     end
                 end
 
                 exportedCount = 0;
-                exportedFiles = {};
 
-                % Export CSV groups (regular signals)
-                csvIndices = cell2mat(csvGroups.keys);
-                for csvIdx = csvIndices
-                    if csvIdx <= numel(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{csvIdx})
-                        T = app.DataManager.DataTables{csvIdx};
-                        signalsToExport = csvGroups(csvIdx);
+                % Export CSV groups (regular signals) with bounds checking
+                if ~isempty(csvGroups.keys)
+                    csvIndices = cell2mat(csvGroups.keys);
+                    for csvIdx = csvIndices
+                        if csvIdx <= numel(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{csvIdx})
+                            T = app.DataManager.DataTables{csvIdx};
+                            signalsToExport = csvGroups(csvIdx);
 
-                        % Create export table with Time and selected signals
-                        exportTable = table();
-                        exportTable.Time = T.Time;
+                            % Create export table with Time and selected signals
+                            exportTable = table();
+                            exportTable.Time = T.Time;
 
-                        for j = 1:numel(signalsToExport)
-                            sigName = signalsToExport{j};
-                            if ismember(sigName, T.Properties.VariableNames)
-                                exportTable.(sigName) = T.(sigName);
+                            for j = 1:numel(signalsToExport)
+                                sigName = signalsToExport{j};
+                                if ismember(sigName, T.Properties.VariableNames)
+                                    exportTable.(sigName) = T.(sigName);
+                                end
                             end
+
+                            % Generate filename with bounds checking
+                            if csvIdx <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{csvIdx})
+                                [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{csvIdx});
+                                fileName = sprintf('%s_filtered.csv', originalName);
+                            else
+                                fileName = sprintf('CSV_%d_filtered.csv', csvIdx);
+                            end
+
+                            fullPath = fullfile(exportSubfolder, fileName);
+                            writetable(exportTable, fullPath);
+                            exportedCount = exportedCount + 1;
                         end
-
-                        % Generate filename
-                        if csvIdx <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{csvIdx})
-                            [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{csvIdx});
-                            fileName = sprintf('%s_filtered.csv', originalName);
-                        else
-                            fileName = sprintf('CSV_%d_filtered.csv', csvIdx);
-                        end
-
-                        fullPath = fullfile(exportSubfolder, fileName);
-                        writetable(exportTable, fullPath);
-
-                        exportedCount = exportedCount + 1;
-                        exportedFiles{end+1} = fileName;
                     end
                 end
 
-                % FIXED: Export derived signals separately
-                for i = 1:numel(derivedSignals)
-                    sigInfo = derivedSignals{i};
-                    signalName = sigInfo.Signal;
+                % Export derived signals separately
+                if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
+                    for i = 1:numel(derivedSignals)
+                        if i <= numel(derivedSignals) % BOUNDS CHECK
+                            sigInfo = derivedSignals{i};
+                            signalName = sigInfo.Signal;
 
-                    % Get derived signal data
-                    [timeData, signalData] = app.SignalOperations.getSignalData(signalName);
+                            % Get derived signal data
+                            [timeData, signalData] = app.SignalOperations.getSignalData(signalName);
 
-                    if ~isempty(timeData)
-                        % Create export table
-                        exportTable = table(timeData, signalData, 'VariableNames', {'Time', signalName});
+                            if ~isempty(timeData) && ~isempty(signalData)
+                                % Create export table
+                                exportTable = table(timeData, signalData, 'VariableNames', {'Time', signalName});
 
-                        % Generate filename
-                        fileName = sprintf('Derived_%s.csv', signalName);
-                        fullPath = fullfile(exportSubfolder, fileName);
-                        writetable(exportTable, fullPath);
-
-                        exportedCount = exportedCount + 1;
-                        exportedFiles{end+1} = fileName;
+                                % Generate filename
+                                fileName = sprintf('Derived_%s.csv', signalName);
+                                fullPath = fullfile(exportSubfolder, fileName);
+                                writetable(exportTable, fullPath);
+                                exportedCount = exportedCount + 1;
+                            end
+                        end
                     end
                 end
 
                 % Update status
                 if exportedCount > 0
-                    app.StatusLabel.Text = sprintf('✅ Exported %d CSVs (including derived signals) to %s', exportedCount, folderSuffix);
+                    app.StatusLabel.Text = sprintf('✅ Exported %d CSVs to %s', exportedCount, folderSuffix);
                     app.StatusLabel.FontColor = [0.2 0.6 0.9];
                 else
                     app.StatusLabel.Text = '⚠️ No valid signals to export';
@@ -594,8 +604,9 @@ classdef UIController < handle
                 end
 
             catch ME
-                app.StatusLabel.Text = ['❌ Export failed: ' ME.message];
+                app.StatusLabel.Text = sprintf('❌ Export failed: %s', ME.message);
                 app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                fprintf('Error in exportSignalsToFolder: %s\n', ME.message);
             end
 
             app.restoreFocus();
@@ -624,6 +635,9 @@ classdef UIController < handle
 
             obj.exportSignalsToFolder(allSignals, 'AllTabs_AllSignals');
         end
+
+        % REMOVE THE DUPLICATE METHOD - Keep only the one inside exportAndClose nested function
+        % The standalone exportAllCSVsAsIs method at line ~300 should be deleted as it's unreachable
 
         function showExportCSVDialog(obj)
             app = obj.App;
@@ -676,7 +690,7 @@ classdef UIController < handle
                 'String', '🗂️ All Tabs - All Signals', ...
                 'Callback', @(~,~) exportAndClose(5));
 
-            % NEW: Save CSVs As-Is option
+            % Save CSVs As-Is option
             uicontrol('Parent', d, 'Style', 'pushbutton', ...
                 'Position', [20 160 410 35], ...
                 'String', '💾 Save All CSVs As-Is (original loaded data)', ...
@@ -691,9 +705,9 @@ classdef UIController < handle
             % Cancel button
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Cancel', ...
                 'Position', [350 20 80 30], 'Callback', @(~,~) close(d));
-            function exportAllCSVsAsIs(obj)
-                app = obj.App;
 
+            % KEEP ONLY THIS VERSION - INSIDE THE NESTED FUNCTION
+            function exportAllCSVsAsIs()
                 % Ask user to select export folder
                 exportFolder = uigetdir(pwd, 'Select Folder to Save All CSVs As-Is');
                 if isequal(exportFolder, 0)
@@ -711,26 +725,25 @@ classdef UIController < handle
                     end
 
                     exportedCount = 0;
-                    exportedFiles = {};
 
-                    % Save each loaded CSV as-is
-                    for i = 1:numel(app.DataManager.DataTables)
-                        if ~isempty(app.DataManager.DataTables{i})
-                            % Generate filename from original or generic
-                            if i <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{i})
-                                [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{i});
-                                fileName = sprintf('%s.csv', originalName);
-                            else
-                                fileName = sprintf('CSV_%d.csv', i);
+                    % BOUNDS CHECK: Validate DataTables before access
+                    if ~isempty(app.DataManager.DataTables)
+                        for i = 1:numel(app.DataManager.DataTables)
+                            if i <= numel(app.DataManager.DataTables) && ~isempty(app.DataManager.DataTables{i})
+                                % Generate filename from original or generic
+                                if i <= numel(app.DataManager.CSVFilePaths) && ~isempty(app.DataManager.CSVFilePaths{i})
+                                    [~, originalName, ~] = fileparts(app.DataManager.CSVFilePaths{i});
+                                    fileName = sprintf('%s.csv', originalName);
+                                else
+                                    fileName = sprintf('CSV_%d.csv', i);
+                                end
+
+                                fullPath = fullfile(exportSubfolder, fileName);
+
+                                % Save the complete table as-is
+                                writetable(app.DataManager.DataTables{i}, fullPath);
+                                exportedCount = exportedCount + 1;
                             end
-
-                            fullPath = fullfile(exportSubfolder, fileName);
-
-                            % Save the complete table as-is
-                            writetable(app.DataManager.DataTables{i}, fullPath);
-
-                            exportedCount = exportedCount + 1;
-                            exportedFiles{end+1} = fileName;
                         end
                     end
 
@@ -750,24 +763,31 @@ classdef UIController < handle
 
                 app.restoreFocus();
             end
+
             function exportAndClose(option)
-                % Call appropriate export function and close dialog
-                switch option
-                    case 1
-                        obj.exportCurrentSubplot();
-                    case 2
-                        obj.exportCurrentTabActiveSubplots();
-                    case 3
-                        obj.exportCurrentTabAllSignals();
-                    case 4
-                        obj.exportAllTabsActiveSubplots();
-                    case 5
-                        obj.exportAllTabsAllSignals();
-                    case 6
-                        obj.exportAllCSVsAsIs();  % NEW
+                try
+                    % Call appropriate export function and close dialog
+                    switch option
+                        case 1
+                            obj.exportCurrentSubplot();
+                        case 2
+                            obj.exportCurrentTabActiveSubplots();
+                        case 3
+                            obj.exportCurrentTabAllSignals();
+                        case 4
+                            obj.exportAllTabsActiveSubplots();
+                        case 5
+                            obj.exportAllTabsAllSignals();
+                        case 6
+                            exportAllCSVsAsIs();  % Call nested function
+                    end
+                    close(d);
+                    app.restoreFocus();
+                catch ME
+                    fprintf('Error in exportAndClose: %s\n', ME.message);
+                    app.StatusLabel.Text = sprintf('❌ Export failed: %s', ME.message);
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
                 end
-                close(d);
-                app.restoreFocus();
             end
         end
         % Export the current data buffer to a CSV file
@@ -832,38 +852,7 @@ classdef UIController < handle
                 signalNames = [signalNames, derivedNames];
             end
         end
-        function setupKeyboardShortcuts(obj)
-            app = obj.App;
-            app.UIFigure.KeyPressFcn = @(src, event) obj.keyPressHandler(event);
-        end
 
-        function keyPressHandler(obj, event)
-            app = obj.App;
-            if isempty(event.Modifier), return; end
-            if ismember('control', event.Modifier)
-                switch event.Key
-                    case 'h'  % Ctrl+H for operation history
-                        obj.App.SignalOperations.showOperationHistory();
-                    case 's'
-                        if ~app.DataManager.IsRunning
-                            app.DataManager.startStreaming();
-                        end
-                    case 'x'
-                        if app.DataManager.IsRunning
-                            app.DataManager.stopStreaming();
-                        end
-                    case 'c'
-                        obj.clearAll();
-                    case 'e'
-                        obj.exportCSV();
-                    case 'p'
-                        app.PlotManager.exportToPDF();
-                    case 't'
-                        obj.showStatsDialog();
-                    case 'd'  % NEW: Ctrl+D for cursor mode
-                        app.menuToggleCursor();
-                end
-            end
-        end
+
     end
 end

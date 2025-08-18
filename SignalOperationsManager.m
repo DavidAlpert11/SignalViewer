@@ -637,210 +637,6 @@ classdef SignalOperationsManager < handle
         %% =================================================================
         %% CUSTOM CODE OPERATIONS
         %% =================================================================
-
-        function match = fuzzyMatch(obj, text, searchTerm)
-            % Fuzzy matching - allows for typos and partial matches
-            match = false;
-
-            if length(searchTerm) < 2
-                return;
-            end
-
-            % Check if most characters in search term exist in text
-            searchChars = unique(searchTerm);
-            textChars = unique(text);
-
-            matchingChars = sum(ismember(searchChars, textChars));
-            matchRatio = matchingChars / length(searchChars);
-
-            % Consider it a match if 70% of characters match
-            match = matchRatio >= 0.7;
-
-            % Also check for subsequence matching
-            if ~match
-                match = obj.isSubsequence(text, searchTerm);
-            end
-        end
-
-        function templates = getCodeTemplates(obj)
-            % Get enhanced code templates for dropdown
-            templates = {
-                struct('name', 'signals_sum', 'code', {{
-                '% Add multiple signals together'
-                'if length(data) < 2'
-                '    error(''Select at least 2 signals'');'
-                'end'
-                ''
-                '% Find common time range'
-                'minTime = max(cellfun(@min, time));'
-                'maxTime = min(cellfun(@max, time));'
-                'commonTime = linspace(minTime, maxTime, 1000)'';'
-                ''
-                '% Add all signals'
-                'sumData = zeros(size(commonTime));'
-                'for i = 1:length(data)'
-                '    interpData = interp1(time{i}, data{i}, commonTime, ''linear'');'
-                '    sumData = sumData + interpData;'
-                'end'
-                ''
-                'result.Time = commonTime;'
-                'result.Data = sumData;'
-                }}),
-
-                struct('name', 'signals_average', 'code', {{
-                '% Average multiple signals'
-                'if length(data) < 2'
-                '    error(''Select at least 2 signals'');'
-                'end'
-                ''
-                'minTime = max(cellfun(@min, time));'
-                'maxTime = min(cellfun(@max, time));'
-                'commonTime = linspace(minTime, maxTime, 1000)'';'
-                ''
-                'alignedData = zeros(length(commonTime), length(data));'
-                'for i = 1:length(data)'
-                '    alignedData(:,i) = interp1(time{i}, data{i}, commonTime, ''linear'');'
-                'end'
-                ''
-                'avgData = mean(alignedData, 2);'
-                ''
-                'result.Time = commonTime;'
-                'result.Data = avgData;'
-                }}),
-
-                struct('name', 'vector_magnitude', 'code', {{
-                '% Vector magnitude of selected signals'
-                'if length(data) < 2'
-                '    error(''Select at least 2 signals for magnitude'');'
-                'end'
-                ''
-                'minTime = max(cellfun(@min, time));'
-                'maxTime = min(cellfun(@max, time));'
-                'commonTime = linspace(minTime, maxTime, 1000)'';'
-                ''
-                'alignedData = zeros(length(commonTime), length(data));'
-                'for i = 1:length(data)'
-                '    alignedData(:,i) = interp1(time{i}, data{i}, commonTime, ''linear'');'
-                'end'
-                ''
-                'magnitude = sqrt(sum(alignedData.^2, 2));'
-                ''
-                'result.Time = commonTime;'
-                'result.Data = magnitude;'
-                }}),
-
-                struct('name', 'moving_average', 'code', {{
-                '% Moving average with adjustable window'
-                'if isempty(data)'
-                '    error(''Select at least 1 signal'');'
-                'end'
-                ''
-                'signal = data{1};'
-                'timeVec = time{1};'
-                ''
-                'windowSize = 20;  % Adjust this value'
-                'smoothed = movmean(signal, windowSize);'
-                ''
-                'result.Time = timeVec;'
-                'result.Data = smoothed;'
-                }}),
-
-                struct('name', 'fft_analysis', 'code', {{
-                '% FFT magnitude spectrum'
-                'if isempty(data)'
-                '    error(''Select at least 1 signal'');'
-                'end'
-                ''
-                'signal = data{1};'
-                'timeVec = time{1};'
-                'validIdx = isfinite(signal);'
-                'signal = signal(validIdx);'
-                'timeVec = timeVec(validIdx);'
-                ''
-                'dt_actual = mean(diff(timeVec));'
-                'fs = 1/dt_actual;'
-                'N = length(signal);'
-                'windowed = signal .* hann(N);'
-                'Y = fft(windowed);'
-                'f = (0:floor(N/2)-1) * fs/N;'
-                'magnitude = abs(Y(1:length(f)));'
-                ''
-                'result.Time = f;  % Frequency axis'
-                'result.Data = magnitude;'
-                }}),
-
-                struct('name', 'rms_windowed', 'code', {{
-                '% Windowed RMS calculation'
-                'if isempty(data)'
-                '    error(''Select at least 1 signal'');'
-                'end'
-                ''
-                'signal = data{1};'
-                'timeVec = time{1};'
-                'windowSize = 100;  % Adjust window size'
-                ''
-                'rmsData = zeros(size(signal));'
-                'for i = 1:length(signal)'
-                '    startIdx = max(1, i-windowSize+1);'
-                '    endIdx = i;'
-                '    rmsData(i) = sqrt(mean(signal(startIdx:endIdx).^2));'
-                'end'
-                ''
-                'result.Time = timeVec;'
-                'result.Data = rmsData;'
-                }})
-                };
-        end
-
-        function match = isSubsequence(~, text, searchTerm)
-            % Check if searchTerm is a subsequence of text
-            % Example: "tmp" matches "temperature"
-            match = false;
-
-            if isempty(searchTerm)
-                match = true;
-                return;
-            end
-
-            textIdx = 1;
-            searchIdx = 1;
-
-            while textIdx <= length(text) && searchIdx <= length(searchTerm)
-                if text(textIdx) == searchTerm(searchIdx)
-                    searchIdx = searchIdx + 1;
-                end
-                textIdx = textIdx + 1;
-            end
-
-            match = searchIdx > length(searchTerm);
-        end
-
-        function match = acronymMatch(~, text, searchTerm)
-            % Match acronyms - e.g., "xyz" matches "x_position (CSV1: xyz_data)"
-            match = false;
-
-            if length(searchTerm) < 2
-                return;
-            end
-
-            % Extract words and create acronym
-            words = regexp(text, '[A-Za-z]+', 'match');
-            if length(words) < 2
-                return;
-            end
-
-            acronym = '';
-            for i = 1:min(length(words), 10)  % Limit to first 10 words
-                if ~isempty(words{i})
-                    acronym = [acronym, lower(words{i}(1))];
-                end
-            end
-
-            % Check if search term matches acronym
-            match = strcmpi(searchTerm, acronym) || contains(acronym, lower(searchTerm));
-        end
-
-
         %% =================================================================
         %% UTILITY METHODS
         %% =================================================================
@@ -886,92 +682,69 @@ classdef SignalOperationsManager < handle
         end
 
         function [timeData, signalData, sourceInfo] = getSignalData(obj, signalName)
-            % Get time and signal data for a given signal name
+            % Initialize outputs
             timeData = [];
             signalData = [];
             sourceInfo = struct();
 
-            % FIRST: Check if this is a derived signal by looking directly in DerivedSignals map
-            % Remove any formatting from the signal name
-            cleanSignalName = signalName;
+            % Input validation
+            if isempty(signalName) || ~ischar(signalName)
+                return;
+            end
 
-            % Remove various formatting that might be added by the UI
-            cleanSignalName = strrep(cleanSignalName, ' (Derived)', '');
-            cleanSignalName = strrep(cleanSignalName, '∂ ', '');
-            cleanSignalName = strrep(cleanSignalName, '∫ ', '');
-            cleanSignalName = strrep(cleanSignalName, '− ', '');
-            cleanSignalName = strrep(cleanSignalName, '+ ', '');
-            cleanSignalName = strrep(cleanSignalName, '× ', '');
-            cleanSignalName = strrep(cleanSignalName, '÷ ', '');
-            cleanSignalName = strrep(cleanSignalName, '‖‖ ', '');
-            cleanSignalName = strrep(cleanSignalName, '💻 ', '');
-            cleanSignalName = strrep(cleanSignalName, '🔄 ', '');
+            % Clean signal name
+            cleanSignalName = obj.extractCleanSignalName(signalName);
 
-            % Check if it's a derived signal (PRIORITY CHECK)
-            if obj.DerivedSignals.isKey(cleanSignalName)
+            % PRIORITY CHECK: Derived signals first
+            if ~isempty(obj.DerivedSignals) && isKey(obj.DerivedSignals, cleanSignalName)
                 derivedData = obj.DerivedSignals(cleanSignalName);
                 timeData = derivedData.Time;
                 signalData = derivedData.Data;
                 sourceInfo.Type = 'derived';
                 sourceInfo.Operation = derivedData.Operation;
-
-                % Debug output
-                fprintf('Retrieved derived signal "%s": %d samples\n', cleanSignalName, length(timeData));
                 return;
             end
 
-            % SECOND: Handle original signals with CSV identifier
+            % Handle original signals with bounds checking
             if contains(signalName, '(CSV')
-                % Extract signal name and CSV index from formatted string
-                % Format: "signal_name (CSV1: filename)"
                 parts = split(signalName, ' (CSV');
                 cleanSignalName = parts{1};
 
-                % Extract CSV index
                 csvPart = parts{2};
                 csvIdxStr = regexp(csvPart, '(\d+)', 'tokens', 'once');
                 if ~isempty(csvIdxStr)
                     csvIdx = str2double(csvIdxStr{1});
-                else
-                    csvIdx = 1; % fallback
-                end
-            else
-                % Simple signal name (single CSV case or derived signal)
-                csvIdx = []; % Search all CSVs
-            end
 
-            % THIRD: Search for signal in specified CSV or all CSVs
-            if ~isempty(csvIdx)
-                % Search in specific CSV
-                if csvIdx <= numel(obj.App.DataManager.DataTables)
-                    T = obj.App.DataManager.DataTables{csvIdx};
-                    if ~isempty(T) && ismember(cleanSignalName, T.Properties.VariableNames)
-                        timeData = T.Time;
-                        signalData = T.(cleanSignalName);
+                    % BOUNDS CHECK: Ensure csvIdx is valid
+                    if csvIdx > 0 && csvIdx <= numel(obj.App.DataManager.DataTables)
+                        T = obj.App.DataManager.DataTables{csvIdx};
+                        if ~isempty(T) && istable(T) && ismember(cleanSignalName, T.Properties.VariableNames)
+                            timeData = T.Time;
+                            signalData = T.(cleanSignalName);
 
-                        % Remove NaN values
-                        validIdx = ~isnan(signalData);
-                        timeData = timeData(validIdx);
-                        signalData = signalData(validIdx);
+                            % Remove NaN values
+                            validIdx = ~isnan(signalData) & ~isnan(timeData);
+                            timeData = timeData(validIdx);
+                            signalData = signalData(validIdx);
 
-                        sourceInfo.Type = 'original';
-                        sourceInfo.CSVIndex = csvIdx;
-                        if csvIdx <= numel(obj.App.DataManager.CSVFilePaths)
-                            sourceInfo.CSVPath = obj.App.DataManager.CSVFilePaths{csvIdx};
+                            sourceInfo.Type = 'original';
+                            sourceInfo.CSVIndex = csvIdx;
+                            if csvIdx <= numel(obj.App.DataManager.CSVFilePaths)
+                                sourceInfo.CSVPath = obj.App.DataManager.CSVFilePaths{csvIdx};
+                            end
                         end
-                        return;
                     end
                 end
             else
-                % Search in all CSVs (fallback for simple names)
+                % Search all CSVs with bounds checking
                 for i = 1:numel(obj.App.DataManager.DataTables)
                     T = obj.App.DataManager.DataTables{i};
-                    if ~isempty(T) && ismember(cleanSignalName, T.Properties.VariableNames)
+                    if ~isempty(T) && istable(T) && ismember(cleanSignalName, T.Properties.VariableNames)
                         timeData = T.Time;
                         signalData = T.(cleanSignalName);
 
                         % Remove NaN values
-                        validIdx = ~isnan(signalData);
+                        validIdx = ~isnan(signalData) & ~isnan(timeData);
                         timeData = timeData(validIdx);
                         signalData = signalData(validIdx);
 
@@ -984,9 +757,6 @@ classdef SignalOperationsManager < handle
                     end
                 end
             end
-
-            % If we get here, signal was not found
-            fprintf('Warning: Signal "%s" (clean: "%s") not found in derived signals or CSV data\n', signalName, cleanSignalName);
         end
         function [commonTime, alignedA, alignedB] = alignTwoSignals(~, timeA, dataA, timeB, dataB, interpMethod, timeRangeOption)
             % Align two signals to a common time base
@@ -1207,106 +977,6 @@ classdef SignalOperationsManager < handle
         %% CONTEXT MENU INTEGRATION
         %% =================================================================
 
-        function addOperationsToSignalTree(obj)
-            % Add operations node to signal tree
-            if isempty(obj.App.SignalTree) || ~isvalid(obj.App.SignalTree)
-                return;
-            end
-
-            % Check if operations node already exists
-            existingNodes = obj.App.SignalTree.Children;
-            operationsNodeExists = false;
-            for i = 1:numel(existingNodes)
-                if isfield(existingNodes(i).NodeData, 'Type') && strcmp(existingNodes(i).NodeData.Type, 'operations')
-                    operationsNodeExists = true;
-                    break;
-                end
-            end
-
-            if operationsNodeExists
-                return; % Already added
-            end
-
-            % Add Operations node
-            operationsNode = uitreenode(obj.App.SignalTree, 'Text', '📊 Operations', ...
-                'NodeData', struct('Type', 'operations'));
-
-            % Single signal operations
-            singleNode = uitreenode(operationsNode, 'Text', '🔢 Single Signal');
-            uitreenode(singleNode, 'Text', '∂ Derivative', ...
-                'NodeData', struct('Type', 'operation', 'OpType', 'derivative'));
-            uitreenode(singleNode, 'Text', '∫ Integral', ...
-                'NodeData', struct('Type', 'operation', 'OpType', 'integral'));
-
-            % Multi signal operations
-            multiNode = uitreenode(operationsNode, 'Text', '📈 Multi Signal');
-            uitreenode(multiNode, 'Text', '− Subtract', ...
-                'NodeData', struct('Type', 'operation', 'OpType', 'subtract'));
-            uitreenode(multiNode, 'Text', '+ Add', ...
-                'NodeData', struct('Type', 'operation', 'OpType', 'add'));
-            uitreenode(multiNode, 'Text', '× Multiply', ...
-                'NodeData', struct('Type', 'operation', 'OpType', 'multiply'));
-            uitreenode(multiNode, 'Text', '÷ Divide', ...
-                'NodeData', struct('Type', 'operation', 'OpType', 'divide'));
-            uitreenode(multiNode, 'Text', '‖‖ Norm', ...
-                'NodeData', struct('Type', 'operation', 'OpType', 'norm'));
-
-
-            % Derived signals (if any exist)
-            if ~isempty(obj.DerivedSignals)
-                obj.addDerivedSignalsNode();
-            end
-        end
-
-        function addDerivedSignalsNode(obj)
-            % Add derived signals node to signal tree
-            derivedNode = uitreenode(obj.App.SignalTree, 'Text', '⚙️ Derived Signals', ...
-                'NodeData', struct('Type', 'derived_signals'));
-
-            derivedNames = keys(obj.DerivedSignals);
-            for i = 1:length(derivedNames)
-                signalName = derivedNames{i};
-                derivedData = obj.DerivedSignals(signalName);
-
-                % Create icon based on operation type
-                switch derivedData.Operation.Type
-                    case 'single'
-                        icon = '∂';
-                        if strcmp(derivedData.Operation.Operation, 'integral')
-                            icon = '∫';
-                        end
-                    case 'dual'
-                        switch derivedData.Operation.Operation
-                            case 'subtract'
-                                icon = '−';
-                            case 'add'
-                                icon = '+';
-                            case 'multiply'
-                                icon = '×';
-                            case 'divide'
-                                icon = '÷';
-                        end
-                    case 'norm'
-                        icon = '‖‖';
-                    otherwise
-                        icon = '🔄';
-                end
-
-                child = uitreenode(derivedNode, 'Text', sprintf('%s %s', icon, signalName));
-                child.NodeData = struct('CSVIdx', -1, 'Signal', signalName, 'IsDerived', true);
-
-                % ADD DYNAMIC CONTEXT MENU FOR DERIVED SIGNALS
-                derivedSignalContextMenu = uicontextmenu(obj.App.UIFigure);
-
-                % Set the context menu opening function to handle multi-selection
-                signalInfo = struct('CSVIdx', -1, 'Signal', signalName);
-                derivedSignalContextMenu.ContextMenuOpeningFcn = @(src, event) obj.App.updateDerivedSignalContextMenu(derivedSignalContextMenu, signalInfo);
-
-                % Assign context menu to the derived signal node
-                child.ContextMenu = derivedSignalContextMenu;
-            end
-        end
-
         function executeVectorMagnitude(obj, selectedSignals, resultName)
             % Execute vector magnitude calculation
             try
@@ -1470,12 +1140,15 @@ classdef SignalOperationsManager < handle
                     error('Signal "%s" not found or empty.', signalName);
                 end
 
-                % Calculate windowed RMS
-                rmsData = zeros(size(signalData));
-                for i = 1:length(signalData)
-                    startIdx = max(1, i-windowSize+1);
-                    endIdx = i;
-                    rmsData(i) = sqrt(mean(signalData(startIdx:endIdx).^2));
+                % Calculate windowed RMS (vectorized for performance)
+                % Ensure window size is an integer
+                windowSize = round(windowSize);
+
+                if windowSize > 1
+                    % Use a backward-looking window to match the original loop's logic
+                    rmsData = sqrt(movmean(signalData.^2, [windowSize-1 0]));
+                else
+                    rmsData = abs(signalData);
                 end
 
                 % Create operation record
@@ -1814,23 +1487,6 @@ classdef SignalOperationsManager < handle
                 close(d);
             end
         end
-        function handleOperationNodeClick(obj, selectedNode)
-            % Handle clicks on operation nodes
-            if ~isfield(selectedNode.NodeData, 'OpType')
-                return;
-            end
-
-            opType = selectedNode.NodeData.OpType;
-
-            switch opType
-                case {'derivative', 'integral'}
-                    obj.showSingleSignalDialog(opType);
-                case {'subtract', 'add', 'multiply', 'divide'}
-                    obj.showDualSignalDialog(opType);
-                case 'norm'
-                    obj.showNormDialog();
-            end
-        end
 
         function showOperationDetails(~, operation)
             % Show detailed information about an operation
@@ -2065,11 +1721,11 @@ classdef SignalOperationsManager < handle
 
                     case 'quick_rms'
                         windowSize = operation.Parameters.WindowSize;
-                        rmsData = zeros(size(signalData));
-                        for i = 1:length(signalData)
-                            startIdx = max(1, i-windowSize+1);
-                            endIdx = i;
-                            rmsData(i) = sqrt(mean(signalData(startIdx:endIdx).^2));
+                        windowSize = round(windowSize);
+                        if windowSize > 1
+                            rmsData = sqrt(movmean(signalData.^2, [windowSize-1 0]));
+                        else
+                            rmsData = abs(signalData);
                         end
                         resultData = rmsData;
                         resultTime = timeData;
@@ -3814,11 +3470,25 @@ classdef SignalOperationsManager < handle
         %% =================================================================
 
         function delete(obj)
-            % Cleanup when object is destroyed
-            if ~isempty(obj.DerivedSignals)
-                remove(obj.DerivedSignals, keys(obj.DerivedSignals));
+            % Enhanced cleanup when object is destroyed
+            try
+                % Clear derived signals map safely
+                if ~isempty(obj.DerivedSignals) && isvalid(obj.DerivedSignals)
+                    derivedKeys = keys(obj.DerivedSignals);
+                    if ~isempty(derivedKeys)
+                        remove(obj.DerivedSignals, derivedKeys);
+                    end
+                end
+
+                % Clear operation history
+                obj.OperationHistory = {};
+
+                % Break circular reference to App
+                obj.App = [];
+
+            catch ME
+                fprintf('Warning during SignalOperationsManager cleanup: %s\n', ME.message);
             end
-            obj.OperationHistory = {};
         end
     end
 end

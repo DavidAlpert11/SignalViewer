@@ -130,8 +130,6 @@ classdef PlotManager < handle
         end
 
         function validateCustomYLabels(obj)
-            % Validate and initialize CustomYLabels property
-
             try
                 if ~isprop(obj, 'CustomYLabels') || isempty(obj.CustomYLabels)
                     obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
@@ -143,7 +141,11 @@ classdef PlotManager < handle
                     if isstruct(oldLabels)
                         fieldNames = fieldnames(oldLabels);
                         for i = 1:length(fieldNames)
-                            obj.CustomYLabels(fieldNames{i}) = oldLabels.(fieldNames{i});
+                            try
+                                obj.CustomYLabels(fieldNames{i}) = oldLabels.(fieldNames{i});
+                            catch ME
+                                fprintf('Warning: Could not migrate custom label %s: %s\n', fieldNames{i}, ME.message);
+                            end
                         end
                     end
                 end
@@ -152,7 +154,6 @@ classdef PlotManager < handle
                 obj.CustomYLabels = containers.Map('KeyType', 'char', 'ValueType', 'char');
             end
         end
-
         function migrateCustomYLabels(obj, loadedData)
             % Migrate CustomYLabels from different formats
 
@@ -264,35 +265,41 @@ classdef PlotManager < handle
         end
 
         function setCustomYAxisLabel(obj, tabIdx, subplotIdx, customLabel)
-            % Allow manual override of Y-axis label
-
-            if tabIdx <= numel(obj.AxesArrays) && subplotIdx <= numel(obj.AxesArrays{tabIdx})
-                ax = obj.AxesArrays{tabIdx}(subplotIdx);
-                if isvalid(ax)
-                    ax.YLabel.String = customLabel;
-
-                    % Store custom label to prevent automatic override
-                    if ~isprop(obj, 'CustomYLabels')
-                        obj.CustomYLabels = containers.Map();
-                    end
-
-                    labelKey = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
-                    obj.CustomYLabels(labelKey) = customLabel;
+            try
+                % Validate inputs
+                if tabIdx < 1 || subplotIdx < 1 || isempty(customLabel)
+                    return;
                 end
+
+                if tabIdx <= numel(obj.AxesArrays) && subplotIdx <= numel(obj.AxesArrays{tabIdx})
+                    ax = obj.AxesArrays{tabIdx}(subplotIdx);
+                    if isvalid(ax)
+                        ax.YLabel.String = customLabel;
+
+                        % Store custom label safely
+                        obj.validateCustomYLabels();
+                        labelKey = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
+                        obj.CustomYLabels(labelKey) = customLabel;
+                    end
+                end
+            catch ME
+                fprintf('Warning: Error setting custom Y axis label: %s\n', ME.message);
             end
         end
 
         function hasCustomLabel = hasCustomYLabel(obj, tabIdx, subplotIdx)
-            % Check if subplot has a custom Y-axis label
-
             hasCustomLabel = false;
 
             try
-                if isprop(obj, 'CustomYLabels') && ~isempty(obj.CustomYLabels)
+                % Ensure CustomYLabels exists and is valid
+                obj.validateCustomYLabels();
+
+                if isa(obj.CustomYLabels, 'containers.Map') && obj.CustomYLabels.Count > 0
                     labelKey = sprintf('Tab%d_Plot%d', tabIdx, subplotIdx);
                     hasCustomLabel = obj.CustomYLabels.isKey(labelKey);
                 end
-            catch
+            catch ME
+                fprintf('Warning: Error checking custom Y label: %s\n', ME.message);
                 hasCustomLabel = false;
             end
         end
@@ -794,8 +801,20 @@ classdef PlotManager < handle
             end
         end
 
+
+
         % Create subplots for a given tab with specified rows and columns
         function createSubplotsForTab(obj, tabIdx, rows, cols)
+            % Validate inputs
+            if tabIdx < 1 || rows < 1 || cols < 1 || rows > 10 || cols > 10
+                fprintf('Warning: Invalid parameters in createSubplotsForTab\n');
+                return;
+            end
+
+            if tabIdx > numel(obj.PlotTabs)
+                fprintf('Warning: tabIdx %d exceeds available tabs\n', tabIdx);
+                return;
+            end
             % Defensive: check tabIdx
             if tabIdx > numel(obj.PlotTabs)
                 return;
@@ -1302,12 +1321,23 @@ classdef PlotManager < handle
         end
         % **MAIN METHOD: Improved refreshPlots with streaming optimization - NO CLEARING DURING STREAMING**
         function refreshPlots(obj, tabIndices)
+            % Add this validation at the beginning:
             if ~isprop(obj.App, 'DataManager') || isempty(obj.App.DataManager) || ~isvalid(obj.App.DataManager)
                 return;
             end
-            if nargin < 2
+
+            % Validate tabIndices parameter
+            if nargin < 2 || isempty(tabIndices)
                 tabIndices = 1:numel(obj.AxesArrays);
             end
+
+            % CRITICAL: Validate tabIndices are within bounds
+            validIndices = tabIndices(tabIndices > 0 & tabIndices <= numel(obj.AxesArrays));
+            if isempty(validIndices)
+                fprintf('Warning: No valid tab indices provided to refreshPlots\n');
+                return;
+            end
+            tabIndices = validIndices;
             if isempty(obj.App.DataManager.DataTables) || all(cellfun(@isempty, obj.App.DataManager.DataTables))
                 return;
             end
@@ -2361,12 +2391,6 @@ classdef PlotManager < handle
             end
         end
 
-
-        function updateAllPlotsForStreaming(obj)
-            % Optimized streaming updates - uses existing line update mechanism
-            obj.refreshPlots();
-        end
-
         function selectSubplot(obj, tabIdx, subplotIdx)
             % Update the selected subplot index
             obj.SelectedSubplotIdx = subplotIdx;
@@ -2600,6 +2624,22 @@ classdef PlotManager < handle
 
         function deleteTabByHandle(obj, tab)
             idx = find(cellfun(@(t) t == tab, obj.PlotTabs));
+            % CRITICAL: Clean up TabLinkedAxes arrays after deletion
+            if idx <= length(obj.TabLinkedAxes)
+                obj.TabLinkedAxes(idx) = [];
+            end
+            if idx <= length(obj.TabLinkedAxesObjects)
+                % Clean up linked axes objects first
+                if ~isempty(obj.TabLinkedAxesObjects{idx})
+                    linkedAxes = obj.TabLinkedAxesObjects{idx};
+                    for i = 1:length(linkedAxes)
+                        if isvalid(linkedAxes(i))
+                            linkaxes(linkedAxes(i), 'off');
+                        end
+                    end
+                end
+                obj.TabLinkedAxesObjects(idx) = [];
+            end
             if ~isempty(idx)
                 % Don't allow deleting if it's the + tab
                 if strcmp(tab.Title, '+') || contains(tab.Title, '+')
@@ -4700,95 +4740,6 @@ classdef PlotManager < handle
         end
 
 
-
-
-
-        addCaptionToPage
-        % Set crosshair position from mouse click
-        function setCrosshairFromClick(obj, ax, ~)
-            if ~obj.App.CursorState
-                return;
-            end
-
-            try
-                % Get click position
-                mousePos = ax.CurrentPoint;
-                newX = mousePos(1, 1);
-
-                % Check if X is within bounds
-                xlims = ax.XLim;
-                if newX >= xlims(1) && newX <= xlims(2)
-                    obj.setCrosshairX(newX);
-                end
-            catch
-                % Ignore errors
-            end
-        end
-        function createPDFFromImages(obj, imageFiles, outputPath)
-            % Create a single PDF from multiple images
-
-            if isempty(imageFiles)
-                error('No images to convert to PDF');
-            end
-
-            % Create a temporary figure for PDF assembly
-            pdfFig = figure('Visible', 'off', 'Position', [100 100 800 600], ...
-                'Color', [1 1 1], 'PaperType', 'a4', 'PaperOrientation', 'portrait');
-
-            try
-                for i = 1:numel(imageFiles)
-                    % Clear figure
-                    clf(pdfFig);
-
-                    % Read and display the image
-                    img = imread(imageFiles{i});
-
-                    % Create axes that fills the entire figure
-                    ax = axes('Parent', pdfFig, 'Position', [0 0 1 1]);
-
-                    % Display image
-                    imshow(img, 'Parent', ax);
-                    axis(ax, 'off');
-
-                    % Print to PDF
-                    if i == 1
-                        % First page: create new PDF
-                        print(pdfFig, outputPath, '-dpdf', '-fillpage', '-r300');
-                    else
-                        % This is the tricky part - we need to append without using -append
-                        % Solution: Use temporary files and system command if available
-                        tempPdfFile = [tempname '.pdf'];
-                        print(pdfFig, tempPdfFile, '-dpdf', '-fillpage', '-r300');
-
-                        % Try to combine using system tools
-                        success = obj.appendPDFPage(outputPath, tempPdfFile);
-
-                        if ~success
-                            % Fallback: create individual files
-                            [pathStr, name, ext] = fileparts(outputPath);
-                            backupFile = fullfile(pathStr, sprintf('%s_page%02d%s', name, i, ext));
-                            copyfile(tempPdfFile, backupFile);
-                            fprintf('Created backup file: %s\n', backupFile);
-                        end
-
-                        % Clean up temp file
-                        if exist(tempPdfFile, 'file')
-                            delete(tempPdfFile);
-                        end
-                    end
-                end
-
-            catch ME
-                if isvalid(pdfFig)
-                    close(pdfFig);
-                end
-                rethrow(ME);
-            end
-
-            % Clean up
-            close(pdfFig);
-        end
-
         function success = appendPDFPage(~, mainPdfFile, pagePdfFile)
             success = false;
 
@@ -5185,8 +5136,23 @@ classdef PlotManager < handle
 
 
         function addedCount = addSignalsToSubplot(obj, tabIdx, subplotIdx, signalsToAdd)
-            % PlotManager method to safely add signals to a subplot
-            % RETURNS the number of signals actually added
+            addedCount = 0;
+
+            % Validate inputs
+            if tabIdx < 1 || tabIdx > numel(obj.AssignedSignals)
+                fprintf('Warning: Invalid tabIdx %d in addSignalsToSubplot\n', tabIdx);
+                return;
+            end
+
+            if isempty(obj.AssignedSignals{tabIdx})
+                fprintf('Warning: No assigned signals structure for tab %d\n', tabIdx);
+                return;
+            end
+
+            if subplotIdx < 1 || subplotIdx > numel(obj.AssignedSignals{tabIdx})
+                fprintf('Warning: Invalid subplotIdx %d for tab %d\n', subplotIdx, tabIdx);
+                return;
+            end
 
             % Ensure layout consistency first
             obj.ensureAssignedSignalsMatchLayout(tabIdx);
@@ -5310,7 +5276,34 @@ classdef PlotManager < handle
             if ~isempty(obj.TabSwitchTimer) && isvalid(obj.TabSwitchTimer)
                 stop(obj.TabSwitchTimer);
                 delete(obj.TabSwitchTimer);
+                obj.TabSwitchTimer = [];
             end
+
+            % Clean up axes arrays
+            for i = 1:numel(obj.AxesArrays)
+                if ~isempty(obj.AxesArrays{i})
+                    for j = 1:numel(obj.AxesArrays{i})
+                        ax = obj.AxesArrays{i}(j);
+                        if isvalid(ax) && isgraphics(ax)
+                            delete(ax);
+                        end
+                    end
+                end
+            end
+
+            % Clean up plot tabs
+            for i = 1:numel(obj.PlotTabs)
+                if isvalid(obj.PlotTabs{i})
+                    delete(obj.PlotTabs{i});
+                end
+            end
+
+            % Clear large data structures
+            obj.AxesArrays = {};
+            obj.AssignedSignals = {};
+            obj.PlotTabs = {};
+            obj.GridLayouts = {};
+            obj.TabControls = {};
         end
     end
 

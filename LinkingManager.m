@@ -61,10 +61,6 @@ classdef LinkingManager < handle
                 'String', 'Enable automatic linking when assigning signals', 'Value', obj.AutoLinkEnabled, ...
                 'Callback', @(src, ~) obj.setAutoLinkEnabled(src.Value));
 
-            % Test linking
-            uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Test Current Links', ...
-                'Position', [20 100 150 30], 'Callback', @(~,~) obj.testCurrentLinks());
-
             % Clear all links
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Clear All Links', ...
                 'Position', [180 100 120 30], 'Callback', @(~,~) obj.clearAllLinks());
@@ -74,79 +70,126 @@ classdef LinkingManager < handle
                 'Position', [500 20 80 30], 'Callback', @(~,~) close(d));
         end
 
+        function delete(obj)
+            % Enhanced cleanup to prevent memory leaks
+            try
+                % Clear all link groups
+                obj.LinkedGroups = {};
+
+                % Clear color array
+                obj.LinkColors = [];
+
+                % Reset flags
+                obj.AutoLinkEnabled = false;
+                obj.LinkingMode = '';
+
+                % Break circular reference to App (CRITICAL)
+                obj.App = [];
+
+            catch ME
+                fprintf('Warning during LinkingManager cleanup: %s\n', ME.message);
+            end
+        end
+
         function showComparisonDialog(obj)
             % Comparison tools dialog
-            d = dialog('Name', 'Comparison Analysis', 'Position', [250 250 500 300]);
-            % Shared signals dropdown (added after groupDropdown)
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 110 120 20], ...
-                'String', 'Select Signal:', 'FontWeight', 'bold');
+            d = dialog('Name', 'Comparison Analysis', 'Position', [250 250 500 350]); % Made taller
 
-            signalDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
-                'Position', [150 110 200 25], ...
-                'String', {'<All Shared Signals>'}, 'Enable', 'off');  % Will populate later
-
-
-
-
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 260 460 25], ...
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 310 460 25], ...
                 'String', 'Comparison Analysis Tools', ...
                 'FontSize', 14, 'FontWeight', 'bold', 'HorizontalAlignment', 'center');
 
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 230 460 20], ...
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 280 460 20], ...
                 'String', 'Generate comparison plots and analysis for linked signals.', ...
                 'FontSize', 11);
 
             % Select linked group for comparison
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 190 120 20], ...
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 240 120 20], ...
                 'String', 'Select Link Group:', 'FontWeight', 'bold');
 
             groupNames = obj.getLinkGroupNames();
             groupDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
-                'Position', [150 190 200 25], 'String', groupNames);
+                'Position', [150 240 200 25], 'String', groupNames);
 
-            % Find shared signals immediately
-            group = obj.LinkedGroups{groupDropdown.Value};
-            allSignals = [];
-            for i = 1:numel(group.CSVIndices)
-                idx = group.CSVIndices(i);
-                if idx > numel(obj.App.DataManager.DataTables), continue; end
-                T = obj.App.DataManager.DataTables{idx};
-                if isempty(T), continue; end
-                sigs = setdiff(T.Properties.VariableNames, {'Time'});
-                if isempty(allSignals)
-                    allSignals = sigs;
-                else
-                    allSignals = intersect(allSignals, sigs);
-                end
-            end
+            % Signal selection
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 200 120 20], ...
+                'String', 'Select Signal:', 'FontWeight', 'bold');
 
-            if isempty(allSignals)
-                signalDropdown.String = {'<No shared signals>'};
-                signalDropdown.Enable = 'off';
-            else
-                signalDropdown.String = ['<All Shared Signals>', sort(allSignals)];
-                signalDropdown.Enable = 'on';
-            end
+            signalDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
+                'Position', [150 200 200 25], ...
+                'String', {'<All Shared Signals>'}, 'Enable', 'off');
 
             % Analysis type
-            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 150 120 20], ...
+            uicontrol('Parent', d, 'Style', 'text', 'Position', [20 160 120 20], ...
                 'String', 'Analysis Type:', 'FontWeight', 'bold');
 
             analysisDropdown = uicontrol('Parent', d, 'Style', 'popupmenu', ...
-                'Position', [150 150 200 25], ...
+                'Position', [150 160 200 25], ...
                 'String', {'Overlay Plot', 'Difference Plot', 'Statistical Summary'});
+
+            % Update signals when group changes
+            groupDropdown.Callback = @(~,~) updateSignalDropdown();
+
+            % Initialize signal dropdown
+            updateSignalDropdown();
 
             % Generate button
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Generate Analysis', ...
-                'Position', [200 50 100 30], 'FontWeight', 'bold', ...
+                'Position', [200 100 100 30], 'FontWeight', 'bold', ...
                 'Callback', @(~,~) obj.generateComparison(groupDropdown, analysisDropdown, signalDropdown, d));
-
 
             % Close button
             uicontrol('Parent', d, 'Style', 'pushbutton', 'String', 'Close', ...
                 'Position', [400 20 80 30], 'Callback', @(~,~) close(d));
-        end
 
+            function updateSignalDropdown()
+                try
+                    if isempty(obj.LinkedGroups)
+                        signalDropdown.String = {'<No link groups>'};
+                        signalDropdown.Enable = 'off';
+                        return;
+                    end
+
+                    selectedGroupIdx = groupDropdown.Value;
+                    if selectedGroupIdx < 1 || selectedGroupIdx > length(obj.LinkedGroups)
+                        signalDropdown.String = {'<Invalid group>'};
+                        signalDropdown.Enable = 'off';
+                        return;
+                    end
+
+                    group = obj.LinkedGroups{selectedGroupIdx};
+                    allSignals = [];
+
+                    for i = 1:numel(group.CSVIndices)
+                        idx = group.CSVIndices(i);
+                        if idx > 0 && idx <= numel(obj.App.DataManager.DataTables)
+                            T = obj.App.DataManager.DataTables{idx};
+                            if ~isempty(T)
+                                sigs = setdiff(T.Properties.VariableNames, {'Time'});
+                                if isempty(allSignals)
+                                    allSignals = sigs;
+                                else
+                                    allSignals = intersect(allSignals, sigs);
+                                end
+                            end
+                        end
+                    end
+
+                    if isempty(allSignals)
+                        signalDropdown.String = {'<No shared signals>'};
+                        signalDropdown.Enable = 'off';
+                    else
+                        signalDropdown.String = [{'<All Shared Signals>'}, sort(allSignals)];
+                        signalDropdown.Enable = 'on';
+                    end
+
+                catch ME
+                    fprintf('Error updating signal dropdown: %s\n', ME.message);
+                    signalDropdown.String = {'<Error>'};
+                    signalDropdown.Enable = 'off';
+                end
+            end
+        end
         function quickLinkSelected(obj)
             % Quick link currently selected nodes in tree
             selectedNodes = obj.App.SignalTree.SelectedNodes;
@@ -198,23 +241,41 @@ classdef LinkingManager < handle
         end
 
         function clearAllLinks(obj)
-            % Clear all linking relationships
-            if isempty(obj.LinkedGroups)
-                msgbox('No link groups to clear.', 'No Links', 'help');
-                return;
-            end
+            % Enhanced clear with proper validation and modern UI
+            try
+                if isempty(obj.LinkedGroups)
+                    uialert(obj.App.UIFigure, 'No link groups to clear.', 'No Links');
+                    return;
+                end
 
-            % Use questdlg instead of uiconfirm for traditional figure compatibility
-            answer = questdlg(sprintf('Clear all %d link groups?', length(obj.LinkedGroups)), ...
-                'Confirm Clear', 'Clear All', 'Cancel', 'Cancel');
+                % Use uiconfirm instead of questdlg for better App Designer compatibility
+                answer = uiconfirm(obj.App.UIFigure, ...
+                    sprintf('Clear all %d link groups?', length(obj.LinkedGroups)), ...
+                    'Confirm Clear', ...
+                    'Options', {'Clear All', 'Cancel'}, ...
+                    'DefaultOption', 'Cancel', ...
+                    'Icon', 'warning');
 
-            if strcmp(answer, 'Clear All')
+                if strcmp(answer, 'Clear All')
+                    % Clear with proper memory management
+                    obj.LinkedGroups = {};
+
+                    % Reset auto-link if no groups remain
+                    obj.AutoLinkEnabled = false;
+
+                    obj.App.StatusLabel.Text = 'Cleared all link groups';
+                    obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+                end
+
+            catch ME
+                % Fallback to simple clear if uiconfirm fails
+                fprintf('Warning: UI dialog failed, clearing links anyway: %s\n', ME.message);
                 obj.LinkedGroups = {};
-                obj.App.StatusLabel.Text = 'Cleared all link groups';
+                obj.AutoLinkEnabled = false;
+                obj.App.StatusLabel.Text = 'Cleared all link groups (fallback)';
                 obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
             end
         end
-
         function applyLinking(obj, signalInfo)
             % Apply linking when a signal is assigned
             if ~obj.AutoLinkEnabled || isempty(obj.LinkedGroups)
@@ -245,54 +306,129 @@ classdef LinkingManager < handle
 
         function availableNodes = getAvailableNodes(obj)
             availableNodes = {};
-            for i = 1:numel(obj.App.DataManager.CSVFilePaths)
-                [~, csvName, ext] = fileparts(obj.App.DataManager.CSVFilePaths{i});
-                availableNodes{end+1} = sprintf('CSV %d: %s%s', i, csvName, ext);
-            end
-            if isempty(availableNodes)
+
+            % Validate DataManager and CSVFilePaths exist
+            if ~isprop(obj.App, 'DataManager') || ...
+                    isempty(obj.App.DataManager) || ...
+                    ~isprop(obj.App.DataManager, 'CSVFilePaths')
                 availableNodes = {'No CSV files loaded'};
+                return;
+            end
+
+            csvPaths = obj.App.DataManager.CSVFilePaths;
+            if isempty(csvPaths)
+                availableNodes = {'No CSV files loaded'};
+                return;
+            end
+
+            % BOUNDS CHECK: Validate each file path
+            for i = 1:numel(csvPaths)
+                if i <= length(csvPaths) && ~isempty(csvPaths{i})
+                    try
+                        [~, csvName, ext] = fileparts(csvPaths{i});
+                        if ~isempty(csvName)
+                            availableNodes{end+1} = sprintf('CSV %d: %s%s', i, csvName, ext);
+                        end
+                    catch ME
+                        fprintf('Warning: Invalid file path at index %d: %s\n', i, ME.message);
+                        availableNodes{end+1} = sprintf('CSV %d: <Invalid Path>', i);
+                    end
+                end
+            end
+
+            if isempty(availableNodes)
+                availableNodes = {'No valid CSV files found'};
             end
         end
 
         function createLinkGroup(obj, listbox, dialog)
-            selectedIndices = listbox.Value;
-            if length(selectedIndices) < 2
-                msgbox('Please select at least 2 CSV files to link.', 'Selection Required', 'warn');
-                return;
+            try
+                selectedIndices = listbox.Value;
+                if length(selectedIndices) < 2
+                    uialert(obj.App.UIFigure, 'Please select at least 2 CSV files to link.', 'Selection Required');
+                    return;
+                end
+
+                % BOUNDS CHECK: Validate selected indices
+                maxValidIndex = length(obj.getAvailableNodes());
+                validIndices = selectedIndices(selectedIndices > 0 & selectedIndices <= maxValidIndex);
+
+                if length(validIndices) < 2
+                    uialert(obj.App.UIFigure, 'Selected indices are invalid.', 'Invalid Selection');
+                    return;
+                end
+
+                csvIndices = validIndices;
+
+                % Create new link group
+                newGroup = struct();
+                newGroup.Type = 'nodes';
+                newGroup.CSVIndices = csvIndices;
+
+                % SAFE COLOR ACCESS: Handle empty color array
+                if isempty(obj.LinkColors)
+                    % Fallback colors if LinkColors is empty
+                    obj.LinkColors = [
+                        0.9 0.2 0.2;    % Red
+                        0.2 0.9 0.2;    % Green
+                        0.2 0.2 0.9;    % Blue
+                        0.9 0.9 0.2;    % Yellow
+                        0.9 0.2 0.9;    % Magenta
+                        0.2 0.9 0.9;    % Cyan
+                        ];
+                end
+
+                colorIdx = mod(length(obj.LinkedGroups), size(obj.LinkColors, 1)) + 1;
+                newGroup.Color = obj.LinkColors(colorIdx, :);
+
+                % Safe filename construction
+                linkedNames = {};
+                for i = 1:numel(csvIndices)
+                    if csvIndices(i) <= length(obj.App.DataManager.CSVFilePaths)
+                        filePath = obj.App.DataManager.CSVFilePaths{csvIndices(i)};
+                        if ~isempty(filePath)
+                            [~, name, ~] = fileparts(filePath);
+                            if ~isempty(name)
+                                linkedNames{end+1} = name;
+                            else
+                                linkedNames{end+1} = sprintf('CSV_%d', csvIndices(i));
+                            end
+                        end
+                    end
+                end
+
+                if isempty(linkedNames)
+                    newGroup.Name = sprintf('Link Group %d', length(obj.LinkedGroups) + 1);
+                else
+                    newGroup.Name = ['Linked CSVs: ' strjoin(linkedNames, ', ')];
+                end
+
+                % Add to link groups
+                obj.LinkedGroups{end+1} = newGroup;
+
+                % Safe UI update
+                obj.updateDialogGroupsText(dialog);
+
+                obj.App.StatusLabel.Text = sprintf('Created link group with %d CSV files', length(csvIndices));
+                obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+            catch ME
+                uialert(obj.App.UIFigure, sprintf('Failed to create link group: %s', ME.message), 'Error');
+                fprintf('Error in createLinkGroup: %s\n', ME.message);
             end
-
-            % Selected CSV indices are listbox.Value directly
-            csvIndices = selectedIndices;
-
-            % Create new link group
-            newGroup = struct();
-            newGroup.Type = 'nodes';
-            newGroup.CSVIndices = csvIndices;
-
-            % Construct a meaningful name using filenames
-            linkedNames = {};
-            for i = 1:numel(csvIndices)
-                [~, name, ~] = fileparts(obj.App.DataManager.CSVFilePaths{csvIndices(i)});
-                linkedNames{end+1} = name;
-            end
-            newGroup.Name = ['Linked CSVs: ' strjoin(linkedNames, ', ')];
-
-            % Assign group color
-            newGroup.Color = obj.LinkColors(mod(length(obj.LinkedGroups), size(obj.LinkColors, 1)) + 1, :);
-
-            % Add to link groups
-            obj.LinkedGroups{end+1} = newGroup;
-
-            % Update UI dialog with new group info
-            groupsText = findobj(dialog, 'Style', 'edit', 'Enable', 'off');
-            if ~isempty(groupsText)
-                groupsText.String = obj.getLinkGroupsText();
-            end
-
-            msgbox(sprintf('Created link group with %d CSV files.', length(csvIndices)), ...
-                'Link Group Created', 'help');
         end
 
+        function updateDialogGroupsText(obj, dialog)
+            % Safe UI update helper
+            try
+                groupsText = findobj(dialog, 'Style', 'edit', 'Enable', 'off');
+                if ~isempty(groupsText) && isvalid(groupsText(1))
+                    groupsText(1).String = obj.getLinkGroupsText();
+                end
+            catch ME
+                fprintf('Warning: Could not update dialog groups text: %s\n', ME.message);
+            end
+        end
 
         function groupsText = getLinkGroupsText(obj)
             if isempty(obj.LinkedGroups)
@@ -331,19 +467,36 @@ classdef LinkingManager < handle
 
         function linkedSignals = findMatchingSignalsInGroup(obj, signalInfo, group)
             linkedSignals = {};
+
+            % Input validation
+            if ~isstruct(signalInfo) || ~isfield(signalInfo, 'Signal') || ~isfield(signalInfo, 'CSVIdx')
+                return;
+            end
+
             signalName = signalInfo.Signal;
+
+            % Validate group structure
+            if ~isstruct(group) || ~isfield(group, 'CSVIndices')
+                return;
+            end
 
             % Look for the same signal name in other CSVs in the group
             for i = 1:length(group.CSVIndices)
                 csvIdx = group.CSVIndices(i);
-                if csvIdx ~= signalInfo.CSVIdx && csvIdx <= length(obj.App.DataManager.DataTables)
+
+                % BOUNDS CHECK: Validate CSV index
+                if csvIdx ~= signalInfo.CSVIdx && ...
+                        csvIdx > 0 && ...
+                        csvIdx <= length(obj.App.DataManager.DataTables)
+
                     T = obj.App.DataManager.DataTables{csvIdx};
-                    if ~isempty(T) && ismember(signalName, T.Properties.VariableNames)
+                    if ~isempty(T) && istable(T) && ismember(signalName, T.Properties.VariableNames)
                         linkedSignals{end+1} = struct('CSVIdx', csvIdx, 'Signal', signalName);
                     end
                 end
             end
         end
+
 
         function addLinkedSignalsToCurrentSubplot(obj, linkedSignals)
             currentTab = obj.App.PlotManager.CurrentTabIdx;
@@ -402,232 +555,525 @@ classdef LinkingManager < handle
             obj.AutoLinkEnabled = enabled;
         end
 
-        function testCurrentLinks(obj)
-            if isempty(obj.LinkedGroups)
-                msgbox('No link groups to test.', 'No Links', 'help');
-                return;
+        function generateComparison(obj, groupDropdown, analysisDropdown, signalDropdown, ~)
+            % Enhanced input validation and bounds checking
+            try
+                if isempty(obj.LinkedGroups)
+                    uialert(obj.App.UIFigure, 'No link groups available for comparison.', 'No Links');
+                    return;
+                end
+
+                % BOUNDS CHECK: Validate dropdown selections
+                selectedGroupIdx = groupDropdown.Value;
+                if selectedGroupIdx < 1 || selectedGroupIdx > length(obj.LinkedGroups)
+                    uialert(obj.App.UIFigure, 'Invalid group selection.', 'Selection Error');
+                    return;
+                end
+
+                selectedSignalIdx = signalDropdown.Value;
+                if selectedSignalIdx < 1 || selectedSignalIdx > length(signalDropdown.String)
+                    uialert(obj.App.UIFigure, 'Invalid signal selection.', 'Selection Error');
+                    return;
+                end
+
+                selectedAnalysisIdx = analysisDropdown.Value;
+                if selectedAnalysisIdx < 1 || selectedAnalysisIdx > length(analysisDropdown.String)
+                    uialert(obj.App.UIFigure, 'Invalid analysis type selection.', 'Selection Error');
+                    return;
+                end
+
+                group = obj.LinkedGroups{selectedGroupIdx};
+                selectedSignal = signalDropdown.String{selectedSignalIdx};
+                analysisType = analysisDropdown.String{selectedAnalysisIdx};
+
+                % Validate group structure
+                if ~isfield(group, 'CSVIndices') || isempty(group.CSVIndices)
+                    uialert(obj.App.UIFigure, 'Selected group has no CSV indices.', 'Invalid Group');
+                    return;
+                end
+
+                % Continue with rest of function with proper error handling...
+                obj.performComparisonAnalysis(group, selectedSignal, analysisType);
+
+            catch ME
+                uialert(obj.App.UIFigure, sprintf('Comparison failed: %s', ME.message), 'Error');
+                fprintf('Error in generateComparison: %s\n', ME.message);
             end
+        end
 
-            % Simple test - show what signals would be linked
-            msg = 'Link Groups:';
-            msg = [msg newline newline];
-            for i = 1:length(obj.LinkedGroups)
-                group = obj.LinkedGroups{i};
-                msg = [msg sprintf('%s:', group.Name)];
-                msg = [msg newline];
+        function performComparisonAnalysis(obj, group, selectedSignal, analysisType)
+            % Complete comparison analysis with all missing logic
+            try
+                fprintf('Starting performComparisonAnalysis...\n');
 
-                if strcmp(group.Type, 'nodes')
-                    for j = 1:length(group.CSVIndices)
-                        csvIdx = group.CSVIndices(j);
-                        if csvIdx <= length(obj.App.DataManager.CSVFilePaths)
-                            [~, name, ext] = fileparts(obj.App.DataManager.CSVFilePaths{csvIdx});
-                            T = obj.App.DataManager.DataTables{csvIdx};
-                            if ~isempty(T)
-                                signals = setdiff(T.Properties.VariableNames, {'Time'});
-                                msg = [msg sprintf('  CSV %d (%s%s): %d signals', csvIdx, name, ext, length(signals))];
-                                msg = [msg newline];
+                % Validate CSV indices in group
+                validCSVIndices = [];
+                for i = 1:numel(group.CSVIndices)
+                    idx = group.CSVIndices(i);
+                    if idx > 0 && idx <= numel(obj.App.DataManager.DataTables)
+                        if ~isempty(obj.App.DataManager.DataTables{idx})
+                            validCSVIndices(end+1) = idx;
+                        end
+                    end
+                end
+
+                if length(validCSVIndices) < 2
+                    uialert(obj.App.UIFigure, 'Need at least 2 valid CSV files for comparison.', 'Insufficient Data');
+                    return;
+                end
+
+                fprintf('Found %d valid CSV indices: %s\n', length(validCSVIndices), mat2str(validCSVIndices));
+
+                % Collect shared signals across all valid CSVs
+                allSignalSets = {};
+                for i = 1:length(validCSVIndices)
+                    idx = validCSVIndices(i);
+                    T = obj.App.DataManager.DataTables{idx};
+                    signals = setdiff(T.Properties.VariableNames, {'Time'});
+                    allSignalSets{end+1} = signals;
+                end
+
+                % Find intersection of all signal sets (shared signals)
+                sharedSignals = allSignalSets{1};
+                for i = 2:length(allSignalSets)
+                    sharedSignals = intersect(sharedSignals, allSignalSets{i});
+                end
+
+                fprintf('Found %d shared signals: %s\n', length(sharedSignals), strjoin(sharedSignals, ', '));
+
+                if isempty(sharedSignals)
+                    uialert(obj.App.UIFigure, 'No shared signals found across the linked CSV files.', 'No Common Signals');
+                    return;
+                end
+
+                % Determine target signals for analysis
+                if strcmp(selectedSignal, '<All Shared Signals>')
+                    targetSignals = sharedSignals;
+                    fprintf('Analyzing all %d shared signals\n', length(targetSignals));
+                else
+                    if ~ismember(selectedSignal, sharedSignals)
+                        uialert(obj.App.UIFigure, sprintf('Selected signal "%s" is not available in all linked CSVs.', selectedSignal), 'Signal Not Available');
+                        return;
+                    end
+                    targetSignals = {selectedSignal};
+                    fprintf('Analyzing single signal: %s\n', selectedSignal);
+                end
+
+                % Create main comparison figure
+                mainFig = figure('Name', sprintf('Comparison Analysis: %s', group.Name), ...
+                    'NumberTitle', 'off', 'Position', [100, 100, 1200, 800]);
+
+                % Setup subplot layout for multiple signals
+                if length(targetSignals) > 1
+                    numCols = min(3, length(targetSignals));
+                    numRows = ceil(length(targetSignals) / numCols);
+                    tiledlayout(numRows, numCols, 'TileSpacing', 'compact', 'Padding', 'compact');
+                end
+
+                % Store results for summary analysis
+                signalResults = {};
+                maxErrorPerSignal = [];
+                tableData = {};
+
+                % Process each target signal
+                for s = 1:length(targetSignals)
+                    signal = targetSignals{s};
+                    fprintf('Processing signal %d/%d: %s\n', s, length(targetSignals), signal);
+
+                    % Collect data from all valid CSVs for this signal
+                    timeList = {};
+                    valueList = {};
+                    labels = {};
+
+                    for i = 1:length(validCSVIndices)
+                        csvIdx = validCSVIndices(i);
+                        T = obj.App.DataManager.DataTables{csvIdx};
+
+                        if ismember(signal, T.Properties.VariableNames)
+                            % Get valid (non-NaN) data
+                            timeCol = T.Time;
+                            signalCol = T.(signal);
+                            validIdx = ~isnan(signalCol) & ~isnan(timeCol) & isfinite(signalCol) & isfinite(timeCol);
+
+                            if sum(validIdx) > 10  % Need at least 10 points for meaningful analysis
+                                timeList{end+1} = timeCol(validIdx);
+                                valueList{end+1} = signalCol(validIdx);
+
+                                % Create descriptive label from CSV filename
+                                if csvIdx <= length(obj.App.DataManager.CSVFilePaths) && ~isempty(obj.App.DataManager.CSVFilePaths{csvIdx})
+                                    [~, name, ~] = fileparts(obj.App.DataManager.CSVFilePaths{csvIdx});
+                                    labels{end+1} = name;
+                                else
+                                    labels{end+1} = sprintf('CSV_%d', csvIdx);
+                                end
+                            else
+                                fprintf('  Warning: CSV %d has insufficient valid data for signal %s\n', csvIdx, signal);
                             end
                         end
                     end
-                end
-                msg = [msg newline];
-            end
 
-            msgbox(msg, 'Link Groups Test', 'help');
-        end
+                    fprintf('  Found valid data in %d CSVs for signal %s\n', length(valueList), signal);
 
-        function generateComparison(obj, groupDropdown, analysisDropdown, signalDropdown, ~)
-            if isempty(obj.LinkedGroups)
-                msgbox('No link groups available for comparison.', 'No Links', 'warn');
-                return;
-            end
-
-            selectedGroupIdx = groupDropdown.Value;
-            selectedSignalIdx = signalDropdown.Value;
-            selectedAnalysis = analysisDropdown.Value;
-
-            group = obj.LinkedGroups{selectedGroupIdx};
-            selectedSignal = signalDropdown.String{selectedSignalIdx};
-            analysisType = analysisDropdown.String{selectedAnalysis};
-
-            % Collect shared signals again
-            sharedSignals = [];
-            for i = 1:numel(group.CSVIndices)
-                idx = group.CSVIndices(i);
-                T = obj.App.DataManager.DataTables{idx};
-                if isempty(T), continue; end
-                sigs = setdiff(T.Properties.VariableNames, {'Time'});
-                if isempty(sharedSignals)
-                    sharedSignals = sigs;
-                else
-                    sharedSignals = intersect(sharedSignals, sigs);
-                end
-            end
-
-            if isempty(sharedSignals)
-                msgbox('No shared signals found in this group.', 'No Common Signals', 'warn');
-                return;
-            end
-
-            % Determine target signals
-            if strcmp(selectedSignal, '<All Shared Signals>')
-                targetSignals = sharedSignals;
-            else
-                targetSignals = {selectedSignal};
-            end
-
-            % Plot and compare
-            figure('Name', ['Comparison: ' group.Name], 'NumberTitle', 'off');
-            tiledlayout('flow');
-
-            % Store all signal analysis results for sorting
-            signalResults = {};
-            maxErrorPerSignal = [];
-
-            for s = 1:numel(targetSignals)
-                sig = targetSignals{s};
-                timeList = {}; valueList = {}; labels = {};
-
-                for i = 1:numel(group.CSVIndices)
-                    idx = group.CSVIndices(i);
-                    T = obj.App.DataManager.DataTables{idx};
-                    if isempty(T) || ~ismember(sig, T.Properties.VariableNames), continue; end
-
-                    valid = ~isnan(T.(sig));
-                    timeList{end+1} = T.Time(valid);
-                    valueList{end+1} = T.(sig)(valid);
-
-                    [~, label, ~] = fileparts(obj.App.DataManager.CSVFilePaths{idx});
-                    labels{end+1} = label;
-                end
-
-                if numel(valueList) < 2, continue; end
-
-                % Interpolate to common time
-                tMin = max(cellfun(@(t) min(t), timeList));
-                tMax = min(cellfun(@(t) max(t), timeList));
-                commonTime = linspace(tMin, tMax, 200);
-
-                aligned = nan(numel(valueList), numel(commonTime));
-                for i = 1:numel(valueList)
-                    aligned(i,:) = interp1(timeList{i}, valueList{i}, commonTime, 'linear', NaN);
-                end
-
-                % Reference = mean
-                ref = mean(aligned, 1);
-                errors = mean(abs((aligned - ref) ./ max(abs(ref), eps)), 2) * 100;
-
-                % Store results for this signal
-                signalResults{end+1} = struct('signal', sig, 'labels', {labels}, 'errors', errors, ...
-                    'commonTime', commonTime, 'aligned', aligned);
-
-                % Store the MAXIMUM error for this signal across all CSVs
-                maxErrorPerSignal(end+1) = max(errors);
-            end
-
-            % === SORT SIGNALS BY MAXIMUM ERROR (DESCENDING) ===
-            [~, sortIdx] = sort(maxErrorPerSignal, 'descend');
-            signalResults = signalResults(sortIdx);
-
-            % Now create plots and report in sorted order
-            reportLines = {};
-            tableData = {};
-
-            for s = 1:numel(signalResults)
-                result = signalResults{s};
-                sig = result.signal;
-                labels = result.labels;
-                errors = result.errors;
-                commonTime = result.commonTime;
-                aligned = result.aligned;
-
-                % Add to report (now in sorted order)
-                reportLines{end+1} = sprintf('Signal: %s (Max Error: %.2f%%)', sig, max(errors));
-                for i = 1:numel(labels)
-                    reportLines{end+1} = sprintf('  %s: %.2f%% error', labels{i}, errors(i));
-                    % Add to table data (sorted by signal max error)
-                    tableData(end+1, :) = {sig, labels{i}, errors(i)}; %#ok<AGROW>
-                end
-
-                % === Plot Depending on Analysis ===
-                nexttile;
-                switch analysisType
-                    case 'Overlay Plot'
-                        hold on;
-                        for i = 1:size(aligned, 1)
-                            plot(commonTime, aligned(i,:), 'DisplayName', labels{i}, 'LineWidth', 1.5);
-                        end
-                        title(sprintf('Overlay: %s (Max: %.2f%%)', sig, max(errors)), 'Interpreter', 'none');
-
-                    case 'Difference Plot'
-                        hold on;
-                        base = aligned(1,:);
-                        for i = 2:size(aligned, 1)
-                            diff = base - aligned(i,:);
-                            plot(commonTime, diff, 'DisplayName', [labels{1} ' - ' labels{i}], 'LineWidth', 1.5);
-                        end
-                        title(sprintf('Difference: %s (Max: %.2f%%)', sig, max(errors)), 'Interpreter', 'none');
-
-                    case 'Statistical Summary'
-                        meanVals = mean(aligned, 1);
-                        stdVals = std(aligned, 0, 1);
-                        fill([commonTime fliplr(commonTime)], ...
-                            [meanVals+stdVals fliplr(meanVals-stdVals)], ...
-                            [0.8 0.8 1], 'EdgeColor', 'none');
-                        hold on;
-                        plot(commonTime, meanVals, 'b-', 'LineWidth', 2);
-                        title(sprintf('Mean ± STD: %s (Max: %.2f%%)', sig, max(errors)), 'Interpreter', 'none');
-                end
-
-                legend('Location', 'best');
-                xlabel('Time'); ylabel(sig); grid on;
-            end
-
-            if ~isempty(tableData)
-                % Create new figure with sorted uitable
-                f = figure('Name', 'Comparison Report (Sorted by Max Error)', 'NumberTitle', 'off', 'Position', [100, 100, 650, 400]);
-
-                % Add explanatory text
-                uicontrol(f, 'Style', 'text', 'String', 'Signals sorted by maximum error (highest first)', ...
-                    'Position', [10, 370, 400, 20], 'FontWeight', 'bold', 'HorizontalAlignment', 'left');
-
-                t = uitable(f, 'Data', tableData, ...
-                    'ColumnName', {'Signal', 'CSV Label', 'Error (%)'}, ...
-                    'ColumnWidth', {150, 200, 100}, ...
-                    'RowName', [], ...
-                    'Units', 'normalized', ...
-                    'Position', [0 0 1 0.9]);
-
-                % Color-code rows by signal for better readability
-                try
-                    % Get unique signals to assign colors
-                    uniqueSignals = unique(tableData(:,1), 'stable');
-                    colors = lines(numel(uniqueSignals));
-
-                    % Create background colors for table rows
-                    bgColors = ones(size(tableData, 1), 3) * 0.95; % Default light gray
-                    for i = 1:numel(uniqueSignals)
-                        signalName = uniqueSignals{i};
-                        signalRows = strcmp(tableData(:,1), signalName);
-                        bgColors(signalRows, :) = repmat(colors(i,:) * 0.3 + 0.7, sum(signalRows), 1); % Light version of color
+                    if length(valueList) < 2
+                        fprintf('  Skipping signal %s - need at least 2 CSV files with data\n', signal);
+                        continue;
                     end
 
-                    t.BackgroundColor = bgColors;
+                    % Align all signals to a common time base
+                    [commonTime, alignedData] = obj.alignSignalsToCommonTime(timeList, valueList);
+
+                    if isempty(commonTime) || size(alignedData, 2) < 10
+                        fprintf('  Skipping signal %s - time alignment failed or insufficient data\n', signal);
+                        continue;
+                    end
+
+                    fprintf('  Aligned data: %d time points, %d signals\n', length(commonTime), size(alignedData, 1));
+
+                    % Calculate statistical metrics and errors
+                    meanSignal = mean(alignedData, 1);
+                    stdSignal = std(alignedData, 0, 1);
+
+                    % Calculate percentage error for each CSV relative to mean
+                    errors = zeros(size(alignedData, 1), 1);
+                    for i = 1:size(alignedData, 1)
+                        diff = alignedData(i, :) - meanSignal;
+                        meanAbs = mean(abs(meanSignal));
+                        if meanAbs > eps
+                            errors(i) = mean(abs(diff)) / meanAbs * 100;
+                        else
+                            errors(i) = 0;
+                        end
+                    end
+
+                    % Store results for this signal
+                    signalResults{end+1} = struct(...
+                        'signal', signal, ...
+                        'labels', {labels}, ...
+                        'errors', errors, ...
+                        'commonTime', commonTime, ...
+                        'alignedData', alignedData, ...
+                        'meanSignal', meanSignal, ...
+                        'stdSignal', stdSignal);
+
+                    maxErrorPerSignal(end+1) = max(errors);
+
+                    % Add to summary table data
+                    for i = 1:length(labels)
+                        tableData(end+1, :) = {signal, labels{i}, errors(i)};
+                    end
+
+                    % Create subplot for this signal
+                    if length(targetSignals) > 1
+                        nexttile;
+                    end
+
+                    % Generate the actual plot
+                    obj.createSignalComparisonPlot(signal, commonTime, alignedData, meanSignal, stdSignal, labels, errors, analysisType);
+                end
+
+                % Create summary table if we have results
+                if ~isempty(signalResults)
+                    obj.createAnalysisSummaryTable(tableData, maxErrorPerSignal, group.Name);
+
+                    % Update status with success message
+                    obj.App.StatusLabel.Text = sprintf('✅ Generated %s analysis for %d signal(s)', analysisType, length(signalResults));
+                    obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
+
+                    fprintf('Analysis completed successfully for %d signals\n', length(signalResults));
+                else
+                    uialert(obj.App.UIFigure, 'No valid signals could be analyzed. Check that your CSV files contain valid numerical data.', 'Analysis Failed');
+                    obj.App.StatusLabel.Text = '❌ Analysis failed - no valid data';
+                    obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+                end
+
+            catch ME
+                fprintf('Error in performComparisonAnalysis: %s\n', ME.message);
+                fprintf('Stack trace:\n');
+                for i = 1:length(ME.stack)
+                    fprintf('  %s (line %d)\n', ME.stack(i).name, ME.stack(i).line);
+                end
+
+                uialert(obj.App.UIFigure, sprintf('Analysis failed: %s', ME.message), 'Error');
+                obj.App.StatusLabel.Text = '❌ Analysis error';
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
+                rethrow(ME);
+            end
+        end
+
+        function [commonTime, alignedData] = alignSignalsToCommonTime(obj, timeList, valueList)
+            % Align multiple signals to a common time base using interpolation
+            try
+                % Find the overlapping time range across all signals
+                minStartTime = max(cellfun(@min, timeList));
+                maxEndTime = min(cellfun(@max, timeList));
+
+                if minStartTime >= maxEndTime
+                    fprintf('Warning: No overlapping time range found\n');
+                    fprintf('  Time ranges: ');
+                    for i = 1:length(timeList)
+                        fprintf('[%.2f, %.2f] ', min(timeList{i}), max(timeList{i}));
+                    end
+                    fprintf('\n');
+                    commonTime = [];
+                    alignedData = [];
+                    return;
+                end
+
+                % Determine appropriate time resolution
+                % Use the finest resolution among all signals, but limit to reasonable number of points
+                allDt = [];
+                for i = 1:length(timeList)
+                    if length(timeList{i}) > 1
+                        dt = mean(diff(sort(timeList{i})));
+                        allDt(end+1) = dt;
+                    end
+                end
+
+                if isempty(allDt)
+                    commonTime = [];
+                    alignedData = [];
+                    return;
+                end
+
+                targetDt = min(allDt);
+                maxPoints = 1000;  % Limit to prevent memory issues
+                numPoints = min(maxPoints, ceil((maxEndTime - minStartTime) / targetDt));
+
+                % Create common time vector
+                commonTime = linspace(minStartTime, maxEndTime, numPoints)';
+
+                fprintf('  Aligning to common time: %.2f to %.2f (%d points)\n', minStartTime, maxEndTime, numPoints);
+
+                % Interpolate all signals to the common time base
+                alignedData = zeros(length(valueList), length(commonTime));
+
+                for i = 1:length(valueList)
+                    try
+                        % Sort time and values to ensure monotonic time for interpolation
+                        [sortedTime, sortIdx] = sort(timeList{i});
+                        sortedValues = valueList{i}(sortIdx);
+
+                        % Remove duplicate time points (keep first occurrence)
+                        [uniqueTime, uniqueIdx] = unique(sortedTime, 'first');
+                        uniqueValues = sortedValues(uniqueIdx);
+
+                        if length(uniqueTime) < 2
+                            fprintf('    Warning: Signal %d has insufficient unique time points\n', i);
+                            alignedData(i, :) = NaN;
+                            continue;
+                        end
+
+                        % Interpolate to common time base
+                        alignedData(i, :) = interp1(uniqueTime, uniqueValues, commonTime, 'linear', NaN);
+
+                        % Check interpolation quality
+                        nanCount = sum(isnan(alignedData(i, :)));
+                        if nanCount > length(commonTime) * 0.5
+                            fprintf('    Warning: Signal %d has >50%% NaN values after interpolation\n', i);
+                        end
+
+                    catch interpError
+                        fprintf('    Warning: Interpolation failed for signal %d: %s\n', i, interpError.message);
+                        alignedData(i, :) = NaN;
+                    end
+                end
+
+                % Remove time points where any signal has NaN (for fair comparison)
+                validCols = all(isfinite(alignedData), 1);
+                validDataRatio = sum(validCols) / length(validCols);
+
+                fprintf('  Valid data ratio after alignment: %.1f%%\n', validDataRatio * 100);
+
+                if validDataRatio < 0.1  % Less than 10% valid data
+                    fprintf('  Warning: Less than 10%% of aligned data is valid\n');
+                    commonTime = [];
+                    alignedData = [];
+                    return;
+                end
+
+                commonTime = commonTime(validCols);
+                alignedData = alignedData(:, validCols);
+
+            catch ME
+                fprintf('Error in alignSignalsToCommonTime: %s\n', ME.message);
+                commonTime = [];
+                alignedData = [];
+            end
+        end
+
+        function createSignalComparisonPlot(obj, signal, commonTime, alignedData, meanSignal, stdSignal, labels, errors, analysisType)
+            % Create the actual comparison plot for a single signal
+            try
+                hold on;
+
+                switch analysisType
+                    case 'Overlay Plot'
+                        % Plot each signal with error in legend
+                        colors = lines(size(alignedData, 1));
+                        for i = 1:size(alignedData, 1)
+                            plot(commonTime, alignedData(i, :), ...
+                                'Color', colors(i, :), ...
+                                'DisplayName', sprintf('%s (%.1f%% err)', labels{i}, errors(i)), ...
+                                'LineWidth', 1.5);
+                        end
+                        title(sprintf('Overlay: %s (Max Error: %.2f%%)', signal, max(errors)), 'Interpreter', 'none');
+                        ylabel(signal, 'Interpreter', 'none');
+
+                    case 'Difference Plot'
+                        % Plot differences from first signal
+                        if size(alignedData, 1) >= 2
+                            baseSignal = alignedData(1, :);
+                            colors = lines(size(alignedData, 1) - 1);
+                            for i = 2:size(alignedData, 1)
+                                diff = alignedData(i, :) - baseSignal;
+                                plot(commonTime, diff, ...
+                                    'Color', colors(i-1, :), ...
+                                    'DisplayName', sprintf('%s - %s', labels{i}, labels{1}), ...
+                                    'LineWidth', 1.5);
+                            end
+                            title(sprintf('Differences from %s: %s', labels{1}, signal), 'Interpreter', 'none');
+                            ylabel(sprintf('Δ %s', signal), 'Interpreter', 'none');
+                        else
+                            text(0.5, 0.5, 'Need at least 2 signals for difference plot', ...
+                                'Units', 'normalized', 'HorizontalAlignment', 'center');
+                        end
+
+                    case 'Statistical Summary'
+                        % Plot mean with confidence bands
+                        upperBound = meanSignal + stdSignal;
+                        lowerBound = meanSignal - stdSignal;
+
+                        % Create filled area for standard deviation
+                        fill([commonTime; flipud(commonTime)], ...
+                            [upperBound'; flipud(lowerBound')], ...
+                            [0.8 0.8 1], 'EdgeColor', 'none', ...
+                            'DisplayName', 'Mean ± 1σ', 'FaceAlpha', 0.3);
+
+                        % Plot mean line
+                        plot(commonTime, meanSignal, 'b-', 'LineWidth', 2, 'DisplayName', 'Mean');
+
+                        % Plot individual signals as thin lines
+                        colors = lines(size(alignedData, 1));
+                        for i = 1:size(alignedData, 1)
+                            plot(commonTime, alignedData(i, :), '--', ...
+                                'Color', colors(i, :), 'LineWidth', 0.8, ...
+                                'DisplayName', labels{i});
+                        end
+
+                        title(sprintf('Statistics: %s (Max Error: %.2f%%)', signal, max(errors)), 'Interpreter', 'none');
+                        ylabel(signal, 'Interpreter', 'none');
+                end
+
+                xlabel('Time');
+                legend('Location', 'best', 'Interpreter', 'none');
+                grid on;
+                hold off;
+
+            catch ME
+                fprintf('Error creating plot for signal %s: %s\n', signal, ME.message);
+                text(0.5, 0.5, sprintf('Plot error: %s', ME.message), ...
+                    'Units', 'normalized', 'HorizontalAlignment', 'center', 'Color', 'red');
+            end
+        end
+
+        function createAnalysisSummaryTable(obj, tableData, maxErrorPerSignal, groupName)
+            % Create a summary table with results sorted by error
+            try
+                if isempty(tableData)
+                    return;
+                end
+
+                % Sort table data by error (descending)
+                errorCol = cell2mat(tableData(:, 3));
+                [~, sortIdx] = sort(errorCol, 'descend');
+                sortedTableData = tableData(sortIdx, :);
+
+                % Create summary figure
+                summaryFig = figure('Name', sprintf('Analysis Summary: %s', groupName), ...
+                    'NumberTitle', 'off', 'Position', [200, 50, 700, 500]);
+
+                % Add title and description
+                annotation(summaryFig, 'textbox', [0.1, 0.92, 0.8, 0.06], ...
+                    'String', sprintf('Comparison Summary: %s', groupName), ...
+                    'FontWeight', 'bold', 'FontSize', 12, ...
+                    'HorizontalAlignment', 'center', 'EdgeColor', 'none');
+
+                annotation(summaryFig, 'textbox', [0.1, 0.87, 0.8, 0.04], ...
+                    'String', 'Signals and CSV sources sorted by error (highest first)', ...
+                    'FontSize', 10, 'HorizontalAlignment', 'center', 'EdgeColor', 'none');
+
+                % Create the data table
+                summaryTable = uitable(summaryFig, 'Data', sortedTableData, ...
+                    'ColumnName', {'Signal', 'CSV Source', 'Error (%)'}, ...
+                    'ColumnWidth', {200, 250, 120}, ...
+                    'RowName', [], ...
+                    'Units', 'normalized', ...
+                    'Position', [0.05, 0.05, 0.9, 0.8]);
+
+                % Color-code rows by error level
+                try
+                    numRows = size(sortedTableData, 1);
+                    bgColors = ones(numRows, 3) * 0.95; % Default light gray
+
+                    for i = 1:numRows
+                        error = sortedTableData{i, 3};
+                        if error > 10
+                            bgColors(i, :) = [1, 0.8, 0.8]; % Light red for high error
+                        elseif error > 5
+                            bgColors(i, :) = [1, 1, 0.8];   % Light yellow for medium error
+                        else
+                            bgColors(i, :) = [0.8, 1, 0.8]; % Light green for low error
+                        end
+                    end
+
+                    summaryTable.BackgroundColor = bgColors;
                 catch
                     % If coloring fails, continue without it
                 end
-            else
-                msgbox('No signals available for comparison.', 'Empty', 'warn');
+
+                fprintf('Created summary table with %d entries\n', size(sortedTableData, 1));
+
+            catch ME
+                fprintf('Error creating summary table: %s\n', ME.message);
             end
         end
+
         function csvIdx = getCSVIndexFromNodeText(obj, nodeText)
             csvIdx = 0;
-            % Try to find matching CSV file
-            for i = 1:length(obj.App.DataManager.CSVFilePaths)
-                [~, name, ext] = fileparts(obj.App.DataManager.CSVFilePaths{i});
-                if strcmp(nodeText, [name ext])
-                    csvIdx = i;
-                    return;
+
+            % Input validation
+            if ~ischar(nodeText) && ~isstring(nodeText)
+                return;
+            end
+
+            % Convert to char for consistent handling
+            nodeText = char(nodeText);
+
+            % Validate DataManager exists
+            if ~isprop(obj.App, 'DataManager') || ...
+                    isempty(obj.App.DataManager) || ...
+                    ~isprop(obj.App.DataManager, 'CSVFilePaths')
+                return;
+            end
+
+            csvPaths = obj.App.DataManager.CSVFilePaths;
+            if isempty(csvPaths)
+                return;
+            end
+
+            % BOUNDS CHECK: Find matching CSV file safely
+            for i = 1:length(csvPaths)
+                if i <= length(csvPaths) && ~isempty(csvPaths{i})
+                    try
+                        [~, name, ext] = fileparts(csvPaths{i});
+                        if strcmp(nodeText, [name ext])
+                            csvIdx = i;
+                            return;
+                        end
+                    catch ME
+                        fprintf('Warning: Error processing CSV path at index %d: %s\n', i, ME.message);
+                        continue;
+                    end
                 end
             end
         end

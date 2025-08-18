@@ -49,23 +49,6 @@ classdef DataManager < handle
             % REMOVED: drawnow; - not needed here
         end
 
-        function sigInfo = getSignalInfoByFullName(obj, fullName)
-            sigInfo = [];
-
-            for csvIdx = 1:numel(obj.DataTables)
-                T = obj.DataTables{csvIdx};
-                varNames = T.Properties.VariableNames;
-                for v = 1:numel(varNames)
-                    if contains(fullName, varNames{v})
-                        sigInfo.Reader = @(~) deal(T.Time, T.(varNames{v}));
-                        sigInfo.BaseSignalName = varNames{v};
-                        sigInfo.CSVIdx = csvIdx;
-                        return;
-                    end
-                end
-            end
-        end
-
 
         function startStreamingForCSV(obj, idx)
             % Initialize file monitoring for this CSV
@@ -95,19 +78,17 @@ classdef DataManager < handle
         end
 
         function isValidCSV = validateCSVFormat(obj, T, filePath)
-            % Validate that the CSV format is correct (header count matches data count)
             isValidCSV = false;
+            fid = -1; % Initialize file handle
 
-            if isempty(T) || ~istable(T)
-                return;
-            end
-
-            % Get the number of columns from the table
-            numTableCols = width(T);
-
-            % Read the raw file to check the actual data structure
             try
-                % Read just the first few lines to check format
+                if isempty(T) || ~istable(T)
+                    return;
+                end
+
+                numTableCols = width(T);
+
+                % Open file with proper error handling
                 fid = fopen(filePath, 'r');
                 if fid == -1
                     return;
@@ -116,11 +97,10 @@ classdef DataManager < handle
                 % Read header line
                 headerLine = fgetl(fid);
                 if headerLine == -1
-                    fclose(fid);
                     return;
                 end
 
-                % Count header columns (split by common delimiters)
+                % Count header columns
                 if contains(headerLine, ',')
                     headerCols = strsplit(headerLine, ',');
                 elseif contains(headerLine, ';')
@@ -134,8 +114,6 @@ classdef DataManager < handle
 
                 % Read first data line
                 dataLine = fgetl(fid);
-                fclose(fid);
-
                 if dataLine == -1
                     return;
                 end
@@ -152,24 +130,21 @@ classdef DataManager < handle
                 end
                 numDataCols = length(dataCols);
 
-                % Validate: header count should match data count AND table width
+                % Validate format
                 if numHeaderCols == numDataCols && numTableCols == numHeaderCols
                     isValidCSV = true;
-                else
-                    % Log the mismatch for debugging
-                    [~, fileName, ext] = fileparts(filePath);
-                    fprintf('CSV Format Error in %s%s:\n', fileName, ext);
-                    fprintf('  Headers: %d columns\n', numHeaderCols);
-                    fprintf('  Data: %d columns\n', numDataCols);
-                    fprintf('  Table: %d columns\n', numTableCols);
                 end
 
             catch ME
                 fprintf('Error validating CSV format: %s\n', ME.message);
-                return;
+
+                finally
+                % CRITICAL: Always close file handle
+                if fid ~= -1
+                    fclose(fid);
+                end
             end
         end
-
         function readInitialData(obj, idx)
             filePath = obj.CSVFilePaths{idx};
             if ~isfile(filePath)
@@ -246,29 +221,65 @@ classdef DataManager < handle
         end
 
         function startStreamingTimer(obj, idx)
-            % Create and start the streaming timer for a specific CSV
-            if numel(obj.StreamingTimers) >= idx && ~isempty(obj.StreamingTimers{idx}) && isvalid(obj.StreamingTimers{idx})
-                stop(obj.StreamingTimers{idx});
-                delete(obj.StreamingTimers{idx});
+            % Thread-safe timer creation and management
+            try
+                % Stop existing timer safely
+                if numel(obj.StreamingTimers) >= idx && ~isempty(obj.StreamingTimers{idx})
+                    if isvalid(obj.StreamingTimers{idx})
+                        if strcmp(obj.StreamingTimers{idx}.Running, 'on')
+                            stop(obj.StreamingTimers{idx});
+                        end
+                        delete(obj.StreamingTimers{idx});
+                    end
+                    obj.StreamingTimers{idx} = [];
+                end
+
+                % Ensure StreamingTimers cell array is large enough
+                while numel(obj.StreamingTimers) < idx
+                    obj.StreamingTimers{end+1} = [];
+                end
+
+                % Create new timer with error handling
+                obj.StreamingTimers{idx} = timer(...
+                    'ExecutionMode', 'fixedRate', ...
+                    'Period', 0.01, ...
+                    'TimerFcn', @(tmr,evt) obj.safeCheckForUpdates(idx), ...
+                    'ErrorFcn', @(tmr,evt) obj.handleTimerError(idx, evt));
+
+                start(obj.StreamingTimers{idx});
+                obj.LastUpdateTime = datetime('now');
+
+            catch ME
+                fprintf('Error starting streaming timer for CSV %d: %s\n', idx, ME.message);
             end
-            obj.StreamingTimers{idx} = timer(...
-                'ExecutionMode', 'fixedRate', ...
-                'Period', 0.01, ...
-                'TimerFcn', @(~,~) obj.checkForUpdates(idx));
-            start(obj.StreamingTimers{idx});
-            obj.LastUpdateTime = datetime('now');
+        end
+
+        function safeCheckForUpdates(obj, idx)
+            % Thread-safe wrapper for checkForUpdates
+            try
+                if ~isprop(obj.App, 'DataManager') || ...
+                        isempty(obj.App.DataManager) || ...
+                        ~isvalid(obj.App.DataManager)
+                    obj.stopStreamingForCSV(idx);
+                    return;
+                end
+
+                obj.checkForUpdates(idx);
+
+            catch ME
+                fprintf('Error in timer callback for CSV %d: %s\n', idx, ME.message);
+                obj.stopStreamingForCSV(idx);
+            end
+        end
+
+        function handleTimerError(obj, idx, evt)
+            % Handle timer errors gracefully
+            fprintf('Timer error for CSV %d: %s\n', idx, evt.Data.message);
+            obj.stopStreamingForCSV(idx);
         end
 
 
-        % Add this method to better integrate with derived signals:
-        function updateDerivedSignalsAfterStream(obj)
-            % This could be called after new data arrives to update derived signals
-            % if they depend on streaming data
-            if isprop(obj.App, 'SignalOperations') && ~isempty(obj.App.SignalOperations)
-                % Could implement automatic recalculation of derived signals here
-                % if desired for real-time derived signal updates
-            end
-        end
+
         function checkForUpdates(obj, idx)
             if ~isprop(obj.App, 'DataManager') || isempty(obj.App.DataManager) || ~isvalid(obj.App.DataManager)
                 return;
@@ -391,9 +402,6 @@ classdef DataManager < handle
                     obj.LastReadRows{idx} = currentRows;
                     % Update streaming status
                     obj.updateStreamingStatus(idx, currentRows);
-                    % Update plots for streaming
-                    obj.App.PlotManager.updateAllPlotsForStreaming();
-                    obj.updateDerivedSignalsAfterStream(idx);
                     % Update status label
                     obj.App.StatusLabel.Text = '🔄 Streaming...';
                     obj.App.StatusLabel.FontColor = [0.2 0.6 0.9];
@@ -402,64 +410,6 @@ classdef DataManager < handle
                 end
             catch
                 % Ignore errors
-            end
-        end
-
-        function tf = validateSessionData(obj)
-            % More lenient validation that allows saving in most cases
-            tf = true; % Start optimistic
-
-            try
-                % Only check critical failures, not empty data
-
-                % Check if DataManager object itself is valid
-                if ~isvalid(obj)
-                    tf = false;
-                    return;
-                end
-
-                % Check if essential properties exist (don't worry if they're empty)
-                requiredProps = {'SignalNames', 'DataTables', 'CSVFilePaths', 'SignalScaling', 'StateSignals'};
-                for i = 1:length(requiredProps)
-                    if ~isprop(obj, requiredProps{i})
-                        tf = false;
-                        return;
-                    end
-                end
-
-                % Check if containers.Map properties are the right type (can be empty)
-                if ~isa(obj.SignalScaling, 'containers.Map')
-                    tf = false;
-                    return;
-                end
-
-                if ~isa(obj.StateSignals, 'containers.Map')
-                    tf = false;
-                    return;
-                end
-
-                % Check if cell array properties are the right type (can be empty)
-                if ~iscell(obj.SignalNames)
-                    tf = false;
-                    return;
-                end
-
-                if ~iscell(obj.DataTables)
-                    tf = false;
-                    return;
-                end
-
-                if ~iscell(obj.CSVFilePaths)
-                    tf = false;
-                    return;
-                end
-
-                % If we get here, all essential checks passed
-                tf = true;
-
-            catch
-                % If any error occurs during validation, assume it's OK to save
-                tf = true;
             end
         end
 
@@ -472,9 +422,6 @@ classdef DataManager < handle
                     % Use outerjoin for different column structures
                     mergedData = outerjoin(existingData, newData, ...
                         'Keys', 'Time', 'MergeKeys', true, 'Type', 'full');
-
-                    % Clean up duplicate columns from outerjoin
-                    mergedData = obj.cleanupJoinedData(mergedData);
                 end
 
                 % Sort by time
@@ -484,40 +431,6 @@ classdef DataManager < handle
                 % Fallback: just append new data
                 fprintf('Merge error, using simple append: %s\n', ME.message);
                 mergedData = [existingData; newData];
-            end
-        end
-
-        function cleanedData = cleanupJoinedData(~, joinedData)
-            % Clean up outerjoin results by handling _left/_right suffixes
-            cleanedData = joinedData;
-            if ~istable(cleanedData)
-                warning('cleanupJoinedData: cleanedData is not a table');
-                return;
-            end
-            vars = cleanedData.Properties.VariableNames;
-
-            leftCols = contains(vars, '_left');
-            rightCols = contains(vars, '_right');
-
-            for i = find(leftCols)
-                leftName = vars{i};
-                baseName = erase(leftName, '_left');
-                rightName = strcat(baseName, '_right');
-
-                if ismember(rightName, vars)
-                    % Combine left and right columns (right takes precedence for non-NaN)
-                    leftData = cleanedData.(leftName);
-                    rightData = cleanedData.(rightName);
-
-                    % Use right data where available, left data otherwise
-                    combinedData = leftData;
-                    validRight = ~isnan(rightData);
-                    combinedData(validRight) = rightData(validRight);
-
-                    cleanedData.(baseName) = combinedData;
-                    cleanedData.(leftName) = [];
-                    cleanedData.(rightName) = [];
-                end
             end
         end
 
@@ -588,31 +501,6 @@ classdef DataManager < handle
             end
         end
 
-        function fileName = getFileName(obj)
-            % Get just the filename from the full path
-            [~, name, ext] = fileparts(obj.CSVFilePaths{1}); % Assuming all CSVs have the same name for now
-            fileName = [name, ext];
-        end
-
-        function tf = validateCSV(~, filePath)
-            tf = false;
-            if ~isfile(filePath)
-                return;
-            end
-
-            try
-                fid = fopen(filePath, 'r');
-                headerLine = fgetl(fid);
-                fclose(fid);
-                if isempty(headerLine) || ~contains(headerLine, ',')
-                    return;
-                end
-                tf = true;
-            catch ME
-                % uialert(obj.App.UIFigure, ['Error reading CSV file: ' ME.message], 'Error');
-            end
-        end
-
         % Add this method to DataManager.m in the methods section
 
         function clearData(obj)
@@ -650,39 +538,6 @@ classdef DataManager < handle
 
             catch ME
                 fprintf('Warning during data clear: %s\n', ME.message);
-            end
-        end
-
-        % Also add this helper method for partial clearing
-        function clearCSVData(obj, csvIndex)
-            % Clear data for a specific CSV
-
-            try
-                if csvIndex > 0 && csvIndex <= numel(obj.DataTables)
-                    % Stop streaming for this specific CSV
-                    obj.stopStreamingForCSV(csvIndex);
-
-                    % Clear data for this CSV
-                    obj.DataTables{csvIndex} = [];
-
-                    if numel(obj.LastFileModTimes) >= csvIndex
-                        obj.LastFileModTimes{csvIndex} = [];
-                    end
-
-                    if numel(obj.LastReadRows) >= csvIndex
-                        obj.LastReadRows{csvIndex} = 0;
-                    end
-
-                    if numel(obj.LatestDataRates) >= csvIndex
-                        obj.LatestDataRates{csvIndex} = 0;
-                    end
-
-                    % Update signal names (remove signals that only existed in this CSV)
-                    obj.updateSignalNamesAfterClear();
-                end
-
-            catch ME
-                fprintf('Warning during CSV data clear: %s\n', ME.message);
             end
         end
 
@@ -742,42 +597,6 @@ classdef DataManager < handle
 
             catch ME
                 fprintf('Warning during signal maps cleanup: %s\n', ME.message);
-            end
-        end
-
-        % Enhanced reset method
-        function reset(obj)
-            % Complete reset of DataManager to initial state
-
-            try
-                % Clear all data
-                obj.clearData();
-
-                % Reinitialize all properties to their default state
-                obj.SignalNames = {};
-                obj.DataTables = {};
-                obj.SignalScaling = containers.Map('KeyType', 'char', 'ValueType', 'double');
-                obj.StateSignals = containers.Map('KeyType', 'char', 'ValueType', 'logical');
-                obj.IsRunning = false;
-                obj.DataCount = 0;
-                obj.UpdateCounter = 0;
-                obj.LastUpdateTime = datetime('now');
-                obj.CSVFilePaths = {};
-                obj.LastFileModTimes = {};
-                obj.LastReadRows = {};
-                obj.StreamingTimers = {};
-                obj.LatestDataRates = {};
-
-                % Update UI if available
-                if isprop(obj, 'App') && ~isempty(obj.App) && isvalid(obj.App)
-                    obj.App.StatusLabel.Text = '🔄 Reset complete';
-                    obj.App.StatusLabel.FontColor = [0.5 0.5 0.5];
-                    obj.App.DataRateLabel.Text = 'Data Rate: 0 Hz';
-                    obj.App.StreamingInfoLabel.Text = '';
-                end
-
-            catch ME
-                fprintf('Warning during DataManager reset: %s\n', ME.message);
             end
         end
 
