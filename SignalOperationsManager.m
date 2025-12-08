@@ -69,7 +69,7 @@ classdef SignalOperationsManager < handle
                 'HorizontalAlignment', 'left');
 
             % Update name when signal changes
-            signalDropdown.Callback = @(src, ~) updateDefaultName();
+            signalDropdown.Callback = @(src, ~) inlineUpdateDefaultName(signalDropdown, nameField, signalNames, operationType);
 
             % Options (operation-specific)
             optionsPanel = uipanel('Parent', d, 'Position', [20 60 410 70], ...
@@ -2058,7 +2058,7 @@ classdef SignalOperationsManager < handle
                 'HorizontalAlignment', 'left');
 
             % Update name when signal changes
-            signalDropdown.Callback = @(src, ~) updateDefaultName();
+            signalDropdown.Callback = @(src, ~) inlineUpdateDefaultName(signalDropdown, nameField, signalNames, operationType);
 
             % Options (operation-specific)
             optionsPanel = uipanel('Parent', d, 'Position', [20 60 410 70], ...

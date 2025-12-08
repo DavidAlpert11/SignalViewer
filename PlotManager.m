@@ -871,26 +871,27 @@ classdef PlotManager < handle
                 obj.XAxisSignals{tabIdx, i} = 'Time';
 
                 % Add click callback for subplot selection (SDI-like: click to select)
-                ax.ButtonDownFcn = @(src, event) obj.selectSubplot(tabIdx, i);
+                % Use standalone function for packaging compatibility
+                ax.ButtonDownFcn = @(src, event) inlineSelectSubplot(obj, tabIdx, i);
 
                 % ADD CONTEXT MENU with all options including zoom
                 cm = uicontextmenu(obj.App.UIFigure);
 
                 % Caption editing
                 uimenu(cm, 'Text', '📝 Edit Title, Caption & Description', ...
-                    'MenuSelectedFcn', @(src, event) obj.App.editSubplotCaption(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) inlineEditSubplotCaption(obj.App, tabIdx, i));
 
                 % Data tips toggle
                 uimenu(cm, 'Text', '🎯 Toggle Data Tips', ...
-                    'MenuSelectedFcn', @(src, event) obj.toggleDataTipsForAxes(ax), ...
+                    'MenuSelectedFcn', @(src, event) inlineToggleDataTipsForAxes(obj, ax), ...
                     'Separator', 'on');
 
                 uimenu(cm, 'Text', '🔄 Toggle X-Y Mode (Tuple Plotting)', ...
-                    'MenuSelectedFcn', @(src, event) obj.toggleTupleMode(tabIdx, i), ...
+                    'MenuSelectedFcn', @(src, event) inlineToggleTupleMode(obj, tabIdx, i), ...
                     'Separator', 'on');
 
                 uimenu(cm, 'Text', '🗑️ Clear All Tuples', ...
-                    'MenuSelectedFcn', @(src, event) obj.App.clearAllTuples(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) inlineClearAllTuples(obj.App, tabIdx, i));
 
                 %                 % Zoom options - ADD THESE
                 %                 uimenu(cm, 'Text', '🔍 Auto Scale This Plot', ...
@@ -902,21 +903,21 @@ classdef PlotManager < handle
 
                 % Export options
                 uimenu(cm, 'Text', '📊 Export to MATLAB Figure', ...
-                    'MenuSelectedFcn', @(src, event) obj.exportSubplotToFigure(tabIdx, i), ...
+                    'MenuSelectedFcn', @(src, event) inlineExportSubplotToFigure(obj, tabIdx, i), ...
                     'Separator', 'on');
                 uimenu(cm, 'Text', '📋 Copy to Clipboard', ...
-                    'MenuSelectedFcn', @(src, event) obj.copySubplotToClipboard(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) inlineCopySubplotToClipboard(obj, tabIdx, i));
                 uimenu(cm, 'Text', '💾 Save as Image', ...
-                    'MenuSelectedFcn', @(src, event) obj.saveSubplotAsImage(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) inlineSaveSubplotAsImage(obj, tabIdx, i));
 
                 uimenu(cm, 'Text', '💾 Save as Fig', ...
-                    'MenuSelectedFcn', @(src, event) obj.saveSubplotAsFig(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) inlineSaveSubplotAsFig(obj, tabIdx, i));
 
                 uimenu(cm, 'Text', '🗑️ Clear Subplot', ...
-                    'MenuSelectedFcn', @(src, event) obj.clearSubplot(tabIdx, i));
+                    'MenuSelectedFcn', @(src, event) inlineClearSubplot(obj, tabIdx, i));
 
                 uimenu(cm, 'Text', '⏱️ Reset X-Axis to Time', ...
-                    'MenuSelectedFcn', @(src, event) obj.resetXAxisToTime(tabIdx, i), ...
+                    'MenuSelectedFcn', @(src, event) inlineResetXAxisToTime(obj, tabIdx, i), ...
                     'Separator', 'on');
 
                 % IMPORTANT: Set context menu BEFORE enabling any cursor modes
@@ -2017,7 +2018,7 @@ classdef PlotManager < handle
 
                 % Add Y-axis label option
                 uimenu(cm, 'Text', '📝 Set Y-axis Label', ...
-                    'MenuSelectedFcn', @(src, event) obj.showYAxisLabelDialog(tabIdx, subplotIdx), ...
+                    'MenuSelectedFcn', @(src, event) inlineShowYAxisLabelDialog(obj, tabIdx, subplotIdx), ...
                     'Separator', 'on');
 
             catch ME
@@ -2156,13 +2157,13 @@ classdef PlotManager < handle
                 if ~isempty(assignedSignals)
                     % Create context submenu
                     cm = uicontextmenu(obj.App.UIFigure);
-                    uimenu(cm, 'Text', '∂ Derivative', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showSingleSignalDialog('derivative'));
-                    uimenu(cm, 'Text', '∫ Integral', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showSingleSignalDialog('integral'));
+                    uimenu(cm, 'Text', '∂ Derivative', 'MenuSelectedFcn', @(~,~) inlineSignalOpsShowSingleDialog(obj.App, 'derivative'));
+                    uimenu(cm, 'Text', '∫ Integral', 'MenuSelectedFcn', @(~,~) inlineSignalOpsShowSingleDialog(obj.App, 'integral'));
                     if length(assignedSignals) >= 2
-                        uimenu(cm, 'Text', '− Subtract', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showDualSignalDialog('subtract'));
-                        uimenu(cm, 'Text', '‖‖ Norm', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showNormDialog());
+                        uimenu(cm, 'Text', '− Subtract', 'MenuSelectedFcn', @(~,~) inlineSignalOpsShowDualDialog(obj.App, 'subtract'));
+                        uimenu(cm, 'Text', '‖‖ Norm', 'MenuSelectedFcn', @(~,~) inlineSignalOpsShowNormDialog(obj.App));
                     end
-                    uimenu(cm, 'Text', '💻 Custom Code', 'MenuSelectedFcn', @(~,~) obj.App.SignalOperations.showCustomCodeDialog());
+                    uimenu(cm, 'Text', '💻 Custom Code', 'MenuSelectedFcn', @(~,~) inlineSignalOpsShowCustomCode(obj.App));
 
                     % Show the menu at mouse position
                     cm.Visible = 'on';
@@ -2693,7 +2694,7 @@ classdef PlotManager < handle
 
                     % Add double-click callback for closing
                     try
-                        tab.ButtonDownFcn = @(src, event) obj.handleTabClick(tab, event);
+                        tab.ButtonDownFcn = @(src, event) inlineHandleTabClick(obj, tab, event);
                     end
 
                 else
@@ -4507,7 +4508,7 @@ classdef PlotManager < handle
             colsSpinner = uispinner(controlPanel, ...
                 'Position', [205 controlY 60 25], ...
                 'Limits', [1 10], 'Value', currentCols, 'FontSize', 10, ...
-                'ValueChangedFcn', @(src, event) obj.onTabLayoutChanged(tabIdx, [], src.Value));
+                'ValueChangedFcn', @(src, event) inlineOnTabLayoutChanged(obj, tabIdx, [], src.Value));
 
             % Subplot selection
             uilabel(controlPanel, 'Text', 'Current Subplot:', ...
@@ -4533,7 +4534,7 @@ classdef PlotManager < handle
                 'Items', plotItems, ...
                 'Value', sprintf('Plot %d', validSubplotIdx), ...
                 'FontSize', 10, ...
-                'ValueChangedFcn', @(src, event) obj.onSubplotSelected(tabIdx, src.Value));
+                'ValueChangedFcn', @(src, event) inlineOnSubplotSelectedPlotManager(obj, tabIdx, src.Value));
 
             % *** CRITICAL FIX: Use dynamic tab finding instead of static tabIdx ***
             linkAxesToggle = uibutton(controlPanel, 'state', ...
@@ -4541,7 +4542,7 @@ classdef PlotManager < handle
                 'Text', 'Link Tab Axes', ...
                 'FontSize', 9, ...
                 'Tooltip', 'Link X-axes of all subplots in this tab only', ...
-                'ValueChangedFcn', @(src, event) obj.onTabLinkAxesToggleDynamic(src, event));
+                'ValueChangedFcn', @(src, event) inlineOnTabLinkAxesToggleDynamic(obj, src, event));
 
             % Set initial state
             if tabIdx <= length(obj.TabLinkedAxes)
@@ -4710,7 +4711,8 @@ classdef PlotManager < handle
         end
         function setupTabCallbacks(obj)
             % Set up callbacks for tab selection to handle + tab clicks
-            obj.App.MainTabGroup.SelectionChangedFcn = @(src, event) obj.onTabSelectionChanged(event);
+            % Use standalone function for packaging compatibility
+            obj.App.MainTabGroup.SelectionChangedFcn = @(src, event) inlineOnTabSelectionChanged(obj, event);
         end
         function updateSignalTreeForTabChange(app)
             % Update signal tree when switching tabs
@@ -5601,5 +5603,199 @@ classdef PlotManager < handle
                 obj.setupTabCallbacks();
             end
         end
+    end
+end
+
+% Standalone callback functions for PlotManager - defined outside class to work when packaged
+function inlineOnTabSelectionChanged(obj, event)
+    try
+        obj.onTabSelectionChanged(event);
+    catch ME
+        warning('Error in onTabSelectionChanged: %s', ME.message);
+    end
+end
+
+function inlineSelectSubplot(obj, tabIdx, subplotIdx)
+    try
+        obj.selectSubplot(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in selectSubplot: %s', ME.message);
+    end
+end
+
+% Additional inline functions for PlotManager callbacks
+function inlineEditSubplotCaption(app, tabIdx, subplotIdx)
+    try
+        app.editSubplotCaption(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in editSubplotCaption: %s', ME.message);
+    end
+end
+
+function inlineToggleDataTipsForAxes(obj, ax)
+    try
+        obj.toggleDataTipsForAxes(ax);
+    catch ME
+        warning('Error in toggleDataTipsForAxes: %s', ME.message);
+    end
+end
+
+function inlineToggleTupleMode(obj, tabIdx, subplotIdx)
+    try
+        obj.toggleTupleMode(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in toggleTupleMode: %s', ME.message);
+    end
+end
+
+function inlineClearAllTuples(app, tabIdx, subplotIdx)
+    try
+        app.clearAllTuples(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in clearAllTuples: %s', ME.message);
+    end
+end
+
+function inlineExportSubplotToFigure(obj, tabIdx, subplotIdx)
+    try
+        obj.exportSubplotToFigure(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in exportSubplotToFigure: %s', ME.message);
+    end
+end
+
+function inlineCopySubplotToClipboard(obj, tabIdx, subplotIdx)
+    try
+        obj.copySubplotToClipboard(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in copySubplotToClipboard: %s', ME.message);
+    end
+end
+
+function inlineSaveSubplotAsImage(obj, tabIdx, subplotIdx)
+    try
+        obj.saveSubplotAsImage(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in saveSubplotAsImage: %s', ME.message);
+    end
+end
+
+function inlineSaveSubplotAsFig(obj, tabIdx, subplotIdx)
+    try
+        obj.saveSubplotAsFig(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in saveSubplotAsFig: %s', ME.message);
+    end
+end
+
+function inlineClearSubplot(obj, tabIdx, subplotIdx)
+    try
+        obj.clearSubplot(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in clearSubplot: %s', ME.message);
+    end
+end
+
+function inlineResetXAxisToTime(obj, tabIdx, subplotIdx)
+    try
+        obj.resetXAxisToTime(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in resetXAxisToTime: %s', ME.message);
+    end
+end
+
+function inlineShowYAxisLabelDialog(obj, tabIdx, subplotIdx)
+    try
+        obj.showYAxisLabelDialog(tabIdx, subplotIdx);
+    catch ME
+        warning('Error in showYAxisLabelDialog: %s', ME.message);
+    end
+end
+
+function inlineSignalOpsShowSingleDialog(app, operation)
+    try
+        app.SignalOperations.showSingleSignalDialog(operation);
+    catch ME
+        warning('Error in showSingleSignalDialog: %s', ME.message);
+    end
+end
+
+function inlineSignalOpsShowDualDialog(app, operation)
+    try
+        app.SignalOperations.showDualSignalDialog(operation);
+    catch ME
+        warning('Error in showDualSignalDialog: %s', ME.message);
+    end
+end
+
+function inlineSignalOpsShowNormDialog(app)
+    try
+        app.SignalOperations.showNormDialog();
+    catch ME
+        warning('Error in showNormDialog: %s', ME.message);
+    end
+end
+
+function inlineSignalOpsShowCustomCode(app)
+    try
+        app.SignalOperations.showCustomCodeDialog();
+    catch ME
+        warning('Error in showCustomCodeDialog: %s', ME.message);
+    end
+end
+
+function inlineHandleTabClick(obj, tab, event)
+    try
+        obj.handleTabClick(tab, event);
+    catch ME
+        warning('Error in handleTabClick: %s', ME.message);
+    end
+end
+
+function inlineCustomDataTipText(obj, obj_dcm, event_obj)
+    try
+        obj.customDataTipText(obj_dcm, event_obj);
+    catch ME
+        warning('Error in customDataTipText: %s', ME.message);
+    end
+end
+
+function inlineExitDataTipsMode(obj, ax)
+    try
+        obj.exitDataTipsMode(ax);
+    catch ME
+        warning('Error in exitDataTipsMode: %s', ME.message);
+    end
+end
+
+function inlineOnTabLayoutChanged(obj, tabIdx, rowsValue, colsValue)
+    try
+        obj.onTabLayoutChanged(tabIdx, rowsValue, colsValue);
+    catch ME
+        warning('Error in onTabLayoutChanged: %s', ME.message);
+    end
+end
+
+function inlineOnSubplotSelectedPlotManager(obj, tabIdx, value)
+    try
+        obj.onSubplotSelected(tabIdx, value);
+    catch ME
+        warning('Error in onSubplotSelected: %s', ME.message);
+    end
+end
+
+function inlineOnTabLinkAxesToggleDynamic(obj, src, event)
+    try
+        obj.onTabLinkAxesToggleDynamic(src, event);
+    catch ME
+        warning('Error in onTabLinkAxesToggleDynamic: %s', ME.message);
+    end
+end
+
+function inlineFinishTabSwitch(obj, previousTabIdx)
+    try
+        obj.finishTabSwitch(previousTabIdx);
+    catch ME
+        warning('Error in finishTabSwitch: %s', ME.message);
     end
 end

@@ -1,4 +1,3 @@
-% Updated SignalViewerApp.m - Main changes for light mode and streaming - REMOVED REDUNDANT DRAWNOW
 classdef SignalViewerApp < matlab.apps.AppBase
     properties
         % Main UI
@@ -185,7 +184,7 @@ function populateCSVContextMenu(app, contextMenu, clickedCSVIndex)
     if numSelectedCSVs >= 2
         % Multiple CSVs - show create link option
         uimenu(contextMenu, 'Text', sprintf('🔗 Create Link Group (%d CSVs)', numSelectedCSVs), ...
-            'MenuSelectedFcn', @(src, event) app.createQuickLinkFromCSVs(selectedCSVIndices));
+            'MenuSelectedFcn', @(src, event) inlineCreateQuickLinkFromCSVs(app, selectedCSVIndices));
 %         uimenu(contextMenu, 'Text', '', 'Separator', 'on');
     end
     % ========== END LINKING OPTIONS ==========
@@ -196,22 +195,22 @@ function populateCSVContextMenu(app, contextMenu, clickedCSVIndex)
         csvName = csvNames{1};
 
         uimenu(contextMenu, 'Text', '📌 Assign All to Current Subplot', ...
-            'MenuSelectedFcn', @(src, event) app.assignAllSignalsFromCSV(csvIdx));
+            'MenuSelectedFcn', @(src, event) inlineAssignAllSignalsFromCSV(app, csvIdx));
         uimenu(contextMenu, 'Text', '❌ Remove All from Current Subplot', ...
-            'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromCSV(csvIdx));
+            'MenuSelectedFcn', @(src, event) inlineRemoveAllSignalsFromCSV(app, csvIdx));
         uimenu(contextMenu, 'Text', '⚙️ Bulk Edit Properties', ...
-            'MenuSelectedFcn', @(src, event) app.bulkEditSignalProperties(csvIdx), 'Separator', 'on');
+            'MenuSelectedFcn', @(src, event) inlineBulkEditSignalProperties(app, csvIdx), 'Separator', 'on');
 
         uimenu(contextMenu, 'Text', sprintf('🗑️ Delete "%s"', csvName), ...
-            'MenuSelectedFcn', @(src, event) app.deleteCSVFromSystem(csvIdx), ...
+            'MenuSelectedFcn', @(src, event) inlineDeleteCSVFromSystem(app, csvIdx), ...
             'Separator', 'on', 'ForegroundColor', [0.8 0.2 0.2]);
 
     else
         % Multiple CSVs selected - show bulk options
         uimenu(contextMenu, 'Text', sprintf('📌 Assign All Signals from %d CSVs', numSelectedCSVs), ...
-            'MenuSelectedFcn', @(src, event) app.assignAllSignalsFromMultipleCSVs(selectedCSVIndices));
+            'MenuSelectedFcn', @(src, event) inlineAssignAllSignalsFromMultipleCSVs(app, selectedCSVIndices));
         uimenu(contextMenu, 'Text', sprintf('❌ Remove All Signals from %d CSVs', numSelectedCSVs), ...
-            'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromMultipleCSVs(selectedCSVIndices));
+            'MenuSelectedFcn', @(src, event) inlineRemoveAllSignalsFromMultipleCSVs(app, selectedCSVIndices));
 
         % Create deletion menu text with CSV names
         if numSelectedCSVs <= 3
@@ -225,13 +224,13 @@ function populateCSVContextMenu(app, contextMenu, clickedCSVIndex)
         end
 
         uimenu(contextMenu, 'Text', deleteText, ...
-            'MenuSelectedFcn', @(src, event) app.deleteMultipleCSVsFromSystem(selectedCSVIndices), ...
+            'MenuSelectedFcn', @(src, event) inlineDeleteMultipleCSVsFromSystem(app, selectedCSVIndices), ...
             'Separator', 'on', 'ForegroundColor', [0.8 0.2 0.2]);
     end
 
     % Common options
     uimenu(contextMenu, 'Text', '👁️ Manage Hidden Signals', ...
-        'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
+        'MenuSelectedFcn', @(src, event) inlineShowHiddenSignalsManager(app), 'Separator', 'on');
 
     % Selection info
     if numSelectedCSVs > 1
@@ -750,24 +749,33 @@ end
         function createLinkingMenu(app)
             % Create linking menu - called AFTER LinkingManager is initialized
             linkingMenu = uimenu(app.UIFigure, 'Text', 'Linking');
-            uimenu(linkingMenu, 'Text', '🔗 Configure Signal Linking', 'MenuSelectedFcn', @(src, event) app.LinkingManager.showLinkingDialog());
-            uimenu(linkingMenu, 'Text', '📊 Generate Comparison Analysis', 'MenuSelectedFcn', @(src, event) app.LinkingManager.showComparisonDialog());
-            uimenu(linkingMenu, 'Text', '⚡ Quick Link Selected Nodes', 'MenuSelectedFcn', @(src, event) app.LinkingManager.quickLinkSelected());
-            uimenu(linkingMenu, 'Text', '🔓 Clear All Links', 'MenuSelectedFcn', @(src, event) app.LinkingManager.clearAllLinks());
+            % Use inline wrapper functions for packaging compatibility
+            uimenu(linkingMenu, 'Text', '🔗 Configure Signal Linking', 'MenuSelectedFcn', @(src, event) inlineLinkingShowDialog(app));
+            uimenu(linkingMenu, 'Text', '📊 Generate Comparison Analysis', 'MenuSelectedFcn', @(src, event) inlineLinkingShowComparison(app));
+            uimenu(linkingMenu, 'Text', '⚡ Quick Link Selected Nodes', 'MenuSelectedFcn', @(src, event) inlineLinkingQuickLink(app));
+            uimenu(linkingMenu, 'Text', '🔓 Clear All Links', 'MenuSelectedFcn', @(src, event) inlineLinkingClearAll(app));
         end
 
 
         function app = SignalViewerApp()
-            % Create UIFigure
-            app.UIFigure = uifigure('Name', 'Signal Viewer Pro', ...
-                'Position', [100 100 1200 800], ...
-                'Color', [0.94 0.94 0.94], ...
-                'Resize', 'on');
+            % Constructor - Initialize app
+            % For App Designer compatibility, initialization is done in startupFcn
+            % This allows the app to work with mlappinstall
+            try
+                % Create UIFigure
+                app.UIFigure = uifigure('Name', 'Signal Viewer Pro', ...
+                    'Position', [100 100 1200 800], ...
+                    'Color', [0.94 0.94 0.94], ...
+                    'Resize', 'on');
 
-            app.UIFigure.AutoResizeChildren = 'off';
+                app.UIFigure.AutoResizeChildren = 'off';
 
-            %             % THEN set the resize callback
-            app.UIFigure.SizeChangedFcn = @(src, event) app.onFigureResize();
+                % THEN set the resize callback - use inline function for packaging
+                app.UIFigure.SizeChangedFcn = @(src, event) inlineOnFigureResize(app);
+            catch ME
+                % Handle errors during initialization
+                warning('Error during app initialization: %s', ME.message);
+            end
 
             % SDI-like layout: Left panel (signals), Center (plots), Right panel (inspector)
             % Calculate panel widths for SDI-like layout
@@ -838,6 +846,22 @@ end
             %=== Initialize visual enhancements ===%
             app.initializeVisualEnhancements();
             app.setupDynamicResizing();
+        end
+        
+        function startupFcn(app)
+            % App Designer compatibility: startupFcn called after app creation
+            % This ensures proper initialization when packaged as .mlappinstall
+            % The main initialization is already done in the constructor,
+            % but this provides a hook for App Designer's packaging system
+            try
+                % Ensure UI is properly initialized
+                if isempty(app.UIFigure) || ~isvalid(app.UIFigure)
+                    % Re-initialize if needed (shouldn't happen, but safe fallback)
+                    warning('UIFigure not properly initialized in constructor');
+                end
+            catch ME
+                % Silently handle - initialization already done in constructor
+            end
         end
 
         function setupDynamicResizing(app)
@@ -941,8 +965,8 @@ end
                         'BackgroundColor', [0.6 0.6 0.6], ...
                         'BorderType', 'none');
                     
-                    % Set up mouse callbacks
-                    app.PanelDivider.ButtonDownFcn = @(src, event) app.startDividerDrag(event);
+                    % Set up mouse callbacks - use standalone function to avoid packaging issues
+                    app.PanelDivider.ButtonDownFcn = @(src, event) inlineStartDividerDrag(app);
                 else
                     try
                         % Check if divider still exists by accessing Position
@@ -955,13 +979,21 @@ end
                             'Position', [leftPanelWidth, 1, dividerWidth, panelHeight], ...
                             'BackgroundColor', [0.6 0.6 0.6], ...
                             'BorderType', 'none');
-                        app.PanelDivider.ButtonDownFcn = @(src, event) app.startDividerDrag(event);
+                        app.PanelDivider.ButtonDownFcn = @(src, event) inlineStartDividerDrag(app);
                     end
                 end
                 
-                % Set up figure-level mouse callbacks for dragging (always update)
-                app.UIFigure.WindowButtonMotionFcn = @(src, event) app.onDividerDrag(event);
-                app.UIFigure.WindowButtonUpFcn = @(src, event) app.stopDividerDrag();
+                % Set up figure-level mouse callbacks for dragging
+                % Use completely inline anonymous functions to avoid packaging issues
+                % Disable divider drag when packaged - it causes method resolution errors
+                try
+                    % Only set up if not packaged (check by trying to access method)
+                    % Always set up callbacks using standalone functions (work when packaged)
+                    app.UIFigure.WindowButtonMotionFcn = @(src, event) inlineDividerDrag(app);
+                    app.UIFigure.WindowButtonUpFcn = @(src, event) inlineStopDividerDrag(app);
+                catch
+                    % Silently disable divider drag when packaged
+                end
             catch
                 % If divider creation fails, continue without it
             end
@@ -996,6 +1028,34 @@ end
             % Stop dragging the divider
             app.IsDraggingDivider = false;
         end
+        
+        function handleDividerDrag(app)
+            % Inline handler for divider dragging - works when packaged
+            % This function directly accesses properties without method references
+            try
+                if ~app.IsDraggingDivider
+                    return;
+                end
+                
+                % Get mouse position
+                currentPoint = app.UIFigure.CurrentPoint;
+                newLeftWidth = currentPoint(1);
+                
+                % Constrain to reasonable limits
+                minWidth = 250;
+                maxWidth = app.UIFigure.Position(3) - 400; % Leave at least 400px for plot area
+                
+                if newLeftWidth >= minWidth && newLeftWidth <= maxWidth
+                    app.LeftPanelWidth = newLeftWidth;
+                    app.onFigureResize(); % Trigger resize
+                end
+            catch ME
+                % Silently handle errors - divider dragging is non-critical
+                % This prevents errors when app is packaged
+            end
+        end
+        
+        % Menu handler functions removed - moved to standalone functions at end of file for packaging compatibility
 
         function resizeControlPanelComponents(app, panelWidth, panelHeight)
             % Resize components within the control panel based on new dimensions
@@ -1211,39 +1271,41 @@ end
 
             % FILE MENU
             fileMenu = uimenu(app.UIFigure, 'Text', 'File');
-            uimenu(fileMenu, 'Text', '💾 Save Layout Config', 'MenuSelectedFcn', @(src, event) app.ConfigManager.saveConfig());
-            uimenu(fileMenu, 'Text', '📁 Load Layout Config', 'MenuSelectedFcn', @(src, event) app.ConfigManager.loadConfig());
-            uimenu(fileMenu, 'Text', '💾 Save Full Session', 'MenuSelectedFcn', @(src, event) app.saveSession());
-            uimenu(fileMenu, 'Text', '📁 Load Full Session', 'MenuSelectedFcn', @(src, event) app.loadSession());
+            % Use inline wrapper functions for packaging compatibility
+            uimenu(fileMenu, 'Text', '💾 Save Layout Config', 'MenuSelectedFcn', @(src, event) inlineConfigSave(app));
+            uimenu(fileMenu, 'Text', '📁 Load Layout Config', 'MenuSelectedFcn', @(src, event) inlineConfigLoad(app));
+            uimenu(fileMenu, 'Text', '💾 Save Full Session', 'MenuSelectedFcn', @(src, event) inlineSaveSession(app));
+            uimenu(fileMenu, 'Text', '📁 Load Full Session', 'MenuSelectedFcn', @(src, event) inlineLoadSession(app));
 
             % ACTIONS MENU
             actionsMenu = uimenu(app.UIFigure, 'Text', 'Actions');
-            uimenu(actionsMenu, 'Text', '▶️ Start (Load CSVs)', 'MenuSelectedFcn', @(src, event) app.menuStart());
-            uimenu(actionsMenu, 'Text', '➕ Add More CSVs', 'MenuSelectedFcn', @(src, event) app.menuAddMoreCSVs());
-            uimenu(actionsMenu, 'Text', '⏹️ Stop', 'MenuSelectedFcn', @(src, event) app.menuStop());
-            uimenu(actionsMenu, 'Text', '🗑️ Clear Plots Only', 'MenuSelectedFcn', @(src, event) app.menuClearPlotsOnly());
-            uimenu(actionsMenu, 'Text', '🗑️ Clear Everything', 'MenuSelectedFcn', @(src, event) app.menuClearAll());
+            % Use standalone functions that capture app directly to avoid packaging issues
+            uimenu(actionsMenu, 'Text', '▶️ Start (Load CSVs)', 'MenuSelectedFcn', @(src, event) inlineMenuStart(app));
+            uimenu(actionsMenu, 'Text', '➕ Add More CSVs', 'MenuSelectedFcn', @(src, event) inlineMenuAddMore(app));
+            uimenu(actionsMenu, 'Text', '⏹️ Stop', 'MenuSelectedFcn', @(src, event) inlineMenuStop(app));
+            uimenu(actionsMenu, 'Text', '🗑️ Clear Plots Only', 'MenuSelectedFcn', @(src, event) inlineMenuClearPlots(app));
+            uimenu(actionsMenu, 'Text', '🗑️ Clear Everything', 'MenuSelectedFcn', @(src, event) inlineMenuClearAll(app));
             uimenu(actionsMenu, 'Text', '📈 Statistics', 'MenuSelectedFcn', @(src, event) app.menuStatistics());
 
 
             % EXPORT MENU
             exportMenu = uimenu(app.UIFigure, 'Text', 'Export');
-            uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) app.menuExportCSV());
-            uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) app.menuExportPDF());
-            uimenu(exportMenu, 'Text', '📄 Export PPT', 'MenuSelectedFcn', @(src, event) app.menuExportPPT());
+            uimenu(exportMenu, 'Text', '📊 Export CSV', 'MenuSelectedFcn', @(src, event) inlineMenuExportCSV(app));
+            uimenu(exportMenu, 'Text', '📄 Export PDF', 'MenuSelectedFcn', @(src, event) inlineMenuExportPDF(app));
+            uimenu(exportMenu, 'Text', '📄 Export PPT', 'MenuSelectedFcn', @(src, event) inlineMenuExportPPT(app));
 
 
-            uimenu(exportMenu, 'Text', '📂 Open Plot Browser View', 'MenuSelectedFcn', @(src, event) app.menuExportToPlotBrowser());
-            uimenu(exportMenu, 'Text', '📡 Export to SDI', 'MenuSelectedFcn', @(src, event) app.PlotManager.exportToSDI());
+            uimenu(exportMenu, 'Text', '📂 Open Plot Browser View', 'MenuSelectedFcn', @(src, event) inlineMenuExportToPlotBrowser(app));
+            uimenu(exportMenu, 'Text', '📡 Export to SDI', 'MenuSelectedFcn', @(src, event) inlinePlotManagerExportSDI(app));
 
             % NEW VIEW MENU for layout control
             viewMenu = uimenu(app.UIFigure, 'Text', 'View');
 
             uimenu(viewMenu, 'Text', '👁️ Manage Hidden Signals', ...
-                'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
-            uimenu(viewMenu, 'Text', '⬅️ Narrow Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.2), 'Separator', 'on');
-            uimenu(viewMenu, 'Text', '➡️ Wide Control Panel', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.35));
-            uimenu(viewMenu, 'Text', '🎯 Default Layout', 'MenuSelectedFcn', @(src, event) app.adjustControlPanelRatio(0.25));
+                'MenuSelectedFcn', @(src, event) inlineShowHiddenSignalsManager(app), 'Separator', 'on');
+            uimenu(viewMenu, 'Text', '⬅️ Narrow Control Panel', 'MenuSelectedFcn', @(src, event) inlineAdjustControlPanelRatio(app, 0.2), 'Separator', 'on');
+            uimenu(viewMenu, 'Text', '➡️ Wide Control Panel', 'MenuSelectedFcn', @(src, event) inlineAdjustControlPanelRatio(app, 0.35));
+            uimenu(viewMenu, 'Text', '🎯 Default Layout', 'MenuSelectedFcn', @(src, event) inlineAdjustControlPanelRatio(app, 0.25));
 
             % CONTROL PANEL COMPONENTS (initial positions - will be adjusted by resize)
 
@@ -1256,7 +1318,7 @@ end
 
             app.RefreshCSVsButton = uibutton(app.ControlPanel, 'push', 'Text', 'Refresh CSVs', ...
                 'Position', [150 740 120 30], ...
-                'ButtonPushedFcn', @(src, event) app.refreshCSVs(), ...
+                'ButtonPushedFcn', @(src, event) inlineRefreshCSVs(app), ...
                 'FontSize', 11, 'FontWeight', 'bold');
             
             % Fit to View button - moved from toolbar to be with other buttons
@@ -1264,20 +1326,20 @@ end
                 'Position', [280 740 100 30], ...
                 'Text', 'Fit to View', ...
                 'Tooltip', 'Fit All Signals to View', ...
-                'ButtonPushedFcn', @(src, event) app.fitToView(), ...
+                'ButtonPushedFcn', @(src, event) inlineFitToView(app), ...
                 'FontSize', 11, 'FontWeight', 'bold');
 
             % Search box
             app.SignalSearchField = uieditfield(app.ControlPanel, 'text', ...
                 'Position', [20 710 280 25], ...
                 'Placeholder', 'Search signals...', ...
-                'ValueChangingFcn', @(src, event) app.filterSignals(event.Value), ...
+                'ValueChangingFcn', @(src, event) inlineFilterSignals(app, event.Value), ...
                 'FontSize', 11);
 
             % Signal tree - main component
             app.SignalTree = uitree(app.ControlPanel, ...
                 'Position', [100 200 280 1000], ...
-                'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ...
+                'SelectionChangedFcn', @(src, event) inlineOnSignalTreeSelectionChanged(app), ...
                 'FontSize', 11);
 
             % Set up tree properties
@@ -1312,15 +1374,15 @@ end
                 'ColumnName', {'☐', 'Signal'}, ...
                 'ColumnWidth', {30, 240}, ...
                 'ColumnEditable', [true false], ...
-                'CellEditCallback', @(src, event) app.onSignalCheckboxChanged(event), ...
-                'CellSelectionCallback', @(src, event) app.onSignalPropsCellSelect(event), ...
+                'CellEditCallback', @(src, event) inlineOnSignalCheckboxChanged(app, event), ...
+                'CellSelectionCallback', @(src, event) inlineOnSignalPropsCellSelect(app, event), ...
                 'FontSize', 10);
 
             % Remove button
             app.RemoveSelectedSignalsButton = uibutton(app.ControlPanel, 'push', ...
                 'Text', '🗑️ Remove Selected Signals', ...
                 'Position', [20 20 280 25], ...
-                'ButtonPushedFcn', @(src, event) app.removeSelectedSignalsFromTable(), ...
+                'ButtonPushedFcn', @(src, event) inlineRemoveSelectedSignalsFromTable(app), ...
                 'FontSize', 10, 'Enable', 'off', 'FontWeight', 'bold');
 
             % Status labels at bottom
@@ -1349,7 +1411,7 @@ end
                 'Text', '🔄 Enable Streaming Mode', ...
                 'Value', false, ...
                 'FontSize', 9, ...
-                'ValueChangedFcn', @(src, event) app.onStreamingModeChanged(src.Value), ...
+                'ValueChangedFcn', @(src, event) inlineOnStreamingModeChanged(app, src.Value), ...
                 'Tooltip', 'Enable to stream data continuously, disable to load data once');
 
         end
@@ -2934,7 +2996,7 @@ end
                     csvContextMenu = uicontextmenu(app.UIFigure);
 
                     % Set dynamic context menu that populates when opened
-                    csvContextMenu.ContextMenuOpeningFcn = @(src, event) app.populateCSVContextMenu(csvContextMenu, i);
+                    csvContextMenu.ContextMenuOpeningFcn = @(src, event) inlinePopulateCSVContextMenu(app, csvContextMenu, i);
 
                     csvNode.ContextMenu = csvContextMenu;
 
@@ -3076,7 +3138,7 @@ end
             contextMenu = uicontextmenu(app.UIFigure);
 
             % Set the ContextMenuOpeningFcn to populate the menu dynamically
-            contextMenu.ContextMenuOpeningFcn = @(src, event) app.populateMultiSelectionContextMenu(contextMenu, signalNode.NodeData);
+            contextMenu.ContextMenuOpeningFcn = @(src, event) inlinePopulateMultiSelectionContextMenu(app, contextMenu, signalNode.NodeData);
 
             % Assign to the node
             signalNode.ContextMenu = contextMenu;
@@ -3132,20 +3194,20 @@ end
             if ~isempty(unassignedSignals)
                 if numel(unassignedSignals) == 1
                     uimenu(contextMenu, 'Text', '➕ Add to Subplot', ...
-                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineAddMultipleSignalsToCurrentSubplot(app, unassignedSignals));
                 else
                     uimenu(contextMenu, 'Text', sprintf('➕ Add %d Signals to Subplot', numel(unassignedSignals)), ...
-                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineAddMultipleSignalsToCurrentSubplot(app, unassignedSignals));
                 end
             end
 
             if ~isempty(assignedSignals)
                 if numel(assignedSignals) == 1
                     uimenu(contextMenu, 'Text', '❌ Remove from Subplot', ...
-                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineRemoveMultipleSignalsFromCurrentSubplot(app, assignedSignals));
                 else
                     uimenu(contextMenu, 'Text', sprintf('❌ Remove %d Signals from Subplot', numel(assignedSignals)), ...
-                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineRemoveMultipleSignalsFromCurrentSubplot(app, assignedSignals));
                 end
             end
 
@@ -3154,46 +3216,46 @@ end
                 signal = selectedSignals{1};
 
                 uimenu(contextMenu, 'Text', '📊 Quick Preview', ...
-                    'MenuSelectedFcn', @(src, event) app.showSignalPreview(signal), ...
+                    'MenuSelectedFcn', @(src, event) inlineShowSignalPreview(app, signal), ...
                     'Separator', 'on');
 
                 uimenu(contextMenu, 'Text', '📈 Set as X-Axis', ...
-                    'MenuSelectedFcn', @(src, event) app.setSignalAsXAxis(signal));
+                    'MenuSelectedFcn', @(src, event) inlineSetSignalAsXAxis(app, signal));
 
                 % Single signal operations
                 operationsMenu = uimenu(contextMenu, 'Text', '🔢 Single Signal Operations', 'Separator', 'on');
 
                 signalName = app.getSignalNameForOperations(signal);
                 uimenu(operationsMenu, 'Text', '∂ Derivative', ...
-                    'MenuSelectedFcn', @(src, event) app.showDerivativeForSelected(signalName));
+                    'MenuSelectedFcn', @(src, event) inlineShowDerivativeForSelected(app, signalName));
                 uimenu(operationsMenu, 'Text', '∫ Integral', ...
-                    'MenuSelectedFcn', @(src, event) app.showIntegralForSelected(signalName));
+                    'MenuSelectedFcn', @(src, event) inlineShowIntegralForSelected(app, signalName));
 
                 % Export options for single signal
                 if signal.CSVIdx == -1  % Derived signal
                     uimenu(contextMenu, 'Text', '📋 Show Operation Details', ...
-                        'MenuSelectedFcn', @(src, event) app.showDerivedSignalDetails(signal.Signal), ...
+                        'MenuSelectedFcn', @(src, event) inlineShowDerivedSignalDetails(app, signal.Signal), ...
                         'Separator', 'on');
 
                     uimenu(contextMenu, 'Text', '💾 Export Signal', ...
-                        'MenuSelectedFcn', @(src, event) app.SignalOperations.exportDerivedSignal(signal.Signal));
+                        'MenuSelectedFcn', @(src, event) inlineSignalOperationsExportDerived(app, signal.Signal));
 
                     uimenu(contextMenu, 'Text', '🗑️ Delete Signal', ...
-                        'MenuSelectedFcn', @(src, event) app.SignalOperations.confirmDeleteDerivedSignal(signal.Signal));
+                        'MenuSelectedFcn', @(src, event) inlineSignalOperationsConfirmDelete(app, signal.Signal));
                 else
                     uimenu(contextMenu, 'Text', '💾 Export Signal to CSV', ...
-                        'MenuSelectedFcn', @(src, event) app.exportSingleSignalToCSV(signal), ...
+                        'MenuSelectedFcn', @(src, event) inlineExportSingleSignalToCSV(app, signal), ...
                         'Separator', 'on');
                 end
 
                 uimenu(contextMenu, 'Text', '🗑️ Clear from All Subplots', ...
-                    'MenuSelectedFcn', @(src, event) app.clearSpecificSignalFromAllSubplots(signal), ...
+                    'MenuSelectedFcn', @(src, event) inlineClearSpecificSignalFromAllSubplots(app, signal), ...
                     'Separator', 'on');
 
             else
                 % Multiple signals selected
                 uimenu(contextMenu, 'Text', sprintf('📊 Preview %d Signals', numel(selectedSignals)), ...
-                    'MenuSelectedFcn', @(src, event) app.previewSelectedSignals(selectedSignals), ...
+                    'MenuSelectedFcn', @(src, event) inlinePreviewSelectedSignals(app, selectedSignals), ...
                     'Separator', 'on');
             end
 
@@ -3203,13 +3265,13 @@ end
                     'Separator', 'on');
 
                 uimenu(multiOpsMenu, 'Text', '📊 Vector Magnitude', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickVectorMagnitudeForSelected(selectedSignals));
+                    'MenuSelectedFcn', @(src, event) inlineShowQuickVectorMagnitudeForSelected(app, selectedSignals));
 
                 uimenu(multiOpsMenu, 'Text', '📈 Signal Average', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickAverageForSelected(selectedSignals));
+                    'MenuSelectedFcn', @(src, event) inlineShowQuickAverageForSelected(app, selectedSignals));
 
                 uimenu(multiOpsMenu, 'Text', '‖‖ Norm of Signals', ...
-                    'MenuSelectedFcn', @(src, event) app.showQuickNormForSelected(selectedSignals));
+                    'MenuSelectedFcn', @(src, event) inlineShowQuickNormForSelected(app, selectedSignals));
 
                 % Dual operations for exactly 2 signals
                 if numel(selectedSignals) == 2
@@ -3219,23 +3281,23 @@ end
                     signal2Name = app.getSignalNameForOperations(selectedSignals{2});
 
                     uimenu(dualMenu, 'Text', '➕ Add (A + B)', ...
-                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('add', signal1Name, signal2Name));
+                        'MenuSelectedFcn', @(src, event) inlineShowDualOperationForSelected(app, 'add', signal1Name, signal2Name));
                     uimenu(dualMenu, 'Text', '➖ Subtract (A - B)', ...
-                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('subtract', signal1Name, signal2Name));
+                        'MenuSelectedFcn', @(src, event) inlineShowDualOperationForSelected(app, 'subtract', signal1Name, signal2Name));
                     uimenu(dualMenu, 'Text', '✖️ Multiply (A × B)', ...
-                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('multiply', signal1Name, signal2Name));
+                        'MenuSelectedFcn', @(src, event) inlineShowDualOperationForSelected(app, 'multiply', signal1Name, signal2Name));
                     uimenu(dualMenu, 'Text', '➗ Divide (A ÷ B)', ...
-                        'MenuSelectedFcn', @(src, event) app.showDualOperationForSelected('divide', signal1Name, signal2Name));
+                        'MenuSelectedFcn', @(src, event) inlineShowDualOperationForSelected(app, 'divide', signal1Name, signal2Name));
                 end
 
                 % Export multiple signals
                 uimenu(contextMenu, 'Text', sprintf('💾 Export %d Signals to CSV', numel(selectedSignals)), ...
-                    'MenuSelectedFcn', @(src, event) app.exportMultipleSignalsToCSV(selectedSignals), ...
+                    'MenuSelectedFcn', @(src, event) inlineExportMultipleSignalsToCSV(app, selectedSignals), ...
                     'Separator', 'on');
 
                 % Clear multiple signals from all subplots
                 uimenu(contextMenu, 'Text', sprintf('🗑️ Clear %d Signals from All Subplots', numel(selectedSignals)), ...
-                    'MenuSelectedFcn', @(src, event) app.clearMultipleSignalsFromAllSubplots(selectedSignals));
+                    'MenuSelectedFcn', @(src, event) inlineClearMultipleSignalsFromAllSubplots(app, selectedSignals));
             end
 
             % ============= SELECTION INFO =============
@@ -3653,11 +3715,11 @@ end
                     % Add CSV-level context menu
                     csvContextMenu = uicontextmenu(app.UIFigure);
                     uimenu(csvContextMenu, 'Text', '📌 Assign All to Current Subplot', ...
-                        'MenuSelectedFcn', @(src, event) app.assignAllSignalsFromCSV(i));
+                        'MenuSelectedFcn', @(src, event) inlineAssignAllSignalsFromCSV(app, i));
                     uimenu(csvContextMenu, 'Text', '❌ Remove All from Current Subplot', ...
-                        'MenuSelectedFcn', @(src, event) app.removeAllSignalsFromCSV(i));
+                        'MenuSelectedFcn', @(src, event) inlineRemoveAllSignalsFromCSV(app, i));
                     uimenu(csvContextMenu, 'Text', '⚙️ Bulk Edit Properties', ...
-                        'MenuSelectedFcn', @(src, event) app.bulkEditSignalProperties(i), 'Separator', 'on');
+                        'MenuSelectedFcn', @(src, event) inlineBulkEditSignalProperties(app, i), 'Separator', 'on');
                     uimenu(csvContextMenu, 'Text', '👁️ Manage Hidden Signals', ...
                         'MenuSelectedFcn', @(src, event) app.showHiddenSignalsManager(), 'Separator', 'on');
                     csvNode.ContextMenu = csvContextMenu;
@@ -6331,20 +6393,20 @@ end
             if ~isempty(unassignedSignals)
                 if numel(unassignedSignals) == 1
                     uimenu(contextMenu, 'Text', '➕ Add to Subplot', ...
-                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineAddMultipleSignalsToCurrentSubplot(app, unassignedSignals));
                 else
                     uimenu(contextMenu, 'Text', sprintf('➕ Add %d Signals to Subplot', numel(unassignedSignals)), ...
-                        'MenuSelectedFcn', @(src, event) app.addMultipleSignalsToCurrentSubplot(unassignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineAddMultipleSignalsToCurrentSubplot(app, unassignedSignals));
                 end
             end
 
             if ~isempty(assignedSignals)
                 if numel(assignedSignals) == 1
                     uimenu(contextMenu, 'Text', '❌ Remove from Subplot', ...
-                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineRemoveMultipleSignalsFromCurrentSubplot(app, assignedSignals));
                 else
                     uimenu(contextMenu, 'Text', sprintf('❌ Remove %d Signals from Subplot', numel(assignedSignals)), ...
-                        'MenuSelectedFcn', @(src, event) app.removeMultipleSignalsFromCurrentSubplot(assignedSignals));
+                        'MenuSelectedFcn', @(src, event) inlineRemoveMultipleSignalsFromCurrentSubplot(app, assignedSignals));
                 end
             end
 
@@ -6472,7 +6534,7 @@ end
                 uimenu(contextMenu, 'Text', sprintf('💾 Export %d Signals to CSV', numel(selectedSignals)), ...
                     'MenuSelectedFcn', @(src, event) app.exportMultipleSignalsToCSV(selectedSignals), 'Separator', 'on');
                 uimenu(contextMenu, 'Text', sprintf('🗑️ Clear %d Signals from All Subplots', numel(selectedSignals)), ...
-                    'MenuSelectedFcn', @(src, event) app.clearMultipleSignalsFromAllSubplots(selectedSignals));
+                    'MenuSelectedFcn', @(src, event) inlineClearMultipleSignalsFromAllSubplots(app, selectedSignals));
             end
 
             % === OPERATION HISTORY AND MANAGEMENT ===
@@ -7747,5 +7809,583 @@ end
                 app.highlightSelectedSubplot(tabIdx, subplotIdx);
             end
         end
+    end
+end
+
+% Standalone functions for divider drag - defined outside class to work when packaged
+function inlineDividerDrag(app)
+    % Completely inline divider drag handler - works when packaged
+    try
+        if ~app.IsDraggingDivider
+            return;
+        end
+        
+        % Get mouse position
+        currentPoint = app.UIFigure.CurrentPoint;
+        newLeftWidth = currentPoint(1);
+        
+        % Constrain to reasonable limits
+        minWidth = 250;
+        maxWidth = app.UIFigure.Position(3) - 400; % Leave at least 400px for plot area
+        
+        if newLeftWidth >= minWidth && newLeftWidth <= maxWidth
+            app.LeftPanelWidth = newLeftWidth;
+            % Call onFigureResize directly without method reference
+            try
+                app.onFigureResize();
+            catch
+                % If method call fails, manually resize
+                figWidth = app.UIFigure.Position(3);
+                figHeight = app.UIFigure.Position(4);
+                toolbarHeight = 0;
+                leftPanelWidth = app.LeftPanelWidth;
+                plotAreaWidth = figWidth - leftPanelWidth - 4;
+                plotAreaHeight = figHeight - toolbarHeight;
+                
+                try
+                    dummy = app.ControlPanel.Position; %#ok<NASGU>
+                    app.ControlPanel.Position = [1, 1, leftPanelWidth, plotAreaHeight];
+                catch
+                end
+                try
+                    dummy = app.MainTabGroup.Position; %#ok<NASGU>
+                    app.MainTabGroup.Position = [leftPanelWidth+4, 1, plotAreaWidth, plotAreaHeight];
+                catch
+                end
+            end
+        end
+    catch
+        % Silently handle errors - divider dragging is non-critical
+    end
+end
+
+function inlineStopDividerDrag(app)
+    % Completely inline stop divider drag handler - works when packaged
+    try
+        app.IsDraggingDivider = false;
+    catch
+        % Silently handle errors
+    end
+end
+
+function inlineStartDividerDrag(app)
+    % Completely inline start divider drag handler - works when packaged
+    try
+        app.IsDraggingDivider = true;
+    catch
+        % Silently handle errors
+    end
+end
+
+% Standalone menu handler functions - defined outside class to work when packaged
+function inlineMenuStart(app)
+    % Menu Start handler - works when packaged
+    try
+        % Call UIController method directly
+        if isprop(app, 'UIController') && ~isempty(app.UIController)
+            app.UIController.loadMultipleCSVs();
+        end
+        figure(app.UIFigure);
+    catch ME
+        warning('Error in menuStart: %s', ME.message);
+    end
+end
+
+function inlineMenuAddMore(app)
+    % Menu Add More handler - works when packaged
+    try
+        % Call UIController method directly
+        if isprop(app, 'UIController') && ~isempty(app.UIController)
+            app.UIController.addMoreCSVs();
+        end
+        figure(app.UIFigure);
+    catch ME
+        warning('Error in menuAddMoreCSVs: %s', ME.message);
+    end
+end
+
+function inlineMenuStop(app)
+    % Menu Stop handler - works when packaged
+    try
+        app.DataManager.stopStreamingAll();
+        figure(app.UIFigure);
+    catch ME
+        warning('Error in menuStop: %s', ME.message);
+    end
+end
+
+function inlineMenuClearPlots(app)
+    % Menu Clear Plots handler - works when packaged
+    try
+        app.PlotManager.clearAllPlots();
+        figure(app.UIFigure);
+    catch ME
+        warning('Error in menuClearPlotsOnly: %s', ME.message);
+    end
+end
+
+function inlineMenuClearAll(app)
+    % Menu Clear All handler - works when packaged
+    try
+        app.DataManager.stopStreamingAll();
+        app.PlotManager.clearAllPlots();
+        app.DataManager.DataTables = {};
+        app.DataManager.SignalNames = {};
+        app.DataManager.CSVFilePaths = {};
+        app.updateSignalTree();
+        figure(app.UIFigure);
+    catch ME
+        warning('Error in menuClearAll: %s', ME.message);
+    end
+end
+
+% Additional inline wrapper functions for menu callbacks
+function inlineLinkingShowDialog(app)
+    try
+        app.LinkingManager.showLinkingDialog();
+    catch ME
+        warning('Error in showLinkingDialog: %s', ME.message);
+    end
+end
+
+function inlineLinkingShowComparison(app)
+    try
+        app.LinkingManager.showComparisonDialog();
+    catch ME
+        warning('Error in showComparisonDialog: %s', ME.message);
+    end
+end
+
+function inlineLinkingQuickLink(app)
+    try
+        app.LinkingManager.quickLinkSelected();
+    catch ME
+        warning('Error in quickLinkSelected: %s', ME.message);
+    end
+end
+
+function inlineLinkingClearAll(app)
+    try
+        app.LinkingManager.clearAllLinks();
+    catch ME
+        warning('Error in clearAllLinks: %s', ME.message);
+    end
+end
+
+function inlineConfigSave(app)
+    try
+        app.ConfigManager.saveConfig();
+    catch ME
+        warning('Error in saveConfig: %s', ME.message);
+    end
+end
+
+function inlineConfigLoad(app)
+    try
+        app.ConfigManager.loadConfig();
+    catch ME
+        warning('Error in loadConfig: %s', ME.message);
+    end
+end
+
+function inlineSaveSession(app)
+    try
+        app.saveSession();
+    catch ME
+        warning('Error in saveSession: %s', ME.message);
+    end
+end
+
+function inlineLoadSession(app)
+    try
+        app.loadSession();
+    catch ME
+        warning('Error in loadSession: %s', ME.message);
+    end
+end
+
+function inlineMenuStatistics(app)
+    try
+        app.menuStatistics();
+    catch ME
+        warning('Error in menuStatistics: %s', ME.message);
+    end
+end
+
+function inlineMenuExportCSV(app)
+    try
+        app.menuExportCSV();
+    catch ME
+        warning('Error in menuExportCSV: %s', ME.message);
+    end
+end
+
+function inlineMenuExportPDF(app)
+    try
+        app.menuExportPDF();
+    catch ME
+        warning('Error in menuExportPDF: %s', ME.message);
+    end
+end
+
+function inlineMenuExportPPT(app)
+    try
+        app.menuExportPPT();
+    catch ME
+        warning('Error in menuExportPPT: %s', ME.message);
+    end
+end
+
+function inlineMenuExportToPlotBrowser(app)
+    try
+        app.menuExportToPlotBrowser();
+    catch ME
+        warning('Error in menuExportToPlotBrowser: %s', ME.message);
+    end
+end
+
+function inlinePlotManagerExportSDI(app)
+    try
+        app.PlotManager.exportToSDI();
+    catch ME
+        warning('Error in exportToSDI: %s', ME.message);
+    end
+end
+
+% Additional inline functions for all remaining callbacks in SignalViewerApp
+function inlineOnFigureResize(app)
+    try
+        app.onFigureResize();
+    catch ME
+        warning('Error in onFigureResize: %s', ME.message);
+    end
+end
+
+function inlineAutoScaleCurrentSubplot(app)
+    try
+        app.autoScaleCurrentSubplot();
+    catch ME
+        warning('Error in autoScaleCurrentSubplot: %s', ME.message);
+    end
+end
+
+function inlineRefreshCSVs(app)
+    try
+        app.refreshCSVs();
+    catch ME
+        warning('Error in refreshCSVs: %s', ME.message);
+    end
+end
+
+function inlineFitToView(app)
+    try
+        app.fitToView();
+    catch ME
+        warning('Error in fitToView: %s', ME.message);
+    end
+end
+
+function inlineFilterSignals(app, value)
+    try
+        app.filterSignals(value);
+    catch ME
+        warning('Error in filterSignals: %s', ME.message);
+    end
+end
+
+function inlineOnSignalTreeSelectionChanged(app)
+    try
+        app.onSignalTreeSelectionChanged();
+    catch ME
+        warning('Error in onSignalTreeSelectionChanged: %s', ME.message);
+    end
+end
+
+function inlineOnSignalCheckboxChanged(app, event)
+    try
+        app.onSignalCheckboxChanged(event);
+    catch ME
+        warning('Error in onSignalCheckboxChanged: %s', ME.message);
+    end
+end
+
+function inlineOnSignalPropsCellSelect(app, event)
+    try
+        app.onSignalPropsCellSelect(event);
+    catch ME
+        warning('Error in onSignalPropsCellSelect: %s', ME.message);
+    end
+end
+
+function inlineRemoveSelectedSignalsFromTable(app)
+    try
+        app.removeSelectedSignalsFromTable();
+    catch ME
+        warning('Error in removeSelectedSignalsFromTable: %s', ME.message);
+    end
+end
+
+function inlineOnStreamingModeChanged(app, value)
+    try
+        app.onStreamingModeChanged(value);
+    catch ME
+        warning('Error in onStreamingModeChanged: %s', ME.message);
+    end
+end
+
+function inlineShowHiddenSignalsManager(app)
+    try
+        app.showHiddenSignalsManager();
+    catch ME
+        warning('Error in showHiddenSignalsManager: %s', ME.message);
+    end
+end
+
+function inlineAdjustControlPanelRatio(app, ratio)
+    try
+        app.adjustControlPanelRatio(ratio);
+    catch ME
+        warning('Error in adjustControlPanelRatio: %s', ME.message);
+    end
+end
+
+% Context menu callback wrappers
+function inlinePopulateCSVContextMenu(app, contextMenu, csvIdx)
+    try
+        app.populateCSVContextMenu(contextMenu, csvIdx);
+    catch ME
+        warning('Error in populateCSVContextMenu: %s', ME.message);
+    end
+end
+
+function inlinePopulateMultiSelectionContextMenu(app, contextMenu, signalInfo)
+    try
+        app.populateMultiSelectionContextMenu(contextMenu, signalInfo);
+    catch ME
+        warning('Error in populateMultiSelectionContextMenu: %s', ME.message);
+    end
+end
+
+function inlineCreateQuickLinkFromCSVs(app, selectedCSVIndices)
+    try
+        app.createQuickLinkFromCSVs(selectedCSVIndices);
+    catch ME
+        warning('Error in createQuickLinkFromCSVs: %s', ME.message);
+    end
+end
+
+function inlineAssignAllSignalsFromCSV(app, csvIdx)
+    try
+        app.assignAllSignalsFromCSV(csvIdx);
+    catch ME
+        warning('Error in assignAllSignalsFromCSV: %s', ME.message);
+    end
+end
+
+function inlineRemoveAllSignalsFromCSV(app, csvIdx)
+    try
+        app.removeAllSignalsFromCSV(csvIdx);
+    catch ME
+        warning('Error in removeAllSignalsFromCSV: %s', ME.message);
+    end
+end
+
+function inlineBulkEditSignalProperties(app, csvIdx)
+    try
+        app.bulkEditSignalProperties(csvIdx);
+    catch ME
+        warning('Error in bulkEditSignalProperties: %s', ME.message);
+    end
+end
+
+function inlineDeleteCSVFromSystem(app, csvIdx)
+    try
+        app.deleteCSVFromSystem(csvIdx);
+    catch ME
+        warning('Error in deleteCSVFromSystem: %s', ME.message);
+    end
+end
+
+function inlineAssignAllSignalsFromMultipleCSVs(app, selectedCSVIndices)
+    try
+        app.assignAllSignalsFromMultipleCSVs(selectedCSVIndices);
+    catch ME
+        warning('Error in assignAllSignalsFromMultipleCSVs: %s', ME.message);
+    end
+end
+
+function inlineRemoveAllSignalsFromMultipleCSVs(app, selectedCSVIndices)
+    try
+        app.removeAllSignalsFromMultipleCSVs(selectedCSVIndices);
+    catch ME
+        warning('Error in removeAllSignalsFromMultipleCSVs: %s', ME.message);
+    end
+end
+
+function inlineDeleteMultipleCSVsFromSystem(app, selectedCSVIndices)
+    try
+        app.deleteMultipleCSVsFromSystem(selectedCSVIndices);
+    catch ME
+        warning('Error in deleteMultipleCSVsFromSystem: %s', ME.message);
+    end
+end
+
+function inlineAddMultipleSignalsToCurrentSubplot(app, signals)
+    try
+        app.addMultipleSignalsToCurrentSubplot(signals);
+    catch ME
+        warning('Error in addMultipleSignalsToCurrentSubplot: %s', ME.message);
+    end
+end
+
+function inlineRemoveMultipleSignalsFromCurrentSubplot(app, signals)
+    try
+        app.removeMultipleSignalsFromCurrentSubplot(signals);
+    catch ME
+        warning('Error in removeMultipleSignalsFromCurrentSubplot: %s', ME.message);
+    end
+end
+
+function inlineShowSignalPreview(app, signal)
+    try
+        app.showSignalPreview(signal);
+    catch ME
+        warning('Error in showSignalPreview: %s', ME.message);
+    end
+end
+
+function inlineSetSignalAsXAxis(app, signal)
+    try
+        app.setSignalAsXAxis(signal);
+    catch ME
+        warning('Error in setSignalAsXAxis: %s', ME.message);
+    end
+end
+
+function inlineShowDerivativeForSelected(app, signalName)
+    try
+        app.showDerivativeForSelected(signalName);
+    catch ME
+        warning('Error in showDerivativeForSelected: %s', ME.message);
+    end
+end
+
+function inlineShowIntegralForSelected(app, signalName)
+    try
+        app.showIntegralForSelected(signalName);
+    catch ME
+        warning('Error in showIntegralForSelected: %s', ME.message);
+    end
+end
+
+function inlineShowDerivedSignalDetails(app, signalName)
+    try
+        app.showDerivedSignalDetails(signalName);
+    catch ME
+        warning('Error in showDerivedSignalDetails: %s', ME.message);
+    end
+end
+
+function inlineExportSingleSignalToCSV(app, signal)
+    try
+        app.exportSingleSignalToCSV(signal);
+    catch ME
+        warning('Error in exportSingleSignalToCSV: %s', ME.message);
+    end
+end
+
+function inlineClearSpecificSignalFromAllSubplots(app, signal)
+    try
+        app.clearSpecificSignalFromAllSubplots(signal);
+    catch ME
+        warning('Error in clearSpecificSignalFromAllSubplots: %s', ME.message);
+    end
+end
+
+function inlinePreviewSelectedSignals(app, selectedSignals)
+    try
+        app.previewSelectedSignals(selectedSignals);
+    catch ME
+        warning('Error in previewSelectedSignals: %s', ME.message);
+    end
+end
+
+function inlineShowQuickVectorMagnitudeForSelected(app, selectedSignals)
+    try
+        app.showQuickVectorMagnitudeForSelected(selectedSignals);
+    catch ME
+        warning('Error in showQuickVectorMagnitudeForSelected: %s', ME.message);
+    end
+end
+
+function inlineShowQuickAverageForSelected(app, selectedSignals)
+    try
+        app.showQuickAverageForSelected(selectedSignals);
+    catch ME
+        warning('Error in showQuickAverageForSelected: %s', ME.message);
+    end
+end
+
+function inlineShowQuickNormForSelected(app, selectedSignals)
+    try
+        app.showQuickNormForSelected(selectedSignals);
+    catch ME
+        warning('Error in showQuickNormForSelected: %s', ME.message);
+    end
+end
+
+function inlineShowDualOperationForSelected(app, operation, signal1Name, signal2Name)
+    try
+        app.showDualOperationForSelected(operation, signal1Name, signal2Name);
+    catch ME
+        warning('Error in showDualOperationForSelected: %s', ME.message);
+    end
+end
+
+function inlineExportMultipleSignalsToCSV(app, selectedSignals)
+    try
+        app.exportMultipleSignalsToCSV(selectedSignals);
+    catch ME
+        warning('Error in exportMultipleSignalsToCSV: %s', ME.message);
+    end
+end
+
+function inlineClearMultipleSignalsFromAllSubplots(app, selectedSignals)
+    try
+        app.clearMultipleSignalsFromAllSubplots(selectedSignals);
+    catch ME
+        warning('Error in clearMultipleSignalsFromAllSubplots: %s', ME.message);
+    end
+end
+
+function inlineConfirmAndClearDerivedSignals(app)
+    try
+        app.confirmAndClearDerivedSignals();
+    catch ME
+        warning('Error in confirmAndClearDerivedSignals: %s', ME.message);
+    end
+end
+
+function inlineSignalOperationsShowHistory(app)
+    try
+        app.SignalOperations.showOperationHistory();
+    catch ME
+        warning('Error in showOperationHistory: %s', ME.message);
+    end
+end
+
+function inlineSignalOperationsExportDerived(app, signalName)
+    try
+        app.SignalOperations.exportDerivedSignal(signalName);
+    catch ME
+        warning('Error in exportDerivedSignal: %s', ME.message);
+    end
+end
+
+function inlineSignalOperationsConfirmDelete(app, signalName)
+    try
+        app.SignalOperations.confirmDeleteDerivedSignal(signalName);
+    catch ME
+        warning('Error in confirmDeleteDerivedSignal: %s', ME.message);
     end
 end

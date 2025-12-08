@@ -87,7 +87,7 @@ classdef LinkingManager < handle
                 'FontSize', 10, 'FontWeight', 'bold', ...
                 'BackgroundColor', [0.2 0.6 0.9], ...
                 'ForegroundColor', [1 1 1], ...
-                'Callback', @(~,~) obj.createLinkGroupFromCheckboxes(csvCheckboxes, groupsListbox, d));
+                'Callback', @(~,~) inlineCreateLinkGroup(obj, csvCheckboxes, groupsListbox, d));
             
             deleteBtn = uicontrol('Parent', d, 'Style', 'pushbutton', ...
                 'Position', [170 160 140 30], ...
@@ -95,7 +95,7 @@ classdef LinkingManager < handle
                 'FontSize', 10, ...
                 'BackgroundColor', [0.9 0.3 0.3], ...
                 'ForegroundColor', [1 1 1], ...
-                'Callback', @(~,~) obj.deleteSelectedLinkGroup(groupsListbox, d));
+                'Callback', @(~,~) inlineDeleteLinkGroup(obj, groupsListbox, d));
 
             % Auto-link checkbox (more prominent)
             autoLinkCheck = uicontrol('Parent', d, 'Style', 'checkbox', ...
@@ -103,7 +103,7 @@ classdef LinkingManager < handle
                 'String', '⚡ Enable Automatic Linking (auto-assign signals from linked CSVs)', ...
                 'Value', obj.AutoLinkEnabled, ...
                 'FontSize', 10, 'FontWeight', 'bold', ...
-                'Callback', @(src, ~) obj.setAutoLinkEnabled(src.Value));
+                'Callback', @(src, ~) inlineSetAutoLink(obj, src.Value));
 
             % Info text
             uicontrol('Parent', d, 'Style', 'text', 'Position', [20 90 660 20], ...
@@ -115,7 +115,7 @@ classdef LinkingManager < handle
                 'String', '🗑️ Clear All Links', ...
                 'Position', [340 20 120 30], ...
                 'FontSize', 10, ...
-                'Callback', @(~,~) obj.clearAllLinksAndRefresh(groupsListbox, d));
+                'Callback', @(~,~) inlineClearAllLinks(obj, groupsListbox, d));
             
             closeBtn = uicontrol('Parent', d, 'Style', 'pushbutton', ...
                 'String', 'Close', ...
@@ -1244,5 +1244,38 @@ classdef LinkingManager < handle
                 end
             end
         end
+    end
+end
+
+% Standalone callback functions for LinkingManager - defined outside class to work when packaged
+function inlineCreateLinkGroup(obj, csvCheckboxes, groupsListbox, d)
+    try
+        obj.createLinkGroupFromCheckboxes(csvCheckboxes, groupsListbox, d);
+    catch ME
+        warning('Error in createLinkGroupFromCheckboxes: %s', ME.message);
+    end
+end
+
+function inlineDeleteLinkGroup(obj, groupsListbox, d)
+    try
+        obj.deleteSelectedLinkGroup(groupsListbox, d);
+    catch ME
+        warning('Error in deleteSelectedLinkGroup: %s', ME.message);
+    end
+end
+
+function inlineSetAutoLink(obj, value)
+    try
+        obj.setAutoLinkEnabled(value);
+    catch ME
+        warning('Error in setAutoLinkEnabled: %s', ME.message);
+    end
+end
+
+function inlineClearAllLinks(obj, groupsListbox, d)
+    try
+        obj.clearAllLinksAndRefresh(groupsListbox, d);
+    catch ME
+        warning('Error in clearAllLinksAndRefresh: %s', ME.message);
     end
 end

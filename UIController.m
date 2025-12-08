@@ -20,23 +20,23 @@ classdef UIController < handle
             app = obj.App;
 
             try
-                % Layout change callbacks
+                % Layout change callbacks - use standalone functions for packaging compatibility
                 if isprop(app, 'RowsSpinner') && ~isempty(app.RowsSpinner)
-                    app.RowsSpinner.ValueChangedFcn = @(~,~) obj.onLayoutChanged();
+                    app.RowsSpinner.ValueChangedFcn = @(~,~) inlineOnLayoutChanged(obj);
                 end
 
                 if isprop(app, 'ColsSpinner') && ~isempty(app.ColsSpinner)
-                    app.ColsSpinner.ValueChangedFcn = @(~,~) obj.onLayoutChanged();
+                    app.ColsSpinner.ValueChangedFcn = @(~,~) inlineOnLayoutChanged(obj);
                 end
 
-                % Subplot selection callback
+                % Subplot selection callback - use standalone function
                 if isprop(app, 'SubplotDropdown') && ~isempty(app.SubplotDropdown)
-                    app.SubplotDropdown.ValueChangedFcn = @(~,~) obj.onSubplotSelected();
+                    app.SubplotDropdown.ValueChangedFcn = @(~,~) inlineOnSubplotSelected(obj);
                 end
 
-                % Signal table callback
+                % Signal table callback - use standalone function
                 if isprop(app, 'SignalTable') && ~isempty(app.SignalTable)
-                    app.SignalTable.CellEditCallback = @(src, event) obj.onSignalTableEdit(event);
+                    app.SignalTable.CellEditCallback = @(src, event) inlineOnSignalTableEdit(obj, event);
                 end
 
                 fprintf('UIController callbacks setup complete\n');
@@ -875,5 +875,30 @@ classdef UIController < handle
         end
 
 
+    end
+end
+
+% Standalone callback functions for UIController - defined outside class to work when packaged
+function inlineOnLayoutChanged(obj)
+    try
+        obj.onLayoutChanged();
+    catch ME
+        warning('Error in onLayoutChanged: %s', ME.message);
+    end
+end
+
+function inlineOnSubplotSelected(obj)
+    try
+        obj.onSubplotSelected();
+    catch ME
+        warning('Error in onSubplotSelected: %s', ME.message);
+    end
+end
+
+function inlineOnSignalTableEdit(obj, event)
+    try
+        obj.onSignalTableEdit(event);
+    catch ME
+        warning('Error in onSignalTableEdit: %s', ME.message);
     end
 end
