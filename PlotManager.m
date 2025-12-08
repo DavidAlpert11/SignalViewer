@@ -1706,6 +1706,12 @@ classdef PlotManager < handle
                             scaleFactor = obj.App.DataManager.SignalScaling(sigName);
                         end
                         scaledData = signalData * scaleFactor;
+                        
+                        % Downsample for large datasets to improve performance
+                        maxPoints = 50000;  % Maximum points to plot for performance
+                        if length(xData) > maxPoints
+                            [xData, scaledData] = obj.downsampleData(xData, scaledData, maxPoints);
+                        end
 
                         % Collect data for limit calculation
                         allTimeData = [allTimeData; xData];  % Now consistently using xData
@@ -2249,6 +2255,33 @@ classdef PlotManager < handle
             end
         end
 
+        % **NEW METHOD: Downsample data for large datasets**
+        function [xDown, yDown] = downsampleData(~, xData, yData, maxPoints)
+            % Downsample data to maxPoints while preserving important features
+            % Uses decimation for better performance with large datasets
+            
+            n = length(xData);
+            if n <= maxPoints
+                xDown = xData;
+                yDown = yData;
+                return;
+            end
+            
+            % Calculate decimation factor
+            decFactor = ceil(n / maxPoints);
+            
+            % Simple decimation (every Nth point)
+            indices = 1:decFactor:n;
+            xDown = xData(indices);
+            yDown = yData(indices);
+            
+            % Always include first and last points
+            if indices(end) ~= n
+                xDown(end+1) = xData(end);
+                yDown(end+1) = yData(end);
+            end
+        end
+        
         % **NEW METHOD: Remove plots for unassigned signals**
         function removeUnassignedSignalPlots(~, ax, assignedSignalNames)
             if isempty(ax.Children)

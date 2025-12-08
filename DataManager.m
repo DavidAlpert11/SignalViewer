@@ -59,9 +59,60 @@ classdef DataManager < handle
             app = obj.App;
             obj.stopStreamingAll();  % Ensure no streaming is active
             
-            % Load all CSVs
-            for i = 1:numel(obj.CSVFilePaths)
-                obj.readInitialData(i);
+            numCSVs = numel(obj.CSVFilePaths);
+            if numCSVs == 0
+                return;
+            end
+            
+            % Check total file sizes before loading
+            totalSizeMB = 0;
+            for i = 1:numCSVs
+                if isfile(obj.CSVFilePaths{i})
+                    fileInfo = dir(obj.CSVFilePaths{i});
+                    if ~isempty(fileInfo)
+                        totalSizeMB = totalSizeMB + fileInfo(1).bytes / (1024 * 1024);
+                    end
+                end
+            end
+            
+            % Warn if total size is very large
+            if totalSizeMB > 500
+                answer = uiconfirm(app.UIFigure, ...
+                    sprintf('Total file size is %.1f MB. Loading may take time and use significant memory.\n\nContinue?', totalSizeMB), ...
+                    'Large Files Warning', ...
+                    'Options', {'Continue', 'Cancel'}, ...
+                    'DefaultOption', 'Cancel', ...
+                    'Icon', 'warning');
+                if strcmp(answer, 'Cancel')
+                    app.StatusLabel.Text = '❌ Loading cancelled';
+                    app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    return;
+                end
+            end
+            
+            % Load all CSVs sequentially with progress updates
+            successCount = 0;
+            failedCount = 0;
+            
+            for i = 1:numCSVs
+                try
+                    [~, fileName, ext] = fileparts(obj.CSVFilePaths{i});
+                    app.StatusLabel.Text = sprintf('📁 Loading CSV %d/%d: %s%s...', i, numCSVs, fileName, ext);
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    drawnow;
+                    
+                    obj.readInitialData(i);
+                    
+                    if ~isempty(obj.DataTables{i})
+                        successCount = successCount + 1;
+                    else
+                        failedCount = failedCount + 1;
+                    end
+                catch ME
+                    fprintf('Error loading CSV %d: %s\n', i, ME.message);
+                    failedCount = failedCount + 1;
+                    obj.DataTables{i} = [];
+                end
             end
             
             obj.IsRunning = false;
@@ -72,10 +123,17 @@ classdef DataManager < handle
                 end
             end
             
-            app.StatusLabel.Text = sprintf('📁 Loaded %d rows, %d signals (one-time load)', ...
-                totalRows, numel(obj.SignalNames));
-            app.StatusLabel.FontColor = [0.2 0.6 0.9];
-            app.StreamingInfoLabel.Text = sprintf('Loaded %d CSV(s) (no streaming)', numel(obj.CSVFilePaths));
+            % Update status with results
+            if failedCount == 0
+                app.StatusLabel.Text = sprintf('✅ Loaded %d CSV(s): %d rows, %d signals', ...
+                    successCount, totalRows, numel(obj.SignalNames));
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.StatusLabel.Text = sprintf('⚠️ Loaded %d/%d CSV(s): %d rows, %d signals (%d failed)', ...
+                    successCount, numCSVs, totalRows, numel(obj.SignalNames), failedCount);
+                app.StatusLabel.FontColor = [0.9 0.6 0.2];
+            end
+            app.StreamingInfoLabel.Text = sprintf('Loaded %d CSV(s) (no streaming)', successCount);
             app.DataRateLabel.Text = sprintf('📊 Total: %d samples', totalRows);
         end
 
@@ -178,7 +236,7 @@ classdef DataManager < handle
             end
         end
         function readInitialData(obj, idx)
-            % Optimized data reading with better error handling
+            % Optimized data reading with better error handling and large file support
             filePath = obj.CSVFilePaths{idx};
             if ~isfile(filePath)
                 obj.DataTables{idx} = [];
@@ -192,17 +250,34 @@ classdef DataManager < handle
                 return;
             end
             
+            % Check file size and warn for very large files
+            fileSizeMB = fileInfo(1).bytes / (1024 * 1024);
+            if fileSizeMB > 100
+                obj.App.StatusLabel.Text = sprintf('⚠️ Loading large file (%.1f MB): %s...', fileSizeMB, fileparts(filePath));
+                obj.App.StatusLabel.FontColor = [0.9 0.6 0.2];
+                drawnow;
+            end
+            
             try
-                % Use optimized import options
+                % Use optimized import options with memory-efficient settings
                 opts = detectImportOptions(filePath);
                 if isempty(opts.VariableNames)
                     obj.DataTables{idx} = [];
                     return;
                 end
-                opts = setvartype(opts, 'double');
-                T = readtable(filePath, opts);
+                
+                % For very large files, use more memory-efficient options
+                if fileSizeMB > 500
+                    % Use chunked reading for extremely large files
+                    T = obj.readLargeCSVChunked(filePath, opts);
+                else
+                    opts = setvartype(opts, 'double');
+                    T = readtable(filePath, opts);
+                end
             catch ME
                 fprintf('Error reading CSV %d: %s\n', idx, ME.message);
+                obj.App.StatusLabel.Text = sprintf('❌ Error loading CSV %d: %s', idx, ME.message);
+                obj.App.StatusLabel.FontColor = [0.9 0.3 0.3];
                 obj.DataTables{idx} = [];
                 return;
             end
@@ -656,6 +731,67 @@ classdef DataManager < handle
             obj.StreamingEnabled = enabled;
             if ~enabled
                 obj.stopStreamingAll();
+            end
+        end
+        
+        function T = readLargeCSVChunked(obj, filePath, opts)
+            % Read large CSV files in chunks to avoid memory issues
+            % This is a fallback for files > 500MB
+            
+            try
+                % Try to read in chunks
+                chunkSize = 100000; % Read 100k rows at a time
+                T = table();
+                firstChunk = true;
+                rowOffset = 0;
+                
+                while true
+                    try
+                        % Read chunk
+                        chunkOpts = opts;
+                        chunkOpts.DataLines = [rowOffset + 1, rowOffset + chunkSize];
+                        chunk = readtable(filePath, chunkOpts);
+                        
+                        if isempty(chunk) || height(chunk) == 0
+                            break;
+                        end
+                        
+                        % Set first column as Time
+                        if ~isempty(chunk.Properties.VariableNames)
+                            chunk.Properties.VariableNames{1} = 'Time';
+                        end
+                        
+                        if firstChunk
+                            T = chunk;
+                            firstChunk = false;
+                        else
+                            % Append chunk
+                            T = [T; chunk];
+                        end
+                        
+                        rowOffset = rowOffset + height(chunk);
+                        
+                        % Update progress
+                        if mod(rowOffset, chunkSize * 5) == 0
+                            obj.App.StatusLabel.Text = sprintf('📊 Loading... %d rows loaded', rowOffset);
+                            drawnow;
+                        end
+                        
+                        % If we got fewer rows than requested, we're done
+                        if height(chunk) < chunkSize
+                            break;
+                        end
+                    catch
+                        % If chunk reading fails, fall back to full read
+                        opts = setvartype(opts, 'double');
+                        T = readtable(filePath, opts);
+                        break;
+                    end
+                end
+            catch
+                % Final fallback: try normal read
+                opts = setvartype(opts, 'double');
+                T = readtable(filePath, opts);
             end
         end
 
