@@ -430,6 +430,49 @@ classdef LinkingManager < handle
             end
         end
 
+        function createLinkGroupFromIndices(obj, csvIndices)
+            % Create a link group directly from a list of CSV indices.
+            try
+                if length(csvIndices) < 2
+                    uialert(obj.App.UIFigure, 'Please select at least 2 CSV files to link.', 'Selection Required');
+                    return;
+                end
+
+                % Create new link group
+                newGroup = struct();
+                newGroup.Type = 'nodes';
+                newGroup.CSVIndices = unique(csvIndices); % Ensure unique indices
+
+                % Safe color access
+                if isempty(obj.LinkColors)
+                    obj.LinkColors = lines(7); % Fallback colors
+                end
+                colorIdx = mod(length(obj.LinkedGroups), size(obj.LinkColors, 1)) + 1;
+                newGroup.Color = obj.LinkColors(colorIdx, :);
+
+                % Safe filename construction for the group name
+                linkedNames = {};
+                for i = 1:numel(newGroup.CSVIndices)
+                    idx = newGroup.CSVIndices(i);
+                    if idx <= length(obj.App.DataManager.CSVFilePaths)
+                        filePath = obj.App.DataManager.CSVFilePaths{idx};
+                        if ~isempty(filePath)
+                            [~, name, ~] = fileparts(filePath);
+                            linkedNames{end+1} = name;
+                        end
+                    end
+                end
+                newGroup.Name = ['Linked: ' strjoin(linkedNames, ', ')];
+
+                % Add to link groups
+                obj.LinkedGroups{end+1} = newGroup;
+
+            catch ME
+                uialert(obj.App.UIFigure, sprintf('Failed to create link group: %s', ME.message), 'Error');
+                fprintf('Error in createLinkGroupFromIndices: %s\n', ME.message);
+            end
+        end
+
         function groupsText = getLinkGroupsText(obj)
             if isempty(obj.LinkedGroups)
                 groupsText = {'No link groups created'};

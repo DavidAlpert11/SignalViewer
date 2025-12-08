@@ -1086,8 +1086,8 @@ classdef SignalOperationsManager < handle
                     window = hann(N);
                 catch
                     % Create Hanning window manually
-                    n = 0:N-1;
-                    window = 0.5 * (1 - cos(2*pi*n/(N-1)))';
+                    n = (0:N-1)';
+                    window = 0.5 * (1 - cos(2*pi*n/(N-1)));
                     fprintf('Using manual Hanning window (Signal Processing Toolbox not available)\n');
                 end
 

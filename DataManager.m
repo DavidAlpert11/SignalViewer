@@ -1,4 +1,5 @@
-% Updated DataManager.m - Fixed streaming with file monitoring and timeout - REMOVED REDUNDANT DRAWNOW
+% DataManager.m - Optimized for MATLAB 2021b
+% Handles data loading with optional streaming mode
 classdef DataManager < handle
     properties
         App
@@ -16,8 +17,9 @@ classdef DataManager < handle
         LastReadRows     cell   % Cell array of doubles
         StreamingTimers  cell   % Cell array of timers
         TimeoutDuration  double = 1.0  % 1 second timeout
-        UpdateRate       double = 0.1  % Check every 100ms
+        UpdateRate       double = 0.1  % Check every 100ms (optimized from 0.01)
         LatestDataRates  cell   % Cell array of doubles, one per CSV
+        StreamingEnabled logical = false  % NEW: Toggle for streaming mode
     end
 
     methods
@@ -36,6 +38,10 @@ classdef DataManager < handle
         end
 
         function startStreamingAll(obj)
+            % Start streaming only if enabled
+            if ~obj.StreamingEnabled
+                return;
+            end
             app = obj.App;
             % Stop all existing timers before starting new streaming
             obj.stopStreamingAll();
@@ -46,7 +52,31 @@ classdef DataManager < handle
             app.StatusLabel.Text = '🔄 Streaming...';
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
             app.StreamingInfoLabel.Text = sprintf('Streaming %d CSV(s): %s', numel(obj.CSVFilePaths), strjoin(obj.CSVFilePaths, ', '));
-            % REMOVED: drawnow; - not needed here
+        end
+        
+        function loadDataOnce(obj)
+            % Load all CSV data once without streaming (optimized for performance)
+            app = obj.App;
+            obj.stopStreamingAll();  % Ensure no streaming is active
+            
+            % Load all CSVs
+            for i = 1:numel(obj.CSVFilePaths)
+                obj.readInitialData(i);
+            end
+            
+            obj.IsRunning = false;
+            totalRows = 0;
+            for i = 1:numel(obj.DataTables)
+                if ~isempty(obj.DataTables{i})
+                    totalRows = totalRows + height(obj.DataTables{i});
+                end
+            end
+            
+            app.StatusLabel.Text = sprintf('📁 Loaded %d rows, %d signals (one-time load)', ...
+                totalRows, numel(obj.SignalNames));
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            app.StreamingInfoLabel.Text = sprintf('Loaded %d CSV(s) (no streaming)', numel(obj.CSVFilePaths));
+            app.DataRateLabel.Text = sprintf('📊 Total: %d samples', totalRows);
         end
 
 
@@ -57,8 +87,10 @@ classdef DataManager < handle
             end
             % Read initial data for this CSV
             obj.readInitialData(idx);
-            % Start streaming timer for this CSV
-            obj.startStreamingTimer(idx);
+            % Start streaming timer for this CSV (only if streaming enabled)
+            if obj.StreamingEnabled
+                obj.startStreamingTimer(idx);
+            end
         end
 
         function tf = initializeFileMonitoring(obj, idx)
@@ -146,27 +178,34 @@ classdef DataManager < handle
             end
         end
         function readInitialData(obj, idx)
+            % Optimized data reading with better error handling
             filePath = obj.CSVFilePaths{idx};
             if ~isfile(filePath)
                 obj.DataTables{idx} = [];
                 return;
             end
+            
+            % Quick file size check
             fileInfo = dir(filePath);
-            if ~isstruct(fileInfo) || isempty(fileInfo)
+            if ~isstruct(fileInfo) || isempty(fileInfo) || fileInfo(1).bytes == 0
                 obj.DataTables{idx} = [];
                 return;
             end
-            if fileInfo(1).bytes == 0
+            
+            try
+                % Use optimized import options
+                opts = detectImportOptions(filePath);
+                if isempty(opts.VariableNames)
+                    obj.DataTables{idx} = [];
+                    return;
+                end
+                opts = setvartype(opts, 'double');
+                T = readtable(filePath, opts);
+            catch ME
+                fprintf('Error reading CSV %d: %s\n', idx, ME.message);
                 obj.DataTables{idx} = [];
                 return;
             end
-            opts = detectImportOptions(filePath);
-            if isempty(opts.VariableNames)
-                obj.DataTables{idx} = [];
-                return;
-            end
-            opts = setvartype(opts, 'double');
-            T = readtable(filePath, opts);
             if ~istable(T)
                 obj.DataTables{idx} = [];
                 return;
@@ -203,17 +242,17 @@ classdef DataManager < handle
             end
             obj.DataTables{idx} = T;
             obj.LastReadRows{idx} = height(T);
-            % Update signal names (union of all signals)
-            allSignals = {};
-            for k = 1:numel(obj.DataTables)
-                if ~isempty(obj.DataTables{k})
-                    allSignals = union(allSignals, setdiff(obj.DataTables{k}.Properties.VariableNames, {'Time'}));
-                end
-            end
-            obj.SignalNames = allSignals;
+            
+            % Update signal names (union of all signals) - optimized
+            obj.updateSignalNames();
             obj.initializeSignalMaps();
-            obj.App.buildSignalTree();
-            obj.App.PlotManager.refreshPlots();
+            
+            % Only update UI if not in batch loading mode
+            if ~obj.IsRunning || idx == numel(obj.CSVFilePaths)
+                obj.App.buildSignalTree();
+                obj.App.PlotManager.refreshPlots();
+            end
+            
             obj.App.StatusLabel.Text = sprintf('📁 Loaded %d rows, %d signals (CSV %d)', ...
                 height(T), numel(obj.SignalNames), idx);
             obj.App.DataRateLabel.Text = sprintf('📊 Initial load: %d samples (CSV %d)', height(T), idx);
@@ -240,9 +279,10 @@ classdef DataManager < handle
                 end
 
                 % Create new timer with error handling
+                % Optimized: Use UpdateRate (0.1s = 100ms) instead of 0.01s for better performance
                 obj.StreamingTimers{idx} = timer(...
                     'ExecutionMode', 'fixedRate', ...
-                    'Period', 0.01, ...
+                    'Period', obj.UpdateRate, ...
                     'TimerFcn', @(tmr,evt) obj.safeCheckForUpdates(idx), ...
                     'ErrorFcn', @(tmr,evt) obj.handleTimerError(idx, evt));
 
@@ -597,6 +637,25 @@ classdef DataManager < handle
 
             catch ME
                 fprintf('Warning during signal maps cleanup: %s\n', ME.message);
+            end
+        end
+        
+        function updateSignalNames(obj)
+            % Optimized signal name update (called once instead of multiple times)
+            allSignals = {};
+            for k = 1:numel(obj.DataTables)
+                if ~isempty(obj.DataTables{k})
+                    allSignals = union(allSignals, setdiff(obj.DataTables{k}.Properties.VariableNames, {'Time'}));
+                end
+            end
+            obj.SignalNames = allSignals;
+        end
+        
+        function setStreamingMode(obj, enabled)
+            % Set streaming mode (true = streaming, false = one-time load)
+            obj.StreamingEnabled = enabled;
+            if ~enabled
+                obj.stopStreamingAll();
             end
         end
 

@@ -96,6 +96,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
         StreamingInfoLabel % Label for streaming info
         AutoScaleButton
         PDFReportLanguage = 'English'  % או 'Hebrew'
+        StreamingModeToggle % Toggle for streaming vs one-time load mode
     end
 
     methods
@@ -226,27 +227,11 @@ end
 function createQuickLinkFromCSVs(app, selectedCSVIndices)
     % Simple method to create link using existing LinkingManager
     try
-        if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
-            % Create new group using existing LinkingManager method
-            newGroup = struct();
-            newGroup.Type = 'nodes';
-            newGroup.CSVIndices = selectedCSVIndices;
-            
-            % Generate simple name
-            newGroup.Name = sprintf('Quick Link %d (%d CSVs)', ...
-                length(app.LinkingManager.LinkedGroups) + 1, length(selectedCSVIndices));
-            
-            % Use existing color logic
-            if isempty(app.LinkingManager.LinkColors)
-                app.LinkingManager.LinkColors = [
-                    0.9 0.2 0.2; 0.2 0.9 0.2; 0.2 0.2 0.9; 
-                    0.9 0.9 0.2; 0.9 0.2 0.9; 0.2 0.9 0.9];
-            end
-            colorIdx = mod(length(app.LinkingManager.LinkedGroups), size(app.LinkingManager.LinkColors, 1)) + 1;
-            newGroup.Color = app.LinkingManager.LinkColors(colorIdx, :);
-            
-            % Add to linked groups
-            app.LinkingManager.LinkedGroups{end+1} = newGroup;
+        if isprop(app, 'LinkingManager') && isvalid(app.LinkingManager)
+            % Let the LinkingManager handle the group creation
+            app.LinkingManager.createLinkGroupFromIndices(selectedCSVIndices);
+
+            % The manager will now be responsible for the status update, but we can keep it here too.
             app.LinkingManager.AutoLinkEnabled = true;
             
             % Update status
@@ -1025,6 +1010,15 @@ end
                 'Text', '', ...
                 'FontColor', [0.2 0.2 0.2], ...
                 'FontSize', 9);
+
+            % Streaming mode toggle (SDI-like feature)
+            app.StreamingModeToggle = uicheckbox(app.ControlPanel, ...
+                'Position', [20 5 200 20], ...
+                'Text', '🔄 Enable Streaming Mode', ...
+                'Value', false, ...
+                'FontSize', 9, ...
+                'ValueChangedFcn', @(src, event) app.onStreamingModeChanged(src.Value), ...
+                'Tooltip', 'Enable to stream data continuously, disable to load data once');
 
         end
 
@@ -5413,13 +5407,43 @@ end
         end
 
         function refreshCSVs(app)
+            % Refresh CSV data based on current streaming mode
             n = numel(app.DataManager.CSVFilePaths);
-            for idx = 1:n
-                app.DataManager.readInitialData(idx);
+            if n == 0
+                return;
             end
+            
+            if app.DataManager.StreamingEnabled
+                % Restart streaming
+                app.DataManager.startStreamingAll();
+            else
+                % Reload data once
+                for idx = 1:n
+                    app.DataManager.readInitialData(idx);
+                end
+            end
+            
             app.buildSignalTree();
             app.PlotManager.refreshPlots();
-            % Do NOT auto-start streaming here to avoid recursion
+        end
+        
+        function onStreamingModeChanged(app, enabled)
+            % Callback for streaming mode toggle
+            app.DataManager.setStreamingMode(enabled);
+            
+            if enabled
+                app.StatusLabel.Text = '🔄 Streaming mode enabled';
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                % If CSVs are already loaded, start streaming
+                if ~isempty(app.DataManager.CSVFilePaths)
+                    app.DataManager.startStreamingAll();
+                end
+            else
+                app.StatusLabel.Text = '📁 One-time load mode enabled';
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                % Stop streaming if active
+                app.DataManager.stopStreamingAll();
+            end
         end
 
 

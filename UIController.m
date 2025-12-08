@@ -109,10 +109,19 @@ classdef UIController < handle
                 app.DataManager.StreamingTimers = [app.DataManager.StreamingTimers, cell(1, numNewCSVs)];
                 app.DataManager.LatestDataRates = [app.DataManager.LatestDataRates, cell(1, numNewCSVs)];
 
-                % Start streaming for the new CSVs only
-                for i = 1:numNewCSVs
-                    csvIdx = existingCount + i;
-                    app.DataManager.startStreamingForCSV(csvIdx);
+                % Load new CSVs based on streaming mode
+                if app.DataManager.StreamingEnabled
+                    % Start streaming for the new CSVs only
+                    for i = 1:numNewCSVs
+                        csvIdx = existingCount + i;
+                        app.DataManager.startStreamingForCSV(csvIdx);
+                    end
+                else
+                    % Load data once for new CSVs
+                    for i = 1:numNewCSVs
+                        csvIdx = existingCount + i;
+                        app.DataManager.readInitialData(csvIdx);
+                    end
                 end
 
                 % Update signal tree to include new signals
@@ -120,7 +129,12 @@ classdef UIController < handle
                 app.PlotManager.refreshPlots();
 
                 % Update status
-                app.StatusLabel.Text = sprintf('➕ Added %d new CSV(s). Total: %d', numNewCSVs, numel(app.DataManager.CSVFilePaths));
+                if app.DataManager.StreamingEnabled
+                    modeStr = 'streaming';
+                else
+                    modeStr = 'loaded';
+                end
+                app.StatusLabel.Text = sprintf('➕ Added %d new CSV(s). Total: %d (%s)', numNewCSVs, numel(app.DataManager.CSVFilePaths), modeStr);
                 app.StatusLabel.FontColor = [0.2 0.6 0.9];
 
             catch ME
@@ -840,7 +854,14 @@ classdef UIController < handle
             app.DataManager.LastReadRows = cell(1, numel(files));
             app.DataManager.StreamingTimers = cell(1, numel(files));
             app.DataManager.LatestDataRates = cell(1, numel(files));
-            app.DataManager.startStreamingAll();
+            
+            % Check streaming mode and load accordingly
+            if app.DataManager.StreamingEnabled
+                app.DataManager.startStreamingAll();
+            else
+                app.DataManager.loadDataOnce();
+            end
+            
             app.buildSignalTree();
             app.PlotManager.refreshPlots();
         end

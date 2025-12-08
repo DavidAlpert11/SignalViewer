@@ -664,109 +664,89 @@ classdef PlotManager < handle
                     return;
                 end
                 fullPath = fullfile(path, file);
-                tempFig = figure('Visible','off');
-                newAx = copyobj(sourceAx, tempFig);
-                set(newAx, 'Units', 'normalized', 'Position', [0.13 0.11 0.775 0.815]);
 
+                % Create temporary figure for export
+                tempFig = figure('Visible', 'off', ...
+                    'Position', [0 0 1200 900], ...
+                    'Color', 'white', ...
+                    'Name', sprintf('Tab %d - Plot %d', tabIdx, subplotIdx));
 
+                % Create axes with better positioning
+                tempAx = axes(tempFig, 'Position', [0.1 0.1 0.8 0.8]);
 
-                % Get title from stored property or fallback
+                % Copy content excluding highlight borders
+                allChildren = allchild(sourceAx);
+                validChildren = [];
+
+                % Filter out highlight border lines
+                highlightBorders = [];
+                if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
+                    highlightBorders = sourceAx.UserData.HighlightBorders;
+                end
+
+                for i = 1:numel(allChildren)
+                    child = allChildren(i);
+                    % Only copy if it's not a highlight border
+                    if ~any(highlightBorders == child)
+                        validChildren = [validChildren; child];
+                    end
+                end
+
+                % Copy only the valid children
+                if ~isempty(validChildren)
+                    copyobj(validChildren, tempAx);
+                end
+
+                % Copy axes properties for better fidelity
+                tempAx.XLabel.String = sourceAx.XLabel.String;
+                tempAx.YLabel.String = sourceAx.YLabel.String;
+
+                % Set title from stored subplot title property
                 titleText = '';
                 if numel(obj.App.SubplotTitles) >= tabIdx && numel(obj.App.SubplotTitles{tabIdx}) >= subplotIdx
                     titleText = obj.App.SubplotTitles{tabIdx}{subplotIdx};
                 end
                 if isempty(titleText)
-                    titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx); % fallback
+                    titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx); % Fallback
+                end
+                tempAx.Title.String = titleText;
+
+                tempAx.XLim = sourceAx.XLim;
+                tempAx.YLim = sourceAx.YLim;
+                tempAx.XTick = sourceAx.XTick;
+                tempAx.YTick = sourceAx.YTick;
+                tempAx.XTickLabel = sourceAx.XTickLabel;
+                tempAx.YTickLabel = sourceAx.YTickLabel;
+
+                % Copy grid settings
+                tempAx.XGrid = sourceAx.XGrid;
+                tempAx.YGrid = sourceAx.YGrid;
+                tempAx.XMinorGrid = sourceAx.XMinorGrid;
+                tempAx.YMinorGrid = sourceAx.YMinorGrid;
+                tempAx.GridAlpha = sourceAx.GridAlpha;
+                tempAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
+
+                % Set professional appearance
+                tempAx.XColor = [0.15 0.15 0.15];
+                tempAx.YColor = [0.15 0.15 0.15];
+                tempAx.LineWidth = 1.2;
+                tempAx.FontSize = 11;
+                tempAx.FontWeight = 'normal';
+
+                % Copy legend if it exists
+                sourceLegend = legend(sourceAx);
+                if ~isempty(sourceLegend) && isvalid(sourceLegend)
+                    tempLegend = legend(tempAx);
+                    if ~isempty(tempLegend)
+                        tempLegend.String = sourceLegend.String;
+                        tempLegend.Location = sourceLegend.Location;
+                        tempLegend.FontSize = sourceLegend.FontSize;
+                        tempLegend.Box = sourceLegend.Box;
+                    end
                 end
 
-                % Set the title on the copied axes
-                title(newAx, titleText);
-                tempFig.Visible = 1;
-
+                % Save as .fig file
                 savefig(tempFig, fullPath);
-                % Create temporary figure for export
-                %                 tempFig = figure('Visible', 'on', ...
-                %                     'Position', [0 0 1200 900], ...
-                %                     'Color', 'white', ...
-                %                     'Name', sprintf('Tab %d - Plot %d', tabIdx, subplotIdx));
-
-                %                 % Create axes with better positioning
-                %                 tempAx = axes(tempFig, 'Position', [0.1 0.1 0.8 0.8]);
-                %
-                %                 % Copy content excluding highlight borders
-                %                 allChildren = allchild(sourceAx);
-                %                 validChildren = [];
-                %
-                %                 % Filter out highlight border lines
-                %                 highlightBorders = [];
-                %                 if isstruct(sourceAx.UserData) && isfield(sourceAx.UserData, 'HighlightBorders')
-                %                     highlightBorders = sourceAx.UserData.HighlightBorders;
-                %                 end
-                %
-                %                 for i = 1:numel(allChildren)
-                %                     child = allChildren(i);
-                %                     % Only copy if it's not a highlight border
-                %                     if ~any(highlightBorders == child)
-                %                         validChildren = [validChildren; child];
-                %                     end
-                %                 end
-                %
-                %                 % Copy only the valid children
-                %                 if ~isempty(validChildren)
-                %                     copyobj(validChildren, tempAx);
-                %                 end
-                %
-                %                 % Copy axes properties for better fidelity
-                %                 tempAx.XLabel.String = sourceAx.XLabel.String;
-                %                 tempAx.YLabel.String = sourceAx.YLabel.String;
-                %
-                %                 % Set title from stored subplot title property
-                %                 titleText = '';
-                %                 if numel(obj.App.SubplotTitles) >= tabIdx && numel(obj.App.SubplotTitles{tabIdx}) >= subplotIdx
-                %                     titleText = obj.App.SubplotTitles{tabIdx}{subplotIdx};
-                %                 end
-                %                 if isempty(titleText)
-                %                     titleText = sprintf('Tab %d - Plot %d', tabIdx, subplotIdx); % Fallback
-                %                 end
-                %                 tempAx.Title.String = titleText;
-                %
-                %                 tempAx.XLim = sourceAx.XLim;
-                %                 tempAx.YLim = sourceAx.YLim;
-                %                 tempAx.XTick = sourceAx.XTick;
-                %                 tempAx.YTick = sourceAx.YTick;
-                %                 tempAx.XTickLabel = sourceAx.XTickLabel;
-                %                 tempAx.YTickLabel = sourceAx.YTickLabel;
-                %
-                %                 % Copy grid settings
-                %                 tempAx.XGrid = sourceAx.XGrid;
-                %                 tempAx.YGrid = sourceAx.YGrid;
-                %                 tempAx.XMinorGrid = sourceAx.XMinorGrid;
-                %                 tempAx.YMinorGrid = sourceAx.YMinorGrid;
-                %                 tempAx.GridAlpha = sourceAx.GridAlpha;
-                %                 tempAx.MinorGridAlpha = sourceAx.MinorGridAlpha;
-                %
-                %                 % Set professional appearance
-                %                 tempAx.XColor = [0.15 0.15 0.15];
-                %                 tempAx.YColor = [0.15 0.15 0.15];
-                %                 tempAx.LineWidth = 1.2;
-                %                 tempAx.FontSize = 11;
-                %                 tempAx.FontWeight = 'normal';
-                %
-                %                 % Copy legend if it exists
-                %                 sourceLegend = legend(sourceAx);
-                %                 if ~isempty(sourceLegend) && isvalid(sourceLegend)
-                %                     tempLegend = legend(tempAx);
-                %                     if ~isempty(tempLegend)
-                %                         tempLegend.String = sourceLegend.String;
-                %                         tempLegend.Location = sourceLegend.Location;
-                %                         tempLegend.FontSize = sourceLegend.FontSize;
-                %                         tempLegend.Box = sourceLegend.Box;
-                %                     end
-                %                 end
-                %
-                %                 % Save as .fig file
-                %                 fullPath = fullfile(path, file);
-                %                 savefig(tempFig, fullPath);
 
                 % Clean up
                 close(tempFig);
@@ -871,8 +851,6 @@ classdef PlotManager < handle
                 ax.YGrid = 'on';
                 ax.XMinorGrid = 'on';
                 ax.YMinorGrid = 'on';
-                ax.GridAlpha = 0.3;
-                ax.MinorGridAlpha = 0.1;
 
                 % DON'T set any default limits - let MATLAB auto-scale
                 ax.XLimMode = 'auto';
