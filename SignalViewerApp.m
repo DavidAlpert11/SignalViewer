@@ -73,7 +73,7 @@ classdef SignalViewerApp < matlab.apps.AppBase
         SaveSessionButton % Button for saving session
         LoadSessionButton % Button for loading session
         SyncZoomToggle % Toggle button for synchronized zoom/pan
-        CursorToggle % Toggle button for data cursor
+        CursorToggle % Toggle button for data cursor (legacy - using plot cursor)
 
         % Multi-CSV support
         DataTables   % Cell array of tables, one per CSV
@@ -97,6 +97,30 @@ classdef SignalViewerApp < matlab.apps.AppBase
         AutoScaleButton
         PDFReportLanguage = 'English'  % או 'Hebrew'
         StreamingModeToggle % Toggle for streaming vs one-time load mode
+        
+        % SDI-like UI components
+        InspectorPanel % Right panel for signal inspector (SDI-like)
+        ToolbarPanel % Top toolbar panel (SDI-like)
+        ZoomInButton
+        ZoomOutButton
+        PanButton
+        CursorButton
+        FitToViewButton
+        SignalInspectorTable % Table showing signal details in inspector (statistics only)
+        SignalStatsPanel % Panel for signal statistics (removed - merged into details)
+        CursorCrosshair % Crosshair lines for cursor mode
+        CursorValueLabel % Label showing cursor values
+        CurrentInspectorSignal % Currently selected signal in inspector (for editing) - stores full signal name
+        PanelDivider % Draggable divider between left panel and plot area
+        IsDraggingDivider logical = false % Flag for divider dragging
+        LeftPanelWidth = 350 % Current left panel width (stored for resizing)
+        SignalPropertiesPanel % Panel for inline signal property editing in browser
+        SignalNameField % Editable field for signal name
+        SignalScaleField % Editable field for scale
+        SignalLineWidthField % Editable field for line width
+        SignalColorButton % Button for color picker
+        SignalStateCheckbox % Checkbox for state signal
+        CurrentEditingSignalInfo % Signal info for the currently editing signal
     end
 
     methods
@@ -227,7 +251,17 @@ end
 function createQuickLinkFromCSVs(app, selectedCSVIndices)
     % Simple method to create link using existing LinkingManager
     try
-        if isprop(app, 'LinkingManager') && isvalid(app.LinkingManager)
+        try
+            if isprop(app, 'LinkingManager') && ~isempty(app.LinkingManager)
+                dummy = app.LinkingManager.LinkedGroups; %#ok<NASGU>
+                isValid = true;
+            else
+                isValid = false;
+            end
+        catch
+            isValid = false;
+        end
+        if isValid
             % Let the LinkingManager handle the group creation
             app.LinkingManager.createLinkGroupFromIndices(selectedCSVIndices);
 
@@ -735,17 +769,46 @@ end
             %             % THEN set the resize callback
             app.UIFigure.SizeChangedFcn = @(src, event) app.onFigureResize();
 
-            % Create panels with AutoResizeChildren disabled
+            % SDI-like layout: Left panel (signals), Center (plots), Right panel (inspector)
+            % Calculate panel widths for SDI-like layout
+            figWidth = app.UIFigure.Position(3);
+            figHeight = app.UIFigure.Position(4);
+            
+            leftPanelWidth = 300;  % Signal browser
+            rightPanelWidth = 280; % Signal inspector
+            toolbarHeight = 0; % Toolbar is now minimal/empty - layout controls in tabs, Fit to View in ControlPanel
+            plotAreaWidth = figWidth - leftPanelWidth - rightPanelWidth;
+            
+            % Create toolbar at top (minimal - mostly empty now)
+            app.ToolbarPanel = uipanel(app.UIFigure, ...
+                'Position', [1 figHeight-toolbarHeight figWidth toolbarHeight], ...
+                'AutoResizeChildren', 'off', ...
+                'BackgroundColor', [0.94 0.94 0.94], ...
+                'BorderType', 'none', ...
+                'Visible', 'off'); % Hide toolbar since it's empty
+            
+            % Left panel - Signal browser (SDI-like)
             app.ControlPanel = uipanel(app.UIFigure, ...
-                'Position', [1 1 318 799], ...
-                'AutoResizeChildren', 'off');
-
+                'Position', [1 1 leftPanelWidth figHeight-toolbarHeight], ...
+                'AutoResizeChildren', 'off', ...
+                'Title', 'Signal Browser', ...
+                'FontSize', 11, 'FontWeight', 'bold');
+            
+            % Center - Plot area (SDI-like)
             app.MainTabGroup = uitabgroup(app.UIFigure, ...
-                'Position', [320 1 880 799], ...
+                'Position', [leftPanelWidth+2 1 plotAreaWidth-4 figHeight-toolbarHeight], ...
                 'AutoResizeChildren', 'off');
+            
+            % InspectorPanel removed - inspector now in left panel
 
             %=== Create Enhanced Components ===%
             app.createEnhancedComponents();
+            
+            %=== Create SDI-like Toolbar ===%
+            app.createSDIToolbar();
+            
+            %=== Create Signal Inspector Panel ===%
+            app.createSignalInspector();
 
             %=== Instantiate Subsystems ===%
             app.PlotManager = PlotManager(app);
@@ -789,13 +852,13 @@ end
         end
 
         function onFigureResize(app)
-            % Get current figure size
+            % Get current figure size - SDI-like layout
             figPos = app.UIFigure.Position;
             figWidth = figPos(3);
             figHeight = figPos(4);
 
-            % Minimum size constraints
-            minWidth = 800;
+            % Minimum size constraints for SDI-like layout
+            minWidth = 1000;
             minHeight = 600;
 
             if figWidth < minWidth || figHeight < minHeight
@@ -804,89 +867,342 @@ end
                 figHeight = max(figHeight, minHeight);
             end
 
-            % Calculate panel dimensions (control panel takes 25% of width, min 250px, max 400px)
-            controlPanelWidth = max(250, min(400, figWidth * 0.25));
-            plotPanelX = controlPanelWidth + 2;
-            plotPanelWidth = figWidth - plotPanelX;
+            % Layout: Toolbar at top (minimal/empty now), Narrow left panel (stacked browser/inspector), Large plot area
+            toolbarHeight = 0; % Toolbar is now empty - layout controls moved to tabs, Fit to View moved to ControlPanel
+            % Use stored left panel width or default
+            if isempty(app.LeftPanelWidth) || app.LeftPanelWidth < 200
+                app.LeftPanelWidth = 350;
+            end
+            leftPanelWidth = app.LeftPanelWidth;
+            plotAreaWidth = figWidth - leftPanelWidth - 4; % Account for divider width
+            plotAreaHeight = figHeight - toolbarHeight;
 
-            % Resize control panel
-            app.ControlPanel.Position = [1, 1, controlPanelWidth, figHeight];
+            % Resize toolbar (keep hidden since it's empty)
+            try
+                dummy = app.ToolbarPanel.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                app.ToolbarPanel.Position = [1, figHeight-toolbarHeight, figWidth, toolbarHeight];
+                app.ToolbarPanel.Visible = 'off'; % Keep hidden since it's empty
+            end
 
-            % Resize main tab group (plot area)
-            app.MainTabGroup.Position = [plotPanelX, 1, plotPanelWidth, figHeight];
+            % Resize left panel (Signal Browser)
+            try
+                dummy = app.ControlPanel.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                app.ControlPanel.Position = [1, 1, leftPanelWidth, plotAreaHeight];
+            end
 
-            % Resize components within control panel
-            app.resizeControlPanelComponents(controlPanelWidth, figHeight);
+            % Create or update draggable divider
+            app.createPanelDivider(leftPanelWidth, plotAreaHeight);
+            
+            % Resize center (Plot area)
+            try
+                dummy = app.MainTabGroup.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                app.MainTabGroup.Position = [leftPanelWidth+4, 1, plotAreaWidth, plotAreaHeight];
+            end
+
+            % Resize left panel to include both browser and inspector
+            try
+                dummy = app.ControlPanel.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                app.ControlPanel.Position = [1, 1, leftPanelWidth, plotAreaHeight];
+            end
+
+            % Resize components within control panel (now includes inspector)
+            app.resizeControlPanelComponents(leftPanelWidth, plotAreaHeight);
+        end
+        
+        function createPanelDivider(app, leftPanelWidth, panelHeight)
+            % Create a draggable divider between left panel and plot area
+            dividerWidth = 4;
+            
+            try
+                if isempty(app.PanelDivider)
+                    % Create divider as a uipanel
+                    app.PanelDivider = uipanel(app.UIFigure, ...
+                        'Position', [leftPanelWidth, 1, dividerWidth, panelHeight], ...
+                        'BackgroundColor', [0.6 0.6 0.6], ...
+                        'BorderType', 'none');
+                    
+                    % Set up mouse callbacks
+                    app.PanelDivider.ButtonDownFcn = @(src, event) app.startDividerDrag(event);
+                else
+                    try
+                        % Check if divider still exists by accessing Position
+                        dummy = app.PanelDivider.Position; %#ok<NASGU>
+                        % Update position
+                        app.PanelDivider.Position = [leftPanelWidth, 1, dividerWidth, panelHeight];
+                    catch
+                        % Recreate if invalid
+                        app.PanelDivider = uipanel(app.UIFigure, ...
+                            'Position', [leftPanelWidth, 1, dividerWidth, panelHeight], ...
+                            'BackgroundColor', [0.6 0.6 0.6], ...
+                            'BorderType', 'none');
+                        app.PanelDivider.ButtonDownFcn = @(src, event) app.startDividerDrag(event);
+                    end
+                end
+                
+                % Set up figure-level mouse callbacks for dragging (always update)
+                app.UIFigure.WindowButtonMotionFcn = @(src, event) app.onDividerDrag(event);
+                app.UIFigure.WindowButtonUpFcn = @(src, event) app.stopDividerDrag();
+            catch
+                % If divider creation fails, continue without it
+            end
+        end
+        
+        function startDividerDrag(app, event)
+            % Start dragging the divider
+            app.IsDraggingDivider = true;
+        end
+        
+        function onDividerDrag(app, event)
+            % Handle divider dragging
+            if ~app.IsDraggingDivider
+                return;
+            end
+            
+            % Get mouse position
+            currentPoint = app.UIFigure.CurrentPoint;
+            newLeftWidth = currentPoint(1);
+            
+            % Constrain to reasonable limits
+            minWidth = 250;
+            maxWidth = app.UIFigure.Position(3) - 400; % Leave at least 400px for plot area
+            
+            if newLeftWidth >= minWidth && newLeftWidth <= maxWidth
+                app.LeftPanelWidth = newLeftWidth;
+                app.onFigureResize(); % Trigger resize
+            end
+        end
+        
+        function stopDividerDrag(app)
+            % Stop dragging the divider
+            app.IsDraggingDivider = false;
         end
 
         function resizeControlPanelComponents(app, panelWidth, panelHeight)
             % Resize components within the control panel based on new dimensions
+            % Organized from top to bottom to prevent overlapping
 
             margin = 20;
             componentWidth = panelWidth - 2 * margin;
-
-            % Auto Scale button
-            if isvalid(app.AutoScaleButton)
-                buttonWidth = min(120, (componentWidth - 10) / 2);
-                app.AutoScaleButton.Position = [margin, panelHeight - 60, buttonWidth, 30];
+            
+            % Define component heights
+            buttonHeight = 30;
+            searchHeight = 25;
+            labelHeight = 20;
+            tableHeight = 150;
+            removeButtonHeight = 30;
+            bottomSpace = 50; % Space for status labels at bottom
+            panelGap = 20; % Space between sections
+            
+            % Calculate positions from TOP (easier to manage)
+            currentY = panelHeight; % Start from top
+            
+            % 1. TOP SECTION: Buttons and Search
+            currentY = currentY - 10; % Top margin
+            % Calculate button widths to fit 3 buttons
+            buttonWidth = min(100, (componentWidth - 20) / 3); % 3 buttons with gaps
+            buttonGap = 10;
+            
+            try
+                dummy = app.AutoScaleButton.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
             end
-
-            % Refresh CSVs button
-            if isvalid(app.RefreshCSVsButton)
-                buttonWidth = min(120, (componentWidth - 10) / 2);
-                app.RefreshCSVsButton.Position = [margin + buttonWidth + 10, panelHeight - 60, buttonWidth, 30];
+            if isValid
+                currentY = currentY - buttonHeight;
+                app.AutoScaleButton.Position = [margin, currentY-10, buttonWidth, buttonHeight];
             end
-
-            % Search field
-            if isvalid(app.SignalSearchField)
-                app.SignalSearchField.Position = [margin, panelHeight - 90, componentWidth, 25];
+            
+            try
+                dummy = app.RefreshCSVsButton.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
             end
-
-            % Calculate space for bottom components (status labels + remove button + some padding)
-            bottomSpace = 100; % Space reserved for bottom components
-
-            % Properties table - MAKE IT MUCH LARGER
-            if isvalid(app.SignalPropsTable)
-                % Table gets 25% of available space (was fixed 85px)
-                tableHeight = max(150, floor((panelHeight - 150 - bottomSpace) * 0.25)); % Minimum 120px, 25% of available space
-                tableY = bottomSpace + 30; % Position above bottom components
-                app.SignalPropsTable.Position = [margin, tableY, componentWidth, tableHeight];
-
-                % Adjust column widths proportionally
-                if componentWidth > 200
-                    colWidths = {25, floor(componentWidth*0.35), 50, 40, 45, floor(componentWidth*0.15)};
-                    app.SignalPropsTable.ColumnWidth = colWidths;
+            if isValid
+                app.RefreshCSVsButton.Position = [margin + buttonWidth + buttonGap, currentY-10, buttonWidth, buttonHeight];
+            end
+            
+            % Fit to View button - positioned next to other buttons
+            try
+                dummy = app.FitToViewButton.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                app.FitToViewButton.Position = [margin + 2*(buttonWidth + buttonGap), currentY-10, buttonWidth, buttonHeight];
+            end
+            
+            currentY = currentY - 20; % Gap after buttons
+            
+            try
+                dummy = app.SignalSearchField.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                currentY = currentY - searchHeight;
+                app.SignalSearchField.Position = [margin, currentY, componentWidth, searchHeight];
+            end
+            
+            topSectionEnd = currentY; % End of top section (buttons + search)
+            
+            % 2. BROWSER SECTION: Signal Tree
+            currentY = currentY - 10; % Gap after search
+            treeStartY = currentY;
+            
+            % Calculate available space for all sections
+            % Order from top to bottom: Tree -> Properties Panel -> Table Panel -> Inspector
+            propertiesPanelHeight = 180; % Height for properties panel (when visible)
+            tablePanelHeight = labelHeight + tableHeight + removeButtonHeight + 10; % Total table panel height
+            minInspectorHeight = 150; % Minimum inspector height
+            
+            % Calculate space available for all sections
+            totalUsedSpace = topSectionEnd + bottomSpace + panelGap * 2; % Top buttons, bottom status, gaps
+            availableForSections = panelHeight - totalUsedSpace;
+            
+            % Allocate space: Inspector gets 40%, rest for tree/properties/table
+            inspectorHeight = max(minInspectorHeight, floor(availableForSections * 0.4));
+            remainingForTop = availableForSections - inspectorHeight - panelGap;
+            
+            % Allocate remaining space: Tree gets most, properties and table get fixed amounts
+            browserHeight = max(200, remainingForTop - propertiesPanelHeight - tablePanelHeight - panelGap);
+            
+            try
+                dummy = app.SignalTree.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                % Position tree at top
+                treeY = treeStartY - browserHeight; % Tree extends downward
+                app.SignalTree.Position = [margin, treeY, componentWidth, max(200, browserHeight)];
+            end
+            
+            % 3. SIGNAL PROPERTIES PANEL (below tree)
+            try
+                dummy = app.SignalPropertiesPanel.Position; %#ok<NASGU>
+                propsPanelValid = true;
+            catch
+                propsPanelValid = false;
+            end
+            if propsPanelValid
+                propsY = treeY - propertiesPanelHeight - 10; % Below tree with gap
+                app.SignalPropertiesPanel.Position = [margin, propsY, componentWidth, propertiesPanelHeight];
+            end
+            
+            % 4. TABLE PANEL: Label + Table + Remove Button (below properties panel)
+            % Calculate where table panel should start (below properties panel)
+            tablePanelTop = propsY - panelGap; % Start with gap from properties panel
+            
+            % Update "Signals in Current Subplot" label
+            try
+                labelObj = findobj(app.ControlPanel, 'Type', 'uilabel', '-and', 'Text', 'Signals in Current Subplot:');
+                if ~isempty(labelObj)
+                    labelY = tablePanelTop - labelHeight;
+                    labelObj.Position = [margin, labelY, componentWidth, labelHeight];
+                    labelObj.Visible = 'on';
                 end
-            else
-                tableHeight = 120;
-                tableY = bottomSpace + 30;
+            catch
+            end
+            
+            try
+                dummy = app.SignalPropsTable.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                tableY = tablePanelTop - labelHeight - 5 - tableHeight; % Below label with gap
+                app.SignalPropsTable.Position = [margin, tableY, componentWidth, tableHeight];
+                app.SignalPropsTable.ColumnWidth = {30, componentWidth-40};
+                app.SignalPropsTable.Visible = 'on';
+            end
+            
+            try
+                dummy = app.RemoveSelectedSignalsButton.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                buttonY = tableY - 5 - removeButtonHeight; % Below table with gap
+                app.RemoveSelectedSignalsButton.Position = [margin, buttonY, componentWidth, removeButtonHeight];
+                app.RemoveSelectedSignalsButton.Visible = 'on';
+                app.RemoveSelectedSignalsButton.Enable = 'on';
+            end
+            
+            % Bottom of table panel
+            tablePanelBottom = buttonY;
+            
+            % 5. INSPECTOR SECTION: Signal Inspector (below table panel, above status)
+            % Position inspector between table panel and status labels
+            inspectorY = max(bottomSpace, tablePanelBottom - panelGap - inspectorHeight);
+            % Ensure inspector doesn't go below status
+            if inspectorY < bottomSpace
+                inspectorY = bottomSpace;
+                inspectorHeight = tablePanelBottom - panelGap - bottomSpace; % Adjust height to fit
+                if inspectorHeight < minInspectorHeight
+                    inspectorHeight = minInspectorHeight;
+                    inspectorY = tablePanelBottom - panelGap - inspectorHeight;
+                end
+            end
+            app.resizeInspectorPanelComponents(margin, componentWidth, inspectorHeight, inspectorY);
+
+            % Status labels at the very bottom of panel
+            try
+                dummy = app.StatusLabel.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                app.StatusLabel.Position = [margin, 5, componentWidth, 15];
             end
 
-            % Signal tree - takes remaining space above the properties table
-            if isvalid(app.SignalTree)
-                treeY = tableY + tableHeight + 10; % Start above the table
-                treeHeight = max(200, panelHeight - 120 - treeY); % Remaining space
-                app.SignalTree.Position = [margin, treeY, componentWidth, treeHeight];
+            try
+                dummy = app.DataRateLabel.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
             end
-
-            % Remove button - positioned above status labels
-            if isvalid(app.RemoveSelectedSignalsButton)
-                app.RemoveSelectedSignalsButton.Position = [margin, bottomSpace, componentWidth, 20];
-            end
-
-            % Status labels at the very bottom
-            if isvalid(app.StatusLabel)
-                app.StatusLabel.Position = [margin, 25, componentWidth, 15];
-            end
-
-            if isvalid(app.DataRateLabel)
+            if isValid
                 labelWidth = componentWidth / 2 - 5;
-                app.DataRateLabel.Position = [margin, 55, labelWidth, 15];
+                app.DataRateLabel.Position = [margin, 60, labelWidth, 15];
             end
 
-            if isvalid(app.StreamingInfoLabel)
+            try
+                dummy = app.StreamingInfoLabel.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
                 labelWidth = componentWidth / 2 - 5;
-                app.StreamingInfoLabel.Position = [margin + labelWidth + 10, 55, labelWidth, 15];
+                app.StreamingInfoLabel.Position = [margin + labelWidth + 10, 25, labelWidth, 15];
             end
         end
 
@@ -942,6 +1258,14 @@ end
                 'Position', [150 740 120 30], ...
                 'ButtonPushedFcn', @(src, event) app.refreshCSVs(), ...
                 'FontSize', 11, 'FontWeight', 'bold');
+            
+            % Fit to View button - moved from toolbar to be with other buttons
+            app.FitToViewButton = uibutton(app.ControlPanel, 'push', ...
+                'Position', [280 740 100 30], ...
+                'Text', 'Fit to View', ...
+                'Tooltip', 'Fit All Signals to View', ...
+                'ButtonPushedFcn', @(src, event) app.fitToView(), ...
+                'FontSize', 11, 'FontWeight', 'bold');
 
             % Search box
             app.SignalSearchField = uieditfield(app.ControlPanel, 'text', ...
@@ -952,7 +1276,7 @@ end
 
             % Signal tree - main component
             app.SignalTree = uitree(app.ControlPanel, ...
-                'Position', [20 200 280 500], ...
+                'Position', [100 200 280 1000], ...
                 'SelectionChangedFcn', @(src, event) app.onSignalTreeSelectionChanged(), ...
                 'FontSize', 11);
 
@@ -973,23 +1297,31 @@ end
             cm = uicontextmenu(app.UIFigure);
             app.SignalTree.ContextMenu = cm;
             app.setupMultiSelectionContextMenu();
+            
+            % Create signal properties panel (initially hidden)
+            app.createSignalPropertiesPanel();
 
-            % Properties table
+            % Simple signal list for current subplot (SDI-like - just for removal)
+            uilabel(app.ControlPanel, ...
+                'Position', [20 120 280 20], ...
+                'Text', 'Signals in Current Subplot:', ...
+                'FontSize', 10, 'FontWeight', 'bold');
+            
             app.SignalPropsTable = uitable(app.ControlPanel, ...
-                'Position', [20 110 280 85], ...
-                'ColumnName', {'☐', 'Signal', 'Scale', 'State', 'Color', 'LineWidth'}, ...
-                'ColumnWidth', {25, 100, 50, 40, 45, 60}, ...
-                'ColumnEditable', [true false true true false true], ...
-                'CellEditCallback', @(src, event) app.onSignalPropsEdit(event), ...
-                'CellSelectionCallback', @(src, event) app.onSignalPropsSelection(event), ...
+                'Position', [20 50 500 500], ...
+                'ColumnName', {'☐', 'Signal'}, ...
+                'ColumnWidth', {30, 240}, ...
+                'ColumnEditable', [true false], ...
+                'CellEditCallback', @(src, event) app.onSignalCheckboxChanged(event), ...
+                'CellSelectionCallback', @(src, event) app.onSignalPropsCellSelect(event), ...
                 'FontSize', 10);
 
             % Remove button
             app.RemoveSelectedSignalsButton = uibutton(app.ControlPanel, 'push', ...
-                'Text', '🗑️ Remove Selected from Subplot', ...
-                'Position', [20 85 280 20], ...
+                'Text', '🗑️ Remove Selected Signals', ...
+                'Position', [20 20 280 25], ...
                 'ButtonPushedFcn', @(src, event) app.removeSelectedSignalsFromTable(), ...
-                'FontSize', 9, 'Enable', 'off');
+                'FontSize', 10, 'Enable', 'off', 'FontWeight', 'bold');
 
             % Status labels at bottom
             app.StatusLabel = uilabel(app.ControlPanel, ...
@@ -1013,7 +1345,7 @@ end
 
             % Streaming mode toggle (SDI-like feature)
             app.StreamingModeToggle = uicheckbox(app.ControlPanel, ...
-                'Position', [20 5 200 20], ...
+                'Position', [20 40 200 20], ...
                 'Text', '🔄 Enable Streaming Mode', ...
                 'Value', false, ...
                 'FontSize', 9, ...
@@ -2205,6 +2537,52 @@ end
 
             % ALWAYS update the properties table with selected signals
             app.updateSignalPropsTable(selectedSignals);
+            
+            % Update signal properties panel and inspector
+            if numel(selectedSignals) == 1
+                signalInfo = selectedSignals{1};
+                app.CurrentEditingSignalInfo = signalInfo;
+                
+                % Show and update properties panel
+                app.updateSignalPropertiesPanel(signalInfo);
+                
+                % Get full signal display name (with CSV identifier) for unique property storage
+                fullSignalName = app.getFullSignalDisplayName(signalInfo);
+                app.CurrentInspectorSignal = fullSignalName;
+                
+                % Get signal data using signalInfo (more reliable than name lookup)
+                [timeData, signalData] = app.getSignalDataFromInfo(signalInfo);
+                if ~isempty(timeData) && ~isempty(signalData)
+                    % Get center point for display
+                    midIdx = round(length(timeData) / 2);
+                    if midIdx > 0 && midIdx <= length(timeData)
+                        app.updateSignalInspector(fullSignalName, timeData(midIdx), signalData(midIdx));
+                    else
+                        % No valid index, use first point
+                        app.updateSignalInspector(fullSignalName, timeData(1), signalData(1));
+                    end
+                else
+                    % Try fallback lookup by name
+                    [timeData, signalData] = app.getSignalDataByName(fullSignalName);
+                    if ~isempty(timeData) && ~isempty(signalData)
+                        midIdx = round(length(timeData) / 2);
+                        if midIdx > 0 && midIdx <= length(timeData)
+                            app.updateSignalInspector(fullSignalName, timeData(midIdx), signalData(midIdx));
+                        else
+                            app.updateSignalInspector(fullSignalName, timeData(1), signalData(1));
+                        end
+                    else
+                        % No data found - show signal name but indicate no data
+                        app.updateSignalInspector(fullSignalName, 0, 0);
+                    end
+                end
+            else
+                % No signal or multiple signals - hide properties panel and disable inspector
+                app.CurrentEditingSignalInfo = [];
+                app.CurrentInspectorSignal = '';
+                app.SignalPropertiesPanel.Visible = 'off';
+                app.SignalInspectorTable.Data = {};
+            end
 
             % Update status based on selection
             signalCount = numel(selectedSignals);
@@ -2221,21 +2599,222 @@ end
 
 
         end
+        
+        function [timeData, signalData] = getSignalDataFromInfo(app, signalInfo)
+            % Get signal data from signal info structure
+            timeData = [];
+            signalData = [];
+            
+            if signalInfo.CSVIdx == -1
+                % Derived signal
+                if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
+                    [timeData, signalData] = app.SignalOperations.getSignalData(signalInfo.Signal);
+                end
+            else
+                % Regular CSV signal
+                if signalInfo.CSVIdx <= numel(app.DataManager.DataTables)
+                    T = app.DataManager.DataTables{signalInfo.CSVIdx};
+                    if ~isempty(T) && ismember(signalInfo.Signal, T.Properties.VariableNames)
+                        timeData = T.Time;
+                        signalData = T.(signalInfo.Signal);
+                        
+                        % Apply scaling if exists (check both full name and base name for compatibility)
+                        fullSignalName = app.getFullSignalDisplayName(signalInfo);
+                        if app.DataManager.SignalScaling.isKey(fullSignalName)
+                            signalData = signalData * app.DataManager.SignalScaling(fullSignalName);
+                        elseif app.DataManager.SignalScaling.isKey(signalInfo.Signal)
+                            signalData = signalData * app.DataManager.SignalScaling(signalInfo.Signal);
+                        end
+                    end
+                end
+            end
+        end
+        
+        function updateSignalPropertyForAllInstances(app, fullSignalName, propertyName, propertyValue)
+            % Update a property for a signal instance across ALL plots where it appears
+            % This ensures changes in the inspector affect all occurrences of the signal
+            
+            % Extract base signal name
+            baseName = app.extractBaseSignalName(fullSignalName);
+            
+            % Find all signal instances that match this signal (same base name)
+            % by searching through all assigned signals in all plots
+            allSignalNames = {};
+            
+            % Collect all signal display names from all plots
+            for tabIdx = 1:numel(app.PlotManager.AssignedSignals)
+                if tabIdx <= numel(app.PlotManager.AssignedSignals)
+                    for subplotIdx = 1:numel(app.PlotManager.AssignedSignals{tabIdx})
+                        if subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                            assigned = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+                            for sigIdx = 1:numel(assigned)
+                                sigInfo = assigned{sigIdx};
+                                if strcmp(sigInfo.Signal, baseName)
+                                    % Generate the full display name for this instance
+                                    instanceName = app.getFullSignalDisplayName(sigInfo);
+                                    if ~any(strcmp(allSignalNames, instanceName))
+                                        allSignalNames{end+1} = instanceName; %#ok<AGROW>
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            % Also check the current signal name itself
+            if ~any(strcmp(allSignalNames, fullSignalName))
+                allSignalNames{end+1} = fullSignalName;
+            end
+            
+            % Update property for all instances
+            switch propertyName
+                case 'Scale'
+                    for i = 1:numel(allSignalNames)
+                        app.DataManager.SignalScaling(allSignalNames{i}) = propertyValue;
+                    end
+                    
+                case 'StateSignal'
+                    for i = 1:numel(allSignalNames)
+                        app.DataManager.StateSignals(allSignalNames{i}) = propertyValue;
+                    end
+                    
+                case 'Color'
+                    if isempty(app.SignalStyles), app.SignalStyles = struct(); end
+                    for i = 1:numel(allSignalNames)
+                        signalName = allSignalNames{i};
+                        % Store using the signal name directly (PlotManager checks both formats)
+                        % Try safe field name first, fall back to direct if needed
+                        safeFieldName = matlab.lang.makeValidName(signalName);
+                        try
+                            if ~isfield(app.SignalStyles, safeFieldName)
+                                app.SignalStyles.(safeFieldName) = struct();
+                            end
+                            app.SignalStyles.(safeFieldName).Color = propertyValue;
+                        catch
+                            % If safe name fails, try direct assignment (for simple names)
+                            try
+                                if ~isfield(app.SignalStyles, signalName)
+                                    app.SignalStyles.(signalName) = struct();
+                                end
+                                app.SignalStyles.(signalName).Color = propertyValue;
+                            catch
+                                % Use containers.Map approach for problematic names
+                                if ~isprop(app, 'SignalStylesMap')
+                                    app.SignalStylesMap = containers.Map('KeyType', 'char', 'ValueType', 'any');
+                                end
+                                if ~app.SignalStylesMap.isKey(signalName)
+                                    app.SignalStylesMap(signalName) = struct();
+                                end
+                                style = app.SignalStylesMap(signalName);
+                                style.Color = propertyValue;
+                                app.SignalStylesMap(signalName) = style;
+                            end
+                        end
+                    end
+                    
+                case 'LineWidth'
+                    if isempty(app.SignalStyles), app.SignalStyles = struct(); end
+                    for i = 1:numel(allSignalNames)
+                        signalName = allSignalNames{i};
+                        % Store using the signal name directly (PlotManager checks both formats)
+                        safeFieldName = matlab.lang.makeValidName(signalName);
+                        try
+                            if ~isfield(app.SignalStyles, safeFieldName)
+                                app.SignalStyles.(safeFieldName) = struct();
+                            end
+                            app.SignalStyles.(safeFieldName).LineWidth = propertyValue;
+                        catch
+                            % If safe name fails, try direct assignment
+                            try
+                                if ~isfield(app.SignalStyles, signalName)
+                                    app.SignalStyles.(signalName) = struct();
+                                end
+                                app.SignalStyles.(signalName).LineWidth = propertyValue;
+                            catch
+                                % Use containers.Map approach for problematic names
+                                if ~isprop(app, 'SignalStylesMap')
+                                    app.SignalStylesMap = containers.Map('KeyType', 'char', 'ValueType', 'any');
+                                end
+                                if ~app.SignalStylesMap.isKey(signalName)
+                                    app.SignalStylesMap(signalName) = struct();
+                                end
+                                style = app.SignalStylesMap(signalName);
+                                style.LineWidth = propertyValue;
+                                app.SignalStylesMap(signalName) = style;
+                            end
+                        end
+                    end
+            end
+        end
+        
+        function fullSignalName = getFullSignalDisplayName(app, signalInfo)
+            % Get full signal display name that matches the plot's naming convention
+            % This ensures property storage uses the same name as displayed in plots
+            baseName = signalInfo.Signal;
+            
+            if signalInfo.CSVIdx == -1
+                % Derived signal
+                fullSignalName = [baseName ' derived'];
+            else
+                % Regular CSV signal - match PlotManager's naming convention
+                % First, try to find the actual display name from the plot if signal is plotted
+                fullSignalName = '';
+                try
+                    tabIdx = app.PlotManager.CurrentTabIdx;
+                    subplotIdx = app.PlotManager.SelectedSubplotIdx;
+                    if tabIdx > 0 && subplotIdx > 0 && ...
+                            tabIdx <= numel(app.PlotManager.AxesArrays) && ...
+                            subplotIdx <= numel(app.PlotManager.AxesArrays{tabIdx})
+                        ax = app.PlotManager.AxesArrays{tabIdx}(subplotIdx);
+                        % Find the line object for this signal
+                        lines = findall(ax, 'Type', 'line');
+                        for line = lines
+                            if isprop(line, 'DisplayName')
+                                displayName = line.DisplayName;
+                                % Check if this display name starts with our base signal name
+                                if strcmp(displayName, baseName) || startsWith(displayName, [baseName ' ']) || startsWith(displayName, [baseName '_{'])
+                                    % This is our signal - use the exact plot display name
+                                    fullSignalName = displayName;
+                                    return;
+                                end
+                            end
+                        end
+                    end
+                catch
+                end
+                
+                % If not found in plot, construct name using same logic as PlotManager
+                if isempty(fullSignalName) && isprop(app, 'PlotManager') && ~isempty(app.PlotManager)
+                    try
+                        csvLabel = app.PlotManager.generateEnhancedCSVLabel(signalInfo.CSVIdx);
+                        % Use same format as PlotManager: "signalName csvLabel"
+                        fullSignalName = [baseName ' ' csvLabel];
+                    catch
+                        % Fallback: use CSV index
+                        fullSignalName = sprintf('%s_csv%d', baseName, signalInfo.CSVIdx);
+                    end
+                else
+                    % Final fallback
+                    fullSignalName = sprintf('%s_csv%d', baseName, signalInfo.CSVIdx);
+                end
+            end
+        end
 
         function updateSignalPropsTable(app, selectedSignals)
-            % Enhanced version that shows tuple info in tuple mode
+            % Simple list of signals in current subplot (for removal only)
             tabIdx = app.PlotManager.CurrentTabIdx;
             subplotIdx = app.PlotManager.SelectedSubplotIdx;
 
-            % Check if current subplot is in tuple mode
-            if app.isSubplotInTupleMode(tabIdx, subplotIdx)
-                % Show tuple information instead of regular signal properties
-                app.updateTuplePropsTable(tabIdx, subplotIdx);
-                return;
+            % Get signals assigned to current subplot
+            if tabIdx <= numel(app.PlotManager.AssignedSignals) && ...
+                    subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                assignedSignals = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+            else
+                assignedSignals = {};
             end
 
-            % Regular signal properties table (existing implementation)
-            n = numel(selectedSignals);
+            n = numel(assignedSignals);
 
             if n == 0
                 app.SignalPropsTable.Data = {};
@@ -2243,109 +2822,44 @@ end
                 return;
             end
 
-            % Create data with checkbox column
-            data = cell(n, 6); % 6 columns: checkbox, signal, scale, state, color, linewidth
+            % Create simple data with checkbox and signal name
+            data = cell(n, 2);
 
             for i = 1:n
-                sigInfo = selectedSignals{i};
-                sigName = sigInfo.Signal;
-
-                % Get scale and state from DataManager
-                scale = 1.0;
-                if app.DataManager.SignalScaling.isKey(sigName)
-                    scale = app.DataManager.SignalScaling(sigName);
+                sigInfo = assignedSignals{i};
+                if isstruct(sigInfo) && isfield(sigInfo, 'Signal')
+                    sigName = sigInfo.Signal;
+                else
+                    sigName = 'Unknown';
                 end
-
-                state = false;
-                if app.DataManager.StateSignals.isKey(sigName)
-                    state = app.DataManager.StateSignals(sigName);
-                end
-
-                % Get color and line width from SignalStyles
-                color = [0 0.4470 0.7410]; % default MATLAB blue
-                width = 2;
-                if ~isempty(app.SignalStyles) && isfield(app.SignalStyles, sigName)
-                    style = app.SignalStyles.(sigName);
-                    if isfield(style, 'Color'), color = style.Color; end
-                    if isfield(style, 'LineWidth'), width = style.LineWidth; end
-                end
-
-                % Fill data row
                 data{i,1} = false;  % Checkbox
                 data{i,2} = sigName;  % Signal name
-                data{i,3} = scale;    % Scale
-                data{i,4} = state;    % State
-                data{i,5} = mat2str(color); % Color as string
-                data{i,6} = width;    % Line width
             end
 
             app.SignalPropsTable.Data = data;
             app.RemoveSelectedSignalsButton.Enable = 'off';
-            app.SignalPropsTable.CellSelectionCallback = @(src, event) app.onSignalPropsCellSelect(event);
+        end
+        
+        function onSignalCheckboxChanged(app, event)
+            % Handle checkbox change in signal list
+            if event.Indices(2) == 1  % Checkbox column
+                app.updateRemoveButtonState();
+            end
         end
 
         function onSignalPropsEdit(app, event)
-            % Callback for when the user edits properties in the table
-
-            data = app.SignalPropsTable.Data;
-            if isempty(data)
+            % Callback for when the user edits checkboxes in the signal list
+            % (Properties are now edited in the Signal Inspector panel)
+            if isempty(event.Indices)
                 return;
             end
-
-            row = event.Indices(1);
+            
             col = event.Indices(2);
-
-            % Handle different columns (note: columns shifted due to checkbox)
+            
+            % Only handle checkbox column (column 1)
             if col == 1
                 % Checkbox column - update remove button state
                 app.updateRemoveButtonState();
-                return;
-
-            elseif col == 3 % Scale (was column 2)
-                sigName = data{row,2}; % Signal name in column 2
-                scale = event.NewData;
-                if ischar(scale) || isstring(scale)
-                    scale = str2double(scale);
-                end
-                if isnumeric(scale) && isfinite(scale) && scale ~= 0
-                    app.DataManager.SignalScaling(sigName) = scale;
-                else
-                    app.DataManager.SignalScaling(sigName) = 1.0;
-                    data{row,3} = 1.0;
-                    app.SignalPropsTable.Data = data;
-                end
-
-            elseif col == 4 % State (was column 3)
-                sigName = data{row,2};
-                app.DataManager.StateSignals(sigName) = logical(event.NewData);
-
-            elseif col == 6 % LineWidth (was column 5)
-                sigName = data{row,2};
-                width = event.NewData;
-                if ischar(width) || isstring(width)
-                    width = str2double(width);
-                end
-                if isnumeric(width) && isfinite(width) && width > 0
-                    if isempty(app.SignalStyles), app.SignalStyles = struct(); end
-                    if ~isfield(app.SignalStyles, sigName), app.SignalStyles.(sigName) = struct(); end
-                    app.SignalStyles.(sigName).LineWidth = width;
-                else
-                    data{row,6} = 2;
-                    app.SignalPropsTable.Data = data;
-                end
-            end
-
-            % Small delay for value to commit
-            pause(0.01);
-
-            % Refresh plots (will only affect plots where this signal is assigned)
-            app.PlotManager.refreshPlots();
-
-            % Update status
-            if col > 1 % Only for non-checkbox edits
-                sigName = data{row,2};
-                app.StatusLabel.Text = sprintf('✅ Updated %s properties', sigName);
-                app.StatusLabel.FontColor = [0.2 0.6 0.9];
             end
         end
 
@@ -3265,7 +3779,13 @@ end
             end
 
             % CRITICAL: Reset the tree's context menu to ensure it works
-            if isempty(app.SignalTree.ContextMenu) || ~isvalid(app.SignalTree.ContextMenu)
+            try
+                dummy = app.SignalTree.ContextMenu; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isempty(app.SignalTree.ContextMenu) || ~isValid
                 cm = uicontextmenu(app.UIFigure);
                 app.SignalTree.ContextMenu = cm;
                 app.setupMultiSelectionContextMenu();
@@ -3740,7 +4260,13 @@ end
             end
 
             % Delete the UI figure
-            if isvalid(app.UIFigure)
+            try
+                dummy = app.UIFigure.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
                 delete(app.UIFigure);
             end
         end
@@ -4082,7 +4608,16 @@ end
 
         function tf = hasValidProperty(app, propName)
             % Check if property exists and is valid
-            tf = isprop(app, propName) && ~isempty(app.(propName)) && isvalid(app.(propName));
+            try
+                if isprop(app, propName) && ~isempty(app.(propName))
+                    dummy = app.(propName).Position; %#ok<NASGU>
+                    tf = true;
+                else
+                    tf = false;
+                end
+            catch
+                tf = false;
+            end
         end
 
         function value = safeGetProperty(app, varargin)
@@ -5337,8 +5872,8 @@ end
             app.StatusLabel.FontColor = [0.2 0.6 0.9];
         end
 
-        % ALSO UPDATE the updateRemoveButtonState method to work with tuple mode:
         function updateRemoveButtonState(app)
+            % Update remove button state based on checkbox selections in signal list
             % Enable/disable remove button based on checkbox selections
             data = app.SignalPropsTable.Data;
 
@@ -5379,31 +5914,10 @@ end
         end
 
         function onSignalPropsCellSelect(app, event)
-            % Handle color picker for Color column and checkbox updates
+            % Handle cell selection in signal list (simplified - no color column)
             if isempty(event.Indices), return; end
-
-            row = event.Indices(1);
-            col = event.Indices(2);
-
-            if col == 5 % Color column
-                data = app.SignalPropsTable.Data;
-                sigName = data{row,2};
-                oldColor = str2num(data{row,5}); %#ok<ST2NM>
-                if isempty(oldColor), oldColor = [0 0.4470 0.7410]; end
-                newColor = uisetcolor(oldColor, sprintf('Pick color for %s', sigName));
-                if length(newColor) == 3 % user did not cancel
-                    data{row,5} = mat2str(newColor);
-                    app.SignalPropsTable.Data = data;
-                    if isempty(app.SignalStyles), app.SignalStyles = struct(); end
-                    if ~isfield(app.SignalStyles, sigName), app.SignalStyles.(sigName) = struct(); end
-                    app.SignalStyles.(sigName).Color = newColor;
-                    app.PlotManager.refreshPlots();
-                end
-            elseif col == 1 % Checkbox column
-                % Update remove button state when checkbox is clicked
-                pause(0.01); % Small delay for checkbox state to update
-                app.updateRemoveButtonState();
-            end
+            % Just update remove button state
+            app.updateRemoveButtonState();
         end
 
         function refreshCSVs(app)
@@ -5838,9 +6352,13 @@ end
             if numel(selectedSignals) == 1
                 signal = selectedSignals{1};
 
+                % Edit Properties option - shows the properties panel
+                uimenu(contextMenu, 'Text', '⚙️ Edit Properties', ...
+                    'MenuSelectedFcn', @(src, event) app.showPropertiesPanelForSignal(signal), 'Separator', 'on');
+                
                 % Preview and basic options
                 uimenu(contextMenu, 'Text', '📊 Quick Preview', ...
-                    'MenuSelectedFcn', @(src, event) app.showSignalPreview(signal), 'Separator', 'on');
+                    'MenuSelectedFcn', @(src, event) app.showSignalPreview(signal));
                 uimenu(contextMenu, 'Text', '📈 Set as X-Axis', ...
                     'MenuSelectedFcn', @(src, event) app.setSignalAsXAxis(signal));
 
@@ -5896,9 +6414,9 @@ end
                 uimenu(contextMenu, 'Text', sprintf('📊 Preview %d Signals', numel(selectedSignals)), ...
                     'MenuSelectedFcn', @(src, event) app.previewSelectedSignals(selectedSignals), 'Separator', 'on');
 
-                % === DUAL SIGNAL OPERATIONS (exactly 2 signals) ===
+                % === DUAL SIGNAL OPERATIONS (exactly 2 signals) - Show FIRST and prominently ===
                 if numel(selectedSignals) == 2
-                    dualOpsMenu = uimenu(contextMenu, 'Text', '📈 Dual Signal Operations', 'Separator', 'on');
+                    dualOpsMenu = uimenu(contextMenu, 'Text', '📈 Dual Signal Operations (Add/Subtract/Multiply/Divide)', 'Separator', 'on');
 
                     % Convert signals to proper format for operations
                     signal1Name = app.getSignalNameForOperations(selectedSignals{1});
@@ -5929,6 +6447,19 @@ end
                     'MenuSelectedFcn', @(src, event) app.SignalOperations.showQuickAverageWithPreselection(selectedSignalNames));
                 uimenu(multiOpsMenu, 'Text', '‖‖ Norm of Signals', ...
                     'MenuSelectedFcn', @(src, event) app.SignalOperations.showNormDialogWithPreselection(selectedSignalNames));
+                
+                % Also add dual operations as submenu under Multi-Signal Operations for 2 signals
+                if numel(selectedSignals) == 2
+                    dualSubMenu = uimenu(multiOpsMenu, 'Text', '📈 Dual Operations (Add/Subtract/Multiply/Divide)', 'Separator', 'on');
+                    uimenu(dualSubMenu, 'Text', '➕ Add (A + B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('add', selectedSignalNames{1}, selectedSignalNames{2}));
+                    uimenu(dualSubMenu, 'Text', '➖ Subtract (A - B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('subtract', selectedSignalNames{1}, selectedSignalNames{2}));
+                    uimenu(dualSubMenu, 'Text', '✖️ Multiply (A × B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('multiply', selectedSignalNames{1}, selectedSignalNames{2}));
+                    uimenu(dualSubMenu, 'Text', '➗ Divide (A ÷ B)', ...
+                        'MenuSelectedFcn', @(src, event) app.SignalOperations.showDualSignalDialogWithPreselection('divide', selectedSignalNames{1}, selectedSignalNames{2}));
+                end
 
                 % Hide/Show options for multiple signals
                 hideShowMenu = uimenu(contextMenu, 'Text', '👁️ Hide/Show Options', 'Separator', 'on');
@@ -6244,6 +6775,925 @@ end
                 end
             end
         end
+        function createSDIToolbar(app)
+            % Create SDI-like toolbar (minimal - layout controls moved to tabs)
+            try
+                dummy = app.ToolbarPanel.Position; %#ok<NASGU>
+            catch
+                return;
+            end
+            
+            % Toolbar is now minimal - Fit to View button moved to ControlPanel
+            % Layout controls (Rows/Cols) are in each plot tab, not in toolbar
+            % This frees up toolbar space for other uses if needed
+        end
+        
+        function createSignalPropertiesPanel(app)
+            % Create properties panel for inline editing in Signal Browser
+            app.SignalPropertiesPanel = uipanel(app.ControlPanel, ...
+                'Title', 'Signal Properties', ...
+                'Position', [10 10 280 180], ...
+                'Visible', 'off', ... % Hidden by default, shown when signal selected
+                'FontSize', 10, 'FontWeight', 'bold');
+            
+            % Signal Name (editable)
+            uilabel(app.SignalPropertiesPanel, ...
+                'Position', [10 140 80 20], ...
+                'Text', 'Name:', ...
+                'FontSize', 9, 'FontWeight', 'bold');
+            app.SignalNameField = uieditfield(app.SignalPropertiesPanel, 'text', ...
+                'Position', [95 140 175 25], ...
+                'ValueChangedFcn', @(src, event) app.onSignalNameChanged(), ...
+                'FontSize', 9);
+            
+            % Scale
+            uilabel(app.SignalPropertiesPanel, ...
+                'Position', [10 110 80 20], ...
+                'Text', 'Scale:', ...
+                'FontSize', 9, 'FontWeight', 'bold');
+            app.SignalScaleField = uieditfield(app.SignalPropertiesPanel, 'numeric', ...
+                'Position', [95 110 80 25], ...
+                'Value', 1.0, ...
+                'Limits', [0.001 Inf], ...
+                'ValueChangedFcn', @(src, event) app.onSignalPropertyChanged('Scale'), ...
+                'FontSize', 9);
+            
+            % Line Width
+            uilabel(app.SignalPropertiesPanel, ...
+                'Position', [10 80 80 20], ...
+                'Text', 'Line Width:', ...
+                'FontSize', 9, 'FontWeight', 'bold');
+            app.SignalLineWidthField = uieditfield(app.SignalPropertiesPanel, 'numeric', ...
+                'Position', [95 80 80 25], ...
+                'Value', 2.0, ...
+                'Limits', [0.1 10], ...
+                'ValueChangedFcn', @(src, event) app.onSignalPropertyChanged('LineWidth'), ...
+                'FontSize', 9);
+            
+            % Color
+            uilabel(app.SignalPropertiesPanel, ...
+                'Position', [10 50 80 20], ...
+                'Text', 'Color:', ...
+                'FontSize', 9, 'FontWeight', 'bold');
+            app.SignalColorButton = uibutton(app.SignalPropertiesPanel, 'push', ...
+                'Position', [95 50 80 25], ...
+                'Text', 'Choose...', ...
+                'BackgroundColor', [0 0.4470 0.7410], ...
+                'ButtonPushedFcn', @(src, event) app.onSignalColorButtonClicked(), ...
+                'FontSize', 9);
+            
+            % State Signal
+            app.SignalStateCheckbox = uicheckbox(app.SignalPropertiesPanel, ...
+                'Position', [10 20 200 20], ...
+                'Text', 'State Signal (plot as vertical lines)', ...
+                'ValueChangedFcn', @(src, event) app.onSignalPropertyChanged('StateSignal'), ...
+                'FontSize', 9);
+        end
+        
+        function createSignalInspector(app)
+            % Create signal inspector in left panel (right side of left panel)
+            % Inspector will be created in ControlPanel, positioned dynamically
+            % Signal details table - STATISTICS ONLY (no editable properties)
+            app.SignalInspectorTable = uitable(app.ControlPanel, ...
+                'Position', [10 10 280 400], ... % Will be repositioned by resizeInspectorPanelComponents
+                'ColumnName', {'Property', 'Value'}, ...
+                'ColumnWidth', {120, 150}, ...
+                'ColumnEditable', [false false], ... % Read-only (statistics only)
+                'FontSize', 9);
+            app.SignalInspectorTable.Visible = 'off';
+        end
+        
+        function resizeInspectorPanelComponents(app, inspectorX, inspectorWidth, inspectorHeight, inspectorY)
+            % Resize inspector components in left panel (below browser, vertical layout)
+            margin = inspectorX; % Use the margin passed in
+            componentWidth = inspectorWidth;
+            
+%             % Signal Inspector label
+%             try
+%                 % Find or create label
+%                 inspectorLabel = findobj(app.ControlPanel, 'Type', 'uilabel', 'Text', 'Signal Inspector');
+%                 if isempty(inspectorLabel)
+%                     inspectorLabel = uilabel(app.ControlPanel, ...
+%                         'Text', 'Signal Inspector', ...
+%                         'FontSize', 11, 'FontWeight', 'bold');
+%                 end
+%                 inspectorLabel.Position = [margin, inspectorY + inspectorHeight - 25, componentWidth, 20];
+%             catch
+%             end
+            
+            % Signal Inspector Table - takes most of inspector space
+            try
+                dummy = app.SignalInspectorTable.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if isValid
+                tableHeight = max(100, inspectorHeight - 30); % Leave space for label, minimum 100px
+                app.SignalInspectorTable.Position = [margin, inspectorY, componentWidth, tableHeight];
+                app.SignalInspectorTable.ColumnWidth = {floor(componentWidth*0.4), floor(componentWidth*0.55)};
+            end
+        end
+        
+        % Cursor functionality removed - using existing plot cursor features
+        
+        function updateCursorValues(app, ax, xVal, yVal)
+            % Update cursor value display and inspector
+            % Find all signals in this axes
+            signals = findall(ax, 'Type', 'line');
+            closestSignal = [];
+            minDist = inf;
+            closestY = [];
+            
+            for sig = signals
+                if isprop(sig, 'XData') && isprop(sig, 'YData')
+                    xData = sig.XData;
+                    yData = sig.YData;
+                    
+                    % Find closest point
+                    [~, idx] = min(abs(xData - xVal));
+                    if idx <= length(yData)
+                        dist = abs(yData(idx) - yVal);
+                        if dist < minDist
+                            minDist = dist;
+                            closestSignal = sig;
+                            closestY = yData(idx);
+                        end
+                    end
+                end
+            end
+            
+            % Update inspector
+            if ~isempty(closestSignal) && isprop(closestSignal, 'DisplayName')
+                signalName = closestSignal.DisplayName;
+                app.updateSignalInspector(signalName, xVal, closestY);
+            end
+        end
+        
+        function updateSignalInspector(app, signalName, timeVal, valueVal)
+            % Update signal inspector panel with signal details (including statistics)
+            try
+                dummy = app.SignalInspectorTable.Position; %#ok<NASGU>
+                isValid = true;
+            catch
+                isValid = false;
+            end
+            if ~isValid
+                return;
+            end
+            
+            % Get signal data - try to find signalInfo first, then fall back to name lookup
+            [timeData, signalData] = app.getSignalDataByName(signalName);
+            
+            if isempty(timeData)
+                app.SignalInspectorTable.Data = {'Signal Name', signalName; 'Status', 'No data available'};
+                app.CurrentInspectorSignal = signalName; % Store anyway for property editing
+                return;
+            end
+            
+            % Calculate statistics
+            validData = signalData(~isnan(signalData) & isfinite(signalData));
+            if ~isempty(validData)
+                statsMin = min(validData);
+                statsMax = max(validData);
+                statsMean = mean(validData);
+                statsStd = std(validData);
+                statsSamples = length(validData);
+                timeSpan = max(timeData) - min(timeData);
+                if timeSpan > 0
+                    sampleRate = statsSamples / timeSpan;
+                else
+                    sampleRate = 0;
+                end
+            else
+                statsMin = NaN;
+                statsMax = NaN;
+                statsMean = NaN;
+                statsStd = NaN;
+                statsSamples = 0;
+                sampleRate = 0;
+            end
+            
+            % Extract base signal name (remove suffix if present)
+            baseSignalName = app.extractBaseSignalName(signalName);
+            
+            % Extract base signal name for display (show clean name)
+            baseSignalName = app.extractBaseSignalName(signalName);
+            
+            % Update details table with STATISTICS ONLY (properties are in browser panel)
+            details = {
+                'Signal Name', baseSignalName;  % Show clean base name
+                'Full Identifier', signalName;   % Show full identifier for reference
+                'Current Time', sprintf('%.6f', timeVal);
+                'Current Value', sprintf('%.6f', valueVal);
+                '', '';
+                'Statistics', '';
+                'Min', sprintf('%.6f', statsMin);
+                'Max', sprintf('%.6f', statsMax);
+                'Mean', sprintf('%.6f', statsMean);
+                'Std Dev', sprintf('%.6f', statsStd);
+                'Samples', sprintf('%d', statsSamples);
+                'Sample Rate', sprintf('%.2f Hz', sampleRate);
+                'Time Range', sprintf('[%.3f, %.3f]', min(timeData), max(timeData));
+                'Value Range', sprintf('[%.3f, %.3f]', statsMin, statsMax)
+            };
+            
+            app.SignalInspectorTable.Data = details;
+            
+            % Store FULL signal name with CSV identifier for specific signal editing
+            app.CurrentInspectorSignal = signalName;  % Full name, not base name
+        end
+        
+        function onInspectorTableSelection(app, event)
+            % Handle cell selection - open color picker when Color cell is selected
+            if isempty(event.Indices) || isempty(app.CurrentInspectorSignal)
+                return;
+            end
+            
+            row = event.Indices(1);
+            col = event.Indices(2);
+            data = app.SignalInspectorTable.Data;
+            
+            if col == 2 && row <= size(data, 1)
+                propertyName = data{row, 1};
+                
+                % If Color cell is selected, open color picker immediately
+                if strcmp(propertyName, 'Color')
+                    try
+                        % Parse current color
+                        colorStr = data{row, 2};
+                        if ischar(colorStr) || isstring(colorStr)
+                            colorStr = strrep(colorStr, '[', '');
+                            colorStr = strrep(colorStr, ']', '');
+                            currentColor = str2num(colorStr); %#ok<ST2NM>
+                            if isempty(currentColor) || length(currentColor) ~= 3
+                                currentColor = [0 0.4470 0.7410];
+                            end
+                        else
+                            currentColor = [0 0.4470 0.7410];
+                        end
+                        
+                        % Show color picker - keep app in focus
+                        figure(app.UIFigure);
+                        drawnow;
+                        newColor = uisetcolor(currentColor, sprintf('Pick color for %s', app.extractBaseSignalName(app.CurrentInspectorSignal)));
+                        
+                        if length(newColor) == 3  % User didn't cancel
+                            % Update property for this signal instance and all its occurrences
+                            app.updateSignalPropertyForAllInstances(app.CurrentInspectorSignal, 'Color', newColor);
+                            app.PlotManager.refreshPlots();
+                            app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                            app.StatusLabel.Text = sprintf('✅ Updated color for %s', app.extractBaseSignalName(app.CurrentInspectorSignal));
+                            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                            
+                            % Bring app back to front
+                            figure(app.UIFigure);
+                            drawnow;
+                        end
+                    catch ME
+                        app.StatusLabel.Text = sprintf('Error opening color picker: %s', ME.message);
+                        app.StatusLabel.FontColor = [0.9 0.3 0.3];
+                    end
+                end
+            end
+        end
+        
+        function onInspectorTableEdit(app, event)
+            % Handle edits in the Signal Details table
+            if isempty(event.Indices) || isempty(app.CurrentInspectorSignal)
+                return;
+            end
+            
+            row = event.Indices(1);
+            col = event.Indices(2);
+            data = app.SignalInspectorTable.Data;
+            
+            if col ~= 2  % Only Value column is editable
+                return;
+            end
+            
+            propertyName = data{row, 1};
+            newValue = event.NewData;
+            
+            % Handle different properties
+            switch propertyName
+                case 'Scale'
+                    try
+                        scale = str2double(newValue);
+                        if isnumeric(scale) && isfinite(scale) && scale ~= 0
+                            % Update property for this signal instance and all its occurrences
+                            app.updateSignalPropertyForAllInstances(app.CurrentInspectorSignal, 'Scale', scale);
+                            app.PlotManager.refreshPlots();
+                            app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                            app.StatusLabel.Text = sprintf('✅ Updated scale for %s', app.extractBaseSignalName(app.CurrentInspectorSignal));
+                            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                        else
+                            % Revert to old value
+                            data{row, 2} = event.PreviousData;
+                            app.SignalInspectorTable.Data = data;
+                        end
+                    catch
+                        data{row, 2} = event.PreviousData;
+                        app.SignalInspectorTable.Data = data;
+                    end
+                    
+                case 'State Signal'
+                    try
+                        isState = logical(str2double(newValue));
+                        % Update property for this signal instance and all its occurrences
+                        app.updateSignalPropertyForAllInstances(app.CurrentInspectorSignal, 'StateSignal', isState);
+                        app.PlotManager.refreshPlots();
+                        app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                        app.StatusLabel.Text = sprintf('✅ Updated state for %s', app.extractBaseSignalName(app.CurrentInspectorSignal));
+                        app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    catch
+                        data{row, 2} = event.PreviousData;
+                        app.SignalInspectorTable.Data = data;
+                    end
+                    
+                case 'Line Width'
+                    try
+                        width = str2double(newValue);
+                        if isnumeric(width) && isfinite(width) && width > 0
+                            % Update property for this signal instance and all its occurrences
+                            app.updateSignalPropertyForAllInstances(app.CurrentInspectorSignal, 'LineWidth', width);
+                            app.PlotManager.refreshPlots();
+                            app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                            app.StatusLabel.Text = sprintf('✅ Updated line width for %s', app.extractBaseSignalName(app.CurrentInspectorSignal));
+                            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                        else
+                            data{row, 2} = event.PreviousData;
+                            app.SignalInspectorTable.Data = data;
+                        end
+                    catch
+                        data{row, 2} = event.PreviousData;
+                        app.SignalInspectorTable.Data = data;
+                    end
+                    
+                case 'Color'
+                    % Color editing - always open color picker (even on text edit)
+                    try
+                        % Parse current color
+                        colorStr = event.PreviousData;
+                        if ischar(colorStr) || isstring(colorStr)
+                            colorStr = strrep(colorStr, '[', '');
+                            colorStr = strrep(colorStr, ']', '');
+                            currentColor = str2num(colorStr); %#ok<ST2NM>
+                            if isempty(currentColor) || length(currentColor) ~= 3
+                                currentColor = [0 0.4470 0.7410];
+                            end
+                        else
+                            currentColor = [0 0.4470 0.7410];
+                        end
+                        
+                        % Show color picker - keep app in focus
+                        figure(app.UIFigure);  % Bring app to front first
+                        drawnow;
+                        newColor = uisetcolor(currentColor, sprintf('Pick color for %s', app.extractBaseSignalName(app.CurrentInspectorSignal)));
+                        
+                        if length(newColor) == 3  % User didn't cancel
+                            % Update property for this signal instance and all its occurrences
+                            app.updateSignalPropertyForAllInstances(app.CurrentInspectorSignal, 'Color', newColor);
+                            app.PlotManager.refreshPlots();
+                            app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                            data{row, 2} = mat2str(newColor);
+                            app.SignalInspectorTable.Data = data;
+                            app.StatusLabel.Text = sprintf('✅ Updated color for %s', app.extractBaseSignalName(app.CurrentInspectorSignal));
+                            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                            
+                            % Bring app back to front
+                            figure(app.UIFigure);
+                            drawnow;
+                        else
+                            data{row, 2} = event.PreviousData;
+                            app.SignalInspectorTable.Data = data;
+                        end
+                    catch
+                        data{row, 2} = event.PreviousData;
+                        app.SignalInspectorTable.Data = data;
+                    end
+            end
+        end
+        
+        function updateSignalPropertiesPanel(app, signalInfo)
+            % Update the properties panel with current signal values
+            if isempty(signalInfo)
+                app.SignalPropertiesPanel.Visible = 'off';
+                return;
+            end
+            
+            % Get full signal name
+            fullSignalName = app.getFullSignalDisplayName(signalInfo);
+            
+            % Update name field
+            app.SignalNameField.Value = signalInfo.Signal;
+            
+            % Get current scale
+            scale = 1.0;
+            if app.DataManager.SignalScaling.isKey(fullSignalName)
+                scale = app.DataManager.SignalScaling(fullSignalName);
+            end
+            app.SignalScaleField.Value = scale;
+            
+            % Get current line width
+            lineWidth = 2.0;
+            safeFieldName = matlab.lang.makeValidName(fullSignalName);
+            if ~isempty(app.SignalStyles)
+                if isfield(app.SignalStyles, safeFieldName) && isfield(app.SignalStyles.(safeFieldName), 'LineWidth')
+                    lineWidth = app.SignalStyles.(safeFieldName).LineWidth;
+                elseif isfield(app.SignalStyles, fullSignalName) && isfield(app.SignalStyles.(fullSignalName), 'LineWidth')
+                    lineWidth = app.SignalStyles.(fullSignalName).LineWidth;
+                end
+            end
+            app.SignalLineWidthField.Value = lineWidth;
+            
+            % Get current color
+            color = [0 0.4470 0.7410]; % Default MATLAB blue
+            if ~isempty(app.SignalStyles)
+                if isfield(app.SignalStyles, safeFieldName) && isfield(app.SignalStyles.(safeFieldName), 'Color')
+                    color = app.SignalStyles.(safeFieldName).Color;
+                elseif isfield(app.SignalStyles, fullSignalName) && isfield(app.SignalStyles.(fullSignalName), 'Color')
+                    color = app.SignalStyles.(fullSignalName).Color;
+                end
+            end
+            app.SignalColorButton.BackgroundColor = color;
+            
+            % Get current state
+            isState = false;
+            if app.DataManager.StateSignals.isKey(fullSignalName)
+                isState = app.DataManager.StateSignals(fullSignalName);
+            end
+            app.SignalStateCheckbox.Value = isState;
+            
+            % Show panel
+            app.SignalPropertiesPanel.Visible = 'on';
+        end
+        
+        function onSignalNameChanged(app)
+            % Handle signal name change (renaming)
+            if isempty(app.CurrentEditingSignalInfo)
+                return;
+            end
+            
+            newName = app.SignalNameField.Value;
+            if isempty(newName) || strcmp(newName, app.CurrentEditingSignalInfo.Signal)
+                return; % No change or empty
+            end
+            
+            % Rename the signal in the CSV table
+            csvIdx = app.CurrentEditingSignalInfo.CSVIdx;
+            if csvIdx > 0 && csvIdx <= numel(app.DataManager.DataTables)
+                T = app.DataManager.DataTables{csvIdx};
+                if ismember(app.CurrentEditingSignalInfo.Signal, T.Properties.VariableNames)
+                    % Rename column in table
+                    T.Properties.VariableNames{strcmp(T.Properties.VariableNames, app.CurrentEditingSignalInfo.Signal)} = newName;
+                    app.DataManager.DataTables{csvIdx} = T;
+                    
+                    % Update signal info
+                    app.CurrentEditingSignalInfo.Signal = newName;
+                    
+                    % Update all assignments
+                    app.renameSignalInAllAssignments(app.CurrentEditingSignalInfo.CSVIdx, app.CurrentEditingSignalInfo.Signal, newName);
+                    
+                    % Rebuild tree and refresh plots
+                    app.buildSignalTree();
+                    app.PlotManager.refreshPlots();
+                    
+                    app.StatusLabel.Text = sprintf('✅ Renamed signal to "%s"', newName);
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                end
+            end
+        end
+        
+        function onSignalPropertyChanged(app, propertyName)
+            % Handle property changes from properties panel
+            % Store properties using BOTH base name and full name so they persist when signal is plotted
+            if isempty(app.CurrentEditingSignalInfo)
+                return;
+            end
+            
+            baseSignalName = app.CurrentEditingSignalInfo.Signal;
+            fullSignalName = app.getFullSignalDisplayName(app.CurrentEditingSignalInfo);
+            
+            switch propertyName
+                case 'Scale'
+                    scale = app.SignalScaleField.Value;
+                    % Store using both base name (for when signal is first plotted) and full name
+                    app.DataManager.SignalScaling(baseSignalName) = scale;
+                    app.DataManager.SignalScaling(fullSignalName) = scale;
+                    app.PlotManager.refreshPlots();
+                    app.StatusLabel.Text = sprintf('✅ Updated scale to %.3f', scale);
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    
+                case 'LineWidth'
+                    width = app.SignalLineWidthField.Value;
+                    % Store using both base name and full name
+                    if isempty(app.SignalStyles), app.SignalStyles = struct(); end
+                    safeBaseName = matlab.lang.makeValidName(baseSignalName);
+                    safeFullName = matlab.lang.makeValidName(fullSignalName);
+                    try
+                        if ~isfield(app.SignalStyles, safeBaseName)
+                            app.SignalStyles.(safeBaseName) = struct();
+                        end
+                        app.SignalStyles.(safeBaseName).LineWidth = width;
+                    catch
+                    end
+                    try
+                        if ~isfield(app.SignalStyles, safeFullName)
+                            app.SignalStyles.(safeFullName) = struct();
+                        end
+                        app.SignalStyles.(safeFullName).LineWidth = width;
+                    catch
+                    end
+                    app.PlotManager.refreshPlots();
+                    app.StatusLabel.Text = sprintf('✅ Updated line width to %.1f', width);
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                    
+                case 'StateSignal'
+                    isState = app.SignalStateCheckbox.Value;
+                    % Store using both base name and full name
+                    app.DataManager.StateSignals(baseSignalName) = isState;
+                    app.DataManager.StateSignals(fullSignalName) = isState;
+                    app.PlotManager.refreshPlots();
+                    if isState
+                        app.StatusLabel.Text = '✅ Signal set as state signal (vertical lines)';
+                    else
+                        app.StatusLabel.Text = '✅ Signal set as regular signal';
+                    end
+                    app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+        end
+        
+        function onSignalColorButtonClicked(app)
+            % Handle color button click - open color picker
+            if isempty(app.CurrentEditingSignalInfo)
+                return;
+            end
+            
+            % Get current color
+            currentColor = app.SignalColorButton.BackgroundColor;
+            
+            % Show color picker
+            figure(app.UIFigure);
+            drawnow;
+            newColor = uisetcolor(currentColor, sprintf('Pick color for %s', app.CurrentEditingSignalInfo.Signal));
+            
+            if length(newColor) == 3  % User didn't cancel
+                baseSignalName = app.CurrentEditingSignalInfo.Signal;
+                fullSignalName = app.getFullSignalDisplayName(app.CurrentEditingSignalInfo);
+                
+                % Store using both base name (for when signal is first plotted) and full name
+                % Also store in multiple formats to ensure lookup works
+                if isempty(app.SignalStyles), app.SignalStyles = struct(); end
+                safeBaseName = matlab.lang.makeValidName(baseSignalName);
+                safeFullName = matlab.lang.makeValidName(fullSignalName);
+                
+                % Store in all possible formats
+                try
+                    if ~isfield(app.SignalStyles, safeBaseName)
+                        app.SignalStyles.(safeBaseName) = struct();
+                    end
+                    app.SignalStyles.(safeBaseName).Color = newColor;
+                catch
+                end
+                try
+                    if ~isfield(app.SignalStyles, safeFullName)
+                        app.SignalStyles.(safeFullName) = struct();
+                    end
+                    app.SignalStyles.(safeFullName).Color = newColor;
+                catch
+                end
+                try
+                    % Also store using direct base name (without safe conversion)
+                    if ~isfield(app.SignalStyles, baseSignalName)
+                        app.SignalStyles.(baseSignalName) = struct();
+                    end
+                    app.SignalStyles.(baseSignalName).Color = newColor;
+                catch
+                end
+                try
+                    % Also store using direct full name
+                    if ~isfield(app.SignalStyles, fullSignalName)
+                        app.SignalStyles.(fullSignalName) = struct();
+                    end
+                    app.SignalStyles.(fullSignalName).Color = newColor;
+                catch
+                end
+                
+                app.SignalColorButton.BackgroundColor = newColor;
+                app.PlotManager.refreshPlots();
+                app.StatusLabel.Text = sprintf('✅ Updated color for %s', app.CurrentEditingSignalInfo.Signal);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+                
+                % Bring app back to front
+                figure(app.UIFigure);
+                drawnow;
+            end
+        end
+        
+        function showPropertiesPanelForSignal(app, signalInfo)
+            % Show and update the properties panel for a specific signal
+            % This can be called from context menu or programmatically
+            app.CurrentEditingSignalInfo = signalInfo;
+            app.updateSignalPropertiesPanel(signalInfo);
+            
+            % Also select the signal in the tree if not already selected
+            selectedNodes = app.SignalTree.SelectedNodes;
+            signalFound = false;
+            for i = 1:numel(selectedNodes)
+                node = selectedNodes(i);
+                if isstruct(node.NodeData) && isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                    if node.NodeData.CSVIdx == signalInfo.CSVIdx && strcmp(node.NodeData.Signal, signalInfo.Signal)
+                        signalFound = true;
+                        break;
+                    end
+                end
+            end
+            
+            if ~signalFound
+                % Find and select the signal node in the tree
+                allNodes = findall(app.SignalTree, '-property', 'NodeData');
+                for i = 1:numel(allNodes)
+                    node = allNodes(i);
+                    if isstruct(node.NodeData) && isfield(node.NodeData, 'CSVIdx') && isfield(node.NodeData, 'Signal')
+                        if node.NodeData.CSVIdx == signalInfo.CSVIdx && strcmp(node.NodeData.Signal, signalInfo.Signal)
+                            app.SignalTree.SelectedNodes = node;
+                            break;
+                        end
+                    end
+                end
+            end
+        end
+        
+        function renameSignalInAllAssignments(app, csvIdx, oldName, newName)
+            % Rename signal in all plot assignments
+            for tabIdx = 1:numel(app.PlotManager.AssignedSignals)
+                if tabIdx <= numel(app.PlotManager.AssignedSignals)
+                    for subplotIdx = 1:numel(app.PlotManager.AssignedSignals{tabIdx})
+                        if subplotIdx <= numel(app.PlotManager.AssignedSignals{tabIdx})
+                            assigned = app.PlotManager.AssignedSignals{tabIdx}{subplotIdx};
+                            for sigIdx = 1:numel(assigned)
+                                sigInfo = assigned{sigIdx};
+                                if sigInfo.CSVIdx == csvIdx && strcmp(sigInfo.Signal, oldName)
+                                    sigInfo.Signal = newName;
+                                    assigned{sigIdx} = sigInfo;
+                                end
+                            end
+                            app.PlotManager.AssignedSignals{tabIdx}{subplotIdx} = assigned;
+                        end
+                    end
+                end
+            end
+        end
+        
+        function onInspectorScaleChanged(app, newScale)
+            % Handle scale change from inspector
+            if isempty(app.CurrentInspectorSignal)
+                return;
+            end
+            
+            if isnumeric(newScale) && isfinite(newScale) && newScale ~= 0
+                app.DataManager.SignalScaling(app.CurrentInspectorSignal) = newScale;
+                app.PlotManager.refreshPlots();
+                app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                app.StatusLabel.Text = sprintf('✅ Updated scale for %s', app.CurrentInspectorSignal);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+        end
+        
+        function onInspectorStateChanged(app, newState)
+            % Handle state signal change from inspector
+            if isempty(app.CurrentInspectorSignal)
+                return;
+            end
+            
+            app.DataManager.StateSignals(app.CurrentInspectorSignal) = logical(newState);
+            app.PlotManager.refreshPlots();
+            app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+            app.StatusLabel.Text = sprintf('✅ Updated state for %s', app.CurrentInspectorSignal);
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+        
+        function onInspectorLineWidthChanged(app, newWidth)
+            % Handle line width change from inspector
+            if isempty(app.CurrentInspectorSignal)
+                return;
+            end
+            
+            if isnumeric(newWidth) && isfinite(newWidth) && newWidth > 0
+                if isempty(app.SignalStyles), app.SignalStyles = struct(); end
+                if ~isfield(app.SignalStyles, app.CurrentInspectorSignal)
+                    app.SignalStyles.(app.CurrentInspectorSignal) = struct();
+                end
+                app.SignalStyles.(app.CurrentInspectorSignal).LineWidth = newWidth;
+                app.PlotManager.refreshPlots();
+                app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                app.StatusLabel.Text = sprintf('✅ Updated line width for %s', app.CurrentInspectorSignal);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+        end
+        
+        function onInspectorColorChanged(app)
+            % Handle color change from inspector
+            if isempty(app.CurrentInspectorSignal)
+                return;
+            end
+            
+            % Get current color
+            currentColor = [0 0.4470 0.7410]; % Default
+            if ~isempty(app.SignalStyles) && isfield(app.SignalStyles, app.CurrentInspectorSignal)
+                if isfield(app.SignalStyles.(app.CurrentInspectorSignal), 'Color')
+                    currentColor = app.SignalStyles.(app.CurrentInspectorSignal).Color;
+                end
+            end
+            
+            % Show color picker
+            newColor = uisetcolor(currentColor, sprintf('Pick color for %s', app.CurrentInspectorSignal));
+            if length(newColor) == 3  % User didn't cancel
+                if isempty(app.SignalStyles), app.SignalStyles = struct(); end
+                if ~isfield(app.SignalStyles, app.CurrentInspectorSignal)
+                    app.SignalStyles.(app.CurrentInspectorSignal) = struct();
+                end
+                app.SignalStyles.(app.CurrentInspectorSignal).Color = newColor;
+                app.PlotManager.refreshPlots();
+                app.updateSignalInspector(app.CurrentInspectorSignal, 0, 0); % Refresh display
+                app.StatusLabel.Text = sprintf('✅ Updated color for %s', app.CurrentInspectorSignal);
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
+        end
+        
+        function baseName = extractBaseSignalName(app, signalName)
+            % Extract base signal name by removing suffix
+            % Suffix formats: "signal1_{label}", "signal1_{label_1}", or "signal1 label"
+            if contains(signalName, '_{')
+                % Format: "signal1_{label}" or "signal1_{label_1}"
+                idx = strfind(signalName, '_{');
+                baseName = signalName(1:idx-1);
+            else
+                % Check if it's "signal1 label" format (space-separated)
+                % Try to find the base name by checking against known signal names
+                baseName = signalName;
+                % Check all CSV tables for the base name
+                for i = 1:numel(app.DataManager.DataTables)
+                    T = app.DataManager.DataTables{i};
+                    if ~isempty(T)
+                        varNames = T.Properties.VariableNames;
+                        % Check if any variable name matches the beginning of signalName
+                        for j = 1:numel(varNames)
+                            base = varNames{j};
+                            if strcmp(signalName, base) || startsWith(signalName, [base ' ']) || startsWith(signalName, [base '_{'])
+                                baseName = base;
+                                return;
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        function [timeData, signalData] = getSignalDataByName(app, signalName)
+            % Get signal data by name from loaded CSVs
+            % Handles both base names and full display names (with CSV identifiers)
+            timeData = [];
+            signalData = [];
+            
+            if isempty(signalName)
+                return;
+            end
+            
+            % Extract base signal name from full display name
+            % Full names can be: "signal1 live_data", "signal1_{live_data}", "signal1_csv1", etc.
+            baseName = signalName;
+            csvIdx = [];
+            
+            % Check if it's a derived signal
+            if endsWith(signalName, ' derived')
+                baseName = strrep(signalName, ' derived', '');
+                if isprop(app, 'SignalOperations') && ~isempty(app.SignalOperations)
+                    [timeData, signalData] = app.SignalOperations.getSignalData(baseName);
+                    if ~isempty(timeData)
+                        % Apply scaling if exists
+                        if app.DataManager.SignalScaling.isKey(signalName)
+                            signalData = signalData * app.DataManager.SignalScaling(signalName);
+                        elseif app.DataManager.SignalScaling.isKey(baseName)
+                            signalData = signalData * app.DataManager.SignalScaling(baseName);
+                        end
+                    end
+                end
+                return;
+            end
+            
+            % Try to extract CSV index from name patterns like "signal1_csv1" or "signal1_{label}"
+            % Pattern 1: "signal1_csv1"
+            csvMatch = regexp(signalName, '^(.+?)_csv(\d+)$', 'tokens', 'once');
+            if ~isempty(csvMatch)
+                baseName = csvMatch{1};
+                csvIdx = str2double(csvMatch{2});
+            else
+                % Pattern 2: "signal1_{label}" or "signal1 label"
+                % Extract base name (everything before space or underscore)
+                parts = split(signalName, {' ', '_{'});
+                if ~isempty(parts)
+                    baseName = parts{1};
+                end
+                
+                % Try to find CSV by matching the suffix/identifier
+                % Look through all CSVs to find which one matches
+                for i = 1:numel(app.DataManager.DataTables)
+                    T = app.DataManager.DataTables{i};
+                    if ~isempty(T) && ismember(baseName, T.Properties.VariableNames)
+                        % Check if this CSV's label matches the signal name suffix
+                        try
+                            if isprop(app, 'PlotManager') && ~isempty(app.PlotManager)
+                                csvLabel = app.PlotManager.generateEnhancedCSVLabel(i);
+                                % Check if signalName contains this CSV label
+                                if contains(signalName, csvLabel) || ...
+                                   contains(signalName, ['_{' csvLabel]) || ...
+                                   contains(signalName, [' ' csvLabel])
+                                    csvIdx = i;
+                                    break;
+                                end
+                            end
+                        catch
+                        end
+                        
+                        % If no specific match found but we have a base name match, use this CSV
+                        if isempty(csvIdx)
+                            csvIdx = i;
+                        end
+                    end
+                end
+            end
+            
+            % Get data from identified CSV
+            if ~isempty(csvIdx) && csvIdx > 0 && csvIdx <= numel(app.DataManager.DataTables)
+                T = app.DataManager.DataTables{csvIdx};
+                if ~isempty(T) && ismember(baseName, T.Properties.VariableNames)
+                    timeData = T.Time;
+                    signalData = T.(baseName);
+                    
+                    % Apply scaling if exists (check both full name and base name)
+                    if app.DataManager.SignalScaling.isKey(signalName)
+                        signalData = signalData * app.DataManager.SignalScaling(signalName);
+                    elseif app.DataManager.SignalScaling.isKey(baseName)
+                        signalData = signalData * app.DataManager.SignalScaling(baseName);
+                    end
+                    return;
+                end
+            end
+            
+            % Fallback: search all CSVs for base name (original behavior)
+            for i = 1:numel(app.DataManager.DataTables)
+                T = app.DataManager.DataTables{i};
+                if ~isempty(T) && ismember(baseName, T.Properties.VariableNames)
+                    timeData = T.Time;
+                    signalData = T.(baseName);
+                    
+                    % Apply scaling if exists
+                    if app.DataManager.SignalScaling.isKey(signalName)
+                        signalData = signalData * app.DataManager.SignalScaling(signalName);
+                    elseif app.DataManager.SignalScaling.isKey(baseName)
+                        signalData = signalData * app.DataManager.SignalScaling(baseName);
+                    end
+                    return;
+                end
+            end
+        end
+        
+        function enableZoomIn(app)
+            % Enable zoom in mode
+            app.PlotManager.enableZoomMode('in');
+            app.StatusLabel.Text = '🔍 Zoom In Mode: Click and drag to zoom';
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+        
+        function enableZoomOut(app)
+            % Enable zoom out mode
+            app.PlotManager.enableZoomMode('out');
+            app.StatusLabel.Text = '🔍 Zoom Out Mode: Click to zoom out';
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+        
+        function togglePanMode(app, enabled)
+            % Toggle pan mode
+            if enabled
+                app.PlotManager.enablePanMode();
+                app.StatusLabel.Text = '✋ Pan Mode: Click and drag to pan';
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            else
+                app.PlotManager.disablePanMode();
+                app.StatusLabel.Text = 'Pan mode disabled';
+                app.StatusLabel.FontColor = [0.5 0.5 0.5];
+            end
+        end
+        
+        function fitToView(app)
+            % Fit all signals to view (SDI-like)
+            app.PlotManager.autoScaleAllSubplots();
+            app.StatusLabel.Text = '✅ Fitted all signals to view';
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+        
         function cleanupTimers(app)
             % Clean up all timer objects to prevent memory leaks
 

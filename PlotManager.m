@@ -870,7 +870,7 @@ classdef PlotManager < handle
 
                 obj.XAxisSignals{tabIdx, i} = 'Time';
 
-                % Add click callback for subplot selection
+                % Add click callback for subplot selection (SDI-like: click to select)
                 ax.ButtonDownFcn = @(src, event) obj.selectSubplot(tabIdx, i);
 
                 % ADD CONTEXT MENU with all options including zoom
@@ -1700,10 +1700,15 @@ classdef PlotManager < handle
                         end
                         % ============= END CONSISTENT X-AXIS HANDLING =============
 
-                        % Apply scaling
+                        % Apply scaling - check both full signal name and base name
+                        % This ensures properties set before plotting are applied
                         scaleFactor = 1.0;
+                        baseName = sigInfo.Signal; % Base signal name from signalInfo
                         if obj.App.DataManager.SignalScaling.isKey(sigName)
                             scaleFactor = obj.App.DataManager.SignalScaling(sigName);
+                        elseif obj.App.DataManager.SignalScaling.isKey(baseName)
+                            % Fallback to base name (for properties set before plotting)
+                            scaleFactor = obj.App.DataManager.SignalScaling(baseName);
                         end
                         scaledData = signalData * scaleFactor;
                         
@@ -1718,29 +1723,89 @@ classdef PlotManager < handle
                         allValueData = [allValueData; scaledData];
 
                         % Use custom color and line width if set
+                        % Check both full signal name and base name to ensure properties set before plotting are applied
                         color = [];
                         width = 2;
-                        if isprop(obj.App, 'SignalStyles') && ~isempty(obj.App.SignalStyles) && isfield(obj.App.SignalStyles, sigName)
-                            style = obj.App.SignalStyles.(sigName);
-                            if isfield(style, 'Color') && ~isempty(style.Color)
-                                color = style.Color;
-                                if ischar(color) || isstring(color)
-                                    color = str2num(color); %#ok<ST2NM>
+                        styleFound = false;
+                        baseName = sigInfo.Signal; % Base signal name from signalInfo
+                        if isprop(obj.App, 'SignalStyles') && ~isempty(obj.App.SignalStyles)
+                            safeFieldName = matlab.lang.makeValidName(sigName);
+                            safeBaseName = matlab.lang.makeValidName(baseName);
+                            
+                            % Check base name FIRST (properties set before plotting use base name)
+                            % Then check full name (for properties set after plotting)
+                            if isfield(obj.App.SignalStyles, safeBaseName)
+                                style = obj.App.SignalStyles.(safeBaseName);
+                                styleFound = true;
+                            elseif isfield(obj.App.SignalStyles, baseName)
+                                % Direct base name (for properties set before plotting)
+                                style = obj.App.SignalStyles.(baseName);
+                                styleFound = true;
+                            elseif isfield(obj.App.SignalStyles, safeFieldName)
+                                % Full signal name (safe)
+                                style = obj.App.SignalStyles.(safeFieldName);
+                                styleFound = true;
+                            elseif isfield(obj.App.SignalStyles, sigName)
+                                % Full signal name (direct)
+                                style = obj.App.SignalStyles.(sigName);
+                                styleFound = true;
+                            end
+                            
+                            if styleFound
+                                if isfield(style, 'Color') && ~isempty(style.Color)
+                                    color = style.Color;
+                                    if ischar(color) || isstring(color)
+                                        color = str2num(color); %#ok<ST2NM>
+                                    end
+                                    % Ensure color is valid RGB
+                                    if ~isempty(color) && length(color) == 3 && all(color >= 0) && all(color <= 1)
+                                        % Color is valid, use it
+                                    else
+                                        color = []; % Invalid color, reset
+                                    end
+                                end
+                                if isfield(style, 'LineWidth')
+                                    width = style.LineWidth;
                                 end
                             end
-                            if isfield(style, 'LineWidth')
-                                width = style.LineWidth;
+                        end
+                        
+                        % Also check SignalStylesMap if it exists
+                        if isempty(color) && isprop(obj.App, 'SignalStylesMap') && ~isempty(obj.App.SignalStylesMap)
+                            if obj.App.SignalStylesMap.isKey(sigName)
+                                style = obj.App.SignalStylesMap(sigName);
+                                if isfield(style, 'Color') && ~isempty(style.Color)
+                                    color = style.Color;
+                                    if ischar(color) || isstring(color)
+                                        color = str2num(color); %#ok<ST2NM>
+                                    end
+                                end
+                            elseif obj.App.SignalStylesMap.isKey(baseName)
+                                style = obj.App.SignalStylesMap(baseName);
+                                if isfield(style, 'Color') && ~isempty(style.Color)
+                                    color = style.Color;
+                                    if ischar(color) || isstring(color)
+                                        color = str2num(color); %#ok<ST2NM>
+                                    end
+                                end
                             end
                         end
+                        
+                        % Only use default color order if no custom color was found
                         if isempty(color)
                             color = colorOrder(mod(colorIdx-1, nColors)+1, :);
                             colorIdx = colorIdx + 1;
                         end
 
-                        % Check if it's a state signal
+                        % Check if it's a state signal - check both full name and base name
+                        % This ensures properties set before plotting are applied
                         isStateSignal = false;
+                        baseName = sigInfo.Signal; % Base signal name from signalInfo
                         if obj.App.DataManager.StateSignals.isKey(sigName)
                             isStateSignal = obj.App.DataManager.StateSignals(sigName);
+                        elseif obj.App.DataManager.StateSignals.isKey(baseName)
+                            % Fallback to base name (for properties set before plotting)
+                            isStateSignal = obj.App.DataManager.StateSignals(baseName);
                         end
 
                         % Always remove existing signal representation (line or xline)
@@ -2175,6 +2240,30 @@ classdef PlotManager < handle
                 end
                 dropdown.Value = sprintf('Plot %d', obj.SelectedSubplotIdx);
             end
+            
+            % Also update main app dropdown if it exists
+            if isprop(obj.App, 'SubplotDropdown') && ~isempty(obj.App.SubplotDropdown)
+                try
+                    % Check if component still exists by accessing a property
+                    dummy = obj.App.SubplotDropdown.Items; %#ok<NASGU>
+                    isValid = true;
+                catch
+                    isValid = false;
+                end
+            else
+                isValid = false;
+            end
+            if isValid
+                nPlots = obj.TabLayouts{tabIdx}(1) * obj.TabLayouts{tabIdx}(2);
+                plotItems = cell(nPlots, 1);
+                for i = 1:nPlots
+                    plotItems{i} = sprintf('Plot %d', i);
+                end
+                obj.App.SubplotDropdown.Items = plotItems;
+                if obj.SelectedSubplotIdx <= nPlots
+                    obj.App.SubplotDropdown.Value = sprintf('Plot %d', obj.SelectedSubplotIdx);
+                end
+            end
         end
 
         % **NEW METHOD: Update existing signal plot or create new one**
@@ -2367,43 +2456,51 @@ classdef PlotManager < handle
 
         % **UPDATED METHOD: Improved state signal plotting**
         function plotStateSignalStable(~, ax, timeData, valueData, color, label, ~, lineWidth)
-            if isempty(timeData)
+            if isempty(timeData) || isempty(valueData)
                 return;
             end
 
-            % Use a tolerance to detect state changes
-            changeIdx = find([true; abs(diff(valueData)) > 1e-8]);
+            % Use a tolerance to detect state changes (value changes)
+            % Find indices where the value changes significantly
+            if length(valueData) > 1
+                changeIdx = find([true; abs(diff(valueData)) > 1e-8]);
+            else
+                changeIdx = 1;
+            end
 
-            % If all values are the same, use only the first timestamp
+            % Get the times where state changes occur
             if isempty(changeIdx)
                 changeTimes = timeData(1);
             else
                 changeTimes = timeData(changeIdx);
             end
 
+            % Plot vertical lines at each state change using xline
             for k = 1:numel(changeTimes)
                 t = changeTimes(k);
                 h = xline(ax, t, '--', ...
                     'Color', color, ...
                     'LineWidth', lineWidth, ...
                     'Alpha', 0.6, ...
-                    'Label', label, ...
-                    'DisplayName', label, ...
-                    'LabelOrientation', 'horizontal', ...
-                    'LabelVerticalAlignment', 'middle');
-
+                    'DisplayName', label);
+                
                 % Only the first xline gets the label
-                if k > 1
+                if k == 1 && ~isempty(label)
+                    h.Label = label;
+                    h.LabelOrientation = 'horizontal';
+                    h.LabelVerticalAlignment = 'middle';
+                else
                     h.Label = '';
                 end
 
-                % Optional: Tag the line for easier cleanup
+                % Tag the line for easier cleanup
                 h.Tag = ['state_' label];
             end
         end
 
         function selectSubplot(obj, tabIdx, subplotIdx)
-            % Update the selected subplot index
+            % Update the selected subplot index (SDI-like: click to select)
+            obj.CurrentTabIdx = tabIdx;  % Switch to clicked tab
             obj.SelectedSubplotIdx = subplotIdx;
 
             % Clear ALL highlights in this tab first
@@ -2412,20 +2509,75 @@ classdef PlotManager < handle
             % Highlight the newly selected subplot
             obj.App.highlightSelectedSubplot(tabIdx, subplotIdx);
 
+            % Update the main tab group selection
+            if tabIdx <= numel(obj.PlotTabs)
+                obj.App.MainTabGroup.SelectedTab = obj.PlotTabs{tabIdx};
+            end
+
             % Update the tab-specific subplot dropdown
-            if tabIdx <= numel(obj.TabControls) && ~isempty(obj.TabControls{tabIdx}) && ...
-                    isfield(obj.TabControls{tabIdx}, 'SubplotDropdown')
-
-                val = sprintf('Plot %d', subplotIdx);
-                dropdown = obj.TabControls{tabIdx}.SubplotDropdown;
-
-                if any(strcmp(val, dropdown.Items))
-                    dropdown.Value = val;
-                end
+            obj.updateSubplotDropdownForTab(tabIdx);
+            
+            % Also update UIController dropdown
+            if isprop(obj.App, 'UIController') && ~isempty(obj.App.UIController)
+                obj.App.UIController.updateSubplotDropdown();
             end
 
             % Update signal tree for the newly selected subplot
             obj.updateSignalTreeForCurrentTab();
+            
+            % Update signal props table for current subplot
+            if tabIdx <= numel(obj.AssignedSignals) && subplotIdx <= numel(obj.AssignedSignals{tabIdx})
+                assignedSignals = obj.AssignedSignals{tabIdx}{subplotIdx};
+                obj.App.updateSignalPropsTable(assignedSignals);
+            end
+        end
+        
+        function updateSubplotDropdownForTab(obj, tabIdx)
+            % Update subplot dropdown for a specific tab
+            if tabIdx <= numel(obj.TabControls) && ~isempty(obj.TabControls{tabIdx}) && ...
+                    isfield(obj.TabControls{tabIdx}, 'SubplotDropdown')
+                
+                dropdown = obj.TabControls{tabIdx}.SubplotDropdown;
+                nPlots = numel(obj.AxesArrays{tabIdx});
+                
+                % Update items if needed
+                plotItems = cell(nPlots, 1);
+                for i = 1:nPlots
+                    plotItems{i} = sprintf('Plot %d', i);
+                end
+                dropdown.Items = plotItems;
+                
+                % Set current value
+                val = sprintf('Plot %d', obj.SelectedSubplotIdx);
+                if any(strcmp(val, dropdown.Items))
+                    dropdown.Value = val;
+                end
+            end
+            
+            % Also update main app subplot dropdown if it exists
+            if isprop(obj.App, 'SubplotDropdown') && ~isempty(obj.App.SubplotDropdown)
+                try
+                    % Check if component still exists by accessing a property
+                    dummy = obj.App.SubplotDropdown.Items; %#ok<NASGU>
+                    isValid = true;
+                catch
+                    isValid = false;
+                end
+            else
+                isValid = false;
+            end
+            if isValid
+                nPlots = numel(obj.AxesArrays{tabIdx});
+                plotItems = cell(nPlots, 1);
+                for i = 1:nPlots
+                    plotItems{i} = sprintf('Plot %d', i);
+                end
+                obj.App.SubplotDropdown.Items = plotItems;
+                val = sprintf('Plot %d', obj.SelectedSubplotIdx);
+                if any(strcmp(val, obj.App.SubplotDropdown.Items))
+                    obj.App.SubplotDropdown.Value = val;
+                end
+            end
         end
 
         function addNewTab(obj, ~, ~)
@@ -4188,6 +4340,118 @@ classdef PlotManager < handle
             end
         end
 
+        function enableZoomMode(obj, direction)
+            % Enable zoom mode (in or out) - SDI-like
+            tabIdx = obj.CurrentTabIdx;
+            axesArr = obj.AxesArrays{tabIdx};
+            
+            for ax = axesArr
+                if isvalid(ax)
+                    if strcmp(direction, 'in')
+                        ax.Interactions = [zoomInteraction];
+                        zoom(ax, 'on');
+                    else
+                        zoom(ax, 'outmode');
+                    end
+                end
+            end
+        end
+        
+        function enablePanMode(obj)
+            % Enable pan mode - SDI-like
+            tabIdx = obj.CurrentTabIdx;
+            axesArr = obj.AxesArrays{tabIdx};
+            
+            for ax = axesArr
+                if isvalid(ax)
+                    ax.Interactions = [panInteraction];
+                    pan(ax, 'on');
+                end
+            end
+        end
+        
+        function disablePanMode(obj)
+            % Disable pan mode
+            tabIdx = obj.CurrentTabIdx;
+            axesArr = obj.AxesArrays{tabIdx};
+            
+            for ax = axesArr
+                if isvalid(ax)
+                    pan(ax, 'off');
+                    ax.Interactions = [panInteraction, zoomInteraction];
+                end
+            end
+        end
+        
+        function autoScaleAllSubplots(obj)
+            % Auto-scale all subplots in current tab - SDI-like
+            tabIdx = obj.CurrentTabIdx;
+            axesArr = obj.AxesArrays{tabIdx};
+            
+            for i = 1:length(axesArr)
+                ax = axesArr(i);
+                try
+                    dummy = ax.Children; %#ok<NASGU>
+                    isValid = true;
+                catch
+                    isValid = false;
+                end
+                
+                if isValid && ~isempty(ax.Children)
+                    % Get all data from children
+                    allXData = [];
+                    allYData = [];
+                    
+                    % Iterate over each child individually
+                    children = ax.Children;
+                    for j = 1:length(children)
+                        child = children(j);
+                        if isa(child, 'matlab.graphics.chart.primitive.Line')
+                            % Check properties on single object, not array
+                            hasXData = false;
+                            hasYData = false;
+                            try
+                                if isprop(child, 'XData')
+                                    hasXData = true;
+                                end
+                                if isprop(child, 'YData')
+                                    hasYData = true;
+                                end
+                            catch
+                                % Property check failed, skip
+                            end
+                            
+                            if hasXData && hasYData
+                                try
+                                    xData = child.XData;
+                                    yData = child.YData;
+                                    if ~isempty(xData) && ~isempty(yData)
+                                        allXData = [allXData, xData(:)'];
+                                        allYData = [allYData, yData(:)'];
+                                    end
+                                catch
+                                    % Skip if data access fails
+                                end
+                            end
+                        end
+                    end
+                    
+                    if ~isempty(allXData) && ~isempty(allYData)
+                        validX = allXData(isfinite(allXData));
+                        validY = allYData(isfinite(allYData));
+                        
+                        if ~isempty(validX) && ~isempty(validY)
+                            xMargin = (max(validX) - min(validX)) * 0.05;
+                            yMargin = (max(validY) - min(validY)) * 0.05;
+                            
+                            ax.XLim = [min(validX) - xMargin, max(validX) + xMargin];
+                            ax.YLim = [min(validY) - yMargin, max(validY) + yMargin];
+                        end
+                    end
+                end
+            end
+        end
+        
         % Enable synchronized zoom/pan (per-tab linking approach)
         function enableSyncZoom(obj)
             % Enable linking for all tabs (legacy function - now uses per-tab approach)
