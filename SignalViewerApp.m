@@ -80,6 +80,10 @@ classdef SignalViewerApp < matlab.apps.AppBase
         SignalTree   % uitree for grouped signal selection
         SignalPropsTable % uitable for scale and state editing
         SignalSearchField % uieditfield for signal search
+        KeepPreviousSearchToggle % Toggle button for keeping previous search results
+        ManageSearchesButton % Button to manage accumulated searches
+        AccumulatedSearchTerms % Cell array of accumulated search terms for OR filtering
+        LastAddedSearchTerm % Track the last search term that was added to accumulated terms
         CSVColors % Cell array of colors for each CSV
         AssignmentUndoStack
         AssignmentRedoStack
@@ -1124,7 +1128,28 @@ end
             end
             if isValid
                 currentY = currentY - searchHeight;
-                app.SignalSearchField.Position = [margin, currentY, componentWidth, searchHeight];
+                % Calculate widths: search field, toggle button, manage button
+                searchFieldWidth = componentWidth - 70; % Leave space for two buttons (30+30) + gap (10)
+                buttonGap = 5;
+                app.SignalSearchField.Position = [margin, currentY, searchFieldWidth, searchHeight];
+                
+                % Position toggle button next to search field
+                if isprop(app, 'KeepPreviousSearchToggle') && ~isempty(app.KeepPreviousSearchToggle)
+                    try
+                        app.KeepPreviousSearchToggle.Position = [margin + searchFieldWidth + buttonGap, currentY, 30, searchHeight];
+                    catch
+                        % Component might not exist yet
+                    end
+                end
+                
+                % Position manage button next to toggle
+                if isprop(app, 'ManageSearchesButton') && ~isempty(app.ManageSearchesButton)
+                    try
+                        app.ManageSearchesButton.Position = [margin + searchFieldWidth + 35 + buttonGap, currentY, 30, searchHeight];
+                    catch
+                        % Component might not exist yet
+                    end
+                end
             end
             
             topSectionEnd = currentY; % End of top section (buttons + search)
@@ -1329,12 +1354,34 @@ end
                 'ButtonPushedFcn', @(src, event) inlineFitToView(app), ...
                 'FontSize', 11, 'FontWeight', 'bold');
 
-            % Search box
+            % Search box with keep previous search toggle and manage button
             app.SignalSearchField = uieditfield(app.ControlPanel, 'text', ...
-                'Position', [20 710 280 25], ...
+                'Position', [20 710 180 25], ...
                 'Placeholder', 'Search signals...', ...
                 'ValueChangingFcn', @(src, event) inlineFilterSignals(app, event.Value), ...
                 'FontSize', 11);
+            
+            % Add Search to List button (push button to manually add current search)
+            app.KeepPreviousSearchToggle = uibutton(app.ControlPanel, 'push', ...
+                'Position', [210 710 30 25], ...
+                'Text', '➕', ...
+                'Tooltip', 'Add Current Search: Add the current search term to the accumulated list', ...
+                'ButtonPushedFcn', @(src, event) inlineAddCurrentSearchToList(app), ...
+                'FontSize', 11, ...
+                'FontWeight', 'bold');
+            
+            % Manage Searches button (shows menu to clear/view searches)
+            app.ManageSearchesButton = uibutton(app.ControlPanel, 'push', ...
+                'Position', [250 710 30 25], ...
+                'Text', '⋯', ...
+                'Tooltip', 'Manage Searches: View or clear accumulated search terms', ...
+                'ButtonPushedFcn', @(src, event) inlineShowManageSearchesMenu(app), ...
+                'FontSize', 14, ...
+                'FontWeight', 'bold');
+            
+            % Initialize accumulated search terms
+            app.AccumulatedSearchTerms = {};
+            app.LastAddedSearchTerm = '';
 
             % Signal tree - main component
             app.SignalTree = uitree(app.ControlPanel, ...
@@ -2965,8 +3012,16 @@ end
 
                 signals = setdiff(T.Properties.VariableNames, {'Time'});
 
-                % Apply search filter if active
-                if ~isempty(app.SignalSearchField.Value)
+                % Apply search filter if active (with cumulative search support)
+                if ~isempty(app.AccumulatedSearchTerms)
+                    % Match if signal contains ANY of the accumulated search terms (OR logic)
+                    mask = false(size(signals));
+                    for k = 1:numel(app.AccumulatedSearchTerms)
+                        mask = mask | contains(lower(signals), app.AccumulatedSearchTerms{k});
+                    end
+                    signals = signals(mask);
+                elseif ~isempty(app.SignalSearchField.Value)
+                    % Fallback to single search if accumulated terms not set
                     mask = contains(lower(signals), lower(app.SignalSearchField.Value));
                     signals = signals(mask);
                 end
@@ -3024,9 +3079,20 @@ end
                     signalName = derivedNames{i};
                     signalInfo = struct('CSVIdx', -1, 'Signal', signalName);
 
-                    % Apply search filter if active
+                    % Apply search filter if active (with cumulative search support)
                     searchMatch = true;
-                    if ~isempty(app.SignalSearchField.Value)
+                    if ~isempty(app.AccumulatedSearchTerms)
+                        % Match if signal contains ANY of the accumulated search terms (OR logic)
+                        searchMatch = false;
+                        signalLower = lower(signalName);
+                        for k = 1:numel(app.AccumulatedSearchTerms)
+                            if contains(signalLower, app.AccumulatedSearchTerms{k})
+                                searchMatch = true;
+                                break;
+                            end
+                        end
+                    elseif ~isempty(app.SignalSearchField.Value)
+                        % Fallback to single search if accumulated terms not set
                         searchMatch = contains(lower(signalName), lower(app.SignalSearchField.Value));
                     end
 
@@ -3654,17 +3720,21 @@ end
         end
 
         function filterSignals(app, searchText)
-            % Enhanced filter with hidden signal support and UNIFIED context menu recreation
+            % Enhanced filter with hidden signal support, cumulative search, and UNIFIED context menu recreation
 
             % Initialize hidden signals map
             app.initializeHiddenSignalsMap();
 
+            % Initialize accumulated search terms if not exists
+            if ~isprop(app, 'AccumulatedSearchTerms') || isempty(app.AccumulatedSearchTerms)
+                app.AccumulatedSearchTerms = {};
+            end
+
+            % Note: Searches are now added manually via the plus button
+            % This function just filters using accumulated terms (if any) or shows all signals
+
             % Clear existing tree
             delete(app.SignalTree.Children);
-
-            if isempty(searchText)
-                searchText = '';
-            end
 
             hasFilteredResults = false;
             nodesToExpand = {};
@@ -3686,16 +3756,24 @@ end
 
                 signals = setdiff(T.Properties.VariableNames, {'Time'});
 
-                % Filter signals by search text AND hidden status
+                % Filter signals by search text (OR logic for cumulative search) AND hidden status
                 filteredSignals = {};
                 for j = 1:numel(signals)
                     signalName = signals{j};
                     signalInfo = struct('CSVIdx', i, 'Signal', signalName);
 
-                    % Check search filter
+                    % Check search filter with OR logic for cumulative search
                     searchMatch = true;
-                    if ~isempty(searchText)
-                        searchMatch = contains(lower(signalName), lower(searchText));
+                    if ~isempty(app.AccumulatedSearchTerms)
+                        % Match if signal contains ANY of the accumulated search terms (OR logic)
+                        searchMatch = false;
+                        signalLower = lower(signalName);
+                        for k = 1:numel(app.AccumulatedSearchTerms)
+                            if contains(signalLower, app.AccumulatedSearchTerms{k})
+                                searchMatch = true;
+                                break;
+                            end
+                        end
                     end
 
                     % Check if signal is hidden
@@ -3708,7 +3786,7 @@ end
                 end
 
                 % Only create CSV node if it has filtered signals OR no search is active
-                if ~isempty(filteredSignals) || (isempty(searchText) && ~isempty(signals))
+                if ~isempty(filteredSignals) || (isempty(app.AccumulatedSearchTerms) && ~isempty(signals))
                     csvNode = uitreenode(app.SignalTree, 'Text', csvDisplay);
                     csvNode.NodeData = struct('Type', 'csv_folder', 'CSVIdx', i);
 
@@ -3737,7 +3815,7 @@ end
                     end
 
                     % Mark for expansion if we have search results
-                    if ~isempty(searchText) && ~isempty(filteredSignals)
+                    if ~isempty(app.AccumulatedSearchTerms) && ~isempty(filteredSignals)
                         nodesToExpand{end+1} = csvNode;
                         hasFilteredResults = true;
                     end
@@ -3754,10 +3832,18 @@ end
                     signalName = derivedNames{i};
                     signalInfo = struct('CSVIdx', -1, 'Signal', signalName);
 
-                    % Check search filter
+                    % Check search filter with OR logic for cumulative search
                     searchMatch = true;
-                    if ~isempty(searchText)
-                        searchMatch = contains(lower(signalName), lower(searchText));
+                    if ~isempty(app.AccumulatedSearchTerms)
+                        % Match if signal contains ANY of the accumulated search terms (OR logic)
+                        searchMatch = false;
+                        signalLower = lower(signalName);
+                        for k = 1:numel(app.AccumulatedSearchTerms)
+                            if contains(signalLower, app.AccumulatedSearchTerms{k})
+                                searchMatch = true;
+                                break;
+                            end
+                        end
                     end
 
                     % Check if signal is hidden
@@ -3770,7 +3856,7 @@ end
                 end
 
                 % Only create derived signals node if it has filtered signals OR no search is active
-                if ~isempty(filteredDerived) || (isempty(searchText) && ~isempty(derivedNames))
+                if ~isempty(filteredDerived) || (isempty(app.AccumulatedSearchTerms) && ~isempty(derivedNames))
                     derivedNode = uitreenode(app.SignalTree, 'Text', '⚙️ Derived Signals');
                     derivedNode.NodeData = struct('Type', 'derived_signals_folder');
 
@@ -3820,7 +3906,7 @@ end
                     end
 
                     % Mark for expansion if we have search results in derived signals
-                    if ~isempty(searchText) && ~isempty(filteredDerived)
+                    if ~isempty(app.AccumulatedSearchTerms) && ~isempty(filteredDerived)
                         nodesToExpand{end+1} = derivedNode;
                         hasFilteredResults = true;
                     end
@@ -3837,7 +3923,8 @@ end
                         % Ignore expansion errors
                     end
                 end
-                drawnow;
+                % Use limitrate for better performance
+                drawnow('limitrate');
             end
 
             % CRITICAL: Reset the tree's context menu to ensure it works
@@ -3853,7 +3940,166 @@ end
                 app.setupMultiSelectionContextMenu();
             end
 
-            drawnow;
+            % Single drawnow at the end with limitrate
+            drawnow('limitrate');
+        end
+
+        function addCurrentSearchToList(app)
+            % Add the current search text to the accumulated search list
+            currentSearch = strtrim(app.SignalSearchField.Value);
+            
+            if isempty(currentSearch) || currentSearch == ""
+                uialert(app.UIFigure, 'Please enter a search term before adding it to the list.', 'Empty Search', 'Icon', 'warning');
+                return;
+            end
+            
+            searchLower = lower(currentSearch);
+            
+            % Check if this search is already in accumulated terms
+            if any(strcmpi(app.AccumulatedSearchTerms, searchLower))
+                uialert(app.UIFigure, sprintf('Search term "%s" is already in the list.', currentSearch), 'Duplicate Search', 'Icon', 'info');
+                return;
+            end
+            
+            % Add the new search term to accumulated list
+            app.AccumulatedSearchTerms{end+1} = searchLower;
+            
+            % Update button tooltip to show current searches
+            if ~isempty(app.AccumulatedSearchTerms)
+                app.KeepPreviousSearchToggle.Tooltip = sprintf('Add Current Search: Add the current search term to the accumulated list\nCurrent searches: %s', strjoin(app.AccumulatedSearchTerms, ', '));
+            end
+            
+            % Refresh the signal tree to show results for all accumulated searches
+            app.buildSignalTree();
+            
+            % Optionally clear the search box for next search (or keep it - user can decide)
+            % Uncomment the next line if you want to auto-clear after adding:
+            % app.SignalSearchField.Value = '';
+            
+            app.StatusLabel.Text = sprintf('➕ Added "%s" to search list (%d total)', currentSearch, numel(app.AccumulatedSearchTerms));
+            app.StatusLabel.FontColor = [0.2 0.6 0.9];
+        end
+
+        function showManageSearchesMenu(app)
+            % Show context menu to manage accumulated searches
+            if isempty(app.AccumulatedSearchTerms)
+                uialert(app.UIFigure, 'No accumulated searches to manage.', 'No Searches', 'Icon', 'info');
+                return;
+            end
+            
+            % Create dialog to show and manage searches
+            d = dialog('Name', 'Manage Searches', ...
+                'Position', [300 300 400 300], ...
+                'Resize', 'on');
+            
+            % Title
+            uicontrol('Parent', d, 'Style', 'text', ...
+                'Position', [20 260 360 25], ...
+                'String', sprintf('Accumulated Search Terms (%d):', numel(app.AccumulatedSearchTerms)), ...
+                'FontSize', 12, 'FontWeight', 'bold', ...
+                'HorizontalAlignment', 'left');
+            
+            % List of search terms
+            searchList = uicontrol('Parent', d, 'Style', 'listbox', ...
+                'Position', [20 80 360 180], ...
+                'String', app.AccumulatedSearchTerms, ...
+                'FontSize', 11, ...
+                'Max', 2); % Allow multiple selection
+            
+            % Buttons
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [20 20 100 30], ...
+                'String', 'Remove Selected', ...
+                'Callback', @(src, evt) app.removeSelectedSearches(searchList, d));
+            
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [130 20 100 30], ...
+                'String', 'Clear All', ...
+                'Callback', @(src, evt) app.clearAllSearches(d));
+            
+            uicontrol('Parent', d, 'Style', 'pushbutton', ...
+                'Position', [280 20 100 30], ...
+                'String', 'Close', ...
+                'Callback', @(src, evt) close(d));
+        end
+        
+        function removeSelectedSearches(app, listbox, dialog)
+            % Remove selected search terms from accumulated list
+            selectedIdx = listbox.Value;
+            if isempty(selectedIdx) || (isscalar(selectedIdx) && selectedIdx == 0)
+                uialert(app.UIFigure, 'Please select search terms to remove.', 'No Selection', 'Icon', 'warning');
+                return;
+            end
+            
+            % Convert to row vector and sort in descending order to remove from end first
+            if isscalar(selectedIdx)
+                selectedIdx = selectedIdx;
+            else
+                selectedIdx = sort(selectedIdx(:)', 'descend');
+            end
+            
+            % Remove selected terms (remove from end to preserve indices)
+            for i = 1:numel(selectedIdx)
+                if selectedIdx(i) <= numel(app.AccumulatedSearchTerms)
+                    app.AccumulatedSearchTerms(selectedIdx(i)) = [];
+                end
+            end
+            
+            % Update listbox
+            if ~isempty(app.AccumulatedSearchTerms)
+                listbox.String = app.AccumulatedSearchTerms;
+                listbox.Value = [];
+            else
+                listbox.String = {};
+                listbox.Value = [];
+            end
+            
+            % Refresh the signal tree
+            if ~isempty(app.SignalSearchField.Value)
+                app.filterSignals(app.SignalSearchField.Value);
+            else
+                app.buildSignalTree();
+            end
+            
+            % Update toggle tooltip
+            if ~isempty(app.AccumulatedSearchTerms)
+                app.KeepPreviousSearchToggle.Tooltip = sprintf('Keep Previous Search: ON - New searches will be added to existing results\nCurrent searches: %s', strjoin(app.AccumulatedSearchTerms, ', '));
+            else
+                app.KeepPreviousSearchToggle.Tooltip = 'Keep Previous Search: ON - New searches will be added to existing results';
+            end
+            
+            % Close dialog if no searches left
+            if isempty(app.AccumulatedSearchTerms)
+                close(dialog);
+                uialert(app.UIFigure, 'All search terms removed.', 'Searches Cleared', 'Icon', 'info');
+            end
+        end
+        
+        function clearAllSearches(app, dialog)
+            % Clear all accumulated search terms
+            answer = uiconfirm(app.UIFigure, ...
+                sprintf('Clear all %d accumulated search terms?', numel(app.AccumulatedSearchTerms)), ...
+                'Confirm Clear', 'Options', {'Clear All', 'Cancel'}, ...
+                'DefaultOption', 'Cancel', 'Icon', 'warning');
+            
+            if strcmp(answer, 'Clear All')
+                app.AccumulatedSearchTerms = {};
+                app.LastAddedSearchTerm = '';
+                close(dialog);
+                
+                % Refresh the signal tree
+                if ~isempty(app.SignalSearchField.Value)
+                    app.filterSignals(app.SignalSearchField.Value);
+                else
+                    app.buildSignalTree();
+                end
+                
+                % Update toggle tooltip
+                app.KeepPreviousSearchToggle.Tooltip = 'Keep Previous Search: ON - New searches will be added to existing results';
+                
+                app.StatusLabel.Text = '🗑️ All search terms cleared';
+                app.StatusLabel.FontColor = [0.2 0.6 0.9];
+            end
         end
 
         function handleContextMenuAction(app, action, signalInfo)
@@ -8066,6 +8312,22 @@ function inlineAutoScaleCurrentSubplot(app)
         app.autoScaleCurrentSubplot();
     catch ME
         warning('Error in autoScaleCurrentSubplot: %s', ME.message);
+    end
+end
+
+function inlineAddCurrentSearchToList(app)
+    try
+        app.addCurrentSearchToList();
+    catch ME
+        warning('Error in addCurrentSearchToList: %s', ME.message);
+    end
+end
+
+function inlineShowManageSearchesMenu(app)
+    try
+        app.showManageSearchesMenu();
+    catch ME
+        warning('Error in showManageSearchesMenu: %s', ME.message);
     end
 end
 

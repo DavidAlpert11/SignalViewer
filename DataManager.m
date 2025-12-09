@@ -20,6 +20,9 @@ classdef DataManager < handle
         UpdateRate       double = 0.1  % Check every 100ms (optimized from 0.01)
         LatestDataRates  cell   % Cell array of doubles, one per CSV
         StreamingEnabled logical = false  % NEW: Toggle for streaming mode
+        % Performance optimization: Signal lookup cache
+        SignalCache      containers.Map  % Cache for signal data lookups (key: 'CSVIdx_SignalName', value: data)
+        CacheValid        logical = false  % Flag to indicate if cache is valid
     end
 
     methods
@@ -35,6 +38,8 @@ classdef DataManager < handle
             obj.LastReadRows = {};
             obj.StreamingTimers = {};
             obj.LatestDataRates = {};
+            obj.SignalCache = containers.Map('KeyType', 'char', 'ValueType', 'any');
+            obj.CacheValid = false;
         end
 
         function startStreamingAll(obj)
@@ -266,12 +271,15 @@ classdef DataManager < handle
                     return;
                 end
                 
-                % For very large files, use more memory-efficient options
-                if fileSizeMB > 500
-                    % Use chunked reading for extremely large files
+                % Set variable types before reading (more efficient)
+                opts = setvartype(opts, 'double');
+                
+                % For very large files, use chunked reading
+                if fileSizeMB > 200  % Lowered threshold for better performance
+                    % Use chunked reading for large files
                     T = obj.readLargeCSVChunked(filePath, opts);
                 else
-                    opts = setvartype(opts, 'double');
+                    % Direct read for smaller files (faster)
                     T = readtable(filePath, opts);
                 end
             catch ME
@@ -317,6 +325,10 @@ classdef DataManager < handle
             end
             obj.DataTables{idx} = T;
             obj.LastReadRows{idx} = height(T);
+            
+            % Invalidate cache when new data is loaded
+            obj.CacheValid = false;
+            obj.SignalCache = containers.Map('KeyType', 'char', 'ValueType', 'any');
             
             % Update signal names (union of all signals) - optimized
             obj.updateSignalNames();
@@ -736,18 +748,64 @@ classdef DataManager < handle
         
         function T = readLargeCSVChunked(obj, filePath, opts)
             % Read large CSV files in chunks to avoid memory issues
-            % This is a fallback for files > 500MB
+            % Optimized for files > 500MB with better memory management
             
             try
-                % Try to read in chunks
-                chunkSize = 100000; % Read 100k rows at a time
-                T = table();
-                firstChunk = true;
-                rowOffset = 0;
+                % Adaptive chunk size based on file size
+                fileInfo = dir(filePath);
+                fileSizeMB = fileInfo(1).bytes / (1024 * 1024);
                 
+                % Larger chunk size for very large files (better performance)
+                if fileSizeMB > 1000
+                    chunkSize = 500000; % 500k rows for very large files
+                else
+                    chunkSize = 200000; % 200k rows for large files
+                end
+                
+                % Pre-allocate cell array for chunks (more efficient than growing table)
+                chunks = {};
+                rowOffset = 0;
+                totalRows = 0;
+                
+                % First, estimate total rows by reading header and first chunk
+                try
+                    % Read first chunk to get structure
+                    chunkOpts = opts;
+                    chunkOpts.DataLines = [1, min(chunkSize, 10000)]; % Read small first chunk
+                    firstChunk = readtable(filePath, chunkOpts);
+                    
+                    if isempty(firstChunk) || height(firstChunk) == 0
+                        T = table();
+                        return;
+                    end
+                    
+                    % Set first column as Time
+                    if ~isempty(firstChunk.Properties.VariableNames)
+                        firstChunk.Properties.VariableNames{1} = 'Time';
+                    end
+                    
+                    % Set variable types for all columns
+                    opts = setvartype(opts, 'double');
+                    
+                    chunks{1} = firstChunk;
+                    totalRows = height(firstChunk);
+                    rowOffset = height(firstChunk);
+                    
+                catch ME
+                    % If chunk reading fails, fall back to full read
+                    opts = setvartype(opts, 'double');
+                    T = readtable(filePath, opts);
+                    if ~isempty(T) && ~isempty(T.Properties.VariableNames)
+                        T.Properties.VariableNames{1} = 'Time';
+                    end
+                    return;
+                end
+                
+                % Continue reading chunks
+                chunkCount = 1;
                 while true
                     try
-                        % Read chunk
+                        % Read next chunk
                         chunkOpts = opts;
                         chunkOpts.DataLines = [rowOffset + 1, rowOffset + chunkSize];
                         chunk = readtable(filePath, chunkOpts);
@@ -761,20 +819,15 @@ classdef DataManager < handle
                             chunk.Properties.VariableNames{1} = 'Time';
                         end
                         
-                        if firstChunk
-                            T = chunk;
-                            firstChunk = false;
-                        else
-                            % Append chunk
-                            T = [T; chunk];
-                        end
-                        
+                        chunkCount = chunkCount + 1;
+                        chunks{chunkCount} = chunk;
+                        totalRows = totalRows + height(chunk);
                         rowOffset = rowOffset + height(chunk);
                         
-                        % Update progress
-                        if mod(rowOffset, chunkSize * 5) == 0
-                            obj.App.StatusLabel.Text = sprintf('📊 Loading... %d rows loaded', rowOffset);
-                            drawnow;
+                        % Update progress less frequently for better performance
+                        if mod(chunkCount, 10) == 0
+                            obj.App.StatusLabel.Text = sprintf('📊 Loading... %d rows loaded', totalRows);
+                            drawnow('limitrate'); % Limit drawnow rate
                         end
                         
                         % If we got fewer rows than requested, we're done
@@ -782,16 +835,29 @@ classdef DataManager < handle
                             break;
                         end
                     catch
-                        % If chunk reading fails, fall back to full read
-                        opts = setvartype(opts, 'double');
-                        T = readtable(filePath, opts);
+                        % If chunk reading fails, break and concatenate what we have
                         break;
                     end
                 end
+                
+                % Concatenate all chunks at once (more efficient than incremental)
+                if chunkCount == 1
+                    T = chunks{1};
+                else
+                    T = vertcat(chunks{:});
+                end
+                
             catch
                 % Final fallback: try normal read
-                opts = setvartype(opts, 'double');
-                T = readtable(filePath, opts);
+                try
+                    opts = setvartype(opts, 'double');
+                    T = readtable(filePath, opts);
+                    if ~isempty(T) && ~isempty(T.Properties.VariableNames)
+                        T.Properties.VariableNames{1} = 'Time';
+                    end
+                catch
+                    T = table();
+                end
             end
         end
 

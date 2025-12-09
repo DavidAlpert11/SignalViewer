@@ -1714,8 +1714,17 @@ classdef PlotManager < handle
                         scaledData = signalData * scaleFactor;
                         
                         % Downsample for large datasets to improve performance
-                        maxPoints = 50000;  % Maximum points to plot for performance
-                        if length(xData) > maxPoints
+                        % Adaptive maxPoints based on data size for better balance
+                        dataLength = length(xData);
+                        if dataLength > 100000
+                            maxPoints = 100000;  % More points for very large datasets
+                        elseif dataLength > 50000
+                            maxPoints = 50000;   % Standard for large datasets
+                        else
+                            maxPoints = dataLength; % No downsampling for smaller datasets
+                        end
+                        
+                        if dataLength > maxPoints
                             [xData, scaledData] = obj.downsampleData(xData, scaledData, maxPoints);
                         end
 
@@ -1932,8 +1941,8 @@ classdef PlotManager < handle
                         ax.YLimMode = 'manual';
                     end
                 end
-                % Single drawnow at the very end
-                drawnow;
+                % Single drawnow at the very end (limit rate for better performance)
+                drawnow('limitrate');
             end
 
             % Link all axes in all tabs on the x-axis
@@ -1942,6 +1951,9 @@ classdef PlotManager < handle
             % Restore highlight after refresh
             obj.App.highlightSelectedSubplot(obj.CurrentTabIdx, obj.SelectedSubplotIdx);
             autoScaleCurrentSubplot(obj.App);
+            
+            % Final drawnow with limitrate for smooth UI
+            drawnow('limitrate');
         end
 
         function commonUnits = findCommonUnits(obj, sigs)
@@ -2345,10 +2357,10 @@ classdef PlotManager < handle
             end
         end
 
-        % **NEW METHOD: Downsample data for large datasets**
+        % **OPTIMIZED METHOD: Downsample data for large datasets**
         function [xDown, yDown] = downsampleData(~, xData, yData, maxPoints)
             % Downsample data to maxPoints while preserving important features
-            % Uses decimation for better performance with large datasets
+            % Optimized algorithm for better performance with large datasets
             
             n = length(xData);
             if n <= maxPoints
@@ -2358,17 +2370,30 @@ classdef PlotManager < handle
             end
             
             % Calculate decimation factor
-            decFactor = ceil(n / maxPoints);
+            decFactor = max(1, floor(n / maxPoints));
             
-            % Simple decimation (every Nth point)
-            indices = 1:decFactor:n;
-            xDown = xData(indices);
-            yDown = yData(indices);
+            % Use vectorized indexing for better performance
+            if decFactor == 1
+                xDown = xData;
+                yDown = yData;
+            else
+                % Uniform decimation with first and last points always included
+                indices = [1:decFactor:n, n];
+                indices = unique(indices); % Remove duplicates if n is already included
+                xDown = xData(indices);
+                yDown = yData(indices);
+            end
             
-            % Always include first and last points
-            if indices(end) ~= n
-                xDown(end+1) = xData(end);
-                yDown(end+1) = yData(end);
+            % Ensure we don't exceed maxPoints (safety check)
+            if length(xDown) > maxPoints
+                % Additional decimation if needed
+                step = ceil(length(xDown) / maxPoints);
+                finalIndices = 1:step:length(xDown);
+                if finalIndices(end) ~= length(xDown)
+                    finalIndices = [finalIndices, length(xDown)];
+                end
+                xDown = xDown(finalIndices);
+                yDown = yDown(finalIndices);
             end
         end
         
