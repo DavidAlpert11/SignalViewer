@@ -416,28 +416,41 @@ class SignalViewerApp:
                                                                     ],
                                                                     className="mb-2 text-center",
                                                                 ),
-                                                                # X-Y assignment controls (shown only in xy mode)
+                                                                # X-Y assignment controls with dropdowns (shown only in xy mode)
                                                                 html.Div(
                                                                     [
                                                                         html.Div(
                                                                             [
-                                                                                html.Small("X: ", className="text-info fw-bold"),
-                                                                                html.Small(id="xy-x-signal", children="(none)", className="text-muted"),
+                                                                                html.Small("X: ", className="text-info fw-bold me-1", style={"width": "20px"}),
+                                                                                dbc.Select(
+                                                                                    id="xy-x-select",
+                                                                                    size="sm",
+                                                                                    placeholder="Select X signal...",
+                                                                                    style={"fontSize": "10px"},
+                                                                                ),
                                                                             ],
-                                                                            className="d-flex align-items-center",
+                                                                            className="d-flex align-items-center mb-1",
                                                                         ),
                                                                         html.Div(
                                                                             [
-                                                                                html.Small("Y: ", className="text-warning fw-bold"),
-                                                                                html.Small(id="xy-y-signal", children="(none)", className="text-muted"),
+                                                                                html.Small("Y: ", className="text-warning fw-bold me-1", style={"width": "20px"}),
+                                                                                dbc.Select(
+                                                                                    id="xy-y-select",
+                                                                                    size="sm",
+                                                                                    placeholder="Select Y signal...",
+                                                                                    style={"fontSize": "10px"},
+                                                                                ),
                                                                             ],
                                                                             className="d-flex align-items-center",
                                                                         ),
                                                                     ],
                                                                     id="xy-controls",
                                                                     style={"display": "none"},
-                                                                    className="mb-2 border rounded p-1",
+                                                                    className="mb-2 border rounded p-2",
                                                                 ),
+                                                                # Hidden elements for callback compatibility
+                                                                html.Div(id="xy-x-signal", style={"display": "none"}),
+                                                                html.Div(id="xy-y-signal", style={"display": "none"}),
                                                                 html.Div(
                                                                     id="assigned-list",
                                                                     style={
@@ -1604,8 +1617,19 @@ class SignalViewerApp:
 
                 assigned = set()
                 if assignments:
-                    for s in assignments.get(str(tab), {}).get(str(subplot), []):
-                        assigned.add(f"{s['csv_idx']}:{s['signal']}")
+                    assignment_data = assignments.get(str(tab), {}).get(str(subplot), [])
+                    # Handle both list (time mode) and dict (xy mode) formats
+                    if isinstance(assignment_data, list):
+                        for s in assignment_data:
+                            assigned.add(f"{s['csv_idx']}:{s['signal']}")
+                    elif isinstance(assignment_data, dict):
+                        # X-Y mode: check x and y signals
+                        if assignment_data.get("x"):
+                            x = assignment_data["x"]
+                            assigned.add(f"{x['csv_idx']}:{x['signal']}")
+                        if assignment_data.get("y"):
+                            y = assignment_data["y"]
+                            assigned.add(f"{y['csv_idx']}:{y['signal']}")
 
                 linked_csvs = {}
                 for lg in links or []:
@@ -2355,10 +2379,30 @@ class SignalViewerApp:
             tab_key = str(sel_tab)
             subplot_key = str(sel_subplot)
 
+            # Get subplot modes for current tab FIRST (needed for assignment initialization)
+            tab_subplot_modes = (subplot_modes or {}).get(tab_key, {})
+            current_mode = tab_subplot_modes.get(subplot_key, "time")
+
             if tab_key not in assignments:
                 assignments[tab_key] = {}
+            
+            # Initialize assignment based on current mode (only if not exists)
             if subplot_key not in assignments[tab_key]:
-                assignments[tab_key][subplot_key] = []
+                if current_mode == "xy":
+                    assignments[tab_key][subplot_key] = {"x": None, "y": None}
+                else:
+                    assignments[tab_key][subplot_key] = []
+            
+            # Convert assignment format ONLY if mode was explicitly changed (not on every callback)
+            # Check trigger to see if mode toggle was clicked
+            current_assignment = assignments[tab_key][subplot_key]
+            if "subplot-mode" in trigger or "store-subplot-modes" in trigger:
+                if current_mode == "xy" and isinstance(current_assignment, list):
+                    # Convert list to dict - clear for fresh X-Y assignment
+                    assignments[tab_key][subplot_key] = {"x": None, "y": None}
+                elif current_mode == "time" and isinstance(current_assignment, dict):
+                    # Convert dict to list - clear for fresh time assignment
+                    assignments[tab_key][subplot_key] = []
 
             rows = int(rows) if rows else 1
             cols = int(cols) if cols else 1
@@ -2394,9 +2438,6 @@ class SignalViewerApp:
             if sel_subplot >= rows * cols:
                 sel_subplot = 0
                 subplot_key = "0"
-
-            # Get current subplot mode
-            current_mode = tab_subplot_modes.get(subplot_key, "time")
             
             # Handle signal checkbox changes - FIXED linking logic
             if (
@@ -2646,21 +2687,28 @@ class SignalViewerApp:
                 Output("xy-controls", "style"),
                 Output("xy-x-signal", "children"),
                 Output("xy-y-signal", "children"),
+                Output("xy-x-select", "options"),
+                Output("xy-y-select", "options"),
+                Output("xy-x-select", "value"),
+                Output("xy-y-select", "value"),
             ],
             [
                 Input("subplot-mode-toggle", "value"),
                 Input("store-selected-subplot", "data"),
                 Input("tabs", "value"),
+                Input("store-assignments", "data"),  # Listen to assignment changes
+                Input("store-csv-files", "data"),  # Listen to CSV changes
             ],
             [
                 State("store-subplot-modes", "data"),
-                State("store-assignments", "data"),
+                State("store-derived", "data"),
             ],
             prevent_initial_call=True,
         )
-        def handle_subplot_mode(mode, sel_subplot, active_tab, modes, assignments):
+        def handle_subplot_mode(mode, sel_subplot, active_tab, assignments, csv_files, modes, derived):
             ctx = callback_context
             modes = modes or {}
+            assignments = assignments or {}
             
             tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
             tab_key = str(tab_idx)
@@ -2681,21 +2729,49 @@ class SignalViewerApp:
             # Show/hide X-Y controls based on mode
             xy_style = {"display": "block"} if mode == "xy" else {"display": "none"}
             
-            # Get X and Y signal names if in xy mode
+            # Build signal options for dropdowns
+            signal_options = []
+            
+            # Add signals from loaded CSVs
+            for csv_idx, fp in enumerate(csv_files or []):
+                if csv_idx < len(self.data_manager.data_tables):
+                    df = self.data_manager.data_tables[csv_idx]
+                    if df is not None:
+                        csv_name = os.path.splitext(os.path.basename(fp))[0]
+                        for col in df.columns:
+                            if col.lower() != "time":
+                                # Value format: "csv_idx:signal_name"
+                                signal_options.append({
+                                    "label": f"{col} ({csv_name})",
+                                    "value": f"{csv_idx}:{col}"
+                                })
+            
+            # Add derived signals
+            for sig_name in (derived or {}).keys():
+                signal_options.append({
+                    "label": f"{sig_name} (D)",
+                    "value": f"-1:{sig_name}"
+                })
+            
+            # Get current X and Y values if in xy mode
             x_signal = "(none)"
             y_signal = "(none)"
+            x_value = None
+            y_value = None
             
             if mode == "xy":
                 assignment = assignments.get(tab_key, {}).get(subplot_key, {})
                 if isinstance(assignment, dict):
                     x_info = assignment.get("x", {})
                     y_info = assignment.get("y", {})
-                    if x_info:
+                    if x_info and x_info.get("signal"):
                         x_signal = x_info.get("signal", "(none)")
-                    if y_info:
+                        x_value = f"{x_info.get('csv_idx', 0)}:{x_info.get('signal', '')}"
+                    if y_info and y_info.get("signal"):
                         y_signal = y_info.get("signal", "(none)")
+                        y_value = f"{y_info.get('csv_idx', 0)}:{y_info.get('signal', '')}"
             
-            return modes, xy_style, x_signal, y_signal
+            return modes, xy_style, x_signal, y_signal, signal_options, signal_options, x_value, y_value
 
         # Sync mode toggle when subplot changes
         @self.app.callback(
@@ -2715,6 +2791,70 @@ class SignalViewerApp:
             
             mode = modes.get(tab_key, {}).get(subplot_key, "time")
             return mode
+
+        # Handle X-Y dropdown selection
+        @self.app.callback(
+            Output("store-assignments", "data", allow_duplicate=True),
+            [
+                Input("xy-x-select", "value"),
+                Input("xy-y-select", "value"),
+            ],
+            [
+                State("store-assignments", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+                State("store-subplot-modes", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def handle_xy_dropdown_selection(x_value, y_value, assignments, sel_tab, sel_subplot, modes):
+            ctx = callback_context
+            if not ctx.triggered:
+                return dash.no_update
+            
+            assignments = assignments or {}
+            tab_key = str(sel_tab or 0)
+            subplot_key = str(sel_subplot or 0)
+            
+            # Check if we're in X-Y mode
+            modes = modes or {}
+            current_mode = modes.get(tab_key, {}).get(subplot_key, "time")
+            if current_mode != "xy":
+                return dash.no_update
+            
+            # Initialize assignment dict if needed
+            if tab_key not in assignments:
+                assignments[tab_key] = {}
+            if subplot_key not in assignments[tab_key] or not isinstance(assignments[tab_key][subplot_key], dict):
+                assignments[tab_key][subplot_key] = {"x": None, "y": None}
+            
+            # Parse X value (format: "csv_idx:signal_name")
+            if x_value:
+                try:
+                    csv_idx, signal_name = x_value.split(":", 1)
+                    assignments[tab_key][subplot_key]["x"] = {
+                        "csv_idx": int(csv_idx),
+                        "signal": signal_name
+                    }
+                except:
+                    pass
+            else:
+                assignments[tab_key][subplot_key]["x"] = None
+            
+            # Parse Y value
+            if y_value:
+                try:
+                    csv_idx, signal_name = y_value.split(":", 1)
+                    assignments[tab_key][subplot_key]["y"] = {
+                        "csv_idx": int(csv_idx),
+                        "signal": signal_name
+                    }
+                except:
+                    pass
+            else:
+                assignments[tab_key][subplot_key]["y"] = None
+            
+            return assignments
 
         # Handle X/Y signal removal in X-Y mode
         @self.app.callback(
