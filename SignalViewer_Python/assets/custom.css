@@ -1,0 +1,151 @@
+/* Custom styles for Signal Viewer Pro */
+
+/* Light mode checkbox styling */
+.form-check-input {
+    border-width: 2px !important;
+}
+
+/* Dark mode - default */
+body[data-theme="dark"] .form-check-input {
+    background-color: #2a2a3e !important;
+    border-color: #666 !important;
+}
+
+body[data-theme="dark"] .form-check-input:checked {
+    background-color: #4ea8de !important;
+    border-color: #4ea8de !important;
+}
+
+/* Light mode overrides */
+body[data-theme="light"] .form-check-input {
+    background-color: #ffffff !important;
+    border-color: #495057 !important;
+}
+
+body[data-theme="light"] .form-check-input:checked {
+    background-color: #2E86AB !important;
+    border-color: #2E86AB !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a2e;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ========================================
+   Split.js Resizable Panel Layout
+   ======================================== */
+
+/* Main horizontal split container */
+.split-container {
+    display: flex !important;
+    flex-direction: row !important;
+    height: calc(100vh - 90px);
+    width: 100%;
+}
+
+/* Sidebar - vertical split container */
+.split-sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Plot area */
+.split-plot {
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Individual panels in sidebar */
+.split-panel {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Horizontal gutter (between sidebar and plot) */
+.gutter.gutter-horizontal {
+    cursor: col-resize !important;
+    background-color: #3a3a50 !important;
+    width: 6px !important;
+    min-width: 6px !important;
+    transition: background-color 0.2s;
+}
+
+.gutter.gutter-horizontal:hover {
+    background-color: #4ea8de !important;
+}
+
+/* Vertical gutter (between cards in sidebar) */
+.gutter.gutter-vertical {
+    cursor: row-resize !important;
+    background-color: #3a3a50 !important;
+    height: 5px !important;
+    min-height: 5px !important;
+    transition: background-color 0.2s;
+}
+
+.gutter.gutter-vertical:hover {
+    background-color: #4ea8de !important;
+}
+
+/* Cards fill their split panels */
+.split-panel .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0 !important;
+    overflow: hidden;
+}
+
+.split-panel .card-body {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+/* Plot card fills container */
+.split-plot .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.split-plot .card-body {
+    flex: 1;
+    overflow: hidden;
+    padding: 5px !important;
+}
+
+/* Graph fills available space */
+.split-plot .js-plotly-plot,
+.split-plot .plotly {
+    height: 100% !important;
+}
+
+/* Badge styling */
+.badge {
+    font-weight: normal;
+}
+
+/* Small text for signal tree */
+.signal-tree-item {
+    font-size: 11px;
+}
+

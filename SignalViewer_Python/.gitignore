@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+SignalViewer_Python/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# PyInstaller
+*.spec
+build_exe.bat
+
+# Session files
+session.json
+
+# Temporary files
+temp/
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
