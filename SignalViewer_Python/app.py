@@ -128,6 +128,7 @@ class SignalViewerApp:
                 dcc.Store(id="store-refresh-trigger", data=0),
                 dcc.Store(id="store-search-filters", data=[]),
                 dcc.Store(id="store-cursor-x", data={"x": None, "initialized": False}),
+                dcc.Store(id="store-subplot-modes", data={}),  # {tab: {subplot: "time"|"xy"}}
                 dcc.Download(id="download-session"),
                 dbc.Container(
                     [
@@ -399,6 +400,44 @@ class SignalViewerApp:
                                                         ),
                                                         dbc.CardBody(
                                                             [
+                                                                # Mode toggle: Time vs X-Y
+                                                                html.Div(
+                                                                    [
+                                                                        dbc.RadioItems(
+                                                                            id="subplot-mode-toggle",
+                                                                            options=[
+                                                                                {"label": "📈 Time", "value": "time"},
+                                                                                {"label": "⚡ X-Y", "value": "xy"},
+                                                                            ],
+                                                                            value="time",
+                                                                            inline=True,
+                                                                            className="small",
+                                                                        ),
+                                                                    ],
+                                                                    className="mb-2 text-center",
+                                                                ),
+                                                                # X-Y assignment controls (shown only in xy mode)
+                                                                html.Div(
+                                                                    [
+                                                                        html.Div(
+                                                                            [
+                                                                                html.Small("X: ", className="text-info fw-bold"),
+                                                                                html.Small(id="xy-x-signal", children="(none)", className="text-muted"),
+                                                                            ],
+                                                                            className="d-flex align-items-center",
+                                                                        ),
+                                                                        html.Div(
+                                                                            [
+                                                                                html.Small("Y: ", className="text-warning fw-bold"),
+                                                                                html.Small(id="xy-y-signal", children="(none)", className="text-muted"),
+                                                                            ],
+                                                                            className="d-flex align-items-center",
+                                                                        ),
+                                                                    ],
+                                                                    id="xy-controls",
+                                                                    style={"display": "none"},
+                                                                    className="mb-2 border rounded p-1",
+                                                                ),
                                                                 html.Div(
                                                                     id="assigned-list",
                                                                     style={
@@ -524,16 +563,11 @@ class SignalViewerApp:
                                                                                         "display": "inline-block",
                                                                                     },
                                                                                 ),
+                                                                                # Hidden subplot selector (needed for callbacks)
                                                                                 dbc.Select(
                                                                                     id="subplot-select",
-                                                                                    size="sm",
-                                                                                    className="ms-2",
-                                                                                    style={
-                                                                                        "width": "55px",
-                                                                                        "display": "inline-block",
-                                                                                    },
+                                                                                    style={"display": "none"},
                                                                                 ),
-                                                                                # Hidden input to satisfy callback (not visible)
                                                                                 dbc.Input(
                                                                                     id="subplot-input",
                                                                                     type="number",
@@ -826,6 +860,7 @@ class SignalViewerApp:
         link_axes=False,
         time_cursor=True,
         cursor_x=None,
+        subplot_modes=None,  # {subplot_key: "time"|"xy"}
     ):
         colors = THEMES[theme]
 
@@ -939,14 +974,22 @@ class SignalViewerApp:
         # Plot signals - each subplot gets its own legend group
         # Also collect signal data for cursor value display
         subplot_signal_data = {}  # {sp_idx: [(x_arr, y_arr, name, color), ...]}
+        subplot_modes = subplot_modes or {}
         
         if assignments and tab_key in assignments:
             # First pass: collect all signal names to check for duplicates
             all_signal_names = []
             for sp_idx in range(rows * cols):
-                sp_signals = assignments.get(tab_key, {}).get(str(sp_idx), [])
-                for sig in sp_signals:
-                    all_signal_names.append(sig.get("signal", ""))
+                sp_assignment = assignments.get(tab_key, {}).get(str(sp_idx), [])
+                # Handle both list (time mode) and dict (xy mode) formats
+                if isinstance(sp_assignment, list):
+                    for sig in sp_assignment:
+                        all_signal_names.append(sig.get("signal", ""))
+                elif isinstance(sp_assignment, dict):
+                    if "x" in sp_assignment:
+                        all_signal_names.append(sp_assignment["x"].get("signal", ""))
+                    if "y" in sp_assignment:
+                        all_signal_names.append(sp_assignment["y"].get("signal", ""))
             # Find duplicate signal names
             duplicate_signals = set(n for n in all_signal_names if all_signal_names.count(n) > 1)
             
@@ -954,9 +997,98 @@ class SignalViewerApp:
             trace_idx = 0  # Unique trace counter for independent legend behavior
             for sp_idx in range(rows * cols):
                 subplot_signal_data[sp_idx] = []
-                sp_signals = assignments.get(tab_key, {}).get(str(sp_idx), [])
+                sp_assignment = assignments.get(tab_key, {}).get(str(sp_idx), [])
                 r = sp_idx // cols + 1
                 c = sp_idx % cols + 1
+                
+                # Get subplot mode
+                subplot_mode = subplot_modes.get(str(sp_idx), "time")
+                
+                # Handle X-Y mode
+                if subplot_mode == "xy" and isinstance(sp_assignment, dict):
+                    x_info = sp_assignment.get("x", {})
+                    y_info = sp_assignment.get("y", {})
+                    
+                    if x_info and y_info:
+                        # Get X signal data
+                        x_csv_idx = x_info.get("csv_idx", -1)
+                        x_signal_name = x_info.get("signal", "")
+                        x_data = None
+                        x_label = ""
+                        
+                        if x_csv_idx == -1 and x_signal_name in self.derived_signals:
+                            ds = self.derived_signals[x_signal_name]
+                            x_data = np.array(ds.get("data", []))
+                            x_label = f"{x_signal_name} (D)"
+                        elif x_csv_idx >= 0 and x_csv_idx < len(self.data_manager.data_tables):
+                            df = self.data_manager.data_tables[x_csv_idx]
+                            if df is not None and x_signal_name in df.columns:
+                                x_data = df[x_signal_name].values
+                                if x_csv_idx < len(self.data_manager.csv_file_paths):
+                                    csv_path = self.data_manager.csv_file_paths[x_csv_idx]
+                                    csv_label = os.path.splitext(os.path.basename(csv_path))[0]
+                                else:
+                                    csv_label = f"C{x_csv_idx+1}"
+                                x_label = f"{x_signal_name} ({csv_label})"
+                        
+                        # Get Y signal data
+                        y_csv_idx = y_info.get("csv_idx", -1)
+                        y_signal_name = y_info.get("signal", "")
+                        y_data = None
+                        y_label = ""
+                        
+                        if y_csv_idx == -1 and y_signal_name in self.derived_signals:
+                            ds = self.derived_signals[y_signal_name]
+                            y_data = np.array(ds.get("data", []))
+                            y_label = f"{y_signal_name} (D)"
+                        elif y_csv_idx >= 0 and y_csv_idx < len(self.data_manager.data_tables):
+                            df = self.data_manager.data_tables[y_csv_idx]
+                            if df is not None and y_signal_name in df.columns:
+                                y_data = df[y_signal_name].values
+                                if y_csv_idx < len(self.data_manager.csv_file_paths):
+                                    csv_path = self.data_manager.csv_file_paths[y_csv_idx]
+                                    csv_label = os.path.splitext(os.path.basename(csv_path))[0]
+                                else:
+                                    csv_label = f"C{y_csv_idx+1}"
+                                y_label = f"{y_signal_name} ({csv_label})"
+                        
+                        if x_data is not None and y_data is not None:
+                            # Ensure same length
+                            min_len = min(len(x_data), len(y_data))
+                            x_data = x_data[:min_len]
+                            y_data = y_data[:min_len]
+                            
+                            legend_ref = f"legend{sp_idx + 1}" if sp_idx > 0 else "legend"
+                            unique_legend_group = f"trace_{trace_idx}"
+                            color = SIGNAL_COLORS[color_idx % len(SIGNAL_COLORS)]
+                            
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=x_data,
+                                    y=y_data,
+                                    mode="lines+markers",
+                                    name=f"{y_label} vs {x_label}",
+                                    line=dict(color=color, width=1.5),
+                                    marker=dict(size=3, color=color),
+                                    legendgroup=unique_legend_group,
+                                    showlegend=True,
+                                    legend=legend_ref,
+                                ),
+                                row=r,
+                                col=c,
+                            )
+                            
+                            # Update axis labels for X-Y mode
+                            fig.update_xaxes(title_text=x_label, row=r, col=c)
+                            fig.update_yaxes(title_text=y_label, row=r, col=c)
+                            
+                            subplot_signal_data[sp_idx].append((x_data, y_data, f"{y_label} vs {x_label}", color))
+                            trace_idx += 1
+                            color_idx += 1
+                    continue  # Skip to next subplot
+                
+                # Time mode: process list of signals
+                sp_signals = sp_assignment if isinstance(sp_assignment, list) else []
 
                 for sig in sp_signals:
                     csv_idx = sig.get("csv_idx", -1)
@@ -2060,39 +2192,74 @@ class SignalViewerApp:
             
             return subplot_idx, str(subplot_idx), None  # Clear input after setting
 
-        # Click on plot to select subplot (always works)
+        # Click on plot to select subplot - uses both clickData and relayoutData
         @self.app.callback(
             [
                 Output("store-selected-subplot", "data", allow_duplicate=True),
                 Output("subplot-select", "value", allow_duplicate=True),
             ],
-            Input("plot", "clickData"),
+            [
+                Input("plot", "clickData"),
+                Input("plot", "relayoutData"),
+            ],
             [
                 State("store-layouts", "data"),
                 State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
             ],
             prevent_initial_call=True,
         )
-        def select_subplot_by_click(click_data, layouts, tab_idx):
-            if not click_data:
+        def select_subplot_by_click(click_data, relayout_data, layouts, tab_idx, current_subplot):
+            ctx = callback_context
+            if not ctx.triggered:
                 return dash.no_update, dash.no_update
             
-            # Get the axis reference from click data to determine subplot
-            point = click_data.get("points", [{}])[0]
+            trigger = ctx.triggered[0]["prop_id"]
+            subplot_idx = None
             
-            # Extract subplot index from axis references (xaxis, xaxis2, xaxis3...)
-            x_axis = point.get("xaxis", "x")
-            
-            # Parse subplot number from axis name (x, x2, x3... -> 0, 1, 2...)
-            if x_axis == "x":
-                subplot_idx = 0
-            else:
-                try:
-                    subplot_idx = int(x_axis.replace("x", "")) - 1
-                except:
+            # Handle clickData (clicking on a trace)
+            if "clickData" in trigger and click_data:
+                point = click_data.get("points", [{}])[0]
+                x_axis = point.get("xaxis", "x")
+                
+                if x_axis == "x":
                     subplot_idx = 0
+                else:
+                    try:
+                        subplot_idx = int(x_axis.replace("x", "")) - 1
+                    except:
+                        subplot_idx = 0
             
-            return subplot_idx, str(subplot_idx)  # Return int for store, str for dropdown
+            # Handle relayoutData (clicking/zooming on subplot area)
+            elif "relayoutData" in trigger and relayout_data:
+                # relayoutData contains axis references like "xaxis.range[0]", "xaxis2.autorange", etc.
+                for key in relayout_data.keys():
+                    if key.startswith("xaxis"):
+                        # Extract axis number from key like "xaxis2.range[0]"
+                        axis_part = key.split(".")[0]  # "xaxis" or "xaxis2"
+                        if axis_part == "xaxis":
+                            subplot_idx = 0
+                        else:
+                            try:
+                                subplot_idx = int(axis_part.replace("xaxis", "")) - 1
+                            except:
+                                pass
+                        break
+                    elif key.startswith("yaxis"):
+                        axis_part = key.split(".")[0]
+                        if axis_part == "yaxis":
+                            subplot_idx = 0
+                        else:
+                            try:
+                                subplot_idx = int(axis_part.replace("yaxis", "")) - 1
+                            except:
+                                pass
+                        break
+            
+            if subplot_idx is not None:
+                return subplot_idx, str(subplot_idx)
+            
+            return dash.no_update, dash.no_update
 
         # Handle signal assignments with proper linking (fixed bidirectional issue)
         @self.app.callback(
@@ -2118,6 +2285,7 @@ class SignalViewerApp:
                 Input("store-refresh-trigger", "data"),
                 Input("time-cursor-check", "value"),
                 Input("store-cursor-x", "data"),
+                Input("store-subplot-modes", "data"),
             ],
             [
                 State({"type": "sig-check", "csv": ALL, "sig": ALL}, "id"),
@@ -2145,6 +2313,7 @@ class SignalViewerApp:
             refresh_trigger,
             time_cursor,
             cursor_data,
+            subplot_modes,
             check_ids,
             assignments,
             layouts,
@@ -2226,6 +2395,9 @@ class SignalViewerApp:
                 sel_subplot = 0
                 subplot_key = "0"
 
+            # Get current subplot mode
+            current_mode = tab_subplot_modes.get(subplot_key, "time")
+            
             # Handle signal checkbox changes - FIXED linking logic
             if (
                 check_vals is not None
@@ -2233,9 +2405,6 @@ class SignalViewerApp:
                 and len(check_vals) > 0
                 and "sig-check" in trigger
             ):
-                current = assignments[tab_key][subplot_key]
-                current_keys = {f"{s['csv_idx']}:{s['signal']}" for s in current}
-
                 # Find which checkbox was actually clicked
                 clicked_csv = None
                 clicked_sig = None
@@ -2259,59 +2428,84 @@ class SignalViewerApp:
                 except:
                     pass
 
-                # Only process the clicked checkbox and apply linking
-                if clicked_csv is not None and clicked_sig is not None:
-                    csv_idx = clicked_csv
-                    sig = clicked_sig
-                    key = f"{csv_idx}:{sig}"
+                # Handle X-Y mode assignment
+                if current_mode == "xy":
+                    if clicked_csv is not None and clicked_sig is not None and clicked_new_val:
+                        # Initialize assignment as dict if needed
+                        if not isinstance(assignments[tab_key].get(subplot_key), dict):
+                            assignments[tab_key][subplot_key] = {"x": None, "y": None}
+                        
+                        xy_assignment = assignments[tab_key][subplot_key]
+                        new_signal = {"csv_idx": clicked_csv, "signal": clicked_sig}
+                        
+                        # If X is not set, assign to X; otherwise assign to Y
+                        if not xy_assignment.get("x"):
+                            xy_assignment["x"] = new_signal
+                        else:
+                            xy_assignment["y"] = new_signal
+                        
+                        assignments[tab_key][subplot_key] = xy_assignment
+                else:
+                    # Time mode: original list-based logic
+                    current = assignments[tab_key][subplot_key]
+                    if not isinstance(current, list):
+                        current = []
+                        assignments[tab_key][subplot_key] = current
+                    current_keys = {f"{s['csv_idx']}:{s['signal']}" for s in current}
 
-                    is_currently_assigned = key in current_keys
-                    should_be_assigned = clicked_new_val if clicked_new_val else False
+                    # Only process the clicked checkbox and apply linking
+                    if clicked_csv is not None and clicked_sig is not None:
+                        csv_idx = clicked_csv
+                        sig = clicked_sig
+                        key = f"{csv_idx}:{sig}"
 
-                    if should_be_assigned and not is_currently_assigned:
-                        # ADD signal - check for linked CSVs
-                        linked_indices = [csv_idx]
-                        for lg in links or []:
-                            if csv_idx in lg.get("csv_indices", []):
-                                linked_indices = lg["csv_indices"]
-                                break
+                        is_currently_assigned = key in current_keys
+                        should_be_assigned = clicked_new_val if clicked_new_val else False
 
-                        # Add clicked signal and all linked versions
-                        for linked_csv_idx in linked_indices:
-                            linked_key = f"{linked_csv_idx}:{sig}"
-                            if linked_key not in current_keys:
-                                if linked_csv_idx >= 0 and linked_csv_idx < len(
-                                    self.data_manager.data_tables
-                                ):
-                                    df = self.data_manager.data_tables[linked_csv_idx]
-                                    if df is not None and sig in df.columns:
-                                        assignments[tab_key][subplot_key].append(
-                                            {"csv_idx": linked_csv_idx, "signal": sig}
-                                        )
-                                        current_keys.add(linked_key)
-                                elif linked_csv_idx == -1:
-                                    if sig in self.derived_signals:
-                                        assignments[tab_key][subplot_key].append(
-                                            {"csv_idx": -1, "signal": sig}
-                                        )
-                                        current_keys.add(linked_key)
+                        if should_be_assigned and not is_currently_assigned:
+                            # ADD signal - check for linked CSVs
+                            linked_indices = [csv_idx]
+                            for lg in links or []:
+                                if csv_idx in lg.get("csv_indices", []):
+                                    linked_indices = lg["csv_indices"]
+                                    break
 
-                    elif not should_be_assigned and is_currently_assigned:
-                        # REMOVE signal - check for linked CSVs
-                        linked_indices = [csv_idx]
-                        for lg in links or []:
-                            if csv_idx in lg.get("csv_indices", []):
-                                linked_indices = lg["csv_indices"]
-                                break
+                            # Add clicked signal and all linked versions
+                            for linked_csv_idx in linked_indices:
+                                linked_key = f"{linked_csv_idx}:{sig}"
+                                if linked_key not in current_keys:
+                                    if linked_csv_idx >= 0 and linked_csv_idx < len(
+                                        self.data_manager.data_tables
+                                    ):
+                                        df = self.data_manager.data_tables[linked_csv_idx]
+                                        if df is not None and sig in df.columns:
+                                            assignments[tab_key][subplot_key].append(
+                                                {"csv_idx": linked_csv_idx, "signal": sig}
+                                            )
+                                            current_keys.add(linked_key)
+                                    elif linked_csv_idx == -1:
+                                        if sig in self.derived_signals:
+                                            assignments[tab_key][subplot_key].append(
+                                                {"csv_idx": -1, "signal": sig}
+                                            )
+                                            current_keys.add(linked_key)
 
-                        # Remove clicked signal and all linked versions
-                        for linked_csv_idx in linked_indices:
-                            linked_key = f"{linked_csv_idx}:{sig}"
-                            assignments[tab_key][subplot_key] = [
-                                s
-                                for s in assignments[tab_key][subplot_key]
-                                if f"{s['csv_idx']}:{s['signal']}" != linked_key
-                            ]
+                        elif not should_be_assigned and is_currently_assigned:
+                            # REMOVE signal - check for linked CSVs
+                            linked_indices = [csv_idx]
+                            for lg in links or []:
+                                if csv_idx in lg.get("csv_indices", []):
+                                    linked_indices = lg["csv_indices"]
+                                    break
+
+                            # Remove clicked signal and all linked versions
+                            for linked_csv_idx in linked_indices:
+                                linked_key = f"{linked_csv_idx}:{sig}"
+                                assignments[tab_key][subplot_key] = [
+                                    s
+                                    for s in assignments[tab_key][subplot_key]
+                                    if f"{s['csv_idx']}:{s['signal']}" != linked_key
+                                ]
 
             if "btn-remove" in trigger and remove_vals:
                 to_remove = {
@@ -2333,35 +2527,84 @@ class SignalViewerApp:
             if time_cursor and cursor_data:
                 cursor_x = cursor_data.get("x")
             
+            # Get subplot modes for current tab
+            tab_subplot_modes = (subplot_modes or {}).get(tab_key, {})
+            
             fig = self.create_figure(
-                rows, cols, theme, sel_subplot, assignments, tab_key, link_axes, time_cursor, cursor_x
+                rows, cols, theme, sel_subplot, assignments, tab_key, link_axes, time_cursor, cursor_x, tab_subplot_modes
             )
 
             assigned = assignments.get(tab_key, {}).get(subplot_key, [])
+            current_mode = tab_subplot_modes.get(subplot_key, "time")
             items = []
-            for i, s in enumerate(assigned):
-                csv_idx = s["csv_idx"]
-                sig_name = s["signal"]
-                if csv_idx == -1:
-                    lbl = f"{sig_name} (D)"
-                else:
-                    # Get CSV filename for display
-                    if csv_idx < len(self.data_manager.csv_file_paths):
-                        csv_path = self.data_manager.csv_file_paths[csv_idx]
-                        csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
-                    else:
-                        csv_filename = f"C{csv_idx+1}"
-                    lbl = f"{sig_name} ({csv_filename})"
-                items.append(
-                    dbc.Checkbox(
-                        id={"type": "remove-check", "idx": i},
-                        label=lbl,
-                        value=False,
-                        style={"fontSize": "10px"},
-                    )
-                )
-            if not items:
-                items = [html.Span("None", className="text-muted small")]
+            
+            # Handle X-Y mode display
+            if current_mode == "xy" and isinstance(assigned, dict):
+                # Show X and Y signal info
+                x_info = assigned.get("x", {})
+                y_info = assigned.get("y", {})
+                
+                for axis, info in [("X", x_info), ("Y", y_info)]:
+                    if info:
+                        csv_idx = info.get("csv_idx", -1)
+                        sig_name = info.get("signal", "")
+                        if csv_idx == -1:
+                            lbl = f"{sig_name} (D)"
+                        else:
+                            if csv_idx < len(self.data_manager.csv_file_paths):
+                                csv_path = self.data_manager.csv_file_paths[csv_idx]
+                                csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
+                            else:
+                                csv_filename = f"C{csv_idx+1}"
+                            lbl = f"{sig_name} ({csv_filename})"
+                        
+                        color = "info" if axis == "X" else "warning"
+                        items.append(
+                            html.Div(
+                                [
+                                    html.Span(f"{axis}: ", className=f"text-{color} fw-bold small"),
+                                    html.Span(lbl, className="small"),
+                                    dbc.Button(
+                                        "×",
+                                        id={"type": "xy-remove", "axis": axis.lower()},
+                                        size="sm",
+                                        color="danger",
+                                        outline=True,
+                                        className="ms-2 py-0 px-1",
+                                        style={"fontSize": "10px"},
+                                    ),
+                                ],
+                                className="d-flex align-items-center mb-1",
+                            )
+                        )
+                if not items:
+                    items = [html.Span("Assign X and Y signals", className="text-muted small")]
+            else:
+                # Time mode: show list of signals with checkboxes
+                if isinstance(assigned, list):
+                    for i, s in enumerate(assigned):
+                        csv_idx = s.get("csv_idx", -1)
+                        sig_name = s.get("signal", "")
+                        if csv_idx == -1:
+                            lbl = f"{sig_name} (D)"
+                        else:
+                            # Get CSV filename for display
+                            if csv_idx < len(self.data_manager.csv_file_paths):
+                                csv_path = self.data_manager.csv_file_paths[csv_idx]
+                                csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
+                            else:
+                                csv_filename = f"C{csv_idx+1}"
+                            lbl = f"{sig_name} ({csv_filename})"
+                        items.append(
+                            dbc.Checkbox(
+                                id={"type": "remove-check", "idx": i},
+                                label=lbl,
+                                value=False,
+                                style={"fontSize": "10px"},
+                            )
+                        )
+                if not items:
+                    items = [html.Span("None", className="text-muted small")]
 
             # Only output sel_subplot if explicitly changed, otherwise use no_update
             subplot_output = sel_subplot if output_subplot else dash.no_update
@@ -2395,6 +2638,124 @@ class SignalViewerApp:
             layouts = layouts or {}
             layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
             return layout.get("rows", 1), layout.get("cols", 1), 0
+
+        # Handle subplot mode toggle (Time vs X-Y)
+        @self.app.callback(
+            [
+                Output("store-subplot-modes", "data"),
+                Output("xy-controls", "style"),
+                Output("xy-x-signal", "children"),
+                Output("xy-y-signal", "children"),
+            ],
+            [
+                Input("subplot-mode-toggle", "value"),
+                Input("store-selected-subplot", "data"),
+                Input("tabs", "value"),
+            ],
+            [
+                State("store-subplot-modes", "data"),
+                State("store-assignments", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def handle_subplot_mode(mode, sel_subplot, active_tab, modes, assignments):
+            ctx = callback_context
+            modes = modes or {}
+            
+            tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            tab_key = str(tab_idx)
+            subplot_key = str(sel_subplot or 0)
+            
+            if tab_key not in modes:
+                modes[tab_key] = {}
+            
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            
+            # If mode toggle triggered, update the mode
+            if "subplot-mode-toggle" in trigger:
+                modes[tab_key][subplot_key] = mode
+            else:
+                # Otherwise, get current mode for this subplot
+                mode = modes.get(tab_key, {}).get(subplot_key, "time")
+            
+            # Show/hide X-Y controls based on mode
+            xy_style = {"display": "block"} if mode == "xy" else {"display": "none"}
+            
+            # Get X and Y signal names if in xy mode
+            x_signal = "(none)"
+            y_signal = "(none)"
+            
+            if mode == "xy":
+                assignment = assignments.get(tab_key, {}).get(subplot_key, {})
+                if isinstance(assignment, dict):
+                    x_info = assignment.get("x", {})
+                    y_info = assignment.get("y", {})
+                    if x_info:
+                        x_signal = x_info.get("signal", "(none)")
+                    if y_info:
+                        y_signal = y_info.get("signal", "(none)")
+            
+            return modes, xy_style, x_signal, y_signal
+
+        # Sync mode toggle when subplot changes
+        @self.app.callback(
+            Output("subplot-mode-toggle", "value"),
+            [
+                Input("store-selected-subplot", "data"),
+                Input("tabs", "value"),
+            ],
+            [State("store-subplot-modes", "data")],
+            prevent_initial_call=True,
+        )
+        def sync_mode_on_subplot_change(sel_subplot, active_tab, modes):
+            modes = modes or {}
+            tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            tab_key = str(tab_idx)
+            subplot_key = str(sel_subplot or 0)
+            
+            mode = modes.get(tab_key, {}).get(subplot_key, "time")
+            return mode
+
+        # Handle X/Y signal removal in X-Y mode
+        @self.app.callback(
+            Output("store-assignments", "data", allow_duplicate=True),
+            [
+                Input({"type": "xy-remove", "axis": ALL}, "n_clicks"),
+            ],
+            [
+                State({"type": "xy-remove", "axis": ALL}, "id"),
+                State("store-assignments", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def handle_xy_remove(n_clicks, ids, assignments, sel_tab, sel_subplot):
+            ctx = callback_context
+            if not ctx.triggered or not any(n_clicks):
+                return dash.no_update
+            
+            trigger = ctx.triggered[0]["prop_id"]
+            assignments = assignments or {}
+            tab_key = str(sel_tab or 0)
+            subplot_key = str(sel_subplot or 0)
+            
+            # Find which axis button was clicked
+            try:
+                import json as js
+                id_str = trigger.split(".")[0]
+                clicked_id = js.loads(id_str)
+                axis = clicked_id.get("axis", "")
+                
+                if axis in ["x", "y"]:
+                    assignment = assignments.get(tab_key, {}).get(subplot_key, {})
+                    if isinstance(assignment, dict):
+                        assignment[axis] = None
+                        assignments[tab_key][subplot_key] = assignment
+            except:
+                pass
+            
+            return assignments
 
         # Tab management
         @self.app.callback(
@@ -2793,10 +3154,12 @@ class SignalViewerApp:
                 State("store-signal-props", "data"),
                 State("store-derived", "data"),
                 State("store-num-tabs", "data"),
+                State("store-subplot-modes", "data"),
+                State("store-cursor-x", "data"),
             ],
             prevent_initial_call=True,
         )
-        def save_session(n, files, assign, layouts, links, props, derived, num_tabs):
+        def save_session(n, files, assign, layouts, links, props, derived, num_tabs, subplot_modes, cursor_x):
             if not n:
                 return dash.no_update, dash.no_update
             try:
@@ -2808,6 +3171,8 @@ class SignalViewerApp:
                     "props": props,
                     "derived": derived,
                     "num_tabs": num_tabs or 1,
+                    "subplot_modes": subplot_modes or {},
+                    "cursor_x": cursor_x,
                 }
                 # Generate filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -2830,6 +3195,8 @@ class SignalViewerApp:
                 Output("store-derived", "data", allow_duplicate=True),
                 Output("store-num-tabs", "data", allow_duplicate=True),
                 Output("tabs", "children", allow_duplicate=True),
+                Output("store-subplot-modes", "data", allow_duplicate=True),
+                Output("store-cursor-x", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
             ],
             Input("upload-session", "contents"),
@@ -2838,7 +3205,7 @@ class SignalViewerApp:
         )
         def load_session(contents, filename):
             if not contents:
-                return [dash.no_update] * 9
+                return [dash.no_update] * 11
             try:
                 # Decode uploaded file
                 content_type, content_string = contents.split(",")
@@ -2871,10 +3238,12 @@ class SignalViewerApp:
                     d.get("derived", {}),
                     num_tabs,
                     tabs_children,
+                    d.get("subplot_modes", {}),
+                    d.get("cursor_x", {"x": None, "initialized": False}),
                     f"✅ Loaded: {filename}",
                 )
             except Exception as e:
-                return [dash.no_update] * 8 + [f"❌ {e}"]
+                return [dash.no_update] * 10 + [f"❌ {e}"]
 
         # Clientside callback to initialize Split.js after page loads
         self.app.clientside_callback(
