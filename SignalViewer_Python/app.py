@@ -1,16 +1,21 @@
 """
 Signal Viewer Pro - Modern Signal Visualization Application
+============================================================
+A professional signal visualization tool for analyzing time-series data.
+
+Features:
+- Multi-CSV loading with signal linking
+- Multi-tab, multi-subplot layouts  
+- X-Y plot mode for signal correlation analysis
+- Derived signals (derivative, integral, math ops)
+- Session save/load with full state persistence
+- Interactive time cursor with value display
+- Signal customization (color, scale, display name)
 """
 
 import dash
 from dash import dcc, html, Input, Output, State, callback_context, ALL
-
-try:
-    import dash_bootstrap_components as dbc
-except ImportError:
-    print("ERROR: pip install dash-bootstrap-components")
-    raise
-
+import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -18,65 +23,50 @@ import numpy as np
 import os
 import base64
 import json
+import logging
 from datetime import datetime
+from typing import Dict, List, Optional, Any, Tuple, Union
 
 from data_manager import DataManager
 from signal_operations import SignalOperationsManager
 from linking_manager import LinkingManager
+from config import (
+    SIGNAL_COLORS, 
+    get_theme_dict,
+    APP_TITLE, 
+    APP_HOST, 
+    APP_PORT,
+    TIME_COLUMN,
+    DERIVED_CSV_IDX,
+    MODE_TIME,
+    MODE_XY,
+    SINGLE_OPERATIONS,
+    MULTI_OPERATIONS,
+)
+from helpers import (
+    get_csv_display_name,
+    get_csv_short_name,
+    get_signal_label,
+    make_signal_key,
+    parse_signal_key,
+    interpolate_value_at_x,
+    safe_json_parse,
+    calculate_derived_signal,
+    calculate_multi_signal_operation,
+    clamp,
+)
 
-SIGNAL_COLORS = [
-    "#2E86AB",
-    "#A23B72",
-    "#F18F01",
-    "#C73E1D",
-    "#3B1F2B",
-    "#95C623",
-    "#5E60CE",
-    "#4EA8DE",
-    "#48BFE3",
-    "#64DFDF",
-    "#72EFDD",
-    "#80FFDB",
-    "#E63946",
-    "#F4A261",
-    "#2A9D8F",
-]
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("SignalViewer")
 
+# Legacy compatibility - keep THEMES dict for existing code
 THEMES = {
-    "dark": {
-        "bg": "#1a1a2e",
-        "card": "#16213e",
-        "card_header": "#0f3460",
-        "text": "#e8e8e8",
-        "muted": "#aaa",
-        "border": "#333",
-        "input_bg": "#2a2a3e",
-        "plot_bg": "#1a1a2e",
-        "paper_bg": "#16213e",
-        "grid": "#444",
-        "checkbox_border": "#666",
-        "checkbox_bg": "#2a2a3e",
-        "accent": "#4ea8de",
-        "button_bg": "#0f3460",
-        "button_text": "#e8e8e8",
-    },
-    "light": {
-        "bg": "#f0f2f5",
-        "card": "#ffffff",
-        "card_header": "#e3e7eb",
-        "text": "#1a1a2e",
-        "muted": "#5a6268",
-        "border": "#ced4da",
-        "input_bg": "#ffffff",
-        "plot_bg": "#ffffff",
-        "paper_bg": "#fafbfc",
-        "grid": "#dee2e6",
-        "checkbox_border": "#495057",
-        "checkbox_bg": "#ffffff",
-        "accent": "#2E86AB",
-        "button_bg": "#e3e7eb",
-        "button_text": "#1a1a2e",
-    },
+    "dark": get_theme_dict("dark"),
+    "light": get_theme_dict("light"),
 }
 
 
@@ -1265,7 +1255,7 @@ class SignalViewerApp:
         return fig
 
     def setup_callbacks(self):
-        print("DEBUG: Setting up callbacks...")
+        logger.info("Setting up callbacks...")
 
         # Theme toggle
         @self.app.callback(
@@ -1457,7 +1447,7 @@ class SignalViewerApp:
                         if path not in files:
                             files.append(path)
                     except Exception as e:
-                        print(f"Error loading {fname}: {e}")
+                        logger.error(f"Error loading {fname}: {e}")
 
                 self.data_manager.csv_file_paths = files
                 while len(self.data_manager.data_tables) < len(files):
@@ -1468,17 +1458,11 @@ class SignalViewerApp:
                     if self.data_manager.data_tables[i] is None:
                         try:
                             self.data_manager.read_initial_data(i)
-                            print(
-                                f"DEBUG: Loaded CSV {i}: {files[i]}, columns: {list(self.data_manager.data_tables[i].columns) if self.data_manager.data_tables[i] is not None else 'None'}"
-                            )
                         except Exception as e:
-                            print(f"Error reading {files[i]}: {e}")
+                            logger.error(f"Error reading {files[i]}: {e}")
 
                 # Increment refresh trigger to update tree
                 refresh_counter = refresh_counter + 1
-                print(
-                    f"DEBUG: CSV files loaded, refresh_counter={refresh_counter}, files={files}"
-                )
 
             items = [
                 html.Div(
@@ -1602,10 +1586,6 @@ class SignalViewerApp:
             search_filters,
         ):
             try:
-                print(
-                    f"DEBUG: update_tree called - files={files}, refresh_trigger={refresh_trigger}, csv_file_paths={self.data_manager.csv_file_paths}"
-                )
-
                 # Use dropdown value if available, otherwise use store
                 if subplot_dropdown is not None:
                     subplot = int(subplot_dropdown)
@@ -1642,9 +1622,6 @@ class SignalViewerApp:
 
                 # Use files from store if available, otherwise use data_manager
                 csv_files = files if files else self.data_manager.csv_file_paths
-                print(
-                    f"DEBUG: Using csv_files={csv_files}, data_tables length={len(self.data_manager.data_tables)}"
-                )
 
                 # Check for duplicate filenames to determine display names
                 basenames = [os.path.basename(fp) for fp in csv_files]
@@ -1660,27 +1637,23 @@ class SignalViewerApp:
                     return basename
 
                 for csv_idx, fp in enumerate(csv_files):
-                    print(f"DEBUG: Processing CSV {csv_idx}: {fp}")
                     while len(self.data_manager.data_tables) <= csv_idx:
                         self.data_manager.data_tables.append(None)
 
                     if self.data_manager.data_tables[csv_idx] is None:
                         try:
                             if os.path.exists(fp):
-                                print(f"DEBUG: Reading initial data for CSV {csv_idx}")
                                 self.data_manager.read_initial_data(csv_idx)
                         except Exception as e:
-                            print(f"DEBUG: Error reading CSV {csv_idx}: {e}")
+                            logger.warning(f"Error reading CSV {csv_idx}: {e}")
                             continue
 
                     df = self.data_manager.data_tables[csv_idx]
                     if df is None or df.empty:
-                        print(f"DEBUG: CSV {csv_idx} is None or empty")
                         continue
 
                     fname = get_display_name(fp)
                     signals = [c for c in df.columns if c.lower() != "time"]
-                    print(f"DEBUG: CSV {csv_idx} has signals: {signals}")
                     
                     # Apply search filters (filter list OR current search)
                     active_filters = list(search_filters or [])
@@ -1697,9 +1670,6 @@ class SignalViewerApp:
                         signals = filtered_signals
                     
                     if not signals:
-                        print(
-                            f"DEBUG: No signals after search filter for CSV {csv_idx}"
-                        )
                         continue
 
                     link_badge = (
@@ -2032,15 +2002,9 @@ class SignalViewerApp:
                                 )
                             )
 
-                print(
-                    f"DEBUG: Returning tree with {len(tree)} items, csv_files={len(csv_files) if csv_files else 0}"
-                )
                 return tree, target, str(len(highlighted))
             except Exception as e:
-                print(f"ERROR in update_tree: {e}")
-                import traceback
-
-                traceback.print_exc()
+                logger.exception(f"Error in update_tree: {e}")
                 return (
                     [
                         html.Span(
@@ -2165,7 +2129,6 @@ class SignalViewerApp:
                     for clicks in del_clicks_tree:
                         if clicks and clicks > 0:
                             if name and name in derived:
-                                print(f"DEBUG: Deleting: {name}")
                                 del derived[name]
                                 remove_from_assignments(name)
                                 self.derived_signals = derived
@@ -3476,28 +3439,35 @@ class SignalViewerApp:
             
             return current_cursor
 
-        print("DEBUG: All callbacks registered successfully!")
+        logger.info("All callbacks registered successfully")
 
 
 def main():
-    import webbrowser, threading, time, traceback
+    """Main entry point for Signal Viewer Pro."""
+    import webbrowser
+    import threading
+    import time
 
     try:
         print("=" * 50)
-        print("  Signal Viewer Pro - http://127.0.0.1:8050")
+        print(f"  {APP_TITLE} - {APP_HOST}:{APP_PORT}")
         print("=" * 50)
-        print("DEBUG: Creating SignalViewerApp...")
+        
+        logger.info("Creating SignalViewerApp...")
         app = SignalViewerApp()
-        print(f"DEBUG: App created, {len(app.app.callback_map)} callbacks registered")
+        logger.info(f"App created with {len(app.app.callback_map)} callbacks")
+        
+        # Open browser after slight delay
         threading.Thread(
-            target=lambda: (time.sleep(1.5), webbrowser.open("http://127.0.0.1:8050")),
+            target=lambda: (time.sleep(1.5), webbrowser.open(f"http://{APP_HOST}:{APP_PORT}")),
             daemon=True,
         ).start()
-        app.app.run(debug=False, port=8050, host="127.0.0.1")
+        
+        app.app.run(debug=False, port=APP_PORT, host=APP_HOST)
+        
     except Exception as e:
-        print(f"ERROR: {e}")
-        traceback.print_exc()
-        input("Press Enter...")
+        logger.exception(f"Application error: {e}")
+        input("Press Enter to exit...")
 
 
 if __name__ == "__main__":
