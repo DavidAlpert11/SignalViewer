@@ -1,16 +1,34 @@
 """
-Signal Viewer Pro - Modern Signal Visualization Application
-============================================================
-A professional signal visualization tool for analyzing time-series data.
+Signal Viewer Pro - Professional Signal Visualization Application
+==================================================================
 
-Features:
-- Multi-CSV loading with signal linking
-- Multi-tab, multi-subplot layouts  
-- X-Y plot mode for signal correlation analysis
-- Derived signals (derivative, integral, math ops)
+A modern, feature-rich signal visualization tool for analyzing time-series
+and correlation data from CSV files.
+
+Core Features:
+- Multi-CSV loading with automatic duplicate handling
+- Multi-tab, multi-subplot layouts (up to 4x4 grid per tab)
+- Interactive time cursor with synchronized value display across subplots
+- Signal customization (color, scale, line width, display name)
+
+Analysis Features:
+- X-Y plot mode for signal correlation analysis  
+- Derived signals (derivative, integral, custom math operations)
+- Multi-signal operations (average, sum, difference, etc.)
+- Custom time column selection per CSV
+
+Data Management:
 - Session save/load with full state persistence
-- Interactive time cursor with value display
-- Signal customization (color, scale, display name)
+- Template save/load for layout reuse across sessions
+- Resizable panels using Split.js
+
+Export Features:
+- HTML report export with all tabs/subplots
+- CSV export for signal data
+- Subplot metadata (title, caption, description) included in reports
+
+Author: Signal Viewer Team
+Version: 2.1
 """
 
 import dash
@@ -456,16 +474,23 @@ class SignalViewerApp:
                                                                     [
                                                                         dbc.Input(
                                                                             id="subplot-title-input",
-                                                                            placeholder="Subplot title...",
+                                                                            placeholder="Plot title (replaces 'Subplot X')...",
+                                                                            size="sm",
+                                                                            className="mb-1",
+                                                                            style={"fontSize": "10px"},
+                                                                        ),
+                                                                        dbc.Input(
+                                                                            id="subplot-caption-input",
+                                                                            placeholder="Caption (under Fig #)...",
                                                                             size="sm",
                                                                             className="mb-1",
                                                                             style={"fontSize": "10px"},
                                                                         ),
                                                                         dbc.Textarea(
-                                                                            id="subplot-caption-input",
-                                                                            placeholder="Caption/description...",
+                                                                            id="subplot-description-input",
+                                                                            placeholder="Description (detailed text after plot)...",
                                                                             size="sm",
-                                                                            style={"fontSize": "10px", "height": "40px"},
+                                                                            style={"fontSize": "10px", "height": "50px"},
                                                                         ),
                                                                     ],
                                                                     className="mb-2 border-bottom pb-2",
@@ -1107,29 +1132,59 @@ class SignalViewerApp:
 
     def create_figure(
         self,
-        rows,
-        cols,
-        theme,
-        selected_subplot=0,
-        assignments=None,
-        tab_key="0",
-        link_axes=False,
-        time_cursor=True,
-        cursor_x=None,
-        subplot_modes=None,  # {subplot_key: "time"|"xy"}
-        x_axis_signals=None,  # {subplot_key: "time" or "csv_idx:signal_name"}
-        time_columns=None,  # {csv_idx: column_name} - custom time column per CSV
+        rows: int,
+        cols: int,
+        theme: str,
+        selected_subplot: int = 0,
+        assignments: Optional[Dict] = None,
+        tab_key: str = "0",
+        link_axes: bool = False,
+        time_cursor: bool = True,
+        cursor_x: Optional[float] = None,
+        subplot_modes: Optional[Dict[str, str]] = None,
+        x_axis_signals: Optional[Dict[str, str]] = None,
+        time_columns: Optional[Dict[str, str]] = None,
+        subplot_metadata: Optional[Dict[str, Dict]] = None,
     ):
+        """
+        Create a Plotly figure with subplots for signal visualization.
+        
+        Args:
+            rows: Number of subplot rows (1-4)
+            cols: Number of subplot columns (1-4)
+            theme: Color theme ("dark" or "light")
+            selected_subplot: Index of highlighted subplot (-1 for no highlight)
+            assignments: Dict of signal assignments {tab_key: {subplot_key: [signals]}}
+            tab_key: Current tab identifier
+            link_axes: Whether to link X axes across subplots
+            time_cursor: Whether to show the time cursor
+            cursor_x: X position of the time cursor
+            subplot_modes: Mode per subplot ("time" or "xy")
+            x_axis_signals: X-axis signal for XY mode per subplot
+            time_columns: Custom time column per CSV file
+            subplot_metadata: Titles/captions/descriptions per subplot
+            
+        Returns:
+            go.Figure: Configured Plotly figure with subplots
+        """
         colors = THEMES[theme]
 
         # Calculate optimal spacing based on subplot count (maximize subplot size)
         v_spacing = 0.08 / rows if rows > 1 else 0.02  # Reduce vertical spacing
         h_spacing = 0.06 / cols if cols > 1 else 0.02  # Reduce horizontal spacing
         
+        # Build subplot titles from metadata or use defaults
+        subplot_metadata = subplot_metadata or {}
+        subplot_titles = []
+        for i in range(rows * cols):
+            sp_meta = subplot_metadata.get(str(i), {})
+            title = sp_meta.get("title", "")
+            subplot_titles.append(title if title else f"Subplot {i+1}")
+        
         fig = make_subplots(
             rows=rows,
             cols=cols,
-            subplot_titles=[f"Subplot {i+1}" for i in range(rows * cols)],
+            subplot_titles=subplot_titles,
             vertical_spacing=v_spacing,
             horizontal_spacing=h_spacing,
             shared_xaxes=link_axes,
@@ -1299,6 +1354,12 @@ class SignalViewerApp:
                     csv_idx = sig.get("csv_idx", -1)
                     signal_name = sig.get("signal", "")
                     is_state_signal = sig.get("is_state", False)
+                    
+                    # In X-Y mode, skip plotting the X-axis signal as a Y trace
+                    if subplot_mode == "xy" and x_axis_choice != "time":
+                        sig_key = f"{csv_idx}:{signal_name}"
+                        if sig_key == x_axis_choice:
+                            continue  # Don't plot X-axis signal as Y
 
                     if csv_idx == -1 and signal_name in self.derived_signals:
                         ds = self.derived_signals[signal_name]
@@ -2467,6 +2528,7 @@ class SignalViewerApp:
                 Output("store-selected-tab", "data", allow_duplicate=True),
                 Output("store-selected-subplot", "data", allow_duplicate=True),
                 Output("store-layouts", "data", allow_duplicate=True),
+                Output("store-x-axis-signal", "data", allow_duplicate=True),
             ],
             [
                 Input({"type": "sig-check", "csv": ALL, "sig": ALL}, "value"),
@@ -2483,10 +2545,11 @@ class SignalViewerApp:
                 Input("time-cursor-check", "value"),
                 Input("store-cursor-x", "data"),
                 Input("store-subplot-modes", "data"),
-                Input("store-x-axis-signal", "data"),
                 Input("store-time-columns", "data"),
+                Input("store-subplot-metadata", "data"),
             ],
             [
+                State("store-x-axis-signal", "data"),
                 State({"type": "sig-check", "csv": ALL, "sig": ALL}, "id"),
                 State("store-assignments", "data"),
                 State("store-layouts", "data"),
@@ -2513,8 +2576,9 @@ class SignalViewerApp:
             time_cursor,
             cursor_data,
             subplot_modes,
-            x_axis_signals,
             time_columns,
+            subplot_metadata,
+            x_axis_signals,  # State (was moved from Input)
             check_ids,
             assignments,
             layouts,
@@ -2709,11 +2773,26 @@ class SignalViewerApp:
                     for val, id_dict in zip(remove_vals, remove_ids)
                     if val
                 }
+                
                 assignments[tab_key][subplot_key] = [
                     s
                     for i, s in enumerate(assignments[tab_key][subplot_key])
                     if i not in to_remove
                 ]
+
+            # After any assignment changes, check if X-axis signal still exists
+            # If not, reset to time
+            x_axis_signals = x_axis_signals or {}
+            if tab_key not in x_axis_signals:
+                x_axis_signals[tab_key] = {}
+            
+            current_x_axis = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
+            if current_x_axis != "time":
+                # Check if this signal is still in assignments
+                assigned_signal_keys = {f"{s['csv_idx']}:{s['signal']}" for s in assignments.get(tab_key, {}).get(subplot_key, [])}
+                if current_x_axis not in assigned_signal_keys:
+                    # X-axis signal no longer assigned, reset to time
+                    x_axis_signals[tab_key][subplot_key] = "time"
 
             self.signal_properties = props or {}
             self.derived_signals = derived or {}
@@ -2729,9 +2808,12 @@ class SignalViewerApp:
             # Get X-axis signals for this tab
             tab_x_axis_signals = (x_axis_signals or {}).get(tab_key, {})
             
+            # Get subplot metadata for this tab
+            tab_subplot_metadata = (subplot_metadata or {}).get(tab_key, {})
+            
             fig = self.create_figure(
                 rows, cols, theme, sel_subplot, assignments, tab_key, link_axes, time_cursor, cursor_x, 
-                tab_subplot_modes, tab_x_axis_signals, time_columns
+                tab_subplot_modes, tab_x_axis_signals, time_columns, tab_subplot_metadata
             )
 
             assigned = assignments.get(tab_key, {}).get(subplot_key, [])
@@ -2808,7 +2890,7 @@ class SignalViewerApp:
 
             # Only output sel_subplot if explicitly changed, otherwise use no_update
             subplot_output = sel_subplot if output_subplot else dash.no_update
-            return assignments, fig, items, sel_tab, subplot_output, layouts
+            return assignments, fig, items, sel_tab, subplot_output, layouts, x_axis_signals or {}
 
         # Subplot selector
         @self.app.callback(
@@ -3766,10 +3848,11 @@ class SignalViewerApp:
                 State("store-subplot-modes", "data"),
                 State("store-signal-props", "data"),
                 State("store-x-axis-signal", "data"),
+                State("store-subplot-metadata", "data"),
             ],
             prevent_initial_call=True,
         )
-        def save_template(n, assign, layouts, num_tabs, subplot_modes, props, x_axis_signals):
+        def save_template(n, assign, layouts, num_tabs, subplot_modes, props, x_axis_signals, subplot_metadata):
             if not n:
                 return dash.no_update, dash.no_update
             try:
@@ -3787,12 +3870,14 @@ class SignalViewerApp:
                 
                 template_data = {
                     "type": "template",
+                    "version": "2.1",
                     "assignments": template_assignments,
                     "layouts": layouts,
                     "num_tabs": num_tabs or 1,
                     "subplot_modes": subplot_modes or {},
                     "props": props or {},
                     "x_axis_signals": x_axis_signals or {},
+                    "subplot_metadata": subplot_metadata or {},
                 }
                 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -3813,6 +3898,7 @@ class SignalViewerApp:
                 Output("store-subplot-modes", "data", allow_duplicate=True),
                 Output("store-signal-props", "data", allow_duplicate=True),
                 Output("store-x-axis-signal", "data", allow_duplicate=True),
+                Output("store-subplot-metadata", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
             ],
             Input("upload-template", "contents"),
@@ -3824,14 +3910,14 @@ class SignalViewerApp:
         )
         def load_template(contents, filename, csv_files):
             if not contents:
-                return [dash.no_update] * 8
+                return [dash.no_update] * 9
             try:
                 content_type, content_string = contents.split(",")
                 decoded = base64.b64decode(content_string).decode("utf-8")
                 d = json.loads(decoded)
                 
                 if d.get("type") != "template":
-                    return [dash.no_update] * 7 + ["❌ Not a template file"]
+                    return [dash.no_update] * 8 + ["❌ Not a template file"]
                 
                 # Match template signal names to available signals in loaded CSVs
                 template_assignments = d.get("assignments", {})
@@ -3878,10 +3964,11 @@ class SignalViewerApp:
                     d.get("subplot_modes", {}),
                     d.get("props", {}),
                     d.get("x_axis_signals", {}),
+                    d.get("subplot_metadata", {}),
                     f"✅ Template loaded: {filename}",
                 )
             except Exception as e:
-                return [dash.no_update] * 7 + [f"❌ {e}"]
+                return [dash.no_update] * 8 + [f"❌ {e}"]
 
         # =================================================================
         # Time Column Selection Modal
@@ -4110,47 +4197,193 @@ class SignalViewerApp:
                 State("store-subplot-metadata", "data"),
                 State("store-selected-tab", "data"),
                 State("store-selected-subplot", "data"),
+                State("store-assignments", "data"),
+                State("store-layouts", "data"),
+                State("store-num-tabs", "data"),
+                State("store-subplot-modes", "data"),
+                State("store-x-axis-signal", "data"),
+                State("store-time-columns", "data"),
+                State("theme-switch", "value"),
             ],
             prevent_initial_call=True,
         )
-        def do_pdf_export(n, scope, title, intro, conclusion, figure, metadata, sel_tab, sel_subplot):
+        def do_pdf_export(n, scope, title, intro, conclusion, figure, metadata, sel_tab, sel_subplot,
+                         assignments, layouts, num_tabs, subplot_modes, x_axis_signals, time_columns, is_dark):
             if not n:
                 return dash.no_update, dash.no_update
             
             try:
                 from datetime import datetime
                 
-                if not figure:
-                    return "❌ No figure to export", dash.no_update
-                
-                # Create figure from dict
-                fig = go.Figure(figure)
-                
-                # Add title if provided
-                if title:
-                    fig.update_layout(title=dict(text=title, x=0.5, font=dict(size=16)))
-                
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                report_title = title or "Signal Analysis Report"
+                metadata = metadata or {}
+                assignments = assignments or {}
+                layouts = layouts or {}
+                num_tabs = num_tabs or 1
+                theme = "dark" if is_dark else "light"
                 
-                # Export as interactive HTML (most reliable, user can print to PDF)
-                html_content = fig.to_html(
-                    include_plotlyjs=True,
-                    full_html=True,
-                    config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}}
-                )
-                
-                # Add intro and conclusion to HTML
-                if intro or conclusion:
-                    intro_html = f"<div style='margin: 20px; font-family: Arial;'><h2>Introduction</h2><p>{intro}</p></div>" if intro else ""
-                    conclusion_html = f"<div style='margin: 20px; font-family: Arial;'><h2>Conclusion</h2><p>{conclusion}</p></div>" if conclusion else ""
+                # Helper to generate figure for a tab (without highlight)
+                def generate_tab_figure(tab_idx):
+                    t_key = str(tab_idx)
+                    layout = layouts.get(t_key, {"rows": 1, "cols": 1})
+                    rows = layout.get("rows", 1)
+                    cols = layout.get("cols", 1)
+                    tab_modes = (subplot_modes or {}).get(t_key, {})
+                    tab_x_signals = (x_axis_signals or {}).get(t_key, {})
+                    tab_metadata = (metadata or {}).get(t_key, {})
                     
-                    # Insert before closing body tag
-                    html_content = html_content.replace("</body>", f"{conclusion_html}</body>")
-                    html_content = html_content.replace("<body>", f"<body>{intro_html}")
+                    # Create figure WITHOUT selected subplot highlight (pass -1)
+                    fig = self.create_figure(
+                        rows, cols, theme, -1,  # -1 means no highlight
+                        assignments, t_key, False, False, None,
+                        tab_modes, tab_x_signals, time_columns, tab_metadata
+                    )
+                    return fig
                 
-                filename = f"signal_plot_{timestamp}.html"
+                # Build tab sections (plot + descriptions grouped together)
+                tab_sections = []  # List of (tab_title, plot_html, descriptions_html)
+                fig_num = 1
+                total_figs = 0
                 
-                return f"✅ Exported: {filename} (Open in browser → Ctrl+P to print as PDF)", dict(
+                def build_figure_descriptions(tab_key, tab_label=""):
+                    """Build HTML for figure descriptions for a specific tab"""
+                    nonlocal fig_num
+                    descriptions = []
+                    for sp_idx in range(16):
+                        sp_meta = metadata.get(tab_key, {}).get(str(sp_idx), {})
+                        sp_title = sp_meta.get("title", "")
+                        sp_caption = sp_meta.get("caption", "")
+                        sp_description = sp_meta.get("description", "")
+                        
+                        if sp_title or sp_caption or sp_description:
+                            section = f"<div class='fig-desc'>"
+                            label_text = f"<b>Fig {fig_num}:</b> "
+                            if sp_caption:
+                                label_text += sp_caption
+                            elif sp_title:
+                                label_text += sp_title
+                            section += f"<p class='fig-label'>{label_text}</p>"
+                            if sp_description:
+                                desc_html = sp_description.replace('\n', '<br>')
+                                section += f"<p class='fig-text'>{desc_html}</p>"
+                            section += "</div>"
+                            descriptions.append(section)
+                            fig_num += 1
+                    return "".join(descriptions)
+                
+                scope_info = ""
+                
+                if scope == "subplot":
+                    # Single subplot
+                    fig = generate_tab_figure(sel_tab or 0)
+                    plot_html = fig.to_html(include_plotlyjs=False, full_html=False,
+                        config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}})
+                    
+                    tab_key = str(sel_tab or 0)
+                    sp_meta = metadata.get(tab_key, {}).get(str(sel_subplot or 0), {})
+                    sp_title = sp_meta.get("title", "")
+                    sp_caption = sp_meta.get("caption", "")
+                    sp_description = sp_meta.get("description", "")
+                    
+                    desc_html = ""
+                    if sp_title or sp_caption or sp_description:
+                        desc_html = f"<div class='fig-desc'><b>Fig 1:</b> "
+                        desc_html += sp_caption if sp_caption else sp_title
+                        if sp_description:
+                            desc_html += f"<p class='fig-text'>{sp_description.replace(chr(10), '<br>')}</p>"
+                        desc_html += "</div>"
+                        total_figs = 1
+                    
+                    tab_sections.append(("", plot_html, desc_html))
+                    scope_info = f"Subplot {(sel_subplot or 0) + 1} of Tab {int(tab_key) + 1}"
+                        
+                elif scope == "tab":
+                    # Single tab with all subplots
+                    fig = generate_tab_figure(sel_tab or 0)
+                    plot_html = fig.to_html(include_plotlyjs=False, full_html=False,
+                        config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}})
+                    
+                    tab_key = str(sel_tab or 0)
+                    descriptions_html = build_figure_descriptions(tab_key)
+                    total_figs = fig_num - 1
+                    
+                    tab_sections.append(("", plot_html, descriptions_html))
+                    scope_info = f"Tab {int(tab_key) + 1}"
+                            
+                else:  # all tabs
+                    # Each tab with its descriptions grouped together
+                    for tab_idx in range(num_tabs):
+                        fig = generate_tab_figure(tab_idx)
+                        plot_html = fig.to_html(include_plotlyjs=False, full_html=False,
+                            config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}})
+                        
+                        t_key = str(tab_idx)
+                        descriptions_html = build_figure_descriptions(t_key, f"Tab {tab_idx + 1}")
+                        
+                        tab_sections.append((f"Tab {tab_idx + 1}", plot_html, descriptions_html))
+                    
+                    total_figs = fig_num - 1
+                    scope_info = f"All {num_tabs} Tab(s)"
+                
+                # Build combined content: each tab's plot followed by its descriptions
+                content_section = ""
+                for tab_title, plot_html, descriptions_html in tab_sections:
+                    content_section += f"""
+                    <div class="tab-section">
+                        {"<h3 class='tab-header'>" + tab_title + "</h3>" if tab_title else ""}
+                        <div class="plot-container">
+                            {plot_html}
+                        </div>
+                        {"<div class='descriptions-section'>" + descriptions_html + "</div>" if descriptions_html else ""}
+                    </div>
+                    """
+                
+                # Build full HTML document
+                html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{report_title}</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #fff; color: #333; }}
+        .container {{ max-width: 1200px; margin: 0 auto; }}
+        h1 {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }}
+        h2 {{ color: #333; margin-top: 30px; }}
+        h3 {{ color: #555; }}
+        .meta {{ text-align: center; color: #666; font-size: 12px; margin-bottom: 20px; }}
+        .section {{ margin: 20px 0; }}
+        .tab-section {{ margin: 30px 0; padding-bottom: 20px; border-bottom: 1px dashed #ccc; }}
+        .tab-header {{ color: #2E86AB; margin-bottom: 15px; font-size: 18px; }}
+        .plot-container {{ margin: 20px 0; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: #fafafa; }}
+        .descriptions-section {{ margin-top: 15px; }}
+        .fig-desc {{ margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; border-left: 3px solid #4ea8de; }}
+        .fig-label {{ font-style: italic; margin: 5px 0; }}
+        .fig-text {{ margin: 10px 0; line-height: 1.6; }}
+        @media print {{
+            .tab-section {{ page-break-inside: avoid; }}
+            body {{ background: #fff; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{report_title}</h1>
+        <p class="meta">Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")} | {scope_info}</p>
+        
+        {"<div class='section'><h2>Introduction</h2><p style='line-height: 1.6;'>" + intro + "</p></div>" if intro else ""}
+        
+        {content_section}
+        
+        {"<div class='section'><h2>Conclusion</h2><p style='line-height: 1.6;'>" + conclusion + "</p></div>" if conclusion else ""}
+    </div>
+</body>
+</html>"""
+                
+                filename = f"signal_report_{timestamp}.html"
+                
+                return f"✅ Exported {len(tab_sections)} tab(s), {total_figs} figure(s): {filename}", dict(
                     content=html_content,
                     filename=filename,
                 )
@@ -4167,6 +4400,7 @@ class SignalViewerApp:
             [
                 Input("subplot-title-input", "value"),
                 Input("subplot-caption-input", "value"),
+                Input("subplot-description-input", "value"),
             ],
             [
                 State("store-subplot-metadata", "data"),
@@ -4175,7 +4409,7 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def save_subplot_metadata(title, caption, metadata, sel_tab, sel_subplot):
+        def save_subplot_metadata(title, caption, description, metadata, sel_tab, sel_subplot):
             metadata = metadata or {}
             tab_key = str(sel_tab or 0)
             subplot_key = str(sel_subplot or 0)
@@ -4187,6 +4421,7 @@ class SignalViewerApp:
             
             metadata[tab_key][subplot_key]["title"] = title or ""
             metadata[tab_key][subplot_key]["caption"] = caption or ""
+            metadata[tab_key][subplot_key]["description"] = description or ""
             
             return metadata
 
@@ -4195,6 +4430,7 @@ class SignalViewerApp:
             [
                 Output("subplot-title-input", "value"),
                 Output("subplot-caption-input", "value"),
+                Output("subplot-description-input", "value"),
             ],
             [
                 Input("store-selected-subplot", "data"),
@@ -4210,7 +4446,7 @@ class SignalViewerApp:
             subplot_key = str(sel_subplot or 0)
             
             sp_meta = metadata.get(tab_key, {}).get(subplot_key, {})
-            return sp_meta.get("title", ""), sp_meta.get("caption", "")
+            return sp_meta.get("title", ""), sp_meta.get("caption", ""), sp_meta.get("description", "")
 
         # =================================================================
         # Document Text (intro, conclusion) - save and sync
