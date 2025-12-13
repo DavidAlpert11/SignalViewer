@@ -149,3 +149,45 @@ body[data-theme="light"] .form-check-input:checked {
     font-size: 11px;
 }
 
+/* ========================================
+   Browser-style Tabs
+   ======================================== */
+.browser-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    margin-right: 2px;
+    border-radius: 4px 4px 0 0;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    user-select: none;
+}
+
+.browser-tab:hover {
+    background-color: rgba(78, 168, 222, 0.2);
+}
+
+.browser-tab.active {
+    background-color: #4ea8de;
+    color: white;
+}
+
+.browser-tab .tab-close {
+    margin-left: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+.browser-tab .tab-close:hover {
+    opacity: 1;
+    color: #ff6b6b;
+}
+
+/* Middle-click cursor for tabs */
+.browser-tab:active {
+    cursor: grabbing;
+}
+
