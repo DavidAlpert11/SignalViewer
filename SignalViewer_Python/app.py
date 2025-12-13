@@ -121,6 +121,8 @@ class SignalViewerApp:
                 dcc.Store(id="store-subplot-modes", data={}),  # {tab: {subplot: "time"|"xy"}}
                 dcc.Store(id="store-time-columns", data={}),  # {csv_idx: column_name} - which column is time
                 dcc.Store(id="store-x-axis-signal", data={}),  # {tab: {subplot: signal_key}} - custom X axis for xy mode
+                dcc.Store(id="store-document-text", data={"introduction": "", "conclusion": ""}),  # Persistent intro/conclusion
+                dcc.Store(id="store-subplot-metadata", data={}),  # {tab: {subplot: {title, caption, description}}}
                 dcc.Download(id="download-session"),
                 dcc.Download(id="download-template"),
                 dcc.Download(id="download-csv-export"),
@@ -449,6 +451,25 @@ class SignalViewerApp:
                                                                 # Hidden elements for callback compatibility
                                                                 html.Div(id="xy-x-signal", style={"display": "none"}),
                                                                 html.Div(id="xy-y-signal", style={"display": "none"}),
+                                                                # Subplot metadata (title, caption, description)
+                                                                html.Div(
+                                                                    [
+                                                                        dbc.Input(
+                                                                            id="subplot-title-input",
+                                                                            placeholder="Subplot title...",
+                                                                            size="sm",
+                                                                            className="mb-1",
+                                                                            style={"fontSize": "10px"},
+                                                                        ),
+                                                                        dbc.Textarea(
+                                                                            id="subplot-caption-input",
+                                                                            placeholder="Caption/description...",
+                                                                            size="sm",
+                                                                            style={"fontSize": "10px", "height": "40px"},
+                                                                        ),
+                                                                    ],
+                                                                    className="mb-2 border-bottom pb-2",
+                                                                ),
                                                                 html.Div(
                                                                     id="assigned-list",
                                                                     style={
@@ -977,7 +998,7 @@ class SignalViewerApp:
                 dbc.ModalHeader("📑 Export Plots to PDF"),
                 dbc.ModalBody(
                     [
-                        dbc.Label("Export Scope:", className="small"),
+                        dbc.Label("Export Scope:", className="small fw-bold"),
                         dbc.RadioItems(
                             id="export-pdf-scope",
                             options=[
@@ -986,37 +1007,44 @@ class SignalViewerApp:
                                 {"label": "All tabs", "value": "all"},
                             ],
                             value="tab",
-                            className="mb-2",
+                            className="mb-3",
                         ),
-                        dbc.Label("Title:", className="small"),
+                        dbc.Label("Report Title:", className="small fw-bold"),
                         dbc.Input(
                             id="export-pdf-title",
-                            placeholder="Report Title",
+                            placeholder="Signal Analysis Report",
                             size="sm",
-                            className="mb-2",
+                            className="mb-3",
                         ),
-                        dbc.Label("Introduction:", className="small"),
+                        html.Hr(),
+                        html.Small("📝 Document text (stored in app):", className="text-muted"),
+                        dbc.Label("Introduction:", className="small mt-2"),
                         dbc.Textarea(
                             id="export-pdf-intro",
-                            placeholder="Introduction text (optional)",
+                            placeholder="Introduction text for the report...",
                             size="sm",
                             className="mb-2",
-                            style={"height": "60px"},
-                        ),
-                        dbc.Label("Caption:", className="small"),
-                        dbc.Input(
-                            id="export-pdf-caption",
-                            placeholder="Figure caption (optional)",
-                            size="sm",
-                            className="mb-2",
+                            style={"height": "80px"},
                         ),
                         dbc.Label("Conclusion:", className="small"),
                         dbc.Textarea(
                             id="export-pdf-conclusion",
-                            placeholder="Conclusion text (optional)",
+                            placeholder="Conclusion text for the report...",
                             size="sm",
                             className="mb-2",
-                            style={"height": "60px"},
+                            style={"height": "80px"},
+                        ),
+                        dbc.Button(
+                            "💾 Save Document Text",
+                            id="btn-save-doc-text",
+                            size="sm",
+                            color="info",
+                            outline=True,
+                            className="mb-2",
+                        ),
+                        html.Small(
+                            "Note: Subplot titles/captions are set in the Assigned panel for each subplot.",
+                            className="text-muted d-block mt-2",
                         ),
                     ]
                 ),
@@ -3431,15 +3459,17 @@ class SignalViewerApp:
                 State("store-search-filters", "data"),
                 State("store-time-columns", "data"),
                 State("store-x-axis-signal", "data"),
+                State("store-document-text", "data"),
+                State("store-subplot-metadata", "data"),
             ],
             prevent_initial_call=True,
         )
-        def save_session(n, files, assign, layouts, links, props, derived, num_tabs, subplot_modes, cursor_x, theme, search_filters, time_columns, x_axis_signals):
+        def save_session(n, files, assign, layouts, links, props, derived, num_tabs, subplot_modes, cursor_x, theme, search_filters, time_columns, x_axis_signals, doc_text, subplot_metadata):
             if not n:
                 return dash.no_update, dash.no_update
             try:
                 session_data = {
-                    "version": "2.0",  # Version for compatibility
+                    "version": "2.1",  # Version for compatibility
                     "files": files,
                     "assignments": assign,
                     "layouts": layouts,
@@ -3453,6 +3483,8 @@ class SignalViewerApp:
                     "search_filters": search_filters or [],
                     "time_columns": time_columns or {},
                     "x_axis_signals": x_axis_signals or {},
+                    "document_text": doc_text or {"introduction": "", "conclusion": ""},
+                    "subplot_metadata": subplot_metadata or {},
                 }
                 # Generate filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -3481,6 +3513,8 @@ class SignalViewerApp:
                 Output("store-search-filters", "data", allow_duplicate=True),
                 Output("store-time-columns", "data", allow_duplicate=True),
                 Output("store-x-axis-signal", "data", allow_duplicate=True),
+                Output("store-document-text", "data", allow_duplicate=True),
+                Output("store-subplot-metadata", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
             ],
             Input("upload-session", "contents"),
@@ -3489,7 +3523,7 @@ class SignalViewerApp:
         )
         def load_session(contents, filename):
             if not contents:
-                return [dash.no_update] * 15
+                return [dash.no_update] * 17
             try:
                 # Decode uploaded file
                 content_type, content_string = contents.split(",")
@@ -3532,10 +3566,12 @@ class SignalViewerApp:
                     d.get("search_filters", []),
                     d.get("time_columns", {}),
                     d.get("x_axis_signals", {}),
+                    d.get("document_text", {"introduction": "", "conclusion": ""}),
+                    d.get("subplot_metadata", {}),
                     f"✅ Loaded: {filename}",
                 )
             except Exception as e:
-                return [dash.no_update] * 14 + [f"❌ {e}"]
+                return [dash.no_update] * 16 + [f"❌ {e}"]
 
         # Clientside callback to initialize Split.js after page loads
         self.app.clientside_callback(
@@ -4153,9 +4189,107 @@ class SignalViewerApp:
             if not n:
                 return dash.no_update
             
-            # Note: Full PDF export requires additional dependencies (kaleido, reportlab)
-            # This is a placeholder that shows the feature is available
-            return "ℹ️ PDF export requires 'kaleido' package. Install with: pip install kaleido"
+            # For now, show that kaleido is available
+            try:
+                import kaleido
+                return f"✅ PDF export ready (kaleido v{kaleido.__version__}). Full implementation coming soon."
+            except ImportError:
+                return "ℹ️ PDF export requires 'kaleido' package. Install with: pip install kaleido"
+
+        # =================================================================
+        # Subplot Metadata (title, caption) - save and sync
+        # =================================================================
+        @self.app.callback(
+            Output("store-subplot-metadata", "data"),
+            [
+                Input("subplot-title-input", "value"),
+                Input("subplot-caption-input", "value"),
+            ],
+            [
+                State("store-subplot-metadata", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def save_subplot_metadata(title, caption, metadata, sel_tab, sel_subplot):
+            metadata = metadata or {}
+            tab_key = str(sel_tab or 0)
+            subplot_key = str(sel_subplot or 0)
+            
+            if tab_key not in metadata:
+                metadata[tab_key] = {}
+            if subplot_key not in metadata[tab_key]:
+                metadata[tab_key][subplot_key] = {}
+            
+            metadata[tab_key][subplot_key]["title"] = title or ""
+            metadata[tab_key][subplot_key]["caption"] = caption or ""
+            
+            return metadata
+
+        # Sync subplot metadata when switching subplots
+        @self.app.callback(
+            [
+                Output("subplot-title-input", "value"),
+                Output("subplot-caption-input", "value"),
+            ],
+            [
+                Input("store-selected-subplot", "data"),
+                Input("tabs", "value"),
+            ],
+            [State("store-subplot-metadata", "data")],
+            prevent_initial_call=True,
+        )
+        def sync_subplot_metadata(sel_subplot, active_tab, metadata):
+            metadata = metadata or {}
+            tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            tab_key = str(tab_idx)
+            subplot_key = str(sel_subplot or 0)
+            
+            sp_meta = metadata.get(tab_key, {}).get(subplot_key, {})
+            return sp_meta.get("title", ""), sp_meta.get("caption", "")
+
+        # =================================================================
+        # Document Text (intro, conclusion) - save and sync
+        # =================================================================
+        @self.app.callback(
+            [
+                Output("store-document-text", "data"),
+                Output("status-text", "children", allow_duplicate=True),
+            ],
+            Input("btn-save-doc-text", "n_clicks"),
+            [
+                State("export-pdf-intro", "value"),
+                State("export-pdf-conclusion", "value"),
+                State("store-document-text", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def save_document_text(n, intro, conclusion, current_doc):
+            if not n:
+                return dash.no_update, dash.no_update
+            
+            doc_text = current_doc or {}
+            doc_text["introduction"] = intro or ""
+            doc_text["conclusion"] = conclusion or ""
+            
+            return doc_text, "✅ Document text saved"
+
+        # Load document text when modal opens
+        @self.app.callback(
+            [
+                Output("export-pdf-intro", "value"),
+                Output("export-pdf-conclusion", "value"),
+            ],
+            Input("modal-export-pdf", "is_open"),
+            State("store-document-text", "data"),
+            prevent_initial_call=True,
+        )
+        def load_document_text(is_open, doc_text):
+            if is_open:
+                doc_text = doc_text or {}
+                return doc_text.get("introduction", ""), doc_text.get("conclusion", "")
+            return dash.no_update, dash.no_update
 
         logger.info("All callbacks registered successfully")
 
@@ -4190,3 +4324,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
