@@ -2860,6 +2860,7 @@ class SignalViewerApp:
                 Input("tabs", "value"),
                 Input("store-assignments", "data"),  # Listen to assignment changes
                 Input("store-csv-files", "data"),  # Listen to CSV changes
+                Input("store-x-axis-signal", "data"),  # Listen to X-axis changes
             ],
             [
                 State("store-subplot-modes", "data"),
@@ -2867,7 +2868,7 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def handle_subplot_mode(mode, sel_subplot, active_tab, assignments, csv_files, modes, derived):
+        def handle_subplot_mode(mode, sel_subplot, active_tab, assignments, csv_files, x_axis_signals, modes, derived):
             ctx = callback_context
             modes = modes or {}
             assignments = assignments or {}
@@ -2914,32 +2915,51 @@ class SignalViewerApp:
                     "value": f"-1:{sig_name}"
                 })
             
-            # Get current X-axis value (from store-x-axis-signal)
-            x_signal = "time"
+            # Get current X-axis value from store
+            x_axis_signals = x_axis_signals or {}
+            x_value = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
+            
+            # Get display text for current X-axis
+            x_signal_display = "Time (default)"
+            if x_value and x_value != "time":
+                # Find the label for this value
+                for opt in x_axis_options:
+                    if opt["value"] == x_value:
+                        x_signal_display = opt["label"]
+                        break
+            
             y_signal = ""  # Not used in simplified mode
-            x_value = "time"  # Default
             y_value = None  # Not used
             
-            return modes, xy_style, x_signal, y_signal, x_axis_options, [], x_value, y_value
+            return modes, xy_style, x_signal_display, y_signal, x_axis_options, [], x_value, y_value
 
-        # Sync mode toggle when subplot changes
+        # Sync mode toggle and X-axis when subplot changes
         @self.app.callback(
-            Output("subplot-mode-toggle", "value"),
+            [
+                Output("subplot-mode-toggle", "value"),
+                Output("xy-x-select", "value", allow_duplicate=True),
+            ],
             [
                 Input("store-selected-subplot", "data"),
                 Input("tabs", "value"),
             ],
-            [State("store-subplot-modes", "data")],
+            [
+                State("store-subplot-modes", "data"),
+                State("store-x-axis-signal", "data"),
+            ],
             prevent_initial_call=True,
         )
-        def sync_mode_on_subplot_change(sel_subplot, active_tab, modes):
+        def sync_mode_on_subplot_change(sel_subplot, active_tab, modes, x_axis_signals):
             modes = modes or {}
+            x_axis_signals = x_axis_signals or {}
             tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
             tab_key = str(tab_idx)
             subplot_key = str(sel_subplot or 0)
             
             mode = modes.get(tab_key, {}).get(subplot_key, "time")
-            return mode
+            x_value = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
+            
+            return mode, x_value
 
         # Handle X-axis selection for X-Y mode (store in separate store, not assignments)
         @self.app.callback(
