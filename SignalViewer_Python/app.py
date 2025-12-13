@@ -4180,12 +4180,11 @@ class SignalViewerApp:
                 State("export-pdf-scope", "value"),
                 State("export-pdf-title", "value"),
                 State("export-pdf-intro", "value"),
-                State("export-pdf-caption", "value"),
                 State("export-pdf-conclusion", "value"),
             ],
             prevent_initial_call=True,
         )
-        def do_pdf_export(n, scope, title, intro, caption, conclusion):
+        def do_pdf_export(n, scope, title, intro, conclusion):
             if not n:
                 return dash.no_update
             
