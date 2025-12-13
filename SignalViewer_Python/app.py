@@ -1649,22 +1649,25 @@ class SignalViewerApp:
                 for content, fname in zip(contents, filenames):
                     if content is None or fname is None:
                         continue
-                    os.makedirs("temp", exist_ok=True)
                     
-                    # Generate unique path if filename already exists
-                    base_name, ext = os.path.splitext(fname)
-                    path = os.path.join("temp", fname)
-                    counter = 1
-                    while path in files or os.path.exists(path):
-                        path = os.path.join("temp", f"{base_name}_{counter}{ext}")
-                        counter += 1
+                    # Use uploads folder in workspace
+                    upload_dir = os.path.join(os.path.dirname(__file__), "uploads")
+                    os.makedirs(upload_dir, exist_ok=True)
+                    
+                    # Use original filename - if already exists, skip (don't rename)
+                    path = os.path.join(upload_dir, fname)
+                    
+                    # Check if this exact file is already loaded
+                    if path in files:
+                        logger.info(f"File {fname} already loaded, skipping")
+                        continue
                     
                     try:
                         decoded = base64.b64decode(content.split(",")[1])
                         with open(path, "wb") as f:
                             f.write(decoded)
-                        if path not in files:
-                            files.append(path)
+                        files.append(path)
+                        logger.info(f"Loaded {fname}")
                     except Exception as e:
                         logger.error(f"Error loading {fname}: {e}")
 
@@ -4191,9 +4194,12 @@ class SignalViewerApp:
             # For now, show that kaleido is available
             try:
                 import kaleido
-                return f"✅ PDF export ready (kaleido v{kaleido.__version__}). Full implementation coming soon."
+                # kaleido may not have __version__, check if it's importable
+                return "✅ PDF export ready (kaleido installed). Full implementation coming soon."
             except ImportError:
                 return "ℹ️ PDF export requires 'kaleido' package. Install with: pip install kaleido"
+            except Exception as e:
+                return f"⚠️ Error checking kaleido: {str(e)}"
 
         # =================================================================
         # Subplot Metadata (title, caption) - save and sync
