@@ -2889,28 +2889,29 @@ class SignalViewerApp:
             # Show/hide X-Y controls based on mode
             xy_style = {"display": "flex"} if mode == "xy" else {"display": "none"}
             
-            # Build X-axis options: Time (default) + all signals
+            # Build X-axis options: Time (default) + ONLY assigned signals for this subplot
             x_axis_options = [{"label": "⏱ Time (default)", "value": "time"}]
             
-            # Add signals from loaded CSVs as X-axis options
-            for csv_idx, fp in enumerate(csv_files or []):
-                if csv_idx < len(self.data_manager.data_tables):
-                    df = self.data_manager.data_tables[csv_idx]
-                    if df is not None:
-                        csv_name = os.path.splitext(os.path.basename(fp))[0]
-                        for col in df.columns:
-                            if col.lower() != "time":
-                                x_axis_options.append({
-                                    "label": f"{col} ({csv_name})",
-                                    "value": f"{csv_idx}:{col}"
-                                })
-            
-            # Add derived signals as X-axis options
-            for sig_name in (derived or {}).keys():
-                x_axis_options.append({
-                    "label": f"{sig_name} (D)",
-                    "value": f"-1:{sig_name}"
-                })
+            # Get assigned signals for this subplot
+            assigned_signals = assignments.get(tab_key, {}).get(subplot_key, [])
+            if isinstance(assigned_signals, list):
+                for sig in assigned_signals:
+                    csv_idx = sig.get("csv_idx", -1)
+                    sig_name = sig.get("signal", "")
+                    
+                    if csv_idx == -1:
+                        # Derived signal
+                        x_axis_options.append({
+                            "label": f"{sig_name} (D)",
+                            "value": f"-1:{sig_name}"
+                        })
+                    elif csv_idx >= 0 and csv_idx < len(csv_files or []):
+                        # CSV signal
+                        csv_name = os.path.splitext(os.path.basename(csv_files[csv_idx]))[0]
+                        x_axis_options.append({
+                            "label": f"{sig_name} ({csv_name})",
+                            "value": f"{csv_idx}:{sig_name}"
+                        })
             
             # Get current X-axis value from store
             x_axis_signals = x_axis_signals or {}
@@ -4097,7 +4098,7 @@ class SignalViewerApp:
         @self.app.callback(
             [
                 Output("status-text", "children", allow_duplicate=True),
-                Output("download-csv-export", "data", allow_duplicate=True),  # Reuse for PDF download
+                Output("download-csv-export", "data", allow_duplicate=True),  # Reuse for export download
             ],
             Input("btn-do-export-pdf", "n_clicks"),
             [
@@ -4117,7 +4118,6 @@ class SignalViewerApp:
                 return dash.no_update, dash.no_update
             
             try:
-                import plotly.io as pio
                 from datetime import datetime
                 
                 if not figure:
@@ -4130,28 +4130,33 @@ class SignalViewerApp:
                 if title:
                     fig.update_layout(title=dict(text=title, x=0.5, font=dict(size=16)))
                 
-                # Export as PDF
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"signal_plot_{timestamp}.pdf"
                 
-                # Convert to PDF bytes
-                pdf_bytes = pio.to_image(fig, format="pdf", width=1200, height=800)
-                
-                # Encode for download
-                import base64
-                pdf_b64 = base64.b64encode(pdf_bytes).decode()
-                
-                return f"✅ Exported: {filename}", dict(
-                    content=pdf_b64,
-                    filename=filename,
-                    base64=True,
-                    type="application/pdf"
+                # Export as interactive HTML (most reliable, user can print to PDF)
+                html_content = fig.to_html(
+                    include_plotlyjs=True,
+                    full_html=True,
+                    config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}}
                 )
                 
-            except ImportError as e:
-                return f"❌ Missing package: {e}. Run: pip install kaleido", dash.no_update
+                # Add intro and conclusion to HTML
+                if intro or conclusion:
+                    intro_html = f"<div style='margin: 20px; font-family: Arial;'><h2>Introduction</h2><p>{intro}</p></div>" if intro else ""
+                    conclusion_html = f"<div style='margin: 20px; font-family: Arial;'><h2>Conclusion</h2><p>{conclusion}</p></div>" if conclusion else ""
+                    
+                    # Insert before closing body tag
+                    html_content = html_content.replace("</body>", f"{conclusion_html}</body>")
+                    html_content = html_content.replace("<body>", f"<body>{intro_html}")
+                
+                filename = f"signal_plot_{timestamp}.html"
+                
+                return f"✅ Exported: {filename} (Open in browser → Ctrl+P to print as PDF)", dict(
+                    content=html_content,
+                    filename=filename,
+                )
+                
             except Exception as e:
-                logger.exception(f"PDF export error: {e}")
+                logger.exception(f"Export error: {e}")
                 return f"❌ Export failed: {str(e)}", dash.no_update
 
         # =================================================================
