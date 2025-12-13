@@ -1244,14 +1244,10 @@ class SignalViewerApp:
             for sp_idx in range(rows * cols):
                 sp_assignment = assignments.get(tab_key, {}).get(str(sp_idx), [])
                 # Handle both list (time mode) and dict (xy mode) formats
+                # Assignments are always a list
                 if isinstance(sp_assignment, list):
                     for sig in sp_assignment:
                         all_signal_names.append(sig.get("signal", ""))
-                elif isinstance(sp_assignment, dict):
-                    if "x" in sp_assignment:
-                        all_signal_names.append(sp_assignment["x"].get("signal", ""))
-                    if "y" in sp_assignment:
-                        all_signal_names.append(sp_assignment["y"].get("signal", ""))
             # Find duplicate signal names
             duplicate_signals = set(n for n in all_signal_names if all_signal_names.count(n) > 1)
             
@@ -1820,18 +1816,10 @@ class SignalViewerApp:
                 assigned = set()
                 if assignments:
                     assignment_data = assignments.get(str(tab), {}).get(str(subplot), [])
-                    # Handle both list (time mode) and dict (xy mode) formats
+                    # Assignments are always a list in both time and X-Y modes
                     if isinstance(assignment_data, list):
                         for s in assignment_data:
                             assigned.add(f"{s['csv_idx']}:{s['signal']}")
-                    elif isinstance(assignment_data, dict):
-                        # X-Y mode: check x and y signals
-                        if assignment_data.get("x"):
-                            x = assignment_data["x"]
-                            assigned.add(f"{x['csv_idx']}:{x['signal']}")
-                        if assignment_data.get("y"):
-                            y = assignment_data["y"]
-                            assigned.add(f"{y['csv_idx']}:{y['signal']}")
 
                 linked_csvs = {}
                 for lg in links or []:
@@ -2575,23 +2563,15 @@ class SignalViewerApp:
             if tab_key not in assignments:
                 assignments[tab_key] = {}
             
-            # Initialize assignment based on current mode (only if not exists)
+            # Initialize assignment as list (same format for both time and xy modes)
             if subplot_key not in assignments[tab_key]:
-                if current_mode == "xy":
-                    assignments[tab_key][subplot_key] = {"x": None, "y": None}
-                else:
-                    assignments[tab_key][subplot_key] = []
+                assignments[tab_key][subplot_key] = []
             
-            # Convert assignment format ONLY if mode was explicitly changed (not on every callback)
-            # Check trigger to see if mode toggle was clicked
+            # Ensure assignment is always a list (migrate old dict format if needed)
             current_assignment = assignments[tab_key][subplot_key]
-            if "subplot-mode" in trigger or "store-subplot-modes" in trigger:
-                if current_mode == "xy" and isinstance(current_assignment, list):
-                    # Convert list to dict - clear for fresh X-Y assignment
-                    assignments[tab_key][subplot_key] = {"x": None, "y": None}
-                elif current_mode == "time" and isinstance(current_assignment, dict):
-                    # Convert dict to list - clear for fresh time assignment
-                    assignments[tab_key][subplot_key] = []
+            if isinstance(current_assignment, dict):
+                # Convert old dict format to list
+                assignments[tab_key][subplot_key] = []
 
             rows = int(rows) if rows else 1
             cols = int(cols) if cols else 1
@@ -2659,24 +2639,10 @@ class SignalViewerApp:
                     pass
 
                 # Handle X-Y mode assignment
-                if current_mode == "xy":
-                    if clicked_csv is not None and clicked_sig is not None and clicked_new_val:
-                        # Initialize assignment as dict if needed
-                        if not isinstance(assignments[tab_key].get(subplot_key), dict):
-                            assignments[tab_key][subplot_key] = {"x": None, "y": None}
-                        
-                        xy_assignment = assignments[tab_key][subplot_key]
-                        new_signal = {"csv_idx": clicked_csv, "signal": clicked_sig}
-                        
-                        # If X is not set, assign to X; otherwise assign to Y
-                        if not xy_assignment.get("x"):
-                            xy_assignment["x"] = new_signal
-                        else:
-                            xy_assignment["y"] = new_signal
-                        
-                        assignments[tab_key][subplot_key] = xy_assignment
-                else:
-                    # Time mode: original list-based logic
+                # Both time and X-Y modes use the same list-based assignment
+                # In X-Y mode, X-axis is selected separately via xy-x-select dropdown
+                if True:
+                    # List-based signal assignment logic
                     current = assignments[tab_key][subplot_key]
                     if not isinstance(current, list):
                         current = []
@@ -3018,46 +2984,8 @@ class SignalViewerApp:
             
             return x_axis_signals
 
-        # Handle X/Y signal removal in X-Y mode
-        @self.app.callback(
-            Output("store-assignments", "data", allow_duplicate=True),
-            [
-                Input({"type": "xy-remove", "axis": ALL}, "n_clicks"),
-            ],
-            [
-                State({"type": "xy-remove", "axis": ALL}, "id"),
-                State("store-assignments", "data"),
-                State("store-selected-tab", "data"),
-                State("store-selected-subplot", "data"),
-            ],
-            prevent_initial_call=True,
-        )
-        def handle_xy_remove(n_clicks, ids, assignments, sel_tab, sel_subplot):
-            ctx = callback_context
-            if not ctx.triggered or not any(n_clicks):
-                return dash.no_update
-            
-            trigger = ctx.triggered[0]["prop_id"]
-            assignments = assignments or {}
-            tab_key = str(sel_tab or 0)
-            subplot_key = str(sel_subplot or 0)
-            
-            # Find which axis button was clicked
-            try:
-                import json as js
-                id_str = trigger.split(".")[0]
-                clicked_id = js.loads(id_str)
-                axis = clicked_id.get("axis", "")
-                
-                if axis in ["x", "y"]:
-                    assignment = assignments.get(tab_key, {}).get(subplot_key, {})
-                    if isinstance(assignment, dict):
-                        assignment[axis] = None
-                        assignments[tab_key][subplot_key] = assignment
-            except:
-                pass
-            
-            return assignments
+        # Note: X-Y mode now uses list-based assignments like time mode
+        # The xy-remove callback is no longer needed
 
         # Tab management
         @self.app.callback(
@@ -3850,15 +3778,11 @@ class SignalViewerApp:
                 for tab_key, subplots in (assign or {}).items():
                     template_assignments[tab_key] = {}
                     for sp_key, signals in subplots.items():
+                        # Assignments are always a list
                         if isinstance(signals, list):
                             template_assignments[tab_key][sp_key] = [
                                 {"signal": s.get("signal", "")} for s in signals
                             ]
-                        elif isinstance(signals, dict):
-                            template_assignments[tab_key][sp_key] = {
-                                "x": {"signal": signals.get("x", {}).get("signal", "")} if signals.get("x") else None,
-                                "y": {"signal": signals.get("y", {}).get("signal", "")} if signals.get("y") else None,
-                            }
                 
                 template_data = {
                     "type": "template",
@@ -3927,8 +3851,9 @@ class SignalViewerApp:
                 for tab_key, subplots in template_assignments.items():
                     matched_assignments[tab_key] = {}
                     for sp_key, signals in subplots.items():
+                        # Assignments are always a list
+                        matched_signals = []
                         if isinstance(signals, list):
-                            matched_signals = []
                             for sig in signals:
                                 sig_name = sig.get("signal", "")
                                 if sig_name in signal_to_csv:
@@ -3936,14 +3861,7 @@ class SignalViewerApp:
                                         "csv_idx": signal_to_csv[sig_name],
                                         "signal": sig_name
                                     })
-                            matched_assignments[tab_key][sp_key] = matched_signals
-                        elif isinstance(signals, dict):
-                            matched_assignments[tab_key][sp_key] = {
-                                "x": {"csv_idx": signal_to_csv.get(signals.get("x", {}).get("signal", ""), 0), 
-                                      "signal": signals.get("x", {}).get("signal", "")} if signals.get("x") else None,
-                                "y": {"csv_idx": signal_to_csv.get(signals.get("y", {}).get("signal", ""), 0),
-                                      "signal": signals.get("y", {}).get("signal", "")} if signals.get("y") else None,
-                            }
+                        matched_assignments[tab_key][sp_key] = matched_signals
                 
                 num_tabs = d.get("num_tabs", 1)
                 tabs_children = [
@@ -4177,29 +4095,64 @@ class SignalViewerApp:
             return False
 
         @self.app.callback(
-            Output("status-text", "children", allow_duplicate=True),
+            [
+                Output("status-text", "children", allow_duplicate=True),
+                Output("download-csv-export", "data", allow_duplicate=True),  # Reuse for PDF download
+            ],
             Input("btn-do-export-pdf", "n_clicks"),
             [
                 State("export-pdf-scope", "value"),
                 State("export-pdf-title", "value"),
                 State("export-pdf-intro", "value"),
                 State("export-pdf-conclusion", "value"),
+                State("plot", "figure"),
+                State("store-subplot-metadata", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
             ],
             prevent_initial_call=True,
         )
-        def do_pdf_export(n, scope, title, intro, conclusion):
+        def do_pdf_export(n, scope, title, intro, conclusion, figure, metadata, sel_tab, sel_subplot):
             if not n:
-                return dash.no_update
+                return dash.no_update, dash.no_update
             
-            # For now, show that kaleido is available
             try:
-                import kaleido
-                # kaleido may not have __version__, check if it's importable
-                return "✅ PDF export ready (kaleido installed). Full implementation coming soon."
-            except ImportError:
-                return "ℹ️ PDF export requires 'kaleido' package. Install with: pip install kaleido"
+                import plotly.io as pio
+                from datetime import datetime
+                
+                if not figure:
+                    return "❌ No figure to export", dash.no_update
+                
+                # Create figure from dict
+                fig = go.Figure(figure)
+                
+                # Add title if provided
+                if title:
+                    fig.update_layout(title=dict(text=title, x=0.5, font=dict(size=16)))
+                
+                # Export as PDF
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"signal_plot_{timestamp}.pdf"
+                
+                # Convert to PDF bytes
+                pdf_bytes = pio.to_image(fig, format="pdf", width=1200, height=800)
+                
+                # Encode for download
+                import base64
+                pdf_b64 = base64.b64encode(pdf_bytes).decode()
+                
+                return f"✅ Exported: {filename}", dict(
+                    content=pdf_b64,
+                    filename=filename,
+                    base64=True,
+                    type="application/pdf"
+                )
+                
+            except ImportError as e:
+                return f"❌ Missing package: {e}. Run: pip install kaleido", dash.no_update
             except Exception as e:
-                return f"⚠️ Error checking kaleido: {str(e)}"
+                logger.exception(f"PDF export error: {e}")
+                return f"❌ Export failed: {str(e)}", dash.no_update
 
         # =================================================================
         # Subplot Metadata (title, caption) - save and sync
