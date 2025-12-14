@@ -1,12 +1,30 @@
+# Signal Viewer Pro - Dependencies
+# ================================
+# Compatible with Python 3.10+
+
+# Web framework
 dash==2.14.2
+dash-bootstrap-components==1.5.0
+
+# Plotting
 plotly==5.18.0
+
+# Data processing
 pandas==2.1.4
 numpy==1.26.2
 scipy==1.11.4
-dash-bootstrap-components==1.5.0
+
+# Export libraries
 kaleido==0.2.1
 openpyxl==3.1.2
 reportlab==4.0.7
 python-pptx==0.6.23
+
+# File watching
 watchdog==3.0.0
 
+# Build dependencies (for creating executable)
+pyinstaller==6.5.0
+jaraco.functools
+jaraco.context
+jaraco.text
