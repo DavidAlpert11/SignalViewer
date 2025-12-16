@@ -92,9 +92,12 @@ class SignalViewerApp:
     def __init__(self):
         self.app = dash.Dash(
             __name__,
-            external_stylesheets=[dbc.themes.CYBORG, dbc.icons.FONT_AWESOME],
+            external_stylesheets=[
+                "/assets/bootstrap-cyborg.min.css",  # Local Bootstrap
+                "/assets/font-awesome.min.css"       # Local Font Awesome
+            ],
             external_scripts=[
-                "https://unpkg.com/split.js@1.6.5/dist/split.min.js"
+                "/assets/split.min.js"               # Local Split.js
             ],
             suppress_callback_exceptions=True,
         )
