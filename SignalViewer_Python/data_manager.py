@@ -1,6 +1,7 @@
 """
 DataManager - Handles CSV loading, data management, and streaming
 """
+
 import pandas as pd
 import numpy as np
 import os
@@ -12,7 +13,7 @@ import time
 
 class DataManager:
     """Manages CSV data loading, signal management, and streaming"""
-    
+
     def __init__(self, app):
         self.app = app
         self.signal_names = []
@@ -23,7 +24,7 @@ class DataManager:
         self.data_count = 0
         self.update_counter = 0
         self.last_update_time = datetime.now()
-        
+
         # Multi-CSV streaming properties
         self.csv_file_paths = []
         self.last_file_mod_times = []
@@ -33,80 +34,90 @@ class DataManager:
         self.update_rate = 0.1
         self.latest_data_rates = []
         self.streaming_enabled = False
-        
+
         # Performance optimization
         self.signal_cache = {}
         self.cache_valid = False
-    
+
     def load_data_once(self):
         """Load all CSV data once without streaming"""
         self.stop_streaming_all()
-        
+
         num_csvs = len(self.csv_file_paths)
         if num_csvs == 0:
             return
-        
+
         # Check total file sizes
         total_size_mb = 0
         for file_path in self.csv_file_paths:
             if os.path.isfile(file_path):
                 file_size = os.path.getsize(file_path) / (1024 * 1024)
                 total_size_mb += file_size
-        
+
         # Warn for large files (simplified - just log)
         if total_size_mb > 500:
-            print(f'Warning: Total file size is {total_size_mb:.1f} MB. Loading may take time.')
+            print(
+                f"Warning: Total file size is {total_size_mb:.1f} MB. Loading may take time."
+            )
             # In a real implementation, this would show a dialog
             # For now, we'll just continue
-        
+
         # Load all CSVs sequentially
         success_count = 0
         failed_count = 0
-        
+
         for i, file_path in enumerate(self.csv_file_paths):
             try:
                 filename = os.path.basename(file_path)
-                print(f'📁 Loading CSV {i+1}/{num_csvs}: {filename}...')
-                
+                print(f"📁 Loading CSV {i+1}/{num_csvs}: {filename}...")
+
                 self.read_initial_data(i)
-                
+
                 if self.data_tables[i] is not None and not self.data_tables[i].empty:
                     success_count += 1
                 else:
                     failed_count += 1
             except Exception as e:
-                print(f'Error loading CSV {i+1}: {str(e)}')
+                print(f"Error loading CSV {i+1}: {str(e)}")
                 failed_count += 1
                 self.data_tables[i] = None
-        
+
         self.is_running = False
-        total_rows = sum(len(df) for df in self.data_tables if df is not None and not df.empty)
-        
+        total_rows = sum(
+            len(df) for df in self.data_tables if df is not None and not df.empty
+        )
+
         # Status messages - handled by Dash callbacks
         if failed_count == 0:
-            print(f'✅ Loaded {success_count} CSV(s): {total_rows} rows, {len(self.signal_names)} signals')
+            print(
+                f"✅ Loaded {success_count} CSV(s): {total_rows} rows, {len(self.signal_names)} signals"
+            )
         else:
-            print(f'⚠️ Loaded {success_count}/{num_csvs} CSV(s): {total_rows} rows, {len(self.signal_names)} signals ({failed_count} failed)')
-    
+            print(
+                f"⚠️ Loaded {success_count}/{num_csvs} CSV(s): {total_rows} rows, {len(self.signal_names)} signals ({failed_count} failed)"
+            )
+
     def read_initial_data(self, idx: int):
         """Read initial data from CSV file"""
         file_path = self.csv_file_paths[idx]
-        
+
         if not os.path.isfile(file_path):
             self.data_tables[idx] = None
             return
-        
+
         # Check file size
         file_size = os.path.getsize(file_path)
         if file_size == 0:
             self.data_tables[idx] = None
             return
-        
+
         file_size_mb = file_size / (1024 * 1024)
-        
+
         if file_size_mb > 100:
-            print(f'⚠️ Loading large file ({file_size_mb:.1f} MB): {os.path.basename(file_path)}...')
-        
+            print(
+                f"⚠️ Loading large file ({file_size_mb:.1f} MB): {os.path.basename(file_path)}..."
+            )
+
         try:
             # For very large files, use chunked reading
             if file_size_mb > 200:
@@ -114,76 +125,79 @@ class DataManager:
             else:
                 # Direct read for smaller files
                 df = pd.read_csv(file_path)
-            
+
             if df.empty:
                 self.data_tables[idx] = None
                 return
-            
+
             # Validate CSV format
             if not self.validate_csv_format(df, file_path):
                 self.data_tables[idx] = None
                 filename = os.path.basename(file_path)
-                print(f'❌ CSV format error: {filename} - header/data column mismatch')
+                print(f"❌ CSV format error: {filename} - header/data column mismatch")
                 return
-            
+
             # Set first column as Time
             if len(df.columns) > 0:
-                df.rename(columns={df.columns[0]: 'Time'}, inplace=True)
-            
+                df.rename(columns={df.columns[0]: "Time"}, inplace=True)
+
             # Verify Time column exists
-            if 'Time' not in df.columns:
+            if "Time" not in df.columns:
                 self.data_tables[idx] = None
                 return
-            
+
             self.data_tables[idx] = df
             self.last_read_rows[idx] = len(df)
-            
+
             # Invalidate cache
             self.cache_valid = False
             self.signal_cache = {}
-            
+
             # Update signal names
             self.update_signal_names()
             self.initialize_signal_maps()
-            
+
             # Update UI - signal tree will update automatically via callback
             # No need to call build_signal_tree() or update_status() - handled by Dash callbacks
             self.last_update_time = datetime.now()
-            
+
         except Exception as e:
-            print(f'Error reading CSV {idx+1}: {str(e)}')
+            print(f"Error reading CSV {idx+1}: {str(e)}")
             import traceback
+
             traceback.print_exc()
             self.data_tables[idx] = None
-    
+
     def read_large_csv_chunked(self, file_path: str) -> pd.DataFrame:
         """Read large CSV files in chunks"""
         try:
             file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
-            
+
             # Adaptive chunk size
             if file_size_mb > 1000:
                 chunk_size = 500000
             else:
                 chunk_size = 200000
-            
+
             chunks = []
             row_offset = 0
-            
+
             # Read first chunk to get structure
             try:
                 first_chunk = pd.read_csv(file_path, nrows=min(chunk_size, 10000))
                 if first_chunk.empty:
                     return pd.DataFrame()
-                
-                first_chunk.rename(columns={first_chunk.columns[0]: 'Time'}, inplace=True)
+
+                first_chunk.rename(
+                    columns={first_chunk.columns[0]: "Time"}, inplace=True
+                )
                 chunks.append(first_chunk)
                 row_offset = len(first_chunk)
-                
+
             except Exception as e:
                 # Fallback to full read
                 return pd.read_csv(file_path)
-            
+
             # Continue reading chunks
             chunk_count = 1
             while True:
@@ -192,68 +206,68 @@ class DataManager:
                         file_path,
                         skiprows=row_offset + 1,  # +1 to skip header
                         nrows=chunk_size,
-                        names=first_chunk.columns
+                        names=first_chunk.columns,
                     )
-                    
+
                     if chunk.empty:
                         break
-                    
-                    chunk.rename(columns={chunk.columns[0]: 'Time'}, inplace=True)
+
+                    chunk.rename(columns={chunk.columns[0]: "Time"}, inplace=True)
                     chunks.append(chunk)
                     row_offset += len(chunk)
                     chunk_count += 1
-                    
+
                     # Update progress
                     if chunk_count % 10 == 0:
-                        print(f'📊 Loading... {row_offset} rows loaded')
-                    
+                        print(f"📊 Loading... {row_offset} rows loaded")
+
                     if len(chunk) < chunk_size:
                         break
-                        
+
                 except Exception:
                     break
-            
+
             # Concatenate all chunks
             if len(chunks) == 1:
                 return chunks[0]
             else:
                 return pd.concat(chunks, ignore_index=True)
-                
+
         except Exception:
             # Final fallback
             return pd.read_csv(file_path)
-    
+
     def validate_csv_format(self, df: pd.DataFrame, file_path: str) -> bool:
         """Validate CSV format"""
         try:
             if df.empty:
                 return False
-            
+
             # Read first line of file to check header
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 header_line = f.readline().strip()
                 data_line = f.readline().strip()
-            
+
             # Count columns
-            header_cols = len(header_line.split(','))
-            data_cols = len(data_line.split(','))
+            header_cols = len(header_line.split(","))
+            data_cols = len(data_line.split(","))
             table_cols = len(df.columns)
-            
+
             # Validate format
             return header_cols == data_cols == table_cols
-            
+
         except Exception:
             return False
-    
+
     def update_signal_names(self):
         """Update signal names from all data tables"""
         all_signals = set()
         for df in self.data_tables:
             if df is not None and not df.empty:
-                signals = set(df.columns) - {'Time'}
+                signals = set(df.columns) - {"Time"}
                 all_signals.update(signals)
         self.signal_names = sorted(list(all_signals))
-    
+
     def initialize_signal_maps(self):
         """Initialize signal scaling and state maps"""
         for signal_name in self.signal_names:
@@ -261,40 +275,160 @@ class DataManager:
                 self.signal_scaling[signal_name] = 1.0
             if signal_name not in self.state_signals:
                 self.state_signals[signal_name] = False
-    
-    def get_signal_data(self, csv_idx: int, signal_name: str) -> Tuple[np.ndarray, np.ndarray]:
+
+    def get_signal_data(
+        self, csv_idx: int, signal_name: str
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Get signal data (time and values)"""
+        # Backwards-compatible wrapper: call extended implementation
+        return self.get_signal_data_ext(csv_idx, signal_name)
+
+    def get_signal_data_ext(
+        self,
+        csv_idx: int,
+        signal_name: str,
+        max_points: Optional[int] = None,
+        start: Optional[float] = None,
+        end: Optional[float] = None,
+        use_cache: bool = True,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Get signal time and values with optional decimation and caching.
+
+        Args:
+            csv_idx: index of CSV in `csv_file_paths`
+            signal_name: column name of the signal
+            max_points: if provided, returns a decimated version with <= max_points
+            start/end: optional X range to trim before decimation
+            use_cache: whether to use disk cache for decimated full-range signals
+        """
         try:
             if csv_idx < 0 or csv_idx >= len(self.data_tables):
                 return np.array([]), np.array([])
-            
+
             df = self.data_tables[csv_idx]
             if df is None or df.empty:
                 return np.array([]), np.array([])
-            
+
             if signal_name not in df.columns:
                 return np.array([]), np.array([])
-            
-            time_data = df['Time'].values
+
+            time_data = df["Time"].values
             signal_data = df[signal_name].values
-            
+
             # Apply scaling
             if signal_name in self.signal_scaling:
                 signal_data = signal_data * self.signal_scaling[signal_name]
-            
+
             # Remove NaN values
             valid_mask = ~(np.isnan(time_data) | np.isnan(signal_data))
             if not np.any(valid_mask):
                 return np.array([]), np.array([])
-            
+
             time_data = time_data[valid_mask]
             signal_data = signal_data[valid_mask]
-            
-            return time_data, signal_data
+
+            # Trim by start/end if provided
+            if start is not None or end is not None:
+                s = 0
+                e = len(time_data)
+                if start is not None:
+                    # find first index >= start
+                    s_idx = np.searchsorted(time_data, start, side="left")
+                    s = int(s_idx)
+                if end is not None:
+                    e_idx = np.searchsorted(time_data, end, side="right")
+                    e = int(e_idx)
+                time_slice = time_data[s:e]
+                sig_slice = signal_data[s:e]
+                time_data, signal_data = time_slice, sig_slice
+
+            # If no decimation requested, return arrays
+            if not max_points or len(time_data) <= max_points:
+                return time_data, signal_data
+
+            # If requested decimation, try cache when appropriate (only full-range cache)
+            file_path = self.csv_file_paths[csv_idx]
+            cache_dir = f"{file_path}.lodcache"
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except Exception:
+                cache_dir = None
+
+            cache_file = None
+            if use_cache and cache_dir is not None and start is None and end is None:
+                # safe filename
+                safe_sig = (
+                    signal_name.replace("/", "_").replace("\\", "_").replace(" ", "_")
+                )
+                cache_file = os.path.join(cache_dir, f"{safe_sig}_lod_{max_points}.npz")
+                if os.path.exists(cache_file):
+                    try:
+                        data = np.load(cache_file)
+                        return data["x"], data["y"]
+                    except Exception:
+                        # fall through to compute
+                        cache_file = cache_file
+
+            # Compute decimation (min-max per bin)
+            x = np.asarray(time_data)
+            y = np.asarray(signal_data)
+            n = len(x)
+            if max_points < 3:
+                max_points = 3
+
+            interior_target = max_points - 2
+            bins = max(1, interior_target // 2)
+            idx = np.linspace(1, n - 1, bins + 1, dtype=int)
+
+            out_x = [x[0]]
+            out_y = [y[0]]
+
+            for i in range(len(idx) - 1):
+                s = idx[i]
+                e = idx[i + 1]
+                if e <= s:
+                    continue
+                seg_y = y[s:e]
+                # find local min and max within segment
+                local_min_i = np.argmin(seg_y) + s
+                local_max_i = np.argmax(seg_y) + s
+                if local_min_i < local_max_i:
+                    out_x.append(x[local_min_i])
+                    out_y.append(y[local_min_i])
+                    out_x.append(x[local_max_i])
+                    out_y.append(y[local_max_i])
+                else:
+                    out_x.append(x[local_max_i])
+                    out_y.append(y[local_max_i])
+                    out_x.append(x[local_min_i])
+                    out_y.append(y[local_min_i])
+
+            out_x.append(x[-1])
+            out_y.append(y[-1])
+
+            # Trim to requested length
+            if len(out_x) > max_points:
+                inds = np.linspace(0, len(out_x) - 1, max_points, dtype=int)
+                out_x = list(np.asarray(out_x)[inds])
+                out_y = list(np.asarray(out_y)[inds])
+
+            out_x = np.asarray(out_x)
+            out_y = np.asarray(out_y)
+
+            # Save to cache if requested and full-range
+            if cache_file:
+                try:
+                    np.savez_compressed(cache_file, x=out_x, y=out_y)
+                except Exception:
+                    pass
+
+            return out_x, out_y
         except Exception as e:
-            print(f"Error getting signal data for {signal_name} from CSV {csv_idx}: {e}")
+            print(
+                f"Error getting signal data for {signal_name} from CSV {csv_idx}: {e}"
+            )
             return np.array([]), np.array([])
-    
+
     def clear_data(self):
         """Clear all data"""
         self.stop_streaming_all()
@@ -312,7 +446,7 @@ class DataManager:
         self.last_update_time = datetime.now()
         self.signal_cache = {}
         self.cache_valid = False
-    
+
     def stop_streaming_all(self):
         """Stop all streaming"""
         self.is_running = False
@@ -320,5 +454,4 @@ class DataManager:
             if timer:
                 timer.cancel()
         self.streaming_timers = []
-        print('⏹️ Stopped')
-
+        print("⏹️ Stopped")

@@ -12,7 +12,7 @@ Core Features:
 - Signal customization (color, scale, line width, display name)
 
 Analysis Features:
-- X-Y plot mode for signal correlation analysis  
+- X-Y plot mode for signal correlation analysis
 - Derived signals (derivative, integral, custom math operations)
 - Multi-signal operations (average, sum, difference, etc.)
 - Custom time column selection per CSV
@@ -49,10 +49,10 @@ from data_manager import DataManager
 from signal_operations import SignalOperationsManager
 from linking_manager import LinkingManager
 from config import (
-    SIGNAL_COLORS, 
+    SIGNAL_COLORS,
     get_theme_dict,
-    APP_TITLE, 
-    APP_HOST, 
+    APP_TITLE,
+    APP_HOST,
     APP_PORT,
     TIME_COLUMN,
     DERIVED_CSV_IDX,
@@ -72,12 +72,13 @@ from helpers import (
     calculate_derived_signal,
     calculate_multi_signal_operation,
     clamp,
+    get_text_direction_style,
+    get_text_direction_attr,
 )
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("SignalViewer")
 
@@ -94,11 +95,9 @@ class SignalViewerApp:
             __name__,
             external_stylesheets=[
                 "/assets/bootstrap-cyborg.min.css",  # Local Bootstrap
-                "/assets/font-awesome.min.css"       # Local Font Awesome
+                "/assets/font-awesome.min.css",  # Local Font Awesome
             ],
-            external_scripts=[
-                "/assets/split.min.js"               # Local Split.js
-            ],
+            external_scripts=["/assets/split.min.js"],  # Local Split.js
             suppress_callback_exceptions=True,
         )
         self.app.title = "Signal Viewer Pro"
@@ -139,11 +138,22 @@ class SignalViewerApp:
                 dcc.Store(id="store-refresh-trigger", data=0),
                 dcc.Store(id="store-search-filters", data=[]),
                 dcc.Store(id="store-cursor-x", data={"x": None, "initialized": False}),
-                dcc.Store(id="store-subplot-modes", data={}),  # {tab: {subplot: "time"|"xy"}}
-                dcc.Store(id="store-time-columns", data={}),  # {csv_idx: column_name} - which column is time
-                dcc.Store(id="store-x-axis-signal", data={}),  # {tab: {subplot: signal_key}} - custom X axis for xy mode
-                dcc.Store(id="store-document-text", data={"introduction": "", "conclusion": ""}),  # Persistent intro/conclusion
-                dcc.Store(id="store-subplot-metadata", data={}),  # {tab: {subplot: {title, caption, description}}}
+                dcc.Store(
+                    id="store-subplot-modes", data={}
+                ),  # {tab: {subplot: "time"|"xy"}}
+                dcc.Store(
+                    id="store-time-columns", data={}
+                ),  # {csv_idx: column_name} - which column is time
+                dcc.Store(
+                    id="store-x-axis-signal", data={}
+                ),  # {tab: {subplot: signal_key}} - custom X axis for xy mode
+                dcc.Store(
+                    id="store-document-text",
+                    data={"introduction": "", "conclusion": ""},
+                ),  # Persistent intro/conclusion
+                dcc.Store(
+                    id="store-subplot-metadata", data={}
+                ),  # {tab: {subplot: {title, caption, description}}}
                 dcc.Download(id="download-session"),
                 dcc.Download(id="download-template"),
                 dcc.Download(id="download-csv-export"),
@@ -187,7 +197,9 @@ class SignalViewerApp:
                         ),
                         # Split trigger store and interval
                         dcc.Store(id="store-split-init", data=False),
-                        dcc.Interval(id="interval-split-init", interval=500, max_intervals=5),
+                        dcc.Interval(
+                            id="interval-split-init", interval=500, max_intervals=5
+                        ),
                         # Main content - split layout
                         html.Div(
                             [
@@ -198,77 +210,81 @@ class SignalViewerApp:
                                         html.Div(
                                             [
                                                 dbc.Card(
-                                            [
-                                                dbc.CardHeader(
                                                     [
-                                                        html.Small(
-                                                            "📁 Data Sources",
-                                                            className="fw-bold",
-                                                        ),
-                                                        html.Div(
+                                                        dbc.CardHeader(
                                                             [
-                                                                dbc.Button(
-                                                                    "⏱",
-                                                                    id="btn-time-cols",
-                                                                    size="sm",
-                                                                    color="info",
-                                                                    outline=True,
-                                                                    className="py-0 me-1",
-                                                                    style={"fontSize": "10px"},
-                                                                    title="Select time column",
+                                                                html.Small(
+                                                                    "📁 Data Sources",
+                                                                    className="fw-bold",
                                                                 ),
-                                                                dbc.Button(
-                                                                    "Clear",
-                                                                    id="btn-clear-csv",
-                                                                    size="sm",
-                                                                    color="danger",
-                                                                    outline=True,
-                                                                    className="py-0",
-                                                                    style={"fontSize": "10px"},
+                                                                html.Div(
+                                                                    [
+                                                                        dbc.Button(
+                                                                            "⏱",
+                                                                            id="btn-time-cols",
+                                                                            size="sm",
+                                                                            color="info",
+                                                                            outline=True,
+                                                                            className="py-0 me-1",
+                                                                            style={
+                                                                                "fontSize": "10px"
+                                                                            },
+                                                                            title="Select time column",
+                                                                        ),
+                                                                        dbc.Button(
+                                                                            "Clear",
+                                                                            id="btn-clear-csv",
+                                                                            size="sm",
+                                                                            color="danger",
+                                                                            outline=True,
+                                                                            className="py-0",
+                                                                            style={
+                                                                                "fontSize": "10px"
+                                                                            },
+                                                                        ),
+                                                                    ],
+                                                                    className="float-end",
                                                                 ),
                                                             ],
-                                                            className="float-end",
+                                                            id="card-header-csv",
+                                                            className="py-2",
                                                         ),
-                                                    ],
-                                                    id="card-header-csv",
-                                                    className="py-2",
-                                                ),
-                                                dbc.CardBody(
-                                                    [
-                                                        dcc.Upload(
-                                                            id="upload-csv",
-                                                            children=html.Div(
-                                                                [
-                                                                    html.I(
-                                                                        className="fas fa-cloud-upload-alt me-2"
+                                                        dbc.CardBody(
+                                                            [
+                                                                dcc.Upload(
+                                                                    id="upload-csv",
+                                                                    children=html.Div(
+                                                                        [
+                                                                            html.I(
+                                                                                className="fas fa-cloud-upload-alt me-2"
+                                                                            ),
+                                                                            "Drop/Click CSV",
+                                                                        ],
+                                                                        className="text-center",
                                                                     ),
-                                                                    "Drop/Click CSV",
-                                                                ],
-                                                                className="text-center",
-                                                            ),
-                                                            style={
-                                                                "border": "2px dashed #4ea8de",
-                                                                "borderRadius": "5px",
-                                                                "padding": "12px",
-                                                                "cursor": "pointer",
-                                                            },
-                                                            multiple=True,
-                                                        ),
-                                                        html.Div(
-                                                            id="csv-list",
-                                                            className="mt-2",
-                                                            style={
-                                                                "maxHeight": "80px",
-                                                                "overflowY": "auto",
-                                                            },
+                                                                    style={
+                                                                        "border": "2px dashed #4ea8de",
+                                                                        "borderRadius": "5px",
+                                                                        "padding": "12px",
+                                                                        "cursor": "pointer",
+                                                                    },
+                                                                    multiple=True,
+                                                                ),
+                                                                html.Div(
+                                                                    id="csv-list",
+                                                                    className="mt-2",
+                                                                    style={
+                                                                        "maxHeight": "80px",
+                                                                        "overflowY": "auto",
+                                                                    },
+                                                                ),
+                                                            ],
+                                                            id="card-body-csv",
+                                                            className="py-2",
                                                         ),
                                                     ],
-                                                    id="card-body-csv",
-                                                    className="py-2",
+                                                    id="card-csv",
                                                 ),
-                                                ],
-                                                id="card-csv",
-                                            ),
                                             ],
                                             id="split-panel-1",
                                             className="split-panel",
@@ -277,126 +293,128 @@ class SignalViewerApp:
                                         html.Div(
                                             [
                                                 dbc.Card(
-                                            [
-                                                dbc.CardHeader(
                                                     [
-                                                        html.Small(
-                                                            "📶 Signals",
-                                                            className="fw-bold",
-                                                        ),
-                                                        dbc.Button(
-                                                            "🔗",
-                                                            id="btn-link",
-                                                            size="sm",
-                                                            color="info",
-                                                            outline=True,
-                                                            title="Link CSVs",
-                                                            className="float-end",
-                                                        ),
-                                                    ],
-                                                    id="card-header-signals",
-                                                    className="py-2",
-                                                ),
-                                                dbc.CardBody(
-                                                    [
-                                                        # Search with filter list
-                                                        html.Div(
+                                                        dbc.CardHeader(
                                                             [
-                                                                dbc.InputGroup(
+                                                                html.Small(
+                                                                    "📶 Signals",
+                                                                    className="fw-bold",
+                                                                ),
+                                                                dbc.Button(
+                                                                    "🔗",
+                                                                    id="btn-link",
+                                                                    size="sm",
+                                                                    color="info",
+                                                                    outline=True,
+                                                                    title="Link CSVs",
+                                                                    className="float-end",
+                                                                ),
+                                                            ],
+                                                            id="card-header-signals",
+                                                            className="py-2",
+                                                        ),
+                                                        dbc.CardBody(
+                                                            [
+                                                                # Search with filter list
+                                                                html.Div(
                                                                     [
-                                                                        dbc.Input(
-                                                                            id="search-input",
-                                                                            placeholder="Search...",
+                                                                        dbc.InputGroup(
+                                                                            [
+                                                                                dbc.Input(
+                                                                                    id="search-input",
+                                                                                    placeholder="Search...",
+                                                                                    size="sm",
+                                                                                ),
+                                                                                dbc.Button(
+                                                                                    "+",
+                                                                                    id="btn-add-filter",
+                                                                                    size="sm",
+                                                                                    color="success",
+                                                                                    outline=True,
+                                                                                    title="Add to filter list",
+                                                                                ),
+                                                                            ],
                                                                             size="sm",
                                                                         ),
-                                                                        dbc.Button(
-                                                                            "+",
-                                                                            id="btn-add-filter",
-                                                                            size="sm",
-                                                                            color="success",
-                                                                            outline=True,
-                                                                            title="Add to filter list",
+                                                                        # Active filters display
+                                                                        html.Div(
+                                                                            id="filter-list-display",
+                                                                            className="mt-1",
+                                                                            style={
+                                                                                "fontSize": "10px"
+                                                                            },
                                                                         ),
                                                                     ],
-                                                                    size="sm",
+                                                                    className="mb-2",
                                                                 ),
-                                                                # Active filters display
                                                                 html.Div(
-                                                                    id="filter-list-display",
-                                                                    className="mt-1",
-                                                                    style={"fontSize": "10px"},
+                                                                    [
+                                                                        html.Small(
+                                                                            "Assign → ",
+                                                                            className="text-muted",
+                                                                        ),
+                                                                        html.Span(
+                                                                            id="target-info",
+                                                                            className="text-info fw-bold small",
+                                                                        ),
+                                                                    ],
+                                                                    className="mb-1 p-1 rounded",
+                                                                    id="target-box",
                                                                 ),
-                                                            ],
-                                                            className="mb-2",
-                                                        ),
-                                                        html.Div(
-                                                            [
-                                                                html.Small(
-                                                                    "Assign → ",
-                                                                    className="text-muted",
+                                                                html.Div(
+                                                                    [
+                                                                        html.Small(
+                                                                            "Selected for ops: ",
+                                                                            className="text-muted",
+                                                                        ),
+                                                                        html.Span(
+                                                                            id="highlight-count",
+                                                                            children="0",
+                                                                            className="text-warning fw-bold",
+                                                                        ),
+                                                                        dbc.Button(
+                                                                            "⚙️ Operate",
+                                                                            id="btn-operate-selected",
+                                                                            size="sm",
+                                                                            color="warning",
+                                                                            outline=True,
+                                                                            className="ms-2",
+                                                                            style={
+                                                                                "fontSize": "10px"
+                                                                            },
+                                                                        ),
+                                                                        dbc.Button(
+                                                                            "Clear",
+                                                                            id="btn-clear-highlight",
+                                                                            size="sm",
+                                                                            color="secondary",
+                                                                            outline=True,
+                                                                            className="ms-1",
+                                                                            style={
+                                                                                "fontSize": "10px"
+                                                                            },
+                                                                        ),
+                                                                    ],
+                                                                    className="mb-2",
                                                                 ),
-                                                                html.Span(
-                                                                    id="target-info",
-                                                                    className="text-info fw-bold small",
-                                                                ),
-                                                            ],
-                                                            className="mb-1 p-1 rounded",
-                                                            id="target-box",
-                                                        ),
-                                                        html.Div(
-                                                            [
-                                                                html.Small(
-                                                                    "Selected for ops: ",
-                                                                    className="text-muted",
-                                                                ),
-                                                                html.Span(
-                                                                    id="highlight-count",
-                                                                    children="0",
-                                                                    className="text-warning fw-bold",
-                                                                ),
-                                                                dbc.Button(
-                                                                    "⚙️ Operate",
-                                                                    id="btn-operate-selected",
-                                                                    size="sm",
-                                                                    color="warning",
-                                                                    outline=True,
-                                                                    className="ms-2",
+                                                                html.Div(
+                                                                    id="signal-tree",
+                                                                    children=[
+                                                                        html.Span(
+                                                                            "Loading...",
+                                                                            className="text-muted small",
+                                                                        )
+                                                                    ],
                                                                     style={
-                                                                        "fontSize": "10px"
+                                                                        "flex": "1",
+                                                                        "overflowY": "auto",
                                                                     },
                                                                 ),
-                                                                dbc.Button(
-                                                                    "Clear",
-                                                                    id="btn-clear-highlight",
-                                                                    size="sm",
-                                                                    color="secondary",
-                                                                    outline=True,
-                                                                    className="ms-1",
-                                                                    style={
-                                                                        "fontSize": "10px"
-                                                                    },
-                                                                ),
                                                             ],
-                                                            className="mb-2",
-                                                        ),
-                                                        html.Div(
-                                                            id="signal-tree",
-                                                            children=[
-                                                                html.Span(
-                                                                    "Loading...",
-                                                                    className="text-muted small",
-                                                                )
-                                                            ],
-                                                            style={
-                                                                "flex": "1",
-                                                                "overflowY": "auto",
-                                                            },
+                                                            id="card-body-signals",
+                                                            className="py-2",
                                                         ),
                                                     ],
-                                                    id="card-body-signals",
-                                                    className="py-2",
-                                                ),
-                                            ],
                                                     id="card-signals",
                                                 ),
                                             ],
@@ -438,8 +456,14 @@ class SignalViewerApp:
                                                                         dbc.RadioItems(
                                                                             id="subplot-mode-toggle",
                                                                             options=[
-                                                                                {"label": "📈 Time", "value": "time"},
-                                                                                {"label": "⚡ X-Y", "value": "xy"},
+                                                                                {
+                                                                                    "label": "📈 Time",
+                                                                                    "value": "time",
+                                                                                },
+                                                                                {
+                                                                                    "label": "⚡ X-Y",
+                                                                                    "value": "xy",
+                                                                                },
                                                                             ],
                                                                             value="time",
                                                                             inline=True,
@@ -451,27 +475,52 @@ class SignalViewerApp:
                                                                 # X-axis selector (shown in xy mode - select X signal, then add Y signals normally)
                                                                 html.Div(
                                                                     [
-                                                                        html.Small("X-Axis: ", className="text-info fw-bold me-1"),
+                                                                        html.Small(
+                                                                            "X-Axis: ",
+                                                                            className="text-info fw-bold me-1",
+                                                                        ),
                                                                         dbc.Select(
                                                                             id="xy-x-select",
                                                                             size="sm",
-                                                                            options=[{"label": "⏱ Time (default)", "value": "time"}],
+                                                                            options=[
+                                                                                {
+                                                                                    "label": "⏱ Time (default)",
+                                                                                    "value": "time",
+                                                                                }
+                                                                            ],
                                                                             value="time",
-                                                                            style={"fontSize": "10px", "flex": "1"},
+                                                                            style={
+                                                                                "fontSize": "10px",
+                                                                                "flex": "1",
+                                                                            },
                                                                         ),
                                                                         # Hidden Y select for callback compatibility
                                                                         dbc.Select(
                                                                             id="xy-y-select",
-                                                                            style={"display": "none"},
+                                                                            style={
+                                                                                "display": "none"
+                                                                            },
                                                                         ),
                                                                     ],
                                                                     id="xy-controls",
-                                                                    style={"display": "none"},
+                                                                    style={
+                                                                        "display": "none"
+                                                                    },
                                                                     className="mb-2 d-flex align-items-center",
                                                                 ),
                                                                 # Hidden elements for callback compatibility
-                                                                html.Div(id="xy-x-signal", style={"display": "none"}),
-                                                                html.Div(id="xy-y-signal", style={"display": "none"}),
+                                                                html.Div(
+                                                                    id="xy-x-signal",
+                                                                    style={
+                                                                        "display": "none"
+                                                                    },
+                                                                ),
+                                                                html.Div(
+                                                                    id="xy-y-signal",
+                                                                    style={
+                                                                        "display": "none"
+                                                                    },
+                                                                ),
                                                                 # Subplot metadata (title, caption, description)
                                                                 html.Div(
                                                                     [
@@ -480,20 +529,33 @@ class SignalViewerApp:
                                                                             placeholder="Plot title (replaces 'Subplot X')...",
                                                                             size="sm",
                                                                             className="mb-1",
-                                                                            style={"fontSize": "10px"},
+                                                                            style={
+                                                                                "fontSize": "10px"
+                                                                            },
                                                                         ),
-                                                                        dbc.Input(
+                                                                        dcc.Textarea(
                                                                             id="subplot-caption-input",
                                                                             placeholder="Caption (under Fig #)...",
-                                                                            size="sm",
-                                                                            className="mb-1",
-                                                                            style={"fontSize": "10px"},
+                                                                            className="form-control mb-1 rtl-textarea",
+                                                                            style={
+                                                                                "fontSize": "10px",
+                                                                                "height": "45px",
+                                                                                "resize": "vertical",
+                                                                                "direction": "auto",
+                                                                                "unicodeBidi": "plaintext",
+                                                                            },
                                                                         ),
-                                                                        dbc.Textarea(
+                                                                        dcc.Textarea(
                                                                             id="subplot-description-input",
                                                                             placeholder="Description (detailed text after plot)...",
-                                                                            size="sm",
-                                                                            style={"fontSize": "10px", "height": "50px"},
+                                                                            className="form-control rtl-textarea",
+                                                                            style={
+                                                                                "fontSize": "10px",
+                                                                                "height": "80px",
+                                                                                "resize": "vertical",
+                                                                                "direction": "auto",
+                                                                                "unicodeBidi": "plaintext",
+                                                                            },
                                                                         ),
                                                                     ],
                                                                     className="mb-2 border-bottom pb-2",
@@ -609,11 +671,15 @@ class SignalViewerApp:
                                                                                 # Hidden elements for callback compatibility
                                                                                 html.Div(
                                                                                     id="btn-load",
-                                                                                    style={"display": "none"},
+                                                                                    style={
+                                                                                        "display": "none"
+                                                                                    },
                                                                                 ),
                                                                                 html.Div(
                                                                                     id="btn-del-tab",
-                                                                                    style={"display": "none"},
+                                                                                    style={
+                                                                                        "display": "none"
+                                                                                    },
                                                                                 ),
                                                                                 dbc.Button(
                                                                                     "🔄",
@@ -664,12 +730,16 @@ class SignalViewerApp:
                                                                                 # Hidden subplot selector (needed for callbacks)
                                                                                 dbc.Select(
                                                                                     id="subplot-select",
-                                                                                    style={"display": "none"},
+                                                                                    style={
+                                                                                        "display": "none"
+                                                                                    },
                                                                                 ),
                                                                                 dbc.Input(
                                                                                     id="subplot-input",
                                                                                     type="number",
-                                                                                    style={"display": "none"},
+                                                                                    style={
+                                                                                        "display": "none"
+                                                                                    },
                                                                                 ),
                                                                                 dbc.Checkbox(
                                                                                     id="link-axes-check",
@@ -703,7 +773,10 @@ class SignalViewerApp:
                                                                 html.Div(
                                                                     id="tabs-container",
                                                                     className="d-flex align-items-center",
-                                                                    style={"flexWrap": "wrap", "gap": "2px"},
+                                                                    style={
+                                                                        "flexWrap": "wrap",
+                                                                        "gap": "2px",
+                                                                    },
                                                                     children=[
                                                                         # Tab buttons will be dynamically generated
                                                                     ],
@@ -716,7 +789,10 @@ class SignalViewerApp:
                                                                     outline=True,
                                                                     className="ms-1 px-2",
                                                                     title="Add new tab",
-                                                                    style={"fontSize": "12px", "lineHeight": "1"},
+                                                                    style={
+                                                                        "fontSize": "12px",
+                                                                        "lineHeight": "1",
+                                                                    },
                                                                 ),
                                                             ],
                                                             className="d-flex align-items-center mb-2",
@@ -726,7 +802,10 @@ class SignalViewerApp:
                                                             id="tabs",
                                                             value="tab-0",
                                                             children=[
-                                                                dcc.Tab(label="Tab 1", value="tab-0")
+                                                                dcc.Tab(
+                                                                    label="Tab 1",
+                                                                    value="tab-0",
+                                                                )
                                                             ],
                                                             style={"display": "none"},
                                                         ),
@@ -983,7 +1062,10 @@ class SignalViewerApp:
                         dbc.RadioItems(
                             id="export-csv-scope",
                             options=[
-                                {"label": "Current subplot signals", "value": "subplot"},
+                                {
+                                    "label": "Current subplot signals",
+                                    "value": "subplot",
+                                },
                                 {"label": "All signals in current tab", "value": "tab"},
                                 {"label": "All signals in all tabs", "value": "all"},
                             ],
@@ -1031,7 +1113,10 @@ class SignalViewerApp:
                             id="export-pdf-scope",
                             options=[
                                 {"label": "Current subplot", "value": "subplot"},
-                                {"label": "All subplots in current tab", "value": "tab"},
+                                {
+                                    "label": "All subplots in current tab",
+                                    "value": "tab",
+                                },
                                 {"label": "All tabs", "value": "all"},
                             ],
                             value="tab",
@@ -1045,22 +1130,36 @@ class SignalViewerApp:
                             className="mb-3",
                         ),
                         html.Hr(),
-                        html.Small("📝 Document text (stored in app):", className="text-muted"),
+                        html.Small(
+                            "📝 Document text (stored in app):", className="text-muted"
+                        ),
                         dbc.Label("Introduction:", className="small mt-2"),
-                        dbc.Textarea(
+                        dcc.Textarea(
                             id="export-pdf-intro",
                             placeholder="Introduction text for the report...",
-                            size="sm",
-                            className="mb-2",
-                            style={"height": "80px"},
+                            className="form-control mb-2 rtl-textarea",
+                            style={
+                                "height": "100px",
+                                "resize": "vertical",
+                                "fontFamily": "monospace",
+                                "padding": "8px",
+                                "direction": "auto",
+                                "unicodeBidi": "plaintext",
+                            },
                         ),
                         dbc.Label("Conclusion:", className="small"),
-                        dbc.Textarea(
+                        dcc.Textarea(
                             id="export-pdf-conclusion",
                             placeholder="Conclusion text for the report...",
-                            size="sm",
-                            className="mb-2",
-                            style={"height": "80px"},
+                            className="form-control mb-2 rtl-textarea",
+                            style={
+                                "height": "100px",
+                                "resize": "vertical",
+                                "fontFamily": "monospace",
+                                "padding": "8px",
+                                "direction": "auto",
+                                "unicodeBidi": "plaintext",
+                            },
                         ),
                         dbc.Button(
                             "💾 Save Document Text",
@@ -1151,7 +1250,7 @@ class SignalViewerApp:
     ):
         """
         Create a Plotly figure with subplots for signal visualization.
-        
+
         Args:
             rows: Number of subplot rows (1-4)
             cols: Number of subplot columns (1-4)
@@ -1166,7 +1265,7 @@ class SignalViewerApp:
             x_axis_signals: X-axis signal for XY mode per subplot
             time_columns: Custom time column per CSV file
             subplot_metadata: Titles/captions/descriptions per subplot
-            
+
         Returns:
             go.Figure: Configured Plotly figure with subplots
         """
@@ -1175,7 +1274,7 @@ class SignalViewerApp:
         # Calculate optimal spacing based on subplot count (maximize subplot size)
         v_spacing = 0.08 / rows if rows > 1 else 0.02  # Reduce vertical spacing
         h_spacing = 0.06 / cols if cols > 1 else 0.02  # Reduce horizontal spacing
-        
+
         # Build subplot titles from metadata or use defaults
         subplot_metadata = subplot_metadata or {}
         subplot_titles = []
@@ -1183,7 +1282,7 @@ class SignalViewerApp:
             sp_meta = subplot_metadata.get(str(i), {})
             title = sp_meta.get("title", "")
             subplot_titles.append(title if title else f"Subplot {i+1}")
-        
+
         fig = make_subplots(
             rows=rows,
             cols=cols,
@@ -1295,7 +1394,7 @@ class SignalViewerApp:
         # Also collect signal data for cursor value display
         subplot_signal_data = {}  # {sp_idx: [(x_arr, y_arr, name, color), ...]}
         subplot_modes = subplot_modes or {}
-        
+
         if assignments and tab_key in assignments:
             # First pass: collect all signal names to check for duplicates
             all_signal_names = []
@@ -1307,8 +1406,10 @@ class SignalViewerApp:
                     for sig in sp_assignment:
                         all_signal_names.append(sig.get("signal", ""))
             # Find duplicate signal names
-            duplicate_signals = set(n for n in all_signal_names if all_signal_names.count(n) > 1)
-            
+            duplicate_signals = set(
+                n for n in all_signal_names if all_signal_names.count(n) > 1
+            )
+
             color_idx = 0
             trace_idx = 0  # Unique trace counter for independent legend behavior
             for sp_idx in range(rows * cols):
@@ -1316,26 +1417,26 @@ class SignalViewerApp:
                 sp_assignment = assignments.get(tab_key, {}).get(str(sp_idx), [])
                 r = sp_idx // cols + 1
                 c = sp_idx % cols + 1
-                
+
                 # Get subplot mode and X-axis signal
                 subplot_mode = subplot_modes.get(str(sp_idx), "time")
                 x_axis_signals = x_axis_signals or {}
                 x_axis_choice = x_axis_signals.get(str(sp_idx), "time")
                 time_columns = time_columns or {}
-                
+
                 # Handle both list and dict assignment formats (convert dict to empty list for time/xy mode)
                 sp_signals = sp_assignment if isinstance(sp_assignment, list) else []
-                
+
                 # Determine X-axis data source
                 x_axis_data = None
                 x_axis_label = "Time"
-                
+
                 if subplot_mode == "xy" and x_axis_choice != "time":
                     # X-axis is a signal
                     try:
                         x_csv_idx, x_signal_name = x_axis_choice.split(":", 1)
                         x_csv_idx = int(x_csv_idx)
-                        
+
                         if x_csv_idx == -1 and x_signal_name in self.derived_signals:
                             ds = self.derived_signals[x_signal_name]
                             x_axis_data = np.array(ds.get("data", []))
@@ -1344,11 +1445,17 @@ class SignalViewerApp:
                             df = self.data_manager.data_tables[x_csv_idx]
                             if df is not None and x_signal_name in df.columns:
                                 x_axis_data = df[x_signal_name].values
-                                csv_name = get_csv_short_name(self.data_manager.csv_file_paths[x_csv_idx]) if x_csv_idx < len(self.data_manager.csv_file_paths) else f"C{x_csv_idx+1}"
+                                csv_name = (
+                                    get_csv_short_name(
+                                        self.data_manager.csv_file_paths[x_csv_idx]
+                                    )
+                                    if x_csv_idx < len(self.data_manager.csv_file_paths)
+                                    else f"C{x_csv_idx+1}"
+                                )
                                 x_axis_label = f"{x_signal_name} ({csv_name})"
                     except:
                         pass
-                
+
                 # Update X-axis label for X-Y mode
                 if subplot_mode == "xy" and x_axis_data is not None:
                     fig.update_xaxes(title_text=x_axis_label, row=r, col=c)
@@ -1357,7 +1464,7 @@ class SignalViewerApp:
                     csv_idx = sig.get("csv_idx", -1)
                     signal_name = sig.get("signal", "")
                     is_state_signal = sig.get("is_state", False)
-                    
+
                     # In X-Y mode, skip plotting the X-axis signal as a Y trace
                     if subplot_mode == "xy" and x_axis_choice != "time":
                         sig_key = f"{csv_idx}:{signal_name}"
@@ -1380,13 +1487,13 @@ class SignalViewerApp:
                                 time_col = "Time"
                             else:
                                 time_col = df.columns[0]
-                            
+
                             # Use custom X-axis data if in X-Y mode, otherwise use time
                             if subplot_mode == "xy" and x_axis_data is not None:
                                 x_data = x_axis_data
                             else:
                                 x_data = df[time_col].values
-                            
+
                             y_data = df[signal_name].values
                             # Get CSV filename for legend
                             if csv_idx < len(self.data_manager.csv_file_paths):
@@ -1416,20 +1523,22 @@ class SignalViewerApp:
 
                     y_scaled = np.array(y_data) * scale
                     x_arr = np.array(x_data)
-                    
+
                     # Collect signal data for cursor value display
-                    subplot_signal_data[sp_idx].append((x_arr, y_scaled, legend_name, color))
+                    subplot_signal_data[sp_idx].append(
+                        (x_arr, y_scaled, legend_name, color)
+                    )
 
                     # Assign trace to this subplot's legend
                     legend_ref = f"legend{sp_idx + 1}" if sp_idx > 0 else "legend"
                     # Unique legendgroup for each trace so clicking hides only that trace
                     unique_legend_group = f"trace_{trace_idx}"
-                    
+
                     if is_state_signal:
                         # State signal: draw vertical lines at value changes
                         # Find indices where value changes
                         changes = np.where(np.diff(y_scaled) != 0)[0] + 1
-                        
+
                         # Add first visible indicator as a scatter point
                         first_shown = True
                         for change_idx in changes:
@@ -1441,7 +1550,7 @@ class SignalViewerApp:
                                     row=r,
                                     col=c,
                                 )
-                        
+
                         # Add invisible trace for legend
                         fig.add_trace(
                             go.Scatter(
@@ -1481,12 +1590,12 @@ class SignalViewerApp:
             for sp_idx in range(rows * cols):
                 r = sp_idx // cols + 1
                 c = sp_idx % cols + 1
-                
+
                 # Get axis references for this subplot
                 xref = f"x{sp_idx + 1}" if sp_idx > 0 else "x"
                 yref = f"y{sp_idx + 1} domain" if sp_idx > 0 else "y domain"
                 yref_data = f"y{sp_idx + 1}" if sp_idx > 0 else "y"
-                
+
                 fig.add_shape(
                     type="line",
                     x0=cursor_x,
@@ -1497,13 +1606,15 @@ class SignalViewerApp:
                     yref=yref,
                     line=dict(color="#ff6b6b", width=2, dash="solid"),
                 )
-                
+
                 # Build cursor info text with signal values
                 cursor_text_lines = [f"t={cursor_x:.4f}"]
-                
+
                 # Get signal values at cursor position for this subplot
                 if sp_idx in subplot_signal_data:
-                    for x_arr, y_arr, sig_name, sig_color in subplot_signal_data[sp_idx]:
+                    for x_arr, y_arr, sig_name, sig_color in subplot_signal_data[
+                        sp_idx
+                    ]:
                         if len(x_arr) > 0 and len(y_arr) > 0:
                             # Interpolate value at cursor_x
                             try:
@@ -1511,9 +1622,9 @@ class SignalViewerApp:
                                 cursor_text_lines.append(f"{sig_name}: {val:.4f}")
                             except:
                                 pass
-                
+
                 cursor_text = "<br>".join(cursor_text_lines)
-                
+
                 # Add annotation with time and signal values
                 fig.add_annotation(
                     x=cursor_x,
@@ -1568,7 +1679,7 @@ class SignalViewerApp:
                 "color": c["text"],
             }
             body = {"backgroundColor": c["card"], "color": c["text"]}
-            
+
             return (
                 {
                     "backgroundColor": c["bg"],
@@ -1688,7 +1799,13 @@ class SignalViewerApp:
                         except:
                             pass
                 self.derived_signals = new_derived
-                return files, dash.no_update, "✅ Refreshed", refresh_counter + 1, dash.no_update
+                return (
+                    files,
+                    dash.no_update,
+                    "✅ Refreshed",
+                    refresh_counter + 1,
+                    dash.no_update,
+                )
 
             if "del-csv" in trigger:
                 for i, n in enumerate(del_clicks or []):
@@ -1709,19 +1826,19 @@ class SignalViewerApp:
                 for content, fname in zip(contents, filenames):
                     if content is None or fname is None:
                         continue
-                    
+
                     # Use uploads folder in workspace
                     upload_dir = os.path.join(os.path.dirname(__file__), "uploads")
                     os.makedirs(upload_dir, exist_ok=True)
-                    
+
                     # Use original filename - if already exists, skip (don't rename)
                     path = os.path.join(upload_dir, fname)
-                    
+
                     # Check if this exact file is already loaded
                     if path in files:
                         logger.info(f"File {fname} already loaded, skipping")
                         continue
-                    
+
                     try:
                         decoded = base64.b64decode(content.split(",")[1])
                         with open(path, "wb") as f:
@@ -1785,19 +1902,27 @@ class SignalViewerApp:
         )
         def manage_filters(add_click, remove_clicks, search_value, filters):
             from dash import ctx
+
             filters = filters or []
-            
+
             if ctx.triggered_id == "btn-add-filter" and add_click:
                 # Add current search to filter list
-                if search_value and search_value.strip() and search_value.strip() not in filters:
+                if (
+                    search_value
+                    and search_value.strip()
+                    and search_value.strip() not in filters
+                ):
                     filters.append(search_value.strip())
-            
-            elif isinstance(ctx.triggered_id, dict) and ctx.triggered_id.get("type") == "remove-filter":
+
+            elif (
+                isinstance(ctx.triggered_id, dict)
+                and ctx.triggered_id.get("type") == "remove-filter"
+            ):
                 # Remove filter by index
                 idx = ctx.triggered_id.get("idx")
                 if idx is not None and 0 <= idx < len(filters):
                     filters.pop(idx)
-            
+
             # Build filter display
             if filters:
                 filter_badges = [
@@ -1824,10 +1949,10 @@ class SignalViewerApp:
                 )
             else:
                 display = html.Small("No active filters", className="text-muted")
-            
+
             # Clear search input after adding
             clear_input = "" if ctx.triggered_id == "btn-add-filter" else dash.no_update
-            
+
             return filters, display, clear_input
 
         # Signal tree with highlight selection - updates when subplot changes
@@ -1879,7 +2004,9 @@ class SignalViewerApp:
 
                 assigned = set()
                 if assignments:
-                    assignment_data = assignments.get(str(tab), {}).get(str(subplot), [])
+                    assignment_data = assignments.get(str(tab), {}).get(
+                        str(subplot), []
+                    )
                     # Assignments are always a list in both time and X-Y modes
                     if isinstance(assignment_data, list):
                         for s in assignment_data:
@@ -1928,12 +2055,12 @@ class SignalViewerApp:
 
                     fname = get_display_name(fp)
                     signals = [c for c in df.columns if c.lower() != "time"]
-                    
+
                     # Apply search filters (filter list OR current search)
                     active_filters = list(search_filters or [])
                     if search and search.strip():
                         active_filters.append(search.strip())
-                    
+
                     if active_filters:
                         # Signal must match at least one filter
                         filtered_signals = []
@@ -1942,7 +2069,7 @@ class SignalViewerApp:
                             if any(f.lower() in sig_lower for f in active_filters):
                                 filtered_signals.append(sig)
                         signals = filtered_signals
-                    
+
                     if not signals:
                         continue
 
@@ -2380,8 +2507,12 @@ class SignalViewerApp:
                 for tab_key in assignments:
                     for sp_key in assignments[tab_key]:
                         assignments[tab_key][sp_key] = [
-                            s for s in assignments[tab_key][sp_key]
-                            if not (s.get("csv_idx") == -1 and s.get("signal") == signal_name)
+                            s
+                            for s in assignments[tab_key][sp_key]
+                            if not (
+                                s.get("csv_idx") == -1
+                                and s.get("signal") == signal_name
+                            )
                         ]
 
             # Check if clear-all button was clicked
@@ -2437,20 +2568,20 @@ class SignalViewerApp:
         def update_subplot_from_input(typed_value, rows, cols):
             if typed_value is None:
                 return dash.no_update, dash.no_update, dash.no_update
-            
+
             rows = int(rows or 1)
             cols = int(cols or 1)
             max_subplots = rows * cols
-            
+
             # Convert 1-based input to 0-based index
             subplot_idx = int(typed_value) - 1
-            
+
             # Clamp to valid range
             if subplot_idx < 0:
                 subplot_idx = 0
             elif subplot_idx >= max_subplots:
                 subplot_idx = max_subplots - 1
-            
+
             return subplot_idx, str(subplot_idx), None  # Clear input after setting
 
         # Click on plot to select subplot - uses both clickData and relayoutData
@@ -2470,19 +2601,21 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def select_subplot_by_click(click_data, relayout_data, layouts, tab_idx, current_subplot):
+        def select_subplot_by_click(
+            click_data, relayout_data, layouts, tab_idx, current_subplot
+        ):
             ctx = callback_context
             if not ctx.triggered:
                 return dash.no_update, dash.no_update
-            
+
             trigger = ctx.triggered[0]["prop_id"]
             subplot_idx = None
-            
+
             # Handle clickData (clicking on a trace)
             if "clickData" in trigger and click_data:
                 point = click_data.get("points", [{}])[0]
                 x_axis = point.get("xaxis", "x")
-                
+
                 if x_axis == "x":
                     subplot_idx = 0
                 else:
@@ -2490,7 +2623,7 @@ class SignalViewerApp:
                         subplot_idx = int(x_axis.replace("x", "")) - 1
                     except:
                         subplot_idx = 0
-            
+
             # Handle relayoutData (clicking/zooming on subplot area)
             elif "relayoutData" in trigger and relayout_data:
                 # relayoutData contains axis references like "xaxis.range[0]", "xaxis2.autorange", etc.
@@ -2516,10 +2649,10 @@ class SignalViewerApp:
                             except:
                                 pass
                         break
-            
+
             if subplot_idx is not None:
                 return subplot_idx, str(subplot_idx)
-            
+
             return dash.no_update, dash.no_update
 
         # Handle signal assignments with proper linking (fixed bidirectional issue)
@@ -2611,7 +2744,7 @@ class SignalViewerApp:
 
             # Track if we should output sel_subplot or use no_update
             output_subplot = False
-            
+
             # Only update sel_subplot if explicitly triggered by subplot-select dropdown
             if "subplot-select" in trigger and subplot_val is not None:
                 sel_subplot = int(subplot_val)
@@ -2629,11 +2762,11 @@ class SignalViewerApp:
 
             if tab_key not in assignments:
                 assignments[tab_key] = {}
-            
+
             # Initialize assignment as list (same format for both time and xy modes)
             if subplot_key not in assignments[tab_key]:
                 assignments[tab_key][subplot_key] = []
-            
+
             # Ensure assignment is always a list (migrate old dict format if needed)
             current_assignment = assignments[tab_key][subplot_key]
             if isinstance(current_assignment, dict):
@@ -2642,18 +2775,22 @@ class SignalViewerApp:
 
             rows = int(rows) if rows else 1
             cols = int(cols) if cols else 1
-            
+
             # Get old layout to remap subplots if layout changed
             old_layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
             old_rows = old_layout.get("rows", 1)
             old_cols = old_layout.get("cols", 1)
-            
+
             # Remap assignments if layout changed (preserve row/col positions)
-            if (old_rows != rows or old_cols != cols) and "rows-input" in trigger or "cols-input" in trigger:
+            if (
+                (old_rows != rows or old_cols != cols)
+                and "rows-input" in trigger
+                or "cols-input" in trigger
+            ):
                 if tab_key in assignments:
                     old_assignments = assignments[tab_key].copy()
                     new_assignments = {}
-                    
+
                     for old_sp_key, signals in old_assignments.items():
                         old_sp = int(old_sp_key)
                         # Calculate old row/col
@@ -2666,15 +2803,15 @@ class SignalViewerApp:
                             if new_sp_key not in new_assignments:
                                 new_assignments[new_sp_key] = []
                             new_assignments[new_sp_key].extend(signals)
-                    
+
                     assignments[tab_key] = new_assignments
-            
+
             layouts[tab_key] = {"rows": rows, "cols": cols}
 
             if sel_subplot >= rows * cols:
                 sel_subplot = 0
                 subplot_key = "0"
-            
+
             # Handle signal checkbox changes - FIXED linking logic
             if (
                 check_vals is not None
@@ -2723,7 +2860,9 @@ class SignalViewerApp:
                         key = f"{csv_idx}:{sig}"
 
                         is_currently_assigned = key in current_keys
-                        should_be_assigned = clicked_new_val if clicked_new_val else False
+                        should_be_assigned = (
+                            clicked_new_val if clicked_new_val else False
+                        )
 
                         if should_be_assigned and not is_currently_assigned:
                             # ADD signal - check for linked CSVs
@@ -2740,10 +2879,15 @@ class SignalViewerApp:
                                     if linked_csv_idx >= 0 and linked_csv_idx < len(
                                         self.data_manager.data_tables
                                     ):
-                                        df = self.data_manager.data_tables[linked_csv_idx]
+                                        df = self.data_manager.data_tables[
+                                            linked_csv_idx
+                                        ]
                                         if df is not None and sig in df.columns:
                                             assignments[tab_key][subplot_key].append(
-                                                {"csv_idx": linked_csv_idx, "signal": sig}
+                                                {
+                                                    "csv_idx": linked_csv_idx,
+                                                    "signal": sig,
+                                                }
                                             )
                                             current_keys.add(linked_key)
                                     elif linked_csv_idx == -1:
@@ -2776,7 +2920,7 @@ class SignalViewerApp:
                     for val, id_dict in zip(remove_vals, remove_ids)
                     if val
                 }
-                
+
                 assignments[tab_key][subplot_key] = [
                     s
                     for i, s in enumerate(assignments[tab_key][subplot_key])
@@ -2788,11 +2932,14 @@ class SignalViewerApp:
             x_axis_signals = x_axis_signals or {}
             if tab_key not in x_axis_signals:
                 x_axis_signals[tab_key] = {}
-            
+
             current_x_axis = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
             if current_x_axis != "time":
                 # Check if this signal is still in assignments
-                assigned_signal_keys = {f"{s['csv_idx']}:{s['signal']}" for s in assignments.get(tab_key, {}).get(subplot_key, [])}
+                assigned_signal_keys = {
+                    f"{s['csv_idx']}:{s['signal']}"
+                    for s in assignments.get(tab_key, {}).get(subplot_key, [])
+                }
                 if current_x_axis not in assigned_signal_keys:
                     # X-axis signal no longer assigned, reset to time
                     x_axis_signals[tab_key][subplot_key] = "time"
@@ -2804,31 +2951,42 @@ class SignalViewerApp:
             cursor_x = None
             if time_cursor and cursor_data:
                 cursor_x = cursor_data.get("x")
-            
+
             # Get subplot modes for current tab
             tab_subplot_modes = (subplot_modes or {}).get(tab_key, {})
-            
+
             # Get X-axis signals for this tab
             tab_x_axis_signals = (x_axis_signals or {}).get(tab_key, {})
-            
+
             # Get subplot metadata for this tab
             tab_subplot_metadata = (subplot_metadata or {}).get(tab_key, {})
-            
+
             fig = self.create_figure(
-                rows, cols, theme, sel_subplot, assignments, tab_key, link_axes, time_cursor, cursor_x, 
-                tab_subplot_modes, tab_x_axis_signals, time_columns, tab_subplot_metadata
+                rows,
+                cols,
+                theme,
+                sel_subplot,
+                assignments,
+                tab_key,
+                link_axes,
+                time_cursor,
+                cursor_x,
+                tab_subplot_modes,
+                tab_x_axis_signals,
+                time_columns,
+                tab_subplot_metadata,
             )
 
             assigned = assignments.get(tab_key, {}).get(subplot_key, [])
             current_mode = tab_subplot_modes.get(subplot_key, "time")
             items = []
-            
+
             # Handle X-Y mode display
             if current_mode == "xy" and isinstance(assigned, dict):
                 # Show X and Y signal info
                 x_info = assigned.get("x", {})
                 y_info = assigned.get("y", {})
-                
+
                 for axis, info in [("X", x_info), ("Y", y_info)]:
                     if info:
                         csv_idx = info.get("csv_idx", -1)
@@ -2838,16 +2996,21 @@ class SignalViewerApp:
                         else:
                             if csv_idx < len(self.data_manager.csv_file_paths):
                                 csv_path = self.data_manager.csv_file_paths[csv_idx]
-                                csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
+                                csv_filename = os.path.splitext(
+                                    os.path.basename(csv_path)
+                                )[0]
                             else:
                                 csv_filename = f"C{csv_idx+1}"
                             lbl = f"{sig_name} ({csv_filename})"
-                        
+
                         color = "info" if axis == "X" else "warning"
                         items.append(
                             html.Div(
                                 [
-                                    html.Span(f"{axis}: ", className=f"text-{color} fw-bold small"),
+                                    html.Span(
+                                        f"{axis}: ",
+                                        className=f"text-{color} fw-bold small",
+                                    ),
                                     html.Span(lbl, className="small"),
                                     dbc.Button(
                                         "×",
@@ -2863,7 +3026,11 @@ class SignalViewerApp:
                             )
                         )
                 if not items:
-                    items = [html.Span("Assign X and Y signals", className="text-muted small")]
+                    items = [
+                        html.Span(
+                            "Assign X and Y signals", className="text-muted small"
+                        )
+                    ]
             else:
                 # Time mode: show list of signals with checkboxes
                 if isinstance(assigned, list):
@@ -2876,7 +3043,9 @@ class SignalViewerApp:
                             # Get CSV filename for display
                             if csv_idx < len(self.data_manager.csv_file_paths):
                                 csv_path = self.data_manager.csv_file_paths[csv_idx]
-                                csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
+                                csv_filename = os.path.splitext(
+                                    os.path.basename(csv_path)
+                                )[0]
                             else:
                                 csv_filename = f"C{csv_idx+1}"
                             lbl = f"{sig_name} ({csv_filename})"
@@ -2893,7 +3062,15 @@ class SignalViewerApp:
 
             # Only output sel_subplot if explicitly changed, otherwise use no_update
             subplot_output = sel_subplot if output_subplot else dash.no_update
-            return assignments, fig, items, sel_tab, subplot_output, layouts, x_axis_signals or {}
+            return (
+                assignments,
+                fig,
+                items,
+                sel_tab,
+                subplot_output,
+                layouts,
+                x_axis_signals or {},
+            )
 
         # Subplot selector
         @self.app.callback(
@@ -2950,58 +3127,72 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def handle_subplot_mode(mode, sel_subplot, active_tab, assignments, csv_files, x_axis_signals, modes, derived):
+        def handle_subplot_mode(
+            mode,
+            sel_subplot,
+            active_tab,
+            assignments,
+            csv_files,
+            x_axis_signals,
+            modes,
+            derived,
+        ):
             ctx = callback_context
             modes = modes or {}
             assignments = assignments or {}
-            
-            tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+
+            tab_idx = (
+                int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            )
             tab_key = str(tab_idx)
             subplot_key = str(sel_subplot or 0)
-            
+
             if tab_key not in modes:
                 modes[tab_key] = {}
-            
+
             trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
-            
+
             # If mode toggle triggered, update the mode
             if "subplot-mode-toggle" in trigger:
                 modes[tab_key][subplot_key] = mode
             else:
                 # Otherwise, get current mode for this subplot
                 mode = modes.get(tab_key, {}).get(subplot_key, "time")
-            
+
             # Show/hide X-Y controls based on mode
             xy_style = {"display": "flex"} if mode == "xy" else {"display": "none"}
-            
+
             # Build X-axis options: Time (default) + ONLY assigned signals for this subplot
             x_axis_options = [{"label": "⏱ Time (default)", "value": "time"}]
-            
+
             # Get assigned signals for this subplot
             assigned_signals = assignments.get(tab_key, {}).get(subplot_key, [])
             if isinstance(assigned_signals, list):
                 for sig in assigned_signals:
                     csv_idx = sig.get("csv_idx", -1)
                     sig_name = sig.get("signal", "")
-                    
+
                     if csv_idx == -1:
                         # Derived signal
-                        x_axis_options.append({
-                            "label": f"{sig_name} (D)",
-                            "value": f"-1:{sig_name}"
-                        })
+                        x_axis_options.append(
+                            {"label": f"{sig_name} (D)", "value": f"-1:{sig_name}"}
+                        )
                     elif csv_idx >= 0 and csv_idx < len(csv_files or []):
                         # CSV signal
-                        csv_name = os.path.splitext(os.path.basename(csv_files[csv_idx]))[0]
-                        x_axis_options.append({
-                            "label": f"{sig_name} ({csv_name})",
-                            "value": f"{csv_idx}:{sig_name}"
-                        })
-            
+                        csv_name = os.path.splitext(
+                            os.path.basename(csv_files[csv_idx])
+                        )[0]
+                        x_axis_options.append(
+                            {
+                                "label": f"{sig_name} ({csv_name})",
+                                "value": f"{csv_idx}:{sig_name}",
+                            }
+                        )
+
             # Get current X-axis value from store
             x_axis_signals = x_axis_signals or {}
             x_value = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
-            
+
             # Get display text for current X-axis
             x_signal_display = "Time (default)"
             if x_value and x_value != "time":
@@ -3010,11 +3201,20 @@ class SignalViewerApp:
                     if opt["value"] == x_value:
                         x_signal_display = opt["label"]
                         break
-            
+
             y_signal = ""  # Not used in simplified mode
             y_value = None  # Not used
-            
-            return modes, xy_style, x_signal_display, y_signal, x_axis_options, [], x_value, y_value
+
+            return (
+                modes,
+                xy_style,
+                x_signal_display,
+                y_signal,
+                x_axis_options,
+                [],
+                x_value,
+                y_value,
+            )
 
         # Sync mode toggle and X-axis when subplot changes
         @self.app.callback(
@@ -3035,13 +3235,15 @@ class SignalViewerApp:
         def sync_mode_on_subplot_change(sel_subplot, active_tab, modes, x_axis_signals):
             modes = modes or {}
             x_axis_signals = x_axis_signals or {}
-            tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            tab_idx = (
+                int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            )
             tab_key = str(tab_idx)
             subplot_key = str(sel_subplot or 0)
-            
+
             mode = modes.get(tab_key, {}).get(subplot_key, "time")
             x_value = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
-            
+
             return mode, x_value
 
         # Handle X-axis selection for X-Y mode (store in separate store, not assignments)
@@ -3058,16 +3260,16 @@ class SignalViewerApp:
         def handle_x_axis_selection(x_value, x_axis_signals, sel_tab, sel_subplot):
             if not x_value:
                 return dash.no_update
-            
+
             x_axis_signals = x_axis_signals or {}
             tab_key = str(sel_tab or 0)
             subplot_key = str(sel_subplot or 0)
-            
+
             if tab_key not in x_axis_signals:
                 x_axis_signals[tab_key] = {}
-            
+
             x_axis_signals[tab_key][subplot_key] = x_value
-            
+
             return x_axis_signals
 
         # Note: X-Y mode now uses list-based assignments like time mode
@@ -3097,24 +3299,26 @@ class SignalViewerApp:
             tabs, layouts = tabs or [], layouts or {}
             assignments = assignments or {}
             new_active = current
-            
+
             if trigger == "btn-add-tab":
                 idx = len(tabs)
                 tabs.append(dcc.Tab(label=f"Tab {idx+1}", value=f"tab-{idx}"))
                 layouts[str(idx)] = {"rows": 1, "cols": 1}
-                
+
             elif trigger == "btn-del-tab" and len(tabs) > 1:
                 # Get current tab index
-                del_idx = int(current.split("-")[1]) if current and "-" in current else 0
-                
+                del_idx = (
+                    int(current.split("-")[1]) if current and "-" in current else 0
+                )
+
                 # Remove the tab at del_idx
                 tabs = [t for i, t in enumerate(tabs) if i != del_idx]
-                
+
                 # Rebuild layouts with new indices
                 new_layouts = {}
                 new_assignments = {}
                 old_to_new = {}
-                
+
                 new_i = 0
                 for old_i in range(len(tabs) + 1):  # +1 because we removed one
                     if old_i == del_idx:
@@ -3127,20 +3331,20 @@ class SignalViewerApp:
                     if str(old_i) in assignments:
                         new_assignments[str(new_i)] = assignments[str(old_i)]
                     new_i += 1
-                
+
                 layouts = new_layouts
                 assignments = new_assignments
-                
+
                 # Rename tabs
                 for i, t in enumerate(tabs):
                     if isinstance(t, dict):
                         t["props"]["label"] = f"Tab {i+1}"
                         t["props"]["value"] = f"tab-{i}"
-                
+
                 # Set new active tab (previous tab or first tab)
                 new_active_idx = max(0, del_idx - 1) if del_idx > 0 else 0
                 new_active = f"tab-{new_active_idx}"
-            
+
             return tabs, len(tabs), layouts, new_active, assignments
 
         # Link modal
@@ -3481,7 +3685,24 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def save_session(n, files, assign, layouts, links, props, derived, num_tabs, subplot_modes, cursor_x, theme, search_filters, time_columns, x_axis_signals, doc_text, subplot_metadata):
+        def save_session(
+            n,
+            files,
+            assign,
+            layouts,
+            links,
+            props,
+            derived,
+            num_tabs,
+            subplot_modes,
+            cursor_x,
+            theme,
+            search_filters,
+            time_columns,
+            x_axis_signals,
+            doc_text,
+            subplot_metadata,
+        ):
             if not n:
                 return dash.no_update, dash.no_update
             try:
@@ -3546,7 +3767,7 @@ class SignalViewerApp:
                 content_type, content_string = contents.split(",")
                 decoded = base64.b64decode(content_string).decode("utf-8")
                 d = json.loads(decoded)
-                
+
                 files = d.get("files", [])
                 self.data_manager.csv_file_paths = files
                 self.data_manager.data_tables = [None] * len(files)
@@ -3556,18 +3777,18 @@ class SignalViewerApp:
                         self.data_manager.read_initial_data(i)
                 self.derived_signals = d.get("derived", {})
                 self.signal_properties = d.get("props", {})
-                
+
                 # Restore tabs
                 num_tabs = d.get("num_tabs", 1)
                 tabs_children = [
                     dcc.Tab(label=f"Tab {i+1}", value=f"tab-{i}")
                     for i in range(num_tabs)
                 ]
-                
+
                 # Theme (True = dark, False = light)
                 theme = d.get("theme", "dark")
                 is_dark = theme == "dark"
-                
+
                 return (
                     files,
                     d.get("assignments", {}),
@@ -3667,9 +3888,9 @@ class SignalViewerApp:
         def update_cursor_position(click_data, cursor_enabled, current_cursor):
             if not cursor_enabled:
                 return {"x": None, "initialized": False}
-            
+
             current_cursor = current_cursor or {"x": None, "initialized": False}
-            
+
             if click_data:
                 try:
                     point = click_data.get("points", [{}])[0]
@@ -3678,7 +3899,7 @@ class SignalViewerApp:
                         return {"x": float(x_val), "initialized": True}
                 except:
                     pass
-            
+
             return current_cursor
 
         # =================================================================
@@ -3696,18 +3917,18 @@ class SignalViewerApp:
             """Render browser-style tabs with close buttons."""
             tabs_children = tabs_children or []
             active_tab = active_tab or "tab-0"
-            
+
             tab_buttons = []
             for i, tab in enumerate(tabs_children):
                 tab_value = f"tab-{i}"
                 is_active = tab_value == active_tab
-                
+
                 # Extract label
                 if isinstance(tab, dict):
                     label = tab.get("props", {}).get("label", f"Tab {i+1}")
                 else:
                     label = f"Tab {i+1}"
-                
+
                 tab_buttons.append(
                     html.Div(
                         [
@@ -3717,17 +3938,21 @@ class SignalViewerApp:
                                 className="me-1",
                                 style={"cursor": "pointer"},
                             ),
-                            html.Span(
-                                "×",
-                                id={"type": "tab-close", "idx": i},
-                                className="text-danger",
-                                style={
-                                    "cursor": "pointer",
-                                    "fontSize": "14px",
-                                    "fontWeight": "bold",
-                                },
-                                title="Close tab (or middle-click)",
-                            ) if len(tabs_children) > 1 else None,
+                            (
+                                html.Span(
+                                    "×",
+                                    id={"type": "tab-close", "idx": i},
+                                    className="text-danger",
+                                    style={
+                                        "cursor": "pointer",
+                                        "fontSize": "14px",
+                                        "fontWeight": "bold",
+                                    },
+                                    title="Close tab (or middle-click)",
+                                )
+                                if len(tabs_children) > 1
+                                else None
+                            ),
                         ],
                         className=f"px-2 py-1 me-1 rounded {'bg-primary text-white' if is_active else 'bg-secondary bg-opacity-25'}",
                         style={
@@ -3739,7 +3964,7 @@ class SignalViewerApp:
                         id={"type": "tab-container", "idx": i},
                     )
                 )
-            
+
             return tab_buttons
 
         # Handle tab button clicks (select tab)
@@ -3753,7 +3978,7 @@ class SignalViewerApp:
             ctx = callback_context
             if not ctx.triggered or not any(n_clicks):
                 return dash.no_update
-            
+
             try:
                 trigger = ctx.triggered[0]["prop_id"]
                 clicked_id = safe_json_parse(trigger.split(".")[0])
@@ -3784,29 +4009,53 @@ class SignalViewerApp:
         )
         def handle_tab_close(n_clicks, ids, tabs, current, layouts, assignments):
             if not any(n_clicks):
-                return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-            
+                return (
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                )
+
             ctx = callback_context
             if not ctx.triggered:
-                return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-            
+                return (
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                )
+
             try:
                 trigger = ctx.triggered[0]["prop_id"]
                 clicked_id = safe_json_parse(trigger.split(".")[0])
                 if not clicked_id:
-                    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-                
+                    return (
+                        dash.no_update,
+                        dash.no_update,
+                        dash.no_update,
+                        dash.no_update,
+                        dash.no_update,
+                    )
+
                 del_idx = clicked_id["idx"]
                 tabs = tabs or []
                 layouts = layouts or {}
                 assignments = assignments or {}
-                
+
                 if len(tabs) <= 1:
-                    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-                
+                    return (
+                        dash.no_update,
+                        dash.no_update,
+                        dash.no_update,
+                        dash.no_update,
+                        dash.no_update,
+                    )
+
                 # Remove the tab
                 tabs = [t for i, t in enumerate(tabs) if i != del_idx]
-                
+
                 # Rebuild layouts and assignments with new indices
                 new_layouts = {}
                 new_assignments = {}
@@ -3819,21 +4068,27 @@ class SignalViewerApp:
                     if str(old_i) in assignments:
                         new_assignments[str(new_i)] = assignments[str(old_i)]
                     new_i += 1
-                
+
                 # Rename tabs
                 for i, t in enumerate(tabs):
                     if isinstance(t, dict):
                         t["props"]["label"] = f"Tab {i+1}"
                         t["props"]["value"] = f"tab-{i}"
-                
+
                 # Set new active tab
                 new_active_idx = max(0, del_idx - 1) if del_idx > 0 else 0
                 new_active = f"tab-{new_active_idx}"
-                
+
                 return tabs, len(tabs), new_layouts, new_active, new_assignments
             except Exception as e:
                 logger.exception(f"Error closing tab: {e}")
-                return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+                return (
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                    dash.no_update,
+                )
 
         # =================================================================
         # Template Save/Load
@@ -3855,7 +4110,16 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def save_template(n, assign, layouts, num_tabs, subplot_modes, props, x_axis_signals, subplot_metadata):
+        def save_template(
+            n,
+            assign,
+            layouts,
+            num_tabs,
+            subplot_modes,
+            props,
+            x_axis_signals,
+            subplot_metadata,
+        ):
             if not n:
                 return dash.no_update, dash.no_update
             try:
@@ -3870,7 +4134,7 @@ class SignalViewerApp:
                             template_assignments[tab_key][sp_key] = [
                                 {"signal": s.get("signal", "")} for s in signals
                             ]
-                
+
                 template_data = {
                     "type": "template",
                     "version": "2.1",
@@ -3882,11 +4146,13 @@ class SignalViewerApp:
                     "x_axis_signals": x_axis_signals or {},
                     "subplot_metadata": subplot_metadata or {},
                 }
-                
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"signal_viewer_template_{timestamp}.json"
                 return (
-                    dict(content=json.dumps(template_data, indent=2), filename=filename),
+                    dict(
+                        content=json.dumps(template_data, indent=2), filename=filename
+                    ),
                     "✅ Template saved",
                 )
             except Exception as e:
@@ -3918,14 +4184,14 @@ class SignalViewerApp:
                 content_type, content_string = contents.split(",")
                 decoded = base64.b64decode(content_string).decode("utf-8")
                 d = json.loads(decoded)
-                
+
                 if d.get("type") != "template":
                     return [dash.no_update] * 8 + ["❌ Not a template file"]
-                
+
                 # Match template signal names to available signals in loaded CSVs
                 template_assignments = d.get("assignments", {})
                 matched_assignments = {}
-                
+
                 # Build a map of signal_name -> csv_idx
                 signal_to_csv = {}
                 for csv_idx, fp in enumerate(csv_files or []):
@@ -3936,7 +4202,7 @@ class SignalViewerApp:
                                 if col.lower() != "time":
                                     if col not in signal_to_csv:
                                         signal_to_csv[col] = csv_idx
-                
+
                 # Convert template assignments to full assignments
                 for tab_key, subplots in template_assignments.items():
                     matched_assignments[tab_key] = {}
@@ -3947,18 +4213,20 @@ class SignalViewerApp:
                             for sig in signals:
                                 sig_name = sig.get("signal", "")
                                 if sig_name in signal_to_csv:
-                                    matched_signals.append({
-                                        "csv_idx": signal_to_csv[sig_name],
-                                        "signal": sig_name
-                                    })
+                                    matched_signals.append(
+                                        {
+                                            "csv_idx": signal_to_csv[sig_name],
+                                            "signal": sig_name,
+                                        }
+                                    )
                         matched_assignments[tab_key][sp_key] = matched_signals
-                
+
                 num_tabs = d.get("num_tabs", 1)
                 tabs_children = [
                     dcc.Tab(label=f"Tab {i+1}", value=f"tab-{i}")
                     for i in range(num_tabs)
                 ]
-                
+
                 return (
                     matched_assignments,
                     d.get("layouts", {}),
@@ -3993,10 +4261,12 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def toggle_time_cols_modal(open_click, close_click, apply_click, is_open, csv_files, time_cols):
+        def toggle_time_cols_modal(
+            open_click, close_click, apply_click, is_open, csv_files, time_cols
+        ):
             ctx = callback_context
             trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
-            
+
             if "btn-time-cols" in trigger:
                 # Build selectors for each CSV
                 selectors = []
@@ -4004,9 +4274,13 @@ class SignalViewerApp:
                     if csv_idx < len(self.data_manager.data_tables):
                         df = self.data_manager.data_tables[csv_idx]
                         if df is not None:
-                            options = [{"label": col, "value": col} for col in df.columns]
-                            current_time_col = (time_cols or {}).get(str(csv_idx), df.columns[0])
-                            
+                            options = [
+                                {"label": col, "value": col} for col in df.columns
+                            ]
+                            current_time_col = (time_cols or {}).get(
+                                str(csv_idx), df.columns[0]
+                            )
+
                             selectors.append(
                                 html.Div(
                                     [
@@ -4015,7 +4289,10 @@ class SignalViewerApp:
                                             className="text-info fw-bold",
                                         ),
                                         dbc.Select(
-                                            id={"type": "time-col-select", "csv": csv_idx},
+                                            id={
+                                                "type": "time-col-select",
+                                                "csv": csv_idx,
+                                            },
                                             options=options,
                                             value=current_time_col,
                                             size="sm",
@@ -4025,12 +4302,12 @@ class SignalViewerApp:
                                     className="mb-2",
                                 )
                             )
-                
+
                 if not selectors:
                     selectors = [html.P("No CSV files loaded", className="text-muted")]
-                
+
                 return True, selectors
-            
+
             return False, dash.no_update
 
         @self.app.callback(
@@ -4049,15 +4326,15 @@ class SignalViewerApp:
         def apply_time_columns(n, values, ids, current_time_cols):
             if not n:
                 return dash.no_update, dash.no_update
-            
+
             time_cols = current_time_cols or {}
-            
+
             if values and ids:
                 for val, id_dict in zip(values, ids):
                     csv_idx = id_dict.get("csv")
                     if csv_idx is not None and val:
                         time_cols[str(csv_idx)] = val
-            
+
             return time_cols, "✅ Time columns updated"
 
         # =================================================================
@@ -4076,7 +4353,7 @@ class SignalViewerApp:
         def toggle_csv_export_modal(open_click, close_click, export_click, is_open):
             ctx = callback_context
             trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
-            
+
             if "btn-export-csv" in trigger:
                 return True
             return False
@@ -4097,16 +4374,18 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def do_csv_export(n, scope, include_time, assignments, sel_tab, sel_subplot, time_cols):
+        def do_csv_export(
+            n, scope, include_time, assignments, sel_tab, sel_subplot, time_cols
+        ):
             if not n:
                 return dash.no_update, dash.no_update
-            
+
             try:
                 import io
-                
+
                 # Collect signals based on scope
                 signals_to_export = []
-                
+
                 if scope == "subplot":
                     tab_key = str(sel_tab or 0)
                     sp_key = str(sel_subplot or 0)
@@ -4115,7 +4394,9 @@ class SignalViewerApp:
                         signals_to_export = sp_signals
                 elif scope == "tab":
                     tab_key = str(sel_tab or 0)
-                    for sp_key, sp_signals in (assignments or {}).get(tab_key, {}).items():
+                    for sp_key, sp_signals in (
+                        (assignments or {}).get(tab_key, {}).items()
+                    ):
                         if isinstance(sp_signals, list):
                             signals_to_export.extend(sp_signals)
                 else:  # all
@@ -4123,45 +4404,56 @@ class SignalViewerApp:
                         for sp_key, sp_signals in subplots.items():
                             if isinstance(sp_signals, list):
                                 signals_to_export.extend(sp_signals)
-                
+
                 if not signals_to_export:
                     return dash.no_update, "❌ No signals to export"
-                
+
                 # Build export DataFrame
                 export_data = {}
                 time_col_added = False
-                
+
                 for sig in signals_to_export:
                     csv_idx = sig.get("csv_idx", -1)
                     sig_name = sig.get("signal", "")
-                    
+
                     if csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
                         df = self.data_manager.data_tables[csv_idx]
                         if df is not None and sig_name in df.columns:
                             # Add time column once
                             if include_time and not time_col_added:
-                                time_col_name = (time_cols or {}).get(str(csv_idx), "Time")
+                                time_col_name = (time_cols or {}).get(
+                                    str(csv_idx), "Time"
+                                )
                                 if time_col_name in df.columns:
                                     export_data["Time"] = df[time_col_name].values
                                     time_col_added = True
-                            
+
                             # Add signal data
-                            csv_name = get_csv_short_name(self.data_manager.csv_file_paths[csv_idx]) if csv_idx < len(self.data_manager.csv_file_paths) else f"C{csv_idx}"
+                            csv_name = (
+                                get_csv_short_name(
+                                    self.data_manager.csv_file_paths[csv_idx]
+                                )
+                                if csv_idx < len(self.data_manager.csv_file_paths)
+                                else f"C{csv_idx}"
+                            )
                             col_name = f"{sig_name}_{csv_name}"
                             export_data[col_name] = df[sig_name].values
-                
+
                 if not export_data:
                     return dash.no_update, "❌ No data to export"
-                
+
                 # Create DataFrame and export
                 export_df = pd.DataFrame(export_data)
                 csv_string = export_df.to_csv(index=False)
-                
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"signals_export_{timestamp}.csv"
-                
-                return dict(content=csv_string, filename=filename), f"✅ Exported {len(signals_to_export)} signals"
-                
+
+                return (
+                    dict(content=csv_string, filename=filename),
+                    f"✅ Exported {len(signals_to_export)} signals",
+                )
+
             except Exception as e:
                 return dash.no_update, f"❌ {e}"
 
@@ -4180,15 +4472,15 @@ class SignalViewerApp:
         def toggle_pdf_export_modal(open_click, close_click, is_open):
             ctx = callback_context
             trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
-            
+
             if "btn-export-pdf" in trigger:
                 return True
             return False
 
         @self.app.callback(
             [
+                Output("download-csv-export", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
-                Output("download-csv-export", "data", allow_duplicate=True),  # Reuse for export download
             ],
             Input("btn-do-export-pdf", "n_clicks"),
             [
@@ -4210,14 +4502,35 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def do_pdf_export(n, scope, title, intro, conclusion, figure, metadata, sel_tab, sel_subplot,
-                         assignments, layouts, num_tabs, subplot_modes, x_axis_signals, time_columns, is_dark):
+        def do_pdf_export(
+            n,
+            scope,
+            title,
+            intro,
+            conclusion,
+            figure,
+            metadata,
+            sel_tab,
+            sel_subplot,
+            assignments,
+            layouts,
+            num_tabs,
+            subplot_modes,
+            x_axis_signals,
+            time_columns,
+            is_dark,
+        ):
+            print("DEBUG: do_pdf_export called!")  # DEBUG
+            print(f"DEBUG: n={n}, scope={scope}, title={title}")  # DEBUG
+
             if not n:
+                print("DEBUG: n is None, returning no_update")  # DEBUG
                 return dash.no_update, dash.no_update
-            
+
             try:
+                print("DEBUG: Starting export process...")  # DEBUG
                 from datetime import datetime
-                
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 report_title = title or "Signal Analysis Report"
                 metadata = metadata or {}
@@ -4225,7 +4538,11 @@ class SignalViewerApp:
                 layouts = layouts or {}
                 num_tabs = num_tabs or 1
                 theme = "dark" if is_dark else "light"
-                
+
+                print(
+                    f"DEBUG: Report setup complete. intro={intro[:50] if intro else None}"
+                )  # DEBUG
+
                 # Helper to generate figure for a tab (without highlight)
                 def generate_tab_figure(tab_idx):
                     t_key = str(tab_idx)
@@ -4235,20 +4552,30 @@ class SignalViewerApp:
                     tab_modes = (subplot_modes or {}).get(t_key, {})
                     tab_x_signals = (x_axis_signals or {}).get(t_key, {})
                     tab_metadata = (metadata or {}).get(t_key, {})
-                    
+
                     # Create figure WITHOUT selected subplot highlight (pass -1)
                     fig = self.create_figure(
-                        rows, cols, theme, -1,  # -1 means no highlight
-                        assignments, t_key, False, False, None,
-                        tab_modes, tab_x_signals, time_columns, tab_metadata
+                        rows,
+                        cols,
+                        theme,
+                        -1,  # -1 means no highlight
+                        assignments,
+                        t_key,
+                        False,
+                        False,
+                        None,
+                        tab_modes,
+                        tab_x_signals,
+                        time_columns,
+                        tab_metadata,
                     )
                     return fig
-                
+
                 # Build tab sections (plot + descriptions grouped together)
                 tab_sections = []  # List of (tab_title, plot_html, descriptions_html)
                 fig_num = 1
                 total_figs = 0
-                
+
                 def build_figure_descriptions(tab_key, tab_label=""):
                     """Build HTML for figure descriptions for a specific tab"""
                     nonlocal fig_num
@@ -4258,77 +4585,123 @@ class SignalViewerApp:
                         sp_title = sp_meta.get("title", "")
                         sp_caption = sp_meta.get("caption", "")
                         sp_description = sp_meta.get("description", "")
-                        
+
                         if sp_title or sp_caption or sp_description:
-                            section = f"<div class='fig-desc'>"
+                            # determine direction based on available text (caption > description > title)
+                            text_for_dir = sp_caption or sp_description or sp_title
+                            dir_val = get_text_direction_attr(text_for_dir)
+                            section = f"<div class='fig-desc' dir='{dir_val}'>"
                             label_text = f"<b>Fig {fig_num}:</b> "
                             if sp_caption:
                                 label_text += sp_caption
                             elif sp_title:
                                 label_text += sp_title
-                            section += f"<p class='fig-label'>{label_text}</p>"
+                            section += (
+                                f"<p class='fig-label' dir='{dir_val}'>{label_text}</p>"
+                            )
                             if sp_description:
-                                desc_html = sp_description.replace('\n', '<br>')
-                                section += f"<p class='fig-text'>{desc_html}</p>"
+                                desc_html = sp_description.replace("\n", "<br>")
+                                section += f"<p class='fig-text' dir='{dir_val}'>{desc_html}</p>"
                             section += "</div>"
                             descriptions.append(section)
                             fig_num += 1
                     return "".join(descriptions)
-                
+
                 scope_info = ""
-                
+
                 if scope == "subplot":
                     # Single subplot
                     fig = generate_tab_figure(sel_tab or 0)
-                    plot_html = fig.to_html(include_plotlyjs=False, full_html=False,
-                        config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}})
-                    
+                    plot_html = fig.to_html(
+                        include_plotlyjs=False,
+                        full_html=False,
+                        config={
+                            "displayModeBar": True,
+                            "toImageButtonOptions": {
+                                "format": "png",
+                                "height": 800,
+                                "width": 1200,
+                            },
+                        },
+                    )
+
                     tab_key = str(sel_tab or 0)
                     sp_meta = metadata.get(tab_key, {}).get(str(sel_subplot or 0), {})
                     sp_title = sp_meta.get("title", "")
                     sp_caption = sp_meta.get("caption", "")
                     sp_description = sp_meta.get("description", "")
-                    
+
                     desc_html = ""
                     if sp_title or sp_caption or sp_description:
-                        desc_html = f"<div class='fig-desc'><b>Fig 1:</b> "
+                        # add dir attribute based on available text
+                        text_for_dir = sp_caption or sp_description or sp_title
+                        dir_val = get_text_direction_attr(text_for_dir)
+                        desc_html = (
+                            f"<div class='fig-desc' dir='{dir_val}'><b>Fig 1:</b> "
+                        )
                         desc_html += sp_caption if sp_caption else sp_title
                         if sp_description:
-                            desc_html += f"<p class='fig-text'>{sp_description.replace(chr(10), '<br>')}</p>"
+                            desc_html += f"<p class='fig-text' dir='{dir_val}'>{sp_description.replace(chr(10), '<br>')}</p>"
                         desc_html += "</div>"
                         total_figs = 1
-                    
+
                     tab_sections.append(("", plot_html, desc_html))
-                    scope_info = f"Subplot {(sel_subplot or 0) + 1} of Tab {int(tab_key) + 1}"
-                        
+                    scope_info = (
+                        f"Subplot {(sel_subplot or 0) + 1} of Tab {int(tab_key) + 1}"
+                    )
+
                 elif scope == "tab":
                     # Single tab with all subplots
                     fig = generate_tab_figure(sel_tab or 0)
-                    plot_html = fig.to_html(include_plotlyjs=False, full_html=False,
-                        config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}})
-                    
+                    plot_html = fig.to_html(
+                        include_plotlyjs=False,
+                        full_html=False,
+                        config={
+                            "displayModeBar": True,
+                            "toImageButtonOptions": {
+                                "format": "png",
+                                "height": 800,
+                                "width": 1200,
+                            },
+                        },
+                    )
+
                     tab_key = str(sel_tab or 0)
                     descriptions_html = build_figure_descriptions(tab_key)
                     total_figs = fig_num - 1
-                    
+
                     tab_sections.append(("", plot_html, descriptions_html))
                     scope_info = f"Tab {int(tab_key) + 1}"
-                            
+
                 else:  # all tabs
                     # Each tab with its descriptions grouped together
                     for tab_idx in range(num_tabs):
                         fig = generate_tab_figure(tab_idx)
-                        plot_html = fig.to_html(include_plotlyjs=False, full_html=False,
-                            config={'displayModeBar': True, 'toImageButtonOptions': {'format': 'png', 'height': 800, 'width': 1200}})
-                        
+                        plot_html = fig.to_html(
+                            include_plotlyjs=False,
+                            full_html=False,
+                            config={
+                                "displayModeBar": True,
+                                "toImageButtonOptions": {
+                                    "format": "png",
+                                    "height": 800,
+                                    "width": 1200,
+                                },
+                            },
+                        )
+
                         t_key = str(tab_idx)
-                        descriptions_html = build_figure_descriptions(t_key, f"Tab {tab_idx + 1}")
-                        
-                        tab_sections.append((f"Tab {tab_idx + 1}", plot_html, descriptions_html))
-                    
+                        descriptions_html = build_figure_descriptions(
+                            t_key, f"Tab {tab_idx + 1}"
+                        )
+
+                        tab_sections.append(
+                            (f"Tab {tab_idx + 1}", plot_html, descriptions_html)
+                        )
+
                     total_figs = fig_num - 1
                     scope_info = f"All {num_tabs} Tab(s)"
-                
+
                 # Build combined content: each tab's plot followed by its descriptions
                 content_section = ""
                 for tab_title, plot_html, descriptions_html in tab_sections:
@@ -4341,59 +4714,112 @@ class SignalViewerApp:
                         {"<div class='descriptions-section'>" + descriptions_html + "</div>" if descriptions_html else ""}
                     </div>
                     """
-                
+
+                print(
+                    f"DEBUG: Reached line 4711! intro={intro[:30] if intro else 'None'}, conclusion={conclusion[:30] if conclusion else 'None'}"
+                )  # DEBUG
+
+                # Prepare intro/conclusion sections with proper RTL support
+                intro_section = ""
+                if intro:
+                    print(
+                        f"DEBUG: Processing intro with get_text_direction_attr..."
+                    )  # DEBUG
+                    intro_dir = get_text_direction_attr(intro)
+                    intro_style = get_text_direction_style(intro)
+                    intro_escaped = intro.replace("<", "&lt;").replace(">", "&gt;")
+                    intro_section = f"<div class='section' dir='{intro_dir}'><h2>Introduction</h2><pre dir='{intro_dir}' style='white-space: pre-wrap; line-height: 1.6; font-family: inherit; background: #f9f9f9; padding: 10px; border-radius: 5px; {intro_style}'>{intro_escaped}</pre></div>"
+                    print(
+                        f"DEBUG: intro_section created with dir='{intro_dir}'"
+                    )  # DEBUG
+
+                conclusion_section = ""
+                if conclusion:
+                    print(
+                        f"DEBUG: Processing conclusion with get_text_direction_attr..."
+                    )  # DEBUG
+                    concl_dir = get_text_direction_attr(conclusion)
+                    concl_style = get_text_direction_style(conclusion)
+                    concl_escaped = conclusion.replace("<", "&lt;").replace(">", "&gt;")
+                    conclusion_section = f"<div class='section' dir='{concl_dir}'><h2>Conclusion</h2><pre dir='{concl_dir}' style='white-space: pre-wrap; line-height: 1.6; font-family: inherit; background: #f9f9f9; padding: 10px; border-radius: 5px; {concl_style}'>{concl_escaped}</pre></div>"
+                    print(
+                        f"DEBUG: conclusion_section created with dir='{concl_dir}'"
+                    )  # DEBUG
+
+                print("DEBUG: About to build HTML template...")  # DEBUG
                 # Build full HTML document
                 html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>{report_title}</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #fff; color: #333; }}
-        .container {{ max-width: 1200px; margin: 0 auto; }}
-        h1 {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }}
-        h2 {{ color: #333; margin-top: 30px; }}
-        h3 {{ color: #555; }}
-        .meta {{ text-align: center; color: #666; font-size: 12px; margin-bottom: 20px; }}
-        .section {{ margin: 20px 0; }}
-        .tab-section {{ margin: 30px 0; padding-bottom: 20px; border-bottom: 1px dashed #ccc; }}
-        .tab-header {{ color: #2E86AB; margin-bottom: 15px; font-size: 18px; }}
-        .plot-container {{ margin: 20px 0; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: #fafafa; }}
-        .descriptions-section {{ margin-top: 15px; }}
-        .fig-desc {{ margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; border-left: 3px solid #4ea8de; }}
-        .fig-label {{ font-style: italic; margin: 5px 0; }}
-        .fig-text {{ margin: 10px 0; line-height: 1.6; }}
-        @media print {{
-            .tab-section {{ page-break-inside: avoid; }}
-            body {{ background: #fff; }}
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
+                <html>
+                <head>
+                <meta charset="utf-8">
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+                <title>{report_title}</title>
+                <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #fff; color: #333; }}
+                    .container {{ max-width: 1200px; margin: 0 auto; }}
+                    h1 {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }}
+                    h2 {{ color: #333; margin-top: 30px; }}
+                    h3 {{ color: #555; }}
+                    .meta {{ text-align: center; color: #666; font-size: 12px; margin-bottom: 20px; }}
+                    .section {{ margin: 20px 0; }}
+                    .tab-section {{ margin: 30px 0; padding-bottom: 20px; border-bottom: 1px dashed #ccc; }}
+                    .tab-header {{ color: #2E86AB; margin-bottom: 15px; font-size: 18px; }}
+                    .plot-container {{ margin: 20px 0; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: #fafafa; }}
+                    .descriptions-section {{ margin-top: 15px; }}
+                    .fig-desc {{ margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; border-left: 3px solid #4ea8de; }}
+                    .fig-label {{ font-style: italic; margin: 5px 0; }}
+                    .fig-text {{ margin: 10px 0; line-height: 1.6; }}
+                    pre[style*='direction: rtl'] {{ direction: rtl !important; text-align: right !important; unicode-bidi: embed !important; }}
+                    pre[style*='direction: ltr'] {{ direction: ltr !important; text-align: left !important; unicode-bidi: embed !important; }}
+                    @media print {{
+                        .tab-section {{ page-break-inside: avoid; }}
+                        body {{ background: #fff; }}
+                    }}
+                </style>
+            </head>
+            <body>
+            <div class="container">
         <h1>{report_title}</h1>
         <p class="meta">Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")} | {scope_info}</p>
         
-        {"<div class='section'><h2>Introduction</h2><p style='line-height: 1.6;'>" + intro + "</p></div>" if intro else ""}
+        {intro_section}
         
         {content_section}
         
-        {"<div class='section'><h2>Conclusion</h2><p style='line-height: 1.6;'>" + conclusion + "</p></div>" if conclusion else ""}
+        {conclusion_section}
     </div>
 </body>
 </html>"""
-                
+
                 filename = f"signal_report_{timestamp}.html"
-                
-                return f"✅ Exported {len(tab_sections)} tab(s), {total_figs} figure(s): {filename}", dict(
-                    content=html_content,
-                    filename=filename,
+
+                print(
+                    f"DEBUG: HTML generated successfully! Length: {len(html_content)}"
+                )  # DEBUG
+                print(
+                    f"DEBUG: Checking if 'dir=' appears in HTML: {'dir=' in html_content}"
+                )  # DEBUG
+                if intro:
+                    print(
+                        f"DEBUG: Checking intro section in HTML: {'Introduction' in html_content}"
+                    )  # DEBUG
+
+                return (
+                    dict(
+                        content=html_content,
+                        filename=filename,
+                    ),
+                    f"✅ Exported {len(tab_sections)} tab(s), {total_figs} figure(s): {filename}",
                 )
-                
+
             except Exception as e:
+                print(f"DEBUG: EXCEPTION in do_pdf_export: {e}")  # DEBUG
+                import traceback
+
+                traceback.print_exc()  # DEBUG
                 logger.exception(f"Export error: {e}")
-                return f"❌ Export failed: {str(e)}", dash.no_update
+                return dash.no_update, f"❌ Export failed: {str(e)}"
 
         # =================================================================
         # Subplot Metadata (title, caption) - save and sync
@@ -4412,20 +4838,22 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def save_subplot_metadata(title, caption, description, metadata, sel_tab, sel_subplot):
+        def save_subplot_metadata(
+            title, caption, description, metadata, sel_tab, sel_subplot
+        ):
             metadata = metadata or {}
             tab_key = str(sel_tab or 0)
             subplot_key = str(sel_subplot or 0)
-            
+
             if tab_key not in metadata:
                 metadata[tab_key] = {}
             if subplot_key not in metadata[tab_key]:
                 metadata[tab_key][subplot_key] = {}
-            
+
             metadata[tab_key][subplot_key]["title"] = title or ""
             metadata[tab_key][subplot_key]["caption"] = caption or ""
             metadata[tab_key][subplot_key]["description"] = description or ""
-            
+
             return metadata
 
         # Sync subplot metadata when switching subplots
@@ -4444,12 +4872,18 @@ class SignalViewerApp:
         )
         def sync_subplot_metadata(sel_subplot, active_tab, metadata):
             metadata = metadata or {}
-            tab_idx = int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            tab_idx = (
+                int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
+            )
             tab_key = str(tab_idx)
             subplot_key = str(sel_subplot or 0)
-            
+
             sp_meta = metadata.get(tab_key, {}).get(subplot_key, {})
-            return sp_meta.get("title", ""), sp_meta.get("caption", ""), sp_meta.get("description", "")
+            return (
+                sp_meta.get("title", ""),
+                sp_meta.get("caption", ""),
+                sp_meta.get("description", ""),
+            )
 
         # =================================================================
         # Document Text (intro, conclusion) - save and sync
@@ -4470,11 +4904,11 @@ class SignalViewerApp:
         def save_document_text(n, intro, conclusion, current_doc):
             if not n:
                 return dash.no_update, dash.no_update
-            
+
             doc_text = current_doc or {}
             doc_text["introduction"] = intro or ""
             doc_text["conclusion"] = conclusion or ""
-            
+
             return doc_text, "✅ Document text saved"
 
         # Load document text when modal opens
@@ -4506,19 +4940,22 @@ def main():
         print("=" * 50)
         print(f"  {APP_TITLE} - {APP_HOST}:{APP_PORT}")
         print("=" * 50)
-        
+
         logger.info("Creating SignalViewerApp...")
         app = SignalViewerApp()
         logger.info(f"App created with {len(app.app.callback_map)} callbacks")
-        
+
         # Open browser after slight delay
         threading.Thread(
-            target=lambda: (time.sleep(1.5), webbrowser.open(f"http://{APP_HOST}:{APP_PORT}")),
+            target=lambda: (
+                time.sleep(1.5),
+                webbrowser.open(f"http://{APP_HOST}:{APP_PORT}"),
+            ),
             daemon=True,
         ).start()
-        
+
         app.app.run(debug=False, port=APP_PORT, host=APP_HOST)
-        
+
     except Exception as e:
         logger.exception(f"Application error: {e}")
         input("Press Enter to exit...")
@@ -4526,4 +4963,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

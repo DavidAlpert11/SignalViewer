@@ -191,3 +191,49 @@ body[data-theme="light"] .form-check-input:checked {
     cursor: grabbing;
 }
 
+/* === Textarea Multi-line Support === */
+/* Ensure all textareas preserve newlines and allow Enter key */
+textarea,
+.form-control[multiple],
+div[role="textbox"] textarea {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    font-family: inherit;
+    line-height: 1.4;
+}
+
+/* Bootstrap textarea styling */
+.form-control textarea {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+/* Ensure Dash Bootstrap textarea components work */
+div.dbc-textarea textarea {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+/* === RTL (Right-to-Left) Support for Hebrew and Arabic === */
+.rtl-textarea {
+    direction: auto;
+    unicode-bidi: plaintext;
+}
+
+.rtl-textarea::placeholder {
+    direction: ltr;
+    unicode-bidi: bidi-override;
+}
+
+/* Force RTL alignment for mixed content */
+.rtl-textarea[dir="rtl"] {
+    text-align: right;
+}
+
+.rtl-textarea[dir="ltr"] {
+    text-align: left;
+}
+
