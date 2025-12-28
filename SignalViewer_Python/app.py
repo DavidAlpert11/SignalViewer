@@ -32,7 +32,17 @@ Version: 2.1
 """
 
 import dash
-from dash import dcc, html, Input, Output, State, callback_context, ALL
+from dash import (
+    dcc,
+    html,
+    Input,
+    Output,
+    State,
+    callback_context,
+    ALL,
+    Patch,
+    no_update,
+)
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -94,10 +104,10 @@ class SignalViewerApp:
         self.app = dash.Dash(
             __name__,
             external_stylesheets=[
-                "/assets/bootstrap-cyborg.min.css",  # Local Bootstrap
-                "/assets/font-awesome.min.css",  # Local Font Awesome
+                "/assets/bootstrap-cyborg.min.css",
+                "/assets/font-awesome.min.css",
             ],
-            external_scripts=["/assets/split.min.js"],  # Local Split.js
+            external_scripts=["/assets/split.min.js"],
             suppress_callback_exceptions=True,
         )
         self.app.title = "Signal Viewer Pro"
@@ -108,9 +118,45 @@ class SignalViewerApp:
 
         self.derived_signals = {}
         self.signal_properties = {}
+        
+        # ADD THESE TWO LINES - Performance cache
+        self._signal_cache = {}  # {(csv_idx, signal_name, time_col): (x_data, y_data)}
+        self._cache_valid = True
 
         self.app.layout = self.create_layout()
         self.setup_callbacks()
+
+    def get_signal_data_cached(self, csv_idx: int, signal_name: str, 
+                            time_col: str = "Time") -> Tuple[np.ndarray, np.ndarray]:
+        """Get signal data with memory caching"""
+        cache_key = (csv_idx, signal_name, time_col)
+        
+        # Check cache first
+        if self._cache_valid and cache_key in self._signal_cache:
+            return self._signal_cache[cache_key]
+        
+        # Cache miss - read from DataFrame
+        if csv_idx < 0 or csv_idx >= len(self.data_manager.data_tables):
+            return np.array([]), np.array([])
+        
+        df = self.data_manager.data_tables[csv_idx]
+        if df is None or signal_name not in df.columns:
+            return np.array([]), np.array([])
+        
+        # Get time column
+        if time_col not in df.columns:
+            if "Time" in df.columns:
+                time_col = "Time"
+            else:
+                time_col = df.columns[0]
+        
+        x_data = df[time_col].values
+        y_data = df[signal_name].values
+        
+        # Store in cache
+        self._signal_cache[cache_key] = (x_data, y_data)
+        
+        return x_data, y_data
 
     def create_layout(self):
         return html.Div(
@@ -1477,34 +1523,30 @@ class SignalViewerApp:
                         y_data = ds.get("data", [])
                         csv_label = "D"  # Derived
                     elif csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
-                        df = self.data_manager.data_tables[csv_idx]
-                        if df is not None and signal_name in df.columns:
-                            # Get time column (use custom time column if set)
-                            custom_time_col = time_columns.get(str(csv_idx))
-                            if custom_time_col and custom_time_col in df.columns:
-                                time_col = custom_time_col
-                            elif "Time" in df.columns:
-                                time_col = "Time"
-                            else:
-                                time_col = df.columns[0]
-
-                            # Use custom X-axis data if in X-Y mode, otherwise use time
-                            if subplot_mode == "xy" and x_axis_data is not None:
-                                x_data = x_axis_data
-                            else:
-                                x_data = df[time_col].values
-
-                            y_data = df[signal_name].values
-                            # Get CSV filename for legend
-                            if csv_idx < len(self.data_manager.csv_file_paths):
-                                csv_path = self.data_manager.csv_file_paths[csv_idx]
-                                csv_label = os.path.splitext(
-                                    os.path.basename(csv_path)
-                                )[0]
-                            else:
-                                csv_label = f"C{csv_idx+1}"
+                        # Determine time column name
+                        custom_time_col = time_columns.get(str(csv_idx))
+                        if custom_time_col:
+                            time_col = custom_time_col
                         else:
+                            time_col = "Time"
+                        
+                        # Get cached data - MUCH FASTER!
+                        x_data, y_data = self.get_signal_data_cached(csv_idx, signal_name, time_col)
+                        
+                        # Check if data was found
+                        if len(x_data) == 0 or len(y_data) == 0:
                             continue
+                        
+                        # Override X-axis if in X-Y mode
+                        if subplot_mode == "xy" and x_axis_data is not None:
+                            x_data = x_axis_data
+                        
+                        # Get CSV filename for legend
+                        if csv_idx < len(self.data_manager.csv_file_paths):
+                            csv_path = self.data_manager.csv_file_paths[csv_idx]
+                            csv_label = os.path.splitext(os.path.basename(csv_path))[0]
+                        else:
+                            csv_label = f"C{csv_idx+1}"
                     else:
                         continue
 
@@ -1567,9 +1609,12 @@ class SignalViewerApp:
                             col=c,
                         )
                     else:
-                        # Regular signal: normal line plot
+                        # Regular signal: use Scattergl for large datasets (WebGL = faster!)
+                        use_webgl = len(x_arr) > 1000
+                        trace_type = go.Scattergl if use_webgl else go.Scatter
+                        
                         fig.add_trace(
-                            go.Scatter(
+                            trace_type(
                                 x=x_arr,
                                 y=y_scaled,
                                 mode="lines",

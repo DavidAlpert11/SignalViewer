@@ -24,6 +24,9 @@ class DataManager:
         self.data_count = 0
         self.update_counter = 0
         self.last_update_time = datetime.now()
+        self.memory_cache = {}  # {(csv_idx, signal_name, max_points): (time, data)}
+        self.cache_hits = 0
+        self.cache_misses = 0
 
         # Multi-CSV streaming properties
         self.csv_file_paths = []
@@ -38,6 +41,13 @@ class DataManager:
         # Performance optimization
         self.signal_cache = {}
         self.cache_valid = False
+
+    def invalidate_cache(self):
+        """Clear memory cache when data changes"""
+        self.memory_cache.clear()
+        print(f"Cache stats: {self.cache_hits} hits, {self.cache_misses} misses")
+        self.cache_hits = 0
+        self.cache_misses = 0
 
     def load_data_once(self):
         """Load all CSV data once without streaming"""
@@ -96,6 +106,7 @@ class DataManager:
             print(
                 f"⚠️ Loaded {success_count}/{num_csvs} CSV(s): {total_rows} rows, {len(self.signal_names)} signals ({failed_count} failed)"
             )
+        self.invalidate_cache()
 
     def read_initial_data(self, idx: int):
         """Read initial data from CSV file"""
@@ -292,15 +303,16 @@ class DataManager:
         end: Optional[float] = None,
         use_cache: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Get signal time and values with optional decimation and caching.
+        """Get signal time and values with memory + disk caching."""
 
-        Args:
-            csv_idx: index of CSV in `csv_file_paths`
-            signal_name: column name of the signal
-            max_points: if provided, returns a decimated version with <= max_points
-            start/end: optional X range to trim before decimation
-            use_cache: whether to use disk cache for decimated full-range signals
-        """
+        # Memory cache key (only for full-range queries)
+        if use_cache and start is None and end is None and max_points:
+            cache_key = (csv_idx, signal_name, max_points)
+            if cache_key in self.memory_cache:
+                self.cache_hits += 1
+                return self.memory_cache[cache_key]
+            self.cache_misses += 1
+
         try:
             if csv_idx < 0 or csv_idx >= len(self.data_tables):
                 return np.array([]), np.array([])
@@ -332,7 +344,6 @@ class DataManager:
                 s = 0
                 e = len(time_data)
                 if start is not None:
-                    # find first index >= start
                     s_idx = np.searchsorted(time_data, start, side="left")
                     s = int(s_idx)
                 if end is not None:
@@ -346,7 +357,7 @@ class DataManager:
             if not max_points or len(time_data) <= max_points:
                 return time_data, signal_data
 
-            # If requested decimation, try cache when appropriate (only full-range cache)
+            # Try disk cache first (existing code)
             file_path = self.csv_file_paths[csv_idx]
             cache_dir = f"{file_path}.lodcache"
             try:
@@ -356,7 +367,6 @@ class DataManager:
 
             cache_file = None
             if use_cache and cache_dir is not None and start is None and end is None:
-                # safe filename
                 safe_sig = (
                     signal_name.replace("/", "_").replace("\\", "_").replace(" ", "_")
                 )
@@ -364,12 +374,15 @@ class DataManager:
                 if os.path.exists(cache_file):
                     try:
                         data = np.load(cache_file)
-                        return data["x"], data["y"]
+                        result = (data["x"], data["y"])
+                        # Store in memory cache too
+                        cache_key = (csv_idx, signal_name, max_points)
+                        self.memory_cache[cache_key] = result
+                        return result
                     except Exception:
-                        # fall through to compute
-                        cache_file = cache_file
+                        pass
 
-            # Compute decimation (min-max per bin)
+            # Compute decimation (existing code)
             x = np.asarray(time_data)
             y = np.asarray(signal_data)
             n = len(x)
@@ -389,7 +402,6 @@ class DataManager:
                 if e <= s:
                     continue
                 seg_y = y[s:e]
-                # find local min and max within segment
                 local_min_i = np.argmin(seg_y) + s
                 local_max_i = np.argmax(seg_y) + s
                 if local_min_i < local_max_i:
@@ -406,7 +418,6 @@ class DataManager:
             out_x.append(x[-1])
             out_y.append(y[-1])
 
-            # Trim to requested length
             if len(out_x) > max_points:
                 inds = np.linspace(0, len(out_x) - 1, max_points, dtype=int)
                 out_x = list(np.asarray(out_x)[inds])
@@ -415,14 +426,20 @@ class DataManager:
             out_x = np.asarray(out_x)
             out_y = np.asarray(out_y)
 
-            # Save to cache if requested and full-range
+            # Save to disk cache
             if cache_file:
                 try:
                     np.savez_compressed(cache_file, x=out_x, y=out_y)
                 except Exception:
                     pass
 
+            # Save to memory cache
+            if use_cache and start is None and end is None:
+                cache_key = (csv_idx, signal_name, max_points)
+                self.memory_cache[cache_key] = (out_x, out_y)
+
             return out_x, out_y
+
         except Exception as e:
             print(
                 f"Error getting signal data for {signal_name} from CSV {csv_idx}: {e}"
