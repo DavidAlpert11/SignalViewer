@@ -1,5 +1,6 @@
 """
-DataManager - Handles CSV loading, data management, and streaming
+DataManager - Enhanced CSV loading, data management, and caching
+Version 2.0 - Performance optimized
 """
 
 import pandas as pd
@@ -9,6 +10,34 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import time
+from collections import OrderedDict
+
+
+class LRUCache:
+    """Simple LRU cache with size limit"""
+
+    def __init__(self, max_size=100):
+        self.cache = OrderedDict()
+        self.max_size = max_size
+
+    def get(self, key):
+        if key not in self.cache:
+            return None
+        self.cache.move_to_end(key)
+        return self.cache[key]
+
+    def set(self, key, value):
+        if key in self.cache:
+            self.cache.move_to_end(key)
+        self.cache[key] = value
+        if len(self.cache) > self.max_size:
+            self.cache.popitem(last=False)
+
+    def clear(self):
+        self.cache.clear()
+
+    def __len__(self):
+        return len(self.cache)
 
 
 class DataManager:
@@ -24,9 +53,6 @@ class DataManager:
         self.data_count = 0
         self.update_counter = 0
         self.last_update_time = datetime.now()
-        self.memory_cache = {}  # {(csv_idx, signal_name, max_points): (time, data)}
-        self.cache_hits = 0
-        self.cache_misses = 0
 
         # Multi-CSV streaming properties
         self.csv_file_paths = []
@@ -38,85 +64,127 @@ class DataManager:
         self.latest_data_rates = []
         self.streaming_enabled = False
 
-        # Performance optimization
-        self.signal_cache = {}
-        self.cache_valid = False
-
-    def invalidate_cache(self):
-        """Clear memory cache when data changes"""
-        self.memory_cache.clear()
-        print(f"Cache stats: {self.cache_hits} hits, {self.cache_misses} misses")
+        # Enhanced caching system
+        self.memory_cache = LRUCache(max_size=200)  # LRU cache with size limit
+        self.statistics_cache = {}  # Cache for signal statistics
+        self.disk_cache_dirs = {}  # Track cache directories per CSV
         self.cache_hits = 0
         self.cache_misses = 0
 
-    def load_data_once(self):
-        """Load all CSV data once without streaming"""
+        # Performance monitoring
+        self.load_times = []  # Track loading performance
+        self.last_cache_report = time.time()
+
+    def invalidate_cache(self, csv_idx=None):
+        """Clear cache when data changes"""
+        if csv_idx is None:
+            self.memory_cache.clear()
+            self.statistics_cache.clear()
+            print(
+                f"📊 Cache cleared - Stats: {self.cache_hits} hits, {self.cache_misses} misses"
+            )
+            self.cache_hits = 0
+            self.cache_misses = 0
+        else:
+            # Remove all cached data for this CSV
+            keys_to_remove = []
+            for key in list(self.memory_cache.cache.keys()):
+                if isinstance(key, tuple) and key[0] == csv_idx:
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del self.memory_cache.cache[key]
+
+            # Clear statistics for this CSV
+            stat_keys = [k for k in self.statistics_cache if k[0] == csv_idx]
+            for key in stat_keys:
+                del self.statistics_cache[key]
+
+    def load_data_once(self, progress_callback=None):
+        """Load all CSV data with progress tracking"""
         self.stop_streaming_all()
 
         num_csvs = len(self.csv_file_paths)
         if num_csvs == 0:
             return
 
-        # Check total file sizes
+        # Calculate total file size
         total_size_mb = 0
+        file_sizes = []
         for file_path in self.csv_file_paths:
             if os.path.isfile(file_path):
                 file_size = os.path.getsize(file_path) / (1024 * 1024)
+                file_sizes.append(file_size)
                 total_size_mb += file_size
+            else:
+                file_sizes.append(0)
 
-        # Warn for large files (simplified - just log)
+        # Warn for large files
         if total_size_mb > 500:
-            print(
-                f"Warning: Total file size is {total_size_mb:.1f} MB. Loading may take time."
-            )
-            # In a real implementation, this would show a dialog
-            # For now, we'll just continue
+            print(f"⚠️ Large dataset: {total_size_mb:.1f} MB total")
 
-        # Load all CSVs sequentially
+        # Load all CSVs with progress tracking
         success_count = 0
         failed_count = 0
+        start_time = time.time()
 
         for i, file_path in enumerate(self.csv_file_paths):
             try:
                 filename = os.path.basename(file_path)
-                print(f"📁 Loading CSV {i+1}/{num_csvs}: {filename}...")
+                file_size_mb = file_sizes[i]
 
+                if progress_callback:
+                    progress_callback(i, num_csvs, filename)
+
+                print(
+                    f"📁 [{i+1}/{num_csvs}] Loading {filename} ({file_size_mb:.1f} MB)..."
+                )
+
+                load_start = time.time()
                 self.read_initial_data(i)
+                load_time = time.time() - load_start
+                self.load_times.append(load_time)
 
                 if self.data_tables[i] is not None and not self.data_tables[i].empty:
                     success_count += 1
+                    rows = len(self.data_tables[i])
+                    print(f"   ✅ Loaded {rows:,} rows in {load_time:.2f}s")
                 else:
                     failed_count += 1
+                    print(f"   ❌ Failed to load")
+
             except Exception as e:
-                print(f"Error loading CSV {i+1}: {str(e)}")
+                print(f"❌ Error loading CSV {i+1}: {str(e)}")
                 failed_count += 1
                 self.data_tables[i] = None
 
         self.is_running = False
+        total_time = time.time() - start_time
         total_rows = sum(
             len(df) for df in self.data_tables if df is not None and not df.empty
         )
 
-        # Status messages - handled by Dash callbacks
+        # Summary
         if failed_count == 0:
-            print(
-                f"✅ Loaded {success_count} CSV(s): {total_rows} rows, {len(self.signal_names)} signals"
-            )
+            print(f"✅ SUCCESS: Loaded {success_count} CSV(s)")
         else:
             print(
-                f"⚠️ Loaded {success_count}/{num_csvs} CSV(s): {total_rows} rows, {len(self.signal_names)} signals ({failed_count} failed)"
+                f"⚠️ PARTIAL: Loaded {success_count}/{num_csvs} CSV(s) ({failed_count} failed)"
             )
+
+        print(
+            f"📊 Total: {total_rows:,} rows, {len(self.signal_names)} signals in {total_time:.2f}s"
+        )
+
         self.invalidate_cache()
 
     def read_initial_data(self, idx: int):
-        """Read initial data from CSV file"""
+        """Read initial data from CSV file with optimizations"""
         file_path = self.csv_file_paths[idx]
 
         if not os.path.isfile(file_path):
             self.data_tables[idx] = None
             return
 
-        # Check file size
         file_size = os.path.getsize(file_path)
         if file_size == 0:
             self.data_tables[idx] = None
@@ -124,17 +192,15 @@ class DataManager:
 
         file_size_mb = file_size / (1024 * 1024)
 
-        if file_size_mb > 100:
-            print(
-                f"⚠️ Loading large file ({file_size_mb:.1f} MB): {os.path.basename(file_path)}..."
-            )
-
         try:
-            # For very large files, use chunked reading
+            # Adaptive loading strategy based on file size
             if file_size_mb > 200:
                 df = self.read_large_csv_chunked(file_path)
+            elif file_size_mb > 50:
+                # Use low_memory for medium files
+                df = pd.read_csv(file_path, low_memory=False)
             else:
-                # Direct read for smaller files
+                # Fast read for small files
                 df = pd.read_csv(file_path)
 
             if df.empty:
@@ -145,138 +211,120 @@ class DataManager:
             if not self.validate_csv_format(df, file_path):
                 self.data_tables[idx] = None
                 filename = os.path.basename(file_path)
-                print(f"❌ CSV format error: {filename} - header/data column mismatch")
+                print(f"❌ Invalid CSV format: {filename}")
                 return
 
-            # Set first column as Time
+            # Rename first column to Time
             if len(df.columns) > 0:
                 df.rename(columns={df.columns[0]: "Time"}, inplace=True)
 
-            # Verify Time column exists
             if "Time" not in df.columns:
                 self.data_tables[idx] = None
                 return
 
+            # Store dataframe
             self.data_tables[idx] = df
             self.last_read_rows[idx] = len(df)
 
-            # Invalidate cache
-            self.cache_valid = False
-            self.signal_cache = {}
+            # Setup disk cache directory
+            self._setup_disk_cache(idx, file_path)
 
             # Update signal names
             self.update_signal_names()
             self.initialize_signal_maps()
-
-            # Update UI - signal tree will update automatically via callback
-            # No need to call build_signal_tree() or update_status() - handled by Dash callbacks
             self.last_update_time = datetime.now()
 
         except Exception as e:
-            print(f"Error reading CSV {idx+1}: {str(e)}")
+            print(f"❌ Error reading CSV {idx+1}: {str(e)}")
             import traceback
 
             traceback.print_exc()
             self.data_tables[idx] = None
 
-    def read_large_csv_chunked(self, file_path: str) -> pd.DataFrame:
-        """Read large CSV files in chunks"""
+    def _setup_disk_cache(self, csv_idx: int, file_path: str):
+        """Setup disk cache directory for a CSV file"""
+        cache_dir = f"{file_path}.lodcache"
         try:
-            file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+            os.makedirs(cache_dir, exist_ok=True)
+            self.disk_cache_dirs[csv_idx] = cache_dir
+        except Exception as e:
+            print(f"⚠️ Could not create cache directory: {e}")
+            self.disk_cache_dirs[csv_idx] = None
 
-            # Adaptive chunk size
-            if file_size_mb > 1000:
-                chunk_size = 500000
-            else:
-                chunk_size = 200000
+    def read_large_csv_chunked(self, file_path: str) -> pd.DataFrame:
+        """Read large CSV files in chunks with progress"""
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
-            chunks = []
-            row_offset = 0
+        # Adaptive chunk size
+        if file_size_mb > 1000:
+            chunk_size = 500000
+        elif file_size_mb > 500:
+            chunk_size = 300000
+        else:
+            chunk_size = 200000
 
-            # Read first chunk to get structure
-            try:
-                first_chunk = pd.read_csv(file_path, nrows=min(chunk_size, 10000))
-                if first_chunk.empty:
-                    return pd.DataFrame()
+        chunks = []
+        total_rows = 0
 
-                first_chunk.rename(
-                    columns={first_chunk.columns[0]: "Time"}, inplace=True
-                )
-                chunks.append(first_chunk)
-                row_offset = len(first_chunk)
+        try:
+            # Read in chunks
+            chunk_iter = pd.read_csv(file_path, chunksize=chunk_size, low_memory=False)
 
-            except Exception as e:
-                # Fallback to full read
-                return pd.read_csv(file_path)
-
-            # Continue reading chunks
-            chunk_count = 1
-            while True:
-                try:
-                    chunk = pd.read_csv(
-                        file_path,
-                        skiprows=row_offset + 1,  # +1 to skip header
-                        nrows=chunk_size,
-                        names=first_chunk.columns,
-                    )
-
-                    if chunk.empty:
-                        break
-
+            for i, chunk in enumerate(chunk_iter):
+                if i == 0:
+                    # Rename Time column in first chunk
                     chunk.rename(columns={chunk.columns[0]: "Time"}, inplace=True)
-                    chunks.append(chunk)
-                    row_offset += len(chunk)
-                    chunk_count += 1
 
-                    # Update progress
-                    if chunk_count % 10 == 0:
-                        print(f"📊 Loading... {row_offset} rows loaded")
+                chunks.append(chunk)
+                total_rows += len(chunk)
 
-                    if len(chunk) < chunk_size:
-                        break
+                # Progress update every 1M rows
+                if total_rows % 1000000 == 0:
+                    print(f"   📊 Read {total_rows:,} rows...")
 
-                except Exception:
-                    break
-
-            # Concatenate all chunks
-            if len(chunks) == 1:
-                return chunks[0]
+            if chunks:
+                print(f"   🔄 Concatenating {len(chunks)} chunks...")
+                df = pd.concat(chunks, ignore_index=True)
+                return df
             else:
-                return pd.concat(chunks, ignore_index=True)
+                return pd.DataFrame()
 
-        except Exception:
-            # Final fallback
-            return pd.read_csv(file_path)
+        except Exception as e:
+            print(f"⚠️ Chunked read failed, trying direct read: {e}")
+            # Fallback to direct read
+            return pd.read_csv(file_path, low_memory=False)
 
     def validate_csv_format(self, df: pd.DataFrame, file_path: str) -> bool:
-        """Validate CSV format"""
+        """Validate CSV file format"""
         try:
             if df.empty:
                 return False
 
-            # Read first line of file to check header
-            with open(file_path, "r") as f:
-                header_line = f.readline().strip()
-                data_line = f.readline().strip()
+            # Must have at least 2 columns (Time + 1 signal)
+            if len(df.columns) < 2:
+                return False
 
-            # Count columns
-            header_cols = len(header_line.split(","))
-            data_cols = len(data_line.split(","))
-            table_cols = len(df.columns)
+            # Check for numeric data
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            if len(numeric_cols) < 1:
+                return False
 
-            # Validate format
-            return header_cols == data_cols == table_cols
+            return True
 
-        except Exception:
+        except Exception as e:
+            print(f"Validation error: {e}")
             return False
 
     def update_signal_names(self):
-        """Update signal names from all data tables"""
+        """Update list of all signal names across all CSV files"""
         all_signals = set()
+
         for df in self.data_tables:
             if df is not None and not df.empty:
-                signals = set(df.columns) - {"Time"}
+                # Get all columns except Time
+                signals = [col for col in df.columns if col != "Time"]
                 all_signals.update(signals)
+
         self.signal_names = sorted(list(all_signals))
 
     def initialize_signal_maps(self):
@@ -290,8 +338,7 @@ class DataManager:
     def get_signal_data(
         self, csv_idx: int, signal_name: str
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Get signal data (time and values)"""
-        # Backwards-compatible wrapper: call extended implementation
+        """Get signal data (backwards compatible)"""
         return self.get_signal_data_ext(csv_idx, signal_name)
 
     def get_signal_data_ext(
@@ -303,17 +350,20 @@ class DataManager:
         end: Optional[float] = None,
         use_cache: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Get signal time and values with memory + disk caching."""
+        """Get signal data with advanced caching and decimation"""
 
-        # Memory cache key (only for full-range queries)
+        # Check memory cache first (only for full-range queries)
         if use_cache and start is None and end is None and max_points:
             cache_key = (csv_idx, signal_name, max_points)
-            if cache_key in self.memory_cache:
+            cached = self.memory_cache.get(cache_key)
+            if cached is not None:
                 self.cache_hits += 1
-                return self.memory_cache[cache_key]
+                self._maybe_report_cache_stats()
+                return cached
             self.cache_misses += 1
 
         try:
+            # Validate indices
             if csv_idx < 0 or csv_idx >= len(self.data_tables):
                 return np.array([]), np.array([])
 
@@ -324,6 +374,7 @@ class DataManager:
             if signal_name not in df.columns:
                 return np.array([]), np.array([])
 
+            # Extract data
             time_data = df["Time"].values
             signal_data = df[signal_name].values
 
@@ -339,112 +390,242 @@ class DataManager:
             time_data = time_data[valid_mask]
             signal_data = signal_data[valid_mask]
 
-            # Trim by start/end if provided
+            # Apply time range filter
             if start is not None or end is not None:
-                s = 0
-                e = len(time_data)
-                if start is not None:
-                    s_idx = np.searchsorted(time_data, start, side="left")
-                    s = int(s_idx)
-                if end is not None:
-                    e_idx = np.searchsorted(time_data, end, side="right")
-                    e = int(e_idx)
-                time_slice = time_data[s:e]
-                sig_slice = signal_data[s:e]
-                time_data, signal_data = time_slice, sig_slice
+                time_data, signal_data = self._apply_time_range(
+                    time_data, signal_data, start, end
+                )
 
-            # If no decimation requested, return arrays
+            # No decimation needed
             if not max_points or len(time_data) <= max_points:
                 return time_data, signal_data
 
-            # Try disk cache first (existing code)
-            file_path = self.csv_file_paths[csv_idx]
-            cache_dir = f"{file_path}.lodcache"
-            try:
-                os.makedirs(cache_dir, exist_ok=True)
-            except Exception:
-                cache_dir = None
+            # Check disk cache
+            result = self._check_disk_cache(csv_idx, signal_name, max_points)
+            if result is not None:
+                # Store in memory cache
+                if use_cache and start is None and end is None:
+                    cache_key = (csv_idx, signal_name, max_points)
+                    self.memory_cache.set(cache_key, result)
+                return result
 
-            cache_file = None
-            if use_cache and cache_dir is not None and start is None and end is None:
-                safe_sig = (
-                    signal_name.replace("/", "_").replace("\\", "_").replace(" ", "_")
-                )
-                cache_file = os.path.join(cache_dir, f"{safe_sig}_lod_{max_points}.npz")
-                if os.path.exists(cache_file):
-                    try:
-                        data = np.load(cache_file)
-                        result = (data["x"], data["y"])
-                        # Store in memory cache too
-                        cache_key = (csv_idx, signal_name, max_points)
-                        self.memory_cache[cache_key] = result
-                        return result
-                    except Exception:
-                        pass
-
-            # Compute decimation (existing code)
-            x = np.asarray(time_data)
-            y = np.asarray(signal_data)
-            n = len(x)
-            if max_points < 3:
-                max_points = 3
-
-            interior_target = max_points - 2
-            bins = max(1, interior_target // 2)
-            idx = np.linspace(1, n - 1, bins + 1, dtype=int)
-
-            out_x = [x[0]]
-            out_y = [y[0]]
-
-            for i in range(len(idx) - 1):
-                s = idx[i]
-                e = idx[i + 1]
-                if e <= s:
-                    continue
-                seg_y = y[s:e]
-                local_min_i = np.argmin(seg_y) + s
-                local_max_i = np.argmax(seg_y) + s
-                if local_min_i < local_max_i:
-                    out_x.append(x[local_min_i])
-                    out_y.append(y[local_min_i])
-                    out_x.append(x[local_max_i])
-                    out_y.append(y[local_max_i])
-                else:
-                    out_x.append(x[local_max_i])
-                    out_y.append(y[local_max_i])
-                    out_x.append(x[local_min_i])
-                    out_y.append(y[local_min_i])
-
-            out_x.append(x[-1])
-            out_y.append(y[-1])
-
-            if len(out_x) > max_points:
-                inds = np.linspace(0, len(out_x) - 1, max_points, dtype=int)
-                out_x = list(np.asarray(out_x)[inds])
-                out_y = list(np.asarray(out_y)[inds])
-
-            out_x = np.asarray(out_x)
-            out_y = np.asarray(out_y)
+            # Compute decimation using LTTB algorithm
+            decimated = self._decimate_lttb(time_data, signal_data, max_points)
 
             # Save to disk cache
-            if cache_file:
-                try:
-                    np.savez_compressed(cache_file, x=out_x, y=out_y)
-                except Exception:
-                    pass
+            self._save_disk_cache(csv_idx, signal_name, max_points, decimated)
 
             # Save to memory cache
             if use_cache and start is None and end is None:
                 cache_key = (csv_idx, signal_name, max_points)
-                self.memory_cache[cache_key] = (out_x, out_y)
+                self.memory_cache.set(cache_key, decimated)
 
-            return out_x, out_y
+            return decimated
 
         except Exception as e:
             print(
-                f"Error getting signal data for {signal_name} from CSV {csv_idx}: {e}"
+                f"❌ Error getting signal data for {signal_name} from CSV {csv_idx}: {e}"
             )
             return np.array([]), np.array([])
+
+    def _apply_time_range(
+        self,
+        time_data: np.ndarray,
+        signal_data: np.ndarray,
+        start: Optional[float],
+        end: Optional[float],
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Apply time range filter to data"""
+        if start is None and end is None:
+            return time_data, signal_data
+
+        s_idx = 0
+        e_idx = len(time_data)
+
+        if start is not None:
+            s_idx = int(np.searchsorted(time_data, start, side="left"))
+        if end is not None:
+            e_idx = int(np.searchsorted(time_data, end, side="right"))
+
+        return time_data[s_idx:e_idx], signal_data[s_idx:e_idx]
+
+    def _check_disk_cache(
+        self, csv_idx: int, signal_name: str, max_points: int
+    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+        """Check disk cache for decimated data"""
+        cache_dir = self.disk_cache_dirs.get(csv_idx)
+        if not cache_dir:
+            return None
+
+        # Create safe filename
+        safe_sig = signal_name.replace("/", "_").replace("\\", "_").replace(" ", "_")
+        cache_file = os.path.join(cache_dir, f"{safe_sig}_lod_{max_points}.npz")
+
+        if os.path.exists(cache_file):
+            try:
+                data = np.load(cache_file)
+                return (data["x"], data["y"])
+            except Exception:
+                pass
+
+        return None
+
+    def _save_disk_cache(
+        self,
+        csv_idx: int,
+        signal_name: str,
+        max_points: int,
+        data: Tuple[np.ndarray, np.ndarray],
+    ):
+        """Save decimated data to disk cache"""
+        cache_dir = self.disk_cache_dirs.get(csv_idx)
+        if not cache_dir:
+            return
+
+        safe_sig = signal_name.replace("/", "_").replace("\\", "_").replace(" ", "_")
+        cache_file = os.path.join(cache_dir, f"{safe_sig}_lod_{max_points}.npz")
+
+        try:
+            np.savez_compressed(cache_file, x=data[0], y=data[1])
+        except Exception as e:
+            print(f"⚠️ Cache write failed: {e}")
+
+    def _decimate_lttb(
+        self, x: np.ndarray, y: np.ndarray, max_points: int
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Largest Triangle Three Buckets (LTTB) downsampling algorithm
+        Better than min/max for preserving visual appearance
+        """
+        n = len(x)
+        if n <= max_points:
+            return x, y
+
+        if max_points < 3:
+            max_points = 3
+
+        # Output arrays
+        out_x = np.zeros(max_points)
+        out_y = np.zeros(max_points)
+
+        # Always keep first and last points
+        out_x[0] = x[0]
+        out_y[0] = y[0]
+        out_x[-1] = x[-1]
+        out_y[-1] = y[-1]
+
+        # Bucket size
+        bucket_size = (n - 2) / (max_points - 2)
+
+        a = 0  # Initially point a is first point
+        for i in range(1, max_points - 1):
+            # Calculate point average for next bucket
+            avg_x = 0
+            avg_y = 0
+            avg_range_start = int(np.floor((i + 1) * bucket_size) + 1)
+            avg_range_end = int(np.floor((i + 2) * bucket_size) + 1)
+            avg_range_end = min(avg_range_end, n)
+
+            avg_range_length = avg_range_end - avg_range_start
+
+            for j in range(avg_range_start, avg_range_end):
+                avg_x += x[j]
+                avg_y += y[j]
+
+            if avg_range_length > 0:
+                avg_x /= avg_range_length
+                avg_y /= avg_range_length
+
+            # Get range for this bucket
+            range_offs = int(np.floor(i * bucket_size) + 1)
+            range_to = int(np.floor((i + 1) * bucket_size) + 1)
+
+            # Point a
+            point_a_x = x[a]
+            point_a_y = y[a]
+
+            max_area = -1
+            max_area_point = range_offs
+
+            for j in range(range_offs, range_to):
+                # Calculate triangle area
+                area = (
+                    abs(
+                        (point_a_x - avg_x) * (y[j] - point_a_y)
+                        - (point_a_x - x[j]) * (avg_y - point_a_y)
+                    )
+                    * 0.5
+                )
+
+                if area > max_area:
+                    max_area = area
+                    max_area_point = j
+
+            out_x[i] = x[max_area_point]
+            out_y[i] = y[max_area_point]
+            a = max_area_point
+
+        return out_x, out_y
+
+    def get_signal_statistics(
+        self, csv_idx: int, signal_name: str, use_cache: bool = True
+    ) -> Dict:
+        """Get cached signal statistics"""
+        cache_key = (csv_idx, signal_name)
+
+        if use_cache and cache_key in self.statistics_cache:
+            return self.statistics_cache[cache_key]
+
+        try:
+            time_data, signal_data = self.get_signal_data(csv_idx, signal_name)
+
+            if len(signal_data) == 0:
+                return {}
+
+            valid_mask = ~np.isnan(signal_data)
+            valid_data = signal_data[valid_mask]
+
+            if len(valid_data) == 0:
+                return {}
+
+            stats = {
+                "mean": float(np.mean(valid_data)),
+                "std": float(np.std(valid_data)),
+                "min": float(np.min(valid_data)),
+                "max": float(np.max(valid_data)),
+                "rms": float(np.sqrt(np.mean(valid_data**2))),
+                "median": float(np.median(valid_data)),
+                "count": int(len(valid_data)),
+                "range": float(np.ptp(valid_data)),
+            }
+
+            if len(time_data) > 1:
+                dt = np.diff(time_data)
+                if len(dt) > 0 and np.mean(dt) > 0:
+                    stats["sample_rate"] = float(1.0 / np.mean(dt))
+                    stats["duration"] = float(time_data[-1] - time_data[0])
+
+            if use_cache:
+                self.statistics_cache[cache_key] = stats
+
+            return stats
+
+        except Exception as e:
+            print(f"Error computing statistics: {e}")
+            return {}
+
+    def _maybe_report_cache_stats(self):
+        """Periodically report cache statistics"""
+        now = time.time()
+        if now - self.last_cache_report > 30:  # Every 30 seconds
+            total = self.cache_hits + self.cache_misses
+            if total > 0:
+                hit_rate = 100 * self.cache_hits / total
+                print(
+                    f"📊 Cache: {self.cache_hits}/{total} hits ({hit_rate:.1f}%), "
+                    f"{len(self.memory_cache)} entries"
+                )
+            self.last_cache_report = now
 
     def clear_data(self):
         """Clear all data"""
@@ -461,8 +642,9 @@ class DataManager:
         self.data_count = 0
         self.update_counter = 0
         self.last_update_time = datetime.now()
-        self.signal_cache = {}
-        self.cache_valid = False
+        self.memory_cache.clear()
+        self.statistics_cache.clear()
+        self.disk_cache_dirs.clear()
 
     def stop_streaming_all(self):
         """Stop all streaming"""
@@ -471,4 +653,28 @@ class DataManager:
             if timer:
                 timer.cancel()
         self.streaming_timers = []
-        print("⏹️ Stopped")
+
+    def print_cache_stats(self):
+        """Print detailed cache performance statistics"""
+        total = self.cache_hits + self.cache_misses
+        if total > 0:
+            hit_rate = 100 * self.cache_hits / total
+            print(f"\n{'='*60}")
+            print(f"📊 CACHE PERFORMANCE REPORT")
+            print(f"{'='*60}")
+            print(f"Memory Cache:")
+            print(f"  - Hits: {self.cache_hits:,}")
+            print(f"  - Misses: {self.cache_misses:,}")
+            print(f"  - Hit Rate: {hit_rate:.1f}%")
+            print(f"  - Entries: {len(self.memory_cache)}")
+            print(f"Statistics Cache:")
+            print(f"  - Entries: {len(self.statistics_cache)}")
+            print(f"Disk Cache:")
+            print(f"  - Active directories: {len(self.disk_cache_dirs)}")
+
+            if self.load_times:
+                avg_load = np.mean(self.load_times)
+                print(f"Load Performance:")
+                print(f"  - Average load time: {avg_load:.2f}s")
+                print(f"  - Files loaded: {len(self.load_times)}")
+            print(f"{'='*60}\n")

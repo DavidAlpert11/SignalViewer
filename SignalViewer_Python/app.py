@@ -118,7 +118,7 @@ class SignalViewerApp:
 
         self.derived_signals = {}
         self.signal_properties = {}
-        
+
         # ADD THESE TWO LINES - Performance cache
         self._signal_cache = {}  # {(csv_idx, signal_name, time_col): (x_data, y_data)}
         self._cache_valid = True
@@ -126,36 +126,37 @@ class SignalViewerApp:
         self.app.layout = self.create_layout()
         self.setup_callbacks()
 
-    def get_signal_data_cached(self, csv_idx: int, signal_name: str, 
-                            time_col: str = "Time") -> Tuple[np.ndarray, np.ndarray]:
+    def get_signal_data_cached(
+        self, csv_idx: int, signal_name: str, time_col: str = "Time"
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Get signal data with memory caching"""
         cache_key = (csv_idx, signal_name, time_col)
-        
+
         # Check cache first
         if self._cache_valid and cache_key in self._signal_cache:
             return self._signal_cache[cache_key]
-        
+
         # Cache miss - read from DataFrame
         if csv_idx < 0 or csv_idx >= len(self.data_manager.data_tables):
             return np.array([]), np.array([])
-        
+
         df = self.data_manager.data_tables[csv_idx]
         if df is None or signal_name not in df.columns:
             return np.array([]), np.array([])
-        
+
         # Get time column
         if time_col not in df.columns:
             if "Time" in df.columns:
                 time_col = "Time"
             else:
                 time_col = df.columns[0]
-        
+
         x_data = df[time_col].values
         y_data = df[signal_name].values
-        
+
         # Store in cache
         self._signal_cache[cache_key] = (x_data, y_data)
-        
+
         return x_data, y_data
 
     def create_layout(self):
@@ -1356,11 +1357,16 @@ class SignalViewerApp:
             legend_configs[legend_name] = dict(
                 bgcolor=colors["card"],
                 bordercolor=colors["border"],
+                borderwidth=1,  # ← ADD THIS
                 font=dict(size=8),
                 x=x_end - 0.02,
                 y=y_end - 0.02,
                 xanchor="right",
                 yanchor="top",
+                xref="paper",  # ← ADD THIS (CRITICAL!)
+                yref="paper",  # ← ADD THIS (CRITICAL!)
+                valign="top",  # ← ADD THIS
+                orientation="v",  # ← ADD THIS
                 tracegroupgap=1,
                 itemclick="toggle",
                 itemdoubleclick="toggleothers",
@@ -1529,18 +1535,20 @@ class SignalViewerApp:
                             time_col = custom_time_col
                         else:
                             time_col = "Time"
-                        
+
                         # Get cached data - MUCH FASTER!
-                        x_data, y_data = self.get_signal_data_cached(csv_idx, signal_name, time_col)
-                        
+                        x_data, y_data = self.get_signal_data_cached(
+                            csv_idx, signal_name, time_col
+                        )
+
                         # Check if data was found
                         if len(x_data) == 0 or len(y_data) == 0:
                             continue
-                        
+
                         # Override X-axis if in X-Y mode
                         if subplot_mode == "xy" and x_axis_data is not None:
                             x_data = x_axis_data
-                        
+
                         # Get CSV filename for legend
                         if csv_idx < len(self.data_manager.csv_file_paths):
                             csv_path = self.data_manager.csv_file_paths[csv_idx]
@@ -1612,7 +1620,7 @@ class SignalViewerApp:
                         # Regular signal: use Scattergl for large datasets (WebGL = faster!)
                         use_webgl = len(x_arr) > 1000
                         trace_type = go.Scattergl if use_webgl else go.Scatter
-                        
+
                         fig.add_trace(
                             trace_type(
                                 x=x_arr,
@@ -4598,12 +4606,12 @@ class SignalViewerApp:
                     tab_x_signals = (x_axis_signals or {}).get(t_key, {})
                     tab_metadata = (metadata or {}).get(t_key, {})
 
-                    # Create figure WITHOUT selected subplot highlight (pass -1)
+                    # Create figure
                     fig = self.create_figure(
                         rows,
                         cols,
                         theme,
-                        -1,  # -1 means no highlight
+                        -1,
                         assignments,
                         t_key,
                         False,
@@ -4614,6 +4622,33 @@ class SignalViewerApp:
                         time_columns,
                         tab_metadata,
                     )
+
+                    # CRITICAL FIX: Re-apply legend configurations
+                    # using plotly.graph_objects for proper serialization
+                    import plotly.graph_objects as go
+
+                    layout_update = {}
+                    for sp_idx in range(rows * cols):
+                        r = sp_idx // cols
+                        c = sp_idx % cols
+
+                        x_end = (c + 1) / cols
+                        y_end = 1 - r / rows
+
+                        legend_name = f"legend{sp_idx + 1}" if sp_idx > 0 else "legend"
+
+                        layout_update[legend_name] = go.layout.Legend(
+                            xref="paper",
+                            yref="paper",
+                            x=x_end - 0.02,
+                            y=y_end - 0.02,
+                            xanchor="right",
+                            yanchor="top",
+                            orientation="v",
+                            borderwidth=1,
+                        )
+
+                    fig.update_layout(layout_update)
                     return fig
 
                 # Build tab sections (plot + descriptions grouped together)

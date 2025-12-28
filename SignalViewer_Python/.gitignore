@@ -4,47 +4,54 @@ __pycache__/
 *$py.class
 *.so
 .Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
+.installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
+ENV/
 env/
-.venv/
-.env/
+.venv
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
-
-# PyInstaller build artifacts
-build/
-dist/
-*.spec.bak
-*.manifest
-
-# Distribution zip (too large for GitHub, build with build.bat)
-SignalViewer.zip
-
-# Session files
-session.json
-*.session
-
-# Temporary files
-temp/
-*.tmp
-*.temp
-
-# OS files
+*~
 .DS_Store
-Thumbs.db
 
-# Uploads folder - keep structure, ignore data files
-uploads/*
-!uploads/.gitkeep
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
 
-# Logs
+# Application specific
+uploads/
 *.log
-logs/
+*.csv
+*.session
+.lodcache/
+
+# Distribution
+dist/
+build/
+*.spec

@@ -1,13 +1,18 @@
-# Signal Viewer Pro - Clean Dependencies
-# ========================================
-# Uses built-in Tkinter - NO external GUI DLL issues!
+# Signal Viewer Pro - Requirements
+# Core dependencies for signal visualization and analysis
 
-matplotlib>=3.8.0
-pandas==2.0.3
-numpy==1.26.4
-scipy>=1.11.0
-plotly>=5.14.0
-pywebview>=3.6
+# Web Framework
+dash==2.14.2
+dash-bootstrap-components==1.5.0
+Flask==2.3.3
+Werkzeug==2.3.7
 
-# Optional: for tests
-pytest>=7.0.0
+# Plotting and Visualization
+plotly==5.18.0
+
+# Data Processing
+pandas==2.1.4
+numpy==1.26.2
+
+# Additional utilities
+python-dateutil==2.8.2
