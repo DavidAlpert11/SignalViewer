@@ -28,7 +28,7 @@ Export Features:
 - Subplot metadata (title, caption, description) included in reports
 
 Author: Signal Viewer Team
-Version: 2.1
+Version: 2.3
 """
 
 import dash
@@ -40,8 +40,8 @@ from dash import (
     State,
     callback_context,
     ALL,
-    Patch,
     no_update,
+    Patch,
 )
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
@@ -53,7 +53,7 @@ import base64
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple, Union
+from typing import Dict, List, Optional, Any, Tuple
 
 from data_manager import DataManager
 from signal_operations import SignalOperationsManager
@@ -64,12 +64,6 @@ from config import (
     APP_TITLE,
     APP_HOST,
     APP_PORT,
-    TIME_COLUMN,
-    DERIVED_CSV_IDX,
-    MODE_TIME,
-    MODE_XY,
-    SINGLE_OPERATIONS,
-    MULTI_OPERATIONS,
 )
 from helpers import (
     get_csv_display_name,
@@ -107,7 +101,10 @@ class SignalViewerApp:
                 "/assets/bootstrap-cyborg.min.css",
                 "/assets/font-awesome.min.css",
             ],
-            external_scripts=["/assets/split.min.js"],
+            external_scripts=[
+                "/assets/split.min.js",
+                "/assets/collapse.js",
+            ],
             suppress_callback_exceptions=True,
         )
         self.app.title = "Signal Viewer Pro"
@@ -119,17 +116,51 @@ class SignalViewerApp:
         self.derived_signals = {}
         self.signal_properties = {}
 
-        # ADD THESE TWO LINES - Performance cache
-        self._signal_cache = {}  # {(csv_idx, signal_name, time_col): (x_data, y_data)}
+        # Performance settings
+        self._signal_cache = {}  # Raw data cache: {(csv_idx, signal_name, time_col): (x_data, y_data)}
+        self._decimated_cache = {}  # Decimated data cache: {(csv_idx, signal_name, max_points): (x, y)}
         self._cache_valid = True
+        self._last_figure_hash = None  # Track if figure needs rebuild
+        self._signal_list_cache = {}  # Cache for signal names per CSV: {csv_idx: [signal_names]}
+        self._signal_list_version = 0  # Increment when CSVs change
+        
+        # Display settings - CRITICAL FOR PERFORMANCE
+        self.MAX_DISPLAY_POINTS = 5000  # Maximum points to display per signal
+        self.WEBGL_THRESHOLD = 500  # Use WebGL above this many points (was 1000)
 
         self.app.layout = self.create_layout()
         self.setup_callbacks()
 
+    def invalidate_caches(self):
+        """Invalidate all caches when data changes"""
+        self._signal_cache.clear()
+        self._decimated_cache.clear()
+        self._signal_list_cache.clear()
+        self._last_figure_hash = None
+        self._cache_valid = True
+        self._signal_list_version += 1
+
+    def get_signal_names_cached(self, csv_idx: int) -> List[str]:
+        """Get cached list of signal names for a CSV (excluding Time column)"""
+        if csv_idx in self._signal_list_cache:
+            return self._signal_list_cache[csv_idx]
+        
+        if csv_idx < 0 or csv_idx >= len(self.data_manager.data_tables):
+            return []
+            
+        df = self.data_manager.data_tables[csv_idx]
+        if df is None or df.empty:
+            return []
+            
+        # Get all columns except Time-like columns
+        signals = [c for c in df.columns if c.lower() != "time"]
+        self._signal_list_cache[csv_idx] = signals
+        return signals
+        
     def get_signal_data_cached(
         self, csv_idx: int, signal_name: str, time_col: str = "Time"
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Get signal data with memory caching"""
+        """Get RAW signal data with memory caching (no decimation)"""
         cache_key = (csv_idx, signal_name, time_col)
 
         # Check cache first
@@ -158,6 +189,106 @@ class SignalViewerApp:
         self._signal_cache[cache_key] = (x_data, y_data)
 
         return x_data, y_data
+
+    def get_signal_data_for_display(
+        self, csv_idx: int, signal_name: str, time_col: str = "Time", 
+        max_points: Optional[int] = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Get DECIMATED signal data optimized for display.
+        Uses LTTB algorithm to downsample while preserving visual features.
+        """
+        max_points = max_points or self.MAX_DISPLAY_POINTS
+        cache_key = (csv_idx, signal_name, time_col, max_points)
+        
+        # Check decimated cache first
+        if cache_key in self._decimated_cache:
+            return self._decimated_cache[cache_key]
+        
+        # Get raw data
+        x_data, y_data = self.get_signal_data_cached(csv_idx, signal_name, time_col)
+        
+        if len(x_data) == 0:
+            return x_data, y_data
+            
+        # No decimation needed if data is small enough
+        if len(x_data) <= max_points:
+            self._decimated_cache[cache_key] = (x_data, y_data)
+            return x_data, y_data
+        
+        # Apply LTTB decimation for large datasets
+        x_dec, y_dec = self._decimate_lttb(x_data, y_data, max_points)
+        
+        # Cache the result
+        self._decimated_cache[cache_key] = (x_dec, y_dec)
+        
+        return x_dec, y_dec
+
+    def _decimate_lttb(
+        self, x: np.ndarray, y: np.ndarray, max_points: int
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Largest Triangle Three Buckets (LTTB) downsampling algorithm.
+        Preserves visual appearance much better than simple decimation.
+        """
+        n = len(x)
+        if n <= max_points or max_points < 3:
+            return x, y
+
+        # Output arrays
+        out_x = np.zeros(max_points)
+        out_y = np.zeros(max_points)
+
+        # Always keep first and last points
+        out_x[0] = x[0]
+        out_y[0] = y[0]
+        out_x[-1] = x[-1]
+        out_y[-1] = y[-1]
+
+        # Bucket size
+        bucket_size = (n - 2) / (max_points - 2)
+
+        a = 0  # Initially point a is first point
+        for i in range(1, max_points - 1):
+            # Calculate point average for next bucket
+            avg_range_start = int(np.floor((i + 1) * bucket_size) + 1)
+            avg_range_end = int(np.floor((i + 2) * bucket_size) + 1)
+            avg_range_end = min(avg_range_end, n)
+
+            if avg_range_end <= avg_range_start:
+                avg_range_end = avg_range_start + 1
+                
+            avg_x = np.mean(x[avg_range_start:avg_range_end])
+            avg_y = np.mean(y[avg_range_start:avg_range_end])
+
+            # Get range for this bucket
+            range_offs = int(np.floor(i * bucket_size) + 1)
+            range_to = int(np.floor((i + 1) * bucket_size) + 1)
+            range_to = min(range_to, n)
+
+            if range_to <= range_offs:
+                range_to = range_offs + 1
+
+            # Point a
+            point_a_x = x[a]
+            point_a_y = y[a]
+
+            # Find point with largest triangle area (vectorized)
+            segment_x = x[range_offs:range_to]
+            segment_y = y[range_offs:range_to]
+            
+            areas = np.abs(
+                (point_a_x - avg_x) * (segment_y - point_a_y)
+                - (point_a_x - segment_x) * (avg_y - point_a_y)
+            ) * 0.5
+
+            max_area_idx = np.argmax(areas) + range_offs
+
+            out_x[i] = x[max_area_idx]
+            out_y[i] = y[max_area_idx]
+            a = max_area_idx
+
+        return out_x, out_y
 
     def create_layout(self):
         return html.Div(
@@ -201,9 +332,23 @@ class SignalViewerApp:
                 dcc.Store(
                     id="store-subplot-metadata", data={}
                 ),  # {tab: {subplot: {title, caption, description}}}
+                # NOTE: store-collapsed-csvs removed - collapse handled clientside via CSS
+                dcc.Store(
+                    id="store-time-offsets", data={}
+                ),  # {csv_idx: offset} or {"csv_idx:signal_name": offset}
+                dcc.Store(
+                    id="store-csv-settings", data={}
+                ),  # {csv_idx: {header_row: int, has_header: bool}}
+                dcc.Store(
+                    id="store-annotations", data={}
+                ),  # {tab: {subplot: [{x, y, text, color, fontsize, arrow}]}}
+                dcc.Store(
+                    id="store-display-options", data={}
+                ),  # {tab: {subplot: {markers: bool, normalize: bool}}}
                 dcc.Download(id="download-session"),
                 dcc.Download(id="download-template"),
                 dcc.Download(id="download-csv-export"),
+                dcc.Download(id="download-word-export"),
                 dbc.Container(
                     [
                         # Header
@@ -614,6 +759,41 @@ class SignalViewerApp:
                                                                         "flex": "1",
                                                                     },
                                                                 ),
+                                                                # Quick Statistics Panel (collapsible)
+                                                                dbc.Collapse(
+                                                                    dbc.Card(
+                                                                        dbc.CardBody(
+                                                                            html.Div(
+                                                                                id="stats-panel-content",
+                                                                                className="small",
+                                                                            ),
+                                                                            className="p-2",
+                                                                        ),
+                                                                        className="mb-2 border-info",
+                                                                        style={"fontSize": "10px"},
+                                                                    ),
+                                                                    id="stats-panel-collapse",
+                                                                    is_open=False,
+                                                                ),
+                                                                # Signal Display Options
+                                                                html.Div(
+                                                                    [
+                                                                        dbc.Checklist(
+                                                                            id="signal-display-options",
+                                                                            options=[
+                                                                                {"label": "📊 Stats", "value": "stats"},
+                                                                                {"label": "⚫ Markers", "value": "markers"},
+                                                                                {"label": "📏 Normalize", "value": "normalize"},
+                                                                            ],
+                                                                            value=[],
+                                                                            inline=True,
+                                                                            switch=True,
+                                                                            className="small",
+                                                                            style={"fontSize": "10px"},
+                                                                        ),
+                                                                    ],
+                                                                    className="mb-2 border-top pt-2",
+                                                                ),
                                                                 dbc.Button(
                                                                     "🗑️ Remove",
                                                                     id="btn-remove",
@@ -712,7 +892,25 @@ class SignalViewerApp:
                                                                                     size="sm",
                                                                                     color="secondary",
                                                                                     outline=True,
-                                                                                    title="Export plots to PDF",
+                                                                                    title="Export to HTML",
+                                                                                    className="px-2",
+                                                                                ),
+                                                                                dbc.Button(
+                                                                                    "📝",
+                                                                                    id="btn-export-word",
+                                                                                    size="sm",
+                                                                                    color="secondary",
+                                                                                    outline=True,
+                                                                                    title="Export to Word",
+                                                                                    className="px-2",
+                                                                                ),
+                                                                                dbc.Button(
+                                                                                    "📌",
+                                                                                    id="btn-open-annotation",
+                                                                                    size="sm",
+                                                                                    color="info",
+                                                                                    outline=True,
+                                                                                    title="Add annotation",
                                                                                     className="px-2",
                                                                                 ),
                                                                                 # Hidden elements for callback compatibility
@@ -879,11 +1077,30 @@ class SignalViewerApp:
                                                                         "t": 30,
                                                                         "b": 40,
                                                                     },
+                                                                    # PERFORMANCE: Preserve state on updates
+                                                                    "uirevision": "constant",
                                                                 },
                                                             },
                                                             config={
                                                                 "displayModeBar": True,
                                                                 "displaylogo": False,
+                                                                # PERFORMANCE: Disable slow interactions
+                                                                "scrollZoom": True,
+                                                                "modeBarButtonsToRemove": [
+                                                                    "lasso2d",
+                                                                    "select2d",
+                                                                ],
+                                                                # PERFORMANCE: Reduce render quality for speed
+                                                                "plotlyServerURL": "",
+                                                                "staticPlot": False,
+                                                                # PERFORMANCE: Reduce hover delay
+                                                                "doubleClick": "reset",
+                                                                # PERFORMANCE: Disable toImage for faster updates
+                                                                "toImageButtonOptions": {
+                                                                    "format": "png",
+                                                                    "height": None,
+                                                                    "width": None,
+                                                                },
                                                             },
                                                             style={"height": "100%"},
                                                         ),
@@ -912,7 +1129,9 @@ class SignalViewerApp:
                 self.create_multi_ops_modal(),
                 self.create_csv_export_modal(),
                 self.create_pdf_export_modal(),
+                self.create_word_export_modal(),
                 self.create_time_column_modal(),
+                self.create_annotation_modal(),
             ],
         )
 
@@ -985,6 +1204,27 @@ class SignalViewerApp:
                             max=5,
                             step=0.5,
                             size="sm",
+                            className="mb-2",
+                        ),
+                        dbc.Label("Time Offset (seconds):", className="small"),
+                        dbc.InputGroup(
+                            [
+                                dbc.Input(
+                                    id="prop-time-offset",
+                                    type="number",
+                                    value=0,
+                                    step=0.001,
+                                    size="sm",
+                                    placeholder="0.0",
+                                ),
+                                dbc.InputGroupText("sec", style={"fontSize": "11px"}),
+                            ],
+                            size="sm",
+                            className="mb-2",
+                        ),
+                        html.Small(
+                            "Positive = shift right, Negative = shift left",
+                            className="text-muted d-block mb-2",
                         ),
                         dbc.Checkbox(
                             id="prop-apply-tree",
@@ -1244,24 +1484,112 @@ class SignalViewerApp:
             size="lg",
         )
 
-    def create_time_column_modal(self):
-        """Modal for selecting time/X-axis column for CSVs."""
+    def create_word_export_modal(self):
+        """Modal for exporting plots to Word document."""
         return dbc.Modal(
             [
-                dbc.ModalHeader("⏱️ Select Time Column"),
+                dbc.ModalHeader("📝 Export to Word Document"),
                 dbc.ModalBody(
                     [
-                        html.P(
-                            "Select which column to use as time/X-axis for each CSV file:",
-                            className="small text-muted",
+                        dbc.Label("Export Scope:", className="small fw-bold"),
+                        dbc.RadioItems(
+                            id="export-word-scope",
+                            options=[
+                                {"label": "Current subplot", "value": "subplot"},
+                                {"label": "All subplots in current tab", "value": "tab"},
+                                {"label": "All tabs", "value": "all"},
+                            ],
+                            value="tab",
+                            className="mb-3",
                         ),
-                        html.Div(id="time-column-selectors"),
+                        dbc.Label("Report Title:", className="small fw-bold"),
+                        dbc.Input(
+                            id="export-word-title",
+                            placeholder="Signal Analysis Report",
+                            size="sm",
+                            className="mb-3",
+                        ),
+                        html.Hr(),
+                        dbc.Label("Introduction:", className="small"),
+                        dcc.Textarea(
+                            id="export-word-intro",
+                            placeholder="Introduction text for the report...",
+                            className="form-control mb-2",
+                            style={"height": "80px", "resize": "vertical"},
+                        ),
+                        dbc.Label("Conclusion:", className="small"),
+                        dcc.Textarea(
+                            id="export-word-conclusion",
+                            placeholder="Conclusion text for the report...",
+                            className="form-control mb-2",
+                            style={"height": "80px", "resize": "vertical"},
+                        ),
+                        html.Small(
+                            "Note: Plots will be exported as images embedded in the Word document.",
+                            className="text-muted d-block mt-2",
+                        ),
                     ]
                 ),
                 dbc.ModalFooter(
                     [
                         dbc.Button(
-                            "Apply",
+                            "Export Word",
+                            id="btn-do-export-word",
+                            color="primary",
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Close",
+                            id="btn-close-export-word",
+                            color="secondary",
+                            size="sm",
+                        ),
+                    ]
+                ),
+            ],
+            id="modal-export-word",
+            is_open=False,
+            size="lg",
+        )
+
+    def create_time_column_modal(self):
+        """Modal for selecting time/X-axis column, time offsets, and header settings for CSVs."""
+        return dbc.Modal(
+            [
+                dbc.ModalHeader("⏱️ CSV Settings"),
+                dbc.ModalBody(
+                    [
+                        # Time Column Selection
+                        html.H6("📊 Time Column", className="mb-2"),
+                        html.P(
+                            "Select which column to use as time/X-axis:",
+                            className="small text-muted",
+                        ),
+                        html.Div(id="time-column-selectors"),
+                        html.Hr(),
+                        # Time Offsets
+                        html.H6("⏱️ Time Offsets", className="mt-3"),
+                        html.P(
+                            "Add time offset (in seconds) to shift signal timing. "
+                            "Positive = shift right, Negative = shift left.",
+                            className="small text-muted",
+                        ),
+                        html.Div(id="time-offset-inputs"),
+                        html.Hr(),
+                        # CSV Header Settings
+                        html.H6("📄 Header Settings", className="mt-3"),
+                        html.P(
+                            "For CSVs without headers or with headers not in the first row. "
+                            "Set header row number (0-based) or leave empty for no headers.",
+                            className="small text-muted",
+                        ),
+                        html.Div(id="csv-header-settings"),
+                    ]
+                ),
+                dbc.ModalFooter(
+                    [
+                        dbc.Button(
+                            "Apply & Reload",
                             id="btn-apply-time-cols",
                             color="primary",
                             size="sm",
@@ -1276,6 +1604,127 @@ class SignalViewerApp:
                 ),
             ],
             id="modal-time-cols",
+            is_open=False,
+            size="lg",
+        )
+
+    def create_annotation_modal(self):
+        """Modal for adding text annotations to plots."""
+        return dbc.Modal(
+            [
+                dbc.ModalHeader("📝 Add Annotation"),
+                dbc.ModalBody(
+                    [
+                        html.P(
+                            "Add a text note at a specific point on the plot. "
+                            "Click on the plot first to set the position.",
+                            className="small text-muted",
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        dbc.Label("X Position:", className="small"),
+                                        dbc.Input(
+                                            id="annotation-x",
+                                            type="number",
+                                            placeholder="X value",
+                                            size="sm",
+                                        ),
+                                    ],
+                                    width=6,
+                                ),
+                                dbc.Col(
+                                    [
+                                        dbc.Label("Y Position:", className="small"),
+                                        dbc.Input(
+                                            id="annotation-y",
+                                            type="number",
+                                            placeholder="Y value",
+                                            size="sm",
+                                        ),
+                                    ],
+                                    width=6,
+                                ),
+                            ],
+                            className="mb-2",
+                        ),
+                        dbc.Label("Text:", className="small"),
+                        dbc.Textarea(
+                            id="annotation-text",
+                            placeholder="Enter annotation text...",
+                            size="sm",
+                            style={"height": "60px"},
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        dbc.Label("Color:", className="small"),
+                                        dbc.Input(
+                                            id="annotation-color",
+                                            type="color",
+                                            value="#ffcc00",
+                                            style={"width": "50px", "height": "30px"},
+                                        ),
+                                    ],
+                                    width=4,
+                                ),
+                                dbc.Col(
+                                    [
+                                        dbc.Label("Font Size:", className="small"),
+                                        dbc.Input(
+                                            id="annotation-fontsize",
+                                            type="number",
+                                            value=12,
+                                            min=8,
+                                            max=24,
+                                            size="sm",
+                                        ),
+                                    ],
+                                    width=4,
+                                ),
+                                dbc.Col(
+                                    [
+                                        dbc.Label("Arrow:", className="small"),
+                                        dbc.Checklist(
+                                            id="annotation-arrow",
+                                            options=[{"label": "Show", "value": True}],
+                                            value=[True],
+                                            switch=True,
+                                        ),
+                                    ],
+                                    width=4,
+                                ),
+                            ],
+                            className="mt-2",
+                        ),
+                    ]
+                ),
+                dbc.ModalFooter(
+                    [
+                        dbc.Button(
+                            "Add",
+                            id="btn-add-annotation",
+                            color="primary",
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Clear All",
+                            id="btn-clear-annotations",
+                            color="warning",
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Close",
+                            id="btn-close-annotation",
+                            color="secondary",
+                            size="sm",
+                        ),
+                    ]
+                ),
+            ],
+            id="modal-annotation",
             is_open=False,
         )
 
@@ -1294,6 +1743,9 @@ class SignalViewerApp:
         x_axis_signals: Optional[Dict[str, str]] = None,
         time_columns: Optional[Dict[str, str]] = None,
         subplot_metadata: Optional[Dict[str, Dict]] = None,
+        time_offsets: Optional[Dict[str, float]] = None,
+        display_options: Optional[Dict] = None,
+        annotations: Optional[Dict] = None,
     ):
         """
         Create a Plotly figure with subplots for signal visualization.
@@ -1379,22 +1831,33 @@ class SignalViewerApp:
             height=max(480, 280 * rows),  # Increased height per row
             showlegend=True,
             margin=dict(l=40, r=20, t=40, b=35),  # Reduced margins for more plot space
-            hovermode="closest",  # Always use closest, cursor is click-based
+            # PERFORMANCE: Use "x unified" for faster hover with many traces
+            hovermode="x unified",
             hoverlabel=dict(
                 bgcolor="rgba(0,0,0,0.8)",
-                font_size=11,
+                font_size=10,
                 font_color="#e8e8e8",
+                namelength=-1,  # Show full name
             ),
+            # PERFORMANCE: Preserve zoom/pan state on updates
+            uirevision="constant",
+            # PERFORMANCE: Disable drag mode animations
+            dragmode="zoom",
             **legend_configs,
         )
 
         # Style each subplot - always show grid even if empty
+        # ALWAYS highlight selected subplot with visible border
         for i in range(rows * cols):
             r = i // cols + 1
             c = i % cols + 1
 
-            border_color = "#4ea8de" if i == selected_subplot else colors["grid"]
-            border_width = 2 if i == selected_subplot else 1
+            is_selected = (i == selected_subplot)
+            border_color = "#4ea8de" if is_selected else colors["grid"]
+            border_width = 3 if is_selected else 1  # Thicker border for selected
+            
+            # Add a more visible background for selected subplot
+            subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
 
             # Add a small invisible trace to ensure axes are shown
             fig.add_trace(
@@ -1446,6 +1909,8 @@ class SignalViewerApp:
         # Also collect signal data for cursor value display
         subplot_signal_data = {}  # {sp_idx: [(x_arr, y_arr, name, color), ...]}
         subplot_modes = subplot_modes or {}
+        display_options = display_options or {}
+        annotations = annotations or {}
 
         if assignments and tab_key in assignments:
             # First pass: collect all signal names to check for duplicates
@@ -1462,7 +1927,8 @@ class SignalViewerApp:
                 n for n in all_signal_names if all_signal_names.count(n) > 1
             )
 
-            color_idx = 0
+            # Track colors by signal key for consistency across subplots
+            signal_color_map = {}  # {signal_key: color}
             trace_idx = 0  # Unique trace counter for independent legend behavior
             for sp_idx in range(rows * cols):
                 subplot_signal_data[sp_idx] = []
@@ -1525,8 +1991,11 @@ class SignalViewerApp:
 
                     if csv_idx == -1 and signal_name in self.derived_signals:
                         ds = self.derived_signals[signal_name]
-                        x_data = ds.get("time", [])
-                        y_data = ds.get("data", [])
+                        x_data = np.array(ds.get("time", []))
+                        y_data = np.array(ds.get("data", []))
+                        # Decimate derived signals too if large
+                        if len(x_data) > self.MAX_DISPLAY_POINTS:
+                            x_data, y_data = self._decimate_lttb(x_data, y_data, self.MAX_DISPLAY_POINTS)
                         csv_label = "D"  # Derived
                     elif csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
                         # Determine time column name
@@ -1536,14 +2005,23 @@ class SignalViewerApp:
                         else:
                             time_col = "Time"
 
-                        # Get cached data - MUCH FASTER!
-                        x_data, y_data = self.get_signal_data_cached(
-                            csv_idx, signal_name, time_col
+                        # Get DECIMATED data for display - CRITICAL FOR PERFORMANCE!
+                        x_data, y_data = self.get_signal_data_for_display(
+                            csv_idx, signal_name, time_col, self.MAX_DISPLAY_POINTS
                         )
 
                         # Check if data was found
                         if len(x_data) == 0 or len(y_data) == 0:
                             continue
+
+                        # Apply time offset if set
+                        time_offsets = time_offsets or {}
+                        # Check for signal-specific offset first, then CSV-wide offset
+                        sig_offset_key = f"{csv_idx}:{signal_name}"
+                        csv_offset_key = str(csv_idx)
+                        time_offset = time_offsets.get(sig_offset_key, time_offsets.get(csv_offset_key, 0))
+                        if time_offset != 0:
+                            x_data = np.array(x_data) + time_offset
 
                         # Override X-axis if in X-Y mode
                         if subplot_mode == "xy" and x_axis_data is not None:
@@ -1560,9 +2038,18 @@ class SignalViewerApp:
 
                     prop_key = f"{csv_idx}:{signal_name}"
                     props = self.signal_properties.get(prop_key, {})
-                    color = props.get(
-                        "color", SIGNAL_COLORS[color_idx % len(SIGNAL_COLORS)]
-                    )
+                    
+                    # Get color: user-defined > previously assigned > deterministic based on signal key
+                    if "color" in props:
+                        color = props["color"]
+                    elif prop_key in signal_color_map:
+                        color = signal_color_map[prop_key]
+                    else:
+                        # Use deterministic color based on signal key hash
+                        color_idx = hash(prop_key) % len(SIGNAL_COLORS)
+                        color = SIGNAL_COLORS[color_idx]
+                        signal_color_map[prop_key] = color
+                    
                     width = props.get("width", 1.5)
                     scale = props.get("scale", 1.0)
                     display_name = props.get("display_name", signal_name)
@@ -1617,26 +2104,47 @@ class SignalViewerApp:
                             col=c,
                         )
                     else:
-                        # Regular signal: use Scattergl for large datasets (WebGL = faster!)
-                        use_webgl = len(x_arr) > 1000
+                        # Regular signal: ALWAYS use Scattergl for WebGL acceleration
+                        # WebGL is much faster for rendering and interactivity
+                        use_webgl = len(x_arr) > self.WEBGL_THRESHOLD
                         trace_type = go.Scattergl if use_webgl else go.Scatter
+                        
+                        # Get display options for this subplot
+                        sp_display_opts = display_options.get(tab_key, {}).get(str(sp_idx), {})
+                        show_markers = sp_display_opts.get("markers", False)
+                        normalize_signals = sp_display_opts.get("normalize", False)
+                        
+                        # Normalize if enabled (scale to 0-1 range)
+                        y_display = y_scaled
+                        if normalize_signals and len(y_scaled) > 0:
+                            y_min = np.nanmin(y_scaled)
+                            y_max = np.nanmax(y_scaled)
+                            if y_max != y_min:
+                                y_display = (y_scaled - y_min) / (y_max - y_min)
+                                legend_name = f"{legend_name} [N]"  # Mark as normalized
+                        
+                        # Determine trace mode
+                        trace_mode = "lines+markers" if show_markers else "lines"
+                        marker_dict = dict(size=4, color=color) if show_markers else None
 
                         fig.add_trace(
                             trace_type(
                                 x=x_arr,
-                                y=y_scaled,
-                                mode="lines",
+                                y=y_display,
+                                mode=trace_mode,
                                 name=legend_name,
                                 line=dict(color=color, width=width),
+                                marker=marker_dict,
                                 legendgroup=unique_legend_group,
                                 showlegend=True,
                                 legend=legend_ref,
+                                # Disable hover for performance with many signals
+                                hoverinfo="x+y+name" if len(x_arr) < 2000 else "skip",
                             ),
                             row=r,
                             col=c,
                         )
                     trace_idx += 1
-                    color_idx += 1
 
         # Add time cursor vertical lines to all subplots with signal values
         if time_cursor and cursor_x is not None:
@@ -1694,6 +2202,43 @@ class SignalViewerApp:
                     borderwidth=1,
                     borderpad=4,
                 )
+
+        # Add user annotations
+        tab_annotations = annotations.get(tab_key, {})
+        for sp_idx in range(rows * cols):
+            sp_annotations = tab_annotations.get(str(sp_idx), [])
+            if not sp_annotations:
+                continue
+                
+            xref = f"x{sp_idx + 1}" if sp_idx > 0 else "x"
+            yref = f"y{sp_idx + 1}" if sp_idx > 0 else "y"
+            
+            for ann in sp_annotations:
+                ann_x = ann.get("x")
+                ann_y = ann.get("y", 0)
+                ann_text = ann.get("text", "")
+                ann_color = ann.get("color", "#ffcc00")
+                ann_fontsize = ann.get("fontsize", 12)
+                ann_arrow = ann.get("arrow", True)
+                
+                if ann_x is not None and ann_text:
+                    fig.add_annotation(
+                        x=ann_x,
+                        y=ann_y if ann_y is not None else 0.5,
+                        xref=xref,
+                        yref=yref if ann_y is not None else f"y{sp_idx + 1} domain" if sp_idx > 0 else "y domain",
+                        text=ann_text,
+                        showarrow=ann_arrow,
+                        arrowhead=2,
+                        arrowsize=1,
+                        arrowwidth=1.5,
+                        arrowcolor=ann_color,
+                        font=dict(color=ann_color, size=ann_fontsize),
+                        bgcolor="rgba(0, 0, 0, 0.7)",
+                        bordercolor=ann_color,
+                        borderwidth=1,
+                        borderpad=3,
+                    )
 
         return fig
 
@@ -1808,10 +2353,14 @@ class SignalViewerApp:
             if "btn-clear-csv" in trigger:
                 self.data_manager.csv_file_paths = []
                 self.data_manager.data_tables = []
+                # PERFORMANCE: Invalidate all caches when clearing data
+                self.invalidate_caches()
                 # Clear all assignments when clearing CSV files
                 return [], [], "Cleared", refresh_counter + 1, {"0": {"0": []}}
 
             if "btn-refresh" in trigger:
+                # PERFORMANCE: Invalidate caches on refresh
+                self.invalidate_caches()
                 for i in range(len(files)):
                     self.data_manager.last_read_rows[i] = 0
                     self.data_manager.data_tables[i] = None
@@ -2008,7 +2557,8 @@ class SignalViewerApp:
 
             return filters, display, clear_input
 
-        # Signal tree with highlight selection - updates when subplot changes
+        # Signal tree with highlight selection - updates when data changes
+        # NOTE: Collapse/expand is handled purely clientside via CSS for instant response
         @self.app.callback(
             [
                 Output("signal-tree", "children"),
@@ -2025,9 +2575,11 @@ class SignalViewerApp:
                 Input("store-signal-props", "data"),
                 Input("store-highlighted", "data"),
                 Input("store-refresh-trigger", "data"),
-                Input("subplot-select", "value"),
                 Input("store-derived", "data"),
                 Input("store-search-filters", "data"),
+            ],
+            [
+                State("store-time-offsets", "data"),
             ],
             prevent_initial_call=False,
         )
@@ -2041,17 +2593,13 @@ class SignalViewerApp:
             props,
             highlighted,
             refresh_trigger,
-            subplot_dropdown,
             derived,
             search_filters,
+            time_offsets,
         ):
             try:
-                # Use dropdown value if available, otherwise use store
-                if subplot_dropdown is not None:
-                    subplot = int(subplot_dropdown)
-                else:
-                    subplot = subplot or 0
                 tab = tab or 0
+                subplot = subplot or 0
                 target = f"Tab {tab+1}, Sub {subplot+1}"
                 highlighted = highlighted or []
 
@@ -2077,6 +2625,18 @@ class SignalViewerApp:
                 # Use files from store if available, otherwise use data_manager
                 csv_files = files if files else self.data_manager.csv_file_paths
 
+                # PERFORMANCE: Early return if no files
+                if not csv_files:
+                    return [
+                        html.Div(
+                            [
+                                html.I(className="fas fa-info-circle me-2", style={"color": "#4ea8de"}),
+                                html.Span("Upload CSV files to see signals", className="text-muted small"),
+                            ],
+                            className="p-2",
+                        )
+                    ], target, str(len(highlighted))
+
                 # Check for duplicate filenames to determine display names
                 basenames = [os.path.basename(fp) for fp in csv_files]
                 duplicate_names = set(n for n in basenames if basenames.count(n) > 1)
@@ -2094,6 +2654,7 @@ class SignalViewerApp:
                     while len(self.data_manager.data_tables) <= csv_idx:
                         self.data_manager.data_tables.append(None)
 
+                    # PERFORMANCE: Only read if not already loaded
                     if self.data_manager.data_tables[csv_idx] is None:
                         try:
                             if os.path.exists(fp):
@@ -2102,12 +2663,13 @@ class SignalViewerApp:
                             logger.warning(f"Error reading CSV {csv_idx}: {e}")
                             continue
 
-                    df = self.data_manager.data_tables[csv_idx]
-                    if df is None or df.empty:
+                    # PERFORMANCE: Use cached signal names
+                    signals = self.get_signal_names_cached(csv_idx)
+                    if not signals:
                         continue
 
                     fname = get_display_name(fp)
-                    signals = [c for c in df.columns if c.lower() != "time"]
+                    # Note: signals already filtered by get_signal_names_cached
 
                     # Apply search filters (filter list OR current search)
                     active_filters = list(search_filters or [])
@@ -2125,6 +2687,12 @@ class SignalViewerApp:
 
                     if not signals:
                         continue
+                    
+                    total_signals_in_csv = len(signals)
+                    
+                    # Get time offset for this CSV
+                    time_offsets = time_offsets or {}
+                    csv_offset = time_offsets.get(str(csv_idx), 0)
 
                     link_badge = (
                         dbc.Badge(
@@ -2253,22 +2821,53 @@ class SignalViewerApp:
                             )
                         )
 
+                    # Build offset badge if offset is set
+                    offset_badge = ""
+                    if csv_offset != 0:
+                        offset_badge = dbc.Badge(
+                            f"⏱{csv_offset:+.3g}",
+                            color="warning",
+                            className="ms-1",
+                            pill=True,
+                            style={"fontSize": "8px"},
+                            title=f"Time offset: {csv_offset}s",
+                        )
+                    
+                    # Collapsible CSV node with clickable header
+                    # NOTE: Collapse state is managed purely clientside via CSS
                     tree.append(
                         html.Div(
                             [
+                                # Clickable header - clientside JS handles toggle
                                 html.Div(
                                     [
+                                        html.Span(
+                                            "▼",
+                                            className="collapse-icon",
+                                        ),
                                         html.I(
                                             className="fas fa-folder-open me-1",
                                             style={"color": "#f4a261"},
                                         ),
                                         html.Strong(fname, style={"fontSize": "10px"}),
+                                        html.Small(
+                                            f" ({total_signals_in_csv})",
+                                            className="text-muted ms-1",
+                                            style={"fontSize": "9px"},
+                                        ),
                                         link_badge,
-                                    ]
+                                        offset_badge,
+                                    ],
+                                    className="csv-folder-header",
+                                    title="Click to collapse/expand",
                                 ),
-                                html.Div(sig_items),
+                                # Signals list - CSS handles collapse animation
+                                html.Div(
+                                    sig_items,
+                                    className="csv-signals-list",
+                                ),
                             ],
-                            className="mb-2 p-1 rounded",
+                            className="csv-node",
                         )
                     )
 
@@ -2499,6 +3098,9 @@ class SignalViewerApp:
                         highlighted.append(f"{id_dict['csv']}:{id_dict['sig']}")
             return highlighted
 
+        # NOTE: CSV collapse/expand is now handled purely clientside via JavaScript
+        # See assets/collapse.js - no server round-trip needed for instant response
+
         # Derived signals list (in Derived card) - simple list with delete buttons
         # Full controls (checkboxes, ops, edit) are in the signal tree
         @self.app.callback(
@@ -2637,7 +3239,8 @@ class SignalViewerApp:
 
             return subplot_idx, str(subplot_idx), None  # Clear input after setting
 
-        # Click on plot to select subplot - uses both clickData and relayoutData
+        # Click on plot to select subplot
+        # Uses clickData (click on trace) and relayoutData (zoom/pan on subplot area)
         @self.app.callback(
             [
                 Output("store-selected-subplot", "data", allow_duplicate=True),
@@ -2654,9 +3257,7 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def select_subplot_by_click(
-            click_data, relayout_data, layouts, tab_idx, current_subplot
-        ):
+        def select_subplot_by_click(click_data, relayout_data, layouts, tab_idx, current_subplot):
             ctx = callback_context
             if not ctx.triggered:
                 return dash.no_update, dash.no_update
@@ -2677,13 +3278,11 @@ class SignalViewerApp:
                     except:
                         subplot_idx = 0
 
-            # Handle relayoutData (clicking/zooming on subplot area)
+            # Handle relayoutData (zooming/panning on subplot area)
             elif "relayoutData" in trigger and relayout_data:
-                # relayoutData contains axis references like "xaxis.range[0]", "xaxis2.autorange", etc.
                 for key in relayout_data.keys():
                     if key.startswith("xaxis"):
-                        # Extract axis number from key like "xaxis2.range[0]"
-                        axis_part = key.split(".")[0]  # "xaxis" or "xaxis2"
+                        axis_part = key.split(".")[0]
                         if axis_part == "xaxis":
                             subplot_idx = 0
                         else:
@@ -2736,6 +3335,9 @@ class SignalViewerApp:
                 Input("store-subplot-modes", "data"),
                 Input("store-time-columns", "data"),
                 Input("store-subplot-metadata", "data"),
+                Input("store-time-offsets", "data"),
+                Input("store-display-options", "data"),
+                Input("store-annotations", "data"),
             ],
             [
                 State("store-x-axis-signal", "data"),
@@ -2767,6 +3369,9 @@ class SignalViewerApp:
             subplot_modes,
             time_columns,
             subplot_metadata,
+            time_offsets,
+            display_options,
+            annotations_data,
             x_axis_signals,  # State (was moved from Input)
             check_ids,
             assignments,
@@ -2787,6 +3392,88 @@ class SignalViewerApp:
             assignments = assignments or {}
             layouts = layouts or {}
             theme = "dark" if is_dark else "light"
+
+            # ============================================================
+            # PERFORMANCE OPTIMIZATION: Fast path for subplot-only changes
+            # ============================================================
+            # When only subplot selection changes, update assigned-list and
+            # subplot highlight using Patch (no full figure rebuild)
+            subplot_only_triggers = [
+                "subplot-select.value",
+            ]
+            
+            if trigger in subplot_only_triggers and subplot_val is not None:
+                # Fast path: Update assigned-list and subplot highlight
+                sel_tab = sel_tab or 0
+                if active_tab and "-" in active_tab:
+                    sel_tab = int(active_tab.split("-")[1])
+                    
+                sel_subplot = int(subplot_val) if subplot_val is not None else 0
+                tab_key = str(sel_tab)
+                subplot_key = str(sel_subplot)
+                
+                # Get layout info for axis count
+                layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+                total_subplots = layout.get("rows", 1) * layout.get("cols", 1)
+                
+                # Build assigned-list for this subplot
+                assigned = assignments.get(tab_key, {}).get(subplot_key, [])
+                items = []
+                
+                if isinstance(assigned, list):
+                    for i, s in enumerate(assigned):
+                        csv_idx = s.get("csv_idx", -1)
+                        sig_name = s.get("signal", "")
+                        if csv_idx == -1:
+                            lbl = f"{sig_name} (D)"
+                        else:
+                            if csv_idx < len(self.data_manager.csv_file_paths):
+                                csv_path = self.data_manager.csv_file_paths[csv_idx]
+                                csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
+                            else:
+                                csv_filename = f"C{csv_idx+1}"
+                            lbl = f"{sig_name} ({csv_filename})"
+                        items.append(
+                            dbc.Checkbox(
+                                id={"type": "remove-check", "idx": i},
+                                label=lbl,
+                                value=False,
+                                style={"fontSize": "10px"},
+                            )
+                        )
+                
+                if not items:
+                    items = [html.Span("None", className="text-muted small")]
+                
+                # Use Patch to update subplot highlight without full rebuild
+                colors = THEME_COLORS[theme]
+                fig_patch = Patch()
+                
+                for i in range(total_subplots):
+                    is_selected = (i == sel_subplot)
+                    border_color = "#4ea8de" if is_selected else colors["grid"]
+                    border_width = 3 if is_selected else 1
+                    subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
+                    
+                    # Axis naming: xaxis, xaxis2, xaxis3, etc.
+                    x_key = "xaxis" if i == 0 else f"xaxis{i + 1}"
+                    y_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
+                    
+                    fig_patch["layout"][x_key]["linecolor"] = border_color
+                    fig_patch["layout"][x_key]["linewidth"] = border_width
+                    fig_patch["layout"][y_key]["linecolor"] = border_color
+                    fig_patch["layout"][y_key]["linewidth"] = border_width
+                    fig_patch["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
+                
+                return (
+                    no_update,    # assignments - no change
+                    fig_patch,    # figure - Patch for highlight update
+                    items,        # assigned-list - update this
+                    no_update,    # sel_tab
+                    sel_subplot,  # sel_subplot - update
+                    no_update,    # layouts
+                    no_update,    # x_axis_signals
+                )
 
             if "tabs" in trigger and active_tab:
                 sel_tab = int(active_tab.split("-")[1]) if "-" in active_tab else 0
@@ -3014,6 +3701,9 @@ class SignalViewerApp:
             # Get subplot metadata for this tab
             tab_subplot_metadata = (subplot_metadata or {}).get(tab_key, {})
 
+            # Get time offsets from store
+            time_offsets_data = time_offsets or {}
+            
             fig = self.create_figure(
                 rows,
                 cols,
@@ -3028,6 +3718,9 @@ class SignalViewerApp:
                 tab_x_axis_signals,
                 time_columns,
                 tab_subplot_metadata,
+                time_offsets_data,
+                display_options,
+                annotations_data,
             )
 
             assigned = assignments.get(tab_key, {}).get(subplot_key, [])
@@ -3451,16 +4144,20 @@ class SignalViewerApp:
                 Output("prop-scale", "value"),
                 Output("prop-color", "value"),
                 Output("prop-width", "value"),
+                Output("prop-time-offset", "value"),
                 Output("prop-state-signal", "value"),
             ],
             [
                 Input({"type": "sig-props", "csv": ALL, "sig": ALL}, "n_clicks"),
                 Input("btn-close-props", "n_clicks"),
             ],
-            [State("store-signal-props", "data")],
+            [
+                State("store-signal-props", "data"),
+                State("store-time-offsets", "data"),
+            ],
             prevent_initial_call=True,
         )
-        def toggle_props(clicks, close, props):
+        def toggle_props(clicks, close, props, time_offsets):
             trigger = (
                 callback_context.triggered[0]["prop_id"]
                 if callback_context.triggered
@@ -3474,6 +4171,9 @@ class SignalViewerApp:
                         id_dict = js.loads(trigger.split(".")[0])
                         key = f"{id_dict['csv']}:{id_dict['sig']}"
                         p = (props or {}).get(key, {})
+                        # Get time offset (check signal-specific, then CSV-wide)
+                        time_offsets = time_offsets or {}
+                        offset = time_offsets.get(key, time_offsets.get(str(id_dict['csv']), 0))
                         return (
                             True,
                             f"Props: {id_dict['sig']}",
@@ -3482,13 +4182,15 @@ class SignalViewerApp:
                             p.get("scale", 1.0),
                             p.get("color", "#2E86AB"),
                             p.get("width", 1.5),
+                            offset,
                             p.get("is_state", False),
                         )
-            return False, "", None, "", 1.0, "#2E86AB", 1.5, False
+            return False, "", None, "", 1.0, "#2E86AB", 1.5, 0, False
 
         @self.app.callback(
             [
                 Output("store-signal-props", "data", allow_duplicate=True),
+                Output("store-time-offsets", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
             ],
             Input("btn-apply-props", "n_clicks"),
@@ -3498,16 +4200,27 @@ class SignalViewerApp:
                 State("prop-scale", "value"),
                 State("prop-color", "value"),
                 State("prop-width", "value"),
+                State("prop-time-offset", "value"),
                 State("prop-apply-tree", "value"),
                 State("prop-state-signal", "value"),
                 State("store-signal-props", "data"),
+                State("store-time-offsets", "data"),
             ],
             prevent_initial_call=True,
         )
-        def apply_props(n, key, name, scale, color, width, show, is_state, props):
+        def apply_props(n, key, name, scale, color, width, time_offset, show, is_state, props, time_offsets):
             if not n or not key:
-                return dash.no_update, dash.no_update
+                return dash.no_update, dash.no_update, dash.no_update
             props = props or {}
+            time_offsets = time_offsets or {}
+            
+            # Save time offset for this signal
+            offset_val = float(time_offset) if time_offset else 0.0
+            if offset_val != 0:
+                time_offsets[key] = offset_val
+            elif key in time_offsets:
+                del time_offsets[key]
+            
             props[key] = {
                 "display_name": name,
                 "scale": float(scale or 1),
@@ -3517,7 +4230,7 @@ class SignalViewerApp:
                 "is_state": is_state,
             }
             self.signal_properties = props
-            return props, "✅ Saved"
+            return props, time_offsets, "✅ Saved"
 
         # Single signal operations
         @self.app.callback(
@@ -3735,6 +4448,7 @@ class SignalViewerApp:
                 State("store-x-axis-signal", "data"),
                 State("store-document-text", "data"),
                 State("store-subplot-metadata", "data"),
+                State("store-time-offsets", "data"),
             ],
             prevent_initial_call=True,
         )
@@ -3755,12 +4469,13 @@ class SignalViewerApp:
             x_axis_signals,
             doc_text,
             subplot_metadata,
+            time_offsets,
         ):
             if not n:
                 return dash.no_update, dash.no_update
             try:
                 session_data = {
-                    "version": "2.1",  # Version for compatibility
+                    "version": "2.2",  # Updated version with time_offsets
                     "files": files,
                     "assignments": assign,
                     "layouts": layouts,
@@ -3776,6 +4491,7 @@ class SignalViewerApp:
                     "x_axis_signals": x_axis_signals or {},
                     "document_text": doc_text or {"introduction": "", "conclusion": ""},
                     "subplot_metadata": subplot_metadata or {},
+                    "time_offsets": time_offsets or {},
                 }
                 # Generate filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -3806,6 +4522,7 @@ class SignalViewerApp:
                 Output("store-x-axis-signal", "data", allow_duplicate=True),
                 Output("store-document-text", "data", allow_duplicate=True),
                 Output("store-subplot-metadata", "data", allow_duplicate=True),
+                Output("store-time-offsets", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
             ],
             Input("upload-session", "contents"),
@@ -3814,7 +4531,7 @@ class SignalViewerApp:
         )
         def load_session(contents, filename):
             if not contents:
-                return [dash.no_update] * 17
+                return [dash.no_update] * 18
             try:
                 # Decode uploaded file
                 content_type, content_string = contents.split(",")
@@ -3859,10 +4576,11 @@ class SignalViewerApp:
                     d.get("x_axis_signals", {}),
                     d.get("document_text", {"introduction": "", "conclusion": ""}),
                     d.get("subplot_metadata", {}),
+                    d.get("time_offsets", {}),
                     f"✅ Loaded: {filename}",
                 )
             except Exception as e:
-                return [dash.no_update] * 16 + [f"❌ {e}"]
+                return [dash.no_update] * 17 + [f"❌ {e}"]
 
         # Clientside callback to initialize Split.js after page loads
         self.app.clientside_callback(
@@ -4301,6 +5019,8 @@ class SignalViewerApp:
             [
                 Output("modal-time-cols", "is_open"),
                 Output("time-column-selectors", "children"),
+                Output("time-offset-inputs", "children"),
+                Output("csv-header-settings", "children"),
             ],
             [
                 Input("btn-time-cols", "n_clicks"),
@@ -4311,11 +5031,13 @@ class SignalViewerApp:
                 State("modal-time-cols", "is_open"),
                 State("store-csv-files", "data"),
                 State("store-time-columns", "data"),
+                State("store-time-offsets", "data"),
+                State("store-csv-settings", "data"),
             ],
             prevent_initial_call=True,
         )
         def toggle_time_cols_modal(
-            open_click, close_click, apply_click, is_open, csv_files, time_cols
+            open_click, close_click, apply_click, is_open, csv_files, time_cols, time_offsets, csv_settings
         ):
             ctx = callback_context
             trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
@@ -4323,9 +5045,18 @@ class SignalViewerApp:
             if "btn-time-cols" in trigger:
                 # Build selectors for each CSV
                 selectors = []
+                offset_inputs = []
+                header_settings = []
+                time_offsets = time_offsets or {}
+                csv_settings = csv_settings or {}
+                
                 for csv_idx, fp in enumerate(csv_files or []):
                     if csv_idx < len(self.data_manager.data_tables):
                         df = self.data_manager.data_tables[csv_idx]
+                        fname = os.path.basename(fp)
+                        csv_setting = csv_settings.get(str(csv_idx), {})
+                        current_header_row = csv_setting.get("header_row", 0)
+                        
                         if df is not None:
                             options = [
                                 {"label": col, "value": col} for col in df.columns
@@ -4333,12 +5064,13 @@ class SignalViewerApp:
                             current_time_col = (time_cols or {}).get(
                                 str(csv_idx), df.columns[0]
                             )
+                            current_offset = time_offsets.get(str(csv_idx), 0)
 
                             selectors.append(
                                 html.Div(
                                     [
                                         html.Small(
-                                            os.path.basename(fp),
+                                            fname,
                                             className="text-info fw-bold",
                                         ),
                                         dbc.Select(
@@ -4355,40 +5087,190 @@ class SignalViewerApp:
                                     className="mb-2",
                                 )
                             )
+                            
+                            # Time offset input
+                            offset_inputs.append(
+                                html.Div(
+                                    [
+                                        dbc.Row(
+                                            [
+                                                dbc.Col(
+                                                    html.Small(
+                                                        fname,
+                                                        className="text-info",
+                                                    ),
+                                                    width=6,
+                                                ),
+                                                dbc.Col(
+                                                    dbc.Input(
+                                                        id={
+                                                            "type": "time-offset-input",
+                                                            "csv": csv_idx,
+                                                        },
+                                                        type="number",
+                                                        value=current_offset,
+                                                        step=0.001,
+                                                        size="sm",
+                                                        placeholder="0.0",
+                                                        style={"width": "100px"},
+                                                    ),
+                                                    width=4,
+                                                ),
+                                                dbc.Col(
+                                                    html.Small("sec", className="text-muted"),
+                                                    width=2,
+                                                ),
+                                            ],
+                                            className="align-items-center",
+                                        ),
+                                    ],
+                                    className="mb-2",
+                                )
+                            )
+                        
+                        # Header settings (always show, even if df is None)
+                        header_settings.append(
+                            html.Div(
+                                [
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                html.Small(fname, className="text-info"),
+                                                width=5,
+                                            ),
+                                            dbc.Col(
+                                                dbc.Input(
+                                                    id={"type": "csv-header-row", "csv": csv_idx},
+                                                    type="number",
+                                                    value=current_header_row if current_header_row is not None else "",
+                                                    min=0,
+                                                    step=1,
+                                                    size="sm",
+                                                    placeholder="0 (first row)",
+                                                    style={"width": "80px"},
+                                                ),
+                                                width=3,
+                                            ),
+                                            dbc.Col(
+                                                dbc.Checkbox(
+                                                    id={"type": "csv-no-header", "csv": csv_idx},
+                                                    value=(current_header_row is None),
+                                                    label="No header",
+                                                    className="small",
+                                                ),
+                                                width=4,
+                                            ),
+                                        ],
+                                        className="align-items-center",
+                                    ),
+                                ],
+                                className="mb-2",
+                            )
+                        )
 
                 if not selectors:
                     selectors = [html.P("No CSV files loaded", className="text-muted")]
+                    offset_inputs = []
+                    header_settings = [html.P("Load CSV files first", className="text-muted")]
 
-                return True, selectors
+                return True, selectors, offset_inputs, header_settings
 
-            return False, dash.no_update
+            return False, dash.no_update, dash.no_update, dash.no_update
 
         @self.app.callback(
             [
                 Output("store-time-columns", "data"),
+                Output("store-time-offsets", "data"),
+                Output("store-csv-settings", "data"),
+                Output("store-refresh-trigger", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
             ],
             Input("btn-apply-time-cols", "n_clicks"),
             [
                 State({"type": "time-col-select", "csv": ALL}, "value"),
                 State({"type": "time-col-select", "csv": ALL}, "id"),
+                State({"type": "time-offset-input", "csv": ALL}, "value"),
+                State({"type": "time-offset-input", "csv": ALL}, "id"),
+                State({"type": "csv-header-row", "csv": ALL}, "value"),
+                State({"type": "csv-header-row", "csv": ALL}, "id"),
+                State({"type": "csv-no-header", "csv": ALL}, "value"),
+                State({"type": "csv-no-header", "csv": ALL}, "id"),
                 State("store-time-columns", "data"),
+                State("store-time-offsets", "data"),
+                State("store-csv-settings", "data"),
+                State("store-refresh-trigger", "data"),
             ],
             prevent_initial_call=True,
         )
-        def apply_time_columns(n, values, ids, current_time_cols):
+        def apply_time_columns(n, col_values, col_ids, offset_values, offset_ids, 
+                               header_values, header_ids, no_header_values, no_header_ids,
+                               current_time_cols, current_offsets, current_csv_settings, refresh_trigger):
             if not n:
-                return dash.no_update, dash.no_update
+                return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
             time_cols = current_time_cols or {}
+            time_offsets = current_offsets or {}
+            csv_settings = current_csv_settings or {}
+            needs_reload = False
 
-            if values and ids:
-                for val, id_dict in zip(values, ids):
+            # Apply time columns
+            if col_values and col_ids:
+                for val, id_dict in zip(col_values, col_ids):
                     csv_idx = id_dict.get("csv")
                     if csv_idx is not None and val:
                         time_cols[str(csv_idx)] = val
 
-            return time_cols, "✅ Time columns updated"
+            # Apply time offsets
+            if offset_values and offset_ids:
+                for val, id_dict in zip(offset_values, offset_ids):
+                    csv_idx = id_dict.get("csv")
+                    if csv_idx is not None:
+                        offset_val = float(val) if val else 0.0
+                        if offset_val != 0:
+                            time_offsets[str(csv_idx)] = offset_val
+                        elif str(csv_idx) in time_offsets:
+                            del time_offsets[str(csv_idx)]
+
+            # Apply CSV header settings
+            no_header_map = {}
+            if no_header_values and no_header_ids:
+                for val, id_dict in zip(no_header_values, no_header_ids):
+                    csv_idx = id_dict.get("csv")
+                    if csv_idx is not None:
+                        no_header_map[csv_idx] = val
+            
+            if header_values and header_ids:
+                for val, id_dict in zip(header_values, header_ids):
+                    csv_idx = id_dict.get("csv")
+                    if csv_idx is not None:
+                        old_setting = csv_settings.get(str(csv_idx), {})
+                        old_header = old_setting.get("header_row", 0)
+                        
+                        # Check if "no header" checkbox is checked
+                        no_header = no_header_map.get(csv_idx, False)
+                        
+                        if no_header:
+                            new_header = None
+                        else:
+                            new_header = int(val) if val is not None and val != "" else 0
+                        
+                        # Check if header setting changed
+                        if old_header != new_header:
+                            needs_reload = True
+                            csv_settings[str(csv_idx)] = {"header_row": new_header}
+                            
+                            # Reload this CSV with new settings
+                            try:
+                                self.data_manager.read_initial_data(csv_idx, csv_settings[str(csv_idx)])
+                                self.invalidate_caches()
+                            except Exception as e:
+                                logger.error(f"Error reloading CSV {csv_idx}: {e}")
+
+            # Trigger refresh if needed
+            new_refresh = (refresh_trigger or 0) + 1 if needs_reload else dash.no_update
+
+            status = "✅ CSV settings updated" + (" (reloaded)" if needs_reload else "")
+            return time_cols, time_offsets, csv_settings, new_refresh, status
 
         # =================================================================
         # Export CSV Modal
@@ -4573,15 +5455,10 @@ class SignalViewerApp:
             time_columns,
             is_dark,
         ):
-            print("DEBUG: do_pdf_export called!")  # DEBUG
-            print(f"DEBUG: n={n}, scope={scope}, title={title}")  # DEBUG
-
             if not n:
-                print("DEBUG: n is None, returning no_update")  # DEBUG
                 return dash.no_update, dash.no_update
 
             try:
-                print("DEBUG: Starting export process...")  # DEBUG
                 from datetime import datetime
 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -4591,10 +5468,6 @@ class SignalViewerApp:
                 layouts = layouts or {}
                 num_tabs = num_tabs or 1
                 theme = "dark" if is_dark else "light"
-
-                print(
-                    f"DEBUG: Report setup complete. intro={intro[:50] if intro else None}"
-                )  # DEBUG
 
                 # Helper to generate figure for a tab (without highlight)
                 def generate_tab_figure(tab_idx):
@@ -4621,6 +5494,7 @@ class SignalViewerApp:
                         tab_x_signals,
                         time_columns,
                         tab_metadata,
+                        {},  # time_offsets
                     )
 
                     # CRITICAL FIX: Re-apply legend configurations
@@ -4689,11 +5563,14 @@ class SignalViewerApp:
 
                 scope_info = ""
 
+                # OFFLINE FIX: First plot includes Plotly.js, rest don't (to avoid duplication)
+                first_plot = True
+                
                 if scope == "subplot":
                     # Single subplot
                     fig = generate_tab_figure(sel_tab or 0)
                     plot_html = fig.to_html(
-                        include_plotlyjs=False,
+                        include_plotlyjs=True,  # OFFLINE: Embed Plotly.js
                         full_html=False,
                         config={
                             "displayModeBar": True,
@@ -4704,6 +5581,7 @@ class SignalViewerApp:
                             },
                         },
                     )
+                    first_plot = False
 
                     tab_key = str(sel_tab or 0)
                     sp_meta = metadata.get(tab_key, {}).get(str(sel_subplot or 0), {})
@@ -4734,7 +5612,7 @@ class SignalViewerApp:
                     # Single tab with all subplots
                     fig = generate_tab_figure(sel_tab or 0)
                     plot_html = fig.to_html(
-                        include_plotlyjs=False,
+                        include_plotlyjs=True,  # OFFLINE: Embed Plotly.js
                         full_html=False,
                         config={
                             "displayModeBar": True,
@@ -4745,6 +5623,7 @@ class SignalViewerApp:
                             },
                         },
                     )
+                    first_plot = False
 
                     tab_key = str(sel_tab or 0)
                     descriptions_html = build_figure_descriptions(tab_key)
@@ -4758,7 +5637,8 @@ class SignalViewerApp:
                     for tab_idx in range(num_tabs):
                         fig = generate_tab_figure(tab_idx)
                         plot_html = fig.to_html(
-                            include_plotlyjs=False,
+                            # OFFLINE: First plot embeds Plotly.js, rest don't
+                            include_plotlyjs=first_plot,
                             full_html=False,
                             config={
                                 "displayModeBar": True,
@@ -4769,6 +5649,7 @@ class SignalViewerApp:
                                 },
                             },
                         )
+                        first_plot = False
 
                         t_key = str(tab_idx)
                         descriptions_html = build_figure_descriptions(
@@ -4795,46 +5676,30 @@ class SignalViewerApp:
                     </div>
                     """
 
-                print(
-                    f"DEBUG: Reached line 4711! intro={intro[:30] if intro else 'None'}, conclusion={conclusion[:30] if conclusion else 'None'}"
-                )  # DEBUG
-
                 # Prepare intro/conclusion sections with proper RTL support
                 intro_section = ""
                 if intro:
-                    print(
-                        f"DEBUG: Processing intro with get_text_direction_attr..."
-                    )  # DEBUG
                     intro_dir = get_text_direction_attr(intro)
                     intro_style = get_text_direction_style(intro)
                     intro_escaped = intro.replace("<", "&lt;").replace(">", "&gt;")
                     intro_section = f"<div class='section' dir='{intro_dir}'><h2>Introduction</h2><pre dir='{intro_dir}' style='white-space: pre-wrap; line-height: 1.6; font-family: inherit; background: #f9f9f9; padding: 10px; border-radius: 5px; {intro_style}'>{intro_escaped}</pre></div>"
-                    print(
-                        f"DEBUG: intro_section created with dir='{intro_dir}'"
-                    )  # DEBUG
 
                 conclusion_section = ""
                 if conclusion:
-                    print(
-                        f"DEBUG: Processing conclusion with get_text_direction_attr..."
-                    )  # DEBUG
                     concl_dir = get_text_direction_attr(conclusion)
                     concl_style = get_text_direction_style(conclusion)
                     concl_escaped = conclusion.replace("<", "&lt;").replace(">", "&gt;")
                     conclusion_section = f"<div class='section' dir='{concl_dir}'><h2>Conclusion</h2><pre dir='{concl_dir}' style='white-space: pre-wrap; line-height: 1.6; font-family: inherit; background: #f9f9f9; padding: 10px; border-radius: 5px; {concl_style}'>{concl_escaped}</pre></div>"
-                    print(
-                        f"DEBUG: conclusion_section created with dir='{concl_dir}'"
-                    )  # DEBUG
 
-                print("DEBUG: About to build HTML template...")  # DEBUG
                 # Build full HTML document
+                # OFFLINE FIX: Plotly.js is now embedded in the plot HTML, no CDN needed
                 html_content = f"""<!DOCTYPE html>
                 <html>
                 <head>
                 <meta charset="utf-8">
                 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
                 <title>{report_title}</title>
-                <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+                <!-- Plotly.js is embedded in the plot below for offline use -->
                 <style>
                     body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #fff; color: #333; }}
                     .container {{ max-width: 1200px; margin: 0 auto; }}
@@ -4874,17 +5739,6 @@ class SignalViewerApp:
 
                 filename = f"signal_report_{timestamp}.html"
 
-                print(
-                    f"DEBUG: HTML generated successfully! Length: {len(html_content)}"
-                )  # DEBUG
-                print(
-                    f"DEBUG: Checking if 'dir=' appears in HTML: {'dir=' in html_content}"
-                )  # DEBUG
-                if intro:
-                    print(
-                        f"DEBUG: Checking intro section in HTML: {'Introduction' in html_content}"
-                    )  # DEBUG
-
                 return (
                     dict(
                         content=html_content,
@@ -4894,12 +5748,391 @@ class SignalViewerApp:
                 )
 
             except Exception as e:
-                print(f"DEBUG: EXCEPTION in do_pdf_export: {e}")  # DEBUG
-                import traceback
-
-                traceback.print_exc()  # DEBUG
                 logger.exception(f"Export error: {e}")
                 return dash.no_update, f"❌ Export failed: {str(e)}"
+
+        # =================================================================
+        # Export Word Document
+        # =================================================================
+        @self.app.callback(
+            Output("modal-export-word", "is_open"),
+            [
+                Input("btn-export-word", "n_clicks"),
+                Input("btn-close-export-word", "n_clicks"),
+                Input("btn-do-export-word", "n_clicks"),
+            ],
+            State("modal-export-word", "is_open"),
+            prevent_initial_call=True,
+        )
+        def toggle_word_export_modal(open_click, close_click, export_click, is_open):
+            ctx = callback_context
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+
+            if "btn-export-word" in trigger:
+                return True
+            return False
+
+        @self.app.callback(
+            [
+                Output("download-word-export", "data"),
+                Output("status-text", "children", allow_duplicate=True),
+            ],
+            Input("btn-do-export-word", "n_clicks"),
+            [
+                State("export-word-scope", "value"),
+                State("export-word-title", "value"),
+                State("export-word-intro", "value"),
+                State("export-word-conclusion", "value"),
+                State("store-subplot-metadata", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+                State("store-assignments", "data"),
+                State("store-layouts", "data"),
+                State("store-num-tabs", "data"),
+                State("store-subplot-modes", "data"),
+                State("store-x-axis-signal", "data"),
+                State("store-time-columns", "data"),
+                State("theme-switch", "value"),
+            ],
+            prevent_initial_call=True,
+        )
+        def do_word_export(
+            n,
+            scope,
+            title,
+            intro,
+            conclusion,
+            metadata,
+            sel_tab,
+            sel_subplot,
+            assignments,
+            layouts,
+            num_tabs,
+            subplot_modes,
+            x_axis_signals,
+            time_columns,
+            is_dark,
+        ):
+            if not n:
+                return dash.no_update, dash.no_update
+
+            try:
+                from docx import Document
+                from docx.shared import Inches, Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
+                import io
+                import base64
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                report_title = title or "Signal Analysis Report"
+                metadata = metadata or {}
+                assignments = assignments or {}
+                layouts = layouts or {}
+                num_tabs = num_tabs or 1
+                theme = "dark" if is_dark else "light"
+
+                # Create Word document
+                doc = Document()
+                
+                # Title
+                title_para = doc.add_heading(report_title, 0)
+                title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Metadata
+                meta_para = doc.add_paragraph()
+                meta_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                meta_run = meta_para.add_run(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+                meta_run.font.size = Pt(10)
+                meta_run.font.italic = True
+                
+                # Introduction
+                if intro:
+                    doc.add_heading("Introduction", level=1)
+                    doc.add_paragraph(intro)
+                
+                # Helper to generate figure for a tab
+                def generate_tab_figure(tab_idx):
+                    t_key = str(tab_idx)
+                    layout = layouts.get(t_key, {"rows": 1, "cols": 1})
+                    rows = layout.get("rows", 1)
+                    cols = layout.get("cols", 1)
+                    tab_modes = (subplot_modes or {}).get(t_key, {})
+                    tab_x_signals = (x_axis_signals or {}).get(t_key, {})
+                    tab_metadata = (metadata or {}).get(t_key, {})
+
+                    fig = self.create_figure(
+                        rows, cols, theme, -1, assignments, t_key,
+                        False, False, None, tab_modes, tab_x_signals,
+                        time_columns, tab_metadata, {}
+                    )
+                    return fig
+
+                fig_num = 1
+                total_figs = 0
+
+                # Determine tabs to export
+                if scope == "subplot":
+                    tabs_to_export = [sel_tab or 0]
+                elif scope == "tab":
+                    tabs_to_export = [sel_tab or 0]
+                else:
+                    tabs_to_export = list(range(num_tabs))
+
+                for tab_idx in tabs_to_export:
+                    t_key = str(tab_idx)
+                    
+                    if len(tabs_to_export) > 1:
+                        doc.add_heading(f"Tab {tab_idx + 1}", level=1)
+                    
+                    # Generate and add the figure
+                    fig = generate_tab_figure(tab_idx)
+                    
+                    # Convert figure to PNG image
+                    img_bytes = fig.to_image(format="png", width=1200, height=800, scale=2)
+                    img_stream = io.BytesIO(img_bytes)
+                    
+                    # Add image to document
+                    doc.add_picture(img_stream, width=Inches(6.5))
+                    last_para = doc.paragraphs[-1]
+                    last_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    
+                    # Add figure descriptions
+                    tab_metadata = metadata.get(t_key, {})
+                    for sp_idx in range(16):
+                        sp_meta = tab_metadata.get(str(sp_idx), {})
+                        sp_title = sp_meta.get("title", "")
+                        sp_caption = sp_meta.get("caption", "")
+                        sp_description = sp_meta.get("description", "")
+                        
+                        if sp_title or sp_caption or sp_description:
+                            caption_text = f"Figure {fig_num}: "
+                            caption_text += sp_caption if sp_caption else sp_title
+                            
+                            caption_para = doc.add_paragraph()
+                            caption_run = caption_para.add_run(caption_text)
+                            caption_run.font.italic = True
+                            caption_run.font.size = Pt(10)
+                            
+                            if sp_description:
+                                doc.add_paragraph(sp_description)
+                            
+                            fig_num += 1
+                            total_figs += 1
+                    
+                    doc.add_paragraph()  # Add spacing
+                
+                # Conclusion
+                if conclusion:
+                    doc.add_heading("Conclusion", level=1)
+                    doc.add_paragraph(conclusion)
+                
+                # Save to bytes
+                doc_stream = io.BytesIO()
+                doc.save(doc_stream)
+                doc_stream.seek(0)
+                
+                # Encode for download
+                doc_content = base64.b64encode(doc_stream.read()).decode('utf-8')
+                
+                filename = f"signal_report_{timestamp}.docx"
+                
+                return (
+                    dict(
+                        content=doc_content,
+                        filename=filename,
+                        base64=True,
+                    ),
+                    f"✅ Exported to Word: {filename}",
+                )
+
+            except ImportError as e:
+                if "docx" in str(e):
+                    return dash.no_update, "❌ python-docx not installed. Run: pip install python-docx"
+                elif "kaleido" in str(e).lower():
+                    return dash.no_update, "❌ kaleido not installed for image export. Run: pip install kaleido"
+                return dash.no_update, f"❌ Missing dependency: {str(e)}"
+            except ValueError as e:
+                if "kaleido" in str(e).lower() or "orca" in str(e).lower():
+                    return dash.no_update, "❌ kaleido not installed for image export. Run: pip install kaleido"
+                return dash.no_update, f"❌ Export failed: {str(e)}"
+            except Exception as e:
+                logger.exception(f"Word export error: {e}")
+                return dash.no_update, f"❌ Export failed: {str(e)}"
+
+        # =================================================================
+        # Statistics Panel & Display Options
+        # =================================================================
+        @self.app.callback(
+            [
+                Output("stats-panel-collapse", "is_open"),
+                Output("stats-panel-content", "children"),
+                Output("store-display-options", "data"),
+            ],
+            [
+                Input("signal-display-options", "value"),
+            ],
+            [
+                State("store-assignments", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+                State("store-display-options", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def update_display_options(options, assignments, sel_tab, sel_subplot, display_opts):
+            options = options or []
+            show_stats = "stats" in options
+            show_markers = "markers" in options
+            normalize = "normalize" in options
+            
+            # Store display options per tab/subplot
+            display_opts = display_opts or {}
+            tab_key = str(sel_tab or 0)
+            subplot_key = str(sel_subplot or 0)
+            
+            if tab_key not in display_opts:
+                display_opts[tab_key] = {}
+            display_opts[tab_key][subplot_key] = {
+                "markers": show_markers,
+                "normalize": normalize,
+            }
+            
+            # Build statistics content
+            stats_content = []
+            if show_stats:
+                assignments = assignments or {}
+                assigned = assignments.get(tab_key, {}).get(subplot_key, [])
+                
+                if isinstance(assigned, list) and len(assigned) > 0:
+                    for sig in assigned:
+                        csv_idx = sig.get("csv_idx", -1)
+                        sig_name = sig.get("signal", "")
+                        
+                        try:
+                            if csv_idx == -1:
+                                # Derived signal
+                                continue
+                            
+                            data = self.data_manager.get_signal_data(csv_idx, sig_name)
+                            if data is not None and len(data) > 0:
+                                min_val = float(np.nanmin(data))
+                                max_val = float(np.nanmax(data))
+                                mean_val = float(np.nanmean(data))
+                                std_val = float(np.nanstd(data))
+                                
+                                stats_content.append(
+                                    html.Div(
+                                        [
+                                            html.Strong(f"{sig_name[:15]}:", className="text-info"),
+                                            html.Span(
+                                                f" Min: {min_val:.3g} | Max: {max_val:.3g} | "
+                                                f"Mean: {mean_val:.3g} | Std: {std_val:.3g}",
+                                                style={"fontSize": "9px"},
+                                            ),
+                                        ],
+                                        className="mb-1",
+                                    )
+                                )
+                        except Exception:
+                            pass
+                    
+                    if not stats_content:
+                        stats_content = [html.Span("No data available", className="text-muted")]
+                else:
+                    stats_content = [html.Span("No signals assigned", className="text-muted")]
+            
+            return show_stats, stats_content, display_opts
+
+        # =================================================================
+        # Annotation Modal & Management
+        # =================================================================
+        @self.app.callback(
+            [
+                Output("modal-annotation", "is_open"),
+                Output("annotation-x", "value"),
+                Output("annotation-y", "value"),
+            ],
+            [
+                Input("btn-open-annotation", "n_clicks"),
+                Input("btn-close-annotation", "n_clicks"),
+                Input("btn-add-annotation", "n_clicks"),
+            ],
+            [
+                State("modal-annotation", "is_open"),
+                State("store-cursor-x", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def toggle_annotation_modal(open_click, close_click, add_click, is_open, cursor_data):
+            ctx = callback_context
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            
+            if "btn-open-annotation" in trigger:
+                # Pre-fill with cursor position if available
+                x_val = cursor_data.get("x") if cursor_data else None
+                return True, x_val, None
+            elif "btn-add-annotation" in trigger or "btn-close-annotation" in trigger:
+                return False, None, None
+            
+            return is_open, None, None
+
+        @self.app.callback(
+            [
+                Output("store-annotations", "data"),
+                Output("store-refresh-trigger", "data", allow_duplicate=True),
+            ],
+            [
+                Input("btn-add-annotation", "n_clicks"),
+                Input("btn-clear-annotations", "n_clicks"),
+            ],
+            [
+                State("annotation-x", "value"),
+                State("annotation-y", "value"),
+                State("annotation-text", "value"),
+                State("annotation-color", "value"),
+                State("annotation-fontsize", "value"),
+                State("annotation-arrow", "value"),
+                State("store-annotations", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+                State("store-refresh-trigger", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def manage_annotations(
+            add_click, clear_click, x, y, text, color, fontsize, arrow,
+            annotations, sel_tab, sel_subplot, refresh
+        ):
+            ctx = callback_context
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            
+            annotations = annotations or {}
+            tab_key = str(sel_tab or 0)
+            subplot_key = str(sel_subplot or 0)
+            
+            if "btn-clear-annotations" in trigger:
+                if tab_key in annotations:
+                    annotations[tab_key][subplot_key] = []
+                return annotations, (refresh or 0) + 1
+            
+            if "btn-add-annotation" in trigger:
+                if x is not None and text:
+                    if tab_key not in annotations:
+                        annotations[tab_key] = {}
+                    if subplot_key not in annotations[tab_key]:
+                        annotations[tab_key][subplot_key] = []
+                    
+                    annotations[tab_key][subplot_key].append({
+                        "x": x,
+                        "y": y,
+                        "text": text,
+                        "color": color or "#ffcc00",
+                        "fontsize": fontsize or 12,
+                        "arrow": bool(arrow),
+                    })
+                    return annotations, (refresh or 0) + 1
+            
+            return no_update, no_update
 
         # =================================================================
         # Subplot Metadata (title, caption) - save and sync

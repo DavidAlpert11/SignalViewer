@@ -1,6 +1,6 @@
 @echo off
 REM ============================================
-REM Signal Viewer Pro - Build Script
+REM Signal Viewer Pro v2.3 - Build Script
 REM ============================================
 REM 
 REM Usage:
@@ -50,6 +50,8 @@ if "%1"=="fast" (
     echo Installing/updating dependencies...
     pip install -r requirements.txt --quiet
     pip install jaraco.functools jaraco.context jaraco.text --quiet
+    REM Optional: Word export dependencies
+    pip install python-docx kaleido --quiet
 )
 
 REM Check if PyInstaller is installed

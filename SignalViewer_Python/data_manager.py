@@ -177,8 +177,15 @@ class DataManager:
 
         self.invalidate_cache()
 
-    def read_initial_data(self, idx: int):
-        """Read initial data from CSV file with optimizations"""
+    def read_initial_data(self, idx: int, csv_settings: Optional[Dict] = None):
+        """Read initial data from CSV file with optimizations
+        
+        Args:
+            idx: CSV index
+            csv_settings: Optional dict with settings:
+                - header_row: Row number for headers (0-based), or None for no header
+                - skip_rows: Number of rows to skip at the beginning
+        """
         file_path = self.csv_file_paths[idx]
 
         if not os.path.isfile(file_path):
@@ -191,17 +198,35 @@ class DataManager:
             return
 
         file_size_mb = file_size / (1024 * 1024)
+        
+        # Parse CSV settings
+        csv_settings = csv_settings or {}
+        header_row = csv_settings.get("header_row", 0)  # Default: first row is header
+        skip_rows = csv_settings.get("skip_rows", 0)  # Rows to skip before header
 
         try:
+            # Determine header parameter
+            if header_row is None:
+                # No header - generate column names
+                header_param = None
+            else:
+                header_param = header_row + skip_rows
+            
             # Adaptive loading strategy based on file size
             if file_size_mb > 200:
-                df = self.read_large_csv_chunked(file_path)
+                df = self.read_large_csv_chunked(file_path, header=header_param)
             elif file_size_mb > 50:
                 # Use low_memory for medium files
-                df = pd.read_csv(file_path, low_memory=False)
+                df = pd.read_csv(file_path, low_memory=False, header=header_param)
             else:
                 # Fast read for small files
-                df = pd.read_csv(file_path)
+                df = pd.read_csv(file_path, header=header_param)
+            
+            # If no header was specified, generate column names
+            if header_row is None:
+                df.columns = [f"Col{i}" for i in range(len(df.columns))]
+                # First column becomes Time
+                df.rename(columns={"Col0": "Time"}, inplace=True)
 
             if df.empty:
                 self.data_tables[idx] = None
@@ -214,8 +239,8 @@ class DataManager:
                 print(f"❌ Invalid CSV format: {filename}")
                 return
 
-            # Rename first column to Time
-            if len(df.columns) > 0:
+            # Rename first column to Time if not already named
+            if len(df.columns) > 0 and "Time" not in df.columns:
                 df.rename(columns={df.columns[0]: "Time"}, inplace=True)
 
             if "Time" not in df.columns:
@@ -251,8 +276,13 @@ class DataManager:
             print(f"⚠️ Could not create cache directory: {e}")
             self.disk_cache_dirs[csv_idx] = None
 
-    def read_large_csv_chunked(self, file_path: str) -> pd.DataFrame:
-        """Read large CSV files in chunks with progress"""
+    def read_large_csv_chunked(self, file_path: str, header: int = 0) -> pd.DataFrame:
+        """Read large CSV files in chunks with progress
+        
+        Args:
+            file_path: Path to CSV file
+            header: Row number for header (0-based), or None for no header
+        """
         file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
         # Adaptive chunk size
@@ -268,10 +298,10 @@ class DataManager:
 
         try:
             # Read in chunks
-            chunk_iter = pd.read_csv(file_path, chunksize=chunk_size, low_memory=False)
+            chunk_iter = pd.read_csv(file_path, chunksize=chunk_size, low_memory=False, header=header)
 
             for i, chunk in enumerate(chunk_iter):
-                if i == 0:
+                if i == 0 and header is not None:
                     # Rename Time column in first chunk
                     chunk.rename(columns={chunk.columns[0]: "Time"}, inplace=True)
 

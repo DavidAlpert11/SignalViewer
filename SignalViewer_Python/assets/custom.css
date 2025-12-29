@@ -1,30 +1,122 @@
 /* Custom styles for Signal Viewer Pro */
 
-/* Light mode checkbox styling */
+/* ========================================
+   Checkbox Styling - Works in both themes
+   ======================================== */
+
+/* Base checkbox styling - always visible */
 .form-check-input {
     border-width: 2px !important;
+    border-style: solid !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    margin-top: 2px !important;
+    cursor: pointer !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    border-radius: 3px !important;
 }
 
-/* Dark mode - default */
-body[data-theme="dark"] .form-check-input {
-    background-color: #2a2a3e !important;
-    border-color: #666 !important;
+/* DARK MODE (default) - light border on dark background */
+.form-check-input:not(:checked) {
+    background-color: transparent !important;
+    border-color: #ced4da !important;  /* Light gray - visible on dark bg */
 }
 
-body[data-theme="dark"] .form-check-input:checked {
+/* CHECKED state - blue fill */
+.form-check-input:checked {
     background-color: #4ea8de !important;
     border-color: #4ea8de !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e") !important;
+    background-size: 12px !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
 }
 
-/* Light mode overrides */
-body[data-theme="light"] .form-check-input {
+/* Highlight checkboxes (for operations) - orange accent */
+.form-check-input[style*="accent"]:checked {
+    background-color: #f4a261 !important;
+    border-color: #f4a261 !important;
+}
+
+/* Focus state */
+.form-check-input:focus {
+    box-shadow: 0 0 0 2px rgba(78, 168, 222, 0.3) !important;
+    outline: none !important;
+}
+
+/* LIGHT MODE - dark border on light background */
+/* Match by app container background color */
+[style*="background-color: rgb(240, 242, 245)"] .form-check-input:not(:checked),
+[style*="background: rgb(240, 242, 245)"] .form-check-input:not(:checked),
+[style*="backgroundColor: rgb(240, 242, 245)"] .form-check-input:not(:checked) {
     background-color: #ffffff !important;
-    border-color: #495057 !important;
+    border-color: #495057 !important;  /* Dark gray - visible on light bg */
 }
 
-body[data-theme="light"] .form-check-input:checked {
-    background-color: #2E86AB !important;
-    border-color: #2E86AB !important;
+/* ========================================
+   Collapsible CSV Nodes in Signal Tree
+   ======================================== */
+
+/* CSV folder header - clickable */
+.csv-folder-header {
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background-color 0.15s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+.csv-folder-header:hover {
+    background-color: rgba(78, 168, 222, 0.15);
+}
+
+/* Collapse icon rotation - use CSS transform for smooth animation */
+.csv-folder-header .collapse-icon {
+    display: inline-block;
+    transition: transform 0.15s ease-out;
+    margin-right: 4px;
+    font-size: 10px;
+    width: 12px;
+    text-align: center;
+}
+
+.csv-folder-header.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+/* Signal list container - CSS-only collapse with smooth animation */
+.csv-signals-list {
+    overflow: hidden;
+    max-height: 5000px; /* Large enough for any content */
+    transition: max-height 0.2s ease-out, opacity 0.15s ease-out;
+    opacity: 1;
+}
+
+.csv-signals-list.collapsed {
+    max-height: 0 !important;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* CSV node container */
+.csv-node {
+    margin-bottom: 4px;
+}
+
+/* Signal items - compact and clean */
+.csv-signals-list > div {
+    transition: background-color 0.1s ease;
+}
+
+.csv-signals-list > div:hover {
+    background-color: rgba(78, 168, 222, 0.1) !important;
 }
 
 /* Scrollbar styling */
@@ -235,5 +327,163 @@ div.dbc-textarea textarea {
 
 .rtl-textarea[dir="ltr"] {
     text-align: left;
+}
+
+/* ========================================
+   Enhanced UI/UX Styling
+   ======================================== */
+
+/* Button hover effects */
+.btn-outline-primary:hover,
+.btn-outline-info:hover,
+.btn-outline-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Card header styling */
+.card-header {
+    border-bottom: 1px solid rgba(78, 168, 222, 0.3) !important;
+}
+
+/* Selected subplot indicator (more visible) */
+.selected-subplot-indicator {
+    box-shadow: 0 0 0 3px #4ea8de inset;
+}
+
+/* Status badge animations */
+.badge {
+    transition: all 0.2s ease;
+}
+
+.badge:hover {
+    transform: scale(1.05);
+}
+
+/* Smooth modal transitions */
+.modal.show .modal-dialog {
+    animation: modalSlideIn 0.2s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Input focus effects */
+.form-control:focus,
+.form-select:focus {
+    border-color: #4ea8de !important;
+    box-shadow: 0 0 0 2px rgba(78, 168, 222, 0.25) !important;
+}
+
+/* Loading spinner placeholder */
+.loading-indicator {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #4ea8de;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Tooltip styling improvements */
+[title] {
+    cursor: help;
+}
+
+.btn[title] {
+    cursor: pointer;
+}
+
+/* Better visual hierarchy for signal tree */
+.csv-node {
+    border-left: 2px solid transparent;
+    padding-left: 2px;
+    transition: border-color 0.2s;
+}
+
+.csv-node:hover {
+    border-left-color: #4ea8de;
+}
+
+/* Double-click hint for subplots */
+.plot-click-hint {
+    position: absolute;
+    bottom: 5px;
+    right: 10px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+}
+
+/* Assigned signal list improvements */
+.form-check-label {
+    font-size: 11px;
+    cursor: pointer;
+    transition: color 0.1s;
+}
+
+.form-check-label:hover {
+    color: #4ea8de;
+}
+
+/* Time offset badge styling */
+.badge[title*="offset"] {
+    font-family: monospace;
+    font-size: 9px;
+}
+
+/* Improve visibility of property edit buttons */
+.btn-link {
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn-link:hover {
+    opacity: 1 !important;
+    transform: scale(1.1);
+}
+
+/* Scrollable areas with fade edges */
+.card-body[style*="overflow"] {
+    mask-image: linear-gradient(to bottom, 
+        transparent 0%, 
+        black 8px, 
+        black calc(100% - 8px), 
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(to bottom, 
+        transparent 0%, 
+        black 8px, 
+        black calc(100% - 8px), 
+        transparent 100%
+    );
+}
+
+/* Upload area improvements */
+.upload-area:hover {
+    border-color: #4ea8de !important;
+    background-color: rgba(78, 168, 222, 0.05);
+}
+
+/* Signal property modal - color picker larger */
+input[type="color"] {
+    min-height: 40px !important;
+    cursor: pointer;
+}
+
+input[type="color"]:hover {
+    box-shadow: 0 0 0 2px #4ea8de;
 }
 

@@ -1,229 +1,258 @@
-# 🚀 Signal Viewer Pro - Enhanced Version 2.0
+# 📊 Signal Viewer Pro
 
-## What You Get
+A professional signal visualization and analysis tool built with Python and Dash. Perfect for analyzing CSV data with multiple signals, comparing waveforms, and creating publication-ready plots.
 
-✅ **3 Enhanced Core Files** (data_manager.py, plot_manager.py, utils.py)  
-✅ **6 Original Files** (config.py, config_manager.py, helpers.py, linking_manager.py, runtime_hook.py, signal_operations.py)  
-✅ **2 Documentation Files** (IMPROVEMENTS.md, MIGRATION.md)
+## ✨ Features
 
----
+### Core Functionality
+- **Multi-CSV Support**: Load and compare signals from multiple CSV files simultaneously
+- **Multi-Tab Interface**: Organize different analyses in separate tabs
+- **Flexible Subplot Grid**: Configure 1x1 to 4x4 subplot layouts
+- **Signal Operations**: Derivative, integral, math operations between signals
+- **Real-time Cursor**: Click to set cursor, displays values at any time point
 
-## 🎯 Top 5 Improvements
+### Performance Optimized
+- **LTTB Decimation**: Intelligent downsampling preserves visual features
+- **WebGL Rendering**: GPU-accelerated plotting for large datasets
+- **Smart Caching**: LRU cache for signal data and decimated views
+- **Instant Interactions**: Clientside JavaScript for collapse/expand (no server delay)
 
-### 1. ⚡ 6-40x Faster Performance
-- **WebGL rendering** for datasets > 5,000 points
-- **Smart caching** with LRU algorithm
-- **Optimized loading** for large files
+### Visualization
+- **Dark/Light Themes**: Professional appearance in any environment
+- **Consistent Signal Colors**: Each signal maintains its color across all subplots
+- **Customizable Signals**: Per-signal colors, line widths, display names, time offsets
+- **Linked CSV Groups**: Synchronize signals from related files
+- **State Signals**: Vertical line rendering for discrete state changes
+- **X-Y Mode**: Plot any signal against another (not just time)
+- **Quick Statistics**: Toggle min/max/mean/std display for assigned signals
+- **Marker Mode**: Show data point markers on signal traces
+- **Normalize Mode**: Scale signals to 0-1 range for comparison
+- **Annotations**: Add custom text notes at specific points on plots
 
-### 2. 💾 70% Less Memory
-- **Bounded cache** prevents memory leaks
-- **Efficient decimation** using LTTB algorithm
-- **Automatic cleanup** on data changes
+### Data Management
+- **Time Column Selection**: Choose any column as the time axis
+- **Time Offsets**: Shift signal timing per-signal or per-CSV for alignment
+- **CSV Header Settings**: Support for CSVs without headers or headers in different rows
+- **Collapsible Tree**: Organize large signal lists with expandable/collapsible CSV nodes
 
-### 3. 🎨 Better Visual Quality
-- **LTTB downsampling** preserves signal shape
-- **Smooth rendering** at 60 FPS
-- **No more lag** on zoom/pan
-
-### 4. 📊 Enhanced Analytics
-- **25 statistics** per signal (mean, std, percentiles, etc.)
-- **Signal type detection** (continuous/discrete/binary)
-- **Peak detection** and correlation analysis
-
-### 5. 🛡️ Production Ready
-- **Comprehensive error handling**
-- **Progress tracking** for large loads
-- **Performance monitoring** built-in
-
----
-
-## 📦 File Overview
-
-### ⭐ CRITICAL UPDATES (Replace These!)
-
-**data_manager.py** (23 KB)
-- LRU cache implementation
-- LTTB downsampling algorithm
-- Progressive loading with status updates
-- Enhanced statistics caching
-- Better error recovery
-
-**plot_manager.py** (22 KB)
-- Automatic Scattergl for large datasets
-- WebGL rendering optimization
-- Performance mode configuration
-- Better hover templates
-
-**utils.py** (12 KB) - NEW!
-- LTTB & Min/Max downsampling
-- Signal smoothing (3 methods)
-- Peak detection
-- Signal alignment & correlation
-- Memory estimation tools
-
-### 📄 Unchanged Files (Keep As-Is)
-
-- config.py (5.5 KB)
-- config_manager.py (5.2 KB)
-- helpers.py (9.1 KB)
-- linking_manager.py (7.5 KB)
-- runtime_hook.py (755 B)
-- signal_operations.py (7.6 KB)
-
----
+### Export & Reporting
+- **HTML Reports**: Generate interactive reports with all plots (works offline!)
+- **Word Documents**: Export publication-ready reports with embedded plots
+- **CSV Export**: Export selected signals to new CSV files
+- **Session Management**: Save/load complete analysis sessions (all settings preserved)
+- **Plot Templates**: Reuse configurations across different data files
 
 ## 🚀 Quick Start
 
-### Step 1: Replace Files
+### Prerequisites
+- Python 3.10 or higher
+- pip package manager
+
+### Installation
+
 ```bash
-# Backup originals
-cp data_manager.py data_manager.py.backup
-cp plot_manager.py plot_manager.py.backup
+# Clone or download the repository
+cd SignalViewer_Python
 
-# Use new versions from this package
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+python run.py
 ```
 
-### Step 2: Test
-```python
-from data_manager import DataManager
+The application will open in your default web browser at `http://127.0.0.1:8050`
 
-dm = DataManager(app)
-dm.csv_file_paths = ['your_file.csv']
-dm.load_data_once()
+### Basic Usage
 
-# Check performance
-dm.print_cache_stats()
+1. **Load CSV Files**: Drag & drop or click the upload area to add CSV files
+2. **Select Signals**: Check the 📊 checkbox next to signals to add them to the current subplot
+3. **Select Subplot**: Double-click on a subplot to make it active for signal assignment
+4. **Place Cursor**: Single-click on the plot to set the time cursor and view values
+5. **Configure Signals**: Click ✎ to change color, scale, time offset, etc.
+6. **Export**: Use 📑 for HTML reports, 📝 for Word documents
+
+## 🎯 User Guide
+
+### Signal Assignment
+- **📊 Checkbox**: Assign/unassign signal to current subplot
+- **⚙ Checkbox**: Select signals for multi-signal operations
+- **✎ Button**: Open signal properties (color, scale, time offset)
+- **⚙ Button**: Single-signal operations (derivative, integral, etc.)
+
+### Subplot Selection
+- **Double-click** on a subplot to select it for signal assignment
+- The selected subplot has a highlighted blue border
+- Use the dropdown to quickly switch between subplots
+
+### Time Offsets
+Time offsets let you align signals that were recorded with timing differences:
+1. Click the **⏱** button in the Data Sources panel
+2. Enter offset values in seconds (positive = shift right, negative = shift left)
+3. Or click **✎** on a specific signal to set its individual offset
+
+### X-Y Plot Mode
+To plot one signal against another (instead of time):
+1. Select **⚡ X-Y** mode in the Assigned panel
+2. Assign signals to the subplot
+3. Use the X-Axis dropdown to select which signal is on X-axis
+4. Other signals will be plotted on Y-axis
+
+### Display Options
+In the Assigned panel, toggle these options:
+- **📊 Stats**: Show quick statistics (min/max/mean/std) for assigned signals
+- **⚫ Markers**: Display data point markers on signal traces
+- **📏 Normalize**: Scale all signals to 0-1 range for visual comparison
+
+### Annotations
+Add text notes at specific points on your plots:
+1. Click the **📌** button in the plot header
+2. Set X/Y position (click on plot first to populate X position)
+3. Enter annotation text and customize color/font/arrow
+4. Click "Add" to place the annotation
+5. Use "Clear All" to remove all annotations from current subplot
+
+### Exporting
+
+#### HTML Report (Recommended for Interactive Sharing)
+- Click 📑 button to open export dialog
+- Add title, introduction, and conclusion text
+- Set captions/descriptions for each subplot in the Assigned panel
+- Export creates a standalone HTML file that works offline!
+
+#### Word Document (Recommended for Printing/Editing)
+- Click 📝 button to open Word export dialog
+- Add report title, introduction, and conclusion text
+- Choose export scope: current subplot, tab, or all tabs
+- Generates a .docx file with embedded plot images
+- Requires: `pip install python-docx kaleido`
+
+#### Session Save/Load
+- Click 💾 to save entire session (CSV paths, assignments, settings)
+- Click 📂 to load a previously saved session
+- Templates (📋/📄) save only layout and signal names (not CSV paths)
+
+## 📁 Project Structure
+
+```
+SignalViewer_Python/
+├── app.py                 # Main application (Dash layout & callbacks)
+├── run.py                 # Application entry point
+├── data_manager.py        # CSV loading and data caching
+├── plot_manager.py        # Plotly figure generation
+├── signal_operations.py   # Mathematical signal operations
+├── config.py              # Theme colors and constants
+├── helpers.py             # Utility functions
+├── requirements.txt       # Python dependencies
+├── assets/                # CSS and JavaScript assets
+│   ├── custom.css         # Custom styles
+│   ├── collapse.js        # Clientside collapse handling
+│   ├── split.min.js       # Resizable panels
+│   └── ...
+├── sample_data/           # Sample CSV files for testing
+└── uploads/               # Uploaded CSV files
 ```
 
-### Step 3: Enjoy!
-Your app is now 6-40x faster! 🎉
+## ⚙️ Configuration
 
----
+### Time Settings (⏱️ Button)
+- **Time Column**: Select which column to use as the X-axis for each CSV
+- **Time Offset**: Add positive/negative offset to shift signal timing
+- **Header Settings**: Specify header row or mark CSVs as having no headers
 
-## 📊 Before & After
+### Signal Properties (✎ Button)
+- **Display Name**: Custom name shown in tree and legends
+- **Scale Factor**: Multiply signal values (e.g., 1000 for mV→V)
+- **Color**: Signal line color (consistent across all subplots)
+- **Line Width**: Thickness of the signal line
+- **Time Offset**: Per-signal time shift in seconds
+- **State Signal**: Enable for discrete/step signals
 
-### Loading 1M Point Dataset
+### Layout Options
+- **Rows × Columns**: Subplot grid configuration (up to 4×4)
+- **Link Axes**: Synchronize zoom/pan across subplots
+- **Cursor**: Show/hide the time cursor
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Initial Plot** | 12.5s | 2.1s | **6x faster** ⚡ |
-| **Re-plot (cached)** | 12.5s | 0.3s | **40x faster** ⚡⚡ |
-| **Memory Usage** | 500MB | 150MB | **70% less** 💾 |
-| **Zoom/Pan** | Laggy | Smooth | **60 FPS** 🎨 |
+## 📊 Performance Tips
 
----
+For large CSV files (>100k rows):
 
-## 🎛️ Configuration Options
+1. **WebGL**: Automatically enabled for datasets >500 points
+2. **LTTB Decimation**: Reduces display points to 5000 while preserving features
+3. **Collapse CSV Nodes**: Click on CSV folder headers to hide unused signals
+4. **Use Search Filters**: Filter signals by name (+ button adds persistent filters)
+5. **Limit Subplots**: Fewer subplots = faster rendering
 
-```python
-# Performance mode
-plot_manager.set_performance_mode(
-    use_webgl=True,     # Auto WebGL
-    max_points=50000    # LOD level
-)
+## 🛠️ Building a Standalone Executable
 
-# Get signal data with decimation
-time, data = data_manager.get_signal_data_ext(
-    csv_idx=0,
-    signal_name='Temperature',
-    max_points=50000,   # Decimate to 50k
-    use_cache=True      # Enable cache
-)
+### Windows
 
-# Monitor performance
-data_manager.print_cache_stats()
+```bash
+# Install PyInstaller
+pip install pyinstaller
+
+# Build the executable
+build.bat
+
+# Output: dist/SignalViewer/SignalViewer.exe
 ```
 
----
+## 🧪 Running Tests
 
-## 🔍 What Makes This Better Than PlotJuggler?
+```bash
+# Run all tests
+pytest tests/
 
-### Signal Viewer Pro Advantages:
-✅ **Python-based** - Easy to customize for your research  
-✅ **Web UI** - Access from anywhere  
-✅ **Integrated** - Works with your existing Python workflow  
-✅ **Open architecture** - Add custom features easily  
-✅ **Proteomics-friendly** - Built by a researcher, for researchers  
-
-### Performance Parity:
-✅ **WebGL rendering** - Same speed as PlotJuggler  
-✅ **Smart caching** - Matches native app performance  
-✅ **Large datasets** - Handles millions of points smoothly  
-
----
-
-## 📚 Documentation
-
-**IMPROVEMENTS.md** - Detailed technical improvements  
-**MIGRATION.md** - Step-by-step migration guide  
-**This file** - Quick reference
-
----
-
-## 🎯 Recommended Settings
-
-### Small Data (<10k points)
-```python
-max_points = None      # No decimation needed
-use_webgl = False      # Standard rendering
+# Run with coverage
+pytest tests/ --cov=. --cov-report=html
 ```
 
-### Medium Data (10k-100k points)
-```python
-max_points = 50000     # Light decimation
-use_webgl = True       # Fast rendering
-```
+## 📝 Dependencies
 
-### Large Data (>100k points)
-```python
-max_points = 20000     # Aggressive decimation
-use_webgl = True       # WebGL required
-method = 'lttb'        # Best quality
-```
+Core dependencies (see `requirements.txt` for versions):
+- **dash**: Web application framework
+- **dash-bootstrap-components**: UI components
+- **plotly**: Interactive plotting
+- **pandas**: Data manipulation
+- **numpy**: Numerical operations
 
-### Very Large Data (>1M points)
-```python
-max_points = 10000     # Maximum decimation
-use_webgl = True       # WebGL required
-method = 'minmax'      # Faster than LTTB
-```
+Optional (for Word export):
+- **python-docx**: Word document generation
+- **kaleido**: Static image export from Plotly
 
----
+## 🔧 Troubleshooting
 
-## ⚠️ Common Issues & Solutions
+### Application won't start
+- Check Python version: `python --version` (need 3.10+)
+- Reinstall dependencies: `pip install -r requirements.txt`
 
-### "ImportError"
-→ Make sure all new files are in the same directory
+### Slow with large files
+- Reduce subplot count if using many signals
+- Use search filters to limit visible signals
+- Collapse CSV folders you're not using
 
-### "Slower than before"
-→ Increase `max_points` value
+### Subplot not selecting
+- Use **double-click** to select a subplot (single-click places cursor)
+- Or use the subplot dropdown in the header
 
-### "Cache not working"
-→ Run `data_manager.invalidate_cache()` then reload
+### Signals have wrong colors
+- Colors are now consistent per signal (based on signal name)
+- To change: click ✎ button and set custom color
 
-### "WebGL rendering issues"
-→ Disable with `plot_manager.use_webgl = False`
+### HTML export doesn't show plots offline
+- Use the 📑 export button (not browser's "Save Page As")
+- Plotly.js is embedded automatically for offline viewing
 
----
+## 📜 License
 
-## 🎉 Summary
+MIT License - See LICENSE file for details.
 
-Your Signal Viewer Pro now has:
+## 🙏 Acknowledgments
 
-✅ **Professional-grade performance** (6-40x faster)  
-✅ **Production-ready reliability** (robust error handling)  
-✅ **Advanced analytics** (25+ statistics per signal)  
-✅ **Better visual quality** (LTTB algorithm)  
-✅ **Lower memory usage** (70% reduction)  
-
-**You're ready to handle datasets with millions of points smoothly!**
+- Built with [Dash](https://dash.plotly.com/) by Plotly
+- Icons by [Font Awesome](https://fontawesome.com/)
+- Styling by [Bootstrap](https://getbootstrap.com/)
 
 ---
 
-## 📞 Questions?
-
-- Read **IMPROVEMENTS.md** for technical details
-- Check **MIGRATION.md** for step-by-step guide
-- Test with your data and adjust settings as needed
-
-**Happy analyzing! 🚀📊**
+**Signal Viewer Pro v2.3** - Professional signal analysis made simple. 📊✨

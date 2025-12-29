@@ -347,8 +347,15 @@ class PlotManager:
         fig.update_xaxes(title_text="X Axis", row=row, col=col)
         fig.update_yaxes(title_text="Y Axis", row=row, col=col)
 
-    def export_to_html(self, tab_idx: int, filename: str) -> bool:
-        """Export tab to standalone HTML file"""
+    def export_to_html(self, tab_idx: int, filename: str, offline: bool = True) -> bool:
+        """Export tab to standalone HTML file
+        
+        Args:
+            tab_idx: Tab index to export
+            filename: Output filename
+            offline: If True, embed Plotly.js for offline use (larger file)
+                     If False, use CDN (smaller file, requires internet)
+        """
         try:
             if tab_idx < 0 or tab_idx >= len(self.plot_tabs):
                 return False
@@ -370,7 +377,8 @@ class PlotManager:
                         'scale': 2
                     }
                 },
-                include_plotlyjs='cdn',  # Use CDN for smaller file size
+                # OFFLINE FIX: Embed Plotly.js for offline viewing
+                include_plotlyjs=True if offline else 'cdn',
             )
             
             return True
@@ -379,17 +387,22 @@ class PlotManager:
             print(f"Error exporting to HTML: {e}")
             return False
 
-    def export_to_html_rtl(self, tab_idx: int) -> str:
-        """Export tab to HTML string with RTL support"""
+    def export_to_html_rtl(self, tab_idx: int, offline: bool = True) -> str:
+        """Export tab to HTML string with RTL support
+        
+        Args:
+            tab_idx: Tab index to export
+            offline: If True, embed Plotly.js for offline use
+        """
         if tab_idx < 0 or tab_idx >= len(self.plot_tabs):
             return ""
 
         try:
             fig = self.plot_tabs[tab_idx]
             
-            # Get basic HTML
+            # Get basic HTML - embed Plotly.js for offline use
             html_content = fig.to_html(
-                include_plotlyjs='cdn',
+                include_plotlyjs=True if offline else 'cdn',
                 config={
                     'displayModeBar': True,
                     'displaylogo': False,
