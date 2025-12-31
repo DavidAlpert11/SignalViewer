@@ -12,6 +12,9 @@ from typing import List, Dict, Optional, Tuple
 import time
 from collections import OrderedDict
 
+# Import flexible CSV loader
+from flexible_csv_loader import FlexibleCSVLoader
+
 
 class LRUCache:
     """Simple LRU cache with size limit"""
@@ -74,6 +77,10 @@ class DataManager:
         # Performance monitoring
         self.load_times = []  # Track loading performance
         self.last_cache_report = time.time()
+        
+        # Flexible CSV loader instance
+        self.flexible_loader = FlexibleCSVLoader()
+        self.csv_settings = {}  # Store per-CSV loading settings: {csv_idx: {delimiter, header_row, etc}}
 
     def invalidate_cache(self, csv_idx=None):
         """Clear cache when data changes"""
@@ -178,13 +185,16 @@ class DataManager:
         self.invalidate_cache()
 
     def read_initial_data(self, idx: int, csv_settings: Optional[Dict] = None):
-        """Read initial data from CSV file with optimizations
+        """Read initial data from CSV file using flexible loader
         
         Args:
             idx: CSV index
             csv_settings: Optional dict with settings:
+                - delimiter: Column delimiter (None = auto-detect)
                 - header_row: Row number for headers (0-based), or None for no header
                 - skip_rows: Number of rows to skip at the beginning
+                - encoding: File encoding (default: utf-8)
+                - auto_detect: Auto-detect format (default: True)
         """
         file_path = self.csv_file_paths[idx]
 
@@ -199,36 +209,41 @@ class DataManager:
 
         file_size_mb = file_size / (1024 * 1024)
         
-        # Parse CSV settings
-        csv_settings = csv_settings or {}
-        header_row = csv_settings.get("header_row", 0)  # Default: first row is header
-        skip_rows = csv_settings.get("skip_rows", 0)  # Rows to skip before header
+        # Get or create CSV settings
+        if csv_settings is None:
+            csv_settings = self.csv_settings.get(idx, {})
+        else:
+            # Store settings for this CSV
+            self.csv_settings[idx] = csv_settings
 
         try:
-            # Determine header parameter
-            if header_row is None:
-                # No header - generate column names
-                header_param = None
-            else:
-                header_param = header_row + skip_rows
+            # Use flexible loader with auto-detection by default
+            auto_detect = csv_settings.get('auto_detect', True)
+            delimiter = csv_settings.get('delimiter', None)
+            header_row = csv_settings.get('header_row', 0)
+            skip_rows = csv_settings.get('skip_rows', 0)
+            encoding = csv_settings.get('encoding', 'utf-8')
             
-            # Adaptive loading strategy based on file size
-            if file_size_mb > 200:
-                df = self.read_large_csv_chunked(file_path, header=header_param)
-            elif file_size_mb > 50:
-                # Use low_memory for medium files
-                df = pd.read_csv(file_path, low_memory=False, header=header_param)
-            else:
-                # Fast read for small files
-                df = pd.read_csv(file_path, header=header_param)
+            # Determine if we should load full file or preview
+            preview_mode = file_size_mb > 200
             
-            # If no header was specified, generate column names
-            if header_row is None:
-                df.columns = [f"Col{i}" for i in range(len(df.columns))]
-                # First column becomes Time
-                df.rename(columns={"Col0": "Time"}, inplace=True)
+            if preview_mode:
+                print(f"   🔍 Large file detected ({file_size_mb:.1f} MB), using chunked loading...")
+                # For very large files, still use chunked loading
+                df = self.read_large_csv_chunked(file_path, delimiter, header_row, skip_rows)
+            else:
+                # Use flexible loader for normal files
+                df = self.flexible_loader.load_csv(
+                    file_path,
+                    auto_detect=auto_detect,
+                    delimiter=delimiter,
+                    header_row=header_row,
+                    skiprows=skip_rows,
+                    encoding=encoding,
+                    preview_mode=False
+                )
 
-            if df.empty:
+            if df is None or df.empty:
                 self.data_tables[idx] = None
                 return
 
@@ -239,13 +254,18 @@ class DataManager:
                 print(f"❌ Invalid CSV format: {filename}")
                 return
 
-            # Rename first column to Time if not already named
-            if len(df.columns) > 0 and "Time" not in df.columns:
-                df.rename(columns={df.columns[0]: "Time"}, inplace=True)
-
+            # Ensure Time column exists (flexible_loader should handle this, but double-check)
             if "Time" not in df.columns:
-                self.data_tables[idx] = None
-                return
+                # Try to find a time-like column
+                time_candidates = [c for c in df.columns if c.lower() in ['time', 't', 'timestamp', 'datetime']]
+                if time_candidates:
+                    df.rename(columns={time_candidates[0]: 'Time'}, inplace=True)
+                elif len(df.columns) > 0:
+                    # Use first column as Time
+                    df.rename(columns={df.columns[0]: 'Time'}, inplace=True)
+                else:
+                    self.data_tables[idx] = None
+                    return
 
             # Store dataframe
             self.data_tables[idx] = df
@@ -262,7 +282,6 @@ class DataManager:
         except Exception as e:
             print(f"❌ Error reading CSV {idx+1}: {str(e)}")
             import traceback
-
             traceback.print_exc()
             self.data_tables[idx] = None
 
@@ -276,7 +295,8 @@ class DataManager:
             print(f"⚠️ Could not create cache directory: {e}")
             self.disk_cache_dirs[csv_idx] = None
 
-    def read_large_csv_chunked(self, file_path: str, header: int = 0) -> pd.DataFrame:
+    def read_large_csv_chunked(self, file_path: str, delimiter: str = None, 
+                               header_row: int = 0, skip_rows: int = 0) -> pd.DataFrame:
         """Read large CSV files in chunks with progress
         
         Args:
@@ -708,3 +728,330 @@ class DataManager:
                 print(f"  - Average load time: {avg_load:.2f}s")
                 print(f"  - Files loaded: {len(self.load_times)}")
             print(f"{'='*60}\n")
+
+
+    # =========================================================================
+    # Efficient Incremental CSV Reading for Streaming
+    # =========================================================================
+    
+    def check_csv_updated(self, csv_idx: int) -> bool:
+        """
+        Check if a CSV file has been updated since last read.
+        
+        Returns:
+            True if file was modified, False otherwise
+        """
+        if csv_idx >= len(self.csv_file_paths):
+            return False
+        
+        file_path = self.csv_file_paths[csv_idx]
+        if not os.path.isfile(file_path):
+            return False
+        
+        try:
+            current_mod_time = os.path.getmtime(file_path)
+            last_mod_time = self.last_file_mod_times[csv_idx] if csv_idx < len(self.last_file_mod_times) else 0
+            
+            return current_mod_time > last_mod_time
+        except Exception as e:
+            print(f"Error checking file modification: {e}")
+            return False
+    
+    def read_csv_incremental(self, csv_idx: int) -> bool:
+        """
+        Read only NEW rows from CSV file (efficient for streaming).
+        
+        Strategy:
+        1. Check file modification time
+        2. If modified, read from last known row count
+        3. Append new rows to existing DataFrame
+        4. Update caches
+        
+        Returns:
+            True if new data was read, False otherwise
+        """
+        if csv_idx >= len(self.csv_file_paths):
+            return False
+        
+        file_path = self.csv_file_paths[csv_idx]
+        
+        if not os.path.isfile(file_path):
+            return False
+        
+        try:
+            # Check if file was modified
+            if not self.check_csv_updated(csv_idx):
+                return False
+            
+            # Get last known row count
+            last_row_count = self.last_read_rows[csv_idx] if csv_idx < len(self.last_read_rows) else 0
+            
+            # Count current rows in file (fast - just count newlines)
+            current_row_count = self._count_file_rows(file_path)
+            
+            if current_row_count <= last_row_count:
+                # File might have been truncated or no new data
+                # Update mod time anyway
+                self.last_file_mod_times[csv_idx] = os.path.getmtime(file_path)
+                return False
+            
+            # Calculate how many new rows
+            new_rows = current_row_count - last_row_count
+            
+            print(f"📊 CSV {csv_idx}: {new_rows} new rows detected (was {last_row_count}, now {current_row_count})")
+            
+            # Get CSV settings for this file
+            csv_settings = self.csv_settings.get(csv_idx, {})
+            delimiter = csv_settings.get('delimiter', None)
+            if delimiter == 'auto':
+                delimiter = None
+            
+            # Read only new rows efficiently
+            if new_rows < 1000:
+                # Small update - read new rows directly
+                new_data = self._read_csv_tail(
+                    file_path, 
+                    skip_rows=last_row_count,
+                    nrows=new_rows,
+                    delimiter=delimiter,
+                    header_row=csv_settings.get('header_row', 0)
+                )
+                
+                if new_data is not None and not new_data.empty:
+                    # Get existing DataFrame
+                    existing_df = self.data_tables[csv_idx]
+                    
+                    if existing_df is None:
+                        # First read - use new data as is
+                        self.data_tables[csv_idx] = new_data
+                    else:
+                        # Append new data
+                        # Make sure columns match
+                        if list(new_data.columns) == list(existing_df.columns):
+                            self.data_tables[csv_idx] = pd.concat([existing_df, new_data], ignore_index=True)
+                        else:
+                            print(f"⚠️ Column mismatch in incremental read - doing full reload")
+                            self.read_initial_data(csv_idx, csv_settings)
+                            return True
+                    
+                    # Update row count
+                    self.last_read_rows[csv_idx] = current_row_count
+                    self.last_file_mod_times[csv_idx] = os.path.getmtime(file_path)
+                    
+                    # Invalidate cache for this CSV
+                    self.invalidate_cache(csv_idx)
+                    
+                    self.update_counter += 1
+                    return True
+            else:
+                # Large update - do full reload
+                print(f"⚠️ Large update ({new_rows} rows) - doing full reload")
+                self.read_initial_data(csv_idx, csv_settings)
+                return True
+                
+        except Exception as e:
+            print(f"❌ Error in incremental read: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+        
+        return False
+    
+    def _count_file_rows(self, file_path: str) -> int:
+        """
+        Quickly count rows in a file.
+        Much faster than reading entire file.
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                return sum(1 for _ in f)
+        except Exception as e:
+            print(f"Error counting rows: {e}")
+            return 0
+    
+    def _read_csv_tail(self, file_path: str, skip_rows: int, nrows: int, 
+                       delimiter: str = None, header_row: int = 0) -> pd.DataFrame:
+        """
+        Read only the tail (last N rows) of a CSV file.
+        
+        Args:
+            file_path: Path to CSV
+            skip_rows: Number of rows to skip from start (including header)
+            nrows: Number of rows to read
+            delimiter: Column delimiter
+            header_row: Which row has headers (used to get column names)
+        
+        Returns:
+            DataFrame with new rows only
+        """
+        try:
+            # First, read header to get column names
+            header_df = self.flexible_loader.load_csv(
+                file_path,
+                auto_detect=(delimiter is None),
+                delimiter=delimiter,
+                header_row=header_row,
+                preview_mode=True  # Just get structure
+            )
+            
+            if header_df is None or header_df.empty:
+                return None
+            
+            column_names = header_df.columns.tolist()
+            
+            # Now read just the new rows
+            # Skip = header rows + rows we already have
+            actual_skip = header_row + 1 + skip_rows
+            
+            if delimiter is None:
+                # Auto-detect delimiter
+                format_info = self.flexible_loader.detect_format(file_path)
+                delimiter = format_info.get('delimiter', ',')
+            
+            # Read new rows
+            df = pd.read_csv(
+                file_path,
+                delimiter=delimiter,
+                skiprows=actual_skip,
+                nrows=nrows,
+                names=column_names,
+                header=None,
+                encoding='utf-8',
+                on_bad_lines='skip'
+            )
+            
+            return df
+            
+        except Exception as e:
+            print(f"Error reading CSV tail: {e}")
+            return None
+    
+    def start_streaming_all(self):
+        """
+        Start streaming all loaded CSVs with efficient incremental reading.
+        """
+        self.streaming_enabled = True
+        self.is_running = True
+        print(f"▶️ Started streaming {len(self.csv_file_paths)} CSV(s)")
+        print(f"   Update rate: {self.update_rate}s")
+        print(f"   Timeout: {self.timeout_duration}s of no updates")
+    
+    def stop_streaming_all(self):
+        """Stop all streaming"""
+        self.streaming_enabled = False
+        self.is_running = False
+        print("⏸️ Stopped streaming")
+    
+    def check_and_update_streaming(self) -> bool:
+        """
+        Check all CSVs for updates and read incrementally if needed.
+        Call this periodically from the streaming callback.
+        
+        Returns:
+            True if any CSV was updated
+        """
+        if not self.streaming_enabled:
+            return False
+        
+        updated = False
+        
+        for csv_idx in range(len(self.csv_file_paths)):
+            if self.read_csv_incremental(csv_idx):
+                updated = True
+        
+        if updated:
+            # Update signal names (in case new columns appeared)
+            self.update_signal_names()
+            self.last_update_time = datetime.now()
+        
+        return updated
+
+    # =========================================================================
+    # Flexible CSV Loading Helper Methods
+    # =========================================================================
+    
+    def detect_csv_format(self, file_path: str) -> Dict:
+        """
+        Auto-detect CSV format using flexible loader.
+        
+        Returns:
+            Dict with detected settings: delimiter, header_row, skip_rows, etc.
+        """
+        return self.flexible_loader.detect_format(file_path)
+    
+    def get_csv_preview(self, file_path: str, max_lines: int = 20) -> str:
+        """
+        Get raw text preview of CSV file.
+        
+        Returns:
+            String with first N lines
+        """
+        return self.flexible_loader.get_preview(file_path, max_lines)
+    
+    def load_csv_with_settings(self, file_path: str, csv_idx: int = None, 
+                               delimiter: str = None, header_row: int = 0,
+                               skip_rows: int = 0, encoding: str = 'utf-8',
+                               auto_detect: bool = True) -> bool:
+        """
+        Load a CSV file with specific settings using flexible loader.
+        
+        Args:
+            file_path: Path to CSV file
+            csv_idx: Index to store at (None = append new)
+            delimiter: Column delimiter (None = auto-detect)
+            header_row: Header row index (None = no headers)
+            skip_rows: Rows to skip at start
+            encoding: File encoding
+            auto_detect: Auto-detect format settings
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Determine index
+            if csv_idx is None:
+                csv_idx = len(self.csv_file_paths)
+                self.csv_file_paths.append(file_path)
+                self.data_tables.append(None)
+                self.last_file_mod_times.append(0)
+                self.last_read_rows.append(0)
+            
+            # Store settings for this CSV
+            self.csv_settings[csv_idx] = {
+                'delimiter': delimiter,
+                'header_row': header_row,
+                'skip_rows': skip_rows,
+                'encoding': encoding,
+                'auto_detect': auto_detect,
+            }
+            
+            # Load the CSV
+            self.read_initial_data(csv_idx, self.csv_settings[csv_idx])
+            
+            return self.data_tables[csv_idx] is not None
+            
+        except Exception as e:
+            print(f"❌ Error loading CSV with settings: {str(e)}")
+            return False
+    
+    def update_csv_settings(self, csv_idx: int, **settings):
+        """
+        Update settings for a CSV and reload it.
+        
+        Args:
+            csv_idx: Index of CSV to update
+            **settings: Settings to update (delimiter, header_row, skip_rows, etc.)
+        """
+        if csv_idx < 0 or csv_idx >= len(self.csv_file_paths):
+            return False
+        
+        # Update stored settings
+        if csv_idx not in self.csv_settings:
+            self.csv_settings[csv_idx] = {}
+        
+        self.csv_settings[csv_idx].update(settings)
+        
+        # Reload the CSV
+        self.read_initial_data(csv_idx, self.csv_settings[csv_idx])
+        
+        return self.data_tables[csv_idx] is not None

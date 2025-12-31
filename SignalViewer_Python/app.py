@@ -53,8 +53,8 @@ import base64
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
-
+from typing import Optional, List, Dict, Tuple, Any
+# from layout import create_layout  # Using self.create_layout() instead
 from data_manager import DataManager
 from signal_operations import SignalOperationsManager
 from linking_manager import LinkingManager
@@ -65,6 +65,9 @@ from config import (
     APP_HOST,
     APP_PORT,
 )
+# Import CSV loading support
+from flexible_csv_loader import FlexibleCSVLoader
+
 from helpers import (
     get_csv_display_name,
     get_csv_short_name,
@@ -123,10 +126,11 @@ class SignalViewerApp:
         self._last_figure_hash = None  # Track if figure needs rebuild
         self._signal_list_cache = {}  # Cache for signal names per CSV: {csv_idx: [signal_names]}
         self._signal_list_version = 0  # Increment when CSVs change
+        self._last_tree_state = {}  # Cache for signal tree updates
         
         # Display settings - CRITICAL FOR PERFORMANCE
-        self.MAX_DISPLAY_POINTS = 5000  # Maximum points to display per signal
-        self.WEBGL_THRESHOLD = 500  # Use WebGL above this many points (was 1000)
+        self.MAX_DISPLAY_POINTS = 2000  # Reduced for performance  # Maximum points to display per signal
+        self.WEBGL_THRESHOLD = 200  # Use WebGL more aggressively  # Use WebGL above this many points (was 1000)
 
         self.app.layout = self.create_layout()
         self.setup_callbacks()
@@ -140,7 +144,7 @@ class SignalViewerApp:
         self._cache_valid = True
         self._signal_list_version += 1
 
-    def get_signal_names_cached(self, csv_idx: int) -> List[str]:
+    def get_signal_names_cached(self, csv_idx: int) -> list[str]:
         """Get cached list of signal names for a CSV (excluding Time column)"""
         if csv_idx in self._signal_list_cache:
             return self._signal_list_cache[csv_idx]
@@ -159,7 +163,7 @@ class SignalViewerApp:
         
     def get_signal_data_cached(
         self, csv_idx: int, signal_name: str, time_col: str = "Time"
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Get RAW signal data with memory caching (no decimation)"""
         cache_key = (csv_idx, signal_name, time_col)
 
@@ -193,7 +197,7 @@ class SignalViewerApp:
     def get_signal_data_for_display(
         self, csv_idx: int, signal_name: str, time_col: str = "Time", 
         max_points: Optional[int] = None
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Get DECIMATED signal data optimized for display.
         Uses LTTB algorithm to downsample while preserving visual features.
@@ -314,6 +318,8 @@ class SignalViewerApp:
                 dcc.Store(id="store-link-axes", data={}),
                 dcc.Store(id="store-highlighted", data=[]),
                 dcc.Store(id="store-refresh-trigger", data=0),
+                dcc.Store(id="store-streaming-active", data=False),
+                dcc.Interval(id='interval-streaming', interval=200, disabled=True),
                 dcc.Store(id="store-search-filters", data=[]),
                 dcc.Store(id="store-cursor-x", data={"x": None, "initialized": False}),
                 dcc.Store(
@@ -928,11 +934,21 @@ class SignalViewerApp:
                                                                                 ),
                                                                                 dbc.Button(
                                                                                     "🔄",
-                                                                                    id="btn-refresh",
+                                                                                    id="btn-refresh-csv",
                                                                                     size="sm",
                                                                                     color="secondary",
                                                                                     title="Refresh CSVs",
                                                                                     className="px-2",
+                                                                                ),
+                                                                                dbc.Button(
+                                                                                    "▶ Stream",
+                                                                                    id="btn-stream-csv",
+                                                                                    size="sm",
+                                                                                    color="success",
+                                                                                    outline=True,
+                                                                                    title="Stream CSV updates",
+                                                                                    className="px-2",
+                                                                                    style={'whiteSpace': 'nowrap'},
                                                                                 ),
                                                                             ],
                                                                             size="sm",
@@ -2324,7 +2340,7 @@ class SignalViewerApp:
                 Input("upload-csv", "contents"),
                 Input("btn-clear-csv", "n_clicks"),
                 Input({"type": "del-csv", "idx": ALL}, "n_clicks"),
-                Input("btn-refresh", "n_clicks"),
+                Input("btn-refresh-csv", "n_clicks"),
             ],
             [
                 State("upload-csv", "filename"),
@@ -2358,13 +2374,17 @@ class SignalViewerApp:
                 # Clear all assignments when clearing CSV files
                 return [], [], "Cleared", refresh_counter + 1, {"0": {"0": []}}
 
-            if "btn-refresh" in trigger:
+            if "btn-refresh-csv" in trigger:
                 # PERFORMANCE: Invalidate caches on refresh
                 self.invalidate_caches()
                 for i in range(len(files)):
                     self.data_manager.last_read_rows[i] = 0
                     self.data_manager.data_tables[i] = None
-                    self.data_manager.read_initial_data(i)
+                    # Pass csv_settings to ensure proper format
+                    csv_settings = self.data_manager.csv_settings.get(i, {})
+                    self.data_manager.read_initial_data(i, csv_settings)
+                
+                # Recalculate derived signals
                 new_derived = {}
                 for name, ds in self.derived_signals.items():
                     source = ds.get("source", "")
@@ -2401,6 +2421,10 @@ class SignalViewerApp:
                         except:
                             pass
                 self.derived_signals = new_derived
+                
+                # Add debug print
+                print(f"🔄 REFRESH: Reloaded {len(files)} CSV(s), refresh_counter: {refresh_counter} → {refresh_counter + 1}")
+                
                 return (
                     files,
                     dash.no_update,
@@ -6240,7 +6264,356 @@ class SignalViewerApp:
                 return doc_text.get("introduction", ""), doc_text.get("conclusion", "")
             return dash.no_update, dash.no_update
 
-        logger.info("All callbacks registered successfully")
+
+        # =================================================================
+        # CSV Loading Callbacks (Flexible CSV Loader)
+        # =================================================================
+        
+        @self.app.callback(
+            [
+                Output("modal-csv-loader", "is_open"),
+                Output("store-pending-csv-path", "data"),
+                Output("csv-raw-preview-text", "children"),
+                Output("csv-file-info-display", "children"),
+            ],
+            [
+                Input("upload-csv", "contents"),
+                Input("btn-csv-confirm", "n_clicks"),
+                Input("btn-csv-cancel", "n_clicks"),
+            ],
+            [
+                State("upload-csv", "filename"),
+                State("store-pending-csv-path", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def toggle_csv_modal_and_preview(contents, confirm, cancel, filename, pending_path):
+            """Open CSV loading modal with preview"""
+            ctx = callback_context
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            
+            if "upload-csv" in trigger and contents:
+                try:
+                    import base64
+                    import tempfile
+                    
+                    content_type, content_string = contents.split(',')
+                    decoded = base64.b64decode(content_string)
+                    
+                    # Create temp file
+                    temp_path = os.path.join(tempfile.gettempdir(), filename)
+                    with open(temp_path, 'wb') as f:
+                        f.write(decoded)
+                    
+                    # Get preview
+                    preview = self.data_manager.get_csv_preview(temp_path, max_lines=15)
+                    
+                    # File info
+                    file_size = os.path.getsize(temp_path)
+                    size_mb = file_size / (1024 * 1024)
+                    file_info = html.Div([
+                        html.Strong(f"📁 {filename}"),
+                        html.Div(f"Size: {size_mb:.2f} MB", style={'color': '#888', 'fontSize': '12px'}),
+                    ])
+                    
+                    return True, temp_path, preview, file_info
+                    
+                except Exception as e:
+                    return True, None, f"Error: {str(e)}", html.Div("Error reading file", style={'color': '#ff6b6b'})
+            
+            elif "btn-csv-confirm" in trigger or "btn-csv-cancel" in trigger:
+                return False, None, "", ""
+            
+            return no_update, no_update, no_update, no_update
+        
+        @self.app.callback(
+            [
+                Output("csv-delimiter-dropdown", "value"),
+                Output("csv-header-row-input", "value"),
+            ],
+            Input("btn-csv-auto-detect", "n_clicks"),
+            State("store-pending-csv-path", "data"),
+            prevent_initial_call=True,
+        )
+        def auto_detect_csv_settings(n_clicks, filepath):
+            """Auto-detect CSV format"""
+            if not filepath or not os.path.exists(filepath):
+                return no_update, no_update
+            
+            try:
+                format_info = self.data_manager.detect_csv_format(filepath)
+                delimiter = format_info.get('delimiter', ',')
+                header_row = format_info.get('header_row', 0)
+                
+                return delimiter, header_row
+            except Exception as e:
+                logger.error(f"Auto-detect error: {e}")
+                return no_update, no_update
+        
+        @self.app.callback(
+            Output("csv-parsed-preview-table", "children"),
+            [
+                Input("csv-delimiter-dropdown", "value"),
+                Input("csv-header-row-input", "value"),
+            ],
+            State("store-pending-csv-path", "data"),
+            prevent_initial_call=True,
+        )
+        def update_csv_parsed_preview(delimiter, header_row, filepath):
+            """Update parsed preview when settings change"""
+            if not filepath or not os.path.exists(filepath):
+                return html.Div("No file loaded", style={'color': '#888'})
+            
+            try:
+                # Convert 'auto' to None
+                if delimiter == 'auto':
+                    delimiter = None
+                
+                # Load preview
+                df = self.data_manager.flexible_loader.load_csv(
+                    filepath,
+                    auto_detect=(delimiter is None),
+                    delimiter=delimiter,
+                    header_row=header_row,
+                    skiprows=0,
+                    preview_mode=True,
+                )
+                
+                if df is None or df.empty:
+                    return html.Div("Could not parse CSV", style={'color': '#ff6b6b'})
+                
+                # Create preview table
+                from dash import dash_table
+                preview_df = df.head(8)
+                
+                return dash_table.DataTable(
+                    data=preview_df.to_dict('records'),
+                    columns=[{'name': col, 'id': col} for col in preview_df.columns],
+                    style_table={'overflowX': 'auto', 'maxHeight': '250px'},
+                    style_cell={
+                        'textAlign': 'left',
+                        'padding': '6px',
+                        'backgroundColor': '#16213e',
+                        'color': '#e8e8e8',
+                        'fontSize': '10px',
+                        'fontFamily': 'monospace',
+                    },
+                    style_header={
+                        'backgroundColor': '#0f3460',
+                        'fontWeight': 'bold',
+                    },
+                )
+                
+            except Exception as e:
+                return html.Div(f"Parse error: {str(e)}", style={'color': '#ff6b6b', 'fontSize': '12px'})
+        
+        @self.app.callback(
+            [
+                Output("store-csv-files", "data", allow_duplicate=True),
+                Output("status-text", "children", allow_duplicate=True),
+            ],
+            Input("btn-csv-confirm", "n_clicks"),
+            [
+                State("store-pending-csv-path", "data"),
+                State("csv-delimiter-dropdown", "value"),
+                State("csv-header-row-input", "value"),
+                State("store-csv-files", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def load_csv_with_flexible_loader(n_clicks, filepath, delimiter, header_row, current_csvs):
+            """Load CSV with confirmed settings"""
+            if not filepath or not os.path.exists(filepath):
+                return no_update, no_update
+            
+            try:
+                # Convert 'auto' to None
+                if delimiter == 'auto':
+                    delimiter = None
+                
+                # Load CSV
+                success = self.data_manager.load_csv_with_settings(
+                    filepath,
+                    csv_idx=None,
+                    delimiter=delimiter,
+                    header_row=header_row,
+                    skip_rows=0,
+                    auto_detect=(delimiter is None),
+                )
+                
+                if success:
+                    current_csvs = current_csvs or []
+                    if filepath not in current_csvs:
+                        current_csvs.append(filepath)
+                    
+                    csv_idx = len(self.data_manager.data_tables) - 1
+                    df = self.data_manager.data_tables[csv_idx]
+                    
+                    filename = os.path.basename(filepath)
+                    return current_csvs, f"✅ Loaded {filename} ({len(df)} rows, {len(df.columns)} columns)"
+                else:
+                    return no_update, "❌ Failed to load CSV"
+                    
+            except Exception as e:
+                return no_update, f"❌ Error: {str(e)}"
+
+
+        # =================================================================
+        # Refresh CSV - Complete Reload
+        # =================================================================
+        
+        @self.app.callback(
+            [
+                Output("store-refresh-trigger", "data", allow_duplicate=True),
+                Output("status-text", "children", allow_duplicate=True),
+            ],
+            Input("btn-refresh-csv", "n_clicks"),
+            State("store-csv-files", "data"),
+            prevent_initial_call=True,
+        )
+        def refresh_all_csvs(n_clicks, csv_files):
+            """Refresh all CSVs - re-read data and update everything"""
+            if not csv_files:
+                return no_update, "No CSVs loaded"
+            
+            try:
+                print("\n" + "="*80)
+                print("🔄 REFRESH BUTTON CLICKED")
+                print("="*80)
+                logger.info("=== REFRESH: Starting CSV refresh ===")
+                
+                # Show current state
+                print(f"CSV files to refresh: {len(csv_files)}")
+                for i, fp in enumerate(csv_files):
+                    if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
+                        rows = len(self.data_manager.data_tables[i])
+                        print(f"  [{i}] {os.path.basename(fp)}: {rows} rows (before refresh)")
+                    else:
+                        print(f"  [{i}] {os.path.basename(fp)}: No data")
+                
+                # Clear all caches
+                self.invalidate_caches()
+                self.data_manager.invalidate_cache()
+                print("✅ Caches invalidated")
+                
+                # FORCE reload by clearing tables first
+                for i in range(len(csv_files)):
+                    if i < len(self.data_manager.data_tables):
+                        old_rows = len(self.data_manager.data_tables[i]) if self.data_manager.data_tables[i] is not None else 0
+                        self.data_manager.data_tables[i] = None
+                        print(f"  Cleared table {i} (was {old_rows} rows)")
+                    if i < len(self.data_manager.last_read_rows):
+                        self.data_manager.last_read_rows[i] = 0
+                
+                logger.info(f"REFRESH: Cleared {len(csv_files)} table(s)")
+                
+                # Now reload all CSVs
+                print("\n📂 Reloading CSVs...")
+                self.data_manager.load_data_once()
+                
+                # Show new state
+                print("\n📊 After refresh:")
+                for i in range(len(csv_files)):
+                    if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
+                        rows = len(self.data_manager.data_tables[i])
+                        print(f"  [{i}] {os.path.basename(csv_files[i])}: {rows} rows (after refresh)")
+                    else:
+                        print(f"  [{i}] {os.path.basename(csv_files[i])}: FAILED TO LOAD")
+                
+                # Clear derived signals (they will be recalculated on next plot)
+                self.derived_signals.clear()
+                logger.info("REFRESH: Cleared derived signals")
+                
+                # Update signal names
+                self.data_manager.update_signal_names()
+                
+                # Trigger full UI refresh by updating trigger
+                refresh_trigger = datetime.now().timestamp()
+                
+                # Count results
+                total_rows = sum(len(df) for df in self.data_manager.data_tables if df is not None)
+                num_csvs = len([df for df in self.data_manager.data_tables if df is not None])
+                
+                logger.info(f"REFRESH: Complete - {num_csvs} CSV(s), {total_rows:,} rows")
+                
+                print(f"\n✅ REFRESH COMPLETE: {num_csvs} CSV(s), {total_rows:,} rows")
+                print("="*80 + "\n")
+                
+                return refresh_trigger, f"✅ Refreshed {num_csvs} CSV(s), {total_rows:,} rows"
+                
+            except Exception as e:
+                logger.error(f"REFRESH ERROR: {e}")
+                import traceback
+                traceback.print_exc()
+                print(f"\n❌ REFRESH FAILED: {e}")
+                print("="*80 + "\n")
+                return no_update, f"❌ Refresh failed: {str(e)}"
+        
+        # =================================================================
+        # CSV Streaming Feature
+        # =================================================================
+        
+        @self.app.callback(
+            [
+                Output("store-streaming-active", "data"),
+                Output("btn-stream-csv", "children"),
+                Output("btn-stream-csv", "color"),
+                Output("interval-streaming", "disabled"),
+                Output("status-text", "children", allow_duplicate=True),
+            ],
+            Input("btn-stream-csv", "n_clicks"),
+            State("store-streaming-active", "data"),
+            prevent_initial_call=True,
+        )
+        def toggle_csv_streaming(n_clicks, is_streaming):
+            """Toggle CSV streaming on/off"""
+            if is_streaming:
+                # Stop streaming
+                self.data_manager.stop_streaming_all()
+                print("⏸️ Streaming stopped by user")
+                return False, "▶ Stream", "success", True, "⏸️ Streaming stopped"
+            else:
+                # Start streaming
+                if not self.data_manager.csv_file_paths:
+                    print("❌ Cannot start streaming - no CSVs loaded")
+                    return False, "▶ Stream", "success", True, "❌ No CSVs loaded"
+                
+                # Enable streaming with 0.2s update rate
+                self.data_manager.update_rate = 0.2
+                self.data_manager.timeout_duration = 1.0  # Stop after 1s of no updates
+                self.data_manager.start_streaming_all()
+                
+                print(f"▶️ Streaming started for {len(self.data_manager.csv_file_paths)} CSV(s)")
+                print(f"   Update rate: {self.data_manager.update_rate}s")
+                print(f"   Timeout: {self.data_manager.timeout_duration}s")
+                
+                return True, "⏹ Stop", "danger", False, "▶️ Streaming active (updates every 0.2s)"
+        
+        @self.app.callback(
+            Output("store-refresh-trigger", "data", allow_duplicate=True),
+            Input("interval-streaming", "n_intervals"),
+            State("store-streaming-active", "data"),
+            prevent_initial_call=True,
+        )
+        def update_from_streaming(n_intervals, is_streaming):
+            """Update plots when streaming detects changes"""
+            if not is_streaming:
+                return no_update
+            
+            # Check for CSV updates and read new data
+            print(f"🔄 Streaming check #{n_intervals}...")
+            updated = self.data_manager.check_and_update_streaming()
+            
+            if updated:
+                print(f"   ✅ Changes detected! Triggering plot refresh")
+                # Trigger plot refresh
+                return datetime.now().timestamp()
+            else:
+                print(f"   ⏳ No changes detected")
+            
+            return no_update
+
+        logger.info("All callbacks registered successfully (including CSV loading, refresh, and streaming)")
 
 
 def main():
@@ -6267,7 +6640,7 @@ def main():
             daemon=True,
         ).start()
 
-        app.app.run(debug=False, port=APP_PORT, host=APP_HOST)
+        app.app.run(debug=True, port=APP_PORT, host=APP_HOST)
 
     except Exception as e:
         logger.exception(f"Application error: {e}")

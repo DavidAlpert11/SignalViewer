@@ -23,7 +23,8 @@
 /* DARK MODE (default) - light border on dark background */
 .form-check-input:not(:checked) {
     background-color: transparent !important;
-    border-color: #ced4da !important;  /* Light gray - visible on dark bg */
+    border-color: #ced4da !important;
+    /* Light gray - visible on dark bg */
 }
 
 /* CHECKED state - blue fill */
@@ -54,7 +55,8 @@
 [style*="background: rgb(240, 242, 245)"] .form-check-input:not(:checked),
 [style*="backgroundColor: rgb(240, 242, 245)"] .form-check-input:not(:checked) {
     background-color: #ffffff !important;
-    border-color: #495057 !important;  /* Dark gray - visible on light bg */
+    border-color: #495057 !important;
+    /* Dark gray - visible on light bg */
 }
 
 /* ========================================
@@ -93,7 +95,8 @@
 /* Signal list container - CSS-only collapse with smooth animation */
 .csv-signals-list {
     overflow: hidden;
-    max-height: 5000px; /* Large enough for any content */
+    max-height: 5000px;
+    /* Large enough for any content */
     transition: max-height 0.2s ease-out, opacity 0.15s ease-out;
     opacity: 1;
 }
@@ -111,11 +114,11 @@
 }
 
 /* Signal items - compact and clean */
-.csv-signals-list > div {
+.csv-signals-list>div {
     transition: background-color 0.1s ease;
 }
 
-.csv-signals-list > div:hover {
+.csv-signals-list>div:hover {
     background-color: rgba(78, 168, 222, 0.1) !important;
 }
 
@@ -370,6 +373,7 @@ div.dbc-textarea textarea {
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -395,7 +399,9 @@ div.dbc-textarea textarea {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Tooltip styling improvements */
@@ -457,18 +463,16 @@ div.dbc-textarea textarea {
 
 /* Scrollable areas with fade edges */
 .card-body[style*="overflow"] {
-    mask-image: linear-gradient(to bottom, 
-        transparent 0%, 
-        black 8px, 
-        black calc(100% - 8px), 
-        transparent 100%
-    );
-    -webkit-mask-image: linear-gradient(to bottom, 
-        transparent 0%, 
-        black 8px, 
-        black calc(100% - 8px), 
-        transparent 100%
-    );
+    mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            black 8px,
+            black calc(100% - 8px),
+            transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom,
+            transparent 0%,
+            black 8px,
+            black calc(100% - 8px),
+            transparent 100%);
 }
 
 /* Upload area improvements */
@@ -487,3 +491,36 @@ input[type="color"]:hover {
     box-shadow: 0 0 0 2px #4ea8de;
 }
 
+
+/* ========================================
+   Fix Stream Button Visibility
+   ======================================== */
+
+/* Force button group to show all buttons (no overflow clipping) */
+.btn-group {
+    overflow: visible !important;
+    flex-wrap: wrap !important;
+    gap: 2px;
+}
+
+/* Ensure Stream and Refresh buttons are always visible */
+#btn-refresh-csv,
+#btn-stream-csv {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-width: fit-content !important;
+}
+
+/* Extra specificity for Stream button */
+button[id="btn-stream-csv"] {
+    display: inline-block !important;
+    visibility: visible !important;
+    position: relative !important;
+    z-index: 100 !important;
+}
+
+/* Make toolbar container wider if needed */
+.btn-toolbar {
+    overflow: visible !important;
+}
