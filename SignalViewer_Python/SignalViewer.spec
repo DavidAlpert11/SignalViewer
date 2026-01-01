@@ -1,9 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller Spec File for Signal Viewer Pro
-============================================
-
-Optimized build - faster and smaller.
+PyInstaller Spec File for Signal Viewer Pro v3.0
+=================================================
 
 Build with: pyinstaller SignalViewer.spec --clean
 """
@@ -19,19 +17,17 @@ a = Analysis(
     pathex=[spec_dir],
     binaries=[],
     datas=[
-        # Include assets folder
+        # Include assets folder (CSS, JS, fonts - all offline)
         ('assets', 'assets'),
-        # Include uploads folder structure (just .gitkeep)
-        ('uploads/.gitkeep', 'uploads'),
         # Include all Python source files
         ('app.py', '.'),
         ('config.py', '.'),
-        ('config_manager.py', '.'),
         ('data_manager.py', '.'),
         ('helpers.py', '.'),
         ('linking_manager.py', '.'),
-        ('plot_manager.py', '.'),
         ('signal_operations.py', '.'),
+        ('flexible_csv_loader.py', '.'),
+        ('callback_helpers.py', '.'),
         ('utils.py', '.'),
     ],
     hiddenimports=[
@@ -51,7 +47,7 @@ a = Analysis(
         'scipy.stats',
         'scipy.optimize',
         'scipy.fft',
-        # Dash and Plotly - only essential modules
+        # Dash and Plotly - essential modules
         'dash',
         'dash.dcc',
         'dash.html',
@@ -63,19 +59,13 @@ a = Analysis(
         # Export libraries
         'kaleido',
         'openpyxl',
-        'reportlab',
-        'reportlab.lib.pagesizes',
-        'reportlab.platypus',
-        'pptx',
-        # File watching
-        'watchdog',
-        'watchdog.events',
-        'watchdog.observers',
+        'python-docx',
+        'docx',
         # Web server
         'flask',
         'werkzeug',
         'jinja2',
-        # Required utilities - jaraco is needed by pkg_resources
+        # Required utilities
         'pkg_resources',
         'jaraco',
         'jaraco.functools',
@@ -87,19 +77,24 @@ a = Analysis(
         'packaging.requirements',
         'importlib_resources',
         'zipp',
+        # Native file dialog (required for file browser)
+        'tkinter',
+        'tkinter.filedialog',
     ],
     hookspath=['hooks'],
     hooksconfig={},
     runtime_hooks=['runtime_hook.py'],
     excludes=[
-        # Exclude unnecessary modules
-        'tkinter',
+        # Exclude unnecessary modules (NOT tkinter - we need it!)
         'matplotlib',
         'PIL',
         'sqlite3',
         'unittest',
         'test',
         'tests',
+        'watchdog',  # Not used anymore
+        'reportlab',  # Not used
+        'pptx',  # Not used
     ],
     noarchive=False,
     optimize=0,

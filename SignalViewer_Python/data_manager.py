@@ -58,7 +58,8 @@ class DataManager:
         self.last_update_time = datetime.now()
 
         # Multi-CSV streaming properties
-        self.csv_file_paths = []
+        self.csv_file_paths = []  # Paths used for caching (typically in uploads/)
+        self.original_source_paths = {}  # {csv_idx: original_path} for streaming/refresh
         self.last_file_mod_times = []
         self.last_read_rows = []
         self.streaming_timers = []
@@ -82,11 +83,21 @@ class DataManager:
         self.flexible_loader = FlexibleCSVLoader()
         self.csv_settings = {}  # Store per-CSV loading settings: {csv_idx: {delimiter, header_row, etc}}
 
-    def invalidate_cache(self, csv_idx=None):
-        """Clear cache when data changes"""
+    def invalidate_cache(self, csv_idx=None, clear_disk_cache=False):
+        """Clear cache when data changes
+        
+        Args:
+            csv_idx: Specific CSV index to clear, or None for all
+            clear_disk_cache: If True, also delete disk cache files (.npz)
+        """
         if csv_idx is None:
             self.memory_cache.clear()
             self.statistics_cache.clear()
+            
+            # Clear disk cache if requested
+            if clear_disk_cache:
+                self._clear_all_disk_caches()
+            
             print(
                 f"📊 Cache cleared - Stats: {self.cache_hits} hits, {self.cache_misses} misses"
             )
@@ -105,6 +116,42 @@ class DataManager:
             stat_keys = [k for k in self.statistics_cache if k[0] == csv_idx]
             for key in stat_keys:
                 del self.statistics_cache[key]
+            
+            # Clear disk cache for this CSV if requested
+            if clear_disk_cache:
+                self._clear_disk_cache_for_csv(csv_idx)
+    
+    def _clear_all_disk_caches(self):
+        """Delete all disk cache files (.npz) for all CSVs"""
+        import shutil
+        cleared_count = 0
+        for csv_idx, cache_dir in list(self.disk_cache_dirs.items()):
+            if cache_dir and os.path.exists(cache_dir):
+                try:
+                    # Delete all .npz files in cache directory
+                    for f in os.listdir(cache_dir):
+                        if f.endswith('.npz'):
+                            os.remove(os.path.join(cache_dir, f))
+                            cleared_count += 1
+                except Exception as e:
+                    print(f"⚠️ Error clearing disk cache: {e}")
+        if cleared_count > 0:
+            print(f"🗑️ Cleared {cleared_count} disk cache file(s)")
+    
+    def _clear_disk_cache_for_csv(self, csv_idx: int):
+        """Delete disk cache files for a specific CSV"""
+        cache_dir = self.disk_cache_dirs.get(csv_idx)
+        if cache_dir and os.path.exists(cache_dir):
+            try:
+                cleared_count = 0
+                for f in os.listdir(cache_dir):
+                    if f.endswith('.npz'):
+                        os.remove(os.path.join(cache_dir, f))
+                        cleared_count += 1
+                if cleared_count > 0:
+                    print(f"🗑️ Cleared {cleared_count} cache file(s) for CSV {csv_idx}")
+            except Exception as e:
+                print(f"⚠️ Error clearing disk cache for CSV {csv_idx}: {e}")
 
     def load_data_once(self, progress_callback=None):
         """Load all CSV data with progress tracking"""
@@ -270,6 +317,11 @@ class DataManager:
             # Store dataframe
             self.data_tables[idx] = df
             self.last_read_rows[idx] = len(df)
+            
+            # Update file modification time (critical for streaming detection)
+            while len(self.last_file_mod_times) <= idx:
+                self.last_file_mod_times.append(0)
+            self.last_file_mod_times[idx] = os.path.getmtime(file_path)
 
             # Setup disk cache directory
             self._setup_disk_cache(idx, file_path)
@@ -286,8 +338,16 @@ class DataManager:
             self.data_tables[idx] = None
 
     def _setup_disk_cache(self, csv_idx: int, file_path: str):
-        """Setup disk cache directory for a CSV file"""
-        cache_dir = f"{file_path}.lodcache"
+        """Setup disk cache directory in uploads/.cache/ (not next to original CSV)"""
+        import hashlib
+        # Create unique cache ID based on file path
+        path_hash = hashlib.md5(file_path.encode()).hexdigest()[:12]
+        fname = os.path.basename(file_path)
+        
+        # Cache goes to uploads/.cache/{hash}_{filename}/
+        cache_base = os.path.join(os.path.dirname(__file__), "uploads", ".cache")
+        cache_dir = os.path.join(cache_base, f"{path_hash}_{fname}")
+        
         try:
             os.makedirs(cache_dir, exist_ok=True)
             self.disk_cache_dirs[csv_idx] = cache_dir
@@ -734,71 +794,86 @@ class DataManager:
     # Efficient Incremental CSV Reading for Streaming
     # =========================================================================
     
-    def check_csv_updated(self, csv_idx: int) -> bool:
+    def check_csv_updated(self, csv_idx: int) -> Tuple[bool, int, int]:
         """
         Check if a CSV file has been updated since last read.
+        Uses file size as a fast check before counting rows.
         
         Returns:
-            True if file was modified, False otherwise
+            Tuple of (was_modified, current_file_size, estimated_new_rows)
         """
         if csv_idx >= len(self.csv_file_paths):
-            return False
+            return False, 0, 0
         
         file_path = self.csv_file_paths[csv_idx]
         if not os.path.isfile(file_path):
-            return False
+            return False, 0, 0
         
         try:
             current_mod_time = os.path.getmtime(file_path)
+            current_size = os.path.getsize(file_path)
             last_mod_time = self.last_file_mod_times[csv_idx] if csv_idx < len(self.last_file_mod_times) else 0
             
-            return current_mod_time > last_mod_time
+            if current_mod_time <= last_mod_time:
+                return False, current_size, 0
+            
+            # File was modified - estimate new rows from size change
+            return True, current_size, 0
         except Exception as e:
             print(f"Error checking file modification: {e}")
-            return False
+            return False, 0, 0
     
-    def read_csv_incremental(self, csv_idx: int) -> bool:
+    def read_csv_incremental(self, csv_idx: int) -> Tuple[bool, int, int]:
         """
         Read only NEW rows from CSV file (efficient for streaming).
         
         Strategy:
-        1. Check file modification time
-        2. If modified, read from last known row count
+        1. Check file modification time (fast)
+        2. If modified, count rows and read new ones
         3. Append new rows to existing DataFrame
         4. Update caches
         
         Returns:
-            True if new data was read, False otherwise
+            Tuple of (data_changed, old_row_count, new_row_count)
         """
         if csv_idx >= len(self.csv_file_paths):
-            return False
+            return False, 0, 0
         
-        file_path = self.csv_file_paths[csv_idx]
+        # Use original source path if available (for streaming from original file)
+        cache_path = self.csv_file_paths[csv_idx]
+        file_path = self.original_source_paths.get(csv_idx, cache_path)
         
         if not os.path.isfile(file_path):
-            return False
+            # Fallback to cache path
+            file_path = cache_path
+            if not os.path.isfile(file_path):
+                return False, 0, 0
         
         try:
-            # Check if file was modified
-            if not self.check_csv_updated(csv_idx):
-                return False
+            # Check if file was modified (fast check using mod time)
+            was_modified, current_size, _ = self.check_csv_updated(csv_idx)
+            
+            if not was_modified:
+                # Return current row count for status display
+                current_rows = self.last_read_rows[csv_idx] if csv_idx < len(self.last_read_rows) else 0
+                return False, current_rows, current_rows
             
             # Get last known row count
             last_row_count = self.last_read_rows[csv_idx] if csv_idx < len(self.last_read_rows) else 0
             
-            # Count current rows in file (fast - just count newlines)
+            # Count current rows in file
             current_row_count = self._count_file_rows(file_path)
             
             if current_row_count <= last_row_count:
                 # File might have been truncated or no new data
                 # Update mod time anyway
                 self.last_file_mod_times[csv_idx] = os.path.getmtime(file_path)
-                return False
+                return False, last_row_count, current_row_count
             
             # Calculate how many new rows
             new_rows = current_row_count - last_row_count
             
-            print(f"📊 CSV {csv_idx}: {new_rows} new rows detected (was {last_row_count}, now {current_row_count})")
+            print(f"📊 CSV {csv_idx}: +{new_rows} rows ({last_row_count} → {current_row_count})")
             
             # Get CSV settings for this file
             csv_settings = self.csv_settings.get(csv_idx, {})
@@ -807,8 +882,8 @@ class DataManager:
                 delimiter = None
             
             # Read only new rows efficiently
-            if new_rows < 1000:
-                # Small update - read new rows directly
+            if new_rows < 5000:
+                # Small/medium update - read new rows directly
                 new_data = self._read_csv_tail(
                     file_path, 
                     skip_rows=last_row_count,
@@ -832,30 +907,32 @@ class DataManager:
                         else:
                             print(f"⚠️ Column mismatch in incremental read - doing full reload")
                             self.read_initial_data(csv_idx, csv_settings)
-                            return True
+                            new_row_count = len(self.data_tables[csv_idx]) if self.data_tables[csv_idx] is not None else 0
+                            return True, last_row_count, new_row_count
                     
-                    # Update row count
+                    # Update row count and mod time
                     self.last_read_rows[csv_idx] = current_row_count
                     self.last_file_mod_times[csv_idx] = os.path.getmtime(file_path)
                     
-                    # Invalidate cache for this CSV
-                    self.invalidate_cache(csv_idx)
+                    # Invalidate cache for this CSV (but not disk cache for performance)
+                    self.invalidate_cache(csv_idx, clear_disk_cache=False)
                     
                     self.update_counter += 1
-                    return True
+                    return True, last_row_count, current_row_count
             else:
                 # Large update - do full reload
                 print(f"⚠️ Large update ({new_rows} rows) - doing full reload")
                 self.read_initial_data(csv_idx, csv_settings)
-                return True
+                new_row_count = len(self.data_tables[csv_idx]) if self.data_tables[csv_idx] is not None else 0
+                return True, last_row_count, new_row_count
                 
         except Exception as e:
             print(f"❌ Error in incremental read: {e}")
             import traceback
             traceback.print_exc()
-            return False
+            return False, 0, 0
         
-        return False
+        return False, 0, 0
     
     def _count_file_rows(self, file_path: str) -> int:
         """
@@ -932,6 +1009,8 @@ class DataManager:
         """
         self.streaming_enabled = True
         self.is_running = True
+        self._streaming_last_update = time.time()
+        self._streaming_checks_without_update = 0
         print(f"▶️ Started streaming {len(self.csv_file_paths)} CSV(s)")
         print(f"   Update rate: {self.update_rate}s")
         print(f"   Timeout: {self.timeout_duration}s of no updates")
@@ -940,31 +1019,79 @@ class DataManager:
         """Stop all streaming"""
         self.streaming_enabled = False
         self.is_running = False
+        self._streaming_checks_without_update = 0
         print("⏸️ Stopped streaming")
     
-    def check_and_update_streaming(self) -> bool:
+    def check_and_update_streaming(self) -> Dict:
         """
         Check all CSVs for updates and read incrementally if needed.
         Call this periodically from the streaming callback.
         
         Returns:
-            True if any CSV was updated
+            Dict with status info:
+                - updated: True if any CSV was updated
+                - should_stop: True if timeout reached (no updates for timeout_duration)
+                - total_rows: Total rows across all CSVs
+                - status_text: Human-readable status
         """
-        if not self.streaming_enabled:
-            return False
+        result = {
+            'updated': False,
+            'should_stop': False,
+            'total_rows': 0,
+            'status_text': '',
+            'csv_details': []
+        }
         
-        updated = False
+        if not self.streaming_enabled:
+            result['status_text'] = "Streaming disabled"
+            return result
+        
+        any_updated = False
+        csv_details = []
         
         for csv_idx in range(len(self.csv_file_paths)):
-            if self.read_csv_incremental(csv_idx):
-                updated = True
+            changed, old_rows, new_rows = self.read_csv_incremental(csv_idx)
+            filename = os.path.basename(self.csv_file_paths[csv_idx])
+            
+            csv_details.append({
+                'name': filename,
+                'rows': new_rows,
+                'changed': changed,
+                'delta': new_rows - old_rows if changed else 0
+            })
+            
+            if changed:
+                any_updated = True
         
-        if updated:
+        # Calculate totals
+        total_rows = sum(d['rows'] for d in csv_details)
+        result['total_rows'] = total_rows
+        result['csv_details'] = csv_details
+        
+        if any_updated:
             # Update signal names (in case new columns appeared)
             self.update_signal_names()
             self.last_update_time = datetime.now()
+            self._streaming_last_update = time.time()
+            self._streaming_checks_without_update = 0
+            
+            # Build status text
+            delta_total = sum(d['delta'] for d in csv_details)
+            result['status_text'] = f"📈 +{delta_total:,} rows ({total_rows:,} total)"
+            result['updated'] = True
+        else:
+            # Check for timeout
+            self._streaming_checks_without_update += 1
+            time_since_update = time.time() - getattr(self, '_streaming_last_update', time.time())
+            
+            if time_since_update > self.timeout_duration:
+                result['should_stop'] = True
+                result['status_text'] = f"⏸️ Timeout - no updates for {self.timeout_duration:.1f}s ({total_rows:,} rows)"
+            else:
+                remaining = self.timeout_duration - time_since_update
+                result['status_text'] = f"⏳ Waiting... ({total_rows:,} rows, timeout in {remaining:.1f}s)"
         
-        return updated
+        return result
 
     # =========================================================================
     # Flexible CSV Loading Helper Methods

@@ -28,7 +28,7 @@ Export Features:
 - Subplot metadata (title, caption, description) included in reports
 
 Author: Signal Viewer Team
-Version: 2.3
+Version: 2.4
 """
 
 import dash
@@ -81,7 +81,10 @@ from helpers import (
     clamp,
     get_text_direction_style,
     get_text_direction_attr,
+    compare_signals,
+    compare_csv_signals,
 )
+from callback_helpers import clear_performance_cache
 
 # Configure logging
 logging.basicConfig(
@@ -112,12 +115,22 @@ class SignalViewerApp:
         )
         self.app.title = "Signal Viewer Pro"
 
+        # Clean up cache on startup
+        self._cleanup_cache_on_startup()
+
         self.data_manager = DataManager(self)
         self.signal_operations = SignalOperationsManager(self)
         self.linking_manager = LinkingManager(self)
 
         self.derived_signals = {}
         self.signal_properties = {}
+        
+        # Store original file paths for streaming/refresh
+        self.original_file_paths = {}  # {csv_path: original_source_path}
+        
+        # Native file dialog support
+        self._pending_file_paths = []  # Paths selected in file dialog
+        self._file_dialog_active = False  # Flag for dialog state
 
         # Performance settings
         self._signal_cache = {}  # Raw data cache: {(csv_idx, signal_name, time_col): (x_data, y_data)}
@@ -134,6 +147,26 @@ class SignalViewerApp:
 
         self.app.layout = self.create_layout()
         self.setup_callbacks()
+    
+    def _cleanup_cache_on_startup(self):
+        """Clean up all cache files on app startup for fresh state"""
+        import shutil
+        
+        print("🧹 Cleaning up uploads folder on startup...")
+        
+        # Clean entire uploads folder (CSVs and cache)
+        uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+        if os.path.exists(uploads_dir):
+            try:
+                shutil.rmtree(uploads_dir)
+                print(f"   ✅ Cleared uploads folder")
+            except Exception as e:
+                print(f"   ⚠️ Could not clear uploads: {e}")
+        
+        # Recreate empty uploads folder
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        print("   ✅ Cleanup complete")
 
     def invalidate_caches(self):
         """Invalidate all caches when data changes"""
@@ -141,6 +174,8 @@ class SignalViewerApp:
         self._decimated_cache.clear()
         self._signal_list_cache.clear()
         self._last_figure_hash = None
+        # Also clear the callback helper caches (signal tree, highlighted signals)
+        clear_performance_cache()
         self._cache_valid = True
         self._signal_list_version += 1
 
@@ -449,33 +484,39 @@ class SignalViewerApp:
                                                         ),
                                                         dbc.CardBody(
                                                             [
-                                                                dcc.Upload(
-                                                                    id="upload-csv",
-                                                                    children=html.Div(
-                                                                        [
-                                                                            html.I(
-                                                                                className="fas fa-cloud-upload-alt me-2"
-                                                                            ),
-                                                                            "Drop/Click CSV",
-                                                                        ],
-                                                                        className="text-center",
-                                                                    ),
-                                                                    style={
-                                                                        "border": "2px dashed #4ea8de",
-                                                                        "borderRadius": "5px",
-                                                                        "padding": "12px",
-                                                                        "cursor": "pointer",
-                                                                    },
-                                                                    multiple=True,
+                                                                # Native file browser button
+                                                                dbc.Button(
+                                                                    [
+                                                                        html.I(className="fas fa-folder-open me-2"),
+                                                                        "Browse Files...",
+                                                                    ],
+                                                                    id="btn-browse-files",
+                                                                    color="primary",
+                                                                    className="w-100",
+                                                                    size="sm",
                                                                 ),
+                                                                # Hidden upload for compatibility
+                                                                html.Div([
+                                                                    dcc.Upload(id="upload-csv", style={"display": "none"}),
+                                                                ], style={"display": "none"}),
+                                                                # CSV file list
                                                                 html.Div(
                                                                     id="csv-list",
                                                                     className="mt-2",
                                                                     style={
-                                                                        "maxHeight": "80px",
+                                                                        "maxHeight": "100px",
                                                                         "overflowY": "auto",
                                                                     },
                                                                 ),
+                                                                # Store for pending file paths from native dialog
+                                                                dcc.Store(id="store-pending-paths", data=[]),
+                                                                # Interval to poll for file dialog results
+                                                                dcc.Interval(id="interval-file-check", interval=500, disabled=True),
+                                                                # Hidden elements for removed features
+                                                                html.Div([
+                                                                    dbc.Input(id="input-csv-path", style={"display": "none"}),
+                                                                    html.Button(id="btn-load-path", style={"display": "none"}),
+                                                                ], style={"display": "none"}),
                                                             ],
                                                             id="card-body-csv",
                                                             className="py-2",
@@ -505,6 +546,15 @@ class SignalViewerApp:
                                                                     color="info",
                                                                     outline=True,
                                                                     title="Link CSVs",
+                                                                    className="float-end ms-1",
+                                                                ),
+                                                                dbc.Button(
+                                                                    "📊",
+                                                                    id="btn-compare-csvs",
+                                                                    size="sm",
+                                                                    color="warning",
+                                                                    outline=True,
+                                                                    title="Compare CSVs",
                                                                     className="float-end",
                                                                 ),
                                                             ],
@@ -1148,6 +1198,7 @@ class SignalViewerApp:
                 self.create_word_export_modal(),
                 self.create_time_column_modal(),
                 self.create_annotation_modal(),
+                self.create_compare_modal(),
             ],
         )
 
@@ -1744,6 +1795,114 @@ class SignalViewerApp:
             is_open=False,
         )
 
+    def create_compare_modal(self):
+        """Modal for comparing CSVs and signals (supports 2+ CSVs)."""
+        return dbc.Modal(
+            [
+                dbc.ModalHeader("📊 Compare CSVs"),
+                dbc.ModalBody(
+                    [
+                        # CSV Selection - supports multiple
+                        html.P(
+                            "Select 2 or more CSVs to compare (first is reference):",
+                            className="small text-muted",
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        dbc.Label("Reference CSV:", className="small"),
+                                        dbc.Select(
+                                            id="compare-csv1",
+                                            options=[],
+                                            size="sm",
+                                        ),
+                                    ],
+                                    width=6,
+                                ),
+                                dbc.Col(
+                                    [
+                                        dbc.Label("Compare to:", className="small"),
+                                        dbc.Checklist(
+                                            id="compare-csv2",
+                                            options=[],
+                                            value=[],
+                                            inline=True,
+                                            style={"fontSize": "11px"},
+                                        ),
+                                    ],
+                                    width=6,
+                                ),
+                            ],
+                            className="mb-3",
+                        ),
+                        html.Hr(),
+                        # Signal comparison
+                        dbc.Label("Or compare specific signals:", className="small"),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    dbc.Select(
+                                        id="compare-signal1",
+                                        options=[],
+                                        placeholder="Signal 1...",
+                                        size="sm",
+                                    ),
+                                    width=6,
+                                ),
+                                dbc.Col(
+                                    dbc.Select(
+                                        id="compare-signal2",
+                                        options=[],
+                                        placeholder="Signal 2...",
+                                        size="sm",
+                                    ),
+                                    width=6,
+                                ),
+                            ],
+                            className="mb-3",
+                        ),
+                        html.Hr(),
+                        html.Div(
+                            id="compare-results",
+                            style={"maxHeight": "400px", "overflowY": "auto"},
+                        ),
+                    ]
+                ),
+                dbc.ModalFooter(
+                    [
+                        dbc.Button(
+                            "Compare CSVs",
+                            id="btn-do-compare-csvs",
+                            color="primary",
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Compare Signals",
+                            id="btn-do-compare-signals",
+                            color="info",
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Plot Difference",
+                            id="btn-plot-diff",
+                            color="warning",
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Close",
+                            id="btn-close-compare",
+                            color="secondary",
+                            size="sm",
+                        ),
+                    ]
+                ),
+            ],
+            id="modal-compare",
+            is_open=False,
+            size="lg",
+        )
+
     def create_figure(
         self,
         rows: int,
@@ -1786,9 +1945,10 @@ class SignalViewerApp:
         """
         colors = THEMES[theme]
 
-        # Calculate optimal spacing based on subplot count (maximize subplot size)
-        v_spacing = 0.08 / rows if rows > 1 else 0.02  # Reduce vertical spacing
-        h_spacing = 0.06 / cols if cols > 1 else 0.02  # Reduce horizontal spacing
+        # Calculate optimal spacing based on subplot count
+        # More vertical spacing for titles, more horizontal for y-labels
+        v_spacing = max(0.12, 0.18 / rows) if rows > 1 else 0.05  # More space for titles
+        h_spacing = max(0.10, 0.15 / cols) if cols > 1 else 0.02  # More space for y-labels
 
         # Build subplot titles from metadata or use defaults
         subplot_metadata = subplot_metadata or {}
@@ -1917,6 +2077,7 @@ class SignalViewerApp:
                 mirror=True,
                 showgrid=True,
                 autorange=True,
+                automargin=True,  # Prevent y-axis labels from overlapping with adjacent subplots
                 row=r,
                 col=c,
             )
@@ -2043,10 +2204,12 @@ class SignalViewerApp:
                         if subplot_mode == "xy" and x_axis_data is not None:
                             x_data = x_axis_data
 
-                        # Get CSV filename for legend
+                        # Get CSV filename for legend (include folder if duplicate)
                         if csv_idx < len(self.data_manager.csv_file_paths):
                             csv_path = self.data_manager.csv_file_paths[csv_idx]
-                            csv_label = os.path.splitext(os.path.basename(csv_path))[0]
+                            csv_label = get_csv_display_name(csv_path, self.data_manager.csv_file_paths)
+                            # Remove .csv extension for cleaner legend
+                            csv_label = os.path.splitext(csv_label)[0]
                         else:
                             csv_label = f"C{csv_idx+1}"
                     else:
@@ -2327,7 +2490,126 @@ class SignalViewerApp:
                 theme,
             )
 
-        # CSV Upload & Refresh
+        # =================================================================
+        # Native File Browser - Opens Windows file dialog
+        # =================================================================
+        
+        @self.app.callback(
+            [
+                Output("store-csv-files", "data", allow_duplicate=True),
+                Output("csv-list", "children", allow_duplicate=True),
+                Output("status-text", "children", allow_duplicate=True),
+                Output("store-refresh-trigger", "data", allow_duplicate=True),
+            ],
+            Input("btn-browse-files", "n_clicks"),
+            [
+                State("store-csv-files", "data"),
+                State("store-refresh-trigger", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def open_file_browser(n_clicks, current_files, refresh_trigger):
+            """Open native file browser and load selected CSV files"""
+            if not n_clicks:
+                return no_update, no_update, no_update, no_update
+            
+            current_files = current_files or []
+            
+            try:
+                # Use tkinter for native file dialog (runs on server = local machine)
+                import tkinter as tk
+                from tkinter import filedialog
+                
+                # Create hidden root window
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes('-topmost', True)  # Bring dialog to front
+                
+                # Open file dialog
+                file_paths = filedialog.askopenfilenames(
+                    title="Select CSV Files",
+                    filetypes=[
+                        ("CSV files", "*.csv"),
+                        ("All files", "*.*")
+                    ],
+                    initialdir=os.path.expanduser("~")
+                )
+                
+                root.destroy()
+                
+                if not file_paths:
+                    return no_update, no_update, "Cancelled", no_update
+                
+                # Load selected files using ORIGINAL paths (no copy!)
+                new_count = 0
+                for file_path in file_paths:
+                    if file_path in current_files:
+                        print(f"⚠️ Already loaded: {file_path}")
+                        continue
+                    
+                    if not os.path.exists(file_path):
+                        print(f"❌ Not found: {file_path}")
+                        continue
+                    
+                    # Add to files list (using original path!)
+                    current_files.append(file_path)
+                    self.original_file_paths[file_path] = file_path
+                    new_count += 1
+                    
+                    # Update data_manager
+                    idx = len(current_files) - 1
+                    self.data_manager.csv_file_paths = current_files
+                    self.data_manager.original_source_paths[idx] = file_path
+                    
+                    while len(self.data_manager.data_tables) < len(current_files):
+                        self.data_manager.data_tables.append(None)
+                        self.data_manager.last_read_rows.append(0)
+                        self.data_manager.last_file_mod_times.append(0)
+                    
+                    # Load the CSV
+                    try:
+                        self.data_manager.read_initial_data(idx)
+                        rows = len(self.data_manager.data_tables[idx]) if self.data_manager.data_tables[idx] is not None else 0
+                        parent = os.path.basename(os.path.dirname(file_path))
+                        fname = os.path.basename(file_path)
+                        print(f"✅ Loaded: {parent}/{fname} ({rows:,} rows)")
+                    except Exception as e:
+                        print(f"❌ Error loading {file_path}: {e}")
+                
+                # Build CSV list UI
+                items = [
+                    html.Div(
+                        [
+                            html.I(className="fas fa-file me-1", style={"color": "#f4a261"}),
+                            html.Span(
+                                get_csv_display_name(f, current_files), 
+                                style={"fontSize": "10px"},
+                                title=f  # Show full path on hover
+                            ),
+                            html.A(
+                                "×",
+                                id={"type": "del-csv", "idx": i},
+                                className="float-end text-danger",
+                                style={"cursor": "pointer"},
+                            ),
+                        ],
+                        className="py-1",
+                    )
+                    for i, f in enumerate(current_files)
+                ]
+                
+                total_rows = sum(len(df) for df in self.data_manager.data_tables if df is not None)
+                status = f"✅ Loaded {new_count} file(s), {total_rows:,} rows total"
+                
+                return current_files, items, status, (refresh_trigger or 0) + 1
+                
+            except Exception as e:
+                print(f"❌ File browser error: {e}")
+                import traceback
+                traceback.print_exc()
+                return no_update, no_update, f"❌ Error: {str(e)}", no_update
+
+        # CSV Delete, Clear & Refresh
         @self.app.callback(
             [
                 Output("store-csv-files", "data", allow_duplicate=True),
@@ -2375,127 +2657,51 @@ class SignalViewerApp:
                 return [], [], "Cleared", refresh_counter + 1, {"0": {"0": []}}
 
             if "btn-refresh-csv" in trigger:
-                # PERFORMANCE: Invalidate caches on refresh
-                self.invalidate_caches()
-                for i in range(len(files)):
-                    self.data_manager.last_read_rows[i] = 0
-                    self.data_manager.data_tables[i] = None
-                    # Pass csv_settings to ensure proper format
-                    csv_settings = self.data_manager.csv_settings.get(i, {})
-                    self.data_manager.read_initial_data(i, csv_settings)
-                
-                # Recalculate derived signals
-                new_derived = {}
-                for name, ds in self.derived_signals.items():
-                    source = ds.get("source", "")
-                    op = ds.get("op", "derivative")
-                    time_data, sig_data = None, None
-                    for csv_idx, df in enumerate(self.data_manager.data_tables):
-                        if df is not None and source in df.columns:
-                            time_col = "Time" if "Time" in df.columns else df.columns[0]
-                            time_data = df[time_col].values
-                            sig_data = df[source].values
-                            break
-                    if time_data is not None:
-                        try:
-                            if op == "derivative":
-                                result = np.gradient(sig_data, time_data)
-                            elif op == "integral":
-                                result = np.cumsum(sig_data) * np.mean(
-                                    np.diff(time_data)
-                                )
-                            elif op == "abs":
-                                result = np.abs(sig_data)
-                            elif op == "sqrt":
-                                result = np.sqrt(np.abs(sig_data))
-                            elif op == "negate":
-                                result = -sig_data
-                            else:
-                                result = sig_data
-                            new_derived[name] = {
-                                "time": time_data.tolist(),
-                                "data": result.tolist(),
-                                "source": source,
-                                "op": op,
-                            }
-                        except:
-                            pass
-                self.derived_signals = new_derived
-                
-                # Add debug print
-                print(f"🔄 REFRESH: Reloaded {len(files)} CSV(s), refresh_counter: {refresh_counter} → {refresh_counter + 1}")
-                
-                return (
-                    files,
-                    dash.no_update,
-                    "✅ Refreshed",
-                    refresh_counter + 1,
-                    dash.no_update,
-                )
+                # Refresh is handled by refresh_all_csvs callback - just return no_update here
+                # This avoids two callbacks fighting over the same button
+                return no_update, no_update, no_update, no_update, no_update
 
             if "del-csv" in trigger:
                 for i, n in enumerate(del_clicks or []):
                     if n and i < len(files):
-                        files.pop(i)
+                        removed_path = files.pop(i)
+                        
+                        # Clear cache for this CSV
+                        self.data_manager.invalidate_cache(csv_idx=i, clear_disk_cache=True)
+                        
+                        # Remove from data tables
                         if i < len(self.data_manager.data_tables):
                             self.data_manager.data_tables.pop(i)
+                        if i < len(self.data_manager.last_read_rows):
+                            self.data_manager.last_read_rows.pop(i)
+                        if i < len(self.data_manager.last_file_mod_times):
+                            self.data_manager.last_file_mod_times.pop(i)
+                        
+                        # Remove from original paths tracking
+                        if removed_path in self.original_file_paths:
+                            del self.original_file_paths[removed_path]
+                        if i in self.data_manager.original_source_paths:
+                            del self.data_manager.original_source_paths[i]
+                        
                         self.data_manager.csv_file_paths = files
                         refresh_counter = refresh_counter + 1
+                        print(f"🗑️ Removed: {os.path.basename(removed_path)}")
                         break
 
-            if "upload-csv" in trigger and contents:
-                if not isinstance(contents, list):
-                    contents = [contents]
-                if not isinstance(filenames, list):
-                    filenames = [filenames]
+            # Browser upload disabled - using native file dialog instead
+            if "upload-csv" in trigger:
+                return no_update, no_update, "Use 'Browse Files' button", no_update, no_update
 
-                for content, fname in zip(contents, filenames):
-                    if content is None or fname is None:
-                        continue
-
-                    # Use uploads folder in workspace
-                    upload_dir = os.path.join(os.path.dirname(__file__), "uploads")
-                    os.makedirs(upload_dir, exist_ok=True)
-
-                    # Use original filename - if already exists, skip (don't rename)
-                    path = os.path.join(upload_dir, fname)
-
-                    # Check if this exact file is already loaded
-                    if path in files:
-                        logger.info(f"File {fname} already loaded, skipping")
-                        continue
-
-                    try:
-                        decoded = base64.b64decode(content.split(",")[1])
-                        with open(path, "wb") as f:
-                            f.write(decoded)
-                        files.append(path)
-                        logger.info(f"Loaded {fname}")
-                    except Exception as e:
-                        logger.error(f"Error loading {fname}: {e}")
-
-                self.data_manager.csv_file_paths = files
-                while len(self.data_manager.data_tables) < len(files):
-                    self.data_manager.data_tables.append(None)
-                    self.data_manager.last_read_rows.append(0)
-
-                for i in range(len(files)):
-                    if self.data_manager.data_tables[i] is None:
-                        try:
-                            self.data_manager.read_initial_data(i)
-                        except Exception as e:
-                            logger.error(f"Error reading {files[i]}: {e}")
-
-                # Increment refresh trigger to update tree
-                refresh_counter = refresh_counter + 1
-
+            # Build CSV list UI
             items = [
                 html.Div(
                     [
-                        html.I(
-                            className="fas fa-file me-1", style={"color": "#f4a261"}
+                        html.I(className="fas fa-file me-1", style={"color": "#f4a261"}),
+                        html.Span(
+                            get_csv_display_name(f, files), 
+                            style={"fontSize": "10px"},
+                            title=f  # Show full path on hover
                         ),
-                        html.Span(os.path.basename(f), style={"fontSize": "10px"}),
                         html.A(
                             "×",
                             id={"type": "del-csv", "idx": i},
@@ -3948,10 +4154,9 @@ class SignalViewerApp:
                             {"label": f"{sig_name} (D)", "value": f"-1:{sig_name}"}
                         )
                     elif csv_idx >= 0 and csv_idx < len(csv_files or []):
-                        # CSV signal
-                        csv_name = os.path.splitext(
-                            os.path.basename(csv_files[csv_idx])
-                        )[0]
+                        # CSV signal - use folder prefix for duplicate names
+                        csv_display = get_csv_display_name(csv_files[csv_idx], csv_files)
+                        csv_name = os.path.splitext(csv_display)[0]
                         x_axis_options.append(
                             {
                                 "label": f"{sig_name} ({csv_name})",
@@ -4499,8 +4704,9 @@ class SignalViewerApp:
                 return dash.no_update, dash.no_update
             try:
                 session_data = {
-                    "version": "2.2",  # Updated version with time_offsets
-                    "files": files,
+                    "version": "3.0",  # Version 3: native file browser, original paths
+                    "files": files,  # Original file paths directly
+                    "original_file_paths": self.original_file_paths,
                     "assignments": assign,
                     "layouts": layouts,
                     "links": links,
@@ -4566,6 +4772,17 @@ class SignalViewerApp:
                 self.data_manager.csv_file_paths = files
                 self.data_manager.data_tables = [None] * len(files)
                 self.data_manager.last_read_rows = [0] * len(files)
+                self.data_manager.last_file_mod_times = [0] * len(files)
+                
+                # Restore original file paths for streaming/refresh
+                self.original_file_paths = d.get("original_file_paths", {})
+                
+                # Restore to data_manager as well
+                for uploads_path, original_path in self.original_file_paths.items():
+                    if uploads_path in files:
+                        idx = files.index(uploads_path)
+                        self.data_manager.original_source_paths[idx] = original_path
+                
                 for i in range(len(files)):
                     if os.path.exists(files[i]):
                         self.data_manager.read_initial_data(i)
@@ -4932,7 +5149,7 @@ class SignalViewerApp:
 
                 template_data = {
                     "type": "template",
-                    "version": "2.1",
+                    "version": "3.0",
                     "assignments": template_assignments,
                     "layouts": layouts,
                     "num_tabs": num_tabs or 1,
@@ -6482,21 +6699,31 @@ class SignalViewerApp:
                 print("="*80)
                 logger.info("=== REFRESH: Starting CSV refresh ===")
                 
-                # Show current state
+                # Show current state with full paths and file info
                 print(f"CSV files to refresh: {len(csv_files)}")
                 for i, fp in enumerate(csv_files):
+                    # Check file on disk
+                    if os.path.exists(fp):
+                        file_size = os.path.getsize(fp)
+                        file_mtime = datetime.fromtimestamp(os.path.getmtime(fp))
+                        file_info = f"({file_size:,} bytes, modified: {file_mtime})"
+                    else:
+                        file_info = "⚠️ FILE NOT FOUND ON DISK!"
+                    
                     if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
                         rows = len(self.data_manager.data_tables[i])
-                        print(f"  [{i}] {os.path.basename(fp)}: {rows} rows (before refresh)")
+                        print(f"  [{i}] {fp}")
+                        print(f"       In memory: {rows} rows | On disk: {file_info}")
                     else:
-                        print(f"  [{i}] {os.path.basename(fp)}: No data")
+                        print(f"  [{i}] {fp}")
+                        print(f"       In memory: No data | On disk: {file_info}")
                 
-                # Clear all caches
+                # Clear ALL caches including disk cache (critical for refresh!)
                 self.invalidate_caches()
-                self.data_manager.invalidate_cache()
-                print("✅ Caches invalidated")
+                self.data_manager.invalidate_cache(clear_disk_cache=True)
+                print("✅ All caches invalidated (including disk cache)")
                 
-                # FORCE reload by clearing tables first
+                # FORCE reload by clearing tables and mod times
                 for i in range(len(csv_files)):
                     if i < len(self.data_manager.data_tables):
                         old_rows = len(self.data_manager.data_tables[i]) if self.data_manager.data_tables[i] is not None else 0
@@ -6504,21 +6731,70 @@ class SignalViewerApp:
                         print(f"  Cleared table {i} (was {old_rows} rows)")
                     if i < len(self.data_manager.last_read_rows):
                         self.data_manager.last_read_rows[i] = 0
+                    if i < len(self.data_manager.last_file_mod_times):
+                        self.data_manager.last_file_mod_times[i] = 0
                 
                 logger.info(f"REFRESH: Cleared {len(csv_files)} table(s)")
                 
-                # Now reload all CSVs
-                print("\n📂 Reloading CSVs...")
-                self.data_manager.load_data_once()
+                # Now reload all CSVs from ORIGINAL paths (not uploads cache)
+                print("\n📂 Reloading CSVs from original paths...")
+                
+                for i, uploads_path in enumerate(csv_files):
+                    # Get original path if available, otherwise use uploads path
+                    original_path = self.original_file_paths.get(uploads_path, uploads_path)
+                    
+                    if os.path.exists(original_path):
+                        try:
+                            # Read from ORIGINAL path
+                            df = pd.read_csv(original_path, low_memory=False)
+                            
+                            # Ensure Time column
+                            if "Time" not in df.columns and len(df.columns) > 0:
+                                df.rename(columns={df.columns[0]: "Time"}, inplace=True)
+                            
+                            self.data_manager.data_tables[i] = df
+                            self.data_manager.last_read_rows[i] = len(df)
+                            self.data_manager.last_file_mod_times[i] = os.path.getmtime(original_path)
+                            
+                            # If original != uploads, copy updated file to uploads for caching
+                            if original_path != uploads_path:
+                                try:
+                                    import shutil
+                                    shutil.copy2(original_path, uploads_path)
+                                    print(f"  ✅ [{i}] {os.path.basename(original_path)}: {len(df)} rows (synced to cache)")
+                                except:
+                                    print(f"  ✅ [{i}] {os.path.basename(original_path)}: {len(df)} rows")
+                            else:
+                                print(f"  ✅ [{i}] {os.path.basename(original_path)}: {len(df)} rows")
+                            
+                            # Show first and last row to verify it's fresh data
+                            if len(df) > 0:
+                                print(f"       First row Time: {df['Time'].iloc[0]}")
+                                print(f"       Last row Time:  {df['Time'].iloc[-1]}")
+                        except Exception as e:
+                            print(f"  ❌ [{i}] {os.path.basename(original_path)}: Error - {e}")
+                            self.data_manager.data_tables[i] = None
+                    else:
+                        print(f"  ⚠️ [{i}] Original not found: {original_path}")
+                        # Try uploads path as fallback
+                        if os.path.exists(uploads_path):
+                            try:
+                                df = pd.read_csv(uploads_path, low_memory=False)
+                                if "Time" not in df.columns and len(df.columns) > 0:
+                                    df.rename(columns={df.columns[0]: "Time"}, inplace=True)
+                                self.data_manager.data_tables[i] = df
+                                print(f"  ⚠️ [{i}] Using cached: {os.path.basename(uploads_path)} ({len(df)} rows)")
+                            except Exception as e:
+                                print(f"  ❌ [{i}] Cache also failed: {e}")
+                                self.data_manager.data_tables[i] = None
+                        else:
+                            self.data_manager.data_tables[i] = None
+                
+                # Update signal names
+                self.data_manager.update_signal_names()
                 
                 # Show new state
                 print("\n📊 After refresh:")
-                for i in range(len(csv_files)):
-                    if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
-                        rows = len(self.data_manager.data_tables[i])
-                        print(f"  [{i}] {os.path.basename(csv_files[i])}: {rows} rows (after refresh)")
-                    else:
-                        print(f"  [{i}] {os.path.basename(csv_files[i])}: FAILED TO LOAD")
                 
                 # Clear derived signals (they will be recalculated on next plot)
                 self.derived_signals.clear()
@@ -6590,30 +6866,484 @@ class SignalViewerApp:
                 return True, "⏹ Stop", "danger", False, "▶️ Streaming active (updates every 0.2s)"
         
         @self.app.callback(
-            Output("store-refresh-trigger", "data", allow_duplicate=True),
+            [
+                Output("store-refresh-trigger", "data", allow_duplicate=True),
+                Output("store-streaming-active", "data", allow_duplicate=True),
+                Output("btn-stream-csv", "children", allow_duplicate=True),
+                Output("btn-stream-csv", "color", allow_duplicate=True),
+                Output("interval-streaming", "disabled", allow_duplicate=True),
+                Output("status-text", "children", allow_duplicate=True),
+            ],
             Input("interval-streaming", "n_intervals"),
             State("store-streaming-active", "data"),
             prevent_initial_call=True,
         )
         def update_from_streaming(n_intervals, is_streaming):
-            """Update plots when streaming detects changes"""
+            """Update plots when streaming detects changes, with auto-stop on timeout"""
             if not is_streaming:
-                return no_update
+                return no_update, no_update, no_update, no_update, no_update, no_update
             
             # Check for CSV updates and read new data
-            print(f"🔄 Streaming check #{n_intervals}...")
-            updated = self.data_manager.check_and_update_streaming()
+            result = self.data_manager.check_and_update_streaming()
             
-            if updated:
-                print(f"   ✅ Changes detected! Triggering plot refresh")
-                # Trigger plot refresh
-                return datetime.now().timestamp()
+            # Check if we should auto-stop due to timeout
+            if result.get('should_stop', False):
+                self.data_manager.stop_streaming_all()
+                print(f"⏸️ Auto-stopped streaming (timeout)")
+                return (
+                    datetime.now().timestamp(),  # Refresh trigger
+                    False,  # streaming active
+                    "▶ Stream",  # button text
+                    "success",  # button color
+                    True,  # interval disabled
+                    result.get('status_text', '⏸️ Streaming stopped (timeout)')
+                )
+            
+            if result.get('updated', False):
+                print(f"   ✅ {result.get('status_text', 'Changes detected!')}")
+                # CRITICAL: Clear app's caches when new data arrives
+                self.invalidate_caches()
+                # Trigger plot refresh and update status
+                return (
+                    datetime.now().timestamp(),
+                    no_update,  # keep streaming active
+                    no_update,  # keep button
+                    no_update,  # keep color
+                    no_update,  # keep interval enabled
+                    f"▶️ {result.get('status_text', 'Streaming...')}"
+                )
             else:
-                print(f"   ⏳ No changes detected")
+                # No changes - just update status to show we're still watching
+                return (
+                    no_update,  # no refresh needed
+                    no_update,
+                    no_update,
+                    no_update,
+                    no_update,
+                    f"▶️ {result.get('status_text', 'Streaming...')}"
+                )
+
+        # =================================================================
+        # Load CSV from Path (for streaming from original location)
+        # =================================================================
+        
+        @self.app.callback(
+            [
+                Output("store-csv-files", "data", allow_duplicate=True),
+                Output("store-refresh-trigger", "data", allow_duplicate=True),
+                Output("status-text", "children", allow_duplicate=True),
+                Output("input-csv-path", "value"),
+            ],
+            Input("btn-load-path", "n_clicks"),
+            [
+                State("input-csv-path", "value"),
+                State("store-csv-files", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def load_csv_from_path(n_clicks, original_path, current_files):
+            """Load CSV directly from original path - NO COPY to uploads.
+            Cache goes to uploads/.cache/, streaming reads from original."""
+            if not original_path or not original_path.strip():
+                return no_update, no_update, "❌ Enter a file path", no_update
+            
+            original_path = original_path.strip().strip('"').strip("'")
+            
+            if not os.path.exists(original_path):
+                return no_update, no_update, f"❌ Not found: {original_path}", original_path
+            
+            if not original_path.lower().endswith('.csv'):
+                return no_update, no_update, "❌ Must be .csv file", original_path
+            
+            current_files = current_files or []
+            fname = os.path.basename(original_path)
+            
+            # Check if already loaded (by original path)
+            if original_path in current_files or original_path in self.original_file_paths.values():
+                return no_update, no_update, f"⚠️ Already loaded: {fname}", ""
+            
+            # Use ORIGINAL path directly - no copy!
+            current_files.append(original_path)
+            
+            # Store original path mapping (path → itself for path loads)
+            self.original_file_paths[original_path] = original_path
+            
+            # Update data_manager
+            self.data_manager.csv_file_paths = current_files
+            idx = len(current_files) - 1
+            self.data_manager.original_source_paths[idx] = original_path
+            
+            while len(self.data_manager.data_tables) < len(current_files):
+                self.data_manager.data_tables.append(None)
+                self.data_manager.last_read_rows.append(0)
+                self.data_manager.last_file_mod_times.append(0)
+            
+            try:
+                self.data_manager.read_initial_data(idx)
+                rows = len(self.data_manager.data_tables[idx]) if self.data_manager.data_tables[idx] is not None else 0
+                parent_folder = os.path.basename(os.path.dirname(original_path))
+                print(f"✅ Loaded: {parent_folder}/{fname} ({rows} rows) - streaming from original")
+                return current_files, datetime.now().timestamp(), f"✅ {parent_folder}/{fname} ({rows:,} rows)", ""
+            except Exception as e:
+                print(f"❌ Load failed: {e}")
+                return current_files, datetime.now().timestamp(), f"❌ {str(e)}", original_path
+        
+        # =================================================================
+        # CSV Comparison Features
+        # =================================================================
+        
+        @self.app.callback(
+            [
+                Output("modal-compare", "is_open"),
+                Output("compare-csv1", "options"),
+                Output("compare-csv2", "options"),
+                Output("compare-signal1", "options"),
+                Output("compare-signal2", "options"),
+            ],
+            [
+                Input("btn-compare-csvs", "n_clicks"),
+                Input("btn-close-compare", "n_clicks"),
+            ],
+            [
+                State("modal-compare", "is_open"),
+                State("store-csv-files", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def toggle_compare_modal(open_click, close_click, is_open, csv_files):
+            """Open/close the compare modal and populate dropdowns"""
+            ctx = callback_context
+            if not ctx.triggered:
+                return no_update, no_update, no_update, no_update, no_update
+            
+            trigger = ctx.triggered[0]["prop_id"]
+            
+            if "btn-close-compare" in trigger:
+                return False, no_update, no_update, no_update, no_update
+            
+            if "btn-compare-csvs" in trigger:
+                # Build CSV options
+                csv_options = []
+                signal_options = []
+                
+                for i, path in enumerate(csv_files or []):
+                    display_name = get_csv_display_name(path, csv_files)
+                    csv_options.append({"label": display_name, "value": str(i)})
+                    
+                    # Add signals from this CSV
+                    if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
+                        for col in self.data_manager.data_tables[i].columns:
+                            if col != "Time":
+                                signal_options.append({
+                                    "label": f"{col} ({display_name})",
+                                    "value": f"{i}:{col}"
+                                })
+                
+                return True, csv_options, csv_options, signal_options, signal_options
+            
+            return no_update, no_update, no_update, no_update, no_update
+        
+        @self.app.callback(
+            [
+                Output("compare-signal1", "options", allow_duplicate=True),
+                Output("compare-signal2", "options", allow_duplicate=True),
+            ],
+            [
+                Input("compare-csv1", "value"),
+                Input("compare-csv2", "value"),
+            ],
+            State("store-csv-files", "data"),
+            prevent_initial_call=True,
+        )
+        def update_signal_dropdowns(csv1_idx, csv2_list, csv_files):
+            """Update signal dropdowns based on selected CSVs"""
+            signal1_options = []
+            signal2_options = []
+            
+            if csv1_idx is not None:
+                idx = int(csv1_idx)
+                if idx < len(self.data_manager.data_tables) and self.data_manager.data_tables[idx] is not None:
+                    df = self.data_manager.data_tables[idx]
+                    display_name = get_csv_display_name(csv_files[idx], csv_files) if idx < len(csv_files) else f"CSV {idx}"
+                    for col in df.columns:
+                        if col != "Time":
+                            signal1_options.append({"label": col, "value": f"{idx}:{col}"})
+            
+            # csv2_list is a list from Checklist - add signals from all selected CSVs
+            if csv2_list:
+                for csv_idx_str in csv2_list:
+                    idx = int(csv_idx_str)
+                    if idx < len(self.data_manager.data_tables) and self.data_manager.data_tables[idx] is not None:
+                        df = self.data_manager.data_tables[idx]
+                        display_name = get_csv_display_name(csv_files[idx], csv_files) if idx < len(csv_files) else f"CSV {idx}"
+                        for col in df.columns:
+                            if col != "Time":
+                                signal2_options.append({"label": f"{col} ({display_name})", "value": f"{idx}:{col}"})
+            
+            return signal1_options, signal2_options
+        
+        @self.app.callback(
+            Output("compare-results", "children"),
+            [
+                Input("btn-do-compare-csvs", "n_clicks"),
+                Input("btn-do-compare-signals", "n_clicks"),
+                Input("btn-plot-diff", "n_clicks"),
+            ],
+            [
+                State("compare-csv1", "value"),
+                State("compare-csv2", "value"),
+                State("compare-signal1", "value"),
+                State("compare-signal2", "value"),
+                State("store-csv-files", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def do_comparison(csv_click, signal_click, diff_click, csv1_idx, csv2_list, sig1_key, sig2_key, csv_files):
+            """Perform CSV or signal comparison (supports multiple CSVs)"""
+            from helpers import compare_signals, compare_csv_signals
+            
+            ctx = callback_context
+            if not ctx.triggered:
+                return no_update
+            
+            trigger = ctx.triggered[0]["prop_id"]
+            
+            if "btn-do-compare-csvs" in trigger:
+                if csv1_idx is None or not csv2_list:
+                    return html.Div("Select reference CSV and at least one to compare", className="text-warning")
+                
+                ref_idx = int(csv1_idx)
+                compare_indices = [int(x) for x in csv2_list if int(x) != ref_idx]
+                
+                if not compare_indices:
+                    return html.Div("Select at least one different CSV to compare", className="text-warning")
+                
+                df_ref = self.data_manager.data_tables[ref_idx] if ref_idx < len(self.data_manager.data_tables) else None
+                
+                if df_ref is None:
+                    return html.Div("Reference CSV not loaded", className="text-danger")
+                
+                # Compare reference to each selected CSV
+                all_results = []
+                for comp_idx in compare_indices:
+                    df_comp = self.data_manager.data_tables[comp_idx] if comp_idx < len(self.data_manager.data_tables) else None
+                    if df_comp is None:
+                        continue
+                    
+                    results = compare_csv_signals(df_ref, df_comp)
+                    comp_name = get_csv_display_name(csv_files[comp_idx], csv_files)
+                    all_results.append((comp_name, results))
+                
+                if not all_results:
+                    return html.Div("No valid CSVs to compare", className="text-danger")
+                
+                # Build results - if multiple CSVs, show average distance from mean
+                if len(all_results) == 1:
+                    # Single comparison - same as before
+                    comp_name, results = all_results[0]
+                    summary = results.get("_summary", {})
+                    rows = []
+                    for sig_name, metrics in results.items():
+                        if sig_name == "_summary":
+                            continue
+                        if "error" in metrics:
+                            rows.append(html.Tr([html.Td(sig_name), html.Td(f"Error: {metrics['error']}", colSpan=4, className="text-danger")]))
+                        else:
+                            corr_class = "text-success" if metrics["correlation"] > 0.99 else "text-warning" if metrics["correlation"] > 0.9 else "text-danger"
+                            rows.append(html.Tr([
+                                html.Td(sig_name), html.Td(f"{metrics['correlation']:.4f}", className=corr_class),
+                                html.Td(f"{metrics['rmse']:.6f}"), html.Td(f"{metrics['max_diff']:.6f}"),
+                                html.Td(f"{metrics['match_rate']:.1f}%"),
+                            ]))
+                    
+                    return html.Div([
+                        html.H6(f"📊 Comparison with {comp_name}"),
+                        html.P(f"Signals compared: {summary.get('compared_count', 0)}, Avg corr: {summary.get('avg_correlation', 0):.4f}", className="small"),
+                        dbc.Table([
+                            html.Thead(html.Tr([html.Th("Signal"), html.Th("Corr"), html.Th("RMSE"), html.Th("MaxDiff"), html.Th("Match%")])),
+                            html.Tbody(rows)
+                        ], striped=True, hover=True, size="sm")
+                    ])
+                else:
+                    # Multiple CSVs - show average metrics across all comparisons
+                    ref_name = get_csv_display_name(csv_files[ref_idx], csv_files)
+                    signal_metrics = {}  # {signal: [list of metrics from each comparison]}
+                    
+                    for comp_name, results in all_results:
+                        for sig_name, metrics in results.items():
+                            if sig_name == "_summary" or "error" in metrics:
+                                continue
+                            if sig_name not in signal_metrics:
+                                signal_metrics[sig_name] = []
+                            signal_metrics[sig_name].append(metrics)
+                    
+                    rows = []
+                    for sig_name, metrics_list in signal_metrics.items():
+                        avg_corr = np.mean([m["correlation"] for m in metrics_list])
+                        avg_rmse = np.mean([m["rmse"] for m in metrics_list])
+                        max_diff = max([m["max_diff"] for m in metrics_list])
+                        avg_match = np.mean([m["match_rate"] for m in metrics_list])
+                        
+                        corr_class = "text-success" if avg_corr > 0.99 else "text-warning" if avg_corr > 0.9 else "text-danger"
+                        rows.append(html.Tr([
+                            html.Td(sig_name), html.Td(f"{avg_corr:.4f}", className=corr_class),
+                            html.Td(f"{avg_rmse:.6f}"), html.Td(f"{max_diff:.6f}"),
+                            html.Td(f"{avg_match:.1f}%"),
+                        ]))
+                    
+                    return html.Div([
+                        html.H6(f"📊 Multi-CSV Comparison ({len(all_results)} CSVs vs {ref_name})"),
+                        html.P(f"Showing average metrics across all comparisons", className="small text-muted"),
+                        dbc.Table([
+                            html.Thead(html.Tr([html.Th("Signal"), html.Th("Avg Corr"), html.Th("Avg RMSE"), html.Th("Max Diff"), html.Th("Avg Match%")])),
+                            html.Tbody(rows)
+                        ], striped=True, hover=True, size="sm")
+                    ])
+            
+            if "btn-do-compare-signals" in trigger:
+                if not sig1_key or not sig2_key:
+                    return html.Div("Please select two signals to compare", className="text-warning")
+                
+                # Parse signal keys
+                csv1_idx, sig1_name = sig1_key.split(":", 1)
+                csv2_idx, sig2_name = sig2_key.split(":", 1)
+                csv1_idx, csv2_idx = int(csv1_idx), int(csv2_idx)
+                
+                df1 = self.data_manager.data_tables[csv1_idx]
+                df2 = self.data_manager.data_tables[csv2_idx]
+                
+                if df1 is None or df2 is None:
+                    return html.Div("CSV data not loaded", className="text-danger")
+                
+                time1 = df1["Time"].values if "Time" in df1.columns else np.arange(len(df1))
+                time2 = df2["Time"].values if "Time" in df2.columns else np.arange(len(df2))
+                data1 = df1[sig1_name].values
+                data2 = df2[sig2_name].values
+                
+                metrics = compare_signals(time1, data1, time2, data2)
+                
+                if "error" in metrics:
+                    return html.Div(f"Error: {metrics['error']}", className="text-danger")
+                
+                corr_class = "text-success" if metrics["correlation"] > 0.99 else "text-warning" if metrics["correlation"] > 0.9 else "text-danger"
+                
+                return html.Div([
+                    html.H6(f"📊 Signal Comparison"),
+                    html.P(f"Comparing: {sig1_name} vs {sig2_name}", className="small text-muted"),
+                    dbc.Table([
+                        html.Tbody([
+                            html.Tr([html.Td("Correlation"), html.Td(f"{metrics['correlation']:.4f}", className=corr_class)]),
+                            html.Tr([html.Td("RMSE"), html.Td(f"{metrics['rmse']:.6f}")]),
+                            html.Tr([html.Td("MAE"), html.Td(f"{metrics['mae']:.6f}")]),
+                            html.Tr([html.Td("Max Difference"), html.Td(f"{metrics['max_diff']:.6f}")]),
+                            html.Tr([html.Td("Mean Difference (Bias)"), html.Td(f"{metrics['mean_diff']:.6f}")]),
+                            html.Tr([html.Td("Percent Difference"), html.Td(f"{metrics['percent_diff']:.2f}%")]),
+                            html.Tr([html.Td("Match Rate (±1%)"), html.Td(f"{metrics['match_rate']:.1f}%")]),
+                            html.Tr([html.Td("Points Compared"), html.Td(f"{metrics['num_points']:,}")]),
+                        ])
+                    ], bordered=True, size="sm")
+                ])
+            
+            if "btn-plot-diff" in trigger:
+                # Plot difference between two signals
+                if not sig1_key or not sig2_key:
+                    return html.Div("Please select two signals to plot difference", className="text-warning")
+                
+                # Parse signal keys
+                csv1_idx, sig1_name = sig1_key.split(":", 1)
+                csv2_idx, sig2_name = sig2_key.split(":", 1)
+                csv1_idx, csv2_idx = int(csv1_idx), int(csv2_idx)
+                
+                df1 = self.data_manager.data_tables[csv1_idx]
+                df2 = self.data_manager.data_tables[csv2_idx]
+                
+                if df1 is None or df2 is None:
+                    return html.Div("CSV data not loaded", className="text-danger")
+                
+                time1 = df1["Time"].values if "Time" in df1.columns else np.arange(len(df1))
+                time2 = df2["Time"].values if "Time" in df2.columns else np.arange(len(df2))
+                data1 = df1[sig1_name].values if sig1_name in df1.columns else None
+                data2 = df2[sig2_name].values if sig2_name in df2.columns else None
+                
+                if data1 is None or data2 is None:
+                    return html.Div("Signal not found in CSV", className="text-danger")
+                
+                # Interpolate to common time base
+                try:
+                    from scipy import interpolate as sp_interp
+                    has_scipy = True
+                except ImportError:
+                    has_scipy = False
+                
+                common_time = np.union1d(time1, time2)
+                
+                # Only use overlapping range
+                t_min = max(time1.min(), time2.min())
+                t_max = min(time1.max(), time2.max())
+                common_time = common_time[(common_time >= t_min) & (common_time <= t_max)]
+                
+                if len(common_time) == 0:
+                    return html.Div("No overlapping time range", className="text-warning")
+                
+                # Interpolate both signals
+                if has_scipy:
+                    f1 = sp_interp.interp1d(time1, data1, bounds_error=False, fill_value=np.nan)
+                    f2 = sp_interp.interp1d(time2, data2, bounds_error=False, fill_value=np.nan)
+                    interp1 = f1(common_time)
+                    interp2 = f2(common_time)
+                else:
+                    # Fallback to numpy interpolation
+                    interp1 = np.interp(common_time, time1, data1)
+                    interp2 = np.interp(common_time, time2, data2)
+                
+                diff = interp1 - interp2
+                
+                # Create 2 subplots: signals on top, difference on bottom
+                from plotly.subplots import make_subplots
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                    subplot_titles=[f"Signals: {sig1_name} vs {sig2_name}", "Difference"],
+                                    vertical_spacing=0.12)
+                
+                # Top: Both signals
+                csv1_name = get_csv_display_name(csv_files[csv1_idx], csv_files) if csv_files else f"CSV{csv1_idx}"
+                csv2_name = get_csv_display_name(csv_files[csv2_idx], csv_files) if csv_files else f"CSV{csv2_idx}"
+                
+                fig.add_trace(go.Scatter(x=common_time, y=interp1, mode="lines", 
+                                         name=f"{sig1_name} ({csv1_name})",
+                                         line=dict(color="#4ea8de", width=1)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=common_time, y=interp2, mode="lines",
+                                         name=f"{sig2_name} ({csv2_name})",
+                                         line=dict(color="#f4a261", width=1)), row=1, col=1)
+                
+                # Bottom: Difference
+                fig.add_trace(go.Scatter(x=common_time, y=diff, mode="lines", name="Difference",
+                                         line=dict(color="#ff6b6b", width=1)), row=2, col=1)
+                fig.add_hline(y=0, line_dash="dash", line_color="gray", row=2, col=1)
+                
+                fig.update_layout(
+                    height=400,
+                    margin=dict(l=50, r=20, t=40, b=30),
+                    paper_bgcolor="#1a1a2e",
+                    plot_bgcolor="#16213e",
+                    font=dict(color="#e8e8e8", size=10),
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                )
+                fig.update_xaxes(gridcolor="#2a2a4e")
+                fig.update_yaxes(gridcolor="#2a2a4e")
+                
+                # Stats
+                valid_diff = diff[~np.isnan(diff)]
+                stats_text = f"Mean diff: {np.mean(valid_diff):.4f}, Std: {np.std(valid_diff):.4f}, Max abs: {np.max(np.abs(valid_diff)):.4f}"
+                
+                return html.Div([
+                    html.P(stats_text, className="small text-muted mb-1"),
+                    dcc.Graph(figure=fig, config={"displayModeBar": True, "displaylogo": False})
+                ])
             
             return no_update
 
-        logger.info("All callbacks registered successfully (including CSV loading, refresh, and streaming)")
+        logger.info("All callbacks registered successfully (including CSV loading, refresh, streaming, and comparison)")
 
 
 def main():

@@ -70,6 +70,7 @@ def get_signal_label(
 ) -> str:
     """
     Get display label for a signal.
+    Includes folder info when CSVs have duplicate filenames.
 
     Args:
         csv_idx: Index of CSV file (-1 for derived signals)
@@ -78,7 +79,7 @@ def get_signal_label(
         display_name: Optional custom display name
 
     Returns:
-        Formatted label like "signal_name (csv_name)" or "signal_name (D)"
+        Formatted label like "signal_name (csv_name)" or "signal_name (folder/csv_name)"
     """
     name = display_name or signal_name
 
@@ -86,8 +87,11 @@ def get_signal_label(
         return f"{name} (D)"
 
     if 0 <= csv_idx < len(csv_paths):
-        csv_name = get_csv_short_name(csv_paths[csv_idx])
-        return f"{name} ({csv_name})"
+        # Use get_csv_display_name which includes parent folder for duplicates
+        csv_display = get_csv_display_name(csv_paths[csv_idx], csv_paths)
+        # Remove extension for cleaner display
+        csv_display = os.path.splitext(csv_display)[0]
+        return f"{name} ({csv_display})"
 
     return f"{name} (C{csv_idx + 1})"
 
@@ -327,3 +331,151 @@ def get_text_direction_attr(text: str) -> str:
         'rtl' for Hebrew text, 'ltr' for others
     """
     return "rtl" if contains_hebrew(text) else "ltr"
+
+
+# =============================================================================
+# Signal Comparison Functions
+# =============================================================================
+
+def compare_signals(
+    time1: np.ndarray, 
+    data1: np.ndarray, 
+    time2: np.ndarray, 
+    data2: np.ndarray,
+    interpolate: bool = True
+) -> Dict[str, Any]:
+    """
+    Compare two signals and compute difference metrics.
+    
+    Args:
+        time1, data1: First signal (time, values)
+        time2, data2: Second signal (time, values)
+        interpolate: If True, interpolate to common time base
+    
+    Returns:
+        Dict with comparison metrics:
+        - correlation: Pearson correlation coefficient
+        - rmse: Root mean square error
+        - mae: Mean absolute error  
+        - max_diff: Maximum absolute difference
+        - mean_diff: Mean difference (bias)
+        - percent_diff: Average percentage difference
+        - match_rate: Percentage of points within 1% of each other
+    """
+    try:
+        if len(data1) == 0 or len(data2) == 0:
+            return {"error": "Empty data"}
+        
+        # Interpolate to common time base if needed
+        if interpolate and len(time1) != len(time2):
+            # Use the finer time grid
+            if len(time1) > len(time2):
+                common_time = time1
+                data2_interp = np.interp(common_time, time2, data2)
+                data1_interp = data1
+            else:
+                common_time = time2
+                data1_interp = np.interp(common_time, time1, data1)
+                data2_interp = data2
+        else:
+            # Same length - use directly
+            min_len = min(len(data1), len(data2))
+            data1_interp = data1[:min_len]
+            data2_interp = data2[:min_len]
+        
+        # Remove NaN values
+        valid_mask = ~(np.isnan(data1_interp) | np.isnan(data2_interp))
+        d1 = data1_interp[valid_mask]
+        d2 = data2_interp[valid_mask]
+        
+        if len(d1) < 2:
+            return {"error": "Not enough valid data points"}
+        
+        # Compute difference
+        diff = d1 - d2
+        abs_diff = np.abs(diff)
+        
+        # Compute metrics
+        correlation = float(np.corrcoef(d1, d2)[0, 1]) if len(d1) > 1 else 0.0
+        rmse = float(np.sqrt(np.mean(diff**2)))
+        mae = float(np.mean(abs_diff))
+        max_diff = float(np.max(abs_diff))
+        mean_diff = float(np.mean(diff))
+        
+        # Percentage difference (avoid division by zero)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            d1_safe = np.where(np.abs(d1) > 1e-10, d1, 1e-10)
+            percent_diff = float(np.mean(np.abs(diff / d1_safe) * 100))
+        
+        # Match rate: percentage within 1% of reference
+        match_threshold = 0.01 * np.max(np.abs(d1)) if np.max(np.abs(d1)) > 0 else 0.01
+        match_rate = float(np.sum(abs_diff < match_threshold) / len(abs_diff) * 100)
+        
+        return {
+            "correlation": round(correlation, 4),
+            "rmse": round(rmse, 6),
+            "mae": round(mae, 6),
+            "max_diff": round(max_diff, 6),
+            "mean_diff": round(mean_diff, 6),
+            "percent_diff": round(percent_diff, 2),
+            "match_rate": round(match_rate, 1),
+            "num_points": len(d1),
+            "diff_data": diff.tolist() if len(diff) < 10000 else diff[::max(1, len(diff)//10000)].tolist()
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def compare_csv_signals(
+    df1: pd.DataFrame, 
+    df2: pd.DataFrame,
+    time_col: str = "Time"
+) -> Dict[str, Dict]:
+    """
+    Compare all matching signals between two CSVs.
+    
+    Args:
+        df1, df2: DataFrames to compare
+        time_col: Name of time column
+    
+    Returns:
+        Dict mapping signal name to comparison metrics
+    """
+    results = {}
+    
+    # Find common signals (excluding time column)
+    cols1 = set(df1.columns) - {time_col}
+    cols2 = set(df2.columns) - {time_col}
+    common_signals = cols1.intersection(cols2)
+    
+    if not common_signals:
+        return {"_summary": {"error": "No common signals found", "common_count": 0}}
+    
+    time1 = df1[time_col].values if time_col in df1.columns else np.arange(len(df1))
+    time2 = df2[time_col].values if time_col in df2.columns else np.arange(len(df2))
+    
+    for signal in sorted(common_signals):
+        try:
+            data1 = df1[signal].values.astype(float)
+            data2 = df2[signal].values.astype(float)
+            results[signal] = compare_signals(time1, data1, time2, data2)
+        except Exception as e:
+            results[signal] = {"error": str(e)}
+    
+    # Summary statistics
+    valid_results = [r for r in results.values() if "error" not in r]
+    if valid_results:
+        avg_corr = np.mean([r["correlation"] for r in valid_results])
+        avg_rmse = np.mean([r["rmse"] for r in valid_results])
+        results["_summary"] = {
+            "common_count": len(common_signals),
+            "compared_count": len(valid_results),
+            "avg_correlation": round(avg_corr, 4),
+            "avg_rmse": round(avg_rmse, 6),
+            "signals_matched": list(common_signals)
+        }
+    else:
+        results["_summary"] = {"common_count": len(common_signals), "compared_count": 0}
+    
+    return results

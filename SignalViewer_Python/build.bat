@@ -1,17 +1,21 @@
 @echo off
 REM ============================================
-REM Signal Viewer Pro v2.3 - Build Script
+REM Signal Viewer Pro v3.0 - Build Script
 REM ============================================
 REM 
 REM Usage:
 REM   build.bat        - Full clean build
 REM   build.bat fast   - Fast rebuild (uses cached analysis)
 REM
+REM Features:
+REM   - Fully offline (no internet required)
+REM   - Native file browser
+REM   - Streaming from original files
 REM ============================================
 
 echo.
 echo ============================================
-echo   Signal Viewer Pro - Build Script
+echo   Signal Viewer Pro v3.0 - Build Script
 echo ============================================
 echo.
 
@@ -42,6 +46,12 @@ echo Stopping any running SignalViewer instances...
 taskkill /F /IM SignalViewer.exe >nul 2>&1
 timeout /t 2 /nobreak >nul
 
+REM Create required folders
+echo.
+echo Creating required folders...
+if not exist "uploads" mkdir uploads
+if not exist "uploads\.cache" mkdir uploads\.cache
+
 REM Install required packages (skip in fast mode)
 if "%1"=="fast" (
     echo Skipping dependency installation in fast mode...
@@ -50,8 +60,10 @@ if "%1"=="fast" (
     echo Installing/updating dependencies...
     pip install -r requirements.txt --quiet
     pip install jaraco.functools jaraco.context jaraco.text --quiet
-    REM Optional: Word export dependencies
-    pip install python-docx kaleido --quiet
+    REM Word export support
+    pip install python-docx --quiet
+    REM Static image export
+    pip install kaleido --quiet
 )
 
 REM Check if PyInstaller is installed
@@ -76,7 +88,7 @@ timeout /t 1 /nobreak >nul
 
 REM Build the application
 echo.
-echo Building Signal Viewer Pro (%BUILD_MODE%)...
+echo Building Signal Viewer Pro v3.0 (%BUILD_MODE%)...
 if "%1"=="fast" (
     echo This should take about 1 minute...
 ) else (
@@ -102,6 +114,12 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+REM Create uploads folder in dist
+echo.
+echo Setting up distribution folder...
+if not exist "dist\SignalViewer\uploads" mkdir "dist\SignalViewer\uploads"
+if not exist "dist\SignalViewer\uploads\.cache" mkdir "dist\SignalViewer\uploads\.cache"
 
 REM Create ZIP file for distribution
 echo.
@@ -131,6 +149,11 @@ echo.
 echo To distribute:
 echo   Share the SignalViewer.zip file
 echo   Users extract and run SignalViewer.exe
+echo.
+echo Features:
+echo   - Fully OFFLINE (no internet needed)
+echo   - Native file browser (Browse Files button)
+echo   - Streaming from original file locations
 echo.
 echo TIP: Use "build.bat fast" for faster rebuilds!
 echo.
