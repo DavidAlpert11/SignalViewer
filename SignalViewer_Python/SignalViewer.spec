@@ -28,7 +28,6 @@ a = Analysis(
         ('signal_operations.py', '.'),
         ('flexible_csv_loader.py', '.'),
         ('callback_helpers.py', '.'),
-        ('utils.py', '.'),
     ],
     hiddenimports=[
         # Core packages
