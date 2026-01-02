@@ -3994,11 +3994,11 @@ class SignalViewerApp:
                 Input("tabs", "value"),
                 Input("store-assignments", "data"),  # Listen to assignment changes
                 Input("store-csv-files", "data"),  # Listen to CSV changes
-                Input("store-x-axis-signal", "data"),  # Listen to X-axis changes
             ],
             [
                 State("store-subplot-modes", "data"),
                 State("store-derived", "data"),
+                State("store-x-axis-signal", "data"),  # Read X-axis (not Input to avoid cycle)
             ],
             prevent_initial_call=True,
         )
@@ -4008,9 +4008,9 @@ class SignalViewerApp:
             active_tab,
             assignments,
             csv_files,
-            x_axis_signals,
             modes,
             derived,
+            x_axis_signals,
         ):
             ctx = callback_context
             modes = modes or {}
