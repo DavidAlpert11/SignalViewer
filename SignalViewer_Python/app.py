@@ -151,21 +151,21 @@ class SignalViewerApp:
         """Clean up all cache files on app startup for fresh state"""
         import shutil
         
-        print("🧹 Cleaning up uploads folder on startup...")
+        print("[CLEANUP] Cleaning up uploads folder on startup...")
         
         # Clean entire uploads folder (CSVs and cache)
         uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
         if os.path.exists(uploads_dir):
             try:
                 shutil.rmtree(uploads_dir)
-                print(f"   ✅ Cleared uploads folder")
+                print(f"   [OK] Cleared uploads folder")
             except Exception as e:
-                print(f"   ⚠️ Could not clear uploads: {e}")
+                print(f"   [WARN] Could not clear uploads: {e}")
         
         # Recreate empty uploads folder
         os.makedirs(uploads_dir, exist_ok=True)
         
-        print("   ✅ Cleanup complete")
+        print("   [OK] Cleanup complete")
 
     def invalidate_caches(self):
         """Invalidate all caches when data changes"""
@@ -2443,11 +2443,11 @@ class SignalViewerApp:
                 new_count = 0
                 for file_path in file_paths:
                     if file_path in current_files:
-                        print(f"⚠️ Already loaded: {file_path}")
+                        print(f"[WARN] Already loaded: {file_path}")
                         continue
                     
                     if not os.path.exists(file_path):
-                        print(f"❌ Not found: {file_path}")
+                        print(f"[ERROR] Not found: {file_path}")
                         continue
                     
                     # Add to files list (using original path!)
@@ -2471,9 +2471,9 @@ class SignalViewerApp:
                         rows = len(self.data_manager.data_tables[idx]) if self.data_manager.data_tables[idx] is not None else 0
                         parent = os.path.basename(os.path.dirname(file_path))
                         fname = os.path.basename(file_path)
-                        print(f"✅ Loaded: {parent}/{fname} ({rows:,} rows)")
+                        print(f"[OK] Loaded: {parent}/{fname} ({rows:,} rows)")
                     except Exception as e:
-                        print(f"❌ Error loading {file_path}: {e}")
+                        print(f"[ERROR] Error loading {file_path}: {e}")
                 
                 # Build CSV list UI
                 items = [
@@ -2498,15 +2498,15 @@ class SignalViewerApp:
                 ]
                 
                 total_rows = sum(len(df) for df in self.data_manager.data_tables if df is not None)
-                status = f"✅ Loaded {new_count} file(s), {total_rows:,} rows total"
+                status = f"[OK] Loaded {new_count} file(s), {total_rows:,} rows total"
                 
                 return current_files, items, status, (refresh_trigger or 0) + 1
                 
             except Exception as e:
-                print(f"❌ File browser error: {e}")
+                print(f"[ERROR] File browser error: {e}")
                 import traceback
                 traceback.print_exc()
-                return no_update, no_update, f"❌ Error: {str(e)}", no_update
+                return no_update, no_update, f"[ERROR] Error: {str(e)}", no_update
 
         # CSV Delete, Clear & Refresh
         @self.app.callback(
@@ -2584,7 +2584,7 @@ class SignalViewerApp:
                         
                         self.data_manager.csv_file_paths = files
                         refresh_counter = refresh_counter + 1
-                        print(f"🗑️ Removed: {os.path.basename(removed_path)}")
+                        print(f"[REMOVED] {os.path.basename(removed_path)}")
                         break
 
             # Browser upload disabled - using native file dialog instead
@@ -4260,7 +4260,7 @@ class SignalViewerApp:
             links.append(
                 {"csv_indices": selected, "name": name or f"Link{len(links)+1}"}
             )
-            return links, f"✅ Linked"
+            return links, f"[OK] Linked"
 
         # Properties modal
         @self.app.callback(
@@ -4358,7 +4358,7 @@ class SignalViewerApp:
                 "is_state": is_state,
             }
             self.signal_properties = props
-            return props, time_offsets, "✅ Saved"
+            return props, time_offsets, "[OK] Saved"
 
         # Single signal operations
         @self.app.callback(
@@ -4447,9 +4447,9 @@ class SignalViewerApp:
                     "op": op,
                 }
                 self.derived_signals = derived
-                return derived, f"✅ {name}"
+                return derived, f"[OK] {name}"
             except Exception as e:
-                return dash.no_update, f"❌ {e}"
+                return dash.no_update, f"[ERROR] {e}"
 
         # Multi-signal operations
         @self.app.callback(
@@ -4549,9 +4549,9 @@ class SignalViewerApp:
                     "op": op,
                 }
                 self.derived_signals = derived
-                return derived, f"✅ {name}"
+                return derived, f"[OK] {name}"
             except Exception as e:
-                return dash.no_update, f"❌ {e}"
+                return dash.no_update, f"[ERROR] {e}"
 
         # Save session - downloads to user's chosen location
         @self.app.callback(
@@ -4627,10 +4627,10 @@ class SignalViewerApp:
                 filename = f"signal_viewer_session_{timestamp}.json"
                 return (
                     dict(content=json.dumps(session_data, indent=2), filename=filename),
-                    "✅ Session saved",
+                    "[OK] Session saved",
                 )
             except Exception as e:
-                return dash.no_update, f"❌ {e}"
+                return dash.no_update, f"[ERROR] {e}"
 
         # Load session - from uploaded file
         @self.app.callback(
@@ -4717,10 +4717,10 @@ class SignalViewerApp:
                     d.get("document_text", {"introduction": "", "conclusion": ""}),
                     d.get("subplot_metadata", {}),
                     d.get("time_offsets", {}),
-                    f"✅ Loaded: {filename}",
+                    f"[OK] Loaded: {filename}",
                 )
             except Exception as e:
-                return [dash.no_update] * 17 + [f"❌ {e}"]
+                return [dash.no_update] * 17 + [f"[ERROR] {e}"]
 
         # Clientside callback to initialize Split.js after page loads
         self.app.clientside_callback(
@@ -5064,10 +5064,10 @@ class SignalViewerApp:
                     dict(
                         content=json.dumps(template_data, indent=2), filename=filename
                     ),
-                    "✅ Template saved",
+                    "[OK] Template saved",
                 )
             except Exception as e:
-                return dash.no_update, f"❌ {e}"
+                return dash.no_update, f"[ERROR] {e}"
 
         @self.app.callback(
             [
@@ -5097,7 +5097,7 @@ class SignalViewerApp:
                 d = json.loads(decoded)
 
                 if d.get("type") != "template":
-                    return [dash.no_update] * 8 + ["❌ Not a template file"]
+                    return [dash.no_update] * 8 + ["[ERROR] Not a template file"]
 
                 # Match template signal names to available signals in loaded CSVs
                 template_assignments = d.get("assignments", {})
@@ -5147,10 +5147,10 @@ class SignalViewerApp:
                     d.get("props", {}),
                     d.get("x_axis_signals", {}),
                     d.get("subplot_metadata", {}),
-                    f"✅ Template loaded: {filename}",
+                    f"[OK] Template loaded: {filename}",
                 )
             except Exception as e:
-                return [dash.no_update] * 8 + [f"❌ {e}"]
+                return [dash.no_update] * 8 + [f"[ERROR] {e}"]
 
         # =================================================================
         # Time Column Selection Modal
@@ -5409,7 +5409,7 @@ class SignalViewerApp:
             # Trigger refresh if needed
             new_refresh = (refresh_trigger or 0) + 1 if needs_reload else dash.no_update
 
-            status = "✅ CSV settings updated" + (" (reloaded)" if needs_reload else "")
+            status = "[OK] CSV settings updated" + (" (reloaded)" if needs_reload else "")
             return time_cols, time_offsets, csv_settings, new_refresh, status
 
         # =================================================================
@@ -5481,7 +5481,7 @@ class SignalViewerApp:
                                 signals_to_export.extend(sp_signals)
 
                 if not signals_to_export:
-                    return dash.no_update, "❌ No signals to export"
+                    return dash.no_update, "[ERROR] No signals to export"
 
                 # Build export DataFrame
                 export_data = {}
@@ -5515,7 +5515,7 @@ class SignalViewerApp:
                             export_data[col_name] = df[sig_name].values
 
                 if not export_data:
-                    return dash.no_update, "❌ No data to export"
+                    return dash.no_update, "[ERROR] No data to export"
 
                 # Create DataFrame and export
                 export_df = pd.DataFrame(export_data)
@@ -5526,11 +5526,11 @@ class SignalViewerApp:
 
                 return (
                     dict(content=csv_string, filename=filename),
-                    f"✅ Exported {len(signals_to_export)} signals",
+                    f"[OK] Exported {len(signals_to_export)} signals",
                 )
 
             except Exception as e:
-                return dash.no_update, f"❌ {e}"
+                return dash.no_update, f"[ERROR] {e}"
 
         # =================================================================
         # Export PDF Modal (placeholder - requires additional dependencies)
@@ -5884,12 +5884,12 @@ class SignalViewerApp:
                         content=html_content,
                         filename=filename,
                     ),
-                    f"✅ Exported {len(tab_sections)} tab(s), {total_figs} figure(s): {filename}",
+                    f"[OK] Exported {len(tab_sections)} tab(s), {total_figs} figure(s): {filename}",
                 )
 
             except Exception as e:
                 logger.exception(f"Export error: {e}")
-                return dash.no_update, f"❌ Export failed: {str(e)}"
+                return dash.no_update, f"[ERROR] Export failed: {str(e)}"
 
         # =================================================================
         # Export Word Document
@@ -6082,22 +6082,22 @@ class SignalViewerApp:
                         filename=filename,
                         base64=True,
                     ),
-                    f"✅ Exported to Word: {filename}",
+                    f"[OK] Exported to Word: {filename}",
                 )
 
             except ImportError as e:
                 if "docx" in str(e):
-                    return dash.no_update, "❌ python-docx not installed. Run: pip install python-docx"
+                    return dash.no_update, "[ERROR] python-docx not installed. Run: pip install python-docx"
                 elif "kaleido" in str(e).lower():
-                    return dash.no_update, "❌ kaleido not installed for image export. Run: pip install kaleido"
-                return dash.no_update, f"❌ Missing dependency: {str(e)}"
+                    return dash.no_update, "[ERROR] kaleido not installed for image export. Run: pip install kaleido"
+                return dash.no_update, f"[ERROR] Missing dependency: {str(e)}"
             except ValueError as e:
                 if "kaleido" in str(e).lower() or "orca" in str(e).lower():
-                    return dash.no_update, "❌ kaleido not installed for image export. Run: pip install kaleido"
-                return dash.no_update, f"❌ Export failed: {str(e)}"
+                    return dash.no_update, "[ERROR] kaleido not installed for image export. Run: pip install kaleido"
+                return dash.no_update, f"[ERROR] Export failed: {str(e)}"
             except Exception as e:
                 logger.exception(f"Word export error: {e}")
-                return dash.no_update, f"❌ Export failed: {str(e)}"
+                return dash.no_update, f"[ERROR] Export failed: {str(e)}"
 
         # =================================================================
         # Statistics Panel & Display Options
@@ -6362,7 +6362,7 @@ class SignalViewerApp:
             doc_text["introduction"] = intro or ""
             doc_text["conclusion"] = conclusion or ""
 
-            return doc_text, "✅ Document text saved"
+            return doc_text, "[OK] Document text saved"
 
         # Load document text when modal opens
         @self.app.callback(
@@ -6566,12 +6566,12 @@ class SignalViewerApp:
                     df = self.data_manager.data_tables[csv_idx]
                     
                     filename = os.path.basename(filepath)
-                    return current_csvs, f"✅ Loaded {filename} ({len(df)} rows, {len(df.columns)} columns)"
+                    return current_csvs, f"[OK] Loaded {filename} ({len(df)} rows, {len(df.columns)} columns)"
                 else:
-                    return no_update, "❌ Failed to load CSV"
+                    return no_update, "[ERROR] Failed to load CSV"
                     
             except Exception as e:
-                return no_update, f"❌ Error: {str(e)}"
+                return no_update, f"[ERROR] Error: {str(e)}"
 
 
         # =================================================================
@@ -6594,7 +6594,7 @@ class SignalViewerApp:
             
             try:
                 print("\n" + "="*80)
-                print("🔄 REFRESH BUTTON CLICKED")
+                print("[REFRESH] REFRESH BUTTON CLICKED")
                 print("="*80)
                 logger.info("=== REFRESH: Starting CSV refresh ===")
                 
@@ -6607,7 +6607,7 @@ class SignalViewerApp:
                         file_mtime = datetime.fromtimestamp(os.path.getmtime(fp))
                         file_info = f"({file_size:,} bytes, modified: {file_mtime})"
                     else:
-                        file_info = "⚠️ FILE NOT FOUND ON DISK!"
+                        file_info = "[WARN] FILE NOT FOUND ON DISK!"
                     
                     if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
                         rows = len(self.data_manager.data_tables[i])
@@ -6620,7 +6620,7 @@ class SignalViewerApp:
                 # Clear ALL caches including disk cache (critical for refresh!)
                 self.invalidate_caches()
                 self.data_manager.invalidate_cache(clear_disk_cache=True)
-                print("✅ All caches invalidated (including disk cache)")
+                print("[OK] All caches invalidated (including disk cache)")
                 
                 # FORCE reload by clearing tables and mod times
                 for i in range(len(csv_files)):
@@ -6636,7 +6636,7 @@ class SignalViewerApp:
                 logger.info(f"REFRESH: Cleared {len(csv_files)} table(s)")
                 
                 # Now reload all CSVs from ORIGINAL paths (not uploads cache)
-                print("\n📂 Reloading CSVs from original paths...")
+                print("\n[RELOAD] Reloading CSVs from original paths...")
                 
                 for i, uploads_path in enumerate(csv_files):
                     # Get original path if available, otherwise use uploads path
@@ -6660,21 +6660,21 @@ class SignalViewerApp:
                                 try:
                                     import shutil
                                     shutil.copy2(original_path, uploads_path)
-                                    print(f"  ✅ [{i}] {os.path.basename(original_path)}: {len(df)} rows (synced to cache)")
+                                    print(f"  [OK] [{i}] {os.path.basename(original_path)}: {len(df)} rows (synced to cache)")
                                 except:
-                                    print(f"  ✅ [{i}] {os.path.basename(original_path)}: {len(df)} rows")
+                                    print(f"  [OK] [{i}] {os.path.basename(original_path)}: {len(df)} rows")
                             else:
-                                print(f"  ✅ [{i}] {os.path.basename(original_path)}: {len(df)} rows")
+                                print(f"  [OK] [{i}] {os.path.basename(original_path)}: {len(df)} rows")
                             
                             # Show first and last row to verify it's fresh data
                             if len(df) > 0:
                                 print(f"       First row Time: {df['Time'].iloc[0]}")
                                 print(f"       Last row Time:  {df['Time'].iloc[-1]}")
                         except Exception as e:
-                            print(f"  ❌ [{i}] {os.path.basename(original_path)}: Error - {e}")
+                            print(f"  [ERROR] [{i}] {os.path.basename(original_path)}: Error - {e}")
                             self.data_manager.data_tables[i] = None
                     else:
-                        print(f"  ⚠️ [{i}] Original not found: {original_path}")
+                        print(f"  [WARN] [{i}] Original not found: {original_path}")
                         # Try uploads path as fallback
                         if os.path.exists(uploads_path):
                             try:
@@ -6682,9 +6682,9 @@ class SignalViewerApp:
                                 if "Time" not in df.columns and len(df.columns) > 0:
                                     df.rename(columns={df.columns[0]: "Time"}, inplace=True)
                                 self.data_manager.data_tables[i] = df
-                                print(f"  ⚠️ [{i}] Using cached: {os.path.basename(uploads_path)} ({len(df)} rows)")
+                                print(f"  [WARN] [{i}] Using cached: {os.path.basename(uploads_path)} ({len(df)} rows)")
                             except Exception as e:
-                                print(f"  ❌ [{i}] Cache also failed: {e}")
+                                print(f"  [ERROR] [{i}] Cache also failed: {e}")
                                 self.data_manager.data_tables[i] = None
                         else:
                             self.data_manager.data_tables[i] = None
@@ -6711,18 +6711,18 @@ class SignalViewerApp:
                 
                 logger.info(f"REFRESH: Complete - {num_csvs} CSV(s), {total_rows:,} rows")
                 
-                print(f"\n✅ REFRESH COMPLETE: {num_csvs} CSV(s), {total_rows:,} rows")
+                print(f"\n[OK] REFRESH COMPLETE: {num_csvs} CSV(s), {total_rows:,} rows")
                 print("="*80 + "\n")
                 
-                return refresh_trigger, f"✅ Refreshed {num_csvs} CSV(s), {total_rows:,} rows"
+                return refresh_trigger, f"[OK] Refreshed {num_csvs} CSV(s), {total_rows:,} rows"
                 
             except Exception as e:
                 logger.error(f"REFRESH ERROR: {e}")
                 import traceback
                 traceback.print_exc()
-                print(f"\n❌ REFRESH FAILED: {e}")
+                print(f"\n[ERROR] REFRESH FAILED: {e}")
                 print("="*80 + "\n")
-                return no_update, f"❌ Refresh failed: {str(e)}"
+                return no_update, f"[ERROR] Refresh failed: {str(e)}"
         
         # =================================================================
         # CSV Streaming Feature
@@ -6745,24 +6745,24 @@ class SignalViewerApp:
             if is_streaming:
                 # Stop streaming
                 self.data_manager.stop_streaming_all()
-                print("⏸️ Streaming stopped by user")
-                return False, "▶ Stream", "success", True, "⏸️ Streaming stopped"
+                print("[STOP] Streaming stopped by user")
+                return False, "▶ Stream", "success", True, "[STOP] Streaming stopped"
             else:
                 # Start streaming
                 if not self.data_manager.csv_file_paths:
-                    print("❌ Cannot start streaming - no CSVs loaded")
-                    return False, "▶ Stream", "success", True, "❌ No CSVs loaded"
+                    print("[ERROR] Cannot start streaming - no CSVs loaded")
+                    return False, "▶ Stream", "success", True, "[ERROR] No CSVs loaded"
                 
                 # Enable streaming with 0.2s update rate
                 self.data_manager.update_rate = 0.2
                 self.data_manager.timeout_duration = 1.0  # Stop after 1s of no updates
                 self.data_manager.start_streaming_all()
                 
-                print(f"▶️ Streaming started for {len(self.data_manager.csv_file_paths)} CSV(s)")
+                print(f"[START] Streaming started for {len(self.data_manager.csv_file_paths)} CSV(s)")
                 print(f"   Update rate: {self.data_manager.update_rate}s")
                 print(f"   Timeout: {self.data_manager.timeout_duration}s")
                 
-                return True, "⏹ Stop", "danger", False, "▶️ Streaming active (updates every 0.2s)"
+                return True, "⏹ Stop", "danger", False, "[START] Streaming active (updates every 0.2s)"
         
         @self.app.callback(
             [
@@ -6788,18 +6788,18 @@ class SignalViewerApp:
             # Check if we should auto-stop due to timeout
             if result.get('should_stop', False):
                 self.data_manager.stop_streaming_all()
-                print(f"⏸️ Auto-stopped streaming (timeout)")
+                print(f"[STOP] Auto-stopped streaming (timeout)")
                 return (
                     datetime.now().timestamp(),  # Refresh trigger
                     False,  # streaming active
                     "▶ Stream",  # button text
                     "success",  # button color
                     True,  # interval disabled
-                    result.get('status_text', '⏸️ Streaming stopped (timeout)')
+                    result.get('status_text', '[STOP] Streaming stopped (timeout)')
                 )
             
             if result.get('updated', False):
-                print(f"   ✅ {result.get('status_text', 'Changes detected!')}")
+                print(f"   [OK] {result.get('status_text', 'Changes detected!')}")
                 # CRITICAL: Clear app's caches when new data arrives
                 self.invalidate_caches()
                 # Trigger plot refresh and update status
@@ -6809,7 +6809,7 @@ class SignalViewerApp:
                     no_update,  # keep button
                     no_update,  # keep color
                     no_update,  # keep interval enabled
-                    f"▶️ {result.get('status_text', 'Streaming...')}"
+                    f"[START] {result.get('status_text', 'Streaming...')}"
                 )
             else:
                 # No changes - just update status to show we're still watching
@@ -6819,7 +6819,7 @@ class SignalViewerApp:
                     no_update,
                     no_update,
                     no_update,
-                    f"▶️ {result.get('status_text', 'Streaming...')}"
+                    f"[START] {result.get('status_text', 'Streaming...')}"
                 )
 
         # =================================================================
@@ -6844,22 +6844,22 @@ class SignalViewerApp:
             """Load CSV directly from original path - NO COPY to uploads.
             Cache goes to uploads/.cache/, streaming reads from original."""
             if not original_path or not original_path.strip():
-                return no_update, no_update, "❌ Enter a file path", no_update
+                return no_update, no_update, "[ERROR] Enter a file path", no_update
             
             original_path = original_path.strip().strip('"').strip("'")
             
             if not os.path.exists(original_path):
-                return no_update, no_update, f"❌ Not found: {original_path}", original_path
+                return no_update, no_update, f"[ERROR] Not found: {original_path}", original_path
             
             if not original_path.lower().endswith('.csv'):
-                return no_update, no_update, "❌ Must be .csv file", original_path
+                return no_update, no_update, "[ERROR] Must be .csv file", original_path
             
             current_files = current_files or []
             fname = os.path.basename(original_path)
             
             # Check if already loaded (by original path)
             if original_path in current_files or original_path in self.original_file_paths.values():
-                return no_update, no_update, f"⚠️ Already loaded: {fname}", ""
+                return no_update, no_update, f"[WARN] Already loaded: {fname}", ""
             
             # Use ORIGINAL path directly - no copy!
             current_files.append(original_path)
@@ -6881,11 +6881,11 @@ class SignalViewerApp:
                 self.data_manager.read_initial_data(idx)
                 rows = len(self.data_manager.data_tables[idx]) if self.data_manager.data_tables[idx] is not None else 0
                 parent_folder = os.path.basename(os.path.dirname(original_path))
-                print(f"✅ Loaded: {parent_folder}/{fname} ({rows} rows) - streaming from original")
-                return current_files, datetime.now().timestamp(), f"✅ {parent_folder}/{fname} ({rows:,} rows)", ""
+                print(f"[OK] Loaded: {parent_folder}/{fname} ({rows} rows) - streaming from original")
+                return current_files, datetime.now().timestamp(), f"[OK] {parent_folder}/{fname} ({rows:,} rows)", ""
             except Exception as e:
-                print(f"❌ Load failed: {e}")
-                return current_files, datetime.now().timestamp(), f"❌ {str(e)}", original_path
+                print(f"[ERROR] Load failed: {e}")
+                return current_files, datetime.now().timestamp(), f"[ERROR] {str(e)}", original_path
         
         # =================================================================
         # CSV Comparison Features

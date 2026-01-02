@@ -99,7 +99,7 @@ class DataManager:
                 self._clear_all_disk_caches()
             
             print(
-                f"📊 Cache cleared - Stats: {self.cache_hits} hits, {self.cache_misses} misses"
+                f"[DATA] Cache cleared - Stats: {self.cache_hits} hits, {self.cache_misses} misses"
             )
             self.cache_hits = 0
             self.cache_misses = 0
@@ -134,9 +134,9 @@ class DataManager:
                             os.remove(os.path.join(cache_dir, f))
                             cleared_count += 1
                 except Exception as e:
-                    print(f"⚠️ Error clearing disk cache: {e}")
+                    print(f"[WARN] Error clearing disk cache: {e}")
         if cleared_count > 0:
-            print(f"🗑️ Cleared {cleared_count} disk cache file(s)")
+            print(f"[CACHE] Cleared {cleared_count} disk cache file(s)")
     
     def _clear_disk_cache_for_csv(self, csv_idx: int):
         """Delete disk cache files for a specific CSV"""
@@ -149,9 +149,9 @@ class DataManager:
                         os.remove(os.path.join(cache_dir, f))
                         cleared_count += 1
                 if cleared_count > 0:
-                    print(f"🗑️ Cleared {cleared_count} cache file(s) for CSV {csv_idx}")
+                    print(f"[CACHE] Cleared {cleared_count} cache file(s) for CSV {csv_idx}")
             except Exception as e:
-                print(f"⚠️ Error clearing disk cache for CSV {csv_idx}: {e}")
+                print(f"[WARN] Error clearing disk cache for CSV {csv_idx}: {e}")
 
     def load_data_once(self, progress_callback=None):
         """Load all CSV data with progress tracking"""
@@ -174,7 +174,7 @@ class DataManager:
 
         # Warn for large files
         if total_size_mb > 500:
-            print(f"⚠️ Large dataset: {total_size_mb:.1f} MB total")
+            print(f"[WARN] Large dataset: {total_size_mb:.1f} MB total")
 
         # Load all CSVs with progress tracking
         success_count = 0
@@ -190,7 +190,7 @@ class DataManager:
                     progress_callback(i, num_csvs, filename)
 
                 print(
-                    f"📁 [{i+1}/{num_csvs}] Loading {filename} ({file_size_mb:.1f} MB)..."
+                    f"[FILE] [{i+1}/{num_csvs}] Loading {filename} ({file_size_mb:.1f} MB)..."
                 )
 
                 load_start = time.time()
@@ -201,13 +201,13 @@ class DataManager:
                 if self.data_tables[i] is not None and not self.data_tables[i].empty:
                     success_count += 1
                     rows = len(self.data_tables[i])
-                    print(f"   ✅ Loaded {rows:,} rows in {load_time:.2f}s")
+                    print(f"   [OK] Loaded {rows:,} rows in {load_time:.2f}s")
                 else:
                     failed_count += 1
-                    print(f"   ❌ Failed to load")
+                    print(f"   [ERROR] Failed to load")
 
             except Exception as e:
-                print(f"❌ Error loading CSV {i+1}: {str(e)}")
+                print(f"[ERROR] Error loading CSV {i+1}: {str(e)}")
                 failed_count += 1
                 self.data_tables[i] = None
 
@@ -219,14 +219,14 @@ class DataManager:
 
         # Summary
         if failed_count == 0:
-            print(f"✅ SUCCESS: Loaded {success_count} CSV(s)")
+            print(f"[OK] SUCCESS: Loaded {success_count} CSV(s)")
         else:
             print(
-                f"⚠️ PARTIAL: Loaded {success_count}/{num_csvs} CSV(s) ({failed_count} failed)"
+                f"[WARN] PARTIAL: Loaded {success_count}/{num_csvs} CSV(s) ({failed_count} failed)"
             )
 
         print(
-            f"📊 Total: {total_rows:,} rows, {len(self.signal_names)} signals in {total_time:.2f}s"
+            f"[DATA] Total: {total_rows:,} rows, {len(self.signal_names)} signals in {total_time:.2f}s"
         )
 
         self.invalidate_cache()
@@ -275,7 +275,7 @@ class DataManager:
             preview_mode = file_size_mb > 200
             
             if preview_mode:
-                print(f"   🔍 Large file detected ({file_size_mb:.1f} MB), using chunked loading...")
+                print(f"   [SCAN] Large file detected ({file_size_mb:.1f} MB), using chunked loading...")
                 # For very large files, still use chunked loading
                 df = self.read_large_csv_chunked(file_path, delimiter, header_row, skip_rows)
             else:
@@ -298,7 +298,7 @@ class DataManager:
             if not self.validate_csv_format(df, file_path):
                 self.data_tables[idx] = None
                 filename = os.path.basename(file_path)
-                print(f"❌ Invalid CSV format: {filename}")
+                print(f"[ERROR] Invalid CSV format: {filename}")
                 return
 
             # Ensure Time column exists (flexible_loader should handle this, but double-check)
@@ -332,7 +332,7 @@ class DataManager:
             self.last_update_time = datetime.now()
 
         except Exception as e:
-            print(f"❌ Error reading CSV {idx+1}: {str(e)}")
+            print(f"[ERROR] Error reading CSV {idx+1}: {str(e)}")
             import traceback
             traceback.print_exc()
             self.data_tables[idx] = None
@@ -352,7 +352,7 @@ class DataManager:
             os.makedirs(cache_dir, exist_ok=True)
             self.disk_cache_dirs[csv_idx] = cache_dir
         except Exception as e:
-            print(f"⚠️ Could not create cache directory: {e}")
+            print(f"[WARN] Could not create cache directory: {e}")
             self.disk_cache_dirs[csv_idx] = None
 
     def read_large_csv_chunked(self, file_path: str, delimiter: str = None, 
@@ -390,17 +390,17 @@ class DataManager:
 
                 # Progress update every 1M rows
                 if total_rows % 1000000 == 0:
-                    print(f"   📊 Read {total_rows:,} rows...")
+                    print(f"   [DATA] Read {total_rows:,} rows...")
 
             if chunks:
-                print(f"   🔄 Concatenating {len(chunks)} chunks...")
+                print(f"   [RELOAD] Concatenating {len(chunks)} chunks...")
                 df = pd.concat(chunks, ignore_index=True)
                 return df
             else:
                 return pd.DataFrame()
 
         except Exception as e:
-            print(f"⚠️ Chunked read failed, trying direct read: {e}")
+            print(f"[WARN] Chunked read failed, trying direct read: {e}")
             # Fallback to direct read
             return pd.read_csv(file_path, low_memory=False)
 
@@ -514,7 +514,7 @@ class DataManager:
 
         except Exception as e:
             print(
-                f"❌ Error getting signal data for {signal_name} from CSV {csv_idx}: {e}"
+                f"[ERROR] Error getting signal data for {signal_name} from CSV {csv_idx}: {e}"
             )
             return np.array([]), np.array([])
 
@@ -594,7 +594,7 @@ class DataManager:
             if total > 0:
                 hit_rate = 100 * self.cache_hits / total
                 print(
-                    f"📊 Cache: {self.cache_hits}/{total} hits ({hit_rate:.1f}%), "
+                    f"[DATA] Cache: {self.cache_hits}/{total} hits ({hit_rate:.1f}%), "
                     f"{len(self.memory_cache)} entries"
                 )
             self.last_cache_report = now
@@ -632,7 +632,7 @@ class DataManager:
         if total > 0:
             hit_rate = 100 * self.cache_hits / total
             print(f"\n{'='*60}")
-            print(f"📊 CACHE PERFORMANCE REPORT")
+            print(f"[DATA] CACHE PERFORMANCE REPORT")
             print(f"{'='*60}")
             print(f"Memory Cache:")
             print(f"  - Hits: {self.cache_hits:,}")
@@ -735,7 +735,7 @@ class DataManager:
             # Calculate how many new rows
             new_rows = current_row_count - last_row_count
             
-            print(f"📊 CSV {csv_idx}: +{new_rows} rows ({last_row_count} → {current_row_count})")
+            print(f"[DATA] CSV {csv_idx}: +{new_rows} rows ({last_row_count} → {current_row_count})")
             
             # Get CSV settings for this file
             csv_settings = self.csv_settings.get(csv_idx, {})
@@ -767,7 +767,7 @@ class DataManager:
                         if list(new_data.columns) == list(existing_df.columns):
                             self.data_tables[csv_idx] = pd.concat([existing_df, new_data], ignore_index=True)
                         else:
-                            print(f"⚠️ Column mismatch in incremental read - doing full reload")
+                            print(f"[WARN] Column mismatch in incremental read - doing full reload")
                             self.read_initial_data(csv_idx, csv_settings)
                             new_row_count = len(self.data_tables[csv_idx]) if self.data_tables[csv_idx] is not None else 0
                             return True, last_row_count, new_row_count
@@ -783,13 +783,13 @@ class DataManager:
                     return True, last_row_count, current_row_count
             else:
                 # Large update - do full reload
-                print(f"⚠️ Large update ({new_rows} rows) - doing full reload")
+                print(f"[WARN] Large update ({new_rows} rows) - doing full reload")
                 self.read_initial_data(csv_idx, csv_settings)
                 new_row_count = len(self.data_tables[csv_idx]) if self.data_tables[csv_idx] is not None else 0
                 return True, last_row_count, new_row_count
                 
         except Exception as e:
-            print(f"❌ Error in incremental read: {e}")
+            print(f"[ERROR] Error in incremental read: {e}")
             import traceback
             traceback.print_exc()
             return False, 0, 0
@@ -873,7 +873,7 @@ class DataManager:
         self.is_running = True
         self._streaming_last_update = time.time()
         self._streaming_checks_without_update = 0
-        print(f"▶️ Started streaming {len(self.csv_file_paths)} CSV(s)")
+        print(f"[START] Started streaming {len(self.csv_file_paths)} CSV(s)")
         print(f"   Update rate: {self.update_rate}s")
         print(f"   Timeout: {self.timeout_duration}s of no updates")
     
@@ -882,7 +882,7 @@ class DataManager:
         self.streaming_enabled = False
         self.is_running = False
         self._streaming_checks_without_update = 0
-        print("⏸️ Stopped streaming")
+        print("[STOP] Stopped streaming")
     
     def check_and_update_streaming(self) -> Dict:
         """
@@ -939,7 +939,7 @@ class DataManager:
             
             # Build status text
             delta_total = sum(d['delta'] for d in csv_details)
-            result['status_text'] = f"📈 +{delta_total:,} rows ({total_rows:,} total)"
+            result['status_text'] = f"[UPDATE] +{delta_total:,} rows ({total_rows:,} total)"
             result['updated'] = True
         else:
             # Check for timeout
@@ -948,10 +948,10 @@ class DataManager:
             
             if time_since_update > self.timeout_duration:
                 result['should_stop'] = True
-                result['status_text'] = f"⏸️ Timeout - no updates for {self.timeout_duration:.1f}s ({total_rows:,} rows)"
+                result['status_text'] = f"[STOP] Timeout - no updates for {self.timeout_duration:.1f}s ({total_rows:,} rows)"
             else:
                 remaining = self.timeout_duration - time_since_update
-                result['status_text'] = f"⏳ Waiting... ({total_rows:,} rows, timeout in {remaining:.1f}s)"
+                result['status_text'] = f"[WAIT] Waiting... ({total_rows:,} rows, timeout in {remaining:.1f}s)"
         
         return result
 
@@ -1020,7 +1020,7 @@ class DataManager:
             return self.data_tables[csv_idx] is not None
             
         except Exception as e:
-            print(f"❌ Error loading CSV with settings: {str(e)}")
+            print(f"[ERROR] Error loading CSV with settings: {str(e)}")
             return False
     
     def update_csv_settings(self, csv_idx: int, **settings):
