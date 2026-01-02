@@ -134,16 +134,15 @@ class SignalViewerApp:
 
         # Performance settings
         self._signal_cache = {}  # Raw data cache: {(csv_idx, signal_name, time_col): (x_data, y_data)}
-        self._decimated_cache = {}  # Decimated data cache: {(csv_idx, signal_name, max_points): (x, y)}
         self._cache_valid = True
         self._last_figure_hash = None  # Track if figure needs rebuild
         self._signal_list_cache = {}  # Cache for signal names per CSV: {csv_idx: [signal_names]}
         self._signal_list_version = 0  # Increment when CSVs change
         self._last_tree_state = {}  # Cache for signal tree updates
         
-        # Display settings - CRITICAL FOR PERFORMANCE
-        self.MAX_DISPLAY_POINTS = 2000  # Reduced for performance  # Maximum points to display per signal
-        self.WEBGL_THRESHOLD = 200  # Use WebGL more aggressively  # Use WebGL above this many points (was 1000)
+        # Display settings - PERFORMANCE via WebGL (no downsampling - show all raw points)
+        self.WEBGL_THRESHOLD = 0  # ALWAYS use WebGL for hardware acceleration
+        self.HOVER_THRESHOLD = 5000  # Disable hover above this many points for performance
 
         self.app.layout = self.create_layout()
         self.setup_callbacks()
@@ -171,7 +170,6 @@ class SignalViewerApp:
     def invalidate_caches(self):
         """Invalidate all caches when data changes"""
         self._signal_cache.clear()
-        self._decimated_cache.clear()
         self._signal_list_cache.clear()
         self._last_figure_hash = None
         # Also clear the callback helper caches (signal tree, highlighted signals)
@@ -228,106 +226,6 @@ class SignalViewerApp:
         self._signal_cache[cache_key] = (x_data, y_data)
 
         return x_data, y_data
-
-    def get_signal_data_for_display(
-        self, csv_idx: int, signal_name: str, time_col: str = "Time", 
-        max_points: Optional[int] = None
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Get DECIMATED signal data optimized for display.
-        Uses LTTB algorithm to downsample while preserving visual features.
-        """
-        max_points = max_points or self.MAX_DISPLAY_POINTS
-        cache_key = (csv_idx, signal_name, time_col, max_points)
-        
-        # Check decimated cache first
-        if cache_key in self._decimated_cache:
-            return self._decimated_cache[cache_key]
-        
-        # Get raw data
-        x_data, y_data = self.get_signal_data_cached(csv_idx, signal_name, time_col)
-        
-        if len(x_data) == 0:
-            return x_data, y_data
-            
-        # No decimation needed if data is small enough
-        if len(x_data) <= max_points:
-            self._decimated_cache[cache_key] = (x_data, y_data)
-            return x_data, y_data
-        
-        # Apply LTTB decimation for large datasets
-        x_dec, y_dec = self._decimate_lttb(x_data, y_data, max_points)
-        
-        # Cache the result
-        self._decimated_cache[cache_key] = (x_dec, y_dec)
-        
-        return x_dec, y_dec
-
-    def _decimate_lttb(
-        self, x: np.ndarray, y: np.ndarray, max_points: int
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Largest Triangle Three Buckets (LTTB) downsampling algorithm.
-        Preserves visual appearance much better than simple decimation.
-        """
-        n = len(x)
-        if n <= max_points or max_points < 3:
-            return x, y
-
-        # Output arrays
-        out_x = np.zeros(max_points)
-        out_y = np.zeros(max_points)
-
-        # Always keep first and last points
-        out_x[0] = x[0]
-        out_y[0] = y[0]
-        out_x[-1] = x[-1]
-        out_y[-1] = y[-1]
-
-        # Bucket size
-        bucket_size = (n - 2) / (max_points - 2)
-
-        a = 0  # Initially point a is first point
-        for i in range(1, max_points - 1):
-            # Calculate point average for next bucket
-            avg_range_start = int(np.floor((i + 1) * bucket_size) + 1)
-            avg_range_end = int(np.floor((i + 2) * bucket_size) + 1)
-            avg_range_end = min(avg_range_end, n)
-
-            if avg_range_end <= avg_range_start:
-                avg_range_end = avg_range_start + 1
-                
-            avg_x = np.mean(x[avg_range_start:avg_range_end])
-            avg_y = np.mean(y[avg_range_start:avg_range_end])
-
-            # Get range for this bucket
-            range_offs = int(np.floor(i * bucket_size) + 1)
-            range_to = int(np.floor((i + 1) * bucket_size) + 1)
-            range_to = min(range_to, n)
-
-            if range_to <= range_offs:
-                range_to = range_offs + 1
-
-            # Point a
-            point_a_x = x[a]
-            point_a_y = y[a]
-
-            # Find point with largest triangle area (vectorized)
-            segment_x = x[range_offs:range_to]
-            segment_y = y[range_offs:range_to]
-            
-            areas = np.abs(
-                (point_a_x - avg_x) * (segment_y - point_a_y)
-                - (point_a_x - segment_x) * (avg_y - point_a_y)
-            ) * 0.5
-
-            max_area_idx = np.argmax(areas) + range_offs
-
-            out_x[i] = x[max_area_idx]
-            out_y[i] = y[max_area_idx]
-            a = max_area_idx
-
-        return out_x, out_y
 
     def create_layout(self):
         return html.Div(
@@ -2170,9 +2068,6 @@ class SignalViewerApp:
                         ds = self.derived_signals[signal_name]
                         x_data = np.array(ds.get("time", []))
                         y_data = np.array(ds.get("data", []))
-                        # Decimate derived signals too if large
-                        if len(x_data) > self.MAX_DISPLAY_POINTS:
-                            x_data, y_data = self._decimate_lttb(x_data, y_data, self.MAX_DISPLAY_POINTS)
                         csv_label = "D"  # Derived
                     elif csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
                         # Determine time column name
@@ -2182,9 +2077,9 @@ class SignalViewerApp:
                         else:
                             time_col = "Time"
 
-                        # Get DECIMATED data for display - CRITICAL FOR PERFORMANCE!
-                        x_data, y_data = self.get_signal_data_for_display(
-                            csv_idx, signal_name, time_col, self.MAX_DISPLAY_POINTS
+                        # Get RAW data - no downsampling, all points preserved
+                        x_data, y_data = self.get_signal_data_cached(
+                            csv_idx, signal_name, time_col
                         )
 
                         # Check if data was found
@@ -2283,10 +2178,9 @@ class SignalViewerApp:
                             col=c,
                         )
                     else:
-                        # Regular signal: ALWAYS use Scattergl for WebGL acceleration
-                        # WebGL is much faster for rendering and interactivity
-                        use_webgl = len(x_arr) > self.WEBGL_THRESHOLD
-                        trace_type = go.Scattergl if use_webgl else go.Scatter
+                        # Regular signal: ALWAYS use Scattergl for WebGL hardware acceleration
+                        # WebGL is critical for plotting large datasets with all raw points
+                        trace_type = go.Scattergl
                         
                         # Get display options for this subplot
                         sp_display_opts = display_options.get(tab_key, {}).get(str(sp_idx), {})
@@ -2302,9 +2196,15 @@ class SignalViewerApp:
                                 y_display = (y_scaled - y_min) / (y_max - y_min)
                                 legend_name = f"{legend_name} [N]"  # Mark as normalized
                         
-                        # Determine trace mode
+                        # Determine trace mode - disable markers for large datasets (performance)
+                        n_points = len(x_arr)
+                        if n_points > self.HOVER_THRESHOLD:
+                            show_markers = False  # Force disable markers for large data
                         trace_mode = "lines+markers" if show_markers else "lines"
-                        marker_dict = dict(size=4, color=color) if show_markers else None
+                        marker_dict = dict(size=3, color=color) if show_markers else None
+
+                        # Hover: disable for very large datasets to maintain responsiveness
+                        hover_mode = "x+y+name" if n_points < self.HOVER_THRESHOLD else "skip"
 
                         fig.add_trace(
                             trace_type(
@@ -2317,8 +2217,7 @@ class SignalViewerApp:
                                 legendgroup=unique_legend_group,
                                 showlegend=True,
                                 legend=legend_ref,
-                                # Disable hover for performance with many signals
-                                hoverinfo="x+y+name" if len(x_arr) < 2000 else "skip",
+                                hoverinfo=hover_mode,
                             ),
                             row=r,
                             col=c,

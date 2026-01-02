@@ -455,16 +455,15 @@ class DataManager:
         self,
         csv_idx: int,
         signal_name: str,
-        max_points: Optional[int] = None,
         start: Optional[float] = None,
         end: Optional[float] = None,
         use_cache: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Get signal data with advanced caching and decimation"""
+        """Get raw signal data with optional time range filter (no downsampling)"""
 
         # Check memory cache first (only for full-range queries)
-        if use_cache and start is None and end is None and max_points:
-            cache_key = (csv_idx, signal_name, max_points)
+        if use_cache and start is None and end is None:
+            cache_key = (csv_idx, signal_name)
             cached = self.memory_cache.get(cache_key)
             if cached is not None:
                 self.cache_hits += 1
@@ -506,31 +505,12 @@ class DataManager:
                     time_data, signal_data, start, end
                 )
 
-            # No decimation needed
-            if not max_points or len(time_data) <= max_points:
-                return time_data, signal_data
-
-            # Check disk cache
-            result = self._check_disk_cache(csv_idx, signal_name, max_points)
-            if result is not None:
-                # Store in memory cache
-                if use_cache and start is None and end is None:
-                    cache_key = (csv_idx, signal_name, max_points)
-                    self.memory_cache.set(cache_key, result)
-                return result
-
-            # Compute decimation using LTTB algorithm
-            decimated = self._decimate_lttb(time_data, signal_data, max_points)
-
-            # Save to disk cache
-            self._save_disk_cache(csv_idx, signal_name, max_points, decimated)
-
-            # Save to memory cache
+            # Cache the result (raw data only, no decimation)
             if use_cache and start is None and end is None:
-                cache_key = (csv_idx, signal_name, max_points)
-                self.memory_cache.set(cache_key, decimated)
+                cache_key = (csv_idx, signal_name)
+                self.memory_cache.set(cache_key, (time_data, signal_data))
 
-            return decimated
+            return time_data, signal_data
 
         except Exception as e:
             print(
@@ -558,124 +538,6 @@ class DataManager:
             e_idx = int(np.searchsorted(time_data, end, side="right"))
 
         return time_data[s_idx:e_idx], signal_data[s_idx:e_idx]
-
-    def _check_disk_cache(
-        self, csv_idx: int, signal_name: str, max_points: int
-    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-        """Check disk cache for decimated data"""
-        cache_dir = self.disk_cache_dirs.get(csv_idx)
-        if not cache_dir:
-            return None
-
-        # Create safe filename
-        safe_sig = signal_name.replace("/", "_").replace("\\", "_").replace(" ", "_")
-        cache_file = os.path.join(cache_dir, f"{safe_sig}_lod_{max_points}.npz")
-
-        if os.path.exists(cache_file):
-            try:
-                data = np.load(cache_file)
-                return (data["x"], data["y"])
-            except Exception:
-                pass
-
-        return None
-
-    def _save_disk_cache(
-        self,
-        csv_idx: int,
-        signal_name: str,
-        max_points: int,
-        data: Tuple[np.ndarray, np.ndarray],
-    ):
-        """Save decimated data to disk cache"""
-        cache_dir = self.disk_cache_dirs.get(csv_idx)
-        if not cache_dir:
-            return
-
-        safe_sig = signal_name.replace("/", "_").replace("\\", "_").replace(" ", "_")
-        cache_file = os.path.join(cache_dir, f"{safe_sig}_lod_{max_points}.npz")
-
-        try:
-            np.savez_compressed(cache_file, x=data[0], y=data[1])
-        except Exception as e:
-            print(f"⚠️ Cache write failed: {e}")
-
-    def _decimate_lttb(
-        self, x: np.ndarray, y: np.ndarray, max_points: int
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Largest Triangle Three Buckets (LTTB) downsampling algorithm
-        Better than min/max for preserving visual appearance
-        """
-        n = len(x)
-        if n <= max_points:
-            return x, y
-
-        if max_points < 3:
-            max_points = 3
-
-        # Output arrays
-        out_x = np.zeros(max_points)
-        out_y = np.zeros(max_points)
-
-        # Always keep first and last points
-        out_x[0] = x[0]
-        out_y[0] = y[0]
-        out_x[-1] = x[-1]
-        out_y[-1] = y[-1]
-
-        # Bucket size
-        bucket_size = (n - 2) / (max_points - 2)
-
-        a = 0  # Initially point a is first point
-        for i in range(1, max_points - 1):
-            # Calculate point average for next bucket
-            avg_x = 0
-            avg_y = 0
-            avg_range_start = int(np.floor((i + 1) * bucket_size) + 1)
-            avg_range_end = int(np.floor((i + 2) * bucket_size) + 1)
-            avg_range_end = min(avg_range_end, n)
-
-            avg_range_length = avg_range_end - avg_range_start
-
-            for j in range(avg_range_start, avg_range_end):
-                avg_x += x[j]
-                avg_y += y[j]
-
-            if avg_range_length > 0:
-                avg_x /= avg_range_length
-                avg_y /= avg_range_length
-
-            # Get range for this bucket
-            range_offs = int(np.floor(i * bucket_size) + 1)
-            range_to = int(np.floor((i + 1) * bucket_size) + 1)
-
-            # Point a
-            point_a_x = x[a]
-            point_a_y = y[a]
-
-            max_area = -1
-            max_area_point = range_offs
-
-            for j in range(range_offs, range_to):
-                # Calculate triangle area
-                area = (
-                    abs(
-                        (point_a_x - avg_x) * (y[j] - point_a_y)
-                        - (point_a_x - x[j]) * (avg_y - point_a_y)
-                    )
-                    * 0.5
-                )
-
-                if area > max_area:
-                    max_area = area
-                    max_area_point = j
-
-            out_x[i] = x[max_area_point]
-            out_y[i] = y[max_area_point]
-            a = max_area_point
-
-        return out_x, out_y
 
     def get_signal_statistics(
         self, csv_idx: int, signal_name: str, use_cache: bool = True
