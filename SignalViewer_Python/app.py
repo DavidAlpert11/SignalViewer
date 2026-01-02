@@ -142,7 +142,8 @@ class SignalViewerApp:
         
         # Display settings - PERFORMANCE via WebGL (no downsampling - show all raw points)
         self.WEBGL_THRESHOLD = 0  # ALWAYS use WebGL for hardware acceleration
-        self.HOVER_THRESHOLD = 5000  # Disable hover above this many points for performance
+        self.HOVER_THRESHOLD = 2000  # Disable hover above this many points for performance
+        self.LARGE_DATA_THRESHOLD = 10000  # Above this, use thinner lines
 
         self.app.layout = self.create_layout()
         self.setup_callbacks()
@@ -1020,6 +1021,15 @@ class SignalViewerApp:
                                                         ),
                                                         dcc.Graph(
                                                             id="plot",
+                                                            # PERFORMANCE: Config for fast rendering
+                                                            config={
+                                                                "displayModeBar": True,
+                                                                "displaylogo": False,
+                                                                "scrollZoom": True,
+                                                                "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                                                                "doubleClick": "reset+autosize",
+                                                                "showTips": False,
+                                                            },
                                                             figure={
                                                                 "data": [],
                                                                 "layout": {
@@ -2196,14 +2206,23 @@ class SignalViewerApp:
                                 y_display = (y_scaled - y_min) / (y_max - y_min)
                                 legend_name = f"{legend_name} [N]"  # Mark as normalized
                         
-                        # Determine trace mode - disable markers for large datasets (performance)
+                        # PERFORMANCE: Adjust rendering based on data size
                         n_points = len(x_arr)
-                        if n_points > self.HOVER_THRESHOLD:
-                            show_markers = False  # Force disable markers for large data
+                        
+                        # Large data optimizations
+                        if n_points > self.LARGE_DATA_THRESHOLD:
+                            show_markers = False  # Force disable markers
+                            line_width = 1  # Thinner lines render faster
+                        elif n_points > self.HOVER_THRESHOLD:
+                            show_markers = False
+                            line_width = width
+                        else:
+                            line_width = width
+                        
                         trace_mode = "lines+markers" if show_markers else "lines"
                         marker_dict = dict(size=3, color=color) if show_markers else None
 
-                        # Hover: disable for very large datasets to maintain responsiveness
+                        # Hover: disable for large datasets to maintain responsiveness
                         hover_mode = "x+y+name" if n_points < self.HOVER_THRESHOLD else "skip"
 
                         fig.add_trace(
@@ -2212,7 +2231,7 @@ class SignalViewerApp:
                                 y=y_display,
                                 mode=trace_mode,
                                 name=legend_name,
-                                line=dict(color=color, width=width),
+                                line=dict(color=color, width=line_width),
                                 marker=marker_dict,
                                 legendgroup=unique_legend_group,
                                 showlegend=True,
@@ -3575,7 +3594,7 @@ class SignalViewerApp:
                     items = [html.Span("None", className="text-muted small")]
                 
                 # Use Patch to update subplot highlight without full rebuild
-                colors = THEME_COLORS[theme]
+                colors = THEMES[theme]
                 fig_patch = Patch()
                 
                 for i in range(total_subplots):
@@ -7269,7 +7288,8 @@ def main():
             daemon=True,
         ).start()
 
-        app.app.run(debug=True, port=APP_PORT, host=APP_HOST)
+        # use_reloader=False prevents double-startup and double browser windows
+        app.app.run(debug=True, port=APP_PORT, host=APP_HOST, use_reloader=False)
 
     except Exception as e:
         logger.exception(f"Application error: {e}")
