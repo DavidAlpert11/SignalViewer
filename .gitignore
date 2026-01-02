@@ -35,3 +35,10 @@ session.json
 *.m~
 
 # Build artifacts (kept in SignalViewer_Python/.gitignore)
+
+# Large zip files
+*.zip
+
+# Temporary test files
+temp.py
+test_*.py
