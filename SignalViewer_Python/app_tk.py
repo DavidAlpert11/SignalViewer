@@ -397,12 +397,12 @@ class SignalViewerApp:
         search_frame.pack(fill=tk.X, pady=2)
         
         self.search_var = tk.StringVar()
-        self.search_var.trace("w", lambda *args: self._filter_signals())
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         search_entry.insert(0, "Search...")
         search_entry.bind("<FocusIn>", lambda e: e.widget.delete(0, tk.END) 
                          if e.widget.get() == "Search..." else None)
+        search_entry.bind("<KeyRelease>", lambda e: self._filter_signals_safe())
         
         # Target info
         self.target_label = ttk.Label(body, text="Assign → Tab 1, Subplot 1",
@@ -885,8 +885,16 @@ class SignalViewerApp:
                 self.signal_tree.insert(derived_node, tk.END, iid=f"-1:{name}",
                                         text=f"  {name}", tags=("signal",))
                                         
+    def _filter_signals_safe(self):
+        """Safe filter that checks if signal_tree exists"""
+        if hasattr(self, 'signal_tree'):
+            self._filter_signals()
+            
     def _filter_signals(self):
         """Filter signals in tree based on search"""
+        if not hasattr(self, 'signal_tree'):
+            return
+            
         search = self.search_var.get().lower()
         if search == "search..." or not search:
             self._update_signal_tree()
