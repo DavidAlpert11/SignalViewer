@@ -471,6 +471,7 @@ class SignalViewerApp:
                                                                                     id="search-input",
                                                                                     placeholder="Search...",
                                                                                     size="sm",
+                                                                                    debounce=True,  # PERFORMANCE: Wait for user to stop typing
                                                                                 ),
                                                                                 dbc.Button(
                                                                                     "+",
@@ -1053,27 +1054,6 @@ class SignalViewerApp:
                                                                     },
                                                                     # PERFORMANCE: Preserve state on updates
                                                                     "uirevision": "constant",
-                                                                },
-                                                            },
-                                                            config={
-                                                                "displayModeBar": True,
-                                                                "displaylogo": False,
-                                                                # PERFORMANCE: Disable slow interactions
-                                                                "scrollZoom": True,
-                                                                "modeBarButtonsToRemove": [
-                                                                    "lasso2d",
-                                                                    "select2d",
-                                                                ],
-                                                                # PERFORMANCE: Reduce render quality for speed
-                                                                "plotlyServerURL": "",
-                                                                "staticPlot": False,
-                                                                # PERFORMANCE: Reduce hover delay
-                                                                "doubleClick": "reset",
-                                                                # PERFORMANCE: Disable toImage for faster updates
-                                                                "toImageButtonOptions": {
-                                                                    "format": "png",
-                                                                    "height": None,
-                                                                    "width": None,
                                                                 },
                                                             },
                                                             style={"height": "100%"},
@@ -1908,6 +1888,10 @@ class SignalViewerApp:
                 itemdoubleclick="toggleothers",
             )
 
+        # PERFORMANCE: uirevision controls zoom/pan state persistence
+        # Include link_axes in revision so axes reset when linking changes
+        ui_revision = f"link_{link_axes}"
+        
         fig.update_layout(
             paper_bgcolor=colors["paper_bg"],
             plot_bgcolor=colors["plot_bg"],
@@ -1923,8 +1907,8 @@ class SignalViewerApp:
                 font_color="#e8e8e8",
                 namelength=-1,  # Show full name
             ),
-            # PERFORMANCE: Preserve zoom/pan state on updates
-            uirevision="constant",
+            # PERFORMANCE: Preserve zoom/pan state on updates EXCEPT when link_axes changes
+            uirevision=ui_revision,
             # PERFORMANCE: Disable drag mode animations
             dragmode="zoom",
             **legend_configs,
@@ -2096,14 +2080,13 @@ class SignalViewerApp:
                         if len(x_data) == 0 or len(y_data) == 0:
                             continue
 
-                        # Apply time offset if set
+                        # Apply time offset if set (avoid array copy when offset is 0)
                         time_offsets = time_offsets or {}
-                        # Check for signal-specific offset first, then CSV-wide offset
                         sig_offset_key = f"{csv_idx}:{signal_name}"
                         csv_offset_key = str(csv_idx)
                         time_offset = time_offsets.get(sig_offset_key, time_offsets.get(csv_offset_key, 0))
                         if time_offset != 0:
-                            x_data = np.array(x_data) + time_offset
+                            x_data = np.asarray(x_data) + time_offset  # asarray avoids copy if already ndarray
 
                         # Override X-axis if in X-Y mode
                         if subplot_mode == "xy" and x_axis_data is not None:
@@ -2142,8 +2125,13 @@ class SignalViewerApp:
                     # Build legend name: format as "signal (csv_name)"
                     legend_name = f"{display_name} ({csv_label})"
 
-                    y_scaled = np.array(y_data) * scale
-                    x_arr = np.array(x_data)
+                    # PERFORMANCE: Avoid array copy when scale is 1.0 (default)
+                    # Data from cache is already numpy array
+                    x_arr = x_data if isinstance(x_data, np.ndarray) else np.asarray(x_data)
+                    if scale == 1.0:
+                        y_scaled = y_data if isinstance(y_data, np.ndarray) else np.asarray(y_data)
+                    else:
+                        y_scaled = np.asarray(y_data) * scale
 
                     # Collect signal data for cursor value display
                     subplot_signal_data[sp_idx].append(
@@ -2159,9 +2147,14 @@ class SignalViewerApp:
                         # State signal: draw vertical lines at value changes
                         # Find indices where value changes
                         changes = np.where(np.diff(y_scaled) != 0)[0] + 1
+                        
+                        # PERFORMANCE: Limit number of vlines for large state signals
+                        MAX_STATE_LINES = 200
+                        if len(changes) > MAX_STATE_LINES:
+                            # Sample evenly across the changes
+                            step = len(changes) // MAX_STATE_LINES
+                            changes = changes[::step]
 
-                        # Add first visible indicator as a scatter point
-                        first_shown = True
                         for change_idx in changes:
                             if change_idx < len(x_arr):
                                 # Draw vertical line using shape
@@ -2525,7 +2518,11 @@ class SignalViewerApp:
                 print(f"[ERROR] File browser error: {e}")
                 import traceback
                 traceback.print_exc()
-                return no_update, no_update, f"[ERROR] Error: {str(e)}", no_update
+                # UX: Provide helpful error message with suggestion
+                error_msg = str(e)
+                if "tkinter" in error_msg.lower():
+                    return no_update, no_update, "⚠️ File dialog requires display. Try drag-drop or path entry.", no_update
+                return no_update, no_update, f"⚠️ Could not open files: {error_msg}", no_update
 
         # CSV Delete, Clear & Refresh
         @self.app.callback(
@@ -2854,8 +2851,27 @@ class SignalViewerApp:
                         else ""
                     )
 
-                    sig_items = []
+                    # PERFORMANCE: Limit signals shown per CSV to reduce DOM elements
+                    # Always show assigned/highlighted signals first, then fill with others
+                    MAX_SIGNALS_SHOWN = 50  # Limit for performance
+                    
+                    # Separate assigned/highlighted from others
+                    priority_signals = []
+                    other_signals = []
                     for sig in signals:
+                        key = f"{csv_idx}:{sig}"
+                        if key in assigned or key in highlighted:
+                            priority_signals.append(sig)
+                        else:
+                            other_signals.append(sig)
+                    
+                    # Show all priority signals + up to limit of others
+                    remaining_slots = max(0, MAX_SIGNALS_SHOWN - len(priority_signals))
+                    signals_to_show = priority_signals + other_signals[:remaining_slots]
+                    hidden_count = len(other_signals) - remaining_slots if remaining_slots < len(other_signals) else 0
+
+                    sig_items = []
+                    for sig in signals_to_show:
                         key = f"{csv_idx}:{sig}"
                         is_assigned = key in assigned
                         is_highlighted = key in highlighted
@@ -2966,6 +2982,16 @@ class SignalViewerApp:
                                     "borderRadius": "3px",
                                     "marginBottom": "2px",
                                 },
+                            )
+                        )
+                    
+                    # PERFORMANCE: Show hidden count message if signals were truncated
+                    if hidden_count > 0:
+                        sig_items.append(
+                            html.Div(
+                                f"... {hidden_count} more signals (use search to filter)",
+                                className="text-muted small fst-italic ms-2 py-1",
+                                style={"fontSize": "9px"},
                             )
                         )
 
@@ -3542,8 +3568,14 @@ class SignalViewerApp:
             theme = "dark" if is_dark else "light"
 
             # ============================================================
-            # PERFORMANCE OPTIMIZATION: Fast path for subplot-only changes
+            # PERFORMANCE OPTIMIZATION: Fast paths for specific changes
             # ============================================================
+            
+            # Fast path 1: Cursor updates - rebuild figure but with cached signal data
+            # The actual optimization is in create_figure which caches signal data
+            # We still need to rebuild to show cursor position + values
+            
+            # Fast path 2: Subplot selection changes - use Patch
             # When only subplot selection changes, update assigned-list and
             # subplot highlight using Patch (no full figure rebuild)
             subplot_only_triggers = [
@@ -5500,7 +5532,7 @@ class SignalViewerApp:
                                 signals_to_export.extend(sp_signals)
 
                 if not signals_to_export:
-                    return dash.no_update, "[ERROR] No signals to export"
+                    return dash.no_update, "⚠️ No signals to export. Assign signals to subplots first."
 
                 # Build export DataFrame
                 export_data = {}
@@ -6106,14 +6138,14 @@ class SignalViewerApp:
 
             except ImportError as e:
                 if "docx" in str(e):
-                    return dash.no_update, "[ERROR] python-docx not installed. Run: pip install python-docx"
+                    return dash.no_update, "⚠️ Word export requires python-docx. Install: pip install python-docx"
                 elif "kaleido" in str(e).lower():
-                    return dash.no_update, "[ERROR] kaleido not installed for image export. Run: pip install kaleido"
-                return dash.no_update, f"[ERROR] Missing dependency: {str(e)}"
+                    return dash.no_update, "⚠️ Image export requires kaleido. Install: pip install kaleido"
+                return dash.no_update, f"⚠️ Missing package: {str(e)}"
             except ValueError as e:
                 if "kaleido" in str(e).lower() or "orca" in str(e).lower():
-                    return dash.no_update, "[ERROR] kaleido not installed for image export. Run: pip install kaleido"
-                return dash.no_update, f"[ERROR] Export failed: {str(e)}"
+                    return dash.no_update, "⚠️ Image export requires kaleido. Install: pip install kaleido"
+                return dash.no_update, f"⚠️ Export failed: {str(e)}"
             except Exception as e:
                 logger.exception(f"Word export error: {e}")
                 return dash.no_update, f"[ERROR] Export failed: {str(e)}"

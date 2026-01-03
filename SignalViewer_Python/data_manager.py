@@ -487,17 +487,20 @@ class DataManager:
             time_data = df["Time"].values
             signal_data = df[signal_name].values
 
-            # Apply scaling
-            if signal_name in self.signal_scaling:
-                signal_data = signal_data * self.signal_scaling[signal_name]
+            # PERFORMANCE: Apply scaling only when != 1.0 (avoid array copy)
+            scale_factor = self.signal_scaling.get(signal_name, 1.0)
+            if scale_factor != 1.0:
+                signal_data = signal_data * scale_factor
 
-            # Remove NaN values
-            valid_mask = ~(np.isnan(time_data) | np.isnan(signal_data))
-            if not np.any(valid_mask):
-                return np.array([]), np.array([])
-
-            time_data = time_data[valid_mask]
-            signal_data = signal_data[valid_mask]
+            # PERFORMANCE: Remove NaN values - use np.isfinite for single check
+            # Skip NaN check if data is known to be clean (e.g., float32/64 from CSV)
+            if time_data.dtype.kind == 'f' or signal_data.dtype.kind == 'f':
+                valid_mask = np.isfinite(time_data) & np.isfinite(signal_data)
+                if not np.all(valid_mask):
+                    if not np.any(valid_mask):
+                        return np.array([]), np.array([])
+                    time_data = time_data[valid_mask]
+                    signal_data = signal_data[valid_mask]
 
             # Apply time range filter
             if start is not None or end is not None:

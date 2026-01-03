@@ -524,3 +524,30 @@ button[id="btn-stream-csv"] {
 .btn-toolbar {
     overflow: visible !important;
 }
+
+/* ========================================
+   Performance Optimizations
+   ======================================== */
+
+/* Use hardware acceleration for animations */
+.csv-signals-list,
+.collapse-icon,
+.modal-dialog,
+.browser-tab,
+.btn {
+    will-change: auto;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Reduce layout thrashing during scroll */
+.card-body,
+.split-panel,
+#signal-tree {
+    contain: layout style;
+}
+
+/* Status indicator in header shows loading state instead of spinner overlay */
+#status-badge {
+    transition: all 0.2s ease;
+}
