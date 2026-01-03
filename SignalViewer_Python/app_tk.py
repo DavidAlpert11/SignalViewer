@@ -512,74 +512,92 @@ class SignalViewerApp:
         
     def _create_plot_area(self):
         """Create the matplotlib plot area with tabs"""
-        # Tab notebook
-        self.tab_notebook = ttk.Notebook(self.plot_frame)
-        self.tab_notebook.pack(fill=tk.BOTH, expand=True)
-        self.tab_notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+        # TOP Toolbar frame (above tabs)
+        top_toolbar = ttk.Frame(self.plot_frame)
+        top_toolbar.pack(fill=tk.X, side=tk.TOP, pady=2)
         
-        # Add initial tab
-        self._add_tab()
+        # Session buttons
+        ttk.Button(top_toolbar, text="💾 Save", width=8,
+                  command=self._save_session).pack(side=tk.LEFT, padx=2)
+        ttk.Button(top_toolbar, text="📂 Load", width=8,
+                  command=self._load_session).pack(side=tk.LEFT, padx=2)
         
-        # Toolbar frame
-        toolbar_frame = ttk.Frame(self.plot_frame)
-        toolbar_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        ttk.Separator(top_toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        
+        # Refresh and streaming  
+        ttk.Button(top_toolbar, text="🔄 Refresh", width=10,
+                  command=self._refresh_csvs).pack(side=tk.LEFT, padx=2)
+        
+        self.stream_btn = ttk.Button(top_toolbar, text="▶ Stream", width=10,
+                                    command=self._toggle_streaming)
+        self.stream_btn.pack(side=tk.LEFT, padx=2)
+        
+        ttk.Separator(top_toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
         
         # Layout controls
-        ttk.Label(toolbar_frame, text="Layout:").pack(side=tk.LEFT, padx=5)
+        ttk.Label(top_toolbar, text="Layout:").pack(side=tk.LEFT, padx=2)
         
         self.rows_var = tk.IntVar(value=1)
-        rows_spin = ttk.Spinbox(toolbar_frame, from_=1, to=4, width=3,
+        rows_spin = ttk.Spinbox(top_toolbar, from_=1, to=4, width=3,
                                textvariable=self.rows_var,
                                command=self._on_layout_change)
         rows_spin.pack(side=tk.LEFT)
         
-        ttk.Label(toolbar_frame, text="×").pack(side=tk.LEFT)
+        ttk.Label(top_toolbar, text="×").pack(side=tk.LEFT)
         
         self.cols_var = tk.IntVar(value=1)
-        cols_spin = ttk.Spinbox(toolbar_frame, from_=1, to=4, width=3,
+        cols_spin = ttk.Spinbox(top_toolbar, from_=1, to=4, width=3,
                                textvariable=self.cols_var,
                                command=self._on_layout_change)
         cols_spin.pack(side=tk.LEFT)
         
         # Subplot selector
-        ttk.Label(toolbar_frame, text="  Subplot:").pack(side=tk.LEFT, padx=5)
+        ttk.Label(top_toolbar, text="  Subplot:").pack(side=tk.LEFT, padx=2)
         self.subplot_var = tk.IntVar(value=1)
-        self.subplot_spin = ttk.Spinbox(toolbar_frame, from_=1, to=16, width=3,
+        self.subplot_spin = ttk.Spinbox(top_toolbar, from_=1, to=16, width=3,
                                        textvariable=self.subplot_var,
                                        command=self._on_subplot_change)
         self.subplot_spin.pack(side=tk.LEFT)
         
+        ttk.Separator(top_toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        
         # Link axes checkbox
         self.link_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(toolbar_frame, text="Link Axes", variable=self.link_var,
-                       command=self._toggle_link_axes).pack(side=tk.LEFT, padx=10)
+        ttk.Checkbutton(top_toolbar, text="Link Axes", variable=self.link_var,
+                       command=self._toggle_link_axes).pack(side=tk.LEFT, padx=5)
         
         # Cursor checkbox
         self.cursor_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(toolbar_frame, text="Cursor", variable=self.cursor_var,
+        ttk.Checkbutton(top_toolbar, text="Cursor", variable=self.cursor_var,
                        command=self._toggle_cursor).pack(side=tk.LEFT)
         
-        # Add/remove tab buttons
-        ttk.Button(toolbar_frame, text="+", width=3,
+        # Tab buttons on right
+        ttk.Button(top_toolbar, text="+ Tab", width=6,
                   command=self._add_tab).pack(side=tk.RIGHT, padx=2)
-        ttk.Button(toolbar_frame, text="−", width=3,
+        ttk.Button(top_toolbar, text="− Tab", width=6,
                   command=self._remove_current_tab).pack(side=tk.RIGHT)
         
-        # Annotation button
-        ttk.Button(toolbar_frame, text="📝 Annotate",
+        ttk.Button(top_toolbar, text="📝 Note",
                   command=self._add_annotation).pack(side=tk.RIGHT, padx=5)
         
-        # Streaming controls
-        self.stream_btn = ttk.Button(toolbar_frame, text="▶ Stream",
-                                    command=self._toggle_streaming)
-        self.stream_btn.pack(side=tk.RIGHT, padx=10)
+        # Tab notebook (main area)
+        self.tab_notebook = ttk.Notebook(self.plot_frame)
+        self.tab_notebook.pack(fill=tk.BOTH, expand=True, pady=2)
+        self.tab_notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
         
-        ttk.Button(toolbar_frame, text="🔄 Refresh",
-                  command=self._refresh_csvs).pack(side=tk.RIGHT)
+        # Store figure references per tab
+        self.tab_figures: Dict[int, Tuple[Figure, FigureCanvasTkAgg]] = {}
+        
+        # Add initial tab
+        self._add_tab()
         
     def _add_tab(self, name: str = None):
         """Add a new tab"""
-        tab_idx = len(self.tabs) if hasattr(self, 'tabs') else 0
+        # Initialize tab_figures if not exists
+        if not hasattr(self, 'tab_figures'):
+            self.tab_figures = {}
+            
+        tab_idx = len(self.tab_figures)
         tab_name = name or f"Tab {tab_idx + 1}"
         
         # Create tab frame
@@ -587,35 +605,52 @@ class SignalViewerApp:
         self.tab_notebook.add(tab_frame, text=tab_name)
         
         # Create figure for this tab
-        self._create_tab_figure(tab_frame, tab_idx)
+        fig, canvas = self._create_tab_figure(tab_frame, tab_idx)
         
-        # Add tab config
+        # Store figure reference
+        self.tab_figures[tab_idx] = (fig, canvas)
+        
+        # Set as current figure
+        self.figure = fig
+        self.canvas = canvas
+        self.axes = []
+        
+        # Add tab config (avoid duplicates)
         if hasattr(self, 'tabs'):
-            self.tabs.append(TabConfig(name=tab_name))
+            # Only add if not already there
+            if len(self.tabs) <= tab_idx:
+                self.tabs.append(TabConfig(name=tab_name))
+            
+        # Select the new tab
+        self.tab_notebook.select(tab_idx)
+        self.current_tab_idx = tab_idx
         
-    def _create_tab_figure(self, parent, tab_idx: int):
+        # Update plot
+        self.root.after(50, self._update_plot)  # Slight delay to ensure canvas is ready
+        
+    def _create_tab_figure(self, parent, tab_idx: int) -> Tuple[Figure, FigureCanvasTkAgg]:
         """Create matplotlib figure in a tab"""
-        # Create figure
-        fig = Figure(figsize=(10, 6), dpi=100)
-        fig.set_facecolor(self.current_theme.plot_bg)
+        # Create figure with dark background
+        fig = Figure(figsize=(10, 6), dpi=100, facecolor=self.current_theme.plot_bg)
         
         # Create canvas
         canvas = FigureCanvasTkAgg(fig, master=parent)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        canvas_widget = canvas.get_tk_widget()
+        canvas_widget.pack(fill=tk.BOTH, expand=True)
         
-        # Add toolbar
-        toolbar = NavigationToolbar2Tk(canvas, parent)
+        # Add matplotlib navigation toolbar
+        toolbar_frame = ttk.Frame(parent)
+        toolbar_frame.pack(fill=tk.X, side=tk.BOTTOM)
+        toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
         toolbar.update()
-        
-        # Store references (for first tab or update existing)
-        if tab_idx == 0 or not hasattr(self, 'figure'):
-            self.figure = fig
-            self.canvas = canvas
-            self.axes = []
         
         # Connect click event for cursor
         canvas.mpl_connect('button_press_event', self._on_plot_click)
+        
+        # Initial draw
+        canvas.draw()
+        
+        return fig, canvas
         
     # ========================================================================
     # Event Handlers
@@ -632,9 +667,18 @@ class SignalViewerApp:
         
     def _on_tab_changed(self, event):
         """Handle tab change"""
-        tab_idx = self.tab_notebook.index(self.tab_notebook.select())
-        self.current_tab_idx = tab_idx
-        self._update_ui_for_tab()
+        try:
+            tab_idx = self.tab_notebook.index(self.tab_notebook.select())
+            self.current_tab_idx = tab_idx
+            
+            # Switch to this tab's figure
+            if hasattr(self, 'tab_figures') and tab_idx in self.tab_figures:
+                self.figure, self.canvas = self.tab_figures[tab_idx]
+                self.axes = []
+                
+            self._update_ui_for_tab()
+        except Exception:
+            pass  # Tab may not exist yet during initialization
         
     def _on_layout_change(self):
         """Handle layout (rows/cols) change"""
@@ -858,23 +902,26 @@ class SignalViewerApp:
                                                text=f"📁 {display_name} ({len(signals)})",
                                                open=True, tags=("csv",))
             
-            # Add signal nodes (limited for performance)
-            MAX_SIGNALS = 50
-            for sig_idx, sig in enumerate(signals[:MAX_SIGNALS]):
+            # Add ALL signal nodes (no limit - user requested)
+            for sig_idx, sig in enumerate(signals):
                 item_id = f"{csv_idx}:{sig}"
-                # Check if assigned
+                # Check if assigned or highlighted
                 is_assigned = self._is_signal_assigned(csv_idx, sig)
-                tag = "assigned" if is_assigned else "signal"
+                sig_key = make_signal_key(csv_idx, sig)
+                is_highlighted = sig_key in self.highlighted_signals
+                
+                # Build prefix
+                prefix = ""
+                if is_assigned:
+                    prefix = "✓ "
+                if is_highlighted:
+                    prefix = "★ " + prefix
+                    
+                tag = "assigned" if is_assigned else ("highlighted" if is_highlighted else "signal")
                 
                 self.signal_tree.insert(csv_node, tk.END, iid=item_id,
-                                        text=f"  {'✓ ' if is_assigned else ''}{sig}",
+                                        text=f"  {prefix}{sig}",
                                         tags=(tag, "signal"))
-            
-            # Show truncation message if needed
-            if len(signals) > MAX_SIGNALS:
-                self.signal_tree.insert(csv_node, tk.END, 
-                                        text=f"  ... {len(signals) - MAX_SIGNALS} more (use search)",
-                                        tags=("more",))
         
         # Add derived signals
         if self.derived_signals:
@@ -992,7 +1039,11 @@ class SignalViewerApp:
     
     def _update_plot(self):
         """Update the matplotlib plot"""
-        if not self.figure:
+        if not self.figure or not self.canvas:
+            return
+            
+        # Guard against invalid tab index
+        if self.current_tab_idx >= len(self.tabs):
             return
             
         tab = self.tabs[self.current_tab_idx]
@@ -1354,23 +1405,62 @@ class SignalViewerApp:
         menu = tk.Menu(self.root, tearoff=0)
         
         is_assigned = self._is_signal_assigned(csv_idx, signal_name)
+        sig_key = make_signal_key(csv_idx, signal_name)
+        is_highlighted = sig_key in self.highlighted_signals
         
+        # Assign/Remove
         if is_assigned:
-            menu.add_command(label="Remove from subplot", 
+            menu.add_command(label="✗ Remove from subplot", 
                            command=lambda: self._toggle_signal_assignment(csv_idx, signal_name))
         else:
-            menu.add_command(label="Assign to subplot",
+            menu.add_command(label="✓ Assign to subplot",
                            command=lambda: self._toggle_signal_assignment(csv_idx, signal_name))
-            
+        
         menu.add_separator()
-        menu.add_command(label="Properties...",
+        
+        # Highlight for multi-signal operations
+        if is_highlighted:
+            menu.add_command(label="★ Remove from selection",
+                           command=lambda: self._toggle_highlight(csv_idx, signal_name))
+        else:
+            menu.add_command(label="☆ Select for A+B operation",
+                           command=lambda: self._toggle_highlight(csv_idx, signal_name))
+        
+        menu.add_separator()
+        
+        # Single signal operations
+        menu.add_command(label="📊 Properties...",
                         command=lambda: self._show_properties_dialog(csv_idx, signal_name))
-        menu.add_command(label="Compute Derivative",
-                        command=lambda: self._compute_derived(csv_idx, signal_name, "derivative"))
-        menu.add_command(label="Compute Integral",
-                        command=lambda: self._compute_derived(csv_idx, signal_name, "integral"))
+        
+        ops_menu = tk.Menu(menu, tearoff=0)
+        ops_menu.add_command(label="Derivative (d/dt)",
+                            command=lambda: self._compute_derived(csv_idx, signal_name, "derivative"))
+        ops_menu.add_command(label="Integral (∫dt)",
+                            command=lambda: self._compute_derived(csv_idx, signal_name, "integral"))
+        ops_menu.add_command(label="Absolute |x|",
+                            command=lambda: self._compute_derived(csv_idx, signal_name, "abs"))
+        ops_menu.add_command(label="Square Root √x",
+                            command=lambda: self._compute_derived(csv_idx, signal_name, "sqrt"))
+        ops_menu.add_command(label="Negate -x",
+                            command=lambda: self._compute_derived(csv_idx, signal_name, "negate"))
+        menu.add_cascade(label="🧮 Single Signal Ops", menu=ops_menu)
         
         menu.tk_popup(event.x_root, event.y_root)
+        
+    def _toggle_highlight(self, csv_idx: int, signal_name: str):
+        """Toggle highlight for multi-signal operations"""
+        sig_key = make_signal_key(csv_idx, signal_name)
+        
+        if sig_key in self.highlighted_signals:
+            self.highlighted_signals.remove(sig_key)
+        else:
+            self.highlighted_signals.append(sig_key)
+            
+        # Update count label
+        self.highlight_count_label.config(text=str(len(self.highlighted_signals)))
+        
+        # Refresh tree to show highlight
+        self._update_signal_tree()
         
     def _show_multi_ops_dialog(self):
         """Show multi-signal operations dialog"""

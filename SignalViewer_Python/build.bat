@@ -4,8 +4,11 @@ REM Signal Viewer Pro v3.0 - Build Script
 REM ============================================
 REM 
 REM Usage:
-REM   build.bat        - Full clean build
-REM   build.bat fast   - Fast rebuild (uses cached analysis)
+REM   build.bat          - Build Dash (web) version
+REM   build.bat tk       - Build Tkinter (native) version
+REM   build.bat both     - Build both versions
+REM   build.bat fast     - Fast rebuild Dash version
+REM   build.bat tk fast  - Fast rebuild Tkinter version
 REM
 REM Features:
 REM   - Fully offline (no internet required)
@@ -19,15 +22,30 @@ echo   Signal Viewer Pro v3.0 - Build Script
 echo ============================================
 echo.
 
-REM Check for fast mode
+REM Parse arguments
+set BUILD_TK=0
+set BUILD_DASH=1
 set CLEAN_FLAG=--clean
 set BUILD_MODE=Full Build
-if "%1"=="fast" (
+
+if "%1"=="tk" (
+    set BUILD_TK=1
+    set BUILD_DASH=0
+    echo Target: TKINTER ^(Native GUI^)
+    if "%2"=="fast" (
+        set CLEAN_FLAG=
+        set BUILD_MODE=Fast Rebuild
+    )
+) else if "%1"=="both" (
+    set BUILD_TK=1
+    set BUILD_DASH=1
+    echo Target: BOTH VERSIONS
+) else if "%1"=="fast" (
     set CLEAN_FLAG=
     set BUILD_MODE=Fast Rebuild
-    echo Mode: FAST REBUILD ^(using cached analysis^)
+    echo Target: DASH ^(Web GUI^) - Fast
 ) else (
-    echo Mode: FULL BUILD ^(clean^)
+    echo Target: DASH ^(Web GUI^)
 )
 echo.
 
@@ -44,6 +62,7 @@ REM Kill any running SignalViewer.exe processes
 echo.
 echo Stopping any running SignalViewer instances...
 taskkill /F /IM SignalViewer.exe >nul 2>&1
+taskkill /F /IM SignalViewerTk.exe >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 REM Create required folders
@@ -53,7 +72,7 @@ if not exist "uploads" mkdir uploads
 if not exist "uploads\.cache" mkdir uploads\.cache
 
 REM Install required packages (skip in fast mode)
-if "%1"=="fast" (
+if "%BUILD_MODE%"=="Fast Rebuild" (
     echo Skipping dependency installation in fast mode...
 ) else (
     echo.
@@ -73,89 +92,129 @@ if errorlevel 1 (
     pip install pyinstaller==6.5.0
 )
 
-REM Clean previous builds (only in full mode)
-if "%1"=="fast" (
-    echo.
-    echo Cleaning dist folder only...
-    powershell -Command "if (Test-Path 'dist') { Remove-Item -Recurse -Force 'dist' -ErrorAction SilentlyContinue }"
-) else (
-    echo.
-    echo Cleaning previous builds...
-    powershell -Command "if (Test-Path 'build') { Remove-Item -Recurse -Force 'build' -ErrorAction SilentlyContinue }"
-    powershell -Command "if (Test-Path 'dist') { Remove-Item -Recurse -Force 'dist' -ErrorAction SilentlyContinue }"
-)
-timeout /t 1 /nobreak >nul
-
-REM Build the application
-echo.
-echo Building Signal Viewer Pro v3.0 (%BUILD_MODE%)...
-if "%1"=="fast" (
-    echo This should take about 1 minute...
-) else (
-    echo This may take 2-5 minutes...
-)
-echo.
-
-pyinstaller SignalViewer.spec %CLEAN_FLAG% --noconfirm
-
-if errorlevel 1 (
+REM ============================================
+REM Build Dash Version
+REM ============================================
+if %BUILD_DASH%==1 (
     echo.
     echo ============================================
-    echo   BUILD FAILED!
+    echo   Building DASH Version...
     echo ============================================
-    echo.
-    echo Check the error messages above.
-    echo Common fixes:
-    echo   - Close any running SignalViewer.exe
-    echo   - Close any File Explorer windows in dist folder
-    echo   - Run: pip install -r requirements.txt
-    echo   - Try full build: build.bat ^(without 'fast'^)
-    echo.
-    pause
-    exit /b 1
+    
+    if "%BUILD_MODE%"=="Fast Rebuild" (
+        echo Cleaning dist folder only...
+        powershell -Command "if (Test-Path 'dist\SignalViewer') { Remove-Item -Recurse -Force 'dist\SignalViewer' -ErrorAction SilentlyContinue }"
+    ) else (
+        echo Cleaning previous builds...
+        powershell -Command "if (Test-Path 'build') { Remove-Item -Recurse -Force 'build' -ErrorAction SilentlyContinue }"
+        powershell -Command "if (Test-Path 'dist\SignalViewer') { Remove-Item -Recurse -Force 'dist\SignalViewer' -ErrorAction SilentlyContinue }"
+    )
+    timeout /t 1 /nobreak >nul
+    
+    echo Building Signal Viewer Pro - Dash Version...
+    pyinstaller SignalViewer.spec %CLEAN_FLAG% --noconfirm
+    
+    if errorlevel 1 (
+        echo.
+        echo BUILD FAILED for Dash version!
+        echo Check errors above.
+    ) else (
+        echo Dash version built successfully!
+        if not exist "dist\SignalViewer\uploads" mkdir "dist\SignalViewer\uploads"
+        if not exist "dist\SignalViewer\uploads\.cache" mkdir "dist\SignalViewer\uploads\.cache"
+    )
 )
 
-REM Create uploads folder in dist
-echo.
-echo Setting up distribution folder...
-if not exist "dist\SignalViewer\uploads" mkdir "dist\SignalViewer\uploads"
-if not exist "dist\SignalViewer\uploads\.cache" mkdir "dist\SignalViewer\uploads\.cache"
+REM ============================================
+REM Build Tkinter Version
+REM ============================================
+if %BUILD_TK%==1 (
+    echo.
+    echo ============================================
+    echo   Building TKINTER Version...
+    echo ============================================
+    
+    if "%BUILD_MODE%"=="Fast Rebuild" (
+        echo Cleaning dist folder only...
+        powershell -Command "if (Test-Path 'dist\SignalViewerTk') { Remove-Item -Recurse -Force 'dist\SignalViewerTk' -ErrorAction SilentlyContinue }"
+    ) else (
+        powershell -Command "if (Test-Path 'dist\SignalViewerTk') { Remove-Item -Recurse -Force 'dist\SignalViewerTk' -ErrorAction SilentlyContinue }"
+    )
+    
+    echo Building Signal Viewer Pro - Tkinter Version...
+    
+    REM Create spec file for Tkinter version if not exists
+    if not exist "SignalViewerTk.spec" (
+        echo Creating Tkinter spec file...
+        pyinstaller --name SignalViewerTk ^
+            --onedir ^
+            --windowed ^
+            --icon=assets/icon.ico ^
+            --add-data "assets;assets" ^
+            --hidden-import=matplotlib ^
+            --hidden-import=matplotlib.backends.backend_tkagg ^
+            --hidden-import=pandas ^
+            --hidden-import=numpy ^
+            --collect-all matplotlib ^
+            app_tk.py
+    ) else (
+        pyinstaller SignalViewerTk.spec %CLEAN_FLAG% --noconfirm
+    )
+    
+    if errorlevel 1 (
+        echo.
+        echo BUILD FAILED for Tkinter version!
+        echo Check errors above.
+    ) else (
+        echo Tkinter version built successfully!
+        if not exist "dist\SignalViewerTk\uploads" mkdir "dist\SignalViewerTk\uploads"
+    )
+)
 
-REM Create ZIP file for distribution
+REM Create ZIP files for distribution
 echo.
-echo Creating distribution ZIP file...
-powershell -Command "if (Test-Path 'SignalViewer.zip') { Remove-Item 'SignalViewer.zip' -Force }"
-powershell -Command "Compress-Archive -Path 'dist\SignalViewer' -DestinationPath 'SignalViewer.zip' -Force"
+echo Creating distribution ZIP files...
 
-if errorlevel 1 (
-    echo WARNING: Failed to create ZIP file
-) else (
-    echo ZIP file created: SignalViewer.zip
+if %BUILD_DASH%==1 (
+    if exist "dist\SignalViewer" (
+        powershell -Command "if (Test-Path 'SignalViewer.zip') { Remove-Item 'SignalViewer.zip' -Force }"
+        powershell -Command "Compress-Archive -Path 'dist\SignalViewer' -DestinationPath 'SignalViewer.zip' -Force"
+        echo Created: SignalViewer.zip ^(Dash/Web version^)
+    )
+)
+
+if %BUILD_TK%==1 (
+    if exist "dist\SignalViewerTk" (
+        powershell -Command "if (Test-Path 'SignalViewerTk.zip') { Remove-Item 'SignalViewerTk.zip' -Force }"
+        powershell -Command "Compress-Archive -Path 'dist\SignalViewerTk' -DestinationPath 'SignalViewerTk.zip' -Force"
+        echo Created: SignalViewerTk.zip ^(Tkinter/Native version^)
+    )
 )
 
 echo.
 echo ============================================
-echo   BUILD SUCCESSFUL!
+echo   BUILD COMPLETE!
 echo ============================================
 echo.
-echo Output folder: dist\SignalViewer\
-echo Executable:    dist\SignalViewer\SignalViewer.exe
-echo ZIP file:      SignalViewer.zip
-echo.
-echo To run:
-echo   cd dist\SignalViewer
-echo   SignalViewer.exe
-echo.
-echo To distribute:
-echo   Share the SignalViewer.zip file
-echo   Users extract and run SignalViewer.exe
-echo.
-echo Features:
-echo   - Fully OFFLINE (no internet needed)
-echo   - Native file browser (Browse Files button)
-echo   - Streaming from original file locations
-echo.
-echo TIP: Use "build.bat fast" for faster rebuilds!
+if %BUILD_DASH%==1 (
+    echo DASH Version:
+    echo   Folder:     dist\SignalViewer\
+    echo   Executable: dist\SignalViewer\SignalViewer.exe
+    echo   ZIP:        SignalViewer.zip
+    echo.
+)
+if %BUILD_TK%==1 (
+    echo TKINTER Version:
+    echo   Folder:     dist\SignalViewerTk\
+    echo   Executable: dist\SignalViewerTk\SignalViewerTk.exe
+    echo   ZIP:        SignalViewerTk.zip
+    echo.
+)
+echo Usage:
+echo   build.bat       - Build Dash version
+echo   build.bat tk    - Build Tkinter version  
+echo   build.bat both  - Build both versions
+echo   build.bat fast  - Fast rebuild
 echo.
 
 pause
