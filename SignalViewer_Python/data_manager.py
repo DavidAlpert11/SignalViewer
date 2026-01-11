@@ -459,7 +459,14 @@ class DataManager:
         end: Optional[float] = None,
         use_cache: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Get raw signal data with optional time range filter (no downsampling)"""
+        """Get raw signal data with optional time range filter (no downsampling)
+        
+        PERFORMANCE NOTES:
+        - Uses numpy arrays directly for speed
+        - Caches results to avoid repeated DataFrame access
+        - Skips NaN check if data is integer type (faster)
+        - Uses views instead of copies where possible
+        """
 
         # Check memory cache first (only for full-range queries)
         if use_cache and start is None and end is None:
@@ -483,19 +490,36 @@ class DataManager:
             if signal_name not in df.columns:
                 return np.array([]), np.array([])
 
-            # Extract data
+            # PERFORMANCE: Extract data as numpy arrays directly
+            # .values returns the underlying numpy array without copy
             time_data = df["Time"].values
             signal_data = df[signal_name].values
+            
+            # PERFORMANCE: Ensure contiguous arrays for faster processing
+            if not time_data.flags['C_CONTIGUOUS']:
+                time_data = np.ascontiguousarray(time_data)
+            if not signal_data.flags['C_CONTIGUOUS']:
+                signal_data = np.ascontiguousarray(signal_data)
 
             # PERFORMANCE: Apply scaling only when != 1.0 (avoid array copy)
             scale_factor = self.signal_scaling.get(signal_name, 1.0)
             if scale_factor != 1.0:
                 signal_data = signal_data * scale_factor
 
-            # PERFORMANCE: Remove NaN values - use np.isfinite for single check
-            # Skip NaN check if data is known to be clean (e.g., float32/64 from CSV)
-            if time_data.dtype.kind == 'f' or signal_data.dtype.kind == 'f':
-                valid_mask = np.isfinite(time_data) & np.isfinite(signal_data)
+            # PERFORMANCE: Remove NaN values only for float types
+            # Integer arrays cannot have NaN, so skip the check
+            if signal_data.dtype.kind == 'f':
+                # Use np.isfinite which handles inf and nan in one check
+                valid_mask = np.isfinite(signal_data)
+                if not np.all(valid_mask):
+                    if not np.any(valid_mask):
+                        return np.array([]), np.array([])
+                    time_data = time_data[valid_mask]
+                    signal_data = signal_data[valid_mask]
+            
+            # Also check time data if float
+            if time_data.dtype.kind == 'f':
+                valid_mask = np.isfinite(time_data)
                 if not np.all(valid_mask):
                     if not np.any(valid_mask):
                         return np.array([]), np.array([])

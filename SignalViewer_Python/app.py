@@ -48,6 +48,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+from collections import Counter  # For efficient duplicate detection
 import os
 import base64
 import json
@@ -85,12 +86,68 @@ from helpers import (
     compare_csv_signals,
 )
 from callback_helpers import clear_performance_cache
+import hashlib
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("SignalViewer")
+
+
+# ============================================================================
+# FIX #1: Safe ID hashing for pattern-matching callbacks
+# Prevents "TypeError: unhashable type: 'dict'" errors
+# ============================================================================
+
+def safe_id_hash(id_dict: Dict) -> str:
+    """
+    Convert dict ID to hashable string for safe comparison.
+    Fixes: TypeError: unhashable type: 'dict'
+    
+    Args:
+        id_dict: Pattern-matching callback ID dictionary
+        
+    Returns:
+        Stable hash string
+    """
+    if not isinstance(id_dict, dict):
+        return str(id_dict)
+    
+    # Sort keys for stable hash
+    items = sorted(id_dict.items())
+    id_str = json.dumps(items, sort_keys=True)
+    return hashlib.md5(id_str.encode()).hexdigest()
+
+
+def get_triggered_id_info() -> Tuple[Optional[str], Optional[Dict]]:
+    """
+    Get triggered callback ID and info safely without unhashable dict errors.
+    
+    Returns:
+        (prop_id_string, id_dict or None)
+    """
+    ctx = callback_context
+    
+    if not ctx.triggered:
+        return None, None
+    
+    triggered = ctx.triggered[0]
+    prop_id = triggered.get("prop_id", "")
+    
+    # Try to extract dict ID from prop_id
+    try:
+        if "." in prop_id:
+            id_part = prop_id.split(".")[0]
+            # Check if it's a dict (pattern-matching)
+            if id_part.startswith("{"):
+                id_dict = json.loads(id_part)
+                return prop_id, id_dict
+    except:
+        pass
+    
+    return prop_id, None
+
 
 # Legacy compatibility - keep THEMES dict for existing code
 THEMES = {
@@ -136,14 +193,27 @@ class SignalViewerApp:
         self._signal_cache = {}  # Raw data cache: {(csv_idx, signal_name, time_col): (x_data, y_data)}
         self._cache_valid = True
         self._last_figure_hash = None  # Track if figure needs rebuild
+        self._last_figure = None  # Cache last figure for fast cursor updates
         self._signal_list_cache = {}  # Cache for signal names per CSV: {csv_idx: [signal_names]}
         self._signal_list_version = 0  # Increment when CSVs change
         self._last_tree_state = {}  # Cache for signal tree updates
-        
+        self._numpy_array_cache = {}  # Pre-converted numpy arrays: {(csv_idx, signal): ndarray}
+
+        # PERFORMANCE BOOST: Enhanced figure caching to eliminate white flash
+        self._figure_cache = {}  # {(tab_idx, state_hash): go.Figure}
+        self._state_hash_cache = {}  # {tab_idx: last_state_hash}
+        self._last_render_time = 0  # Track render performance
+        self._render_count = 0  # Count renders for monitoring
+        self._cache_hit_count = 0  # Track cache effectiveness
+        self._cache_miss_count = 0  # Track cache misses
+
         # Display settings - PERFORMANCE via WebGL (no downsampling - show all raw points)
         self.WEBGL_THRESHOLD = 0  # ALWAYS use WebGL for hardware acceleration
-        self.HOVER_THRESHOLD = 2000  # Disable hover above this many points for performance
-        self.LARGE_DATA_THRESHOLD = 10000  # Above this, use thinner lines
+        self.HOVER_THRESHOLD = 5000  # Disable hover above this many points for performance
+        self.LARGE_DATA_THRESHOLD = 50000  # Above this, use thinner lines
+
+        # PERFORMANCE: Pre-compute thresholds for adaptive rendering
+        self.ULTRA_LARGE_THRESHOLD = 500000  # Above this, use minimal rendering options
 
         self.app.layout = self.create_layout()
         self.setup_callbacks()
@@ -152,7 +222,10 @@ class SignalViewerApp:
         """Clean up all cache files on app startup for fresh state"""
         import shutil
         
-        print("[CLEANUP] Cleaning up uploads folder on startup...")
+        print("[STARTUP] ========================================")
+        print("[STARTUP] Signal Viewer Pro - Initializing...")
+        print("[STARTUP] ========================================")
+        print("[CLEANUP] Cleaning up all caches on startup...")
         
         # Clean entire uploads folder (CSVs and cache)
         uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
@@ -166,17 +239,124 @@ class SignalViewerApp:
         # Recreate empty uploads folder
         os.makedirs(uploads_dir, exist_ok=True)
         
-        print("   [OK] Cleanup complete")
+        # Clear in-memory caches (important for fresh start)
+        self._signal_cache = {}
+        self._signal_list_cache = {}
+        self._figure_cache = {}
+        self._state_hash_cache = {}
+        self._numpy_array_cache = {}
+        self._last_tree_state = {}
+        self._last_figure_hash = None
+        self._last_figure = None
+        
+        print("   [OK] Cleared in-memory caches")
+        print("[CLEANUP] Cleanup complete - starting with fresh state")
+        print("[STARTUP] ========================================")
+    
+    def _perf_timer(self, name: str):
+        """Context manager for performance timing - outputs to console"""
+        import time
+        
+        class PerfTimer:
+            def __init__(self, timer_name):
+                self.name = timer_name
+                self.start = None
+            
+            def __enter__(self):
+                self.start = time.perf_counter()
+                return self
+            
+            def __exit__(self, *args):
+                elapsed_ms = (time.perf_counter() - self.start) * 1000
+                # Color code based on performance
+                if elapsed_ms < 50:
+                    status = "⚡"  # Fast
+                elif elapsed_ms < 200:
+                    status = "⏱️"   # OK
+                elif elapsed_ms < 500:
+                    status = "🐢"  # Slow
+                else:
+                    status = "🔴"  # Very slow
+                print(f"[PERF] {status} {self.name}: {elapsed_ms:.1f}ms")
+        
+        return PerfTimer(name)
 
     def invalidate_caches(self):
         """Invalidate all caches when data changes"""
         self._signal_cache.clear()
         self._signal_list_cache.clear()
         self._last_figure_hash = None
+
+        # PERFORMANCE: Clear enhanced figure cache
+        self._figure_cache.clear()
+        self._state_hash_cache.clear()
+
         # Also clear the callback helper caches (signal tree, highlighted signals)
         clear_performance_cache()
         self._cache_valid = True
         self._signal_list_version += 1
+
+        # Log cache statistics for monitoring
+        if self._cache_hit_count + self._cache_miss_count > 0:
+            hit_rate = (self._cache_hit_count / (self._cache_hit_count + self._cache_miss_count)) * 100
+            print(f"[CACHE] Stats: {self._cache_hit_count} hits, {self._cache_miss_count} misses ({hit_rate:.1f}% hit rate)")
+        self._cache_hit_count = 0
+        self._cache_miss_count = 0
+    
+    def _compute_figure_hash(self, assignments, tab_key, layouts, props,
+                              display_options, cursor_x, link_axes, time_columns,
+                              x_axis_signals=None, subplot_modes=None) -> str:
+        """Compute a hash of figure-affecting state to detect if rebuild is needed.
+
+        This allows skipping expensive figure rebuilds when only non-data things change.
+        Includes X-axis signals and subplot modes for X-Y mode support.
+        """
+        import hashlib
+
+        # Get relevant state
+        tab_assignments = assignments.get(tab_key, {})
+        tab_layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+
+        # Create a string representation of state that affects traces
+        # NOTE: cursor_x is NOT included because cursor line can be updated via Patch
+        # without rebuilding the entire figure (MAJOR PERFORMANCE OPTIMIZATION)
+        state_parts = [
+            f"tab:{tab_key}",
+            f"layout:{tab_layout}",
+            f"link:{link_axes}",
+            # REMOVED: f"cursor:{cursor_x}", - cursor updates use Patch now
+            f"timecols:{time_columns}",
+        ]
+
+        # Add subplot modes (affects X-Y vs time mode)
+        if subplot_modes:
+            tab_modes = subplot_modes.get(tab_key, {})
+            for sp_key, mode in sorted(tab_modes.items()):
+                state_parts.append(f"mode:{sp_key}:{mode}")
+
+        # Add X-axis signals (critical for X-Y mode)
+        if x_axis_signals:
+            tab_x_axis = x_axis_signals.get(tab_key, {})
+            for sp_key, x_sig in sorted(tab_x_axis.items()):
+                state_parts.append(f"xaxis:{sp_key}:{x_sig}")
+
+        # Add assignments (signal data)
+        for sp_key, signals in sorted(tab_assignments.items()):
+            if isinstance(signals, list):
+                for s in signals:
+                    state_parts.append(f"sig:{sp_key}:{s.get('csv_idx')}:{s.get('signal')}")
+
+        # Add relevant props
+        for sig_key, p in sorted(props.items()):
+            state_parts.append(f"prop:{sig_key}:{p.get('scale',1)}:{p.get('color','')}:{p.get('width',1.5)}")
+
+        # Add display options
+        tab_display = display_options.get(tab_key, {})
+        for sp_key, opts in sorted(tab_display.items()):
+            state_parts.append(f"disp:{sp_key}:{opts}")
+
+        state_str = "|".join(state_parts)
+        return hashlib.md5(state_str.encode()).hexdigest()[:16]
 
     def get_signal_names_cached(self, csv_idx: int) -> list[str]:
         """Get cached list of signal names for a CSV (excluding Time column)"""
@@ -256,6 +436,7 @@ class SignalViewerApp:
                 dcc.Interval(id='interval-streaming', interval=200, disabled=True),
                 dcc.Store(id="store-search-filters", data=[]),
                 dcc.Store(id="store-cursor-x", data={"x": None, "initialized": False}),
+                dcc.Store(id="store-cursor-slider", data=50),  # Slider position (0-100) to break circular dependency
                 dcc.Store(
                     id="store-subplot-modes", data={}
                 ),  # {tab: {subplot: "time"|"xy"}}
@@ -285,6 +466,13 @@ class SignalViewerApp:
                 dcc.Store(
                     id="store-display-options", data={}
                 ),  # {tab: {subplot: {markers: bool, normalize: bool}}}
+                # PERFORMANCE: Cache figure to avoid rebuilds when only layout changes
+                dcc.Store(id="store-figure-cache", data=None),
+                dcc.Store(id="store-figure-hash", data=""),
+                # PERFORMANCE: Track visible X range for viewport-based updates
+                dcc.Store(id="store-visible-range", data={}),  # {tab: {xmin, xmax}}
+                # PRESETS: Saved layout presets
+                dcc.Store(id="store-presets", data={}, storage_type="local"),  # Persistent presets saved to localStorage
                 dcc.Download(id="download-session"),
                 dcc.Download(id="download-template"),
                 dcc.Download(id="download-csv-export"),
@@ -462,16 +650,17 @@ class SignalViewerApp:
                                                         ),
                                                         dbc.CardBody(
                                                             [
-                                                                # Search with filter list
+                                                                # Search with autocomplete and filter list
                                                                 html.Div(
                                                                     [
                                                                         dbc.InputGroup(
                                                                             [
                                                                                 dbc.Input(
                                                                                     id="search-input",
-                                                                                    placeholder="Search...",
+                                                                                    placeholder="Search signals... (type to see suggestions)",
                                                                                     size="sm",
-                                                                                    debounce=True,  # PERFORMANCE: Wait for user to stop typing
+                                                                                    debounce=False,  # Instant for autocomplete
+                                                                                    autocomplete="off",
                                                                                 ),
                                                                                 dbc.Button(
                                                                                     "+",
@@ -483,6 +672,22 @@ class SignalViewerApp:
                                                                                 ),
                                                                             ],
                                                                             size="sm",
+                                                                        ),
+                                                                        # Autocomplete suggestions dropdown
+                                                                        html.Div(
+                                                                            id="search-autocomplete-dropdown",
+                                                                            style={
+                                                                                "display": "none",
+                                                                                "position": "absolute",
+                                                                                "zIndex": 1000,
+                                                                                "backgroundColor": "#1a1a2e",
+                                                                                "border": "1px solid #4ea8de",
+                                                                                "borderRadius": "4px",
+                                                                                "maxHeight": "200px",
+                                                                                "overflowY": "auto",
+                                                                                "width": "100%",
+                                                                                "boxShadow": "0 4px 12px rgba(0,0,0,0.3)",
+                                                                            },
                                                                         ),
                                                                         # Active filters display
                                                                         html.Div(
@@ -588,14 +793,18 @@ class SignalViewerApp:
                                             [
                                                 dbc.Card(
                                                     [
-                                                        dbc.CardHeader(
-                                                            html.Small(
-                                                                "📋 Assigned",
-                                                                className="fw-bold",
+                                                            dbc.CardHeader(
+                                                                [
+                                                                    html.Span("📋", className="me-2", style={"fontSize": "14px"}),
+                                                                    html.Small(
+                                                                        "Assigned",
+                                                                        className="fw-bold",
+                                                                        style={"fontSize": "12px", "letterSpacing": "0.3px"},
+                                                                    ),
+                                                                ],
+                                                                id="card-header-assigned",
+                                                                className="py-2",
                                                             ),
-                                                            id="card-header-assigned",
-                                                            className="py-2",
-                                                        ),
                                                         dbc.CardBody(
                                                             [
                                                                 # Mode toggle: Time vs X-Y
@@ -810,28 +1019,7 @@ class SignalViewerApp:
                                                                                     ),
                                                                                     accept=".json",
                                                                                 ),
-                                                                                # Template management
-                                                                                dbc.Button(
-                                                                                    "📋",
-                                                                                    id="btn-save-template",
-                                                                                    size="sm",
-                                                                                    color="warning",
-                                                                                    outline=True,
-                                                                                    title="Save template (layout + signal names)",
-                                                                                    className="px-2",
-                                                                                ),
-                                                                                dcc.Upload(
-                                                                                    id="upload-template",
-                                                                                    children=dbc.Button(
-                                                                                        "📄",
-                                                                                        size="sm",
-                                                                                        color="warning",
-                                                                                        outline=True,
-                                                                                        title="Load template",
-                                                                                        className="px-2",
-                                                                                    ),
-                                                                                    accept=".json",
-                                                                                ),
+                                                                                # Template management removed - use session save/load instead
                                                                                 # Export buttons
                                                                                 dbc.Button(
                                                                                     "📊",
@@ -958,11 +1146,50 @@ class SignalViewerApp:
                                                                                     value=False,
                                                                                     className="ms-2 small",
                                                                                 ),
-                                                                                dbc.Checkbox(
+                                                                                    dbc.Checkbox(
                                                                                     id="time-cursor-check",
                                                                                     label="Cursor",
                                                                                     value=True,
                                                                                     className="ms-2 small",
+                                                                                ),
+                                                                                # Cursor playback controls (beside layout buttons)
+                                                                                html.Div(
+                                                                                    [
+                                                                                        dbc.Button(
+                                                                                            id="btn-cursor-play-header",
+                                                                                            children="▶",
+                                                                                            size="sm",
+                                                                                            color="success",
+                                                                                            outline=True,
+                                                                                            className="ms-2 px-2",
+                                                                                            title="Play cursor animation",
+                                                                                            style={"fontFamily": "system-ui"},
+                                                                                        ),
+                                                                                        dbc.Button(
+                                                                                            id="btn-cursor-stop-header",
+                                                                                            children="⏹",
+                                                                                            size="sm",
+                                                                                            color="danger",
+                                                                                            outline=True,
+                                                                                            className="px-2",
+                                                                                            title="Stop cursor animation",
+                                                                                            style={"fontFamily": "system-ui"},
+                                                                                        ),
+                                                                                        dcc.Slider(
+                                                                                            id="cursor-slider-header",
+                                                                                            min=0,
+                                                                                            max=100,
+                                                                                            value=50,
+                                                                                            step=0.5,
+                                                                                            marks=None,
+                                                                                            tooltip={"placement": "bottom", "always_visible": False},
+                                                                                            className="cursor-slider-header ms-2",
+                                                                                            disabled=False,
+                                                                                        ),
+                                                                                    ],
+                                                                                    id="cursor-controls-header",
+                                                                                    className="d-flex align-items-center",
+                                                                                    style={"display": "none", "minWidth": "150px"},  # Hidden by default
                                                                                 ),
                                                                             ],
                                                                             className="d-flex align-items-center justify-content-end",
@@ -1020,6 +1247,8 @@ class SignalViewerApp:
                                                             ],
                                                             style={"display": "none"},
                                                         ),
+                                                        # Direct Graph - no Spinner to avoid white flash
+                                                        # Always keep a valid figure structure to prevent blank screen
                                                         dcc.Graph(
                                                             id="plot",
                                                             # PERFORMANCE: Config for fast rendering
@@ -1030,15 +1259,26 @@ class SignalViewerApp:
                                                                 "modeBarButtonsToRemove": ["lasso2d", "select2d"],
                                                                 "doubleClick": "reset+autosize",
                                                                 "showTips": False,
+                                                                # CRITICAL: Preserve figure during updates
+                                                                "plotGlPixelRatio": 2,  # Better WebGL quality
                                                             },
                                                             figure={
-                                                                "data": [],
+                                                                "data": [{
+                                                                    "x": [0],
+                                                                    "y": [0],
+                                                                    "mode": "markers",
+                                                                    "marker": {"size": 1, "opacity": 0},
+                                                                    "showlegend": False,
+                                                                    "hoverinfo": "skip",
+                                                                }],  # Invisible placeholder to prevent blank
                                                                 "layout": {
                                                                     "xaxis": {
-                                                                        "title": "Time"
+                                                                        "title": "Time",
+                                                                        "range": [0, 1],
                                                                     },
                                                                     "yaxis": {
-                                                                        "title": "Value"
+                                                                        "title": "Value",
+                                                                        "range": [0, 1],
                                                                     },
                                                                     "template": "plotly_dark",
                                                                     "paper_bgcolor": "#16213e",
@@ -1052,11 +1292,66 @@ class SignalViewerApp:
                                                                         "t": 30,
                                                                         "b": 40,
                                                                     },
-                                                                    # PERFORMANCE: Preserve state on updates
-                                                                    "uirevision": "constant",
+                                                                    # CRITICAL: Preserve zoom/pan state during updates
+                                                                    "uirevision": True,  # Use True instead of "constant" for better state preservation
                                                                 },
                                                             },
                                                             style={"height": "100%"},
+                                                        ),
+                                                        # Modern: Slider cursor control at bottom of plot with play/stop
+                                                        html.Div(
+                                                            [
+                                                                html.Div(
+                                                                    [
+                                                                        html.Small("Time Cursor: ", className="text-muted me-2"),
+                                                                        dbc.Button(
+                                                                            id="btn-cursor-play",
+                                                                            children="▶",
+                                                                            size="sm",
+                                                                            style={"fontFamily": "system-ui"},
+                                                                            color="primary",
+                                                                            outline=True,
+                                                                            className="me-2",
+                                                                        ),
+                                                                        dbc.Button(
+                                                                            id="btn-cursor-stop",
+                                                                            children="⏹",
+                                                                            size="sm",
+                                                                            color="secondary",
+                                                                            outline=True,
+                                                                            className="me-2",
+                                                                            style={"fontFamily": "system-ui"},
+                                                                        ),
+                                                                        html.Small(id="cursor-slider-value", className="text-muted me-2", children="--"),
+                                                                    ],
+                                                                    className="d-flex align-items-center mb-2",
+                                                                ),
+                                                                dcc.Slider(
+                                                                    id="cursor-slider",
+                                                                    min=0,
+                                                                    max=100,
+                                                                    value=50,
+                                                                    step=0.001,  # High resolution stepping
+                                                                    marks=None,
+                                                                    tooltip={"placement": "bottom", "always_visible": True},
+                                                                    disabled=True,  # Enabled when cursor is active
+                                                                    className="cursor-slider",
+                                                                    updatemode="drag",  # Update on drag for smooth control
+                                                                ),
+                                                                dcc.Interval(
+                                                                    id="interval-cursor-animation",
+                                                                    interval=100,  # Update every 100ms
+                                                                    disabled=True,
+                                                                ),
+                                                            ],
+                                                            id="cursor-slider-container",
+                                                            style={
+                                                                "display": "none",  # Hidden by default, shown when cursor enabled
+                                                                "padding": "5px 10px",
+                                                                "backgroundColor": "rgba(0,0,0,0.05)",
+                                                                "borderRadius": "4px",
+                                                                "marginTop": "5px",
+                                                            },
                                                         ),
                                                     ],
                                                     id="card-body-plot",
@@ -1831,6 +2126,10 @@ class SignalViewerApp:
         Returns:
             go.Figure: Configured Plotly figure with subplots
         """
+        import time as _time
+        _start = _time.perf_counter()
+        print(f"[PERF] 🔧 create_figure() started - tab={tab_key}, {rows}x{cols} layout")
+        
         colors = THEMES[theme]
 
         # Calculate optimal spacing based on subplot count
@@ -1889,8 +2188,9 @@ class SignalViewerApp:
             )
 
         # PERFORMANCE: uirevision controls zoom/pan state persistence
-        # Include link_axes in revision so axes reset when linking changes
-        ui_revision = f"link_{link_axes}"
+        # CRITICAL: Use a constant value to preserve zoom/pan state across updates
+        # Changing uirevision causes zoom/pan to reset, leading to white pages
+        ui_revision = "preserve_zoom_pan"
         
         fig.update_layout(
             paper_bgcolor=colors["paper_bg"],
@@ -1928,8 +2228,9 @@ class SignalViewerApp:
             subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
 
             # Add a small invisible trace to ensure axes are shown
+            # Use Scattergl for WebGL acceleration
             fig.add_trace(
-                go.Scatter(
+                go.Scattergl(
                     x=[0],
                     y=[0],
                     mode="markers",
@@ -1946,6 +2247,7 @@ class SignalViewerApp:
                 zerolinecolor=colors["border"],
                 title_text="Time",
                 title_font=dict(size=9),
+                title_standoff=10,  # Fixed distance from axis to prevent jumping
                 tickfont=dict(size=8),
                 showline=True,
                 linewidth=border_width,
@@ -1953,6 +2255,9 @@ class SignalViewerApp:
                 mirror=True,
                 showgrid=True,
                 autorange=True,
+                # CRITICAL: Fix xlabel position to prevent jumping
+                automargin=False,  # Disable automatic margin adjustment
+                side="bottom",  # Always at bottom
                 showspikes=False,  # Cursor is click-based, not hover-based
                 row=r,
                 col=c,
@@ -1983,32 +2288,69 @@ class SignalViewerApp:
 
         if assignments and tab_key in assignments:
             # First pass: collect all signal names to check for duplicates
-            all_signal_names = []
-            for sp_idx in range(rows * cols):
-                sp_assignment = assignments.get(tab_key, {}).get(str(sp_idx), [])
-                # Handle both list (time mode) and dict (xy mode) formats
-                # Assignments are always a list
-                if isinstance(sp_assignment, list):
-                    for sig in sp_assignment:
-                        all_signal_names.append(sig.get("signal", ""))
-            # Find duplicate signal names
-            duplicate_signals = set(
-                n for n in all_signal_names if all_signal_names.count(n) > 1
-            )
+            # PERFORMANCE: Use list comprehension and Counter for faster duplicate detection
+            all_signal_names = [
+                sig.get("signal", "")
+                for sp_idx in range(rows * cols)
+                for sig in (assignments.get(tab_key, {}).get(str(sp_idx), []) or [])
+                if isinstance(assignments.get(tab_key, {}).get(str(sp_idx), []), list)
+            ]
+            # PERFORMANCE: Use Counter for O(n) duplicate detection instead of O(n²) count()
+            signal_counts = Counter(all_signal_names)
+            duplicate_signals = {name for name, count in signal_counts.items() if count > 1}
 
             # Track colors by signal key for consistency across subplots
             signal_color_map = {}  # {signal_key: color}
             trace_idx = 0  # Unique trace counter for independent legend behavior
             for sp_idx in range(rows * cols):
                 subplot_signal_data[sp_idx] = []
-                sp_assignment = assignments.get(tab_key, {}).get(str(sp_idx), [])
+                # FIX: Sanitize assignments access to prevent unhashable dict errors, especially for tab "0"
+                tab_assignments = assignments.get(tab_key, {})
+                if not isinstance(tab_assignments, dict):
+                    tab_assignments = {}
+                sp_assignment_raw = tab_assignments.get(str(sp_idx), [])
+                # Ensure sp_assignment is always a list with proper dict items
+                if isinstance(sp_assignment_raw, list):
+                    sp_assignment = [
+                        s for s in sp_assignment_raw
+                        if isinstance(s, dict) and 'csv_idx' in s and 'signal' in s
+                    ]
+                elif isinstance(sp_assignment_raw, dict):
+                    # Old dict format - convert to empty list
+                    sp_assignment = []
+                else:
+                    # Invalid format - use empty list
+                    sp_assignment = []
                 r = sp_idx // cols + 1
                 c = sp_idx % cols + 1
 
                 # Get subplot mode and X-axis signal
-                subplot_mode = subplot_modes.get(str(sp_idx), "time")
-                x_axis_signals = x_axis_signals or {}
-                x_axis_choice = x_axis_signals.get(str(sp_idx), "time")
+                # IMPORTANT: subplot_modes is ALREADY the per-tab dict passed from handle_assignments
+                # Structure: {subplot_key: mode} NOT {tab_key: {subplot_key: mode}}
+                subplot_mode = "time"  # Default
+                if subplot_modes:
+                    if isinstance(subplot_modes, dict):
+                        # It's a dict - get mode for this subplot
+                        subplot_mode = subplot_modes.get(str(sp_idx), "time")
+                    elif isinstance(subplot_modes, str):
+                        # Corrupted data - it's a mode string directly
+                        subplot_mode = subplot_modes
+                        print(f"[WARN] subplot_modes is a string '{subplot_modes}', expected dict")
+                
+                # IMPORTANT: x_axis_signals is ALREADY the per-tab dict passed from handle_assignments
+                # Structure: {subplot_key: signal_key} NOT {tab_key: {subplot_key: signal_key}}
+                x_axis_choice = "time"  # Default
+                if x_axis_signals:
+                    if isinstance(x_axis_signals, dict):
+                        x_axis_choice = x_axis_signals.get(str(sp_idx), "time")
+                    elif isinstance(x_axis_signals, str):
+                        # Corrupted data - it's a signal key directly
+                        x_axis_choice = x_axis_signals
+                        print(f"[WARN] x_axis_signals is a string '{x_axis_signals}', expected dict")
+                
+                # Debug: Log X-Y mode status
+                if subplot_mode == "xy":
+                    print(f"[X-Y DEBUG] Subplot {sp_idx}: mode={subplot_mode}, x_axis_choice={x_axis_choice}")
                 time_columns = time_columns or {}
 
                 # Handle both list and dict assignment formats (convert dict to empty list for time/xy mode)
@@ -2020,6 +2362,7 @@ class SignalViewerApp:
 
                 if subplot_mode == "xy" and x_axis_choice != "time":
                     # X-axis is a signal
+                    print(f"[X-Y DEBUG] Using signal for X-axis: {x_axis_choice}")
                     try:
                         x_csv_idx, x_signal_name = x_axis_choice.split(":", 1)
                         x_csv_idx = int(x_csv_idx)
@@ -2045,7 +2388,10 @@ class SignalViewerApp:
 
                 # Update X-axis label for X-Y mode
                 if subplot_mode == "xy" and x_axis_data is not None:
+                    print(f"[X-Y DEBUG] Setting X-axis label: {x_axis_label}, data len: {len(x_axis_data)}")
                     fig.update_xaxes(title_text=x_axis_label, row=r, col=c)
+                elif subplot_mode == "xy":
+                    print(f"[X-Y DEBUG] X-Y mode but x_axis_data is None (x_axis_choice={x_axis_choice})")
 
                 for sig in sp_signals:
                     csv_idx = sig.get("csv_idx", -1)
@@ -2166,8 +2512,9 @@ class SignalViewerApp:
                                 )
 
                         # Add invisible trace for legend
+                        # Use Scattergl for consistency
                         fig.add_trace(
-                            go.Scatter(
+                            go.Scattergl(
                                 x=[None],
                                 y=[None],
                                 mode="lines",
@@ -2200,40 +2547,50 @@ class SignalViewerApp:
                                 legend_name = f"{legend_name} [N]"  # Mark as normalized
                         
                         # PERFORMANCE: Adjust rendering based on data size
+                        # All data is shown - no downsampling - but rendering is optimized
                         n_points = len(x_arr)
                         
-                        # Large data optimizations
-                        if n_points > self.LARGE_DATA_THRESHOLD:
-                            show_markers = False  # Force disable markers
+                        # Ultra-large data optimizations (500k+ points per signal)
+                        if n_points > self.ULTRA_LARGE_THRESHOLD:
+                            show_markers = False
+                            line_width = 0.5  # Minimal line width for speed
+                            hover_mode = "skip"  # Critical: disable hover completely
+                        # Large data optimizations (50k+ points)
+                        elif n_points > self.LARGE_DATA_THRESHOLD:
+                            show_markers = False
                             line_width = 1  # Thinner lines render faster
+                            hover_mode = "skip"
+                        # Medium data (5k-50k points)
                         elif n_points > self.HOVER_THRESHOLD:
                             show_markers = False
                             line_width = width
+                            hover_mode = "skip"
+                        # Small data - full features
                         else:
                             line_width = width
+                            hover_mode = "x+y+name"
                         
                         trace_mode = "lines+markers" if show_markers else "lines"
                         marker_dict = dict(size=3, color=color) if show_markers else None
 
-                        # Hover: disable for large datasets to maintain responsiveness
-                        hover_mode = "x+y+name" if n_points < self.HOVER_THRESHOLD else "skip"
-
-                        fig.add_trace(
-                            trace_type(
-                                x=x_arr,
-                                y=y_display,
-                                mode=trace_mode,
-                                name=legend_name,
-                                line=dict(color=color, width=line_width),
-                                marker=marker_dict,
-                                legendgroup=unique_legend_group,
-                                showlegend=True,
-                                legend=legend_ref,
-                                hoverinfo=hover_mode,
-                            ),
-                            row=r,
-                            col=c,
+                        # Trace options optimized for performance
+                        trace_opts = dict(
+                            x=x_arr,
+                            y=y_display,
+                            mode=trace_mode,
+                            name=legend_name,
+                            line=dict(color=color, width=line_width),
+                            legendgroup=unique_legend_group,
+                            showlegend=True,
+                            legend=legend_ref,
+                            hoverinfo=hover_mode,
                         )
+                        
+                        # Only add marker dict if needed
+                        if marker_dict:
+                            trace_opts["marker"] = marker_dict
+                        
+                        fig.add_trace(trace_type(**trace_opts), row=r, col=c)
                     trace_idx += 1
 
         # Add time cursor vertical lines to all subplots with signal values
@@ -2330,10 +2687,281 @@ class SignalViewerApp:
                         borderpad=3,
                     )
 
+        # Performance timing
+        _elapsed = (_time.perf_counter() - _start) * 1000
+        if _elapsed < 50:
+            status = "⚡"
+        elif _elapsed < 200:
+            status = "⏱️"
+        elif _elapsed < 500:
+            status = "🐢"
+        else:
+            status = "🔴"
+        print(f"[PERF] {status} create_figure() completed: {_elapsed:.1f}ms")
+        
         return fig
 
     def setup_callbacks(self):
         logger.info("Setting up callbacks...")
+        
+        # ================================================================
+        # PERFORMANCE: Clientside callbacks for instant UI responses
+        # These run in the browser without server round-trip
+        # ================================================================
+        
+        # DISABLED: This clientside callback was causing white flash
+        # It conflicts with the server-side callback that rebuilds figures
+        # The server-side callback now handles all subplot highlighting
+        #
+        # # Instant subplot highlight update (no server call needed)
+        # self.app.clientside_callback(
+        #     """
+        #     function(subplot_val, rows, cols, is_dark) {
+        #         // This runs instantly in browser for responsive subplot selection
+        #         if (subplot_val === undefined || subplot_val === null) {
+        #             return window.dash_clientside.no_update;
+        #         }
+        #
+        #         // Calculate total subplots
+        #         var total = (rows || 1) * (cols || 1);
+        #         var selected = parseInt(subplot_val);
+        #
+        #         // Update axis borders using Patch-like logic
+        #         // We return a Patch object that updates only the borders
+        #         var patch = {};
+        #         var theme = is_dark ? 'dark' : 'light';
+        #         var borderColor = '#4ea8de';
+        #         var defaultColor = theme === 'dark' ? '#444' : '#dee2e6';
+        #
+        #         for (var i = 0; i < Math.min(total, 16); i++) {
+        #             var xKey = i === 0 ? 'xaxis' : 'xaxis' + (i + 1);
+        #             var yKey = i === 0 ? 'yaxis' : 'yaxis' + (i + 1);
+        #
+        #             var isSelected = (i === selected);
+        #             patch[xKey] = {
+        #                 linecolor: isSelected ? borderColor : defaultColor,
+        #                 linewidth: isSelected ? 3 : 1
+        #             };
+        #             patch[yKey] = {
+        #                 linecolor: isSelected ? borderColor : defaultColor,
+        #                 linewidth: isSelected ? 3 : 1
+        #             };
+        #         }
+        #
+        #         return {layout: patch};
+        #     }
+        #     """,
+        #     Output("plot", "figure", allow_duplicate=True),
+        #     [
+        #         Input("subplot-select", "value"),
+        #         Input("rows-input", "value"),
+        #         Input("cols-input", "value"),
+        #         Input("theme-switch", "value"),
+        #     ],
+        #     prevent_initial_call=True,
+        # )
+        
+        # Keyboard shortcuts handler - clientside for instant response
+        self.app.clientside_callback(
+            """
+            function(id) {
+                // Set up keyboard shortcuts once
+                if (!window._signalViewerKeyboardSetup) {
+                    window._signalViewerKeyboardSetup = true;
+                    
+                    document.addEventListener('keydown', function(e) {
+                        // Ignore if typing in input fields
+                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                            return;
+                        }
+                        
+                        // Ctrl+S - Save session
+                        if (e.ctrlKey && e.key === 's') {
+                            e.preventDefault();
+                            var saveBtn = document.getElementById('btn-save');
+                            if (saveBtn) saveBtn.click();
+                        }
+                        
+                        // Space - Toggle cursor play/pause
+                        if (e.key === ' ' && !e.ctrlKey) {
+                            e.preventDefault();
+                            var playBtn = document.getElementById('btn-cursor-play');
+                            var stopBtn = document.getElementById('btn-cursor-stop');
+                            // Toggle based on which is active
+                            if (playBtn && playBtn.style.opacity !== '0.5') {
+                                playBtn.click();
+                            } else if (stopBtn) {
+                                stopBtn.click();
+                            }
+                        }
+                        
+                        // Number keys 1-9 - Select subplot
+                        if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.altKey) {
+                            var subplotSelect = document.getElementById('subplot-select');
+                            if (subplotSelect) {
+                                var idx = parseInt(e.key) - 1;
+                                var options = subplotSelect.querySelectorAll('option');
+                                if (idx < options.length) {
+                                    subplotSelect.value = idx;
+                                    subplotSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            }
+                        }
+                        
+                        // Delete or Backspace - Remove selected signals
+                        if (e.key === 'Delete' || e.key === 'Backspace') {
+                            // Don't handle if in input
+                            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                                // Find checked remove checkboxes and click remove
+                                var checks = document.querySelectorAll('[id*="remove-check"]');
+                                var hasChecked = false;
+                                checks.forEach(function(c) {
+                                    if (c.checked) hasChecked = true;
+                                });
+                                if (hasChecked) {
+                                    var removeBtn = document.getElementById('btn-remove-selected');
+                                    if (removeBtn) removeBtn.click();
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('[SignalViewer] Keyboard shortcuts enabled');
+                }
+                return window.dash_clientside.no_update;
+            }
+            """,
+            Output("store-refresh-trigger", "data", allow_duplicate=True),
+            Input("app-container", "id"),
+            prevent_initial_call=True,
+        )
+        
+        # Track visible range for viewport-based optimizations
+        self.app.clientside_callback(
+            """
+            function(relayoutData, currentRange) {
+                if (!relayoutData) {
+                    return window.dash_clientside.no_update;
+                }
+                
+                // Extract visible X range from relayout data
+                var newRange = currentRange || {};
+                
+                // Check for autosize or range changes
+                if (relayoutData['xaxis.range[0]'] !== undefined) {
+                    newRange.xmin = relayoutData['xaxis.range[0]'];
+                    newRange.xmax = relayoutData['xaxis.range[1]'];
+                } else if (relayoutData['xaxis.autorange']) {
+                    newRange.xmin = null;
+                    newRange.xmax = null;
+                }
+                
+                return newRange;
+            }
+            """,
+            Output("store-visible-range", "data"),
+            Input("plot", "relayoutData"),
+            State("store-visible-range", "data"),
+            prevent_initial_call=True,
+        )
+
+        # ================================================================
+        # SIGNAL SEARCH AUTOCOMPLETE
+        # ================================================================
+        @self.app.callback(
+            [
+                Output("search-autocomplete-dropdown", "children"),
+                Output("search-autocomplete-dropdown", "style"),
+            ],
+            Input("search-input", "value"),
+            State("store-csv-files", "data"),
+            prevent_initial_call=True,
+        )
+        def update_autocomplete(search_value, csv_files):
+            """Show autocomplete suggestions as user types"""
+            if not search_value or len(search_value) < 2:
+                return [], {"display": "none"}
+            
+            suggestions = []
+            search_lower = search_value.lower()
+            max_suggestions = 10
+            
+            # Search through all signals
+            for csv_idx, df in enumerate(self.data_manager.data_tables):
+                if df is None:
+                    continue
+                csv_name = self.data_manager.csv_file_paths[csv_idx] if csv_idx < len(self.data_manager.csv_file_paths) else f"CSV {csv_idx}"
+                csv_short = csv_name.split("/")[-1].split("\\")[-1][:20]
+                
+                for col in df.columns:
+                    if col.lower() == "time":
+                        continue
+                    if search_lower in col.lower():
+                        suggestions.append({
+                            "csv_idx": csv_idx,
+                            "signal": col,
+                            "csv_name": csv_short,
+                        })
+                        if len(suggestions) >= max_suggestions:
+                            break
+                if len(suggestions) >= max_suggestions:
+                    break
+            
+            # Also search derived signals
+            for sig_name in self.derived_signals.keys():
+                if search_lower in sig_name.lower():
+                    suggestions.append({
+                        "csv_idx": -1,
+                        "signal": sig_name,
+                        "csv_name": "Derived",
+                    })
+                    if len(suggestions) >= max_suggestions:
+                        break
+            
+            if not suggestions:
+                return [html.Div("No matches found", className="text-muted p-2", style={"fontSize": "11px"})], {
+                    "display": "block",
+                    "position": "absolute",
+                    "zIndex": 1000,
+                    "backgroundColor": "#1a1a2e",
+                    "border": "1px solid #4ea8de",
+                    "borderRadius": "4px",
+                    "width": "100%",
+                    "boxShadow": "0 4px 12px rgba(0,0,0,0.3)",
+                }
+            
+            # Create suggestion items
+            items = []
+            for i, s in enumerate(suggestions):
+                items.append(
+                    html.Div(
+                        [
+                            html.Span(s["signal"], style={"fontWeight": "bold"}),
+                            html.Span(f" ({s['csv_name']})", className="text-muted", style={"fontSize": "10px"}),
+                        ],
+                        id={"type": "autocomplete-item", "idx": i, "csv_idx": s["csv_idx"], "signal": s["signal"]},
+                        style={
+                            "padding": "6px 10px",
+                            "cursor": "pointer",
+                            "fontSize": "11px",
+                            "borderBottom": "1px solid rgba(255,255,255,0.1)",
+                        },
+                        className="autocomplete-item",
+                    )
+                )
+            
+            return items, {
+                "display": "block",
+                "position": "absolute",
+                "zIndex": 1000,
+                "backgroundColor": "#1a1a2e",
+                "border": "1px solid #4ea8de",
+                "borderRadius": "4px",
+                "maxHeight": "200px",
+                "overflowY": "auto",
+                "width": "100%",
+                "boxShadow": "0 4px 12px rgba(0,0,0,0.3)",
+            }
 
         # Theme toggle
         @self.app.callback(
@@ -2360,20 +2988,45 @@ class SignalViewerApp:
         def update_theme(is_dark):
             theme = "dark" if is_dark else "light"
             c = THEMES[theme]
-            card = {"backgroundColor": c["card"], "borderColor": c["border"]}
+            # Modern card styling with rounded corners and subtle shadows
+            card = {
+                "backgroundColor": c["card"],
+                "borderColor": c["border"],
+                "borderRadius": "8px",  # Modern rounded corners
+                "borderWidth": "1px",
+                "boxShadow": "0 2px 4px rgba(0,0,0,0.1)" if not is_dark else "0 2px 8px rgba(0,0,0,0.3)",
+            }
             header = {
                 "backgroundColor": c["card_header"],
                 "borderColor": c["border"],
                 "color": c["text"],
+                "borderRadius": "8px 8px 0 0",  # Rounded top corners
+                "borderWidth": "0 0 1px 0",
             }
-            body = {"backgroundColor": c["card"], "color": c["text"]}
+            body = {
+                "backgroundColor": c["card"],
+                "color": c["text"],
+                "borderRadius": "0 0 8px 8px",  # Rounded bottom corners
+            }
 
+            # Modern input styling
+            input_style = {
+                "backgroundColor": c["input_bg"],
+                "color": c["text"],
+                "borderColor": c["border"],
+                "borderRadius": "6px",  # Rounded inputs
+                "borderWidth": "1px",
+                "padding": "6px 10px",
+                "transition": "all 0.2s ease",  # Smooth transitions
+            }
+            
             return (
                 {
                     "backgroundColor": c["bg"],
+                    "color": c["text"],
                     "minHeight": "100vh",
-                    "padding": "10px",
-                    "color": c["text"],
+                    "padding": "12px",  # Slightly more padding
+                    "fontFamily": "'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",  # Modern font stack
                 },
                 card,
                 header,
@@ -2387,17 +3040,8 @@ class SignalViewerApp:
                 card,
                 header,
                 body,
-                {
-                    "backgroundColor": c["input_bg"],
-                    "borderColor": c["border"],
-                    "padding": "5px",
-                    "borderRadius": "4px",
-                },
-                {
-                    "backgroundColor": c["input_bg"],
-                    "borderColor": c["border"],
-                    "color": c["text"],
-                },
+                input_style,
+                input_style,
                 theme,
             )
 
@@ -2566,6 +3210,10 @@ class SignalViewerApp:
             if "btn-clear-csv" in trigger:
                 self.data_manager.csv_file_paths = []
                 self.data_manager.data_tables = []
+                # CRITICAL: Clear derived signals and all caches
+                self.derived_signals.clear()
+                self.signal_properties.clear()
+                self.original_file_paths.clear()
                 # PERFORMANCE: Invalidate all caches when clearing data
                 self.invalidate_caches()
                 # Clear all assignments when clearing CSV files
@@ -2584,6 +3232,31 @@ class SignalViewerApp:
                         # Clear cache for this CSV
                         self.data_manager.invalidate_cache(csv_idx=i, clear_disk_cache=True)
                         
+                        # Remove derived signals that depend on this CSV
+                        derived_to_remove = []
+                        for derived_name, derived_info in self.derived_signals.items():
+                            source_signal_key = derived_info.get("source_signal_key")
+                            source_csv_idx = derived_info.get("source_csv_idx")
+                            
+                            # Check if this derived signal depends on the removed CSV
+                            if source_csv_idx == i:
+                                derived_to_remove.append(derived_name)
+                            elif source_signal_key and source_signal_key.startswith(f"{i}:"):
+                                derived_to_remove.append(derived_name)
+                            # Also check source_signals list for multi-op signals
+                            elif "source_signals" in derived_info:
+                                for sig_key in derived_info["source_signals"]:
+                                    if sig_key.startswith(f"{i}:"):
+                                        derived_to_remove.append(derived_name)
+                                        break
+                        
+                        # Remove derived signals
+                        for name in derived_to_remove:
+                            del self.derived_signals[name]
+                            if name in (derived or {}):
+                                del derived[name]
+                            print(f"[REMOVED] Derived signal '{name}' (source CSV deleted)")
+                        
                         # Remove from data tables
                         if i < len(self.data_manager.data_tables):
                             self.data_manager.data_tables.pop(i)
@@ -2597,6 +3270,16 @@ class SignalViewerApp:
                             del self.original_file_paths[removed_path]
                         if i in self.data_manager.original_source_paths:
                             del self.data_manager.original_source_paths[i]
+                        
+                        # Remove assignments that reference this CSV
+                        for tab_key in assignments:
+                            for sp_key in assignments[tab_key]:
+                                sp_assignment = assignments[tab_key][sp_key]
+                                if isinstance(sp_assignment, list):
+                                    assignments[tab_key][sp_key] = [
+                                        s for s in sp_assignment 
+                                        if s.get("csv_idx") != i
+                                    ]
                         
                         self.data_manager.csv_file_paths = files
                         refresh_counter = refresh_counter + 1
@@ -2742,6 +3425,9 @@ class SignalViewerApp:
             search_filters,
             time_offsets,
         ):
+            import time as _time
+            _start = _time.perf_counter()
+            
             try:
                 tab = tab or 0
                 subplot = subplot or 0
@@ -2754,9 +3440,11 @@ class SignalViewerApp:
                         str(subplot), []
                     )
                     # Assignments are always a list in both time and X-Y modes
+                    # FIX: Ensure all items are dicts with proper structure to prevent unhashable dict errors
                     if isinstance(assignment_data, list):
                         for s in assignment_data:
-                            assigned.add(f"{s['csv_idx']}:{s['signal']}")
+                            if isinstance(s, dict) and 'csv_idx' in s and 'signal' in s:
+                                assigned.add(f"{s['csv_idx']}:{s['signal']}")
 
                 linked_csvs = {}
                 for lg in links or []:
@@ -2852,26 +3540,12 @@ class SignalViewerApp:
                     )
 
                     # PERFORMANCE: Limit signals shown per CSV to reduce DOM elements
-                    # Always show assigned/highlighted signals first, then fill with others
-                    MAX_SIGNALS_SHOWN = 50  # Limit for performance
-                    
-                    # Separate assigned/highlighted from others
-                    priority_signals = []
-                    other_signals = []
-                    for sig in signals:
-                        key = f"{csv_idx}:{sig}"
-                        if key in assigned or key in highlighted:
-                            priority_signals.append(sig)
-                        else:
-                            other_signals.append(sig)
-                    
-                    # Show all priority signals + up to limit of others
-                    remaining_slots = max(0, MAX_SIGNALS_SHOWN - len(priority_signals))
-                    signals_to_show = priority_signals + other_signals[:remaining_slots]
-                    hidden_count = len(other_signals) - remaining_slots if remaining_slots < len(other_signals) else 0
+                    # Show all signals in original order - no priority sorting for performance
+                    # No limit - show all signals for full visibility
+                    hidden_count = 0  # No signals hidden
 
                     sig_items = []
-                    for sig in signals_to_show:
+                    for sig in signals:
                         key = f"{csv_idx}:{sig}"
                         is_assigned = key in assigned
                         is_highlighted = key in highlighted
@@ -2890,8 +3564,8 @@ class SignalViewerApp:
                                             dbc.Checkbox(
                                                 id={
                                                     "type": "sig-check",
-                                                    "csv": csv_idx,
-                                                    "sig": sig,
+                                                    "csv_idx": csv_idx,  # FIXED
+                                                    "signal": sig,       # FIXED
                                                 },
                                                 value=is_assigned,
                                                 className="d-inline me-1",
@@ -2906,8 +3580,8 @@ class SignalViewerApp:
                                             dbc.Checkbox(
                                                 id={
                                                     "type": "sig-highlight",
-                                                    "csv": csv_idx,
-                                                    "sig": sig,
+                                                    "csv_idx": csv_idx,  # FIXED
+                                                    "signal": sig,       # FIXED
                                                 },
                                                 value=is_highlighted,
                                                 className="d-inline me-1",
@@ -2939,8 +3613,8 @@ class SignalViewerApp:
                                                 "⚙",
                                                 id={
                                                     "type": "sig-ops",
-                                                    "csv": csv_idx,
-                                                    "sig": sig,
+                                                    "csv_idx": csv_idx,  # FIXED
+                                                    "signal": sig,       # FIXED
                                                 },
                                                 size="sm",
                                                 color="link",
@@ -2955,8 +3629,8 @@ class SignalViewerApp:
                                                 "✎",
                                                 id={
                                                     "type": "sig-props",
-                                                    "csv": csv_idx,
-                                                    "sig": sig,
+                                                    "csv_idx": csv_idx,  # FIXED
+                                                    "signal": sig,       # FIXED
                                                 },
                                                 size="sm",
                                                 color="link",
@@ -3061,8 +3735,8 @@ class SignalViewerApp:
                                             dbc.Checkbox(
                                                 id={
                                                     "type": "sig-check",
-                                                    "csv": -1,
-                                                    "sig": name,
+                                                    "csv_idx": -1,    # FIXED
+                                                    "signal": name,   # FIXED
                                                 },
                                                 value=is_assigned,
                                                 className="d-inline me-1",
@@ -3077,8 +3751,8 @@ class SignalViewerApp:
                                             dbc.Checkbox(
                                                 id={
                                                     "type": "sig-highlight",
-                                                    "csv": -1,
-                                                    "sig": name,
+                                                    "csv_idx": -1,    # FIXED
+                                                    "signal": name,   # FIXED
                                                 },
                                                 value=is_highlighted,
                                                 className="d-inline me-1",
@@ -3110,8 +3784,8 @@ class SignalViewerApp:
                                                 "⚙",
                                                 id={
                                                     "type": "sig-ops",
-                                                    "csv": -1,
-                                                    "sig": name,
+                                                    "csv_idx": -1,    # FIXED
+                                                    "signal": name,   # FIXED
                                                 },
                                                 size="sm",
                                                 color="link",
@@ -3126,8 +3800,8 @@ class SignalViewerApp:
                                                 "✎",
                                                 id={
                                                     "type": "sig-props",
-                                                    "csv": -1,
-                                                    "sig": name,
+                                                    "csv_idx": -1,    # FIXED
+                                                    "signal": name,   # FIXED
                                                 },
                                                 size="sm",
                                                 color="link",
@@ -3229,6 +3903,11 @@ class SignalViewerApp:
                                 )
                             )
 
+                # Performance timing
+                _elapsed = (_time.perf_counter() - _start) * 1000
+                if _elapsed > 100:
+                    print(f"[PERF] 🐢 update_tree() completed: {_elapsed:.1f}ms ({len(tree)} items)")
+                
                 return tree, target, str(len(highlighted))
             except Exception as e:
                 logger.exception(f"Error in update_tree: {e}")
@@ -3246,14 +3925,15 @@ class SignalViewerApp:
                 )
 
         # Handle highlighting for operations
+        # FIX #4: Updated pattern-matching IDs
         @self.app.callback(
             Output("store-highlighted", "data"),
             [
-                Input({"type": "sig-highlight", "csv": ALL, "sig": ALL}, "value"),
+                Input({"type": "sig-highlight", "csv_idx": ALL, "signal": ALL}, "value"),  # FIXED
                 Input("btn-clear-highlight", "n_clicks"),
             ],
             [
-                State({"type": "sig-highlight", "csv": ALL, "sig": ALL}, "id"),
+                State({"type": "sig-highlight", "csv_idx": ALL, "signal": ALL}, "id"),  # FIXED
                 State("store-highlighted", "data"),
             ],
             prevent_initial_call=True,
@@ -3269,7 +3949,7 @@ class SignalViewerApp:
             if vals and ids:
                 for val, id_dict in zip(vals, ids):
                     if val:
-                        highlighted.append(f"{id_dict['csv']}:{id_dict['sig']}")
+                        highlighted.append(f"{id_dict.get('csv_idx', -1)}:{id_dict.get('signal', '')}")  # FIXED
             return highlighted
 
         # NOTE: CSV collapse/expand is now handled purely clientside via JavaScript
@@ -3414,7 +4094,8 @@ class SignalViewerApp:
             return subplot_idx, str(subplot_idx), None  # Clear input after setting
 
         # Click on plot to select subplot
-        # Uses clickData (click on trace) and relayoutData (zoom/pan on subplot area)
+        # Uses clickData (click on trace), selectedData (selection), and relayoutData (double-click on axes)
+        # CRITICAL: Handle plot interactions including double-click on subplot background
         @self.app.callback(
             [
                 Output("store-selected-subplot", "data", allow_duplicate=True),
@@ -3422,7 +4103,8 @@ class SignalViewerApp:
             ],
             [
                 Input("plot", "clickData"),
-                Input("plot", "relayoutData"),
+                Input("plot", "selectedData"),
+                Input("plot", "relayoutData"),  # Re-added for double-click detection
             ],
             [
                 State("store-layouts", "data"),
@@ -3431,7 +4113,14 @@ class SignalViewerApp:
             ],
             prevent_initial_call=True,
         )
-        def select_subplot_by_click(click_data, relayout_data, layouts, tab_idx, current_subplot):
+        def select_subplot_by_click(click_data, selected_data, relayout_data, layouts, tab_idx, current_subplot):
+            """
+            Handle subplot selection via:
+            1. Single-click on trace
+            2. Double-click on subplot (anywhere in subplot area)
+            
+            CRITICAL: Only process relayoutData for double-click events, not zoom/pan
+            """
             ctx = callback_context
             if not ctx.triggered:
                 return dash.no_update, dash.no_update
@@ -3451,37 +4140,88 @@ class SignalViewerApp:
                         subplot_idx = int(x_axis.replace("x", "")) - 1
                     except:
                         subplot_idx = 0
+            
+            # Handle selectedData (box selection)
+            elif "selectedData" in trigger and selected_data:
+                point = selected_data.get("points", [{}])[0]
+                x_axis = point.get("xaxis", "x")
 
-            # Handle relayoutData (zooming/panning on subplot area)
+                if x_axis == "x":
+                    subplot_idx = 0
+                else:
+                    try:
+                        subplot_idx = int(x_axis.replace("x", "")) - 1
+                    except:
+                        subplot_idx = 0
+            
+            # Handle relayoutData (double-click on subplot background)
             elif "relayoutData" in trigger and relayout_data:
+                # CRITICAL: Only handle double-click events, ignore zoom/pan
+                # Double-click events have specific keys like 'xaxis.autorange', 'yaxis.autorange'
+                # Zoom/pan events have keys like 'xaxis.range[0]', 'xaxis.range[1]'
+                
+                # Check if this is a double-click (autorange reset) not a zoom/pan
+                is_double_click = False
+                clicked_axis = None
+                
                 for key in relayout_data.keys():
-                    if key.startswith("xaxis"):
-                        axis_part = key.split(".")[0]
-                        if axis_part == "xaxis":
-                            subplot_idx = 0
-                        else:
-                            try:
-                                subplot_idx = int(axis_part.replace("xaxis", "")) - 1
-                            except:
-                                pass
+                    if 'autorange' in key.lower():
+                        # This is a double-click event
+                        is_double_click = True
+                        # Extract axis name (e.g., 'xaxis2.autorange' -> 'xaxis2')
+                        clicked_axis = key.split('.')[0]
                         break
-                    elif key.startswith("yaxis"):
-                        axis_part = key.split(".")[0]
-                        if axis_part == "yaxis":
+                
+                if is_double_click and clicked_axis:
+                    # Determine subplot from axis name
+                    if clicked_axis in ['xaxis', 'yaxis']:
+                        subplot_idx = 0
+                    else:
+                        try:
+                            # Extract number from 'xaxis2', 'yaxis3', etc.
+                            axis_num = int(''.join(filter(str.isdigit, clicked_axis)))
+                            subplot_idx = axis_num - 1
+                        except:
                             subplot_idx = 0
-                        else:
-                            try:
-                                subplot_idx = int(axis_part.replace("yaxis", "")) - 1
-                            except:
-                                pass
-                        break
+                else:
+                    # This is zoom/pan, not double-click - ignore it
+                    return dash.no_update, dash.no_update
+            
+            else:
+                # Unknown trigger - don't change subplot
+                return dash.no_update, dash.no_update
+            
+            # Validate subplot index
+            if subplot_idx is None:
+                return dash.no_update, dash.no_update
+            
+            layouts = layouts or {}
+            tab_key = str(tab_idx or 0)
+            layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+            rows = layout.get("rows", 1)
+            cols = layout.get("cols", 1)
+            max_subplots = rows * cols
+            
+            if subplot_idx < 0 or subplot_idx >= max_subplots:
+                return dash.no_update, dash.no_update
+            
+            return subplot_idx, subplot_idx
 
-            if subplot_idx is not None:
-                return subplot_idx, str(subplot_idx)
-
-            return dash.no_update, dash.no_update
+        # FIX: Update signal tree and assigned list highlights when subplot changes via double-click
+        # This ensures the UI reflects the selected subplot by triggering refresh
+        @self.app.callback(
+            Output("store-refresh-trigger", "data", allow_duplicate=True),
+            Input("store-selected-subplot", "data"),
+            prevent_initial_call=True,
+        )
+        def trigger_refresh_on_subplot_change(sel_subplot):
+            """Trigger refresh when subplot changes to update highlights"""
+            # Return a new value to trigger dependent callbacks
+            import time
+            return int(time.time() * 1000)
 
         # Handle signal assignments with proper linking (fixed bidirectional issue)
+        # FIX #2: Changed pattern-matching IDs from csv/sig to csv_idx/signal
         @self.app.callback(
             [
                 Output("store-assignments", "data", allow_duplicate=True),
@@ -3493,9 +4233,10 @@ class SignalViewerApp:
                 Output("store-x-axis-signal", "data", allow_duplicate=True),
             ],
             [
-                Input({"type": "sig-check", "csv": ALL, "sig": ALL}, "value"),
+                Input({"type": "sig-check", "csv_idx": ALL, "signal": ALL}, "value"),  # FIXED
                 Input("tabs", "value"),
                 Input("subplot-select", "value"),
+                Input("store-selected-subplot", "data"),  # ADDED: Handle double-click subplot selection
                 Input("rows-input", "value"),
                 Input("cols-input", "value"),
                 Input("btn-remove", "n_clicks"),
@@ -3504,9 +4245,10 @@ class SignalViewerApp:
                 Input("store-signal-props", "data"),
                 Input("link-axes-check", "value"),
                 Input("store-refresh-trigger", "data"),
+                Input("store-x-axis-signal", "data"),  # ADDED: Handle X-Y mode X-axis changes
                 Input("time-cursor-check", "value"),
                 Input("store-cursor-x", "data"),
-                Input("store-subplot-modes", "data"),
+                Input("store-subplot-modes", "data"),  # Listen to mode changes
                 Input("store-time-columns", "data"),
                 Input("store-subplot-metadata", "data"),
                 Input("store-time-offsets", "data"),
@@ -3514,12 +4256,10 @@ class SignalViewerApp:
                 Input("store-annotations", "data"),
             ],
             [
-                State("store-x-axis-signal", "data"),
-                State({"type": "sig-check", "csv": ALL, "sig": ALL}, "id"),
+                State({"type": "sig-check", "csv_idx": ALL, "signal": ALL}, "id"),  # FIXED
                 State("store-assignments", "data"),
                 State("store-layouts", "data"),
                 State("store-selected-tab", "data"),
-                State("store-selected-subplot", "data"),
                 State("store-links", "data"),
                 State({"type": "remove-check", "idx": ALL}, "value"),
                 State({"type": "remove-check", "idx": ALL}, "id"),
@@ -3530,6 +4270,7 @@ class SignalViewerApp:
             check_vals,
             active_tab,
             subplot_val,
+            sel_subplot_store,  # NEW: Input from store-selected-subplot (double-click)
             rows,
             cols,
             remove_click,
@@ -3538,6 +4279,7 @@ class SignalViewerApp:
             props,
             link_axes,
             refresh_trigger,
+            x_axis_signals,  # NEW: Input from store-x-axis-signal (X-Y mode changes)
             time_cursor,
             cursor_data,
             subplot_modes,
@@ -3546,25 +4288,55 @@ class SignalViewerApp:
             time_offsets,
             display_options,
             annotations_data,
-            x_axis_signals,  # State (was moved from Input)
             check_ids,
             assignments,
             layouts,
             sel_tab,
-            sel_subplot,
             links,
             remove_vals,
             remove_ids,
         ):
+            # Performance timing
+            import time as _time
+            _start = _time.perf_counter()
+            
+            # FIX #9: Add detailed logging to catch unhashable dict errors
+            try:
+                logger.debug(f"handle_assignments called with check_vals type: {type(check_vals)}")
+                logger.debug(f"check_ids type: {type(check_ids)}, length: {len(check_ids) if check_ids else 0}")
+                if check_ids and len(check_ids) > 0:
+                    logger.debug(f"First check_id: {check_ids[0]}, type: {type(check_ids[0])}")
+            except Exception as log_err:
+                logger.error(f"Error in initial logging: {log_err}")
+            
             ctx = callback_context
 
             if not ctx.triggered:
                 trigger = ""
             else:
                 trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            
+            print(f"[PERF] 🔧 handle_assignments() triggered by: {trigger[:50]}...")
 
+            # CRITICAL: Defensive checks to prevent callback errors
+            # FIX #6: Added extra safety checks
             assignments = assignments or {}
             layouts = layouts or {}
+            derived = derived or {}
+            props = props or {}
+            subplot_modes = subplot_modes or {}
+            time_columns = time_columns or {}
+            subplot_metadata = subplot_metadata or {}
+            time_offsets = time_offsets or {}
+            display_options = display_options or {}
+            annotations_data = annotations_data or {}
+            x_axis_signals = x_axis_signals or {}
+            links = links or []
+            check_vals = check_vals or []  # ADDED: Prevent None errors
+            check_ids = check_ids or []    # ADDED: Prevent None errors
+            remove_vals = remove_vals or []  # ADDED: Prevent None errors
+            remove_ids = remove_ids or []    # ADDED: Prevent None errors
+            
             theme = "dark" if is_dark else "light"
 
             # ============================================================
@@ -3578,12 +4350,137 @@ class SignalViewerApp:
             # Fast path 2: Subplot selection changes - use Patch
             # When only subplot selection changes, update assigned-list and
             # subplot highlight using Patch (no full figure rebuild)
-            subplot_only_triggers = [
-                "subplot-select.value",
-            ]
             
-            if trigger in subplot_only_triggers and subplot_val is not None:
-                # Fast path: Update assigned-list and subplot highlight
+            # DEBUG: Log the trigger to understand what's happening
+            if trigger:
+                logger.info(f"handle_assignments triggered by: {trigger}")
+            
+            # Check if this is ONLY a tab selection change (no other changes)
+            is_tab_only = (
+                trigger == "tabs.value"
+                and active_tab is not None
+            )
+            
+            # Check if this is ONLY a subplot selection change (no other changes)
+            is_subplot_only = (
+                trigger == "subplot-select.value" 
+                and subplot_val is not None
+            )
+            
+            # DEBUG: Log why fast path is or isn't being used
+            logger.info(f"  → trigger == 'subplot-select.value': {trigger == 'subplot-select.value'}")
+            logger.info(f"  → trigger == 'tabs.value': {trigger == 'tabs.value'}")
+            logger.info(f"  → subplot_val is not None: {subplot_val is not None} (value={subplot_val})")
+            logger.info(f"  → is_subplot_only: {is_subplot_only}")
+            logger.info(f"  → is_tab_only: {is_tab_only}")
+            
+            # FAST PATH 1: Tab-only change - DISABLED because it causes issues when switching tabs
+            # Tab switches need to rebuild the figure to show the correct tab's data
+            if is_tab_only and False:  # DISABLED
+                logger.info(f"  → Using TAB-ONLY FAST PATH (Patch highlight only)")
+                # Extract tab number from active_tab (e.g., "tab-0" -> 0)
+                tab_idx = int(active_tab.split("-")[1]) if "-" in active_tab else 0
+                tab_key = str(tab_idx)
+                
+                # Get current subplot for this tab (default to 0)
+                # FIX: Use sel_subplot_store which is the input from store-selected-subplot
+                current_subplot = sel_subplot_store if sel_subplot_store is not None else 0
+                subplot_key = str(current_subplot)
+                
+                # Ensure tab exists in data structures
+                if tab_key not in assignments:
+                    assignments[tab_key] = {}
+                if tab_key not in layouts:
+                    layouts[tab_key] = {"rows": 1, "cols": 1}
+                
+                # Get layout for this tab
+                layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+                rows = layout.get("rows", 1)
+                cols = layout.get("cols", 1)
+                total_subplots = rows * cols
+                
+                # CRITICAL: Only use Patch if we have a cached figure AND layout matches
+                # If layout changed, we need to rebuild (but this shouldn't happen on tab switch)
+                if hasattr(self, '_last_figure') and self._last_figure is not None:
+                    # Check if layout matches cached figure
+                    cached_layout = getattr(self, '_last_layout', None)
+                    if cached_layout and cached_layout != layout:
+                        # Layout changed - need to rebuild (fall through)
+                        logger.info(f"  → Layout changed, cannot use Patch - need rebuild")
+                        pass
+                    else:
+                        # Layout matches - can use Patch
+                        # Build assigned-list for this subplot
+                        assigned = assignments.get(tab_key, {}).get(subplot_key, [])
+                        items = []
+                        
+                        if isinstance(assigned, list):
+                            csv_paths = self.data_manager.csv_file_paths
+                            for i, s in enumerate(assigned):
+                                csv_idx = s.get("csv_idx", -1)
+                                sig_name = s.get("signal", "")
+                                if csv_idx == -1:
+                                    lbl = f"{sig_name} (D)"
+                                else:
+                                    if csv_idx < len(csv_paths):
+                                        csv_path = csv_paths[csv_idx]
+                                        csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
+                                    else:
+                                        csv_filename = f"C{csv_idx+1}"
+                                    lbl = f"{sig_name} ({csv_filename})"
+                                items.append(
+                                    dbc.Checkbox(
+                                        id={"type": "remove-check", "idx": i},
+                                        label=lbl,
+                                        value=False,
+                                        style={"fontSize": "10px"},
+                                    )
+                                )
+                        
+                        if not items:
+                            items = [html.Span("None", className="text-muted small")]
+                        
+                        # Get theme from is_dark parameter
+                        theme_name = "dark" if is_dark else "light"
+                        colors = THEMES[theme_name]
+                        fig_patch = Patch()
+                        
+                        # Update highlight for all subplots
+                        for i in range(total_subplots):
+                            is_selected = (i == current_subplot)
+                            border_color = "#4ea8de" if is_selected else colors["grid"]
+                            border_width = 3 if is_selected else 1
+                            subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
+                            
+                            # Axis naming: xaxis, xaxis2, xaxis3, etc.
+                            x_key = "xaxis" if i == 0 else f"xaxis{i + 1}"
+                            y_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
+                            
+                            fig_patch["layout"][x_key]["linecolor"] = border_color
+                            fig_patch["layout"][x_key]["linewidth"] = border_width
+                            fig_patch["layout"][y_key]["linecolor"] = border_color
+                            fig_patch["layout"][y_key]["linewidth"] = border_width
+                            fig_patch["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
+                        
+                        return (
+                            no_update,    # assignments - no change
+                            fig_patch,    # figure - Patch for highlight only
+                            items,        # assigned-list - update this
+                            tab_idx,      # sel_tab - update (use tab_idx, not sel_tab)
+                            no_update,    # sel_subplot - keep current
+                            no_update,    # layouts
+                            no_update,    # x_axis_signals
+                        )
+                
+                # No cached figure - need to rebuild figure for the new tab
+                logger.info(f"  → No cached figure - rebuilding for tab {tab_key}")
+                # Fall through to normal rebuild but don't return early
+            
+            # FAST PATH 2: Subplot-only change - update highlight with Patch, no rebuild
+            if is_subplot_only:
+                logger.info(f"  → Using FAST PATH (no figure update at all)")
+                logger.info(f"  → subplot_val={subplot_val}, sel_tab={sel_tab}, active_tab={active_tab}")
+                # Fast path: Update assigned-list ONLY, don't touch the figure
                 sel_tab = sel_tab or 0
                 if active_tab and "-" in active_tab:
                     sel_tab = int(active_tab.split("-")[1])
@@ -3592,23 +4489,23 @@ class SignalViewerApp:
                 tab_key = str(sel_tab)
                 subplot_key = str(sel_subplot)
                 
-                # Get layout info for axis count
-                layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
-                total_subplots = layout.get("rows", 1) * layout.get("cols", 1)
+                logger.info(f"  → FAST PATH: tab_key={tab_key}, subplot_key={subplot_key}")
                 
                 # Build assigned-list for this subplot
                 assigned = assignments.get(tab_key, {}).get(subplot_key, [])
                 items = []
                 
                 if isinstance(assigned, list):
+                    csv_paths = self.data_manager.csv_file_paths
+                    items = []
                     for i, s in enumerate(assigned):
                         csv_idx = s.get("csv_idx", -1)
                         sig_name = s.get("signal", "")
                         if csv_idx == -1:
                             lbl = f"{sig_name} (D)"
                         else:
-                            if csv_idx < len(self.data_manager.csv_file_paths):
-                                csv_path = self.data_manager.csv_file_paths[csv_idx]
+                            if csv_idx < len(csv_paths):
+                                csv_path = csv_paths[csv_idx]
                                 csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
                             else:
                                 csv_filename = f"C{csv_idx+1}"
@@ -3625,35 +4522,56 @@ class SignalViewerApp:
                 if not items:
                     items = [html.Span("None", className="text-muted small")]
                 
-                # Use Patch to update subplot highlight without full rebuild
-                colors = THEMES[theme]
-                fig_patch = Patch()
-                
-                for i in range(total_subplots):
-                    is_selected = (i == sel_subplot)
-                    border_color = "#4ea8de" if is_selected else colors["grid"]
-                    border_width = 3 if is_selected else 1
-                    subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
+                # Use Patch to update subplot highlight only (no rebuild!)
+                if hasattr(self, '_last_figure') and self._last_figure is not None:
+                    # Get layout for current tab
+                    layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+                    rows = layout.get("rows", 1)
+                    cols = layout.get("cols", 1)
+                    total_subplots = rows * cols
                     
-                    # Axis naming: xaxis, xaxis2, xaxis3, etc.
-                    x_key = "xaxis" if i == 0 else f"xaxis{i + 1}"
-                    y_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
+                    # Get theme from is_dark parameter
+                    theme_name = "dark" if is_dark else "light"
+                    colors = THEMES[theme_name]
+                    fig_patch = Patch()
                     
-                    fig_patch["layout"][x_key]["linecolor"] = border_color
-                    fig_patch["layout"][x_key]["linewidth"] = border_width
-                    fig_patch["layout"][y_key]["linecolor"] = border_color
-                    fig_patch["layout"][y_key]["linewidth"] = border_width
-                    fig_patch["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
-                
-                return (
-                    no_update,    # assignments - no change
-                    fig_patch,    # figure - Patch for highlight update
-                    items,        # assigned-list - update this
-                    no_update,    # sel_tab
-                    sel_subplot,  # sel_subplot - update
-                    no_update,    # layouts
-                    no_update,    # x_axis_signals
-                )
+                    # Update highlight for all subplots
+                    for i in range(total_subplots):
+                        is_selected = (i == sel_subplot)
+                        border_color = "#4ea8de" if is_selected else colors["grid"]
+                        border_width = 3 if is_selected else 1
+                        subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
+                        
+                        # Axis naming: xaxis, xaxis2, xaxis3, etc.
+                        x_key = "xaxis" if i == 0 else f"xaxis{i + 1}"
+                        y_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
+                        
+                        fig_patch["layout"][x_key]["linecolor"] = border_color
+                        fig_patch["layout"][x_key]["linewidth"] = border_width
+                        fig_patch["layout"][y_key]["linecolor"] = border_color
+                        fig_patch["layout"][y_key]["linewidth"] = border_width
+                        fig_patch["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
+                    
+                    return (
+                        no_update,    # assignments - no change
+                        fig_patch,    # figure - Patch for highlight only
+                        items,        # assigned-list - update this
+                        no_update,    # sel_tab
+                        sel_subplot,  # sel_subplot - update
+                        no_update,    # layouts
+                        no_update,    # x_axis_signals
+                    )
+                else:
+                    # No cached figure - return no_update to avoid white flash
+                    return (
+                        no_update,    # assignments - no change
+                        no_update,    # figure - DON'T UPDATE (no white flash!)
+                        items,        # assigned-list - update this
+                        no_update,    # sel_tab
+                        sel_subplot,  # sel_subplot - update
+                        no_update,    # layouts
+                        no_update,    # x_axis_signals
+                    )
 
             if "tabs" in trigger and active_tab:
                 sel_tab = int(active_tab.split("-")[1]) if "-" in active_tab else 0
@@ -3665,33 +4583,81 @@ class SignalViewerApp:
             # Track if we should output sel_subplot or use no_update
             output_subplot = False
 
-            # Only update sel_subplot if explicitly triggered by subplot-select dropdown
+            # Determine current subplot from dropdown or store (store updated by double-click)
             if "subplot-select" in trigger and subplot_val is not None:
-                sel_subplot = int(subplot_val)
+                # Dropdown changed
+                try:
+                    sel_subplot = int(subplot_val)
+                except (ValueError, TypeError):
+                    sel_subplot = 0
                 output_subplot = True
-            elif sel_subplot is None:
-                sel_subplot = int(subplot_val) if subplot_val is not None else 0
-            # Keep sel_subplot as-is for cursor changes and other triggers
+            elif "store-selected-subplot" in trigger and sel_subplot_store is not None:
+                # Double-click changed store
+                try:
+                    sel_subplot = int(sel_subplot_store)
+                except (ValueError, TypeError):
+                    sel_subplot = 0
+                output_subplot = True
+            elif sel_subplot_store is not None:
+                # Use store value as current
+                try:
+                    sel_subplot = int(sel_subplot_store)
+                except (ValueError, TypeError):
+                    sel_subplot = 0
+            elif subplot_val is not None:
+                # Use dropdown value
+                try:
+                    sel_subplot = int(subplot_val)
+                except (ValueError, TypeError):
+                    sel_subplot = 0
+            else:
+                # Default
+                sel_subplot = 0
 
             tab_key = str(sel_tab)
             subplot_key = str(sel_subplot)
+            
+            # CRITICAL: Ensure tab exists in all data structures
+            # FIX: Add extra validation for tab "0" and ensure proper structure
+            # This is especially important for tab "0" which can get corrupted
+            if not isinstance(assignments, dict):
+                assignments = {}
+            if tab_key not in assignments:
+                assignments[tab_key] = {}
+            elif not isinstance(assignments[tab_key], dict):
+                # Fix corrupted tab structure - especially common for tab "0"
+                assignments[tab_key] = {}
+            
+            if tab_key not in layouts:
+                layouts[tab_key] = {"rows": 1, "cols": 1}
+            elif not isinstance(layouts[tab_key], dict):
+                # Fix corrupted layout structure
+                layouts[tab_key] = {"rows": 1, "cols": 1}
 
             # Get subplot modes for current tab FIRST (needed for assignment initialization)
             tab_subplot_modes = (subplot_modes or {}).get(tab_key, {})
             current_mode = tab_subplot_modes.get(subplot_key, "time")
 
-            if tab_key not in assignments:
-                assignments[tab_key] = {}
-
             # Initialize assignment as list (same format for both time and xy modes)
+            # FIX: Extra validation to prevent corruption, especially for tab "0"
             if subplot_key not in assignments[tab_key]:
                 assignments[tab_key][subplot_key] = []
-
-            # Ensure assignment is always a list (migrate old dict format if needed)
-            current_assignment = assignments[tab_key][subplot_key]
-            if isinstance(current_assignment, dict):
-                # Convert old dict format to list
-                assignments[tab_key][subplot_key] = []
+            else:
+                # Sanitize existing assignment to ensure it's a proper list
+                current_assignment = assignments[tab_key][subplot_key]
+                if isinstance(current_assignment, dict):
+                    # Convert old dict format to list
+                    assignments[tab_key][subplot_key] = []
+                elif isinstance(current_assignment, list):
+                    # Validate list items are proper dicts
+                    sanitized = [
+                        s for s in current_assignment
+                        if isinstance(s, dict) and 'csv_idx' in s and 'signal' in s
+                    ]
+                    assignments[tab_key][subplot_key] = sanitized
+                else:
+                    # Invalid format - reset to empty list
+                    assignments[tab_key][subplot_key] = []
 
             rows = int(rows) if rows else 1
             cols = int(cols) if cols else 1
@@ -3733,110 +4699,129 @@ class SignalViewerApp:
                 subplot_key = "0"
 
             # Handle signal checkbox changes - FIXED linking logic
+            # FIX #3: Updated to use csv_idx/signal instead of csv/sig
+            # FIX #7: Added try-catch to prevent corruption on errors
             if (
                 check_vals is not None
                 and check_ids is not None
                 and len(check_vals) > 0
                 and "sig-check" in trigger
             ):
-                # Find which checkbox was actually clicked
-                clicked_csv = None
-                clicked_sig = None
-                clicked_new_val = None
-
-                import json as js
-
                 try:
-                    id_str = trigger.split(".")[0]
-                    clicked_id = js.loads(id_str)
-                    clicked_csv = clicked_id["csv"]
-                    clicked_sig = clicked_id["sig"]
-                    # Find the value for this specific checkbox
-                    for val, id_dict in zip(check_vals, check_ids):
-                        if (
-                            id_dict["csv"] == clicked_csv
-                            and id_dict["sig"] == clicked_sig
-                        ):
-                            clicked_new_val = val
-                            break
-                except:
-                    pass
+                    # Find which checkbox was actually clicked
+                    clicked_csv = None
+                    clicked_sig = None
+                    clicked_new_val = None
 
-                # Handle X-Y mode assignment
-                # Both time and X-Y modes use the same list-based assignment
-                # In X-Y mode, X-axis is selected separately via xy-x-select dropdown
-                if True:
-                    # List-based signal assignment logic
-                    current = assignments[tab_key][subplot_key]
-                    if not isinstance(current, list):
-                        current = []
+                    import json as js
+
+                    try:
+                        id_str = trigger.split(".")[0]
+                        clicked_id = js.loads(id_str)
+                        clicked_csv = clicked_id.get("csv_idx")  # FIXED: was "csv"
+                        clicked_sig = clicked_id.get("signal")   # FIXED: was "sig"
+                        # Find the value for this specific checkbox
+                        for val, id_dict in zip(check_vals, check_ids):
+                            if (
+                                id_dict.get("csv_idx") == clicked_csv  # FIXED
+                                and id_dict.get("signal") == clicked_sig  # FIXED
+                            ):
+                                clicked_new_val = val
+                                break
+                    except Exception as e:
+                        logger.warning(f"Error parsing clicked ID: {e}")
+
+                    # Handle X-Y mode assignment
+                    # Both time and X-Y modes use the same list-based assignment
+                    # In X-Y mode, X-axis is selected separately via xy-x-select dropdown
+                    if True:
+                        # List-based signal assignment logic
+                        current = assignments[tab_key][subplot_key]
+                        if not isinstance(current, list):
+                            current = []
+                            assignments[tab_key][subplot_key] = current
+                        # FIX: Ensure all items are dicts with proper structure to prevent unhashable dict errors
+                        current = [
+                            s for s in current 
+                            if isinstance(s, dict) and 'csv_idx' in s and 'signal' in s
+                        ]
                         assignments[tab_key][subplot_key] = current
-                    current_keys = {f"{s['csv_idx']}:{s['signal']}" for s in current}
+                        current_keys = {f"{s['csv_idx']}:{s['signal']}" for s in current}
 
-                    # Only process the clicked checkbox and apply linking
-                    if clicked_csv is not None and clicked_sig is not None:
-                        csv_idx = clicked_csv
-                        sig = clicked_sig
-                        key = f"{csv_idx}:{sig}"
+                        # Only process the clicked checkbox and apply linking
+                        if clicked_csv is not None and clicked_sig is not None:
+                            csv_idx = clicked_csv
+                            sig = clicked_sig
+                            key = f"{csv_idx}:{sig}"
 
-                        is_currently_assigned = key in current_keys
-                        should_be_assigned = (
-                            clicked_new_val if clicked_new_val else False
-                        )
+                            is_currently_assigned = key in current_keys
+                            should_be_assigned = (
+                                clicked_new_val if clicked_new_val else False
+                            )
 
-                        if should_be_assigned and not is_currently_assigned:
-                            # ADD signal - check for linked CSVs
-                            linked_indices = [csv_idx]
-                            for lg in links or []:
-                                if csv_idx in lg.get("csv_indices", []):
-                                    linked_indices = lg["csv_indices"]
-                                    break
+                            if should_be_assigned and not is_currently_assigned:
+                                # ADD signal - check for linked CSVs
+                                linked_indices = [csv_idx]
+                                for lg in links or []:
+                                    if csv_idx in lg.get("csv_indices", []):
+                                        linked_indices = lg["csv_indices"]
+                                        break
 
-                            # Add clicked signal and all linked versions
-                            for linked_csv_idx in linked_indices:
-                                linked_key = f"{linked_csv_idx}:{sig}"
-                                if linked_key not in current_keys:
-                                    if linked_csv_idx >= 0 and linked_csv_idx < len(
-                                        self.data_manager.data_tables
-                                    ):
-                                        df = self.data_manager.data_tables[
-                                            linked_csv_idx
-                                        ]
-                                        if df is not None and sig in df.columns:
-                                            assignments[tab_key][subplot_key].append(
-                                                {
-                                                    "csv_idx": linked_csv_idx,
-                                                    "signal": sig,
-                                                }
-                                            )
-                                            current_keys.add(linked_key)
-                                    elif linked_csv_idx == -1:
-                                        if sig in self.derived_signals:
-                                            assignments[tab_key][subplot_key].append(
-                                                {"csv_idx": -1, "signal": sig}
-                                            )
-                                            current_keys.add(linked_key)
+                                # Add clicked signal and all linked versions
+                                for linked_csv_idx in linked_indices:
+                                    linked_key = f"{linked_csv_idx}:{sig}"
+                                    if linked_key not in current_keys:
+                                        if linked_csv_idx >= 0 and linked_csv_idx < len(
+                                            self.data_manager.data_tables
+                                        ):
+                                            df = self.data_manager.data_tables[
+                                                linked_csv_idx
+                                            ]
+                                            if df is not None and sig in df.columns:
+                                                assignments[tab_key][subplot_key].append(
+                                                    {
+                                                        "csv_idx": linked_csv_idx,
+                                                        "signal": sig,
+                                                    }
+                                                )
+                                                current_keys.add(linked_key)
+                                        elif linked_csv_idx == -1:
+                                            # FIX #8: Use correct reference to derived signals
+                                            if sig in (derived or {}):
+                                                assignments[tab_key][subplot_key].append(
+                                                    {"csv_idx": -1, "signal": sig}
+                                                )
+                                                current_keys.add(linked_key)
 
-                        elif not should_be_assigned and is_currently_assigned:
-                            # REMOVE signal - check for linked CSVs
-                            linked_indices = [csv_idx]
-                            for lg in links or []:
-                                if csv_idx in lg.get("csv_indices", []):
-                                    linked_indices = lg["csv_indices"]
-                                    break
+                            elif not should_be_assigned and is_currently_assigned:
+                                # REMOVE signal - check for linked CSVs
+                                linked_indices = [csv_idx]
+                                for lg in links or []:
+                                    if csv_idx in lg.get("csv_indices", []):
+                                        linked_indices = lg["csv_indices"]
+                                        break
 
-                            # Remove clicked signal and all linked versions
-                            for linked_csv_idx in linked_indices:
-                                linked_key = f"{linked_csv_idx}:{sig}"
-                                assignments[tab_key][subplot_key] = [
-                                    s
-                                    for s in assignments[tab_key][subplot_key]
-                                    if f"{s['csv_idx']}:{s['signal']}" != linked_key
-                                ]
+                                # Remove clicked signal and all linked versions
+                                for linked_csv_idx in linked_indices:
+                                    linked_key = f"{linked_csv_idx}:{sig}"
+                                    assignments[tab_key][subplot_key] = [
+                                        s
+                                        for s in assignments[tab_key][subplot_key]
+                                        if f"{s['csv_idx']}:{s['signal']}" != linked_key
+                                    ]
+
+                except Exception as e:
+                    # Enable error to see details - don't hide it
+                    import traceback
+                    error_msg = f"Error in signal assignment: {e}\nTraceback: {traceback.format_exc()}\nClicked CSV: {clicked_csv}, Signal: {clicked_sig}"
+                    logger.error(error_msg)
+                    # Re-raise to see the actual error
+                    raise
 
             if "btn-remove" in trigger and remove_vals:
+                # FIX #5: Use .get() to safely extract idx values, not dict objects
                 to_remove = {
-                    id_dict["idx"]
+                    id_dict.get("idx", -1)  # FIXED: Extract int, not dict
                     for val, id_dict in zip(remove_vals, remove_ids)
                     if val
                 }
@@ -3849,20 +4834,84 @@ class SignalViewerApp:
 
             # After any assignment changes, check if X-axis signal still exists
             # If not, reset to time
-            x_axis_signals = x_axis_signals or {}
+            # FIX: Ensure we always work with a dict, not None
+            if x_axis_signals is None:
+                x_axis_signals = {}
+            elif not isinstance(x_axis_signals, dict):
+                logger.warning(f"x_axis_signals is not a dict: {type(x_axis_signals)}, resetting")
+                x_axis_signals = {}
+            
+            # FIX: Check and fix corrupted structure where tab_key value is a string instead of dict
+            if tab_key in x_axis_signals:
+                tab_val = x_axis_signals[tab_key]
+                if not isinstance(tab_val, dict):
+                    # CORRUPTED: tab_key value is a string or other non-dict type
+                    logger.error(f"CRITICAL: x_axis_signals[{tab_key}] is corrupted: {type(tab_val)} = {tab_val}")
+                    if isinstance(tab_val, str):
+                        # Old/corrupted format: {'0': 'time'} -> should be {'0': {'0': 'time'}}
+                        # Assume it was for subplot 0
+                        logger.error(f"  Fixing: Converting string value '{tab_val}' to dict structure")
+                        x_axis_signals[tab_key] = {"0": tab_val}  # FIX: Keep the value for subplot 0
+                    else:
+                        x_axis_signals[tab_key] = {"0": "time"}  # FIX: Default structure
+            
             if tab_key not in x_axis_signals:
                 x_axis_signals[tab_key] = {}
+            
+            # FIX: Ensure the subplot_key exists and is a string, not a dict
+            if subplot_key not in x_axis_signals[tab_key]:
+                x_axis_signals[tab_key][subplot_key] = "time"
+            elif not isinstance(x_axis_signals[tab_key][subplot_key], str):
+                # CORRUPTED: subplot_key value is not a string
+                logger.error(f"CRITICAL: x_axis_signals[{tab_key}][{subplot_key}] is not a string: {type(x_axis_signals[tab_key][subplot_key])} = {x_axis_signals[tab_key][subplot_key]}")
+                x_axis_signals[tab_key][subplot_key] = "time"
 
-            current_x_axis = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
+            # FIX: Double-check that tab_key value is a dict before accessing subplot_key
+            tab_x_dict = x_axis_signals.get(tab_key, {})
+            if not isinstance(tab_x_dict, dict):
+                logger.error(f"CRITICAL: x_axis_signals[{tab_key}] is still not a dict after fix: {type(tab_x_dict)} = {tab_x_dict}")
+                tab_x_dict = {}
+                x_axis_signals[tab_key] = tab_x_dict
+            
+            # FIX: Get current_x_axis and ensure it's a string, not a dict
+            current_x_axis_raw = tab_x_dict.get(subplot_key, "time")
+            if isinstance(current_x_axis_raw, dict):
+                # CORRUPTED: subplot_key value is a dict instead of string
+                logger.error(f"CRITICAL: x_axis_signals[{tab_key}][{subplot_key}] is a dict: {current_x_axis_raw}, resetting to 'time'")
+                current_x_axis = "time"
+                x_axis_signals[tab_key][subplot_key] = "time"
+            elif not isinstance(current_x_axis_raw, str):
+                logger.error(f"CRITICAL: current_x_axis is not a string: {type(current_x_axis_raw)} = {current_x_axis_raw}, resetting to 'time'")
+                current_x_axis = "time"
+                x_axis_signals[tab_key][subplot_key] = "time"
+            else:
+                current_x_axis = current_x_axis_raw
+            
             if current_x_axis != "time":
                 # Check if this signal is still in assignments
-                assigned_signal_keys = {
-                    f"{s['csv_idx']}:{s['signal']}"
-                    for s in assignments.get(tab_key, {}).get(subplot_key, [])
-                }
-                if current_x_axis not in assigned_signal_keys:
-                    # X-axis signal no longer assigned, reset to time
-                    x_axis_signals[tab_key][subplot_key] = "time"
+                # FIX: Ensure all items are dicts with proper structure to prevent unhashable dict errors
+                assignment_list = assignments.get(tab_key, {}).get(subplot_key, [])
+                if not isinstance(assignment_list, list):
+                    assignment_list = []
+                try:
+                    assigned_signal_keys = {
+                        f"{s['csv_idx']}:{s['signal']}"
+                        for s in assignment_list
+                        if isinstance(s, dict) and 'csv_idx' in s and 'signal' in s
+                    }
+                    # FIX: Double-check current_x_axis is a string before using 'in' operator
+                    if not isinstance(current_x_axis, str):
+                        logger.error(f"CRITICAL: current_x_axis is not a string before 'in' check: {type(current_x_axis)} = {current_x_axis}")
+                        current_x_axis = "time"
+                        x_axis_signals[tab_key][subplot_key] = "time"
+                    elif current_x_axis not in assigned_signal_keys:
+                        # X-axis signal no longer assigned, reset to time
+                        x_axis_signals[tab_key][subplot_key] = "time"
+                except TypeError as e:
+                    logger.error(f"CRITICAL: TypeError in assigned_signal_keys check: {e}")
+                    logger.error(f"  current_x_axis type: {type(current_x_axis)}, value: {current_x_axis}")
+                    logger.error(f"  assignment_list: {assignment_list}")
+                    raise
 
             self.signal_properties = props or {}
             self.derived_signals = derived or {}
@@ -3873,10 +4922,23 @@ class SignalViewerApp:
                 cursor_x = cursor_data.get("x")
 
             # Get subplot modes for current tab
-            tab_subplot_modes = (subplot_modes or {}).get(tab_key, {})
+            # FIX: Ensure tab_subplot_modes is always a dict, not a string
+            raw_tab_modes = (subplot_modes or {}).get(tab_key, {})
+            if isinstance(raw_tab_modes, dict):
+                tab_subplot_modes = raw_tab_modes
+            else:
+                logger.warning(f"tab_subplot_modes is not a dict for tab {tab_key}: {type(raw_tab_modes)} = {raw_tab_modes}")
+                tab_subplot_modes = {}
 
             # Get X-axis signals for this tab
-            tab_x_axis_signals = (x_axis_signals or {}).get(tab_key, {})
+            # FIX: Ensure x_axis_signals is a dict before accessing
+            if x_axis_signals is None:
+                logger.warning(f"x_axis_signals is None when getting tab_x_axis_signals for tab {tab_key}")
+                x_axis_signals = {}
+            tab_x_axis_signals = x_axis_signals.get(tab_key, {})
+            if not isinstance(tab_x_axis_signals, dict):
+                logger.warning(f"tab_x_axis_signals is not a dict for tab {tab_key}: {type(tab_x_axis_signals)}")
+                tab_x_axis_signals = {}
 
             # Get subplot metadata for this tab
             tab_subplot_metadata = (subplot_metadata or {}).get(tab_key, {})
@@ -3884,26 +4946,161 @@ class SignalViewerApp:
             # Get time offsets from store
             time_offsets_data = time_offsets or {}
             
-            fig = self.create_figure(
-                rows,
-                cols,
-                theme,
-                sel_subplot,
-                assignments,
-                tab_key,
-                link_axes,
-                time_cursor,
-                cursor_x,
-                tab_subplot_modes,
-                tab_x_axis_signals,
-                time_columns,
-                tab_subplot_metadata,
-                time_offsets_data,
-                display_options,
-                annotations_data,
+            # ================================================================
+            # PERFORMANCE: Check if figure rebuild is actually needed
+            # Skip expensive create_figure if only cursor or subplot selection changed
+            # ================================================================
+            
+            # Cursor-only change: just update cursor position, not the whole figure
+            cursor_only_triggers = ["store-cursor-x.data"]
+            is_cursor_only = trigger in cursor_only_triggers
+            
+            # PERFORMANCE BOOST: Enhanced figure caching system
+            # Compute state hash to check if we can reuse a cached figure
+            logger.info(f"Rendering figure for tab {tab_key}, subplot {subplot_key}")
+            logger.info(f"Assignments: {assignments.get(tab_key, {})}")
+
+            import time
+            render_start = time.time()
+
+            current_state_hash = self._compute_figure_hash(
+                assignments, tab_key, layouts, self.signal_properties,
+                display_options, cursor_x, link_axes, time_columns,
+                x_axis_signals=x_axis_signals, subplot_modes=subplot_modes
             )
 
-            assigned = assignments.get(tab_key, {}).get(subplot_key, [])
+            # Check if we can reuse cached figure
+            cache_key = (int(tab_key), current_state_hash)
+            if cache_key in self._figure_cache:
+                fig = self._figure_cache[cache_key]
+                self._cache_hit_count += 1
+                logger.info(f"[CACHE HIT] Reusing cached figure (0ms) - {self._cache_hit_count} hits so far")
+
+                # CRITICAL FIX: Update subplot highlight even on cache hit
+                # When only subplot selection changes, we need to update the border highlight
+                # Handle both dropdown changes and double-click subplot selection
+                is_subplot_change = (
+                    "subplot-select" in trigger or
+                    "store-selected-subplot" in trigger
+                )
+
+                # PERFORMANCE: Handle cursor-only changes efficiently
+                if is_cursor_only and cursor_x is not None:
+                    # Cursor only - update just the cursor line shapes without rebuilding
+                    logger.info(f"[CACHE HIT + CURSOR ONLY] Fast cursor update via Patch")
+                    fig_patch = Patch()
+                    layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+                    rows_layout = layout.get("rows", 1)
+                    cols_layout = layout.get("cols", 1)
+                    total_subplots = rows_layout * cols_layout
+                    
+                    # Update cursor line shapes (one per subplot)
+                    for shape_idx in range(total_subplots):
+                        fig_patch["layout"]["shapes"][shape_idx]["x0"] = cursor_x
+                        fig_patch["layout"]["shapes"][shape_idx]["x1"] = cursor_x
+                    
+                    fig = fig_patch
+                elif is_subplot_change:
+                    logger.info(f"[CACHE HIT + SUBPLOT CHANGE] Updating highlight with Patch (trigger: {trigger})")
+                    fig_patch = Patch()
+                    layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+                    rows_layout = layout.get("rows", 1)
+                    cols_layout = layout.get("cols", 1)
+                    total_subplots = rows_layout * cols_layout
+                    theme_name = "dark" if is_dark else "light"
+                    colors = THEMES[theme_name]
+
+                    for i in range(total_subplots):
+                        is_selected = (i == sel_subplot)
+                        border_color = "#4ea8de" if is_selected else colors["grid"]
+                        border_width = 3 if is_selected else 1
+                        subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
+
+                        x_key = "xaxis" if i == 0 else f"xaxis{i + 1}"
+                        y_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
+
+                        fig_patch["layout"][x_key]["linecolor"] = border_color
+                        fig_patch["layout"][x_key]["linewidth"] = border_width
+                        fig_patch["layout"][y_key]["linecolor"] = border_color
+                        fig_patch["layout"][y_key]["linewidth"] = border_width
+                        fig_patch["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
+
+                    fig = fig_patch
+            else:
+                # Cache miss - need to build figure
+                self._cache_miss_count += 1
+                logger.info(f"[CACHE MISS] Building new figure - {self._cache_miss_count} misses so far")
+
+                try:
+                    fig = self.create_figure(
+                        rows,
+                        cols,
+                        theme,
+                        sel_subplot,
+                        assignments,
+                        tab_key,
+                        link_axes,
+                        time_cursor,
+                        cursor_x,
+                        tab_subplot_modes,
+                        tab_x_axis_signals,
+                        time_columns,
+                        tab_subplot_metadata,
+                        time_offsets_data,
+                        display_options,
+                        annotations_data,
+                    )
+
+                    # CRITICAL: Ensure figure is valid before caching
+                    is_valid = (
+                        fig is not None
+                        and hasattr(fig, 'data')
+                        and hasattr(fig, 'layout')
+                        and len(fig.data) > 0
+                    )
+
+                    if is_valid:
+                        # PERFORMANCE BOOST: Store valid figure in cache
+                        self._figure_cache[cache_key] = fig
+                        self._state_hash_cache[int(tab_key)] = current_state_hash
+
+                        # Limit cache size to prevent memory issues (max 20 figures)
+                        if len(self._figure_cache) > 20:
+                            oldest_key = min(self._figure_cache.keys(), key=lambda k: k[1])
+                            del self._figure_cache[oldest_key]
+                            logger.info(f"[CACHE] Evicted oldest entry, size: {len(self._figure_cache)}")
+
+                        render_time_ms = (time.time() - render_start) * 1000
+                        logger.info(f"[RENDER] Figure built and cached in {render_time_ms:.0f}ms")
+                    else:
+                        logger.warning(f"Figure invalid, data traces: {len(fig.data) if fig else 0}")
+                        fig = dash.no_update
+
+                except Exception as e:
+                    logger.error(f"ERROR creating figure: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    fig = dash.no_update
+
+            # FIX: Sanitize assigned list to prevent unhashable dict errors
+            tab_assignments = assignments.get(tab_key, {})
+            if not isinstance(tab_assignments, dict):
+                tab_assignments = {}
+            assigned_raw = tab_assignments.get(subplot_key, [])
+            
+            # Ensure assigned is always a list with proper dict items
+            if isinstance(assigned_raw, list):
+                assigned = [
+                    s for s in assigned_raw
+                    if isinstance(s, dict) and 'csv_idx' in s and 'signal' in s
+                ]
+            elif isinstance(assigned_raw, dict):
+                # Old dict format - convert to empty list
+                assigned = []
+            else:
+                # Invalid format - use empty list
+                assigned = []
+            
             current_mode = tab_subplot_modes.get(subplot_key, "time")
             items = []
 
@@ -3988,6 +5185,50 @@ class SignalViewerApp:
 
             # Only output sel_subplot if explicitly changed, otherwise use no_update
             subplot_output = sel_subplot if output_subplot else dash.no_update
+            
+            # FIX: Ensure x_axis_signals is always a dict before returning (not None)
+            # This is critical - if it's None, we lose all state
+            if x_axis_signals is None:
+                logger.error(f"CRITICAL: x_axis_signals is None when returning from handle_assignments for tab {tab_key}!")
+                x_axis_signals = {}
+            elif not isinstance(x_axis_signals, dict):
+                logger.error(f"CRITICAL: x_axis_signals is not a dict when returning: {type(x_axis_signals)}")
+                x_axis_signals = {}
+            
+            logger.info(f"Returning from handle_assignments: tab={tab_key}, subplot={subplot_key}")
+            logger.info(f"  x_axis_signals keys: {list(x_axis_signals.keys())}")
+            if tab_key in x_axis_signals:
+                logger.info(f"  Tab {tab_key} x_axis_signals: {x_axis_signals[tab_key]}")
+            
+            # CRITICAL: If fig is None, use cached figure or no_update to prevent white plot
+            # This should never happen, but safety check to prevent white plots
+            if fig is None:
+                logger.warning(f"CRITICAL: fig is None! Using cached figure or no_update to prevent white plot")
+                if hasattr(self, '_last_figure') and self._last_figure is not None:
+                    # Use cached figure with Patch for highlight update
+                    fig = Patch()
+                    layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
+                    rows = layout.get("rows", 1)
+                    cols = layout.get("cols", 1)
+                    total_subplots = rows * cols
+                    theme_name = "dark" if is_dark else "light"
+                    colors = THEMES[theme_name]
+                    for i in range(total_subplots):
+                        is_selected = (i == sel_subplot)
+                        border_color = "#4ea8de" if is_selected else colors["grid"]
+                        border_width = 3 if is_selected else 1
+                        subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
+                        x_key = "xaxis" if i == 0 else f"xaxis{i + 1}"
+                        y_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
+                        fig["layout"][x_key]["linecolor"] = border_color
+                        fig["layout"][x_key]["linewidth"] = border_width
+                        fig["layout"][y_key]["linecolor"] = border_color
+                        fig["layout"][y_key]["linewidth"] = border_width
+                        fig["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
+                else:
+                    # No cached figure - use no_update to prevent white plot
+                    fig = dash.no_update
+            
             return (
                 assignments,
                 fig,
@@ -3995,7 +5236,7 @@ class SignalViewerApp:
                 sel_tab,
                 subplot_output,
                 layouts,
-                x_axis_signals or {},
+                x_axis_signals,  # Return the actual dict, not x_axis_signals or {}
             )
 
         # Subplot selector
@@ -4081,6 +5322,15 @@ class SignalViewerApp:
             # If mode toggle triggered, update the mode
             if "subplot-mode-toggle" in trigger:
                 modes[tab_key][subplot_key] = mode
+                # FIX: Invalidate cache when mode changes to ensure plot updates
+                tab_key_int = int(tab_key)
+                if tab_key_int in self._state_hash_cache:
+                    del self._state_hash_cache[tab_key_int]
+                # Clear figure cache for this tab
+                cache_keys_to_remove = [k for k in self._figure_cache.keys() if k[0] == tab_key_int]
+                for key in cache_keys_to_remove:
+                    del self._figure_cache[key]
+                logger.info(f"[CACHE] Invalidated cache for tab {tab_key} due to mode change to {mode}")
             else:
                 # Otherwise, get current mode for this subplot
                 mode = modes.get(tab_key, {}).get(subplot_key, "time")
@@ -4160,6 +5410,10 @@ class SignalViewerApp:
         def sync_mode_on_subplot_change(sel_subplot, active_tab, modes, x_axis_signals):
             modes = modes or {}
             x_axis_signals = x_axis_signals or {}
+            # CRITICAL: Ensure x_axis_signals structure is valid
+            if not isinstance(x_axis_signals, dict):
+                x_axis_signals = {}
+            
             tab_idx = (
                 int(active_tab.split("-")[1]) if active_tab and "-" in active_tab else 0
             )
@@ -4167,7 +5421,12 @@ class SignalViewerApp:
             subplot_key = str(sel_subplot or 0)
 
             mode = modes.get(tab_key, {}).get(subplot_key, "time")
-            x_value = x_axis_signals.get(tab_key, {}).get(subplot_key, "time")
+            # CRITICAL: Defensive check for x_axis_signals structure
+            tab_x_axis = x_axis_signals.get(tab_key, {})
+            if not isinstance(tab_x_axis, dict):
+                tab_x_axis = {}
+                x_axis_signals[tab_key] = tab_x_axis
+            x_value = tab_x_axis.get(subplot_key, "time")
 
             return mode, x_value
 
@@ -4193,7 +5452,36 @@ class SignalViewerApp:
             if tab_key not in x_axis_signals:
                 x_axis_signals[tab_key] = {}
 
+            old_value = x_axis_signals[tab_key].get(subplot_key)
+            
+            # Only update if value actually changed
+            if old_value == x_value:
+                return dash.no_update
+            
             x_axis_signals[tab_key][subplot_key] = x_value
+
+            # FIX: Invalidate ALL caches when X axis signal changes in X-Y mode
+            # This ensures the plot updates when X axis is selected
+            print(f"[X-Y MODE] X-axis changed from {old_value} to {x_value} for tab {tab_key}, subplot {subplot_key}")
+            
+            tab_key_int = int(tab_key)
+            
+            # Clear state hash cache for this tab
+            if tab_key_int in self._state_hash_cache:
+                del self._state_hash_cache[tab_key_int]
+                print(f"   [CACHE] Cleared state hash cache for tab {tab_key}")
+            
+            # Clear figure cache for this tab
+            cache_keys_to_remove = [k for k in list(self._figure_cache.keys()) if k[0] == tab_key_int]
+            for key in cache_keys_to_remove:
+                del self._figure_cache[key]
+                print(f"   [CACHE] Cleared figure cache entry: {key}")
+            
+            # Force invalidate all figure-related caches
+            self._last_figure_hash = None
+            self._last_figure = None
+            
+            logger.info(f"[CACHE] Invalidated ALL caches for tab {tab_key} due to X-axis signal change to {x_value}")
 
             return x_axis_signals
 
@@ -4236,39 +5524,56 @@ class SignalViewerApp:
                     int(current.split("-")[1]) if current and "-" in current else 0
                 )
 
-                # Remove the tab at del_idx
+                # Remove the tab
                 tabs = [t for i, t in enumerate(tabs) if i != del_idx]
 
-                # Rebuild layouts with new indices
+                # CRITICAL: Rebuild layouts and assignments with reindexed keys
+                # This ensures remaining tabs keep their properties but get new indices
                 new_layouts = {}
                 new_assignments = {}
-                old_to_new = {}
 
                 new_i = 0
                 for old_i in range(len(tabs) + 1):  # +1 because we removed one
                     if old_i == del_idx:
                         continue  # Skip deleted tab
-                    old_to_new[old_i] = new_i
-                    # Copy layout
-                    if str(old_i) in layouts:
-                        new_layouts[str(new_i)] = layouts[str(old_i)]
-                    # Copy assignments
-                    if str(old_i) in assignments:
-                        new_assignments[str(new_i)] = assignments[str(old_i)]
+                    
+                    old_key = str(old_i)
+                    new_key = str(new_i)
+                    
+                    # Copy layout (deep copy)
+                    if old_key in layouts:
+                        new_layouts[new_key] = layouts[old_key].copy()
+                    
+                    # Copy assignments (deep copy to avoid reference issues)
+                    if old_key in assignments:
+                        new_assignments[new_key] = {}
+                        for sp_key, sp_data in assignments[old_key].items():
+                            if isinstance(sp_data, list):
+                                new_assignments[new_key][sp_key] = [s.copy() for s in sp_data]
+                            else:
+                                new_assignments[new_key][sp_key] = sp_data
+                    
                     new_i += 1
 
                 layouts = new_layouts
                 assignments = new_assignments
 
-                # Rename tabs
+                # Rename tabs to maintain sequential numbering
                 for i, t in enumerate(tabs):
                     if isinstance(t, dict):
                         t["props"]["label"] = f"Tab {i+1}"
                         t["props"]["value"] = f"tab-{i}"
-
-                # Set new active tab (previous tab or first tab)
-                new_active_idx = max(0, del_idx - 1) if del_idx > 0 else 0
-                new_active = f"tab-{new_active_idx}"
+                    elif hasattr(t, "label"):
+                        t.label = f"Tab {i+1}"
+                        t.value = f"tab-{i}"
+                
+                # Set new active tab (first tab if deleted was first, otherwise previous)
+                if del_idx == 0:
+                    new_active = "tab-0"
+                elif del_idx < len(tabs):
+                    new_active = f"tab-{del_idx-1}"
+                else:
+                    new_active = f"tab-{len(tabs)-1}"
 
             return tabs, len(tabs), layouts, new_active, assignments
 
@@ -4327,7 +5632,7 @@ class SignalViewerApp:
                 Output("prop-state-signal", "value"),
             ],
             [
-                Input({"type": "sig-props", "csv": ALL, "sig": ALL}, "n_clicks"),
+                Input({"type": "sig-props", "csv_idx": ALL, "signal": ALL}, "n_clicks"),  # FIXED
                 Input("btn-close-props", "n_clicks"),
             ],
             [
@@ -4348,16 +5653,16 @@ class SignalViewerApp:
                         import json as js
 
                         id_dict = js.loads(trigger.split(".")[0])
-                        key = f"{id_dict['csv']}:{id_dict['sig']}"
+                        key = f"{id_dict.get('csv_idx', -1)}:{id_dict.get('signal', '')}"  # FIXED
                         p = (props or {}).get(key, {})
                         # Get time offset (check signal-specific, then CSV-wide)
                         time_offsets = time_offsets or {}
-                        offset = time_offsets.get(key, time_offsets.get(str(id_dict['csv']), 0))
+                        offset = time_offsets.get(key, time_offsets.get(str(id_dict.get('csv_idx', -1)), 0))  # FIXED
                         return (
                             True,
-                            f"Props: {id_dict['sig']}",
+                            f"Props: {id_dict.get('signal', '')}",  # FIXED
                             key,
-                            p.get("display_name", id_dict["sig"]),
+                            p.get("display_name", id_dict.get("signal", "")),  # FIXED
                             p.get("scale", 1.0),
                             p.get("color", "#2E86AB"),
                             p.get("width", 1.5),
@@ -4400,6 +5705,7 @@ class SignalViewerApp:
             elif key in time_offsets:
                 del time_offsets[key]
             
+            old_display_name = props.get(key, {}).get("display_name", "")
             props[key] = {
                 "display_name": name,
                 "scale": float(scale or 1),
@@ -4408,6 +5714,33 @@ class SignalViewerApp:
                 "show_in_tree": show,
                 "is_state": is_state,
             }
+            
+            # Update derived signals that reference this signal
+            # When a signal is renamed, derived signals should reflect the new name
+            csv_idx, signal_name = key.split(":", 1)
+            csv_idx = int(csv_idx)
+            
+            # Find derived signals that use this source signal
+            for derived_name, derived_info in self.derived_signals.items():
+                source_signal_key = derived_info.get("source_signal_key")
+                source_signals = derived_info.get("source_signals", [])
+                
+                # Check if this derived signal references the renamed signal
+                should_update = False
+                if source_signal_key == key:
+                    should_update = True
+                elif source_signals and key in source_signals:
+                    should_update = True
+                
+                if should_update:
+                    # Update the derived signal's display to reflect renamed source
+                    # The derived signal keeps its own name, but we track the source rename
+                    if key not in props:
+                        props[key] = {}
+                    # Store the original signal name for reference
+                    if "original_signal_name" not in props[key]:
+                        props[key]["original_signal_name"] = signal_name
+            
             self.signal_properties = props
             return props, time_offsets, "[OK] Saved"
 
@@ -4419,7 +5752,7 @@ class SignalViewerApp:
                 Output("op-result-name", "value"),
             ],
             [
-                Input({"type": "sig-ops", "csv": ALL, "sig": ALL}, "n_clicks"),
+                Input({"type": "sig-ops", "csv_idx": ALL, "signal": ALL}, "n_clicks"),  # FIXED
                 Input("btn-close-ops", "n_clicks"),
             ],
             prevent_initial_call=True,
@@ -4436,7 +5769,8 @@ class SignalViewerApp:
                         import json as js
 
                         id_dict = js.loads(trigger.split(".")[0])
-                        return True, f"Op: {id_dict['sig']}", f"d_{id_dict['sig']}"
+                        # Return empty name - let compute_op generate meaningful default based on operation
+                        return True, f"Op: {id_dict.get('signal', '')}", ""  # FIXED
             return False, "", ""
 
         @self.app.callback(
@@ -4460,18 +5794,49 @@ class SignalViewerApp:
             derived = derived or {}
             time_data, sig_data = None, None
 
-            # Check if it's a derived signal
-            if sig in self.derived_signals:
-                ds = self.derived_signals[sig]
+            # Find the signal and apply properties
+            source_csv_idx = None
+            source_signal_key = None
+            
+            # Check if it's a derived signal - check both self.derived_signals and derived parameter
+            ds = None
+            if derived and sig in derived:
+                ds = derived.get(sig)
+            elif self.derived_signals and sig in self.derived_signals:
+                ds = self.derived_signals.get(sig)
+            
+            if ds:
+                # It's a derived signal
                 time_data = ds.get("time", [])
                 sig_data = ds.get("data", [])
+                # FIX: Convert lists to numpy arrays for operations to work on derived signals
+                if isinstance(time_data, list):
+                    time_data = np.array(time_data)
+                if isinstance(sig_data, list):
+                    sig_data = np.array(sig_data)
+                source_signal_key = f"-1:{sig}"  # Derived signal
+                source_csv_idx = -1  # Derived signal
             else:
-                # Regular signal from CSV
+                # Regular signal from CSV - find it and apply properties
                 for csv_idx, df in enumerate(self.data_manager.data_tables):
                     if df is not None and sig in df.columns:
+                        source_csv_idx = csv_idx
+                        source_signal_key = f"{csv_idx}:{sig}"
+                        
                         time_col = "Time" if "Time" in df.columns else df.columns[0]
                         time_data = df[time_col].values
                         sig_data = df[sig].values
+                        
+                        # Apply signal properties (scale, time_offset)
+                        props = self.signal_properties.get(source_signal_key, {})
+                        scale = props.get("scale", 1.0)
+                        time_offset = props.get("time_offset", 0.0)
+                        
+                        if scale != 1.0:
+                            sig_data = sig_data * scale
+                        if time_offset != 0.0:
+                            time_data = time_data + time_offset
+                        
                         break
 
             if time_data is None or len(time_data) == 0:
@@ -4490,11 +5855,25 @@ class SignalViewerApp:
                     result = -sig_data
                 else:
                     result = sig_data
-                name = name or f"{op}_{sig}"
+                
+                # Generate meaningful default name if not provided
+                if not name or name.strip() == "":
+                    # Use LaTeX-style names for better readability - just the symbol, not with signal name
+                    op_names = {
+                        "derivative": "\\delta",
+                        "integral": "\\int",
+                        "abs": "|x|",
+                        "sqrt": "\\sqrt{x}",
+                        "negate": "-x",
+                    }
+                    name = op_names.get(op, f"{op}_{sig}")
+                
                 derived[name] = {
                     "time": time_data.tolist(),
                     "data": result.tolist(),
                     "source": sig,
+                    "source_signal_key": source_signal_key,  # Track source for cleanup
+                    "source_csv_idx": source_csv_idx,  # Track CSV for cleanup
                     "op": op,
                 }
                 self.derived_signals = derived
@@ -4549,13 +5928,14 @@ class SignalViewerApp:
             for h in highlighted:
                 csv_idx, sig = h.split(":", 1)
                 csv_idx = int(csv_idx)
+                signal_key = f"{csv_idx}:{sig}"
 
-                # Get signal data
+                # Get signal data and apply properties
                 if csv_idx == -1 and sig in self.derived_signals:
                     ds = self.derived_signals[sig]
-                    sig_data = ds.get("data", [])
+                    sig_data = np.array(ds.get("data", []))
                     if time_data is None:
-                        time_data = ds.get("time", [])
+                        time_data = np.array(ds.get("time", []))
                 elif csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
                     df = self.data_manager.data_tables[csv_idx]
                     if df is not None and sig in df.columns:
@@ -4563,6 +5943,19 @@ class SignalViewerApp:
                             time_col = "Time" if "Time" in df.columns else df.columns[0]
                             time_data = df[time_col].values
                         sig_data = df[sig].values
+                        
+                        # Apply signal properties (scale, time_offset)
+                        props = self.signal_properties.get(signal_key, {})
+                        scale = props.get("scale", 1.0)
+                        time_offset = props.get("time_offset", 0.0)
+                        
+                        if scale != 1.0:
+                            sig_data = sig_data * scale
+                        if time_offset != 0.0:
+                            # Apply offset to time for this signal only if it's the first one
+                            # For subsequent signals, we'll align by time
+                            if time_data is None or len(time_data) == 0:
+                                time_data = df[time_col].values + time_offset
                     else:
                         continue
                 else:
@@ -4587,17 +5980,54 @@ class SignalViewerApp:
                 elif op == "div":
                     result = np.divide(a, b, where=b != 0)
                 elif op == "norm":
-                    result = np.sqrt(sum(np.array(s) ** 2 for s in signals_data))
+                    # PERFORMANCE: Vectorized norm calculation
+                    signals_array = np.array(signals_data)  # Shape: (n_signals, n_points)
+                    result = np.sqrt(np.sum(signals_array ** 2, axis=0))  # Vectorized across all signals
                 elif op == "mean":
                     result = np.mean(signals_data, axis=0)
                 else:
                     result = a
-                name = name or f"{op}_result"
+                
+                # Generate meaningful default name if not provided
+                if not name or name.strip() == "":
+                    # Build name from signal names: "signal1+signal2" or "signal1-signal2" etc.
+                    op_symbols = {
+                        "add": "+",
+                        "sub": "-",
+                        "mul": "×",
+                        "div": "÷",
+                        "norm": "||",
+                        "mean": "mean",
+                    }
+                    op_symbol = op_symbols.get(op, op)
+                    
+                    # Get signal names from highlighted list
+                    signal_names = []
+                    for h in highlighted:
+                        csv_idx, sig = h.split(":", 1)
+                        csv_idx = int(csv_idx)
+                        if csv_idx == -1:
+                            signal_names.append(sig)
+                        else:
+                            # Get short signal name
+                            signal_names.append(sig)
+                    
+                    if op == "norm" or op == "mean":
+                        # For norm/mean, use all signals: "||signal1,signal2||"
+                        name = f"{op_symbol}{','.join(signal_names[:3])}{op_symbol}"  # Limit to 3 for readability
+                    else:
+                        # For binary ops: "signal1+signal2"
+                        if len(signal_names) >= 2:
+                            name = f"{signal_names[0]}{op_symbol}{signal_names[1]}"
+                        else:
+                            name = f"{op}_{signal_names[0] if signal_names else 'result'}"
+                
                 derived[name] = {
                     "time": time_data.tolist(),
                     "data": result.tolist(),
                     "source": "multi",
                     "op": op,
+                    "source_signals": highlighted.copy(),  # Track source signals for issue #4
                 }
                 self.derived_signals = derived
                 return derived, f"[OK] {name}"
@@ -4628,6 +6058,12 @@ class SignalViewerApp:
                 State("store-document-text", "data"),
                 State("store-subplot-metadata", "data"),
                 State("store-time-offsets", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+                State("tabs", "value"),
+                State("subplot-select", "value"),
+                State("rows-input", "value"),
+                State("cols-input", "value"),
             ],
             prevent_initial_call=True,
         )
@@ -4649,12 +6085,27 @@ class SignalViewerApp:
             doc_text,
             subplot_metadata,
             time_offsets,
+            selected_tab,
+            selected_subplot,
+            active_tab,
+            active_subplot,
+            rows,
+            cols,
         ):
             if not n:
                 return dash.no_update, dash.no_update
             try:
+                # Get current tab/subplot from active values or stores
+                current_tab = selected_tab if selected_tab is not None else 0
+                if active_tab and "-" in active_tab:
+                    current_tab = int(active_tab.split("-")[1])
+                
+                current_subplot = selected_subplot if selected_subplot is not None else 0
+                if active_subplot is not None:
+                    current_subplot = int(active_subplot)
+                
                 session_data = {
-                    "version": "3.0",  # Version 3: native file browser, original paths
+                    "version": "3.1",  # Version 3.1: includes full UI state
                     "files": files,  # Original file paths directly
                     "original_file_paths": self.original_file_paths,
                     "assignments": assign,
@@ -4672,6 +6123,9 @@ class SignalViewerApp:
                     "document_text": doc_text or {"introduction": "", "conclusion": ""},
                     "subplot_metadata": subplot_metadata or {},
                     "time_offsets": time_offsets or {},
+                    "selected_tab": current_tab,  # Save current tab
+                    "selected_subplot": current_subplot,  # Save current subplot
+                    "display_options": {},  # Placeholder for future
                 }
                 # Generate filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -4687,6 +6141,7 @@ class SignalViewerApp:
         @self.app.callback(
             [
                 Output("store-csv-files", "data", allow_duplicate=True),
+                Output("csv-list", "children", allow_duplicate=True),  # Update CSV list UI
                 Output("store-assignments", "data", allow_duplicate=True),
                 Output("store-layouts", "data", allow_duplicate=True),
                 Output("store-links", "data", allow_duplicate=True),
@@ -4694,6 +6149,10 @@ class SignalViewerApp:
                 Output("store-derived", "data", allow_duplicate=True),
                 Output("store-num-tabs", "data", allow_duplicate=True),
                 Output("tabs", "children", allow_duplicate=True),
+                Output("tabs", "value", allow_duplicate=True),  # Restore active tab
+                Output("store-selected-tab", "data", allow_duplicate=True),  # Restore selected tab
+                Output("store-selected-subplot", "data", allow_duplicate=True),  # Restore selected subplot
+                Output("subplot-select", "value", allow_duplicate=True),  # Restore subplot selector
                 Output("store-subplot-modes", "data", allow_duplicate=True),
                 Output("store-cursor-x", "data", allow_duplicate=True),
                 Output("theme-switch", "value"),
@@ -4711,7 +6170,7 @@ class SignalViewerApp:
         )
         def load_session(contents, filename):
             if not contents:
-                return [dash.no_update] * 18
+                return [dash.no_update] * 23
             try:
                 # Decode uploaded file
                 content_type, content_string = contents.split(",")
@@ -4719,6 +6178,18 @@ class SignalViewerApp:
                 d = json.loads(decoded)
 
                 files = d.get("files", [])
+                
+                # CRITICAL: Clear all state before loading to prevent conflicts
+                self.data_manager.csv_file_paths = []
+                self.data_manager.data_tables = []
+                self.data_manager.last_read_rows = []
+                self.data_manager.last_file_mod_times = []
+                self.derived_signals = {}
+                self.signal_properties = {}
+                self.original_file_paths = {}
+                self.invalidate_caches()
+                
+                # Now load the session data
                 self.data_manager.csv_file_paths = files
                 self.data_manager.data_tables = [None] * len(files)
                 self.data_manager.last_read_rows = [0] * len(files)
@@ -4733,11 +6204,17 @@ class SignalViewerApp:
                         idx = files.index(uploads_path)
                         self.data_manager.original_source_paths[idx] = original_path
                 
+                # Load CSV data
                 for i in range(len(files)):
                     if os.path.exists(files[i]):
-                        self.data_manager.read_initial_data(i)
-                self.derived_signals = d.get("derived", {})
-                self.signal_properties = d.get("props", {})
+                        try:
+                            self.data_manager.read_initial_data(i)
+                        except Exception as e:
+                            print(f"[WARN] Could not load CSV {i}: {e}")
+                
+                # Restore derived signals and properties
+                self.derived_signals = d.get("derived", {}) or {}
+                self.signal_properties = d.get("props", {}) or {}
 
                 # Restore tabs
                 num_tabs = d.get("num_tabs", 1)
@@ -4745,33 +6222,99 @@ class SignalViewerApp:
                     dcc.Tab(label=f"Tab {i+1}", value=f"tab-{i}")
                     for i in range(num_tabs)
                 ]
-
+                
+                # Restore selected tab and subplot
+                selected_tab = d.get("selected_tab", 0)
+                selected_subplot = d.get("selected_subplot", 0)
+                
+                # Ensure selected tab is valid
+                if selected_tab >= num_tabs:
+                    selected_tab = 0
+                
+                # Set active tab value
+                active_tab_value = f"tab-{selected_tab}"
+                
+                # CRITICAL: Ensure all data structures have valid tab keys
+                layouts = d.get("layouts", {}) or {}
+                assignments = d.get("assignments", {}) or {}
+                subplot_modes_data = d.get("subplot_modes", {}) or {}
+                x_axis_signals_data = d.get("x_axis_signals", {}) or {}
+                
+                # CRITICAL: Validate x_axis_signals structure - ensure it's a dict of dicts
+                if not isinstance(x_axis_signals_data, dict):
+                    x_axis_signals_data = {}
+                
+                # Validate and fix tab keys in all structures
+                for i in range(num_tabs):
+                    tab_key = str(i)
+                    if tab_key not in layouts:
+                        layouts[tab_key] = {"rows": 1, "cols": 1}
+                    if tab_key not in assignments:
+                        assignments[tab_key] = {}
+                    if tab_key not in subplot_modes_data:
+                        subplot_modes_data[tab_key] = {}
+                    if tab_key not in x_axis_signals_data:
+                        x_axis_signals_data[tab_key] = {}
+                    else:
+                        # CRITICAL: Fix corrupted data - ensure tab_key value is a dict
+                        if not isinstance(x_axis_signals_data[tab_key], dict):
+                            x_axis_signals_data[tab_key] = {}
+                
                 # Theme (True = dark, False = light)
                 theme = d.get("theme", "dark")
                 is_dark = theme == "dark"
+                
+                # Update stores with selected tab/subplot after a short delay
+                # This ensures tabs are created first
+                import threading
+                # Build CSV list UI with delete buttons
+                csv_items = [
+                    html.Div(
+                        [
+                            html.Span(
+                                get_csv_display_name(f, files),
+                                style={"fontSize": "10px"},
+                                title=f,  # Show full path on hover
+                            ),
+                            html.A(
+                                "×",
+                                id={"type": "del-csv", "idx": i},
+                                className="float-end text-danger",
+                                style={"cursor": "pointer"},
+                            ),
+                        ],
+                        className="py-1",
+                    )
+                    for i, f in enumerate(files)
+                ]
 
                 return (
                     files,
-                    d.get("assignments", {}),
-                    d.get("layouts", {}),
-                    d.get("links", []),
-                    d.get("props", {}),
-                    d.get("derived", {}),
+                    csv_items,  # CSV list UI with delete buttons
+                    assignments,  # Use validated assignments
+                    layouts,  # Use validated layouts
+                    d.get("links", []) or [],
+                    d.get("props", {}) or {},
+                    d.get("derived", {}) or {},
                     num_tabs,
                     tabs_children,
-                    d.get("subplot_modes", {}),
-                    d.get("cursor_x", {"x": None, "initialized": False}),
+                    active_tab_value,  # Set active tab
+                    selected_tab,  # Store selected tab
+                    selected_subplot,  # Store selected subplot
+                    selected_subplot,  # Set subplot selector
+                    subplot_modes_data,  # Use validated subplot_modes
+                    d.get("cursor_x", {"x": None, "initialized": False}) or {"x": None, "initialized": False},
                     is_dark,
-                    d.get("search_filters", []),
-                    d.get("time_columns", {}),
-                    d.get("x_axis_signals", {}),
-                    d.get("document_text", {"introduction": "", "conclusion": ""}),
-                    d.get("subplot_metadata", {}),
-                    d.get("time_offsets", {}),
+                    d.get("search_filters", []) or [],
+                    d.get("time_columns", {}) or {},
+                    x_axis_signals_data,  # Use validated x_axis_signals
+                    d.get("document_text", {"introduction": "", "conclusion": ""}) or {"introduction": "", "conclusion": ""},
+                    d.get("subplot_metadata", {}) or {},
+                    d.get("time_offsets", {}) or {},
                     f"[OK] Loaded: {filename}",
                 )
             except Exception as e:
-                return [dash.no_update] * 17 + [f"[ERROR] {e}"]
+                return [dash.no_update] * 22 + [f"[ERROR] {e}"]
 
         # Clientside callback to initialize Split.js after page loads
         self.app.clientside_callback(
@@ -4840,7 +6383,7 @@ class SignalViewerApp:
             Input("interval-split-init", "n_intervals"),
         )
 
-        # Update cursor position from plot click (not hover)
+        # Update cursor position from plot click (NOT from slider to avoid cycle)
         @self.app.callback(
             Output("store-cursor-x", "data"),
             [Input("plot", "clickData"), Input("time-cursor-check", "value")],
@@ -4853,6 +6396,7 @@ class SignalViewerApp:
 
             current_cursor = current_cursor or {"x": None, "initialized": False}
 
+            # Update from plot click only
             if click_data:
                 try:
                     point = click_data.get("points", [{}])[0]
@@ -4863,6 +6407,273 @@ class SignalViewerApp:
                     pass
 
             return current_cursor
+        
+        # Update cursor from slider (separate callback to break cycle)
+        # Use assignments to compute range, not figure
+        # Also updates cursor text display for immediate feedback
+        @self.app.callback(
+            [
+                Output("store-cursor-x", "data", allow_duplicate=True),
+                Output("cursor-slider-value", "children", allow_duplicate=True),
+            ],
+            Input("cursor-slider", "value"),
+            [
+                State("time-cursor-check", "value"),
+                State("store-assignments", "data"),
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+                State("store-time-columns", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def update_cursor_from_slider(slider_value, cursor_enabled, assignments, sel_tab, sel_subplot, time_columns):
+            if not cursor_enabled or slider_value is None:
+                return dash.no_update, dash.no_update
+            
+            # Compute time range from assignments (same logic as slider update)
+            x_min, x_max = 0, 100
+            
+            if assignments:
+                tab_key = str(sel_tab or 0)
+                subplot_key = str(sel_subplot or 0)
+                sp_assignment = assignments.get(tab_key, {}).get(subplot_key, [])
+                
+                if isinstance(sp_assignment, list) and sp_assignment:
+                    all_times = []
+                    for sig in sp_assignment:
+                        csv_idx = sig.get("csv_idx", -1)
+                        signal_name = sig.get("signal", "")
+                        
+                        try:
+                            if csv_idx == -1 and signal_name in self.derived_signals:
+                                ds = self.derived_signals[signal_name]
+                                times = ds.get("time", [])
+                                if times:
+                                    all_times.extend(times)
+                            elif csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
+                                df = self.data_manager.data_tables[csv_idx]
+                                if df is not None and signal_name in df.columns:
+                                    time_col = time_columns.get(str(csv_idx), "Time") if time_columns else "Time"
+                                    if time_col in df.columns:
+                                        times = df[time_col].values
+                                        if len(times) > 0:
+                                            all_times.extend(times.tolist() if hasattr(times, 'tolist') else times)
+                        except:
+                            pass
+                    
+                    if all_times:
+                        # PERFORMANCE: Use numpy for min/max on large arrays
+                        times_array = np.array(all_times)
+                        x_min, x_max = float(np.min(times_array)), float(np.max(times_array))
+            
+            try:
+                # Slider value is now actual time value (not 0-100)
+                x_val = float(slider_value)
+                # Clamp to valid range
+                x_val = max(x_min, min(x_max, x_val))
+                # Return both cursor data and text display
+                cursor_display = f"T: {x_val:.3f}"
+                return {"x": x_val, "initialized": True}, cursor_display
+            except:
+                pass
+            
+            return dash.no_update, dash.no_update
+        
+        # Show/hide slider and update its range based on assignments (not figure to avoid cycle)
+        # Cursor animation controls (play/stop) - supports both bottom and header buttons
+        @self.app.callback(
+            [
+                Output("interval-cursor-animation", "disabled"),
+                Output("btn-cursor-play", "style"),
+                Output("btn-cursor-stop", "style"),
+            ],
+            [
+                Input("btn-cursor-play", "n_clicks"),
+                Input("btn-cursor-stop", "n_clicks"),
+                Input("btn-cursor-play-header", "n_clicks"),
+                Input("btn-cursor-stop-header", "n_clicks"),
+            ],
+            [
+                State("interval-cursor-animation", "disabled"),
+                State("time-cursor-check", "value"),
+            ],
+            prevent_initial_call=True,
+        )
+        def control_cursor_animation(play_clicks, stop_clicks, play_header, stop_header, interval_disabled, cursor_enabled):
+            """Control cursor animation playback"""
+            if not cursor_enabled:
+                return True, {"opacity": 0.5}, {"opacity": 0.5}
+            
+            ctx = callback_context
+            if not ctx.triggered:
+                return dash.no_update, dash.no_update, dash.no_update
+            
+            trigger = ctx.triggered[0]["prop_id"]
+            
+            if "btn-cursor-play" in trigger:
+                # Start animation
+                print("[CURSOR] Starting cursor animation")
+                return False, {"opacity": 0.5}, {"opacity": 1.0}
+            elif "btn-cursor-stop" in trigger:
+                # Stop animation
+                print("[CURSOR] Stopping cursor animation")
+                return True, {"opacity": 1.0}, {"opacity": 0.5}
+            
+            return dash.no_update, dash.no_update, dash.no_update
+        
+        # Show/hide header cursor controls based on cursor enabled
+        @self.app.callback(
+            Output("cursor-controls-header", "style"),
+            Input("time-cursor-check", "value"),
+            prevent_initial_call=True,
+        )
+        def toggle_header_cursor_controls(cursor_enabled):
+            if cursor_enabled:
+                return {"display": "flex", "minWidth": "150px"}
+            return {"display": "none"}
+        
+        # Sync header slider to main slider (value, min, max)
+        @self.app.callback(
+            [
+                Output("cursor-slider-header", "value"),
+                Output("cursor-slider-header", "min"),
+                Output("cursor-slider-header", "max"),
+            ],
+            [
+                Input("cursor-slider", "value"),
+                Input("cursor-slider", "min"),
+                Input("cursor-slider", "max"),
+            ],
+            prevent_initial_call=True,
+        )
+        def sync_header_slider(value, min_val, max_val):
+            return value, min_val, max_val
+        
+        # Update cursor from header slider
+        @self.app.callback(
+            Output("cursor-slider", "value", allow_duplicate=True),
+            Input("cursor-slider-header", "value"),
+            prevent_initial_call=True,
+        )
+        def update_from_header_slider(value):
+            return value
+        
+        # Animate cursor position when play is active
+        @self.app.callback(
+            Output("cursor-slider", "value", allow_duplicate=True),
+            Input("interval-cursor-animation", "n_intervals"),
+            [
+                State("cursor-slider", "value"),
+                State("cursor-slider", "min"),
+                State("cursor-slider", "max"),
+                State("interval-cursor-animation", "disabled"),
+            ],
+            prevent_initial_call=True,
+        )
+        def animate_cursor(n_intervals, current_value, min_val, max_val, is_disabled):
+            """Animate cursor by incrementing slider value"""
+            if is_disabled or current_value is None:
+                return dash.no_update
+            
+            # Increment by 0.5% per interval (100ms), so full animation takes ~20 seconds
+            step = (max_val - min_val) * 0.005
+            new_value = current_value + step
+            
+            # Loop back to start when reaching end
+            if new_value > max_val:
+                new_value = min_val
+            
+            return new_value
+
+        @self.app.callback(
+            [
+                Output("cursor-slider-container", "style"),
+                Output("cursor-slider", "disabled"),
+                Output("cursor-slider", "min"),
+                Output("cursor-slider", "max"),
+                Output("cursor-slider", "value"),
+                Output("cursor-slider-value", "children"),
+            ],
+            [
+                Input("time-cursor-check", "value"),
+                Input("store-cursor-x", "data"),
+                Input("store-assignments", "data"),  # Use assignments to compute range, not figure
+            ],
+            [
+                State("store-selected-tab", "data"),
+                State("store-selected-subplot", "data"),
+                State("store-time-columns", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def update_cursor_slider(cursor_enabled, cursor_data, assignments, sel_tab, sel_subplot, time_columns):
+            if not cursor_enabled:
+                return {"display": "none"}, True, 0, 100, 50, "--"
+            
+            # Compute time range from actual data, not figure (avoids circular dependency)
+            x_min, x_max = 0, 100
+            cursor_x = None
+            slider_value = 50
+            
+            # Get time range from assigned signals
+            if assignments:
+                tab_key = str(sel_tab or 0)
+                subplot_key = str(sel_subplot or 0)
+                sp_assignment = assignments.get(tab_key, {}).get(subplot_key, [])
+                
+                if isinstance(sp_assignment, list) and sp_assignment:
+                    all_times = []
+                    for sig in sp_assignment:
+                        csv_idx = sig.get("csv_idx", -1)
+                        signal_name = sig.get("signal", "")
+                        
+                        try:
+                            if csv_idx == -1 and signal_name in self.derived_signals:
+                                ds = self.derived_signals[signal_name]
+                                times = ds.get("time", [])
+                                if times:
+                                    all_times.extend(times)
+                            elif csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
+                                df = self.data_manager.data_tables[csv_idx]
+                                if df is not None and signal_name in df.columns:
+                                    time_col = time_columns.get(str(csv_idx), "Time") if time_columns else "Time"
+                                    if time_col in df.columns:
+                                        times = df[time_col].values
+                                        if len(times) > 0:
+                                            all_times.extend(times.tolist() if hasattr(times, 'tolist') else times)
+                        except:
+                            pass
+                    
+                    if all_times:
+                        # PERFORMANCE: Use numpy for min/max on large arrays
+                        times_array = np.array(all_times)
+                        x_min, x_max = float(np.min(times_array)), float(np.max(times_array))
+            
+            if cursor_data and cursor_data.get("initialized"):
+                cursor_x = cursor_data.get("x")
+                if cursor_x is not None and x_max > x_min:
+                    # Use actual time value for slider (not percentage)
+                    slider_value = max(x_min, min(x_max, cursor_x))
+                    cursor_display = f"T: {cursor_x:.3f}"
+                else:
+                    slider_value = x_min
+                    cursor_display = f"T: {x_min:.3f}"
+            else:
+                slider_value = x_min
+                cursor_display = f"T: {x_min:.3f}"
+            
+            # Calculate step size based on range (aim for ~1000 steps)
+            time_range = x_max - x_min
+            step = time_range / 1000 if time_range > 0 else 0.1
+            
+            return (
+                {"display": "flex", "flexDirection": "column", "padding": "5px 10px", "backgroundColor": "rgba(0,0,0,0.05)", "borderRadius": "4px", "marginTop": "5px"},
+                False,  # Enabled
+                x_min,
+                x_max,
+                slider_value,
+                cursor_display,
+            )
 
         # =================================================================
         # Browser-style tabs with + and x buttons
@@ -5019,16 +6830,51 @@ class SignalViewerApp:
                 tabs = [t for i, t in enumerate(tabs) if i != del_idx]
 
                 # Rebuild layouts and assignments with new indices
+                # FIX: Deep copy and sanitize assignments to prevent corruption, especially for tab "0"
+                import copy
                 new_layouts = {}
                 new_assignments = {}
                 new_i = 0
                 for old_i in range(len(tabs) + 1):
                     if old_i == del_idx:
                         continue
-                    if str(old_i) in layouts:
-                        new_layouts[str(new_i)] = layouts[str(old_i)]
-                    if str(old_i) in assignments:
-                        new_assignments[str(new_i)] = assignments[str(old_i)]
+                    old_key = str(old_i)
+                    new_key = str(new_i)
+                    
+                    if old_key in layouts:
+                        new_layouts[new_key] = copy.deepcopy(layouts[old_key])
+                    
+                    if old_key in assignments:
+                        # Deep copy and sanitize the tab's assignment structure
+                        old_tab_assignments = assignments[old_key]
+                        new_tab_assignments = {}
+                        
+                        # Ensure it's a dict
+                        if isinstance(old_tab_assignments, dict):
+                            for sp_key, sp_data in old_tab_assignments.items():
+                                # Sanitize: ensure each subplot assignment is a list
+                                if isinstance(sp_data, list):
+                                    # Validate each item in the list is a proper dict
+                                    sanitized_list = [
+                                        s for s in sp_data
+                                        if isinstance(s, dict) and 'csv_idx' in s and 'signal' in s
+                                    ]
+                                    new_tab_assignments[sp_key] = sanitized_list
+                                elif isinstance(sp_data, dict):
+                                    # Old dict format - convert to empty list
+                                    new_tab_assignments[sp_key] = []
+                                else:
+                                    # Invalid format - use empty list
+                                    new_tab_assignments[sp_key] = []
+                        else:
+                            # Invalid tab structure - create empty dict
+                            new_tab_assignments = {}
+                        
+                        new_assignments[new_key] = new_tab_assignments
+                    else:
+                        # Tab doesn't exist in assignments - initialize with empty structure
+                        new_assignments[new_key] = {}
+                    
                     new_i += 1
 
                 # Rename tabs
@@ -5055,6 +6901,8 @@ class SignalViewerApp:
         # =================================================================
         # Template Save/Load
         # =================================================================
+        # Template save/load disabled - use session save/load instead
+        # Can be repurposed for CSV path remapping if needed
         @self.app.callback(
             [
                 Output("download-template", "data"),
@@ -5082,7 +6930,12 @@ class SignalViewerApp:
             x_axis_signals,
             subplot_metadata,
         ):
-            if not n:
+            # Template save/load disabled - use session save/load instead
+            # Can be repurposed for CSV path remapping if needed
+            return dash.no_update, "Template feature disabled - use Session Save/Load"
+            
+            # OLD CODE (disabled):
+            if False and not n:
                 return dash.no_update, dash.no_update
             try:
                 # Extract only signal names from assignments (not CSV indices)
@@ -5140,8 +6993,8 @@ class SignalViewerApp:
             prevent_initial_call=True,
         )
         def load_template(contents, filename, csv_files):
-            if not contents:
-                return [dash.no_update] * 9
+            # Template save/load disabled - use session save/load instead
+            return [dash.no_update] * 9
             try:
                 content_type, content_string = contents.split(",")
                 decoded = base64.b64decode(content_string).decode("utf-8")
@@ -5508,79 +7361,135 @@ class SignalViewerApp:
 
             try:
                 import io
+                import zipfile
 
-                # Collect signals based on scope
-                signals_to_export = []
+                with self._perf_timer("CSV Export"):
+                    # Collect signals based on scope
+                    signals_to_export = []
 
-                if scope == "subplot":
-                    tab_key = str(sel_tab or 0)
-                    sp_key = str(sel_subplot or 0)
-                    sp_signals = (assignments or {}).get(tab_key, {}).get(sp_key, [])
-                    if isinstance(sp_signals, list):
-                        signals_to_export = sp_signals
-                elif scope == "tab":
-                    tab_key = str(sel_tab or 0)
-                    for sp_key, sp_signals in (
-                        (assignments or {}).get(tab_key, {}).items()
-                    ):
+                    if scope == "subplot":
+                        tab_key = str(sel_tab or 0)
+                        sp_key = str(sel_subplot or 0)
+                        sp_signals = (assignments or {}).get(tab_key, {}).get(sp_key, [])
                         if isinstance(sp_signals, list):
-                            signals_to_export.extend(sp_signals)
-                else:  # all
-                    for tab_key, subplots in (assignments or {}).items():
-                        for sp_key, sp_signals in subplots.items():
+                            signals_to_export = sp_signals
+                    elif scope == "tab":
+                        tab_key = str(sel_tab or 0)
+                        for sp_key, sp_signals in (
+                            (assignments or {}).get(tab_key, {}).items()
+                        ):
                             if isinstance(sp_signals, list):
                                 signals_to_export.extend(sp_signals)
+                    else:  # all
+                        for tab_key, subplots in (assignments or {}).items():
+                            for sp_key, sp_signals in subplots.items():
+                                if isinstance(sp_signals, list):
+                                    signals_to_export.extend(sp_signals)
 
-                if not signals_to_export:
-                    return dash.no_update, "⚠️ No signals to export. Assign signals to subplots first."
+                    if not signals_to_export:
+                        return dash.no_update, "⚠️ No signals to export. Assign signals to subplots first."
 
-                # Build export DataFrame
-                export_data = {}
-                time_col_added = False
+                    # Group signals by their time length to handle different lengths
+                    signals_by_length = {}  # {length: [(time_data, sig_name, sig_data), ...]}
+                    
+                    for sig in signals_to_export:
+                        csv_idx = sig.get("csv_idx", -1)
+                        sig_name = sig.get("signal", "")
 
-                for sig in signals_to_export:
-                    csv_idx = sig.get("csv_idx", -1)
-                    sig_name = sig.get("signal", "")
-
-                    if csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
-                        df = self.data_manager.data_tables[csv_idx]
-                        if df is not None and sig_name in df.columns:
-                            # Add time column once
-                            if include_time and not time_col_added:
-                                time_col_name = (time_cols or {}).get(
-                                    str(csv_idx), "Time"
+                        if csv_idx >= 0 and csv_idx < len(self.data_manager.data_tables):
+                            df = self.data_manager.data_tables[csv_idx]
+                            if df is not None and sig_name in df.columns:
+                                sig_data = df[sig_name].values
+                                data_len = len(sig_data)
+                                
+                                # Get time column for this signal
+                                time_col_name = (time_cols or {}).get(str(csv_idx), "Time")
+                                time_data = df[time_col_name].values if time_col_name in df.columns else None
+                                
+                                # Get CSV name for labeling
+                                csv_name = (
+                                    get_csv_short_name(self.data_manager.csv_file_paths[csv_idx])
+                                    if csv_idx < len(self.data_manager.csv_file_paths)
+                                    else f"C{csv_idx}"
                                 )
-                                if time_col_name in df.columns:
-                                    export_data["Time"] = df[time_col_name].values
-                                    time_col_added = True
+                                col_name = f"{sig_name}_{csv_name}"
+                                
+                                if data_len not in signals_by_length:
+                                    signals_by_length[data_len] = {
+                                        "time": time_data,
+                                        "signals": []
+                                    }
+                                signals_by_length[data_len]["signals"].append((col_name, sig_data))
 
-                            # Add signal data
-                            csv_name = (
-                                get_csv_short_name(
-                                    self.data_manager.csv_file_paths[csv_idx]
-                                )
-                                if csv_idx < len(self.data_manager.csv_file_paths)
-                                else f"C{csv_idx}"
-                            )
-                            col_name = f"{sig_name}_{csv_name}"
-                            export_data[col_name] = df[sig_name].values
+                    if not signals_by_length:
+                        return dash.no_update, "[ERROR] No data to export"
 
-                if not export_data:
-                    return dash.no_update, "[ERROR] No data to export"
-
-                # Create DataFrame and export
-                export_df = pd.DataFrame(export_data)
-                csv_string = export_df.to_csv(index=False)
-
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"signals_export_{timestamp}.csv"
-
-                return (
-                    dict(content=csv_string, filename=filename),
-                    f"[OK] Exported {len(signals_to_export)} signals",
-                )
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    
+                    # If all signals have same length, export single CSV
+                    if len(signals_by_length) == 1:
+                        length, group = list(signals_by_length.items())[0]
+                        export_data = {}
+                        
+                        if include_time and group["time"] is not None:
+                            export_data["Time"] = group["time"]
+                        
+                        for col_name, sig_data in group["signals"]:
+                            export_data[col_name] = sig_data
+                        
+                        export_df = pd.DataFrame(export_data)
+                        csv_string = export_df.to_csv(index=False)
+                        filename = f"signals_export_{timestamp}.csv"
+                        
+                        return (
+                            dict(content=csv_string, filename=filename),
+                            f"✅ Exported {len(signals_to_export)} signals ({length} samples)",
+                        )
+                    
+                    # Multiple lengths - create ZIP with separate CSVs
+                    zip_buffer = io.BytesIO()
+                    csv_files_created = []
+                    
+                    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                        for length, group in sorted(signals_by_length.items()):
+                            export_data = {}
+                            
+                            if include_time and group["time"] is not None:
+                                export_data["Time"] = group["time"]
+                            
+                            for col_name, sig_data in group["signals"]:
+                                export_data[col_name] = sig_data
+                            
+                            export_df = pd.DataFrame(export_data)
+                            csv_content = export_df.to_csv(index=False)
+                            
+                            csv_filename = f"signals_{length}samples.csv"
+                            zf.writestr(csv_filename, csv_content)
+                            csv_files_created.append(f"{csv_filename} ({len(group['signals'])} signals)")
+                    
+                    zip_buffer.seek(0)
+                    zip_content = base64.b64encode(zip_buffer.read()).decode('utf-8')
+                    
+                    filename = f"signals_export_{timestamp}.zip"
+                    
+                    # Format summary
+                    summary = f"✅ Exported to ZIP with {len(signals_by_length)} CSVs (different time lengths):\n"
+                    for f in csv_files_created:
+                        summary += f"  • {f}\n"
+                    
+                    return (
+                        dict(
+                            content=zip_content,
+                            filename=filename,
+                            base64=True,
+                            type='application/zip'
+                        ),
+                        summary.strip(),
+                    )
 
             except Exception as e:
+                import traceback
+                logger.error(f"CSV export error: {e}\n{traceback.format_exc()}")
                 return dash.no_update, f"[ERROR] {e}"
 
         # =================================================================
@@ -6633,12 +8542,16 @@ class SignalViewerApp:
             [
                 Output("store-refresh-trigger", "data", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
+                Output("store-assignments", "data", allow_duplicate=True),  # Update assignments
             ],
             Input("btn-refresh-csv", "n_clicks"),
-            State("store-csv-files", "data"),
+            [
+                State("store-csv-files", "data"),
+                State("store-assignments", "data"),  # Get current assignments
+            ],
             prevent_initial_call=True,
         )
-        def refresh_all_csvs(n_clicks, csv_files):
+        def refresh_all_csvs(n_clicks, csv_files, assignments):
             """Refresh all CSVs - re-read data and update everything"""
             if not csv_files:
                 return no_update, "No CSVs loaded"
@@ -6685,6 +8598,15 @@ class SignalViewerApp:
                         self.data_manager.last_file_mod_times[i] = 0
                 
                 logger.info(f"REFRESH: Cleared {len(csv_files)} table(s)")
+                
+                # Store old signal lists before refresh to detect changes
+                old_signal_lists = {}
+                for i in range(len(csv_files)):
+                    if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
+                        df = self.data_manager.data_tables[i]
+                        old_signal_lists[i] = set([c for c in df.columns if c.lower() != 'time'])
+                    else:
+                        old_signal_lists[i] = set()
                 
                 # Now reload all CSVs from ORIGINAL paths (not uploads cache)
                 print("\n[RELOAD] Reloading CSVs from original paths...")
@@ -6743,15 +8665,97 @@ class SignalViewerApp:
                 # Update signal names
                 self.data_manager.update_signal_names()
                 
+                # Get new signal lists after refresh
+                new_signal_lists = {}
+                for i in range(len(csv_files)):
+                    if i < len(self.data_manager.data_tables) and self.data_manager.data_tables[i] is not None:
+                        df = self.data_manager.data_tables[i]
+                        new_signal_lists[i] = set([c for c in df.columns if c.lower() != 'time'])
+                    else:
+                        new_signal_lists[i] = set()
+                
+                # Clean up assignments: remove signals that no longer exist, keep those that do
+                assignments = assignments or {}
+                assignments_updated = False
+                removed_count = 0
+                kept_count = 0
+                
+                for tab_key in assignments:
+                    for sp_key in assignments[tab_key]:
+                        sp_assignment = assignments[tab_key][sp_key]
+                        if isinstance(sp_assignment, list):
+                            # Filter out signals that no longer exist
+                            valid_signals = []
+                            for sig_info in sp_assignment:
+                                csv_idx = sig_info.get("csv_idx", -1)
+                                signal_name = sig_info.get("signal", "")
+                                
+                                if csv_idx == -1:
+                                    # Derived signal - keep it (will be recalculated if needed)
+                                    valid_signals.append(sig_info)
+                                    kept_count += 1
+                                elif csv_idx in new_signal_lists:
+                                    # Check if signal still exists in CSV
+                                    if signal_name in new_signal_lists[csv_idx]:
+                                        valid_signals.append(sig_info)
+                                        kept_count += 1
+                                    else:
+                                        removed_count += 1
+                                        print(f"  [REMOVED] Signal '{signal_name}' from CSV {csv_idx} (no longer exists)")
+                                else:
+                                    # CSV index out of range
+                                    removed_count += 1
+                            
+                            if len(valid_signals) != len(sp_assignment):
+                                assignments[tab_key][sp_key] = valid_signals
+                                assignments_updated = True
+                
+                if assignments_updated:
+                    print(f"\n[ASSIGNMENTS] Updated: kept {kept_count}, removed {removed_count} invalid signals")
+                
                 # Show new state
                 print("\n📊 After refresh:")
                 
-                # Clear derived signals (they will be recalculated on next plot)
-                self.derived_signals.clear()
-                logger.info("REFRESH: Cleared derived signals")
+                # Clear derived signals that depend on removed signals
+                derived_to_remove = []
+                for derived_name, derived_info in self.derived_signals.items():
+                    source_signal_key = derived_info.get("source_signal_key")
+                    source_csv_idx = derived_info.get("source_csv_idx")
+                    source_signals = derived_info.get("source_signals", [])
+                    
+                    should_remove = False
+                    if source_csv_idx is not None and source_csv_idx >= 0:
+                        # Check if source signal still exists
+                        if source_csv_idx not in new_signal_lists:
+                            should_remove = True
+                        elif source_signal_key:
+                            csv_idx, sig_name = source_signal_key.split(":", 1)
+                            csv_idx = int(csv_idx)
+                            if csv_idx >= 0 and sig_name not in new_signal_lists.get(csv_idx, set()):
+                                should_remove = True
+                    
+                    # Check source_signals for multi-op signals
+                    if not should_remove and source_signals:
+                        for sig_key in source_signals:
+                            if ":" in sig_key:
+                                csv_idx, sig_name = sig_key.split(":", 1)
+                                csv_idx = int(csv_idx)
+                                if csv_idx >= 0 and sig_name not in new_signal_lists.get(csv_idx, set()):
+                                    should_remove = True
+                                    break
+                    
+                    if should_remove:
+                        derived_to_remove.append(derived_name)
                 
-                # Update signal names
-                self.data_manager.update_signal_names()
+                for name in derived_to_remove:
+                    del self.derived_signals[name]
+                    print(f"  [REMOVED] Derived signal '{name}' (source signal removed)")
+                
+                # Note: Valid derived signals will be recalculated with fresh data on next plot update
+                # This ensures they reflect the refreshed CSV data
+                valid_derived_count = len(self.derived_signals)
+                if valid_derived_count > 0:
+                    print(f"  [INFO] {valid_derived_count} derived signal(s) will be recalculated on next plot update")
                 
                 # Trigger full UI refresh by updating trigger
                 refresh_trigger = datetime.now().timestamp()
@@ -6765,7 +8769,7 @@ class SignalViewerApp:
                 print(f"\n[OK] REFRESH COMPLETE: {num_csvs} CSV(s), {total_rows:,} rows")
                 print("="*80 + "\n")
                 
-                return refresh_trigger, f"[OK] Refreshed {num_csvs} CSV(s), {total_rows:,} rows"
+                return refresh_trigger, f"[OK] Refreshed {num_csvs} CSV(s), {total_rows:,} rows", assignments
                 
             except Exception as e:
                 logger.error(f"REFRESH ERROR: {e}")
@@ -6773,7 +8777,7 @@ class SignalViewerApp:
                 traceback.print_exc()
                 print(f"\n[ERROR] REFRESH FAILED: {e}")
                 print("="*80 + "\n")
-                return no_update, f"[ERROR] Refresh failed: {str(e)}"
+                return no_update, f"[ERROR] Refresh failed: {str(e)}", dash.no_update
         
         # =================================================================
         # CSV Streaming Feature
@@ -7258,15 +9262,16 @@ class SignalViewerApp:
                 csv1_name = get_csv_display_name(csv_files[csv1_idx], csv_files) if csv_files else f"CSV{csv1_idx}"
                 csv2_name = get_csv_display_name(csv_files[csv2_idx], csv_files) if csv_files else f"CSV{csv2_idx}"
                 
-                fig.add_trace(go.Scatter(x=common_time, y=interp1, mode="lines", 
+                # Use Scattergl for WebGL acceleration (faster rendering)
+                fig.add_trace(go.Scattergl(x=common_time, y=interp1, mode="lines",
                                          name=f"{sig1_name} ({csv1_name})",
                                          line=dict(color="#4ea8de", width=1)), row=1, col=1)
-                fig.add_trace(go.Scatter(x=common_time, y=interp2, mode="lines",
+                fig.add_trace(go.Scattergl(x=common_time, y=interp2, mode="lines",
                                          name=f"{sig2_name} ({csv2_name})",
                                          line=dict(color="#f4a261", width=1)), row=1, col=1)
-                
+
                 # Bottom: Difference
-                fig.add_trace(go.Scatter(x=common_time, y=diff, mode="lines", name="Difference",
+                fig.add_trace(go.Scattergl(x=common_time, y=diff, mode="lines", name="Difference",
                                          line=dict(color="#ff6b6b", width=1)), row=2, col=1)
                 fig.add_hline(y=0, line_dash="dash", line_color="gray", row=2, col=1)
                 

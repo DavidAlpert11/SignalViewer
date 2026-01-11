@@ -1,23 +1,36 @@
 # Signal Viewer Pro - Requirements
 # Core dependencies for signal visualization and analysis
+# =========================================================
 
-# Web Framework
-dash==2.14.2
-dash-bootstrap-components==1.5.0
-Flask==2.3.3
-Werkzeug==2.3.7
+# ==== CORE DEPENDENCIES (Required) ====
 
 # Plotting and Visualization
-plotly==5.18.0
+plotly>=5.18.0           # Interactive plotting with WebGL
 
-# Data Processing
-pandas==2.1.4
-numpy==1.26.2
-scipy==1.11.4
+# Data Processing  
+pandas>=2.1.0            # CSV data handling
+numpy>=1.24.0            # Numerical operations
+
+# Interactive plot window (for Plotly with full JavaScript)
+pywebview>=4.0.0         # WebView window (BEST for Python 3.10+, uses Edge WebView2)
+tkinterweb>=4.0.0        # Fallback HTML renderer (limited JavaScript support)
+
+# ==== OPTIONAL DEPENDENCIES ====
+
+# Document Export (optional but recommended)
+python-docx>=1.1.0       # Word document export
+kaleido>=0.2.1           # Plotly image export (PNG/PDF)
 
 # Additional utilities
-python-dateutil==2.8.2
+scipy>=1.11.0            # Signal processing (derivatives, integrals)
+python-dateutil>=2.8.0   # Date parsing
 
-# Document Export
-python-docx==1.1.0
-kaleido==0.2.1
+# Embedded browser (optional - for better plot viewing)
+# pywebview>=4.0.0       # Uncomment if you want embedded browser support
+
+# ==== DASH VERSION (if using app.py instead of app_tk.py) ====
+# Uncomment these if using the Dash web version:
+# dash>=2.14.0
+# dash-bootstrap-components>=1.5.0
+# Flask>=2.3.0
+# Werkzeug>=2.3.0

@@ -53,38 +53,38 @@ class ThemeColors:
 
 THEMES: Dict[str, ThemeColors] = {
     "dark": ThemeColors(
-        bg="#1a1a2e",
-        card="#16213e",
-        card_header="#0f3460",
-        text="#e8e8e8",
-        muted="#aaa",
-        border="#333",
-        input_bg="#2a2a3e",
-        plot_bg="#1a1a2e",
-        paper_bg="#16213e",
-        grid="#444",
-        checkbox_border="#666",
-        checkbox_bg="#2a2a3e",
-        accent="#4ea8de",
-        button_bg="#0f3460",
-        button_text="#e8e8e8",
+        bg="#0d1117",  # GitHub dark - professional, easy on eyes
+        card="#161b22",  # Subtle elevation for cards
+        card_header="#21262d",  # Clear header distinction
+        text="#e6edf3",  # Highly readable soft white
+        muted="#8b949e",  # Perfect for secondary text
+        border="#30363d",  # Subtle borders, not harsh
+        input_bg="#0d1117",  # Consistent with background
+        plot_bg="#0d1117",  # Seamless plot integration
+        paper_bg="#161b22",  # Plotly plot background
+        grid="#21262d",  # Visible but not distracting
+        checkbox_border="#30363d",  # Consistent borders
+        checkbox_bg="#161b22",  # Matches card
+        accent="#58a6ff",  # GitHub blue - modern, accessible
+        button_bg="#238636",  # Success green for primary actions
+        button_text="#ffffff",  # High contrast button text
     ),
     "light": ThemeColors(
-        bg="#f0f2f5",
-        card="#ffffff",
-        card_header="#e3e7eb",
-        text="#1a1a2e",
-        muted="#5a6268",
-        border="#ced4da",
+        bg="#ffffff",  # Pure white background
+        card="#f6f8fa",  # GitHub light card
+        card_header="#f0f3f6",  # Subtle header
+        text="#24292f",  # Dark, readable text
+        muted="#57606a",  # Better muted
+        border="#d0d7de",  # Light borders
         input_bg="#ffffff",
         plot_bg="#ffffff",
-        paper_bg="#fafbfc",
-        grid="#dee2e6",
-        checkbox_border="#495057",
+        paper_bg="#f6f8fa",
+        grid="#d8dee4",  # Very light grid
+        checkbox_border="#d0d7de",
         checkbox_bg="#ffffff",
-        accent="#2E86AB",
-        button_bg="#e3e7eb",
-        button_text="#1a1a2e",
+        accent="#0969da",  # GitHub blue
+        button_bg="#2da44e",  # Modern green
+        button_text="#ffffff",
     ),
 }
 

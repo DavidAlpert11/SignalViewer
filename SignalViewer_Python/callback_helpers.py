@@ -17,24 +17,53 @@ class PerformanceCache:
         self.signal_tree_cache = {}
         self.highlighted_cache = {}
         self.last_update_time = {}
-        self.debounce_ms = 150
+        self.figure_cache = {}  # Cache for figure hashes
+        self.debounce_ms = 100  # Reduced for faster response
+        self.figure_debounce_ms = 50  # Even faster for figure updates
         
-    def should_debounce(self, callback_id):
-        """Check if callback should be debounced"""
+    def should_debounce(self, callback_id, debounce_ms=None):
+        """Check if callback should be debounced
+        
+        Args:
+            callback_id: Unique identifier for this callback
+            debounce_ms: Custom debounce time, or None for default
+        
+        Returns:
+            True if should skip this callback, False if should proceed
+        """
         current_time = time.time() * 1000
         last_time = self.last_update_time.get(callback_id, 0)
+        threshold = debounce_ms if debounce_ms is not None else self.debounce_ms
         
-        if current_time - last_time < self.debounce_ms:
+        if current_time - last_time < threshold:
             return True
         
         self.last_update_time[callback_id] = current_time
         return False
+    
+    def get_figure_cache(self, cache_key):
+        """Get cached figure by key"""
+        return self.figure_cache.get(cache_key)
+    
+    def set_figure_cache(self, cache_key, figure):
+        """Cache a figure
+        
+        Limits cache size to prevent memory issues
+        """
+        # Limit cache to 10 figures
+        if len(self.figure_cache) > 10:
+            # Remove oldest entry
+            oldest = next(iter(self.figure_cache))
+            del self.figure_cache[oldest]
+        
+        self.figure_cache[cache_key] = figure
     
     def clear(self):
         """Clear all caches"""
         self.signal_tree_cache.clear()
         self.highlighted_cache.clear()
         self.last_update_time.clear()
+        self.figure_cache.clear()
 
 
 # Global cache instance
