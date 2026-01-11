@@ -473,6 +473,11 @@ class SignalViewerApp:
                 dcc.Store(id="store-visible-range", data={}),  # {tab: {xmin, xmax}}
                 # PRESETS: Saved layout presets
                 dcc.Store(id="store-presets", data={}, storage_type="local"),  # Persistent presets saved to localStorage
+                # COMPARE MODE: Side-by-side plot comparison
+                dcc.Store(id="store-compare-mode", data=False),  # Compare mode enabled/disabled
+                dcc.Store(id="store-compare-tabs", data=[]),  # Tabs to compare
+                # SIGNAL REORDER: Track drag & drop signal reorder events
+                dcc.Store(id="store-signal-reorder", data=None),  # {fromIdx, toIdx}
                 dcc.Download(id="download-session"),
                 dcc.Download(id="download-template"),
                 dcc.Download(id="download-csv-export"),
@@ -1019,7 +1024,31 @@ class SignalViewerApp:
                                                                                     ),
                                                                                     accept=".json",
                                                                                 ),
-                                                                                # Template management removed - use session save/load instead
+                                                                                # Preset Templates dropdown
+                                                                                dbc.DropdownMenu(
+                                                                                    [
+                                                                                        dbc.DropdownMenuItem("📋 Save as Preset", id="btn-save-preset"),
+                                                                                        dbc.DropdownMenuItem(divider=True),
+                                                                                        dbc.DropdownMenuItem("Empty Presets", header=True, id="preset-list-header"),
+                                                                                        # Dynamic presets will be added here via callback
+                                                                                    ],
+                                                                                    id="dropdown-presets",
+                                                                                    label="📑",
+                                                                                    size="sm",
+                                                                                    color="secondary",
+                                                                                    className="d-inline-block",
+                                                                                    toggle_style={"padding": "4px 8px"},
+                                                                                ),
+                                                                                # Compare Mode toggle
+                                                                                dbc.Button(
+                                                                                    "⚖️",
+                                                                                    id="btn-compare-mode",
+                                                                                    size="sm",
+                                                                                    color="secondary",
+                                                                                    outline=True,
+                                                                                    title="Compare Mode (side-by-side plots)",
+                                                                                    className="px-2",
+                                                                                ),
                                                                                 # Export buttons
                                                                                 dbc.Button(
                                                                                     "📊",
@@ -1379,9 +1408,11 @@ class SignalViewerApp:
                 self.create_csv_export_modal(),
                 self.create_pdf_export_modal(),
                 self.create_word_export_modal(),
+                self.create_preset_modal(),
                 self.create_time_column_modal(),
                 self.create_annotation_modal(),
                 self.create_compare_modal(),
+                self.create_compare_mode_panel(),
             ],
         )
 
@@ -1800,6 +1831,138 @@ class SignalViewerApp:
             id="modal-export-word",
             is_open=False,
             size="lg",
+        )
+
+    def create_preset_modal(self):
+        """Modal for saving layout presets."""
+        return dbc.Modal(
+            [
+                dbc.ModalHeader("📋 Save Layout Preset"),
+                dbc.ModalBody(
+                    [
+                        dbc.Label("Preset Name:", className="fw-bold"),
+                        dbc.Input(
+                            id="preset-name-input",
+                            placeholder="My Layout Preset",
+                            size="sm",
+                            className="mb-3",
+                        ),
+                        dbc.Label("Description (optional):", className="small"),
+                        dcc.Textarea(
+                            id="preset-description-input",
+                            placeholder="Describe this preset...",
+                            className="form-control mb-3",
+                            style={"height": "60px", "resize": "vertical"},
+                        ),
+                        dbc.Checkbox(
+                            id="preset-include-signals",
+                            label="Include assigned signals",
+                            value=True,
+                            className="mb-2",
+                        ),
+                        dbc.Checkbox(
+                            id="preset-include-layout",
+                            label="Include layout (rows/cols)",
+                            value=True,
+                            className="mb-2",
+                        ),
+                        html.Small(
+                            "Presets are saved locally in your browser.",
+                            className="text-muted d-block mt-2",
+                        ),
+                    ]
+                ),
+                dbc.ModalFooter(
+                    [
+                        dbc.Button(
+                            "Save Preset",
+                            id="btn-do-save-preset",
+                            color="primary",
+                            size="sm",
+                        ),
+                        dbc.Button(
+                            "Cancel",
+                            id="btn-close-preset-modal",
+                            color="secondary",
+                            size="sm",
+                        ),
+                    ]
+                ),
+            ],
+            id="modal-preset",
+            is_open=False,
+            size="md",
+        )
+
+    def create_compare_mode_panel(self):
+        """Panel for compare mode - shows two plots side by side."""
+        return html.Div(
+            [
+                html.Div(
+                    [
+                        html.H6("⚖️ Compare Mode", className="text-primary mb-2"),
+                        html.P(
+                            "Select two tabs to compare side-by-side:",
+                            className="small text-muted mb-2",
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    dbc.Select(
+                                        id="compare-tab-left",
+                                        placeholder="Left plot...",
+                                        size="sm",
+                                    ),
+                                    width=5,
+                                ),
+                                dbc.Col(
+                                    html.Span("vs", className="text-muted"),
+                                    width=2,
+                                    className="text-center",
+                                ),
+                                dbc.Col(
+                                    dbc.Select(
+                                        id="compare-tab-right",
+                                        placeholder="Right plot...",
+                                        size="sm",
+                                    ),
+                                    width=5,
+                                ),
+                            ],
+                            className="mb-2",
+                        ),
+                        dbc.Button(
+                            "Exit Compare Mode",
+                            id="btn-exit-compare",
+                            size="sm",
+                            color="secondary",
+                            outline=True,
+                            className="w-100",
+                        ),
+                    ],
+                    className="p-3 border rounded mb-2",
+                    style={"backgroundColor": "rgba(78, 168, 222, 0.1)"},
+                ),
+                # Side-by-side plots container
+                html.Div(
+                    [
+                        html.Div(
+                            dcc.Graph(id="compare-plot-left", style={"height": "100%"}),
+                            className="compare-mode-panel active",
+                            style={"flex": "1", "minWidth": "0"},
+                        ),
+                        html.Div(
+                            dcc.Graph(id="compare-plot-right", style={"height": "100%"}),
+                            className="compare-mode-panel",
+                            style={"flex": "1", "minWidth": "0"},
+                        ),
+                    ],
+                    className="compare-mode-container",
+                    style={"display": "flex", "height": "calc(100% - 120px)"},
+                ),
+            ],
+            id="compare-mode-panel",
+            style={"display": "none", "height": "100%"},
         )
 
     def create_time_column_modal(self):
@@ -5155,7 +5318,7 @@ class SignalViewerApp:
                         )
                     ]
             else:
-                # Time mode: show list of signals with checkboxes
+                # Time mode: show list of signals with checkboxes - DRAGGABLE
                 if isinstance(assigned, list):
                     for i, s in enumerate(assigned):
                         csv_idx = s.get("csv_idx", -1)
@@ -5172,12 +5335,27 @@ class SignalViewerApp:
                             else:
                                 csv_filename = f"C{csv_idx+1}"
                             lbl = f"{sig_name} ({csv_filename})"
+                        # Wrap in draggable div for drag & drop + right-click support
                         items.append(
-                            dbc.Checkbox(
-                                id={"type": "remove-check", "idx": i},
-                                label=lbl,
-                                value=False,
-                                style={"fontSize": "10px"},
+                            html.Div(
+                                [
+                                    html.Span("⋮⋮", className="drag-handle text-muted me-2", 
+                                              style={"cursor": "grab", "fontSize": "10px", "opacity": "0.5"}),
+                                    dbc.Checkbox(
+                                        id={"type": "remove-check", "idx": i},
+                                        label=lbl,
+                                        value=False,
+                                        style={"fontSize": "10px", "flex": "1"},
+                                        className="d-inline-block",
+                                    ),
+                                ],
+                                className="draggable-signal d-flex align-items-center py-1",
+                                draggable="true",
+                                **{
+                                    "data-signal-idx": str(i),
+                                    "data-signal-name": sig_name,
+                                    "data-csv-idx": str(csv_idx),
+                                }
                             )
                         )
                 if not items:
@@ -9298,7 +9476,310 @@ class SignalViewerApp:
             
             return no_update
 
-        logger.info("All callbacks registered successfully (including CSV loading, refresh, streaming, and comparison)")
+        # =================================================================
+        # PRESET TEMPLATES CALLBACKS
+        # =================================================================
+        
+        @self.app.callback(
+            Output("modal-preset", "is_open"),
+            [
+                Input("btn-save-preset", "n_clicks"),
+                Input("btn-close-preset-modal", "n_clicks"),
+                Input("btn-do-save-preset", "n_clicks"),
+            ],
+            State("modal-preset", "is_open"),
+            prevent_initial_call=True,
+        )
+        def toggle_preset_modal(save_click, close_click, do_save_click, is_open):
+            ctx = callback_context
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            if "btn-save-preset" in trigger:
+                return True
+            return False
+
+        @self.app.callback(
+            [
+                Output("store-presets", "data", allow_duplicate=True),
+                Output("preset-name-input", "value"),
+            ],
+            Input("btn-do-save-preset", "n_clicks"),
+            [
+                State("preset-name-input", "value"),
+                State("preset-description-input", "value"),
+                State("preset-include-signals", "value"),
+                State("preset-include-layout", "value"),
+                State("store-assignments", "data"),
+                State("store-layouts", "data"),
+                State("rows-input", "value"),
+                State("cols-input", "value"),
+                State("store-presets", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def save_preset(n_clicks, name, description, include_signals, include_layout, 
+                       assignments, layouts, rows, cols, presets):
+            if not name:
+                return dash.no_update, dash.no_update
+            
+            import time
+            presets = presets or {}
+            
+            # Create preset object
+            preset_id = f"preset_{int(time.time())}"
+            preset = {
+                "id": preset_id,
+                "name": name,
+                "description": description or "",
+                "created": time.time(),
+            }
+            
+            if include_signals:
+                preset["assignments"] = assignments
+            if include_layout:
+                preset["layouts"] = layouts
+                preset["rows"] = rows
+                preset["cols"] = cols
+            
+            presets[preset_id] = preset
+            print(f"[PRESET] Saved preset: {name}")
+            
+            # Toast notification via JS
+            return presets, ""
+
+        @self.app.callback(
+            Output("dropdown-presets", "children"),
+            Input("store-presets", "data"),
+            prevent_initial_call=True,
+        )
+        def update_preset_dropdown(presets):
+            """Update preset dropdown menu with saved presets."""
+            items = [
+                dbc.DropdownMenuItem("📋 Save as Preset", id="btn-save-preset"),
+                dbc.DropdownMenuItem(divider=True),
+            ]
+            
+            if not presets:
+                items.append(dbc.DropdownMenuItem("No saved presets", disabled=True))
+            else:
+                for preset_id, preset in presets.items():
+                    items.append(
+                        dbc.DropdownMenuItem(
+                            [
+                                html.Span(preset.get("name", "Unnamed"), className="me-2"),
+                                html.Small(preset.get("description", "")[:20], className="text-muted"),
+                            ],
+                            id={"type": "preset-item", "id": preset_id},
+                        )
+                    )
+                items.append(dbc.DropdownMenuItem(divider=True))
+                items.append(dbc.DropdownMenuItem("🗑️ Clear All Presets", id="btn-clear-presets", className="text-danger"))
+            
+            return items
+
+        @self.app.callback(
+            [
+                Output("store-assignments", "data", allow_duplicate=True),
+                Output("store-layouts", "data", allow_duplicate=True),
+                Output("rows-input", "value", allow_duplicate=True),
+                Output("cols-input", "value", allow_duplicate=True),
+            ],
+            Input({"type": "preset-item", "id": ALL}, "n_clicks"),
+            State("store-presets", "data"),
+            prevent_initial_call=True,
+        )
+        def load_preset(n_clicks, presets):
+            """Load a preset when clicked."""
+            ctx = callback_context
+            if not ctx.triggered or not any(n_clicks):
+                return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            
+            trigger = ctx.triggered[0]["prop_id"]
+            # Extract preset ID from trigger
+            import json
+            try:
+                trigger_id = json.loads(trigger.split(".")[0])
+                preset_id = trigger_id.get("id")
+            except:
+                return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            
+            if preset_id and presets and preset_id in presets:
+                preset = presets[preset_id]
+                print(f"[PRESET] Loading preset: {preset.get('name')}")
+                
+                return (
+                    preset.get("assignments", dash.no_update),
+                    preset.get("layouts", dash.no_update),
+                    preset.get("rows", dash.no_update),
+                    preset.get("cols", dash.no_update),
+                )
+            
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+        @self.app.callback(
+            Output("store-presets", "data", allow_duplicate=True),
+            Input("btn-clear-presets", "n_clicks"),
+            prevent_initial_call=True,
+        )
+        def clear_presets(n_clicks):
+            if n_clicks:
+                print("[PRESET] Cleared all presets")
+                return {}
+            return dash.no_update
+
+        # =================================================================
+        # COMPARE MODE CALLBACKS
+        # =================================================================
+        
+        @self.app.callback(
+            [
+                Output("store-compare-mode", "data"),
+                Output("compare-mode-panel", "style"),
+                Output("split-plot", "style"),
+                Output("btn-compare-mode", "color"),
+            ],
+            [
+                Input("btn-compare-mode", "n_clicks"),
+                Input("btn-exit-compare", "n_clicks"),
+            ],
+            State("store-compare-mode", "data"),
+            prevent_initial_call=True,
+        )
+        def toggle_compare_mode(compare_click, exit_click, is_compare):
+            ctx = callback_context
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            
+            if "btn-compare-mode" in trigger:
+                new_state = not is_compare
+            elif "btn-exit-compare" in trigger:
+                new_state = False
+            else:
+                return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            
+            if new_state:
+                # Enter compare mode
+                return (
+                    True,
+                    {"display": "block", "height": "100%"},
+                    {"display": "none"},
+                    "primary",
+                )
+            else:
+                # Exit compare mode
+                return (
+                    False,
+                    {"display": "none"},
+                    {"height": "100%", "overflow": "hidden"},
+                    "secondary",
+                )
+
+        @self.app.callback(
+            [
+                Output("compare-tab-left", "options"),
+                Output("compare-tab-right", "options"),
+            ],
+            Input("store-compare-mode", "data"),
+            State("tabs", "children"),
+            prevent_initial_call=True,
+        )
+        def update_compare_tab_options(is_compare, tabs_children):
+            """Populate tab options for compare mode."""
+            if not is_compare or not tabs_children:
+                return [], []
+            
+            options = []
+            for i, child in enumerate(tabs_children):
+                if hasattr(child, 'props') and 'label' in child.props:
+                    options.append({"label": child.props['label'], "value": str(i)})
+                else:
+                    options.append({"label": f"Tab {i+1}", "value": str(i)})
+            
+            return options, options
+
+        @self.app.callback(
+            [
+                Output("compare-plot-left", "figure"),
+                Output("compare-plot-right", "figure"),
+            ],
+            [
+                Input("compare-tab-left", "value"),
+                Input("compare-tab-right", "value"),
+            ],
+            [
+                State("store-assignments", "data"),
+                State("store-layouts", "data"),
+                State("theme-switch", "value"),
+                State("store-time-columns", "data"),
+            ],
+            prevent_initial_call=True,
+        )
+        def update_compare_plots(left_tab, right_tab, assignments, layouts, is_dark, time_columns):
+            """Update compare mode plots based on selected tabs."""
+            if not left_tab and not right_tab:
+                return dash.no_update, dash.no_update
+            
+            theme = "plotly_dark" if is_dark else "plotly_white"
+            left_fig = dash.no_update
+            right_fig = dash.no_update
+            
+            if left_tab:
+                layout = layouts.get(left_tab, {"rows": 1, "cols": 1}) if layouts else {"rows": 1, "cols": 1}
+                left_fig = self.create_figure(
+                    rows=layout.get("rows", 1),
+                    cols=layout.get("cols", 1),
+                    theme=theme,
+                    selected_subplot=0,
+                    assignments=assignments.get(left_tab, {}),
+                    tab_key=left_tab,
+                    time_columns=time_columns,
+                )
+            
+            if right_tab:
+                layout = layouts.get(right_tab, {"rows": 1, "cols": 1}) if layouts else {"rows": 1, "cols": 1}
+                right_fig = self.create_figure(
+                    rows=layout.get("rows", 1),
+                    cols=layout.get("cols", 1),
+                    theme=theme,
+                    selected_subplot=0,
+                    assignments=assignments.get(right_tab, {}),
+                    tab_key=right_tab,
+                    time_columns=time_columns,
+                )
+            
+            return left_fig, right_fig
+
+        # =================================================================
+        # SIGNAL REORDERING CALLBACK (Drag & Drop)
+        # =================================================================
+        
+        # Clientside callback to handle drag & drop events from JavaScript
+        self.app.clientside_callback(
+            """
+            function(id) {
+                // Listen for signal reorder events from JavaScript
+                if (!window._signalReorderSetup) {
+                    window._signalReorderSetup = true;
+                    
+                    document.addEventListener('signalReorder', function(e) {
+                        var detail = e.detail;
+                        // Store in a hidden element or trigger callback
+                        var store = document.getElementById('store-signal-reorder');
+                        if (store) {
+                            // Update the store data via custom approach
+                            window._pendingReorder = detail;
+                        }
+                    });
+                    
+                    console.log('[SignalViewer] Signal reorder listener setup');
+                }
+                return window.dash_clientside.no_update;
+            }
+            """,
+            Output("store-signal-reorder", "data", allow_duplicate=True),
+            Input("app-container", "id"),
+            prevent_initial_call=True,
+        )
+
+        logger.info("All callbacks registered successfully (including CSV loading, refresh, streaming, comparison, presets, and compare mode)")
 
 
 def main():

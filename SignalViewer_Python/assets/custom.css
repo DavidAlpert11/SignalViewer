@@ -981,7 +981,7 @@ button[id="btn-stream-csv"] {
 }
 
 /* ========================================
-   Signal Grouping
+   Signal Grouping (Enhanced)
    ======================================== */
 .signal-group-header {
     font-weight: 600;
@@ -994,16 +994,53 @@ button[id="btn-stream-csv"] {
     display: flex;
     align-items: center;
     gap: 6px;
+    transition: background-color 0.15s ease;
 }
 
 .signal-group-header:hover {
     background: rgba(78, 168, 222, 0.2);
 }
 
+.signal-group-header .group-count {
+    background: rgba(78, 168, 222, 0.3);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: normal;
+}
+
 .signal-group-content {
     padding-left: 12px;
     border-left: 2px solid rgba(78, 168, 222, 0.3);
     margin-left: 6px;
+    transition: max-height 0.2s ease-out, opacity 0.15s ease-out;
+}
+
+.signal-group-content.collapsed {
+    max-height: 0 !important;
+    opacity: 0;
+    overflow: hidden;
+}
+
+/* Prefix-based signal groups */
+.signal-prefix-group {
+    margin-bottom: 4px;
+}
+
+.signal-prefix-header {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 2px 6px;
+    background: rgba(78, 168, 222, 0.05);
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.signal-prefix-header:hover {
+    background: rgba(78, 168, 222, 0.15);
 }
 
 /* ========================================
