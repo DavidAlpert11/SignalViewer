@@ -1,46 +1,35 @@
 @echo off
 REM ============================================
-REM Signal Viewer Pro v3.0 - Build Script
+REM Signal Viewer Pro v3.1 - Build Script
 REM ============================================
 REM 
 REM Usage:
 REM   build.bat          - Build Dash (web) version
-REM   build.bat tk       - Build Tkinter (native) version
-REM   build.bat both     - Build both versions
 REM   build.bat fast     - Fast rebuild Dash version
-REM   build.bat tk fast  - Fast rebuild Tkinter version
 REM
 REM Features:
 REM   - Fully offline (no internet required)
 REM   - Native file browser
 REM   - Streaming from original files
+REM   - Drag & Drop signal reordering
+REM   - Right-click context menu
+REM   - Preset Templates
+REM   - Compare Mode (side-by-side plots)
+REM   - Toast Notifications
 REM ============================================
 
 echo.
 echo ============================================
-echo   Signal Viewer Pro v3.0 - Build Script
+echo   Signal Viewer Pro v3.1 - Build Script
 echo ============================================
 echo.
 
 REM Parse arguments
-set BUILD_TK=0
 set BUILD_DASH=1
 set CLEAN_FLAG=--clean
 set BUILD_MODE=Full Build
 
-if "%1"=="tk" (
-    set BUILD_TK=1
-    set BUILD_DASH=0
-    echo Target: TKINTER ^(Native GUI^)
-    if "%2"=="fast" (
-        set CLEAN_FLAG=
-        set BUILD_MODE=Fast Rebuild
-    )
-) else if "%1"=="both" (
-    set BUILD_TK=1
-    set BUILD_DASH=1
-    echo Target: BOTH VERSIONS
-) else if "%1"=="fast" (
+if "%1"=="fast" (
     set CLEAN_FLAG=
     set BUILD_MODE=Fast Rebuild
     echo Target: DASH ^(Web GUI^) - Fast
@@ -125,70 +114,15 @@ if %BUILD_DASH%==1 (
     )
 )
 
-REM ============================================
-REM Build Tkinter Version
-REM ============================================
-if %BUILD_TK%==1 (
-    echo.
-    echo ============================================
-    echo   Building TKINTER Version...
-    echo ============================================
-    
-    if "%BUILD_MODE%"=="Fast Rebuild" (
-        echo Cleaning dist folder only...
-        powershell -Command "if (Test-Path 'dist\SignalViewerTk') { Remove-Item -Recurse -Force 'dist\SignalViewerTk' -ErrorAction SilentlyContinue }"
-    ) else (
-        powershell -Command "if (Test-Path 'dist\SignalViewerTk') { Remove-Item -Recurse -Force 'dist\SignalViewerTk' -ErrorAction SilentlyContinue }"
-    )
-    
-    echo Building Signal Viewer Pro - Tkinter Version...
-    
-    REM Create spec file for Tkinter version if not exists
-    if not exist "SignalViewerTk.spec" (
-        echo Creating Tkinter spec file...
-        pyinstaller --name SignalViewerTk ^
-            --onedir ^
-            --windowed ^
-            --icon=assets/icon.ico ^
-            --add-data "assets;assets" ^
-            --hidden-import=matplotlib ^
-            --hidden-import=matplotlib.backends.backend_tkagg ^
-            --hidden-import=pandas ^
-            --hidden-import=numpy ^
-            --collect-all matplotlib ^
-            app_tk.py
-    ) else (
-        pyinstaller SignalViewerTk.spec %CLEAN_FLAG% --noconfirm
-    )
-    
-    if errorlevel 1 (
-        echo.
-        echo BUILD FAILED for Tkinter version!
-        echo Check errors above.
-    ) else (
-        echo Tkinter version built successfully!
-        if not exist "dist\SignalViewerTk\uploads" mkdir "dist\SignalViewerTk\uploads"
-    )
-)
 
 REM Create ZIP files for distribution
 echo.
 echo Creating distribution ZIP files...
 
-if %BUILD_DASH%==1 (
-    if exist "dist\SignalViewer" (
-        powershell -Command "if (Test-Path 'SignalViewer.zip') { Remove-Item 'SignalViewer.zip' -Force }"
-        powershell -Command "Compress-Archive -Path 'dist\SignalViewer' -DestinationPath 'SignalViewer.zip' -Force"
-        echo Created: SignalViewer.zip ^(Dash/Web version^)
-    )
-)
-
-if %BUILD_TK%==1 (
-    if exist "dist\SignalViewerTk" (
-        powershell -Command "if (Test-Path 'SignalViewerTk.zip') { Remove-Item 'SignalViewerTk.zip' -Force }"
-        powershell -Command "Compress-Archive -Path 'dist\SignalViewerTk' -DestinationPath 'SignalViewerTk.zip' -Force"
-        echo Created: SignalViewerTk.zip ^(Tkinter/Native version^)
-    )
+if exist "dist\SignalViewer" (
+    powershell -Command "if (Test-Path 'SignalViewer.zip') { Remove-Item 'SignalViewer.zip' -Force }"
+    powershell -Command "Compress-Archive -Path 'dist\SignalViewer' -DestinationPath 'SignalViewer.zip' -Force"
+    echo Created: SignalViewer.zip ^(Dash/Web version^)
 )
 
 echo.
@@ -196,24 +130,13 @@ echo ============================================
 echo   BUILD COMPLETE!
 echo ============================================
 echo.
-if %BUILD_DASH%==1 (
-    echo DASH Version:
-    echo   Folder:     dist\SignalViewer\
-    echo   Executable: dist\SignalViewer\SignalViewer.exe
-    echo   ZIP:        SignalViewer.zip
-    echo.
-)
-if %BUILD_TK%==1 (
-    echo TKINTER Version:
-    echo   Folder:     dist\SignalViewerTk\
-    echo   Executable: dist\SignalViewerTk\SignalViewerTk.exe
-    echo   ZIP:        SignalViewerTk.zip
-    echo.
-)
+echo Signal Viewer Pro v3.1:
+echo   Folder:     dist\SignalViewer\
+echo   Executable: dist\SignalViewer\SignalViewer.exe
+echo   ZIP:        SignalViewer.zip
+echo.
 echo Usage:
-echo   build.bat       - Build Dash version
-echo   build.bat tk    - Build Tkinter version  
-echo   build.bat both  - Build both versions
+echo   build.bat       - Full build
 echo   build.bat fast  - Fast rebuild
 echo.
 

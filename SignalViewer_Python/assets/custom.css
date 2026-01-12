@@ -553,36 +553,37 @@ button[id="btn-stream-csv"] {
 }
 
 /* ========================================
-   Modern Cursor Slider Styling - ENHANCED
+   Modern Cursor Slider Styling - LARGE & ENHANCED
    ======================================== */
 .cursor-slider {
     flex: 1;
-    margin: 0 15px;
-    height: 30px !important;
+    margin: 0 20px;
+    height: 50px !important;
+    min-width: 300px !important;
 }
 
-/* Dash slider track (the line) */
+/* Dash slider track (the line) - LARGER */
 .cursor-slider .rc-slider-track {
     background: linear-gradient(90deg, #4ea8de, #6dd5fa) !important;
-    height: 8px !important;
-    border-radius: 4px !important;
+    height: 14px !important;
+    border-radius: 7px !important;
 }
 
-/* Dash slider handle (the draggable circle) */
+/* Dash slider handle (the draggable circle) - LARGER */
 .cursor-slider .rc-slider-handle {
-    border: 3px solid #4ea8de !important;
+    border: 4px solid #4ea8de !important;
     background-color: #fff !important;
-    width: 24px !important;
-    height: 24px !important;
-    margin-top: -8px !important;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.3) !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin-top: -9px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
     transition: all 0.15s ease !important;
     cursor: grab !important;
 }
 
 .cursor-slider .rc-slider-handle:hover {
-    transform: scale(1.3) !important;
-    box-shadow: 0 4px 12px rgba(78, 168, 222, 0.5) !important;
+    transform: scale(1.2) !important;
+    box-shadow: 0 6px 16px rgba(78, 168, 222, 0.6) !important;
     border-color: #6dd5fa !important;
 }
 
@@ -591,39 +592,59 @@ button[id="btn-stream-csv"] {
     transform: scale(1.1) !important;
 }
 
-/* Dash slider rail (the background) */
+/* Dash slider rail (the background) - LARGER */
 .cursor-slider .rc-slider-rail {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    height: 8px !important;
-    border-radius: 4px !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    height: 14px !important;
+    border-radius: 7px !important;
 }
 
-/* Slider tooltip */
+/* Slider tooltip - VISIBLE */
 .cursor-slider .rc-slider-tooltip {
-    font-family: monospace;
-    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.cursor-slider .rc-slider-tooltip-inner {
+    background: #4ea8de !important;
+    padding: 4px 10px !important;
+    font-size: 13px !important;
 }
 
 #cursor-slider-container {
     display: flex;
     flex-direction: column;
-    padding: 10px 15px !important;
-    background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05)) !important;
-    border-radius: 8px !important;
-    margin-top: 8px !important;
+    padding: 15px 20px !important;
+    background: linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.08)) !important;
+    border-radius: 10px !important;
+    margin-top: 10px !important;
+    border: 1px solid rgba(78, 168, 222, 0.2);
 }
 
 #cursor-slider-value {
-    min-width: 100px;
+    min-width: 140px;
     text-align: center;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 700;
     color: #4ea8de;
-    background: rgba(78, 168, 222, 0.1);
-    padding: 4px 12px;
+    background: rgba(78, 168, 222, 0.15);
+    padding: 6px 16px;
+    border-radius: 8px;
+    border: 2px solid rgba(78, 168, 222, 0.4);
+}
+
+/* Cursor signal values display */
+#cursor-values-display {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 6px;
-    border: 1px solid rgba(78, 168, 222, 0.3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    max-height: 80px;
+    overflow-y: auto;
 }
 
 /* Play/Stop button improvements */
@@ -798,6 +819,33 @@ button[id="btn-stream-csv"] {
 .xy-mode-active {
     border-left: 3px solid #f4a261;
     padding-left: 4px;
+}
+
+/* Fix dropdown visibility in X-Y mode */
+#xy-controls {
+    position: relative;
+    z-index: 100;
+}
+
+#xy-x-select {
+    min-width: 150px !important;
+    max-width: 250px;
+}
+
+/* Ensure dropdown options are visible */
+.card-body {
+    overflow: visible !important;
+}
+
+#split-panel-2 .card-body {
+    overflow-y: auto !important;
+    overflow-x: visible !important;
+}
+
+/* Select dropdown should not be clipped */
+select, .form-select {
+    position: relative;
+    z-index: 10;
 }
 
 /* ========================================

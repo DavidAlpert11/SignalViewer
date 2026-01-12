@@ -854,6 +854,8 @@ class SignalViewerApp:
                                                                             style={
                                                                                 "fontSize": "10px",
                                                                                 "flex": "1",
+                                                                                "minWidth": "150px",
+                                                                                "maxWidth": "250px",
                                                                             },
                                                                         ),
                                                                         # Hidden Y select for callback compatibility
@@ -1039,16 +1041,17 @@ class SignalViewerApp:
                                                                                     className="d-inline-block",
                                                                                     toggle_style={"padding": "4px 8px"},
                                                                                 ),
-                                                                                # Compare Mode toggle
-                                                                                dbc.Button(
-                                                                                    "⚖️",
-                                                                                    id="btn-compare-mode",
-                                                                                    size="sm",
-                                                                                    color="secondary",
-                                                                                    outline=True,
-                                                                                    title="Compare Mode (side-by-side plots)",
-                                                                                    className="px-2",
-                                                                                ),
+                                                                                # Compare Mode toggle (disabled - needs layout fix)
+                                                                                # dbc.Button(
+                                                                                #     "⚖️",
+                                                                                #     id="btn-compare-mode",
+                                                                                #     size="sm",
+                                                                                #     color="secondary",
+                                                                                #     outline=True,
+                                                                                #     title="Compare Mode (side-by-side plots)",
+                                                                                #     className="px-2",
+                                                                                # ),
+                                                                                html.Span(id="btn-compare-mode", style={"display": "none"}),  # Placeholder
                                                                                 # Export buttons
                                                                                 dbc.Button(
                                                                                     "📊",
@@ -4518,16 +4521,32 @@ class SignalViewerApp:
             if trigger:
                 logger.info(f"handle_assignments triggered by: {trigger}")
             
+            # CRITICAL: Check if this is a refresh/clear operation - always force full rebuild
+            is_refresh_or_clear = "store-refresh-trigger" in trigger
+            
+            # Check if assignments are effectively empty (data cleared)
+            has_any_assignments = False
+            for tab_key, tab_data in assignments.items():
+                if isinstance(tab_data, dict):
+                    for sp_key, sp_data in tab_data.items():
+                        if isinstance(sp_data, list) and len(sp_data) > 0:
+                            has_any_assignments = True
+                            break
+                if has_any_assignments:
+                    break
+            
             # Check if this is ONLY a tab selection change (no other changes)
             is_tab_only = (
                 trigger == "tabs.value"
                 and active_tab is not None
+                and not is_refresh_or_clear  # Never use fast path on refresh
             )
             
             # Check if this is ONLY a subplot selection change (no other changes)
             is_subplot_only = (
                 trigger == "subplot-select.value" 
                 and subplot_val is not None
+                and not is_refresh_or_clear  # Never use fast path on refresh
             )
             
             # DEBUG: Log why fast path is or isn't being used
@@ -5133,8 +5152,11 @@ class SignalViewerApp:
             )
 
             # Check if we can reuse cached figure
+            # CRITICAL: Never use cache on refresh/clear - always rebuild
             cache_key = (int(tab_key), current_state_hash)
-            if cache_key in self._figure_cache:
+            use_cache = cache_key in self._figure_cache and not is_refresh_or_clear
+            
+            if use_cache:
                 fig = self._figure_cache[cache_key]
                 self._cache_hit_count += 1
                 logger.info(f"[CACHE HIT] Reusing cached figure (0ms) - {self._cache_hit_count} hits so far")
@@ -5189,10 +5211,14 @@ class SignalViewerApp:
                         fig_patch["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
 
                     fig = fig_patch
-            else:
-                # Cache miss - need to build figure
+            
+            if not use_cache:
+                # Cache miss or forced rebuild - need to build figure
                 self._cache_miss_count += 1
-                logger.info(f"[CACHE MISS] Building new figure - {self._cache_miss_count} misses so far")
+                if is_refresh_or_clear:
+                    logger.info(f"[FORCED REBUILD] Refresh/clear triggered - rebuilding figure")
+                else:
+                    logger.info(f"[CACHE MISS] Building new figure - {self._cache_miss_count} misses so far")
 
                 try:
                     fig = self.create_figure(
@@ -8664,7 +8690,9 @@ class SignalViewerApp:
         @self.app.callback(
             [
                 Output("store-csv-files", "data", allow_duplicate=True),
+                Output("csv-list", "children", allow_duplicate=True),
                 Output("status-text", "children", allow_duplicate=True),
+                Output("store-refresh-trigger", "data", allow_duplicate=True),
             ],
             Input("btn-csv-confirm", "n_clicks"),
             [
@@ -8672,13 +8700,16 @@ class SignalViewerApp:
                 State("csv-delimiter-dropdown", "value"),
                 State("csv-header-row-input", "value"),
                 State("store-csv-files", "data"),
+                State("store-refresh-trigger", "data"),
             ],
             prevent_initial_call=True,
         )
-        def load_csv_with_flexible_loader(n_clicks, filepath, delimiter, header_row, current_csvs):
+        def load_csv_with_flexible_loader(n_clicks, filepath, delimiter, header_row, current_csvs, refresh_counter):
             """Load CSV with confirmed settings"""
             if not filepath or not os.path.exists(filepath):
-                return no_update, no_update
+                return no_update, no_update, no_update, no_update
+            
+            refresh_counter = refresh_counter or 0
             
             try:
                 # Convert 'auto' to None
@@ -8704,12 +8735,36 @@ class SignalViewerApp:
                     df = self.data_manager.data_tables[csv_idx]
                     
                     filename = os.path.basename(filepath)
-                    return current_csvs, f"[OK] Loaded {filename} ({len(df)} rows, {len(df.columns)} columns)"
+                    
+                    # Build CSV list UI
+                    items = []
+                    for i, f in enumerate(current_csvs):
+                        items.append(
+                            html.Div(
+                                [
+                                    html.I(className="fas fa-file me-1", style={"color": "#f4a261"}),
+                                    html.Span(
+                                        get_csv_display_name(f, current_csvs), 
+                                        style={"fontSize": "10px"},
+                                        title=f
+                                    ),
+                                    html.A(
+                                        "×",
+                                        id={"type": "del-csv", "idx": i},
+                                        className="float-end text-danger",
+                                        style={"cursor": "pointer"},
+                                    ),
+                                ],
+                                className="py-1",
+                            )
+                        )
+                    
+                    return current_csvs, items, f"[OK] Loaded {filename} ({len(df)} rows, {len(df.columns)} cols)", refresh_counter + 1
                 else:
-                    return no_update, "[ERROR] Failed to load CSV"
+                    return no_update, no_update, "[ERROR] Failed to load CSV", no_update
                     
             except Exception as e:
-                return no_update, f"[ERROR] Error: {str(e)}"
+                return no_update, no_update, f"[ERROR] Error: {str(e)}", no_update
 
 
         # =================================================================
