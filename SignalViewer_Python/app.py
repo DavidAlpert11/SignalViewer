@@ -2871,63 +2871,10 @@ class SignalViewerApp:
         logger.info("Setting up callbacks...")
         
         # ================================================================
-        # PERFORMANCE: Clientside callbacks for instant UI responses
-        # These run in the browser without server round-trip
+        # CLIENTSIDE CALLBACKS - Run in browser for instant response
         # ================================================================
         
-        # DISABLED: This clientside callback was causing white flash
-        # It conflicts with the server-side callback that rebuilds figures
-        # The server-side callback now handles all subplot highlighting
-        #
-        # # Instant subplot highlight update (no server call needed)
-        # self.app.clientside_callback(
-        #     """
-        #     function(subplot_val, rows, cols, is_dark) {
-        #         // This runs instantly in browser for responsive subplot selection
-        #         if (subplot_val === undefined || subplot_val === null) {
-        #             return window.dash_clientside.no_update;
-        #         }
-        #
-        #         // Calculate total subplots
-        #         var total = (rows || 1) * (cols || 1);
-        #         var selected = parseInt(subplot_val);
-        #
-        #         // Update axis borders using Patch-like logic
-        #         // We return a Patch object that updates only the borders
-        #         var patch = {};
-        #         var theme = is_dark ? 'dark' : 'light';
-        #         var borderColor = '#4ea8de';
-        #         var defaultColor = theme === 'dark' ? '#444' : '#dee2e6';
-        #
-        #         for (var i = 0; i < Math.min(total, 16); i++) {
-        #             var xKey = i === 0 ? 'xaxis' : 'xaxis' + (i + 1);
-        #             var yKey = i === 0 ? 'yaxis' : 'yaxis' + (i + 1);
-        #
-        #             var isSelected = (i === selected);
-        #             patch[xKey] = {
-        #                 linecolor: isSelected ? borderColor : defaultColor,
-        #                 linewidth: isSelected ? 3 : 1
-        #             };
-        #             patch[yKey] = {
-        #                 linecolor: isSelected ? borderColor : defaultColor,
-        #                 linewidth: isSelected ? 3 : 1
-        #             };
-        #         }
-        #
-        #         return {layout: patch};
-        #     }
-        #     """,
-        #     Output("plot", "figure", allow_duplicate=True),
-        #     [
-        #         Input("subplot-select", "value"),
-        #         Input("rows-input", "value"),
-        #         Input("cols-input", "value"),
-        #         Input("theme-switch", "value"),
-        #     ],
-        #     prevent_initial_call=True,
-        # )
-        
-        # Keyboard shortcuts handler - clientside for instant response
+        # Keyboard shortcuts handler
         self.app.clientside_callback(
             """
             function(id) {
@@ -4517,151 +4464,18 @@ class SignalViewerApp:
             # When only subplot selection changes, update assigned-list and
             # subplot highlight using Patch (no full figure rebuild)
             
-            # DEBUG: Log the trigger to understand what's happening
-            if trigger:
-                logger.info(f"handle_assignments triggered by: {trigger}")
-            
             # CRITICAL: Check if this is a refresh/clear operation - always force full rebuild
             is_refresh_or_clear = "store-refresh-trigger" in trigger
-            
-            # Check if assignments are effectively empty (data cleared)
-            has_any_assignments = False
-            for tab_key, tab_data in assignments.items():
-                if isinstance(tab_data, dict):
-                    for sp_key, sp_data in tab_data.items():
-                        if isinstance(sp_data, list) and len(sp_data) > 0:
-                            has_any_assignments = True
-                            break
-                if has_any_assignments:
-                    break
-            
-            # Check if this is ONLY a tab selection change (no other changes)
-            is_tab_only = (
-                trigger == "tabs.value"
-                and active_tab is not None
-                and not is_refresh_or_clear  # Never use fast path on refresh
-            )
             
             # Check if this is ONLY a subplot selection change (no other changes)
             is_subplot_only = (
                 trigger == "subplot-select.value" 
                 and subplot_val is not None
-                and not is_refresh_or_clear  # Never use fast path on refresh
+                and not is_refresh_or_clear
             )
             
-            # DEBUG: Log why fast path is or isn't being used
-            logger.info(f"  → trigger == 'subplot-select.value': {trigger == 'subplot-select.value'}")
-            logger.info(f"  → trigger == 'tabs.value': {trigger == 'tabs.value'}")
-            logger.info(f"  → subplot_val is not None: {subplot_val is not None} (value={subplot_val})")
-            logger.info(f"  → is_subplot_only: {is_subplot_only}")
-            logger.info(f"  → is_tab_only: {is_tab_only}")
-            
-            # FAST PATH 1: Tab-only change - DISABLED because it causes issues when switching tabs
-            # Tab switches need to rebuild the figure to show the correct tab's data
-            if is_tab_only and False:  # DISABLED
-                logger.info(f"  → Using TAB-ONLY FAST PATH (Patch highlight only)")
-                # Extract tab number from active_tab (e.g., "tab-0" -> 0)
-                tab_idx = int(active_tab.split("-")[1]) if "-" in active_tab else 0
-                tab_key = str(tab_idx)
-                
-                # Get current subplot for this tab (default to 0)
-                # FIX: Use sel_subplot_store which is the input from store-selected-subplot
-                current_subplot = sel_subplot_store if sel_subplot_store is not None else 0
-                subplot_key = str(current_subplot)
-                
-                # Ensure tab exists in data structures
-                if tab_key not in assignments:
-                    assignments[tab_key] = {}
-                if tab_key not in layouts:
-                    layouts[tab_key] = {"rows": 1, "cols": 1}
-                
-                # Get layout for this tab
-                layout = layouts.get(tab_key, {"rows": 1, "cols": 1})
-                rows = layout.get("rows", 1)
-                cols = layout.get("cols", 1)
-                total_subplots = rows * cols
-                
-                # CRITICAL: Only use Patch if we have a cached figure AND layout matches
-                # If layout changed, we need to rebuild (but this shouldn't happen on tab switch)
-                if hasattr(self, '_last_figure') and self._last_figure is not None:
-                    # Check if layout matches cached figure
-                    cached_layout = getattr(self, '_last_layout', None)
-                    if cached_layout and cached_layout != layout:
-                        # Layout changed - need to rebuild (fall through)
-                        logger.info(f"  → Layout changed, cannot use Patch - need rebuild")
-                        pass
-                    else:
-                        # Layout matches - can use Patch
-                        # Build assigned-list for this subplot
-                        assigned = assignments.get(tab_key, {}).get(subplot_key, [])
-                        items = []
-                        
-                        if isinstance(assigned, list):
-                            csv_paths = self.data_manager.csv_file_paths
-                            for i, s in enumerate(assigned):
-                                csv_idx = s.get("csv_idx", -1)
-                                sig_name = s.get("signal", "")
-                                if csv_idx == -1:
-                                    lbl = f"{sig_name} (D)"
-                                else:
-                                    if csv_idx < len(csv_paths):
-                                        csv_path = csv_paths[csv_idx]
-                                        csv_filename = os.path.splitext(os.path.basename(csv_path))[0]
-                                    else:
-                                        csv_filename = f"C{csv_idx+1}"
-                                    lbl = f"{sig_name} ({csv_filename})"
-                                items.append(
-                                    dbc.Checkbox(
-                                        id={"type": "remove-check", "idx": i},
-                                        label=lbl,
-                                        value=False,
-                                        style={"fontSize": "10px"},
-                                    )
-                                )
-                        
-                        if not items:
-                            items = [html.Span("None", className="text-muted small")]
-                        
-                        # Get theme from is_dark parameter
-                        theme_name = "dark" if is_dark else "light"
-                        colors = THEMES[theme_name]
-                        fig_patch = Patch()
-                        
-                        # Update highlight for all subplots
-                        for i in range(total_subplots):
-                            is_selected = (i == current_subplot)
-                            border_color = "#4ea8de" if is_selected else colors["grid"]
-                            border_width = 3 if is_selected else 1
-                            subplot_bg = "rgba(78, 168, 222, 0.08)" if is_selected else colors["plot_bg"]
-                            
-                            # Axis naming: xaxis, xaxis2, xaxis3, etc.
-                            x_key = "xaxis" if i == 0 else f"xaxis{i + 1}"
-                            y_key = "yaxis" if i == 0 else f"yaxis{i + 1}"
-                            
-                            fig_patch["layout"][x_key]["linecolor"] = border_color
-                            fig_patch["layout"][x_key]["linewidth"] = border_width
-                            fig_patch["layout"][y_key]["linecolor"] = border_color
-                            fig_patch["layout"][y_key]["linewidth"] = border_width
-                            fig_patch["layout"][y_key]["plotbackgroundcolor"] = subplot_bg
-                        
-                        return (
-                            no_update,    # assignments - no change
-                            fig_patch,    # figure - Patch for highlight only
-                            items,        # assigned-list - update this
-                            tab_idx,      # sel_tab - update (use tab_idx, not sel_tab)
-                            no_update,    # sel_subplot - keep current
-                            no_update,    # layouts
-                            no_update,    # x_axis_signals
-                        )
-                
-                # No cached figure - need to rebuild figure for the new tab
-                logger.info(f"  → No cached figure - rebuilding for tab {tab_key}")
-                # Fall through to normal rebuild but don't return early
-            
-            # FAST PATH 2: Subplot-only change - update highlight with Patch, no rebuild
+            # FAST PATH: Subplot-only change - update highlight with Patch, no rebuild
             if is_subplot_only:
-                logger.info(f"  → Using FAST PATH (no figure update at all)")
-                logger.info(f"  → subplot_val={subplot_val}, sel_tab={sel_tab}, active_tab={active_tab}")
                 # Fast path: Update assigned-list ONLY, don't touch the figure
                 sel_tab = sel_tab or 0
                 if active_tab and "-" in active_tab:
@@ -4670,8 +4484,6 @@ class SignalViewerApp:
                 sel_subplot = int(subplot_val) if subplot_val is not None else 0
                 tab_key = str(sel_tab)
                 subplot_key = str(sel_subplot)
-                
-                logger.info(f"  → FAST PATH: tab_key={tab_key}, subplot_key={subplot_key}")
                 
                 # Build assigned-list for this subplot
                 assigned = assignments.get(tab_key, {}).get(subplot_key, [])

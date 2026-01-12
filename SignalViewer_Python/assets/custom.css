@@ -832,22 +832,6 @@ button[id="btn-stream-csv"] {
     max-width: 250px;
 }
 
-/* Ensure dropdown options are visible */
-.card-body {
-    overflow: visible !important;
-}
-
-#split-panel-2 .card-body {
-    overflow-y: auto !important;
-    overflow-x: visible !important;
-}
-
-/* Select dropdown should not be clipped */
-select, .form-select {
-    position: relative;
-    z-index: 10;
-}
-
 /* ========================================
    Autocomplete Dropdown
    ======================================== */
