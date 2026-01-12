@@ -1,8 +1,7 @@
 """
 Signal Viewer Pro v4.0 - Callbacks
 ==================================
-All Dash callbacks in one place.
-Target: ~15 callbacks total.
+All Dash callbacks - properly synchronized.
 """
 
 from dash import Input, Output, State, callback_context, ALL, no_update, Patch
@@ -18,7 +17,6 @@ from config import SIGNAL_COLORS, THEMES
 from data_manager import data_manager
 from plot_builder import plot_builder
 from state import make_signal_key, parse_signal_key
-from layout import create_csv_group, create_assigned_signal
 
 
 def register_callbacks(app):
@@ -39,10 +37,13 @@ def register_callbacks(app):
             Input("btn-clear-csv", "n_clicks"),
             Input({"type": "remove-csv", "id": ALL}, "n_clicks"),
         ],
-        State("store-csv-files", "data"),
+        [
+            State("store-csv-files", "data"),
+            State("store-assignments", "data"),
+        ],
         prevent_initial_call=True,
     )
-    def handle_csv_files(add_click, clear_click, remove_clicks, csv_files):
+    def handle_csv_files(add_click, clear_click, remove_clicks, csv_files, assignments):
         """Handle CSV file operations: add, remove, clear."""
         ctx = callback_context
         trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
@@ -73,16 +74,17 @@ def register_callbacks(app):
             data_manager.clear_all()
             csv_files = {}
         
-        # Remove specific CSV
+        # Remove specific CSV - FIXED: Only remove this CSV's data
         elif "remove-csv" in trigger:
             try:
                 trigger_id = json.loads(trigger.split(".")[0])
                 csv_id = trigger_id.get("id")
                 if csv_id and csv_id in csv_files:
+                    # Remove ONLY this CSV from data manager
                     data_manager.remove_csv(csv_id)
                     del csv_files[csv_id]
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Error removing CSV: {e}")
         
         # Build file list UI
         file_items = []
@@ -104,23 +106,62 @@ def register_callbacks(app):
         return csv_files, file_items, show_clear
     
     # =========================================================================
-    # 2. SIGNAL TREE
+    # 2. CLEAN ASSIGNMENTS WHEN CSV REMOVED
+    # =========================================================================
+    
+    @app.callback(
+        Output("store-assignments", "data", allow_duplicate=True),
+        Input("store-csv-files", "data"),
+        State("store-assignments", "data"),
+        prevent_initial_call=True,
+    )
+    def clean_assignments_on_csv_change(csv_files, assignments):
+        """Remove assignments for CSVs that no longer exist."""
+        if not assignments:
+            return {"0": []}
+        
+        csv_files = csv_files or {}
+        valid_csv_ids = set(csv_files.keys())
+        
+        # Clean each subplot's assignments
+        cleaned = {}
+        for sp_key, sig_list in assignments.items():
+            if isinstance(sig_list, list):
+                # Keep only signals from CSVs that still exist
+                cleaned[sp_key] = [
+                    sig_key for sig_key in sig_list
+                    if parse_signal_key(sig_key)[0] in valid_csv_ids
+                ]
+            else:
+                cleaned[sp_key] = []
+        
+        return cleaned
+    
+    # =========================================================================
+    # 3. SIGNAL TREE WITH CHECKBOX STATE
     # =========================================================================
     
     @app.callback(
         Output("signal-tree", "children"),
         [
             Input("store-csv-files", "data"),
+            Input("store-assignments", "data"),
+            Input("store-selected-subplot", "data"),
             Input("signal-search", "value"),
         ],
     )
-    def update_signal_tree(csv_files, search):
-        """Update the signal tree when CSVs change or search is used."""
+    def update_signal_tree(csv_files, assignments, selected_subplot, search):
+        """Update signal tree with proper checkbox states."""
         csv_files = csv_files or {}
+        assignments = assignments or {}
         search = (search or "").lower().strip()
+        sp_key = str(selected_subplot or 0)
         
         if not csv_files:
             return html.Div("Load CSV files to see signals", className="no-signals")
+        
+        # Get currently assigned signals for this subplot
+        assigned_keys = set(assignments.get(sp_key, []))
         
         tree_items = []
         
@@ -131,8 +172,38 @@ def register_callbacks(app):
             if search:
                 signals = [s for s in signals if search in s.lower()]
             
-            if signals:
-                tree_items.append(create_csv_group(csv_id, info["name"], signals))
+            if not signals:
+                continue
+            
+            # Build signal items with proper checked state
+            signal_items = []
+            for sig_name in signals:
+                sig_key = f"{csv_id}:{sig_name}"
+                is_checked = sig_key in assigned_keys
+                
+                signal_items.append(
+                    html.Div([
+                        dbc.Checkbox(
+                            id={"type": "signal-check", "key": sig_key},
+                            value=is_checked,
+                            className="signal-checkbox",
+                        ),
+                        html.Span(sig_name, className="signal-name", title=f"{info['name']} / {sig_name}"),
+                    ], className="signal-item" + (" assigned" if is_checked else ""))
+                )
+            
+            # CSV group with header
+            tree_items.append(
+                html.Div([
+                    html.Div([
+                        html.Span("▼", className="expand-icon"),
+                        html.Span("📄", className="csv-icon"),
+                        html.Span(info["name"], className="csv-name"),
+                        html.Span(f"({len(signals)})", className="signal-count"),
+                    ], className="csv-header"),
+                    html.Div(signal_items, className="csv-signals expanded"),
+                ], className="csv-group")
+            )
         
         if not tree_items:
             return html.Div("No matching signals", className="no-signals")
@@ -140,15 +211,11 @@ def register_callbacks(app):
         return tree_items
     
     # =========================================================================
-    # 3. SIGNAL ASSIGNMENT
+    # 4. HANDLE SIGNAL CHECKBOX CLICKS
     # =========================================================================
     
     @app.callback(
-        [
-            Output("store-assignments", "data"),
-            Output("assigned-list", "children"),
-            Output("btn-remove-all", "style"),
-        ],
+        Output("store-assignments", "data"),
         [
             Input({"type": "signal-check", "key": ALL}, "value"),
             Input({"type": "remove-signal", "key": ALL}, "n_clicks"),
@@ -158,74 +225,98 @@ def register_callbacks(app):
             State({"type": "signal-check", "key": ALL}, "id"),
             State("store-assignments", "data"),
             State("store-selected-subplot", "data"),
-            State("store-csv-files", "data"),
         ],
         prevent_initial_call=True,
     )
-    def handle_assignments(check_values, remove_clicks, remove_all, check_ids, 
-                          assignments, selected_subplot, csv_files):
-        """Handle signal assignment and removal."""
+    def handle_signal_toggle(check_values, remove_clicks, remove_all, 
+                            check_ids, assignments, selected_subplot):
+        """Handle signal assignment from checkboxes and remove buttons."""
         ctx = callback_context
         trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
         
-        assignments = assignments or {"0": []}
+        assignments = assignments or {}
         sp_key = str(selected_subplot or 0)
-        csv_files = csv_files or {}
         
         if sp_key not in assignments:
             assignments[sp_key] = []
         
-        current = set(assignments[sp_key])
-        
-        # Remove all signals
+        # Remove all signals from current subplot
         if "btn-remove-all" in trigger:
             assignments[sp_key] = []
+            return assignments
         
         # Remove specific signal
-        elif "remove-signal" in trigger:
+        if "remove-signal" in trigger:
             try:
                 trigger_id = json.loads(trigger.split(".")[0])
                 sig_key = trigger_id.get("key")
-                if sig_key in current:
-                    current.remove(sig_key)
-                assignments[sp_key] = list(current)
+                if sig_key and sig_key in assignments[sp_key]:
+                    assignments[sp_key].remove(sig_key)
             except Exception:
                 pass
+            return assignments
         
-        # Toggle signal from checkbox
-        elif "signal-check" in trigger:
-            # Build mapping of checkbox id to value
-            if check_ids and check_values:
-                for i, checkbox_id in enumerate(check_ids):
-                    sig_key = checkbox_id.get("key")
-                    is_checked = check_values[i] if i < len(check_values) else False
-                    
-                    if is_checked and sig_key not in current:
-                        current.add(sig_key)
-                    elif not is_checked and sig_key in current:
-                        current.remove(sig_key)
+        # Handle checkbox toggle - rebuild from checkbox state
+        if "signal-check" in trigger and check_ids and check_values:
+            new_assignments = []
+            
+            for i, checkbox_id in enumerate(check_ids):
+                sig_key = checkbox_id.get("key")
+                is_checked = check_values[i] if i < len(check_values) else False
                 
-                assignments[sp_key] = list(current)
+                if is_checked and sig_key:
+                    new_assignments.append(sig_key)
+            
+            assignments[sp_key] = new_assignments
         
-        # Build assigned list UI
-        assigned_items = []
-        for i, sig_key in enumerate(assignments.get(sp_key, [])):
+        return assignments
+    
+    # =========================================================================
+    # 5. ASSIGNED LIST DISPLAY
+    # =========================================================================
+    
+    @app.callback(
+        [
+            Output("assigned-list", "children"),
+            Output("btn-remove-all", "style"),
+        ],
+        [
+            Input("store-assignments", "data"),
+            Input("store-selected-subplot", "data"),
+        ],
+        State("store-csv-files", "data"),
+    )
+    def update_assigned_list(assignments, selected_subplot, csv_files):
+        """Update the assigned signals list display."""
+        assignments = assignments or {}
+        csv_files = csv_files or {}
+        sp_key = str(selected_subplot or 0)
+        
+        sig_keys = assignments.get(sp_key, [])
+        
+        if not sig_keys:
+            return [html.Div("No signals assigned", className="no-assigned")], {"display": "none"}
+        
+        items = []
+        for i, sig_key in enumerate(sig_keys):
             csv_id, sig_name = parse_signal_key(sig_key)
             csv_info = csv_files.get(csv_id, {})
             csv_name = csv_info.get("name", csv_id)[:15]
             color = SIGNAL_COLORS[i % len(SIGNAL_COLORS)]
             
-            assigned_items.append(create_assigned_signal(sig_key, sig_name, csv_name, color))
+            items.append(
+                html.Div([
+                    html.Div(className="color-dot", style={"backgroundColor": color}),
+                    html.Span(sig_name, className="assigned-name"),
+                    html.Span(f"({csv_name})", className="assigned-csv"),
+                    html.Button("×", className="remove-btn", id={"type": "remove-signal", "key": sig_key}),
+                ], className="assigned-item")
+            )
         
-        if not assigned_items:
-            assigned_items = [html.Div("No signals assigned", className="no-assigned")]
-        
-        show_remove = {"display": "block"} if assignments.get(sp_key) else {"display": "none"}
-        
-        return assignments, assigned_items, show_remove
+        return items, {"display": "block"}
     
     # =========================================================================
-    # 4. MAIN PLOT UPDATE
+    # 6. MAIN PLOT UPDATE
     # =========================================================================
     
     @app.callback(
@@ -245,7 +336,7 @@ def register_callbacks(app):
         settings = settings or {"theme": "dark"}
         
         # Check if we have any signals assigned
-        has_signals = any(signals for signals in assignments.values())
+        has_signals = any(signals for signals in assignments.values() if signals)
         
         if not has_signals:
             return plot_builder.build_empty_figure(settings.get("theme", "dark"))
@@ -261,7 +352,7 @@ def register_callbacks(app):
         )
     
     # =========================================================================
-    # 5. LAYOUT CONTROLS
+    # 7. LAYOUT CONTROLS
     # =========================================================================
     
     @app.callback(
@@ -282,11 +373,8 @@ def register_callbacks(app):
         cols = int(cols) if cols else 1
         
         total = rows * cols
-        
-        # Build subplot options
         options = [{"label": str(i + 1), "value": str(i)} for i in range(total)]
         
-        # Reset to subplot 0 if current is out of range
         current = int(current_subplot) if current_subplot is not None else 0
         if current >= total:
             current = 0
@@ -306,7 +394,7 @@ def register_callbacks(app):
         return subplot, f"(Subplot {subplot + 1})"
     
     # =========================================================================
-    # 6. THEME TOGGLE
+    # 8. THEME TOGGLE
     # =========================================================================
     
     @app.callback(
@@ -321,7 +409,7 @@ def register_callbacks(app):
         return settings
     
     # =========================================================================
-    # 7. CURSOR CONTROL
+    # 9. CURSOR CONTROL
     # =========================================================================
     
     @app.callback(
@@ -363,7 +451,6 @@ def register_callbacks(app):
         
         # Handle slider
         elif "cursor-slider" in trigger:
-            # Convert slider (0-100) to actual time value
             cursor_x = t_min + (slider_value / 100.0) * (t_max - t_min)
             cursor_state["x"] = cursor_x
         
@@ -390,7 +477,7 @@ def register_callbacks(app):
                 assignments or {}, 
                 selected_subplot or 0
             )
-            for v in values[:5]:  # Show max 5 signals
+            for v in values[:5]:
                 signal_values.append(
                     html.Div([
                         html.Span(f"{v['signal'][:15]}: ", className="sig-name"),
@@ -414,7 +501,6 @@ def register_callbacks(app):
         if not csv_files:
             return 0, 100, 50
         
-        # Get global time range
         t_min, t_max = float('inf'), float('-inf')
         for csv_id in csv_files:
             try:
@@ -427,7 +513,6 @@ def register_callbacks(app):
         if t_min == float('inf'):
             t_min, t_max = 0, 100
         
-        # Set slider to middle or current position
         current_x = cursor_state.get("x") if cursor_state else None
         if current_x is not None and t_min <= current_x <= t_max:
             value = ((current_x - t_min) / (t_max - t_min)) * 100
@@ -437,7 +522,7 @@ def register_callbacks(app):
         return 0, 100, value
     
     # =========================================================================
-    # 8. CURSOR ANIMATION
+    # 10. CURSOR ANIMATION
     # =========================================================================
     
     @app.callback(
@@ -454,9 +539,9 @@ def register_callbacks(app):
         trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
         
         if "btn-play" in trigger:
-            return False  # Enable interval
+            return False
         elif "btn-stop" in trigger:
-            return True  # Disable interval
+            return True
         
         return True
     
@@ -478,7 +563,7 @@ def register_callbacks(app):
         return new_value
     
     # =========================================================================
-    # 9. SESSION SAVE/LOAD
+    # 11. SESSION SAVE/LOAD
     # =========================================================================
     
     @app.callback(
@@ -542,13 +627,12 @@ def register_callbacks(app):
             with open(filepath, 'r') as f:
                 session_data = json.load(f)
             
-            # Reload CSV files
             csv_files = session_data.get("csv_files", {})
             for csv_id, info in csv_files.items():
-                filepath = info.get("path")
-                if filepath and os.path.exists(filepath):
+                fp = info.get("path")
+                if fp and os.path.exists(fp):
                     try:
-                        data_manager.load_csv(filepath, csv_id)
+                        data_manager.load_csv(fp, csv_id)
                     except Exception:
                         pass
             
@@ -562,33 +646,11 @@ def register_callbacks(app):
         except Exception as e:
             print(f"Error loading session: {e}")
             return no_update, no_update, no_update, no_update
-    
-    # =========================================================================
-    # 10. DOUBLE-CLICK SUBPLOT SELECTION
-    # =========================================================================
-    
-    @app.callback(
-        Output("subplot-select", "value", allow_duplicate=True),
-        Input("main-plot", "clickData"),
-        [
-            State("store-layout", "data"),
-        ],
-        prevent_initial_call=True,
-    )
-    def select_subplot_by_click(click_data, layout_config):
-        """Select subplot by clicking on it."""
-        if not click_data:
-            return no_update
-        
-        # This is a simplified version - would need curveNumber to determine subplot
-        # For now, just return no_update
-        return no_update
 
 
 def register_clientside_callbacks(app):
     """Register clientside callbacks for instant UI responses."""
     
-    # Theme class toggle
     app.clientside_callback(
         """
         function(isDark) {
@@ -600,4 +662,3 @@ def register_clientside_callbacks(app):
         Output("root", "className"),
         Input("theme-switch", "value"),
     )
-
