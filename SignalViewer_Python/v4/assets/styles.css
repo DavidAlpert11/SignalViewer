@@ -694,3 +694,260 @@ body {
     }
 }
 
+/* ============================================
+   Autocomplete Dropdown
+   ============================================ */
+
+.search-container {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background: var(--bg-hover);
+}
+
+.suggestion-item.assigned {
+    background: rgba(88, 166, 255, 0.1);
+}
+
+.suggestion-check {
+    color: var(--success);
+    font-weight: bold;
+    width: 20px;
+}
+
+.suggestion-signal {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.suggestion-csv {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   Settings Button (Signal Properties)
+   ============================================ */
+
+.settings-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 4px;
+    font-size: 12px;
+    transition: var(--transition-fast);
+}
+
+.settings-btn:hover {
+    color: var(--accent);
+}
+
+/* Derived Signal Button */
+.derived-btn {
+    font-size: 10px !important;
+    padding: 0 6px !important;
+    min-width: 26px;
+}
+
+/* ============================================
+   X-Y Mode
+   ============================================ */
+
+.xy-mode-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+}
+
+.xy-mode-switch {
+    margin: 0 !important;
+}
+
+.xy-x-signal {
+    flex: 1;
+    font-size: 11px !important;
+    background: var(--bg-hover) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ============================================
+   Cursor Range Display
+   ============================================ */
+
+.slider-container {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cursor-min,
+.cursor-max {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+}
+
+/* ============================================
+   Export Button
+   ============================================ */
+
+.export-btn {
+    font-size: 16px !important;
+    padding: 4px 8px !important;
+}
+
+/* ============================================
+   Modal Styling
+   ============================================ */
+
+.modal-content {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+.modal-header {
+    background: var(--bg-card) !important;
+    border-bottom: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+.modal-header .btn-close {
+    filter: invert(1) !important;
+}
+
+.modal-body {
+    padding: 20px !important;
+}
+
+.modal-body .form-control,
+.modal-body .form-select {
+    background: var(--bg-card) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+.modal-body .form-label,
+.modal-body .input-group-text {
+    color: var(--text-primary) !important;
+    background: var(--bg-hover) !important;
+    border-color: var(--border) !important;
+}
+
+.modal-footer {
+    background: var(--bg-card) !important;
+    border-top: 1px solid var(--border) !important;
+}
+
+/* Tabs in Modal */
+.modal-body .nav-tabs {
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.modal-body .nav-tabs .nav-link {
+    color: var(--text-secondary) !important;
+    border: none !important;
+    padding: 10px 16px;
+}
+
+.modal-body .nav-tabs .nav-link:hover {
+    color: var(--text-primary) !important;
+    border-color: transparent !important;
+}
+
+.modal-body .nav-tabs .nav-link.active {
+    color: var(--accent) !important;
+    background: transparent !important;
+    border-bottom: 2px solid var(--accent) !important;
+}
+
+/* Color input in modal */
+.modal-body input[type="color"] {
+    width: 50px;
+    height: 38px;
+    padding: 2px;
+    cursor: pointer;
+}
+
+/* Checkbox in modal */
+.modal-body .form-check-input:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* ============================================
+   Form Checkbox Custom Styling
+   ============================================ */
+
+.form-check-input {
+    background-color: var(--bg-card);
+    border-color: var(--border);
+}
+
+.form-check-input:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.form-check-label {
+    color: var(--text-primary);
+}
+
+/* ============================================
+   Light Theme Adjustments
+   ============================================ */
+
+body.light-theme .modal-header .btn-close {
+    filter: none !important;
+}
+
+body.light-theme .autocomplete-dropdown {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .suggestion-item.assigned {
+    background: rgba(9, 105, 218, 0.1);
+}
+

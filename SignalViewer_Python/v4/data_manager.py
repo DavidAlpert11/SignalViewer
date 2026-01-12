@@ -229,6 +229,52 @@ class DataManager:
             return float(np.nanmin(t)), float(np.nanmax(t))
         
         return 0, 100
+    
+    def add_derived_signal(
+        self,
+        name: str,
+        time: np.ndarray,
+        values: np.ndarray,
+        source_csv: str,
+    ) -> str:
+        """
+        Add a derived signal to the data manager.
+        
+        Args:
+            name: Signal name
+            time: Time array
+            values: Signal values array
+            source_csv: ID of the source CSV (for reference)
+            
+        Returns:
+            New CSV ID for the derived signal
+        """
+        # Generate unique ID
+        derived_id = f"derived_{hashlib.md5(name.encode()).hexdigest()[:6]}"
+        
+        # Create DataFrame
+        df = pd.DataFrame({
+            "time": time,
+            name: values,
+        })
+        
+        # Store in cache
+        self.data_cache[derived_id] = df
+        
+        # Store metadata
+        self.csv_files[derived_id] = {
+            "id": derived_id,
+            "path": "",
+            "name": f"[D] {name}",
+            "signals": [name],
+            "time_column": "time",
+            "row_count": len(time),
+            "columns": ["time", name],
+            "is_derived": True,
+            "source_csv": source_csv,
+        }
+        
+        return derived_id
 
 
 # Global instance
