@@ -281,6 +281,9 @@ class SignalViewerApp:
         
         return PerfTimer(name)
 
+    # =========================================================================
+    # CACHE MANAGEMENT
+    # =========================================================================
     def invalidate_caches(self):
         """Invalidate all caches when data changes"""
         self._signal_cache.clear()
@@ -408,6 +411,10 @@ class SignalViewerApp:
 
         return x_data, y_data
 
+    # =========================================================================
+    # LAYOUT DEFINITION
+    # Main UI structure: Header, Sidebar (Data/Signals/Assigned), Plot Area
+    # =========================================================================
     def create_layout(self):
         return html.Div(
             id="app-container",
@@ -510,6 +517,18 @@ class SignalViewerApp:
                                                     children="Ready",
                                                     color="info",
                                                     className="ms-3",
+                                                ),
+                                                # Mode indicators (show active modes)
+                                                html.Span(id="mode-indicators", className="ms-2", style={"fontSize": "11px"}),
+                                                # Keyboard shortcuts help button
+                                                dbc.Button(
+                                                    "⌨️",
+                                                    id="btn-show-shortcuts",
+                                                    size="sm",
+                                                    color="link",
+                                                    className="ms-2 p-0",
+                                                    title="Keyboard shortcuts (press ?)",
+                                                    style={"fontSize": "16px", "textDecoration": "none"},
                                                 ),
                                             ],
                                             className="d-flex align-items-center justify-content-end",
@@ -1181,7 +1200,7 @@ class SignalViewerApp:
                                                                                     dbc.Checkbox(
                                                                                     id="time-cursor-check",
                                                                                     label="Cursor",
-                                                                                    value=True,
+                                                                                    value=False,  # Default OFF per UX guideline INT-1
                                                                                     className="ms-2 small",
                                                                                 ),
                                                                                 # Cursor playback controls (beside layout buttons)
@@ -1416,9 +1435,59 @@ class SignalViewerApp:
                 self.create_annotation_modal(),
                 self.create_compare_modal(),
                 self.create_compare_mode_panel(),
+                self.create_keyboard_shortcuts_modal(),
             ],
         )
 
+    # =========================================================================
+    # KEYBOARD SHORTCUTS HELP MODAL
+    # =========================================================================
+    def create_keyboard_shortcuts_modal(self):
+        """Modal displaying all keyboard shortcuts."""
+        shortcuts = [
+            ("Space", "Play/Pause cursor animation"),
+            ("1-9", "Select subplot 1-9"),
+            ("Ctrl+S", "Save session"),
+            ("Ctrl+O", "Load session"),
+            ("Escape", "Close modals/cancel"),
+            ("?", "Show this help"),
+            ("←/→", "Move cursor left/right (when focused)"),
+            ("Home/End", "Jump to start/end of data"),
+            ("Double-click plot", "Select subplot"),
+        ]
+        
+        return dbc.Modal(
+            [
+                dbc.ModalHeader("⌨️ Keyboard Shortcuts"),
+                dbc.ModalBody([
+                    html.Div([
+                        html.Div([
+                            html.Span(key, className="badge bg-secondary me-3", 
+                                     style={"fontFamily": "monospace", "minWidth": "80px", "display": "inline-block"}),
+                            html.Span(desc, className="text-light"),
+                        ], className="py-2 border-bottom border-secondary")
+                        for key, desc in shortcuts
+                    ]),
+                    html.Hr(),
+                    html.P([
+                        html.Small("Tip: Press ", className="text-muted"),
+                        html.Span("?", className="badge bg-info"),
+                        html.Small(" anytime to show shortcuts", className="text-muted"),
+                    ], className="mb-0"),
+                ]),
+                dbc.ModalFooter(
+                    dbc.Button("Close", id="btn-close-shortcuts", color="secondary", size="sm")
+                ),
+            ],
+            id="modal-shortcuts",
+            is_open=False,
+            centered=True,
+        )
+
+    # =========================================================================
+    # MODAL DIALOGS
+    # All modal definitions for various features
+    # =========================================================================
     def create_link_modal(self):
         return dbc.Modal(
             [
@@ -2252,6 +2321,11 @@ class SignalViewerApp:
             size="lg",
         )
 
+    # =========================================================================
+    # FIGURE CREATION
+    # Plotly figure generation with WebGL for performance
+    # Supports: Multi-subplot, X-Y mode, cursor line, annotations
+    # =========================================================================
     def create_figure(
         self,
         rows: int,
@@ -2867,7 +2941,19 @@ class SignalViewerApp:
         
         return fig
 
+    # =========================================================================
+    # CALLBACKS
+    # All Dash callbacks organized by feature:
+    #   - Clientside callbacks (browser-side, instant response)
+    #   - CSV loading and management
+    #   - Signal tree and assignment
+    #   - Plot rendering
+    #   - Cursor control
+    #   - Export functionality
+    #   - Session save/load
+    # =========================================================================
     def setup_callbacks(self):
+        """Register all Dash callbacks for interactivity."""
         logger.info("Setting up callbacks...")
         
         # ================================================================
@@ -2937,9 +3023,24 @@ class SignalViewerApp:
                                 }
                             }
                         }
+                        
+                        // ? or F1 - Show keyboard shortcuts
+                        if (e.key === '?' || e.key === 'F1') {
+                            e.preventDefault();
+                            var helpBtn = document.getElementById('btn-show-shortcuts');
+                            if (helpBtn) helpBtn.click();
+                        }
+                        
+                        // Escape - Close modals
+                        if (e.key === 'Escape') {
+                            var closeButtons = document.querySelectorAll('.modal.show .btn-close, .modal.show [id*="close"]');
+                            if (closeButtons.length > 0) {
+                                closeButtons[0].click();
+                            }
+                        }
                     });
                     
-                    console.log('[SignalViewer] Keyboard shortcuts enabled');
+                    console.log('[SignalViewer] Keyboard shortcuts enabled (Press ? for help)');
                 }
                 return window.dash_clientside.no_update;
             }
@@ -7353,6 +7454,61 @@ class SignalViewerApp:
                 return True
             return False
 
+        # =================================================================
+        # Keyboard Shortcuts Modal
+        # =================================================================
+        @self.app.callback(
+            Output("modal-shortcuts", "is_open"),
+            [
+                Input("btn-show-shortcuts", "n_clicks"),
+                Input("btn-close-shortcuts", "n_clicks"),
+            ],
+            State("modal-shortcuts", "is_open"),
+            prevent_initial_call=True,
+        )
+        def toggle_shortcuts_modal(show_click, close_click, is_open):
+            ctx = callback_context
+            trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+            if "btn-show-shortcuts" in trigger:
+                return True
+            return False
+
+        # =================================================================
+        # Mode Indicators (show active modes in header)
+        # =================================================================
+        @self.app.callback(
+            Output("mode-indicators", "children"),
+            [
+                Input("store-streaming-active", "data"),
+                Input("time-cursor-check", "value"),
+                Input("link-axes-check", "value"),
+                Input("store-subplot-modes", "data"),
+                Input("store-selected-tab", "data"),
+                Input("store-selected-subplot", "data"),
+            ],
+        )
+        def update_mode_indicators(streaming, cursor, link_axes, subplot_modes, tab, subplot):
+            """Show active mode badges in header."""
+            badges = []
+            
+            if streaming:
+                badges.append(dbc.Badge("🔴 STREAM", color="danger", className="me-1", pill=True))
+            
+            if cursor:
+                badges.append(dbc.Badge("📍 Cursor", color="info", className="me-1", pill=True))
+            
+            if link_axes:
+                badges.append(dbc.Badge("🔗 Linked", color="secondary", className="me-1", pill=True))
+            
+            # Check for X-Y mode on current subplot
+            tab_key = str(tab or 0)
+            sp_key = str(subplot or 0)
+            tab_modes = (subplot_modes or {}).get(tab_key, {})
+            if tab_modes.get(sp_key) == "xy":
+                badges.append(dbc.Badge("📈 X-Y", color="warning", className="me-1", pill=True))
+            
+            return badges if badges else ""
+
         @self.app.callback(
             [
                 Output("download-csv-export", "data"),
@@ -7422,12 +7578,16 @@ class SignalViewerApp:
                                 time_col_name = (time_cols or {}).get(str(csv_idx), "Time")
                                 time_data = df[time_col_name].values if time_col_name in df.columns else None
                                 
-                                # Get CSV name for labeling
-                                csv_name = (
-                                    get_csv_short_name(self.data_manager.csv_file_paths[csv_idx])
-                                    if csv_idx < len(self.data_manager.csv_file_paths)
-                                    else f"C{csv_idx}"
-                                )
+                                # Get CSV display name for labeling (handles duplicate filenames with folder prefix)
+                                if csv_idx < len(self.data_manager.csv_file_paths):
+                                    csv_display = get_csv_display_name(
+                                        self.data_manager.csv_file_paths[csv_idx],
+                                        self.data_manager.csv_file_paths
+                                    )
+                                    # Remove extension and replace / with _ for valid column name
+                                    csv_name = os.path.splitext(csv_display)[0].replace("/", "_")
+                                else:
+                                    csv_name = f"C{csv_idx}"
                                 col_name = f"{sig_name}_{csv_name}"
                                 
                                 if data_len not in signals_by_length:
