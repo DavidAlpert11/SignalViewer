@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller Spec File for Signal Viewer Pro v3.0
+PyInstaller Spec File for Signal Viewer Pro v4.0
 =================================================
 
 Build with: pyinstaller SignalViewer.spec --clean
@@ -9,44 +9,27 @@ Build with: pyinstaller SignalViewer.spec --clean
 import os
 import sys
 
-# Get the directory containing this spec file
 spec_dir = os.path.dirname(os.path.abspath(SPEC))
 
 a = Analysis(
-    ['run.py'],  # Entry point
+    ['run.py'],
     pathex=[spec_dir],
     binaries=[],
     datas=[
-        # Include assets folder (CSS, JS, fonts - all offline)
         ('assets', 'assets'),
-        # Include all Python source files
         ('app.py', '.'),
-        ('config.py', '.'),
-        ('data_manager.py', '.'),
-        ('helpers.py', '.'),
-        ('linking_manager.py', '.'),
-        ('signal_operations.py', '.'),
-        ('flexible_csv_loader.py', '.'),
-        ('callback_helpers.py', '.'),
+        ('core', 'core'),
+        ('loaders', 'loaders'),
+        ('viz', 'viz'),
+        ('ops', 'ops'),
+        ('compare', 'compare'),
+        ('stream', 'stream'),
+        ('report', 'report'),
+        ('ui', 'ui'),
     ],
     hiddenimports=[
-        # Core packages
         'numpy',
-        'numpy.core._methods',
-        'numpy.core._dtype_ctypes',
         'pandas',
-        'pandas._libs.tslibs.base',
-        'scipy',
-        'scipy.integrate',
-        'scipy.interpolate',
-        'scipy.signal',
-        'scipy.special',
-        'scipy.linalg',
-        'scipy.sparse',
-        'scipy.stats',
-        'scipy.optimize',
-        'scipy.fft',
-        # Dash and Plotly - essential modules
         'dash',
         'dash.dcc',
         'dash.html',
@@ -54,46 +37,26 @@ a = Analysis(
         'plotly',
         'plotly.graph_objects',
         'plotly.subplots',
-        'plotly.io',
-        # Export libraries
-        'kaleido',
-        'openpyxl',
-        'python-docx',
-        'docx',
-        # Web server
         'flask',
         'werkzeug',
         'jinja2',
-        # Required utilities
-        'pkg_resources',
-        'jaraco',
-        'jaraco.functools',
-        'jaraco.context',
-        'jaraco.text',
-        'packaging',
-        'packaging.version',
-        'packaging.specifiers',
-        'packaging.requirements',
-        'importlib_resources',
-        'zipp',
-        # Native file dialog (required for file browser)
         'tkinter',
         'tkinter.filedialog',
+        # Optional DOCX export
+        'docx',
+        'docx.shared',
+        'docx.enum.text',
+        'kaleido',
     ],
     hookspath=['hooks'],
     hooksconfig={},
-    runtime_hooks=['runtime_hook.py'],
+    runtime_hooks=[],
     excludes=[
-        # Exclude unnecessary modules (NOT tkinter - we need it!)
         'matplotlib',
         'PIL',
         'sqlite3',
         'unittest',
         'test',
-        'tests',
-        'watchdog',  # Not used anymore
-        'reportlab',  # Not used
-        'pptx',  # Not used
     ],
     noarchive=False,
     optimize=0,
@@ -111,7 +74,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Set to False after testing works
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

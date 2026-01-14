@@ -1,143 +1,236 @@
 @echo off
+setlocal enabledelayedexpansion
 REM ============================================
-REM Signal Viewer Pro v3.1 - Build Script
+REM Signal Viewer Pro v3.2 - Build Script
 REM ============================================
 REM 
 REM Usage:
-REM   build.bat          - Build Dash (web) version
-REM   build.bat fast     - Fast rebuild Dash version
+REM   build.bat          - Full clean build
+REM   build.bat fast     - Fast rebuild (skip deps)
+REM   build.bat venv     - Create venv and install deps only
 REM
-REM Features:
-REM   - Fully offline (no internet required)
-REM   - Native file browser
-REM   - Streaming from original files
-REM   - Drag & Drop signal reordering
-REM   - Right-click context menu
-REM   - Preset Templates
-REM   - Compare Mode (side-by-side plots)
-REM   - Toast Notifications
+REM Output:
+REM   dist\SignalViewer\SignalViewer.exe
+REM   SignalViewer.zip
 REM ============================================
 
 echo.
 echo ============================================
-echo   Signal Viewer Pro v3.1 - Build Script
+echo   Signal Viewer Pro - Build Script v3.2
 echo ============================================
 echo.
 
 REM Parse arguments
-set BUILD_DASH=1
-set CLEAN_FLAG=--clean
-set BUILD_MODE=Full Build
+set BUILD_MODE=full
+set CREATE_VENV_ONLY=0
 
 if "%1"=="fast" (
-    set CLEAN_FLAG=
-    set BUILD_MODE=Fast Rebuild
-    echo Target: DASH ^(Web GUI^) - Fast
+    set BUILD_MODE=fast
+    echo [MODE] Fast rebuild - skipping dependency installation
+) else if "%1"=="venv" (
+    set CREATE_VENV_ONLY=1
+    echo [MODE] Virtual environment setup only
 ) else (
-    echo Target: DASH ^(Web GUI^)
+    echo [MODE] Full clean build
 )
 echo.
 
-REM Check if Python is installed
-python --version
+REM ============================================
+REM Step 1: Check Python
+REM ============================================
+echo [1/7] Checking Python installation...
+python --version >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: Python is not installed or not in PATH
-    echo Please install Python 3.10+ and try again.
-    pause
+    echo [ERROR] Python is not installed or not in PATH
+    echo         Please install Python 3.10+ and try again.
+    echo         Download: https://www.python.org/downloads/
+    exit /b 1
+)
+for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PYTHON_VERSION=%%v
+echo       Python %PYTHON_VERSION% found
+
+REM ============================================
+REM Step 2: Virtual Environment
+REM ============================================
+echo.
+echo [2/7] Checking virtual environment...
+if not exist "venv" (
+    echo       Creating virtual environment...
+    python -m venv venv
+    if errorlevel 1 (
+        echo [ERROR] Failed to create virtual environment
+        exit /b 1
+    )
+    echo       Virtual environment created
+) else (
+    echo       Virtual environment exists
+)
+
+REM Activate venv
+call venv\Scripts\activate.bat
+if errorlevel 1 (
+    echo [ERROR] Failed to activate virtual environment
+    exit /b 1
+)
+echo       Virtual environment activated
+
+REM ============================================
+REM Step 3: Install Dependencies
+REM ============================================
+echo.
+echo [3/7] Installing dependencies...
+if "%BUILD_MODE%"=="fast" (
+    echo       Skipping in fast mode
+) else (
+    pip install --upgrade pip --quiet
+    pip install -r requirements.txt --quiet
+    if errorlevel 1 (
+        echo [ERROR] Failed to install requirements
+        exit /b 1
+    )
+    REM Additional optional dependencies
+    pip install python-docx kaleido --quiet 2>nul
+    echo       Dependencies installed
+)
+
+REM Check PyInstaller
+pyinstaller --version >nul 2>&1
+if errorlevel 1 (
+    echo       Installing PyInstaller...
+    pip install pyinstaller==6.5.0
+    if errorlevel 1 (
+        echo [ERROR] Failed to install PyInstaller
+        exit /b 1
+    )
+)
+
+REM Exit if venv-only mode
+if %CREATE_VENV_ONLY%==1 (
+    echo.
+    echo ============================================
+    echo   VENV SETUP COMPLETE
+    echo ============================================
+    echo   To activate: venv\Scripts\activate.bat
+    echo   To run: python run.py
+    exit /b 0
+)
+
+REM ============================================
+REM Step 4: Stop Running Instances
+REM ============================================
+echo.
+echo [4/7] Stopping running instances...
+taskkill /F /IM SignalViewer.exe >nul 2>&1
+timeout /t 1 /nobreak >nul
+echo       Done
+
+REM ============================================
+REM Step 5: Clean Build Directories
+REM ============================================
+echo.
+echo [5/7] Cleaning build directories...
+if "%BUILD_MODE%"=="fast" (
+    if exist "dist\SignalViewer" (
+        rmdir /s /q "dist\SignalViewer" 2>nul
+        echo       Cleaned dist\SignalViewer
+    )
+) else (
+    if exist "build" (
+        rmdir /s /q "build" 2>nul
+        echo       Cleaned build\
+    )
+    if exist "dist\SignalViewer" (
+        rmdir /s /q "dist\SignalViewer" 2>nul
+        echo       Cleaned dist\SignalViewer
+    )
+)
+echo       Build directories ready
+
+REM ============================================
+REM Step 6: Build Executable
+REM ============================================
+echo.
+echo [6/7] Building executable...
+echo       This may take 1-3 minutes...
+
+if "%BUILD_MODE%"=="fast" (
+    pyinstaller SignalViewer.spec --noconfirm
+) else (
+    pyinstaller SignalViewer.spec --clean --noconfirm
+)
+
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Build failed! Check errors above.
     exit /b 1
 )
 
-REM Kill any running SignalViewer.exe processes
-echo.
-echo Stopping any running SignalViewer instances...
-taskkill /F /IM SignalViewer.exe >nul 2>&1
-taskkill /F /IM SignalViewerTk.exe >nul 2>&1
-timeout /t 2 /nobreak >nul
+REM Verify build output
+if not exist "dist\SignalViewer\SignalViewer.exe" (
+    echo [ERROR] Build completed but SignalViewer.exe not found
+    exit /b 1
+)
 
-REM Create required folders
-echo.
-echo Creating required folders...
-if not exist "uploads" mkdir uploads
-if not exist "uploads\.cache" mkdir uploads\.cache
+REM Create uploads folder in dist
+if not exist "dist\SignalViewer\uploads" mkdir "dist\SignalViewer\uploads"
+echo       Build successful
 
-REM Install required packages (skip in fast mode)
-if "%BUILD_MODE%"=="Fast Rebuild" (
-    echo Skipping dependency installation in fast mode...
+REM ============================================
+REM Step 7: Verify Assets
+REM ============================================
+echo.
+echo [7/7] Verifying offline assets...
+set ASSETS_OK=1
+
+if not exist "dist\SignalViewer\assets\custom.css" (
+    echo       [WARN] Missing: assets\custom.css
+    set ASSETS_OK=0
+)
+if not exist "dist\SignalViewer\assets\bootstrap-cyborg.min.css" (
+    echo       [WARN] Missing: assets\bootstrap-cyborg.min.css
+    set ASSETS_OK=0
+)
+if not exist "dist\SignalViewer\assets\font-awesome.min.css" (
+    echo       [WARN] Missing: assets\font-awesome.min.css
+    set ASSETS_OK=0
+)
+
+if %ASSETS_OK%==1 (
+    echo       All assets verified
 ) else (
-    echo.
-    echo Installing/updating dependencies...
-    pip install -r requirements.txt --quiet
-    pip install jaraco.functools jaraco.context jaraco.text --quiet
-    REM Word export support
-    pip install python-docx --quiet
-    REM Static image export
-    pip install kaleido --quiet
-)
-
-REM Check if PyInstaller is installed
-pyinstaller --version >nul 2>&1
-if errorlevel 1 (
-    echo Installing PyInstaller...
-    pip install pyinstaller==6.5.0
+    echo       [WARN] Some assets may be missing - check offline operation
 )
 
 REM ============================================
-REM Build Dash Version
+REM Create Distribution ZIP
 REM ============================================
-if %BUILD_DASH%==1 (
-    echo.
-    echo ============================================
-    echo   Building DASH Version...
-    echo ============================================
-    
-    if "%BUILD_MODE%"=="Fast Rebuild" (
-        echo Cleaning dist folder only...
-        powershell -Command "if (Test-Path 'dist\SignalViewer') { Remove-Item -Recurse -Force 'dist\SignalViewer' -ErrorAction SilentlyContinue }"
-    ) else (
-        echo Cleaning previous builds...
-        powershell -Command "if (Test-Path 'build') { Remove-Item -Recurse -Force 'build' -ErrorAction SilentlyContinue }"
-        powershell -Command "if (Test-Path 'dist\SignalViewer') { Remove-Item -Recurse -Force 'dist\SignalViewer' -ErrorAction SilentlyContinue }"
-    )
-    timeout /t 1 /nobreak >nul
-    
-    echo Building Signal Viewer Pro - Dash Version...
-    pyinstaller SignalViewer.spec %CLEAN_FLAG% --noconfirm
-    
-    if errorlevel 1 (
-        echo.
-        echo BUILD FAILED for Dash version!
-        echo Check errors above.
-    ) else (
-        echo Dash version built successfully!
-        if not exist "dist\SignalViewer\uploads" mkdir "dist\SignalViewer\uploads"
-        if not exist "dist\SignalViewer\uploads\.cache" mkdir "dist\SignalViewer\uploads\.cache"
-    )
+echo.
+echo Creating distribution archive...
+if exist "SignalViewer.zip" del "SignalViewer.zip"
+powershell -Command "Compress-Archive -Path 'dist\SignalViewer' -DestinationPath 'SignalViewer.zip' -Force"
+if exist "SignalViewer.zip" (
+    echo       Created: SignalViewer.zip
+) else (
+    echo       [WARN] Failed to create ZIP archive
 )
 
-
-REM Create ZIP files for distribution
-echo.
-echo Creating distribution ZIP files...
-
-if exist "dist\SignalViewer" (
-    powershell -Command "if (Test-Path 'SignalViewer.zip') { Remove-Item 'SignalViewer.zip' -Force }"
-    powershell -Command "Compress-Archive -Path 'dist\SignalViewer' -DestinationPath 'SignalViewer.zip' -Force"
-    echo Created: SignalViewer.zip ^(Dash/Web version^)
-)
-
+REM ============================================
+REM Build Complete
+REM ============================================
 echo.
 echo ============================================
-echo   BUILD COMPLETE!
+echo   BUILD COMPLETE
 echo ============================================
 echo.
-echo Signal Viewer Pro v3.1:
-echo   Folder:     dist\SignalViewer\
 echo   Executable: dist\SignalViewer\SignalViewer.exe
-echo   ZIP:        SignalViewer.zip
+echo   Archive:    SignalViewer.zip
 echo.
-echo Usage:
-echo   build.bat       - Full build
-echo   build.bat fast  - Fast rebuild
+echo   To run: dist\SignalViewer\SignalViewer.exe
+echo   Then open: http://127.0.0.1:8050
+echo.
+echo ============================================
 echo.
 
+REM Don't pause if running from script
+if "%2"=="nopause" exit /b 0
 pause
