@@ -1,113 +1,154 @@
 # Signal Viewer Pro
 
-A professional signal analysis and visualization tool built with Python and Dash.
+Professional signal analysis tool for engineering data visualization.
 
 ## Features
 
-- **Multi-CSV Support** - Load and visualize signals from multiple CSV files
-- **Canonical Naming** - Automatic disambiguation of signals with same names (N1-N4)
-- **Multi-Subplot Layouts** - Up to 4×4 subplot grid
-- **Lossless Visualization** - All data points displayed, no downsampling
-- **Offline Operation** - No internet required, all assets bundled
-- **Interactive Cursor** - Time cursor with value readout
-- **Dark/Light Themes** - Toggle between themes
-- **Session Save/Load** - Save and restore your analysis sessions
-- **CSV Export** - Export visible data to CSV
+### Core Visualization
+- **Multi-tab, multi-subplot visualization** — SDI-like interface with independent tabs
+- **Lossless signal handling** — No downsampling, resampling, or decimation
+- **Offline-first** — No external dependencies during runtime
+- **Time and X-Y modes** — Plot signals vs time or against each other
+
+### Signal Operations
+- **Derived signals** — Create new signals from mathematical operations
+  - Unary: derivative, integral, absolute, normalize, RMS
+  - Binary: add, subtract, multiply, divide, absolute difference
+  - Multi: norm, mean, max, min
+- **State signal visualization** — Display discrete signals as vertical transition lines
+
+### Compare Workflows
+- **Multi-run comparison** — Compare 2+ CSV files simultaneously
+- **Baseline methods** — Use mean or specific run as reference
+- **Similarity metrics** — RMS difference, correlation, percent deviation
+- **Delta signal generation** — Automatically create difference signals
+
+### Cursor & Inspector
+- **Interactive cursor** — Click or drag to inspect values
+- **Jump-to-time** — Enter exact time values
+- **Active/All scope** — Show values for active subplot or all subplots
+- **Nearest sample** — Cursor snaps to actual sample times
+
+### Report Generation
+- **HTML export** — Offline report with embedded Plotly charts
+- **Word export** — DOCX format with images (requires python-docx)
+- **RTL support** — Hebrew and Arabic text direction
+- **Multi-line text** — Title, introduction, conclusion with line breaks
+- **Per-subplot metadata** — Title, caption, description for each subplot
+
+### Session Management
+- **Save/Load sessions** — Preserve complete application state
+- **Derived signals** — Saved and restored with sessions
+- **Signal properties** — Colors, widths, scales persist
+
+## Installation
+
+### Requirements
+- Python 3.8+
+- pip
+
+### Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Optional Dependencies
+
+For Word document export:
+```bash
+pip install python-docx
+```
 
 ## Quick Start
 
-### Prerequisites
+1. **Start the application**:
+   ```bash
+   python app.py
+   ```
 
-- Python 3.10 or higher
-- pip (Python package manager)
+2. **Open in browser**:
+   Navigate to http://127.0.0.1:8050
 
-### Installation
+3. **Import CSV files**:
+   - Click "📂 Import"
+   - Select one or more CSV files
+   - Configure import settings (delimiter, time column)
+   - Click "Import"
 
-```bash
-# Clone or download the repository
-cd SignalViewer_Python
+4. **Assign signals to subplots**:
+   - Click on signals in the left panel
+   - They will be assigned to the active subplot
 
-# Create virtual environment
-python -m venv venv
+5. **Use cursor for value inspection**:
+   - Enable cursor with the toggle switch
+   - Click on plot or use slider to move cursor
+   - View values in the Inspector panel
 
-# Activate virtual environment (Windows)
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the application
-python run.py
-```
-
-Then open http://127.0.0.1:8050 in your browser.
-
-### Using the Executable
-
-1. Download `SignalViewer.zip` from releases
-2. Extract to any folder
-3. Run `SignalViewer.exe`
-4. Open http://127.0.0.1:8050
-
-## Usage
-
-1. **Load CSV** - Click "📂 Load CSV" to select CSV files
-2. **Browse Signals** - Signals appear in the tree, grouped by CSV
-3. **Assign Signals** - Click a signal to assign it to the current subplot
-4. **Change Layout** - Use the Rows/Cols selectors to create subplots
-5. **Use Cursor** - Enable the cursor switch to see values at a specific time
-6. **Save Session** - Click "💾 Save" to save your current setup
+6. **Generate reports**:
+   - Click "📄 Report"
+   - Add title, introduction, conclusion
+   - Configure subplot titles/captions
+   - Export as HTML or Word
 
 ## CSV Format
 
-CSV files should have:
-- First column: Time (or any numeric column as time base)
-- Remaining columns: Signal values (numeric)
+Signal Viewer Pro expects CSV files with:
+- First column: Time values (or specify time column)
+- Subsequent columns: Signal values
+- Optional header row
 
 Example:
 ```csv
 Time,Speed,Temperature,Pressure
-0.0,0,25.0,101.3
-0.1,10,25.1,101.2
-0.2,20,25.2,101.1
+0.0,10.5,25.0,101.3
+0.1,12.3,25.1,101.2
+0.2,14.1,25.2,101.4
 ```
 
-## Naming Rules
+## Keyboard Shortcuts
 
-### N1 - Same Signal Names Across CSVs
-When signals have the same name in different CSVs, they are displayed as:
-- `signal — csv_name` (e.g., `RPM — data1`)
+- **Tab switching**: Click tab buttons
+- **Subplot selection**: Use dropdown or click on plot
 
-### N2 - Same CSV Filenames
-When CSVs have the same filename from different folders:
-- `folder/filename.csv` (e.g., `run1/data.csv`)
-
-## Building
-
-```bash
-# Windows
-build.bat
-```
-
-Output: `dist/SignalViewer/SignalViewer.exe`
-
-## Project Structure
+## Architecture
 
 ```
 SignalViewer_Python/
-├── app.py              # Main application (~600 lines)
-├── config.py           # Configuration and constants
-├── data_manager.py     # CSV loading and caching
-├── helpers.py          # Utility functions
-├── run.py              # Entry point
-├── requirements.txt    # Python dependencies
-├── build.bat           # Build script
-├── SignalViewer.spec   # PyInstaller config
-├── assets/             # CSS, JS, fonts (offline)
-├── docs/               # Documentation
-└── signals.csv         # Sample data
+├── app.py                 # Main application & callbacks
+├── core/
+│   ├── models.py          # Data models (Run, Signal, ViewState)
+│   ├── naming.py          # Display name generation
+│   └── session.py         # Session save/load utilities
+├── ui/
+│   └── layout.py          # Dash layout components
+├── viz/
+│   └── figure_factory.py  # Plotly figure generation
+├── loaders/
+│   └── csv_loader.py      # CSV file loading
+├── ops/
+│   └── engine.py          # Mathematical operations
+├── compare/
+│   └── engine.py          # Run comparison logic
+├── stream/
+│   └── engine.py          # Live data streaming
+├── report/
+│   └── builder.py         # Report generation
+└── assets/
+    └── custom.css         # Custom styling
 ```
 
 ## License
 
-See LICENSE file.
+MIT License - See LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## Support
+
+For issues and feature requests, please use the GitHub issue tracker.
