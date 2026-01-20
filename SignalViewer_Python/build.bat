@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 REM ============================================
-REM Signal Viewer Pro v3.2 - Build Script
+REM Signal Viewer Pro v4.0 - Build Script
 REM ============================================
 REM 
 REM Usage:
@@ -16,7 +16,7 @@ REM ============================================
 
 echo.
 echo ============================================
-echo   Signal Viewer Pro - Build Script v3.2
+echo   Signal Viewer Pro - Build Script v4.0
 echo ============================================
 echo.
 

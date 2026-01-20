@@ -270,8 +270,19 @@ def create_layout():
                         html.Div([
                             dbc.Button("📐 Axis", id="btn-axis-limits", size="sm", color="secondary", outline=True),
                             dbc.Popover([
-                                dbc.PopoverHeader("Axis Limits (active subplot)"),
+                                dbc.PopoverHeader("Axis Limits"),
                                 dbc.PopoverBody([
+                                    # Scope: active subplot or all subplots
+                                    dbc.RadioItems(
+                                        id="select-axis-scope",
+                                        options=[
+                                            {"label": "Active subplot", "value": "active"},
+                                            {"label": "All subplots in tab", "value": "all"},
+                                        ],
+                                        value="active",
+                                        inline=True,
+                                        className="small mb-2",
+                                    ),
                                     dbc.Row([
                                         dbc.Col([
                                             dbc.Label("X-min", className="small mb-0"),

@@ -55,3 +55,8 @@ uploads/
 dist/
 build/
 *.spec
+
+# Development files
+CURSOR_*.md
+*.tmp
+.cursor/

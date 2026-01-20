@@ -1006,9 +1006,10 @@ def clear_subplot(n_clicks, subplot_idx, refresh):
     Output("input-ylim-max", "value"),
     Input("select-subplot", "value"),
     Input("btn-reset-axis-limits", "n_clicks"),
+    State("select-axis-scope", "value"),
     prevent_initial_call=True,
 )
-def load_axis_limits(subplot_idx, reset_clicks):
+def load_axis_limits(subplot_idx, reset_clicks, scope):
     """Load current axis limits for the active subplot"""
     global view_state
     
@@ -1017,15 +1018,24 @@ def load_axis_limits(subplot_idx, reset_clicks):
     
     sp_idx = int(subplot_idx or 0)
     
-    # On reset, clear limits for this subplot
+    # On reset, clear limits based on scope
     if "btn-reset-axis-limits" in trigger:
-        if sp_idx < len(view_state.subplots):
-            view_state.subplots[sp_idx].xlim = None
-            view_state.subplots[sp_idx].ylim = None
-            print(f"[AXIS] Reset limits for subplot {sp_idx + 1}", flush=True)
+        if scope == "all":
+            # Reset all subplots in tab
+            total = view_state.layout_rows * view_state.layout_cols
+            for i in range(min(total, len(view_state.subplots))):
+                view_state.subplots[i].xlim = None
+                view_state.subplots[i].ylim = None
+            print(f"[AXIS] Reset limits for ALL {total} subplots", flush=True)
+        else:
+            # Reset active subplot only
+            if sp_idx < len(view_state.subplots):
+                view_state.subplots[sp_idx].xlim = None
+                view_state.subplots[sp_idx].ylim = None
+                print(f"[AXIS] Reset limits for subplot {sp_idx + 1}", flush=True)
         return None, None, None, None
     
-    # Load current limits
+    # Load current limits from active subplot
     if sp_idx < len(view_state.subplots):
         sp_config = view_state.subplots[sp_idx]
         xlim = sp_config.xlim
@@ -1048,49 +1058,55 @@ def load_axis_limits(subplot_idx, reset_clicks):
     State("input-xlim-max", "value"),
     State("input-ylim-min", "value"),
     State("input-ylim-max", "value"),
+    State("select-axis-scope", "value"),
     State("select-subplot", "value"),
     State("store-refresh", "data"),
     prevent_initial_call=True,
 )
-def apply_axis_limits(n_clicks, xlim_min, xlim_max, ylim_min, ylim_max, subplot_idx, refresh):
-    """Apply axis limits to the active subplot"""
+def apply_axis_limits(n_clicks, xlim_min, xlim_max, ylim_min, ylim_max, scope, subplot_idx, refresh):
+    """Apply axis limits to active subplot or all subplots in tab"""
     global view_state
     
     if not n_clicks:
         return dash.no_update
     
-    sp_idx = int(subplot_idx or 0)
+    # Build xlim/ylim values
+    xlim = None
+    ylim = None
     
-    # Ensure subplot exists
-    while len(view_state.subplots) <= sp_idx:
-        view_state.subplots.append(SubplotConfig(index=len(view_state.subplots)))
-    
-    sp_config = view_state.subplots[sp_idx]
-    
-    # Set xlim if both values are provided
     if xlim_min is not None and xlim_max is not None:
-        sp_config.xlim = [float(xlim_min), float(xlim_max)]
-    elif xlim_min is None and xlim_max is None:
-        sp_config.xlim = None
-    else:
-        # Partial - use what's provided, auto for the other
-        sp_config.xlim = [
+        xlim = [float(xlim_min), float(xlim_max)]
+    elif xlim_min is not None or xlim_max is not None:
+        xlim = [
             float(xlim_min) if xlim_min is not None else None,
             float(xlim_max) if xlim_max is not None else None,
         ]
     
-    # Set ylim if both values are provided
     if ylim_min is not None and ylim_max is not None:
-        sp_config.ylim = [float(ylim_min), float(ylim_max)]
-    elif ylim_min is None and ylim_max is None:
-        sp_config.ylim = None
-    else:
-        sp_config.ylim = [
+        ylim = [float(ylim_min), float(ylim_max)]
+    elif ylim_min is not None or ylim_max is not None:
+        ylim = [
             float(ylim_min) if ylim_min is not None else None,
             float(ylim_max) if ylim_max is not None else None,
         ]
     
-    print(f"[AXIS] Set limits for subplot {sp_idx + 1}: xlim={sp_config.xlim}, ylim={sp_config.ylim}", flush=True)
+    if scope == "all":
+        # Apply to all subplots in current tab
+        total = view_state.layout_rows * view_state.layout_cols
+        for i in range(total):
+            while len(view_state.subplots) <= i:
+                view_state.subplots.append(SubplotConfig(index=len(view_state.subplots)))
+            view_state.subplots[i].xlim = xlim
+            view_state.subplots[i].ylim = ylim
+        print(f"[AXIS] Set limits for ALL {total} subplots: xlim={xlim}, ylim={ylim}", flush=True)
+    else:
+        # Apply to active subplot only
+        sp_idx = int(subplot_idx or 0)
+        while len(view_state.subplots) <= sp_idx:
+            view_state.subplots.append(SubplotConfig(index=len(view_state.subplots)))
+        view_state.subplots[sp_idx].xlim = xlim
+        view_state.subplots[sp_idx].ylim = ylim
+        print(f"[AXIS] Set limits for subplot {sp_idx + 1}: xlim={xlim}, ylim={ylim}", flush=True)
     
     return (refresh or 0) + 1
 
@@ -3542,56 +3558,75 @@ def export_report(n_clicks, title, intro, conclusion, rtl, scope, format_type, i
         tab_view_states = tab_view_states or {}
         
         if scope == "all":
-            # Export all tabs - Feature 4b: each tab with its own layout
-            from core.models import ViewState as VS
-            
-            tabs_data = [{"id": "tab_1", "name": "Tab 1"}]  # Default
-            # Get tabs list (need to read from somewhere - use active_tab as reference)
-            
-            # First add current tab
-            fig_current, _ = create_figure(runs, derived_signals, view_state, signal_settings, for_export=True)
-            figures.append(("Current Tab", fig_current))
-            
-            # Add subplot sections from current tab
+            # Export all tabs - Fix 5: sort tabs in order (tab1, tab2, etc.)
             from report.builder import ReportSection
-            for i, sp in enumerate(view_state.subplots):
-                if not sp.include_in_report:
-                    continue
-                section = ReportSection(
-                    title=sp.title or f"Subplot {i + 1}",
-                    content=sp.caption or "",
-                    signals=sp.assigned_signals.copy(),
-                )
-                report.subplot_sections.append(section)
             
-            # Add other tabs from saved states
+            # Collect all tabs in order: put current tab in its position, not first
+            all_tabs = {}
+            
+            # Add current tab's state to the collection under its ID
+            all_tabs[active_tab] = {
+                "layout_rows": view_state.layout_rows,
+                "layout_cols": view_state.layout_cols,
+                "subplots": view_state.subplots,
+                "name": "Current Tab",
+                "is_current": True,
+            }
+            
+            # Add other saved tabs
             for tab_id, saved_state in tab_view_states.items():
                 if tab_id == active_tab:
-                    continue  # Already added current tab
+                    continue  # Already added as current
+                all_tabs[tab_id] = saved_state
+                all_tabs[tab_id]["is_current"] = False
+            
+            # Sort tabs by ID to ensure tab1, tab2, etc. order
+            sorted_tabs = sorted(all_tabs.items(), key=lambda x: x[0])
+            
+            tab_idx = 0
+            for tab_id, tab_data in sorted_tabs:
+                tab_idx += 1
+                is_current = tab_data.get("is_current", False)
                 
-                # Reconstruct view state for this tab
-                tab_vs = ViewState(
-                    layout_rows=saved_state.get("layout_rows", 1),
-                    layout_cols=saved_state.get("layout_cols", 1),
-                    active_subplot=0,
-                    theme=view_state.theme,
-                )
-                tab_vs.subplots = []
-                for sp_data in saved_state.get("subplots", []):
-                    tab_vs.subplots.append(SubplotConfig(
-                        index=sp_data.get("index", 0),
-                        mode=sp_data.get("mode", "time"),
-                        assigned_signals=sp_data.get("assigned_signals", []),
-                        xlim=sp_data.get("xlim"),
-                        ylim=sp_data.get("ylim"),
-                        title=sp_data.get("title", ""),
-                        caption=sp_data.get("caption", ""),
-                        description=sp_data.get("description", ""),
-                    ))
+                if is_current:
+                    # Use current view_state directly
+                    tab_fig, _ = create_figure(runs, derived_signals, view_state, signal_settings, for_export=True)
+                    tab_name = tab_data.get("name", f"Tab {tab_idx}")
+                    
+                    # Add subplot sections
+                    for i, sp in enumerate(view_state.subplots):
+                        if not sp.include_in_report:
+                            continue
+                        section = ReportSection(
+                            title=sp.title or f"Subplot {i + 1}",
+                            content=sp.caption or "",
+                            signals=sp.assigned_signals.copy(),
+                        )
+                        report.subplot_sections.append(section)
+                else:
+                    # Reconstruct view state for this tab
+                    tab_vs = ViewState(
+                        layout_rows=tab_data.get("layout_rows", 1),
+                        layout_cols=tab_data.get("layout_cols", 1),
+                        active_subplot=0,
+                        theme=view_state.theme,
+                    )
+                    tab_vs.subplots = []
+                    for sp_data in tab_data.get("subplots", []):
+                        tab_vs.subplots.append(SubplotConfig(
+                            index=sp_data.get("index", 0),
+                            mode=sp_data.get("mode", "time"),
+                            assigned_signals=sp_data.get("assigned_signals", []),
+                            xlim=sp_data.get("xlim"),
+                            ylim=sp_data.get("ylim"),
+                            title=sp_data.get("title", ""),
+                            caption=sp_data.get("caption", ""),
+                            description=sp_data.get("description", ""),
+                        ))
+                    
+                    tab_fig, _ = create_figure(runs, derived_signals, tab_vs, signal_settings, for_export=True)
+                    tab_name = tab_data.get("name", f"Tab {tab_idx}")
                 
-                # Create figure for this tab
-                tab_fig, _ = create_figure(runs, derived_signals, tab_vs, signal_settings, for_export=True)
-                tab_name = saved_state.get("name", tab_id)
                 figures.append((tab_name, tab_fig))
         else:
             # Current tab only
@@ -3743,19 +3778,19 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool,
     </div>
 """
     
-    def add_tab_section(tab_name: str, subplots_list: list) -> str:
-        """Helper to generate a tab section's HTML"""
+    def add_tab_section(tab_name: str, subplots_list: list, rows: int = None, cols: int = None) -> str:
+        """Helper to generate a tab section's HTML with per-tab layout"""
         section_html = ""
         
-        # Create a temporary view state for this tab
+        # Create a temporary view state for this tab with its own layout
         temp_view = ViewState()
-        temp_view.layout_rows = view_state.layout_rows
-        temp_view.layout_cols = view_state.layout_cols
+        temp_view.layout_rows = rows if rows else view_state.layout_rows
+        temp_view.layout_cols = cols if cols else view_state.layout_cols
         temp_view.subplots = subplots_list
         temp_view.theme = view_state.theme
         
-        # Create figure for this tab
-        fig, _ = create_figure(runs, derived_signals, temp_view, signal_settings)
+        # Create figure for this tab (with for_export=True for clean output)
+        fig, _ = create_figure(runs, derived_signals, temp_view, signal_settings, for_export=True)
         plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
         
         section_html += f"""
@@ -3795,16 +3830,25 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool,
     
     # Export based on scope
     if scope == "all" and tab_view_states:
-        # Export all tabs
+        # Export all tabs with their own layouts (Fix 4)
+        # First sort tabs to ensure tab1, tab2, etc. order
+        sorted_tabs = sorted(tab_view_states.items(), key=lambda x: x[0])
+        
         tab_idx = 0
-        for tab_id, tab_data in tab_view_states.items():
+        for tab_id, tab_data in sorted_tabs:
             tab_idx += 1
+            # Get per-tab layout dimensions
+            tab_rows = tab_data.get("layout_rows", 1)
+            tab_cols = tab_data.get("layout_cols", 1)
+            
             subplots = []
             for sp_data in tab_data.get("subplots", []):
                 sp = SubplotConfig(
                     index=sp_data.get("index", 0),
                     mode=sp_data.get("mode", "time"),
                     assigned_signals=sp_data.get("assigned_signals", []),
+                    xlim=sp_data.get("xlim"),
+                    ylim=sp_data.get("ylim"),
                     title=sp_data.get("title", ""),
                     caption=sp_data.get("caption", ""),
                     description=sp_data.get("description", ""),
@@ -3812,12 +3856,13 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool,
                 )
                 subplots.append(sp)
             
+            tab_name = tab_data.get("name", f"Tab {tab_idx}")
             if subplots:
                 html += f"""
     <div class="section tab-section">
-        <h3>Tab {tab_idx}</h3>
+        <h3>{tab_name}</h3>
 """
-                html += add_tab_section(f"Tab {tab_idx}", subplots)
+                html += add_tab_section(tab_name, subplots, tab_rows, tab_cols)
                 html += "    </div>\n"
         
         # Also add current tab if not in tab_view_states
@@ -3826,7 +3871,7 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool,
     <div class="section tab-section">
         <h3>Current Tab</h3>
 """
-            html += add_tab_section("Current", view_state.subplots)
+            html += add_tab_section("Current", view_state.subplots, view_state.layout_rows, view_state.layout_cols)
             html += "    </div>\n"
     else:
         # Current tab only (default) - without active highlight for clean export

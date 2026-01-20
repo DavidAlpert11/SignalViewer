@@ -219,10 +219,12 @@ def create_figure(
         
         if sp_config.mode == "xy":
             # X-Y mode - add traces and get cursor values
-            xy_cursor = _add_xy_traces(
+            xy_cursor, trace_count = _add_xy_traces(
                 fig, runs, derived_signals, sp_config, row, col, 
-                color_idx, signal_settings, view_state, sp_idx
+                color_idx, signal_settings, view_state, sp_idx,
+                total_subplots, traces_per_subplot[sp_idx]
             )
+            traces_per_subplot[sp_idx] += trace_count
             cursor_values.update(xy_cursor or {})
         else:
             # Time mode
@@ -265,7 +267,7 @@ def create_figure(
                 
                 if is_state:
                     # State signal: render as transitions (vertical lines at value changes)
-                    _add_state_trace(fig, time_data, sig_data, label, color, width, row, col, sp_idx)
+                    _add_state_trace(fig, time_data, sig_data, label, color, width, row, col, sp_idx, total_subplots)
                     traces_per_subplot[sp_idx] += 1
                 else:
                     # Normal signal - Feature 7: Group by subplot, individual toggle
@@ -283,8 +285,8 @@ def create_figure(
                             hovertemplate=f"<b>{label}</b><br>T: %{{x:.4f}}<br>V: %{{y:.4g}}<extra></extra>",
                             # Group by subplot for organized legend
                             legendgroup=subplot_group,
-                            # Add group title for first trace in each subplot
-                            legendgrouptitle=dict(text=f"Subplot {sp_idx+1}") if is_first_in_subplot else None,
+                            # Add group title for first trace in each subplot (only when multiple subplots)
+                            legendgrouptitle=dict(text=f"Subplot {sp_idx+1}") if is_first_in_subplot and total_subplots > 1 else None,
                         ),
                         row=row, col=col,
                     )
@@ -451,93 +453,84 @@ def _add_state_trace(
     row: int,
     col: int,
     sp_idx: int = 0,
+    total_subplots: int = 1,
 ):
     """
     Add state signal as vertical X-lines at value changes with state value annotations.
     
-    Feature 1: State signals show ONLY:
-    - Vertical X-lines where the value changes
+    State signals show:
+    - Vertical X-lines where the value changes (as actual traces for legend toggle)
     - Text annotations showing the incoming state value
     - Initial value annotation at the start
     
-    NO signal vs time line is shown - only the X-lines with annotations.
+    Uses actual traces (not vlines) so legend clicks properly hide/show the signal.
     """
     if len(time) < 1:
         return
     
-    display_label = f"{label} (SP{sp_idx+1})" if sp_idx >= 0 else label
-    
     # Find transitions (where value changes)
     transitions = np.where(np.diff(data) != 0)[0] if len(time) > 1 else np.array([])
     
-    # Add an invisible trace for legend entry
+    # Calculate y range for vertical lines
+    y_max = float(np.max(data)) if len(data) > 0 else 1.0
+    y_min = float(np.min(data)) if len(data) > 0 else 0.0
+    y_range = y_max - y_min if y_max != y_min else 1.0
+    # Extend y range for visibility
+    y_bottom = y_min - y_range * 0.1
+    y_top = y_max + y_range * 0.2
+    annotation_y = y_max + y_range * 0.15
+    
+    # Build x and y arrays for vertical lines (using None to break the lines)
+    x_lines = []
+    y_lines = []
+    annotations_data = []  # (x, text) pairs
+    
+    # Initial vertical line
+    initial_time = float(time[0])
+    initial_value = int(data[0]) if np.issubdtype(data.dtype, np.integer) else f"{data[0]:.1f}"
+    x_lines.extend([initial_time, initial_time, None])
+    y_lines.extend([y_bottom, y_top, None])
+    annotations_data.append((initial_time, str(initial_value)))
+    
+    # Transition vertical lines
+    for idx in transitions:
+        t = float(time[idx + 1])
+        new_val = data[idx + 1]
+        new_val_str = int(new_val) if np.issubdtype(data.dtype, np.integer) or new_val == int(new_val) else f"{new_val:.1f}"
+        x_lines.extend([t, t, None])
+        y_lines.extend([y_bottom, y_top, None])
+        annotations_data.append((t, str(new_val_str)))
+    
+    # Subplot group for legend
+    subplot_group = f"SP{sp_idx+1}"
+    is_first_in_subplot = False  # Will be determined by caller
+    
+    # Add single trace with all vertical lines (toggleable via legend)
     fig.add_trace(
         go.Scattergl(
-            x=[time[0]],
-            y=[data[0]],
-            name=display_label,
-            mode="markers",
-            marker=dict(color=color, size=0.1, opacity=0),
-            showlegend=True,
-            legendgroup=f"{label}_{sp_idx}",
-            hoverinfo="skip",
+            x=x_lines,
+            y=y_lines,
+            name=label,
+            mode="lines",
+            line=dict(color=color, width=width),
+            hovertemplate=f"<b>{label}</b><br>State transition<extra></extra>",
+            legendgroup=subplot_group,
+            legendgrouptitle=dict(text=f"Subplot {sp_idx+1}") if total_subplots > 1 else None,
         ),
         row=row, col=col,
     )
     
-    # Calculate y position for annotations (top of subplot area)
-    y_max = float(np.max(data)) if len(data) > 0 else 1.0
-    y_min = float(np.min(data)) if len(data) > 0 else 0.0
-    y_range = y_max - y_min if y_max != y_min else 1.0
-    annotation_y = y_max + y_range * 0.1  # Slightly above max
-    
-    # Add initial X-line and annotation at t=0 (or first time point)
-    initial_time = float(time[0])
-    initial_value = int(data[0]) if np.issubdtype(data.dtype, np.integer) else f"{data[0]:.1f}"
-    
-    fig.add_vline(
-        x=initial_time,
-        line=dict(color=color, width=width, dash="solid"),
-        row=row, col=col,
-    )
-    
-    # Add annotation for initial state
-    # Use subplot-specific xref/yref
+    # Add annotations for state values
     x_axis = f"x{sp_idx + 1}" if sp_idx > 0 else "x"
     y_axis = f"y{sp_idx + 1}" if sp_idx > 0 else "y"
     
-    fig.add_annotation(
-        x=initial_time,
-        y=annotation_y,
-        xref=x_axis,
-        yref=y_axis,
-        text=f"<b>{initial_value}</b>",
-        showarrow=False,
-        font=dict(color=color, size=10),
-        bgcolor="rgba(0,0,0,0.7)",
-        borderpad=2,
-    )
-    
-    # Add X-lines and annotations at each transition
-    for idx in transitions:
-        t = float(time[idx + 1])  # Time of the new value
-        new_val = data[idx + 1]
-        new_val_str = int(new_val) if np.issubdtype(data.dtype, np.integer) or new_val == int(new_val) else f"{new_val:.1f}"
-        
-        # Add vertical X-line at transition
-        fig.add_vline(
-            x=t,
-            line=dict(color=color, width=width, dash="solid"),
-            row=row, col=col,
-        )
-        
-        # Add annotation with incoming state value
+    for ann_x, ann_text in annotations_data:
         fig.add_annotation(
-            x=t,
+            x=ann_x,
             y=annotation_y,
             xref=x_axis,
             yref=y_axis,
-            text=f"<b>{new_val_str}</b>",
+            text=f"<b>{ann_text}</b>",
             showarrow=False,
             font=dict(color=color, size=10),
             bgcolor="rgba(0,0,0,0.7)",
@@ -558,7 +551,9 @@ def _add_xy_traces(
     signal_settings: Dict,
     view_state: Any = None,
     sp_idx: int = 0,
-) -> Dict:
+    total_subplots: int = 1,
+    current_trace_count: int = 0,
+) -> Tuple[Dict, int]:
     """
     Add X-Y traces to subplot (P3-8, P7-15).
     
@@ -569,13 +564,13 @@ def _add_xy_traces(
     - Cursor values show X and Y signal values at cursor time
     
     Returns:
-        Dict of cursor values for this subplot
+        Tuple of (cursor_values dict, trace_count added)
     """
     cursor_values = {}
     
     if not sp_config.x_signal:
         print(f"[X-Y] Subplot {sp_config.index}: No X signal selected", flush=True)
-        return cursor_values
+        return cursor_values, 0
     
     # Get X data
     x_run_idx, x_sig_name = parse_signal_key(sp_config.x_signal)
@@ -583,7 +578,7 @@ def _add_xy_traces(
     
     if len(x_data) == 0:
         print(f"[X-Y] X signal '{x_sig_name}' has no data", flush=True)
-        return cursor_values
+        return cursor_values, 0
     
     run_paths = [r.file_path for r in runs]
     x_label = get_signal_label(x_run_idx, x_sig_name, run_paths)
@@ -648,6 +643,10 @@ def _add_xy_traces(
         
         y_label = get_signal_label(y_run_idx, y_sig_name, run_paths)
         
+        # Add trace with proper legend grouping (Fix 3)
+        subplot_group = f"SP{sp_idx+1}"
+        is_first_in_subplot = current_trace_count == 0
+        
         fig.add_trace(
             go.Scattergl(
                 x=x_data_overlap,
@@ -656,9 +655,12 @@ def _add_xy_traces(
                 mode="lines",
                 line=dict(color=color, width=1.5),
                 hovertemplate=f"<b>{y_label}</b><br>X({x_label}): %{{x:.4g}}<br>Y: %{{y:.4g}}<extra></extra>",
+                legendgroup=subplot_group,
+                legendgrouptitle=dict(text=f"Subplot {sp_idx+1}") if is_first_in_subplot and total_subplots > 1 else None,
             ),
             row=row, col=col,
         )
+        current_trace_count += 1
         
         # Add cursor value for Y signal (P7-15)
         if view_state and view_state.cursor_enabled and view_state.cursor_time is not None:
@@ -673,5 +675,5 @@ def _add_xy_traces(
         color_idx += 1
         print(f"[X-Y] Added trace: {y_label} ({len(y_aligned)} points)", flush=True)
     
-    return cursor_values
+    return cursor_values, current_trace_count
 
