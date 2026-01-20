@@ -766,6 +766,8 @@ def _view_state_to_dict() -> dict:
                 "x_signal": sp.x_signal,
                 "y_signals": list(sp.y_signals),  # Copy!
                 "xy_alignment": sp.xy_alignment,
+                "xlim": sp.xlim,  # Axis limits
+                "ylim": sp.ylim,  # Axis limits
                 "title": sp.title,
                 "caption": sp.caption,
                 "description": sp.description,
@@ -1675,9 +1677,12 @@ def update_runs_count(run_paths):
 @app.callback(
     Output("download-session", "data"),
     Input("btn-save", "n_clicks"),
+    State("store-tabs", "data"),
+    State("store-active-tab", "data"),
+    State("store-tab-view-states", "data"),
     prevent_initial_call=True,
 )
-def save_session_callback(n_clicks):
+def save_session_callback(n_clicks, tabs, active_tab, tab_view_states):
     """
     Save complete session (P5 - Complete persistence).
     
@@ -1686,6 +1691,7 @@ def save_session_callback(n_clicks):
     - Complete view state with all subplot properties
     - Signal settings (colors, widths, etc.)
     - Derived signals
+    - Tabs and their view states
     """
     from datetime import datetime
     
@@ -1705,6 +1711,11 @@ def save_session_callback(n_clicks):
             "line_width": ds.line_width,
         }
     
+    # Update current tab's view state in tab_view_states before saving
+    tab_view_states = tab_view_states or {}
+    if active_tab:
+        tab_view_states[active_tab] = _view_state_to_dict()
+    
     session = {
         "version": "5.0",
         "timestamp": datetime.now().isoformat(),
@@ -1712,12 +1723,15 @@ def save_session_callback(n_clicks):
         "view_state": _view_state_to_dict(),
         "signal_settings": signal_settings,
         "derived_signals": derived_data,
+        "tabs": tabs or [{"id": "tab_1", "name": "Tab 1"}],
+        "active_tab": active_tab or "tab_1",
+        "tab_view_states": tab_view_states,
     }
     
     content = json.dumps(session, indent=2)
     filename = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     
-    print(f"[SESSION] Saved: {len(run_paths)} runs, {len(derived_data)} derived signals", flush=True)
+    print(f"[SESSION] Saved: {len(run_paths)} runs, {len(derived_data)} derived signals, {len(tabs or [])} tabs", flush=True)
     
     return dict(content=content, filename=filename)
 
@@ -1728,11 +1742,19 @@ def save_session_callback(n_clicks):
     Output("store-runs", "data", allow_duplicate=True),
     Output("store-view-state", "data", allow_duplicate=True),
     Output("store-refresh", "data", allow_duplicate=True),
+    Output("select-rows", "value", allow_duplicate=True),
+    Output("select-cols", "value", allow_duplicate=True),
+    Output("select-subplot", "value", allow_duplicate=True),
+    Output("select-subplot", "options", allow_duplicate=True),
+    Output("store-tabs", "data", allow_duplicate=True),
+    Output("store-active-tab", "data", allow_duplicate=True),
+    Output("store-tab-view-states", "data", allow_duplicate=True),
     Input("btn-load", "n_clicks"),
     State("store-refresh", "data"),
     prevent_initial_call=True,
 )
 def load_session_callback(n_clicks, refresh):
+    """Load session and restore all UI state including layout and tabs."""
     global runs, view_state, signal_settings
     
     import tkinter as tk
@@ -1748,12 +1770,14 @@ def load_session_callback(n_clicks, refresh):
     )
     root.destroy()
     
+    no_update_12 = tuple([dash.no_update] * 12)
+    
     if not file_path:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return no_update_12
     
     session = load_session(file_path)
     if not session:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return no_update_12
     
     # Clear and reload (P5 - Complete persistence)
     runs = []
@@ -1789,7 +1813,17 @@ def load_session_callback(n_clicks, refresh):
     
     actual_paths = [r.file_path for r in runs]
     
-    print(f"[SESSION] Loaded: {len(runs)} runs, {len(derived_signals)} derived signals", flush=True)
+    # Build subplot options based on restored layout
+    total_subplots = view_state.layout_rows * view_state.layout_cols
+    subplot_options = [{"label": str(i + 1), "value": str(i)} for i in range(total_subplots)]
+    active_sp = str(min(view_state.active_subplot, total_subplots - 1))
+    
+    # Restore tabs and tab view states
+    tabs = session.get("tabs", [{"id": "tab_1", "name": "Tab 1"}])
+    active_tab = session.get("active_tab", "tab_1")
+    tab_view_states = session.get("tab_view_states", {})
+    
+    print(f"[SESSION] Loaded: {len(runs)} runs, {len(derived_signals)} derived signals, layout={view_state.layout_rows}x{view_state.layout_cols}, {len(tabs)} tabs", flush=True)
     
     return (
         build_runs_list(actual_paths),
@@ -1797,6 +1831,13 @@ def load_session_callback(n_clicks, refresh):
         actual_paths,
         _view_state_to_dict(),
         (refresh or 0) + 1,
+        str(view_state.layout_rows),  # select-rows value
+        str(view_state.layout_cols),  # select-cols value
+        active_sp,  # select-subplot value
+        subplot_options,  # select-subplot options
+        tabs,  # store-tabs
+        active_tab,  # store-active-tab
+        tab_view_states,  # store-tab-view-states
     )
 
 
