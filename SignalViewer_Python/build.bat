@@ -176,27 +176,28 @@ if not exist "dist\SignalViewer\uploads" mkdir "dist\SignalViewer\uploads"
 echo       Build successful
 
 REM ============================================
-REM Step 7: Verify Assets
+REM Step 7: Verify Assets (PyInstaller 6.x puts data in _internal)
 REM ============================================
 echo.
 echo [7/7] Verifying offline assets...
 set ASSETS_OK=1
+set ASSETS_PATH=dist\SignalViewer\_internal\assets
 
-if not exist "dist\SignalViewer\assets\custom.css" (
-    echo       [WARN] Missing: assets\custom.css
+if not exist "%ASSETS_PATH%\custom.css" (
+    echo       [WARN] Missing: _internal\assets\custom.css
     set ASSETS_OK=0
 )
-if not exist "dist\SignalViewer\assets\bootstrap-cyborg.min.css" (
-    echo       [WARN] Missing: assets\bootstrap-cyborg.min.css
+if not exist "%ASSETS_PATH%\bootstrap-cyborg.min.css" (
+    echo       [WARN] Missing: _internal\assets\bootstrap-cyborg.min.css
     set ASSETS_OK=0
 )
-if not exist "dist\SignalViewer\assets\font-awesome.min.css" (
-    echo       [WARN] Missing: assets\font-awesome.min.css
+if not exist "%ASSETS_PATH%\font-awesome.min.css" (
+    echo       [WARN] Missing: _internal\assets\font-awesome.min.css
     set ASSETS_OK=0
 )
 
 if %ASSETS_OK%==1 (
-    echo       All assets verified
+    echo       All assets verified in _internal\assets
 ) else (
     echo       [WARN] Some assets may be missing - check offline operation
 )
