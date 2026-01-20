@@ -57,6 +57,8 @@ def save_session(
                         "x_signal": sp.x_signal,
                         "y_signals": sp.y_signals,
                         "xy_alignment": sp.xy_alignment,
+                        "xlim": sp.xlim,  # Feature 5: axis limits
+                        "ylim": sp.ylim,  # Feature 5: axis limits
                         "title": sp.title,
                         "caption": sp.caption,
                         "description": sp.description,
@@ -128,6 +130,8 @@ def parse_view_state(session: Dict) -> ViewState:
             x_signal=sp_data.get("x_signal"),
             y_signals=sp_data.get("y_signals", []),
             xy_alignment=sp_data.get("xy_alignment", "linear"),
+            xlim=sp_data.get("xlim"),  # Feature 5: axis limits
+            ylim=sp_data.get("ylim"),  # Feature 5: axis limits
             title=sp_data.get("title", ""),
             caption=sp_data.get("caption", ""),
             description=sp_data.get("description", ""),

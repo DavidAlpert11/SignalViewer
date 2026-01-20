@@ -21,7 +21,10 @@ INPUTS/OUTPUTS:
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.models import ViewState as ViewStateType
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -145,6 +148,7 @@ def create_figure(
     derived_signals: Dict[str, DerivedSignal],
     view_state: ViewState,
     signal_settings: Dict[str, Dict],
+    for_export: bool = False,
 ) -> Tuple[go.Figure, Dict]:
     """
     Create the main plot figure.
@@ -153,13 +157,14 @@ def create_figure(
         - Uses make_subplots(rows, cols) to create actual grid
         - Each trace bound to correct subplot via row=, col=
         - Height dynamically set: max(700, 320 * rows)
-        - Active subplot highlighted with accent border
+        - Active subplot highlighted with accent border (unless for_export=True)
     
     Args:
         runs: List of loaded runs
         derived_signals: Dict of derived signals
         view_state: Current view state
         signal_settings: Per-signal display settings
+        for_export: If True, hide active subplot highlight for clean export
         
     Returns:
         Tuple of (figure, cursor_values dict)
@@ -213,8 +218,12 @@ def create_figure(
         row, col = subplot_idx_to_row_col(sp_idx, cols)
         
         if sp_config.mode == "xy":
-            # X-Y mode
-            _add_xy_traces(fig, runs, derived_signals, sp_config, row, col, color_idx, signal_settings)
+            # X-Y mode - add traces and get cursor values
+            xy_cursor = _add_xy_traces(
+                fig, runs, derived_signals, sp_config, row, col, 
+                color_idx, signal_settings, view_state, sp_idx
+            )
+            cursor_values.update(xy_cursor or {})
         else:
             # Time mode
             for sig_key in sp_config.assigned_signals:
@@ -233,7 +242,19 @@ def create_figure(
                 # Get settings
                 settings = signal_settings.get(sig_key, {})
                 color = settings.get("color") or COLORS[color_idx % len(COLORS)]
-                width = settings.get("line_width", 1.5)
+                width = settings.get("line_width") or 1.5
+                
+                # Apply scale and offset transformations
+                scale = settings.get("scale", 1.0) or 1.0
+                offset = settings.get("offset", 0.0) or 0.0
+                time_offset = settings.get("time_offset", 0.0) or 0.0
+                
+                if scale != 1.0 or offset != 0.0:
+                    sig_data = sig_data * scale + offset
+                
+                # Apply time offset
+                if time_offset != 0.0:
+                    time_data = time_data + time_offset
                 
                 # Get label
                 run_paths = [r.file_path for r in runs]
@@ -243,29 +264,33 @@ def create_figure(
                 is_state = settings.get("is_state", False)
                 
                 if is_state:
-                    # State signal: render as transitions
-                    _add_state_trace(fig, time_data, sig_data, label, color, row, col)
+                    # State signal: render as transitions (vertical lines at value changes)
+                    _add_state_trace(fig, time_data, sig_data, label, color, width, row, col, sp_idx)
+                    traces_per_subplot[sp_idx] += 1
                 else:
-                    # Normal signal with per-subplot legend group
-                    # Use legendgroup to group traces by subplot for per-subplot legends
+                    # Normal signal - Feature 7: Group by subplot, individual toggle
+                    # Each trace in subplot shares legendgroup for grouping, but toggleitem allows individual toggle
+                    is_first_in_subplot = traces_per_subplot[sp_idx] == 0
+                    subplot_group = f"SP{sp_idx+1}"
+                    
                     fig.add_trace(
                         go.Scattergl(
                             x=time_data,
                             y=sig_data,
-                            name=label,
+                            name=label,  # Clean label without SP suffix (group header shows subplot)
                             mode="lines",
                             line=dict(color=color, width=width),
                             hovertemplate=f"<b>{label}</b><br>T: %{{x:.4f}}<br>V: %{{y:.4g}}<extra></extra>",
-                            legendgroup=f"subplot_{sp_idx}",
-                            legendgrouptitle_text=f"Subplot {sp_idx + 1}" if traces_per_subplot[sp_idx] == 0 else None,
+                            # Group by subplot for organized legend
+                            legendgroup=subplot_group,
+                            # Add group title for first trace in each subplot
+                            legendgrouptitle=dict(text=f"Subplot {sp_idx+1}") if is_first_in_subplot else None,
                         ),
                         row=row, col=col,
                     )
+                    traces_per_subplot[sp_idx] += 1
                 
-                # Track trace count per subplot
-                traces_per_subplot[sp_idx] += 1
-                
-                # Cursor value
+                # Cursor value (show transformed value)
                 if view_state.cursor_enabled and view_state.cursor_time is not None:
                     val = _interpolate_at(time_data, sig_data, view_state.cursor_time)
                     cursor_values[sig_key] = {
@@ -288,39 +313,58 @@ def create_figure(
             )
     
     # Apply styling with dynamic height
+    # Feature 7: Legend grouped by subplot with click-to-toggle
     fig.update_layout(
         template="plotly_dark" if view_state.theme == "dark" else "plotly_white",
         paper_bgcolor=theme["paper"],
         plot_bgcolor=theme["bg"],
         font=dict(color=theme["text"], size=11),
-        margin=dict(l=60, r=20, t=40, b=40),
+        margin=dict(l=60, r=150, t=40, b=40),  # Extra right margin for vertical legend
         height=height,
         legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
+            orientation="v",  # Vertical for grouped display
+            yanchor="top",
+            y=1,
             xanchor="left",
-            x=0,
-            bgcolor="rgba(0,0,0,0)",
+            x=1.02,  # Position to the right of the plot
+            bgcolor="rgba(0,0,0,0.5)",
+            bordercolor=theme["border"],
+            borderwidth=1,
+            groupclick="toggleitem",  # Click toggles only that trace, not the group
+            tracegroupgap=10,  # Gap between groups
+            font=dict(size=10),
         ),
         hovermode="x unified",
         uirevision="stable",
     )
     
-    # Highlight active subplot with distinct styling
+    # Style subplots - highlight active one (unless exporting)
     for sp_idx in range(total_subplots):
         row, col = subplot_idx_to_row_col(sp_idx, cols)
         is_active = sp_idx == view_state.active_subplot
         
-        # Active subplot gets accent color border
-        border_color = theme["accent"] if is_active else theme["border"]
-        border_width = 3 if is_active else 1
+        # Active subplot gets accent color border (but not in export mode)
+        if for_export:
+            border_color = theme["border"]
+            border_width = 1
+        else:
+            border_color = theme["accent"] if is_active else theme["border"]
+            border_width = 3 if is_active else 1
+        
+        # Get subplot config for axis label
+        sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else None
+        
+        # X axis label: "Time" for time mode (X-Y mode sets its own label in _add_xy_traces)
+        x_axis_label = "Time"
+        if sp_config and sp_config.mode == "time":
+            x_axis_label = "Time"
         
         # Update axes styling
         fig.update_xaxes(
             showgrid=True, gridcolor=theme["grid"],
             linecolor=border_color, linewidth=border_width,
             mirror=True,
+            title_text=x_axis_label if (sp_config and sp_config.mode == "time") else None,
             row=row, col=col,
         )
         fig.update_yaxes(
@@ -330,8 +374,27 @@ def create_figure(
             row=row, col=col,
         )
         
-        # Add "[ACTIVE]" annotation for active subplot
-        if is_active and total_subplots > 1:
+        # Apply custom axis limits if set (Feature 5)
+        if sp_config:
+            if sp_config.xlim and len(sp_config.xlim) == 2:
+                # Handle partial limits (one value can be None for auto)
+                x_range = [
+                    sp_config.xlim[0] if sp_config.xlim[0] is not None else None,
+                    sp_config.xlim[1] if sp_config.xlim[1] is not None else None,
+                ]
+                if x_range[0] is not None and x_range[1] is not None:
+                    fig.update_xaxes(range=x_range, row=row, col=col)
+            
+            if sp_config.ylim and len(sp_config.ylim) == 2:
+                y_range = [
+                    sp_config.ylim[0] if sp_config.ylim[0] is not None else None,
+                    sp_config.ylim[1] if sp_config.ylim[1] is not None else None,
+                ]
+                if y_range[0] is not None and y_range[1] is not None:
+                    fig.update_yaxes(range=y_range, row=row, col=col)
+        
+        # Add "[ACTIVE]" annotation for active subplot (not in export mode)
+        if is_active and total_subplots > 1 and not for_export:
             fig.add_annotation(
                 text=f"⬤ Subplot {sp_idx + 1}",
                 xref=f"x{sp_idx + 1 if sp_idx > 0 else ''} domain",
@@ -384,25 +447,104 @@ def _add_state_trace(
     data: np.ndarray,
     label: str,
     color: str,
+    width: float,
     row: int,
     col: int,
+    sp_idx: int = 0,
 ):
-    """Add state signal as vertical transition lines"""
-    if len(time) < 2:
+    """
+    Add state signal as vertical X-lines at value changes with state value annotations.
+    
+    Feature 1: State signals show ONLY:
+    - Vertical X-lines where the value changes
+    - Text annotations showing the incoming state value
+    - Initial value annotation at the start
+    
+    NO signal vs time line is shown - only the X-lines with annotations.
+    """
+    if len(time) < 1:
         return
     
-    # Find transitions
-    transitions = np.where(np.diff(data) != 0)[0]
+    display_label = f"{label} (SP{sp_idx+1})" if sp_idx >= 0 else label
     
+    # Find transitions (where value changes)
+    transitions = np.where(np.diff(data) != 0)[0] if len(time) > 1 else np.array([])
+    
+    # Add an invisible trace for legend entry
+    fig.add_trace(
+        go.Scattergl(
+            x=[time[0]],
+            y=[data[0]],
+            name=display_label,
+            mode="markers",
+            marker=dict(color=color, size=0.1, opacity=0),
+            showlegend=True,
+            legendgroup=f"{label}_{sp_idx}",
+            hoverinfo="skip",
+        ),
+        row=row, col=col,
+    )
+    
+    # Calculate y position for annotations (top of subplot area)
+    y_max = float(np.max(data)) if len(data) > 0 else 1.0
+    y_min = float(np.min(data)) if len(data) > 0 else 0.0
+    y_range = y_max - y_min if y_max != y_min else 1.0
+    annotation_y = y_max + y_range * 0.1  # Slightly above max
+    
+    # Add initial X-line and annotation at t=0 (or first time point)
+    initial_time = float(time[0])
+    initial_value = int(data[0]) if np.issubdtype(data.dtype, np.integer) else f"{data[0]:.1f}"
+    
+    fig.add_vline(
+        x=initial_time,
+        line=dict(color=color, width=width, dash="solid"),
+        row=row, col=col,
+    )
+    
+    # Add annotation for initial state
+    # Use subplot-specific xref/yref
+    x_axis = f"x{sp_idx + 1}" if sp_idx > 0 else "x"
+    y_axis = f"y{sp_idx + 1}" if sp_idx > 0 else "y"
+    
+    fig.add_annotation(
+        x=initial_time,
+        y=annotation_y,
+        xref=x_axis,
+        yref=y_axis,
+        text=f"<b>{initial_value}</b>",
+        showarrow=False,
+        font=dict(color=color, size=10),
+        bgcolor="rgba(0,0,0,0.7)",
+        borderpad=2,
+    )
+    
+    # Add X-lines and annotations at each transition
     for idx in transitions:
-        t = time[idx]
+        t = float(time[idx + 1])  # Time of the new value
+        new_val = data[idx + 1]
+        new_val_str = int(new_val) if np.issubdtype(data.dtype, np.integer) or new_val == int(new_val) else f"{new_val:.1f}"
+        
+        # Add vertical X-line at transition
         fig.add_vline(
             x=t,
-            line=dict(color=color, width=1, dash="dot"),
-            annotation_text=f"{data[idx+1]:.0f}",
-            annotation_position="top",
+            line=dict(color=color, width=width, dash="solid"),
             row=row, col=col,
         )
+        
+        # Add annotation with incoming state value
+        fig.add_annotation(
+            x=t,
+            y=annotation_y,
+            xref=x_axis,
+            yref=y_axis,
+            text=f"<b>{new_val_str}</b>",
+            showarrow=False,
+            font=dict(color=color, size=10),
+            bgcolor="rgba(0,0,0,0.7)",
+            borderpad=2,
+        )
+    
+    print(f"[STATE] Added state signal '{label}' with {len(transitions)} transitions", flush=True)
 
 
 def _add_xy_traces(
@@ -414,19 +556,26 @@ def _add_xy_traces(
     col: int,
     color_start: int,
     signal_settings: Dict,
-):
+    view_state: Any = None,
+    sp_idx: int = 0,
+) -> Dict:
     """
-    Add X-Y traces to subplot.
+    Add X-Y traces to subplot (P3-8, P7-15).
     
     In X-Y mode:
     - X signal comes from sp_config.x_signal
-    - Y signals come from sp_config.assigned_signals (not y_signals)
-    - Alignment is done per the sp_config.xy_alignment method
+    - Y signals come from sp_config.assigned_signals
+    - X axis label = X signal name (not "Time")
+    - Cursor values show X and Y signal values at cursor time
+    
+    Returns:
+        Dict of cursor values for this subplot
     """
+    cursor_values = {}
+    
     if not sp_config.x_signal:
-        # Show help message
         print(f"[X-Y] Subplot {sp_config.index}: No X signal selected", flush=True)
-        return
+        return cursor_values
     
     # Get X data
     x_run_idx, x_sig_name = parse_signal_key(sp_config.x_signal)
@@ -434,16 +583,29 @@ def _add_xy_traces(
     
     if len(x_data) == 0:
         print(f"[X-Y] X signal '{x_sig_name}' has no data", flush=True)
-        return
+        return cursor_values
     
     run_paths = [r.file_path for r in runs]
     x_label = get_signal_label(x_run_idx, x_sig_name, run_paths)
     print(f"[X-Y] X axis: {x_label}, {len(x_data)} points", flush=True)
     
+    # Update X axis label to show X signal name (P3-8)
+    fig.update_xaxes(title_text=x_label, row=row, col=col)
+    
     color_idx = color_start
     alignment_method = sp_config.xy_alignment or "linear"
     
-    # Y signals come from assigned_signals (P0-13)
+    # Add cursor values for X signal if cursor is enabled (P7-15)
+    if view_state and view_state.cursor_enabled and view_state.cursor_time is not None:
+        x_val = _interpolate_at(x_time, x_data, view_state.cursor_time)
+        cursor_values[sp_config.x_signal] = {
+            "value": x_val,
+            "label": f"X: {x_label}",
+            "color": "#58a6ff",
+            "subplot": sp_idx,
+        }
+    
+    # Y signals come from assigned_signals
     y_keys = sp_config.assigned_signals
     
     for y_key in y_keys:
@@ -463,7 +625,6 @@ def _add_xy_traces(
         t_max = min(x_time.max(), y_time.max())
         
         if t_max <= t_min:
-            # No time overlap
             print(f"[X-Y] No time overlap for Y signal '{y_sig_name}'", flush=True)
             continue
         
@@ -476,12 +637,10 @@ def _add_xy_traces(
             continue
         
         if alignment_method == "nearest":
-            # Nearest neighbor
             indices = np.searchsorted(y_time, x_time_overlap)
             indices = np.clip(indices, 0, len(y_data) - 1)
             y_aligned = y_data[indices]
         else:
-            # Linear interpolation (default)
             y_aligned = np.interp(x_time_overlap, y_time, y_data)
         
         settings = signal_settings.get(y_key, {})
@@ -501,6 +660,18 @@ def _add_xy_traces(
             row=row, col=col,
         )
         
+        # Add cursor value for Y signal (P7-15)
+        if view_state and view_state.cursor_enabled and view_state.cursor_time is not None:
+            y_val = _interpolate_at(y_time, y_data, view_state.cursor_time)
+            cursor_values[y_key] = {
+                "value": y_val,
+                "label": f"Y: {y_label}",
+                "color": color,
+                "subplot": sp_idx,
+            }
+        
         color_idx += 1
         print(f"[X-Y] Added trace: {y_label} ({len(y_aligned)} points)", flush=True)
+    
+    return cursor_values
 

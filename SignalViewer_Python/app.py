@@ -12,7 +12,7 @@ import os
 import json
 import webbrowser
 import threading
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
 import dash
@@ -79,14 +79,23 @@ app = dash.Dash(
 # =============================================================================
 
 def _reset_state():
-    """Reset all global state to initial values (clean start)"""
+    """
+    Reset all global state to initial values (P0 - clean start).
+    
+    This ensures:
+    - No ghost plots from previous sessions
+    - No cached signal data
+    - Clean view state with no assignments
+    """
     global runs, derived_signals, signal_settings, view_state, stream_engine
     runs = []
     derived_signals = {}
     signal_settings = {}
     view_state = ViewState()
+    # Ensure subplots are initialized but EMPTY (no auto-assignment)
+    view_state.subplots = [SubplotConfig(index=0)]
     stream_engine = StreamEngine()
-    print("[INIT] Global state reset to initial values", flush=True)
+    print("[INIT] Global state reset - clean start, no cached data", flush=True)
 
 # Initialize clean state on module load
 runs: List[Run] = []
@@ -94,7 +103,7 @@ derived_signals: Dict[str, DerivedSignal] = {}
 signal_settings: Dict[str, Dict] = {}
 view_state = ViewState()
 stream_engine = StreamEngine()
-_reset_state()  # Ensure clean start
+_reset_state()  # Ensure clean start - P0 requirement
 
 
 # =============================================================================
@@ -333,14 +342,31 @@ def build_signal_tree(runs_list: List[Run], search_filter: str = "", collapsed_r
             signal_items = []
             for sig in signals:  # NO LIMIT - show all signals
                 sig_key = make_signal_key(run_idx, sig)
+                # Check if signal has custom settings
+                has_settings = sig_key in signal_settings and any(
+                    signal_settings[sig_key].get(k) for k in ["display_name", "color", "is_state"]
+                    if k != "line_width" or signal_settings[sig_key].get(k, 1.5) != 1.5
+                )
+                settings_indicator = " ⚙" if has_settings else ""
+                
                 signal_items.append(
-                    html.Div(
-                        sig,
-                        id={"type": "signal-item", "key": sig_key},
-                        className="small py-1 px-2 signal-item",
-                        style={"cursor": "pointer"},
-                        n_clicks=0,
-                    )
+                    html.Div([
+                        html.Span(
+                            sig + settings_indicator,
+                            id={"type": "signal-item", "key": sig_key},
+                            className="small",
+                            style={"cursor": "pointer", "flex": "1"},
+                            n_clicks=0,
+                        ),
+                        html.Button(
+                            "⚙",
+                            id={"type": "btn-signal-props", "key": sig_key},
+                            className="btn btn-link btn-sm p-0 text-muted",
+                            style={"fontSize": "10px"},
+                            title="Edit properties",
+                            n_clicks=0,
+                        ),
+                    ], className="py-1 px-2 signal-item d-flex align-items-center")
                 )
             
             items.append(html.Div(
@@ -511,9 +537,17 @@ def remove_run(remove_clicks, run_paths, refresh, collapsed_runs):
     Input({"type": "btn-remove-assigned", "index": ALL}, "n_clicks"),
     State("store-view-state", "data"),
     State("select-subplot", "value"),
+    State("select-linked-runs", "value"),
     prevent_initial_call=True,
 )
-def handle_assignment(signal_clicks, remove_clicks, vs_data, active_subplot):
+def handle_assignment(signal_clicks, remove_clicks, vs_data, active_subplot, linked_runs):
+    """
+    Handle signal assignment - ONLY when user explicitly clicks.
+    
+    Features:
+    - Check that the triggered n_clicks is actually > 0 to prevent auto-assignment
+    - Support linked CSV mode: when linked, assign same signal from all linked CSVs
+    """
     global view_state
     
     ctx = callback_context
@@ -521,6 +555,13 @@ def handle_assignment(signal_clicks, remove_clicks, vs_data, active_subplot):
         return dash.no_update, dash.no_update
     
     trigger = ctx.triggered[0]["prop_id"]
+    trigger_value = ctx.triggered[0]["value"]
+    
+    # CRITICAL: Only assign if user actually clicked (n_clicks > 0)
+    # This prevents auto-assignment when signal tree is rebuilt
+    if trigger_value is None or trigger_value == 0:
+        return dash.no_update, dash.no_update
+    
     active_sp = int(active_subplot or 0)
     
     # Ensure subplot config exists
@@ -530,18 +571,56 @@ def handle_assignment(signal_clicks, remove_clicks, vs_data, active_subplot):
     sp_config = view_state.subplots[active_sp]
     
     if "signal-item" in trigger:
-        # Add signal
+        # Add signal - only if actually clicked
         trigger_dict = json.loads(trigger.rsplit(".", 1)[0])
         sig_key = trigger_dict["key"]
         
-        if sig_key not in sp_config.assigned_signals:
-            sp_config.assigned_signals.append(sig_key)
+        run_idx, sig_name = parse_signal_key(sig_key)
+        
+        # Check if linked mode is active
+        linked_runs = linked_runs or []
+        if linked_runs and len(linked_runs) >= 2 and run_idx != DERIVED_RUN_IDX:
+            # Linked mode: add same signal from ALL linked runs
+            linked_runs = [int(r) for r in linked_runs]
+            added = []
+            for link_run_idx in linked_runs:
+                if link_run_idx < len(runs) and sig_name in runs[link_run_idx].signals:
+                    linked_key = make_signal_key(link_run_idx, sig_name)
+                    if linked_key not in sp_config.assigned_signals:
+                        sp_config.assigned_signals.append(linked_key)
+                        added.append(linked_key)
+            print(f"[ASSIGN LINKED] Added {len(added)} signals for '{sig_name}' from linked runs", flush=True)
+        else:
+            # Normal mode: add just this signal
+            print(f"[ASSIGN] User clicked: {sig_key} -> Subplot {active_sp + 1}", flush=True)
+            if sig_key not in sp_config.assigned_signals:
+                sp_config.assigned_signals.append(sig_key)
     
     elif "btn-remove-assigned" in trigger:
         # Remove signal
         trigger_dict = json.loads(trigger.rsplit(".", 1)[0])
         idx = trigger_dict["index"]
-        if 0 <= idx < len(sp_config.assigned_signals):
+        
+        # Check if linked mode
+        linked_runs = linked_runs or []
+        if linked_runs and len(linked_runs) >= 2 and 0 <= idx < len(sp_config.assigned_signals):
+            sig_key = sp_config.assigned_signals[idx]
+            run_idx, sig_name = parse_signal_key(sig_key)
+            
+            if run_idx != DERIVED_RUN_IDX:
+                # Linked mode: remove same signal from ALL linked runs
+                linked_runs = [int(r) for r in linked_runs]
+                to_remove = []
+                for link_run_idx in linked_runs:
+                    linked_key = make_signal_key(link_run_idx, sig_name)
+                    if linked_key in sp_config.assigned_signals:
+                        to_remove.append(linked_key)
+                for key in to_remove:
+                    sp_config.assigned_signals.remove(key)
+                print(f"[REMOVE LINKED] Removed {len(to_remove)} signals for '{sig_name}'", flush=True)
+            else:
+                sp_config.assigned_signals.pop(idx)
+        elif 0 <= idx < len(sp_config.assigned_signals):
             sp_config.assigned_signals.pop(idx)
     
     view_state.active_subplot = active_sp
@@ -549,8 +628,73 @@ def handle_assignment(signal_clicks, remove_clicks, vs_data, active_subplot):
     return _view_state_to_dict(), build_assigned_list(sp_config, runs)
 
 
+@app.callback(
+    Output("link-mode-panel", "style"),
+    Output("btn-toggle-link-mode", "color"),
+    Output("btn-toggle-link-mode", "outline"),
+    Input("btn-toggle-link-mode", "n_clicks"),
+    State("link-mode-panel", "style"),
+    prevent_initial_call=True,
+)
+def toggle_link_mode(n_clicks, current_style):
+    """Toggle link mode panel visibility"""
+    if not n_clicks:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    is_hidden = current_style and current_style.get("display") == "none"
+    if is_hidden:
+        return {"display": "block"}, "info", False
+    else:
+        return {"display": "none"}, "secondary", True
+
+
+@app.callback(
+    Output("select-linked-runs", "options"),
+    Input("store-refresh", "data"),
+)
+def update_linked_runs_options(refresh):
+    """Update linked runs dropdown options"""
+    if not runs:
+        return []
+    return [{"label": run.csv_display_name, "value": i} for i, run in enumerate(runs)]
+
+
+@app.callback(
+    Output("select-linked-runs", "value"),
+    Input("btn-link-all", "n_clicks"),
+    Input("btn-unlink-all", "n_clicks"),
+    prevent_initial_call=True,
+)
+def handle_link_buttons(link_all_clicks, unlink_all_clicks):
+    """
+    Handle Link All / Unlink All buttons (Feature 2).
+    
+    - Link All: Select all loaded CSVs for linking
+    - Unlink All: Clear all linked selections
+    """
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update
+    
+    trigger = ctx.triggered[0]["prop_id"]
+    
+    if "btn-link-all" in trigger:
+        # Link all runs
+        if runs:
+            print(f"[LINK] Linked all {len(runs)} runs", flush=True)
+            return list(range(len(runs)))
+        return []
+    
+    elif "btn-unlink-all" in trigger:
+        # Unlink all
+        print("[LINK] Unlinked all runs", flush=True)
+        return []
+    
+    return dash.no_update
+
+
 def build_assigned_list(sp_config: SubplotConfig, runs_list: List[Run]) -> list:
-    """Build assigned signals list"""
+    """Build assigned signals list with edit button for properties"""
     if not sp_config.assigned_signals:
         return [html.P("Click signals to assign", className="text-muted small")]
     
@@ -559,11 +703,36 @@ def build_assigned_list(sp_config: SubplotConfig, runs_list: List[Run]) -> list:
     
     for idx, sig_key in enumerate(sp_config.assigned_signals):
         run_idx, sig_name = parse_signal_key(sig_key)
-        label = get_signal_label(run_idx, sig_name, run_paths)
+        
+        # Get custom display name if set
+        settings = signal_settings.get(sig_key, {})
+        custom_name = settings.get("display_name")
+        label = custom_name if custom_name else get_signal_label(run_idx, sig_name, run_paths)
+        
+        # Show indicator for special settings
+        indicators = []
+        if settings.get("is_state"):
+            indicators.append("📊")  # State signal indicator
+        if settings.get("scale", 1.0) != 1.0 or settings.get("offset", 0.0) != 0.0:
+            indicators.append("⚡")  # Scale/offset applied
+        
+        indicator_str = " ".join(indicators)
         
         items.append(
             dbc.Row([
-                dbc.Col(html.Span(label, className="small text-truncate"), width=10),
+                # Signal label with indicators
+                dbc.Col([
+                    html.Span(indicator_str + " " if indicator_str else "", className="small"),
+                    html.Span(label, className="small text-truncate", title=sig_name),
+                ], width=8, className="d-flex align-items-center"),
+                # Edit button
+                dbc.Col(
+                    html.Button("✎", id={"type": "btn-edit-signal", "key": sig_key},
+                               className="btn btn-link btn-sm text-info p-0",
+                               title="Edit signal properties"),
+                    width=2, className="text-center",
+                ),
+                # Remove button
                 dbc.Col(
                     html.Button("×", id={"type": "btn-remove-assigned", "index": idx},
                                className="btn btn-link btn-sm text-danger p-0"),
@@ -575,7 +744,12 @@ def build_assigned_list(sp_config: SubplotConfig, runs_list: List[Run]) -> list:
 
 
 def _view_state_to_dict() -> dict:
-    """Convert ViewState to dict for store"""
+    """
+    Convert ViewState to dict for store (P1, P5 - complete state preservation).
+    
+    Saves ALL subplot properties to ensure tab switching preserves data.
+    CRITICAL: Uses list() to create copies to avoid reference sharing between tabs.
+    """
     return {
         "layout_rows": view_state.layout_rows,
         "layout_cols": view_state.layout_cols,
@@ -583,11 +757,19 @@ def _view_state_to_dict() -> dict:
         "theme": view_state.theme,
         "cursor_time": view_state.cursor_time,
         "cursor_enabled": view_state.cursor_enabled,
+        "cursor_show_all": getattr(view_state, 'cursor_show_all', True),
         "subplots": [
             {
                 "index": sp.index,
                 "mode": sp.mode,
-                "assigned_signals": sp.assigned_signals,
+                "assigned_signals": list(sp.assigned_signals),  # Copy!
+                "x_signal": sp.x_signal,
+                "y_signals": list(sp.y_signals),  # Copy!
+                "xy_alignment": sp.xy_alignment,
+                "title": sp.title,
+                "caption": sp.caption,
+                "description": sp.description,
+                "include_in_report": sp.include_in_report,
             }
             for sp in view_state.subplots
         ],
@@ -597,6 +779,16 @@ def _view_state_to_dict() -> dict:
 # =============================================================================
 # CALLBACKS: Layout & Subplot Selection
 # =============================================================================
+
+def _old_idx_to_row_col(idx: int, old_cols: int) -> Tuple[int, int]:
+    """Convert old subplot index to (row, col) 0-based."""
+    return (idx // old_cols, idx % old_cols)
+
+
+def _row_col_to_new_idx(row: int, col: int, new_cols: int) -> int:
+    """Convert (row, col) 0-based to new subplot index."""
+    return row * new_cols + col
+
 
 @app.callback(
     Output("select-subplot", "options"),
@@ -611,58 +803,126 @@ def update_layout(rows, cols, current_sp):
     """
     Update subplot selector when layout changes.
     
-    Assignment preservation strategy (A4):
-    - Subplots 0 to (new_total - 1) keep their assignments
-    - Orphan subplots (index >= new_total) have their signals moved to last subplot
+    Visual position preservation strategy:
+    - Signals stay in the SAME ROW/COL position visually
+    - When going from 2x1 to 2x2: top stays top-left, bottom stays bottom-left
+    - When shrinking, orphan signals move to nearest valid position
     """
     global view_state
     
     rows = int(rows or 1)
     cols = int(cols or 1)
     new_total = rows * cols
-    old_total = view_state.layout_rows * view_state.layout_cols
+    old_rows = view_state.layout_rows
+    old_cols = view_state.layout_cols
+    old_total = old_rows * old_cols
     
-    print(f"[LAYOUT] Changing from {old_total} to {new_total} subplots", flush=True)
+    print(f"[LAYOUT] Changing from {old_rows}x{old_cols} to {rows}x{cols}", flush=True)
     
-    # Log current assignments before change
+    # Collect all current assignments with their visual positions
+    old_assignments = {}  # {(row, col): [signal_keys]}
     for i, sp in enumerate(view_state.subplots):
         if sp.assigned_signals:
-            print(f"  Subplot {i}: {sp.assigned_signals}", flush=True)
+            r, c = _old_idx_to_row_col(i, old_cols)
+            old_assignments[(r, c)] = sp.assigned_signals.copy()
+            print(f"  Subplot {i} (r{r+1},c{c+1}): {sp.assigned_signals}", flush=True)
     
+    # Update layout dimensions
     view_state.layout_rows = rows
     view_state.layout_cols = cols
     
-    # Ensure enough subplot configs exist
-    while len(view_state.subplots) < new_total:
-        view_state.subplots.append(SubplotConfig(index=len(view_state.subplots)))
+    # Create new subplot configs
+    new_subplots = [SubplotConfig(index=i) for i in range(new_total)]
     
-    # Handle orphan assignments (move to last subplot)
-    if new_total < old_total:
-        last_sp = view_state.subplots[new_total - 1]
-        for sp_idx in range(new_total, len(view_state.subplots)):
-            orphan_sp = view_state.subplots[sp_idx]
-            # Move orphan signals to last valid subplot
-            for sig_key in orphan_sp.assigned_signals:
-                if sig_key not in last_sp.assigned_signals:
-                    last_sp.assigned_signals.append(sig_key)
-            # Clear orphan
-            orphan_sp.assigned_signals = []
-        print(f"[LAYOUT] Orphan signals moved to subplot {new_total}", flush=True)
+    # Remap assignments to preserve visual position
+    orphan_signals = []
+    for (old_row, old_col), signals in old_assignments.items():
+        # If row/col still valid in new layout, keep there
+        if old_row < rows and old_col < cols:
+            new_idx = _row_col_to_new_idx(old_row, old_col, cols)
+            new_subplots[new_idx].assigned_signals = signals.copy()
+            print(f"  Remapped (r{old_row+1},c{old_col+1}) -> Subplot {new_idx+1}", flush=True)
+        else:
+            # Position no longer exists - find nearest valid
+            # Clamp row and col to new bounds
+            clamped_row = min(old_row, rows - 1)
+            clamped_col = min(old_col, cols - 1)
+            new_idx = _row_col_to_new_idx(clamped_row, clamped_col, cols)
+            new_subplots[new_idx].assigned_signals.extend(signals)
+            print(f"  Orphan (r{old_row+1},c{old_col+1}) -> Subplot {new_idx+1}", flush=True)
     
-    # Clamp active subplot
-    value = min(int(current_sp or 0), new_total - 1)
+    # Copy other properties from old subplots based on visual position
+    old_props = {}  # {(row, col): props_dict}
+    for i, sp in enumerate(view_state.subplots):
+        r, c = _old_idx_to_row_col(i, old_cols)
+        old_props[(r, c)] = {
+            "mode": sp.mode,
+            "title": sp.title,
+            "caption": sp.caption,
+            "description": sp.description,
+            "x_signal": sp.x_signal,
+            "y_signals": sp.y_signals,
+        }
+    
+    # Apply old props to new subplots at same visual position
+    for i, new_sp in enumerate(new_subplots):
+        r, c = _old_idx_to_row_col(i, cols)
+        if (r, c) in old_props:
+            props = old_props[(r, c)]
+            new_sp.mode = props.get("mode", "time")
+            new_sp.title = props.get("title", "")
+            new_sp.caption = props.get("caption", "")
+            new_sp.description = props.get("description", "")
+            new_sp.x_signal = props.get("x_signal")
+            new_sp.y_signals = props.get("y_signals", [])
+    
+    view_state.subplots = new_subplots
+    
+    # Remap active subplot to preserve visual position
+    old_active = int(current_sp or 0)
+    old_active_row, old_active_col = _old_idx_to_row_col(old_active, old_cols)
+    
+    # Clamp to new bounds if needed
+    new_active_row = min(old_active_row, rows - 1)
+    new_active_col = min(old_active_col, cols - 1)
+    value = _row_col_to_new_idx(new_active_row, new_active_col, cols)
     view_state.active_subplot = value
     
-    # Format: "Subplot N / M" for clear visibility
-    options = [{"label": f"Subplot {i + 1} / {new_total}", "value": i} for i in range(new_total)]
+    print(f"[LAYOUT] Active subplot: {old_active} (r{old_active_row+1},c{old_active_col+1}) -> {value}", flush=True)
+    
+    # Format: "N / M" for compact display
+    options = [{"label": f"{i + 1} / {new_total}", "value": i} for i in range(new_total)]
     
     # Get current subplot config for assigned list
     sp_config = view_state.subplots[value]
     assigned_list = build_assigned_list(sp_config, runs)
     
-    print(f"[LAYOUT] Selector updated: {len(options)} options, selected={value}, signals={sp_config.assigned_signals}", flush=True)
+    print(f"[LAYOUT] Done: {len(options)} subplots, selected={value}", flush=True)
     
     return options, value, assigned_list
+
+
+# Initialize subplot selector on app load (runs once on startup)
+@app.callback(
+    Output("select-subplot", "options", allow_duplicate=True),
+    Output("select-subplot", "value", allow_duplicate=True),
+    Output("active-subplot-badge", "children", allow_duplicate=True),
+    Input("store-refresh", "data"),
+    prevent_initial_call=False,  # Allow initial call for proper initialization
+)
+def init_subplot_selector(refresh):
+    """
+    Initialize subplot selector on app startup.
+    Ensures the SP: dropdown always shows a proper value (never empty).
+    """
+    global view_state
+    
+    total = view_state.layout_rows * view_state.layout_cols
+    options = [{"label": f"{i + 1} / {total}", "value": i} for i in range(total)]
+    value = min(view_state.active_subplot, total - 1) if total > 0 else 0
+    badge = f"Subplot {value + 1} / {total}"
+    
+    return options, value, badge
 
 
 @app.callback(
@@ -733,6 +993,106 @@ def clear_subplot(n_clicks, subplot_idx, refresh):
     sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else SubplotConfig(index=sp_idx)
     
     return build_assigned_list(sp_config, runs), (refresh or 0) + 1
+
+
+# =============================================================================
+# CALLBACKS: Axis Limits (Feature 5)
+# =============================================================================
+
+@app.callback(
+    Output("input-xlim-min", "value"),
+    Output("input-xlim-max", "value"),
+    Output("input-ylim-min", "value"),
+    Output("input-ylim-max", "value"),
+    Input("select-subplot", "value"),
+    Input("btn-reset-axis-limits", "n_clicks"),
+    prevent_initial_call=True,
+)
+def load_axis_limits(subplot_idx, reset_clicks):
+    """Load current axis limits for the active subplot"""
+    global view_state
+    
+    ctx = callback_context
+    trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+    
+    sp_idx = int(subplot_idx or 0)
+    
+    # On reset, clear limits for this subplot
+    if "btn-reset-axis-limits" in trigger:
+        if sp_idx < len(view_state.subplots):
+            view_state.subplots[sp_idx].xlim = None
+            view_state.subplots[sp_idx].ylim = None
+            print(f"[AXIS] Reset limits for subplot {sp_idx + 1}", flush=True)
+        return None, None, None, None
+    
+    # Load current limits
+    if sp_idx < len(view_state.subplots):
+        sp_config = view_state.subplots[sp_idx]
+        xlim = sp_config.xlim
+        ylim = sp_config.ylim
+        
+        return (
+            xlim[0] if xlim else None,
+            xlim[1] if xlim else None,
+            ylim[0] if ylim else None,
+            ylim[1] if ylim else None,
+        )
+    
+    return None, None, None, None
+
+
+@app.callback(
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("btn-apply-axis-limits", "n_clicks"),
+    State("input-xlim-min", "value"),
+    State("input-xlim-max", "value"),
+    State("input-ylim-min", "value"),
+    State("input-ylim-max", "value"),
+    State("select-subplot", "value"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def apply_axis_limits(n_clicks, xlim_min, xlim_max, ylim_min, ylim_max, subplot_idx, refresh):
+    """Apply axis limits to the active subplot"""
+    global view_state
+    
+    if not n_clicks:
+        return dash.no_update
+    
+    sp_idx = int(subplot_idx or 0)
+    
+    # Ensure subplot exists
+    while len(view_state.subplots) <= sp_idx:
+        view_state.subplots.append(SubplotConfig(index=len(view_state.subplots)))
+    
+    sp_config = view_state.subplots[sp_idx]
+    
+    # Set xlim if both values are provided
+    if xlim_min is not None and xlim_max is not None:
+        sp_config.xlim = [float(xlim_min), float(xlim_max)]
+    elif xlim_min is None and xlim_max is None:
+        sp_config.xlim = None
+    else:
+        # Partial - use what's provided, auto for the other
+        sp_config.xlim = [
+            float(xlim_min) if xlim_min is not None else None,
+            float(xlim_max) if xlim_max is not None else None,
+        ]
+    
+    # Set ylim if both values are provided
+    if ylim_min is not None and ylim_max is not None:
+        sp_config.ylim = [float(ylim_min), float(ylim_max)]
+    elif ylim_min is None and ylim_max is None:
+        sp_config.ylim = None
+    else:
+        sp_config.ylim = [
+            float(ylim_min) if ylim_min is not None else None,
+            float(ylim_max) if ylim_max is not None else None,
+        ]
+    
+    print(f"[AXIS] Set limits for subplot {sp_idx + 1}: xlim={sp_config.xlim}, ylim={sp_config.ylim}", flush=True)
+    
+    return (refresh or 0) + 1
 
 
 @app.callback(
@@ -940,25 +1300,52 @@ def toggle_cursor_scope(active_clicks, all_clicks, refresh):
     Output("cursor-slider", "min"),
     Output("cursor-slider", "max"),
     Output("cursor-slider", "value"),
+    Output("cursor-slider", "disabled"),
     Input("store-refresh", "data"),
     Input("switch-cursor", "value"),
+    State("cursor-slider", "value"),
 )
-def update_cursor_range(refresh, cursor_enabled):
+def update_cursor_range(refresh, cursor_enabled, current_value):
+    """
+    Update cursor slider range based on ASSIGNED signals only (P0-3).
+    
+    - Min/max computed from assigned signals in current view
+    - If no signals assigned, slider is disabled
+    - Preserves current value if within new range
+    """
     is_enabled = cursor_enabled and len(cursor_enabled) > 0
     if not is_enabled or not runs:
-        return 0, 100, 0
+        return 0, 100, 0, True  # Disabled
     
-    # Find time range
+    # Find time range from ASSIGNED signals only
     t_min, t_max = float('inf'), float('-inf')
-    for run in runs:
-        if len(run.time) > 0:
-            t_min = min(t_min, float(run.time[0]))
-            t_max = max(t_max, float(run.time[-1]))
+    has_assigned = False
     
-    if t_min >= t_max:
-        return 0, 100, 0
+    for sp in view_state.subplots:
+        for sig_key in sp.assigned_signals:
+            run_idx, sig_name = parse_signal_key(sig_key)
+            
+            if run_idx == DERIVED_RUN_IDX:
+                if sig_name in derived_signals:
+                    ds = derived_signals[sig_name]
+                    if len(ds.time) > 0:
+                        t_min = min(t_min, float(ds.time[0]))
+                        t_max = max(t_max, float(ds.time[-1]))
+                        has_assigned = True
+            elif 0 <= run_idx < len(runs):
+                run = runs[run_idx]
+                if len(run.time) > 0:
+                    t_min = min(t_min, float(run.time[0]))
+                    t_max = max(t_max, float(run.time[-1]))
+                    has_assigned = True
     
-    return t_min, t_max, t_min
+    if not has_assigned or t_min >= t_max:
+        return 0, 100, 0, True  # Disabled - no signals assigned
+    
+    # Preserve current value if within range, else reset to min
+    new_value = current_value if (current_value is not None and t_min <= current_value <= t_max) else t_min
+    
+    return t_min, t_max, new_value, False  # Enabled
 
 
 @app.callback(
@@ -973,39 +1360,69 @@ def update_cursor_display(cursor_time):
 
 @app.callback(
     Output("cursor-slider", "value", allow_duplicate=True),
+    Output("cursor-time-display", "children", allow_duplicate=True),
     Input("btn-cursor-jump", "n_clicks"),
+    Input("cursor-jump-input", "n_submit"),  # Also trigger on Enter key
     State("cursor-jump-input", "value"),
     State("cursor-slider", "min"),
     State("cursor-slider", "max"),
     prevent_initial_call=True,
 )
-def cursor_jump_to_time(n_clicks, target_time, t_min, t_max):
-    """Jump cursor to specific time (nearest sample)"""
-    if not n_clicks or target_time is None:
-        return dash.no_update
+def cursor_jump_to_time(n_clicks, n_submit, target_time, t_min, t_max):
+    """
+    Jump cursor to specific time - finds NEAREST SAMPLE.
     
-    target_time = float(target_time)
+    - Triggers on button click OR Enter key press
+    - Finds nearest actual sample time (not interpolated)
+    - Supports decimal values (1.24, 0.001, etc.)
+    """
+    import numpy as np
     
-    # Find nearest sample time
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update
+    
+    # Check if target_time is provided
+    if target_time is None or target_time == "":
+        return dash.no_update, dash.no_update
+    
+    try:
+        target_time = float(target_time)
+    except (ValueError, TypeError):
+        return dash.no_update, dash.no_update
+    
+    # Find nearest sample time from ASSIGNED signals
     nearest_time = target_time
     min_dist = float('inf')
     
-    for run in runs:
-        if len(run.time) > 0:
-            import numpy as np
-            idx = np.searchsorted(run.time, target_time)
-            # Check both neighbors
-            for check_idx in [max(0, idx - 1), min(len(run.time) - 1, idx)]:
-                dist = abs(run.time[check_idx] - target_time)
-                if dist < min_dist:
-                    min_dist = dist
-                    nearest_time = float(run.time[check_idx])
+    for sp in view_state.subplots:
+        for sig_key in sp.assigned_signals:
+            run_idx, sig_name = parse_signal_key(sig_key)
+            
+            time_arr = None
+            if run_idx == DERIVED_RUN_IDX:
+                if sig_name in derived_signals:
+                    time_arr = derived_signals[sig_name].time
+            elif 0 <= run_idx < len(runs):
+                time_arr = runs[run_idx].time
+            
+            if time_arr is not None and len(time_arr) > 0:
+                idx = np.searchsorted(time_arr, target_time)
+                # Check both neighbors
+                for check_idx in [max(0, idx - 1), min(len(time_arr) - 1, idx)]:
+                    dist = abs(time_arr[check_idx] - target_time)
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest_time = float(time_arr[check_idx])
     
     # Clamp to valid range
     nearest_time = max(t_min, min(t_max, nearest_time))
     
+    # Update global state
+    view_state.cursor_time = nearest_time
+    
     print(f"[CURSOR] Jump to T={target_time:.6f} → nearest sample T={nearest_time:.6f}", flush=True)
-    return nearest_time
+    return nearest_time, f"T = {nearest_time:.6f}"
 
 
 # =============================================================================
@@ -1245,20 +1662,46 @@ def update_runs_count(run_paths):
     prevent_initial_call=True,
 )
 def save_session_callback(n_clicks):
+    """
+    Save complete session (P5 - Complete persistence).
+    
+    Includes:
+    - Run paths
+    - Complete view state with all subplot properties
+    - Signal settings (colors, widths, etc.)
+    - Derived signals
+    """
     from datetime import datetime
     
     run_paths = [r.file_path for r in runs]
     
+    # Serialize derived signals
+    derived_data = {}
+    for name, ds in derived_signals.items():
+        derived_data[name] = {
+            "name": ds.name,
+            "time": ds.time.tolist(),
+            "data": ds.data.tolist(),
+            "operation": ds.operation,
+            "source_signals": ds.source_signals,
+            "display_name": ds.display_name,
+            "color": ds.color,
+            "line_width": ds.line_width,
+        }
+    
     session = {
-        "version": "4.0",
+        "version": "5.0",
         "timestamp": datetime.now().isoformat(),
         "run_paths": run_paths,
         "view_state": _view_state_to_dict(),
         "signal_settings": signal_settings,
+        "derived_signals": derived_data,
     }
     
     content = json.dumps(session, indent=2)
     filename = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    print(f"[SESSION] Saved: {len(run_paths)} runs, {len(derived_data)} derived signals", flush=True)
     
     return dict(content=content, filename=filename)
 
@@ -1296,8 +1739,9 @@ def load_session_callback(n_clicks, refresh):
     if not session:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
-    # Clear and reload
+    # Clear and reload (P5 - Complete persistence)
     runs = []
+    derived_signals.clear()
     run_paths = session.get("run_paths", [])
     
     for path in run_paths:
@@ -1310,9 +1754,26 @@ def load_session_callback(n_clicks, refresh):
     
     # Restore view state
     view_state = parse_view_state(session)
-    signal_settings = session.get("signal_settings", {})
+    signal_settings.clear()
+    signal_settings.update(session.get("signal_settings", {}))
+    
+    # Restore derived signals
+    import numpy as np
+    for name, ds_data in session.get("derived_signals", {}).items():
+        derived_signals[name] = DerivedSignal(
+            name=ds_data.get("name", name),
+            time=np.array(ds_data.get("time", [])),
+            data=np.array(ds_data.get("data", [])),
+            operation=ds_data.get("operation", "loaded"),
+            source_signals=ds_data.get("source_signals", []),
+            display_name=ds_data.get("display_name"),
+            color=ds_data.get("color"),
+            line_width=ds_data.get("line_width", 1.5),
+        )
     
     actual_paths = [r.file_path for r in runs]
+    
+    print(f"[SESSION] Loaded: {len(runs)} runs, {len(derived_signals)} derived signals", flush=True)
     
     return (
         build_runs_list(actual_paths),
@@ -1449,37 +1910,47 @@ def refresh_data(n_clicks, refresh, collapsed_runs):
 )
 def render_tab_bar(tabs, active_tab):
     """
-    Render tab bar with clickable tabs.
+    Render tab bar with clickable tabs (P2-6).
     
-    Fixed behavior (task_add.md):
-    - Exactly N visible tabs = N views
-    - No implicit "main" tab
-    - All tabs can be closed if there's >1 tab
+    Required UX:
+    - Tab1 × Tab2 × +
+    - Tabs numbered sequentially: Tab 1, Tab 2, ...
+    - Exactly N tabs visible = N views
+    - Cannot remove last tab
     """
+    # Ensure we always have at least one tab
     if not tabs:
-        tabs = [{"id": "view_1", "name": "View 1"}]
+        tabs = [{"id": "tab_1", "name": "Tab 1"}]
+    
+    # Ensure active_tab is valid
+    if not active_tab or not any(t["id"] == active_tab for t in tabs):
+        active_tab = tabs[0]["id"]
     
     tab_buttons = []
-    can_close = len(tabs) > 1  # Can only close if there's more than one tab
+    can_close = len(tabs) > 1  # Cannot remove last tab
     
-    for tab in tabs:
+    print(f"[TABS] Rendering {len(tabs)} tabs, active={active_tab}", flush=True)
+    
+    for idx, tab in enumerate(tabs):
         is_active = tab["id"] == active_tab
-        color = "info" if is_active else "secondary"
-        outline = not is_active
+        
+        # Tab button - shows sequential number (Tab 1, Tab 2, ...)
+        display_name = f"Tab {idx + 1}"
         
         tab_buttons.append(
             dbc.Button(
-                tab["name"],
+                display_name,
                 id={"type": "btn-tab", "id": tab["id"]},
                 size="sm",
-                color=color,
-                outline=outline,
+                color="info" if is_active else "secondary",
+                outline=not is_active,
                 className="me-1",
                 n_clicks=0,
+                style={"fontWeight": "bold" if is_active else "normal"},
             )
         )
         
-        # Add close button for ALL tabs if >1 tab exists
+        # Close button (×) only if >1 tab exists
         if can_close:
             tab_buttons.append(
                 dbc.Button(
@@ -1494,93 +1965,246 @@ def render_tab_bar(tabs, active_tab):
                 )
             )
     
-    return tab_buttons
+    return tab_buttons if tab_buttons else [html.Span("Tab 1", className="text-info small")]
 
 
 @app.callback(
     Output("store-tabs", "data", allow_duplicate=True),
     Output("store-active-tab", "data", allow_duplicate=True),
+    Output("store-tab-view-states", "data", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Output("select-rows", "value", allow_duplicate=True),
+    Output("select-cols", "value", allow_duplicate=True),
+    Output("select-subplot", "value", allow_duplicate=True),
     Input("btn-add-tab", "n_clicks"),
     State("store-tabs", "data"),
+    State("store-active-tab", "data"),
+    State("store-tab-view-states", "data"),
+    State("store-refresh", "data"),
     prevent_initial_call=True,
 )
-def add_tab(n_clicks, tabs):
-    """Add a new tab (P1)"""
+def add_tab(n_clicks, tabs, current_tab, tab_view_states, refresh):
+    """
+    Add a new tab with fresh view state (P2-6).
+    
+    - New tab is numbered sequentially
+    - New tab starts with empty view state
+    """
+    global view_state
+    
     if not n_clicks:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     tabs = tabs or []
-    new_id = f"tab_{len(tabs) + 1}"
-    new_tab = {"id": new_id, "name": f"View {len(tabs) + 1}"}
+    tab_view_states = tab_view_states or {}
+    
+    # Save current view state to current tab before creating new one
+    if current_tab:
+        tab_view_states[current_tab] = _view_state_to_dict()
+    
+    # Generate unique ID with timestamp for uniqueness
+    new_num = len(tabs) + 1
+    new_id = f"tab_{new_num}_{int(datetime.now().timestamp())}"
+    new_tab = {"id": new_id, "name": f"Tab {new_num}"}
     tabs.append(new_tab)
     
-    print(f"[TABS] Created new tab: {new_id}", flush=True)
+    # Reset view state for new tab (fresh start, no signals assigned)
+    view_state.layout_rows = 1
+    view_state.layout_cols = 1
+    view_state.active_subplot = 0
+    view_state.subplots = [SubplotConfig(index=0)]
     
-    return tabs, new_id
+    print(f"[TABS] Created Tab {new_num}: {new_id}", flush=True)
+    
+    return (
+        tabs,
+        new_id,
+        tab_view_states,
+        (refresh or 0) + 1,
+        1,  # Reset rows
+        1,  # Reset cols
+        0,  # Reset subplot
+    )
 
 
 @app.callback(
     Output("store-active-tab", "data", allow_duplicate=True),
+    Output("store-tab-view-states", "data", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Output("select-rows", "value", allow_duplicate=True),
+    Output("select-cols", "value", allow_duplicate=True),
+    Output("select-subplot", "value", allow_duplicate=True),
     Input({"type": "btn-tab", "id": ALL}, "n_clicks"),
     State("store-tabs", "data"),
+    State("store-active-tab", "data"),
+    State("store-tab-view-states", "data"),
+    State("store-refresh", "data"),
     prevent_initial_call=True,
 )
-def switch_tab(tab_clicks, tabs):
-    """Switch to clicked tab (P1)"""
+def switch_tab(tab_clicks, tabs, current_tab, tab_view_states, refresh):
+    """
+    Switch to clicked tab with per-tab view state management.
+    
+    - Saves current view state to current tab
+    - Restores view state from target tab
+    - Updates layout controls to match
+    """
+    global view_state
+    
     ctx = callback_context
     if not ctx.triggered:
-        return dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     # Check if any button was actually clicked
     if not any(c for c in tab_clicks if c):
-        return dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     trigger = ctx.triggered[0]["prop_id"]
     try:
         trigger_dict = json.loads(trigger.rsplit(".", 1)[0])
-        tab_id = trigger_dict["id"]
-        print(f"[TABS] Switched to tab: {tab_id}", flush=True)
-        return tab_id
+        new_tab_id = trigger_dict["id"]
     except:
-        return dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    # Don't do anything if clicking on the same tab
+    if new_tab_id == current_tab:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    tab_view_states = tab_view_states or {}
+    
+    # Save current view state to current tab
+    if current_tab:
+        tab_view_states[current_tab] = _view_state_to_dict()
+        print(f"[TABS] Saved view state for tab: {current_tab}", flush=True)
+    
+    # Restore view state from target tab (or use defaults for new tab)
+    if new_tab_id in tab_view_states:
+        saved_state = tab_view_states[new_tab_id]
+        view_state.layout_rows = saved_state.get("layout_rows", 1)
+        view_state.layout_cols = saved_state.get("layout_cols", 1)
+        view_state.active_subplot = saved_state.get("active_subplot", 0)
+        view_state.theme = saved_state.get("theme", "dark")
+        view_state.cursor_time = saved_state.get("cursor_time")
+        view_state.cursor_enabled = saved_state.get("cursor_enabled", False)
+        
+        # Restore subplot configs with ALL properties (P1 - preserve all data)
+        # CRITICAL: Use list() to create copies, not references
+        view_state.subplots = []
+        for sp_data in saved_state.get("subplots", []):
+            sp = SubplotConfig(
+                index=sp_data.get("index", len(view_state.subplots)),
+                mode=sp_data.get("mode", "time"),
+                assigned_signals=list(sp_data.get("assigned_signals", [])),  # Copy!
+                x_signal=sp_data.get("x_signal"),
+                y_signals=list(sp_data.get("y_signals", [])),  # Copy!
+                xy_alignment=sp_data.get("xy_alignment", "linear"),
+                title=sp_data.get("title", ""),
+                caption=sp_data.get("caption", ""),
+                description=sp_data.get("description", ""),
+                include_in_report=sp_data.get("include_in_report", True),
+            )
+            view_state.subplots.append(sp)
+        
+        print(f"[TABS] Restored view state for tab: {new_tab_id} with {len(view_state.subplots)} subplots", flush=True)
+        for i, sp in enumerate(view_state.subplots):
+            print(f"  Subplot {i}: {sp.assigned_signals}", flush=True)
+    else:
+        # New tab - reset to defaults but keep data
+        view_state.layout_rows = 1
+        view_state.layout_cols = 1
+        view_state.active_subplot = 0
+        view_state.subplots = [SubplotConfig(index=0)]
+        print(f"[TABS] Created fresh view state for new tab: {new_tab_id}", flush=True)
+    
+    print(f"[TABS] Switched to tab: {new_tab_id}", flush=True)
+    
+    return (
+        new_tab_id,
+        tab_view_states,
+        (refresh or 0) + 1,
+        view_state.layout_rows,
+        view_state.layout_cols,
+        view_state.active_subplot,
+    )
 
 
 @app.callback(
     Output("store-tabs", "data", allow_duplicate=True),
     Output("store-active-tab", "data", allow_duplicate=True),
+    Output("store-tab-view-states", "data", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Output("select-rows", "value", allow_duplicate=True),
+    Output("select-cols", "value", allow_duplicate=True),
+    Output("select-subplot", "value", allow_duplicate=True),
     Input({"type": "btn-close-tab", "id": ALL}, "n_clicks"),
     State("store-tabs", "data"),
     State("store-active-tab", "data"),
+    State("store-tab-view-states", "data"),
+    State("store-refresh", "data"),
     prevent_initial_call=True,
 )
-def close_tab(close_clicks, tabs, active_tab):
-    """Close a tab (P1) - disabled if only 1 tab"""
+def close_tab(close_clicks, tabs, active_tab, tab_view_states, refresh):
+    """Close a tab - disabled if only 1 tab"""
+    global view_state
+    
     ctx = callback_context
     if not ctx.triggered:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     if not any(c for c in close_clicks if c):
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     if len(tabs) <= 1:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     trigger = ctx.triggered[0]["prop_id"]
     try:
         trigger_dict = json.loads(trigger.rsplit(".", 1)[0])
         tab_id = trigger_dict["id"]
     except:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
-    # Remove tab
+    tab_view_states = tab_view_states or {}
+    
+    # Remove tab and its view state
     tabs = [t for t in tabs if t["id"] != tab_id]
+    if tab_id in tab_view_states:
+        del tab_view_states[tab_id]
     
-    # If we closed the active tab, switch to first tab
-    new_active = active_tab if active_tab != tab_id else tabs[0]["id"]
-    
-    print(f"[TABS] Closed tab: {tab_id}", flush=True)
-    
-    return tabs, new_active
+    # If we closed the active tab, switch to first tab and restore its state
+    if active_tab == tab_id:
+        new_active = tabs[0]["id"]
+        
+        # Restore view state from new active tab
+        if new_active in tab_view_states:
+            saved_state = tab_view_states[new_active]
+            view_state.layout_rows = saved_state.get("layout_rows", 1)
+            view_state.layout_cols = saved_state.get("layout_cols", 1)
+            view_state.active_subplot = saved_state.get("active_subplot", 0)
+            
+            # Restore subplot configs
+            view_state.subplots = []
+            for sp_data in saved_state.get("subplots", []):
+                view_state.subplots.append(SubplotConfig(
+                    index=sp_data.get("index", len(view_state.subplots)),
+                    mode=sp_data.get("mode", "time"),
+                    assigned_signals=sp_data.get("assigned_signals", []),
+                ))
+        
+        print(f"[TABS] Closed tab: {tab_id}, switched to: {new_active}", flush=True)
+        
+        return (
+            tabs,
+            new_active,
+            tab_view_states,
+            (refresh or 0) + 1,
+            view_state.layout_rows,
+            view_state.layout_cols,
+            view_state.active_subplot,
+        )
+    else:
+        print(f"[TABS] Closed tab: {tab_id}", flush=True)
+        return tabs, active_tab, tab_view_states, refresh, dash.no_update, dash.no_update, dash.no_update
 
 
 # =============================================================================
@@ -1735,13 +2359,13 @@ def toggle_compare_panel(n_clicks, is_open):
 # =============================================================================
 
 @app.callback(
+    Output("select-compare-runs", "options"),
     Output("select-baseline-run", "options"),
-    Output("select-compare-run", "options"),
     Input("store-refresh", "data"),
     Input("collapse-compare", "is_open"),
 )
 def update_compare_run_options(refresh, is_open):
-    """Populate run dropdowns for compare"""
+    """Populate run dropdowns for compare (P3 - multi-CSV)"""
     if not is_open or not runs:
         return [], []
     
@@ -1753,148 +2377,686 @@ def update_compare_run_options(refresh, is_open):
 
 
 @app.callback(
-    Output("select-compare-signal", "options"),
-    Input("select-baseline-run", "value"),
-    Input("select-compare-run", "value"),
-    Input("check-common-only", "value"),
+    Output("select-baseline-run", "disabled"),
+    Input("select-baseline-method", "value"),
 )
-def update_compare_signal_options(run_a_idx, run_b_idx, common_only):
-    """Populate signal dropdown with common or all signals"""
-    if run_a_idx is None:
-        return []
+def toggle_baseline_dropdown(method):
+    """Enable/disable baseline run dropdown based on method"""
+    return method != "specific"
+
+
+@app.callback(
+    Output("select-compare-signal", "options"),
+    Output("compare-common-signals", "children"),
+    Input("select-compare-runs", "value"),
+)
+def update_compare_signal_options(selected_runs):
+    """
+    Populate signal dropdown with common signals across all selected runs (P3).
     
-    run_a_idx = int(run_a_idx)
-    signals_a = set(runs[run_a_idx].signals.keys()) if run_a_idx < len(runs) else set()
+    Shows:
+    - Common signals: appear in ALL selected runs
+    - Info about how many signals are common
+    """
+    if not selected_runs or len(selected_runs) < 2:
+        return [], "Select 2+ runs to see common signals"
     
-    if run_b_idx is not None:
-        run_b_idx = int(run_b_idx)
-        signals_b = set(runs[run_b_idx].signals.keys()) if run_b_idx < len(runs) else set()
-        
-        if common_only:
-            signals = signals_a & signals_b
-        else:
-            signals = signals_a | signals_b
-    else:
-        signals = signals_a
+    # Find common signals across all selected runs
+    common_signals = None
+    for run_idx in selected_runs:
+        run_idx = int(run_idx)
+        if run_idx < len(runs):
+            run_signals = set(runs[run_idx].signals.keys())
+            if common_signals is None:
+                common_signals = run_signals
+            else:
+                common_signals = common_signals & run_signals
     
-    return [{"label": s, "value": s} for s in sorted(signals)]
+    if not common_signals:
+        return [], f"No common signals across {len(selected_runs)} runs"
+    
+    # Build options for common signals
+    options = [{"label": s, "value": s} for s in sorted(common_signals)]
+    
+    # Count unique signals
+    all_signals = set()
+    for run_idx in selected_runs:
+        run_idx = int(run_idx)
+        if run_idx < len(runs):
+            all_signals.update(runs[run_idx].signals.keys())
+    
+    info = f"✓ {len(common_signals)} common signals (of {len(all_signals)} total)"
+    
+    return options, info
 
 
 @app.callback(
     Output("compare-results", "children"),
+    Output("signal-tree", "children", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
     Input("btn-compare", "n_clicks"),
+    State("select-compare-runs", "value"),
+    State("select-baseline-method", "value"),
     State("select-baseline-run", "value"),
-    State("select-compare-run", "value"),
     State("select-compare-signal", "value"),
     State("select-compare-alignment", "value"),
+    State("store-refresh", "data"),
+    State("store-collapsed-runs", "data"),
     prevent_initial_call=True,
 )
-def run_comparison(n_clicks, run_a_idx, run_b_idx, signal_name, alignment):
-    """Execute comparison and show results"""
+def run_comparison(n_clicks, selected_runs, baseline_method, baseline_run_idx, signal_name, alignment, refresh, collapsed_runs):
+    """
+    Execute multi-CSV comparison (P3 - Advanced Compare).
+    
+    Supports:
+    - 2+ CSVs comparison
+    - Mean or specific baseline
+    - RMS difference and correlation metrics
+    - Creates delta derived signals
+    """
     import numpy as np
     
-    if run_a_idx is None or run_b_idx is None or not signal_name:
-        return html.Span("⚠️ Select runs and signal", className="text-warning")
+    if not selected_runs or len(selected_runs) < 2:
+        return html.Span("⚠️ Select 2+ runs to compare", className="text-warning"), dash.no_update, dash.no_update
     
-    run_a_idx = int(run_a_idx)
-    run_b_idx = int(run_b_idx)
+    if not signal_name:
+        return html.Span("⚠️ Select a signal to compare", className="text-warning"), dash.no_update, dash.no_update
     
-    if run_a_idx >= len(runs) or run_b_idx >= len(runs):
-        return html.Span("⚠️ Invalid run selection", className="text-warning")
-    
-    run_a = runs[run_a_idx]
-    run_b = runs[run_b_idx]
-    
-    if signal_name not in run_a.signals or signal_name not in run_b.signals:
-        return html.Span(f"⚠️ Signal '{signal_name}' not in both runs", className="text-warning")
+    selected_runs = [int(r) for r in selected_runs]
     
     try:
-        # Get data
-        time_a, data_a = run_a.get_signal_data(signal_name)
-        time_b, data_b = run_b.get_signal_data(signal_name)
+        # Collect signal data from all selected runs
+        signal_data = []  # List of (time, data, run_name)
         
-        # Align time bases
-        if alignment == "baseline":
-            # Use A's time base, interpolate B
-            time_common = time_a
-            data_a_aligned = data_a
-            data_b_aligned = np.interp(time_a, time_b, data_b)
-        elif alignment == "union":
-            # Union of time points
-            time_common = np.sort(np.unique(np.concatenate([time_a, time_b])))
-            data_a_aligned = np.interp(time_common, time_a, data_a)
-            data_b_aligned = np.interp(time_common, time_b, data_b)
-        else:  # intersection
-            # Only overlapping region
-            t_start = max(time_a[0], time_b[0])
-            t_end = min(time_a[-1], time_b[-1])
-            mask_a = (time_a >= t_start) & (time_a <= t_end)
-            time_common = time_a[mask_a]
-            data_a_aligned = data_a[mask_a]
-            data_b_aligned = np.interp(time_common, time_b, data_b)
+        for run_idx in selected_runs:
+            if run_idx >= len(runs):
+                continue
+            run = runs[run_idx]
+            if signal_name not in run.signals:
+                continue
+            time_arr, data_arr = run.get_signal_data(signal_name)
+            if len(time_arr) > 0:
+                signal_data.append((time_arr, data_arr, run.csv_display_name, run_idx))
         
-        # Calculate metrics
-        diff = data_a_aligned - data_b_aligned
-        max_abs_diff = float(np.max(np.abs(diff)))
-        rms_diff = float(np.sqrt(np.mean(diff**2)))
+        if len(signal_data) < 2:
+            return html.Span("⚠️ Signal not found in enough runs", className="text-warning"), dash.no_update, dash.no_update
         
-        # Correlation
-        if len(data_a_aligned) > 1:
-            corr = float(np.corrcoef(data_a_aligned, data_b_aligned)[0, 1])
+        # Compute baseline
+        if baseline_method == "specific" and baseline_run_idx is not None:
+            baseline_run_idx = int(baseline_run_idx)
+            baseline_entry = next((s for s in signal_data if s[3] == baseline_run_idx), signal_data[0])
+            baseline_time = baseline_entry[0]
+            baseline_data = baseline_entry[1]
+            baseline_name = baseline_entry[2]
         else:
-            corr = 0.0
+            # Mean baseline - use first run's time base, average all
+            baseline_time = signal_data[0][0]
+            aligned_data = []
+            for t, d, name, idx in signal_data:
+                aligned = np.interp(baseline_time, t, d)
+                aligned_data.append(aligned)
+            baseline_data = np.mean(aligned_data, axis=0)
+            baseline_name = "Mean"
         
-        # Create delta as derived signal
-        delta_name = f"Δ({signal_name})"
-        derived_signals[delta_name] = DerivedSignal(
-            name=delta_name,
-            time=time_common,
-            data=diff,
-            operation="compare",
-            source_signals=[f"{run_a_idx}:{signal_name}", f"{run_b_idx}:{signal_name}"],
-        )
+        # Compute metrics for each run vs baseline
+        results = []
+        created_deltas = []
         
-        print(f"[COMPARE] {signal_name}: MaxDiff={max_abs_diff:.4g}, RMS={rms_diff:.4g}, Corr={corr:.4f}", flush=True)
+        for t, d, name, run_idx in signal_data:
+            # Align to baseline time
+            if alignment == "baseline":
+                time_common = baseline_time
+                data_aligned = np.interp(baseline_time, t, d)
+            elif alignment == "intersection":
+                t_start = max(baseline_time[0], t[0])
+                t_end = min(baseline_time[-1], t[-1])
+                mask = (baseline_time >= t_start) & (baseline_time <= t_end)
+                time_common = baseline_time[mask]
+                data_aligned = np.interp(time_common, t, d)
+                baseline_aligned = baseline_data[mask] if baseline_method != "specific" else np.interp(time_common, baseline_time, baseline_data)
+            else:  # union
+                time_common = np.sort(np.unique(np.concatenate([baseline_time, t])))
+                data_aligned = np.interp(time_common, t, d)
+            
+            # Use baseline_data aligned to time_common
+            if alignment == "intersection":
+                bl_aligned = baseline_aligned
+            else:
+                bl_aligned = np.interp(time_common, baseline_time, baseline_data)
+            
+            # Compute diff
+            diff = data_aligned - bl_aligned
+            rms_diff = float(np.sqrt(np.mean(diff**2)))
+            max_diff = float(np.max(np.abs(diff)))
+            
+            # Correlation
+            corr = float(np.corrcoef(data_aligned, bl_aligned)[0, 1]) if len(data_aligned) > 1 else 0.0
+            
+            # Percent difference relative to baseline std
+            bl_std = np.std(bl_aligned)
+            pct_diff = (rms_diff / bl_std * 100) if bl_std > 0 else 0.0
+            
+            results.append({
+                "name": name,
+                "run_idx": run_idx,
+                "rms": rms_diff,
+                "max": max_diff,
+                "corr": corr,
+                "pct": pct_diff,
+            })
+            
+            # Create delta signal
+            delta_name = f"Δ({signal_name})_{name}"
+            derived_signals[delta_name] = DerivedSignal(
+                name=delta_name,
+                time=time_common,
+                data=diff,
+                operation="compare",
+                source_signals=[f"{run_idx}:{signal_name}"],
+            )
+            created_deltas.append(delta_name)
         
-        return html.Div([
+        # Sort by RMS diff (most different first)
+        results.sort(key=lambda x: x["rms"], reverse=True)
+        
+        print(f"[COMPARE] Compared {signal_name} across {len(signal_data)} runs", flush=True)
+        
+        # Build results display
+        result_items = [
             html.Div([
-                html.Strong("Comparison Results", className="text-info"),
+                html.Strong(f"Comparison: {signal_name}", className="text-info"),
+                html.Span(f" vs {baseline_name}", className="text-muted small"),
             ], className="mb-2"),
-            html.Div([
-                html.Span("Max |Δ|: ", className="text-muted"),
-                html.Strong(f"{max_abs_diff:.4g}", className="text-warning"),
-            ]),
-            html.Div([
-                html.Span("RMS Δ: ", className="text-muted"),
-                html.Strong(f"{rms_diff:.4g}", className="text-warning"),
-            ]),
-            html.Div([
-                html.Span("Correlation: ", className="text-muted"),
-                html.Strong(f"{corr:.4f}", className="text-success" if corr > 0.9 else "text-warning"),
-            ]),
-            html.Div([
-                html.Span(f"Samples: {len(time_common)}", className="text-muted small"),
-            ]),
-            html.Hr(className="my-2"),
-            html.Div([
-                html.Span(f"✅ Created: {delta_name}", className="text-success small"),
-            ]),
-            html.Hr(className="my-1"),
-            html.Small("📌 View delta signal in Derived section or use tabs for side-by-side.", 
-                      className="text-info"),
-        ])
+        ]
+        
+        for r in results:
+            status = "⚠️" if r["pct"] > 10 else "✓"
+            color = "text-warning" if r["pct"] > 10 else "text-success"
+            result_items.append(
+                html.Div([
+                    html.Span(f"{status} {r['name']}: ", className="small"),
+                    html.Strong(f"{r['pct']:.1f}%", className=f"small {color}"),
+                    html.Span(f" (RMS={r['rms']:.4g}, r={r['corr']:.3f})", className="text-muted small"),
+                ], className="mb-1")
+            )
+        
+        result_items.append(html.Hr(className="my-2"))
+        result_items.append(html.Div([
+            html.Span(f"✅ Created {len(created_deltas)} delta signals", className="text-success small"),
+        ]))
+        
+        return html.Div(result_items), build_signal_tree(runs, "", collapsed_runs or {}), (refresh or 0) + 1
         
     except Exception as e:
         print(f"[COMPARE ERROR] {e}", flush=True)
-        return html.Span(f"❌ Error: {str(e)[:50]}", className="text-danger")
+        import traceback
+        traceback.print_exc()
+        return html.Span(f"❌ Error: {str(e)[:50]}", className="text-danger"), dash.no_update, dash.no_update
 
 
-# Note: P2-16 and P2-17 (Compare workflows with new tabs) are partially implemented.
-# The full implementation would require:
-# 1. A dedicated compare tab layout with 2x1 subplots (overlay + diff)
-# 2. Per-tab view state management
-# 3. Compare runs ranking table
-# These are marked as advanced features for future implementation.
+@app.callback(
+    Output("compare-results", "children", allow_duplicate=True),
+    Output("signal-tree", "children", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("btn-generate-deltas", "n_clicks"),
+    State("select-compare-runs", "value"),
+    State("select-baseline-method", "value"),
+    State("select-baseline-run", "value"),
+    State("select-compare-alignment", "value"),
+    State("store-refresh", "data"),
+    State("store-collapsed-runs", "data"),
+    prevent_initial_call=True,
+)
+def generate_all_deltas(n_clicks, selected_runs, baseline_method, baseline_run_idx, alignment, refresh, collapsed_runs):
+    """
+    Generate delta signals for ALL common signals (P3 - Advanced Compare).
+    """
+    import numpy as np
+    
+    if not selected_runs or len(selected_runs) < 2:
+        return html.Span("⚠️ Select 2+ runs first", className="text-warning"), dash.no_update, dash.no_update
+    
+    selected_runs = [int(r) for r in selected_runs]
+    
+    # Find common signals
+    common_signals = None
+    for run_idx in selected_runs:
+        if run_idx < len(runs):
+            run_signals = set(runs[run_idx].signals.keys())
+            if common_signals is None:
+                common_signals = run_signals
+            else:
+                common_signals = common_signals & run_signals
+    
+    if not common_signals:
+        return html.Span("⚠️ No common signals found", className="text-warning"), dash.no_update, dash.no_update
+    
+    try:
+        created_count = 0
+        
+        for signal_name in common_signals:
+            # Collect signal data
+            signal_data = []
+            for run_idx in selected_runs:
+                if run_idx >= len(runs):
+                    continue
+                run = runs[run_idx]
+                if signal_name not in run.signals:
+                    continue
+                time_arr, data_arr = run.get_signal_data(signal_name)
+                if len(time_arr) > 0:
+                    signal_data.append((time_arr, data_arr, run.csv_display_name, run_idx))
+            
+            if len(signal_data) < 2:
+                continue
+            
+            # Compute baseline - Feature 8: Reference CSV approach
+            if baseline_method == "specific" and baseline_run_idx is not None:
+                baseline_run_idx_int = int(baseline_run_idx)
+                baseline_entry = next((s for s in signal_data if s[3] == baseline_run_idx_int), signal_data[0])
+            else:
+                # Use mean as baseline
+                baseline_entry = signal_data[0]  # Use first for time base
+            
+            baseline_time = baseline_entry[0]
+            baseline_data = baseline_entry[1]
+            baseline_run = baseline_entry[3]
+            baseline_name = baseline_entry[2]
+            
+            # Create deltas only for NON-baseline runs (Feature 8 fix)
+            for t, d, name, run_idx in signal_data:
+                # Skip the baseline CSV - no need for delta of baseline vs itself
+                if run_idx == baseline_run:
+                    continue
+                
+                time_common = baseline_time
+                data_aligned = np.interp(baseline_time, t, d)
+                diff = data_aligned - baseline_data
+                
+                # Improved naming: show it's delta vs baseline
+                delta_name = f"Δ({signal_name})_{name}_vs_{baseline_name}"
+                derived_signals[delta_name] = DerivedSignal(
+                    name=delta_name,
+                    time=time_common,
+                    data=diff,
+                    operation="compare_delta",
+                    source_signals=[f"{run_idx}:{signal_name}", f"{baseline_run}:{signal_name}"],
+                )
+                created_count += 1
+        
+        print(f"[COMPARE] Generated {created_count} delta signals for {len(common_signals)} signals", flush=True)
+        
+        return (
+            html.Span(f"✅ Created {created_count} delta signals", className="text-success"),
+            build_signal_tree(runs, "", collapsed_runs or {}),
+            (refresh or 0) + 1,
+        )
+        
+    except Exception as e:
+        print(f"[COMPARE ERROR] {e}", flush=True)
+        return html.Span(f"❌ Error: {str(e)[:50]}", className="text-danger"), dash.no_update, dash.no_update
+
+
+@app.callback(
+    Output("modal-compare-all", "is_open"),
+    Output("compare-all-results", "children"),
+    Output("store-compare-all-data", "data"),
+    Input("btn-compare-all", "n_clicks"),
+    Input("btn-compare-all-close", "n_clicks"),
+    State("select-compare-runs", "value"),
+    State("select-baseline-method", "value"),
+    State("select-baseline-run", "value"),
+    State("modal-compare-all", "is_open"),
+    prevent_initial_call=True,
+)
+def compare_all_signals_modal(compare_clicks, close_clicks, selected_runs, baseline_method, baseline_run_idx, is_open):
+    """
+    Compare ALL common signals and show ranked results in a modal.
+    
+    - Computes RMS diff for each common signal
+    - Ranks by largest difference first
+    - Color codes: red (>10%), yellow (5-10%), green (<5%)
+    """
+    import numpy as np
+    
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    trigger = ctx.triggered[0]["prop_id"]
+    
+    if "btn-compare-all-close" in trigger:
+        return False, dash.no_update, dash.no_update
+    
+    if "btn-compare-all" not in trigger:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    if not selected_runs or len(selected_runs) < 2:
+        return True, html.Span("⚠️ Select 2+ runs first", className="text-warning"), {}
+    
+    selected_runs = [int(r) for r in selected_runs]
+    
+    # Find common signals
+    common_signals = None
+    for run_idx in selected_runs:
+        if run_idx < len(runs):
+            run_signals = set(runs[run_idx].signals.keys())
+            if common_signals is None:
+                common_signals = run_signals
+            else:
+                common_signals = common_signals & run_signals
+    
+    if not common_signals:
+        return True, html.Span("⚠️ No common signals found", className="text-warning"), {}
+    
+    # Compute metrics for each signal
+    results = []
+    
+    for signal_name in common_signals:
+        try:
+            # Collect signal data
+            signal_data = []
+            for run_idx in selected_runs:
+                if run_idx >= len(runs):
+                    continue
+                run = runs[run_idx]
+                if signal_name not in run.signals:
+                    continue
+                time_arr, data_arr = run.get_signal_data(signal_name)
+                if len(time_arr) > 0:
+                    signal_data.append((time_arr, data_arr, run.csv_display_name, run_idx))
+            
+            if len(signal_data) < 2:
+                continue
+            
+            # Compute baseline
+            baseline_time = signal_data[0][0]
+            aligned_data = []
+            for t, d, name, idx in signal_data:
+                aligned = np.interp(baseline_time, t, d)
+                aligned_data.append(aligned)
+            baseline_data = np.mean(aligned_data, axis=0)
+            
+            # Compute max RMS diff across all runs
+            max_rms = 0
+            for aligned in aligned_data:
+                diff = aligned - baseline_data
+                rms = float(np.sqrt(np.mean(diff**2)))
+                max_rms = max(max_rms, rms)
+            
+            # Compute percent diff
+            bl_std = np.std(baseline_data)
+            pct_diff = (max_rms / bl_std * 100) if bl_std > 0 else 0.0
+            
+            results.append({
+                "signal": signal_name,
+                "rms": max_rms,
+                "pct": pct_diff,
+            })
+        except Exception as e:
+            print(f"[COMPARE ALL] Error processing {signal_name}: {e}", flush=True)
+    
+    # Sort by RMS diff (largest first)
+    results.sort(key=lambda x: x["rms"], reverse=True)
+    
+    # Build results table
+    table_rows = []
+    for r in results:
+        if r["pct"] > 10:
+            color = "danger"
+            icon = "⚠️"
+        elif r["pct"] > 5:
+            color = "warning"
+            icon = "⚡"
+        else:
+            color = "success"
+            icon = "✓"
+        
+        table_rows.append(
+            dbc.Row([
+                dbc.Col(html.Span(icon, className="me-2"), width=1),
+                dbc.Col(html.Span(r["signal"], className="small"), width=6),
+                dbc.Col(html.Span(f"{r['pct']:.1f}%", className=f"small text-{color} fw-bold"), width=2),
+                dbc.Col(html.Span(f"{r['rms']:.4g}", className="small text-muted"), width=3),
+            ], className="py-1 border-bottom border-secondary")
+        )
+    
+    # Header row
+    header = dbc.Row([
+        dbc.Col("", width=1),
+        dbc.Col(html.Strong("Signal", className="small"), width=6),
+        dbc.Col(html.Strong("Diff %", className="small"), width=2),
+        dbc.Col(html.Strong("RMS", className="small"), width=3),
+    ], className="py-1 bg-secondary text-white")
+    
+    content = html.Div([
+        header, 
+        html.Div(table_rows, style={"maxHeight": "300px", "overflowY": "auto"}),
+        html.Hr(className="my-2"),
+        dbc.Button(
+            "📊 Create Subplots (1 per signal, all CSVs overlaid)",
+            id="btn-create-compare-subplots",
+            color="info",
+            size="sm",
+            className="mt-2 w-100",
+        ),
+    ])
+    
+    print(f"[COMPARE ALL] Compared {len(results)} signals", flush=True)
+    
+    # Store results and selected runs for subplot creation
+    return True, content, {"results": results, "selected_runs": selected_runs}
+
+
+@app.callback(
+    Output("download-compare-csv", "data"),
+    Input("btn-compare-export-csv", "n_clicks"),
+    State("store-compare-all-data", "data"),
+    prevent_initial_call=True,
+)
+def export_compare_csv(n_clicks, compare_data):
+    """Export compare results as CSV"""
+    if not n_clicks or not compare_data:
+        return dash.no_update
+    
+    results = compare_data.get("results", [])
+    if not results:
+        return dash.no_update
+    
+    lines = ["Signal,Diff %,RMS"]
+    for r in results:
+        lines.append(f"{r['signal']},{r['pct']:.2f},{r['rms']:.6g}")
+    
+    content = "\n".join(lines)
+    return dict(content=content, filename="compare_results.csv")
+
+
+@app.callback(
+    Output("store-refresh", "data", allow_duplicate=True),
+    Output("select-rows", "value", allow_duplicate=True),
+    Output("select-cols", "value", allow_duplicate=True),
+    Output("modal-compare-all", "is_open", allow_duplicate=True),
+    Output("store-tabs", "data", allow_duplicate=True),
+    Output("store-active-tab", "data", allow_duplicate=True),
+    Output("store-tab-view-states", "data", allow_duplicate=True),
+    Input("btn-create-compare-subplots", "n_clicks"),
+    State("store-compare-all-data", "data"),
+    State("store-refresh", "data"),
+    State("store-tabs", "data"),
+    State("store-tab-view-states", "data"),
+    prevent_initial_call=True,
+)
+def create_compare_subplots(n_clicks, compare_data, refresh, existing_tabs, existing_tab_states):
+    """
+    Create subplots - one per common signal, with all CSV signals overlaid.
+    
+    Feature 9: For >16 signals, create multiple tabs (4x4 max per tab).
+    
+    This creates a grid layout where each subplot shows one signal
+    from all selected CSVs overlaid for visual comparison.
+    """
+    global view_state
+    
+    if not n_clicks or not compare_data:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    results = compare_data.get("results", [])
+    selected_runs = compare_data.get("selected_runs", [])
+    
+    if not results or not selected_runs:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    num_signals = len(results)
+    MAX_SUBPLOTS_PER_TAB = 16
+    
+    # Feature 9: Handle >16 signals with multiple tabs
+    if num_signals > MAX_SUBPLOTS_PER_TAB:
+        # Calculate number of tabs needed
+        num_tabs = (num_signals + MAX_SUBPLOTS_PER_TAB - 1) // MAX_SUBPLOTS_PER_TAB
+        
+        # Initialize tabs list and states
+        new_tabs = existing_tabs or []
+        new_tab_states = existing_tab_states or {}
+        first_new_tab_id = None
+        
+        for tab_idx in range(num_tabs):
+            start_idx = tab_idx * MAX_SUBPLOTS_PER_TAB
+            end_idx = min(start_idx + MAX_SUBPLOTS_PER_TAB, num_signals)
+            tab_results = results[start_idx:end_idx]
+            tab_signal_count = len(tab_results)
+            
+            # Determine optimal grid for this tab
+            if tab_signal_count <= 4:
+                tab_rows, tab_cols = 2, 2
+            elif tab_signal_count <= 9:
+                tab_rows, tab_cols = 3, 3
+            else:
+                tab_rows, tab_cols = 4, 4
+            
+            # Create new tab
+            tab_id = f"compare_{tab_idx + 1}_{int(datetime.now().timestamp())}"
+            tab_name = f"Compare {tab_idx + 1}"
+            new_tabs.append({"id": tab_id, "name": tab_name})
+            
+            if first_new_tab_id is None:
+                first_new_tab_id = tab_id
+            
+            # Create subplots for this tab
+            tab_subplots = []
+            for i, r in enumerate(tab_results):
+                signal_name = r["signal"]
+                sp = SubplotConfig(
+                    index=i,
+                    mode="time",
+                    title=signal_name,
+                    caption=f"Diff: {r['pct']:.1f}%",
+                )
+                
+                # Assign same signal from all selected runs
+                for run_idx in selected_runs:
+                    if run_idx < len(runs) and signal_name in runs[run_idx].signals:
+                        sig_key = make_signal_key(run_idx, signal_name)
+                        sp.assigned_signals.append(sig_key)
+                
+                tab_subplots.append(sp)
+            
+            # Fill remaining subplots
+            while len(tab_subplots) < tab_rows * tab_cols:
+                tab_subplots.append(SubplotConfig(index=len(tab_subplots)))
+            
+            # Save tab view state
+            new_tab_states[tab_id] = {
+                "layout_rows": tab_rows,
+                "layout_cols": tab_cols,
+                "active_subplot": 0,
+                "subplots": [
+                    {
+                        "index": sp.index,
+                        "mode": sp.mode,
+                        "assigned_signals": sp.assigned_signals,
+                        "title": sp.title,
+                        "caption": sp.caption,
+                    }
+                    for sp in tab_subplots
+                ],
+            }
+        
+        # Update current view state to first new tab
+        first_state = new_tab_states[first_new_tab_id]
+        view_state.layout_rows = first_state["layout_rows"]
+        view_state.layout_cols = first_state["layout_cols"]
+        view_state.active_subplot = 0
+        view_state.subplots = []
+        for sp_data in first_state["subplots"]:
+            view_state.subplots.append(SubplotConfig(
+                index=sp_data["index"],
+                mode=sp_data["mode"],
+                assigned_signals=sp_data["assigned_signals"],
+                title=sp_data.get("title", ""),
+                caption=sp_data.get("caption", ""),
+            ))
+        
+        print(f"[COMPARE SUBPLOTS] Created {num_tabs} tabs for {num_signals} signals", flush=True)
+        
+        return (
+            (refresh or 0) + 1,
+            view_state.layout_rows,
+            view_state.layout_cols,
+            False,  # Close modal
+            new_tabs,
+            first_new_tab_id,
+            new_tab_states,
+        )
+    
+    # Original behavior for <=16 signals
+    # Determine optimal grid layout (aim for roughly 2 columns)
+    if num_signals <= 2:
+        rows, cols = 1, num_signals
+    elif num_signals <= 4:
+        rows, cols = 2, 2
+    elif num_signals <= 6:
+        rows, cols = 3, 2
+    elif num_signals <= 9:
+        rows, cols = 3, 3
+    elif num_signals <= 12:
+        rows, cols = 4, 3
+    else:
+        rows, cols = 4, 4
+    
+    # Update view state
+    view_state.layout_rows = rows
+    view_state.layout_cols = cols
+    view_state.active_subplot = 0
+    
+    # Create subplots, one per signal
+    view_state.subplots = []
+    for i, r in enumerate(results[:16]):  # Limit to 16
+        signal_name = r["signal"]
+        
+        # Create subplot with all CSV signals assigned
+        sp = SubplotConfig(
+            index=i,
+            mode="time",
+            title=signal_name,
+            caption=f"Diff: {r['pct']:.1f}%",
+        )
+        
+        # Assign same signal from all selected runs
+        for run_idx in selected_runs:
+            if run_idx < len(runs) and signal_name in runs[run_idx].signals:
+                sig_key = make_signal_key(run_idx, signal_name)
+                sp.assigned_signals.append(sig_key)
+        
+        view_state.subplots.append(sp)
+    
+    # Fill remaining subplots if grid is larger than signals
+    while len(view_state.subplots) < rows * cols:
+        view_state.subplots.append(SubplotConfig(index=len(view_state.subplots)))
+    
+    print(f"[COMPARE SUBPLOTS] Created {rows}x{cols} grid for {num_signals} signals", flush=True)
+    
+    # Keep existing tabs unchanged for <=16 signals
+    return (refresh or 0) + 1, rows, cols, False, dash.no_update, dash.no_update, dash.no_update
 
 
 @app.callback(
@@ -2091,8 +3253,10 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
             # Use first signal's time base
             result_time = signals_data[0][0]
             aligned_data = []
+            signal_names = []
             
             for t, d, n in signals_data:
+                signal_names.append(n)
                 if len(t) == len(result_time) and np.allclose(t, result_time):
                     aligned_data.append(d)
                 else:
@@ -2100,21 +3264,27 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
             
             stacked = np.vstack(aligned_data)
             
+            # Build descriptive name from signal names
+            if len(signal_names) <= 3:
+                names_str = ", ".join(signal_names)
+            else:
+                names_str = f"{signal_names[0]}, ..., {signal_names[-1]}"
+            
             if operation == "norm":
                 result = np.sqrt(np.sum(stacked**2, axis=0))
-                op_label = f"norm({len(signals_data)} signals)"
+                op_label = f"norm({names_str})"
             elif operation == "mean":
                 result = np.mean(stacked, axis=0)
-                op_label = f"mean({len(signals_data)} signals)"
+                op_label = f"mean({names_str})"
             elif operation == "max":
                 result = np.max(stacked, axis=0)
-                op_label = f"max({len(signals_data)} signals)"
+                op_label = f"max({names_str})"
             elif operation == "min":
                 result = np.min(stacked, axis=0)
-                op_label = f"min({len(signals_data)} signals)"
+                op_label = f"min({names_str})"
             else:
                 result = stacked[0]
-                op_label = "multi"
+                op_label = f"multi({names_str})"
         
         # Create derived signal
         final_name = output_name if output_name else op_label
@@ -2149,11 +3319,21 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
     Output("report-subplot-list", "children"),
     Input("btn-report", "n_clicks"),
     Input("btn-report-cancel", "n_clicks"),
+    Input("report-scope", "value"),
     State("modal-report", "is_open"),
+    State("store-tabs", "data"),
+    State("store-tab-view-states", "data"),
+    State("store-active-tab", "data"),
     prevent_initial_call=True,
 )
-def toggle_report_modal(open_clicks, cancel_clicks, is_open):
-    """Toggle report modal and populate subplot list"""
+def toggle_report_modal(open_clicks, cancel_clicks, scope, is_open, tabs, tab_view_states, active_tab):
+    """
+    Toggle report modal and populate subplot list based on scope.
+    
+    Feature 3: Scope-aware subplot editing:
+    - scope='current': Show only subplots from current tab
+    - scope='all': Show subplots from ALL tabs, grouped by tab name
+    """
     ctx = callback_context
     if not ctx.triggered:
         return dash.no_update, dash.no_update
@@ -2163,46 +3343,136 @@ def toggle_report_modal(open_clicks, cancel_clicks, is_open):
     if "btn-report-cancel" in trigger:
         return False, dash.no_update
     
-    if "btn-report" in trigger:
-        # Build subplot checkbox list with per-subplot settings (P0-10)
-        total = view_state.layout_rows * view_state.layout_cols
+    if "btn-report" in trigger or "report-scope" in trigger:
+        # Determine if we should open or just update list
+        should_open = "btn-report" in trigger
+        tabs = tabs or [{"id": "tab_1", "name": "Tab 1"}]
+        tab_view_states = tab_view_states or {}
+        scope = scope or "current"
+        
         subplot_items = []
+        subplot_index = 0  # Global index for IDs
         
-        for i in range(total):
-            sp_config = view_state.subplots[i] if i < len(view_state.subplots) else SubplotConfig(index=i)
-            sig_count = len(sp_config.assigned_signals)
+        if scope == "current":
+            # Show only current tab's subplots
+            total = view_state.layout_rows * view_state.layout_cols
             
-            subplot_items.append(dbc.Card([
-                dbc.CardBody([
-                    dbc.Checklist(
-                        id={"type": "report-include-subplot", "index": i},
-                        options=[{"label": f"Subplot {i+1} ({sig_count} signals)", "value": True}],
-                        value=[True] if sp_config.include_in_report else [],
-                        inline=True,
-                        className="mb-1",
-                    ),
-                    # Per-subplot title/caption/description (P0-10)
-                    dbc.Input(
-                        id={"type": "report-subplot-title", "index": i},
-                        value=sp_config.title,
-                        placeholder="Title (optional)...",
-                        size="sm",
-                        className="mb-1",
-                    ),
-                    dbc.Textarea(
-                        id={"type": "report-subplot-caption", "index": i},
-                        value=sp_config.caption,
-                        placeholder="Caption (optional)...",
-                        rows=1,
-                        className="mb-1",
-                        style={"fontSize": "11px"},
-                    ),
-                ], className="p-2"),
-            ], className="mb-1"))
+            subplot_items.append(html.Div([
+                html.Strong("Current Tab Subplots", className="text-info"),
+            ], className="mb-2 mt-1"))
+            
+            for i in range(total):
+                sp_config = view_state.subplots[i] if i < len(view_state.subplots) else SubplotConfig(index=i)
+                sig_count = len(sp_config.assigned_signals)
+                
+                subplot_items.append(_create_subplot_card(subplot_index, i+1, sp_config, sig_count))
+                subplot_index += 1
         
-        return True, subplot_items
+        else:  # scope == "all"
+            # Show ALL tabs' subplots, grouped by tab
+            for tab in tabs:
+                tab_id = tab["id"]
+                tab_name = tab.get("name", tab_id)
+                
+                # Get view state for this tab
+                if tab_id == active_tab:
+                    # Current tab uses global view_state
+                    tab_rows = view_state.layout_rows
+                    tab_cols = view_state.layout_cols
+                    tab_subplots = view_state.subplots
+                elif tab_id in tab_view_states:
+                    saved_state = tab_view_states[tab_id]
+                    tab_rows = saved_state.get("layout_rows", 1)
+                    tab_cols = saved_state.get("layout_cols", 1)
+                    # Reconstruct subplot configs from saved state
+                    tab_subplots = []
+                    for sp_data in saved_state.get("subplots", []):
+                        tab_subplots.append(SubplotConfig(
+                            index=sp_data.get("index", 0),
+                            mode=sp_data.get("mode", "time"),
+                            assigned_signals=sp_data.get("assigned_signals", []),
+                            title=sp_data.get("title", ""),
+                            caption=sp_data.get("caption", ""),
+                            description=sp_data.get("description", ""),
+                            include_in_report=sp_data.get("include_in_report", True),
+                        ))
+                else:
+                    tab_rows, tab_cols = 1, 1
+                    tab_subplots = [SubplotConfig(index=0)]
+                
+                total = tab_rows * tab_cols
+                
+                # Tab header
+                subplot_items.append(html.Div([
+                    html.Strong(f"📑 {tab_name}", className="text-info"),
+                    html.Span(f" ({tab_rows}×{tab_cols})", className="text-muted small ms-2"),
+                ], className="mb-2 mt-3 border-bottom border-secondary pb-1"))
+                
+                for i in range(total):
+                    sp_config = tab_subplots[i] if i < len(tab_subplots) else SubplotConfig(index=i)
+                    sig_count = len(sp_config.assigned_signals)
+                    
+                    subplot_items.append(_create_subplot_card(subplot_index, i+1, sp_config, sig_count, tab_name))
+                    subplot_index += 1
+        
+        # Add note about Enter key
+        subplot_items.append(html.Small(
+            "💡 Press Shift+Enter for new lines in text areas",
+            className="text-muted d-block mt-2"
+        ))
+        
+        if should_open:
+            return True, subplot_items
+        else:
+            return dash.no_update, subplot_items
     
     return is_open, dash.no_update
+
+
+def _create_subplot_card(global_idx: int, local_num: int, sp_config: SubplotConfig, sig_count: int, tab_name: str = None):
+    """Create a subplot card for the report builder"""
+    label = f"Subplot {local_num}"
+    if tab_name:
+        label = f"{tab_name} - Subplot {local_num}"
+    
+    return dbc.Card([
+        dbc.CardBody([
+            dbc.Checklist(
+                id={"type": "report-include-subplot", "index": global_idx},
+                options=[{"label": f"{label} ({sig_count} signals)", "value": True}],
+                value=[True] if sp_config.include_in_report else [],
+                inline=True,
+                className="mb-1 fw-bold",
+            ),
+            # Title
+            dbc.Textarea(
+                id={"type": "report-subplot-title", "index": global_idx},
+                value=sp_config.title,
+                placeholder="Title...",
+                rows=1,
+                className="mb-1",
+                style={"fontSize": "12px", "resize": "vertical"},
+            ),
+            # Caption - multi-line
+            dbc.Textarea(
+                id={"type": "report-subplot-caption", "index": global_idx},
+                value=sp_config.caption,
+                placeholder="Caption (short description)...",
+                rows=2,
+                className="mb-1",
+                style={"fontSize": "11px", "resize": "vertical"},
+            ),
+            # Description - multi-line
+            dbc.Textarea(
+                id={"type": "report-subplot-description", "index": global_idx},
+                value=sp_config.description,
+                placeholder="Description (detailed, multi-line)...",
+                rows=3,
+                className="mb-1",
+                style={"fontSize": "11px", "resize": "vertical"},
+            ),
+        ], className="p-2"),
+    ], className="mb-2")
 
 
 @app.callback(
@@ -2212,25 +3482,35 @@ def toggle_report_modal(open_clicks, cancel_clicks, is_open):
     State("report-intro", "value"),
     State("report-conclusion", "value"),
     State("report-rtl", "value"),
+    State("report-scope", "value"),
     State("report-format", "value"),
     State({"type": "report-include-subplot", "index": ALL}, "value"),
     State({"type": "report-subplot-title", "index": ALL}, "value"),
     State({"type": "report-subplot-caption", "index": ALL}, "value"),
+    State({"type": "report-subplot-description", "index": ALL}, "value"),
+    State("store-tab-view-states", "data"),
+    State("store-active-tab", "data"),
     prevent_initial_call=True,
 )
-def export_report(n_clicks, title, intro, conclusion, rtl, format_type, include_list, titles, captions):
-    """Export report to HTML or CSV (P0-9)"""
+def export_report(n_clicks, title, intro, conclusion, rtl, scope, format_type, include_list, titles, captions, descriptions, tab_view_states, active_tab):
+    """
+    Export report to HTML, DOCX or CSV (P2 - current tab vs all tabs).
+    
+    - scope='current': Export only the current tab
+    - scope='all': Export all tabs with sections
+    """
     from datetime import datetime
     
     if not n_clicks:
         return dash.no_update
     
-    # Update subplot metadata
-    for i, (include, sp_title, sp_caption) in enumerate(zip(include_list, titles, captions)):
+    # Update subplot metadata including description
+    for i, (include, sp_title, sp_caption, sp_desc) in enumerate(zip(include_list, titles, captions, descriptions)):
         if i < len(view_state.subplots):
             view_state.subplots[i].include_in_report = bool(include and len(include) > 0)
             view_state.subplots[i].title = sp_title or ""
             view_state.subplots[i].caption = sp_caption or ""
+            view_state.subplots[i].description = sp_desc or ""
     
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
@@ -2240,8 +3520,8 @@ def export_report(n_clicks, title, intro, conclusion, rtl, format_type, include_
         return dict(content=content, filename=f"signal_data_{timestamp}.csv")
     
     elif format_type == "docx":
-        # Export DOCX (P1-3: Word document export)
-        from report.builder import Report, export_docx, DOCX_AVAILABLE
+        # Export DOCX - Feature 4: Support all tabs, per-tab layout, preserve axis limits
+        from report.builder import Report, export_docx_multi_tab, DOCX_AVAILABLE
         import tempfile
         import base64
         
@@ -2257,26 +3537,83 @@ def export_report(n_clicks, title, intro, conclusion, rtl, format_type, include_
             runs=[get_csv_display_name(r.file_path, [r.file_path for r in runs]) for r in runs],
         )
         
-        # Add subplot sections
-        from report.builder import ReportSection
-        for i, sp in enumerate(view_state.subplots):
-            if not sp.include_in_report:
-                continue
-            section = ReportSection(
-                title=sp.title or f"Subplot {i + 1}",
-                content=sp.caption or "",
-                signals=sp.assigned_signals.copy(),
-            )
-            report.subplot_sections.append(section)
+        # Collect figures and sections based on scope
+        figures = []
+        tab_view_states = tab_view_states or {}
         
-        # Create figure for embedding
-        fig, _ = create_figure(runs, derived_signals, view_state, signal_settings)
+        if scope == "all":
+            # Export all tabs - Feature 4b: each tab with its own layout
+            from core.models import ViewState as VS
+            
+            tabs_data = [{"id": "tab_1", "name": "Tab 1"}]  # Default
+            # Get tabs list (need to read from somewhere - use active_tab as reference)
+            
+            # First add current tab
+            fig_current, _ = create_figure(runs, derived_signals, view_state, signal_settings, for_export=True)
+            figures.append(("Current Tab", fig_current))
+            
+            # Add subplot sections from current tab
+            from report.builder import ReportSection
+            for i, sp in enumerate(view_state.subplots):
+                if not sp.include_in_report:
+                    continue
+                section = ReportSection(
+                    title=sp.title or f"Subplot {i + 1}",
+                    content=sp.caption or "",
+                    signals=sp.assigned_signals.copy(),
+                )
+                report.subplot_sections.append(section)
+            
+            # Add other tabs from saved states
+            for tab_id, saved_state in tab_view_states.items():
+                if tab_id == active_tab:
+                    continue  # Already added current tab
+                
+                # Reconstruct view state for this tab
+                tab_vs = ViewState(
+                    layout_rows=saved_state.get("layout_rows", 1),
+                    layout_cols=saved_state.get("layout_cols", 1),
+                    active_subplot=0,
+                    theme=view_state.theme,
+                )
+                tab_vs.subplots = []
+                for sp_data in saved_state.get("subplots", []):
+                    tab_vs.subplots.append(SubplotConfig(
+                        index=sp_data.get("index", 0),
+                        mode=sp_data.get("mode", "time"),
+                        assigned_signals=sp_data.get("assigned_signals", []),
+                        xlim=sp_data.get("xlim"),
+                        ylim=sp_data.get("ylim"),
+                        title=sp_data.get("title", ""),
+                        caption=sp_data.get("caption", ""),
+                        description=sp_data.get("description", ""),
+                    ))
+                
+                # Create figure for this tab
+                tab_fig, _ = create_figure(runs, derived_signals, tab_vs, signal_settings, for_export=True)
+                tab_name = saved_state.get("name", tab_id)
+                figures.append((tab_name, tab_fig))
+        else:
+            # Current tab only
+            fig, _ = create_figure(runs, derived_signals, view_state, signal_settings, for_export=True)
+            figures.append(("", fig))
+            
+            from report.builder import ReportSection
+            for i, sp in enumerate(view_state.subplots):
+                if not sp.include_in_report:
+                    continue
+                section = ReportSection(
+                    title=sp.title or f"Subplot {i + 1}",
+                    content=sp.caption or "",
+                    signals=sp.assigned_signals.copy(),
+                )
+                report.subplot_sections.append(section)
         
         # Export to temp file
         with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
             tmp_path = tmp.name
         
-        success = export_docx(report, tmp_path, figure=fig, rtl=bool(rtl))
+        success = export_docx_multi_tab(report, tmp_path, figures=figures, rtl=bool(rtl))
         
         if success:
             with open(tmp_path, 'rb') as f:
@@ -2288,8 +3625,8 @@ def export_report(n_clicks, title, intro, conclusion, rtl, format_type, include_
             return dash.no_update
     
     else:  # HTML
-        # Build HTML report (P0-14: RTL support for Hebrew)
-        html_content = _build_html_report(title, intro, conclusion, rtl)
+        # Build HTML report (P2: scope support, P0-14: RTL support for Hebrew)
+        html_content = _build_html_report(title, intro, conclusion, rtl, scope, tab_view_states, active_tab)
         return dict(content=html_content, filename=f"report_{timestamp}.html")
 
 
@@ -2352,18 +3689,19 @@ def _build_csv_export() -> str:
     return "\n".join(lines)
 
 
-def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool) -> str:
-    """Build offline HTML report with embedded plots (P0-14: RTL support)"""
+def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool, 
+                       scope: str = "current", tab_view_states: dict = None, 
+                       active_tab: str = None) -> str:
+    """
+    Build offline HTML report with embedded plots.
+    
+    P2: Supports 'current' tab only or 'all' tabs.
+    P0-14: RTL support for Hebrew.
+    """
     import plotly.io as pio
     
     direction = "rtl" if rtl else "ltr"
     align = "right" if rtl else "left"
-    
-    # Create figure for report
-    fig, _ = create_figure(runs, derived_signals, view_state, signal_settings)
-    
-    # Convert to HTML div
-    plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
     
     html = f"""<!DOCTYPE html>
 <html lang="{'he' if rtl else 'en'}" dir="{direction}">
@@ -2383,7 +3721,9 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool) -> st
         }}
         h1 {{ color: #333; border-bottom: 2px solid #2196F3; padding-bottom: 10px; }}
         h2 {{ color: #555; margin-top: 30px; }}
+        h3 {{ color: #666; margin-top: 20px; border-left: 4px solid #2196F3; padding-left: 10px; }}
         .section {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        .tab-section {{ border-left: 4px solid #4CAF50; margin-top: 30px; }}
         .plot-container {{ margin: 20px 0; }}
         .subplot-info {{ background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }}
         .meta {{ color: #666; font-size: 12px; margin-bottom: 20px; }}
@@ -2395,47 +3735,141 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool) -> st
 """
     
     if intro:
+        intro_html = intro.replace('\n', '<br>')
         html += f"""
     <div class="section">
         <h2>Introduction</h2>
-        <p dir="{direction}">{intro}</p>
+        <p dir="{direction}">{intro_html}</p>
     </div>
 """
     
-    # Add plots
-    html += f"""
+    def add_tab_section(tab_name: str, subplots_list: list) -> str:
+        """Helper to generate a tab section's HTML"""
+        section_html = ""
+        
+        # Create a temporary view state for this tab
+        temp_view = ViewState()
+        temp_view.layout_rows = view_state.layout_rows
+        temp_view.layout_cols = view_state.layout_cols
+        temp_view.subplots = subplots_list
+        temp_view.theme = view_state.theme
+        
+        # Create figure for this tab
+        fig, _ = create_figure(runs, derived_signals, temp_view, signal_settings)
+        plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+        
+        section_html += f"""
+        <div class="plot-container">
+            {plot_html}
+        </div>
+"""
+        
+        # Add per-subplot info
+        for i, sp in enumerate(subplots_list):
+            if not getattr(sp, 'include_in_report', True):
+                continue
+            
+            sp_title = getattr(sp, 'title', '') or f"Subplot {i+1}"
+            caption = getattr(sp, 'caption', '')
+            description = getattr(sp, 'description', '')
+            assigned = getattr(sp, 'assigned_signals', [])
+            mode = getattr(sp, 'mode', 'time')
+            
+            section_html += f"""
+        <div class="subplot-info">
+            <strong>{sp_title}</strong>
+"""
+            if caption:
+                caption_html = caption.replace('\n', '<br>')
+                section_html += f"<p><em>{caption_html}</em></p>"
+            
+            if description:
+                desc_html = description.replace('\n', '<br>')
+                section_html += f"<div style='margin-top: 10px;'>{desc_html}</div>"
+            
+            section_html += f"""
+            <small>Signals: {len(assigned)}, Mode: {mode.upper()}</small>
+        </div>
+"""
+        return section_html
+    
+    # Export based on scope
+    if scope == "all" and tab_view_states:
+        # Export all tabs
+        tab_idx = 0
+        for tab_id, tab_data in tab_view_states.items():
+            tab_idx += 1
+            subplots = []
+            for sp_data in tab_data.get("subplots", []):
+                sp = SubplotConfig(
+                    index=sp_data.get("index", 0),
+                    mode=sp_data.get("mode", "time"),
+                    assigned_signals=sp_data.get("assigned_signals", []),
+                    title=sp_data.get("title", ""),
+                    caption=sp_data.get("caption", ""),
+                    description=sp_data.get("description", ""),
+                    include_in_report=sp_data.get("include_in_report", True),
+                )
+                subplots.append(sp)
+            
+            if subplots:
+                html += f"""
+    <div class="section tab-section">
+        <h3>Tab {tab_idx}</h3>
+"""
+                html += add_tab_section(f"Tab {tab_idx}", subplots)
+                html += "    </div>\n"
+        
+        # Also add current tab if not in tab_view_states
+        if active_tab and active_tab not in tab_view_states:
+            html += f"""
+    <div class="section tab-section">
+        <h3>Current Tab</h3>
+"""
+            html += add_tab_section("Current", view_state.subplots)
+            html += "    </div>\n"
+    else:
+        # Current tab only (default) - without active highlight for clean export
+        fig, _ = create_figure(runs, derived_signals, view_state, signal_settings, for_export=True)
+        plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+        
+        html += f"""
     <div class="section">
         <h2>Plots</h2>
         <div class="plot-container">
             {plot_html}
         </div>
 """
-    
-    # Add per-subplot info
-    for i, sp in enumerate(view_state.subplots):
-        if not sp.include_in_report:
-            continue
         
-        sp_title = sp.title or f"Subplot {i+1}"
-        html += f"""
+        for i, sp in enumerate(view_state.subplots):
+            if not sp.include_in_report:
+                continue
+            
+            sp_title = sp.title or f"Subplot {i+1}"
+            html += f"""
         <div class="subplot-info">
             <strong>{sp_title}</strong>
 """
-        if sp.caption:
-            html += f"<p>{sp.caption}</p>"
-        
-        html += f"""
+            if sp.caption:
+                caption_html = sp.caption.replace('\n', '<br>')
+                html += f"<p><em>{caption_html}</em></p>"
+            
+            if sp.description:
+                desc_html = sp.description.replace('\n', '<br>')
+                html += f"<div style='margin-top: 10px;'>{desc_html}</div>"
+            
+            html += f"""
             <small>Signals: {len(sp.assigned_signals)}, Mode: {sp.mode.upper()}</small>
         </div>
 """
-    
-    html += "    </div>\n"
+        html += "    </div>\n"
     
     if conclusion:
+        conclusion_html = conclusion.replace('\n', '<br>')
         html += f"""
     <div class="section">
         <h2>Conclusion</h2>
-        <p dir="{direction}">{conclusion}</p>
+        <p dir="{direction}">{conclusion_html}</p>
     </div>
 """
     
@@ -2445,6 +3879,151 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool) -> st
 """
     
     return html
+
+
+# =============================================================================
+# CALLBACKS: Signal Properties Modal
+# =============================================================================
+
+@app.callback(
+    Output("modal-signal-props", "is_open"),
+    Output("signal-props-original-name", "children"),
+    Output("signal-props-display-name", "value"),
+    Output("signal-props-line-width", "value"),
+    Output("signal-props-color", "value"),
+    Output("signal-props-scale", "value"),
+    Output("signal-props-offset", "value"),
+    Output("signal-props-time-offset", "value"),
+    Output("signal-props-type", "value"),
+    Output("signal-props-current-key", "data"),
+    Input({"type": "btn-edit-signal", "key": ALL}, "n_clicks"),
+    Input({"type": "btn-signal-props", "key": ALL}, "n_clicks"),
+    Input("btn-signal-props-cancel", "n_clicks"),
+    Input("btn-signal-props-apply", "n_clicks"),
+    State("signal-props-current-key", "data"),
+    State("modal-signal-props", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_signal_props_modal(edit_clicks, props_clicks, cancel_click, apply_click, current_key, is_open):
+    """Open/close signal properties modal (from Signals panel or Assigned panel)"""
+    global signal_settings
+    
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    trigger = ctx.triggered[0]["prop_id"]
+    trigger_value = ctx.triggered[0]["value"]
+    
+    # Cancel or Apply clicked - close modal
+    if "btn-signal-props-cancel" in trigger or "btn-signal-props-apply" in trigger:
+        return False, "", "", 1.5, "#2E86AB", 1.0, 0.0, 0.0, "normal", None
+    
+    # Edit button clicked (from Assigned panel or Signals panel) - open modal
+    if "btn-edit-signal" in trigger or "btn-signal-props" in trigger:
+        # Check if any button was actually clicked
+        all_clicks = (edit_clicks or []) + (props_clicks or [])
+        if not trigger_value or trigger_value == 0:
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        
+        try:
+            trigger_dict = json.loads(trigger.rsplit(".", 1)[0])
+            sig_key = trigger_dict["key"]
+        except:
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        
+        # Get current settings
+        settings = signal_settings.get(sig_key, {})
+        
+        # Parse signal info
+        run_idx, sig_name = parse_signal_key(sig_key)
+        
+        print(f"[PROPS] Opening properties for: {sig_key}", flush=True)
+        
+        return (
+            True,  # Open modal
+            sig_name,  # Original name
+            settings.get("display_name", ""),
+            settings.get("line_width", 1.5),
+            settings.get("color", "#2E86AB"),
+            settings.get("scale", 1.0),
+            settings.get("offset", 0.0),
+            settings.get("time_offset", 0.0),
+            "state" if settings.get("is_state", False) else "normal",
+            sig_key,
+        )
+    
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+
+@app.callback(
+    Output("store-refresh", "data", allow_duplicate=True),
+    Output("assigned-list", "children", allow_duplicate=True),
+    Input("btn-signal-props-apply", "n_clicks"),
+    State("signal-props-current-key", "data"),
+    State("signal-props-display-name", "value"),
+    State("signal-props-line-width", "value"),
+    State("signal-props-color", "value"),
+    State("signal-props-scale", "value"),
+    State("signal-props-offset", "value"),
+    State("signal-props-time-offset", "value"),
+    State("signal-props-type", "value"),
+    State("select-subplot", "value"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def apply_signal_props(n_clicks, sig_key, display_name, line_width, color, scale, offset, time_offset, sig_type, active_sp, refresh):
+    """Apply signal property changes"""
+    global signal_settings
+    
+    if not n_clicks or not sig_key:
+        return dash.no_update, dash.no_update
+    
+    # Store settings
+    signal_settings[sig_key] = {
+        "display_name": display_name if display_name else None,
+        "line_width": float(line_width or 1.5),
+        "color": color or None,
+        "scale": float(scale or 1.0),
+        "offset": float(offset or 0.0),
+        "time_offset": float(time_offset or 0.0),
+        "is_state": sig_type == "state",
+    }
+    
+    print(f"[SIGNAL PROPS] Updated {sig_key}: {signal_settings[sig_key]}", flush=True)
+    
+    # Rebuild assigned list
+    sp_idx = int(active_sp or 0)
+    sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else SubplotConfig(index=sp_idx)
+    
+    return (refresh or 0) + 1, build_assigned_list(sp_config, runs)
+
+
+@app.callback(
+    Output("signal-props-display-name", "value", allow_duplicate=True),
+    Output("signal-props-line-width", "value", allow_duplicate=True),
+    Output("signal-props-color", "value", allow_duplicate=True),
+    Output("signal-props-scale", "value", allow_duplicate=True),
+    Output("signal-props-offset", "value", allow_duplicate=True),
+    Output("signal-props-time-offset", "value", allow_duplicate=True),
+    Output("signal-props-type", "value", allow_duplicate=True),
+    Input("btn-signal-props-reset", "n_clicks"),
+    State("signal-props-current-key", "data"),
+    prevent_initial_call=True,
+)
+def reset_signal_props(n_clicks, sig_key):
+    """Reset signal properties to defaults"""
+    global signal_settings
+    
+    if not n_clicks:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    # Remove settings for this signal
+    if sig_key in signal_settings:
+        del signal_settings[sig_key]
+        print(f"[SIGNAL PROPS] Reset {sig_key} to defaults", flush=True)
+    
+    return "", 1.5, "#2E86AB", 1.0, 0.0, 0.0, "normal"
 
 
 # =============================================================================

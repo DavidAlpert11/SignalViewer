@@ -386,3 +386,132 @@ def export_docx(
         print(f"[ERROR] Failed to export DOCX: {e}", flush=True)
         return False
 
+
+def export_docx_multi_tab(
+    report: Report,
+    filepath: str,
+    figures: List[tuple] = None,
+    rtl: bool = False,
+) -> bool:
+    """
+    Export report to Word document with multiple tab figures.
+    
+    Feature 4: Multi-tab export support with per-tab layouts.
+    
+    Args:
+        report: Report to export
+        filepath: Output file path
+        figures: List of (tab_name, figure) tuples for embedding
+        rtl: Enable RTL/Hebrew text direction
+        
+    Returns:
+        True if successful
+    """
+    if not DOCX_AVAILABLE:
+        print("[ERROR] python-docx not installed - cannot export DOCX", flush=True)
+        return False
+    
+    try:
+        doc = Document()
+        
+        # Title
+        title = doc.add_heading(report.title, level=0)
+        if rtl:
+            title.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        
+        # Metadata
+        meta = doc.add_paragraph()
+        meta.add_run(f"Generated: {report.created_at}\n").italic = True
+        if report.runs:
+            meta.add_run(f"Data Sources: {', '.join(report.runs)}\n").italic = True
+        if rtl:
+            meta.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        
+        # Introduction
+        if report.introduction:
+            h = doc.add_heading("Introduction", level=1)
+            if rtl:
+                h.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            p = doc.add_paragraph(report.introduction)
+            if rtl:
+                p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        
+        # Subplot sections
+        if report.subplot_sections:
+            h = doc.add_heading("Plot Sections", level=1)
+            if rtl:
+                h.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            
+            for section in report.subplot_sections:
+                sh = doc.add_heading(section.title, level=2)
+                if rtl:
+                    sh.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                
+                if section.content:
+                    p = doc.add_paragraph(section.content)
+                    if rtl:
+                        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                
+                if section.signals:
+                    sig_p = doc.add_paragraph()
+                    sig_p.add_run("Signals: ").bold = True
+                    sig_p.add_run(", ".join(section.signals))
+                    if rtl:
+                        sig_p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        
+        # Embed figures for each tab (Feature 4)
+        if figures:
+            h = doc.add_heading("Figures", level=1)
+            if rtl:
+                h.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            
+            for tab_name, figure in figures:
+                if tab_name:
+                    sh = doc.add_heading(tab_name, level=2)
+                    if rtl:
+                        sh.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                
+                if figure is not None:
+                    try:
+                        # Export figure as image with current axis limits preserved
+                        img_bytes = figure.to_image(format="png", width=1200, height=600, scale=2)
+                        doc.add_picture(io.BytesIO(img_bytes), width=Inches(6.5))
+                    except Exception as e:
+                        print(f"[WARN] Could not embed figure for tab '{tab_name}': {e}", flush=True)
+                        doc.add_paragraph(f"(Figure could not be embedded: {e})")
+        
+        # Compare sections
+        if report.compare_sections:
+            h = doc.add_heading("Comparison Results", level=1)
+            if rtl:
+                h.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            
+            for section in report.compare_sections:
+                sh = doc.add_heading(section.title, level=2)
+                if rtl:
+                    sh.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                
+                if section.content:
+                    p = doc.add_paragraph(section.content)
+                    p.style = 'Quote'
+                    if rtl:
+                        p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        
+        # Conclusion
+        if report.conclusion:
+            h = doc.add_heading("Conclusion", level=1)
+            if rtl:
+                h.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            p = doc.add_paragraph(report.conclusion)
+            if rtl:
+                p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        
+        # Save
+        doc.save(filepath)
+        print(f"[REPORT] Exported multi-tab DOCX to {filepath} ({len(figures or [])} figures)", flush=True)
+        return True
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to export multi-tab DOCX: {e}", flush=True)
+        return False
+

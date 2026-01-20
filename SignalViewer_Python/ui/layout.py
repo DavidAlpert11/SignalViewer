@@ -14,13 +14,9 @@ def create_layout():
         # =====================================================================
         # STORES (State management)
         # =====================================================================
+        # Core data stores
         dcc.Store(id="store-runs", data=[]),                    # List of run file paths
         dcc.Store(id="store-view-state", data={}),              # ViewState as dict
-        dcc.Store(id="store-derived", data={}),                 # Derived signals
-        dcc.Store(id="store-signal-settings", data={}),         # Per-signal settings
-        dcc.Store(id="store-compare-results", data=[]),         # Compare results
-        dcc.Store(id="store-stream-config", data={}),           # Stream config
-        dcc.Store(id="store-report", data={}),                  # Report data
         dcc.Store(id="store-refresh", data=0),                  # Refresh trigger
         dcc.Store(id="store-selected-files", data=[]),          # Multi-file import selection
         dcc.Store(id="store-collapsed-runs", data={}),          # Collapsed state per run {idx: bool}
@@ -80,10 +76,40 @@ def create_layout():
                     dbc.CardHeader([
                         html.Span("📁 Runs"),
                         dbc.Badge(id="runs-count", color="secondary", className="ms-2"),
-                    ], className="py-2"),
+                        dbc.Button(
+                            "🔗",
+                            id="btn-toggle-link-mode",
+                            size="sm",
+                            color="secondary",
+                            outline=True,
+                            className="ms-auto",
+                            title="Link/Unlink CSVs: When linked, assigning a signal assigns it from ALL linked CSVs",
+                        ),
+                    ], className="py-2 d-flex align-items-center"),
                     dbc.CardBody([
+                        # Link mode selector (hidden by default) - Feature 2 Enhanced
+                        html.Div([
+                            html.Small("🔗 Linked CSVs:", className="text-info d-block mb-1"),
+                            dcc.Dropdown(
+                                id="select-linked-runs",
+                                options=[],
+                                multi=True,
+                                placeholder="Select CSVs to link...",
+                                style={"fontSize": "11px"},
+                                className="mb-2",
+                            ),
+                            # Quick action buttons
+                            dbc.ButtonGroup([
+                                dbc.Button("Link All", id="btn-link-all", size="sm", color="info", outline=True),
+                                dbc.Button("Unlink All", id="btn-unlink-all", size="sm", color="secondary", outline=True),
+                            ], size="sm", className="mb-2"),
+                            html.Small(
+                                "When linked, clicking a signal assigns/removes it from ALL linked CSVs.",
+                                className="text-muted d-block mb-2",
+                            ),
+                        ], id="link-mode-panel", style={"display": "none"}),
                         html.Div(id="runs-list"),
-                    ], className="p-2", style={"maxHeight": "180px", "overflowY": "auto"}),
+                    ], className="p-2", style={"maxHeight": "220px", "overflowY": "auto"}),
                 ], className="mb-2"),
                 
                 # Signals Panel
@@ -131,7 +157,6 @@ def create_layout():
                             ]),
                             
                             # Hidden - Y signals now come from assigned list, kept for callback compatibility
-                            dcc.Store(id="xy-y-signals", data=[]),
                             
                             # Y signals explanation
                             html.Div([
@@ -176,44 +201,47 @@ def create_layout():
                     ]),
                 ], className="py-1 px-3 bg-dark border-bottom border-secondary"),
                 
-                # Hidden stores for tabs - Start with "View 1" not hidden "main"
-                dcc.Store(id="store-tabs", data=[{"id": "view_1", "name": "View 1"}]),
-                dcc.Store(id="store-active-tab", data="view_1"),
+                # Hidden stores for tabs - Start with "Tab 1" (P2-6)
+                dcc.Store(id="store-tabs", data=[{"id": "tab_1", "name": "Tab 1"}]),
+                dcc.Store(id="store-active-tab", data="tab_1"),
+                dcc.Store(id="store-tab-view-states", data={}),  # Per-tab view state: {tab_id: view_state_dict}
                 
                 # Toolbar
                 dbc.Row([
                     dbc.Col([
-                        # Layout selector
+                        # Layout selector - compact styling to prevent white space masking values
                         dbc.InputGroup([
-                            dbc.InputGroupText("Layout", className="small"),
+                            dbc.InputGroupText("R:", className="small", style={"padding": "0.25rem 0.4rem"}),
                             dbc.Select(
                                 id="select-rows",
                                 options=[{"label": str(i), "value": i} for i in range(1, 5)],
                                 value=1,
                                 size="sm",
-                                style={"width": "50px"},
+                                style={"width": "45px", "minWidth": "45px", "padding": "0.25rem"},
                             ),
-                            dbc.InputGroupText("×", className="small"),
+                            dbc.InputGroupText("×", className="small", style={"padding": "0.25rem 0.3rem"}),
+                            dbc.InputGroupText("C:", className="small", style={"padding": "0.25rem 0.4rem"}),
                             dbc.Select(
                                 id="select-cols",
                                 options=[{"label": str(i), "value": i} for i in range(1, 5)],
                                 value=1,
                                 size="sm",
-                                style={"width": "50px"},
+                                style={"width": "45px", "minWidth": "45px", "padding": "0.25rem"},
                             ),
-                        ], size="sm", className="me-2"),
+                        ], size="sm", className="me-2", style={"flexWrap": "nowrap"}),
                     ], width="auto"),
                     dbc.Col([
-                        # Subplot selector - WIDER for full label visibility (fix clipping)
+                        # Subplot selector - shows "1 / N" by default
                         dbc.InputGroup([
+                            dbc.InputGroupText("SP:", className="small", style={"padding": "0.25rem 0.4rem"}),
                             dbc.Select(
                                 id="select-subplot",
-                                options=[{"label": "Subplot 1 / 1", "value": 0}],
+                                options=[{"label": "1 / 1", "value": 0}],
                                 value=0,
                                 size="sm",
-                                style={"minWidth": "160px", "fontSize": "13px"},
+                                style={"minWidth": "65px", "padding": "0.25rem"},
                             ),
-                        ], size="sm", className="me-2"),
+                        ], size="sm", className="me-2", style={"flexWrap": "nowrap"}),
                     ], width="auto"),
                     dbc.Col([
                         # Mode toggle with text labels (not just icons)
@@ -238,13 +266,45 @@ def create_layout():
                         ], size="sm", className="ms-1", id="cursor-scope-group"),
                     ], width="auto", id="cursor-scope-col", style={"display": "none"}),
                     dbc.Col([
+                        # Axis limits button with popover
+                        html.Div([
+                            dbc.Button("📐 Axis", id="btn-axis-limits", size="sm", color="secondary", outline=True),
+                            dbc.Popover([
+                                dbc.PopoverHeader("Axis Limits (active subplot)"),
+                                dbc.PopoverBody([
+                                    dbc.Row([
+                                        dbc.Col([
+                                            dbc.Label("X-min", className="small mb-0"),
+                                            dbc.Input(id="input-xlim-min", type="number", size="sm", placeholder="auto", step="any"),
+                                        ], width=6),
+                                        dbc.Col([
+                                            dbc.Label("X-max", className="small mb-0"),
+                                            dbc.Input(id="input-xlim-max", type="number", size="sm", placeholder="auto", step="any"),
+                                        ], width=6),
+                                    ], className="mb-2"),
+                                    dbc.Row([
+                                        dbc.Col([
+                                            dbc.Label("Y-min", className="small mb-0"),
+                                            dbc.Input(id="input-ylim-min", type="number", size="sm", placeholder="auto", step="any"),
+                                        ], width=6),
+                                        dbc.Col([
+                                            dbc.Label("Y-max", className="small mb-0"),
+                                            dbc.Input(id="input-ylim-max", type="number", size="sm", placeholder="auto", step="any"),
+                                        ], width=6),
+                                    ], className="mb-2"),
+                                    dbc.Button("Apply", id="btn-apply-axis-limits", size="sm", color="primary", className="me-1"),
+                                    dbc.Button("Reset", id="btn-reset-axis-limits", size="sm", color="secondary", outline=True),
+                                ]),
+                            ], target="btn-axis-limits", trigger="click", placement="bottom"),
+                        ]),
+                    ], width="auto", className="ms-2"),
+                    dbc.Col([
                         # Clear subplot button
                         dbc.Button("🗑️ Clear", id="btn-clear-subplot", size="sm", color="danger", outline=True),
                     ], width="auto", className="ms-auto"),
                 ], className="py-2 px-3 bg-dark border-bottom border-secondary align-items-center g-0"),
                 
                 # Hidden store for subplot mode
-                dcc.Store(id="store-subplot-mode", data="time"),
                 
                 # Cursor controls (shown when cursor enabled)
                 html.Div([
@@ -269,8 +329,9 @@ def create_layout():
                                     type="number",
                                     placeholder="Jump to T...",
                                     size="sm",
-                                    style={"width": "90px"},
+                                    style={"width": "100px"},
                                     debounce=True,
+                                    step="any",  # Allow decimal values like 1.24
                                 ),
                                 dbc.Button("→", id="btn-cursor-jump", size="sm", color="info", outline=True),
                             ], size="sm"),
@@ -298,20 +359,17 @@ def create_layout():
             # -----------------------------------------------------------------
             dbc.Col([
                 # Cursor Values (shown when cursor enabled)
+                # Note: Active/All toggle is in the toolbar buttons (btn-cursor-active/all)
                 dbc.Card([
                     dbc.CardHeader([
                         html.Span("📍 Cursor Values", className="small"),
-                        dbc.Switch(
-                            id="switch-inspector-all",
-                            label="All",
-                            value=True,
-                            className="float-end small mb-0",
-                            style={"fontSize": "10px"},
-                        ),
-                    ], className="py-1 d-flex align-items-center justify-content-between"),
+                    ], className="py-1"),
                     dbc.CardBody([
                         html.Div(id="inspector-values"),
                     ], className="p-2", style={"maxHeight": "250px", "overflowY": "auto"}),
+                    # Hidden switch for callback compatibility
+                    dcc.Checklist(id="switch-inspector-all", options=[{"label": "", "value": True}], 
+                                  value=[True], style={"display": "none"}),
                 ], className="mb-2"),
                 
                 # Operations Panel (collapsed by default)
@@ -353,6 +411,8 @@ def create_layout():
         # =====================================================================
         create_import_modal(),
         create_report_modal(),
+        create_signal_properties_modal(),
+        create_compare_all_modal(),
         
         # Hidden components
         dcc.Download(id="download-session"),
@@ -441,28 +501,50 @@ def create_operations_panel():
 
 
 def create_compare_panel():
-    """Create the compare panel content with full options"""
+    """
+    Create the compare panel content (P3 - Advanced Multi-CSV Compare).
+    
+    Features:
+    - Multi-run selection (2+ CSVs)
+    - Baseline method (mean or specific CSV)
+    - Common signals detection
+    - Similarity scoring
+    - Derived signal generation
+    """
     return html.Div([
-        # Run selectors
-        dbc.Label("Baseline Run (A)", className="small fw-bold"),
+        # Multi-run selection
+        dbc.Label("Select Runs to Compare", className="small fw-bold"),
+        dcc.Dropdown(
+            id="select-compare-runs",
+            options=[],
+            multi=True,
+            placeholder="Select 2 or more runs...",
+            className="mb-2",
+            style={"fontSize": "11px"},
+        ),
+        
+        # Baseline method
+        dbc.Label("Baseline Method", className="small"),
+        dbc.RadioItems(
+            id="select-baseline-method",
+            options=[
+                {"label": "Mean of all selected", "value": "mean"},
+                {"label": "Specific run:", "value": "specific"},
+            ],
+            value="mean",
+            inline=True,
+            className="small mb-1",
+        ),
         dcc.Dropdown(
             id="select-baseline-run",
             options=[],
-            placeholder="Select run A...",
+            placeholder="Select baseline run...",
             className="mb-2",
             style={"fontSize": "11px"},
+            disabled=True,  # Enabled when "specific" is selected
         ),
         
-        dbc.Label("Compare To Run (B)", className="small fw-bold"),
-        dcc.Dropdown(
-            id="select-compare-run",
-            options=[],
-            placeholder="Select run B...",
-            className="mb-2",
-            style={"fontSize": "11px"},
-        ),
-        
-        # Signal selector
+        # Signal selector with filtering
         dbc.Label("Signal to Compare", className="small"),
         dcc.Dropdown(
             id="select-compare-signal",
@@ -471,19 +553,16 @@ def create_compare_panel():
             className="mb-2",
             style={"fontSize": "11px"},
         ),
-        dbc.Checkbox(
-            id="check-common-only",
-            label="Show only common signals",
-            value=True,
-            className="small mb-2",
-        ),
+        
+        # Show common signals info
+        html.Div(id="compare-common-signals", className="small text-muted mb-2"),
         
         # Alignment options
         dbc.Label("Time Alignment", className="small"),
         dbc.Select(
             id="select-compare-alignment",
             options=[
-                {"label": "Baseline time (A)", "value": "baseline"},
+                {"label": "Baseline time", "value": "baseline"},
                 {"label": "Union (all points)", "value": "union"},
                 {"label": "Intersection only", "value": "intersection"},
             ],
@@ -491,7 +570,18 @@ def create_compare_panel():
             size="sm",
             className="mb-2",
         ),
-        dbc.Button("Compare", id="btn-compare", color="info", size="sm", className="w-100"),
+        
+        # Compare single signal
+        dbc.Button("Compare Signal", id="btn-compare", color="info", size="sm", className="w-100 mb-2"),
+        
+        # Compare all signals button
+        dbc.Button("Compare All Common Signals", id="btn-compare-all", color="success", 
+                   size="sm", outline=True, className="w-100 mb-2"),
+        
+        # Generate delta signals
+        dbc.Button("Generate Delta Signals", id="btn-generate-deltas", color="warning",
+                   size="sm", outline=True, className="w-100 mb-2"),
+        
         html.Div(id="compare-results", className="mt-2 small"),
     ])
 
@@ -594,15 +684,26 @@ def create_import_modal():
 
 
 def create_report_modal():
-    """Create the report builder modal (P0-9, P0-14 with RTL/Hebrew support)"""
+    """
+    Create the report builder modal (P6-13, P6-14).
+    
+    All text fields are multi-line (Textarea) to support Enter/new lines.
+    Each subplot has: Title, Caption, Description (multi-line).
+    """
     return dbc.Modal([
         dbc.ModalHeader("Report Builder"),
         dbc.ModalBody([
-            # Report Title
-            dbc.Label("Report Title", className="small"),
-            dbc.Input(id="report-title", value="Signal Analysis Report", size="sm", className="mb-2"),
+            # Report Title - multi-line (P6-14)
+            dbc.Label("Report Title", className="small fw-bold"),
+            dbc.Textarea(
+                id="report-title", 
+                value="Signal Analysis Report", 
+                rows=1, 
+                className="mb-2",
+                style={"resize": "vertical"},
+            ),
             
-            # RTL Toggle for Hebrew support (P0-14)
+            # RTL Toggle for Hebrew support
             dbc.Row([
                 dbc.Col([
                     dbc.Label("Text Direction", className="small"),
@@ -617,24 +718,52 @@ def create_report_modal():
                 ], width=6),
             ], className="mb-2"),
             
-            # Introduction (supports Hebrew/RTL)
-            dbc.Label("Introduction", className="small"),
-            dbc.Textarea(id="report-intro", rows=3, className="mb-2", 
-                        placeholder="Enter introduction text (supports Hebrew)..."),
+            # Introduction - multi-line (P6-14)
+            dbc.Label("Introduction", className="small fw-bold"),
+            dbc.Textarea(
+                id="report-intro", 
+                rows=4, 
+                className="mb-2", 
+                placeholder="Enter introduction text (supports multi-line and Hebrew)...",
+                style={"resize": "vertical"},
+            ),
             
-            # Conclusion
-            dbc.Label("Summary / Conclusion", className="small"),
-            dbc.Textarea(id="report-conclusion", rows=3, className="mb-2",
-                        placeholder="Enter conclusion text (supports Hebrew)..."),
+            # Conclusion - multi-line (P6-14)
+            dbc.Label("Summary / Conclusion", className="small fw-bold"),
+            dbc.Textarea(
+                id="report-conclusion", 
+                rows=4, 
+                className="mb-2",
+                placeholder="Enter conclusion text (supports multi-line and Hebrew)...",
+                style={"resize": "vertical"},
+            ),
             
-            # Include Subplots with per-subplot metadata
-            dbc.Label("Include Subplots:", className="small"),
-            html.Div(id="report-subplot-list"),
+            # Include Subplots with per-subplot metadata (P6-13)
+            dbc.Label("Include Subplots:", className="small fw-bold mt-2"),
+            html.Small("Each subplot can have Title, Caption, and Description", className="text-muted d-block mb-2"),
+            html.Div(id="report-subplot-list", style={"maxHeight": "300px", "overflowY": "auto"}),
+            
+            # Export scope (P2 - current tab vs all tabs)
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Export Scope", className="small fw-bold"),
+                    dbc.RadioItems(
+                        id="report-scope",
+                        options=[
+                            {"label": "Current Tab Only", "value": "current"},
+                            {"label": "All Tabs", "value": "all"},
+                        ],
+                        value="current",
+                        inline=True,
+                        className="small",
+                    ),
+                ]),
+            ], className="mt-3"),
             
             # Export format
             dbc.Row([
                 dbc.Col([
-                    dbc.Label("Export Format", className="small"),
+                    dbc.Label("Export Format", className="small fw-bold"),
                     dbc.RadioItems(
                         id="report-format",
                         options=[
@@ -647,7 +776,7 @@ def create_report_modal():
                         className="small",
                     ),
                 ]),
-            ], className="mt-3"),
+            ], className="mt-2"),
         ]),
         dbc.ModalFooter([
             dbc.Button("Cancel", id="btn-report-cancel", color="secondary", size="sm"),
@@ -655,3 +784,179 @@ def create_report_modal():
         ]),
     ], id="modal-report", size="lg", is_open=False)
 
+
+def create_signal_properties_modal():
+    """Create the signal properties modal for editing signal display settings"""
+    return dbc.Modal([
+        dbc.ModalHeader("Signal Properties"),
+        dbc.ModalBody([
+            # Signal info (read-only)
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Original Name", className="small text-muted"),
+                    html.Div(id="signal-props-original-name", className="small fw-bold text-info mb-2"),
+                ], width=12),
+            ]),
+            
+            # Display Name (rename)
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Display Name (rename)", className="small"),
+                    dbc.Input(
+                        id="signal-props-display-name",
+                        placeholder="Enter custom display name...",
+                        size="sm",
+                        className="mb-2",
+                    ),
+                ], width=12),
+            ]),
+            
+            # Line Width
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Line Width", className="small"),
+                    dbc.Input(
+                        id="signal-props-line-width",
+                        type="number",
+                        value=1.5,
+                        min=0.5,
+                        max=5,
+                        step=0.5,
+                        size="sm",
+                        className="mb-2",
+                    ),
+                ], width=6),
+                # Color picker
+                dbc.Col([
+                    dbc.Label("Color", className="small"),
+                    dbc.Input(
+                        id="signal-props-color",
+                        type="color",
+                        value="#2E86AB",
+                        size="sm",
+                        className="mb-2",
+                        style={"height": "38px", "padding": "2px"},
+                    ),
+                ], width=6),
+            ]),
+            
+            # Scale factor and Value Offset
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Scale Factor", className="small"),
+                    dbc.Input(
+                        id="signal-props-scale",
+                        type="number",
+                        value=1.0,
+                        step=0.1,
+                        size="sm",
+                        className="mb-2",
+                    ),
+                    html.Small("Multiply signal values by this factor", className="text-muted"),
+                ], width=6),
+                # Value Offset
+                dbc.Col([
+                    dbc.Label("Value Offset", className="small"),
+                    dbc.Input(
+                        id="signal-props-offset",
+                        type="number",
+                        value=0.0,
+                        step=0.1,
+                        size="sm",
+                        className="mb-2",
+                    ),
+                    html.Small("Add offset to signal values", className="text-muted"),
+                ], width=6),
+            ]),
+            
+            # Time Offset
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Time Offset (seconds)", className="small"),
+                    dbc.Input(
+                        id="signal-props-time-offset",
+                        type="number",
+                        value=0.0,
+                        step=0.1,
+                        size="sm",
+                        className="mb-2",
+                    ),
+                    html.Small("Shift signal in time (positive = shift right)", className="text-muted"),
+                ], width=6),
+            ]),
+            
+            html.Hr(className="my-2"),
+            
+            # Signal Type toggle
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Signal Type", className="small fw-bold"),
+                    dbc.RadioItems(
+                        id="signal-props-type",
+                        options=[
+                            {"label": "📈 Regular Signal (continuous line)", "value": "normal"},
+                            {"label": "📊 State Signal (vertical lines at transitions)", "value": "state"},
+                        ],
+                        value="normal",
+                        className="mb-2",
+                    ),
+                    html.Small(
+                        "State signals show vertical lines where the value changes, useful for digital/discrete signals.",
+                        className="text-muted",
+                    ),
+                ], width=12),
+            ]),
+            
+            # Hidden store for current signal key
+            dcc.Store(id="signal-props-current-key", data=None),
+        ]),
+        dbc.ModalFooter([
+            dbc.Button("Reset", id="btn-signal-props-reset", color="warning", size="sm", outline=True),
+            dbc.Button("Cancel", id="btn-signal-props-cancel", color="secondary", size="sm"),
+            dbc.Button("Apply", id="btn-signal-props-apply", color="primary", size="sm"),
+        ]),
+    ], id="modal-signal-props", size="md", is_open=False)
+
+
+def create_compare_all_modal():
+    """
+    Create modal for comparing all common signals.
+    
+    Shows a ranked list of signals by difference (most different first),
+    with color coding (red for large diff, green for small diff).
+    """
+    return dbc.Modal([
+        dbc.ModalHeader("Compare All Common Signals"),
+        dbc.ModalBody([
+            html.P("Comparison results for all common signals, ranked by difference:", className="small text-muted"),
+            
+            # Legend
+            html.Div([
+                html.Span("⚠️ Red: > 10% diff", className="text-danger small me-3"),
+                html.Span("⚡ Yellow: 5-10% diff", className="text-warning small me-3"),
+                html.Span("✓ Green: < 5% diff", className="text-success small"),
+            ], className="mb-3 p-2 bg-dark rounded"),
+            
+            # Results table (populated by callback)
+            html.Div(id="compare-all-results", style={"maxHeight": "400px", "overflowY": "auto"}),
+            
+            # Export options
+            html.Hr(className="my-3"),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Actions:", className="small"),
+                ], width=3),
+                dbc.Col([
+                    dbc.Button("Export Results as CSV", id="btn-compare-export-csv", 
+                               color="info", size="sm", outline=True, className="me-2"),
+                ], width="auto"),
+            ]),
+        ]),
+        dbc.ModalFooter([
+            dbc.Button("Close", id="btn-compare-all-close", color="secondary", size="sm"),
+        ]),
+        
+        # Store for comparison data
+        dcc.Store(id="store-compare-all-data", data={}),
+        dcc.Download(id="download-compare-csv"),
+    ], id="modal-compare-all", size="lg", is_open=False)
