@@ -908,7 +908,7 @@ def update_layout(rows, cols, current_sp):
     Output("select-subplot", "value", allow_duplicate=True),
     Output("active-subplot-badge", "children", allow_duplicate=True),
     Input("store-refresh", "data"),
-    prevent_initial_call=False,  # Allow initial call for proper initialization
+    prevent_initial_call='initial_duplicate',  # Allow initial call with duplicate outputs
 )
 def init_subplot_selector(refresh):
     """
