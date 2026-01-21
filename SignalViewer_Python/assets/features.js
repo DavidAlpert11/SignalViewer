@@ -415,3 +415,39 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// ========================================
+// SIDEBAR COLLAPSE TOGGLE
+// ========================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for Dash to render
+    setTimeout(function() {
+        var sidebarToggle = document.getElementById('btn-collapse-sidebar');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function() {
+                // Find the left sidebar column (first child of main content row)
+                var sidebar = this.closest('.col-2');
+                if (sidebar) {
+                    sidebar.classList.toggle('sidebar-collapsed');
+                    // Update button text
+                    this.textContent = sidebar.classList.contains('sidebar-collapsed') ? '▶' : '◀';
+                    // Adjust plot width
+                    var plotCol = sidebar.nextElementSibling;
+                    if (plotCol && plotCol.classList.contains('col-8')) {
+                        if (sidebar.classList.contains('sidebar-collapsed')) {
+                            plotCol.classList.remove('col-8');
+                            plotCol.classList.add('col-9');
+                            sidebar.classList.remove('col-2');
+                            sidebar.classList.add('col-1');
+                        } else {
+                            plotCol.classList.remove('col-9');
+                            plotCol.classList.add('col-8');
+                            sidebar.classList.remove('col-1');
+                            sidebar.classList.add('col-2');
+                        }
+                    }
+                }
+            });
+        }
+    }, 1000);
+});
+

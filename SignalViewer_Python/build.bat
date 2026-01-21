@@ -187,8 +187,8 @@ if not exist "%ASSETS_PATH%\custom.css" (
     echo       [WARN] Missing: _internal\assets\custom.css
     set ASSETS_OK=0
 )
-if not exist "%ASSETS_PATH%\bootstrap-cyborg.min.css" (
-    echo       [WARN] Missing: _internal\assets\bootstrap-cyborg.min.css
+if not exist "%ASSETS_PATH%\bootstrap-theme.min.css" (
+    echo       [WARN] Missing: _internal\assets\bootstrap-theme.min.css
     set ASSETS_OK=0
 )
 if not exist "%ASSETS_PATH%\font-awesome.min.css" (
