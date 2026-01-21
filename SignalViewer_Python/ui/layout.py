@@ -68,22 +68,9 @@ def create_layout():
         # =====================================================================
         dbc.Row([
             # -----------------------------------------------------------------
-            # LEFT SIDEBAR: Runs & Signals (collapsible)
+            # LEFT SIDEBAR: Runs & Signals
             # -----------------------------------------------------------------
             dbc.Col([
-                # Sidebar collapse toggle
-                html.Div([
-                    dbc.Button(
-                        "◀",
-                        id="btn-collapse-sidebar",
-                        size="sm",
-                        color="secondary",
-                        outline=True,
-                        className="sidebar-toggle mb-2 w-100",
-                        title="Collapse/Expand sidebar",
-                    ),
-                ], className="d-flex justify-content-end"),
-                
                 # Runs Panel (SDI: "Runs/Sources")
                 dbc.Card([
                     dbc.CardHeader([

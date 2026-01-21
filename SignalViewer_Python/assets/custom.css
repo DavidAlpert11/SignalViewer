@@ -25,35 +25,6 @@ body {
 }
 
 /* ========================================
-   Collapsible Left Sidebar
-   ======================================== */
-.sidebar-toggle {
-    transition: transform 0.2s ease;
-}
-
-.sidebar-collapsed .sidebar-toggle {
-    transform: rotate(180deg);
-}
-
-.sidebar-collapsed .card-body,
-.sidebar-collapsed .card-header span,
-.sidebar-collapsed .runs-list,
-.sidebar-collapsed #signal-tree,
-.sidebar-collapsed #assigned-list {
-    display: none !important;
-}
-
-.sidebar-collapsed .card-header {
-    padding: 0.25rem !important;
-    justify-content: center !important;
-}
-
-.sidebar-collapsed .card-header .badge,
-.sidebar-collapsed .card-header button:not(.sidebar-toggle) {
-    display: none !important;
-}
-
-/* ========================================
    Checkbox Styling - Works in both themes
    ======================================== */
 
@@ -209,13 +180,9 @@ body {
     font-weight: 500;
 }
 
-/* Plot area should stay very dark */
+/* Plot container background */
 #main-plot {
-    background-color: var(--sv-bg-darker) !important;
-}
-
-.js-plotly-plot .plotly .main-svg {
-    background: var(--sv-bg-darker) !important;
+    background-color: transparent !important;
 }
 
 /* ========================================
