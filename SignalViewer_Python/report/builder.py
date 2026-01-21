@@ -193,7 +193,7 @@ def _generate_html(report: Report, figure_json: Optional[str]) -> str:
         details {{ margin: 10px 0; }}
         summary {{ cursor: pointer; color: #2E86AB; }}
     </style>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Plotly.js will be embedded inline for offline support -->
     {plotly_script}
 </head>
 <body>
@@ -345,11 +345,16 @@ def export_docx(
         # Embed figure as image if provided
         if figure is not None:
             try:
+                # kaleido is required for image export - ensure it's installed and bundled
                 import kaleido
                 img_bytes = figure.to_image(format="png", width=1200, height=600, scale=2)
                 doc.add_picture(io.BytesIO(img_bytes), width=Inches(6.5))
+            except ImportError:
+                print("[WARN] kaleido not installed - cannot embed plot image in Word", flush=True)
+                doc.add_paragraph("[Plot image could not be embedded - kaleido package required]")
             except Exception as e:
                 print(f"[WARN] Could not embed figure: {e}", flush=True)
+                doc.add_paragraph(f"[Plot image could not be embedded: {str(e)[:100]}]")
         
         # Compare sections
         if report.compare_sections:
@@ -473,12 +478,16 @@ def export_docx_multi_tab(
                 
                 if figure is not None:
                     try:
-                        # Export figure as image with current axis limits preserved
+                        # kaleido is required for image export
+                        import kaleido
                         img_bytes = figure.to_image(format="png", width=1200, height=600, scale=2)
                         doc.add_picture(io.BytesIO(img_bytes), width=Inches(6.5))
+                    except ImportError:
+                        print("[WARN] kaleido not installed - cannot embed plot image", flush=True)
+                        doc.add_paragraph("[Plot image could not be embedded - kaleido package required]")
                     except Exception as e:
                         print(f"[WARN] Could not embed figure for tab '{tab_name}': {e}", flush=True)
-                        doc.add_paragraph(f"(Figure could not be embedded: {e})")
+                        doc.add_paragraph(f"[Figure could not be embedded: {str(e)[:100]}]")
         
         # Compare sections
         if report.compare_sections:

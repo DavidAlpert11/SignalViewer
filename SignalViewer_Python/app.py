@@ -3832,7 +3832,7 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool,
         
         # Create figure for this tab (with for_export=True for clean output)
         fig, _ = create_figure(runs, derived_signals, temp_view, signal_settings, for_export=True)
-        plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+        plot_html = pio.to_html(fig, full_html=False, include_plotlyjs=True)
         
         section_html += f"""
         <div class="plot-container">
@@ -3917,7 +3917,7 @@ def _build_html_report(title: str, intro: str, conclusion: str, rtl: bool,
     else:
         # Current tab only (default) - without active highlight for clean export
         fig, _ = create_figure(runs, derived_signals, view_state, signal_settings, for_export=True)
-        plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+        plot_html = pio.to_html(fig, full_html=False, include_plotlyjs=True)
         
         html += f"""
     <div class="section">
