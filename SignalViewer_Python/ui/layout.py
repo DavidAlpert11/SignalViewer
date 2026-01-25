@@ -197,6 +197,17 @@ def create_layout():
                             # Add tab button
                             dbc.Button("+ Tab", id="btn-add-tab", size="sm", color="secondary", 
                                       outline=True, className="ms-2"),
+                            # Tab name edit input
+                            dbc.InputGroup([
+                                dbc.InputGroupText("📝", style={"padding": "0.25rem 0.3rem", "fontSize": "11px"}),
+                                dbc.Input(
+                                    id="input-tab-name",
+                                    placeholder="Tab name...",
+                                    size="sm",
+                                    style={"width": "100px", "padding": "0.25rem"},
+                                    debounce=True,
+                                ),
+                            ], size="sm", className="ms-3", style={"flexWrap": "nowrap", "width": "auto"}),
                         ], className="d-flex align-items-center"),
                     ]),
                 ], className="py-1 px-3 bg-dark border-bottom border-secondary"),
@@ -205,6 +216,7 @@ def create_layout():
                 dcc.Store(id="store-tabs", data=[{"id": "tab_1", "name": "Tab 1"}]),
                 dcc.Store(id="store-active-tab", data="tab_1"),
                 dcc.Store(id="store-tab-view-states", data={}),  # Per-tab view state: {tab_id: view_state_dict}
+                dcc.Store(id="store-link-axes", data={"tab": False}),  # Axis linking state
                 
                 # Toolbar
                 dbc.Row([
@@ -244,6 +256,19 @@ def create_layout():
                         ], size="sm", className="me-2", style={"flexWrap": "nowrap"}),
                     ], width="auto"),
                     dbc.Col([
+                        # Subplot title input
+                        dbc.InputGroup([
+                            dbc.InputGroupText("📝", className="small", style={"padding": "0.25rem 0.4rem"}),
+                            dbc.Input(
+                                id="input-subplot-title",
+                                placeholder="Subplot title...",
+                                size="sm",
+                                style={"width": "120px", "padding": "0.25rem"},
+                                debounce=True,
+                            ),
+                        ], size="sm", className="me-2", style={"flexWrap": "nowrap"}),
+                    ], width="auto"),
+                    dbc.Col([
                         # Mode toggle with text labels (not just icons)
                         dbc.ButtonGroup([
                             dbc.Button("📈 Time", id="btn-mode-time", size="sm", color="primary", outline=False),
@@ -266,11 +291,22 @@ def create_layout():
                         ], size="sm", className="ms-1", id="cursor-scope-group"),
                     ], width="auto", id="cursor-scope-col", style={"display": "none"}),
                     dbc.Col([
+                        # Axis linking toggle buttons
+                        dbc.ButtonGroup([
+                            dbc.Button("🔗 Link Tab", id="btn-link-tab-axes", size="sm", color="secondary", 
+                                      outline=True, title="Link X axes of all subplots in this tab"),
+                        ], size="sm"),
+                    ], width="auto", className="ms-2"),
+                    dbc.Col([
                         # Axis limits button with popover
                         html.Div([
                             dbc.Button("📐 Axis", id="btn-axis-limits", size="sm", color="secondary", outline=True),
                             dbc.Popover([
-                                dbc.PopoverHeader("Axis Limits"),
+                                dbc.PopoverHeader([
+                                    html.Span("Axis Limits"),
+                                    dbc.Button("×", id="btn-close-axis-popover", size="sm", color="link", 
+                                              className="float-end p-0 text-muted", style={"fontSize": "16px", "lineHeight": "1"}),
+                                ], className="d-flex justify-content-between align-items-center"),
                                 dbc.PopoverBody([
                                     # Scope: active subplot or all subplots
                                     dbc.RadioItems(
@@ -306,12 +342,15 @@ def create_layout():
                                     dbc.Button("Apply", id="btn-apply-axis-limits", size="sm", color="primary", className="me-1"),
                                     dbc.Button("Reset", id="btn-reset-axis-limits", size="sm", color="secondary", outline=True),
                                 ]),
-                            ], target="btn-axis-limits", trigger="click", placement="bottom"),
+                            ], id="popover-axis-limits", target="btn-axis-limits", trigger="click", placement="bottom"),
                         ]),
                     ], width="auto", className="ms-2"),
                     dbc.Col([
-                        # Clear subplot button
-                        dbc.Button("🗑️ Clear", id="btn-clear-subplot", size="sm", color="danger", outline=True),
+                        # Clear options dropdown
+                        dbc.DropdownMenu([
+                            dbc.DropdownMenuItem("Clear Current Subplot", id="btn-clear-subplot"),
+                            dbc.DropdownMenuItem("Clear All Subplots in Tab", id="btn-clear-all-subplots"),
+                        ], label="🗑️ Clear", size="sm", color="danger", toggle_style={"outline": "1px solid"}),
                     ], width="auto", className="ms-auto"),
                 ], className="py-2 px-3 bg-dark border-bottom border-secondary align-items-center g-0"),
                 
@@ -939,7 +978,27 @@ def create_compare_all_modal():
     return dbc.Modal([
         dbc.ModalHeader("Compare All Common Signals"),
         dbc.ModalBody([
-            html.P("Comparison results for all common signals, ranked by difference:", className="small text-muted"),
+            html.P("Comparison results for all common signals:", className="small text-muted"),
+            
+            # Sort options
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label("Sort by:", className="small"),
+                ], width=2),
+                dbc.Col([
+                    dbc.Select(
+                        id="select-compare-sort",
+                        options=[
+                            {"label": "Difference (high to low)", "value": "diff_desc"},
+                            {"label": "Difference (low to high)", "value": "diff_asc"},
+                            {"label": "Name (A-Z)", "value": "name_asc"},
+                            {"label": "Name (Z-A)", "value": "name_desc"},
+                        ],
+                        value="diff_desc",
+                        size="sm",
+                    ),
+                ], width=6),
+            ], className="mb-2"),
             
             # Legend
             html.Div([

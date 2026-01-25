@@ -2,17 +2,21 @@
 
 Professional signal analysis tool for engineering data visualization.
 
+![Signal Viewer Pro Screenshot](screenshot.png)
+
 ## Features
 
 ### Core Visualization
-- **Multi-tab, multi-subplot visualization** — SDI-like interface with independent tabs
+- **Multi-tab, multi-subplot visualization** — Chrome-like tab interface with independent tabs
 - **Lossless signal handling** — No downsampling, resampling, or decimation
 - **Offline-first** — No external dependencies during runtime
 - **Time and X-Y modes** — Plot signals vs time or against each other
+- **Axis linking** — Link X axes across all subplots in a tab
+- **Custom titles** — Edit subplot and tab names directly
 
 ### Signal Operations
 - **Derived signals** — Create new signals from mathematical operations
-  - Unary: derivative, integral, absolute, normalize, RMS
+  - Unary: derivative, integral, absolute, normalize, RMS (supports batch operations on multiple signals)
   - Binary: add, subtract, multiply, divide, absolute difference
   - Multi: norm, mean, max, min
 - **State signal visualization** — Display discrete signals as vertical transition lines
@@ -22,6 +26,8 @@ Professional signal analysis tool for engineering data visualization.
 - **Baseline methods** — Use mean or specific run as reference
 - **Similarity metrics** — RMS difference, correlation, percent deviation
 - **Delta signal generation** — Automatically create difference signals
+- **Sortable results** — Sort by difference (high/low), or name (A-Z/Z-A)
+- **Auto subplot creation** — Create subplots with signal names as titles
 
 ### Cursor & Inspector
 - **Interactive cursor** — Click or drag to inspect values

@@ -31,12 +31,12 @@ class UnaryOp(Enum):
 
 
 class BinaryOp(Enum):
-    """Binary operations (two signals)"""
+    """Binary operations (two signals) - uses ASCII operators for compatibility"""
     ADD = "+"
-    SUB = "−"
-    MUL = "×"
-    DIV = "÷"
-    ABS_DIFF = "|A−B|"
+    SUB = "-"
+    MUL = "*"
+    DIV = "/"
+    ABS_DIFF = "|A-B|"
 
 
 class MultiOp(Enum):

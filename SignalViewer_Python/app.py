@@ -934,6 +934,7 @@ def init_subplot_selector(refresh):
     Output("btn-mode-time", "outline"),
     Output("btn-mode-xy", "color"),
     Output("btn-mode-xy", "outline"),
+    Output("input-subplot-title", "value"),
     Input("select-subplot", "value"),
     prevent_initial_call=True,
 )
@@ -969,7 +970,28 @@ def select_subplot(subplot_idx):
         build_assigned_list(sp_config, runs),
         time_color, time_outline,
         xy_color, xy_outline,
+        sp_config.title or "",  # Populate subplot title input
     )
+
+
+@app.callback(
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("input-subplot-title", "value"),
+    State("select-subplot", "value"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def update_subplot_title(title, subplot_idx, refresh):
+    """Update the title of the current subplot"""
+    global view_state
+    
+    sp_idx = int(subplot_idx or 0)
+    
+    if sp_idx < len(view_state.subplots):
+        view_state.subplots[sp_idx].title = title or ""
+        print(f"[TITLE] Updated subplot {sp_idx + 1} title: {title}", flush=True)
+    
+    return (refresh or 0) + 1
 
 
 @app.callback(
@@ -992,6 +1014,35 @@ def clear_subplot(n_clicks, subplot_idx, refresh):
         view_state.subplots[sp_idx].y_signals = []
         print(f"[CLEAR] Cleared subplot {sp_idx + 1}", flush=True)
     
+    sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else SubplotConfig(index=sp_idx)
+    
+    return build_assigned_list(sp_config, runs), (refresh or 0) + 1
+
+
+@app.callback(
+    Output("assigned-list", "children", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("btn-clear-all-subplots", "n_clicks"),
+    State("select-subplot", "value"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def clear_all_subplots_in_tab(n_clicks, subplot_idx, refresh):
+    """Clear all assignments from ALL subplots in the current tab"""
+    global view_state
+    
+    cleared_count = 0
+    for sp in view_state.subplots:
+        if sp.assigned_signals or sp.x_signal or sp.y_signals:
+            sp.assigned_signals = []
+            sp.x_signal = None
+            sp.y_signals = []
+            cleared_count += 1
+    
+    print(f"[CLEAR] Cleared all {cleared_count} subplots in current tab", flush=True)
+    
+    # Return current subplot's assigned list
+    sp_idx = int(subplot_idx or 0)
     sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else SubplotConfig(index=sp_idx)
     
     return build_assigned_list(sp_config, runs), (refresh or 0) + 1
@@ -1111,6 +1162,46 @@ def apply_axis_limits(n_clicks, xlim_min, xlim_max, ylim_min, ylim_max, scope, s
         print(f"[AXIS] Set limits for subplot {sp_idx + 1}: xlim={xlim}, ylim={ylim}", flush=True)
     
     return (refresh or 0) + 1
+
+
+@app.callback(
+    Output("popover-axis-limits", "is_open"),
+    Input("btn-close-axis-popover", "n_clicks"),
+    State("popover-axis-limits", "is_open"),
+    prevent_initial_call=True,
+)
+def close_axis_popover(n_clicks, is_open):
+    """Close the axis limits popover when X button is clicked"""
+    if n_clicks:
+        return False
+    return is_open
+
+
+@app.callback(
+    Output("store-link-axes", "data"),
+    Output("btn-link-tab-axes", "color"),
+    Output("btn-link-tab-axes", "outline"),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("btn-link-tab-axes", "n_clicks"),
+    State("store-link-axes", "data"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def toggle_link_tab_axes(n_clicks, link_state, refresh):
+    """Toggle axis linking for all subplots in current tab"""
+    link_state = link_state or {"tab": False}
+    
+    # Toggle the state
+    link_state["tab"] = not link_state.get("tab", False)
+    is_linked = link_state["tab"]
+    
+    print(f"[AXIS LINK] Tab axes linked: {is_linked}", flush=True)
+    
+    # Update button appearance
+    color = "info" if is_linked else "secondary"
+    outline = not is_linked
+    
+    return link_state, color, outline, (refresh or 0) + 1
 
 
 @app.callback(
@@ -1516,9 +1607,10 @@ def stream_refresh(n_intervals, refresh, is_disabled):
     Input("switch-inspector-all", "value"),
     Input("btn-mode-time", "n_clicks"),
     Input("btn-mode-xy", "n_clicks"),
+    Input("store-link-axes", "data"),
 )
 def update_plot(vs_data, refresh, cursor_time, theme_clicks, layout_rows, layout_cols, 
-                active_sp, inspector_show_all, mode_time_clicks, mode_xy_clicks):
+                active_sp, inspector_show_all, mode_time_clicks, mode_xy_clicks, link_axes_state):
     global view_state
     
     ctx = callback_context
@@ -1558,11 +1650,13 @@ def update_plot(vs_data, refresh, cursor_time, theme_clicks, layout_rows, layout
         print(f"[SUBPLOT] Active subplot changed to {view_state.active_subplot}", flush=True)
     
     # Create figure
+    link_tab_axes = link_axes_state.get("tab", False) if link_axes_state else False
     fig, cursor_values = create_figure(
         runs,
         derived_signals,
         view_state,
         signal_settings,
+        shared_x=link_tab_axes,
     )
     
     # Build inspector with cursor values grouped by subplot
@@ -1680,9 +1774,10 @@ def update_runs_count(run_paths):
     State("store-tabs", "data"),
     State("store-active-tab", "data"),
     State("store-tab-view-states", "data"),
+    State("store-link-axes", "data"),
     prevent_initial_call=True,
 )
-def save_session_callback(n_clicks, tabs, active_tab, tab_view_states):
+def save_session_callback(n_clicks, tabs, active_tab, tab_view_states, link_axes_state):
     """
     Save complete session (P5 - Complete persistence).
     
@@ -1726,6 +1821,7 @@ def save_session_callback(n_clicks, tabs, active_tab, tab_view_states):
         "tabs": tabs or [{"id": "tab_1", "name": "Tab 1"}],
         "active_tab": active_tab or "tab_1",
         "tab_view_states": tab_view_states,
+        "link_axes": link_axes_state or {"tab": False},
     }
     
     content = json.dumps(session, indent=2)
@@ -1749,6 +1845,7 @@ def save_session_callback(n_clicks, tabs, active_tab, tab_view_states):
     Output("store-tabs", "data", allow_duplicate=True),
     Output("store-active-tab", "data", allow_duplicate=True),
     Output("store-tab-view-states", "data", allow_duplicate=True),
+    Output("store-link-axes", "data", allow_duplicate=True),
     Input("btn-load", "n_clicks"),
     State("store-refresh", "data"),
     prevent_initial_call=True,
@@ -1770,14 +1867,14 @@ def load_session_callback(n_clicks, refresh):
     )
     root.destroy()
     
-    no_update_12 = tuple([dash.no_update] * 12)
+    no_update_13 = tuple([dash.no_update] * 13)
     
     if not file_path:
-        return no_update_12
+        return no_update_13
     
     session = load_session(file_path)
     if not session:
-        return no_update_12
+        return no_update_13
     
     # Clear and reload (P5 - Complete persistence)
     runs = []
@@ -1822,6 +1919,7 @@ def load_session_callback(n_clicks, refresh):
     tabs = session.get("tabs", [{"id": "tab_1", "name": "Tab 1"}])
     active_tab = session.get("active_tab", "tab_1")
     tab_view_states = session.get("tab_view_states", {})
+    link_axes = session.get("link_axes", {"tab": False})
     
     print(f"[SESSION] Loaded: {len(runs)} runs, {len(derived_signals)} derived signals, layout={view_state.layout_rows}x{view_state.layout_cols}, {len(tabs)} tabs", flush=True)
     
@@ -1838,6 +1936,7 @@ def load_session_callback(n_clicks, refresh):
         tabs,  # store-tabs
         active_tab,  # store-active-tab
         tab_view_states,  # store-tab-view-states
+        link_axes,  # store-link-axes
     )
 
 
@@ -1962,6 +2061,7 @@ def refresh_data(n_clicks, refresh, collapsed_runs):
 
 @app.callback(
     Output("tab-bar", "children"),
+    Output("input-tab-name", "value"),
     Input("store-tabs", "data"),
     Input("store-active-tab", "data"),
 )
@@ -1971,7 +2071,7 @@ def render_tab_bar(tabs, active_tab):
     
     Required UX:
     - Tab1 × Tab2 × +
-    - Tabs numbered sequentially: Tab 1, Tab 2, ...
+    - Tabs display custom names if set
     - Exactly N tabs visible = N views
     - Cannot remove last tab
     """
@@ -1985,44 +2085,95 @@ def render_tab_bar(tabs, active_tab):
     
     tab_buttons = []
     can_close = len(tabs) > 1  # Cannot remove last tab
+    active_tab_name = ""
     
     print(f"[TABS] Rendering {len(tabs)} tabs, active={active_tab}", flush=True)
     
     for idx, tab in enumerate(tabs):
         is_active = tab["id"] == active_tab
         
-        # Tab button - shows sequential number (Tab 1, Tab 2, ...)
-        display_name = f"Tab {idx + 1}"
+        # Tab button - show custom name if set, otherwise sequential number
+        display_name = tab.get("name", "") or f"Tab {idx + 1}"
         
-        tab_buttons.append(
-            dbc.Button(
-                display_name,
-                id={"type": "btn-tab", "id": tab["id"]},
-                size="sm",
-                color="info" if is_active else "secondary",
-                outline=not is_active,
-                className="me-1",
-                n_clicks=0,
-                style={"fontWeight": "bold" if is_active else "normal"},
-            )
-        )
+        if is_active:
+            active_tab_name = display_name
         
-        # Close button (×) only if >1 tab exists
+        # Chrome-like tab: name and × close button together
+        tab_content = [
+            html.Span(display_name, style={"marginRight": "8px"}),
+        ]
+        
+        # Add close button inside tab if we can close
         if can_close:
-            tab_buttons.append(
-                dbc.Button(
+            tab_content.append(
+                html.Span(
                     "×",
                     id={"type": "btn-close-tab", "id": tab["id"]},
-                    size="sm",
-                    color="danger",
-                    outline=True,
-                    className="me-2 px-1",
-                    style={"fontSize": "10px"},
+                    className="tab-close-btn",
+                    style={
+                        "cursor": "pointer",
+                        "fontSize": "14px",
+                        "fontWeight": "bold",
+                        "opacity": "0.7",
+                        "marginLeft": "4px",
+                    },
                     n_clicks=0,
                 )
             )
+        
+        tab_buttons.append(
+            html.Div(
+                tab_content,
+                id={"type": "btn-tab", "id": tab["id"]},
+                className="tab-button d-inline-flex align-items-center px-2 py-1 me-1 rounded",
+                style={
+                    "backgroundColor": "#17a2b8" if is_active else "#6c757d",
+                    "color": "white",
+                    "cursor": "pointer",
+                    "fontWeight": "bold" if is_active else "normal",
+                    "fontSize": "12px",
+                    "border": "1px solid " + ("#17a2b8" if is_active else "#6c757d"),
+                },
+                n_clicks=0,
+            )
+        )
     
-    return tab_buttons if tab_buttons else [html.Span("Tab 1", className="text-info small")]
+    # Add tab context menu dropdown (Close all, Close others, etc.)
+    if len(tabs) > 1:
+        tab_buttons.append(
+            dbc.DropdownMenu([
+                dbc.DropdownMenuItem("Close All Other Tabs", id="btn-close-other-tabs"),
+                dbc.DropdownMenuItem("Close All Tabs", id="btn-close-all-tabs"),
+            ], label="▼", size="sm", color="secondary", toggle_style={"fontSize": "10px", "padding": "2px 6px"},
+               className="ms-1"),
+        )
+    
+    return (
+        tab_buttons if tab_buttons else [html.Span("Tab 1", className="text-info small")],
+        active_tab_name,  # Populate tab name input
+    )
+
+
+@app.callback(
+    Output("store-tabs", "data", allow_duplicate=True),
+    Input("input-tab-name", "value"),
+    State("store-tabs", "data"),
+    State("store-active-tab", "data"),
+    prevent_initial_call=True,
+)
+def update_tab_name(new_name, tabs, active_tab):
+    """Update the name of the active tab"""
+    if not tabs or not active_tab:
+        return dash.no_update
+    
+    # Find and update the active tab's name
+    for tab in tabs:
+        if tab["id"] == active_tab:
+            tab["name"] = new_name or f"Tab {tabs.index(tab) + 1}"
+            print(f"[TABS] Updated tab name: {active_tab} -> {new_name}", flush=True)
+            break
+    
+    return tabs
 
 
 @app.callback(
@@ -2262,6 +2413,68 @@ def close_tab(close_clicks, tabs, active_tab, tab_view_states, refresh):
     else:
         print(f"[TABS] Closed tab: {tab_id}", flush=True)
         return tabs, active_tab, tab_view_states, refresh, dash.no_update, dash.no_update, dash.no_update
+
+
+@app.callback(
+    Output("store-tabs", "data", allow_duplicate=True),
+    Output("store-tab-view-states", "data", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("btn-close-other-tabs", "n_clicks"),
+    State("store-tabs", "data"),
+    State("store-active-tab", "data"),
+    State("store-tab-view-states", "data"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def close_other_tabs(n_clicks, tabs, active_tab, tab_view_states, refresh):
+    """Close all tabs except the current active one"""
+    if not n_clicks or len(tabs) <= 1:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    tab_view_states = tab_view_states or {}
+    
+    # Keep only the active tab
+    tabs = [t for t in tabs if t["id"] == active_tab]
+    
+    # Remove other view states
+    tab_view_states = {k: v for k, v in tab_view_states.items() if k == active_tab}
+    
+    print(f"[TABS] Closed all other tabs, kept: {active_tab}", flush=True)
+    
+    return tabs, tab_view_states, (refresh or 0) + 1
+
+
+@app.callback(
+    Output("store-tabs", "data", allow_duplicate=True),
+    Output("store-active-tab", "data", allow_duplicate=True),
+    Output("store-tab-view-states", "data", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Output("select-rows", "value", allow_duplicate=True),
+    Output("select-cols", "value", allow_duplicate=True),
+    Output("select-subplot", "value", allow_duplicate=True),
+    Input("btn-close-all-tabs", "n_clicks"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def close_all_tabs(n_clicks, refresh):
+    """Close all tabs and create a fresh Tab 1"""
+    global view_state
+    
+    if not n_clicks:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    # Create fresh tab
+    new_tabs = [{"id": "tab_1", "name": "Tab 1"}]
+    
+    # Reset view state
+    view_state.layout_rows = 1
+    view_state.layout_cols = 1
+    view_state.active_subplot = 0
+    view_state.subplots = [SubplotConfig(index=0)]
+    
+    print("[TABS] Closed all tabs, created fresh Tab 1", flush=True)
+    
+    return new_tabs, "tab_1", {}, (refresh or 0) + 1, 1, 1, 0
 
 
 # =============================================================================
@@ -2760,13 +2973,15 @@ def generate_all_deltas(n_clicks, selected_runs, baseline_method, baseline_run_i
     Output("store-compare-all-data", "data"),
     Input("btn-compare-all", "n_clicks"),
     Input("btn-compare-all-close", "n_clicks"),
+    Input("select-compare-sort", "value"),
     State("select-compare-runs", "value"),
     State("select-baseline-method", "value"),
     State("select-baseline-run", "value"),
     State("modal-compare-all", "is_open"),
+    State("store-compare-all-data", "data"),
     prevent_initial_call=True,
 )
-def compare_all_signals_modal(compare_clicks, close_clicks, selected_runs, baseline_method, baseline_run_idx, is_open):
+def compare_all_signals_modal(compare_clicks, close_clicks, sort_order, selected_runs, baseline_method, baseline_run_idx, is_open, stored_data):
     """
     Compare ALL common signals and show ranked results in a modal.
     
@@ -2784,6 +2999,11 @@ def compare_all_signals_modal(compare_clicks, close_clicks, selected_runs, basel
     
     if "btn-compare-all-close" in trigger:
         return False, dash.no_update, dash.no_update
+    
+    # Handle sort change - re-sort existing data
+    if "select-compare-sort" in trigger and stored_data and stored_data.get("results"):
+        results = stored_data["results"]
+        return True, _build_compare_results_table(results, sort_order), stored_data
     
     if "btn-compare-all" not in trigger:
         return dash.no_update, dash.no_update, dash.no_update
@@ -2853,12 +3073,32 @@ def compare_all_signals_modal(compare_clicks, close_clicks, selected_runs, basel
         except Exception as e:
             print(f"[COMPARE ALL] Error processing {signal_name}: {e}", flush=True)
     
-    # Sort by RMS diff (largest first)
-    results.sort(key=lambda x: x["rms"], reverse=True)
+    print(f"[COMPARE ALL] Compared {len(results)} signals", flush=True)
     
-    # Build results table
+    # Build table with sort option
+    content = _build_compare_results_table(results, sort_order or "diff_desc")
+    
+    # Store results and selected runs for subplot creation
+    return True, content, {"results": results, "selected_runs": selected_runs}
+
+
+def _build_compare_results_table(results: list, sort_order: str = "diff_desc"):
+    """Build the compare results table with the specified sort order."""
+    # Sort results
+    if sort_order == "diff_desc":
+        sorted_results = sorted(results, key=lambda x: x["rms"], reverse=True)
+    elif sort_order == "diff_asc":
+        sorted_results = sorted(results, key=lambda x: x["rms"], reverse=False)
+    elif sort_order == "name_asc":
+        sorted_results = sorted(results, key=lambda x: x["signal"].lower())
+    elif sort_order == "name_desc":
+        sorted_results = sorted(results, key=lambda x: x["signal"].lower(), reverse=True)
+    else:
+        sorted_results = results
+    
+    # Build table rows
     table_rows = []
-    for r in results:
+    for r in sorted_results:
         if r["pct"] > 10:
             color = "danger"
             icon = "⚠️"
@@ -2886,7 +3126,7 @@ def compare_all_signals_modal(compare_clicks, close_clicks, selected_runs, basel
         dbc.Col(html.Strong("RMS", className="small"), width=3),
     ], className="py-1 bg-secondary text-white")
     
-    content = html.Div([
+    return html.Div([
         header, 
         html.Div(table_rows, style={"maxHeight": "300px", "overflowY": "auto"}),
         html.Hr(className="my-2"),
@@ -2898,11 +3138,6 @@ def compare_all_signals_modal(compare_clicks, close_clicks, selected_runs, basel
             className="mt-2 w-100",
         ),
     ])
-    
-    print(f"[COMPARE ALL] Compared {len(results)} signals", flush=True)
-    
-    # Store results and selected runs for subplot creation
-    return True, content, {"results": results, "selected_runs": selected_runs}
 
 
 @app.callback(
@@ -3201,15 +3436,21 @@ def update_operation_options(op_type):
     prevent_initial_call=True,
 )
 def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output_name, refresh):
-    """Apply operation and create derived signal"""
+    """
+    Apply operation and create derived signal(s).
+    
+    For unary operations: supports 1 or more signals, creating one derived signal per input.
+    For binary operations: requires exactly 2 signals.
+    For multi operations: requires 2+ signals.
+    """
     global derived_signals
     
     if not signal_keys:
         return html.Span("⚠️ Select signal(s)", className="text-warning"), dash.no_update, dash.no_update
     
     # Validate signal count
-    if op_type == "unary" and len(signal_keys) != 1:
-        return html.Span("⚠️ Select exactly 1 signal", className="text-warning"), dash.no_update, dash.no_update
+    if op_type == "unary" and len(signal_keys) < 1:
+        return html.Span("⚠️ Select at least 1 signal", className="text-warning"), dash.no_update, dash.no_update
     if op_type == "binary" and len(signal_keys) != 2:
         return html.Span("⚠️ Select exactly 2 signals", className="text-warning"), dash.no_update, dash.no_update
     if op_type == "multi" and len(signal_keys) < 2:
@@ -3223,10 +3464,10 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
             if run_idx == DERIVED_RUN_IDX:
                 if sig_name in derived_signals:
                     ds = derived_signals[sig_name]
-                    signals_data.append((ds.time, ds.data, sig_name))
+                    signals_data.append((ds.time, ds.data, sig_name, sig_key))
             elif 0 <= run_idx < len(runs):
                 time_data, sig_data = runs[run_idx].get_signal_data(sig_name)
-                signals_data.append((time_data, sig_data, sig_name))
+                signals_data.append((time_data, sig_data, sig_name, sig_key))
         
         if not signals_data:
             return html.Span("⚠️ No valid signal data", className="text-warning"), dash.no_update, dash.no_update
@@ -3235,37 +3476,68 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
         import numpy as np
         
         if op_type == "unary":
-            time, data, name = signals_data[0]
-            if operation == "derivative":
-                result = np.gradient(data, time)
-                op_label = f"d({name})/dt"
-            elif operation == "integral":
-                result = np.cumsum(data) * np.mean(np.diff(time)) if len(time) > 1 else data
-                op_label = f"∫{name}"
-            elif operation == "abs":
-                result = np.abs(data)
-                op_label = f"|{name}|"
-            elif operation == "normalize":
-                min_v, max_v = np.min(data), np.max(data)
-                result = (data - min_v) / (max_v - min_v) if max_v > min_v else data * 0
-                op_label = f"norm({name})"
-            elif operation == "rms":
-                window = min(100, len(data) // 10) or 10
-                result = np.sqrt(np.convolve(data**2, np.ones(window)/window, mode='same'))
-                op_label = f"rms({name})"
-            elif operation == "smooth":
-                window = min(50, len(data) // 20) or 5
-                result = np.convolve(data, np.ones(window)/window, mode='same')
-                op_label = f"smooth({name})"
-            else:
-                result = data
-                op_label = name
+            # Support multiple signals - create one derived signal per input
+            created_names = []
             
-            result_time = time
+            for time, data, name, sig_key in signals_data:
+                if operation == "derivative":
+                    result = np.gradient(data, time)
+                    op_label = f"d({name})/dt"
+                elif operation == "integral":
+                    result = np.cumsum(data) * np.mean(np.diff(time)) if len(time) > 1 else data
+                    op_label = f"int({name})"  # ASCII-safe
+                elif operation == "abs":
+                    result = np.abs(data)
+                    op_label = f"abs({name})"
+                elif operation == "normalize":
+                    min_v, max_v = np.min(data), np.max(data)
+                    result = (data - min_v) / (max_v - min_v) if max_v > min_v else data * 0
+                    op_label = f"norm({name})"
+                elif operation == "rms":
+                    window = min(100, len(data) // 10) or 10
+                    result = np.sqrt(np.convolve(data**2, np.ones(window)/window, mode='same'))
+                    op_label = f"rms({name})"
+                elif operation == "smooth":
+                    window = min(50, len(data) // 20) or 5
+                    result = np.convolve(data, np.ones(window)/window, mode='same')
+                    op_label = f"smooth({name})"
+                else:
+                    result = data
+                    op_label = name
+                
+                # Use custom output name only for single signal, otherwise auto-generate
+                if output_name and len(signals_data) == 1:
+                    final_name = output_name
+                else:
+                    final_name = op_label
+                
+                derived_signals[final_name] = DerivedSignal(
+                    name=final_name,
+                    time=time.copy(),
+                    data=result,
+                    operation=operation,
+                    source_signals=[sig_key],
+                )
+                created_names.append(final_name)
+                print(f"[OPS] Created derived signal: {final_name}", flush=True)
+            
+            # Return success message
+            if len(created_names) == 1:
+                return (
+                    html.Span(f"✅ Created: {created_names[0]}", className="text-success"),
+                    build_signal_tree(runs, ""),
+                    (refresh or 0) + 1,
+                )
+            else:
+                return (
+                    html.Span(f"✅ Created {len(created_names)} signals", className="text-success"),
+                    build_signal_tree(runs, ""),
+                    (refresh or 0) + 1,
+                )
             
         elif op_type == "binary":
-            t1, d1, n1 = signals_data[0]
-            t2, d2, n2 = signals_data[1]
+            t1, d1, n1, _ = signals_data[0]
+            t2, d2, n2, _ = signals_data[1]
             
             # Align time bases
             if len(t1) >= len(t2):
@@ -3287,24 +3559,44 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
                     d1_aligned = np.interp(t2, t1, d1)
                 d2_aligned = d2
             
+            # Use ASCII operators to avoid issues with Dash pattern matching callbacks
             if operation == "add":
                 result = d1_aligned + d2_aligned
                 op_label = f"{n1} + {n2}"
             elif operation == "subtract":
                 result = d1_aligned - d2_aligned
-                op_label = f"{n1} − {n2}"
+                op_label = f"{n1} - {n2}"  # ASCII minus
             elif operation == "multiply":
                 result = d1_aligned * d2_aligned
-                op_label = f"{n1} × {n2}"
+                op_label = f"{n1} * {n2}"  # ASCII asterisk
             elif operation == "divide":
                 result = d1_aligned / np.where(d2_aligned != 0, d2_aligned, 1)
-                op_label = f"{n1} ÷ {n2}"
+                op_label = f"{n1} / {n2}"  # ASCII slash
             elif operation == "abs_diff":
                 result = np.abs(d1_aligned - d2_aligned)
-                op_label = f"|{n1} − {n2}|"
+                op_label = f"|{n1} - {n2}|"  # ASCII minus
             else:
                 result = d1_aligned
                 op_label = n1
+            
+            # Create derived signal for binary operation
+            final_name = output_name if output_name else op_label
+            
+            derived_signals[final_name] = DerivedSignal(
+                name=final_name,
+                time=result_time,
+                data=result,
+                operation=operation,
+                source_signals=signal_keys,
+            )
+            
+            print(f"[OPS] Created derived signal: {final_name}", flush=True)
+            
+            return (
+                html.Span(f"✅ Created: {final_name}", className="text-success"),
+                build_signal_tree(runs, ""),
+                (refresh or 0) + 1,
+            )
                 
         else:  # multi
             # Use first signal's time base
@@ -3312,7 +3604,7 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
             aligned_data = []
             signal_names = []
             
-            for t, d, n in signals_data:
+            for t, d, n, _ in signals_data:
                 signal_names.append(n)
                 if len(t) == len(result_time) and np.allclose(t, result_time):
                     aligned_data.append(d)

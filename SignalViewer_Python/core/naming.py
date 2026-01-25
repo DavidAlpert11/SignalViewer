@@ -89,10 +89,13 @@ def get_derived_name(operation: str, *source_names: str) -> str:
     Unary: "derivative(signal)"
     Binary: "A + B"
     Multi: "norm(s1, s2, s3)"
+    
+    Note: Uses ASCII operators only (+, -, *, /) to avoid issues with
+    Dash pattern matching callbacks that can have problems with Unicode.
     """
     if len(source_names) == 1:
         return f"{operation}({source_names[0]})"
-    elif len(source_names) == 2 and operation in ['+', '-', '*', '/', '−', '×', '÷']:
+    elif len(source_names) == 2 and operation in ['+', '-', '*', '/']:
         return f"{source_names[0]} {operation} {source_names[1]}"
     else:
         signals_str = ", ".join(source_names)

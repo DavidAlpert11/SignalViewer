@@ -149,6 +149,7 @@ def create_figure(
     view_state: ViewState,
     signal_settings: Dict[str, Dict],
     for_export: bool = False,
+    shared_x: bool = False,
 ) -> Tuple[go.Figure, Dict]:
     """
     Create the main plot figure.
@@ -165,6 +166,7 @@ def create_figure(
         view_state: Current view state
         signal_settings: Per-signal display settings
         for_export: If True, hide active subplot highlight for clean export
+        shared_x: If True, link X axes across all subplots (same column)
         
     Returns:
         Tuple of (figure, cursor_values dict)
@@ -177,16 +179,30 @@ def create_figure(
     
     print(f"[FIGURE] Building figure: {rows}x{cols} = {total_subplots} subplots, active={view_state.active_subplot}", flush=True)
     
-    # Create subplots with proper spacing and titles
-    subplot_titles = [f"Subplot {i+1}" for i in range(total_subplots)] if total_subplots > 1 else None
+    # Create subplots with proper spacing and custom titles from SubplotConfig
+    def get_subplot_title(idx):
+        """Get subplot title - use custom title if set, otherwise default"""
+        if idx < len(view_state.subplots) and view_state.subplots[idx].title:
+            return view_state.subplots[idx].title
+        return f"Subplot {idx+1}"
+    
+    subplot_titles = [get_subplot_title(i) for i in range(total_subplots)] if total_subplots > 1 else None
     
     fig = make_subplots(
         rows=rows, cols=cols,
-        shared_xaxes=False,  # Independent axes for better visibility
-        vertical_spacing=0.12 if rows > 1 else 0.05,
+        shared_xaxes=False,  # Don't use built-in sharing (hides x-ticks)
+        vertical_spacing=0.15 if rows > 1 else 0.05,  # Increased spacing to prevent xlabel/title overlap
         horizontal_spacing=0.08 if cols > 1 else 0.02,
         subplot_titles=subplot_titles,
     )
+    
+    # If shared_x is True, link ALL subplot x-axes together while keeping ticks visible
+    if shared_x and total_subplots > 1:
+        # Make all x-axes match the first one
+        for sp_idx in range(1, total_subplots):
+            row, col = subplot_idx_to_row_col(sp_idx, cols)
+            axis_name = f"xaxis{sp_idx + 1}" if sp_idx > 0 else "xaxis"
+            fig.update_layout(**{axis_name: dict(matches='x', showticklabels=True)})
     
     # Track cursor values and time range
     cursor_values = {}
@@ -308,11 +324,28 @@ def create_figure(
     if view_state.cursor_enabled and view_state.cursor_time is not None:
         for sp_idx in range(total_subplots):
             row, col = subplot_idx_to_row_col(sp_idx, cols)
-            fig.add_vline(
-                x=view_state.cursor_time,
-                line=dict(color="#ff6b6b", width=2, dash="dash"),
-                row=row, col=col,
-            )
+            sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else None
+            
+            # For X-Y mode, cursor should be at the X value corresponding to cursor time
+            if sp_config and sp_config.mode == "xy" and sp_config.x_signal:
+                x_run_idx, x_sig_name = parse_signal_key(sp_config.x_signal)
+                x_time, x_data = _get_signal_data(runs, derived_signals, x_run_idx, x_sig_name)
+                if len(x_time) > 0 and len(x_data) > 0:
+                    # Find X value at cursor time
+                    cursor_x = _interpolate_at(x_time, x_data, view_state.cursor_time)
+                    if cursor_x is not None:
+                        fig.add_vline(
+                            x=cursor_x,
+                            line=dict(color="#ff6b6b", width=2, dash="dash"),
+                            row=row, col=col,
+                        )
+            else:
+                # Time mode - cursor at time value
+                fig.add_vline(
+                    x=view_state.cursor_time,
+                    line=dict(color="#ff6b6b", width=2, dash="dash"),
+                    row=row, col=col,
+                )
     
     # Apply styling with dynamic height
     # Feature 7: Legend grouped by subplot with click-to-toggle
@@ -339,6 +372,15 @@ def create_figure(
         hovermode="x unified",
         uirevision="stable",
     )
+    
+    # Adjust subplot title positions to prevent overlap with xlabels from row above
+    if rows > 1 and total_subplots > 1:
+        annotations = list(fig.layout.annotations)
+        for ann in annotations:
+            # Move subplot titles up slightly
+            if ann.y is not None:
+                ann.y = ann.y + 0.02
+        fig.update_layout(annotations=annotations)
     
     # Style subplots - highlight active one (unless exporting)
     for sp_idx in range(total_subplots):
