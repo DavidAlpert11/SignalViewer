@@ -2,7 +2,7 @@
 
 Professional signal analysis tool for engineering data visualization.
 
-![Signal Viewer Pro Screenshot](screenshot.png)
+![Signal Viewer Pro Screenshot](preview.png)
 
 ## Features
 
