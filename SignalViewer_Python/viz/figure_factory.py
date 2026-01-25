@@ -186,7 +186,7 @@ def create_figure(
             return view_state.subplots[idx].title
         return f"Subplot {idx+1}"
     
-    subplot_titles = [get_subplot_title(i) for i in range(total_subplots)] if total_subplots > 1 else None
+    subplot_titles = [get_subplot_title(i) for i in range(total_subplots)]
     
     fig = make_subplots(
         rows=rows, cols=cols,
