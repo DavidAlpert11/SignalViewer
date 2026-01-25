@@ -2,7 +2,7 @@
 
 Professional signal analysis tool for engineering data visualization.
 
-![Signal Viewer Pro Screenshot](SignalViewer_Python\preview.png)
+![Signal Viewer Screenshot](SignalViewer_Python/preview.png)
 
 ## Features
 
