@@ -501,11 +501,12 @@ def _add_state_trace(
     Add state signal as vertical X-lines at value changes with state value annotations.
     
     State signals show:
-    - Vertical X-lines where the value changes (as actual traces for legend toggle)
+    - Vertical X-lines spanning full Y axis (like MATLAB's xline)
     - Text annotations showing the incoming state value
     - Initial value annotation at the start
     
-    Uses actual traces (not vlines) so legend clicks properly hide/show the signal.
+    Uses add_vline for full-height lines (spans entire y-axis regardless of data).
+    Adds a minimal legend entry trace for identification.
     """
     if len(time) < 1:
         return
@@ -513,47 +514,42 @@ def _add_state_trace(
     # Find transitions (where value changes)
     transitions = np.where(np.diff(data) != 0)[0] if len(time) > 1 else np.array([])
     
-    # Use extreme y values so vertical lines span entire y-axis regardless of other signals
-    # Plotly will clip these to the visible range
-    y_bottom = -1e30
-    y_top = 1e30
-    
-    # Build x and y arrays for vertical lines (using None to break the lines)
-    x_lines = []
-    y_lines = []
     annotations_data = []  # (x, text) pairs
     
-    # Initial vertical line
+    # Initial state
     initial_time = float(time[0])
     initial_value = int(data[0]) if np.issubdtype(data.dtype, np.integer) else f"{data[0]:.1f}"
-    x_lines.extend([initial_time, initial_time, None])
-    y_lines.extend([y_bottom, y_top, None])
     annotations_data.append((initial_time, str(initial_value)))
     
-    # Transition vertical lines
+    # Transition times
+    transition_times = [initial_time]
     for idx in transitions:
         t = float(time[idx + 1])
         new_val = data[idx + 1]
         new_val_str = int(new_val) if np.issubdtype(data.dtype, np.integer) or new_val == int(new_val) else f"{new_val:.1f}"
-        x_lines.extend([t, t, None])
-        y_lines.extend([y_bottom, y_top, None])
+        transition_times.append(t)
         annotations_data.append((t, str(new_val_str)))
     
-    # Subplot group for legend
-    subplot_group = f"SP{sp_idx+1}"
-    is_first_in_subplot = False  # Will be determined by caller
+    # Add vertical lines using add_vline (spans full y-axis like MATLAB xline)
+    for t in transition_times:
+        fig.add_vline(
+            x=t,
+            line=dict(color=color, width=width, dash="solid"),
+            row=row, col=col,
+        )
     
-    # Add single trace with all vertical lines (toggleable via legend)
+    # Add a legend entry trace (minimal, just for legend identification)
+    subplot_group = f"SP{sp_idx+1}"
     fig.add_trace(
-        go.Scattergl(
-            x=x_lines,
-            y=y_lines,
-            name=label,
+        go.Scatter(
+            x=[None],  # No actual data points
+            y=[None],
+            name=f"{label} (state)",
             mode="lines",
             line=dict(color=color, width=width),
-            hovertemplate=f"<b>{label}</b><br>State transition<extra></extra>",
             legendgroup=subplot_group,
             legendgrouptitle=dict(text=f"Subplot {sp_idx+1}") if total_subplots > 1 else None,
+            hoverinfo="skip",
         ),
         row=row, col=col,
     )

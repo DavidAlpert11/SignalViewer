@@ -954,6 +954,8 @@ def create_signal_properties_modal():
                         "State signals show vertical lines where the value changes, useful for digital/discrete signals.",
                         className="text-muted",
                     ),
+                    # Warning for many transitions
+                    html.Div(id="state-signal-warning", className="mt-2"),
                 ], width=12),
             ]),
             

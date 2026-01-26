@@ -4411,6 +4411,62 @@ def toggle_signal_props_modal(edit_clicks, props_clicks, cancel_click, apply_cli
 
 
 @app.callback(
+    Output("state-signal-warning", "children"),
+    Input("signal-props-type", "value"),
+    State("signal-props-current-key", "data"),
+    prevent_initial_call=True,
+)
+def check_state_signal_transitions(sig_type, sig_key):
+    """Show warning if state signal has many transitions (>100)"""
+    import numpy as np
+    
+    if sig_type != "state" or not sig_key:
+        return ""
+    
+    # Get signal data and count transitions
+    try:
+        run_idx, sig_name = parse_signal_key(sig_key)
+        
+        if run_idx == DERIVED_RUN_IDX:
+            if sig_name in derived_signals:
+                data = derived_signals[sig_name].data
+            else:
+                return ""
+        elif 0 <= run_idx < len(runs):
+            _, data = runs[run_idx].get_signal_data(sig_name)
+        else:
+            return ""
+        
+        if len(data) < 2:
+            return ""
+        
+        # Count transitions
+        transitions = np.sum(np.diff(data) != 0)
+        
+        if transitions > 100:
+            return dbc.Alert(
+                [
+                    html.Strong("⚠️ Warning: "),
+                    f"This signal has {transitions} state changes. ",
+                    "Displaying many vertical lines may affect performance. ",
+                    "Are you sure this should be a state signal?",
+                ],
+                color="warning",
+                className="py-2 mb-0 small",
+            )
+        elif transitions > 50:
+            return html.Small(
+                f"ℹ️ This signal has {transitions} state changes.",
+                className="text-info",
+            )
+        
+        return ""
+    except Exception as e:
+        print(f"[STATE CHECK] Error: {e}", flush=True)
+        return ""
+
+
+@app.callback(
     Output("store-refresh", "data", allow_duplicate=True),
     Output("assigned-list", "children", allow_duplicate=True),
     Input("btn-signal-props-apply", "n_clicks"),
