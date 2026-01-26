@@ -417,6 +417,21 @@ def create_layout():
                                 className="w-100",
                             ),
                         ]),
+                        # Jump to time input for cursor2
+                        dbc.Col([
+                            dbc.InputGroup([
+                                dbc.Input(
+                                    id="cursor2-jump-input",
+                                    type="number",
+                                    placeholder="Jump to T...",
+                                    size="sm",
+                                    style={"width": "100px"},
+                                    debounce=True,
+                                    step="any",  # Allow decimal values
+                                ),
+                                dbc.Button("→", id="btn-cursor2-jump", size="sm", color="warning", outline=True),
+                            ], size="sm"),
+                        ], width="auto"),
                         dbc.Col([
                             html.Span(id="cursor2-time-display", className="text-warning small fw-bold"),
                         ], width="auto"),

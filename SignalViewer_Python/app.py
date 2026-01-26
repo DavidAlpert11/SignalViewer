@@ -76,7 +76,7 @@ def _log(tag: str, msg: str):
 
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.CYBORG],
+    external_stylesheets=[],  # No CDN - use local assets/bootstrap.min.css
     suppress_callback_exceptions=True,
     title="Signal Viewer Pro",
 )
@@ -1829,6 +1829,73 @@ def update_cursor2_display(cursor2_time, cursor1_time, cursor_mode):
     return f"T₂ = {cursor2_time:.6f}", f"{delta_t:.6f}", f"ΔT={delta_t:.6f}"
 
 
+@app.callback(
+    Output("cursor2-slider", "value", allow_duplicate=True),
+    Output("cursor2-time-display", "children", allow_duplicate=True),
+    Input("btn-cursor2-jump", "n_clicks"),
+    Input("cursor2-jump-input", "n_submit"),  # Also trigger on Enter key
+    State("cursor2-jump-input", "value"),
+    State("cursor2-slider", "min"),
+    State("cursor2-slider", "max"),
+    prevent_initial_call=True,
+)
+def cursor2_jump_to_time(n_clicks, n_submit, target_time, t_min, t_max):
+    """
+    Jump cursor2 to specific time - finds NEAREST SAMPLE.
+    
+    - Triggers on button click OR Enter key press
+    - Finds nearest actual sample time (not interpolated)
+    - Supports decimal values (1.24, 0.001, etc.)
+    """
+    import numpy as np
+    
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update
+    
+    # Check if target_time is provided
+    if target_time is None or target_time == "":
+        return dash.no_update, dash.no_update
+    
+    try:
+        target_time = float(target_time)
+    except (ValueError, TypeError):
+        return dash.no_update, dash.no_update
+    
+    # Find nearest sample time from ASSIGNED signals
+    nearest_time = target_time
+    min_dist = float('inf')
+    
+    for sp in view_state.subplots:
+        for sig_key in sp.assigned_signals:
+            run_idx, sig_name = parse_signal_key(sig_key)
+            
+            time_arr = None
+            if run_idx == DERIVED_RUN_IDX:
+                if sig_name in derived_signals:
+                    time_arr = derived_signals[sig_name].time
+            elif 0 <= run_idx < len(runs):
+                time_arr = runs[run_idx].time
+            
+            if time_arr is not None and len(time_arr) > 0:
+                idx = np.searchsorted(time_arr, target_time)
+                # Check both neighbors
+                for check_idx in [max(0, idx - 1), min(len(time_arr) - 1, idx)]:
+                    dist = abs(time_arr[check_idx] - target_time)
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest_time = float(time_arr[check_idx])
+    
+    # Clamp to valid range
+    nearest_time = max(t_min, min(t_max, nearest_time))
+    
+    # Update global state
+    view_state.cursor2_time = nearest_time
+    
+    print(f"[CURSOR2] Jump to T={target_time:.6f} → nearest sample T={nearest_time:.6f}", flush=True)
+    return nearest_time, f"T₂ = {nearest_time:.6f}"
+
+
 # =============================================================================
 # CALLBACKS: FFT Mode
 # =============================================================================
@@ -2209,6 +2276,7 @@ def stream_refresh(n_intervals, refresh, is_disabled):
     Input("store-view-state", "data"),
     Input("store-refresh", "data"),
     Input("cursor-slider", "value"),
+    Input("cursor2-slider", "value"),
     Input("btn-theme", "n_clicks"),
     Input("select-rows", "value"),
     Input("select-cols", "value"),
@@ -2218,7 +2286,7 @@ def stream_refresh(n_intervals, refresh, is_disabled):
     Input("btn-mode-xy", "n_clicks"),
     Input("store-link-axes", "data"),
 )
-def update_plot(vs_data, refresh, cursor_time, theme_clicks, layout_rows, layout_cols, 
+def update_plot(vs_data, refresh, cursor_time, cursor2_time, theme_clicks, layout_rows, layout_cols, 
                 active_sp, inspector_show_all, mode_time_clicks, mode_xy_clicks, link_axes_state):
     global view_state
     
@@ -2251,6 +2319,7 @@ def update_plot(vs_data, refresh, cursor_time, theme_clicks, layout_rows, layout
     
     # Update cursor time
     view_state.cursor_time = cursor_time
+    view_state.cursor2_time = cursor2_time
     
     # Log layout changes
     if "select-rows" in trigger or "select-cols" in trigger:
@@ -2265,7 +2334,8 @@ def update_plot(vs_data, refresh, cursor_time, theme_clicks, layout_rows, layout
     current_hash = _compute_figure_hash()
     if (_figure_cache["hash"] == current_hash and 
         _figure_cache["figure"] is not None and
-        "cursor-slider" not in trigger):  # Always update for cursor changes
+        "cursor-slider" not in trigger and
+        "cursor2-slider" not in trigger):  # Always update for cursor changes
         fig = _figure_cache["figure"]
         cursor_values = _figure_cache["cursor_values"]
         if DEBUG:
@@ -4757,7 +4827,7 @@ def export_report(n_clicks, title, intro, conclusion, rtl, scope, format_type, i
             except Exception as img_err:
                 print(f"[PDF] Could not export image: {img_err}", flush=True)
                 # Fallback to interactive plot
-                plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+                plot_html = pio.to_html(fig, full_html=False, include_plotlyjs=True)
                 pdf_html += f'<div class="plot">{plot_html}</div>'
             
             if conclusion:
