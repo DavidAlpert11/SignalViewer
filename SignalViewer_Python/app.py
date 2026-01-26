@@ -58,7 +58,7 @@ from ui.layout import create_layout
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-APP_TITLE = "Signal Viewer Pro v2.4"
+APP_TITLE = "Signal Viewer Pro v2.6"
 APP_HOST = "127.0.0.1"
 APP_PORT = 8050
 DEBUG = False  # Set to True for verbose logging
@@ -1143,6 +1143,8 @@ def init_subplot_selector(refresh):
     Output("btn-mode-time", "outline"),
     Output("btn-mode-xy", "color"),
     Output("btn-mode-xy", "outline"),
+    Output("btn-mode-fft", "color", allow_duplicate=True),
+    Output("btn-mode-fft", "outline", allow_duplicate=True),
     Output("input-subplot-title", "value"),
     Input("select-subplot", "value"),
     prevent_initial_call=True,
@@ -1164,21 +1166,24 @@ def select_subplot(subplot_idx):
     sp_config = view_state.subplots[sp_idx]
     
     # Mode button styling based on current subplot mode
-    is_time = sp_config.mode == "time"
-    time_color = "primary" if is_time else "secondary"
-    time_outline = False if is_time else True
-    xy_color = "primary" if not is_time else "secondary"
-    xy_outline = False if not is_time else True
+    mode = sp_config.mode
+    time_color = "primary" if mode == "time" else "secondary"
+    time_outline = False if mode == "time" else True
+    xy_color = "primary" if mode == "xy" else "secondary"
+    xy_outline = False if mode == "xy" else True
+    fft_color = "primary" if mode == "fft" else "secondary"
+    fft_outline = False if mode == "fft" else True
     
     total = view_state.layout_rows * view_state.layout_cols
     
-    print(f"[SELECT] Subplot {sp_idx + 1}/{total}, signals={sp_config.assigned_signals}", flush=True)
+    print(f"[SELECT] Subplot {sp_idx + 1}/{total}, mode={mode}, signals={sp_config.assigned_signals}", flush=True)
     
     return (
         f"Subplot {sp_idx + 1} / {total}",
         build_assigned_list(sp_config, runs),
         time_color, time_outline,
         xy_color, xy_outline,
+        fft_color, fft_outline,
         sp_config.title or "",  # Populate subplot title input
     )
 
@@ -1454,10 +1459,11 @@ def clear_all(n_clicks, refresh):
     Output("xy-x-signal", "value"),
     Input("btn-mode-time", "n_clicks"),
     Input("btn-mode-xy", "n_clicks"),
+    Input("btn-mode-fft", "n_clicks"),
     Input("select-subplot", "value"),
     State("store-runs", "data"),
 )
-def update_xy_controls(time_clicks, xy_clicks, subplot_idx, run_paths):
+def update_xy_controls(time_clicks, xy_clicks, fft_clicks, subplot_idx, run_paths):
     """
     Show/hide X-Y controls and populate X signal dropdown.
     Y signals come from the assigned list (P0-13).
@@ -1481,6 +1487,9 @@ def update_xy_controls(time_clicks, xy_clicks, subplot_idx, run_paths):
     elif "btn-mode-xy" in trigger:
         sp_config.mode = "xy"
         print(f"[MODE] Subplot {sp_idx}: X-Y mode", flush=True)
+    elif "btn-mode-fft" in trigger:
+        sp_config.mode = "fft"
+        print(f"[MODE] Subplot {sp_idx}: FFT mode", flush=True)
     
     # Show/hide based on mode
     if sp_config.mode != "xy":
@@ -1741,6 +1750,397 @@ def cursor_jump_to_time(n_clicks, n_submit, target_time, t_min, t_max):
     
     print(f"[CURSOR] Jump to T={target_time:.6f} → nearest sample T={nearest_time:.6f}", flush=True)
     return nearest_time, f"T = {nearest_time:.6f}"
+
+
+# =============================================================================
+# CALLBACKS: Dual Cursor Mode
+# =============================================================================
+
+@app.callback(
+    Output("cursor2-row", "style"),
+    Output("btn-cursor-dual", "color"),
+    Output("btn-cursor-dual", "outline"),
+    Output("btn-cursor-dual", "style"),
+    Output("store-cursor-mode", "data"),
+    Input("btn-cursor-dual", "n_clicks"),
+    State("store-cursor-mode", "data"),
+    prevent_initial_call=True,
+)
+def toggle_dual_cursor(n_clicks, current_mode):
+    """Toggle between single and dual cursor mode"""
+    global view_state
+    
+    new_mode = "single" if current_mode == "dual" else "dual"
+    view_state.cursor_mode = new_mode
+    
+    if new_mode == "dual":
+        return {"display": "flex"}, "primary", False, {}, "dual"
+    else:
+        return {"display": "none"}, "secondary", True, {}, "single"
+
+
+@app.callback(
+    Output("btn-cursor-dual", "style", allow_duplicate=True),
+    Input("btn-cursor-toggle", "n_clicks"),
+    State("switch-cursor", "value"),
+    prevent_initial_call=True,
+)
+def show_dual_button_when_cursor_enabled(n_clicks, current_value):
+    """Show dual cursor button when cursor is enabled"""
+    enabled = not (current_value and len(current_value) > 0)
+    return {} if enabled else {"display": "none"}
+
+
+@app.callback(
+    Output("cursor2-slider", "min"),
+    Output("cursor2-slider", "max"),
+    Output("cursor2-slider", "value"),
+    Input("cursor-slider", "min"),
+    Input("cursor-slider", "max"),
+    State("cursor2-slider", "value"),
+)
+def sync_cursor2_range(t_min, t_max, current_value):
+    """Sync second cursor slider range with first"""
+    if t_min is None or t_max is None:
+        return 0, 100, 50
+    
+    # Position cursor2 at 75% by default if not set
+    new_value = current_value if (current_value is not None and t_min <= current_value <= t_max) else (t_min + (t_max - t_min) * 0.75)
+    return t_min, t_max, new_value
+
+
+@app.callback(
+    Output("cursor2-time-display", "children"),
+    Output("cursor-delta-time", "children"),
+    Output("cursor-delta-display", "children"),
+    Input("cursor2-slider", "value"),
+    Input("cursor-slider", "value"),
+    State("store-cursor-mode", "data"),
+)
+def update_cursor2_display(cursor2_time, cursor1_time, cursor_mode):
+    """Update second cursor display and delta"""
+    global view_state
+    view_state.cursor2_time = cursor2_time
+    
+    if cursor_mode != "dual" or cursor2_time is None or cursor1_time is None:
+        return "", "", ""
+    
+    delta_t = cursor2_time - cursor1_time
+    return f"T₂ = {cursor2_time:.6f}", f"{delta_t:.6f}", f"ΔT={delta_t:.6f}"
+
+
+# =============================================================================
+# CALLBACKS: FFT Mode
+# =============================================================================
+
+@app.callback(
+    Output("btn-mode-time", "color", allow_duplicate=True),
+    Output("btn-mode-time", "outline", allow_duplicate=True),
+    Output("btn-mode-xy", "color", allow_duplicate=True),
+    Output("btn-mode-xy", "outline", allow_duplicate=True),
+    Output("btn-mode-fft", "color"),
+    Output("btn-mode-fft", "outline"),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("btn-mode-fft", "n_clicks"),
+    State("select-subplot", "value"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def set_fft_mode(n_clicks, active_sp, refresh):
+    """Set active subplot to FFT mode"""
+    global view_state
+    
+    sp_idx = int(active_sp or 0)
+    while len(view_state.subplots) <= sp_idx:
+        view_state.subplots.append(SubplotConfig(index=len(view_state.subplots)))
+    
+    view_state.subplots[sp_idx].mode = "fft"
+    print(f"[MODE] Subplot {sp_idx} set to FFT mode", flush=True)
+    
+    return "secondary", True, "secondary", True, "primary", False, (refresh or 0) + 1
+
+
+# =============================================================================
+# CALLBACKS: Region Selection
+# =============================================================================
+
+@app.callback(
+    Output("btn-region-select", "color"),
+    Output("btn-region-select", "outline"),
+    Output("store-region", "data"),
+    Output("region-stats-card", "style"),
+    Input("btn-region-select", "n_clicks"),
+    Input("btn-clear-region", "n_clicks"),
+    State("store-region", "data"),
+    prevent_initial_call=True,
+)
+def toggle_region_selection(select_clicks, clear_clicks, region_data):
+    """Toggle region selection mode or clear region"""
+    global view_state
+    
+    ctx = callback_context
+    trigger = ctx.triggered[0]["prop_id"] if ctx.triggered else ""
+    
+    if "btn-clear-region" in trigger:
+        view_state.region_enabled = False
+        view_state.region_start = None
+        view_state.region_end = None
+        return "secondary", True, {"enabled": False, "start": None, "end": None}, {"display": "none"}
+    
+    # Toggle region mode
+    current_enabled = region_data.get("enabled", False) if region_data else False
+    new_enabled = not current_enabled
+    
+    view_state.region_enabled = new_enabled
+    if not new_enabled:
+        view_state.region_start = None
+        view_state.region_end = None
+    
+    btn_color = "primary" if new_enabled else "secondary"
+    btn_outline = False if new_enabled else True
+    card_style = {"display": "block"} if new_enabled else {"display": "none"}
+    
+    return btn_color, btn_outline, {"enabled": new_enabled, "start": region_data.get("start"), "end": region_data.get("end")}, card_style
+
+
+@app.callback(
+    Output("store-region", "data", allow_duplicate=True),
+    Output("region-range-display", "children"),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input("main-plot", "relayoutData"),
+    State("store-region", "data"),
+    State("store-refresh", "data"),
+    prevent_initial_call=True,
+)
+def handle_region_drag_selection(relayout_data, region_data, refresh):
+    """Handle drag selection on plot to define region"""
+    global view_state
+    
+    if not relayout_data or not region_data or not region_data.get("enabled", False):
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    # Check for x-axis range selection (box select or zoom)
+    x0, x1 = None, None
+    
+    # Check various Plotly relayout patterns
+    if "xaxis.range[0]" in relayout_data and "xaxis.range[1]" in relayout_data:
+        x0 = relayout_data["xaxis.range[0]"]
+        x1 = relayout_data["xaxis.range[1]"]
+    elif "xaxis.range" in relayout_data:
+        x0, x1 = relayout_data["xaxis.range"]
+    
+    if x0 is not None and x1 is not None:
+        # Ensure x0 < x1
+        if x0 > x1:
+            x0, x1 = x1, x0
+        
+        view_state.region_start = x0
+        view_state.region_end = x1
+        
+        new_region = {"enabled": True, "start": x0, "end": x1}
+        range_display = f"[{x0:.4f}, {x1:.4f}]"
+        
+        print(f"[REGION] Selected: {x0:.4f} to {x1:.4f}", flush=True)
+        return new_region, range_display, (refresh or 0) + 1
+    
+    return dash.no_update, dash.no_update, dash.no_update
+
+
+@app.callback(
+    Output("region-stats-content", "children"),
+    Input("store-region", "data"),
+    Input("store-refresh", "data"),
+)
+def update_region_stats(region_data, refresh):
+    """Calculate and display statistics for selected region"""
+    from ops.engine import compute_signal_stats
+    
+    if not region_data or not region_data.get("enabled", False):
+        return html.P("Select a region by zooming on the plot", className="text-muted small")
+    
+    t_start = region_data.get("start")
+    t_end = region_data.get("end")
+    
+    if t_start is None or t_end is None:
+        return html.P("Zoom on the plot to select a region", className="text-muted small")
+    
+    # Compute stats for all assigned signals in active subplot
+    stats_items = []
+    sp_idx = view_state.active_subplot
+    if sp_idx < len(view_state.subplots):
+        sp_config = view_state.subplots[sp_idx]
+        
+        for sig_key in sp_config.assigned_signals:
+            run_idx, sig_name = parse_signal_key(sig_key)
+            
+            # Get data
+            time_data, sig_data = None, None
+            if run_idx == DERIVED_RUN_IDX:
+                if sig_name in derived_signals:
+                    ds = derived_signals[sig_name]
+                    time_data, sig_data = ds.time, ds.data
+            elif 0 <= run_idx < len(runs):
+                run = runs[run_idx]
+                if sig_name in run.signals:
+                    time_data = run.time
+                    sig_data = run.signals[sig_name].data
+            
+            if time_data is not None and sig_data is not None:
+                stats = compute_signal_stats(time_data, sig_data, t_start, t_end)
+                
+                if stats:
+                    settings = signal_settings.get(sig_key, {})
+                    color = settings.get("color", "#58a6ff")
+                    label = settings.get("display_name") or sig_name
+                    
+                    stats_items.append(html.Div([
+                        html.Div([
+                            html.Span("●", style={"color": color, "marginRight": "5px"}),
+                            html.Strong(label[:20], className="small"),
+                        ]),
+                        html.Table([
+                            html.Tbody([
+                                html.Tr([html.Td("Min:", className="text-muted"), html.Td(f"{stats['min']:.4g}")]),
+                                html.Tr([html.Td("Max:", className="text-muted"), html.Td(f"{stats['max']:.4g}")]),
+                                html.Tr([html.Td("Mean:", className="text-muted"), html.Td(f"{stats['mean']:.4g}")]),
+                                html.Tr([html.Td("Std:", className="text-muted"), html.Td(f"{stats['std']:.4g}")]),
+                                html.Tr([html.Td("RMS:", className="text-muted"), html.Td(f"{stats['rms']:.4g}")]),
+                                html.Tr([html.Td("P2P:", className="text-muted"), html.Td(f"{stats['peak_to_peak']:.4g}")]),
+                            ])
+                        ], className="small", style={"fontSize": "10px"}),
+                    ], className="mb-2 pb-2 border-bottom border-secondary"))
+    
+    if not stats_items:
+        return html.P("No signals in active subplot", className="text-muted small")
+    
+    return stats_items
+
+
+# =============================================================================
+# CALLBACKS: Statistics Panel
+# =============================================================================
+
+@app.callback(
+    Output("collapse-stats", "is_open"),
+    Input("btn-toggle-stats", "n_clicks"),
+    State("collapse-stats", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_stats_panel(n_clicks, is_open):
+    """Toggle statistics panel collapse"""
+    return not is_open
+
+
+@app.callback(
+    Output("stats-panel-content", "children"),
+    Input("store-refresh", "data"),
+    Input("select-subplot", "value"),
+)
+def update_stats_panel(refresh, active_sp):
+    """Update statistics panel with signal stats for active subplot"""
+    from ops.engine import compute_signal_stats
+    
+    sp_idx = int(active_sp or 0)
+    if sp_idx >= len(view_state.subplots):
+        return html.P("No subplot selected", className="text-muted small")
+    
+    sp_config = view_state.subplots[sp_idx]
+    
+    if not sp_config.assigned_signals:
+        return html.P("No signals assigned", className="text-muted small")
+    
+    stats_items = []
+    
+    for sig_key in sp_config.assigned_signals:
+        run_idx, sig_name = parse_signal_key(sig_key)
+        
+        # Get data
+        time_data, sig_data = None, None
+        if run_idx == DERIVED_RUN_IDX:
+            if sig_name in derived_signals:
+                ds = derived_signals[sig_name]
+                time_data, sig_data = ds.time, ds.data
+        elif 0 <= run_idx < len(runs):
+            run = runs[run_idx]
+            if sig_name in run.signals:
+                time_data = run.time
+                sig_data = run.signals[sig_name].data
+        
+        if time_data is not None and sig_data is not None:
+            stats = compute_signal_stats(time_data, sig_data)
+            
+            if stats:
+                settings = signal_settings.get(sig_key, {})
+                color = settings.get("color", "#58a6ff")
+                label = settings.get("display_name") or sig_name
+                
+                stats_items.append(html.Div([
+                    html.Div([
+                        html.Span("●", style={"color": color, "marginRight": "5px"}),
+                        html.Strong(label[:15] + ("..." if len(label) > 15 else ""), className="small", title=label),
+                    ]),
+                    html.Div([
+                        html.Span(f"μ={stats['mean']:.3g} ", className="text-muted", style={"fontSize": "10px"}),
+                        html.Span(f"σ={stats['std']:.3g} ", className="text-muted", style={"fontSize": "10px"}),
+                        html.Span(f"[{stats['min']:.3g}, {stats['max']:.3g}]", className="text-info", style={"fontSize": "10px"}),
+                    ]),
+                ], className="mb-1"))
+    
+    if not stats_items:
+        return html.P("No valid signal data", className="text-muted small")
+    
+    return stats_items
+
+
+# =============================================================================
+# CALLBACKS: Click-to-Select Subplot
+# =============================================================================
+
+@app.callback(
+    Output("select-subplot", "value", allow_duplicate=True),
+    Input("main-plot", "clickData"),
+    State("store-region", "data"),
+    prevent_initial_call=True,
+)
+def select_subplot_by_click(click_data, region_data):
+    """Select subplot by clicking on it"""
+    global view_state
+    
+    # Don't change subplot if region selection is active (using click for region)
+    if region_data and region_data.get("enabled", False):
+        return dash.no_update
+    
+    if not click_data or "points" not in click_data:
+        return dash.no_update
+    
+    point = click_data["points"][0]
+    
+    # Try to determine subplot from curveNumber or subplot reference
+    curve_num = point.get("curveNumber", 0)
+    
+    # Plotly uses xaxis, yaxis for subplot identification
+    x_ref = point.get("xaxis", "x")
+    y_ref = point.get("yaxis", "y")
+    
+    # Extract subplot index from axis reference (x2, y2 -> subplot 1, etc.)
+    try:
+        if x_ref == "x" or x_ref == "x1":
+            sp_idx = 0
+        else:
+            sp_idx = int(x_ref.replace("x", "")) - 1
+    except:
+        sp_idx = 0
+    
+    # Clamp to valid range
+    total = view_state.layout_rows * view_state.layout_cols
+    sp_idx = max(0, min(sp_idx, total - 1))
+    
+    if sp_idx != view_state.active_subplot:
+        view_state.active_subplot = sp_idx
+        print(f"[CLICK] Selected subplot {sp_idx} by click", flush=True)
+        return sp_idx
+    
+    return dash.no_update
 
 
 # =============================================================================
@@ -3706,6 +4106,8 @@ def update_operation_options(op_type):
             {"label": "Normalize (0-1)", "value": "normalize"},
             {"label": "RMS (rolling)", "value": "rms"},
             {"label": "Smooth (moving avg)", "value": "smooth"},
+            {"label": "Low-pass filter", "value": "lowpass"},
+            {"label": "High-pass filter", "value": "highpass"},
         ]
     elif op_type == "binary":
         return [
@@ -3803,6 +4205,21 @@ def apply_operation(n_clicks, op_type, signal_keys, operation, alignment, output
                     window = min(50, len(data) // 20) or 5
                     result = np.convolve(data, np.ones(window)/window, mode='same')
                     op_label = f"smooth({name})"
+                elif operation == "lowpass":
+                    from ops.engine import apply_filter
+                    # Use ~5% of Nyquist as default cutoff
+                    dt = np.mean(np.diff(time)) if len(time) > 1 else 1.0
+                    fs = 1.0 / dt
+                    cutoff = fs * 0.05  # 5% of sampling rate
+                    result = apply_filter(time, data, "lowpass", cutoff)
+                    op_label = f"lpf({name})"
+                elif operation == "highpass":
+                    from ops.engine import apply_filter
+                    dt = np.mean(np.diff(time)) if len(time) > 1 else 1.0
+                    fs = 1.0 / dt
+                    cutoff = fs * 0.01  # 1% of sampling rate
+                    result = apply_filter(time, data, "highpass", cutoff)
+                    op_label = f"hpf({name})"
                 else:
                     result = data
                     op_label = name
@@ -4292,6 +4709,67 @@ def export_report(n_clicks, title, intro, conclusion, rtl, scope, format_type, i
             os.unlink(tmp_path)
             return dict(content=content, filename=f"report_{timestamp}.docx", base64=True)
         else:
+            return dash.no_update
+    
+    elif format_type == "pdf":
+        # Export PDF using kaleido for figures
+        import tempfile
+        import base64
+        import plotly.io as pio
+        
+        try:
+            # Build HTML first, then attempt to convert or export images
+            html_content = _build_html_report(title, intro, conclusion, rtl, scope, tab_view_states, active_tab)
+            
+            # Export figures as images and create a simple PDF-like HTML
+            # For now, export as standalone HTML with print-friendly styles
+            # (Full PDF would require weasyprint or reportlab)
+            
+            pdf_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{title}</title>
+    <style>
+        @media print {{
+            body {{ margin: 0; padding: 20px; }}
+            .no-print {{ display: none; }}
+        }}
+        body {{ font-family: Arial, sans-serif; max-width: 800px; margin: auto; }}
+        h1 {{ color: #333; border-bottom: 2px solid #2196F3; }}
+        .plot {{ page-break-inside: avoid; margin: 20px 0; }}
+    </style>
+</head>
+<body>
+    <h1>{title}</h1>
+    <p><em>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</em></p>
+"""
+            if intro:
+                pdf_html += f"<h2>Introduction</h2><p>{intro.replace(chr(10), '<br>')}</p>"
+            
+            # Add figures as static images
+            fig, _ = create_figure(runs, derived_signals, view_state, signal_settings, for_export=True)
+            try:
+                # Try to export as PNG using kaleido
+                img_bytes = pio.to_image(fig, format='png', width=1200, height=800)
+                img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+                pdf_html += f'<div class="plot"><img src="data:image/png;base64,{img_b64}" style="width:100%;"/></div>'
+            except Exception as img_err:
+                print(f"[PDF] Could not export image: {img_err}", flush=True)
+                # Fallback to interactive plot
+                plot_html = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+                pdf_html += f'<div class="plot">{plot_html}</div>'
+            
+            if conclusion:
+                pdf_html += f"<h2>Conclusion</h2><p>{conclusion.replace(chr(10), '<br>')}</p>"
+            
+            pdf_html += "</body></html>"
+            
+            # Return as HTML file for now (user can print to PDF)
+            return dict(content=pdf_html, filename=f"report_{timestamp}_printable.html")
+            
+        except Exception as e:
+            print(f"[PDF] Export failed: {e}", flush=True)
             return dash.no_update
     
     else:  # HTML
@@ -4857,6 +5335,74 @@ def remove_single_derived(remove_clicks, refresh, collapsed_runs):
     print(f"[DERIVED] Removed '{derived_name}' and {len(dependents)} dependents", flush=True)
     
     return build_signal_tree(runs, "", collapsed_runs or {}), (refresh or 0) + 1
+
+
+# =============================================================================
+# CALLBACKS: Keyboard Shortcuts (Clientside)
+# =============================================================================
+
+# Clientside callback for keyboard event handling
+app.clientside_callback(
+    """
+    function(n_intervals) {
+        // Only set up once
+        if (window._keyboardListenerSet) return window.dash_clientside.no_update;
+        window._keyboardListenerSet = true;
+        
+        document.addEventListener('keydown', function(e) {
+            // Don't trigger if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            var key = e.key;
+            var ctrl = e.ctrlKey || e.metaKey;
+            
+            // Subplot selection (1-9)
+            if (key >= '1' && key <= '9' && !ctrl) {
+                var idx = parseInt(key) - 1;
+                var select = document.querySelector('#select-subplot');
+                if (select) {
+                    // Trigger change via dropdown
+                    var options = select.querySelectorAll('option');
+                    if (idx < options.length) {
+                        select.value = idx;
+                        select.dispatchEvent(new Event('change', {bubbles: true}));
+                    }
+                }
+                e.preventDefault();
+            }
+            
+            // Space: Toggle cursor
+            if (key === ' ' && !ctrl) {
+                var cursorBtn = document.querySelector('#btn-cursor-toggle');
+                if (cursorBtn) cursorBtn.click();
+                e.preventDefault();
+            }
+            
+            // Arrow keys: Move cursor (when cursor is enabled)
+            if (key === 'ArrowLeft' || key === 'ArrowRight') {
+                var slider = document.querySelector('#cursor-slider .rc-slider-handle');
+                if (slider) {
+                    // Small cursor movement via simulated event
+                    var event = new KeyboardEvent('keydown', {key: key, bubbles: true});
+                    slider.dispatchEvent(event);
+                }
+            }
+            
+            // R: Reset zoom
+            if (key.toLowerCase() === 'r' && !ctrl) {
+                var plotDiv = document.querySelector('#main-plot .js-plotly-plot');
+                if (plotDiv && window.Plotly) {
+                    window.Plotly.relayout(plotDiv, {'xaxis.autorange': true, 'yaxis.autorange': true});
+                }
+            }
+        });
+        
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("store-keypress", "data"),
+    Input("interval-stream", "n_intervals"),
+)
 
 
 # =============================================================================

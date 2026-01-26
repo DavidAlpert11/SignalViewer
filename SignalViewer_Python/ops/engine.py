@@ -431,3 +431,246 @@ def get_xy_plot_data(
     
     return results
 
+
+# =============================================================================
+# FFT ANALYSIS
+# =============================================================================
+
+def compute_fft(
+    time: np.ndarray,
+    data: np.ndarray,
+    window: str = "hanning"
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute FFT of signal.
+    
+    Args:
+        time: Time array
+        data: Signal data
+        window: Window function ("hanning", "hamming", "blackman", "none")
+        
+    Returns:
+        (frequencies, magnitudes) arrays
+    """
+    if len(data) < 2:
+        return np.array([]), np.array([])
+    
+    # Calculate sampling frequency from time array
+    dt = np.mean(np.diff(time))
+    if dt <= 0:
+        return np.array([]), np.array([])
+    
+    fs = 1.0 / dt  # Sampling frequency
+    n = len(data)
+    
+    # Remove DC component (mean)
+    data_centered = data - np.mean(data)
+    
+    # Apply window function
+    if window == "hanning":
+        win = np.hanning(n)
+    elif window == "hamming":
+        win = np.hamming(n)
+    elif window == "blackman":
+        win = np.blackman(n)
+    else:
+        win = np.ones(n)
+    
+    windowed_data = data_centered * win
+    
+    # Compute FFT (real input)
+    fft_result = np.fft.rfft(windowed_data)
+    freqs = np.fft.rfftfreq(n, dt)
+    
+    # Calculate magnitude (normalized)
+    magnitudes = np.abs(fft_result) * 2.0 / np.sum(win)
+    
+    # Skip DC component (first element)
+    return freqs[1:], magnitudes[1:]
+
+
+def compute_psd(
+    time: np.ndarray,
+    data: np.ndarray,
+    window: str = "hanning"
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute Power Spectral Density of signal.
+    
+    Args:
+        time: Time array
+        data: Signal data
+        window: Window function
+        
+    Returns:
+        (frequencies, psd) arrays
+    """
+    freqs, mags = compute_fft(time, data, window)
+    if len(freqs) == 0:
+        return freqs, mags
+    
+    # PSD is magnitude squared
+    psd = mags ** 2
+    return freqs, psd
+
+
+# =============================================================================
+# SIGNAL FILTERING
+# =============================================================================
+
+def apply_filter(
+    time: np.ndarray,
+    data: np.ndarray,
+    filter_type: str,
+    cutoff: float,
+    order: int = 4
+) -> np.ndarray:
+    """
+    Apply digital filter to signal.
+    
+    Args:
+        time: Time array (used to determine sampling frequency)
+        data: Signal data
+        filter_type: "lowpass", "highpass", "bandpass", "bandstop"
+        cutoff: Cutoff frequency (Hz) or [low, high] for bandpass/bandstop
+        order: Filter order (default 4)
+        
+    Returns:
+        Filtered data array
+    """
+    if len(data) < order * 3:
+        return data  # Not enough data for filtering
+    
+    # Calculate sampling frequency
+    dt = np.mean(np.diff(time))
+    if dt <= 0:
+        return data
+    
+    fs = 1.0 / dt
+    nyq = fs / 2.0
+    
+    # Normalize cutoff to Nyquist frequency
+    if isinstance(cutoff, (list, tuple)):
+        # Bandpass/bandstop
+        wn = [c / nyq for c in cutoff]
+        wn = [max(0.001, min(0.999, w)) for w in wn]
+    else:
+        wn = cutoff / nyq
+        wn = max(0.001, min(0.999, wn))
+    
+    try:
+        # Use simple IIR filter (Butterworth)
+        # Implement manually to avoid scipy dependency
+        # For now, use moving average as fallback
+        if filter_type == "lowpass":
+            # Simple low-pass: moving average
+            window_size = max(3, int(fs / (cutoff * 2)))
+            kernel = np.ones(window_size) / window_size
+            filtered = np.convolve(data, kernel, mode='same')
+        elif filter_type == "highpass":
+            # High-pass: original minus low-pass
+            window_size = max(3, int(fs / (cutoff * 2)))
+            kernel = np.ones(window_size) / window_size
+            lowpass = np.convolve(data, kernel, mode='same')
+            filtered = data - lowpass
+        elif filter_type == "moving_avg":
+            # Simple moving average
+            window_size = max(3, int(cutoff))  # cutoff as window size
+            kernel = np.ones(window_size) / window_size
+            filtered = np.convolve(data, kernel, mode='same')
+        else:
+            filtered = data
+        
+        return filtered
+        
+    except Exception:
+        return data
+
+
+def create_filtered_signal(
+    runs: List[Run],
+    derived: Dict[str, DerivedSignal],
+    signal_key: str,
+    filter_type: str,
+    cutoff: float,
+) -> Optional[DerivedSignal]:
+    """
+    Create a filtered version of a signal.
+    
+    Args:
+        runs: List of runs
+        derived: Dict of derived signals
+        signal_key: Signal to filter
+        filter_type: Filter type
+        cutoff: Cutoff frequency or window size
+        
+    Returns:
+        DerivedSignal with filtered data
+    """
+    run_idx, sig_name = parse_signal_key(signal_key)
+    time, data = _get_data(runs, derived, run_idx, sig_name)
+    
+    if len(data) == 0:
+        return None
+    
+    filtered = apply_filter(time, data, filter_type, cutoff)
+    
+    name = get_derived_name(f"{filter_type}_{cutoff:.1f}Hz", sig_name)
+    return DerivedSignal(
+        name=name,
+        time=time.copy(),
+        data=filtered,
+        operation=f"{filter_type}(cutoff={cutoff})",
+        source_signals=[signal_key],
+    )
+
+
+# =============================================================================
+# SIGNAL STATISTICS
+# =============================================================================
+
+def compute_signal_stats(
+    time: np.ndarray,
+    data: np.ndarray,
+    t_start: Optional[float] = None,
+    t_end: Optional[float] = None,
+) -> Dict[str, float]:
+    """
+    Compute statistics for a signal (or region of signal).
+    
+    Args:
+        time: Time array
+        data: Signal data
+        t_start: Start time for region (None = beginning)
+        t_end: End time for region (None = end)
+        
+    Returns:
+        Dict with statistics: min, max, mean, std, rms, peak_to_peak, samples
+    """
+    if len(data) == 0:
+        return {}
+    
+    # Apply time region filter if specified
+    if t_start is not None or t_end is not None:
+        mask = np.ones(len(time), dtype=bool)
+        if t_start is not None:
+            mask &= (time >= t_start)
+        if t_end is not None:
+            mask &= (time <= t_end)
+        data = data[mask]
+        time = time[mask]
+    
+    if len(data) == 0:
+        return {}
+    
+    return {
+        "min": float(np.min(data)),
+        "max": float(np.max(data)),
+        "mean": float(np.mean(data)),
+        "std": float(np.std(data)),
+        "rms": float(np.sqrt(np.mean(data ** 2))),
+        "peak_to_peak": float(np.max(data) - np.min(data)),
+        "samples": int(len(data)),
+        "duration": float(time[-1] - time[0]) if len(time) > 1 else 0.0,
+    }
+

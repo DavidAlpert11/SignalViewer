@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller Spec File for Signal Viewer Pro v2.4
+PyInstaller Spec File for Signal Viewer Pro v2.6
 =================================================
 
 Build with: pyinstaller SignalViewer.spec --clean

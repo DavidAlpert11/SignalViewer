@@ -217,6 +217,9 @@ def create_layout():
                 dcc.Store(id="store-active-tab", data="tab_1"),
                 dcc.Store(id="store-tab-view-states", data={}),  # Per-tab view state: {tab_id: view_state_dict}
                 dcc.Store(id="store-link-axes", data={"tab": False}),  # Axis linking state
+                dcc.Store(id="store-cursor-mode", data="single"),  # "single" or "dual"
+                dcc.Store(id="store-region", data={"enabled": False, "start": None, "end": None}),
+                dcc.Store(id="store-keypress", data=None),  # Keyboard shortcut events
                 
                 # Toolbar
                 dbc.Row([
@@ -269,27 +272,36 @@ def create_layout():
                         ], size="sm", className="me-2", style={"flexWrap": "nowrap"}),
                     ], width="auto"),
                     dbc.Col([
-                        # Mode toggle with text labels (not just icons)
+                        # Mode toggle with text labels (Time, X-Y, FFT)
                         dbc.ButtonGroup([
                             dbc.Button("📈 Time", id="btn-mode-time", size="sm", color="primary", outline=False),
                             dbc.Button("🔀 X-Y", id="btn-mode-xy", size="sm", color="secondary", outline=True),
+                            dbc.Button("📊 FFT", id="btn-mode-fft", size="sm", color="secondary", outline=True,
+                                      title="Frequency spectrum analysis"),
                         ], size="sm", className="me-2"),
                     ], width="auto"),
                     dbc.Col([
-                        # Cursor toggle - square button style matching Time/X-Y (P0-19)
+                        # Cursor toggle and dual cursor mode
                         dbc.ButtonGroup([
                             dbc.Button("📍 Cursor", id="btn-cursor-toggle", size="sm", color="secondary", outline=True),
+                            dbc.Button("📏 Dual", id="btn-cursor-dual", size="sm", color="secondary", outline=True,
+                                      title="Two-cursor measurement mode", style={"display": "none"}),
                         ], size="sm"),
                         # Hidden switch for backward compatibility
                         dcc.Checklist(id="switch-cursor", options=[{"label": "", "value": True}], value=[], style={"display": "none"}),
                     ], width="auto"),
                     dbc.Col([
-                        # Cursor display scope: Active or All subplots (P0-19)
+                        # Cursor display scope: Active or All subplots
                         dbc.ButtonGroup([
                             dbc.Button("Active", id="btn-cursor-active", size="sm", color="primary", outline=False),
                             dbc.Button("All", id="btn-cursor-all", size="sm", color="secondary", outline=True),
                         ], size="sm", className="ms-1", id="cursor-scope-group"),
                     ], width="auto", id="cursor-scope-col", style={"display": "none"}),
+                    dbc.Col([
+                        # Region selection button
+                        dbc.Button("📏 Region", id="btn-region-select", size="sm", color="secondary", 
+                                  outline=True, title="Select time region for statistics"),
+                    ], width="auto", className="ms-1"),
                     dbc.Col([
                         # Axis linking toggle buttons
                         dbc.ButtonGroup([
@@ -358,9 +370,10 @@ def create_layout():
                 
                 # Cursor controls (shown when cursor enabled)
                 html.Div([
+                    # Primary cursor
                     dbc.Row([
                         dbc.Col([
-                            html.Span("T:", className="text-muted small me-2"),
+                            html.Span("T₁:", className="text-muted small me-2"),
                         ], width="auto"),
                         dbc.Col([
                             dcc.Slider(
@@ -390,6 +403,28 @@ def create_layout():
                             html.Span(id="cursor-time-display", className="text-info small fw-bold"),
                         ], width="auto"),
                     ], className="align-items-center"),
+                    # Secondary cursor (dual mode only)
+                    dbc.Row([
+                        dbc.Col([
+                            html.Span("T₂:", className="text-warning small me-2"),
+                        ], width="auto"),
+                        dbc.Col([
+                            dcc.Slider(
+                                id="cursor2-slider",
+                                min=0, max=100, value=50,
+                                marks=None,
+                                tooltip={"placement": "bottom", "always_visible": True},
+                                className="w-100",
+                            ),
+                        ]),
+                        dbc.Col([
+                            html.Span(id="cursor2-time-display", className="text-warning small fw-bold"),
+                        ], width="auto"),
+                        dbc.Col([
+                            html.Span("ΔT:", className="text-success small me-1"),
+                            html.Span(id="cursor-delta-time", className="text-success small fw-bold"),
+                        ], width="auto"),
+                    ], id="cursor2-row", className="align-items-center mt-1", style={"display": "none"}),
                 ], id="cursor-controls", style={"display": "none"}, className="py-2 px-3 bg-dark"),
                 
                 # Main plot - height controlled by figure, min-height ensures visibility
@@ -413,7 +448,9 @@ def create_layout():
                 dbc.Card([
                     dbc.CardHeader([
                         html.Span("📍 Cursor Values", className="small"),
-                    ], className="py-1"),
+                        # Dual cursor delta display
+                        html.Span(id="cursor-delta-display", className="small text-warning ms-2"),
+                    ], className="py-1 d-flex align-items-center"),
                     dbc.CardBody([
                         html.Div(id="inspector-values"),
                     ], className="p-2", style={"maxHeight": "250px", "overflowY": "auto"}),
@@ -421,6 +458,32 @@ def create_layout():
                     dcc.Checklist(id="switch-inspector-all", options=[{"label": "", "value": True}], 
                                   value=[True], style={"display": "none"}),
                 ], className="mb-2"),
+                
+                # Statistics Panel (signal statistics)
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Span("📊 Statistics", className="small"),
+                        dbc.Button("▼", id="btn-toggle-stats", size="sm", color="link", className="float-end p-0"),
+                    ], className="py-1"),
+                    dbc.Collapse([
+                        dbc.CardBody([
+                            html.Div(id="stats-panel-content"),
+                        ], className="p-2", style={"maxHeight": "200px", "overflowY": "auto"}),
+                    ], id="collapse-stats", is_open=True),
+                ], className="mb-2"),
+                
+                # Region Statistics Panel (shown when region selected)
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.Span("📏 Region Stats", className="small"),
+                        html.Span(id="region-range-display", className="small text-info ms-2"),
+                        dbc.Button("×", id="btn-clear-region", size="sm", color="link", 
+                                  className="float-end p-0 text-danger", title="Clear region"),
+                    ], className="py-1 d-flex align-items-center"),
+                    dbc.CardBody([
+                        html.Div(id="region-stats-content"),
+                    ], className="p-2", style={"maxHeight": "200px", "overflowY": "auto"}),
+                ], id="region-stats-card", className="mb-2", style={"display": "none"}),
                 
                 # Operations Panel (collapsed by default)
                 dbc.Card([
@@ -470,6 +533,20 @@ def create_layout():
         dcc.Download(id="download-report"),
         dcc.Interval(id="interval-stream", interval=500, disabled=True),
         dcc.Interval(id="interval-replay", interval=50, disabled=True),
+        
+        # Keyboard shortcuts help tooltip
+        dbc.Tooltip(
+            html.Div([
+                html.Strong("Keyboard Shortcuts", className="d-block mb-2"),
+                html.Div("← → : Move cursor", className="small"),
+                html.Div("1-9 : Select subplot", className="small"),
+                html.Div("Space : Toggle cursor", className="small"),
+                html.Div("+ - : Zoom in/out", className="small"),
+                html.Div("R : Reset zoom", className="small"),
+            ]),
+            target="btn-cursor-toggle",
+            placement="bottom",
+        ),
         
     ], fluid=True, className="vh-100 p-0")
 
@@ -820,6 +897,7 @@ def create_report_modal():
                         options=[
                             {"label": "HTML (offline)", "value": "html"},
                             {"label": "Word (.docx)", "value": "docx"},
+                            {"label": "PDF", "value": "pdf"},
                             {"label": "CSV (data only)", "value": "csv"},
                         ],
                         value="html",

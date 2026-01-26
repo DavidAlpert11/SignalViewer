@@ -1,4 +1,4 @@
-# Signal Viewer Pro v2.5
+# Signal Viewer Pro v2.6
 
 Professional signal analysis tool for engineering data visualization.
 
@@ -10,16 +10,19 @@ Professional signal analysis tool for engineering data visualization.
 - **Multi-tab, multi-subplot visualization** — Chrome-like tab interface with independent tabs
 - **Lossless signal handling** — No downsampling, resampling, or decimation
 - **Offline-first** — No external dependencies during runtime
-- **Time and X-Y modes** — Plot signals vs time or against each other
+- **Time, X-Y, and FFT modes** — Plot signals vs time, against each other, or frequency spectrum
 - **Axis linking** — Link X axes across all subplots in a tab
 - **Custom titles** — Edit subplot and tab names directly
 - **Figure caching** — Faster rendering when data hasn't changed
+- **Click-to-select** — Click on any subplot to make it active
 
 ### Signal Operations
 - **Derived signals** — Create new signals from mathematical operations
-  - Unary: derivative, integral, absolute, normalize, RMS (batch support)
+  - Unary: derivative, integral, absolute, normalize, RMS, smooth (batch support)
   - Binary: add, subtract, multiply, divide, absolute difference
   - Multi: norm, mean, max, min
+  - **Filters**: Low-pass, high-pass filtering
+- **FFT Analysis** — Frequency domain spectrum analysis for any signal
 - **State signal visualization** — Vertical lines at state transitions (like MATLAB xline)
 
 ### CSV Management
@@ -37,14 +40,27 @@ Professional signal analysis tool for engineering data visualization.
 
 ### Cursor & Inspector
 - **Interactive cursor** — Click or drag to inspect values
+- **Dual cursor mode** — Two cursors with delta measurement (ΔT)
 - **Jump-to-time** — Enter exact time values
 - **Active/All scope** — Show values for active subplot or all subplots
+
+### Region Selection & Statistics
+- **Region selection** — Zoom to select a time region
+- **Live statistics** — Min, max, mean, std, RMS for selected region
+- **Always-visible stats** — Statistics panel for assigned signals
 
 ### Report Generation
 - **HTML export** — Offline report with embedded Plotly charts
 - **Word export** — DOCX format with images
+- **PDF export** — Print-ready format with static images
 - **RTL support** — Hebrew and Arabic text direction
 - **Per-subplot metadata** — Title, caption, description
+
+### Keyboard Shortcuts
+- **1-9** — Select subplot
+- **Space** — Toggle cursor
+- **← →** — Move cursor
+- **R** — Reset zoom
 
 ### Session Management
 - **Save/Load sessions** — Preserve complete application state

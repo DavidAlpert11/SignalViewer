@@ -1,4 +1,4 @@
-# Signal Viewer Pro v2.4 - Requirements
+# Signal Viewer Pro v2.6 - Requirements
 # ======================================
 
 # Core - Dash Web Application
@@ -12,7 +12,7 @@ numpy>=1.24.0
 # Plotting (WebGL-optimized)
 plotly>=5.18.0
 
-# Optional: Image Export (for reports)
+# Optional: Image Export (for reports and PDF)
 kaleido>=0.2.1
 
 # Optional: Word Document Export

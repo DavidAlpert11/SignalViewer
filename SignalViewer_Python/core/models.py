@@ -110,7 +110,7 @@ class DerivedSignal:
 class SubplotConfig:
     """Configuration for a single subplot"""
     index: int
-    mode: str = "time"  # "time" or "xy"
+    mode: str = "time"  # "time", "xy", or "fft"
     
     # Time mode: list of signal keys
     assigned_signals: List[str] = field(default_factory=list)
@@ -119,6 +119,10 @@ class SubplotConfig:
     x_signal: Optional[str] = None
     y_signals: List[str] = field(default_factory=list)
     xy_alignment: str = "linear"  # "linear" or "nearest"
+    
+    # FFT mode settings
+    fft_window: str = "hanning"  # "hanning", "hamming", "blackman", "none"
+    fft_log_scale: bool = True   # Log scale for magnitude
     
     # Axis limits (None = auto)
     xlim: Optional[List[float]] = None  # [min, max] or None for auto
@@ -154,6 +158,15 @@ class ViewState:
     cursor_time: Optional[float] = None
     cursor_enabled: bool = False
     cursor_show_all: bool = True  # Show values for all subplots or just active
+    
+    # Dual cursor mode (measurement)
+    cursor2_time: Optional[float] = None
+    cursor_mode: str = "single"  # "single" or "dual"
+    
+    # Region selection
+    region_enabled: bool = False
+    region_start: Optional[float] = None
+    region_end: Optional[float] = None
     
     # Tab system (P1)
     tabs: List[Tab] = field(default_factory=list)

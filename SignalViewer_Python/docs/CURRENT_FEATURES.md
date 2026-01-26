@@ -1,6 +1,6 @@
 # Signal Viewer Pro - Complete Feature Analysis
 
-## Current Version: v2.5
+## Current Version: v2.6
 
 ---
 
@@ -50,6 +50,7 @@
 ### 2.3 Plot Modes
 - ✅ **Time Mode**: Signal vs Time
 - ✅ **X-Y Mode**: Signal vs Signal
+- ✅ **FFT Mode**: Frequency spectrum analysis (v2.6)
 - ✅ X-Y alignment: Linear interpolation or Nearest
 
 ### 2.4 Axis Controls
@@ -120,6 +121,7 @@
 - ✅ Slider for fine control
 - ✅ Jump-to-time input
 - ✅ Dashed vertical line on plots
+- ✅ Dual cursor mode with delta display (v2.6)
 
 ### 4.2 Cursor Values Panel
 - ✅ Show values at cursor time
@@ -127,10 +129,20 @@
 - ✅ Color-coded by signal
 - ✅ Scope: Active subplot only / All subplots
 - ✅ Time display
+- ✅ Delta time display in dual mode (v2.6)
 
 ### 4.3 X-Y Mode Cursor
 - ✅ Cursor shows X and Y values at same time
 - ✅ Vertical line at X-value
+
+### 4.4 Region Selection (v2.6)
+- ✅ Zoom to select time region
+- ✅ Region statistics: min, max, mean, std, RMS
+- ✅ Clear region button
+
+### 4.5 Statistics Panel (v2.6)
+- ✅ Always-visible stats for assigned signals
+- ✅ Mean, std, min/max range display
 
 ---
 
@@ -245,11 +257,11 @@
 
 | Feature | Status | Competitor Has |
 |---------|--------|----------------|
-| FFT/Spectrum Analysis | ❌ Missing | multi-signal-visualizer |
-| Region Selection | ❌ Missing | Real-Time-Signal-Viewer |
+| FFT/Spectrum Analysis | ✅ Added v2.6 | multi-signal-visualizer |
+| Region Selection | ✅ Added v2.6 | Real-Time-Signal-Viewer |
 | Polar Plot | ❌ Missing | Real-Time-Signal-Viewer |
-| Statistical Panel | ⚠️ Partial | Common |
-| PDF Export | ❌ Missing | Live-Multichannel-Signal-Monitor |
+| Statistical Panel | ✅ Added v2.6 | Common |
+| PDF Export | ✅ Added v2.6 | Live-Multichannel-Signal-Monitor |
 
 ## Medium Priority
 
@@ -257,15 +269,15 @@
 |---------|--------|
 | Signal Annotations | ❌ Missing |
 | Dual Y-Axis | ❌ Missing |
-| Measurement Cursors (2-cursor delta) | ❌ Missing |
-| Signal Filtering (low/high pass) | ❌ Missing |
+| Measurement Cursors (2-cursor delta) | ✅ Added v2.6 |
+| Signal Filtering (low/high pass) | ✅ Added v2.6 |
 | WFDB/EDF format support | ❌ Missing |
 
 ## Low Priority
 
 | Feature | Status |
 |---------|--------|
-| Keyboard Shortcuts | ⚠️ Minimal |
+| Keyboard Shortcuts | ✅ Added v2.6 |
 | Drag-and-Drop Assignment | ❌ Missing |
 | Undo/Redo | ❌ Missing |
 | Color Palette Presets | ❌ Missing |

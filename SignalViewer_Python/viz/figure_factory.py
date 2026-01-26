@@ -242,6 +242,14 @@ def create_figure(
             )
             traces_per_subplot[sp_idx] += trace_count
             cursor_values.update(xy_cursor or {})
+        elif sp_config.mode == "fft":
+            # FFT mode - frequency spectrum analysis
+            trace_count = _add_fft_traces(
+                fig, runs, derived_signals, sp_config, row, col,
+                color_idx, signal_settings, sp_idx, total_subplots,
+                traces_per_subplot[sp_idx]
+            )
+            traces_per_subplot[sp_idx] += trace_count
         else:
             # Time mode
             for sig_key in sp_config.assigned_signals:
@@ -339,11 +347,42 @@ def create_figure(
                             line=dict(color="#ff6b6b", width=2, dash="dash"),
                             row=row, col=col,
                         )
-            else:
-                # Time mode - cursor at time value
+            elif sp_config and sp_config.mode != "fft":
+                # Time mode - cursor at time value (skip for FFT mode)
                 fig.add_vline(
                     x=view_state.cursor_time,
                     line=dict(color="#ff6b6b", width=2, dash="dash"),
+                    row=row, col=col,
+                )
+    
+    # Add second cursor line if in dual mode
+    cursor2_time = getattr(view_state, 'cursor2_time', None)
+    cursor_mode = getattr(view_state, 'cursor_mode', 'single')
+    if cursor_mode == "dual" and cursor2_time is not None:
+        for sp_idx in range(total_subplots):
+            row, col = subplot_idx_to_row_col(sp_idx, cols)
+            sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else None
+            if sp_config and sp_config.mode != "fft":
+                fig.add_vline(
+                    x=cursor2_time,
+                    line=dict(color="#ffa500", width=2, dash="dash"),  # Orange for cursor 2
+                    row=row, col=col,
+                )
+    
+    # Add region rectangle if enabled
+    region_enabled = getattr(view_state, 'region_enabled', False)
+    region_start = getattr(view_state, 'region_start', None)
+    region_end = getattr(view_state, 'region_end', None)
+    if region_enabled and region_start is not None and region_end is not None:
+        for sp_idx in range(total_subplots):
+            row, col = subplot_idx_to_row_col(sp_idx, cols)
+            sp_config = view_state.subplots[sp_idx] if sp_idx < len(view_state.subplots) else None
+            if sp_config and sp_config.mode != "fft":
+                fig.add_vrect(
+                    x0=region_start,
+                    x1=region_end,
+                    fillcolor="rgba(100, 149, 237, 0.2)",  # Light blue
+                    line=dict(color="rgba(100, 149, 237, 0.5)", width=1),
                     row=row, col=col,
                 )
     
@@ -710,4 +749,91 @@ def _add_xy_traces(
         print(f"[X-Y] Added trace: {y_label} ({len(y_aligned)} points)", flush=True)
     
     return cursor_values, current_trace_count
+
+
+def _add_fft_traces(
+    fig: go.Figure,
+    runs: List[Run],
+    derived: Dict[str, DerivedSignal],
+    sp_config: SubplotConfig,
+    row: int,
+    col: int,
+    color_start: int,
+    signal_settings: Dict,
+    sp_idx: int,
+    total_subplots: int,
+    current_trace_count: int,
+) -> int:
+    """
+    Add FFT (frequency spectrum) traces to subplot.
+    
+    Shows magnitude vs frequency for each assigned signal.
+    
+    Returns:
+        Number of traces added
+    """
+    from ops.engine import compute_fft
+    
+    color_idx = color_start
+    trace_count = 0
+    run_paths = [r.file_path for r in runs]
+    
+    # Get window type from config
+    window = getattr(sp_config, 'fft_window', 'hanning') or 'hanning'
+    log_scale = getattr(sp_config, 'fft_log_scale', True)
+    
+    for sig_key in sp_config.assigned_signals:
+        run_idx, sig_name = parse_signal_key(sig_key)
+        time_data, sig_data = _get_signal_data(runs, derived, run_idx, sig_name)
+        
+        if len(time_data) < 10:  # Need minimum samples for FFT
+            continue
+        
+        # Apply signal settings (scale, offset)
+        settings = signal_settings.get(sig_key, {})
+        scale = settings.get("scale", 1.0) or 1.0
+        offset = settings.get("offset", 0.0) or 0.0
+        if scale != 1.0 or offset != 0.0:
+            sig_data = sig_data * scale + offset
+        
+        # Compute FFT
+        freqs, magnitudes = compute_fft(time_data, sig_data, window)
+        
+        if len(freqs) == 0:
+            continue
+        
+        color = settings.get("color") or COLORS[color_idx % len(COLORS)]
+        label = get_signal_label(run_idx, sig_name, run_paths, settings.get("display_name"))
+        
+        # Add trace
+        subplot_group = f"SP{sp_idx+1}"
+        is_first_in_subplot = trace_count == 0
+        
+        fig.add_trace(
+            go.Scattergl(
+                x=freqs,
+                y=magnitudes,
+                name=f"FFT({label})",
+                mode="lines",
+                line=dict(color=color, width=1.5),
+                hovertemplate=f"<b>{label}</b><br>Freq: %{{x:.2f}} Hz<br>Mag: %{{y:.4g}}<extra></extra>",
+                legendgroup=subplot_group,
+                legendgrouptitle=dict(text=f"Subplot {sp_idx+1}") if is_first_in_subplot and total_subplots > 1 else None,
+            ),
+            row=row, col=col,
+        )
+        trace_count += 1
+        color_idx += 1
+        
+        print(f"[FFT] Added spectrum: {label} ({len(freqs)} freq bins)", flush=True)
+    
+    # Update axis labels for FFT mode
+    fig.update_xaxes(title_text="Frequency (Hz)", row=row, col=col)
+    fig.update_yaxes(
+        title_text="Magnitude",
+        type="log" if log_scale else "linear",
+        row=row, col=col,
+    )
+    
+    return trace_count
 
