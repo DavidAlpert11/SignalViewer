@@ -1,4 +1,4 @@
-# Signal Viewer Pro
+# Signal Viewer Pro v2.5
 
 Professional signal analysis tool for engineering data visualization.
 
@@ -13,98 +13,77 @@ Professional signal analysis tool for engineering data visualization.
 - **Time and X-Y modes** — Plot signals vs time or against each other
 - **Axis linking** — Link X axes across all subplots in a tab
 - **Custom titles** — Edit subplot and tab names directly
+- **Figure caching** — Faster rendering when data hasn't changed
 
 ### Signal Operations
 - **Derived signals** — Create new signals from mathematical operations
-  - Unary: derivative, integral, absolute, normalize, RMS (supports batch operations on multiple signals)
+  - Unary: derivative, integral, absolute, normalize, RMS (batch support)
   - Binary: add, subtract, multiply, divide, absolute difference
   - Multi: norm, mean, max, min
-- **State signal visualization** — Display discrete signals as vertical transition lines
+- **State signal visualization** — Vertical lines at state transitions (like MATLAB xline)
+
+### CSV Management
+- **Rename CSVs** — Set custom display names
+- **Replace CSV path** — Swap data files without losing signal assignments
+- **Multi-file import** — Load multiple CSVs at once
 
 ### Compare Workflows
 - **Multi-run comparison** — Compare 2+ CSV files simultaneously
 - **Baseline methods** — Use mean or specific run as reference
 - **Similarity metrics** — RMS difference, correlation, percent deviation
 - **Delta signal generation** — Automatically create difference signals
-- **Sortable results** — Sort by difference (high/low), or name (A-Z/Z-A)
-- **Auto subplot creation** — Create subplots with signal names as titles
+- **Sortable results** — Sort by difference or name
+- **Selective subplot creation** — Choose which signals to compare
 
 ### Cursor & Inspector
 - **Interactive cursor** — Click or drag to inspect values
 - **Jump-to-time** — Enter exact time values
 - **Active/All scope** — Show values for active subplot or all subplots
-- **Nearest sample** — Cursor snaps to actual sample times
 
 ### Report Generation
 - **HTML export** — Offline report with embedded Plotly charts
-- **Word export** — DOCX format with images (requires python-docx)
+- **Word export** — DOCX format with images
 - **RTL support** — Hebrew and Arabic text direction
-- **Multi-line text** — Title, introduction, conclusion with line breaks
-- **Per-subplot metadata** — Title, caption, description for each subplot
+- **Per-subplot metadata** — Title, caption, description
 
 ### Session Management
 - **Save/Load sessions** — Preserve complete application state
-- **Derived signals** — Saved and restored with sessions
+- **Derived signals persistence** — Saved and restored with sessions
 - **Signal properties** — Colors, widths, scales persist
 
 ## Installation
 
 ### Requirements
 - Python 3.8+
-- pip
 
-### Install Dependencies
+### Quick Install
 
 ```bash
+cd SignalViewer_Python
 pip install -r requirements.txt
+python app.py
 ```
 
-### Optional Dependencies
+Then open http://127.0.0.1:8050
 
-For Word document export:
+### Build Executable (Windows)
+
 ```bash
-pip install python-docx
+cd SignalViewer_Python
+build.bat
 ```
+
+Output: `dist\SignalViewer\SignalViewer.exe`
 
 ## Quick Start
 
-1. **Start the application**:
-   ```bash
-   python app.py
-   ```
-
-2. **Open in browser**:
-   Navigate to http://127.0.0.1:8050
-
-3. **Import CSV files**:
-   - Click "📂 Import"
-   - Select one or more CSV files
-   - Configure import settings (delimiter, time column)
-   - Click "Import"
-
-4. **Assign signals to subplots**:
-   - Click on signals in the left panel
-   - They will be assigned to the active subplot
-
-5. **Use cursor for value inspection**:
-   - Enable cursor with the toggle switch
-   - Click on plot or use slider to move cursor
-   - View values in the Inspector panel
-
-6. **Generate reports**:
-   - Click "📄 Report"
-   - Add title, introduction, conclusion
-   - Configure subplot titles/captions
-   - Export as HTML or Word
+1. **Import CSV files** — Click "Import" and select files
+2. **Assign signals** — Click signals in the left panel to add to subplots
+3. **Enable cursor** — Toggle cursor to inspect values
+4. **Generate reports** — Click "Report" to export HTML/Word
 
 ## CSV Format
 
-Signal Viewer Pro expects CSV files with:
-- First column: Time values (or specify time column)
-- Subsequent columns: Signal values
-- Optional header row
-
-Example:
 ```csv
 Time,Speed,Temperature,Pressure
 0.0,10.5,25.0,101.3
@@ -112,49 +91,29 @@ Time,Speed,Temperature,Pressure
 0.2,14.1,25.2,101.4
 ```
 
-## Keyboard Shortcuts
-
-- **Tab switching**: Click tab buttons
-- **Subplot selection**: Use dropdown or click on plot
-
-## Architecture
+## Project Structure
 
 ```
 SignalViewer_Python/
-├── app.py                 # Main application & callbacks
-├── core/
-│   ├── models.py          # Data models (Run, Signal, ViewState)
-│   ├── naming.py          # Display name generation
-│   └── session.py         # Session save/load utilities
-├── ui/
-│   └── layout.py          # Dash layout components
-├── viz/
-│   └── figure_factory.py  # Plotly figure generation
-├── loaders/
-│   └── csv_loader.py      # CSV file loading
-├── ops/
-│   └── engine.py          # Mathematical operations
-├── compare/
-│   └── engine.py          # Run comparison logic
-├── stream/
-│   └── engine.py          # Live data streaming
-├── report/
-│   └── builder.py         # Report generation
-└── assets/
-    └── custom.css         # Custom styling
+├── app.py              # Main application
+├── build.bat           # Build script
+├── requirements.txt    # Dependencies
+├── sample_data/        # Test CSV files
+├── core/               # Data models
+├── ui/                 # Layout components
+├── viz/                # Figure generation
+├── loaders/            # CSV loading
+├── ops/                # Mathematical operations
+├── compare/            # Run comparison
+├── stream/             # Live streaming
+├── report/             # Report generation
+└── assets/             # CSS and fonts
 ```
 
 ## License
 
 MIT License - See LICENSE file for details.
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
 ## Support
 
-For issues and feature requests, please use the GitHub issue tracker.
+For issues and feature requests, use the [GitHub issue tracker](https://github.com/DavidAlpert11/SignalViewer/issues).
