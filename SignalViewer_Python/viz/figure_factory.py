@@ -513,14 +513,10 @@ def _add_state_trace(
     # Find transitions (where value changes)
     transitions = np.where(np.diff(data) != 0)[0] if len(time) > 1 else np.array([])
     
-    # Calculate y range for vertical lines
-    y_max = float(np.max(data)) if len(data) > 0 else 1.0
-    y_min = float(np.min(data)) if len(data) > 0 else 0.0
-    y_range = y_max - y_min if y_max != y_min else 1.0
-    # Extend y range for visibility
-    y_bottom = y_min - y_range * 0.1
-    y_top = y_max + y_range * 0.2
-    annotation_y = y_max + y_range * 0.15
+    # Use extreme y values so vertical lines span entire y-axis regardless of other signals
+    # Plotly will clip these to the visible range
+    y_bottom = -1e30
+    y_top = 1e30
     
     # Build x and y arrays for vertical lines (using None to break the lines)
     x_lines = []
@@ -562,16 +558,16 @@ def _add_state_trace(
         row=row, col=col,
     )
     
-    # Add annotations for state values
+    # Add annotations for state values at top of subplot
     x_axis = f"x{sp_idx + 1}" if sp_idx > 0 else "x"
-    y_axis = f"y{sp_idx + 1}" if sp_idx > 0 else "y"
+    y_axis_domain = f"y{sp_idx + 1} domain" if sp_idx > 0 else "y domain"
     
     for ann_x, ann_text in annotations_data:
         fig.add_annotation(
             x=ann_x,
-            y=annotation_y,
+            y=0.95,  # Position at 95% of subplot height
             xref=x_axis,
-            yref=y_axis,
+            yref=y_axis_domain,  # Use domain reference for consistent positioning
             text=f"<b>{ann_text}</b>",
             showarrow=False,
             font=dict(color=color, size=10),

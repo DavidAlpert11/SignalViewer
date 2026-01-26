@@ -3083,7 +3083,7 @@ def compare_all_signals_modal(compare_clicks, close_clicks, sort_order, selected
 
 
 def _build_compare_results_table(results: list, sort_order: str = "diff_desc"):
-    """Build the compare results table with the specified sort order."""
+    """Build the compare results table with the specified sort order and checkboxes for selection."""
     # Sort results
     if sort_order == "diff_desc":
         sorted_results = sorted(results, key=lambda x: x["rms"], reverse=True)
@@ -3096,8 +3096,10 @@ def _build_compare_results_table(results: list, sort_order: str = "diff_desc"):
     else:
         sorted_results = results
     
-    # Build table rows
+    # Build checklist options
+    checklist_options = []
     table_rows = []
+    
     for r in sorted_results:
         if r["pct"] > 10:
             color = "danger"
@@ -3109,35 +3111,101 @@ def _build_compare_results_table(results: list, sort_order: str = "diff_desc"):
             color = "success"
             icon = "✓"
         
+        checklist_options.append({"label": "", "value": r["signal"]})
+        
         table_rows.append(
             dbc.Row([
                 dbc.Col(html.Span(icon, className="me-2"), width=1),
-                dbc.Col(html.Span(r["signal"], className="small"), width=6),
+                dbc.Col(html.Span(r["signal"], className="small"), width=5),
                 dbc.Col(html.Span(f"{r['pct']:.1f}%", className=f"small text-{color} fw-bold"), width=2),
-                dbc.Col(html.Span(f"{r['rms']:.4g}", className="small text-muted"), width=3),
-            ], className="py-1 border-bottom border-secondary")
+                dbc.Col(html.Span(f"{r['rms']:.4g}", className="small text-muted"), width=2),
+            ], className="py-1 border-bottom border-secondary", style={"marginLeft": "25px"})
         )
     
     # Header row
     header = dbc.Row([
         dbc.Col("", width=1),
-        dbc.Col(html.Strong("Signal", className="small"), width=6),
+        dbc.Col(html.Strong("Signal", className="small"), width=5),
         dbc.Col(html.Strong("Diff %", className="small"), width=2),
-        dbc.Col(html.Strong("RMS", className="small"), width=3),
-    ], className="py-1 bg-secondary text-white")
+        dbc.Col(html.Strong("RMS", className="small"), width=2),
+    ], className="py-1 bg-secondary text-white", style={"marginLeft": "25px"})
+    
+    # Create combined view with checkboxes aligned with rows
+    signal_names = [r["signal"] for r in sorted_results]
     
     return html.Div([
+        # Select all / none buttons
+        dbc.ButtonGroup([
+            dbc.Button("Select All", id="btn-compare-select-all", size="sm", color="secondary", outline=True),
+            dbc.Button("Select None", id="btn-compare-select-none", size="sm", color="secondary", outline=True),
+        ], size="sm", className="mb-2"),
         header, 
-        html.Div(table_rows, style={"maxHeight": "300px", "overflowY": "auto"}),
+        html.Div([
+            dbc.Row([
+                # Checkbox column
+                dbc.Col(
+                    dbc.Checklist(
+                        id="checklist-compare-signals",
+                        options=checklist_options,
+                        value=signal_names,  # All selected by default
+                        inline=False,
+                        style={"lineHeight": "31px"},  # Match row height
+                    ),
+                    width=1,
+                    style={"paddingRight": "0"},
+                ),
+                # Table rows column
+                dbc.Col(table_rows, width=11, style={"paddingLeft": "0"}),
+            ])
+        ], style={"maxHeight": "300px", "overflowY": "auto"}),
         html.Hr(className="my-2"),
+        html.Div([
+            html.Span(id="compare-selection-count", className="small text-muted me-2"),
+        ]),
         dbc.Button(
-            "📊 Create Subplots (1 per signal, all CSVs overlaid)",
+            "📊 Create Subplots for Selected Signals",
             id="btn-create-compare-subplots",
             color="info",
             size="sm",
             className="mt-2 w-100",
         ),
     ])
+
+
+@app.callback(
+    Output("checklist-compare-signals", "value"),
+    Input("btn-compare-select-all", "n_clicks"),
+    Input("btn-compare-select-none", "n_clicks"),
+    State("store-compare-all-data", "data"),
+    prevent_initial_call=True,
+)
+def toggle_compare_signal_selection(select_all, select_none, compare_data):
+    """Handle select all / select none for compare signals"""
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update
+    
+    trigger = ctx.triggered[0]["prop_id"]
+    
+    if "select-all" in trigger and compare_data and compare_data.get("results"):
+        return [r["signal"] for r in compare_data["results"]]
+    elif "select-none" in trigger:
+        return []
+    
+    return dash.no_update
+
+
+@app.callback(
+    Output("compare-selection-count", "children"),
+    Input("checklist-compare-signals", "value"),
+    State("store-compare-all-data", "data"),
+    prevent_initial_call=True,
+)
+def update_compare_selection_count(selected, compare_data):
+    """Show count of selected signals"""
+    total = len(compare_data.get("results", [])) if compare_data else 0
+    selected_count = len(selected) if selected else 0
+    return f"{selected_count} of {total} signals selected"
 
 
 @app.callback(
@@ -3173,14 +3241,15 @@ def export_compare_csv(n_clicks, compare_data):
     Output("store-tab-view-states", "data", allow_duplicate=True),
     Input("btn-create-compare-subplots", "n_clicks"),
     State("store-compare-all-data", "data"),
+    State("checklist-compare-signals", "value"),
     State("store-refresh", "data"),
     State("store-tabs", "data"),
     State("store-tab-view-states", "data"),
     prevent_initial_call=True,
 )
-def create_compare_subplots(n_clicks, compare_data, refresh, existing_tabs, existing_tab_states):
+def create_compare_subplots(n_clicks, compare_data, selected_signals, refresh, existing_tabs, existing_tab_states):
     """
-    Create subplots - one per common signal, with all CSV signals overlaid.
+    Create subplots - one per selected signal, with all CSV signals overlaid.
     
     Feature 9: For >16 signals, create multiple tabs (4x4 max per tab).
     
@@ -3196,6 +3265,13 @@ def create_compare_subplots(n_clicks, compare_data, refresh, existing_tabs, exis
     selected_runs = compare_data.get("selected_runs", [])
     
     if not results or not selected_runs:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    # Filter results to only include selected signals
+    if selected_signals:
+        results = [r for r in results if r["signal"] in selected_signals]
+    
+    if not results:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     num_signals = len(results)
