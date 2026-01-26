@@ -22,11 +22,11 @@ import plotly.graph_objects as go
 
 # Core modules
 from core.models import (
-    Run, DerivedSignal, ViewState, SubplotConfig, Tab,
+    Run, DerivedSignal, ViewState, SubplotConfig,
     make_signal_key, parse_signal_key, DERIVED_RUN_IDX
 )
 from core.naming import get_csv_display_name, get_signal_label
-from core.session import save_session, load_session, parse_view_state
+from core.session import load_session, parse_view_state
 
 # IO modules
 from loaders.csv_loader import load_csv, CSVImportSettings, preview_csv, detect_delimiter
@@ -58,9 +58,16 @@ from ui.layout import create_layout
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-APP_TITLE = "Signal Viewer Pro v4.0"
+APP_TITLE = "Signal Viewer Pro v2.4"
 APP_HOST = "127.0.0.1"
 APP_PORT = 8050
+DEBUG = False  # Set to True for verbose logging
+
+
+def _log(tag: str, msg: str):
+    """Conditional logging based on DEBUG flag"""
+    if DEBUG:
+        print(f"[{tag}] {msg}", flush=True)
 
 
 # =============================================================================

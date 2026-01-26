@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from core.models import Run, DerivedSignal, SubplotConfig, ViewState, SignalType, parse_signal_key, DERIVED_RUN_IDX
+from core.models import Run, DerivedSignal, SubplotConfig, ViewState, parse_signal_key, DERIVED_RUN_IDX
 from core.naming import get_signal_label
 
 

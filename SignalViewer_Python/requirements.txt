@@ -1,21 +1,19 @@
-# Signal Viewer Pro - Requirements
-# =================================
+# Signal Viewer Pro v2.4 - Requirements
+# ======================================
 
 # Core - Dash Web Application
 dash>=2.14.0
 dash-bootstrap-components>=1.5.0
 
 # Data Processing
-pandas>=2.1.0
+pandas>=2.0.0
 numpy>=1.24.0
 
-# Plotting
+# Plotting (WebGL-optimized)
 plotly>=5.18.0
-kaleido>=0.2.1  # For exporting plots as images
 
-# Document Generation
-python-docx>=0.8.11  # For DOCX export
+# Optional: Image Export (for reports)
+kaleido>=0.2.1
 
-# Web Server (included with Dash)
-Flask>=2.3.0
-Werkzeug>=2.3.0
+# Optional: Word Document Export
+python-docx>=0.8.11

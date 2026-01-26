@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller Spec File for Signal Viewer Pro v4.0
+PyInstaller Spec File for Signal Viewer Pro v2.4
 =================================================
 
 Build with: pyinstaller SignalViewer.spec --clean
@@ -17,6 +17,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('assets', 'assets'),
+        ('sample_data', 'sample_data'),
         ('app.py', '.'),
         ('core', 'core'),
         ('loaders', 'loaders'),
@@ -57,9 +58,10 @@ a = Analysis(
         'sqlite3',
         'unittest',
         'test',
+        'pytest',
     ],
     noarchive=False,
-    optimize=0,
+    optimize=1,  # Basic optimization
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
@@ -74,7 +76,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,  # No console window
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
