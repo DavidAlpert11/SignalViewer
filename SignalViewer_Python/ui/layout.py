@@ -463,6 +463,7 @@ def create_layout():
         create_report_modal(),
         create_signal_properties_modal(),
         create_compare_all_modal(),
+        create_rename_csv_modal(),
         
         # Hidden components
         dcc.Download(id="download-session"),
@@ -1032,3 +1033,29 @@ def create_compare_all_modal():
         dcc.Store(id="store-compare-all-data", data={}),
         dcc.Download(id="download-compare-csv"),
     ], id="modal-compare-all", size="lg", is_open=False)
+
+
+def create_rename_csv_modal():
+    """Create modal for renaming a CSV file"""
+    return dbc.Modal([
+        dbc.ModalHeader("Rename CSV"),
+        dbc.ModalBody([
+            dbc.Label("Display Name:", className="small fw-bold"),
+            dbc.Input(
+                id="input-rename-csv",
+                type="text",
+                placeholder="Enter new name...",
+                className="mb-3",
+            ),
+            html.Small(
+                "This changes only the display name, not the actual file.",
+                className="text-muted",
+            ),
+            # Store for which run is being renamed
+            dcc.Store(id="store-rename-run-idx", data=None),
+        ]),
+        dbc.ModalFooter([
+            dbc.Button("Cancel", id="btn-rename-csv-cancel", color="secondary", size="sm"),
+            dbc.Button("Apply", id="btn-rename-csv-apply", color="primary", size="sm"),
+        ]),
+    ], id="modal-rename-csv", size="sm", is_open=False)

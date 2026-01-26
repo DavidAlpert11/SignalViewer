@@ -110,6 +110,45 @@ derived_signals: Dict[str, DerivedSignal] = {}
 signal_settings: Dict[str, Dict] = {}
 view_state = ViewState()
 stream_engine = StreamEngine()
+
+# Figure cache for performance optimization
+_figure_cache = {
+    "hash": None,  # Hash of inputs that generated the cached figure
+    "figure": None,  # Cached figure
+    "cursor_values": None,  # Cached cursor values
+}
+
+def _compute_figure_hash() -> str:
+    """Compute a hash of all inputs that affect figure rendering"""
+    import hashlib
+    
+    # Build a string representation of all relevant state
+    parts = []
+    
+    # Run data hashes (use sample count as proxy for data changes)
+    for i, run in enumerate(runs):
+        parts.append(f"run{i}:{run.sample_count}:{len(run.signals)}")
+    
+    # Derived signals
+    for name, ds in derived_signals.items():
+        parts.append(f"derived:{name}:{len(ds.data)}")
+    
+    # View state
+    parts.append(f"layout:{view_state.layout_rows}x{view_state.layout_cols}")
+    parts.append(f"active:{view_state.active_subplot}")
+    parts.append(f"cursor:{view_state.cursor_enabled}:{view_state.cursor_time}")
+    
+    # Subplot assignments
+    for sp in view_state.subplots:
+        parts.append(f"sp{sp.index}:{sp.mode}:{','.join(sp.assigned_signals)}:{sp.title}")
+    
+    # Signal settings
+    for key, settings in signal_settings.items():
+        parts.append(f"settings:{key}:{settings.get('is_state')}:{settings.get('color')}")
+    
+    hash_str = "|".join(parts)
+    return hashlib.md5(hash_str.encode()).hexdigest()
+
 _reset_state()  # Ensure clean start - P0 requirement
 
 
@@ -284,21 +323,36 @@ def do_import(n_clicks, selected_files, has_header, header_row, skip_rows, delim
 # =============================================================================
 
 def build_runs_list(run_paths: List[str]) -> list:
-    """Build runs list UI"""
+    """Build runs list UI with rename and replace path options"""
     if not run_paths:
         return [html.P("No runs loaded", className="text-muted small")]
     
     items = []
     for idx, path in enumerate(run_paths):
-        display = get_csv_display_name(path, run_paths)
+        # Use custom name if set, otherwise generate from path
+        run = runs[idx] if idx < len(runs) else None
+        if run and run.run_name:
+            display = run.run_name
+        else:
+            display = get_csv_display_name(path, run_paths)
+        
         items.append(
             dbc.Row([
-                dbc.Col(html.Span(display, className="small text-truncate", title=path), width=10),
-                dbc.Col(
+                dbc.Col(html.Span(display, className="small text-truncate", title=path), width=7),
+                dbc.Col([
+                    # Edit/rename button
+                    html.Button("✎", id={"type": "btn-rename-run", "index": idx},
+                               className="btn btn-link btn-sm text-info p-0 me-1",
+                               title="Rename CSV"),
+                    # Replace path button
+                    html.Button("📁", id={"type": "btn-replace-run", "index": idx},
+                               className="btn btn-link btn-sm text-warning p-0 me-1",
+                               title="Replace CSV path"),
+                    # Remove button
                     html.Button("×", id={"type": "btn-remove-run", "index": idx},
-                               className="btn btn-link btn-sm text-danger p-0"),
-                    width=2, className="text-end",
-                ),
+                               className="btn btn-link btn-sm text-danger p-0",
+                               title="Remove CSV"),
+                ], width=5, className="text-end"),
             ], className="g-0 mb-1 align-items-center")
         )
     return items
@@ -529,6 +583,154 @@ def remove_run(remove_clicks, run_paths, refresh, collapsed_runs):
         build_runs_list(run_paths),
         build_signal_tree(runs, "", collapsed_runs or {}),
         run_paths,
+        (refresh or 0) + 1,
+    )
+
+
+@app.callback(
+    Output("modal-rename-csv", "is_open"),
+    Output("store-rename-run-idx", "data"),
+    Output("input-rename-csv", "value"),
+    Input({"type": "btn-rename-run", "index": ALL}, "n_clicks"),
+    Input("btn-rename-csv-cancel", "n_clicks"),
+    Input("btn-rename-csv-apply", "n_clicks"),
+    State("store-rename-run-idx", "data"),
+    prevent_initial_call=True,
+)
+def toggle_rename_modal(rename_clicks, cancel_clicks, apply_clicks, current_idx):
+    """Open/close the rename CSV modal"""
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    trigger = ctx.triggered[0]["prop_id"]
+    
+    if "btn-rename-csv-cancel" in trigger or "btn-rename-csv-apply" in trigger:
+        return False, None, ""
+    
+    if not any(c for c in rename_clicks if c):
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    try:
+        trigger_dict = json.loads(trigger.rsplit(".", 1)[0])
+        run_idx = trigger_dict["index"]
+    except:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    # Get current name
+    current_name = ""
+    if run_idx < len(runs):
+        current_name = runs[run_idx].run_name or runs[run_idx].csv_display_name
+    
+    return True, run_idx, current_name
+
+
+@app.callback(
+    Output("runs-list", "children", allow_duplicate=True),
+    Output("signal-tree", "children", allow_duplicate=True),
+    Input("btn-rename-csv-apply", "n_clicks"),
+    State("store-rename-run-idx", "data"),
+    State("input-rename-csv", "value"),
+    State("store-collapsed-runs", "data"),
+    prevent_initial_call=True,
+)
+def apply_rename_csv(n_clicks, run_idx, new_name, collapsed_runs):
+    """Apply the new name to the CSV run"""
+    global runs
+    
+    if not n_clicks or run_idx is None or run_idx >= len(runs):
+        return dash.no_update, dash.no_update
+    
+    runs[run_idx].run_name = new_name.strip() if new_name else None
+    
+    print(f"[RENAME] Run {run_idx} renamed to: {new_name}", flush=True)
+    
+    run_paths = [r.file_path for r in runs]
+    return build_runs_list(run_paths), build_signal_tree(runs, "", collapsed_runs or {})
+
+
+@app.callback(
+    Output("runs-list", "children", allow_duplicate=True),
+    Output("signal-tree", "children", allow_duplicate=True),
+    Output("store-refresh", "data", allow_duplicate=True),
+    Input({"type": "btn-replace-run", "index": ALL}, "n_clicks"),
+    State("store-refresh", "data"),
+    State("store-collapsed-runs", "data"),
+    prevent_initial_call=True,
+)
+def replace_csv_path(replace_clicks, refresh, collapsed_runs):
+    """Replace CSV path while keeping signal assignments"""
+    global runs
+    
+    ctx = callback_context
+    if not ctx.triggered:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    trigger = ctx.triggered[0]["prop_id"]
+    if not any(c for c in replace_clicks if c):
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    try:
+        trigger_dict = json.loads(trigger.rsplit(".", 1)[0])
+        run_idx = trigger_dict["index"]
+    except:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    if run_idx < 0 or run_idx >= len(runs):
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    # Open file dialog
+    import tkinter as tk
+    from tkinter import filedialog
+    
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    
+    new_path = filedialog.askopenfilename(
+        title=f"Select replacement CSV for '{runs[run_idx].csv_display_name}'",
+        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+    )
+    root.destroy()
+    
+    if not new_path:
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    # Load new CSV and replace run data while keeping assignments
+    old_run = runs[run_idx]
+    old_signals = set(old_run.signals.keys())
+    
+    all_paths = [r.file_path for r in runs]
+    from loaders.csv_loader import load_csv as load_csv_file
+    new_run = load_csv_file(new_path, all_paths)
+    
+    if not new_run:
+        print(f"[REPLACE] Failed to load: {new_path}", flush=True)
+        return dash.no_update, dash.no_update, dash.no_update
+    
+    # Keep custom name if set
+    if old_run.run_name:
+        new_run.run_name = old_run.run_name
+    
+    # Replace run
+    runs[run_idx] = new_run
+    new_signals = set(new_run.signals.keys())
+    
+    # Report which signals are missing in new file
+    missing = old_signals - new_signals
+    if missing:
+        print(f"[REPLACE] Warning: {len(missing)} signals missing in new file: {missing}", flush=True)
+    
+    added = new_signals - old_signals
+    if added:
+        print(f"[REPLACE] New signals available: {len(added)}", flush=True)
+    
+    print(f"[REPLACE] Replaced run {run_idx}: {old_run.file_path} -> {new_path}", flush=True)
+    
+    run_paths = [r.file_path for r in runs]
+    return (
+        build_runs_list(run_paths),
+        build_signal_tree(runs, "", collapsed_runs or {}),
         (refresh or 0) + 1,
     )
 
@@ -1656,15 +1858,32 @@ def update_plot(vs_data, refresh, cursor_time, theme_clicks, layout_rows, layout
     if "select-subplot" in trigger:
         print(f"[SUBPLOT] Active subplot changed to {view_state.active_subplot}", flush=True)
     
-    # Create figure
+    # Create figure with caching
     link_tab_axes = link_axes_state.get("tab", False) if link_axes_state else False
-    fig, cursor_values = create_figure(
-        runs,
-        derived_signals,
-        view_state,
-        signal_settings,
-        shared_x=link_tab_axes,
-    )
+    
+    # Check cache - skip re-rendering if nothing changed
+    current_hash = _compute_figure_hash()
+    if (_figure_cache["hash"] == current_hash and 
+        _figure_cache["figure"] is not None and
+        "cursor-slider" not in trigger):  # Always update for cursor changes
+        fig = _figure_cache["figure"]
+        cursor_values = _figure_cache["cursor_values"]
+        if DEBUG:
+            print("[CACHE] Using cached figure", flush=True)
+    else:
+        fig, cursor_values = create_figure(
+            runs,
+            derived_signals,
+            view_state,
+            signal_settings,
+            shared_x=link_tab_axes,
+        )
+        # Update cache
+        _figure_cache["hash"] = current_hash
+        _figure_cache["figure"] = fig
+        _figure_cache["cursor_values"] = cursor_values
+        if DEBUG:
+            print("[CACHE] Generated new figure", flush=True)
     
     # Build inspector with cursor values grouped by subplot
     # Use cursor_show_all from view_state (managed by scope buttons)
