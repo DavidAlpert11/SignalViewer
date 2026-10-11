@@ -43,7 +43,7 @@ CASES = [
 ]
 
 
-@pytest.mark.parametrize("name,data,code", CASES)
+@pytest.mark.parametrize("name,data,code", CASES, ids=[c[0] for c in CASES])   # short ids: the data is long (Windows limits env vars to 32767 chars)
 def test_bad_file_has_a_clear_reason(tmp_path, name, data, code):
     p = _write(tmp_path, name, data)
     r = client.post("/api/files/open", json={"paths": [p]}).json()
