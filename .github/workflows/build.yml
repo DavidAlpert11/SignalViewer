@@ -1,62 +1,124 @@
-# Builds the single-file executable for Windows, macOS and Linux and runs the tests.
-# Trigger: push a tag like v1.0.0, or run it manually from the Actions tab.
+# Builds a portable package (.7z) for Windows, Linux and macOS and runs the tests.
+#
+#   Run manually:  Actions -> build -> Run workflow   (the files are in the run's Artifacts)
+#   Release:       push a tag such as v1.0.0          (also makes a draft Release with the three files)
+#
+#   Windows: the official embeddable Python + the libraries + the app (tools/make_windows_portable.py)
+#   Linux / macOS: a PyInstaller folder (SignalViewer.spec) - nothing to install, no Python needed
 name: build
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version in the file names"
+        default: "1.0.0"
+
+permissions:
+  contents: write          # only the release job uses it (to create the draft release)
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-22.04]
+        include:
+          - { os: windows-latest, name: Windows-x64 }
+          - { os: ubuntu-22.04,   name: Linux-x64 }      # 22.04: runs on older Linux too (glibc 2.35)
+          - { os: macos-latest,   name: macOS-arm64 }    # Apple silicon (M1 and later)
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with: { python-version: "3.11" }
       - uses: actions/setup-node@v5
         with: { node-version: "22" }
+
+      - name: Package name
+        run: |
+          V="${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}"
+          V="${V#v}"; [ -n "$V" ] || V=dev
+          echo "PKG=SignalViewer-$V-${{ matrix.name }}-portable" >> "$GITHUB_ENV"
+
       - name: Build UI
         working-directory: frontend
         run: |
           npm ci
           npm run build
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
+
       - name: Backend tests
         run: python -m pytest backend/tests -q
-      - name: Build (folder + single file)
-        shell: bash
-        run: |
-          pyinstaller SignalViewer.spec --noconfirm
-          SV_ONEFILE=1 pyinstaller SignalViewer.spec --noconfirm --distpath dist/onefile
-      - name: Windows installer (Inno Setup) and portable zip
+
+      # ---------------------------------------------------------------- Windows
+      - name: Windows portable (embeddable Python)
         if: runner.os == 'Windows'
-        shell: pwsh
         run: |
-          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
-            $p = "${env:ProgramFiles(x86)}\Inno Setup 6"
-            if (-not (Test-Path "$p\ISCC.exe")) { choco install innosetup -y --no-progress }
-            $env:PATH += ";$p"
-          }
-          iscc /Qp /DAppVersion=1.0.0 installer\SignalViewer.iss
-          Compress-Archive -Path dist\SignalViewer -DestinationPath dist\SignalViewer-portable.zip
-      - name: Smoke test (no network needed)
-        shell: bash
+          python tools/make_windows_portable.py --out dist --keep-folder
+          mv dist/SignalViewer-Windows-portable.7z "dist/$PKG.7z"
+          echo "APP_CMD=build/winportable/SignalViewer/runtime/python.exe build/winportable/SignalViewer/app/run.py" >> "$GITHUB_ENV"
+
+      # ---------------------------------------------------------- Linux / macOS
+      - name: Linux / macOS build (PyInstaller folder)
+        if: runner.os != 'Windows'
         run: |
-          EXE=dist/SignalViewer/SignalViewer; [ -f dist/SignalViewer/SignalViewer.exe ] && EXE=dist/SignalViewer/SignalViewer.exe
-          "$EXE" --port 8899 --no-open &
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8899/ >/dev/null && break; sleep 1; done
-          curl -sf http://127.0.0.1:8899/api/runs
+          pip install pyinstaller
+          pyinstaller SignalViewer.spec --noconfirm
+          echo "APP_CMD=dist/SignalViewer/SignalViewer" >> "$GITHUB_ENV"
+
+      - name: Smoke test (starts without network, answers, stops)
+        run: |
+          $APP_CMD --port 8899 --no-open &
+          PID=$!
+          ok=0
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8899/api/runs >/dev/null && { ok=1; break; }; sleep 1; done
+          kill $PID 2>/dev/null || true
+          [ $ok = 1 ] || { echo "The app did not start"; exit 1; }
+          echo "The app started and answered."
+
+      - name: Linux / macOS archive (.7z)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install sevenzip; else sudo apt-get update -q && sudo apt-get install -y -q p7zip-full; fi
+          Z=$(command -v 7zz || command -v 7z)
+          # -snl keeps the links inside the folder as links; Unix permissions (the executable bit) are kept
+          (cd dist && "$Z" a -t7z -mx=9 -m0=lzma2 -mmt=on -snl -bso0 -bsp0 "$PKG.7z" SignalViewer)
+
+      - name: Size
+        run: ls -la "dist/$PKG.7z"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: SignalViewer-${{ runner.os }}
-          path: |
-            dist/SignalViewer-Setup-*.exe
-            dist/SignalViewer-portable.zip
-            dist/onefile/SignalViewer*
+          name: ${{ env.PKG }}
+          path: dist/${{ env.PKG }}.7z
+          compression-level: 0          # already compressed
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Draft release with the three packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la out
+          if gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" out/*.7z --clobber -R "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" out/*.7z --draft --title "Signal Viewer ${GITHUB_REF_NAME#v}" \
+              --generate-notes -R "$GITHUB_REPOSITORY"
+          fi
