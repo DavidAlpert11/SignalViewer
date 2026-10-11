@@ -137,17 +137,19 @@ Verified by running the built app with no network interface at all.
 | `tools/make_windows_portable.sh` (Linux/macOS) | `dist/SignalViewer-Windows-portable.7z` | Builds the same Windows package **without a Windows PC** (runs the same Python builder; options are passed on) |
 | `build.bat wheels` | `wheels\` | On a connected PC: downloads the libraries once, so the build itself can run on an offline PC |
 
-The installer needs Inno Setup 6 on the BUILD PC only (free). The GitHub Actions workflow builds all
-three for Windows automatically.
+The installer needs Inno Setup 6 on the BUILD PC only (free).
 
 **Windows window engine.** The app window uses Microsoft Edge WebView2 (built into Windows 11 and
 updated Windows 10). If it is missing (e.g. an old offline Windows 10 LTSC), the app opens in the local
 browser instead — still with no internet — and stops by itself when no tab has been open for 30 s.
 
 
-Ready-made executables (one file, no Python needed) are produced by the GitHub Actions
-workflow in `.github/workflows/build.yml` for Windows, macOS and Linux: push a tag such as
-`v1.0.0` (or run the workflow manually) and download them from the run's artifacts.
+**Ready-made portable packages** (`.7z`, no Python and no installation needed) are built by the GitHub
+Actions workflow in `.github/workflows/build.yml` for Windows (x64), Linux (x64) and macOS (Apple silicon):
+run it manually (*Actions → build → Run workflow*) and download them from the run's artifacts, or push a
+tag such as `v1.0.0` to also get a draft Release with the three files. Windows: the embeddable-Python
+package described above; Linux / macOS: the PyInstaller folder (`SignalViewer.spec`) - extract it and run
+`SignalViewer/SignalViewer`.
 
 Build it yourself: `build.bat` (Windows) or `./build.sh` (Linux / macOS) → `dist/SignalViewer[.exe]`.
 
@@ -285,7 +287,7 @@ visual language as the app.
 * Interactive HTML reports embed signals longer than 150,000 samples as three min/max levels, so very deep zoom inside the report shows less detail than the app.
 * Copying an image to the clipboard depends on the window's clipboard support; Save image always works.
 * A derived signal whose source file was closed stays in the list, marked, until you remove it.
-* Only the Linux executable was built and tested here; Windows and macOS builds come from the CI workflow.
+* The macOS package is not signed or notarized: after extracting, run `xattr -dr com.apple.quarantine SignalViewer` (or right-click → Open) the first time.
 * Without `pyarrow` the pandas parser keeps a malformed row that has too few fields (missing values become empty), while `pyarrow` skips it.
 * The timeline's modes apply to time, X-Y, map and spectrogram plots, not to FFT.
 * The browser test suite occasionally fails one test when the whole suite runs in sequence (the same
