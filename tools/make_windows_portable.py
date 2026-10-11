@@ -105,14 +105,15 @@ def copy_dir(src, dst, skip=()):
 
 
 def find_7z():
-    """7-Zip's command line, if installed (PATH, or the usual Windows folders)."""
-    for name in ("7z", "7za", "7zz"):
-        p = shutil.which(name)
-        if p:
-            return p
+    """7-Zip's command line, if installed: the real 7z.exe in the usual Windows folders first (a
+    7z on PATH can be a Chocolatey shim, which fails on long-path working folders), then PATH."""
     for base in (os.environ.get("ProgramFiles", r"C:\Program Files"), os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")):
         p = os.path.join(base, "7-Zip", "7z.exe")
         if os.path.isfile(p):
+            return p
+    for name in ("7z", "7za", "7zz"):
+        p = shutil.which(name)
+        if p:
             return p
     return None
 
@@ -127,7 +128,9 @@ def make_7z(folder, out_path, top, cache):
         parent = os.path.dirname(os.path.abspath(folder))
         if os.path.basename(os.path.abspath(folder)) != top:
             die(f"Internal: the package folder must be named {top}.")
-        r = subprocess.run([exe, "a", "-t7z", "-mx=7", "-m0=lzma2", "-mmt=on", "-bso0", "-bsp1", out_path, top], cwd=lp(parent))
+        # a plain working folder, not the long-path (\\?\) form that lp() makes: some launchers, such as
+        # Chocolatey's 7z shim, cannot use that as the current folder (the folder itself is short)
+        r = subprocess.run([exe, "a", "-t7z", "-mx=7", "-m0=lzma2", "-mmt=on", "-bso0", "-bsp1", out_path, top], cwd=parent)
         if r.returncode != 0:
             die("7-Zip failed (the message above says why).")
         return n
