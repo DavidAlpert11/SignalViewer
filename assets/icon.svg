@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Signal Viewer: a signal trace read by an amber measurement cursor -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f2834"/><stop offset="1" stop-color="#121820"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bg)"/>
+  <rect x="16.5" y="16.5" width="479" height="479" rx="107.5" fill="none" stroke="#2d3a4b" stroke-width="3"/>
+  <g stroke="#2a3644" stroke-width="4">
+    <line x1="96" y1="176" x2="416" y2="176"/><line x1="96" y1="256" x2="416" y2="256"/><line x1="96" y1="336" x2="416" y2="336"/>
+  </g>
+  <path d="M76 300 C 118 300, 130 150, 176 150 S 236 366, 286 366 S 340 206, 382 206 S 420 262, 440 262"
+        fill="none" stroke="#dde4ec" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="318" y1="104" x2="318" y2="420" stroke="#f2a93b" stroke-width="16" stroke-linecap="round"/>
+  <path d="M318 96 h70 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 h-70 z" fill="#f2a93b"/>
+  <circle cx="318" cy="324" r="20" fill="#f2a93b" stroke="#121820" stroke-width="8"/>
+</svg>

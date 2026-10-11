@@ -1,0 +1,17 @@
+node_modules/
+frontend/node_modules/
+build/
+dist/
+!frontend/dist/
+__pycache__/
+.pytest_cache/
+*.pyc
+.buildenv/
+wheels/
+
+# Local environments / OS files
+.venv/
+venv/
+*.egg-info/
+.DS_Store
+Thumbs.db
