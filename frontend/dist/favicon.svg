@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- simplified for 16-32 px: thick strokes, no grid -->
+  <rect x="0.5" y="0.5" width="31" height="31" rx="7" fill="#161d26" stroke="#4a5b70" stroke-width="1"/>
+  <path d="M4 19 C 7 19, 8 9, 11 9 S 15 23, 18 23 S 22 13, 25 13 S 27 16, 28 16"
+        fill="none" stroke="#e6edf3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="20.5" y1="5" x2="20.5" y2="27" stroke="#f2a93b" stroke-width="2.4" stroke-linecap="round"/>
+  <rect x="20.5" y="4" width="6" height="4" rx="1" fill="#f2a93b"/>
+</svg>

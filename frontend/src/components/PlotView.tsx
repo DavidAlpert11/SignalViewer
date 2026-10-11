@@ -1,0 +1,295 @@
+import { lazy, Suspense, useRef, useState } from "react";
+import { plotHasContent, actions, pickPath, signalName, useApp, type Plot, type PlotMode, type Tab } from "../store";
+import { fmtNum, translate, useT } from "../i18n";
+import { api } from "../api";
+import { exportRange, plotSpec } from "../plotSpec";
+import { unitOf, withUnit } from "../units";
+import { labelsOf, labelText } from "../values";
+import { Icon } from "../icons";
+import TimeChart from "./TimeChart";
+import SignalPicker from "./SignalPicker";
+import XYChart from "./XYChart";
+import GeoChart from "./GeoChart";
+import { iconSvg } from "./mapIcons";
+// the 3D view (CesiumJS, a few MB) loads only when a plot is switched to 3D
+const Globe3D = lazy(() => import("./Globe3D"));
+import FFTChart from "./FFTChart";
+import SpecChart from "./SpecChart";
+import PlotBoundary from "./PlotBoundary";
+
+export const SIGNAL_MIME = "application/x-sv-signal";
+export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
+import { openMenu } from "./Overlays";
+import { api as apiCalls } from "../api";
+
+interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
+
+export default function PlotView({ tab, plot, index, active }: Props) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const runs = useApp((s) => s.runs);
+  const cursor = useApp((s) => s.cursor);
+  const cvals = useApp((s) => s.cvals);
+  const selected = useApp((s) => s.selected);
+  const multi = useApp((s) => s.multi);
+  const hover = useApp((s) => (s.hover && s.hover.plotId === plot.id ? s.hover : null));
+  const [dragOver, setDragOver] = useState<null | "y" | "x">(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [peaks, setPeaks] = useState<Record<string, number>>({});
+  const [menu, setMenu] = useState(false);
+  const theme = useApp((s) => s.theme);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  const done = (path: string) => useApp.getState().toast({ kind: "info", text: translate(lang, "savedTo", { path }) });
+  const failed = (e: unknown) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
+  const baseName = (plot.title || t("plotTitle", { n: index + 1 })).replace(/[\\/:*?"<>|]+/g, "_");
+  const chipMenu = (e: React.MouseEvent, sig: string) => {
+    const i = plot.signals.findIndex((x) => x.sig === sig);
+    const ps = plot.signals[i];
+    const make = async (op: string) => {
+      try {
+        const r = await apiCalls.createDerived(op, [sig], {});
+        useApp.setState({ runs: r.runs });
+        actions.addSignal(r.id, plot.id);
+      } catch (err) { failed(err); }
+    };
+    openMenu(e, [
+      { label: t("properties"), run: () => useApp.setState({ selected: { plotId: plot.id, sig }, inspectorOpen: true }) },
+      { label: ps.state ? t("asLine") : t("asStates"), run: () => actions.updateSignal(plot.id, sig, { state: !ps.state }) },
+      ...(ps.state || labelsOf(runs, sig) ? [{
+        label: (tab.sharedStates ?? []).includes(sig) ? t("lanesSharedOff") : t("lanesSharedOn"),
+        run: () => actions.toggleSharedState(sig) }] : []),
+      { label: "", run: () => {}, sep: true },
+      { label: t("moveUp"), run: () => actions.moveSignal(plot.id, sig, -1), disabled: i === 0 },
+      { label: t("moveDown"), run: () => actions.moveSignal(plot.id, sig, 1), disabled: i === plot.signals.length - 1 },
+      { label: t("duplicateNewPlot"), run: () => actions.duplicateToNewPlot(plot.id, sig) },
+      { label: t("useAsX"), run: () => actions.setAsX(plot.id, sig) },
+      { label: "", run: () => {}, sep: true },
+      { label: t("opDerivative"), run: () => make("derivative") },
+      { label: t("opIntegral"), run: () => make("integral") },
+      { label: "", run: () => {}, sep: true },
+      { label: t("remove"), run: () => actions.removeSignal(plot.id, sig), danger: true },
+    ]);
+  };
+  const exportCsv = async () => {
+    setMenu(false);
+    const path = await pickPath({ mode: "save", title: t("exportData"), exts: [".csv"], defaultName: `${baseName}.csv` });
+    if (!path) return;
+    const r = exportRange(tab, plot);
+    try {
+      const res = await api.exportCsv(path, plot.signals.map((s) => ({ id: s.sig, label: s.label || signalName(runs, s.sig), scale: s.scale, offset: s.offset, tOffset: s.tOffset ?? 0 })),
+        r?.[0] ?? null, r?.[1] ?? null);
+      done(res.path);
+    } catch (e) { failed(e); }
+  };
+  const saveImage = async (format: "png" | "svg") => {
+    setMenu(false);
+    const path = await pickPath({ mode: "save", title: t("saveImage"), exts: [`.${format}`], defaultName: `${baseName}.${format}` });
+    if (!path) return;
+    try { done((await api.image(path, format, theme, plotSpec(tab, plot, index, t("plotTitle", { n: "{n}" })))).path); } catch (e) { failed(e); }
+  };
+  const copyImage = async () => {
+    setMenu(false);
+    const canvas = sectionRef.current?.querySelector("canvas");
+    if (!canvas) return;
+    try {
+      const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("No image"))), "image/png"));
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      useApp.getState().toast({ kind: "info", text: t("copied") });
+    } catch { useApp.getState().toast({ kind: "error", text: t("copyFailed") }); }
+  };
+  const mode: PlotMode = plot.mode ?? "time";
+  const allSignals = runs.flatMap((r) => r.signals.map((s) => ({ id: s.id, label: s.name, group: r.format === "derived" ? undefined : r.name })));
+
+  const onDrop = (e: React.DragEvent, target: "x" | "y", beforeSig: string | null = null) => {
+    setDragOver(null);
+    const chip = e.dataTransfer.getData(CHIP_MIME);
+    if (chip) {
+      e.preventDefault(); e.stopPropagation();
+      const { plotId, sig } = JSON.parse(chip);
+      if (target === "x") actions.setAsX(plot.id, sig);
+      else actions.dropSignal(plotId, sig, plot.id, beforeSig, e.ctrlKey || e.altKey);
+      return;
+    }
+    const sig = e.dataTransfer.getData(SIGNAL_MIME);
+    if (!sig) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (target === "x") actions.updatePlot(plot.id, { xSignal: sig });
+    else actions.addSignalLinked(sig, plot.id);
+  };
+
+  const title = plot.title || t("plotTitle", { n: index + 1 });
+  const geoBase = useApp((s) => s.geoBase);
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")]];
+
+  return (
+    <section
+      ref={sectionRef}
+      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}`}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver("y"); } }}
+      onDragLeave={() => setDragOver(null)}
+      onDrop={(e) => onDrop(e, "y")}
+      onMouseDown={() => actions.setActivePlot(index)}
+      aria-label={title}
+    >
+      <header className="plot-head">
+        {editingTitle ? (
+          <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
+            onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingTitle(false); }} />
+        ) : (
+          <button className="plot-title" onDoubleClick={() => setEditingTitle(true)} title={title}>{title}</button>
+        )}
+        <span className="seg mode-seg" role="group" aria-label={t("plotMode")}>
+          {modes.map(([m, label]) => (
+            <button key={m} className={mode === m ? "on" : ""} aria-pressed={mode === m} onClick={() => actions.setPlotMode(plot.id, m)}>{label}</button>
+          ))}
+        </span>
+        {(mode === "xy" || mode === "geo") && (
+          <span className={`xpick${dragOver === "x" ? " over" : ""}`}
+            onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); setDragOver("x"); } }}
+            onDrop={(e) => onDrop(e, "x")}>
+            <label>{mode === "geo" ? t("geoLon") : "X"}</label>
+            <SignalPicker compact value={plot.xSignal ?? null} options={allSignals} ariaLabel={mode === "geo" ? t("geoLon") : t("xSignal")}
+              onChange={(id) => actions.updatePlot(plot.id, { xSignal: id })} />
+            {mode === "geo" && <>
+              <label>{t("geoLat")}</label>
+              <SignalPicker compact value={plot.signals[0]?.sig ?? null} options={allSignals} ariaLabel={t("geoLat")}
+                onChange={(id) => actions.setGeoLat(plot.id, id)} />
+            </>}
+            <select value={plot.xyAlign ?? "linear"} onChange={(e) => actions.updatePlot(plot.id, { xyAlign: e.target.value as "linear" | "nearest" })} aria-label={t("alignment")} title={t("alignment")}>
+              <option value="linear">{t("alignLinear")}</option>
+              <option value="nearest">{t("alignNearest")}</option>
+            </select>
+          </span>
+        )}
+        {mode === "fft" && (
+          <span className="xpick">
+            <select value={plot.fftWindow ?? "hanning"} onChange={(e) => actions.updatePlot(plot.id, { fftWindow: e.target.value as Plot["fftWindow"] })} aria-label={t("fftWindow")} title={t("fftWindow")}>
+              <option value="hanning">Hann</option><option value="hamming">Hamming</option>
+              <option value="blackman">Blackman</option><option value="none">{t("noWindow")}</option>
+            </select>
+            <button className="btn" aria-pressed={plot.fftLog ?? true} onClick={() => actions.updatePlot(plot.id, { fftLog: !(plot.fftLog ?? true) })}>{t("logScale")}</button>
+          </span>
+        )}
+        {(mode === "geo" || mode === "3d") && (
+          <span className="xpick">
+            <select value={geoBase} onChange={(e) => useApp.setState({ geoBase: e.target.value as typeof geoBase })}
+              aria-label={t("geoLayer")} title={t("geoLayerHint")}>
+              {(["auto", "osm", "esri", "light", "dark", "satellite", "topo", "offline"] as const).map((b) =>
+                <option key={b} value={b}>{t(`geo_${b}` as "geo_auto")}</option>)}
+            </select>
+            {/* objects: things that move, drawn at the timeline's time */}
+            <button className="btn sm obj-add" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id } })} title={t("objAddHint")}>
+              + {t("objAdd")}</button>
+          </span>
+        )}
+        {(mode === "geo" || mode === "3d") && (plot.objects?.length ?? 0) > 0 && (
+          <span className="obj-chips" role="list" aria-label={t("objects")}>
+            {plot.objects!.map((o) => (
+              <span key={o.id} className="obj-chip" role="listitem">
+                <button className="obj-chip-main" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } })} title={t("objEdit")}>
+                  <img src={iconSvg(o.kind, o.color)} alt="" width={16} height={16} />{o.name}
+                </button>
+                <button className={`iconbtn sm${plot.followObject === o.id ? " on" : ""}`} aria-pressed={plot.followObject === o.id}
+                  title={t("objFollow")} aria-label={`${t("objFollow")}: ${o.name}`}
+                  onClick={() => actions.updatePlot(plot.id, { followObject: plot.followObject === o.id ? null : o.id })}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+                </button>
+                <button className="iconbtn sm" aria-label={`${t("remove")}: ${o.name}`} title={t("remove")} onClick={() => actions.removeObject(plot.id, o.id)}>×</button>
+              </span>
+            ))}
+          </span>
+        )}
+        {mode === "spec" && (
+          <span className="xpick">
+            <select value={plot.specN ?? 1024} onChange={(e) => actions.updatePlot(plot.id, { specN: Number(e.target.value) })}
+              aria-label={t("specWindow")} title={t("specWindowHint")}>
+              {[128, 256, 512, 1024, 2048, 4096, 8192].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select value={plot.specFmax ?? ""} onChange={(e) => actions.updatePlot(plot.id, { specFmax: e.target.value ? Number(e.target.value) : null })}
+              aria-label={t("specFmax")} title={t("specFmax")}>
+              <option value="">{t("specAllFreq")}</option>
+              {[10, 25, 50, 100, 200, 500, 1000].map((f) => <option key={f} value={f}>≤ {f} Hz</option>)}
+            </select>
+          </span>
+        )}
+        {hover && mode === "time" && <span className="hover-t" title={t("hoverValue")}>t = {fmtNum(hover.t, lang, 7)}</span>}
+        <div className="legend">
+          {plot.signals.map((s) => {
+            const inMulti = multi.some((m) => m.plotId === plot.id && m.sig === s.sig);
+            const sel = (selected?.plotId === plot.id && selected.sig === s.sig) || inMulti;
+            const raw = cvals[s.sig]?.[0];
+            let val: string | null = null;
+            const unit = unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1));
+            let hv = false;
+            if (mode === "fft") val = Number.isFinite(peaks[s.sig]) ? `${fmtNum(peaks[s.sig], lang, 4)} Hz` : null;
+            const labels = labelsOf(runs, s.sig);
+            const plain = s.scale === 1 && s.offset === 0;
+            if (mode === "fft") { /* peak above */ }
+            else if (cursor.on && raw !== undefined && raw !== null) val = (plain && labelText(labels, raw)) || withUnit(fmtNum(raw * s.scale + s.offset, lang), unit);
+            else if (hover && mode === "time" && hover.vals[s.sig] !== null && hover.vals[s.sig] !== undefined) {
+              const hvv = hover.vals[s.sig] as number;     // already scaled
+              val = (plain && labelText(labels, hvv)) || withUnit(fmtNum(hvv, lang), unit); hv = true;
+            }
+            return (
+              <span key={s.sig} className={`chip${sel ? " sel" : ""}`} role="button" tabIndex={0} draggable
+                title={t("chipHint")}
+                onDragStart={(e) => { e.dataTransfer.setData(CHIP_MIME, JSON.stringify({ plotId: plot.id, sig: s.sig })); e.dataTransfer.effectAllowed = "copyMove"; }}
+                onDragOver={(e) => { if (e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); } }}
+                onDrop={(e) => onDrop(e, "y", s.sig)}
+                onContextMenu={(e) => chipMenu(e, s.sig)}
+                onClick={(e) => {
+                  const me = { plotId: plot.id, sig: s.sig };
+                  if (e.ctrlKey || e.metaKey) {      // multi-select for batch editing
+                    const st = useApp.getState();
+                    const base = st.multi.length ? st.multi : st.selected ? [st.selected] : [];
+                    const next = inMulti || (st.selected?.plotId === me.plotId && st.selected.sig === me.sig && !st.multi.length)
+                      ? base.filter((m) => !(m.plotId === me.plotId && m.sig === me.sig)) : [...base, me];
+                    useApp.setState({ multi: next, selected: next.length === 1 ? next[0] : st.selected, inspectorOpen: true });
+                  } else useApp.setState({ selected: me, multi: [], inspectorOpen: true });
+                }}
+                onKeyDown={(e) => { if (e.key === "Delete") actions.removeSignal(plot.id, s.sig); }}>
+                <span className="sw" style={{ background: s.color }} />
+                <span className="nm">{s.label || signalName(runs, s.sig)}</span>
+                {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
+                {val && <span className={`val${hv ? " hov" : ""}`} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
+                <span className="rm" role="button" aria-label={t("remove")}
+                  onClick={(e) => { e.stopPropagation(); actions.removeSignal(plot.id, s.sig); }}><Icon.X width={11} height={11} /></span>
+              </span>
+            );
+          })}
+        </div>
+        <button className="iconbtn plot-more" aria-label={t("plotMenu")} title={t("plotMenu")} aria-expanded={menu}
+          onClick={(e) => { e.stopPropagation(); setMenu(!menu); }}><Icon.More /></button>
+        {menu && (
+          <div className="menu" role="menu" onMouseLeave={() => setMenu(false)}>
+            <button role="menuitem" disabled={!plot.signals.length} onClick={exportCsv}><Icon.Table />{t("exportData")}</button>
+            <button role="menuitem" disabled={!plot.signals.length} onClick={() => saveImage("png")}><Icon.Image />{t("saveImage")} (PNG)</button>
+            <button role="menuitem" disabled={!plot.signals.length} onClick={() => saveImage("svg")}><Icon.Image />{t("saveImage")} (SVG)</button>
+            <button role="menuitem" disabled={!plot.signals.length} onClick={copyImage}><Icon.Copy />{t("copyImage")}</button>
+            <div className="menu-sep" />
+            <button role="menuitem" onClick={() => { setMenu(false); useApp.setState({ axisDialog: plot.id }); }}><Icon.Layout />{t("axisLimits")}{(plot.xlim || plot.ylim) ? " •" : ""}</button>
+            <button role="menuitem" disabled={!plotHasContent(plot) && !plot.xSignal} onClick={() => { setMenu(false); actions.clearPlot(plot.id); }}><Icon.Trash />{t("clearPlot")}</button>
+            {mode === "3d" && <button role="menuitem" onClick={() => { setMenu(false); actions.remove3d(plot.id); }}><Icon.Trash />{t("g3Remove")}</button>}
+          </div>
+        )}
+      </header>
+      <div className="plot-body">
+        <PlotBoundary label={t("plotFailed")} retry={t("tryAgain")} resetKey={`${mode}|${plot.signals.map((x) => x.sig).join(",")}|${plot.xSignal ?? ""}`}>
+          {mode === "time" && <TimeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
+          {mode === "xy" && <XYChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("xyNeedsX") : t("emptyPlot")} />}
+          {mode === "3d" && <Suspense fallback={<div className="plot-empty">{t("globeLoading")}</div>}>
+            <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} /></Suspense>}
+          {mode === "geo" && <GeoChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
+          {mode === "fft" && <FFTChart plot={plot} index={index} onLoading={setLoading} onPeaks={setPeaks} />}
+          {mode === "spec" && <SpecChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
+        </PlotBoundary>
+        {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && <div className="plot-empty">{t("emptyPlot")}</div>}
+        {loading && <div className="plot-loading">{t("loading")}</div>}
+      </div>
+    </section>
+  );
+}

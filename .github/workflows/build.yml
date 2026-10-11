@@ -1,0 +1,62 @@
+# Builds the single-file executable for Windows, macOS and Linux and runs the tests.
+# Trigger: push a tag like v1.0.0, or run it manually from the Actions tab.
+name: build
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Build UI
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Backend tests
+        run: python -m pytest backend/tests -q
+      - name: Build (folder + single file)
+        shell: bash
+        run: |
+          pyinstaller SignalViewer.spec --noconfirm
+          SV_ONEFILE=1 pyinstaller SignalViewer.spec --noconfirm --distpath dist/onefile
+      - name: Windows installer (Inno Setup) and portable zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            $p = "${env:ProgramFiles(x86)}\Inno Setup 6"
+            if (-not (Test-Path "$p\ISCC.exe")) { choco install innosetup -y --no-progress }
+            $env:PATH += ";$p"
+          }
+          iscc /Qp /DAppVersion=1.0.0 installer\SignalViewer.iss
+          Compress-Archive -Path dist\SignalViewer -DestinationPath dist\SignalViewer-portable.zip
+      - name: Smoke test (no network needed)
+        shell: bash
+        run: |
+          EXE=dist/SignalViewer/SignalViewer; [ -f dist/SignalViewer/SignalViewer.exe ] && EXE=dist/SignalViewer/SignalViewer.exe
+          "$EXE" --port 8899 --no-open &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8899/ >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8899/api/runs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SignalViewer-${{ runner.os }}
+          path: |
+            dist/SignalViewer-Setup-*.exe
+            dist/SignalViewer-portable.zip
+            dist/onefile/SignalViewer*

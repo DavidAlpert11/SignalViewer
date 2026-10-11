@@ -1,0 +1,15 @@
+fastapi>=0.110
+pydantic>=2.0          # request models (installed with FastAPI; listed because the code imports it)
+uvicorn>=0.27
+python-multipart>=0.0.9
+numpy>=1.24
+pandas>=2.0
+pyarrow>=12.0        # fast CSV parsing for large files
+scipy>=1.10          # MATLAB v5 files
+h5py>=3.8            # MATLAB v7.3 files
+pywebview>=5.0       # native desktop window (optional; falls back to the browser)
+python-bidi>=0.4      # Hebrew text in PDF/PNG reports
+matplotlib>=3.7       # PDF / Word / image export
+python-docx>=1.0      # Word reports
+pymavlink>=2.4.40     # MAVLink telemetry logs (.tlog): message definitions
+pyulog>=1.0           # PX4 flight logs (.ulg)
