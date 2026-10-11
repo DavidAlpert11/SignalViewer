@@ -60,6 +60,7 @@ def apply_transform(t, y, spec: dict):
         t = t + spec["dt"]
     return t, y
 WIDE = 300          # files with more signals than this skip per-signal work at load
+TIME_SLACK = 2.0   # seconds: see new_files()
 UPLOAD_DIR = os.path.join(os.path.expanduser("~"), ".signalviewer", "uploads")
 
 
@@ -397,7 +398,10 @@ class Store:
                                 continue
                             st = e.stat()
                             created = max(st.st_mtime, getattr(st, "st_birthtime", 0) or 0)
-                            if created >= since and st.st_size > 0:
+                            # file-system clocks are coarser than time.time() (a few ms on Linux,
+                            # 2 s on FAT): a file written right after `since` can carry a time
+                            # slightly before it, so allow some slack
+                            if created >= since - TIME_SLACK and st.st_size > 0:
                                 found.append({"path": full, "name": e.name, "size": st.st_size, "mtime": st.st_mtime})
                         except OSError:
                             continue
