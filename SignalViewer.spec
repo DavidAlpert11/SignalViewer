@@ -34,6 +34,7 @@ datas = [
     (os.path.join(ROOT, "backend", "app", "basemap_data"), os.path.join("app", "basemap_data")),
     (os.path.join(ROOT, "assets", "png"), os.path.join("assets", "png")),
     (os.path.join(ROOT, "assets", "icon.ico"), "assets"),          # the window icon on Windows
+    (os.path.join(ROOT, "examples"), "examples"),                  # "Open an example" on the welcome screen
 ] + collect_data_files("docx") + collect_data_files("webview")
 
 a = Analysis(

@@ -444,6 +444,31 @@ def get_xy_plot_data(
 # FFT ANALYSIS
 # =============================================================================
 
+def compute_welch(time: np.ndarray, data: np.ndarray, window: str = "hanning") -> Tuple[np.ndarray, np.ndarray]:
+    """Welch power spectral density (units^2/Hz): the recording is cut into overlapping pieces
+    whose spectra are averaged - much less noisy than one FFT, the usual view for vibration.
+    Same preparation as compute_fft (mean sample interval, gaps filled, mean removed)."""
+    from scipy.signal import welch
+    n = len(data)
+    if n < 16:
+        return np.array([]), np.array([])
+    dt = (float(time[-1]) - float(time[0])) / (n - 1)
+    if not np.isfinite(dt) or dt <= 0:
+        return np.array([]), np.array([])
+    data = np.asarray(data, dtype=np.float64)
+    finite = np.isfinite(data)
+    if not finite.all():
+        if not finite.any():
+            return np.array([]), np.array([])
+        idx = np.arange(n)
+        data = np.interp(idx, idx[finite], data[finite])
+    # about 8 pieces (50 % overlap -> ~15 averages), a power of two, at least 256 samples
+    nperseg = int(min(n, max(256, 2 ** int(np.floor(np.log2(max(n / 8, 1)))))))
+    win = {"hanning": "hann", "hamming": "hamming", "blackman": "blackman"}.get(window, "boxcar")
+    f, p = welch(data, fs=1.0 / dt, window=win, nperseg=nperseg, detrend="constant", scaling="density")
+    return f, p
+
+
 def compute_fft(
     time: np.ndarray,
     data: np.ndarray,

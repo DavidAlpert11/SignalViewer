@@ -192,6 +192,11 @@ def decimate_for_view(
 
     Returns:
         (x_display, y_display, was_decimated)
+
+    By design the result is NOT clipped to xrange: the visible window gets the full budget,
+    and the data on each side is kept at a coarse resolution (plus one point beyond each edge),
+    so the line reaches the plot edges and panning shows context at once. A window entirely
+    outside the data therefore still returns the (coarse) trace - the plot clips it.
     """
     n_out = MAX_POINTS_PER_TRACE if n_out is None else n_out
     n = len(x)

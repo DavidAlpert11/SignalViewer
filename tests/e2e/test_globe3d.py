@@ -264,10 +264,24 @@ def test_measure_two_points_on_the_ground(g3multi):
                          timeout=90000, polling=500)
     pg.locator(".globe3d-bar button", has_text="Measure").click()
     pg.wait_for_selector(".g3-measure:has-text('first point')")
-    # where two known places are on the screen: 32.5 N and 32.51 N at 34.5 E (sea: height 0)
-    pts = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe; const r = w.scene.canvas.getBoundingClientRect();
+    # where two known places are on the screen: 32.5 N and 32.51 N at 34.5 E (sea: height 0).
+    # They must BE on the screen: how much the camera shows depends on the view's shape (e.g. the
+    # Inspector open or closed), so zoom out until both are inside - a ground distance does not
+    # depend on the zoom.
+    where = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; const r = w.scene.canvas.getBoundingClientRect();
       const T = C.SceneTransforms.worldToWindowCoordinates || C.SceneTransforms.wgs84ToWindowCoordinates;
-      return [[34.5, 32.5], [34.5, 32.51]].map(([lo, la]) => { const p = T(w.scene, C.Cartesian3.fromDegrees(lo, la, 0)); return [r.left + p.x, r.top + p.y]; }); })()""")
+      const pts = [[34.5, 32.5], [34.5, 32.51]].map(([lo, la]) => { const p = T(w.scene, C.Cartesian3.fromDegrees(lo, la, 0)); return p ? [r.left + p.x, r.top + p.y] : null; });
+      const m = 20, inside = pts.every((p) => p && p[0] > r.left + m && p[0] < r.right - m && p[1] > r.top + m && p[1] < r.bottom - m);
+      return { pts, inside }; })()"""
+    for _ in range(6):
+        got = pg.evaluate(where)
+        if got["inside"]:
+            break
+        pg.evaluate("(() => { const w = window.__svGlobe.widget; w.camera.zoomOut(w.camera.positionCartographic.height * 0.4); w.scene.requestRender(); })()")
+        pg.wait_for_function("(() => { const w = window.__svGlobe.widget; w.scene.requestRender(); return w.scene.globe.tilesLoaded; })()",
+                             timeout=90000, polling=500)
+    assert got["inside"], got
+    pts = got["pts"]
     for x, y in pts:
         pg.mouse.click(x, y)
         pg.wait_for_timeout(400)

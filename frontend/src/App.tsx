@@ -46,6 +46,9 @@ function Welcome() {
   const t = useT();
   const items = useApp((s) => s.recent);
   useEffect(() => { api.recent().then((r) => useApp.setState({ recent: r.items })).catch(() => {}); }, []);
+  // T09: ready examples (a drone flight; three car runs to compare) - a first look in one click
+  const [examples, setExamples] = useState<{ id: "flight" | "car"; paths: string[] }[]>([]);
+  useEffect(() => { api.examples().then(setExamples).catch(() => setExamples([])); }, []);
   const files = items.filter((x) => x.kind === "file").slice(0, 6);
   const sessions = items.filter((x) => x.kind === "session").slice(0, 4);
   const openRecent = async (x: (typeof items)[number]) => {
@@ -87,6 +90,15 @@ function Welcome() {
         <button className="btn primary" style={{ height: 36, paddingInline: 16 }} onClick={() => useApp.setState({ browserOpen: true })}>
           <Icon.Folder /> {t("openFiles")}
         </button>
+        {examples.length > 0 && (
+          <p className="examples-line">{t("tryExample")}{" "}
+            {examples.map((ex, i) => (
+              <span key={ex.id}>{i > 0 && " · "}
+                <button className="linkbtn" onClick={() => openPaths(ex.paths)}>{t(ex.id === "flight" ? "exampleFlight" : "exampleCar")}</button>
+              </span>
+            ))}
+          </p>
+        )}
         {(files.length > 0 || sessions.length > 0) && (
           <div className="recent">
             {list(t("recentFiles"), files, <Icon.File />)}

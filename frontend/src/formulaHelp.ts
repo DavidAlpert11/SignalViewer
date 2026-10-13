@@ -29,6 +29,13 @@ export const FUNC_INFO: Record<string, FuncInfo> = {
   smooth: { args: ["x", "n=10"], en: "moving average over n samples", he: "ממוצע נע על n דגימות" },
   lowpass: { args: ["x", "fc"], en: "low-pass filter, cut-off fc in Hz", he: "מסנן מעביר נמוכים, תדר קטעון fc ב־Hz" },
   highpass: { args: ["x", "fc"], en: "high-pass filter, cut-off fc in Hz", he: "מסנן מעביר גבוהים, תדר קטעון fc ב־Hz" },
+  deg: { args: ["x"], en: "radians to degrees", he: "רדיאנים למעלות" },
+  rad: { args: ["x"], en: "degrees to radians", he: "מעלות לרדיאנים" },
+  wrap180: { args: ["deg"], en: "angle wrapped to −180 … 180", he: "זווית מגולגלת לטווח ‎−180 … 180" },
+  wrap360: { args: ["deg"], en: "angle wrapped to 0 … 360 (heading)", he: "זווית מגולגלת לטווח 0 … 360 (כיוון)" },
+  q2roll: { args: ["qw", "qx", "qy", "qz"], en: "roll from a quaternion, in degrees", he: "גלגול מקווטרניון, במעלות" },
+  q2pitch: { args: ["qw", "qx", "qy", "qz"], en: "pitch from a quaternion, in degrees", he: "עלרוד מקווטרניון, במעלות" },
+  q2yaw: { args: ["qw", "qx", "qy", "qz"], en: "yaw (heading) from a quaternion, in degrees, −180 … 180", he: "סבסוב (כיוון) מקווטרניון, במעלות, ‎−180 … 180" },
   norm01: { args: ["x"], en: "scaled to 0 … 1 (min → 0, max → 1)", he: "מנורמל ל־0 … 1 (מינימום ← 0, מקסימום ← 1)" },
 };
 export const FUNC_NAMES = Object.keys(FUNC_INFO);

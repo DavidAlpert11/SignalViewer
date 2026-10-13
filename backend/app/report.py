@@ -15,6 +15,8 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+from svcore.limits import check_limits
+from svcore.envelope import envelope
 from svcore.analysis import fft_display, fft_for, transitions, xy_pair
 from svcore.decimate import decimate_for_view, minmax_decimate
 from svcore.ops import compute_signal_stats
@@ -27,11 +29,15 @@ STRINGS = {
     "en": {"generated": "Generated", "summary": "Summary", "notes": "Notes", "toggle": "Click to show or hide", "theme": "Light / dark",
            "min": "Min", "max": "Max", "mean": "Mean", "rms": "RMS", "std": "Std", "samples": "Samples",
            "signal": "Signal", "hint": "Drag to zoom · wheel to zoom · double-click to reset · click to place the cursor",
-           "page": "Page", "plot": "Plot", "peak": "Peak", "visible": "Statistics for the shown time range"},
+           "page": "Page", "plot": "Plot", "peak": "Peak", "visible": "Statistics for the shown time range",
+           "limits": "Limits", "pass": "Pass", "fail": "Fail",
+           "envNote": "{n} runs · median, {p}–{q} % band, min–max", "envFar": "Far from the rest:"},
     "he": {"generated": "נוצר", "summary": "סיכום", "notes": "הערות", "toggle": "לחיצה להצגה או הסתרה", "theme": "בהיר / כהה",
            "min": "מינ׳", "max": "מקס׳", "mean": "ממוצע", "rms": "RMS", "std": "סטיית תקן", "samples": "דגימות",
            "signal": "סיגנל", "hint": "גרירה לזום · גלגלת לזום · לחיצה כפולה לאיפוס · לחיצה למיקום הסמן",
-           "page": "עמוד", "plot": "גרף", "peak": "שיא", "visible": "סטטיסטיקות לטווח הזמן המוצג"},
+           "page": "עמוד", "plot": "גרף", "peak": "שיא", "visible": "סטטיסטיקות לטווח הזמן המוצג",
+           "limits": "גבולות", "pass": "עבר", "fail": "נכשל",
+           "envNote": "{n} ריצות · חציון, רצועת {p}–{q} %, מינ׳–מקס׳", "envFar": "רחוקות מהשאר:"},
 }
 
 
@@ -55,6 +61,8 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
            "range": rng, "log": bool(spec.get("fftLog", True)), "signals": [], "notes": spec.get("notes") or []}
     if mode == "spec":
         return _spec_data(store, spec, out)
+    if mode == "env":
+        return _env_data(store, spec, out, for_html)
     if mode == "xy":
         xs = spec.get("xSignal")
         if not xs:
@@ -81,6 +89,10 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
             st = compute_signal_stats(t, ys, rng[0] if rng else None, rng[1] if rng else None) if mode == "time" else \
                 compute_signal_stats(t, ys)
         sig["stats"] = {k: _f(st.get(k)) for k in ("min", "max", "mean", "rms", "std", "samples")} if st else {}
+        lim = s.get("limits") or {}
+        if mode == "time" and (lim.get("lo") is not None or lim.get("hi") is not None):
+            sig["limits"] = check_limits(t, ys, lim.get("lo"), lim.get("hi"),
+                                         rng[0] if rng else None, rng[1] if rng else None)
         if mode == "time":
             if for_html:
                 if len(t) <= RAW_LIMIT:
@@ -99,8 +111,10 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
                     return int(v) if float(v).is_integer() else v
                 sig["states"] = [] if many else [[p[0], txt(p[1])] for p in pts if p[1] is not None]
         elif mode == "fft":
-            f, m = fft_for(sid, store.version(sid), t, y, spec.get("fftWindow") or "hanning", None, None)
-            fx, fy, peak = fft_display(f, m * abs(scale), 4000 if for_html else points)
+            welch = spec.get("fftMethod") == "welch"
+            f, m = fft_for(sid, store.version(sid), t, y, spec.get("fftWindow") or "hanning", None, None,
+                           "welch" if welch else "fft")
+            fx, fy, peak = fft_display(f, m * (scale * scale if welch else abs(scale)), 4000 if for_html else points)
             sig["peak"] = _f(peak)
             sig["x"], sig["y"] = np.asarray(fx, dtype=np.float64), np.asarray(fy, dtype=np.float64)
         else:
@@ -109,6 +123,40 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
         if for_html and "x" in sig:
             sig["x"], sig["y"] = _b64(sig["x"], np.float64), _b64(sig["y"], np.float32)
         out["signals"].append(sig)
+    return out
+
+
+def _env_data(store, spec: Dict, out: Dict, for_html: bool) -> Dict:
+    """T14b: an Envelope plot - the same computation as on screen (svcore.envelope)."""
+    series, labels = [], []
+    for s in spec.get("signals") or []:
+        try:
+            t, y = store.signal(s["id"])
+        except KeyError:
+            continue
+        series.append((np.asarray(t, dtype=np.float64) + float(s.get("tOffset", 0) or 0),
+                       np.asarray(y, dtype=np.float64) * float(s.get("scale", 1) or 1) + float(s.get("offset", 0) or 0)))
+        labels.append(s.get("label") or s["id"].split("/", 1)[-1])
+    rng = spec.get("range")
+    r = envelope(series, rng[0] if rng else None, rng[1] if rng else None, 2000)
+    sigs = spec.get("signals") or []
+    out["envColor"] = (sigs[0].get("color") if sigs else None) or "#3D8BFD"
+    if r is None:
+        return out
+    keys = ("min", "max", "lo", "hi", "median")
+    if for_html:
+        out["env"] = {"t": _b64(r["t"], np.float64), **{k: _b64(r[k], np.float32) for k in keys}}
+    else:
+        out["env"] = {"t": r["t"], **{k: r[k] for k in keys}}
+    out["envRuns"] = len(series)
+    out["envOutliers"] = [lab for lab, o in zip(labels, r["outlier"]) if o]
+    out["envPct"] = r["pct"]
+    # the summary goes with the caption: every format (HTML, PDF, Word) shows captions
+    S = STRINGS.get(spec.get("lang") or "en", STRINGS["en"])
+    note = S["envNote"].format(n=len(series), p=f"{r['pct']:g}", q=f"{100 - r['pct']:g}")
+    if out["envOutliers"]:
+        note += " · " + S["envFar"] + " " + ", ".join(out["envOutliers"][:8])
+    out["caption"] = (out["caption"] + "\n" if out["caption"] else "") + note
     return out
 
 
@@ -194,6 +242,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px;font-v
 th,td{padding:4px 8px;border-top:1px solid var(--line);text-align:end;white-space:nowrap}
 th{color:var(--muted);font-weight:500}td:first-child,th:first-child{text-align:start;unicode-bidi:plaintext}
 .sw2{display:inline-block;width:9px;height:9px;border-radius:2px;margin-inline-end:6px;vertical-align:middle}
+.lim-pass{color:#1f8a4c;font-weight:600}.lim-fail{color:#c0392b;font-weight:600}
 .hint{color:var(--muted);font-size:12px;margin:0 0 14px}
 .u-select{background:rgba(242,169,59,.15)!important}
 footer{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:12px}
@@ -227,16 +276,34 @@ def _fonts_css() -> str:
     return _font_css_cache
 
 
+def _limit_text(s: Dict, S: Dict) -> str:
+    """T13: the Limits cell of a report table - the same words in HTML, PDF and Word."""
+    r = s.get("limits")
+    if not r:
+        return ""
+    rng = " … ".join("" if v is None else f"{v:.6g}" for v in (r["lo"], r["hi"]))
+    if r["pass"]:
+        return f"{S['pass']} ({rng})"
+    return f"{S['fail']} ({rng}): {r['violations']}× · {r['timeOutside']:.3g} s"
+
+
 def _stats_table(sigs: List[Dict], S: Dict) -> str:
     rows = []
     for s in sigs:
         st = s.get("stats") or {}
         cells = "".join(f"<td>{'' if st.get(k) is None else f'{st[k]:.6g}'}</td>" for k in ("min", "max", "mean", "rms", "std"))
         samples = "" if st.get("samples") is None else f"{int(st['samples']):,}"
-        rows.append(f'<tr><td><span class="sw2" style="background:{html.escape(s["color"])}"></span>{html.escape(s["label"])}</td>{cells}<td>{samples}</td></tr>')
+        lim = ""
+        if any(x.get("limits") for x in sigs):
+            r = s.get("limits")
+            cls = "" if not r else (' class="lim-pass"' if r["pass"] else ' class="lim-fail"')
+            lim = f"<td{cls}>{html.escape(_limit_text(s, S))}</td>"
+        rows.append(f'<tr><td><span class="sw2" style="background:{html.escape(s["color"])}"></span>{html.escape(s["label"])}</td>{cells}<td>{samples}</td>{lim}</tr>')
     if not rows:
         return ""
     head = "".join(f"<th>{S[k]}</th>" for k in ("min", "max", "mean", "rms", "std", "samples"))
+    if any(x.get("limits") for x in sigs):
+        head += f"<th>{S['limits']}</th>"
     return f'<table><thead><tr><th>{S["signal"]}</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
 
 
@@ -251,7 +318,7 @@ def build_html(store, req: Dict, progress=None) -> str:
     for tab in req.get("tabs", []):
         plots = []
         for p in tab.get("plots", []):
-            plots.append(plot_data(store, {**p, "notes": req.get("notes") or []}, for_html=True))
+            plots.append(plot_data(store, {**p, "notes": req.get("notes") or [], "lang": req.get("lang", "en")}, for_html=True))
             done += 1
             if progress:
                 progress(0.05 + 0.9 * done / total, "plots")
@@ -347,6 +414,16 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
     ax.grid(True, color=th["grid"], linewidth=0.8)
     ax.set_axisbelow(True)
     mode = pdata["mode"]
+    if mode == "env":
+        e = pdata.get("env")
+        if e is not None:
+            c = pdata.get("envColor") or "#3D8BFD"
+            ax.fill_between(e["t"], e["min"], e["max"], color=c, alpha=0.15, linewidth=0)
+            ax.fill_between(e["t"], e["lo"], e["hi"], color=c, alpha=0.35, linewidth=0)
+            ax.plot(e["t"], e["median"], color=c, linewidth=1.4)
+            if pdata.get("range"):
+                ax.set_xlim(*pdata["range"])
+        return
     if mode == "spec":
         sp = pdata.get("spec")
         if sp:
@@ -416,8 +493,8 @@ def _collect(store, req: Dict, progress=None) -> List[Dict]:
     items, done, total = [], 0, _count_plots(req)
     for tab in req.get("tabs", []):
         for p in tab.get("plots", []):
-            pdata = plot_data(store, {**p, "notes": req.get("notes") or []}, for_html=False)
-            if pdata["signals"]:
+            pdata = plot_data(store, {**p, "notes": req.get("notes") or [], "lang": req.get("lang", "en")}, for_html=False)
+            if pdata["signals"] or pdata.get("env") is not None:      # an Envelope plot keeps its data in "env"
                 items.append(pdata)
             done += 1
             if progress:
@@ -480,6 +557,9 @@ def build_pdf(store, req: Dict, path: str, progress=None):
                 cols = [S["signal"], S["min"], S["max"], S["mean"], S["rms"], S["std"]]
                 cells = [[_bidi(s["label"])] + ["" if s["stats"].get(k) is None else "%.6g" % s["stats"][k]
                           for k in ("min", "max", "mean", "rms", "std")] for s in rows]
+                if any(s.get("limits") for s in rows):
+                    cols = cols + [S["limits"]]
+                    cells = [c + [_bidi(_limit_text(s, S))] for c, s in zip(cells, rows)]
                 if rtl:  # columns read right-to-left
                     cols, cells = cols[::-1], [r[::-1] for r in cells]
                 h = min(0.04 * (len(rows) + 1), y - 0.08)
@@ -544,6 +624,9 @@ def build_docx(store, req: Dict, path: str, progress=None):
         rows = [s for s in p["signals"] if s.get("stats")]
         if rows and p["mode"] != "xy":
             cols = [S["signal"], S["min"], S["max"], S["mean"], S["rms"], S["std"]]
+            with_limits = any(s.get("limits") for s in rows)
+            if with_limits:
+                cols = cols + [S["limits"]]
             t = doc.add_table(rows=1, cols=len(cols))
             t.style = "Light Grid Accent 1"
             for c, name in enumerate(cols):
@@ -554,6 +637,8 @@ def build_docx(store, req: Dict, path: str, progress=None):
                 for c, k in enumerate(("min", "max", "mean", "rms", "std"), start=1):
                     v = s["stats"].get(k)
                     cells[c].text = "" if v is None else f"{v:.6g}"
+                if with_limits:
+                    cells[len(cols) - 1].text = _limit_text(s, S)
             for row in t.rows:
                 for cell in row.cells:
                     for par in cell.paragraphs:

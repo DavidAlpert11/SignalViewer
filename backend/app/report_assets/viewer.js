@@ -136,6 +136,19 @@
           var a = u.posToVal(u.select.left, "x"), c = u.posToVal(u.select.left + u.select.width, "x");
           u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false); self.zoom(a, c);
         }] } };
+    } else if (spec.mode === "env") {
+      // T14b: envelope of many runs - min…max (faint), percentile band, median
+      var E = spec.env, c = spec.envColor || "#3D8BFD";
+      if (!E) return;
+      var f32 = function (k) { return Array.from(dec(E[k], Float32Array), function (v) { return isFinite(v) ? v : null; }); };
+      data = [Array.from(dec(E.t, Float64Array)), f32("min"), f32("max"), f32("lo"), f32("hi"), f32("median")];
+      var faint = { stroke: c + "55", width: 0.75, points: { show: false } };
+      opts = { width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
+        cursor: { y: false, drag: { x: true, y: false, setScale: true } },
+        scales: { x: { time: false } },
+        axes: [Object.assign({}, axis, { size: 34 }), Object.assign({}, axis, { size: 56, values: ticks })],
+        series: [{}, faint, faint, faint, faint, { stroke: c, width: 2, points: { show: false } }],
+        bands: [{ series: [2, 1], fill: c + "22" }, { series: [4, 3], fill: c + "55" }] };
     } else if (spec.mode === "xy") {
       data = [null].concat(spec.signals.map(function (s) { var d = arr(s); return [Array.from(d[0]), Array.from(d[1], function (v) { return isFinite(v) ? v : null; })]; }));
       opts = { mode: 2, width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
