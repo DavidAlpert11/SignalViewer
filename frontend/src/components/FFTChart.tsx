@@ -29,7 +29,7 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
     const h = window.setTimeout(async () => {
       onLoading(true);
       try {
-        const r = (await api.fft(ids, plot.fftWindow ?? "hanning", region?.[0] ?? null, region?.[1] ?? null, 4000)).filter((s) => !s.missing && s.n > 0);
+        const r = (await api.fft(ids, plot.fftWindow ?? "hanning", region?.[0] ?? null, region?.[1] ?? null, 4000, plot.fftMethod ?? "fft")).filter((s) => !s.missing && s.n > 0);
         if (!cancelled) { setData(r); onPeaks(Object.fromEntries(r.map((s) => [s.id, s.peak]))); }
       } catch (e) {
         if (!cancelled) useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
@@ -37,7 +37,7 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
     }, region ? 200 : 60);
     return () => { cancelled = true; window.clearTimeout(h); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idKey, plot.fftWindow, region?.[0], region?.[1], dataVersion, runsKey]);
+  }, [idKey, plot.fftWindow, plot.fftMethod, region?.[0], region?.[1], dataVersion, runsKey]);
 
   const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}`).join("|");
   useEffect(() => {

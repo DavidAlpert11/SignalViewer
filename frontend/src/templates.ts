@@ -107,10 +107,11 @@ export function templateFromTabs(tabs: Tab[], name: string): { template: Templat
     ...(tab.sharedStates?.length ? { lanes: tab.sharedStates.filter(keep).map((id) => ({ name: nameOf(id), slot: slotOf.get(runOf(id)) })) } : {}),
     plots: tab.plots.map((p): TplPlot => ({
       title: p.title, mode: p.mode, xSignal: p.xSignal && keep(p.xSignal) ? nameOf(p.xSignal) : null,
-      ...(p.xSignal ? { xSlot: slotOf.get(runOf(p.xSignal)) } : {}), xyAlign: p.xyAlign, fftWindow: p.fftWindow,
+      ...(p.xSignal ? { xSlot: slotOf.get(runOf(p.xSignal)) } : {}), xyAlign: p.xyAlign, fftWindow: p.fftWindow, fftMethod: p.fftMethod,
       fftLog: p.fftLog, specN: p.specN, caption: p.caption, ylim: p.ylim ?? null,
       signals: p.signals.filter((s) => keep(s.sig)).map((s) => ({ name: nameOf(s.sig), slot: slotOf.get(runOf(s.sig)), color: s.color,
-        width: s.width, scale: s.scale, offset: s.offset, state: s.state, tOffset: s.tOffset, label: s.label })),
+        width: s.width, scale: s.scale, offset: s.offset, state: s.state, tOffset: s.tOffset, label: s.label,
+        ...(s.limits ? { limits: s.limits } : {}) })),
       ...(p.objects?.length ? { objects: p.objects.map((o): TplObject => ({
         name: o.name, kind: o.kind, color: o.color, angleUnit: o.angleUnit, altRef: o.altRef, trail: o.trail, size: o.size,
         roles: Object.fromEntries(OBJ_ROLES.filter((k) => o[k] && keep(o[k]!)).map((k) => [k, { name: nameOf(o[k]!), slot: slotOf.get(runOf(o[k]!)) }])),
@@ -314,14 +315,15 @@ export function applyTemplate(t: Template, all: Template[], bind: Record<string,
       const plots: Plot[] = [];
       for (const tp of tt.plots) {
         const p: Plot = { id: uid("p"), title: tp.title, signals: [], mode: (tp.mode as Plot["mode"]) ?? "time",
-          xyAlign: tp.xyAlign as Plot["xyAlign"], fftWindow: tp.fftWindow as Plot["fftWindow"], fftLog: tp.fftLog, specN: tp.specN,
+          xyAlign: tp.xyAlign as Plot["xyAlign"], fftWindow: tp.fftWindow as Plot["fftWindow"], fftMethod: tp.fftMethod as Plot["fftMethod"], fftLog: tp.fftLog, specN: tp.specN,
           caption: tp.caption, ylim: tp.ylim ?? null };
         if (tp.xSignal) p.xSignal = ids(tp.xSignal, tp.xSlot)[0] ?? null;
         tp.signals.forEach((s) => {
           const got = ids(s.name, s.slot);
           for (const id of got) {
             p.signals.push({ sig: id, color: s.color && got.length === 1 ? s.color : nextColor(ws), width: s.width ?? 1.5,
-              scale: s.scale ?? 1, offset: s.offset ?? 0, state: s.state, tOffset: s.tOffset, label: got.length === 1 ? s.label : undefined });
+              scale: s.scale ?? 1, offset: s.offset ?? 0, state: s.state, tOffset: s.tOffset, label: got.length === 1 ? s.label : undefined,
+              ...(s.limits ? { limits: s.limits } : {}) });
           }
         });
         // objects: each signal found by name in its slot's file; one without its position is left out

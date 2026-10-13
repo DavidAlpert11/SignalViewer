@@ -22,6 +22,7 @@ if getattr(sys, "frozen", False):
     # running from the PyInstaller executable: bundled files live in sys._MEIPASS
     BUNDLE = getattr(sys, "_MEIPASS", HERE)
     os.environ.setdefault("SV_DIST", os.path.join(BUNDLE, "frontend", "dist"))
+    os.environ.setdefault("SV_EXAMPLES", os.path.join(BUNDLE, "examples"))
 else:
     sys.path.insert(0, os.path.join(HERE, "backend"))
 

@@ -14,6 +14,7 @@ import { iconSvg } from "./mapIcons";
 // the 3D view (CesiumJS, a few MB) loads only when a plot is switched to 3D
 const Globe3D = lazy(() => import("./Globe3D"));
 import FFTChart from "./FFTChart";
+import EnvelopeChart from "./EnvelopeChart";
 import SpecChart from "./SpecChart";
 import PlotBoundary from "./PlotBoundary";
 
@@ -122,7 +123,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
 
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const geoBase = useApp((s) => s.geoBase);
-  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")]];
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")]];
 
   return (
     <section
@@ -167,6 +168,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         )}
         {mode === "fft" && (
           <span className="xpick">
+            <select value={plot.fftMethod ?? "fft"} onChange={(e) => actions.updatePlot(plot.id, { fftMethod: e.target.value as Plot["fftMethod"] })} aria-label={t("fftMethod")} title={t("fftMethodHint")}>
+              <option value="fft">FFT</option><option value="welch">{t("fftWelch")}</option>
+            </select>
             <select value={plot.fftWindow ?? "hanning"} onChange={(e) => actions.updatePlot(plot.id, { fftWindow: e.target.value as Plot["fftWindow"] })} aria-label={t("fftWindow")} title={t("fftWindow")}>
               <option value="hanning">Hann</option><option value="hamming">Hamming</option>
               <option value="blackman">Blackman</option><option value="none">{t("noWindow")}</option>
@@ -284,6 +288,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           {mode === "3d" && <Suspense fallback={<div className="plot-empty">{t("globeLoading")}</div>}>
             <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} /></Suspense>}
           {mode === "geo" && <GeoChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
+          {mode === "env" && <EnvelopeChart plot={plot} index={index} onLoading={setLoading} />}
           {mode === "fft" && <FFTChart plot={plot} index={index} onLoading={setLoading} onPeaks={setPeaks} />}
           {mode === "spec" && <SpecChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
         </PlotBoundary>

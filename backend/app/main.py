@@ -45,6 +45,8 @@ def _log_signal_names(path: str):
     return list(run.signals) if run else []
 
 from app.store import LoadError, store
+from svcore.limits import check_limits
+from svcore.envelope import envelope
 from svcore.analysis import OpError, OPS, align_to, fft_display, fft_for, transitions, xy_pair
 from svcore.compare import auto_shift, compare as compare_runs
 from app import report as reports
@@ -525,6 +527,109 @@ class StatsRequest(BaseModel):
     stateOffset: float = 0.0                # the state signal's display time shift relative to these
 
 
+def _stretches(sig_id: str, st, sy, offset: float = 0.0):
+    """A state signal as stretches [(start, end, value)]: each change to the next one; the last
+    lasts to the end of its file. Shared by "statistics while state = X" and the segment list."""
+    pts, _c, end = transitions(st, sy, cap=10 ** 9)
+    lr = store.runs.get(sig_id.partition("/")[0])
+    if lr is not None and end is not None:
+        end = max(end, float(lr.run.end_time) + float(lr.run.time_offset or 0) + offset)
+    out = []
+    for i, (a, v) in enumerate(pts):
+        b = pts[i + 1][0] if i + 1 < len(pts) else end
+        if v is not None and b is not None:
+            out.append((float(a), float(b), float(v)))
+    return out
+
+
+class LimitItem(BaseModel):
+    id: str
+    lo: Optional[float] = None
+    hi: Optional[float] = None
+    scale: float = 1.0
+    offset: float = 0.0
+    tOffset: float = 0.0
+
+
+class LimitsRequest(BaseModel):
+    items: List[LimitItem]
+    t0: Optional[float] = None          # plot time (time offsets included); None = whole signal
+    t1: Optional[float] = None
+
+
+@app.post("/api/limits")
+def limits(req: LimitsRequest):
+    """T13: pass / fail of each signal against its limits, on the values as plotted."""
+    out = {}
+    for it in req.items:
+        try:
+            t, y = store.signal(it.id)
+        except KeyError:
+            continue
+        tt = np.asarray(t, dtype=np.float64) + it.tOffset
+        yy = np.asarray(y, dtype=np.float64) * (it.scale or 1.0) + it.offset
+        out[it.id] = check_limits(tt, yy, it.lo, it.hi, req.t0, req.t1)
+    return {"results": out}
+
+
+class EnvelopeRequest(BaseModel):
+    signals: List[dict]                 # [{id, scale, offset, tOffset}] - as plotted
+    t0: Optional[float] = None
+    t1: Optional[float] = None
+    points: int = 2000
+    pct: float = 5.0
+
+
+@app.post("/api/envelope")
+def envelope_view(req: EnvelopeRequest):
+    """T14: the plot's signals (many runs of one quantity) as min/max, percentile band and median."""
+    series, ids = [], []
+    for s in req.signals:
+        try:
+            t, y = store.signal(s["id"])
+        except KeyError:
+            continue
+        series.append((np.asarray(t, dtype=np.float64) + float(s.get("tOffset") or 0),
+                       np.asarray(y, dtype=np.float64) * float(s.get("scale", 1) or 1) + float(s.get("offset") or 0)))
+        ids.append(s["id"])
+    r = envelope(series, req.t0, req.t1, req.points, max(0.0, min(req.pct, 49.0)))
+    if r is None:
+        return {"n": len(ids), "empty": True}
+    enc = lambda a, dt=np.float32: b64(np.asarray(a), dt)
+    return {"n": len(ids), "pct": r["pct"], "t": enc(r["t"], np.float64),
+            **{k: enc(r[k]) for k in ("min", "max", "lo", "median", "hi")},
+            "runs": [{"id": i, "deviation": d, "outlier": o} for i, d, o in zip(ids, r["deviation"], r["outlier"])]}
+
+
+class SegmentsRequest(BaseModel):
+    signal: str
+    limit: int = 2000
+
+
+@app.post("/api/segments")
+def segments(req: SegmentsRequest):
+    """T10: a state signal (flight mode, gear...) split into its stretches, with the text of each
+    value when the signal has labels, and the total time per value."""
+    try:
+        st, sy = store.signal(req.signal)
+    except KeyError:
+        fail(404, "This signal is no longer open.")
+    st = np.asarray(st, dtype=np.float64)
+    parts = _stretches(req.signal, st, sy)
+    labels = store.labels(req.signal) or {}
+    lab = lambda v: labels.get(int(v), None) if float(v).is_integer() else None
+    totals: Dict[float, list] = {}
+    for a, b, v in parts:
+        tot = totals.setdefault(v, [0.0, 0])
+        tot[0] += b - a; tot[1] += 1
+    return {
+        "segments": [{"t0": a, "t1": b, "value": v, "label": lab(v)} for a, b, v in parts[:max(1, req.limit)]],
+        "total": len(parts),
+        "byValue": [{"value": v, "label": lab(v), "duration": d, "count": n}
+                    for v, (d, n) in sorted(totals.items(), key=lambda kv: -kv[1][0])],
+    }
+
+
 @app.post("/api/stats")
 def stats(req: StatsRequest):
     res = {}
@@ -537,15 +642,9 @@ def stats(req: StatsRequest):
             where = (st, sy)
         except KeyError:
             fail(404, "The state signal is no longer open.")
-        # the state's own stretches (each change to the next; the last lasts to the end of its file)
-        pts, _c, end = transitions(st, sy, cap=10 ** 9)
-        lr = store.runs.get(req.state.partition("/")[0])
-        if lr is not None and end is not None:
-            end = max(end, float(lr.run.end_time) + float(lr.run.time_offset or 0) + req.stateOffset)
         want = set(float(v) for v in req.stateValues)
-        for i, (a, v) in enumerate(pts):
-            b = pts[i + 1][0] if i + 1 < len(pts) else end
-            if v is None or float(v) not in want or b is None:
+        for a, b, v in _stretches(req.state, st, sy, req.stateOffset):
+            if float(v) not in want:
                 continue
             a2, b2 = max(a, req.t0) if req.t0 is not None else a, min(b, req.t1) if req.t1 is not None else b
             if b2 > a2:
@@ -701,6 +800,7 @@ def delete_derived(name: str):
 class FFTRequest(BaseModel):
     signals: List[str]
     window: str = "hanning"
+    method: str = "fft"                 # fft | welch (power spectral density)
     t0: Optional[float] = None
     t1: Optional[float] = None
     points: int = 4000
@@ -715,7 +815,7 @@ def fft(req: FFTRequest):
         except KeyError:
             out.append({"id": sid, "missing": True})
             continue
-        f, m = fft_for(sid, store.version(sid), t, y, req.window, req.t0, req.t1)
+        f, m = fft_for(sid, store.version(sid), t, y, req.window, req.t0, req.t1, req.method)
         fx, fy, peak = fft_display(f, m, int(max(200, min(req.points, 20000))))
         out.append({"id": sid, "n": int(len(fx)), "peak": peak, "x": b64(fx, np.float64), "y": b64(fy, np.float32)})
     return {"series": out}
@@ -1551,15 +1651,58 @@ class ListDirRequest(BaseModel):
     exts: Optional[List[str]] = None
 
 
+def _windows_drives() -> List[str]:
+    """Drive letters from the OS bitmask: never touches a drive, so a disconnected network
+    drive cannot stall the listing (probing A:-Z: with os.path.exists could hang for seconds)."""
+    try:
+        import ctypes
+        mask = ctypes.windll.kernel32.GetLogicalDrives()
+        return [f"{d}:\\" for i, d in enumerate(string.ascii_uppercase) if mask >> i & 1]
+    except Exception:
+        return [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
+
+
+def _wanted(exts: Optional[List[str]]):
+    """Which files a listing shows: the requested extensions, else the supported data files."""
+    allowed = tuple(x.lower() for x in exts) if exts else SUPPORTED
+    return lambda name: name.lower().endswith(allowed)
+
+
+def _entry(e: "os.DirEntry", is_dir: bool) -> dict:
+    st = e.stat()                       # once per entry (slow on network drives)
+    return {"name": e.name, "path": e.path, "dir": is_dir,
+            "size": None if is_dir else st.st_size, "mtime": st.st_mtime}
+
+
+EXAMPLES = os.environ.get("SV_EXAMPLES") or os.path.join(os.path.dirname(__file__), "..", "..", "examples")
+# the welcome screen offers these; files that are missing (a trimmed install) are simply left out
+EXAMPLE_SETS = [
+    {"id": "flight", "files": ["uav_flight.csv"]},
+    {"id": "car", "files": ["run_012.csv", "run_013.csv", "run_014.csv"]},
+]
+
+
+@app.get("/api/examples")
+def list_examples():
+    out = []
+    for ex in EXAMPLE_SETS:
+        paths = [os.path.abspath(os.path.join(EXAMPLES, f)) for f in ex["files"]]
+        paths = [p for p in paths if os.path.isfile(p)]
+        if paths:
+            out.append({"id": ex["id"], "paths": paths})
+    return out
+
+
 @app.post("/api/fs/list")
 def list_dir(req: ListDirRequest):
-    path = req.path or os.path.expanduser("~")
+    path = os.path.expanduser(req.path) if req.path else os.path.expanduser("~")
     if os.name == "nt" and path in ("", "/", "\\"):
-        drives = [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
-        return {"path": "", "parent": None, "entries": [{"name": d, "path": d, "dir": True} for d in drives]}
+        return {"path": "", "parent": None,
+                "entries": [{"name": d, "path": d, "dir": True} for d in _windows_drives()]}
     path = os.path.abspath(path)
     if not os.path.isdir(path):
         fail(404, "Folder not found.")
+    wanted = _wanted(req.exts)
     entries = []
     try:
         for e in os.scandir(path):
@@ -1567,11 +1710,8 @@ def list_dir(req: ListDirRequest):
                 continue
             try:
                 is_dir = e.is_dir()
-                exts = tuple(x.lower() for x in req.exts) if req.exts else SUPPORTED
-                if is_dir or e.name.lower().endswith(exts):
-                    entries.append({"name": e.name, "path": e.path, "dir": is_dir,
-                                    "size": None if is_dir else e.stat().st_size,
-                                    "mtime": e.stat().st_mtime})
+                if is_dir or wanted(e.name):
+                    entries.append(_entry(e, is_dir))
             except OSError:
                 continue
     except PermissionError:
@@ -1580,6 +1720,69 @@ def list_dir(req: ListDirRequest):
     parent = os.path.dirname(path)
     return {"path": path, "parent": parent if parent != path else ("" if os.name == "nt" else None),
             "entries": entries}
+
+
+class CompleteRequest(BaseModel):
+    text: str
+    base: Optional[str] = None           # the folder shown now: relative text completes from here
+    exts: Optional[List[str]] = None
+    limit: int = 50
+
+
+def _common_prefix(names: List[str]) -> str:
+    if not names:
+        return ""
+    lo = [n.lower() for n in names]
+    k = 0
+    while all(len(n) > k for n in lo) and len({n[k] for n in lo}) == 1:
+        k += 1
+    return names[0][:k]
+
+
+@app.post("/api/fs/complete")
+def complete_path(req: CompleteRequest):
+    """Path autocomplete for the file browser: the folders / files whose names start with
+    what was typed after the last separator (case-insensitive). `common` is the longest
+    completion all matches share - what Tab fills in."""
+    text = os.path.expanduser(req.text or "")
+    empty = {"dir": None, "items": [], "common": req.text or ""}
+    if not text.strip():
+        return empty
+    # "c:" (or a lone "c" with no folder to complete in) -> drives; with a folder shown,
+    # "c" is the start of a name in that folder
+    if os.name == "nt" and (re.fullmatch(r"[A-Za-z]:", text) or (re.fullmatch(r"[A-Za-z]", text) and not req.base)):
+        drives = [d for d in _windows_drives() if d.lower().startswith(text.lower())]
+        items = [{"name": d, "path": d, "dir": True} for d in drives]
+        return {"dir": "", "items": items, "common": drives[0] if len(drives) == 1 else text}
+    if not os.path.isabs(text) and req.base:
+        text = os.path.join(req.base, text)
+    seps = "\\/" if os.name == "nt" else "/"
+    cut = max(text.rfind(c) for c in seps) + 1
+    folder, prefix = text[:cut], text[cut:]
+    if not folder or not os.path.isdir(folder):
+        return empty
+    wanted, low = _wanted(req.exts), prefix.lower()
+    items = []
+    try:
+        for e in os.scandir(folder):
+            if not e.name.lower().startswith(low) or (e.name.startswith(".") and not prefix.startswith(".")):
+                continue
+            try:
+                is_dir = e.is_dir()
+            except OSError:
+                continue
+            if is_dir or wanted(e.name):
+                items.append({"name": e.name, "path": e.path + (os.sep if is_dir else ""), "dir": is_dir})
+    except OSError:
+        return empty
+    items.sort(key=lambda x: (not x["dir"], x["name"].lower()))
+    items = items[:max(1, min(req.limit, 200))]
+    common = _common_prefix([i["name"] for i in items])
+    if len(items) == 1:
+        common_path = items[0]["path"]
+    else:
+        common_path = folder + (common if len(common) >= len(prefix) else prefix)
+    return {"dir": folder, "items": items, "common": common_path}
 
 
 # =============================================================================

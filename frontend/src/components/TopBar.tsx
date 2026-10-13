@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toggleLive } from "../live";
-import { actions, useApp } from "../store";
+import { actions, setInspectorByUser, useApp } from "../store";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
 import { clearEverything, openSession, saveSession } from "../files";
@@ -93,7 +93,7 @@ export default function TopBar() {
       <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}>
         <Icon.Globe /> {t("language")}
       </button>
-      <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => useApp.setState({ inspectorOpen: !inspectorOpen })} aria-label="Inspector"><Icon.Inspector /></button>
+      <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label="Inspector"><Icon.Inspector /></button>
     </header>
   );
 }
@@ -104,7 +104,6 @@ function LiveSettings({ anchor, onClose }: { anchor: DOMRect | null; onClose: ()
   const box = useRef<HTMLDivElement>(null);
   const autoStop = useApp((s) => s.liveAutoStop);
   const newFiles = useApp((s) => s.liveNewFiles);
-  const follow = useApp((s) => s.follow);
   useEffect(() => {
     const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) onClose(); };
     window.addEventListener("mousedown", off);
@@ -129,11 +128,7 @@ function LiveSettings({ anchor, onClose }: { anchor: DOMRect | null; onClose: ()
           <option value="auto">{t("newFilesAuto")}</option>
           <option value="ignore">{t("newFilesIgnore")}</option>
         </select></label>
-      <label>{t("follow")}
-        <select value={follow ?? ""} onChange={(e) => useApp.setState({ follow: e.target.value ? Number(e.target.value) : null })}>
-          <option value="">{t("followOff")}</option>
-          {[10, 30, 60, 300].map((v) => <option key={v} value={v}>{v} {t("seconds")}</option>)}
-        </select></label>
+      {/* "Follow" acts on the plots on screen: it lives in the StageBar while live (one place) */}
     </div>
   );
 }

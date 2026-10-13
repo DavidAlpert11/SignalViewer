@@ -40,6 +40,7 @@ export default function CommandPalette() {
       { id: "text3", label: `${t("hTextSize")}: 125%`, group: t("hHelp"), icon: <Icon.Globe />, run: () => useApp.setState({ uiScale: 1.25 }) },
       { id: "tab", label: t("addTab"), group: t("tab"), icon: <Icon.Plus />, run: actions.addTab },
       { id: "duptab", label: t("duplicateTab"), group: t("tab"), icon: <Icon.Copy />, run: () => actions.duplicateTab(st().ws.activeTab) },
+      { id: "clearplots", label: t("clearAll"), group: t("tab"), icon: <Icon.Eraser />, run: actions.clearAllPlots },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       { id: "cursor", label: t("cursor"), group: t("cursor"), icon: <Icon.Cursor />, run: actions.toggleCursor, keys: "Space" },
       { id: "dual", label: t("dualCursor"), group: t("cursor"), icon: <Icon.Dual />, run: actions.toggleDual, keys: "D" },
