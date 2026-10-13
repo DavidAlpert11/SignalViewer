@@ -440,6 +440,15 @@ def test_V11_clear_plot_and_all(pg):
     assert chips(pg, 1) == []
     pg.keyboard.press("Control+z")
     assert chips(pg, 1) == ["RPM"]
+    # T06: the toast says it can be undone, and its Undo works too
+    pg.click("[aria-label='Clear all plots']")
+    assert pg.locator(".toast", has_text="Plots cleared").count() == 1     # replaced, not stacked
+    pg.locator(".toast", has_text="Plots cleared").locator("button", has_text="Undo").click()
+    assert chips(pg, 1) == ["RPM"]
+    # a stale Undo must never undo a later change: the next change takes the toast away
+    pg.click("[aria-label='Clear all plots']")
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function("!document.querySelector('.toast')?.textContent?.includes('Plots cleared')")
 
 
 # =========================================================== C / T: cursor & stats
@@ -478,11 +487,11 @@ def test_T01_T02_T03_region_stats_and_copy(pg):
 def test_O01_O04_unary_filter_preview(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.click("[aria-label='Analysis']")
+    pg.click("[aria-label='Create signals']")
     pg.locator(".analysis .afield select").first.select_option("lowpass")
     pg.click("text=Preview")
     pg.wait_for_function("window.__sv.state().preview !== null")
-    pg.click("text=Create signal")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 2")
     assert S(pg, "s.preview") is None
 
@@ -490,11 +499,11 @@ def test_O01_O04_unary_filter_preview(pg):
 def test_O02_O03_O05_binary_multi_delete(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click(); sig(pg, "RPM").click()
-    pg.click("[aria-label='Analysis']")
-    pg.click(".seg.wide button:has-text('Two signals')"); pg.click("text=Create signal")
+    pg.click("[aria-label='Create signals']")
+    pg.click(".seg.wide button:has-text('Two signals')"); pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.click(".seg.wide button:has-text('Several')")
     pg.click(".msp-top .linklike:has-text('From the active plot')")       # an explicit choice, never implicit
-    pg.click("text=Create signal")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
     pg.locator(".dsig").first.locator("button[aria-label='Remove']").click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
@@ -503,7 +512,7 @@ def test_O02_O03_O05_binary_multi_delete(pg):
 # =========================================================== P: compare
 def test_P01_to_P08_compare(pg):
     open_files(pg, "run_a.csv", "run_b.csv", "run_c.csv")
-    pg.click("[aria-label='Compare']")
+    pg.click("[aria-label='Compare runs']")
     assert pg.locator(".side select").first.input_value() == S(pg, "s.runs[0].id")   # first file is the baseline
     pg.click(".sim-settings-toggle"); pg.locator(".side .arow input").first.fill("1")
     pg.wait_for_function("document.querySelectorAll('.sim-row').length === 3", timeout=20000)   # P-04: all shared signals
@@ -532,7 +541,7 @@ def test_P01_to_P08_compare(pg):
 
 def test_similarity_list_filters_and_cache(pg):
     open_files(pg, "run_a.csv", "run_c.csv")
-    pg.click("[aria-label='Compare']")
+    pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row")
     total = pg.locator(".sim-row").count()
     pills = {p.split()[0]: int(p.split()[-1]) for p in pg.locator(".sim-pills .pill").all_inner_texts()}
@@ -548,14 +557,14 @@ def test_similarity_list_filters_and_cache(pg):
 def test_bulk_pick_without_plotting(pg):
     open_files(pg, "wide.csv")
     assert chips(pg) == []
-    pg.click("[aria-label='Analysis']"); pg.click(".seg.wide button:has-text('Several')")
+    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Several')")
     pg.fill(".msp-filter input", "g2.")
     pg.click(".msp-actions .btn:has-text('Choose these')")
     assert pg.locator(".msp-count").inner_text().startswith("30")
     pg.fill(".msp-filter input", "g02.")                                # no exact match: no bulk choice
     assert pg.locator(".msp-actions").count() == 0
     pg.fill(".msp-filter input", "")
-    pg.click("text=Create signal")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
 
 
@@ -691,12 +700,12 @@ def test_batch_edit_selected_signals(pg):
     f.fill("3"); pg.keyboard.press("Enter")
     scales = S(pg, "s.ws.tabs[0].plots[0].signals.map(x => x.scale)")
     assert scales == [3, 3, 1]
-    pg.click("[aria-label='Analysis']")
+    pg.click("[aria-label='Create signals']")
     pg.locator(".seg.wide button", has_text="Each of several").click()
     pg.click(".msp-top .linklike:has-text('From the legend selection')")
     pg.locator(".analysis .afield select").first.select_option("affine")
     pg.locator(".analysis .afield input[type=number]").nth(0).fill("2")
-    pg.click("text=Create signal")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
 
 
@@ -708,7 +717,7 @@ def test_legend_names_follow_file_rule(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     assert chips(pg) == ["Speed"]                                          # one file: no file name
-    pg.click("[aria-label='Analysis']"); pg.click("text=Create signal")    # a derived signal is not a file
+    pg.click("[aria-label='Create signals']"); pg.get_by_role("button", name="Create signal", exact=True).click()    # a derived signal is not a file
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 2")
     assert chips(pg)[0] == "Speed"
     pg.click("[aria-label='Data']")
@@ -730,13 +739,13 @@ def test_legend_names_follow_file_rule(pg):
 
 def test_formula_editor(pg):
     open_files(pg, "run_a.csv")
-    pg.click("[aria-label='Analysis']"); pg.click(".seg.wide button:has-text('Formula')")
+    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Formula')")
     pg.click(".fx-input"); pg.keyboard.type("2*Spe"); pg.keyboard.press("Tab")        # autocomplete
     assert pg.locator(".fx-input").input_value() == "2*Speed"
     pg.keyboard.type(" - RPMM/95")
     pg.wait_for_selector(".fx-err:has-text('Did you mean RPM')")
     pg.fill(".fx-input", "2*Speed - RPM/95 + where(Gear > 2, 1, 0)")
-    pg.click("text=Create signal")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("[...document.querySelectorAll('.dsig-name')].some(e => e.innerText.startsWith('2*Speed'))")
 
 
@@ -853,7 +862,7 @@ def test_regression_fft_plot_survives_signal_swap(pg):
     sig(pg, "Speed").click()
     pg.locator(".plot .mode-seg button", has_text="FFT").click()
     pg.wait_for_timeout(600)
-    pg.click("[aria-label='Compare']")
+    pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row")
     pg.locator(".sim-row", has_text="RPM").click()
     pg.wait_for_timeout(1000)
@@ -875,7 +884,7 @@ def test_values_on_plot_toggle(pg):
 
 def test_escape_closes_dialogs_wherever_focus_is(pg):
     open_files(pg, "run_a.csv", "run_b.csv")
-    pg.click("[aria-label='Compare']")
+    pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row")
     pg.click(".cmp-panel .btn:has-text('Table of all signals')")
     pg.wait_for_selector(".cmp-dialog")
@@ -932,7 +941,7 @@ def test_change_many_variables_from_search(pg):
     st = json.loads(urllib.request.urlopen(urllib.request.Request(pg.env["url"] + "/api/stats",
         json.dumps({"signals": [f"{rid}/sig_0_1"]}).encode(), {"Content-Type": "application/json"})).read())["stats"][f"{rid}/sig_0_1"]
     assert abs(st["min"] - 5) < 0.05 and abs(st["max"] - 15) < 0.05      # 10·|sin| + 5
-    pg.locator(".toast button:has-text('Undo')").click()
+    pg.locator(".toast", has_text="applied to 5").locator("button", has_text="Undo").click()
     pg.wait_for_function("window.__sv.state().runs.every(r => r.signals.every(x => !x.transform))")
     # re-apply, then reload: the change is kept with the workspace
     pg.click(".pick-actions .btn.primary"); pg.locator(".tf-dialog .arow input").nth(0).fill("3"); pg.click(".tf-dialog .btn.primary")
@@ -947,14 +956,14 @@ def test_regression_select_all_takes_only_search_results(pg):
     search results to it: the operation then also ran on the plotted signal."""
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()                                   # plotted; must NOT be chosen silently
-    pg.click("[aria-label='Analysis']")
+    pg.click("[aria-label='Create signals']")
     pg.locator(".seg.wide button", has_text="Each of several").click()
     assert pg.locator(".msp-count").inner_text().startswith("0")
     pg.fill(".msp-filter input", "r")
     pg.click(".msp-actions .btn:has-text('Choose these')")
     chosen = pg.locator(".msp-chip").all_inner_texts()
     assert sorted(c.split("·")[0].strip() for c in chosen) == ["Gear", "RPM"]
-    pg.click("text=Create signal")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
     names = pg.locator(".dsig-name").all_inner_texts()
     assert not any("Speed" in n for n in names), names
@@ -963,7 +972,7 @@ def test_regression_select_all_takes_only_search_results(pg):
 def test_edit_original_steps_and_undo_all(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.click("[aria-label='Analysis']")
+    pg.click("[aria-label='Create signals']")
     pg.locator(".seg.wide button", has_text="Edit the original").click()
     pg.locator(".analysis .afield select").first.select_option("abs")
     pg.click("text=Apply to the original")
@@ -973,7 +982,7 @@ def test_edit_original_steps_and_undo_all(pg):
     pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'smooth(abs(x), 10)'")
     assert S(pg, "s.runs[0].signals.filter(x => !x.transform).length") == 2   # nothing else touched
     pg.locator(".seg.wide button", has_text="New signal").click()
-    pg.click("text=Create signal"); pg.click("text=Create signal")
+    pg.get_by_role("button", name="Create signal", exact=True).click(); pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
     pg.click(".bulk-undo .btn:has-text('Remove all edits')")
     pg.wait_for_function("window.__sv.state().runs[0].signals.every(x => !x.transform)")
@@ -1094,8 +1103,8 @@ def test_open_with_new_files(pg):
     rid = S(pg, "s.runs[0].id")
     post = lambda url, body: json.loads(urllib.request.urlopen(urllib.request.Request(pg.env["url"] + url, json.dumps(body).encode(), {"Content-Type": "application/json"})).read())
     post("/api/transforms", {"signals": [f"{rid}/RPM"], "transform": {"scale": 10}})
-    pg.click("[aria-label='Analysis']"); pg.click(".seg.wide button:has-text('Formula')")
-    pg.fill(".fx-input", "2*Speed"); pg.click("text=Create signal")
+    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Formula')")
+    pg.fill(".fx-input", "2*Speed"); pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
     pg.click("[aria-label='Data']")
     chips_before = chips(pg)
@@ -1113,7 +1122,7 @@ def test_open_with_new_files(pg):
     run = S(pg, "s.runs.find(r => r.format !== 'derived')")
     assert run["path"].endswith("run_013.csv") and run["name"] == "run_013.csv" and run["id"] == rid
     assert len(chips(pg)) == len(chips_before) == 3                                    # layout kept (incl. the formula)
-    pg.click("[aria-label='Analysis']"); assert pg.locator(".dsig").count() == 1; pg.click("[aria-label='Data']")
+    pg.click("[aria-label='Create signals']"); assert pg.locator(".dsig").count() == 1; pg.click("[aria-label='Data']")
     rpm = post("/api/stats", {"signals": [f"{rid}/RPM"]})["stats"][f"{rid}/RPM"]
     assert abs(rpm["max"] - 60) < 0.5                                                  # run_013's RPM (3*2) x the edit (10)
     pg.locator(".toast button:has-text('Back to the previous files')").click()
@@ -1474,3 +1483,79 @@ def test_template_library_collections_and_quick_look(pg):
     pg.locator(".tpl-item", has_text="Speed set").click(); pg.locator(".tpl-actions .btn", has_text="Edit").click()
     opts = pg.locator(".tpl-editor select[aria-label='Include a template'] option").all_inner_texts()
     assert not any("All my views" in o for o in opts)
+
+
+def test_inspector_starts_closed_and_respects_the_user(pg):
+    """T08: closed at start; the cursor opens it; once the user closes it with its button,
+    the cursor no longer does (a chip click - an explicit request - still does)."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    assert pg.locator(".inspector").count() == 0
+    pg.keyboard.press("Space")
+    pg.wait_for_selector(".inspector")
+    pg.keyboard.press("Space")
+    pg.click(".topbar [aria-label='Inspector']")                 # the user closes it on purpose
+    assert pg.locator(".inspector").count() == 0
+    pg.keyboard.press("Space")
+    pg.wait_for_timeout(300)
+    assert pg.locator(".inspector").count() == 0                  # their choice wins
+    pg.locator(".plot .chip").first.click()
+    pg.wait_for_selector(".inspector")
+    pg.reload(); pg.wait_for_selector(".app")
+    assert S(pg, "s.inspectorOpen") is False                     # remembered: "closed"
+
+
+def test_segments_of_a_state_signal(pg):
+    """T10: show a mode signal as states -> its segments in the Inspector; a row zooms to it
+    and puts the two cursors on its edges (the Between-cursors statistics then cover it)."""
+    p = os.path.join(pg.env["data"], "modes.csv")
+    rows = [f"{i * 0.1:.1f},{'HOVER' if i < 100 else 'CRUISE' if i < 250 else 'LAND'},{i}" for i in range(300)]
+    with open(p, "w") as f:
+        f.write("Time,Mode,Alt\n" + "\n".join(rows) + "\n")
+    open_files(pg, "modes.csv")
+    sig(pg, "Mode").click()
+    pg.locator(".plot .chip").first.click()
+    pg.locator(".inspector .seg").get_by_role("button", name="State lane", exact=True).click()
+    pg.wait_for_selector(".segments")
+    totals = pg.locator(".seg-totals").inner_text()
+    assert "CRUISE" in totals and "HOVER" in totals and "LAND" in totals
+    pg.click(".segments .seg-toggle")
+    pg.locator(".seg-list button", has_text="CRUISE").click()
+    c = S(pg, "s.cursor")
+    assert c["dual"] and abs(c["t1"] - 10.0) < 1e-6 and abs(c["t2"] - 25.0) < 1e-6
+
+
+def test_limits_pass_fail_in_the_inspector(pg):
+    """T13: limits on the plotted value -> fail with its violations (a row zooms to one) /
+    pass; undoable; kept with the workspace."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.locator(".plot .chip").first.click()
+    hi = pg.locator(".limits input[aria-label='Upper limit (empty: none)']")
+    hi.fill("25"); hi.press("Enter")
+    pg.wait_for_selector(".lim-result.fail")
+    assert S(pg, "s.ws.tabs[0].plots[0].signals[0].limits.hi") == 25
+    pg.locator(".limits .seg-list button").first.click()
+    assert S(pg, "s.cursor.dual") is True
+    hi.fill("1000"); hi.press("Enter")
+    pg.wait_for_selector(".lim-result.pass")
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals[0].limits.hi === 25")
+    pg.wait_for_timeout(1500)                                  # autosave
+    pg.reload(); pg.wait_for_selector(".run-head")
+    assert S(pg, "s.ws.tabs[0].plots[0].signals[0].limits.hi") == 25
+
+
+def test_envelope_of_several_runs(pg):
+    """T14: the same signal from three runs -> Envelope mode shows the band and its summary;
+    the mode change is undoable."""
+    open_files(pg, "run_a.csv", "run_b.csv", "run_c.csv")
+    pg.click(".side-head [aria-label='Link files']")
+    sig(pg, "Speed").click()
+    pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 3")
+    pg.locator(".plot button", has_text="Envelope").first.click()
+    pg.wait_for_function("(document.querySelector('.env-caption')?.textContent || '').includes('3 runs')")
+    assert pg.locator(".env-canvas canvas").count() >= 1
+    assert S(pg, "s.ws.tabs[0].plots[0].mode") == "env"
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].mode !== 'env'")

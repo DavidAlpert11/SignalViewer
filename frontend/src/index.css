@@ -26,6 +26,7 @@
   --amber-ink: #1b1305;
   --amber-soft: rgba(242, 169, 59, .14);
   --danger: #ef6b73;
+  --ok: #4cc38a;
   --plot-bg: #121820;
   --grid: #222c39;
   --axis: #8e9cad;
@@ -48,6 +49,7 @@
   --amber-ink: #ffffff;
   --amber-soft: rgba(148, 93, 11, .12);
   --danger: #c63a44;
+  --ok: #1f8a4c;
   --plot-bg: #ffffff;
   --grid: #e6ebf0;
   --axis: #5a6979;
@@ -266,6 +268,19 @@ table.vals .sw { display: inline-block; width: 8px; height: 8px; border-radius: 
 .pal-item .grp { margin-inline-start: auto; color: var(--faint); font-size: 0.8846rem; }
 .pal-item svg { width: 15px; height: 15px; color: var(--muted); flex: none; }
 .crumbs { display: flex; align-items: center; gap: 6px; padding: 6px 14px; color: var(--muted); border-bottom: 1px solid var(--line); direction: ltr; }
+.fs-path { position: relative; flex: 1; display: flex; }
+.fs-complete { position: absolute; top: calc(100% + 3px); inset-inline: 0; z-index: 30; max-height: 280px; overflow: auto; margin: 0; padding: 4px; list-style: none; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); }
+.fs-complete li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 5px; cursor: pointer; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fs-complete li.on { background: var(--amber-soft); }
+.fs-complete svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
+.fs-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 4px 14px; border-bottom: 1px solid var(--line); direction: ltr; font-size: 0.9231rem; }
+.fs-crumb { display: inline-flex; align-items: center; gap: 2px; }
+.fs-crumb .linkbtn { text-decoration: none; }
+.fs-crumb .linkbtn:hover { text-decoration: underline; }
+.fs-crumb .linkbtn:disabled { color: var(--ink-strong); cursor: default; text-decoration: none; }
+.fs-crumb-sep { color: var(--faint); padding: 0 2px; }
+.fs-filter { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 8px; border-radius: 10px; background: var(--amber-soft); color: var(--ink); }
+.dialog:focus { outline: none; }               /* focused only to keep type-to-filter keys */
 .crumbs input { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; }
 .fs-row { display: grid; grid-template-columns: 22px 1fr 80px; align-items: center; gap: 8px; width: 100%; padding: 5px 14px; border: 0; background: none; text-align: start; cursor: pointer; color: var(--ink); direction: ltr; }
 .fs-row:hover { background: var(--panel-2); }
@@ -289,6 +304,7 @@ table.preview th.time { color: var(--amber); }
 /* ------------------------------ empty state ------------------------------ */
 .welcome { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
 .welcome-card { max-width: 460px; text-align: center; }
+.welcome-card .examples-line { margin: 14px 0 0; color: var(--muted); }
 .welcome-card svg.trace { width: 220px; height: 64px; margin-bottom: 18px; }
 .welcome-card h1 { margin: 0 0 8px; font-size: 1.692rem; font-weight: 600; color: var(--ink-strong); letter-spacing: -.01em; }
 .welcome-card p { margin: 0 0 20px; color: var(--muted); font-size: 1.077rem; }
@@ -936,3 +952,31 @@ input.fx-input { width: 100%; }
 .globe3d.own-time .g3-measure { top: 52px; }
 .g3-remove { order: 99; margin-inline-start: auto; }        /* last in the bar */
 .g3-remove:hover { background: #e5534b; border-color: #e5534b; color: #fff; }
+
+/* T10: segments of a state signal (Inspector) */
+.segments { margin: 0 0 10px; }
+.segments .seg-toggle { font-weight: 600; }
+.seg-totals { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0; font-size: 0.9231rem; color: var(--muted); }
+.seg-total, .seg-list button { display: inline-flex; align-items: center; gap: 5px; }
+.seg-totals i, .seg-list i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.seg-total b { color: var(--ink); font-weight: 500; }
+.seg-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+.seg-list li.hint { padding: 4px 8px; }
+.seg-list button { width: 100%; padding: 3px 8px; border: 0; background: none; color: var(--ink); cursor: pointer; text-align: start; font-size: 0.9231rem; }
+.seg-list button:hover { background: var(--panel-2); }
+.seg-list .seg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg-list .seg-time, .seg-list .seg-dur { color: var(--muted); font-variant-numeric: tabular-nums; direction: ltr; }
+.seg-list .seg-dur { min-width: 64px; text-align: end; }
+
+/* T13: limits */
+.lim-inputs { display: inline-flex; align-items: center; gap: 4px; flex: 1; }
+.lim-inputs input { width: 0; flex: 1; min-width: 0; }
+.lim-result { margin: 2px 0 6px; font-size: 0.9231rem; }
+.lim-result.pass { color: var(--ok); }
+.lim-result.fail { color: var(--danger); }
+
+/* T14: envelope plot */
+.env-wrap { display: flex; flex-direction: column; }
+.env-canvas { flex: 1; min-height: 0; }
+.env-caption { padding: 2px 10px 4px; font-size: 0.8462rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.env-caption .env-out { color: var(--danger); font-weight: 600; }

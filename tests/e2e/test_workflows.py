@@ -120,7 +120,7 @@ def test_quick_view(page, server):
 def test_compare_runs(page, server):
     """Three runs, baseline A, tolerance: B passes, C fails; time alignment improves C."""
     _open(page, server["data"], ["run_a.csv", "run_b.csv", "run_c.csv"])
-    page.click("[aria-label='Compare']")
+    page.click("[aria-label='Compare runs']")
     page.click(".sim-settings-toggle")
     page.locator(".side .arow input").first.fill("1")
     page.wait_for_selector(".sim-row")
@@ -139,8 +139,8 @@ def test_analysis_derived_signal(page, server):
     """Derivative from the Analysis panel appears in the plot and survives as a formula."""
     _open(page, server["data"], ["run_a.csv"])
     page.locator(".sig", has_text="Speed").click()
-    page.click("[aria-label='Analysis']")
-    page.click("text=Create signal")
+    page.click("[aria-label='Create signals']")
+    page.get_by_role("button", name="Create signal", exact=True).click()
     page.wait_for_selector(".plot .chip:has-text('derivative(')")
     assert page.locator(".dsig-name", has_text="derivative(").count() >= 1
 
@@ -177,3 +177,48 @@ def test_share_report_and_session(page, server, tmp_path):
     page.locator(".dialog .dialog-body .fs-row", has_text="work.svsession").click(); page.click(".dialog-foot .btn.primary")
     page.wait_for_selector(".toast:has-text('Session opened')")
     assert page.locator(".plot .chip").count() == 1
+
+
+def test_file_browser_autocomplete(page, server):
+    """T03: type part of a path - suggestions, Tab completes, a chosen file opens;
+    breadcrumbs go up; letters typed on the list filter it."""
+    data = server["data"]
+    sub = os.path.join(data, "flights_2026")
+    os.makedirs(sub, exist_ok=True)
+    np.savetxt(os.path.join(sub, "hover_test.csv"), np.column_stack([np.arange(10.0), np.arange(10.0)]),
+               delimiter=",", header="Time,Alt", comments="")
+    pg = page
+    pg.keyboard.press("Control+o")
+    pg.wait_for_function("document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value !== ''")
+    box = ".crumbs input"
+    pg.fill(box, os.path.join(data, "fli"))
+    pg.wait_for_selector(".fs-complete li")
+    assert "flights_2026" in pg.locator(".fs-complete").inner_text()
+    pg.press(box, "Tab")                       # one match: the folder opens, typing goes on inside it
+    pg.wait_for_function(f"document.querySelector('.crumbs input').value.startsWith({json.dumps(sub)})")
+    pg.locator(".dialog .dialog-body .fs-row", has_text="hover_test.csv").wait_for()
+    # breadcrumbs: the parent folder is one click away
+    pg.locator(".fs-crumb .linkbtn", has_text=os.path.basename(data)).click()
+    pg.wait_for_function(f"document.querySelector('.crumbs input').value === {json.dumps(data)}")
+    # type-to-filter on the list
+    pg.locator(".dialog .dialog-body .fs-row").first.focus()
+    pg.keyboard.type("run_b")
+    pg.wait_for_function("(document.querySelector('.fs-filter')?.textContent || '').includes('run_b')")
+    names = pg.locator(".dialog .dialog-body .fs-row").all_inner_texts()
+    assert len(names) == 1 and "run_b.csv" in names[0]
+    pg.keyboard.press("Escape")                # first Esc clears the filter, the dialog stays
+    pg.wait_for_function("!document.querySelector('.fs-filter')")
+    assert pg.locator(".dialog").count() == 1
+    # a full file name + Enter on its suggestion opens it
+    pg.fill(box, os.path.join(sub, "hover"))
+    pg.wait_for_selector(".fs-complete li")
+    pg.press(box, "ArrowDown"); pg.press(box, "Enter")
+    pg.wait_for_function("document.querySelectorAll('.run-head').length >= 1")
+    assert pg.locator(".run-head", has_text="hover_test").count() == 1
+
+
+def test_open_an_example_from_the_welcome_screen(page, server):
+    """T09: one click on the welcome screen opens the three car runs."""
+    page.locator(".examples-line button", has_text="three car runs").click()
+    page.wait_for_function("document.querySelectorAll('.run-head').length === 3")
+    assert page.locator(".run-head", has_text="run_013").count() == 1

@@ -1,0 +1,6 @@
+# Tooling only for now (no package metadata yet - that comes with the command line, T11).
+[tool.pytest.ini_options]
+# `pytest` from the repo root runs the fast backend tests; the browser tests are run on
+# purpose: `pytest tests/e2e` (one file at a time until F02 is fixed).
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]

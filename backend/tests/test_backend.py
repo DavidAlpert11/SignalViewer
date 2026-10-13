@@ -469,3 +469,225 @@ def test_save_image_png_only(tmp_path):
     r = client.post("/api/save/image", json={"path": str(tmp_path / "view.png"), "data": "data:image/png;base64," + png}).json()
     assert open(r["path"], "rb").read().startswith(b"\x89PNG")
     assert client.post("/api/save/image", json={"path": str(tmp_path / "x.png"), "data": base64.b64encode(b"hello").decode()}).status_code == 400
+
+
+def test_decimation_keeps_context_outside_the_window():
+    """The view window gets full detail; the rest stays as coarse context (not clipped).
+    A window past the end of the data must still return the trace, so panning never blanks."""
+    x = np.linspace(0.0, 60.0, 60_000)
+    y = np.sin(x)
+    xd, yd, dec = decimate_for_view(x, y, (100.0, 200.0), 400)
+    assert dec and 0 < len(xd) < 2000 and xd[-1] == x[-1]
+    xd, yd, _ = decimate_for_view(x, y, (10.0, 11.0), 400)
+    inside = (xd >= 10.0) & (xd <= 11.0)
+    assert inside.sum() >= 300                     # the window keeps its full budget
+    assert xd[0] == x[0] and xd[-1] == x[-1]       # coarse context on both sides
+    assert np.all(np.diff(xd) >= 0)                # still sorted for the chart
+
+
+def test_fs_list_and_complete(tmp_path):
+    (tmp_path / "flights").mkdir()
+    (tmp_path / "Flight_notes").mkdir()
+    (tmp_path / "flight_012.csv").write_text("t,a\n0,1\n")
+    (tmp_path / "flight_013.bin").write_bytes(b"x")
+    (tmp_path / "flyer.pdf").write_text("x")
+    (tmp_path / ".hidden").mkdir()
+    r = client.post("/api/fs/list", json={"path": str(tmp_path)}).json()
+    names = [e["name"] for e in r["entries"]]
+    assert names[:2] == ["Flight_notes", "flights"] and "flyer.pdf" not in names and ".hidden" not in names
+    assert all("mtime" in e for e in r["entries"])
+
+    sep = os.sep
+    r = client.post("/api/fs/complete", json={"text": str(tmp_path) + sep + "fli"}).json()
+    got = [i["name"] for i in r["items"]]
+    assert got == ["Flight_notes", "flights", "flight_012.csv", "flight_013.bin"]   # folders first, any case
+    assert r["common"] == str(tmp_path) + sep + "Flight"                            # what Tab fills in
+    assert r["items"][0]["path"].endswith(sep)                                      # a folder continues
+
+    r = client.post("/api/fs/complete", json={"text": str(tmp_path) + sep + "flights"}).json()
+    assert r["common"] == str(tmp_path / "flights") + sep                           # single match: whole path
+
+    r = client.post("/api/fs/complete", json={"text": "fl", "base": str(tmp_path), "exts": [".csv"]}).json()
+    assert [i["name"] for i in r["items"]] == ["Flight_notes", "flights", "flight_012.csv"]   # relative + exts
+
+    r = client.post("/api/fs/complete", json={"text": str(tmp_path) + sep + "nothing" + sep + "x"}).json()
+    assert r["items"] == []
+    r = client.post("/api/fs/complete", json={"text": str(tmp_path) + sep + ".h"}).json()
+    assert [i["name"] for i in r["items"]] == [".hidden"]                          # dot only when typed
+
+
+def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
+    from app import main as m
+    r = client.get("/api/examples").json()
+    assert [x["id"] for x in r] == ["flight", "car"] and len(r[1]["paths"]) == 3
+    assert all(os.path.isfile(p) for x in r for p in x["paths"])
+    (tmp_path / "uav_flight.csv").write_text("t,a\n0,1\n")
+    monkeypatch.setattr(m, "EXAMPLES", str(tmp_path))
+    assert [x["id"] for x in client.get("/api/examples").json()] == ["flight"]     # car files missing
+
+
+def test_formula_angles_and_quaternions():
+    """T17: deg/rad/wrap and quaternion -> Euler (aerospace order, degrees)."""
+    from svcore.formula import evaluate
+    t = np.linspace(0, 1, 5)
+    ang = np.radians([10.0, -30.0, 45.0])            # roll, pitch, yaw
+    cr, sr = np.cos(ang[0] / 2), np.sin(ang[0] / 2)
+    cp, sp = np.cos(ang[1] / 2), np.sin(ang[1] / 2)
+    cy, sy = np.cos(ang[2] / 2), np.sin(ang[2] / 2)
+    q = [cr * cp * cy + sr * sp * sy, sr * cp * cy - cr * sp * sy, cr * sp * cy + sr * cp * sy, cr * cp * sy - sr * sp * cy]
+    sigs = [(t, np.full_like(t, c)) for c in q]
+    interp = lambda tb, ts, ys: np.interp(tb, ts, ys)
+    for fn, want in (("q2roll", 10.0), ("q2pitch", -30.0), ("q2yaw", 45.0)):
+        _, y = evaluate(f"{fn}(v0, v1, v2, v3)", sigs, interp)
+        assert np.allclose(y, want, atol=1e-9), fn
+    _, y = evaluate("wrap180(v0)", [(t, np.array([190.0, -190.0, 180.0, 0.0, 359.0]))], interp)
+    assert np.allclose(y, [-170.0, 170.0, -180.0, 0.0, -1.0])
+    _, y = evaluate("wrap360(deg(rad(v0)))", [(t, np.array([-10.0, 370.0, 0.0, 90.0, 720.0]))], interp)
+    assert np.allclose(y, [350.0, 10.0, 0.0, 90.0, 0.0])
+
+
+def test_segments_of_a_state_signal():
+    """T10: flight modes as segments; totals per mode add up to the recording."""
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "uav_flight.csv")
+    run = client.post("/api/files/open", json={"paths": [ex]}).json()["opened"][0]
+    sid = f"{run['id']}/FlightMode"
+    r = client.post("/api/segments", json={"signal": sid}).json()
+    segs = r["segments"]
+    assert segs and r["total"] == len(segs)
+    assert all(a["t1"] == b["t0"] for a, b in zip(segs, segs[1:]))           # back to back
+    assert [s["label"] for s in segs][:2] == ["IDLE", "TAKEOFF"]
+    total = sum(x["duration"] for x in r["byValue"])
+    assert abs(total - (segs[-1]["t1"] - segs[0]["t0"])) < 1e-6
+    # the refactor kept "statistics while state = X" the same: AUTO time = its segments' time
+    auto = next(x for x in r["byValue"] if x["label"] == "AUTO")
+    st = client.post("/api/stats", json={"signals": [sid], "t0": None, "t1": None,
+                                         "state": sid, "stateValues": [auto["value"]]}).json()
+    assert st["stats"][sid]["samples"] > 0
+    assert client.post("/api/segments", json={"signal": "nope/x"}).status_code == 404
+    client.delete(f"/api/runs/{run['id']}")
+
+
+def test_welch_psd_finds_the_tone_and_is_smoother(tmp_path):
+    """T16: Welch PSD through the API: peak at the tone; far less scatter than one FFT."""
+    t = np.arange(0, 60, 0.002)                                   # 500 Hz, 60 s
+    rng = np.random.default_rng(1)
+    y = np.sin(2 * np.pi * 37.0 * t) + rng.normal(0, 2.0, len(t))
+    p = tmp_path / "vib.csv"
+    np.savetxt(p, np.column_stack([t, y]), delimiter=",", header="Time,AccZ", comments="")
+    run = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]
+    sid = f"{run['id']}/AccZ"
+    dec = lambda s, k, dt: np.frombuffer(base64.b64decode(s[k]), dtype=dt)
+    w = client.post("/api/fft", json={"signals": [sid], "method": "welch"}).json()["series"][0]
+    f = client.post("/api/fft", json={"signals": [sid]}).json()["series"][0]
+    assert abs(w["peak"] - 37.0) < 1.0 and abs(f["peak"] - 37.0) < 0.5
+    wy, fy = dec(w, "y", np.float32), dec(f, "y", np.float32)
+    noise = lambda a: np.std(np.log10(a[len(a) // 2:] + 1e-30))      # scatter of the noise floor
+    assert noise(wy) < noise(fy) / 3
+    client.delete(f"/api/runs/{run['id']}")
+
+
+def test_limits_pass_fail():
+    """T13: spans outside, time outside, worst excess; scale/offset/time offset as plotted."""
+    from svcore.limits import check_limits
+    t = np.arange(0, 10, 0.1)
+    y = np.zeros_like(t); y[20:30] = 5.0; y[60:65] = -3.0
+    r = check_limits(t, y, -2.0, 4.0)
+    assert not r["pass"] and r["violations"] == 2
+    assert np.allclose(r["spans"], [[2.0, 3.0], [6.0, 6.5]])
+    assert abs(r["timeOutside"] - 1.5) < 1e-9 and r["worst"] == 1.0 and r["first"] == 2.0
+    assert check_limits(t, y, None, 6.0)["pass"] and check_limits(t, y, None, None)["pass"]
+    assert check_limits(t, y, -2.0, 4.0, 4.0, 5.5)["pass"]                       # window inside
+    p = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "run_012.csv")
+    run = client.post("/api/files/open", json={"paths": [p]}).json()["opened"][0]
+    sid = f"{run['id']}/Speed [km/h]"
+    q = lambda **k: client.post("/api/limits", json={"items": [{"id": sid, **k}]}).json()["results"][sid]
+    assert q(hi=80)["pass"] and not q(hi=70)["pass"]
+    assert not q(hi=80, scale=2)["pass"]                                         # checked as plotted
+    a, b = q(hi=70)["first"], q(hi=70, tOffset=5)["first"]
+    assert abs(b - a - 5) < 1e-9
+    client.delete(f"/api/runs/{run['id']}")
+
+
+def test_report_limits_column_in_html_pdf_docx(tmp_path):
+    """T13: a signal with limits gets a Limits column (pass / fail) in all three formats;
+    a report without limits keeps its old table."""
+    p = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "run_012.csv")
+    run = client.post("/api/files/open", json={"paths": [p]}).json()["opened"][0]
+    sig = lambda n, **k: {"id": f"{run['id']}/{n}", "label": n, "color": "#3D8BFD", "width": 1.5, "scale": 1, "offset": 0, **k}
+    plot = {"mode": "time", "title": "", "signals": [sig("Speed [km/h]", limits={"lo": None, "hi": 70}),
+                                                      sig("RPM", limits={"lo": 0, "hi": 5000})]}
+    body = lambda fmt, plots: {"path": str(tmp_path / f"r.{fmt}"), "format": fmt, "tabs": [{"name": "T", "plots": plots}]}
+    client.post("/api/report", json=body("html", [plot]))
+    h = (tmp_path / "r.html").read_text(encoding="utf-8")
+    assert "<th>Limits</th>" in h and 'class="lim-fail"' in h and 'class="lim-pass"' in h
+    for fmt in ("pdf", "docx"):
+        assert client.post("/api/report", json=body(fmt, [plot])).status_code == 200
+    import docx
+    cells = [c.text for tb in docx.Document(str(tmp_path / "r.docx")).tables for row in tb.rows for c in row.cells]
+    assert "Limits" in cells and any(c.startswith("Fail") for c in cells) and any(c.startswith("Pass") for c in cells)
+    plain = {"mode": "time", "title": "", "signals": [sig("RPM")]}
+    client.post("/api/report", json=body("html", [plain]))
+    assert "Limits" not in (tmp_path / "r.html").read_text(encoding="utf-8")
+    client.delete(f"/api/runs/{run['id']}")
+
+
+def test_envelope_bands_and_outlier(tmp_path):
+    """T14: 12 runs of one signal (one far off) -> ordered bands over the overlap, one outlier."""
+    rng = np.random.default_rng(3)
+    ids, runs = [], []
+    for k in range(12):
+        t = np.arange(0.0 + 0.1 * k, 20.0, 0.01)
+        y = np.sin(t) * (1 + 0.05 * rng.normal()) + (3.0 if k == 7 else 0.0)
+        p = tmp_path / f"mc_{k:02d}.csv"
+        np.savetxt(p, np.column_stack([t, y]), delimiter=",", header="Time,Alt", comments="")
+        r = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]
+        runs.append(r["id"]); ids.append({"id": f"{r['id']}/Alt"})
+    out = client.post("/api/envelope", json={"signals": ids, "points": 500}).json()
+    dec = lambda k, dt=np.float32: np.frombuffer(base64.b64decode(out[k]), dtype=dt)
+    t, mn, lo, med, hi, mx = dec("t", np.float64), dec("min"), dec("lo"), dec("median"), dec("hi"), dec("max")
+    assert len(t) == 500 and abs(t[0] - 1.1) < 1e-9 and abs(t[-1] - 19.99) < 1e-6      # common overlap
+    assert np.all(mn <= lo + 1e-6) and np.all(lo <= med + 1e-6) and np.all(med <= hi + 1e-6) and np.all(hi <= mx + 1e-6)
+    assert [r["outlier"] for r in out["runs"]].count(True) == 1 and out["runs"][7]["outlier"]
+    assert client.post("/api/envelope", json={"signals": ids[:1]}).json()["empty"]
+    for r in runs:
+        client.delete(f"/api/runs/{r}")
+
+
+def test_envelope_no_outlier_in_an_ordinary_spread():
+    """T14: a normal random spread has no outliers; two runs far off are both found."""
+    from svcore.envelope import envelope
+    rng = np.random.default_rng(11)
+    t = np.arange(0, 10, 0.01)
+    runs = [(t, np.sin(t) * (1 + 0.05 * rng.normal())) for _ in range(30)]
+    assert not any(envelope(runs, points=400)["outlier"])
+    runs[3] = (t, runs[3][1] + 5); runs[17] = (t, runs[17][1] - 4)
+    out = envelope(runs, points=400)["outlier"]
+    assert [i for i, o in enumerate(out) if o] == [3, 17]
+
+
+def test_report_envelope_plot_in_html_pdf_docx(tmp_path):
+    """T14b: an Envelope plot in a report - the bands' data in HTML, a summary caption in every
+    format (Hebrew too), and PDF / Word build."""
+    ids, runs = [], []
+    for k in range(4):
+        t = np.arange(0, 10, 0.01)
+        p = tmp_path / f"r{k}.csv"
+        np.savetxt(p, np.column_stack([t, np.sin(t) + (6 if k == 2 else 0.02 * k)]), delimiter=",", header="Time,V", comments="")
+        r = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]
+        runs.append(r["id"]); ids.append({"id": f"{r['id']}/V", "label": f"run{k}", "color": "#3D8BFD", "scale": 1, "offset": 0})
+    plot = {"mode": "env", "title": "", "caption": "", "signals": ids}
+    body = lambda fmt, lang="en": {"path": str(tmp_path / f"e.{fmt}"), "format": fmt, "lang": lang, "tabs": [{"name": "T", "plots": [plot]}]}
+    assert client.post("/api/report", json=body("html")).status_code == 200
+    h = (tmp_path / "e.html").read_text(encoding="utf-8")
+    assert '"env"' in h and "4 runs" in h and "run2" in h                       # bands + caption + outlier named
+    assert client.post("/api/report", json=body("html", "he")).status_code == 200
+    assert "4 ריצות" in (tmp_path / "e.html").read_text(encoding="utf-8")
+    for fmt in ("pdf", "docx"):
+        assert client.post("/api/report", json=body(fmt)).status_code == 200
+    import docx
+    text = "\n".join(par.text for par in docx.Document(str(tmp_path / "e.docx")).paragraphs)
+    assert "4 runs" in text and "run2" in text
+    from pypdf import PdfReader                                                  # the plot page is there
+    assert "4 runs" in "".join(pg.extract_text() or "" for pg in PdfReader(str(tmp_path / "e.pdf")).pages)
+    for r in runs:
+        client.delete(f"/api/runs/{r}")

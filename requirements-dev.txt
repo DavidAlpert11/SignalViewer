@@ -2,4 +2,5 @@ pytest>=7
 httpx
 httpx2; python_version >= '3.10'
 playwright>=1.40      # end-to-end tests: python -m playwright install chromium
+pypdf>=4              # tests only: read report PDFs back (a plot missing from the PDF once passed unnoticed)
 pyinstaller>=6

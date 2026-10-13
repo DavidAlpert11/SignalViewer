@@ -56,7 +56,32 @@ def _funcs(t: np.ndarray):
     def smooth(x, n=10):
         return moving_average(np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), int(n))
 
+    # Angles and attitude (flight logs). Quaternions: Hamilton, w first (PX4, ArduPilot);
+    # Euler angles: aerospace order (yaw, then pitch, then roll), in DEGREES.
+    def _f(*xs):
+        return [np.asarray(x, dtype=np.float64) for x in xs]
+
+    def q2roll(w, x, y, z):
+        w, x, y, z = _f(w, x, y, z)
+        return np.degrees(np.arctan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)))
+
+    def q2pitch(w, x, y, z):
+        w, x, y, z = _f(w, x, y, z)
+        return np.degrees(np.arcsin(np.clip(2 * (w * y - z * x), -1.0, 1.0)))
+
+    def q2yaw(w, x, y, z):
+        w, x, y, z = _f(w, x, y, z)
+        return np.degrees(np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)))
+
+    def wrap180(a):
+        return (np.asarray(a, dtype=np.float64) + 180.0) % 360.0 - 180.0
+
+    def wrap360(a):
+        return np.asarray(a, dtype=np.float64) % 360.0
+
     return {
+        "deg": (np.degrees, 1), "rad": (np.radians, 1), "wrap180": (wrap180, 1), "wrap360": (wrap360, 1),
+        "q2roll": (q2roll, 4), "q2pitch": (q2pitch, 4), "q2yaw": (q2yaw, 4),
         "abs": (np.abs, 1), "sqrt": (np.sqrt, 1), "exp": (np.exp, 1), "log": (np.log, 1), "log10": (np.log10, 1),
         "sin": (np.sin, 1), "cos": (np.cos, 1), "tan": (np.tan, 1), "asin": (np.arcsin, 1), "acos": (np.arccos, 1),
         "atan": (np.arctan, 1), "atan2": (np.arctan2, 2), "sign": (np.sign, 1), "floor": (np.floor, 1),

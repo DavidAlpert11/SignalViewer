@@ -12,8 +12,10 @@ import type { Lang } from "./i18n";
    Signals are referenced by stable ids "<runId>/<name>", never by index.
 ---------------------------------------------------------------------------- */
 
-export interface PlotSignal { sig: string; color: string; width: number; scale: number; offset: number; label?: string; state?: boolean; tOffset?: number }  // state: drawn as state markers only (no line)
-export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d";
+export interface PlotSignal { sig: string; color: string; width: number; scale: number; offset: number; label?: string; state?: boolean; tOffset?: number;
+  /** T13: pass / fail limits on the plotted value (null / absent = no limit on that side) */
+  limits?: { lo?: number | null; hi?: number | null } }  // state: drawn as state markers only (no line)
+export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env";   // env: Monte-Carlo envelope (T14)
 export interface Plot {
   id: string; title: string; signals: PlotSignal[];
   mode?: PlotMode;                 // default "time"
@@ -21,6 +23,7 @@ export interface Plot {
   xyAlign?: "linear" | "nearest";
   fftWindow?: "hanning" | "hamming" | "blackman" | "none";
   fftLog?: boolean;
+  fftMethod?: "fft" | "welch";            // welch: averaged power spectral density (T16); absent = fft
   specN?: number;                  // spectrogram window (samples)
   specFmax?: number | null;        // spectrogram: highest frequency shown (null: all)
   caption?: string;                // shown under the plot in reports
@@ -83,7 +86,10 @@ export interface ZoomStep { x: Range; y?: { key: string; r: Range } }
 export type ZoomMode = "x" | "y" | "xy";
 export type NewFilesMode = "ask" | "auto" | "ignore";
 export interface CursorState { on: boolean; dual: boolean; t1: number | null; t2: number | null; active?: 1 | 2 }
-export interface Toast { id: string; kind: "info" | "error"; text: string; action?: { label: string; run: () => void }; ms?: number }
+export interface Toast { id: string; kind: "info" | "error"; text: string; action?: { label: string; run: () => void }; ms?: number;
+  /** its action undoes the LAST workspace change: valid only until the next change / undo / redo */
+  undoesWs?: boolean }
+const dropWsUndo = (ts: Toast[]) => (ts.some((t) => t.undoesWs) ? ts.filter((t) => !t.undoesWs) : ts);
 export type PanelId = "data" | "analysis" | "compare" | "report" | "log";
 export type LogMarkers = "off" | "important" | "all";
 export type PlayMode = "cursor" | "draw" | "window";
@@ -176,6 +182,23 @@ interface AppState {
 
 const clone = <T,>(v: T): T => structuredClone(v);
 
+/* Inspector: starts closed, opens by itself when there is something to show (a selected
+   signal, the cursor). Once the user opens / closes it with its button, that choice is kept
+   and the automatic opening stops. */
+const INSPECTOR_KEY = "sv3.inspector";
+function inspectorPref(): "open" | "closed" | null {
+  try { const v = localStorage.getItem(INSPECTOR_KEY); return v === "open" || v === "closed" ? v : null; }
+  catch { return null; }
+}
+export function setInspectorByUser(open: boolean) {
+  try { localStorage.setItem(INSPECTOR_KEY, open ? "open" : "closed"); } catch { /* private mode */ }
+  useApp.setState({ inspectorOpen: open });
+}
+/** Open the Inspector for the cursor values - unless the user has closed it on purpose. */
+function revealInspector() {
+  if (!useApp.getState().inspectorOpen && inspectorPref() !== "closed") useApp.setState({ inspectorOpen: true });
+}
+
 export const useApp = create<AppState>((set, get) => ({
   ws: initialWorkspace(),
   past: [],
@@ -187,7 +210,7 @@ export const useApp = create<AppState>((set, get) => ({
   theme: window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark",
   lang: (navigator.language || "").startsWith("he") ? "he" : "en",
   panel: "data",
-  inspectorOpen: true,
+  inspectorOpen: inspectorPref() === "open",   // closed until there is something to show (T08)
   inspectorScope: "active",
   selected: null,
   multi: [],
@@ -248,22 +271,23 @@ export const useApp = create<AppState>((set, get) => ({
     const prev = get().ws;
     const next = fn(clone(prev));
     if (JSON.stringify(next) === JSON.stringify(prev)) return;
-    set({ ws: next, past: [...get().past.slice(-99), prev], future: [] });
+    set({ ws: next, past: [...get().past.slice(-99), prev], future: [], toasts: dropWsUndo(get().toasts) });
   },
   undo: () => {
     const { past, ws, future } = get();
     if (!past.length) return;
-    set({ ws: past[past.length - 1], past: past.slice(0, -1), future: [ws, ...future] });
+    set({ ws: past[past.length - 1], past: past.slice(0, -1), future: [ws, ...future], toasts: dropWsUndo(get().toasts) });
   },
   redo: () => {
     const { past, ws, future } = get();
     if (!future.length) return;
-    set({ ws: future[0], future: future.slice(1), past: [...past, ws] });
+    set({ ws: future[0], future: future.slice(1), past: [...past, ws], toasts: dropWsUndo(get().toasts) });
   },
   set: (p) => set(p),
   toast: (t) => {
     const id = uid("m");
-    set({ toasts: [...get().toasts, { ...t, id }] });
+    // the same message again replaces the old one instead of stacking up
+    set({ toasts: [...get().toasts.filter((x) => x.text !== t.text), { ...t, id }] });
     window.setTimeout(() => get().dismiss(id), t.ms ?? (t.kind === "error" ? 9000 : 4000));
   },
   dismiss: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
@@ -497,7 +521,7 @@ export const actions = {
     if (dropped) {
       const L = useApp.getState().lang;
       useApp.getState().toast({ kind: "info", text: translate(L, "plotsRemoved", { n: dropped }),
-        action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } });
+        action: { label: translate(L, "undo"), run: () => useApp.getState().undo() }, undoesWs: true });
     }
   },
   setActivePlot(index: number) {
@@ -630,8 +654,13 @@ export const actions = {
       return ws;
     });
   },
+  /** Empty the plots of this tab (files stay open). Undoable - the toast says so and offers it,
+   *  which is what tells it apart from "Clear everything" in the TopBar. */
   clearAllPlots() {
-    useApp.getState().commit((ws) => { const t = activeTab(ws); t.plots.forEach(emptyPlot); return ws; });
+    const st = useApp.getState();
+    st.commit((ws) => { const t = activeTab(ws); t.plots.forEach(emptyPlot); return ws; });
+    st.toast({ kind: "info", text: translate(st.lang, "plotsCleared"),
+      action: { label: translate(st.lang, "undo"), run: () => useApp.getState().undo() }, undoesWs: true });
   },
   /** Take the 3D view away: its objects and 3D settings go, the plot is an empty time plot again (Undo brings it back). */
   remove3d(plotId: string) {
@@ -920,6 +949,7 @@ export const actions = {
       const mid = r ? (r[0] + r[1]) / 2 : run ? (run.start + run.end) / 2 : 0;
       useApp.setState({ cursor: { ...c, on: true, t1: mid } });
     } else useApp.setState({ cursor: { ...c, on: !c.on } });
+    if (useApp.getState().cursor.on) revealInspector();
   },
   toggleDual() {
     const st = useApp.getState();
@@ -940,6 +970,7 @@ export const actions = {
     if (t2 > hi) t2 = t1 - span * 0.2;          // no room after cursor 1: put cursor 2 before it
     t2 = Math.min(hi, Math.max(lo, t2));
     useApp.setState({ cursor: { on: true, dual: true, t1, t2 } });
+    revealInspector();
   },
 };
 

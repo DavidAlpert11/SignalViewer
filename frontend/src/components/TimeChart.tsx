@@ -121,7 +121,7 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
   }, [series, plot.id]);
 
   /* ------------------------- build aligned data ------------------------- */
-  const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}:${s.offset}:${s.state ? 1 : 0}:${s.tOffset ?? 0}`).join("|");
+  const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}:${s.offset}:${s.state ? 1 : 0}:${s.tOffset ?? 0}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}`).join("|");
   const aligned = useMemo(() => {
     const ok = plot.signals
       .map((ps) => ({ ps, s: series.find((x) => x.id === ps.sig) }))
@@ -412,6 +412,22 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
       overlay.style.width = c.style.width; overlay.style.height = c.style.height;
       overlay.style.left = c.offsetLeft + "px"; overlay.style.top = c.offsetTop + "px";
     };
+    /* T13: limits as dashed lines in the signal's colour (on the plotted value) */
+    const drawLimits = (u: uPlot) => {
+      const lim = sigs.filter((s) => !s.state && s.limits && (s.limits.lo != null || s.limits.hi != null));
+      if (!lim.length) return;
+      const ctx = u.ctx, { left, top, width, height } = u.bbox, d = dpr() * uiScale();
+      ctx.save();
+      ctx.beginPath(); ctx.rect(left, top, width, height); ctx.clip();
+      ctx.setLineDash([6 * d, 4 * d]); ctx.lineWidth = 1.25 * d; ctx.globalAlpha = 0.9;
+      lim.forEach((s) => [s.limits!.lo, s.limits!.hi].forEach((v) => {
+        if (v == null || !Number.isFinite(v)) return;
+        const y = Math.round(u.valToPos(v, "y", true)) + 0.5;
+        if (y < top || y > top + height) return;
+        ctx.strokeStyle = s.color; ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + width, y); ctx.stroke();
+      }));
+      ctx.restore();
+    };
     const drawOverlay = (u: uPlot) => {
       syncOverlay(u);
       octx.clearRect(0, 0, overlay.width, overlay.height);
@@ -515,7 +531,7 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
           },
         ],
         drawAxes: [clipStart],
-        draw: [clipEnd, drawStates, drawLogMarks, (u) => drawOverlay(u)],
+        draw: [clipEnd, drawStates, drawLimits, drawLogMarks, (u) => drawOverlay(u)],
         setSize: [(u) => syncOverlay(u)],
         setSelect: [
           (u) => {

@@ -56,9 +56,11 @@ export interface FsEntry { name: string; path: string; dir: boolean; size?: numb
 /* Templates (version 2): a set of tabs whose signals are stored by NAME, each from a file SLOT;
    when a template is opened, every slot is given an open file (or "all files that fit"). A template
    can also include other templates (a collection). One JSON file per template in the templates folder. */
-export interface TplSignal { name: string; slot?: string; color?: string; width?: number; scale?: number; offset?: number;
+export interface LimitResult { lo: number | null; hi: number | null; samples: number; pass: boolean; violations: number;
+  timeOutside: number; first: number | null; worst: number | null; worstT: number | null; spans: [number, number][] }
+export interface TplSignal { limits?: { lo?: number | null; hi?: number | null }; name: string; slot?: string; color?: string; width?: number; scale?: number; offset?: number;
   state?: boolean; tOffset?: number; label?: string }
-export interface TplPlot { title: string; mode?: string; xSignal?: string | null; xSlot?: string; xyAlign?: string; fftWindow?: string;
+export interface TplPlot { title: string; mode?: string; xSignal?: string | null; xSlot?: string; xyAlign?: string; fftWindow?: string; fftMethod?: string;
   fftLog?: boolean; specN?: number; caption?: string; ylim?: [number, number] | null; signals: TplSignal[]; objects?: TplObject[] }
 /** A map object in a template: each of its signals by name (alternatives "a|b" allowed) and file slot. */
 export type TplObjectRole = "lat" | "lon" | "alt" | "yaw" | "pitch" | "roll" | "qw" | "qx" | "qy" | "qz";
@@ -143,8 +145,8 @@ export const api = {
   restoreDerived: (items: { op: string; sources: string[]; params?: unknown; name?: string }[]) =>
     call<{ restored: string[]; failed: { name: string; message: string }[]; runs: RunInfo[] }>("/api/derived/restore", { items }),
   deleteDerived: (name: string) => call<{ runs: RunInfo[] }>(`/api/derived/${encodeURIComponent(name)}`, undefined, "DELETE"),
-  fft: async (signals: string[], window: string, t0: number | null, t1: number | null, points: number) => {
-    const r = await call<{ series: any[] }>("/api/fft", { signals, window, t0, t1, points });
+  fft: async (signals: string[], window: string, t0: number | null, t1: number | null, points: number, method: "fft" | "welch" = "fft") => {
+    const r = await call<{ series: any[] }>("/api/fft", { signals, window, method, t0, t1, points });
     return r.series.map((s) => (s.missing ? { id: s.id, missing: true, n: 0, peak: NaN, x: new Float64Array(), y: new Float32Array() }
       : { ...s, x: decode(s.x, Float64Array), y: decode(s.y, Float32Array) })) as { id: string; missing?: boolean; n: number; peak: number; x: Float64Array; y: Float32Array }[];
   },
@@ -174,6 +176,22 @@ export const api = {
   stats: (signals: string[], t0: number | null, t1: number | null, where?: { state: string; values: number[]; offset?: number } | null) =>
     call<{ stats: Record<string, Stats> }>("/api/stats", { signals, t0, t1,
       ...(where ? { state: where.state, stateValues: where.values, stateOffset: where.offset ?? 0 } : {}) }),
+  limits: (items: { id: string; lo: number | null; hi: number | null; scale: number; offset: number; tOffset: number }[], t0: number | null, t1: number | null) =>
+    call<{ results: Record<string, LimitResult> }>("/api/limits", { items, t0, t1 }),
+  envelope: async (signals: { id: string; scale: number; offset: number; tOffset: number }[], t0: number | null, t1: number | null, points: number) => {
+    const r = await call<{ n: number; empty?: boolean; pct?: number; t?: string; min?: string; max?: string; lo?: string; hi?: string; median?: string;
+      runs?: { id: string; deviation: number; outlier: boolean }[] }>("/api/envelope", { signals, t0, t1, points });
+    if (r.empty) return { n: r.n, empty: true as const };
+    const f = (k: "min" | "max" | "lo" | "hi" | "median") => decode(r[k]!, Float32Array);
+    return { n: r.n, empty: false as const, pct: r.pct, runs: r.runs ?? [], t: decode(r.t!, Float64Array),
+      min: f("min"), max: f("max"), lo: f("lo"), hi: f("hi"), median: f("median") };
+  },
+  segments: (signal: string) => call<{ total: number;
+    segments: { t0: number; t1: number; value: number; label: string | null }[];
+    byValue: { value: number; label: string | null; duration: number; count: number }[] }>("/api/segments", { signal }),
+  examples: () => call<{ id: "flight" | "car"; paths: string[] }[]>("/api/examples"),
+  completePath: (text: string, base: string | null, exts?: string[]) =>
+    call<{ dir: string | null; items: { name: string; path: string; dir: boolean }[]; common: string }>("/api/fs/complete", { text, base, exts }),
   listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[] }>("/api/fs/list", { path, exts }),
   compare: (signals: string[], baseline: string, alignment: string, tolAbs: number | null, tolPct: number | null) =>
     call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct }),

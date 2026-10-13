@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from svcore.decimate import minmax_decimate, stride_decimate
-from svcore.ops import apply_filter, compute_fft, cumulative_trapezoid, moving_average, nearest_indices
+from svcore.ops import apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average, nearest_indices
 
 UNARY = {"derivative", "integral", "abs", "negate", "normalize", "smooth", "rms", "lowpass", "highpass", "affine"}
 FORMULA = {"expr"}
@@ -163,8 +163,9 @@ _fft_cache: Dict[tuple, Tuple[np.ndarray, np.ndarray]] = {}
 
 
 def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
-            t0: Optional[float], t1: Optional[float]) -> Tuple[np.ndarray, np.ndarray]:
-    key = (sig_id, version, window, t0, t1)
+            t0: Optional[float], t1: Optional[float], method: str = "fft") -> Tuple[np.ndarray, np.ndarray]:
+    """method: "fft" (magnitude of one FFT) or "welch" (averaged power spectral density)."""
+    key = (sig_id, version, window, t0, t1, method)
     hit = _fft_cache.get(key)
     if hit is not None:
         return hit
@@ -174,7 +175,7 @@ def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
     if len(t) < 16:
         res = (np.array([]), np.array([]))
     else:
-        res = compute_fft(_f64(t), _f64(y), window)
+        res = (compute_welch if method == "welch" else compute_fft)(_f64(t), _f64(y), window)
     if len(_fft_cache) > 32:
         _fft_cache.pop(next(iter(_fft_cache)))
     _fft_cache[key] = res

@@ -29,6 +29,7 @@ export const Icon = {
   Reset: mk(<><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7" /><path d="M4 4v4.7h4.7" /></>),
   Reload: mk(<><path d="M20 12a8 8 0 1 1-2.3-5.6L20 8.7" /><path d="M20 4v4.7h-4.7" /></>),
   Trash: mk(<><path d="M4 7h16M10 11v6M14 11v6" /><path d="M6 7l1 13h10l1-13M9 7V4h6v3" /></>),
+  Eraser: mk(<><path d="M8 20h12" /><path d="M5.5 14.5l8-8a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12 18H8.5z" /><path d="M9.5 10.5l5 5" /></>),
   Edit: mk(<><path d="M4 20h4L19 9l-4-4L4 16z" /></>),
   Layout: mk(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 4v16M3 12h18" /></>),
   Inspector: mk(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" /></>),
