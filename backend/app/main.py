@@ -79,6 +79,64 @@ class SafeJSONResponse(JSONResponse):
 app = FastAPI(default_response_class=SafeJSONResponse, title="Signal Viewer", docs_url="/api/docs")
 
 
+# =============================================================================
+# LOCAL-ONLY GUARD
+# =============================================================================
+# Binding to 127.0.0.1 keeps other computers out, but not a web page open in the user's own
+# browser: with DNS rebinding such a page can make "evil.example" resolve to 127.0.0.1 and then
+# read folders, open files and write files through this API. Browsers always send the name
+# they used in Host / Origin, so answering only to loopback names closes that door.
+# SV_ALLOWED_HOSTS (comma separated names) adds names on purpose, e.g. for the test client.
+
+_LOOPBACK_NAMES = {"localhost", "127.0.0.1", "::1"}
+
+
+def _hostname(value: str) -> str:
+    """'127.0.0.1:8765' -> '127.0.0.1', '[::1]:8765' -> '::1', 'http://localhost:5173' -> 'localhost'."""
+    v = value.strip().lower()
+    if "://" in v:
+        v = v.split("://", 1)[1].split("/", 1)[0]
+    if v.startswith("["):
+        return v[1:].split("]", 1)[0]
+    return v.rsplit(":", 1)[0] if v.count(":") == 1 else v
+
+
+def _allowed_names() -> set:
+    extra = os.environ.get("SV_ALLOWED_HOSTS", "")
+    return _LOOPBACK_NAMES | {x.strip().lower() for x in extra.split(",") if x.strip()}
+
+
+class LocalOnlyMiddleware:
+    """Plain ASGI middleware (no buffering, so downloads and long jobs are unaffected)."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket"):
+            return await self.inner(scope, receive, send)
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        ok = _allowed_names()
+        host = headers.get("host")
+        origin = headers.get("origin")
+        bad = None
+        if host is None or _hostname(host) not in ok:
+            bad = "this server only answers requests addressed to localhost"
+        elif origin is not None and (origin == "null" or _hostname(origin) not in ok):
+            bad = "requests from other web sites are not accepted"
+        if bad is None:
+            return await self.inner(scope, receive, send)
+        if scope["type"] == "websocket":
+            return await send({"type": "websocket.close", "code": 1008})
+        body = json.dumps({"detail": f"Blocked: {bad}. Open Signal Viewer at http://127.0.0.1:<port>."}).encode()
+        await send({"type": "http.response.start", "status": 403,
+                    "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
+        await send({"type": "http.response.body", "body": body})
+
+
+app.add_middleware(LocalOnlyMiddleware)
+
+
 def b64(a: np.ndarray, dtype) -> str:
     return base64.b64encode(np.ascontiguousarray(a, dtype=dtype).tobytes()).decode("ascii")
 
