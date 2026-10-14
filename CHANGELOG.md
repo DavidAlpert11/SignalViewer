@@ -31,6 +31,7 @@
   The live "Follow" choice is in one place: the plot bar while live mode runs.
 - Fixed: an Undo button on an older message could undo a later, unrelated change.
 - Fixed: a blank window on Linux systems whose locale is set to POSIX / C.
+- Fixed: a web page open in your browser could, in principle, reach Signal Viewer's local server (DNS rebinding) and read or write files. The server now answers only requests addressed to localhost / 127.0.0.1.
 
 ## 1.0.0 – first release
 
