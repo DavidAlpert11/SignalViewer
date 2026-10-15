@@ -15,7 +15,7 @@ import type { Lang } from "./i18n";
 export interface PlotSignal { sig: string; color: string; width: number; scale: number; offset: number; label?: string; state?: boolean; tOffset?: number;
   /** T13: pass / fail limits on the plotted value (null / absent = no limit on that side) */
   limits?: { lo?: number | null; hi?: number | null } }  // state: drawn as state markers only (no line)
-export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env";   // env: Monte-Carlo envelope (T14)
+export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz";   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c)
 export interface Plot {
   id: string; title: string; signals: PlotSignal[];
   mode?: PlotMode;                 // default "time"
@@ -37,6 +37,8 @@ export interface Plot {
   showReadout?: boolean;           // 3D: the box with the primary object's current values (default shown)
   ownTime?: number | null;         // 3D: a time of its own (not the timeline's) - null / absent: the shared time
   showEvents?: boolean;            // 3D: the log's events as marks on the objects' tracks (default shown)
+  xyzEqual?: boolean;              // XYZ (plain 3D, T17c): the same scale on all three axes (default true - right for positions)
+  xyzFlipZ?: boolean;              // XYZ: Z drawn pointing down (NED "down", depth)
 }
 export type ObjectKind = "aircraft" | "missile" | "ship" | "uav" | "drone" | "vehicle";
 /** Something that moves on the map: where it is (and how it points) comes from signals - which may
@@ -145,6 +147,7 @@ interface AppState {
   templatesNew: "tab" | "all" | "collection" | null;   // open the library on a new template (current / all tabs) or collection
   templatesSelect: string | null;  // open the library with this template selected (suggestions in the file panel)
   objectDialog: { plotId: string; objectId?: string } | null;   // adding / editing a map object
+  placeDialog: string | null;      // T17c: putting an XYZ plot's tracks on a map / 3D plot (the XYZ plot's id)
   geoBase: "auto" | "osm" | "esri" | "light" | "dark" | "satellite" | "topo" | "offline";   // map layer                // live: seconds since new data last arrived (updated by each poll)           // live: refreshing every file before following them
   follow: number | null;           // live mode: show only the last N seconds
   playing: boolean;
@@ -242,6 +245,7 @@ export const useApp = create<AppState>((set, get) => ({
   templatesNew: null,
   templatesSelect: null,
   objectDialog: null,
+  placeDialog: null,
   geoBase: "auto",
   follow: null,
   playing: false,
@@ -439,6 +443,19 @@ export const actions = {
   addObject(plotId: string, o: MapObject) {
     useApp.getState().commit((ws) => { const p = findPlot(ws, plotId); if (p) p.objects = [...(p.objects ?? []), o]; return ws; });
   },
+  /** T17c: map objects in a new map / 3D plot of the active tab (false: the tab is full). */
+  addObjectsToNewPlot(mode: "geo" | "3d", objs: MapObject[], title = ""): boolean {
+    let full = false;
+    useApp.getState().commit((ws) => {
+      const tab = activeTab(ws);
+      const at = placePlot(tab, { ...newPlot(), title, mode, objects: objs });
+      if (at < 0) { full = true; return ws; }
+      tab.active = at;
+      return ws;
+    });
+    if (full) tabFullMessage();
+    return !full;
+  },
   updateObject(plotId: string, id: string, patch: Partial<MapObject>) {
     useApp.getState().commit((ws) => {
       const p = findPlot(ws, plotId);
@@ -475,6 +492,10 @@ export const actions = {
           // first signal becomes X, the rest stay as Y
           p.xSignal = p.signals[0].sig;
           p.signals = p.signals.slice(1);
+        } else if (mode === "xyz" && p.xSignal) {
+          // XYZ has no separate X: the plot's signals in threes are X, Y, Z - the X-Y / map X goes first
+          if (!p.signals.some((x) => x.sig === p.xSignal)) p.signals.unshift(newPlotSignal(p.xSignal, ws));
+          p.xSignal = null;
         }
       }));
       return ws;
@@ -979,7 +1000,7 @@ let _pendingSteps = 0, _stepping = false;
 /** Put a new plot in the tab: reuse an empty one, else add one (up to MAX_PLOTS).
  *  Returns the index, or -1 when the tab is full (the caller shows a message). */
 export function placePlot(tab: Tab, p: Plot): number {
-  const empty = tab.plots.findIndex((x) => x.signals.length === 0 && !x.xSignal);
+  const empty = tab.plots.findIndex((x) => x.signals.length === 0 && !x.xSignal && !x.objects?.length);   // a map with only objects is in use
   if (empty >= 0) { tab.plots[empty] = { ...p, id: tab.plots[empty].id }; return empty; }
   if (tab.plots.length >= MAX_PLOTS) return -1;
   tab.plots.push(p); fitLayout(tab);

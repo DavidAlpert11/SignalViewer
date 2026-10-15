@@ -157,6 +157,12 @@ export const api = {
       : { ...s, x: decode(s.x, Float64Array), y: decode(s.y, Float32Array), t: s.t ? decode(s.t, Float64Array) : new Float64Array() })) as
       { id: string; missing?: boolean; n: number; x: Float64Array; y: Float32Array; t: Float64Array }[];
   },
+  /** T17c plain 3D: each track's Y and Z on its X signal's samples. */
+  xyz: async (tracks: { x: string; y: string; z: string }[], alignment: string) => {
+    const r = await call<{ tracks: any[] }>("/api/xyz", { tracks, alignment });
+    return r.tracks.map((s) => (s.missing || s.empty ? { id: s.id as string, missing: !!s.missing, empty: !!s.empty } as const
+      : { id: s.id as string, t: decode(s.t, Float64Array), x: decode(s.x, Float32Array), y: decode(s.y, Float32Array), z: decode(s.z, Float32Array) }));
+  },
   /** An object on the map: its signals on one time axis (see the server's object_track). */
   objectTrack: async (o: { lat: string; lon: string; alt?: string | null; yaw?: string | null; pitch?: string | null; roll?: string | null;
     qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null }) => {

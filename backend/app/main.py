@@ -906,6 +906,37 @@ def xy(req: XYRequest):
     return {"series": out}
 
 
+class XYZTrack(BaseModel):
+    x: str
+    y: str
+    z: str
+
+
+class XYZRequest(BaseModel):
+    tracks: List[XYZTrack]
+    alignment: str = "linear"
+    points: int = 20000
+
+
+@app.post("/api/xyz")
+def xyz(req: XYZRequest):
+    """T17c: plain 3D plot - each track's Y and Z on its X signal's samples (svcore.xyz)."""
+    from svcore.xyz import xyz_track
+    out = []
+    for tr in req.tracks:
+        try:
+            sx, sy, sz = store.signal(tr.x), store.signal(tr.y), store.signal(tr.z)
+        except KeyError:
+            out.append({"id": tr.x, "missing": True})
+            continue
+        r = xyz_track(sx, sy, sz, req.alignment, max(100, min(req.points, 200000)))
+        if r is None:
+            out.append({"id": tr.x, "empty": True})
+            continue
+        out.append({"id": tr.x, "n": int(len(r["t"])), **{k: b64(r[k], np.float64 if k == "t" else np.float32) for k in ("t", "x", "y", "z")}})
+    return {"tracks": out}
+
+
 class ObjectTrackRequest(BaseModel):
     lat: str
     lon: str

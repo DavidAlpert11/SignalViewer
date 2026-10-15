@@ -783,6 +783,63 @@ def test_frame_conversion(pg):
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 6")
 
 
+PAINTED = """(sel) => { const c = document.querySelector(sel); if (!c || !c.width) return false;
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i]) return true; return false; }"""
+
+
+def test_xyz_plot_and_place_on_map(pg):
+    """T17c: a plain 3D plot of any three signals (no map), its options, and putting the track on
+    a new map plot from a typed-in origin - three derived signals and an object."""
+    open_files(pg, "run_a.csv")
+    for n in ("Speed", "RPM", "Gear"):
+        sig(pg, n).click()
+    pg.locator(".plot.active .mode-seg button", has_text="XYZ").click()
+    pg.wait_for_function(PAINTED, arg=".plot.active .xyz-canvas")                # the box and the track are drawn
+    assert "Drag: rotate" in pg.locator(".plot.active .xyz-hint").inner_text()
+    eq = pg.locator(".plot.active button", has_text="Equal scale")
+    assert eq.get_attribute("aria-pressed") == "true"
+    eq.click()
+    assert eq.get_attribute("aria-pressed") == "false"
+    box = pg.locator(".plot.active .xyz-canvas").bounding_box()                  # rotating keeps it drawn
+    pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] / 2 + 80, box["y"] + box["height"] / 2 + 30); pg.mouse.up()
+    assert pg.evaluate(PAINTED, ".plot.active .xyz-canvas")
+    pg.locator(".plot.active button", has_text="Place on map").click()
+    dlg = pg.locator(".dialog[aria-label='Place on map']")
+    dlg.locator("label:has-text('Origin') select").select_option("manual")    # no GPS in this file
+    for k, v in zip(("Latitude", "Longitude", "Altitude"), ("32.1", "34.8", "10")):
+        dlg.locator(f"input[aria-label='{k}']").fill(v)
+    dlg.locator("label:has-text('Show on') select").select_option("new-geo")
+    dlg.get_by_role("button", name="Place", exact=True).click()
+    pg.wait_for_selector(".dialog[aria-label='Place on map']", state="detached")
+    pg.wait_for_function("""window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.mode === 'geo'
+        && (p.objects || []).length === 1 && p.objects[0].lat.startsWith('derived/')))""")
+    assert pg.locator(".obj-chip").count() == 1
+
+
+def test_globe_without_webgl_falls_back(pg):
+    """A computer without WebGL (Chrome / Edge 139+ no longer fall back to software): the 3D view
+    shows the objects' tracks in metres on the 2D canvas instead of nothing."""
+    open_files(pg, "geo.csv")
+    p2 = pg.context.new_page()
+    p2.add_init_script("""(() => { const get = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (k, ...a) { return /webgl/i.test(k) ? null : get.call(this, k, ...a); }; })()""")
+    try:
+        p2.goto(pg.url); p2.wait_for_selector(".app")
+        p2.evaluate("fetch('/api/runs').then(r => r.json()).then(runs => window.__sv.setState({ runs }))")
+        p2.wait_for_function("window.__sv.state().runs.some(r => r.name.startsWith('geo'))")
+        rid = p2.evaluate("window.__sv.state().runs.find(r => r.name.startsWith('geo')).id")
+        p2.evaluate(f"""window.__sv.setState({{ ws: (() => {{ const ws = structuredClone(window.__sv.state().ws); const p = ws.tabs[0].plots[0];
+            p.mode = '3d'; p.objects = [{{ id: 'a', name: 'Test', kind: 'uav', color: '#ff3030', lat: '{rid}/Lat', lon: '{rid}/Lon' }}];
+            return ws; }})() }})""")
+        p2.wait_for_selector(".g3-nowebgl")
+        p2.wait_for_function(PAINTED, arg=".xyz-canvas")
+        assert "No WebGL" in p2.locator(".g3-nowebgl").inner_text()
+    finally:
+        p2.close()
+
+
 def test_play_draw_mode_and_clear_everything(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()

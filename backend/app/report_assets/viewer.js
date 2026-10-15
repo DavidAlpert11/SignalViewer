@@ -227,7 +227,7 @@
     var pane = document.querySelectorAll(".tabpane")[i];
     Array.prototype.forEach.call(pane.querySelectorAll(".plot"), function (host) {
       var spec = R.tabs[i].plots[+host.getAttribute("data-p")];
-      if (spec.mode === "spec") return;               // drawn as an image by the server
+      if (spec.mode === "spec" || spec.mode === "xyz") return;   // drawn as an image by the server
       plots.push(new Plot(spec, host));
     });
   }

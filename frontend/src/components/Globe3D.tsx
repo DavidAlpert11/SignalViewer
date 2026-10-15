@@ -5,6 +5,7 @@ import { actions, pickPath, shownSpan, useApp, type MapObject, type Plot } from 
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
 import { bearing, fmtDistance, groundDistance, objectAt, visualOrder, type ObjTrack } from "../mapObjects";
+import Globe3DFallback from "./Globe3DFallback";
 
 /* The 3D view: the earth with the app's own terrain (bundled elevation) and map tiles (offline or
    online, as the map plot), the plot's objects as 3D models at the timeline's time - position,
@@ -20,6 +21,17 @@ const loadCesium = () => (cesiumP ??= (async () => {
   m.Ion.defaultAccessToken = "";
   return m;
 })());
+
+/** Can this browser make a WebGL context at all? (No: an old / blocked graphics driver, a virtual
+ *  machine or remote desktop - and Chrome / Edge 139+ no longer fall back to software WebGL.) */
+function hasWebGL(): boolean {
+  try {
+    const c = document.createElement("canvas");
+    const gl = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    return !!gl;
+  } catch { return false; }
+}
 
 /** WebGL drawn by the processor (no graphics acceleration: virtual machines, remote desktop, blocked
  *  drivers). There every full-screen pass is expensive, so the 3D view uses lighter settings - one
@@ -77,7 +89,7 @@ function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: 
   return { gs: Number.isFinite(d) ? d / dt : null, vs: Number.isFinite(dh) ? dh / dt : null };
 }
 
-export default function Globe3D({ plot, onLoading, emptyText }: Props) {
+export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const theme = useApp((s) => s.theme);
@@ -144,6 +156,10 @@ export default function Globe3D({ plot, onLoading, emptyText }: Props) {
   useEffect(() => {
     let alive = true;
     const mats = linkMats.current;                     // (the same map for the whole life of the view)
+    if (!hasWebGL()) {                                  // no point loading CesiumJS: the simplified view instead
+      setFailed("WebGL is not available in this browser.");
+      return () => { alive = false; };
+    }
     onLoading(true);
     loadCesium().then((Cz) => {
       if (!alive || !hostRef.current) return;
@@ -223,6 +239,7 @@ export default function Globe3D({ plot, onLoading, emptyText }: Props) {
 
   /* ------------------------------------------------------------- objects */
   useEffect(() => {
+    if (failed) return;                                 // the simplified view (no WebGL) fetches its own
     let cancelled = false;
     (async () => {
       const out: Record<string, Track3> = {};
@@ -236,7 +253,7 @@ export default function Globe3D({ plot, onLoading, emptyText }: Props) {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objKey, dataVersion, runsKey]);
+  }, [objKey, dataVersion, runsKey, failed]);
 
   /* models (one per object; rebuilt when the objects change) */
   useEffect(() => {
@@ -550,7 +567,7 @@ export default function Globe3D({ plot, onLoading, emptyText }: Props) {
   const showBox = plot.showReadout !== false;
   const reFit = () => { scene3.current.fitted = false; setTracks((x) => ({ ...x })); };
 
-  if (failed) return <div className="plot-empty">{t("globeFailed")}<br /><span className="hint">{failed}</span></div>;
+  if (failed) return <Globe3DFallback plot={plot} index={index} onLoading={onLoading} reason={failed} />;
   return (
     <div className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={reFit}>
       <div ref={hostRef} className="globe3d-host" />

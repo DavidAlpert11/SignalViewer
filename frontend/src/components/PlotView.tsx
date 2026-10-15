@@ -15,6 +15,7 @@ import { iconSvg } from "./mapIcons";
 const Globe3D = lazy(() => import("./Globe3D"));
 import FFTChart from "./FFTChart";
 import EnvelopeChart from "./EnvelopeChart";
+import XYZChart from "./XYZChart";
 import SpecChart from "./SpecChart";
 import PlotBoundary from "./PlotBoundary";
 
@@ -123,7 +124,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
 
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const geoBase = useApp((s) => s.geoBase);
-  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")]];
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")]];
 
   return (
     <section
@@ -176,6 +177,16 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               <option value="blackman">Blackman</option><option value="none">{t("noWindow")}</option>
             </select>
             <button className="btn" aria-pressed={plot.fftLog ?? true} onClick={() => actions.updatePlot(plot.id, { fftLog: !(plot.fftLog ?? true) })}>{t("logScale")}</button>
+          </span>
+        )}
+        {mode === "xyz" && (
+          <span className="xpick">
+            <button className="btn sm" aria-pressed={plot.xyzEqual !== false} title={t("xyzEqualHint")}
+              onClick={() => actions.updatePlot(plot.id, { xyzEqual: plot.xyzEqual === false })}>{t("xyzEqual")}</button>
+            <button className="btn sm" aria-pressed={!!plot.xyzFlipZ} title={t("xyzFlipZHint")}
+              onClick={() => actions.updatePlot(plot.id, { xyzFlipZ: !plot.xyzFlipZ })}>{t("xyzFlipZ")}</button>
+            <button className="btn sm obj-add" disabled={plot.signals.length < 3} title={t("placeHint")}
+              onClick={() => useApp.setState({ placeDialog: plot.id })}>{t("placeBtn")}</button>
           </span>
         )}
         {(mode === "geo" || mode === "3d") && (
@@ -289,10 +300,11 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} /></Suspense>}
           {mode === "geo" && <GeoChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
           {mode === "env" && <EnvelopeChart plot={plot} index={index} onLoading={setLoading} />}
+          {mode === "xyz" && <XYZChart plot={plot} index={index} onLoading={setLoading} emptyText={t("xyzNeedsThree")} />}
           {mode === "fft" && <FFTChart plot={plot} index={index} onLoading={setLoading} onPeaks={setPeaks} />}
           {mode === "spec" && <SpecChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
         </PlotBoundary>
-        {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && <div className="plot-empty">{t("emptyPlot")}</div>}
+        {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && mode !== "xyz" && <div className="plot-empty">{t("emptyPlot")}</div>}
         {loading && <div className="plot-loading">{t("loading")}</div>}
       </div>
     </section>

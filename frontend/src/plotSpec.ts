@@ -15,6 +15,8 @@ export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string)
     fftWindow: plot.fftWindow ?? "hanning",
     fftMethod: plot.fftMethod ?? "fft",
     fftLog: plot.fftLog ?? true,
+    xyzEqual: plot.xyzEqual ?? true,
+    xyzFlipZ: !!plot.xyzFlipZ,
     range,
     signals: plot.signals.map((s) => ({
       id: s.sig, label: s.label || signalName(runs, s.sig), color: s.color, width: s.width,

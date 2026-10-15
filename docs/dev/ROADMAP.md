@@ -158,6 +158,25 @@ Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
   flips removed BEFORE interpolating (otherwise a sample between 179 and -179 deg points the
   wrong way / a track across the antimeridian sweeps the globe). Kind tabs wrap in a narrow
   panel. Tests: `test_frame_*` (8, backend) + e2e `test_frame_conversion`.
+- [x] **T17c Plain 3D plot (XYZ) + place on map** - plot mode "XYZ": the plot's signals in threes
+  (X, Y, Z, ...), any units, nothing geographic. Y / Z aligned onto X's samples by the server
+  (`svcore/xyz.py`, `/api/xyz`). Drawn on a 2D canvas with its own orthographic camera
+  (`XYZCanvas` - no new library): back walls with grid and ticks, the track's shadow on the floor,
+  start mark, the cursor's point with a drop line, values at the cursor; drag rotates, Shift+drag
+  moves, wheel zooms, double click resets; the timeline's draw / window modes apply. "Equal
+  scale" (default, for positions) and "Z down" (NED down, depth). "Place on map": NED / ENU
+  metres + an origin (first valid sample of lat / lon / alt signals - the GPS of the track's file
+  is guessed - or typed in) -> three derived `frame` signals per track (new `ref: "signals"`, also
+  offered in Create signals > Frames) and a map object on an existing or new map / 3D plot.
+  Reports: matplotlib 3D axes in PDF / Word / images, an image in HTML (viewer.js skips it).
+  Found: `placePlot` treated a map plot with only objects as empty and could overwrite it.
+  Tests: `test_xyz_*`, `test_frame_reference_from_signals` + e2e `test_xyz_plot_and_place_on_map`.
+- [x] **T17d 3D view without WebGL** - Chrome / Edge 139+ no longer fall back to software WebGL
+  (SwiftShader), so old / virtual / remote-desktop machines with a blocked or missing GPU driver
+  get no WebGL at all and the 3D view showed only an error. Now it checks first (no CesiumJS
+  download then) and shows the objects as tracks in metres east / north / up from the first
+  position on the XYZ canvas, with a note. The Map plot never needed WebGL (Canvas 2D, offline
+  tiles). e2e `test_globe_without_webgl_falls_back` (WebGL blocked by an init script).
 
 ## Milestone 3 — 1.3.0: smoother work
 - [ ] T18 Settings dialog (language, theme, map layer, live defaults); language and theme

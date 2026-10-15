@@ -66,16 +66,20 @@ export default function AnalysisPanel() {
   const [attSigs, setAttSigs] = useState<string[]>(["", "", "", ""]);
   const [qty, setQty] = useState<Qty>("vector");
   const [geoSigs, setGeoSigs] = useState<string[]>(["", ""]);
-  const [refMode, setRefMode] = useState<"first" | "manual">("first");
+  const [refMode, setRefMode] = useState<"first" | "manual" | "signals">("first");
+  const [refSigs, setRefSigs] = useState<string[]>(["", "", ""]);
   const [refLla, setRefLla] = useState<string[]>(["", "", ""]);
   const ends = [frSrc, frDst];
   const needsAtt = qty === "vector" && ends.includes("body");
   const needsGeo = qty === "vector" && ends.includes("ecef");
   const needsRef = qty === "position" && ends.some((f) => f === "ned" || f === "enu") && ends.some((f) => f === "lla" || f === "ecef");
   const refFromData = frSrc === "lla" || frSrc === "ecef";       // "first sample" only has a place to start from then
-  const refManual = needsRef && (refMode === "manual" || !refFromData);
+  const refEff = refMode === "first" && !refFromData ? "manual" : refMode;
+  const refManual = needsRef && refEff === "manual";
+  const refFromSigs = needsRef && refEff === "signals";       // the origin: another position's first valid sample (T17c)
   const refOk = !refManual || refLla.every((x) => x.trim() !== "" && Number.isFinite(Number(x)));
-  const frameSources = [...vec, ...(needsAtt ? attSigs.slice(0, att === "quat" ? 4 : 3) : []), ...(needsGeo ? geoSigs : [])];
+  const frameSources = [...vec, ...(needsAtt ? attSigs.slice(0, att === "quat" ? 4 : 3) : []), ...(needsGeo ? geoSigs : []),
+    ...(refFromSigs ? refSigs : [])];
   const pickQty = (q: Qty) => { setQty(q); setFrSrc(q === "vector" ? "body" : "lla"); setFrDst("ned"); };
   const setAt = (arr: string[], set: (v: string[]) => void, i: number) => (v: string) => set(arr.map((x, k) => (k === i ? v : x)));
   const pickSrc = (f: Frame) => { setFrSrc(f); if (f === frDst) setFrDst(f === "ned" ? "enu" : "ned"); };
@@ -134,7 +138,7 @@ export default function AnalysisPanel() {
           const p: Record<string, unknown> = { qty, src: frSrc, dst: frDst, axis, att, unit, alignment };
           if (needsRef) Object.assign(p, refManual
             ? { ref: "manual", ref_lat: Number(refLla[0]), ref_lon: Number(refLla[1]), ref_alt: Number(refLla[2]) }
-            : { ref: "first" });
+            : { ref: refFromSigs ? "signals" : "first" });
           const r = await api.createDerived("frame", frameSources, p, name.trim() ? `${name.trim()} ${lbl}` : undefined);
           useApp.setState({ runs: r.runs });
           if (addToPlot) actions.addSignal(r.id);
@@ -296,14 +300,16 @@ export default function AnalysisPanel() {
             </>}
             {needsRef && <>
               <h3 className="alist-head">{t("frameRef")}</h3>
-              {refFromData && <div className="seg wide small" role="group">
-                <button className={refMode === "first" ? "on" : ""} onClick={() => setRefMode("first")}>{t("refFirst")}</button>
-                <button className={refMode === "manual" ? "on" : ""} onClick={() => setRefMode("manual")}>{t("refManual")}</button>
-              </div>}
+              <div className="seg wide small" role="group">
+                {refFromData && <button className={refEff === "first" ? "on" : ""} onClick={() => setRefMode("first")}>{t("refFirst")}</button>}
+                <button className={refEff === "signals" ? "on" : ""} onClick={() => setRefMode("signals")}>{t("refSignalsShort")}</button>
+                <button className={refEff === "manual" ? "on" : ""} onClick={() => setRefMode("manual")}>{t("refManual")}</button>
+              </div>
+              {refFromSigs && LLA_KEYS.map((k, i) => <div key={`r${i}`}>{sigSelect(refSigs[i], setAt(refSigs, setRefSigs, i), t(k))}</div>)}
               {refManual && LLA_KEYS.map((k, i) => (
                 <label key={k} className="afield"><span>{t(k)}{i < 2 ? " (°)" : " (m)"}</span>
                   <input type="number" step="any" value={refLla[i]} onChange={(e) => setAt(refLla, setRefLla, i)(e.target.value)} /></label>))}
-              <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t(refManual ? "refManualHint" : "refFirstHint")}</p>
+              <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t(refManual ? "refManualHint" : refFromSigs ? "refSignalsHint" : "refFirstHint")}</p>
             </>}
             <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t("frameHint")}</p>
           </>}
