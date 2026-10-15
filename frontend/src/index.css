@@ -1005,3 +1005,14 @@ input.fx-input { width: 100%; }
 .env-caption .env-out { color: var(--danger); font-weight: 600; }
 /* the 3D view without WebGL: the note sits above the controls hint and wraps */
 .g3-nowebgl { top: 8px; bottom: auto; max-width: min(60%, 520px); white-space: normal; pointer-events: auto; }
+
+/* T12 live MAVLink: status pill next to Live, and its section in the Live popover */
+.mav-pill { height: 26px; gap: 6px; padding-inline: 8px; font-size: 0.8846rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.mav-pill.quiet .live-dot { background: var(--danger); }
+.mav-section { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.mav-section h3 { margin: 0; }
+.mav-section input:not([type]) , .mav-section input[list] { width: 100%; font-family: inherit; }
+.mav-status { margin: 0; font-weight: 600; color: var(--ink-strong); text-align: start; }
+.mav-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+.popover .mav-section label.acheck { flex-direction: row; align-items: center; gap: 6px; color: var(--ink); }
+.popover .mav-section .hint { margin: 0; font-size: 0.8846rem; }
