@@ -5,8 +5,11 @@ React/TypeScript frontend, shown in a pywebview window or a browser) for analysi
 signals. Primary users: **flight-test and drone engineers** (ArduPilot .bin, MAVLink .tlog,
 PX4 .ulg, CSV) and **simulation engineers** (MATLAB/Simulink .mat and Python pipelines).
 
-The task list lives in `docs/dev/ROADMAP.md`. Work through it in order, one task at a time,
-and tick each task there when its "Done when" is met.
+The work queue is `docs/dev/TASKS.md` (what to do next, in order, with full specs, current
+state and a log - written so another developer or agent can take over). `docs/dev/ROADMAP.md`
+is the catalogue of every task. Work one task at a time; when its "Done when" is met, tick it in
+ROADMAP.md and update TASKS.md (current state, the task's status, the log). Update TASKS.md also
+when you stop in the middle of a task.
 
 ## Before changing anything
 1. Read the code you are about to change **and every caller of it** (`grep` the symbol across
