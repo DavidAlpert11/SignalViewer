@@ -13,14 +13,15 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Pushed: `80fc362` (T17f + its fix). On top of it, not pushed yet, delivered as
-  patches in this order: TASKS.md, T12 (live MAVLink), T10b (same segment across runs).
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b.
-- Tests at the last change: backend 133 passed; e2e `test_workflows.py` 7 passed and
-  `test_features.py -k "compare or P01 or segment or templates_share or mavlink or live or
-  frame"` passed. The full e2e set was last run in full at T17b (141 passed).
+- Branch `main`. Pushed by the owner up to T10b (TASKS.md, T12 and T10b applied with `git am`).
+  On top of it, delivered as a patch: T11b (batch reports; template matching moved to the backend).
+- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b.
+- Tests at the last change: backend 347 passed (208 of them pin the template matching to the old
+  TypeScript answers); e2e `test_templates_recent_badfiles.py` 11, `test_object_templates.py` 4,
+  `test_features.py -k "templat or tpl or strip or quick"` passed. The full e2e set was last run
+  in full at T17b (141 passed).
 - Q1 (T12) waits for the owner's check with real SITL / a radio (the owner cannot test now).
-- **Next task: Q3 (T11b batch reports).** Nothing started.
+- **Next task: Q4 (T29 smart start).** Nothing started.
 
 ## How to work here (practical notes)
 
@@ -104,7 +105,12 @@ for matching; delete the TS copy. 3) `cli.py report --template T --out DIR files
 html|pdf|docx]`. 4) Optional UI: "Report for each file…" in the Report panel.
 **Done when:** existing template e2e files pass unchanged; CLI makes one report per file;
 tests for the matcher and the CLI.
-**Status:** not started.
+**Status:** done (see ROADMAP T11b). Step 4 ("Report for each file…" in the Report panel) not
+done - optional; the CLI covers batches.
+**Follow-ups (not queued):** a UI entry for batch reports; several files per report for
+multi-slot templates (today each file gets its own report and fills the slot it fits best).
+**Note for later tasks:** template matching is backend-only now - Q4 (smart start) should use
+`/api/templates/fit` (TemplateStrip already does) and never re-implement matching in the UI.
 
 ### Q4 · T29 Smart start (new) — M
 **Why:** the first minute decides whether people keep using the tool. Most users open the same
@@ -189,3 +195,5 @@ splitting `main.py` and `store.ts`.
 - 2026-10-15 · Owner cannot test T12 now - continue with the queue.
 - 2026-10-15 · Q2 / T10b same segment across runs · backend 133, e2e compare + workflows green ·
   next: Q3.
+- 2026-10-15 · Q3 / T11b batch reports + template matching moved to `svcore/templates.py`
+  (pinned to the TS answers) · backend 347, template e2e green · next: Q4.

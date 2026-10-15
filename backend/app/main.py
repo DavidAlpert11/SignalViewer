@@ -48,6 +48,7 @@ from app.store import LoadError, store
 from svcore.limits import check_limits
 from svcore.envelope import envelope
 from svcore import mavlive
+from svcore import templates as tplm
 from svcore.analysis import OpError, OPS, align_to, fft_display, fft_for, transitions, xy_pair
 from svcore.compare import auto_shift, compare as compare_runs
 from app import report as reports
@@ -1760,7 +1761,46 @@ def import_forget(req: PathOnly):
 @app.get("/api/templates")
 def templates():
     """The user's templates (one JSON file each, in the templates folder)."""
-    return {"templates": prefs.list_templates(), **prefs.template_folder_info()}
+    return {"templates": prefs.list_templates(), "builtin": tplm.builtin_templates(), **prefs.template_folder_info()}
+
+
+# Template matching (T11b): ONE implementation in svcore/templates.py, used by the UI through these
+# and by the command line (batch reports). Templates are sent by the UI (built-in + the user's, as
+# shown), the open files are the server's own.
+class TplFit(BaseModel):
+    templates: List[dict]
+
+
+@app.post("/api/templates/fit")
+def templates_fit(req: TplFit):
+    runs = store.list()
+    return {"fits": {t.get("id"): tplm.fit(t, req.templates, runs) for t in req.templates}}
+
+
+class TplBind(BaseModel):
+    template: dict
+    all: List[dict] = []
+    prefer: Optional[str] = None
+
+
+@app.post("/api/templates/bind")
+def templates_bind(req: TplBind):
+    runs = store.list()
+    e = tplm.expand(req.template, req.all)
+    return {"bind": tplm.auto_bind(e, runs, req.prefer), "slots": tplm.slot_report(e, runs)}
+
+
+class TplResolve(BaseModel):
+    template: dict
+    all: List[dict] = []
+    bind: Dict[str, str]
+    chosen: Optional[List[int]] = None
+    extraTabs: Optional[List[dict]] = None
+
+
+@app.post("/api/templates/resolve")
+def templates_resolve(req: TplResolve):
+    return tplm.resolve(req.template, req.all, req.bind, store.list(), req.chosen, req.extraTabs)
 
 
 class TemplateFolder(BaseModel):

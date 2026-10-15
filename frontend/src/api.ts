@@ -75,6 +75,18 @@ export interface TplTab { name: string; rows: number; cols: number; rowSizes?: n
   linkY?: boolean; lanes?: { name: string; slot?: string }[]; plots: TplPlot[] }
 /** A file the template takes. file / path: the file it was saved from (to find the same file again when opened). */
 export interface TplSlot { id: string; name: string; formats?: string[]; file?: string; path?: string }
+/** A template tab with real signal ids for the open files (/api/templates/resolve). */
+export interface ResolvedTab {
+  name: string; rows: number; cols: number; rowSizes?: number[] | null; colSizes?: number[] | null; linkX?: boolean; linkY?: boolean | null;
+  sharedStates?: string[] | null;
+  plots: { title: string; mode?: string; xSignal?: string | null; xyAlign?: string; fftWindow?: string; fftMethod?: string; fftLog?: boolean;
+    specN?: number; caption?: string; ylim?: [number, number] | null;
+    signals: { sig: string; color: string | null; width?: number; scale?: number; offset?: number; state?: boolean | null; tOffset?: number | null;
+      label?: string | null; limits?: { lo?: number | null; hi?: number | null } }[];
+    objects?: { name: string; kind?: string; color?: string | null; lat: string; lon: string; alt?: string | null; yaw?: string | null; pitch?: string | null;
+      roll?: string | null; qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null; angleUnit?: string; altRef?: string;
+      trail?: boolean; size?: number }[] }[];
+}
 export interface Template {
   version: 2; id: string; name: string; description?: string; group?: string;
   slots: TplSlot[]; tabs: TplTab[]; includes?: string[];
@@ -224,7 +236,13 @@ export const api = {
   recent: () => call<{ items: RecentItem[] }>("/api/recent"),
   forgetRecent: (path: string) => call<{ items: RecentItem[] }>("/api/recent/forget", { path }),
   forgetImport: (path: string) => call<{ ok: boolean }>("/api/import/forget", { path }),
-  templates: () => call<{ templates: Template[] } & TemplateFolderInfo>("/api/templates"),
+  templates: () => call<{ templates: Template[]; builtin: Template[] } & TemplateFolderInfo>("/api/templates"),
+  // T11b: matching runs in the backend (svcore/templates.py) - the same code the batch reports use
+  templateFits: (templates: Template[]) => call<{ fits: Record<string, number | null> }>("/api/templates/fit", { templates }),
+  bindTemplate: (template: Template, all: Template[], prefer?: string | null) =>
+    call<{ bind: Record<string, string>; slots: { id: string; names: number; counts: Record<string, number> }[] }>("/api/templates/bind", { template, all, prefer: prefer ?? null }),
+  resolveTemplate: (template: Template, all: Template[], bind: Record<string, string>, chosen: number[] | null, extraTabs: TplTab[]) =>
+    call<{ tabs: ResolvedTab[]; dropped: string[]; missing: string[] }>("/api/templates/resolve", { template, all, bind, chosen, extraTabs }),
   setTemplateFolder: (path: string | null) => call<TemplateFolderInfo & { copied: number }>("/api/templates/folder", { path }),
   saveTemplate: (template: Template, replace = true) => call<{ template: Template }>("/api/templates", { template, replace }),
   deleteTemplate: (id: string) => call<{ ok: boolean }>(`/api/templates/${encodeURIComponent(id)}`, undefined, "DELETE"),

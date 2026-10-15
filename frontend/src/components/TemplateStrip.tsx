@@ -3,7 +3,7 @@ import { api, type Template } from "../api";
 import { tabHasContent, useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
-import { BUILTIN_TEMPLATES, fit, tx } from "../templates";
+import { fits as templateFits, tx } from "../templates";
 import { openTemplates, saveAsTemplate } from "../templateMenu";
 
 /* Templates in the file panel, for ANY kind of file (CSV, MAT, flight logs): the few that fit the
@@ -16,23 +16,31 @@ export default function TemplateStrip() {
   const laterRuns = useDeferredValue(runs);
   const libOpen = useApp((s) => s.templatesOpen);
   const hasPlots = useApp((s) => s.ws.tabs.some(tabHasContent));
-  const [mine, setMine] = useState<Template[]>([]);
-  // re-read the user's templates when the library closes (one may have been saved or deleted)
-  useEffect(() => { if (!libOpen) api.templates().then((r) => setMine(r.templates)).catch(() => {}); }, [libOpen]);
+  const [all, setAll] = useState<Template[]>([]);
+  // re-read the templates when the library closes (one may have been saved or deleted)
+  useEffect(() => { if (!libOpen) api.templates().then((r) => setAll([...r.builtin, ...r.templates])).catch(() => {}); }, [libOpen]);
   const data = runs.filter((r) => r.format !== "derived");
+  // how well each template fits the open files (backend, the same matching as everywhere)
+  const [fitOf, setFitOf] = useState<Map<string, number>>(new Map());
+  const runsKey = laterRuns.map((r) => `${r.id}:${r.signals.length}`).join("|");
+  useEffect(() => {
+    if (!all.length || !data.length) { setFitOf(new Map()); return; }
+    let off = false;
+    templateFits(all, laterRuns).then((m) => { if (!off) setFitOf(m); }).catch(() => {});
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, runsKey]);
 
   const picks = useMemo(() => {
-    const all = [...BUILTIN_TEMPLATES, ...mine];
+    const f = (x: Template) => fitOf.get(x.id) ?? 0;
     // real fits first (own templates and the built-in views); the automatic ones fill the rest
-    const fitting = all.filter((x) => !x.generator && !x.broken)
-      .map((x) => ({ x, f: fit(x, all, laterRuns) })).filter((e) => e.f > 0.15)
-      .sort((a, b) => b.f - a.f).map((e) => e.x);
+    const fitting = all.filter((x) => !x.generator && !x.broken && f(x) > 0.15).sort((a, b) => f(b) - f(a));
     // the automatic ones: the position on the map when a file has one (first: it is the more telling),
     // the quick look, and comparing when several files are open
-    const auto = [...all.filter((x) => x.generator === "objects" && fit(x, all, laterRuns) > 0),
+    const auto = [...all.filter((x) => x.generator === "objects" && f(x) > 0),
       ...all.filter((x) => x.generator === "quicklook" || (x.generator === "compare" && data.length > 1))];
     return [...fitting, ...auto].slice(0, 3);
-  }, [mine, laterRuns, data.length]);
+  }, [all, fitOf, data.length]);
 
   if (!data.length) return null;
   return (
