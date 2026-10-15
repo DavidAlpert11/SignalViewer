@@ -1,4 +1,5 @@
 import { DATA_EXTS } from "./values";
+import { isEmptyStart, offerStart } from "./smartStart";
 import { api, type JobInfo, type LoadErrorInfo } from "./api";
 import { actions, useApp } from "./store";
 import { dictionaries, translate, type Lang, type TKey } from "./i18n";
@@ -67,6 +68,7 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
   const st = useApp.getState();
   const lang = st.lang;
   st.set({ busy: st.busy + 1 });
+  const emptyStart = isEmptyStart();                    // T29: the first file(s) into an empty workspace
   try {
     const names = paths.map((p) => p.split(/[\\/]/).pop()).join(", ");
     const res = await runJob<{ opened: any[]; errors: LoadErrorInfo[] }>(
@@ -74,6 +76,8 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
     if (!res) return;   // cancelled
     const runs = await api.listRuns();
     useApp.setState({ runs });
+    const firstNew = res.opened.find((o) => o?.id)?.id;
+    if (emptyStart && firstNew) offerStart(firstNew);          // in the background: never holds up the open
     refreshRecent();
     for (const err of res.errors) {
       const name = err.path.split(/[\\/]/).pop() || err.path;

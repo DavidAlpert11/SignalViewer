@@ -13,15 +13,15 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Pushed by the owner up to T10b (TASKS.md, T12 and T10b applied with `git am`).
-  On top of it, delivered as a patch: T11b (batch reports; template matching moved to the backend).
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b.
-- Tests at the last change: backend 347 passed (208 of them pin the template matching to the old
-  TypeScript answers); e2e `test_templates_recent_badfiles.py` 11, `test_object_templates.py` 4,
-  `test_features.py -k "templat or tpl or strip or quick"` passed. The full e2e set was last run
-  in full at T17b (141 passed).
+- Branch `main`. Applied by the owner up to T11b. On top of it, delivered as one patch: T29
+  (smart start) + F04 (opening in a folder with remembered import settings) + F05 (template
+  "Open" before the files were bound - a regression from T11b).
+- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b, T29.
+- Tests at the last change: backend 348 passed; e2e: EVERY file run, one per process
+  (146 passed: features 103, globe3d 10, map_objects 4, object_templates 4, offline_map 2,
+  templates_recent_badfiles 11, timeline 5, workflows 7).
 - Q1 (T12) waits for the owner's check with real SITL / a radio (the owner cannot test now).
-- **Next task: Q4 (T29 smart start).** Nothing started.
+- **Next task: Q5 (T19 + T20, calmer StageBar).** Nothing started.
 
 ## How to work here (practical notes)
 
@@ -124,7 +124,12 @@ built-in templates for ArduPilot / PX4 logs (attitude vs desired, vibration, bat
 jump to the time (`goToTime` / `showSpan`).
 **Done when:** opening an example `.bin` offers the built-in template and the health summary;
 dismissing remembers the choice for the session; e2e test.
-**Status:** not started.
+**Status:** done (see ROADMAP T29). Step 2 (built-in templates) needed nothing new. Step 3
+("dismissing remembers the choice for the session"): the card appears only for the first file
+into an empty workspace, so it does not come back by itself; there is no per-file memory.
+**Lesson (for any task):** a test that passes alone but fails in the full file usually means state
+left by an earlier test (here: remembered import settings in the shared test home) - and it found
+a real bug (F04). Run the whole file before calling a task done.
 
 ### Q5 · T19 + T20 Calmer StageBar — M
 **Why:** the bar has 7 layout icons, X/Y/XY, link X / Y - too much at once.
@@ -197,3 +202,7 @@ splitting `main.py` and `store.ts`.
   next: Q3.
 - 2026-10-15 · Q3 / T11b batch reports + template matching moved to `svcore/templates.py`
   (pinned to the TS answers) · backend 347, template e2e green · next: Q4.
+- 2026-10-15 · Q4 / T29 smart start; F04 fixed (found by T29's test in the full run: a .bin /
+  .tlog / .mat in a folder with remembered CSV settings opened with an error); F05 fixed (T11b
+  regression: template "Open" before the binding arrived) · backend 348, every e2e file green ·
+  next: Q5.

@@ -174,10 +174,12 @@ def open_with_prefs(path: str, settings: Optional[dict]):
         except LoadError as e:
             auto_err = e
         lr = auto
-        if remembered and (auto is None or not auto.run.load_report.get("timeByName", True)):
+        # the LoadedRun's report (every format); only the CSV loader puts one on the Run itself - a
+        # .bin / .tlog / .mat in a folder with remembered settings failed here after opening
+        if remembered and (auto is None or not auto.load_report.get("timeByName", True)):
             try:
                 alt = store.open_file(path, remembered)
-                if auto is None or alt.run.load_report.get("timeByName"):
+                if auto is None or alt.load_report.get("timeByName"):
                     if auto is not None:
                         store.remove(auto.id)
                     lr = alt

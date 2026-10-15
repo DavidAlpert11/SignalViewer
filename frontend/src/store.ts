@@ -141,6 +141,7 @@ interface AppState {
   liveStarting: boolean;
   mavlink: MavStatus | null;       // T12: the live MAVLink link (UI state, never saved)
   liveMenuOpen: boolean;           // the Live popover (also opened from Ctrl+K)
+  startCard: import("./smartStart").StartCard | null;   // T29: suggestions after the first file (UI only)
   liveIdle: number;
   logs: Record<string, LogInfo>;   // flight-log parameters / events per file (ArduPilot .bin), fetched on demand
   logMarkers: LogMarkers;          // log events drawn on time plots: none, warnings + errors, or all
@@ -244,6 +245,7 @@ export const useApp = create<AppState>((set, get) => ({
   liveStarting: false,
   mavlink: null,
   liveMenuOpen: false,
+  startCard: null,
   liveIdle: 0,
   logs: {},
   logMarkers: "important",
