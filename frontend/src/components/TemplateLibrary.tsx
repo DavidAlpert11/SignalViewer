@@ -6,7 +6,7 @@ import { Icon } from "../icons";
 import { confirmAsk, openMenu, useEscape } from "./Overlays";
 import { openPaths, refreshRecent } from "../files";
 import {
-  ALL, applyTemplate, autoBind, baseName, BUILTIN_TEMPLATES, expand, fit, includers, matchCount, slotNames, suggestTabName, templateFromTabs, tx,
+  ALL, applyTemplate, baseName, expand, fits as templateFits, includers, slotNames, suggestTabName, templateFromTabs, tx,
 } from "../templates";
 
 /** A new template's draft; src: for each of its tabs, the workspace tab it was made from (editor only, not saved). */
@@ -28,6 +28,7 @@ export default function TemplateLibrary() {
   const close = () => useApp.setState({ templatesOpen: false, templatesTarget: null, templatesNew: null, templatesSelect: null });
   useEscape(close);
   const [mine, setMine] = useState<Template[]>([]);
+  const [builtin, setBuiltin] = useState<Template[]>([]);
   const [folder, setFolder] = useState<TemplateFolderInfo | null>(null);
   const [q, setQ] = useState("");
   const [onlyFit, setOnlyFit] = useState(true);
@@ -40,12 +41,13 @@ export default function TemplateLibrary() {
     return { t: made.template, isNew: true, src: tabs.map((x) => x.id), slotRuns: made.slotRuns };
   };
   const newCollection = (): Draft => ({ t: { version: 2, id: "", name: t("tplCollectionNew"), slots: [{ id: "main", name: "@tplSlotFile" }], tabs: [], includes: [] }, isNew: true });
-  const all = useMemo(() => [...BUILTIN_TEMPLATES, ...mine.map((m) => ({ ...m, group: m.group || "mine" }))], [mine]);
+  const all = useMemo(() => [...builtin, ...mine.map((m) => ({ ...m, group: m.group || "mine" }))], [builtin, mine]);
   const data = runs.filter((r) => r.format !== "derived");
 
   const reload = async (select?: string) => {
     const r = await api.templates().catch(() => null);
     setMine(r?.templates ?? []);
+    if (r) setBuiltin(r.builtin);
     if (r) setFolder({ folder: r.folder, default: r.default, exists: r.exists, defaultFolder: r.defaultFolder });
     if (select) setSel(select);
   };
@@ -78,13 +80,21 @@ export default function TemplateLibrary() {
   useEffect(() => { reload(); }, []);
 
   // what fits the open files, for the list (and the first selection)
-  const fits = useMemo(() => new Map(all.map((x) => [x.id, fit(x, all, runs)])), [all, runs]);
+  const [fits, setFits] = useState<Map<string, number>>(new Map());
+  const runsKey = runs.map((r) => `${r.id}:${r.signals.length}`).join("|");
   useEffect(() => {
-    if (sel || draft || !all.length) return;
+    if (!all.length) return;
+    let off = false;
+    templateFits(all, runs).then((m) => { if (!off) setFits(m); }).catch(() => {});
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, runsKey]);
+  useEffect(() => {
+    if (sel || draft || !all.length || (data.length && !fits.size)) return;     // wait for the fits
     const preferFmt = runs.find((r) => r.id === prefer)?.format;
     const pick = all.filter((x) => !x.broken).sort((a, b) =>
-      (fits.get(b.id)! + (preferFmt && b.slots.some((s) => s.formats?.includes(preferFmt)) ? 0.5 : 0) + (b.includes?.length ? 0.1 : 0))
-      - (fits.get(a.id)! + (preferFmt && a.slots.some((s) => s.formats?.includes(preferFmt)) ? 0.5 : 0) + (a.includes?.length ? 0.1 : 0)))[0];
+      ((fits.get(b.id) ?? 0) + (preferFmt && b.slots.some((s) => s.formats?.includes(preferFmt)) ? 0.5 : 0) + (b.includes?.length ? 0.1 : 0))
+      - ((fits.get(a.id) ?? 0) + (preferFmt && a.slots.some((s) => s.formats?.includes(preferFmt)) ? 0.5 : 0) + (a.includes?.length ? 0.1 : 0)))[0];
     if (pick) setSel(pick.id);
   }, [all, fits, sel, draft, prefer, runs]);
 
@@ -200,11 +210,20 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
   const lang = useApp((s) => s.lang);
   const e = useMemo(() => expand(tpl, all), [tpl, all]);
   const data = runs.filter((r) => r.format !== "derived");
-  const [bind, setBind] = useState<Record<string, string>>(() => autoBind(e, runs, prefer));
-  // a file was opened or closed (e.g. "Open run_a.csv" below): match the files again
-  const runKey = data.map((r) => r.id).join(",");
-  const [boundFor, setBoundFor] = useState(runKey);
-  if (boundFor !== runKey) { setBoundFor(runKey); setBind(autoBind(e, runs, prefer)); }
+  // a file for each slot, and how many of its signals each file has (backend: svcore/templates.py);
+  // again when a file is opened or closed (e.g. "Open run_a.csv" below)
+  const [bind, setBind] = useState<Record<string, string>>({});
+  const [found, setFound] = useState<Record<string, Record<string, number>>>({});
+  const runKey = data.map((r) => `${r.id}:${r.signals.length}`).join(",");
+  useEffect(() => {
+    let off = false;
+    api.bindTemplate(tpl, all, prefer).then((r) => {
+      if (off) return;
+      setBind(r.bind); setFound(Object.fromEntries(r.slots.map((x) => [x.id, x.counts])));
+    }).catch(() => {});
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tpl, all, runKey, prefer]);
   const recent = useApp((s) => s.recent);
   useEffect(() => { refreshRecent(); }, []);
   /** The original file of a slot, if it still exists on disk (from the template, or the recent list). */
@@ -217,8 +236,10 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
   const [chosen, setChosen] = useState<Set<number>>(() => new Set(e.tabs.map((_x, i) => i)));
   const mineT = !tpl.builtin;
 
-  const open = () => {
-    const r = applyTemplate(tpl, all, bind, e.tabs.map((_x, i) => i).filter((i) => chosen.has(i)));
+  const open = async () => {
+    let r;
+    try { r = await applyTemplate(tpl, all, bind, e.tabs.map((_x, i) => i).filter((i) => chosen.has(i))); }
+    catch (err) { useApp.getState().toast({ kind: "error", text: String((err as Error).message) }); return; }
     const st = useApp.getState();
     if (!r.tabs) { st.toast({ kind: "error", text: t("tplNothing2", { names: r.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
     st.toast({ kind: "info", ms: r.dropped.length ? 12000 : 4000, text: t("tplOpened", { name: tx(tpl.name, lang), n: r.tabs, p: r.plots })
@@ -244,7 +265,8 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
         const names = slotNames(s.id, e.slots, e.tabs);
         const b = bind[s.id] ?? "";
         const run = data.find((r) => r.id === b);
-        const found = b === ALL ? Math.max(0, ...data.map((r) => matchCount(r, names))) : run ? matchCount(run, names) : 0;
+        const cnt = found[s.id] ?? {};
+        const hits = b === ALL ? Math.max(0, ...Object.values(cnt)) : run ? cnt[run.id] ?? 0 : 0;
         // was it given the same file as when the template was saved?
         const same = !!s.file && !!run && baseName(run.path).toLowerCase() === s.file.toLowerCase();
         const orig = s.file && !same && b !== ALL ? original(s) : null;
@@ -256,8 +278,8 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
               <option value={ALL}>{t("tplAllFiles")}</option>
               <option value="">{t("tplNoFile")}</option>
             </select>
-            {names.length > 0 && b && <span className={`tpl-found ${found === names.length ? "good" : found ? "part" : "none"}`}>
-              {t("tplFound", { n: found, of: names.length })}</span>}
+            {names.length > 0 && b && <span className={`tpl-found ${hits === names.length ? "good" : hits ? "part" : "none"}`}>
+              {t("tplFound", { n: hits, of: names.length })}</span>}
             {s.file && b !== ALL && (
               <span className={`tpl-slot-note hint${same ? " ok" : ""}`}>
                 {same ? t("tplSameFile") : b ? t("tplFileMissing", { file: s.file }) : t("tplFileMissingNone", { file: s.file })}

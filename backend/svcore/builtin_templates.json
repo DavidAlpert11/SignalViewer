@@ -1,0 +1,1613 @@
+[
+ {
+  "version": 2,
+  "id": "bi-quicklook",
+  "group": "general",
+  "builtin": true,
+  "name": "Quick look",
+  "description": "@tplQuickDesc",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotFile"
+   }
+  ],
+  "tabs": [],
+  "generator": "quicklook"
+ },
+ {
+  "version": 2,
+  "id": "bi-compare-files",
+  "group": "general",
+  "builtin": true,
+  "name": "Compare open files",
+  "description": "@tplCompareDesc",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAll"
+   }
+  ],
+  "tabs": [],
+  "generator": "compare"
+ },
+ {
+  "version": 2,
+  "id": "bi-position",
+  "group": "general",
+  "builtin": true,
+  "name": "Position on the map & 3D",
+  "description": "@tplObjDesc",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotFile"
+   }
+  ],
+  "tabs": [],
+  "generator": "objects"
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-review",
+  "group": "ardupilot",
+  "builtin": true,
+  "name": "ArduPilot · Full review",
+  "description": "@tplApReview",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [],
+  "includes": [
+   "bi-ap-attitude",
+   "bi-ap-rates",
+   "bi-ap-vibration",
+   "bi-ap-battery",
+   "bi-ap-gps",
+   "bi-ap-motors",
+   "bi-ap-altitude",
+   "bi-ap-ekf",
+   "bi-ap-flight"
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-attitude",
+  "name": "ArduPilot · Attitude",
+  "description": "@tplApAtt",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Attitude",
+    "rows": 3,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Roll",
+      "signals": [
+       {
+        "name": "ATT.DesRoll",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "ATT.Roll",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Pitch",
+      "signals": [
+       {
+        "name": "ATT.DesPitch",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "ATT.Pitch",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Yaw",
+      "signals": [
+       {
+        "name": "ATT.DesYaw",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "ATT.Yaw",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-rates",
+  "name": "ArduPilot · Rates (PID)",
+  "description": "@tplApRate",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Rates",
+    "rows": 3,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Roll rate",
+      "signals": [
+       {
+        "name": "RATE.RDes",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RATE.R",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Pitch rate",
+      "signals": [
+       {
+        "name": "RATE.PDes",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RATE.P",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Yaw rate",
+      "signals": [
+       {
+        "name": "RATE.YDes",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RATE.Y",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-vibration",
+  "name": "ArduPilot · Vibration",
+  "description": "@tplApVibe",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Vibration",
+    "rows": 3,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Vibration",
+      "signals": [
+       {
+        "name": "VIBE.VibeX",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "VIBE.VibeY",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "VIBE.VibeZ",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Clipping",
+      "signals": [
+       {
+        "name": "VIBE.Clip|VIBE.Clip0",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "VIBE.Clip1",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "VIBE.Clip2",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "IMU Z spectrogram",
+      "signals": [
+       {
+        "name": "IMU.AccZ",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ],
+      "mode": "spec",
+      "specN": 1024
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-battery",
+  "name": "ArduPilot · Battery & power",
+  "description": "@tplApBatt",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Battery",
+    "rows": 2,
+    "cols": 2,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Voltage",
+      "signals": [
+       {
+        "name": "BAT.Volt|BATT.Volt|CURR.Volt",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Current",
+      "signals": [
+       {
+        "name": "BAT.Curr|BATT.Curr|CURR.Curr",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Used (mAh)",
+      "signals": [
+       {
+        "name": "BAT.CurrTot|BATT.CurrTot|CURR.CurrTot",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Board / servo power",
+      "signals": [
+       {
+        "name": "POWR.Vcc",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "POWR.VServo",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-gps",
+  "name": "ArduPilot · GPS",
+  "description": "@tplApGps",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "GPS",
+    "rows": 2,
+    "cols": 2,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Satellites & HDop",
+      "signals": [
+       {
+        "name": "GPS.NSats",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "GPS.HDop",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Altitude",
+      "signals": [
+       {
+        "name": "GPS.Alt",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "BARO.Alt",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "CTUN.Alt",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Ground speed",
+      "signals": [
+       {
+        "name": "GPS.Spd",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Track",
+      "signals": [
+       {
+        "name": "GPS.Lat",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ],
+      "mode": "geo",
+      "xSignal": "GPS.Lng"
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-motors",
+  "name": "ArduPilot · Motors & RC",
+  "description": "@tplApMot",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Motors",
+    "rows": 2,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Motor outputs",
+      "signals": [
+       {
+        "name": "RCOU.C1",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RCOU.C2",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "RCOU.C3",
+        "color": "#4CC38A",
+        "width": 1.5
+       },
+       {
+        "name": "RCOU.C4",
+        "color": "#E5534B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "RC inputs",
+      "signals": [
+       {
+        "name": "RCIN.C1",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RCIN.C2",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "RCIN.C3",
+        "color": "#4CC38A",
+        "width": 1.5
+       },
+       {
+        "name": "RCIN.C4",
+        "color": "#E5534B",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-altitude",
+  "name": "ArduPilot · Altitude",
+  "description": "@tplApAlt",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Altitude",
+    "rows": 2,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Altitude",
+      "signals": [
+       {
+        "name": "CTUN.DAlt",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "CTUN.Alt",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "CTUN.BAlt",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Climb rate",
+      "signals": [
+       {
+        "name": "CTUN.DCRt",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "CTUN.CRt",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-ekf",
+  "name": "ArduPilot · EKF",
+  "description": "@tplApEkf",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "EKF",
+    "rows": 2,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Variances",
+      "signals": [
+       {
+        "name": "XKF4.SV|NKF4.SV|EKF4.SV",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "XKF4.SP|NKF4.SP|EKF4.SP",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "XKF4.SH|NKF4.SH|EKF4.SH",
+        "color": "#4CC38A",
+        "width": 1.5
+       },
+       {
+        "name": "XKF4.SM|NKF4.SM|NKF4.SMX|EKF4.SMX",
+        "color": "#E5534B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Innovations (velocity)",
+      "signals": [
+       {
+        "name": "XKF3.IVN|NKF3.IVN|EKF3.IVN",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "XKF3.IVE|NKF3.IVE|EKF3.IVE",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "XKF3.IVD|NKF3.IVD|EKF3.IVD",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-flight",
+  "name": "ArduPilot · Flight on the map & 3D",
+  "description": "@tplApFlight",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Flight",
+    "rows": 1,
+    "cols": 2,
+    "linkX": false,
+    "plots": [
+     {
+      "title": "Map",
+      "mode": "geo",
+      "signals": [],
+      "objects": [
+       {
+        "name": "Vehicle",
+        "kind": "aircraft",
+        "color": "#E5534B",
+        "roles": {
+         "lat": {
+          "name": "GPS.Lat|POS.Lat"
+         },
+         "lon": {
+          "name": "GPS.Lng|POS.Lng"
+         },
+         "alt": {
+          "name": "GPS.Alt|POS.Alt"
+         },
+         "yaw": {
+          "name": "ATT.Yaw"
+         },
+         "pitch": {
+          "name": "ATT.Pitch"
+         },
+         "roll": {
+          "name": "ATT.Roll"
+         }
+        }
+       }
+      ]
+     },
+     {
+      "title": "3D",
+      "mode": "3d",
+      "signals": [],
+      "objects": [
+       {
+        "name": "Vehicle",
+        "kind": "aircraft",
+        "color": "#E5534B",
+        "roles": {
+         "lat": {
+          "name": "GPS.Lat|POS.Lat"
+         },
+         "lon": {
+          "name": "GPS.Lng|POS.Lng"
+         },
+         "alt": {
+          "name": "GPS.Alt|POS.Alt"
+         },
+         "yaw": {
+          "name": "ATT.Yaw"
+         },
+         "pitch": {
+          "name": "ATT.Pitch"
+         },
+         "roll": {
+          "name": "ATT.Roll"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-mav-review",
+  "group": "mavlink",
+  "builtin": true,
+  "name": "MAVLink · Full review",
+  "description": "@tplMavReview",
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [],
+  "includes": [
+   "bi-mav-attitude",
+   "bi-mav-battery",
+   "bi-mav-vibration",
+   "bi-mav-link",
+   "bi-mav-flight"
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-mav-attitude",
+  "name": "MAVLink · Attitude",
+  "description": "@tplMavAtt",
+  "group": "mavlink",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Attitude",
+    "rows": 3,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Roll",
+      "signals": [
+       {
+        "name": "ATTITUDE.roll",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Pitch",
+      "signals": [
+       {
+        "name": "ATTITUDE.pitch",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Yaw",
+      "signals": [
+       {
+        "name": "ATTITUDE.yaw",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "HEARTBEAT.custom_mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-mav-battery",
+  "name": "MAVLink · Battery & GPS",
+  "description": "@tplMavBatt",
+  "group": "mavlink",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Battery & GPS",
+    "rows": 2,
+    "cols": 2,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Battery",
+      "signals": [
+       {
+        "name": "SYS_STATUS.voltage_battery",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Current",
+      "signals": [
+       {
+        "name": "BATTERY_STATUS.current_battery|SYS_STATUS.current_battery",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Satellites",
+      "signals": [
+       {
+        "name": "GPS_RAW_INT.satellites_visible",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Track",
+      "signals": [
+       {
+        "name": "GPS_RAW_INT.lat",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ],
+      "mode": "geo",
+      "xSignal": "GPS_RAW_INT.lon"
+     }
+    ],
+    "lanes": [
+     {
+      "name": "HEARTBEAT.custom_mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-mav-vibration",
+  "name": "MAVLink · Vibration",
+  "description": "@tplMavVibe",
+  "group": "mavlink",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Vibration",
+    "rows": 2,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Vibration",
+      "signals": [
+       {
+        "name": "VIBRATION.vibration_x",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "VIBRATION.vibration_y",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "VIBRATION.vibration_z",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Clipping",
+      "signals": [
+       {
+        "name": "VIBRATION.clipping_0",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "VIBRATION.clipping_1",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "VIBRATION.clipping_2",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "HEARTBEAT.custom_mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-mav-link",
+  "name": "MAVLink · Radio link",
+  "description": "@tplMavLink",
+  "group": "mavlink",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Radio link",
+    "rows": 2,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Signal strength",
+      "signals": [
+       {
+        "name": "RADIO_STATUS.rssi",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RADIO_STATUS.remrssi",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "RADIO_STATUS.noise",
+        "color": "#4CC38A",
+        "width": 1.5
+       },
+       {
+        "name": "RADIO_STATUS.remnoise",
+        "color": "#E5534B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Errors & buffer",
+      "signals": [
+       {
+        "name": "RADIO_STATUS.rxerrors",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RADIO_STATUS.fixed",
+        "color": "#F2A93B",
+        "width": 1.5
+       },
+       {
+        "name": "RADIO_STATUS.txbuf",
+        "color": "#4CC38A",
+        "width": 1.5
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "HEARTBEAT.custom_mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-mav-flight",
+  "name": "MAVLink · Flight on the map & 3D",
+  "description": "@tplMavFlight",
+  "group": "mavlink",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Flight",
+    "rows": 1,
+    "cols": 2,
+    "linkX": false,
+    "plots": [
+     {
+      "title": "Map",
+      "mode": "geo",
+      "signals": [],
+      "objects": [
+       {
+        "name": "Vehicle",
+        "kind": "aircraft",
+        "color": "#E5534B",
+        "roles": {
+         "lat": {
+          "name": "GLOBAL_POSITION_INT.lat|GPS_RAW_INT.lat"
+         },
+         "lon": {
+          "name": "GLOBAL_POSITION_INT.lon|GPS_RAW_INT.lon"
+         },
+         "alt": {
+          "name": "GLOBAL_POSITION_INT.alt|GPS_RAW_INT.alt"
+         },
+         "yaw": {
+          "name": "ATTITUDE.yaw"
+         },
+         "pitch": {
+          "name": "ATTITUDE.pitch"
+         },
+         "roll": {
+          "name": "ATTITUDE.roll"
+         }
+        }
+       }
+      ]
+     },
+     {
+      "title": "3D",
+      "mode": "3d",
+      "signals": [],
+      "objects": [
+       {
+        "name": "Vehicle",
+        "kind": "aircraft",
+        "color": "#E5534B",
+        "roles": {
+         "lat": {
+          "name": "GLOBAL_POSITION_INT.lat|GPS_RAW_INT.lat"
+         },
+         "lon": {
+          "name": "GLOBAL_POSITION_INT.lon|GPS_RAW_INT.lon"
+         },
+         "alt": {
+          "name": "GLOBAL_POSITION_INT.alt|GPS_RAW_INT.alt"
+         },
+         "yaw": {
+          "name": "ATTITUDE.yaw"
+         },
+         "pitch": {
+          "name": "ATTITUDE.pitch"
+         },
+         "roll": {
+          "name": "ATTITUDE.roll"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-px4-battery",
+  "name": "PX4 · Battery & GPS",
+  "description": "@tplPx4Batt",
+  "group": "px4",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotPx4",
+    "formats": [
+     "ulg"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Battery & GPS",
+    "rows": 2,
+    "cols": 2,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Battery",
+      "signals": [
+       {
+        "name": "battery_status.voltage_v",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Current",
+      "signals": [
+       {
+        "name": "battery_status.current_a",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Satellites",
+      "signals": [
+       {
+        "name": "vehicle_gps_position.satellites_used|sensor_gps.satellites_used",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Track",
+      "signals": [
+       {
+        "name": "vehicle_gps_position.lat|sensor_gps.lat",
+        "color": "#3D8BFD",
+        "width": 1.5
+       }
+      ],
+      "mode": "geo",
+      "xSignal": "vehicle_gps_position.lon|sensor_gps.lon"
+     }
+    ],
+    "lanes": [
+     {
+      "name": "vehicle_status.nav_state"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-px4-flight",
+  "name": "PX4 · Flight on the map & 3D",
+  "description": "@tplPx4Flight",
+  "group": "px4",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotPx4",
+    "formats": [
+     "ulg"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Flight",
+    "rows": 1,
+    "cols": 2,
+    "linkX": false,
+    "plots": [
+     {
+      "title": "Map",
+      "mode": "geo",
+      "signals": [],
+      "objects": [
+       {
+        "name": "Vehicle",
+        "kind": "aircraft",
+        "color": "#E5534B",
+        "roles": {
+         "lat": {
+          "name": "vehicle_global_position.lat|vehicle_gps_position.lat|sensor_gps.lat"
+         },
+         "lon": {
+          "name": "vehicle_global_position.lon|vehicle_gps_position.lon|sensor_gps.lon"
+         },
+         "alt": {
+          "name": "vehicle_global_position.alt|sensor_gps.altitude_msl_m|vehicle_gps_position.alt"
+         },
+         "qw": {
+          "name": "vehicle_attitude.q[0]"
+         },
+         "qx": {
+          "name": "vehicle_attitude.q[1]"
+         },
+         "qy": {
+          "name": "vehicle_attitude.q[2]"
+         },
+         "qz": {
+          "name": "vehicle_attitude.q[3]"
+         }
+        }
+       }
+      ]
+     },
+     {
+      "title": "3D",
+      "mode": "3d",
+      "signals": [],
+      "objects": [
+       {
+        "name": "Vehicle",
+        "kind": "aircraft",
+        "color": "#E5534B",
+        "roles": {
+         "lat": {
+          "name": "vehicle_global_position.lat|vehicle_gps_position.lat|sensor_gps.lat"
+         },
+         "lon": {
+          "name": "vehicle_global_position.lon|vehicle_gps_position.lon|sensor_gps.lon"
+         },
+         "alt": {
+          "name": "vehicle_global_position.alt|sensor_gps.altitude_msl_m|vehicle_gps_position.alt"
+         },
+         "qw": {
+          "name": "vehicle_attitude.q[0]"
+         },
+         "qx": {
+          "name": "vehicle_attitude.q[1]"
+         },
+         "qy": {
+          "name": "vehicle_attitude.q[2]"
+         },
+         "qz": {
+          "name": "vehicle_attitude.q[3]"
+         }
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-pair-attitude",
+  "group": "compare",
+  "builtin": true,
+  "name": "Autopilot log vs telemetry · Attitude & altitude",
+  "description": "@tplPairAtt",
+  "slots": [
+   {
+    "id": "ap",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin",
+     "ulg"
+    ]
+   },
+   {
+    "id": "tl",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Attitude & altitude",
+    "rows": 3,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Roll (deg)",
+      "signals": [
+       {
+        "name": "ATT.Roll",
+        "slot": "ap",
+        "color": "#3D8BFD",
+        "width": 3
+       },
+       {
+        "name": "ATTITUDE.roll",
+        "slot": "tl",
+        "color": "#E5534B",
+        "width": 1.5,
+        "scale": 57.29578
+       }
+      ]
+     },
+     {
+      "title": "Pitch (deg)",
+      "signals": [
+       {
+        "name": "ATT.Pitch",
+        "slot": "ap",
+        "color": "#3D8BFD",
+        "width": 3
+       },
+       {
+        "name": "ATTITUDE.pitch",
+        "slot": "tl",
+        "color": "#E5534B",
+        "width": 1.5,
+        "scale": 57.29578
+       }
+      ]
+     },
+     {
+      "title": "Altitude",
+      "signals": [
+       {
+        "name": "CTUN.Alt|BARO.Alt",
+        "slot": "ap",
+        "color": "#3D8BFD",
+        "width": 3
+       },
+       {
+        "name": "VFR_HUD.alt|GLOBAL_POSITION_INT.relative_alt",
+        "slot": "tl",
+        "color": "#E5534B",
+        "width": 1.5,
+        "scale": 1
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode",
+      "slot": "ap"
+     },
+     {
+      "name": "HEARTBEAT.custom_mode",
+      "slot": "tl"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-pair-battery",
+  "group": "compare",
+  "builtin": true,
+  "name": "Autopilot log vs telemetry · Battery, GPS & link",
+  "description": "@tplPairBatt",
+  "slots": [
+   {
+    "id": "ap",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin",
+     "ulg"
+    ]
+   },
+   {
+    "id": "tl",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Battery, GPS & link",
+    "rows": 2,
+    "cols": 2,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Battery voltage",
+      "signals": [
+       {
+        "name": "BAT.Volt|BATT.Volt|CURR.Volt",
+        "slot": "ap",
+        "color": "#3D8BFD",
+        "width": 3
+       },
+       {
+        "name": "SYS_STATUS.voltage_battery",
+        "slot": "tl",
+        "color": "#E5534B",
+        "width": 1.5,
+        "scale": 1
+       }
+      ]
+     },
+     {
+      "title": "GPS satellites",
+      "signals": [
+       {
+        "name": "GPS.NSats",
+        "slot": "ap",
+        "color": "#3D8BFD",
+        "width": 3
+       },
+       {
+        "name": "GPS_RAW_INT.satellites_visible",
+        "slot": "tl",
+        "color": "#E5534B",
+        "width": 1.5,
+        "scale": 1
+       }
+      ]
+     },
+     {
+      "title": "Ground speed",
+      "signals": [
+       {
+        "name": "GPS.Spd",
+        "slot": "ap",
+        "color": "#3D8BFD",
+        "width": 3
+       },
+       {
+        "name": "VFR_HUD.groundspeed",
+        "slot": "tl",
+        "color": "#E5534B",
+        "width": 1.5,
+        "scale": 1
+       }
+      ]
+     },
+     {
+      "title": "Radio link (telemetry)",
+      "signals": [
+       {
+        "name": "RADIO_STATUS.rssi",
+        "slot": "tl"
+       },
+       {
+        "name": "RADIO_STATUS.remrssi",
+        "slot": "tl"
+       }
+      ]
+     }
+    ],
+    "lanes": [
+     {
+      "name": "MODE.Mode",
+      "slot": "ap"
+     },
+     {
+      "name": "HEARTBEAT.custom_mode",
+      "slot": "tl"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-pair-review",
+  "group": "compare",
+  "builtin": true,
+  "name": "Autopilot log vs telemetry · Full comparison",
+  "description": "@tplPairReview",
+  "slots": [
+   {
+    "id": "ap",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin",
+     "ulg"
+    ]
+   },
+   {
+    "id": "tl",
+    "name": "@tplSlotTl",
+    "formats": [
+     "tlog"
+    ]
+   }
+  ],
+  "tabs": [],
+  "includes": [
+   "bi-pair-attitude",
+   "bi-pair-battery"
+  ]
+ }
+]

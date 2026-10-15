@@ -101,10 +101,24 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   [--signals a,b --t0 --t1]`; MATLAB: `system(...)` + `load`. Reuses `Store.open_file`, so
   every format and its auto-detection behave as in the app. Loader prints go to stderr so
   `--json` stays parseable. Tests: `backend/tests/test_cli_api.py`.
-- [ ] **T11b Batch reports from a template** (`cli.py report --template T --out DIR files…`).
+- [x] **T11b Batch reports from a template** (`cli.py report --template T --out DIR files…`).
   Needs the template matching (`autoBind` / `applyTemplate`, now only in `templates.ts`)
   in ONE place: move it to the backend, have the UI call it, then the CLI uses the same code.
   Not duplicated in Python on purpose (CLAUDE.md: one way to do a thing).
+  Done: `svcore/templates.py` is the one implementation of name matching, `expand`, `auto_bind`,
+  `fit`, `slot_report` and `resolve` (a template's tabs with real signal ids; colour None = the
+  caller picks). Pinned to the old TypeScript answers: `tests/data/template_matching_ts.json`
+  (208 cases recorded from `templates.ts` before the move) + `test_template_matching.py`.
+  Built-in templates are data now: `svcore/builtin_templates.json`, sent with `GET
+  /api/templates` (`builtin`) and bundled in the spec. API `/api/templates/fit|bind|resolve`;
+  the UI (TemplateStrip, TemplateLibrary, `applyTemplate`, now async) calls them. Kept in the UI:
+  capturing tabs as a template, `expand` / `slotNames` / `includers` for showing a template's
+  structure, and the three generators (their tabs go to `resolve` as `extraTabs`; the objects
+  generator's fit stays in the UI because it uses `guessRoles`). Batch: `app/batch.py`
+  (fresh `Store` per file, `auto_bind` + `resolve` + `fill_colors` -> report specs like
+  `plotSpec.ts`, the same `report.build_*`), `cli.py report` / `cli.py templates`. Generator
+  templates are refused with a message (their tabs come from what the app shows). Tests:
+  `test_template_matching.py`, `test_batch_reports.py`; template e2e files all green.
 
 ### Found while working
 - [x] **F03 3D measure test broke after T08** - not an app bug: with the Inspector closed the 3D
