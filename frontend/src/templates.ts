@@ -146,6 +146,15 @@ export async function fits(all: Template[], runs: RunInfo[]): Promise<Map<string
   const r = await api.templateFits(all);
   return new Map(all.map((t) => [t.id, r.fits[t.id] ?? objectsFit(t, runs)]));
 }
+/** Templates best first for the open files: how well they fit, a template made for the file's
+ *  format (preferFmt) first, and a collection ahead of its parts. Shared by the library (its first
+ *  selection) and the start card, so both suggest the same one. */
+export function rankTemplates(all: Template[], fitOf: Map<string, number>, preferFmt?: string | null): Template[] {
+  const score = (x: Template) => (fitOf.get(x.id) ?? 0) + (preferFmt && x.slots.some((s) => s.formats?.includes(preferFmt)) ? 0.5 : 0)
+    + (x.includes?.length ? 0.1 : 0);
+  return all.filter((x) => !x.broken).sort((a, b) => score(b) - score(a));
+}
+
 /** "Position on the map & 3D" fits only when a file has latitude and longitude signals. */
 const objectsFit = (t: Template, runs: RunInfo[]) =>
   t.generator === "objects" && dataRuns(runs).some((r) => { const g = guessRoles(r); return !!(g.lat && g.lon); }) ? 1 : 0;
