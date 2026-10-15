@@ -1016,3 +1016,11 @@ input.fx-input { width: 100%; }
 .mav-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
 .popover .mav-section label.acheck { flex-direction: row; align-items: center; gap: 6px; color: var(--ink); }
 .popover .mav-section .hint { margin: 0; font-size: 0.8846rem; }
+/* T10b: the same segment of each run (Compare runs) */
+.seg-pick { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.seg-wins { list-style: none; margin: 2px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.8846rem; }
+.seg-wins li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.seg-wins .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg-wins .when { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.seg-wins li.missing .nm, .seg-wins li.missing .when { color: var(--faint); }
+.cmp-seg { margin: 0; padding: 4px 16px 6px; color: var(--muted); font-size: 0.8846rem; }

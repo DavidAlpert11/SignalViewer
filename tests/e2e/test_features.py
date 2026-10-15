@@ -805,6 +805,29 @@ def test_frame_conversion(pg):
     assert pg.locator(".grp-head .nm").all_inner_texts()[-2:] == ["enu_Vec_ned", "enu_Vec_ned_2"]
 
 
+def test_compare_same_segment_across_runs(pg):
+    """T10b: Compare runs over a segment - the same value + occurrence of a state signal in each
+    file, compared from each one's own start; clicking a signal shows them aligned in a new tab."""
+    open_files(pg, "run_a.csv", "run_b.csv", "run_c.csv")
+    pg.click("[aria-label='Compare runs']")
+    pg.locator(".cmp-panel .seg.wide button", has_text="A segment").click()
+    pg.locator(".seg-pick label:has-text('State signal') select").select_option("Gear")
+    pg.locator(".seg-pick label:has-text('Value') select").select_option("2")
+    pg.wait_for_function("document.querySelectorAll('.seg-wins li').length === 3")
+    assert pg.locator(".seg-wins li .when").all_inner_texts() == ["at 12 s, 6 s long"] * 3
+    pg.locator(".seg-pick label:has-text('Which one') select").select_option("2")      # Gear is 2 only once
+    pg.wait_for_function("[...document.querySelectorAll('.seg-wins li')].every(li => li.classList.contains('missing'))")
+    assert "fewer than two files" in pg.locator(".cmp-panel").inner_text().lower()
+    pg.locator(".seg-pick label:has-text('Which one') select").select_option("1")
+    pg.wait_for_selector(".sim-row:has-text('Speed')", timeout=20000)
+    pg.locator(".sim-row", has_text="Speed").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.name === 'Gear = 2 · #1')")
+    sigs = S(pg, "s.ws.tabs.find(t => t.name === 'Gear = 2 · #1').plots[0].signals.map(x => x.tOffset)")
+    assert sigs == [-12, -12, -12]
+    tab_id = S(pg, "s.ws.tabs.find(t => t.name === 'Gear = 2 · #1').id")
+    assert S(pg, f"s.ranges['{tab_id}']") == [0, 6]                         # from the segment start, its length
+
+
 def test_live_mavlink(pg):
     """T12: Live > MAVLink records the link to a .tlog, opens it and follows it in live mode;
     Disconnect keeps the recording."""

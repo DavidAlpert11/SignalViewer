@@ -208,8 +208,11 @@ export const api = {
   completePath: (text: string, base: string | null, exts?: string[]) =>
     call<{ dir: string | null; items: { name: string; path: string; dir: boolean }[]; common: string }>("/api/fs/complete", { text, base, exts }),
   listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[] }>("/api/fs/list", { path, exts }),
-  compare: (signals: string[], baseline: string, alignment: string, tolAbs: number | null, tolPct: number | null) =>
-    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct }),
+  compare: (signals: string[], baseline: string, alignment: string, tolAbs: number | null, tolPct: number | null,
+    windows?: Record<string, [number, number]> | null) =>
+    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct, windows: windows ?? null }),
+  segmentsAcross: (runs: string[], state: string, value: number, occurrence: number) =>
+    call<{ windows: import("./segments").SegWindow[] }>("/api/segments/across", { runs, state, value, occurrence }),
   compareAll: (runs: string[], baselineRun: string, alignment: string, tolAbs: number | null, tolPct: number | null) =>
     call<{ signals: CompareAllRow[] }>("/api/compare/all", { runs, baselineRun, alignment, tolAbs, tolPct }),
   shift: (base: string, other: string) => call<{ shift: number }>("/api/compare/shift", { base, other }),

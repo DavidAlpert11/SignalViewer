@@ -5,6 +5,7 @@ import { fmtNum, translate, useT } from "../i18n";
 import { startJob } from "../files";
 import { Icon } from "../icons";
 import { exactMatch } from "../fuzzy";
+import { showSegmentPlot, type SegmentChoice, type SegWindow } from "../segments";
 
 /* ---------------------------------------------------------------------------
    Compare panel. Choosing two or more files immediately lists every shared
@@ -60,6 +61,13 @@ export default function ComparePanel() {
   const [rows, setRows] = useState<CompareRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const jobRef = useRef<{ cancel: () => void } | null>(null);
+  // T10b: compare over one segment (e.g. the 2nd AUTO) of every run instead of their common time
+  const [over, setOver] = useState<"whole" | "segment">("whole");
+  const [segState, setSegState] = useState("");
+  const [segValues, setSegValues] = useState<{ value: number; label: string | null }[]>([]);
+  const [segValue, setSegValue] = useState<number | null>(null);
+  const [segOcc, setSegOcc] = useState(1);
+  const [segWin, setSegWin] = useState<SegWindow[] | null>(null);
 
   useEffect(() => {   // keep the selection valid as files open and close
     setChosen((cur) => {
@@ -71,23 +79,66 @@ export default function ComparePanel() {
   useEffect(() => { if (baseline !== "mean" && !chosen.includes(baseline)) setBaseline(chosen[0] ?? ""); }, [chosen, baseline]);
 
   const num = (v: string) => (v.trim() === "" || !Number.isFinite(+v) ? null : +v);
+
+  /* ------------- T10b segment: state signals shared by the chosen files ------------- */
+  const stateNames = useMemo(() => {
+    const count = new Map<string, number>();
+    runs.filter((r) => chosen.includes(r.id)).forEach((r) => r.signals.forEach((x) => {
+      if (x.labels || x.discrete) count.set(x.name, (count.get(x.name) ?? 0) + 1);
+    }));
+    return Array.from(count).filter(([, n]) => n >= 2).map(([nm]) => nm).sort();
+  }, [runs, chosen]);
+  useEffect(() => { if (over === "segment" && !stateNames.includes(segState)) setSegState(stateNames[0] ?? ""); }, [over, stateNames, segState]);
+  useEffect(() => {                         // the values the state takes in any chosen file (with their text)
+    if (over !== "segment" || !segState) { setSegValues([]); return; }
+    let off = false;
+    Promise.all(chosen.filter((rid) => runs.find((r) => r.id === rid)?.signals.some((x) => x.name === segState))
+      .map((rid) => api.segments(`${rid}/${segState}`).then((r) => r.byValue).catch(() => [])))
+      .then((all) => {
+        if (off) return;
+        const m = new Map<number, string | null>();
+        all.flat().forEach((v) => { if (!m.has(v.value) || (!m.get(v.value) && v.label)) m.set(v.value, v.label); });
+        const vals = Array.from(m, ([value, label]) => ({ value, label })).sort((a, b) => a.value - b.value);
+        setSegValues(vals);
+        setSegValue((cur) => (cur !== null && vals.some((v) => v.value === cur) ? cur : vals[0]?.value ?? null));
+      });
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [over, segState, chosen.join(","), dataVersion]);
+  useEffect(() => {
+    if (over !== "segment" || !segState || segValue === null) { setSegWin(null); return; }
+    let off = false;
+    api.segmentsAcross(chosen, segState, segValue, segOcc).then((r) => { if (!off) setSegWin(r.windows); }).catch(() => { if (!off) setSegWin(null); });
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [over, segState, segValue, segOcc, chosen.join(","), dataVersion]);
+  const valueText = (v: number | null) => { const x = segValues.find((s) => s.value === v); return x?.label ?? (v === null ? "" : String(v)); };
+  const occText = (k: number) => (k === -1 ? t("occLast") : t("occNth", { n: k }));
+  const segment: SegmentChoice | null = over === "segment" && segWin
+    ? { title: `${segState} = ${valueText(segValue)} · ${occText(segOcc)}`,
+        windows: Object.fromEntries(segWin.filter((w) => w.t0 !== undefined).map((w) => [w.run, [w.t0!, w.t1!] as [number, number]])) }
+    : null;
+  // in segment mode only the files where the segment was found take part
+  const active = segment ? chosen.filter((rid) => segment.windows[rid]) : chosen;
+  const segWaiting = over === "segment" && !segment;
   const tolSet = num(tolAbs) !== null || num(tolPct) !== null;
   const runName = (rid: string) => fileLabel(allRuns, rid);
   const runColor = (rid: string) => TRACE_COLORS[Math.max(0, chosen.indexOf(rid)) % TRACE_COLORS.length];
 
   /* ------------- similarity list: debounced, cancellable, cached ------------- */
-  const key = `${[...chosen].sort().join(",")}|${baseline}|${alignment}|${tolAbs}|${tolPct}|${dataVersion}`;
+  const key = `${[...active].sort().join(",")}|${baseline}|${alignment}|${tolAbs}|${tolPct}|${dataVersion}|${segment ? JSON.stringify(segment.windows) : ""}|${segWaiting}`;
   useEffect(() => {
     jobRef.current?.cancel();                // a newer choice replaces any running computation
     jobRef.current = null;
     setSimError("");
-    if (chosen.length < 2 || !baseline) { setSim(null); setProgress(null); return; }
+    if (active.length < 2 || !baseline || segWaiting) { setSim(null); setProgress(null); return; }
+    const base = baseline === "mean" || active.includes(baseline) ? baseline : "mean";
     const hit = cache.get(key);
     if (hit) { setSim(hit); setProgress(null); return; }
     setProgress(0);
     const h = window.setTimeout(() => {
       const job = startJob<{ signals: CompareAllRow[] }>("compareAll",
-        { runs: chosen, baselineRun: baseline, alignment, tolAbs: num(tolAbs), tolPct: num(tolPct), points: LIST_POINTS },
+        { runs: active, baselineRun: base, alignment, tolAbs: num(tolAbs), tolPct: num(tolPct), points: LIST_POINTS, windows: segment?.windows ?? null },
         (p) => setProgress(p));
       jobRef.current = job;
       job.result.then((r) => {
@@ -118,12 +169,13 @@ export default function ComparePanel() {
     setBusy(true);
     try {
       const base = baseline !== "mean" && runsOf.includes(baseline) ? `${baseline}/${name}` : "mean";
-      const r = await api.compare(runsOf.map((c) => `${c}/${name}`), base, alignment, num(tolAbs), num(tolPct));
+      const r = await api.compare(runsOf.map((c) => `${c}/${name}`), base, alignment, num(tolAbs), num(tolPct), segment?.windows);
       setRows(r.rows);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); setRows(null); }
     finally { setBusy(false); }
   };
   const showInPlot = (name: string, runsOf: string[], newPlot: boolean) => {
+    if (segment) { showSegmentPlot(name, runsOf, segment, newPlot, runColor); return; }
     let full = false;
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
@@ -141,12 +193,12 @@ export default function ComparePanel() {
     if (full) tabFullMessage();
   };
   const pick = (x: CompareAllRow, e: React.MouseEvent) => {
-    const rs = x.runs ?? chosen;
+    const rs = x.runs ?? active;
     showInPlot(x.name, rs, e.shiftKey);
     detail(x.name, rs);
   };
   const current = sim?.find((x) => x.name === signal);
-  const detailRuns = current?.runs ?? chosen;
+  const detailRuns = current?.runs ?? active;
 
   const align = async (sid: string) => {
     if (baseline === "mean") return;
@@ -222,13 +274,48 @@ export default function ComparePanel() {
             {runs.filter((r) => chosen.includes(r.id)).map((r) => <option key={r.id} value={r.id}>{runName(r.id)}</option>)}
           </select></label>
 
+        {/* ---------------- T10b: over the whole runs, or the same segment of each ---------------- */}
+        <div className="afield"><span>{t("compareOver")}</span>
+          <div className="seg wide small" role="group" aria-label={t("compareOver")}>
+            <button className={over === "whole" ? "on" : ""} onClick={() => setOver("whole")}>{t("overWhole")}</button>
+            <button className={over === "segment" ? "on" : ""} onClick={() => setOver("segment")} disabled={!stateNames.length}
+              title={stateNames.length ? t("overSegmentHint") : t("overSegmentNone")}>{t("overSegment")}</button>
+          </div></div>
+        {over === "segment" && <div className="seg-pick">
+          <label className="afield"><span>{t("segState")}</span>
+            <select value={segState} onChange={(e) => setSegState(e.target.value)}>
+              {stateNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select></label>
+          <div className="arow">
+            <label className="afield"><span>{t("segValue")}</span>
+              <select value={segValue ?? ""} onChange={(e) => setSegValue(Number(e.target.value))}>
+                {segValues.map((v) => <option key={v.value} value={v.value}>{v.label ?? fmtNum(v.value, lang, 6)}</option>)}
+              </select></label>
+            <label className="afield"><span>{t("segOccurrence")}</span>
+              <select value={segOcc} onChange={(e) => setSegOcc(Number(e.target.value))}>
+                {[1, 2, 3, 4, 5].map((k) => <option key={k} value={k}>{occText(k)}</option>)}
+                <option value={-1}>{occText(-1)}</option>
+              </select></label>
+          </div>
+          {segWin && <ul className="seg-wins">
+            {segWin.map((w) => (
+              <li key={w.run} className={w.t0 === undefined ? "missing" : ""}>
+                <span className="run-dot" style={{ background: runColor(w.run) }} /><span className="nm">{runName(w.run)}</span>
+                <span className="when">{w.t0 !== undefined
+                  ? t("segAt", { t0: fmtNum(w.t0, lang, 4), d: fmtNum(w.t1! - w.t0, lang, 3) })
+                  : w.missing === "signal" ? t("segNoSignal") : t("segNotFound", { n: w.count ?? 0 })}</span>
+              </li>))}
+          </ul>}
+          <p className="hint">{t("segCompareHint")}</p>
+        </div>}
+
         {/* ---------------- similarity list ---------------- */}
         <div className="sim-head">
           <h3>{t("similarity")}</h3>
           <button className="linklike" onClick={() => setSort(sort === "worst" ? "best" : "worst")} title={t("sortToggle")}>
             {sort === "worst" ? t("leastSimilarFirst") : t("mostSimilarFirst")} ⇅</button>
         </div>
-        {chosen.length < 2 && <p className="hint">{t("pickTwo")}</p>}
+        {(chosen.length < 2 || (segment && active.length < 2)) && <p className="hint">{t(segment ? "segNeedTwo" : "pickTwo")}</p>}
         {progress !== null && (
           <div className="sim-progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-label={t("similarity")}>
             <span style={{ width: `${Math.max(3, progress * 100)}%` }} />
@@ -265,7 +352,7 @@ export default function ComparePanel() {
               {list.length > limit && <button className="btn outline sm" onClick={() => setLimit(limit + PAGE)}>{t("showMore", { n: list.length - limit })}</button>}
             </div>
             <div className="arow wrap">
-              <button className="btn outline" onClick={() => sim && useApp.setState({ compareTable: { rows: sim, baseline, fileCount: chosen.length, tol: tolSet } })}>{t("compareTableBtn")}</button>
+              <button className="btn outline" onClick={() => sim && useApp.setState({ compareTable: { rows: sim, baseline, fileCount: active.length, tol: tolSet, segment: segment ?? undefined } })}>{t("compareTableBtn")}</button>
               <button className="btn outline" onClick={exportList}>{t("exportResults")}</button>
             </div>
           </>
@@ -282,7 +369,7 @@ export default function ComparePanel() {
                   <tr className="name-row"><td colSpan={tolSet ? 4 : 3}>
                     <span className="run-dot" style={{ background: runColor(r.id.split("/")[0]) }} />
                     <span className="nm">{runName(r.id.split("/")[0])}</span>
-                    {baseline !== "mean" && <button className="iconbtn sm act" title={t("alignInTime")} aria-label={t("alignInTime")} onClick={() => align(r.id)}><Icon.Link /></button>}
+                    {baseline !== "mean" && !segment && <button className="iconbtn sm act" title={t("alignInTime")} aria-label={t("alignInTime")} onClick={() => align(r.id)}><Icon.Link /></button>}
                   </td></tr>
                   <tr>
                     <td title={r.rmsPct !== undefined ? `${fmtNum(r.rmsPct, lang, 3)} %` : ""}>{fmtNum(r.rmsDiff, lang, 3)}</td>
@@ -294,7 +381,7 @@ export default function ComparePanel() {
               ))}
             </table>
             <div className="arow wrap">
-              <button className="btn outline" disabled={busy} onClick={plotDiffs}>{t("plotDiffs")}</button>
+              {!segment && <button className="btn outline" disabled={busy} onClick={plotDiffs}>{t("plotDiffs")}</button>}
             </div>
           </div>
         )}

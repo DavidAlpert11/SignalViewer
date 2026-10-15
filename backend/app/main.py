@@ -743,6 +743,55 @@ def segments(req: SegmentsRequest):
     }
 
 
+class SegmentAcrossRequest(BaseModel):
+    runs: List[str]
+    state: str                      # the state signal's NAME (the same name in every run)
+    value: float
+    occurrence: int = 1             # 1 = first, 2 = second ...; -1 = last
+
+
+def segment_windows(runs: List[str], state: str, value: float, occurrence: int) -> List[dict]:
+    """T10b: the same segment (e.g. the 2nd AUTO) in every run: [{run, t0, t1} or {run, missing}].
+    Uses the stretches of the run's own state signal, in that run's time (offset included)."""
+    out = []
+    for rid in runs:
+        sid = f"{rid}/{state}"
+        try:
+            st, sy = store.signal(sid)
+        except KeyError:
+            out.append({"run": rid, "missing": "signal"})
+            continue
+        parts = [p for p in _stretches(sid, np.asarray(st, dtype=np.float64), sy) if p[2] == float(value)]
+        k = occurrence - 1 if occurrence > 0 else len(parts) + occurrence
+        if not parts or not 0 <= k < len(parts):
+            out.append({"run": rid, "missing": "segment", "count": len(parts)})
+            continue
+        a, b, _v = parts[k]
+        out.append({"run": rid, "t0": a, "t1": b, "count": len(parts)})
+    return out
+
+
+@app.post("/api/segments/across")
+def segments_across(req: SegmentAcrossRequest):
+    if req.occurrence == 0:
+        fail(400, "Occurrence starts at 1 (first); -1 is the last.")
+    return {"windows": segment_windows(req.runs, req.state, req.value, req.occurrence)}
+
+
+def _windowed(sid: str, windows: Optional[Dict[str, List[float]]]):
+    """A signal cut to its run's segment window, on "time since the segment started" (T10b),
+    or the whole signal on its own time when there are no windows."""
+    t, y = store.signal(sid)
+    if not windows:
+        return t, y
+    w = windows.get(sid.partition("/")[0])
+    if not w:
+        raise KeyError(sid)
+    t = np.asarray(t, dtype=np.float64)
+    m = (t >= w[0]) & (t <= w[1])
+    return t[m] - w[0], np.asarray(y)[m]
+
+
 @app.post("/api/stats")
 def stats(req: StatsRequest):
     res = {}
@@ -1165,17 +1214,20 @@ class CompareRequest(BaseModel):
     alignment: str = "linear"
     tolAbs: Optional[float] = None
     tolPct: Optional[float] = None
+    windows: Optional[Dict[str, List[float]]] = None    # T10b: per run [t0, t1] - compared on time since t0
 
 
 @app.post("/api/compare")
 def compare(req: CompareRequest):
     try:
-        series = [(sid, *store.signal(sid)) for sid in req.signals]
+        series = [(sid, *_windowed(sid, req.windows)) for sid in req.signals]
         return compare_runs(series, req.baseline, req.alignment, req.tolAbs, req.tolPct)
     except KeyError:
         fail(404, "One of the chosen signals is no longer open.")
     except ValueError as e:
         fail(400, str(e))
+    except IndexError:
+        fail(400, "A run has no samples of this signal inside its segment.")
 
 
 class CompareAllRequest(BaseModel):
@@ -1185,6 +1237,7 @@ class CompareAllRequest(BaseModel):
     alignment: str = "linear"
     tolAbs: Optional[float] = None
     tolPct: Optional[float] = None
+    windows: Optional[Dict[str, List[float]]] = None    # T10b: per run [t0, t1] - compared on time since t0
 
 
 def compare_table(ca: "CompareAllRequest", progress=None) -> list:
@@ -1203,15 +1256,15 @@ def compare_table(ca: "CompareAllRequest", progress=None) -> list:
         ids = [f"{rid}/{name}" for rid in rids]
         base = f"{ca.baselineRun}/{name}" if ca.baselineRun in rids else "mean"
         try:
-            r = compare_runs([(sid, *store.signal(sid)) for sid in ids], base, ca.alignment, ca.tolAbs, ca.tolPct,
+            r = compare_runs([(sid, *_windowed(sid, ca.windows)) for sid in ids], base, ca.alignment, ca.tolAbs, ca.tolPct,
                              int(max(2_000, min(ca.points, 200_000))))
-        except ValueError as e:
-            out.append({"name": name, "runs": rids, "error": str(e)})
+        except (ValueError, IndexError) as e:       # IndexError: no sample inside a run's segment
+            out.append({"name": name, "runs": rids, "error": str(e) or "No samples in the segment."})
             continue
         lo, hi = r["overlap"]
         files = []
         for rid, sid in zip(rids, ids):
-            t, y = store.signal(sid)
+            t, y = _windowed(sid, ca.windows)
             st = compute_signal_stats(t, y, lo, hi)
             files.append({"run": rid, "mean": st.get("mean"), "std": st.get("std"), "min": st.get("min"),
                           "max": st.get("max"), "rms": st.get("rms")})

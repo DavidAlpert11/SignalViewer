@@ -5,6 +5,7 @@ import { activeTab, fileLabel, pickPath, placePlot, tabFullMessage, TRACE_COLORS
 import { fmtNum, translate, useT } from "../i18n";
 import { Icon } from "../icons";
 import { exactMatch } from "../fuzzy";
+import { showSegmentPlot } from "../segments";
 
 type Key = "name" | "files" | "meanSpread" | "stdSpread" | "worstRmsDiff" | "worstMaxAbs" | "minCorrelation";
 const PAGE = 200;
@@ -46,6 +47,7 @@ export default function CompareTable() {
     </th>
   );
   const plotRow = (x: CompareAllRow) => {
+    if (data.segment) { showSegmentPlot(x.name, x.runs ?? [], data.segment, true); close(); return; }
     let full = false;
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
@@ -82,6 +84,10 @@ export default function CompareTable() {
           <button className="iconbtn" onClick={close} aria-label={t("close")}><Icon.X /></button>
         </div>
         <p className="hint cmp-explain">{t("compareTableHint")}</p>
+        {data.segment && (
+          <p className="cmp-seg">{t("segTableTitle", { title: data.segment.title })}{" · "}
+            {Object.entries(data.segment.windows).map(([rid, [a, b]]) => `${file(rid)}: ${n(a, 4)}–${n(b, 4)} s`).join(" · ")}</p>
+        )}
         <div className="dialog-body cmp-scroll">
           <table className="cmp-table">
             <thead><tr>
