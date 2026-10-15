@@ -2,6 +2,7 @@
 
 Audience: flight-test / drone engineers and simulation engineers (MATLAB and Python).
 Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
+The order of work and the detailed specs are in `TASKS.md` (the work queue).
 
 ---
 
@@ -216,6 +217,11 @@ Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
 - [x] T26 Parameter diff between two logs. *Re-assessed: already there* - the Log panel's
   Parameters tab has a "differences from another file" filter.
 - [ ] T27 Formats: MCAP (ROS 2), HDF5 (generic).
+- [ ] T29 Smart start: offer a fitting template when a file opens (built-in ArduPilot / PX4
+  ones) and a short health summary with jump-to-time links. Spec: TASKS.md Q4.
+- [ ] T30 Frames: suggest the conversion and its signals from the names. Spec: TASKS.md Q10.
+- [ ] T31 User Python operations from a local folder (needs the owner's decision first).
+  Spec: TASKS.md Q11.
 - [x] T28 `worldCountries.ts` → JSON loaded with the map. *Re-assessed: already done* -
   GeoChart loads it with `import()` into its own chunk (not in the main bundle).
 
