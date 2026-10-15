@@ -10,9 +10,8 @@ import { resolveFormula } from "../formulaRefs";
 import { clearAllEdits, deleteAllDerived, editInPlace, opToStep } from "../transforms";
 import { AXES, createFrameGroup, frameGroupName, type Frame, type Qty } from "../frames";
 import { groupDerived, memberLabel } from "../signalGroups";
-import type { PreviewLine } from "../store";
+import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
-import PreviewCharts from "./PreviewCharts";
 
 type Kind = "one" | "two" | "many" | "fx" | "frame";
 const UNARY: [string, TKey][] = [
@@ -60,6 +59,7 @@ export default function AnalysisPanel() {
   const [fx, setFx] = useState("");
   const [output, setOutput] = useState<"new" | "edit">("new");
   const [addToPlot, setAddToPlot] = useState(true);
+  const [frameAdd, setFrameAdd] = useState<"active" | "each" | "none">("active");   // where the three new signals go
   const [busy, setBusy] = useState(false);
   const [frSrc, setFrSrc] = useState<Frame>("body");
   const [frDst, setFrDst] = useState<Frame>("ned");
@@ -72,8 +72,7 @@ export default function AnalysisPanel() {
   const [refMode, setRefMode] = useState<"first" | "manual" | "signals">("first");
   const [refSigs, setRefSigs] = useState<string[]>(["", "", ""]);
   const [refLla, setRefLla] = useState<string[]>(["", "", ""]);
-  const [pvWhere, setPvWhere] = useState<"plot" | "separate">("plot");      // several outputs: in the plot or a chart each
-  const [pvSep, setPvSep] = useState<PreviewLine[] | null>(null);
+  const [pvWhere, setPvWhere] = useState<"plot" | "separate">("plot");      // several outputs: in one plot or a plot each
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const ends = [frSrc, frDst];
   const needsAtt = qty === "vector" && ends.includes("body");
@@ -114,7 +113,7 @@ export default function AnalysisPanel() {
   ];
 
   const switchKind = (k: Kind) => {
-    setKind(k); setPvSep(null); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : "expr");
+    setKind(k); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : "expr");
     if (k === "frame" && vec.every((x) => !x)) {          // the active plot's signals, in order, as a start
       setVec([0, 1, 2].map((i) => plotSigs[i] ?? ""));
       setAttSigs([3, 4, 5, 6].map((i) => plotSigs[i] ?? ""));
@@ -149,7 +148,8 @@ export default function AnalysisPanel() {
       setBusy(true);
       try {
         const ids = await createFrameGroup(frameSources, frameParams(), name.trim() || frameGroupName(frSrc, frDst, qty));
-        if (addToPlot) actions.addSignals(ids);              // one undo step for the three
+        if (frameAdd === "active") actions.addSignals(ids);              // one undo step for the three
+        else if (frameAdd === "each") actions.addSignalsToNewPlots(ids);
         setName("");
       } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
       finally { setBusy(false); }
@@ -182,15 +182,20 @@ export default function AnalysisPanel() {
     } finally { setBusy(false); }
   };
 
-  const previewLines = useApp((s) => s.preview?.lines ?? null);
-  const previewOn = !!previewLines || !!pvSep;
-  const clearPreviews = () => { useApp.setState({ preview: null }); setPvSep(null); };
+  const previewNow = useApp((s) => s.preview);
+  const previewOn = !!previewNow;
+  const clearPreviews = () => useApp.setState({ preview: null });
+  // a preview is drawn in a time plot: the active one, else the tab's first; with none (a map, XY
+  // or XYZ plot active), in plots of its own under the grid
+  const timePlot = plot && (plot.mode ?? "time") === "time" ? plot : tab.plots.find((p) => (p.mode ?? "time") === "time");
+  const showLines = (lines: PreviewLine[], separate: boolean) => useApp.setState({ preview:
+    !separate && timePlot ? { plotId: timePlot.id, lines } : { plotId: "", lines, separate: true } });
   const showPreview = async () => {
     const st = useApp.getState();
-    const r = plot ? st.ranges[(tab.linkX ? tab.id : plot.id) as string] ?? null : null;
+    const r = timePlot ? st.ranges[rangeKey(tab, timePlot)] ?? timePlot.xlim ?? null : null;
     if (kind === "frame") {
-      // the three axes, computed but not kept: dashed in the active plot, or a small chart each
-      if (frameSources.some((x) => !x) || (pvWhere === "plot" && !plot)) return;
+      // the three axes, computed but not kept: dashed in one plot, or a plot each
+      if (frameSources.some((x) => !x)) return;
       const base = name.trim() || frameGroupName(frSrc, frDst, qty);
       try {
         const p = frameParams();
@@ -198,8 +203,7 @@ export default function AnalysisPanel() {
           const d = await api.previewDerived("frame", frameSources, { ...p, axis }, r?.[0] ?? null, r?.[1] ?? null);
           return { label: `${base}.${lbl}`, x: d.x, y: d.y };
         }));
-        if (pvWhere === "plot") { useApp.setState({ preview: { plotId: plot!.id, lines } }); setPvSep(null); }
-        else { setPvSep(lines); useApp.setState({ preview: null }); }
+        showLines(lines, pvWhere === "separate");
       } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
       return;
     }
@@ -207,10 +211,10 @@ export default function AnalysisPanel() {
     const sources = kind === "fx" ? fxRes!.sources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
     const pOp = kind === "fx" ? "expr" : op;
     const pParams = kind === "fx" ? { expr: fxRes!.expr, text: fx, alignment } : params;
-    if (!plot || sources.some((x) => !x)) return;
+    if (sources.some((x) => !x)) return;
     try {
       const d = await api.previewDerived(pOp, sources, pParams, r?.[0] ?? null, r?.[1] ?? null);
-      useApp.setState({ preview: { plotId: plot.id, lines: [{ label: pOp, x: d.x, y: d.y }] } }); setPvSep(null);
+      showLines([{ label: pOp, x: d.x, y: d.y }], false);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
   };
   const derivedRun = runs.find((r) => r.format === "derived");
@@ -353,7 +357,15 @@ export default function AnalysisPanel() {
               <input value={name} onChange={(e) => setName(e.target.value)}
                 placeholder={kind === "frame" ? frameGroupName(frSrc, frDst, qty) : t("auto")} /></label>
           )}
-          {!(kind === "one" && output === "edit") && <label className="acheck"><input type="checkbox" checked={addToPlot} onChange={(e) => setAddToPlot(e.target.checked)} />{t("addToActivePlot")}</label>}
+          {kind === "frame" && (
+            <label className="afield"><span>{t("frameAddTo")}</span>
+              <select value={frameAdd} onChange={(e) => setFrameAdd(e.target.value as typeof frameAdd)}>
+                <option value="active">{t("frameAddActive")}</option>
+                <option value="each">{t("frameAddEach")}</option>
+                <option value="none">{t("frameAddNone")}</option>
+              </select></label>
+          )}
+          {!(kind === "one" && output === "edit") && kind !== "frame" && <label className="acheck"><input type="checkbox" checked={addToPlot} onChange={(e) => setAddToPlot(e.target.checked)} />{t("addToActivePlot")}</label>}
           {kind === "frame" && (
             <div className="afield"><span>{t("previewWhere")}</span>
               <div className="seg wide small" role="group" aria-label={t("previewWhere")}>
@@ -362,15 +374,14 @@ export default function AnalysisPanel() {
               </div></div>
           )}
           <div className="arow" style={{ marginTop: 4 }}>
-            <button className="btn outline" disabled={!canCreate || busy || (kind === "one" && batch) || (kind === "frame" && pvWhere === "plot" && !plot)}
+            <button className="btn outline" disabled={!canCreate || busy || (kind === "one" && batch)}
               onClick={showPreview}>{t("previewOp")}</button>
             <button className="btn primary" disabled={!canCreate || busy} onClick={async () => { await create(); clearPreviews(); }}>
               {busy ? t("loading") : kind === "one" && output === "edit" ? t("applyEdit") : kind === "frame" ? t("createThree") : t("createSignal")}</button>
           </div>
-          {previewOn && <p className="hint" style={{ fontSize: "0.923rem", margin: "6px 0 0" }}>{t(pvSep ? "previewShownSeparate" : "previewShown")} ·{" "}
+          {previewOn && <p className="hint" style={{ fontSize: "0.923rem", margin: "6px 0 0" }}>{t(previewNow?.separate ? "previewShownSeparate" : "previewShown")} ·{" "}
             <button className="linklike" onClick={clearPreviews}>{t("clearPreview")}</button></p>}
-          {!pvSep && previewLines && previewLines.length > 1 && <PreviewKey lines={previewLines} />}
-          {pvSep && <PreviewCharts lines={pvSep} />}
+          {previewNow && !previewNow.separate && previewNow.lines.length > 1 && <PreviewKey lines={previewNow.lines} />}
 
           {(editedCount > 0 || (derivedRun?.signals.length ?? 0) > 0) && (
             <div className="bulk-undo">

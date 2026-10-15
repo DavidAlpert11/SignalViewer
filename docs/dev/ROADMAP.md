@@ -191,9 +191,12 @@ Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
   nothing). `signalGroups.groupDerived` nests them in the file list and the Create signals list;
   old sessions have no group and stay flat. Added to the plot with `actions.addSignals` (one
   undo step); group menu: all to the active plot / `addSignalsToNewPlots`. Preview: the store's
-  `preview` holds several lines (`lines[]`, told apart by `PREVIEW_DASH`), or
-  `PreviewCharts` draws one small chart per axis in the panel (UI-only). Touches TimeChart
-  (preview series), DataPanel, AnalysisPanel, PlaceOnMapDialog. Tests: backend
+  `preview` holds several lines (`lines[]`, told apart by `PREVIEW_DASH`) in a time plot (the
+  active one, else the tab's first), or with `separate` `PreviewPlots` shows a plot per line under
+  the grid: TimeChart with `previewOnly` and index -1, not in `ws` (no undo, not saved). TimeChart
+  also draws a preview in an empty plot. "Add the result to": active plot / a new plot each
+  (`actions.addSignalsToNewPlots`) / none. Touches TimeChart (preview series), App (stage),
+  DataPanel, AnalysisPanel, PlaceOnMapDialog. Tests: backend
   `test_frame_group_nested_names`; e2e `test_frame_conversion` extended.
 
 ## Milestone 3 — 1.3.0: smoother work

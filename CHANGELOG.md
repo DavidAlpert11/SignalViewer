@@ -34,8 +34,11 @@
   `ned_Pos_lla` with `ned_Pos_lla.N` / `.E` / `.D` (the name you type replaces the default).
   The file list and Create signals show it nested; add all to the active plot or each to a new
   plot (right-click), remove the whole group at once. Older sessions open as before.
-- Frames: Preview works - the three axes dashed in the active plot (with a key), or a small
-  chart per axis in the panel when their sizes differ (lat / lon vs alt).
+- Frames: Preview works - the three axes dashed in the active plot (with a key), or a plot per
+  axis under the plots when their sizes differ (lat / lon vs alt); the preview plots are not
+  saved and go away on Create or Clear. With a map, XY or XYZ plot active, the preview goes to
+  the tab's first time plot (or plots of its own).
+- Frames: choose where the three new signals go - the active plot, a new plot each, or none.
 - 3D view on computers without WebGL (old or virtual machines, remote desktop; recent Chrome and
   Edge no longer emulate it): a simplified 3D view of the tracks instead of an error.
 - `python run.py` from the source folder always shows the current UI: after a pull or patch it

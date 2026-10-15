@@ -159,7 +159,7 @@ interface AppState {
   timelineOpen: boolean;           // the timeline bar shown in full (or as a thin strip)
   /** Dashed lines in one plot, computed but not kept (Create signals > Preview). Several for an
    *  operation with several outputs (the three axes of a frame conversion). */
-  preview: { plotId: string; lines: PreviewLine[] } | null;
+  preview: { plotId: string; lines: PreviewLine[]; separate?: boolean } | null;   // separate: a plot per line under the grid
   valuesOnPlot: boolean;
   yExtents: Record<string, [number, number]>;   // per plot, for linked value axes
   axisDialog: string | null;
