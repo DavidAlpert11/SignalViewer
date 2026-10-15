@@ -13,14 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Pushed: `80fc362` (T17f + its fix). On top of it, not pushed yet: the
-  TASKS.md commit and T12 (delivered as patches).
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f and T12.
-- Tests at the last change: backend 131 passed; e2e `test_features.py -k "mavlink or live or
-  stream or frame or D09 or refresh_and_live or growing_text or D03"` and `test_workflows.py -k
-  live` all passed. The full e2e set was last run in full at T17b (141 passed).
-- **Q1 (T12) is implemented and tested with a simulated vehicle; it waits for the owner's
-  check with real SITL / a radio (see Q1).** **Next task: Q2 (T10b).**
+- Branch `main`. Pushed: `80fc362` (T17f + its fix). On top of it, not pushed yet, delivered as
+  patches in this order: TASKS.md, T12 (live MAVLink), T10b (same segment across runs).
+- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b.
+- Tests at the last change: backend 133 passed; e2e `test_workflows.py` 7 passed and
+  `test_features.py -k "compare or P01 or segment or templates_share or mavlink or live or
+  frame"` passed. The full e2e set was last run in full at T17b (141 passed).
+- Q1 (T12) waits for the owner's check with real SITL / a radio (the owner cannot test now).
+- **Next task: Q3 (T11b batch reports).** Nothing started.
 
 ## How to work here (practical notes)
 
@@ -88,7 +88,10 @@ the chosen segment of every run on a common "time since segment start" axis (per
 `tOffset` already exists - use it, do not add a new offset mechanism).
 **Done when:** with the three example runs, choosing Gear = 2, occurrence 1 gives one row per
 run with its own window, statistics match "Between cursors" on that segment; backend + e2e tests.
-**Status:** not started.
+**Status:** done (see ROADMAP T10b for what and where). Step 3 (common "time since segment
+start" axis) done with the existing per-signal `tOffset` in a tab of its own.
+**Follow-ups (not queued):** "every occurrence" (all AUTOs of all flights as rows); match the
+state by text when files number the same mode differently.
 
 ### Q3 · T11b Batch reports from a template — L
 **Why:** a report per flight without opening each one.
@@ -183,3 +186,6 @@ splitting `main.py` and `store.ts`.
 - 2026-10-15 · Q11: owner decided - user Python only from a local folder the user chooses.
 - 2026-10-15 · Q1 / T12 Live MAVLink implemented (record to .tlog + existing live mode) ·
   backend 131, e2e live tests green · left: SITL / radio check by the owner · next: Q2.
+- 2026-10-15 · Owner cannot test T12 now - continue with the queue.
+- 2026-10-15 · Q2 / T10b same segment across runs · backend 133, e2e compare + workflows green ·
+  next: Q3.

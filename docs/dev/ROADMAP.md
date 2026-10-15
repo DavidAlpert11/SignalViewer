@@ -81,8 +81,18 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   `showSpan` (zoom + both cursors), so the existing "Between cursors" statistics are the
   per-segment statistics - no second mechanism. Backend: `/api/segments`; the stretch logic was
   moved out of `/api/stats` into `_stretches` and is shared by both. Tests: backend + e2e.
-- [ ] **T10b Same segment across runs** (e.g. the 2nd AUTO of every open flight, side by side
+- [x] **T10b Same segment across runs** (e.g. the 2nd AUTO of every open flight, side by side
   in the comparison table).
+  Done: `segment_windows` + `POST /api/segments/across {runs, state, value, occurrence}` (1-based,
+  -1 = last) on the existing `_stretches`. `/api/compare` and `/api/compare/all` take optional
+  `windows {runId: [t0, t1]}`: `_windowed` cuts each signal to its run's window and puts it on
+  time since t0, so `compare_runs` and the per-file statistics work unchanged. UI: Compare runs >
+  "Compare over: The whole runs | A segment" (state signals shared by >= 2 chosen files, value
+  with its text, occurrence), per-file window list; only files with the segment take part.
+  `segments.ts` `showSegmentPlot`: the files' lines with the existing per-signal `tOffset` =
+  -t0, in a tab named after the segment, x range [0, longest]; used by the list and the table.
+  "Plot differences" and "align in time" are hidden in segment mode (both work on absolute
+  time). Tests: backend `test_segments_across.py`; e2e `test_compare_same_segment_across_runs`.
 
 - [x] **T11a Python API and command line** (MATLAB and Python users)
   `import signalviewer as sv; rec = sv.load(path)` -> `.signals`, `.signal(name)` (numpy),
