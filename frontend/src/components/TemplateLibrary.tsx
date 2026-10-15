@@ -6,7 +6,7 @@ import { Icon } from "../icons";
 import { confirmAsk, openMenu, useEscape } from "./Overlays";
 import { openPaths, refreshRecent } from "../files";
 import {
-  ALL, applyTemplate, baseName, expand, fits as templateFits, includers, slotNames, suggestTabName, templateFromTabs, tx,
+  ALL, applyTemplate, baseName, expand, fits as templateFits, includers, rankTemplates, slotNames, suggestTabName, templateFromTabs, tx,
 } from "../templates";
 
 /** A new template's draft; src: for each of its tabs, the workspace tab it was made from (editor only, not saved). */
@@ -91,10 +91,7 @@ export default function TemplateLibrary() {
   }, [all, runsKey]);
   useEffect(() => {
     if (sel || draft || !all.length || (data.length && !fits.size)) return;     // wait for the fits
-    const preferFmt = runs.find((r) => r.id === prefer)?.format;
-    const pick = all.filter((x) => !x.broken).sort((a, b) =>
-      ((fits.get(b.id) ?? 0) + (preferFmt && b.slots.some((s) => s.formats?.includes(preferFmt)) ? 0.5 : 0) + (b.includes?.length ? 0.1 : 0))
-      - ((fits.get(a.id) ?? 0) + (preferFmt && a.slots.some((s) => s.formats?.includes(preferFmt)) ? 0.5 : 0) + (a.includes?.length ? 0.1 : 0)))[0];
+    const pick = rankTemplates(all, fits, runs.find((r) => r.id === prefer)?.format)[0];
     if (pick) setSel(pick.id);
   }, [all, fits, sel, draft, prefer, runs]);
 
@@ -214,12 +211,14 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
   // again when a file is opened or closed (e.g. "Open run_a.csv" below)
   const [bind, setBind] = useState<Record<string, string>>({});
   const [found, setFound] = useState<Record<string, Record<string, number>>>({});
+  const [boundKey, setBoundKey] = useState("");          // for which template + files `bind` was made
   const runKey = data.map((r) => `${r.id}:${r.signals.length}`).join(",");
+  const wantKey = `${tpl.id}|${runKey}|${prefer ?? ""}`;
   useEffect(() => {
     let off = false;
     api.bindTemplate(tpl, all, prefer).then((r) => {
       if (off) return;
-      setBind(r.bind); setFound(Object.fromEntries(r.slots.map((x) => [x.id, x.counts])));
+      setBind(r.bind); setFound(Object.fromEntries(r.slots.map((x) => [x.id, x.counts]))); setBoundKey(wantKey);
     }).catch(() => {});
     return () => { off = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -305,7 +304,8 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
       </ul>
 
       <div className="tpl-actions">
-        <button className="btn primary" disabled={!data.length || (!chosen.size && !e.generators.length)} onClick={open}>{t("tplOpen")}</button>
+        {/* the files for the slots come from the server: not before they are there for THIS template */}
+        <button className="btn primary" disabled={!data.length || (!chosen.size && !e.generators.length) || boundKey !== wantKey} onClick={open}>{t("tplOpen")}</button>
         {mineT ? <button className="btn" onClick={onEdit}><Icon.Edit /> {t("tplEdit")}</button>
           : <button className="btn" onClick={onCopy} title={t("tplCopyHint")}><Icon.Copy /> {t("tplCopyToMine")}</button>}
         {mineT && <button className="btn" onClick={async () => {

@@ -828,6 +828,30 @@ def test_compare_same_segment_across_runs(pg):
     assert S(pg, f"s.ranges['{tab_id}']") == [0, 6]                         # from the segment start, its length
 
 
+def test_smart_start_card(pg):
+    """T29: the first file into an empty workspace gets a card: the best-fitting template (opened
+    on request only) and, for a flight log, the worst findings of its health check."""
+    d = pg.env["data"]
+    subprocess.run([sys.executable, os.path.join(ROOT, "tools", "make_test_bin.py"), os.path.join(d, "start.bin"), "--seconds", "40"],
+                   check=True, capture_output=True)
+    open_files(pg, "start.bin")
+    card = pg.locator(".start-card")
+    card.wait_for(timeout=20000)
+    assert "ArduPilot" in card.locator(".start-tpl b").inner_text()
+    rows = card.locator(".hrow")
+    assert 1 <= rows.count() <= 3 and "error" in rows.first.get_attribute("class")      # the worst first
+    assert S(pg, "s.ws.tabs.every(t => t.plots.every(p => !p.signals.length))")         # nothing applied by itself
+    rows.first.locator(".pchange.span").first.click()                                  # jump to the finding
+    pg.wait_for_function("window.__sv.state().cursor.dual")
+    card.get_by_role("button", name="Open it").click()
+    pg.wait_for_function("!document.querySelector('.start-card')")
+    assert S(pg, "s.ws.tabs.some(t => t.plots.some(p => p.signals.length))")
+    # not again once the workspace has plots
+    open_files(pg, "run_a.csv", clear=False)
+    pg.wait_for_timeout(1500)
+    assert pg.locator(".start-card").count() == 0
+
+
 def test_live_mavlink(pg):
     """T12: Live > MAVLink records the link to a .tlog, opens it and follows it in live mode;
     Disconnect keeps the recording."""

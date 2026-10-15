@@ -5,6 +5,7 @@ import { actions, pickPath, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { runLabels } from "../names";
+import HealthRow from "./HealthRow";
 
 /* Flight log of an ArduPilot .bin file: its events (messages, flight modes, events, errors) and
    its parameters. The rail button for this panel exists only while such a file is open, so
@@ -69,7 +70,7 @@ export default function LogPanel() {
         </button>
       </div>
       {!info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
-        : tab === "health" ? <Health key={run.id} runId={run.id} runKey={`${run.samples}:${run.log!.events}:${run.timeOffset}`} lang={lang} />
+        : tab === "health" ? <Health key={run.id} runId={run.id} runKey={`${run.samples}:${run.log!.events}:${run.timeOffset}`} />
         : tab === "events" ? <Events key={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
           : <Params key={run.id} info={info} lang={lang} others={logRuns.filter((r) => r.id !== run.id).map((r) => ({ id: r.id, name: names.get(r.id) ?? r.name }))} />}
     </aside>
@@ -251,9 +252,8 @@ function Params({ info, lang, others }: { info: LogInfo; lang: "en" | "he"; othe
 }
 
 /* ------------------------------------------------------------------------- health check */
-function Health({ runId, runKey, lang }: { runId: string; runKey: string; lang: "en" | "he" }) {
+function Health({ runId, runKey }: { runId: string; runKey: string }) {
   const t = useT();
-  const runs = useApp((s) => s.runs);
   const [rep, setRep] = useState<HealthReport | null | "none">(null);
   useEffect(() => {
     let off = false;
@@ -262,38 +262,13 @@ function Health({ runId, runKey, lang }: { runId: string; runKey: string; lang: 
   }, [runId, runKey]);
   if (rep === null) return <p className="hint" style={{ padding: "0 14px" }}>…</p>;
   if (rep === "none") return <p className="hint" style={{ padding: "0 14px" }}>{t("healthNone")}</p>;
-  const ids = (names: string[]) => names.map((n) => `${runId}/${n}`).filter((id) => runs.some((r) => r.signals.some((x) => x.id === id)));
-  const fmtT = (v: number) => fmtTime(v, lang);
   return (
     <div className="health">
       <p className={`health-sum ${rep.errors ? "error" : rep.warnings ? "warning" : "ok"}`}>
         {rep.errors || rep.warnings ? t("healthSummary", { e: rep.errors, w: rep.warnings }) : t("healthAllOk")}
       </p>
       <ol className="health-list">
-        {rep.findings.map((f, i) => {
-          const key = `h_${f.code}_${f.level}`;
-          const vals = Object.fromEntries(Object.entries(f.vals).map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : String(v)]));
-          return (
-            <li key={i} className={`hrow ${f.level}`}>
-              <span className={`hicon ${f.level}`} aria-label={t(`level_${f.level}` as "level_ok")}>{f.level === "ok" ? "✓" : f.level === "warning" ? "!" : "✕"}</span>
-              <div className="hbody">
-                <div className="htext">{t(key as "h_vibration_ok", vals)}</div>
-                <div className="hlinks">
-                  {f.t !== null && <button className="pchange" onClick={() => actions.goToTime(f.t!)} title={t("logGoTo")}>@ {fmtT(f.t)}</button>}
-                  {f.spans.slice(0, 4).map(([a, b], k) => b > a && (
-                    <button key={k} className="pchange span" onClick={() => actions.showSpan(a, b)} title={t("healthSpan")}>
-                      {fmtT(a)}–{fmtT(b)}</button>
-                  ))}
-                  {f.spans.length > 4 && <span className="at">+{f.spans.length - 4}</span>}
-                  {ids(f.signals).length > 0 && (
-                    <button className="pchange plot" onClick={() => actions.plotSignalsInNewTab(ids(f.signals), t(`hTitle_${f.code}` as "hTitle_vibration"))}
-                      title={t("healthPlotHint")}>{t("healthPlot")}</button>
-                  )}
-                </div>
-              </div>
-            </li>
-          );
-        })}
+        {rep.findings.map((f, i) => <HealthRow key={i} f={f} runId={runId} />)}
       </ol>
       <p className="hint log-note">{t("healthNote")}</p>
     </div>
