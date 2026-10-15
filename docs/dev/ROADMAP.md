@@ -142,8 +142,22 @@ Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
   `q2roll` / `q2pitch` / `q2yaw` (Hamilton w-first quaternions, aerospace order, degrees).
   In the server list and in `formulaHelp.ts` (suggestions while typing; the sync test enforces
   both). Test: `test_formula_angles_and_quaternions`.
-- [ ] **T17b Frames NED / ENU / body**: three components in, three out - does not fit one
-  formula = one signal. Design first (an Analysis operation that creates three signals).
+- [x] **T17b Frames NED / ENU / body / ECEF / LLA** - Create signals > "Frames": three components
+  in, three derived signals out. Design: operation `frame` with `params.axis` 0 / 1 / 2 - one
+  output axis per derived signal, so sessions, autosave, restore and live recompute need nothing
+  new (old files unchanged). `params.qty` separates the two kinds of maths:
+  - "vector" (velocity, acceleration...): rotation only. NED / ENU / body / ECEF. Body needs the
+    attitude (body -> NED as PX4 / ArduPilot log it): roll / pitch / yaw (deg or rad, same
+    convention as `q2roll`...) or a w-first quaternion (normalised). ECEF needs the vehicle's
+    lat / lon per sample (north depends on where you are). Never a reference point.
+  - "position": LLA (WGS84 ellipsoid, iterative inverse) / ECEF / NED / ENU. NED / ENU are
+    metres from a reference point: `ref` "first" (first valid sample - only from LLA / ECEF) or
+    "manual" (`ref_lat`, `ref_lon`, `ref_alt` above the ellipsoid). NED <-> ENU needs none.
+    Body is refused (not a place).
+  Aligned onto the first component's samples; yaw and longitude are unwrapped and quaternion sign
+  flips removed BEFORE interpolating (otherwise a sample between 179 and -179 deg points the
+  wrong way / a track across the antimeridian sweeps the globe). Kind tabs wrap in a narrow
+  panel. Tests: `test_frame_*` (8, backend) + e2e `test_frame_conversion`.
 
 ## Milestone 3 — 1.3.0: smoother work
 - [ ] T18 Settings dialog (language, theme, map layer, live defaults); language and theme

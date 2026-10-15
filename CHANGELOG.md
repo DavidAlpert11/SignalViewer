@@ -21,6 +21,11 @@
   and put the cursors on its edges - the statistics then cover that segment.
 - Formulas: `deg`, `rad`, `wrap180`, `wrap360`, and roll / pitch / yaw from a quaternion
   (`q2roll(qw, qx, qy, qz)` …, in degrees).
+- Coordinate frames: Create signals > Frames converts between NED, ENU, body, ECEF and LLA, with
+  separate maths for a vector (velocity, acceleration… - rotated only; body needs the attitude,
+  ECEF the vehicle's lat / lon) and a position (also moves the origin; NED / ENU are metres from
+  a reference point - the first sample or one you enter). Creates three signals, one per axis,
+  that update with their files and are kept in sessions.
 - Command line and Python: `python cli.py info FILE`, `python cli.py export FILE --out x.mat`
   (or .csv; choose signals and a time window), and `import signalviewer as sv; sv.load(path)`
   for numpy / pandas. From MATLAB: `system('python cli.py export f.bin --out f.mat')`.

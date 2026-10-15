@@ -9,13 +9,23 @@ import MultiSignalPicker from "./MultiSignalPicker";
 import { resolveFormula } from "../formulaRefs";
 import { clearAllEdits, deleteAllDerived, editInPlace, opToStep } from "../transforms";
 
-type Kind = "one" | "two" | "many" | "fx";
+type Kind = "one" | "two" | "many" | "fx" | "frame";
 const UNARY: [string, TKey][] = [
   ["derivative", "opDerivative"], ["integral", "opIntegral"], ["abs", "opAbs"], ["negate", "opNegate"],
   ["normalize", "opNormalize"], ["affine", "opAffine"], ["smooth", "opSmooth"], ["rms", "opRms"], ["lowpass", "opLowpass"], ["highpass", "opHighpass"],
 ];
 const BINARY: [string, string][] = [["sub", "A − B"], ["add", "A + B"], ["mul", "A × B"], ["div", "A ÷ B"], ["absdiff", "|A − B|"]];
 const MULTI: [string, TKey][] = [["mean", "opMean"], ["sum", "opSum"], ["min", "opMin"], ["max", "opMax"], ["norm", "opNorm"]];
+// Frame conversion (svcore/analysis.py "frame"): one derived signal per output axis.
+// A vector (velocity...) only rotates; a position also moves its origin, so the frames differ.
+type Frame = "ned" | "enu" | "body" | "ecef" | "lla";
+type Qty = "vector" | "position";
+const FRAME_KEYS: Record<Frame, TKey> = { ned: "frameNed", enu: "frameEnu", body: "frameBody", ecef: "frameEcef", lla: "frameLla" };
+const FRAMES_OF: Record<Qty, Frame[]> = { vector: ["ned", "enu", "body", "ecef"], position: ["lla", "ecef", "ned", "enu"] };
+const AXES: Record<Frame, string[]> = { ned: ["N", "E", "D"], enu: ["E", "N", "U"], body: ["X", "Y", "Z"], ecef: ["X", "Y", "Z"], lla: ["lat", "lon", "alt"] };
+const LLA_KEYS: TKey[] = ["objRole_lat", "objRole_lon", "objRole_alt"];
+const EULER: TKey[] = ["objRole_roll", "objRole_pitch", "objRole_yaw"];
+const QUAT: TKey[] = ["objRole_qw", "objRole_qx", "objRole_qy", "objRole_qz"];
 
 export default function AnalysisPanel() {
   const t = useT();
@@ -48,6 +58,27 @@ export default function AnalysisPanel() {
   const [output, setOutput] = useState<"new" | "edit">("new");
   const [addToPlot, setAddToPlot] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [frSrc, setFrSrc] = useState<Frame>("body");
+  const [frDst, setFrDst] = useState<Frame>("ned");
+  const [att, setAtt] = useState<"euler" | "quat">("euler");
+  const [unit, setUnit] = useState<"deg" | "rad">("deg");
+  const [vec, setVec] = useState<string[]>(["", "", ""]);
+  const [attSigs, setAttSigs] = useState<string[]>(["", "", "", ""]);
+  const [qty, setQty] = useState<Qty>("vector");
+  const [geoSigs, setGeoSigs] = useState<string[]>(["", ""]);
+  const [refMode, setRefMode] = useState<"first" | "manual">("first");
+  const [refLla, setRefLla] = useState<string[]>(["", "", ""]);
+  const ends = [frSrc, frDst];
+  const needsAtt = qty === "vector" && ends.includes("body");
+  const needsGeo = qty === "vector" && ends.includes("ecef");
+  const needsRef = qty === "position" && ends.some((f) => f === "ned" || f === "enu") && ends.some((f) => f === "lla" || f === "ecef");
+  const refFromData = frSrc === "lla" || frSrc === "ecef";       // "first sample" only has a place to start from then
+  const refManual = needsRef && (refMode === "manual" || !refFromData);
+  const refOk = !refManual || refLla.every((x) => x.trim() !== "" && Number.isFinite(Number(x)));
+  const frameSources = [...vec, ...(needsAtt ? attSigs.slice(0, att === "quat" ? 4 : 3) : []), ...(needsGeo ? geoSigs : [])];
+  const pickQty = (q: Qty) => { setQty(q); setFrSrc(q === "vector" ? "body" : "lla"); setFrDst("ned"); };
+  const setAt = (arr: string[], set: (v: string[]) => void, i: number) => (v: string) => set(arr.map((x, k) => (k === i ? v : x)));
+  const pickSrc = (f: Frame) => { setFrSrc(f); if (f === frDst) setFrDst(f === "ned" ? "enu" : "ned"); };
 
   // sensible defaults: the selected signal, else the active plot's signals
   useEffect(() => {
@@ -72,7 +103,13 @@ export default function AnalysisPanel() {
     { label: t("fromListSelection"), ids: listSel },
   ];
 
-  const switchKind = (k: Kind) => { setKind(k); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : "expr"); };
+  const switchKind = (k: Kind) => {
+    setKind(k); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : "expr");
+    if (k === "frame" && vec.every((x) => !x)) {          // the active plot's signals, in order, as a start
+      setVec([0, 1, 2].map((i) => plotSigs[i] ?? ""));
+      setAttSigs([3, 4, 5, 6].map((i) => plotSigs[i] ?? ""));
+    }
+  };
   const tr = (k: string, v?: Record<string, string | number>) => t(k as never, v);
   const fxRes = kind === "fx" && fx.trim() ? resolveFormula(fx, runs, tr) : null;
   const params = { window: windowN, cutoff, alignment, gain, bias };
@@ -86,6 +123,24 @@ export default function AnalysisPanel() {
       setBusy(true);
       try { await editInPlace(ids, step); }
       catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+      finally { setBusy(false); }
+      return;
+    }
+    if (kind === "frame") {
+      if (frameSources.some((x) => !x)) return;
+      setBusy(true);
+      try {
+        for (const [axis, lbl] of AXES[frDst].entries()) {
+          const p: Record<string, unknown> = { qty, src: frSrc, dst: frDst, axis, att, unit, alignment };
+          if (needsRef) Object.assign(p, refManual
+            ? { ref: "manual", ref_lat: Number(refLla[0]), ref_lon: Number(refLla[1]), ref_alt: Number(refLla[2]) }
+            : { ref: "first" });
+          const r = await api.createDerived("frame", frameSources, p, name.trim() ? `${name.trim()} ${lbl}` : undefined);
+          useApp.setState({ runs: r.runs });
+          if (addToPlot) actions.addSignal(r.id);
+        }
+        setName("");
+      } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
       finally { setBusy(false); }
       return;
     }
@@ -144,22 +199,24 @@ export default function AnalysisPanel() {
     </div>
   );
 
-  const canCreate = kind === "fx" ? !!fxRes && !fxRes.error : kind === "one" ? (batch ? batchSigs.length > 0 : !!a) : kind === "two" ? !!a && !!b : many.length >= 2;
+  const canCreate = kind === "frame" ? frSrc !== frDst && frameSources.every((x) => !!x) && refOk
+    : kind === "fx" ? !!fxRes && !fxRes.error : kind === "one" ? (batch ? batchSigs.length > 0 : !!a) : kind === "two" ? !!a && !!b : many.length >= 2;
 
   return (
     <aside className="side" aria-label={t("analysis")}>
       <div className="side-head"><h2>{t("analysis")}</h2></div>
       {!options.length ? <p className="empty-note">{t("noFilesHint")}</p> : (
         <div className="tree analysis">
-          <div className="seg wide" role="tablist">
+          <div className="seg wide kinds" role="tablist">
             <button className={kind === "one" ? "on" : ""} onClick={() => switchKind("one")}>{t("kindOne")}</button>
             <button className={kind === "two" ? "on" : ""} onClick={() => switchKind("two")}>{t("kindTwo")}</button>
             <button className={kind === "many" ? "on" : ""} onClick={() => switchKind("many")}>{t("kindMany")}</button>
             <button className={kind === "fx" ? "on" : ""} onClick={() => switchKind("fx")}>{t("formula")}</button>
+            <button className={kind === "frame" ? "on" : ""} onClick={() => switchKind("frame")}>{t("kindFrame")}</button>
           </div>
 
           {kind === "fx" && <FormulaInput value={fx} onChange={setFx} runs={runs} error={fxRes?.error} />}
-          {kind !== "fx" && <label className="afield"><span>{t("operation")}</span>
+          {kind !== "fx" && kind !== "frame" && <label className="afield"><span>{t("operation")}</span>
             <select value={op} onChange={(e) => setOp(e.target.value)}>
               {kind === "one" && UNARY.map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}
               {kind === "two" && BINARY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -204,7 +261,54 @@ export default function AnalysisPanel() {
 
           {kind === "many" && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} />}
 
-          {(kind === "two" || kind === "many" || (kind === "fx" && (fxRes?.sources.length ?? 0) > 1)) && (
+          {kind === "frame" && <>
+            <div className="seg wide small" role="group" aria-label={t("frameQty")}>
+              <button className={qty === "vector" ? "on" : ""} onClick={() => pickQty("vector")}>{t("qtyVector")}</button>
+              <button className={qty === "position" ? "on" : ""} onClick={() => pickQty("position")}>{t("qtyPosition")}</button>
+            </div>
+            <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t(qty === "vector" ? "qtyVectorHint" : "qtyPositionHint")}</p>
+            <label className="afield"><span>{t("frameFrom")}</span>
+              <select value={frSrc} onChange={(e) => pickSrc(e.target.value as Frame)}>
+                {FRAMES_OF[qty].map((f) => <option key={f} value={f}>{t(FRAME_KEYS[f])}</option>)}
+              </select></label>
+            <label className="afield"><span>{t("frameTo")}</span>
+              <select value={frDst} onChange={(e) => setFrDst(e.target.value as Frame)}>
+                {FRAMES_OF[qty].filter((f) => f !== frSrc).map((f) => <option key={f} value={f}>{t(FRAME_KEYS[f])}</option>)}
+              </select></label>
+            <h3 className="alist-head">{t(qty === "vector" ? "frameVector" : "framePosition")}</h3>
+            {AXES[frSrc].map((lbl, i) => <div key={`v${i}`}>{sigSelect(vec[i], setAt(vec, setVec, i), frSrc === "lla" ? t(LLA_KEYS[i]) : lbl)}</div>)}
+            {needsAtt && <>
+              <h3 className="alist-head">{t("frameAttitude")}</h3>
+              <div className="seg wide small" role="group">
+                <button className={att === "euler" ? "on" : ""} onClick={() => setAtt("euler")}>{t("attEuler")}</button>
+                <button className={att === "quat" ? "on" : ""} onClick={() => setAtt("quat")}>{t("attQuat")}</button>
+              </div>
+              {(att === "quat" ? QUAT : EULER).map((k, i) => <div key={k}>{sigSelect(attSigs[i], setAt(attSigs, setAttSigs, i), t(k))}</div>)}
+              {att === "euler" && <label className="afield"><span>{t("angleUnit")}</span>
+                <select value={unit} onChange={(e) => setUnit(e.target.value as "deg" | "rad")}>
+                  <option value="deg">{t("unitDeg")}</option>
+                  <option value="rad">{t("unitRad")}</option>
+                </select></label>}
+            </>}
+            {needsGeo && <>
+              <h3 className="alist-head">{t("frameWhere")}</h3>
+              {[0, 1].map((i) => <div key={`g${i}`}>{sigSelect(geoSigs[i], setAt(geoSigs, setGeoSigs, i), t(LLA_KEYS[i]))}</div>)}
+            </>}
+            {needsRef && <>
+              <h3 className="alist-head">{t("frameRef")}</h3>
+              {refFromData && <div className="seg wide small" role="group">
+                <button className={refMode === "first" ? "on" : ""} onClick={() => setRefMode("first")}>{t("refFirst")}</button>
+                <button className={refMode === "manual" ? "on" : ""} onClick={() => setRefMode("manual")}>{t("refManual")}</button>
+              </div>}
+              {refManual && LLA_KEYS.map((k, i) => (
+                <label key={k} className="afield"><span>{t(k)}{i < 2 ? " (°)" : " (m)"}</span>
+                  <input type="number" step="any" value={refLla[i]} onChange={(e) => setAt(refLla, setRefLla, i)(e.target.value)} /></label>))}
+              <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t(refManual ? "refManualHint" : "refFirstHint")}</p>
+            </>}
+            <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t("frameHint")}</p>
+          </>}
+
+          {(kind === "two" || kind === "many" || kind === "frame" || (kind === "fx" && (fxRes?.sources.length ?? 0) > 1)) && (
             <label className="afield"><span>{t("alignment")}</span>
               <select value={alignment} onChange={(e) => setAlignment(e.target.value)}>
                 <option value="linear">{t("alignLinear")}</option>
@@ -218,9 +322,9 @@ export default function AnalysisPanel() {
           )}
           {!(kind === "one" && output === "edit") && <label className="acheck"><input type="checkbox" checked={addToPlot} onChange={(e) => setAddToPlot(e.target.checked)} />{t("addToActivePlot")}</label>}
           <div className="arow" style={{ marginTop: 4 }}>
-            <button className="btn outline" disabled={!canCreate || busy || (kind === "one" && batch)} onClick={showPreview}>{t("previewOp")}</button>
+            <button className="btn outline" disabled={!canCreate || busy || (kind === "one" && batch) || kind === "frame"} onClick={showPreview}>{t("previewOp")}</button>
             <button className="btn primary" disabled={!canCreate || busy} onClick={async () => { await create(); useApp.setState({ preview: null }); }}>
-              {busy ? t("loading") : kind === "one" && output === "edit" ? t("applyEdit") : t("createSignal")}</button>
+              {busy ? t("loading") : kind === "one" && output === "edit" ? t("applyEdit") : kind === "frame" ? t("createThree") : t("createSignal")}</button>
           </div>
           {previewOn && <p className="hint" style={{ fontSize: "0.923rem", margin: "6px 0 0" }}>{t("previewShown")} ·{" "}
             <button className="linklike" onClick={() => useApp.setState({ preview: null })}>{t("clearPreview")}</button></p>}

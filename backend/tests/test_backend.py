@@ -546,6 +546,172 @@ def test_formula_angles_and_quaternions():
     assert np.allclose(y, [350.0, 10.0, 0.0, 90.0, 0.0])
 
 
+def _quat(roll, pitch, yaw):
+    """Hamilton w-first quaternion, body -> NED, from aerospace angles in degrees."""
+    r, p, y = np.radians([roll, pitch, yaw]) / 2
+    cr, sr, cp, sp, cy, sy = np.cos(r), np.sin(r), np.cos(p), np.sin(p), np.cos(y), np.sin(y)
+    return [cr * cp * cy + sr * sp * sy, sr * cp * cy - cr * sp * sy,
+            cr * sp * cy + sr * cp * sy, cr * cp * sy - sr * sp * cy]
+
+
+def _frame3(sigs, **params):
+    from svcore.analysis import compute
+    return np.vstack([compute("frame", sigs, {**params, "axis": k})[1] for k in range(3)])
+
+
+def test_frame_ned_enu():
+    """T17b: NED <-> ENU swaps north / east and flips the vertical, both ways."""
+    t = np.linspace(0, 1, 4)
+    ned = [(t, np.full_like(t, c)) for c in (1.0, 2.0, 3.0)]
+    assert np.allclose(_frame3(ned, src="ned", dst="enu"), [[2.0] * 4, [1.0] * 4, [-3.0] * 4])
+    enu = [(t, np.full_like(t, c)) for c in (2.0, 1.0, -3.0)]
+    assert np.allclose(_frame3(enu, src="enu", dst="ned"), [[1.0] * 4, [2.0] * 4, [3.0] * 4])
+
+
+def test_frame_body_euler_and_quaternion_agree():
+    """T17b: body -> NED with roll / pitch / yaw (deg or rad) equals the quaternion result, the
+    known cases come out right, and NED -> body undoes body -> NED."""
+    t = np.linspace(0, 1, 3)
+    c = lambda v: (t, np.full_like(t, float(v)))
+    fwd = [c(1), c(0), c(0)]
+    # nose east: forward is east; nose up 30 deg: forward is north and up (negative down)
+    assert np.allclose(_frame3(fwd + [c(0), c(0), c(90)], src="body", dst="ned")[:, 0], [0, 1, 0], atol=1e-12)
+    assert np.allclose(_frame3(fwd + [c(0), c(30), c(0)], src="body", dst="ned")[:, 0],
+                       [np.cos(np.radians(30)), 0, -0.5], atol=1e-12)
+    assert np.allclose(_frame3(fwd + [c(0), c(0), c(90)], src="body", dst="enu")[:, 0], [1, 0, 0], atol=1e-12)
+    rng = np.random.default_rng(7)
+    for _ in range(20):
+        att = rng.uniform([-180, -89, -180], [180, 89, 180])
+        vec = [c(x) for x in rng.normal(size=3)]
+        eul = _frame3(vec + [c(a) for a in att], src="body", dst="ned")
+        rad = _frame3(vec + [c(a) for a in np.radians(att)], src="body", dst="ned", unit="rad")
+        qua = _frame3(vec + [c(x * 1.01) for x in _quat(*att)], src="body", dst="ned", att="quat")  # not unit length
+        assert np.allclose(eul, rad) and np.allclose(eul, qua)
+        back = _frame3([c(x) for x in eul[:, 0]] + [c(a) for a in att], src="ned", dst="body")
+        assert np.allclose(back[:, 0], [v[1][0] for v in vec])
+
+
+def test_frame_attitude_interpolation():
+    """T17b: the attitude is aligned onto the vector's samples without the classic traps - yaw
+    crossing +-180 deg, and a quaternion that flips sign (q and -q are the same attitude)."""
+    tv, ta = np.array([0.25, 0.5, 0.75]), np.array([0.0, 1.0])
+    fwd = [(tv, np.ones(3)), (tv, np.zeros(3)), (tv, np.zeros(3))]
+    zero = (ta, np.zeros(2))
+    yaw = (ta, np.array([179.0, -179.0]))                 # halfway is 180 (south), not 0 (north)
+    assert np.allclose(_frame3(fwd + [zero, zero, yaw], src="body", dst="ned")[:, 1], [-1, 0, 0], atol=1e-9)
+    q = np.array(_quat(0, 0, 90))
+    flip = [(ta, np.array([q[k], -q[k]])) for k in range(4)]
+    assert np.allclose(_frame3(fwd + flip, src="body", dst="ned", att="quat")[:, 1], [0, 1, 0], atol=1e-9)
+
+
+def test_frame_lla_ecef():
+    """T17b: LLA <-> ECEF on the WGS84 ellipsoid - known points, and back to within a millimetre."""
+    from svcore.analysis import WGS84_A, WGS84_E2, ecef_to_lla, lla_to_ecef
+    assert np.allclose(lla_to_ecef(0, 0, 0), [WGS84_A, 0, 0])
+    assert np.allclose(lla_to_ecef(90, 0, 0), [0, 0, WGS84_A * np.sqrt(1 - WGS84_E2)], atol=1e-6)
+    assert np.allclose(lla_to_ecef(0, 90, 100), [0, WGS84_A + 100, 0], atol=1e-6)
+    rng = np.random.default_rng(3)
+    lat, lon, alt = rng.uniform(-90, 90, 200), rng.uniform(-180, 180, 200), rng.uniform(-400, 40000, 200)
+    back = ecef_to_lla(*lla_to_ecef(lat, lon, alt))
+    assert np.allclose(back[0], lat, atol=1e-9) and np.allclose(back[1], lon, atol=1e-9)
+    assert np.allclose(back[2], alt, atol=1e-3)
+
+
+def test_frame_position_and_vector_differ():
+    """T17b: a position moves the origin, a vector only rotates. The same ECEF numbers give 0 as a
+    position at the reference point, but a 6378 km 'down' arrow as a vector."""
+    from svcore.analysis import WGS84_A, lla_to_ecef
+    t = np.linspace(0, 1, 3)
+    c = lambda v: (t, np.full_like(t, float(v)))
+    at_ref = [c(WGS84_A), c(0), c(0)]                   # lat 0, lon 0, alt 0
+    pos = _frame3(at_ref, qty="position", src="ecef", dst="ned", ref="first")
+    assert np.allclose(pos, 0, atol=1e-6)
+    vec = _frame3(at_ref + [c(0), c(0)], src="ecef", dst="ned")
+    assert np.allclose(vec[:, 0], [0, 0, -WGS84_A])
+    # 100 m up and ~111 m north of a manual reference in Tel Aviv
+    ref = dict(ref="manual", ref_lat=32.08, ref_lon=34.78, ref_alt=30.0)
+    lla = [c(32.081), c(34.78), c(130)]
+    ned = _frame3(lla, qty="position", src="lla", dst="ned", **ref)[:, 0]
+    assert abs(ned[0] - 110.9) < 0.5 and abs(ned[1]) < 1e-6 and abs(ned[2] + 100) < 0.01
+    enu = _frame3(lla, qty="position", src="lla", dst="enu", **ref)[:, 0]
+    assert np.allclose(enu, [ned[1], ned[0], -ned[2]])
+    back = _frame3([c(x) for x in ned], qty="position", src="ned", dst="lla", **ref)[:, 0]
+    assert np.allclose(back, [32.081, 34.78, 130], atol=1e-8)
+    ecef = _frame3(lla, qty="position", src="lla", dst="ecef")[:, 0]
+    assert np.allclose(ecef, lla_to_ecef(32.081, 34.78, 130))
+    # ECEF velocity <-> NED velocity uses the vehicle's lat / lon, and comes back
+    rng = np.random.default_rng(5)
+    for _ in range(10):
+        la, lo, vn = rng.uniform(-80, 80), rng.uniform(-180, 180), rng.normal(size=3)
+        e = _frame3([c(x) for x in vn] + [c(la), c(lo)], src="ned", dst="ecef")[:, 0]
+        assert np.isclose(np.linalg.norm(e), np.linalg.norm(vn))          # a rotation keeps the length
+        assert np.allclose(_frame3([c(x) for x in e] + [c(la), c(lo)], src="ecef", dst="ned")[:, 0], vn)
+    north = _frame3([c(1), c(0), c(0), c(0), c(0)], src="ned", dst="ecef")[:, 0]
+    assert np.allclose(north, [0, 0, 1])                # at lat 0 / lon 0, north is ECEF +Z
+
+
+def test_frame_longitude_across_antimeridian():
+    """T17b: a track crossing +-180 deg is interpolated across the line, not around the globe."""
+    from svcore.analysis import WGS84_A
+    tp, tv = np.array([0.0, 1.0]), np.array([0.0, 0.5, 1.0])
+    lla = [(tv, np.zeros(3)), (tp, np.array([179.9, -179.9])), (tv, np.zeros(3))]
+    x, y, _ = _frame3(lla, qty="position", src="lla", dst="ecef")
+    assert np.isclose(x[1], -WGS84_A) and abs(y[1]) < 1e-6           # on the line, not at lon 0
+    east = _frame3(lla, qty="position", src="lla", dst="ned", ref="first")[1]
+    assert east[0] == 0 and abs(east[1] - east[2] / 2) < 1.0 and 22000 < east[2] < 22500
+
+
+def test_frame_errors_say_what_to_do():
+    from svcore.analysis import OpError, compute
+    t = np.linspace(0, 1, 3)
+    three = [(t, t), (t, t), (t, t)]
+    cases = [
+        ({"qty": "position", "src": "body", "dst": "ned"}, "not a place"),
+        ({"qty": "vector", "src": "lla", "dst": "ned"}, "choose Position"),
+        ({"qty": "position", "src": "ned", "dst": "lla", "ref": "first"}, "reference point"),
+        ({"qty": "position", "src": "ned", "dst": "lla", "ref": "manual", "ref_lat": 95, "ref_lon": 0, "ref_alt": 0}, "-90 and 90"),
+        ({"src": "ned", "dst": "ecef"}, "latitude and longitude"),
+        ({"qty": "speed", "src": "ned", "dst": "enu"}, "vector"),
+    ]
+    for params, text in cases:
+        with pytest.raises(OpError, match=text):
+            compute("frame", three, params)
+
+
+def test_frame_api_three_signals(tmp_path):
+    """T17b: one conversion = three ordinary derived signals (axis 0 / 1 / 2) with their own names;
+    they restore like any formula, and wrong input says what is needed."""
+    p = tmp_path / "vel.csv"
+    with open(p, "w") as f:
+        f.write("Time,vn,ve,vd\n" + "".join(f"{i * 0.1},{1 + i},{2 * i},{-1}\n" for i in range(20)))
+    run = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]
+    src = [f"{run['id']}/{n}" for n in ("vn", "ve", "vd")]
+    ids = []
+    for k in range(3):
+        r = client.post("/api/derived", json={"op": "frame", "sources": src,
+                                               "params": {"src": "ned", "dst": "enu", "axis": k}})
+        assert r.status_code == 200, r.text
+        ids.append(r.json()["id"])
+    assert ids == ["derived/E NED→ENU(vn, ve, vd)", "derived/N NED→ENU(vn, ve, vd)", "derived/U NED→ENU(vn, ve, vd)"]
+    up = client.post("/api/data", json={"signals": [ids[2]], "points": 100}).json()["series"][0]
+    assert np.allclose(np.frombuffer(base64.b64decode(up["y"]), dtype=np.float32), 1.0)
+    items = [{"op": "frame", "sources": src, "params": {"src": "ned", "dst": "enu", "axis": k},
+              "name": i.split("/", 1)[1]} for k, i in enumerate(ids)]
+    r = client.post("/api/derived/restore", json={"items": items}).json()
+    assert not r["failed"] and len(r["restored"]) == 3
+    bad = client.post("/api/derived", json={"op": "frame", "sources": src, "params": {"src": "body", "dst": "ned"}})
+    assert bad.status_code == 400 and "6 signals" in bad.json()["detail"]
+    same = client.post("/api/derived", json={"op": "frame", "sources": src, "params": {"src": "ned", "dst": "ned"}})
+    assert same.status_code == 400
+    r = client.post("/api/derived", json={"op": "frame", "sources": src,
+                                           "params": {"qty": "position", "src": "ned", "dst": "enu", "axis": 2}})
+    assert r.status_code == 200 and r.json()["id"] == "derived/U pos NED→ENU(vn, ve, vd)"
+    ids.append(r.json()["id"])
+    for i in ids:
+        store.remove_derived(i.split("/", 1)[1])
+    store.remove(run["id"])
+
+
 def test_segments_of_a_state_signal():
     """T10: flight modes as segments; totals per mode add up to the recording."""
     ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "uav_flight.csv")
