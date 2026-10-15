@@ -252,8 +252,25 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 - [x] T26 Parameter diff between two logs. *Re-assessed: already there* - the Log panel's
   Parameters tab has a "differences from another file" filter.
 - [ ] T27 Formats: MCAP (ROS 2), HDF5 (generic).
-- [ ] T29 Smart start: offer a fitting template when a file opens (built-in ArduPilot / PX4
+- [x] T29 Smart start: offer a fitting template when a file opens (built-in ArduPilot / PX4
   ones) and a short health summary with jump-to-time links. Spec: TASKS.md Q4.
+  Done: `smartStart.ts` `offerStart` (from `openPaths`, only when the workspace had nothing
+  plotted and no MAVLink link is recording): the backend fits (`/api/templates/fit`), ranked by
+  `rankTemplates` (now shared with the library's first selection), suggested only at fit >= 0.5;
+  for bin / tlog / ulg with a log, the health check's errors then warnings, at most 3. Store
+  `startCard` (UI only). `StartCard.tsx` floats bottom-left over the plot area (no room taken
+  from the plots); "Open it" = `api.bindTemplate` + `applyTemplate`, "Other templates…" opens the
+  library on it. `HealthRow.tsx` extracted from the Log panel and shared. Built-in templates were
+  already there (ArduPilot, MAVLink, PX4) - none added. Tests: e2e `test_smart_start_card`;
+  all e2e files run (see TASKS.md log).
+- [x] **F04 Opening in a folder with remembered import settings** (found by T29's e2e test, when
+  it ran after the import-options test): `open_with_prefs` read `auto.run.load_report`, which only
+  the CSV loader sets - a .bin / .tlog / .mat there opened and was ALSO reported as an error, so
+  nothing after the open (toasts, the start card) ran. Now `LoadedRun.load_report` (all formats).
+  Test: `test_open_remembered.py` (fails without the fix).
+- [x] **F05 Template "Open" before the files were bound** (T11b made binding a server call):
+  "Open" is disabled until the binding for that template and those files has arrived. Found by
+  `test_object_templates.py` in the full e2e run.
 - [ ] T30 Frames: suggest the conversion and its signals from the names. Spec: TASKS.md Q10.
 - [ ] T31 User Python operations from a local folder (decided: only a folder the user chooses).
   Spec: TASKS.md Q11.

@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
 import PreviewPlots from "./components/PreviewPlots";
+import StartCard from "./components/StartCard";
 import { mavlinkResume } from "./mavlink";
 import Timeline from "./components/Timeline";
 const TemplateLibrary = lazyPreload(() => import("./components/TemplateLibrary"));
@@ -484,6 +485,7 @@ export default function App() {
             <PlotGrid />
           )}
           {runs.length > 0 && <PreviewPlots />}
+          <StartCard />
           {runs.length > 0 && <Timeline />}
         </main>
         {inspectorOpen ? <Inspector /> : <div />}

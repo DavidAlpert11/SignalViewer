@@ -1024,3 +1024,14 @@ input.fx-input { width: 100%; }
 .seg-wins .when { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .seg-wins li.missing .nm, .seg-wins li.missing .when { color: var(--faint); }
 .cmp-seg { margin: 0; padding: 4px 16px 6px; color: var(--muted); font-size: 0.8846rem; }
+/* T29 start card: floats over the plot area, bottom-left (toasts are bottom-right) */
+.stage { position: relative; }
+.start-card { position: absolute; inset-inline-start: 16px; bottom: 64px; z-index: 40; width: min(380px, calc(100% - 32px));
+  max-height: 60%; overflow: auto; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.start-head { display: flex; align-items: center; gap: 6px; }
+.start-head h3 { flex: 1; margin: 0; font-size: 0.9615rem; color: var(--ink-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-head .iconbtn { height: 24px; min-width: 24px; padding: 0; }
+.start-tpl p { margin: 0 0 6px; }
+.start-health h4 { margin: 2px 0 4px; font-size: 0.9231rem; color: var(--muted); }
+.start-health .health-list { margin: 0 0 6px; }

@@ -30,6 +30,14 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- Fixed: a flight log (.bin / .tlog) or .mat in a folder with remembered CSV import settings
+  opened but showed "Unexpected error while reading the file".
+- Fixed: opening a template right after choosing it could open it with no files (the files for
+  its slots were still being worked out); "Open" now waits for them.
+- Smart start: the first file opened into an empty workspace gets a small card with the template
+  that fits it best ("Open it" - nothing is applied by itself) and, for a flight log, the three
+  findings of the health check most worth a look, each with a jump to its time. The library and
+  the card rank templates the same way.
 - Batch reports: `python cli.py report --template "ArduPilot · Full review" --out reports/ logs/*.bin`
   makes one report per file (HTML, PDF or Word; `--lang he`), with the same template matching and
   drawing as the app. A file that cannot be read or has none of the template's signals is
