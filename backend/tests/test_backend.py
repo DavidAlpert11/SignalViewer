@@ -857,3 +857,58 @@ def test_report_envelope_plot_in_html_pdf_docx(tmp_path):
     assert "4 runs" in "".join(pg.extract_text() or "" for pg in PdfReader(str(tmp_path / "e.pdf")).pages)
     for r in runs:
         client.delete(f"/api/runs/{r}")
+
+
+def test_xyz_track_aligns_and_thins():
+    """T17c: Y and Z on X's samples over the time all three share; thinned keeps the last sample."""
+    from svcore.xyz import xyz_track
+    tx, ty = np.linspace(0, 10, 1001), np.linspace(2, 12, 51)
+    r = xyz_track((tx, tx * 2), (ty, ty * 3), (tx, -tx))
+    assert r["t"][0] == 2.0 and r["t"][-1] == 10.0
+    assert np.allclose(r["y"], r["t"] * 3) and np.allclose(r["z"], -r["t"]) and np.allclose(r["x"], r["t"] * 2)
+    thin = xyz_track((tx, tx), (tx, tx), (tx, tx), points=100)
+    assert len(thin["t"]) <= 101 and thin["t"][-1] == 10.0
+    assert xyz_track((tx, tx), (tx + 20, tx), (tx, tx)) is None                # no common time
+
+
+def test_xyz_api_and_report(tmp_path):
+    """T17c: /api/xyz returns the tracks; an XYZ plot is a real 3D chart in HTML (image), PDF and Word."""
+    p = tmp_path / "traj.csv"
+    t = np.arange(0, 20, 0.05)
+    np.savetxt(p, np.column_stack([t, 50 * np.cos(t / 3), 50 * np.sin(t / 3), -2 * t]), delimiter=",",
+               header="Time,pn,pe,pd", comments="")
+    run = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]
+    ids = [f"{run['id']}/{n}" for n in ("pn", "pe", "pd")]
+    r = client.post("/api/xyz", json={"tracks": [{"x": ids[0], "y": ids[1], "z": ids[2]},
+                                                 {"x": "nope/x", "y": ids[1], "z": ids[2]}]}).json()["tracks"]
+    assert r[0]["n"] == len(t) and r[1]["missing"]
+    z = np.frombuffer(base64.b64decode(r[0]["z"]), dtype=np.float32)
+    assert np.allclose(z, -2 * t, atol=1e-4)
+    sigs = [{"id": i, "label": i.split("/")[1], "color": "#3D8BFD", "scale": 1, "offset": 0} for i in ids]
+    plot = {"mode": "xyz", "title": "Trajectory", "caption": "", "signals": sigs, "xyzFlipZ": True}
+    body = lambda fmt: {"path": str(tmp_path / f"x.{fmt}"), "format": fmt, "lang": "en", "tabs": [{"name": "T", "plots": [plot]}]}
+    assert client.post("/api/report", json=body("html")).status_code == 200
+    h = (tmp_path / "x.html").read_text(encoding="utf-8")
+    assert 'class="specimg xyzimg"' in h and "data:image/png;base64," in h
+    for fmt in ("pdf", "docx"):
+        assert client.post("/api/report", json=body(fmt)).status_code == 200
+    from pypdf import PdfReader
+    assert "Trajectory" in "".join(pg.extract_text() or "" for pg in PdfReader(str(tmp_path / "x.pdf")).pages)
+    import docx
+    assert len(docx.Document(str(tmp_path / "x.docx")).inline_shapes) >= 1
+    store.remove(run["id"])
+
+
+def test_frame_reference_from_signals():
+    """T17c: a local track goes onto the map with the origin taken from other signals' first valid
+    sample (the vehicle's GPS) - which may cover a different time than the track."""
+    t = np.linspace(10, 20, 11)
+    c = lambda v, tt=t: (tt, np.full_like(tt, float(v)))
+    tg = np.linspace(0, 30, 31)
+    lat = (tg, np.where(tg < 2, np.nan, 32.08))                        # GPS without a fix at first
+    ned = [c(0), c(0), c(-100)]                                         # 100 m above the origin
+    lla = _frame3(ned + [lat, c(34.78, tg), c(30, tg)], qty="position", src="ned", dst="lla", ref="signals")
+    assert np.allclose(lla[:, 0], [32.08, 34.78, 130], atol=1e-7) and len(lla[0]) == 11
+    from svcore.analysis import OpError, compute
+    with pytest.raises(OpError, match="6 signals"):
+        compute("frame", ned, {"qty": "position", "src": "ned", "dst": "lla", "ref": "signals"})

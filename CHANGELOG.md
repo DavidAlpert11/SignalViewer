@@ -26,6 +26,12 @@
   ECEF the vehicle's lat / lon) and a position (also moves the origin; NED / ENU are metres from
   a reference point - the first sample or one you enter). Creates three signals, one per axis,
   that update with their files and are kept in sessions.
+- XYZ plot: any three signals as a 3D plot (a trajectory in metres, three sensor axes…) - not
+  tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
+  "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
+  first fix, or typed in). Reports draw it in 3D.
+- 3D view on computers without WebGL (old or virtual machines, remote desktop; recent Chrome and
+  Edge no longer emulate it): a simplified 3D view of the tracks instead of an error.
 - Command line and Python: `python cli.py info FILE`, `python cli.py export FILE --out x.mat`
   (or .csv; choose signals and a time window), and `import signalviewer as sv; sv.load(path)`
   for numpy / pandas. From MATLAB: `system('python cli.py export f.bin --out f.mat')`.
