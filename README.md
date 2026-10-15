@@ -161,7 +161,12 @@ python run.py              # native window (pywebview), or the browser if pywebv
 python run.py --browser    # always use the browser
 ```
 
-The UI is already built (`frontend/dist`), so Node.js is only needed to change the UI:
+The UI is already built (`frontend/dist`). When the UI code is newer than that build (after a
+pull, a patch or an edit), `run.py` builds it once by itself - Node.js needed - into
+`frontend/.local-dist` (ignored by git; the tracked `frontend/dist` is not touched) and serves
+that; the next start sees it is current and starts at once. `python run.py --build` forces a
+build, `--no-build` (or `SV_NO_BUILD=1`) never builds. Without Node.js it says so and shows the
+last build. For working on the UI:
 
 ```bash
 python run.py --port 8765 --no-open   # backend
@@ -318,6 +323,7 @@ Workspace autosave and the binary cache live in `~/.signalviewer/`.
 ## בעברית בקצרה
 
 הפעלה: `pip install -r requirements.txt` ואז `python run.py`.
+כשקוד הממשק חדש יותר מהבנייה הקיימת (אחרי pull או patch), ‏`run.py` בונה אותו פעם אחת לבד (נדרש Node.js) לתיקייה `frontend/.local-dist` שגיט מתעלם ממנה.
 האפליקציה נפתחת בחלון משלה (או בדפדפן), והקבצים לא יוצאים מהמחשב.
 גררו קבצי CSV, MAT או לוגים של ArduPilot (‎.bin) לחלון, לחצו על סיגנל כדי להוסיף אותו לגרף, ורווח מפעיל את הסמן.
 זום: X / Y / XY בסרגל (המקש Z מחליף). גלגלת מעל ציר עושה זום רק בו, Ctrl+גלגלת בערכים בלבד.
