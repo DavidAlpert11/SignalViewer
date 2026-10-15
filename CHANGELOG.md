@@ -32,6 +32,9 @@
   first fix, or typed in). Reports draw it in 3D.
 - 3D view on computers without WebGL (old or virtual machines, remote desktop; recent Chrome and
   Edge no longer emulate it): a simplified 3D view of the tracks instead of an error.
+- `python run.py` from the source folder always shows the current UI: after a pull or patch it
+  builds the UI once by itself (Node.js needed) into an ignored folder, without touching the
+  tracked `frontend/dist`. `--build` / `--no-build` to force or skip.
 - Command line and Python: `python cli.py info FILE`, `python cli.py export FILE --out x.mat`
   (or .csv; choose signals and a time window), and `import signalviewer as sv; sv.load(path)`
   for numpy / pandas. From MATLAB: `system('python cli.py export f.bin --out f.mat')`.

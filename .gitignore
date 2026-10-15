@@ -3,6 +3,7 @@ frontend/node_modules/
 build/
 dist/
 !frontend/dist/
+frontend/.local-dist/
 __pycache__/
 .pytest_cache/
 *.pyc

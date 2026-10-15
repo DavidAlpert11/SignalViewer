@@ -8,10 +8,21 @@ Starts the local API server on 127.0.0.1 (free port) and opens the UI:
     python run.py            # desktop window / browser
     python run.py --browser  # force the browser
     python run.py --port 8765 --no-open
+    python run.py --no-build # never build the UI (see ensure_ui)
+    python run.py --build    # build the UI now, even when it looks up to date
+
+From the source folder the UI is always the CURRENT code: when frontend/ changed since the UI
+was last built (a pull, a patch, an edit), run.py builds it once (Node.js / npm needed) into
+frontend/.local-dist - ignored by git, so the tracked frontend/dist is never touched - and
+serves that. The packaged app (.exe / portable) is not affected.
 """
 import argparse
+import hashlib
+import json
 import os
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 import time
@@ -25,6 +36,101 @@ if getattr(sys, "frozen", False):
     os.environ.setdefault("SV_EXAMPLES", os.path.join(BUNDLE, "examples"))
 else:
     sys.path.insert(0, os.path.join(HERE, "backend"))
+
+
+FRONT = os.path.join(HERE, "frontend")
+LOCAL_DIST = os.path.join(FRONT, ".local-dist")
+STAMP = ".sv-source-hash"                       # in LOCAL_DIST: the sources it was built from
+UI_SOURCES = ("src", "public", "index.html", "package.json", "package-lock.json", "vite.config.ts",
+              "tsconfig.json", "tsconfig.app.json", "tsconfig.node.json")
+
+
+def ui_source_hash(front: str = "") -> str:
+    """Fingerprint of everything the UI build is made from (paths and contents)."""
+    front = front or FRONT
+    h = hashlib.sha256()
+    for item in UI_SOURCES:
+        top = os.path.join(front, item)
+        files = [top] if os.path.isfile(top) else sorted(
+            os.path.join(d, f) for d, _, fs in os.walk(top) for f in fs) if os.path.isdir(top) else []
+        for f in sorted(files):
+            h.update(os.path.relpath(f, front).replace(os.sep, "/").encode())
+            with open(f, "rb") as fh:
+                h.update(hashlib.sha256(fh.read()).digest())
+    return h.hexdigest()
+
+
+def _git(*args) -> str:
+    return subprocess.run(["git", "-C", HERE, *args], capture_output=True, text=True, timeout=20, check=True).stdout.strip()
+
+
+def _newest_source_mtime(front: str) -> float:
+    newest = 0.0
+    for item in UI_SOURCES:
+        top = os.path.join(front, item)
+        files = [top] if os.path.isfile(top) else [os.path.join(d, f) for d, _, fs in os.walk(top) for f in fs] if os.path.isdir(top) else []
+        for f in files:
+            newest = max(newest, os.path.getmtime(f))
+    return newest
+
+
+def committed_dist_is_current() -> bool:
+    """Was frontend/dist built from the sources as they are now? Yes when it was built after the
+    last change to any UI source (`npm run build` by hand, or CI). Else by git: no uncommitted UI
+    changes, and no commit touched the UI sources after the last one that touched frontend/dist.
+    Without git (a zip of the code) it cannot tell, so it trusts the committed UI."""
+    index = os.path.join(FRONT, "dist", "index.html")
+    if os.path.isfile(index) and os.path.getmtime(index) > _newest_source_mtime(FRONT):
+        return True
+    try:
+        if _git("status", "--porcelain", "--", *[f"frontend/{p}" for p in UI_SOURCES]):
+            return False
+        last_dist = _git("log", "-1", "--format=%H", "--", "frontend/dist")
+        if not last_dist:
+            return False
+        return not _git("log", "--format=%H", f"{last_dist}..HEAD", "--", *[f"frontend/{p}" for p in UI_SOURCES])
+    except (OSError, subprocess.SubprocessError):
+        return True
+
+
+def _build_ui(src_hash: str) -> bool:
+    npm = shutil.which("npm")
+    if not npm:
+        print("The UI code changed but Node.js (npm) is not installed, so it cannot be built here:\n"
+              "  showing the UI from the last build. Install Node.js (nodejs.org) and run again.", flush=True)
+        return False
+    print("The UI code changed - building it once (about half a minute)...", flush=True)
+    try:
+        lock, mods = os.path.join(FRONT, "package-lock.json"), os.path.join(FRONT, "node_modules", ".package-lock.json")
+        if not os.path.isfile(mods) or (os.path.isfile(lock) and os.path.getmtime(lock) > os.path.getmtime(mods)):
+            subprocess.run([npm, "ci", "--no-audit", "--no-fund"], cwd=FRONT, check=True)
+        subprocess.run([npm, "run", "build", "--", "--outDir", ".local-dist", "--emptyOutDir"], cwd=FRONT, check=True)
+    except (OSError, subprocess.SubprocessError) as e:
+        print(f"Building the UI failed ({e}); showing the UI from the last build.", flush=True)
+        return False
+    with open(os.path.join(LOCAL_DIST, STAMP), "w", encoding="utf-8") as f:
+        json.dump({"source": src_hash, "built": time.strftime("%Y-%m-%d %H:%M:%S")}, f)
+    print("UI built.", flush=True)
+    return True
+
+
+def ensure_ui(force: bool = False, skip: bool = False) -> None:
+    """Point the server (SV_DIST) at a UI built from the current sources - see the module doc."""
+    if getattr(sys, "frozen", False) or os.environ.get("SV_DIST") or not os.path.isdir(os.path.join(FRONT, "src")):
+        return                                  # packaged app, an explicit choice, or no sources here
+    src_hash = ui_source_hash()
+    try:
+        with open(os.path.join(LOCAL_DIST, STAMP), encoding="utf-8") as f:
+            local_ok = json.load(f).get("source") == src_hash
+    except (OSError, ValueError):
+        local_ok = False
+    if local_ok and not force:
+        os.environ["SV_DIST"] = LOCAL_DIST
+        return
+    if skip or os.environ.get("SV_NO_BUILD") or (not force and committed_dist_is_current()):
+        return                                  # the tracked frontend/dist (default)
+    if _build_ui(src_hash):
+        os.environ["SV_DIST"] = LOCAL_DIST
 
 
 def free_port() -> int:
@@ -50,7 +156,10 @@ def main():
     ap.add_argument("--port", type=int, default=0)
     ap.add_argument("--browser", action="store_true")
     ap.add_argument("--no-open", action="store_true")
+    ap.add_argument("--build", action="store_true", help="build the UI now (from the source folder)")
+    ap.add_argument("--no-build", action="store_true", help="never build the UI; use the last build")
     args = ap.parse_args()
+    ensure_ui(force=args.build, skip=args.no_build)
 
     import uvicorn
     from app.main import app
