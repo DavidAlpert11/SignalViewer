@@ -174,7 +174,8 @@ interface AppState {
   retarget: { state: any; title: string; fromCurrent: boolean } | null;   // "open with new files"
   recent: import("./api").RecentItem[];
   hover: { plotId: string; t: number; vals: Record<string, number | null> } | null;
-  compareTable: { rows: import("./api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean } | null;       // plot id whose axis limits are being edited
+  compareTable: { rows: import("./api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
+    segment?: import("./segments").SegmentChoice } | null;       // plot id whose axis limits are being edited
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;

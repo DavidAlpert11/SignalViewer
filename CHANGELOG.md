@@ -30,6 +30,11 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- Compare runs over a segment: "Compare over: A segment" picks a state signal (flight mode, gear,
+  any text column), a value and which occurrence (1st, 2nd… or last) - e.g. the 2nd AUTO of every
+  flight. Each file is compared from the start of its own segment; the list shows where the
+  segment is in each file (or that it is missing). Clicking a signal opens the files over that
+  segment, aligned at 0, in a tab named after the segment; the comparison table names it too.
 - Live MAVLink: Live ▸ MAVLink connects to a vehicle or simulator over UDP, TCP or a serial port
   and records the link to a .tlog (in ~/.signalviewer/recordings). The recording opens like any
   file and live mode follows it, so live and recorded data behave the same; Disconnect keeps it.
