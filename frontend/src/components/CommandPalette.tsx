@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { refreshAll, toggleLive } from "../live";
+import { mavlinkDisconnect } from "../mavlink";
 import { actions, activeTab, useApp } from "../store";
 import { useT } from "../i18n";
 import { newCollection, openTemplates, saveAsTemplate } from "../templateMenu";
@@ -51,6 +52,9 @@ export default function CommandPalette() {
       { id: "theme", label: `${t("theme")}: ${st().theme === "dark" ? t("light") : t("dark")}`, group: t("theme"), icon: <Icon.Sun />, run: () => useApp.setState({ theme: st().theme === "dark" ? "light" : "dark" }) },
       { id: "lang", label: t("language"), group: t("theme"), icon: <Icon.Globe />, run: () => useApp.setState({ lang: st().lang === "he" ? "en" : "he" }) },
       { id: "live", label: t("stream"), group: t("files"), icon: <Icon.Live />, run: toggleLive },
+      useApp.getState().mavlink?.running
+        ? { id: "mav-off", label: t("mavCmdDisconnect"), group: t("files"), icon: <Icon.Live />, run: () => { mavlinkDisconnect(); } }
+        : { id: "mav-on", label: t("mavCmdConnect"), group: t("files"), icon: <Icon.Live />, run: () => useApp.setState({ liveMenuOpen: true }) },
       { id: "refreshall", label: t("refreshAll"), group: t("files"), icon: <Icon.Reload />, run: () => { refreshAll(); }, keys: "F5" },
       { id: "zoomx", label: t("zoomX"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("x"), keys: "Z" },
       { id: "zoomy", label: t("zoomY"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("y"), keys: "Z" },

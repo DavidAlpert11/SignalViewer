@@ -12,4 +12,5 @@ python-bidi>=0.4      # Hebrew text in PDF/PNG reports
 matplotlib>=3.7       # PDF / Word / image export
 python-docx>=1.0      # Word reports
 pymavlink>=2.4.40     # MAVLink telemetry logs (.tlog): message definitions
+pyserial>=3.5         # live MAVLink from a serial telemetry radio (T12); pure Python, used by pymavlink
 pyulog>=1.0           # PX4 flight logs (.ulg)

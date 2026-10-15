@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { toggleLive } from "../live";
+import { mavlinkConnect, mavlinkDisconnect } from "../mavlink";
+import { api } from "../api";
+import { fmtNum } from "../i18n";
 import { actions, setInspectorByUser, useApp } from "../store";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
@@ -17,8 +20,12 @@ export default function TopBar() {
   const inspectorOpen = useApp((s) => s.inspectorOpen);
   const [editing, setEditing] = useState<string | null>(null);
   const liveStarting = useApp((s) => s.liveStarting);
-  const [liveMenu, setLiveMenu] = useState(false);
-  const [liveAnchor, setLiveAnchor] = useState<DOMRect | null>(null);
+  const liveMenu = useApp((s) => s.liveMenuOpen);
+  const setLiveMenu = (v: boolean) => useApp.setState({ liveMenuOpen: v });
+  const mav = useApp((s) => s.mavlink);
+  const lang = useApp((s) => s.lang);
+  const mavOn = !!mav?.running;
+  const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
 
   return (
     <header className="topbar">
@@ -81,10 +88,16 @@ export default function TopBar() {
           <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
         </button>
         <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
-          onClick={(e) => { setLiveAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setLiveMenu(!liveMenu); }}>
+          onClick={() => setLiveMenu(!liveMenu)}>
           <Icon.Chevron width={12} height={12} />
         </button>
-        {liveMenu && <LiveSettings anchor={liveAnchor} onClose={() => setLiveMenu(false)} />}
+        {mavOn && (
+          <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
+            title={mavQuiet ? t("mavNoData", { conn: mav!.conn ?? "" }) : t("mavReceiving", { conn: mav!.conn ?? "" })}>
+            <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
+          </button>
+        )}
+        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
       </span>
       <button className="iconbtn" onClick={() => useApp.setState({ theme: theme === "dark" ? "light" : "dark" })}
         title={theme === "dark" ? t("light") : t("dark")} aria-label={t("theme")}>
@@ -99,7 +112,8 @@ export default function TopBar() {
 }
 
 /** Live mode settings: when to stop by itself, and what to do with new files in the same folders. */
-function LiveSettings({ anchor, onClose }: { anchor: DOMRect | null; onClose: () => void }) {
+function LiveSettings({ onClose }: { onClose: () => void }) {
+  const anchor = document.querySelector(".live-more")?.getBoundingClientRect() ?? null;
   const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const autoStop = useApp((s) => s.liveAutoStop);
@@ -129,6 +143,56 @@ function LiveSettings({ anchor, onClose }: { anchor: DOMRect | null; onClose: ()
           <option value="ignore">{t("newFilesIgnore")}</option>
         </select></label>
       {/* "Follow" acts on the plots on screen: it lives in the StageBar while live (one place) */}
+      <MavlinkSection />
+    </div>
+  );
+}
+
+/** T12: receive MAVLink from a link (UDP / TCP / serial). The link is recorded to a .tlog that
+ *  opens as a file and is followed by live mode. Read-only unless "ask for data" is on. */
+function MavlinkSection() {
+  const t = useT();
+  const mav = useApp((s) => s.mavlink);
+  const [conn, setConn] = useState(() => localStorage.getItem("sv3.mavConn") || "udpin:127.0.0.1:14550");
+  const [baud, setBaud] = useState(57600);
+  const [request, setRequest] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [ports, setPorts] = useState<{ device: string; description: string }[]>([]);
+  const [presets, setPresets] = useState<string[]>([]);
+  useEffect(() => { api.mavlinkPorts().then((r) => { setPorts(r.ports); setPresets(r.presets); }).catch(() => {}); }, []);
+  const serial = !/^(udp|udpin|udpout|udpbcast|tcp|tcpin):/i.test(conn.trim());
+  const on = !!mav?.running;
+  const connect = async () => {
+    setBusy(true);
+    try { localStorage.setItem("sv3.mavConn", conn.trim()); } catch { /* private mode */ }
+    await mavlinkConnect(conn.trim(), { baud, request });
+    setBusy(false);
+  };
+  return (
+    <div className="mav-section">
+      <h3>{t("mavTitle")}</h3>
+      {!on ? <>
+        <label>{t("mavConn")}
+          <input list="mav-conns" value={conn} onChange={(e) => setConn(e.target.value)} spellCheck={false} dir="ltr" aria-label={t("mavConn")} />
+          <datalist id="mav-conns">
+            {presets.map((p) => <option key={p} value={p} />)}
+            {ports.map((p) => <option key={p.device} value={p.device}>{p.description}</option>)}
+          </datalist></label>
+        <p className="hint">{t("mavConnHint")}</p>
+        {serial && <label>{t("mavBaud")}
+          <select value={baud} onChange={(e) => setBaud(Number(e.target.value))}>
+            {[57600, 115200, 230400, 460800, 921600].map((b) => <option key={b} value={b}>{b}</option>)}
+          </select></label>}
+        <label className="acheck"><input type="checkbox" checked={request} onChange={(e) => setRequest(e.target.checked)} />{t("mavRequest")}</label>
+        <p className="hint">{t("mavRequestHint")}</p>
+        <button className="btn primary" disabled={busy || !conn.trim()} onClick={connect}>{t("mavConnect")}</button>
+      </> : <>
+        <p className="mav-status" dir="ltr">{mav!.conn}</p>
+        <p className="hint">{mav!.sinceData == null ? t("mavWaiting") : t("mavStats", { n: mav!.frames ?? 0, kb: Math.round((mav!.bytes ?? 0) / 1024) })}
+          {mav!.error ? ` · ${mav!.error}` : ""}</p>
+        <p className="hint mav-path" dir="ltr" title={mav!.path}>{mav!.path}</p>
+        <button className="btn outline" onClick={() => mavlinkDisconnect()}>{t("mavDisconnect")}</button>
+      </>}
     </div>
   );
 }

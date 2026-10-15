@@ -6,6 +6,11 @@ export interface SignalInfo {
   // derived signals only
   op?: string; sources?: string[]; params?: Record<string, unknown>; formula?: string; valid?: boolean; samples?: number;
 }
+/** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
+export interface MavStatus {
+  running: boolean; conn?: string; path?: string; frames?: number; bytes?: number; written?: number; rate?: number;
+  request?: boolean; sinceData?: number | null; sinceHeartbeat?: number | null; vehicle?: number[] | null; error?: string | null;
+}
 export interface RunInfo {
   id: string;
   name: string;
@@ -134,6 +139,10 @@ export const api = {
     activity?: Record<string, number>; newFiles?: { path: string; name: string; size: number; mtime: number }[] }>("/api/stream/poll", {}),
   streamStart: (lookBack = 0) => call<{ ok: boolean }>("/api/stream/start", { lookBack }),
   streamStop: () => call<{ ok: boolean }>("/api/stream/stop", {}),
+  mavlinkStart: (body: { conn: string; baud?: number; request?: boolean; rate?: number }) => call<MavStatus>("/api/mavlink/start", body),
+  mavlinkStop: () => call<MavStatus>("/api/mavlink/stop", {}),
+  mavlinkStatus: () => call<MavStatus>("/api/mavlink/status"),
+  mavlinkPorts: () => call<{ ports: { device: string; description: string }[]; presets: string[]; folder: string }>("/api/mavlink/ports"),
   data: async (signals: string[], x0: number | null, x1: number | null, points: number): Promise<Series[]> => {
     const r = await call<{ series: any[] }>("/api/data", { signals, x0, x1, points });
     return r.series.map((s) =>

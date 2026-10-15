@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, type RunInfo } from "./api";
+import { api, type MavStatus, type RunInfo } from "./api";
 import { dataRuns, runLabels } from "./names";
 import { translate } from "./i18n";
 import { labelsOf } from "./values";
@@ -139,6 +139,8 @@ interface AppState {
   activity: Record<string, number>;   // live: seconds since each file last received data
   liveLastData: number;            // live: time (ms) new data last arrived, or live mode started
   liveStarting: boolean;
+  mavlink: MavStatus | null;       // T12: the live MAVLink link (UI state, never saved)
+  liveMenuOpen: boolean;           // the Live popover (also opened from Ctrl+K)
   liveIdle: number;
   logs: Record<string, LogInfo>;   // flight-log parameters / events per file (ArduPilot .bin), fetched on demand
   logMarkers: LogMarkers;          // log events drawn on time plots: none, warnings + errors, or all
@@ -239,6 +241,8 @@ export const useApp = create<AppState>((set, get) => ({
   activity: {},
   liveLastData: 0,
   liveStarting: false,
+  mavlink: null,
+  liveMenuOpen: false,
   liveIdle: 0,
   logs: {},
   logMarkers: "important",

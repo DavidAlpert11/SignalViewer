@@ -30,6 +30,12 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- Live MAVLink: Live ▸ MAVLink connects to a vehicle or simulator over UDP, TCP or a serial port
+  and records the link to a .tlog (in ~/.signalviewer/recordings). The recording opens like any
+  file and live mode follows it, so live and recorded data behave the same; Disconnect keeps it.
+  Only listens by default; "Ask the vehicle to send data" acts as a minimal ground station
+  when no other program asks for the data. A pill next to Live shows messages per second and
+  turns red when the link goes quiet. Also in Ctrl+K.
 - Frames: the three signals of a conversion are kept together as one group, e.g.
   `ned_Pos_lla` with `ned_Pos_lla.N` / `.E` / `.D` (the name you type replaces the default).
   The file list and Create signals show it nested; add all to the active plot or each to a new
