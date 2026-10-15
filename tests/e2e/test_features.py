@@ -780,22 +780,29 @@ def test_frame_conversion(pg):
     pg.get_by_role("button", name="Preview", exact=True).click()
     pg.wait_for_function("(window.__sv.state().preview?.lines || []).length === 3")
     assert pg.locator(".pv-key-item").all_inner_texts() == ["enu_Vec_ned.E", "enu_Vec_ned.N", "enu_Vec_ned.U"]
-    pg.locator(".seg.wide button", has_text="A chart per axis").click()
+    pg.locator(".seg.wide button", has_text="A plot per axis").click()       # time plots under the grid
     pg.get_by_role("button", name="Preview", exact=True).click()
-    pg.wait_for_function("document.querySelectorAll('.pv-chart canvas').length >= 3")
-    assert pg.evaluate("window.__sv.state().preview") is None
+    pg.wait_for_function("document.querySelectorAll('.pv-plot canvas').length >= 3")
+    assert pg.locator(".pv-plot .plot-title").all_inner_texts() == ["enu_Vec_ned.E", "enu_Vec_ned.N", "enu_Vec_ned.U"]
+    assert len(pg.evaluate("window.__sv.state().ws.tabs[0].plots")) == 1           # not part of the workspace
     pg.get_by_role("button", name="Create 3 signals", exact=True).click()
     # one nested group "enu_Vec_ned" with E / N / U, added to the plot in one step
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
-    pg.wait_for_function("document.querySelectorAll('.pv-chart').length === 0")   # creating clears the preview
+    pg.wait_for_function("document.querySelectorAll('.pv-plot').length === 0")    # creating clears the preview
     assert pg.locator(".dsig-name").inner_text() == "enu_Vec_ned E, N, U"
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 6")
     assert {c["sig"] for c in pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].signals")} >= {
         "derived/enu_Vec_ned.E", "derived/enu_Vec_ned.N", "derived/enu_Vec_ned.U"}
     pg.locator(".dsig.grp .chev-btn").click()
     assert pg.locator(".dsig.deep .dsig-name").all_inner_texts() == ["E", "N", "U"]
+    # again, each axis in a plot of its own
+    pg.locator(".analysis label:has-text('Add the result to') select").select_option("each")
+    pg.get_by_role("button", name="Create 3 signals", exact=True).click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.length === 4")
+    assert [p["signals"][0]["sig"] for p in pg.evaluate("window.__sv.state().ws.tabs[0].plots")[1:]] == [
+        "derived/enu_Vec_ned_2.E", "derived/enu_Vec_ned_2.N", "derived/enu_Vec_ned_2.U"]
     pg.click("[aria-label='Data']")                                           # nested in the file list too
-    assert pg.locator(".grp-head .nm", has_text="enu_Vec_ned").count() == 1
+    assert pg.locator(".grp-head .nm").all_inner_texts()[-2:] == ["enu_Vec_ned", "enu_Vec_ned_2"]
 
 
 PAINTED = """(sel) => { const c = document.querySelector(sel); if (!c || !c.width) return false;

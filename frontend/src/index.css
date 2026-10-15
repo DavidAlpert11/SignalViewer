@@ -227,10 +227,12 @@ button, input, select { font: inherit; color: inherit; }
 /* preview: the key of several dashed lines, or a small chart per line */
 .pv-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 0; color: var(--muted); font-size: 0.8846rem; direction: ltr; }
 .pv-key-item { display: inline-flex; align-items: center; gap: 5px; }
-.pv-charts { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px; }
-.pv-chart { margin: 0; border: 1px solid var(--line); border-radius: 6px; padding: 4px 4px 2px; background: var(--bg); }
-.pv-chart figcaption { font-size: 0.8846rem; color: var(--muted); padding: 0 4px 2px; direction: ltr; text-align: start; }
-.pv-canvas { width: 100%; direction: ltr; }
+.pv-strip { flex: 0 0 34%; min-height: 140px; display: flex; flex-direction: column; padding: 0 8px 8px; }
+.pv-strip-head { display: flex; align-items: center; gap: 6px; padding: 2px 2px 4px; color: var(--muted); font-size: 0.8846rem; font-weight: 600; }
+.pv-strip-head span { flex: 1; }
+.pv-strip-head .iconbtn { height: 22px; min-width: 22px; padding: 0; }
+.pv-strip-plots { flex: 1; min-height: 0; display: grid; gap: 8px; }
+.pv-plot { border-style: dashed; }
 .sig .disc { font-size: 0.8077rem; color: var(--faint); }
 .plot-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); text-align: center; padding: 16px; pointer-events: none; }
 .plot-loading { position: absolute; top: 6px; inset-inline-end: 10px; font-size: 0.8462rem; color: var(--faint); }

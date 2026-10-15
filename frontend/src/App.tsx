@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
+import PreviewPlots from "./components/PreviewPlots";
 import Timeline from "./components/Timeline";
 const TemplateLibrary = lazyPreload(() => import("./components/TemplateLibrary"));
 const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
@@ -480,6 +481,7 @@ export default function App() {
           {!runs.length ? <div className="stage-body"><Welcome /></div> : (
             <PlotGrid />
           )}
+          {runs.length > 0 && <PreviewPlots />}
           {runs.length > 0 && <Timeline />}
         </main>
         {inspectorOpen ? <Inspector /> : <div />}

@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, type Series } from "../api";
-import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type Range, type Tab } from "../store";
+import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PreviewLine, type Range, type Tab } from "../store";
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { fmtNum } from "../i18n";
 import { unitOf } from "../units";
 import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, uiScale, useSize } from "./chartUtil";
 
-interface Props { tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void }
+interface Props {
+  tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void;
+  /** A preview plot of its own (not in the workspace): only these dashed lines, index -1. */
+  previewOnly?: PreviewLine[];
+}
 
 type StateMarks = Record<string, { points: [number, number | null][]; tooMany: boolean; end: number | null }>;
 
 /** Height of one state lane (CSS px) when it shares the plot with ordinary lines. */
 const LANE_H = 18;
 
-export default function TimeChart({ tab, plot, index, onLoading }: Props) {
+export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: Props) {
   const theme = useApp((s) => s.theme);
   const scale = useApp((s) => s.uiScale);
   const runs = useApp((s) => s.runs);
@@ -35,7 +39,8 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
   const rangeRef = useRef(range);
   rangeRef.current = range;
   const cursor = useApp((s) => s.cursor);
-  const preview = useApp((s) => (s.preview && s.preview.plotId === plot.id ? s.preview : null));
+  const storePreview = useApp((s) => (s.preview && !s.preview.separate && s.preview.plotId === plot.id ? s.preview : null));
+  const preview = previewOnly ? { lines: previewOnly } : storePreview;
   const valuesOnPlot = useApp((s) => s.valuesOnPlot);
   const cvals = useApp((s) => s.cvals);
   const linkY = !!tab.linkY;
@@ -126,7 +131,8 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
     const ok = plot.signals
       .map((ps) => ({ ps, s: series.find((x) => x.id === ps.sig) }))
       .filter((v): v is { ps: typeof v.ps; s: Series } => !!v.s && !v.s.missing && v.s.n > 0);
-    if (!ok.length) return null;
+    const pv = preview?.lines.filter((l) => l.x.length) ?? [];
+    if (!ok.length && !pv.length) return null;           // an empty plot still shows a preview
     const tables = ok.map(({ ps, s }) => {
       const y: (number | null)[] = new Array(s.n);
       for (let i = 0; i < s.n; i++) {
@@ -137,7 +143,6 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
       return [off ? Array.from(s.x, (v) => v + off) : Array.from(s.x), y] as uPlot.AlignedData;
     });
     const sigs = ok.map((v) => v.ps);
-    const pv = preview?.lines.filter((l) => l.x.length) ?? [];
     for (const l of pv) tables.push([Array.from(l.x), Array.from(l.y, (v) => (Number.isFinite(v) ? v : null))] as uPlot.AlignedData);
     const data = tables.length === 1 ? tables[0] : uPlot.join(tables, tables.map(() => [1]));
     // dense: about a point per pixel or more (decimated min/max) - drawn as a 1-device-pixel line,
@@ -624,7 +629,7 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
       return null;
     };
     const onDown = (e: MouseEvent) => {
-      actions.setActivePlot(index);
+      if (index >= 0) actions.setActivePlot(index);
       downX = e.clientX;
       const seg = laneHit(e);
       if (seg && seg.b > seg.a) {
