@@ -47,6 +47,7 @@ def _log_signal_names(path: str):
 from app.store import LoadError, store
 from svcore.limits import check_limits
 from svcore.envelope import envelope
+from svcore import mavlive
 from svcore.analysis import OpError, OPS, align_to, fft_display, fft_for, transitions, xy_pair
 from svcore.compare import auto_shift, compare as compare_runs
 from app import report as reports
@@ -498,6 +499,60 @@ async def stream_poll():
         new_files = found
     return {"changed": changed, "runs": store.list() if changed else None,
             "errors": getattr(store, "poll_errors", {}), "activity": store.activity(), "newFiles": new_files}
+
+
+# Live MAVLink (T12): a receiver records the link to a .tlog in the recordings folder; the UI opens
+# that file and follows it with live mode above (one code path for live and recorded data).
+MAVLINK: Dict[str, Optional[mavlive.Receiver]] = {"rx": None}
+RECORDINGS = os.path.join(APP_DIR, "recordings")
+
+
+class MavStart(BaseModel):
+    conn: str                       # pymavlink connection string: udpin:127.0.0.1:14550, tcp:host:5760, COM5, /dev/ttyUSB0
+    baud: int = 57600               # serial only
+    request: bool = False           # act as a minimal ground station (heartbeat + ask for data streams)
+    rate: int = 4                   # Hz, with request
+    folder: Optional[str] = None    # where to record (default: ~/.signalviewer/recordings)
+
+
+@app.post("/api/mavlink/start")
+def mavlink_start(req: MavStart):
+    conn = req.conn.strip()
+    if not conn:
+        fail(400, "Type a connection, e.g. udpin:127.0.0.1:14550 (SITL / MAVProxy) or COM5 (serial).")
+    old = MAVLINK["rx"]
+    if old is not None and old.running:
+        fail(409, f"Already receiving from {old.conn_str}. Stop that connection first.")
+    folder = os.path.abspath(os.path.expanduser(req.folder)) if req.folder else RECORDINGS
+    try:
+        rx = mavlive.Receiver(conn, mavlive.recording_path(folder), baud=int(req.baud), request=bool(req.request),
+                              rate_hz=int(max(1, min(req.rate, 50))))
+    except mavlive.MavLiveError as e:
+        fail(400, str(e))
+    except OSError as e:
+        fail(400, f"Cannot write the recording in {folder}: {e}")
+    MAVLINK["rx"] = rx
+    return rx.status()
+
+
+@app.post("/api/mavlink/stop")
+def mavlink_stop():
+    rx = MAVLINK["rx"]
+    if rx is None:
+        return {"running": False}
+    rx.stop()
+    return rx.status()
+
+
+@app.get("/api/mavlink/ports")
+def mavlink_ports():
+    return {"ports": mavlive.serial_ports(), "presets": list(mavlive.PRESETS), "folder": RECORDINGS}
+
+
+@app.get("/api/mavlink/status")
+def mavlink_status():
+    rx = MAVLINK["rx"]
+    return rx.status() if rx is not None else {"running": False}
 
 
 # =============================================================================

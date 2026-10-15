@@ -19,7 +19,9 @@ hidden = (
     + collect_submodules("app", filter=lambda m: True)
     + collect_submodules("svcore")
     + ["scipy.io.matlab", "h5py", "docx", "bidi", "bidi.algorithm", "multipart", "python_multipart",
-       "matplotlib.backends.backend_agg", "matplotlib.backends.backend_pdf", "matplotlib.backends.backend_svg"]
+       "matplotlib.backends.backend_agg", "matplotlib.backends.backend_pdf", "matplotlib.backends.backend_svg",
+       # live MAVLink (T12): imported inside functions / by name, PyInstaller cannot see them
+       "pymavlink.mavutil", "pymavlink.dialects.v20.ardupilotmega", "serial", "serial.tools.list_ports"]
 )
 try:                       # native window (pywebview); without it the app opens in the browser
     import webview  # noqa: F401

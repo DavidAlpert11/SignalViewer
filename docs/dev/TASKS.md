@@ -13,12 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`, last commit `80fc362` (T17f + its fix, frontend/dist rebuilt).
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f (frames, XYZ plot,
-  3D without WebGL, run.py builds the UI, frames as nested groups + preview).
-- Tests at the last commit: backend 128 passed; e2e `test_features.py -k "frame or xyz or preview
-  or derived or analysis"` 4 passed. The full e2e set was last run in full at T17b (141 passed).
-- **Next task: Q1 (T12 Live MAVLink).** Nothing started.
+- Branch `main`. Pushed: `80fc362` (T17f + its fix). On top of it, not pushed yet: the
+  TASKS.md commit and T12 (delivered as patches).
+- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f and T12.
+- Tests at the last change: backend 131 passed; e2e `test_features.py -k "mavlink or live or
+  stream or frame or D09 or refresh_and_live or growing_text or D03"` and `test_workflows.py -k
+  live` all passed. The full e2e set was last run in full at T17b (141 passed).
+- **Q1 (T12) is implemented and tested with a simulated vehicle; it waits for the owner's
+  check with real SITL / a radio (see Q1).** **Next task: Q2 (T10b).**
 
 ## How to work here (practical notes)
 
@@ -66,7 +68,12 @@ a local UDP socket and checks the run grows; e2e: connect / status / stop with t
 **Risks:** serial ports on Windows (pyserial, permissions); the app must still listen only on
 127.0.0.1 - the MAVLink socket is an outgoing/listening data socket, keep it opt-in and say so in
 the UI; heavy rates (>1000 msg/s) - batch the writes.
-**Status:** not started.
+**Status:** implemented (see ROADMAP T12 for what and where). Tested with a simulated vehicle
+(pymavlink over UDP: backend + e2e + by hand in Chromium). **Left for the owner:** run against
+ArduPilot SITL (UDP 14550 via MAVProxy, and TCP 5760 with "Ask the vehicle to send data") and a
+serial radio on Windows; then tick T12 in ROADMAP.
+**Follow-ups (not queued):** choose the recordings folder in the UI (the API takes `folder`);
+show the vehicle type / mode in the pill; several links at once.
 
 ### Q2 · T10b Same segment across runs — M
 **Why:** "the 2nd AUTO of every flight, side by side" - almost no other tool does it.
@@ -155,12 +162,12 @@ the active plot / the file; show "Suggested: LLA → NED from GPS" with the fiel
 user only confirms.
 **Status:** not started.
 
-### Q11 · T31 User Python operations (new) — L, needs a decision first
+### Q11 · T31 User Python operations (new) — L
 **Why:** new analyses without changing the app.
-**Decision needed from the owner before starting:** this runs user Python code. Proposal: only
-files in a user-chosen local folder, listed in the UI, never code from sessions or templates
-(a shared session must not run code). Formulas keep the AST whitelist (`svcore/formula.py`).
-**Status:** waiting for a decision.
+**Decided (owner, 2026-10-15):** only Python files in a local folder the user chooses run,
+listed in the UI; never code that comes with a session or template (a shared session must not
+run code). Formulas keep the AST whitelist (`svcore/formula.py`).
+**Status:** not started (decision made).
 
 ### Also open (not queued yet - see ROADMAP)
 T14c, T21b, T23, T24, T25, F02 (check on a developer machine / CI), Parquet / MF4,
@@ -173,3 +180,6 @@ splitting `main.py` and `store.ts`.
 - 2026-10-15 · T17f frames as one nested group + preview (in the plot, a plot per axis under
   the grid) + "Add the result to" · `7400e45`, `2a4c321`, dist `80fc362` · done.
 - 2026-10-15 · This file created; queue Q1–Q11 · next: Q1.
+- 2026-10-15 · Q11: owner decided - user Python only from a local folder the user chooses.
+- 2026-10-15 · Q1 / T12 Live MAVLink implemented (record to .tlog + existing live mode) ·
+  backend 131, e2e live tests green · left: SITL / radio check by the owner · next: Q2.

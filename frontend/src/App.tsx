@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
 import PreviewPlots from "./components/PreviewPlots";
+import { mavlinkResume } from "./mavlink";
 import Timeline from "./components/Timeline";
 const TemplateLibrary = lazyPreload(() => import("./components/TemplateLibrary"));
 const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
@@ -191,7 +192,8 @@ function PanelResizer({ label, style, width, setWidth, grow, def, other }: {
 }
 
 export default function App() {
-  useEffect(() => { preloadAll(); }, []);           // panels / dialogs: ready before their first open
+  useEffect(() => { preloadAll(); }, []);
+  useEffect(() => { mavlinkResume(); }, []);           // a MAVLink link still running after a reload           // panels / dialogs: ready before their first open
   const t = useT();
   const theme = useApp((s) => s.theme);
   const lang = useApp((s) => s.lang);
