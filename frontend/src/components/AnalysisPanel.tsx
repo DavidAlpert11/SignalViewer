@@ -8,6 +8,11 @@ import FormulaInput from "./FormulaInput";
 import MultiSignalPicker from "./MultiSignalPicker";
 import { resolveFormula } from "../formulaRefs";
 import { clearAllEdits, deleteAllDerived, editInPlace, opToStep } from "../transforms";
+import { AXES, createFrameGroup, frameGroupName, type Frame, type Qty } from "../frames";
+import { groupDerived, memberLabel } from "../signalGroups";
+import type { PreviewLine } from "../store";
+import { PREVIEW_DASH } from "./chartUtil";
+import PreviewCharts from "./PreviewCharts";
 
 type Kind = "one" | "two" | "many" | "fx" | "frame";
 const UNARY: [string, TKey][] = [
@@ -16,13 +21,11 @@ const UNARY: [string, TKey][] = [
 ];
 const BINARY: [string, string][] = [["sub", "A − B"], ["add", "A + B"], ["mul", "A × B"], ["div", "A ÷ B"], ["absdiff", "|A − B|"]];
 const MULTI: [string, TKey][] = [["mean", "opMean"], ["sum", "opSum"], ["min", "opMin"], ["max", "opMax"], ["norm", "opNorm"]];
-// Frame conversion (svcore/analysis.py "frame"): one derived signal per output axis.
-// A vector (velocity...) only rotates; a position also moves its origin, so the frames differ.
-type Frame = "ned" | "enu" | "body" | "ecef" | "lla";
-type Qty = "vector" | "position";
+// Frame conversion (svcore/analysis.py "frame"): one derived signal per output axis, the three
+// made as one nested group (frames.ts). A vector (velocity...) only rotates; a position also moves
+// its origin, so the frames differ.
 const FRAME_KEYS: Record<Frame, TKey> = { ned: "frameNed", enu: "frameEnu", body: "frameBody", ecef: "frameEcef", lla: "frameLla" };
 const FRAMES_OF: Record<Qty, Frame[]> = { vector: ["ned", "enu", "body", "ecef"], position: ["lla", "ecef", "ned", "enu"] };
-const AXES: Record<Frame, string[]> = { ned: ["N", "E", "D"], enu: ["E", "N", "U"], body: ["X", "Y", "Z"], ecef: ["X", "Y", "Z"], lla: ["lat", "lon", "alt"] };
 const LLA_KEYS: TKey[] = ["objRole_lat", "objRole_lon", "objRole_alt"];
 const EULER: TKey[] = ["objRole_roll", "objRole_pitch", "objRole_yaw"];
 const QUAT: TKey[] = ["objRole_qw", "objRole_qx", "objRole_qy", "objRole_qz"];
@@ -69,6 +72,9 @@ export default function AnalysisPanel() {
   const [refMode, setRefMode] = useState<"first" | "manual" | "signals">("first");
   const [refSigs, setRefSigs] = useState<string[]>(["", "", ""]);
   const [refLla, setRefLla] = useState<string[]>(["", "", ""]);
+  const [pvWhere, setPvWhere] = useState<"plot" | "separate">("plot");      // several outputs: in the plot or a chart each
+  const [pvSep, setPvSep] = useState<PreviewLine[] | null>(null);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const ends = [frSrc, frDst];
   const needsAtt = qty === "vector" && ends.includes("body");
   const needsGeo = qty === "vector" && ends.includes("ecef");
@@ -108,13 +114,21 @@ export default function AnalysisPanel() {
   ];
 
   const switchKind = (k: Kind) => {
-    setKind(k); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : "expr");
+    setKind(k); setPvSep(null); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : "expr");
     if (k === "frame" && vec.every((x) => !x)) {          // the active plot's signals, in order, as a start
       setVec([0, 1, 2].map((i) => plotSigs[i] ?? ""));
       setAttSigs([3, 4, 5, 6].map((i) => plotSigs[i] ?? ""));
     }
   };
   const tr = (k: string, v?: Record<string, string | number>) => t(k as never, v);
+  /** The conversion's parameters without the output axis (one derived signal per axis). */
+  const frameParams = (): Record<string, unknown> => {
+    const p: Record<string, unknown> = { qty, src: frSrc, dst: frDst, att, unit, alignment };
+    if (needsRef) Object.assign(p, refManual
+      ? { ref: "manual", ref_lat: Number(refLla[0]), ref_lon: Number(refLla[1]), ref_alt: Number(refLla[2]) }
+      : { ref: refFromSigs ? "signals" : "first" });
+    return p;
+  };
   const fxRes = kind === "fx" && fx.trim() ? resolveFormula(fx, runs, tr) : null;
   const params = { window: windowN, cutoff, alignment, gain, bias };
   const batchSigs = many;
@@ -134,15 +148,8 @@ export default function AnalysisPanel() {
       if (frameSources.some((x) => !x)) return;
       setBusy(true);
       try {
-        for (const [axis, lbl] of AXES[frDst].entries()) {
-          const p: Record<string, unknown> = { qty, src: frSrc, dst: frDst, axis, att, unit, alignment };
-          if (needsRef) Object.assign(p, refManual
-            ? { ref: "manual", ref_lat: Number(refLla[0]), ref_lon: Number(refLla[1]), ref_alt: Number(refLla[2]) }
-            : { ref: refFromSigs ? "signals" : "first" });
-          const r = await api.createDerived("frame", frameSources, p, name.trim() ? `${name.trim()} ${lbl}` : undefined);
-          useApp.setState({ runs: r.runs });
-          if (addToPlot) actions.addSignal(r.id);
-        }
+        const ids = await createFrameGroup(frameSources, frameParams(), name.trim() || frameGroupName(frSrc, frDst, qty));
+        if (addToPlot) actions.addSignals(ids);              // one undo step for the three
         setName("");
       } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
       finally { setBusy(false); }
@@ -175,26 +182,45 @@ export default function AnalysisPanel() {
     } finally { setBusy(false); }
   };
 
-  const previewOn = useApp((s) => !!s.preview);
+  const previewLines = useApp((s) => s.preview?.lines ?? null);
+  const previewOn = !!previewLines || !!pvSep;
+  const clearPreviews = () => { useApp.setState({ preview: null }); setPvSep(null); };
   const showPreview = async () => {
+    const st = useApp.getState();
+    const r = plot ? st.ranges[(tab.linkX ? tab.id : plot.id) as string] ?? null : null;
+    if (kind === "frame") {
+      // the three axes, computed but not kept: dashed in the active plot, or a small chart each
+      if (frameSources.some((x) => !x) || (pvWhere === "plot" && !plot)) return;
+      const base = name.trim() || frameGroupName(frSrc, frDst, qty);
+      try {
+        const p = frameParams();
+        const lines = await Promise.all(AXES[frDst].map(async (lbl, axis) => {
+          const d = await api.previewDerived("frame", frameSources, { ...p, axis }, r?.[0] ?? null, r?.[1] ?? null);
+          return { label: `${base}.${lbl}`, x: d.x, y: d.y };
+        }));
+        if (pvWhere === "plot") { useApp.setState({ preview: { plotId: plot!.id, lines } }); setPvSep(null); }
+        else { setPvSep(lines); useApp.setState({ preview: null }); }
+      } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+      return;
+    }
     if (kind === "fx" && (!fxRes || fxRes.error)) return;
     const sources = kind === "fx" ? fxRes!.sources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
     const pOp = kind === "fx" ? "expr" : op;
     const pParams = kind === "fx" ? { expr: fxRes!.expr, text: fx, alignment } : params;
     if (!plot || sources.some((x) => !x)) return;
-    const st = useApp.getState();
-    const r = st.ranges[(plot && (tab.linkX ? tab.id : plot.id)) as string] ?? null;
     try {
       const d = await api.previewDerived(pOp, sources, pParams, r?.[0] ?? null, r?.[1] ?? null);
-      useApp.setState({ preview: { plotId: plot.id, label: pOp, x: d.x, y: d.y } });
+      useApp.setState({ preview: { plotId: plot.id, lines: [{ label: pOp, x: d.x, y: d.y }] } }); setPvSep(null);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
   };
   const derivedRun = runs.find((r) => r.format === "derived");
   const editedCount = runs.reduce((n, r) => n + r.signals.filter((x) => x.transform).length, 0);
-  const remove = async (id: string, nm: string) => {
-    const r = await api.deleteDerived(nm);
-    actions.removeSignalRefs((s) => s === id);
-    useApp.setState({ runs: r.runs });
+  const remove = async (items: { id: string; name: string }[]) => {
+    let r: { runs: typeof runs } | null = null;
+    for (const s of items) r = await api.deleteDerived(s.name);
+    const gone = new Set(items.map((s) => s.id));
+    actions.removeSignalRefs((s) => gone.has(s));
+    if (r) useApp.setState({ runs: r.runs });
   };
 
   const sigSelect = (value: string, set: (v: string) => void, label: string) => (
@@ -324,16 +350,27 @@ export default function AnalysisPanel() {
 
           {!(kind === "one" && (batch || output === "edit")) && (
             <label className="afield"><span>{t("resultName")}</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("auto")} /></label>
+              <input value={name} onChange={(e) => setName(e.target.value)}
+                placeholder={kind === "frame" ? frameGroupName(frSrc, frDst, qty) : t("auto")} /></label>
           )}
           {!(kind === "one" && output === "edit") && <label className="acheck"><input type="checkbox" checked={addToPlot} onChange={(e) => setAddToPlot(e.target.checked)} />{t("addToActivePlot")}</label>}
+          {kind === "frame" && (
+            <div className="afield"><span>{t("previewWhere")}</span>
+              <div className="seg wide small" role="group" aria-label={t("previewWhere")}>
+                <button className={pvWhere === "plot" ? "on" : ""} onClick={() => setPvWhere("plot")}>{t("previewInPlot")}</button>
+                <button className={pvWhere === "separate" ? "on" : ""} onClick={() => setPvWhere("separate")}>{t("previewSeparate")}</button>
+              </div></div>
+          )}
           <div className="arow" style={{ marginTop: 4 }}>
-            <button className="btn outline" disabled={!canCreate || busy || (kind === "one" && batch) || kind === "frame"} onClick={showPreview}>{t("previewOp")}</button>
-            <button className="btn primary" disabled={!canCreate || busy} onClick={async () => { await create(); useApp.setState({ preview: null }); }}>
+            <button className="btn outline" disabled={!canCreate || busy || (kind === "one" && batch) || (kind === "frame" && pvWhere === "plot" && !plot)}
+              onClick={showPreview}>{t("previewOp")}</button>
+            <button className="btn primary" disabled={!canCreate || busy} onClick={async () => { await create(); clearPreviews(); }}>
               {busy ? t("loading") : kind === "one" && output === "edit" ? t("applyEdit") : kind === "frame" ? t("createThree") : t("createSignal")}</button>
           </div>
-          {previewOn && <p className="hint" style={{ fontSize: "0.923rem", margin: "6px 0 0" }}>{t("previewShown")} ·{" "}
-            <button className="linklike" onClick={() => useApp.setState({ preview: null })}>{t("clearPreview")}</button></p>}
+          {previewOn && <p className="hint" style={{ fontSize: "0.923rem", margin: "6px 0 0" }}>{t(pvSep ? "previewShownSeparate" : "previewShown")} ·{" "}
+            <button className="linklike" onClick={clearPreviews}>{t("clearPreview")}</button></p>}
+          {!pvSep && previewLines && previewLines.length > 1 && <PreviewKey lines={previewLines} />}
+          {pvSep && <PreviewCharts lines={pvSep} />}
 
           {(editedCount > 0 || (derivedRun?.signals.length ?? 0) > 0) && (
             <div className="bulk-undo">
@@ -346,18 +383,56 @@ export default function AnalysisPanel() {
           )}
           <h3 className="alist-head">{t("derivedSignals")}</h3>
           {!derivedRun?.signals.length && <p className="hint">{t("noDerived")}</p>}
-          {derivedRun?.signals.map((s) => (
-            <div key={s.id} className={`dsig${s.valid === false ? " broken" : ""}`}>
-              <div className="dsig-main">
-                <button className="dsig-name" onClick={() => actions.toggleSignal(s.id)} title={t("addToActivePlot")}>{s.name}</button>
-                {s.formula && s.formula !== s.name && <span className="dsig-formula">{s.formula}</span>}
-                {s.valid === false && <span className="dsig-formula">{t("derivedBroken")}</span>}
+          {groupDerived(derivedRun?.signals ?? []).map((g) => {
+            const row = (s: NonNullable<typeof derivedRun>["signals"][number], deep: boolean) => (
+              <div key={s.id} className={`dsig${deep ? " deep" : ""}${s.valid === false ? " broken" : ""}`}>
+                <div className="dsig-main">
+                  <button className="dsig-name" onClick={() => actions.toggleSignal(s.id)} title={`${s.name}\n${t("addToActivePlot")}`}>{deep ? memberLabel(s.name, g.key) : s.name}</button>
+                  {!deep && s.formula && s.formula !== s.name && <span className="dsig-formula">{s.formula}</span>}
+                  {s.valid === false && <span className="dsig-formula">{t("derivedBroken")}</span>}
+                </div>
+                <button className="iconbtn" onClick={() => remove([s])} aria-label={t("remove")} title={t("remove")}><Icon.Trash /></button>
               </div>
-              <button className="iconbtn" onClick={() => remove(s.id, s.name)} aria-label={t("remove")} title={t("remove")}><Icon.Trash /></button>
-            </div>
-          ))}
+            );
+            if (!g.key) return row(g.items[0], false);
+            const open = openGroups[g.key] ?? false;
+            const ids = g.items.map((s) => s.id);
+            // "N pos LLA→NED(lat, lon, alt)" -> "pos LLA→NED(lat, lon, alt)": the conversion, not one axis
+            const f0 = g.items[0].formula ?? "", a0 = memberLabel(g.items[0].name, g.key);
+            const groupFormula = f0.startsWith(a0 + " ") ? f0.slice(a0.length + 1) : f0;
+            return (
+              <div key={`g:${g.key}`} className="dsig-group">
+                <div className={`dsig grp${open ? "" : " closed"}${g.items.some((s) => s.valid === false) ? " broken" : ""}`}>
+                  <button className="iconbtn chev-btn" aria-expanded={open} aria-label={g.key} onClick={() => setOpenGroups({ ...openGroups, [g.key]: !open })}>
+                    <Icon.Chevron className="chev" /></button>
+                  <div className="dsig-main">
+                    <button className="dsig-name" onClick={() => actions.addSignals(ids)} title={t("addGroupToPlot")}>
+                      {g.key} <span className="dsig-axes">{g.items.map((s) => memberLabel(s.name, g.key)).join(", ")}</span></button>
+                    {groupFormula && <span className="dsig-formula">{groupFormula}</span>}
+                  </div>
+                  <button className="iconbtn" onClick={() => remove(g.items)} aria-label={t("removeGroup")} title={t("removeGroup")}><Icon.Trash /></button>
+                </div>
+                {open && g.items.map((s) => row(s, true))}
+              </div>
+            );
+          })}
         </div>
       )}
     </aside>
+  );
+}
+
+/** Which dashed line is which, when a preview puts several in the active plot. */
+function PreviewKey({ lines }: { lines: PreviewLine[] }) {
+  return (
+    <div className="pv-key">
+      {lines.map((l, k) => (
+        <span key={k} className="pv-key-item">
+          <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="currentColor" strokeWidth="1.5"
+            strokeDasharray={PREVIEW_DASH[k % PREVIEW_DASH.length].join(" ")} /></svg>
+          {l.label}
+        </span>
+      ))}
+    </div>
   );
 }

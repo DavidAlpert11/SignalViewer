@@ -157,7 +157,9 @@ interface AppState {
   playMode: PlayMode;
   windowSec: number;
   timelineOpen: boolean;           // the timeline bar shown in full (or as a thin strip)
-  preview: { plotId: string; label: string; x: Float64Array; y: Float32Array } | null;
+  /** Dashed lines in one plot, computed but not kept (Create signals > Preview). Several for an
+   *  operation with several outputs (the three axes of a frame conversion). */
+  preview: { plotId: string; lines: PreviewLine[] } | null;
   valuesOnPlot: boolean;
   yExtents: Record<string, [number, number]>;   // per plot, for linked value axes
   axisDialog: string | null;
@@ -356,6 +358,8 @@ export function signalName(runs: RunInfo[], sig: string, withFile = true): strin
 }
 
 /** A signal as added to a plot. Text signals (states, flight modes) start as a state lane. */
+export interface PreviewLine { label: string; x: Float64Array; y: Float32Array }
+
 export function newPlotSignal(sig: string, ws: Workspace): PlotSignal {
   const ps: PlotSignal = { sig, color: nextColor(ws), width: 1.5, scale: 1, offset: 0 };
   if (labelsOf(useApp.getState().runs, sig)) ps.state = true;
@@ -387,6 +391,32 @@ export const actions = {
       if (plotId) tab.active = tab.plots.findIndex((p) => p.id === plotId);
       return ws;
     });
+  },
+  /** Several signals into the active plot (or plotId) as ONE undo step (a nested group). */
+  addSignals(ids: string[], plotId?: string) {
+    useApp.getState().commit((ws) => {
+      const tab = activeTab(ws);
+      const plot = plotId ? tab.plots.find((p) => p.id === plotId) : tab.plots[tab.active];
+      if (!plot) return ws;
+      for (const id of ids) if (!plot.signals.some((s) => s.sig === id)) plot.signals.push(newPlotSignal(id, ws));
+      return ws;
+    });
+  },
+  /** Each signal in a plot of its own (empty plots are used first), as one undo step. */
+  addSignalsToNewPlots(ids: string[]) {
+    let full = false;
+    useApp.getState().commit((ws) => {
+      const tab = activeTab(ws);
+      for (const id of ids) {
+        const p = newPlot();
+        p.signals.push(newPlotSignal(id, ws));
+        const at = placePlot(tab, p);
+        if (at < 0) { full = true; break; }
+        tab.active = at;
+      }
+      return ws;
+    });
+    if (full) tabFullMessage();
   },
   toggleSignal(sig: string) {
     const ws = useApp.getState().ws;

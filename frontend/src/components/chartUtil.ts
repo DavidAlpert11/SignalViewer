@@ -8,6 +8,10 @@ export const PLOT_THEME = {
   light: { axis: "#5a6979", grid: "#e6ebf0", amber: "#945d0b", amberInk: "#ffffff", label: "#1f2a36", bg: "#ffffff", text: "#1f2a36" },
 } as const;
 
+/** Dash patterns of preview lines, in order: axis 1, 2, 3 of a frame conversion are told apart by
+ *  these (in the plot, in the separate preview charts and in their key in the panel). */
+export const PREVIEW_DASH = [[6, 4], [2, 3], [12, 3, 2, 3]];
+
 export type ThemeName = keyof typeof PLOT_THEME;
 
 /** UI text scale (accessibility): canvas text follows the same setting as the page. */

@@ -185,6 +185,16 @@ Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
   `npm ci` (only when needed) and `npm run build -- --outDir .local-dist` once and sets
   `SV_DIST`. Packaged app, an explicit `SV_DIST`, `--no-build` / `SV_NO_BUILD`: untouched; no npm:
   a message and the last build. Tests: `backend/tests/test_launcher.py`.
+- [x] **T17f Frames as one nested group + preview** - the three axes of a conversion are
+  created by `frames.ts` `createFrameGroup` (also used by "Place on map") as `<group>.<axis>`
+  with `params.group` (default `<to>_<Pos|Vec>_<from>`, numbered `_2`… when taken, all or
+  nothing). `signalGroups.groupDerived` nests them in the file list and the Create signals list;
+  old sessions have no group and stay flat. Added to the plot with `actions.addSignals` (one
+  undo step); group menu: all to the active plot / `addSignalsToNewPlots`. Preview: the store's
+  `preview` holds several lines (`lines[]`, told apart by `PREVIEW_DASH`), or
+  `PreviewCharts` draws one small chart per axis in the panel (UI-only). Touches TimeChart
+  (preview series), DataPanel, AnalysisPanel, PlaceOnMapDialog. Tests: backend
+  `test_frame_group_nested_names`; e2e `test_frame_conversion` extended.
 
 ## Milestone 3 — 1.3.0: smoother work
 - [ ] T18 Settings dialog (language, theme, map layer, live defaults); language and theme

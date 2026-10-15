@@ -217,6 +217,20 @@ button, input, select { font: inherit; color: inherit; }
 .dsig.broken .dsig-name { color: var(--danger); }
 .dsig .iconbtn { height: 26px; min-width: 26px; padding: 0; opacity: .6; }
 .dsig:hover .iconbtn { opacity: 1; }
+/* a nested group of derived signals (the axes of a frame conversion) */
+.dsig.deep { padding-inline-start: 30px; }
+.dsig.grp .chev-btn { height: 22px; min-width: 22px; opacity: 1; color: var(--muted); }
+.dsig.grp .chev { width: 14px; height: 14px; transition: transform .12s; }
+.dsig.grp.closed .chev { transform: rotate(-90deg); }
+[dir="rtl"] .dsig.grp.closed .chev { transform: rotate(90deg); }
+.dsig-axes { color: var(--muted); font-weight: 400; margin-inline-start: 4px; }
+/* preview: the key of several dashed lines, or a small chart per line */
+.pv-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 0; color: var(--muted); font-size: 0.8846rem; direction: ltr; }
+.pv-key-item { display: inline-flex; align-items: center; gap: 5px; }
+.pv-charts { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px; }
+.pv-chart { margin: 0; border: 1px solid var(--line); border-radius: 6px; padding: 4px 4px 2px; background: var(--bg); }
+.pv-chart figcaption { font-size: 0.8846rem; color: var(--muted); padding: 0 4px 2px; direction: ltr; text-align: start; }
+.pv-canvas { width: 100%; direction: ltr; }
 .sig .disc { font-size: 0.8077rem; color: var(--faint); }
 .plot-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); text-align: center; padding: 16px; pointer-events: none; }
 .plot-loading { position: absolute; top: 6px; inset-inline-end: 10px; font-size: 0.8462rem; color: var(--faint); }

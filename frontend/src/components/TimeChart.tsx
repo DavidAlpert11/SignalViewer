@@ -5,7 +5,7 @@ import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type Range,
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { fmtNum } from "../i18n";
 import { unitOf } from "../units";
-import { axisStyle, tickValues, dpr, flag, PLOT_THEME, uiScale, useSize } from "./chartUtil";
+import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, uiScale, useSize } from "./chartUtil";
 
 interface Props { tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void }
 
@@ -137,15 +137,14 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
       return [off ? Array.from(s.x, (v) => v + off) : Array.from(s.x), y] as uPlot.AlignedData;
     });
     const sigs = ok.map((v) => v.ps);
-    if (preview && preview.x.length) {
-      tables.push([Array.from(preview.x), Array.from(preview.y, (v) => (Number.isFinite(v) ? v : null))] as uPlot.AlignedData);
-    }
+    const pv = preview?.lines.filter((l) => l.x.length) ?? [];
+    for (const l of pv) tables.push([Array.from(l.x), Array.from(l.y, (v) => (Number.isFinite(v) ? v : null))] as uPlot.AlignedData);
     const data = tables.length === 1 ? tables[0] : uPlot.join(tables, tables.map(() => [1]));
     // dense: about a point per pixel or more (decimated min/max) - drawn as a 1-device-pixel line,
     // which the canvas strokes on its fast path; a wider line over a dense zig-zag cost ~7x more
     // per redraw without a GPU and looks the same (a solid band)
     const dense = ok.map(({ s }) => s.decimated || s.n >= widthBucket * 0.75);
-    return { data, sigs, dense, hasPreview: !!(preview && preview.x.length), previewLabel: preview?.label ?? "" };
+    return { data, sigs, dense, previewLabels: pv.map((l) => l.label) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, styleKey, preview, widthBucket]);
   const alignedRef = useRef(aligned);
@@ -154,7 +153,7 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
   /* what the plot is BUILT from (series, their styles, a preview line): new data alone is set
      into the existing plot instead of destroying and recreating it on every zoom step */
   const structKey = aligned
-    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}`).join("|") + `|${aligned.hasPreview}|${aligned.previewLabel}`
+    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}`).join("|") + `|${aligned.previewLabels.join("|")}`
     : "none";
   const lineWidth = (a: NonNullable<typeof aligned>, k: number) => (a.dense[k] ? 1 / dpr() : a.sigs[k].width);
 
@@ -501,7 +500,9 @@ export default function TimeChart({ tab, plot, index, onLoading }: Props) {
           // states and text values hold until the next change: draw them as steps
           ...(s.state || labelsOf(runsRef.current, s.sig) ? { paths: uPlot.paths.stepped!({ align: 1 }) } : {}),
         })),
-        ...(aligned.hasPreview ? [{ stroke: PLOT_THEME[theme].axis, width: 1.5, dash: [6, 4], spanGaps: false, points: { show: false }, label: aligned.previewLabel }] : []),
+        // preview lines: one neutral colour, told apart by their dash (axis 1, 2, 3 of a frame conversion)
+        ...aligned.previewLabels.map((label, k) => ({ stroke: PLOT_THEME[theme].axis, width: 1.5, dash: PREVIEW_DASH[k % PREVIEW_DASH.length],
+          spanGaps: false, points: { show: false }, label })),
       ],
       hooks: {
         setCursor: [
