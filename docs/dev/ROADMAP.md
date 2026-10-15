@@ -111,7 +111,18 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 
 ## Milestone 2 — 1.2.0: flight-test tools
 - [ ] **T12 Live MAVLink** (UDP / TCP / serial) as a source, next to file following.
-  Works with SITL too.
+  Works with SITL too. *Implemented, waiting for the SITL / radio check (see TASKS.md Q1).*
+  `svcore/mavlive.py` `Receiver`: pymavlink connection (MAVLink 2, robust parsing,
+  autoreconnect) in a thread; every frame is written as a .tlog record (8-byte BE µs + frame,
+  batched ~5×/s) to `~/.signalviewer/recordings/mavlink-<date>-<time>.tlog`. No parser of its
+  own: the UI (`mavlink.ts`) opens the file with `openPaths` once data is written and starts
+  live mode, which reads it with the existing `append_tlog`. API `/api/mavlink/start|stop|
+  status|ports`; one link at a time (409). Read-only unless `request` (GCS heartbeat 1 Hz +
+  one REQUEST_DATA_STREAM ALL). UI: section in the Live popover (open state moved to the store
+  `liveMenuOpen` for Ctrl+K), pill next to Live. New dependency pyserial (serial radios, pure
+  Python); PyInstaller hidden imports for pymavlink.mavutil / serial. Tests: backend
+  `test_mavlink_live.py` (fake vehicle over UDP: record, open, follow, reopen; read-only vs
+  request; errors); e2e `test_live_mavlink`.
 - [x] **T13 Limits (pass / fail)** - optional `limits {lo, hi}` on a plot signal (workspace ->
   undo, sessions, autosave; saved in templates and applied with them). Checked on the plotted
   value (scale, offset, time offset) by `svcore/limits.py` / `/api/limits`: violations, time
@@ -220,7 +231,7 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 - [ ] T29 Smart start: offer a fitting template when a file opens (built-in ArduPilot / PX4
   ones) and a short health summary with jump-to-time links. Spec: TASKS.md Q4.
 - [ ] T30 Frames: suggest the conversion and its signals from the names. Spec: TASKS.md Q10.
-- [ ] T31 User Python operations from a local folder (needs the owner's decision first).
+- [ ] T31 User Python operations from a local folder (decided: only a folder the user chooses).
   Spec: TASKS.md Q11.
 - [x] T28 `worldCountries.ts` → JSON loaded with the map. *Re-assessed: already done* -
   GeoChart loads it with `import()` into its own chunk (not in the main bundle).

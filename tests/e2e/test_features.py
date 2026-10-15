@@ -805,6 +805,47 @@ def test_frame_conversion(pg):
     assert pg.locator(".grp-head .nm").all_inner_texts()[-2:] == ["enu_Vec_ned", "enu_Vec_ned_2"]
 
 
+def test_live_mavlink(pg):
+    """T12: Live > MAVLink records the link to a .tlog, opens it and follows it in live mode;
+    Disconnect keeps the recording."""
+    import socket as _s, threading
+    from pymavlink.dialects.v20 import ardupilotmega as mavlink
+    port = _free_port()                                   # a TCP port number is free for UDP as well, in practice
+    pg.click(".live-more")
+    pg.locator(".mav-section input[list]").fill(f"udpin:127.0.0.1:{port}")
+    pg.get_by_role("button", name="Connect and record").click()
+    pg.wait_for_function("window.__sv.state().mavlink?.running === true")
+    stop = threading.Event()
+
+    def vehicle():
+        sock = _s.socket(_s.AF_INET, _s.SOCK_DGRAM)
+        mav = mavlink.MAVLink(None, srcSystem=1, srcComponent=1)
+        t0 = time.time()
+        while not stop.is_set():
+            ms = int((time.time() - t0) * 1000)
+            sock.sendto(mav.heartbeat_encode(2, 3, 81, 4, 4).pack(mav), ("127.0.0.1", port))
+            sock.sendto(mav.attitude_encode(ms, ms / 1000.0, 0, 0, 0, 0, 0).pack(mav), ("127.0.0.1", port))
+            time.sleep(0.05)
+        sock.close()
+
+    th = threading.Thread(target=vehicle, daemon=True)
+    th.start()
+    try:
+        pg.wait_for_function("window.__sv.state().runs.some(r => r.format === 'tlog')", timeout=15000)
+        pg.wait_for_function("window.__sv.state().streaming", timeout=10000)
+        n1 = S(pg, "s.runs.find(r => r.format === 'tlog').samples")
+        pg.wait_for_function(f"window.__sv.state().runs.find(r => r.format === 'tlog').samples > {n1 + 10}", timeout=10000)
+        assert pg.locator(".mav-pill").is_visible()
+        pg.click(".mav-pill")
+        pg.get_by_role("button", name="Disconnect", exact=True).click()
+        pg.wait_for_function("window.__sv.state().mavlink?.running === false")
+        path = S(pg, "s.mavlink.path")
+        assert path.endswith(".tlog") and os.path.getsize(path) > 0
+        assert S(pg, "s.runs.some(r => r.path === s.mavlink.path)")      # the recording stays open
+    finally:
+        stop.set(); th.join(2)
+
+
 PAINTED = """(sel) => { const c = document.querySelector(sel); if (!c || !c.width) return false;
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     for (let i = 3; i < d.length; i += 4) if (d[i]) return true; return false; }"""
