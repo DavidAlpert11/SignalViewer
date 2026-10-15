@@ -899,6 +899,32 @@ def test_xyz_api_and_report(tmp_path):
     store.remove(run["id"])
 
 
+def test_frame_group_nested_names(tmp_path):
+    """The three axes of one conversion form a nested group: named "<group>.<axis>" with
+    params.group, kept through the listing, the preview and a restore (sessions / autosave)."""
+    p = tmp_path / "pos.csv"
+    with open(p, "w") as f:
+        f.write("Time,n,e,d\n" + "".join(f"{i * 0.1},{i},{2 * i},{-i}\n" for i in range(20)))
+    run = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]
+    src = [f"{run['id']}/{n}" for n in ("n", "e", "d")]
+    base = {"qty": "position", "src": "ned", "dst": "enu", "group": "enu_Pos_ned"}
+    items = [{"op": "frame", "sources": src, "params": {**base, "axis": k}, "name": f"enu_Pos_ned.{a}"}
+             for k, a in enumerate(("E", "N", "U"))]
+    for it in items:
+        r = client.post("/api/derived", json=it)
+        assert r.status_code == 200 and r.json()["id"] == f"derived/{it['name']}"
+    derived = next(r for r in client.get("/api/runs").json() if r["format"] == "derived")
+    mine = [s for s in derived["signals"] if s["params"].get("group") == "enu_Pos_ned"]
+    assert [s["name"] for s in mine] == ["enu_Pos_ned.E", "enu_Pos_ned.N", "enu_Pos_ned.U"]
+    pv = client.post("/api/derived/preview", json={"op": "frame", "sources": src, "params": {**base, "axis": 2}}).json()
+    assert np.allclose(np.frombuffer(base64.b64decode(pv["y"]), dtype=np.float32), [i for i in range(20)])  # U = -D
+    r = client.post("/api/derived/restore", json={"items": items}).json()
+    assert not r["failed"] and r["restored"] == [it["name"] for it in items]       # same names: no "(2)"
+    for it in items:
+        store.remove_derived(it["name"])
+    store.remove(run["id"])
+
+
 def test_frame_reference_from_signals():
     """T17c: a local track goes onto the map with the origin taken from other signals' first valid
     sample (the vehicle's GPS) - which may cover a different time than the track."""

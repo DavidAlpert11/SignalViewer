@@ -28,3 +28,26 @@ export function groupByPrefix<T>(items: T[], name: (t: T) => string): SigGroup<T
   }
   return null;
 }
+
+/**
+ * Derived signals made together (the three axes of a frame conversion) carry params.group and
+ * are named "<group>.<axis>": they are listed as ONE nested entry, at the place of the first
+ * member. Every other derived signal stays on its own (key "").
+ */
+export function groupDerived<T extends { params?: Record<string, unknown> }>(items: T[]): SigGroup<T>[] {
+  const out: SigGroup<T>[] = [];
+  const at = new Map<string, SigGroup<T>>();
+  for (const t of items) {
+    const g = groupOf(t);
+    if (!g) { out.push({ key: "", items: [t] }); continue; }
+    let e = at.get(g);
+    if (!e) { e = { key: g, items: [] }; at.set(g, e); out.push(e); }
+    e.items.push(t);
+  }
+  return out;
+}
+
+export const groupOf = (t: { params?: Record<string, unknown> }) => (typeof t.params?.group === "string" ? t.params.group : "");
+
+/** "ned_Pos_lla.N" in group "ned_Pos_lla" -> "N" (the name shown inside the group). */
+export const memberLabel = (name: string, group: string) => (group && name.startsWith(group + ".") ? name.slice(group.length + 1) : name);
