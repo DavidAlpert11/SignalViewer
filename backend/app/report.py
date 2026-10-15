@@ -63,6 +63,8 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
         return _spec_data(store, spec, out)
     if mode == "env":
         return _env_data(store, spec, out, for_html)
+    if mode == "xyz":
+        return _xyz_data(store, spec, out)
     if mode == "xy":
         xs = spec.get("xSignal")
         if not xs:
@@ -188,8 +190,71 @@ def _spec_data(store, spec: Dict, out: Dict) -> Dict:
     return out
 
 
+def _xyz_data(store, spec: Dict, out: Dict) -> Dict:
+    """T17c: a plain 3D plot - the plot's signals in threes (X, Y, Z), each three one track, with
+    scale / offset as plotted. Drawn by matplotlib in every format (HTML gets it as an image)."""
+    from svcore.xyz import xyz_track
+    sigs = spec.get("signals") or []
+    out["xyz"], out["xyzEqual"], out["xyzFlipZ"] = [], bool(spec.get("xyzEqual", True)), bool(spec.get("xyzFlipZ"))
+    for k in range(0, len(sigs) - len(sigs) % 3, 3):
+        trio = sigs[k:k + 3]
+        try:
+            r = xyz_track(*(store.signal(s["id"]) for s in trio), spec.get("xyAlign") or "linear", 6000)
+        except KeyError:
+            continue
+        if r is None:
+            continue
+        sc = [(float(s.get("scale", 1) or 1), float(s.get("offset", 0) or 0)) for s in trio]
+        labels = [s.get("label") or s["id"].split("/", 1)[-1] for s in trio]
+        out["xyz"].append({"x": r["x"] * sc[0][0] + sc[0][1], "y": r["y"] * sc[1][0] + sc[1][1], "z": r["z"] * sc[2][0] + sc[2][1],
+                           "color": trio[0].get("color", "#3D8BFD"), "labels": labels})
+        out["signals"].append({"label": " / ".join(labels), "color": trio[0].get("color", "#3D8BFD"), "width": 1.5,
+                               "state": False, "stats": {}})
+    return out
+
+
+def _draw_xyz(ax, pdata: Dict, th: Dict):
+    """A 3D axes in place of the 2D one the caller made (same position on the page)."""
+    fig, pos = ax.figure, ax.get_position()
+    ax.remove()
+    ax = fig.add_axes(pos, projection="3d")
+    ax.set_facecolor(th["bg"])
+    for a in (ax.xaxis, ax.yaxis, ax.zaxis):                # panes and grid in the report theme (dark too)
+        a.set_pane_color(th["bg"])
+        a._axinfo["grid"]["color"] = th["grid"]
+    tracks = pdata.get("xyz") or []
+    for tr in tracks:
+        ax.plot(tr["x"], tr["y"], tr["z"], color=tr["color"], linewidth=1.2, label=_bidi(" / ".join(tr["labels"])))
+        ok = np.isfinite(tr["x"]) & np.isfinite(tr["y"]) & np.isfinite(tr["z"])
+        if ok.any():
+            i = int(np.flatnonzero(ok)[0])
+            ax.scatter([tr["x"][i]], [tr["y"][i]], [tr["z"][i]], color=tr["color"], s=12)
+    if tracks:
+        lab = tracks[0]["labels"]
+        for setter, text in ((ax.set_xlabel, lab[0]), (ax.set_ylabel, lab[1]), (ax.set_zlabel, lab[2])):
+            setter(_bidi(text), color=th["axis"], fontsize=7)
+        if pdata.get("xyzEqual"):
+            try:
+                ax.set_box_aspect((1, 1, 1))
+                allv = [np.concatenate([tr[k][np.isfinite(tr[k])] for tr in tracks]) for k in ("x", "y", "z")]
+                if all(len(v) for v in allv):
+                    c = [(v.min() + v.max()) / 2 for v in allv]
+                    h = max(max(v.max() - v.min() for v in allv) / 2, 1e-9)
+                    ax.set_xlim(c[0] - h, c[0] + h); ax.set_ylim(c[1] - h, c[1] + h); ax.set_zlim(c[2] - h, c[2] + h)
+            except Exception:                                    # older matplotlib: keep its own scaling
+                pass
+        if pdata.get("xyzFlipZ"):
+            ax.invert_zaxis()
+        if len(tracks) > 1:
+            leg = ax.legend(fontsize=7, loc="upper right", facecolor=th["bg"], edgecolor=th["grid"])
+            for t in leg.get_texts():
+                t.set_color(th["fg"])
+    ax.tick_params(colors=th["axis"], labelsize=6.5)
+    return ax
+
+
 def _spec_png(pdata: Dict, theme: str) -> str:
-    fig = render_figure(pdata, theme, size=(9.0, 3.4), dpi=110)
+    fig = render_figure(pdata, theme, size=(7.0, 5.0) if pdata.get("mode") == "xyz" else (9.0, 3.4), dpi=110)
     return base64.b64encode(figure_bytes(fig, "png")).decode()
 
 
@@ -231,7 +296,7 @@ nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:24px 0 16px}
 .plot{background:var(--plot);border:1px solid var(--line);border-radius:10px;padding:14px 14px 10px;margin:0 0 22px;break-inside:avoid}
 .plot h2{margin:0 0 6px;font-size:16px;font-weight:600;color:var(--ink-strong)}
 .caption{color:var(--muted);margin:2px 0 8px;white-space:pre-wrap}
-.specimg{width:100%;height:auto;border-radius:6px}
+.specimg{width:100%;height:auto;border-radius:6px}.specimg.xyzimg{max-width:720px}
 .notes{padding-inline-start:18px}.notes .nt{color:var(--muted);font-variant-numeric:tabular-nums;margin-inline-end:6px}
 .legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
 .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:none;border-radius:12px;padding:1px 9px;font-size:12.5px}
@@ -326,10 +391,10 @@ def build_html(store, req: Dict, progress=None) -> str:
     stats_html = {}
     for ti, tab in enumerate(tabs):
         for pi, p in enumerate(tab["plots"]):
-            stats_html[(ti, pi)] = _stats_table(p["signals"], S) if p["mode"] not in ("xy", "spec") else ""
+            stats_html[(ti, pi)] = _stats_table(p["signals"], S) if p["mode"] not in ("xy", "spec", "xyz") else ""
             for s in p["signals"]:
                 s.pop("stats", None)
-    payload_tabs = [{"name": t["name"], "plots": [{k: v for k, v in p.items() if k != "spec"} for p in t["plots"]]} for t in tabs]
+    payload_tabs = [{"name": t["name"], "plots": [{k: v for k, v in p.items() if k not in ("spec", "xyz")} for p in t["plots"]]} for t in tabs]
     payload = {"lang": lang, "strings": {"toggle": S["toggle"]}, "tabs": payload_tabs}
     nav_items = []
     for i, t in enumerate(tabs):
@@ -342,9 +407,10 @@ def build_html(store, req: Dict, progress=None) -> str:
         for pi, p in enumerate(t["plots"]):
             heading = html.escape(p["title"] or "%s %d" % (S["plot"], pi + 1))
             caption = '<p class="caption">%s</p>' % html.escape(p["caption"]) if p["caption"] else ""
-            if p["mode"] == "spec":
-                img = '<img class="specimg" alt="%s" src="data:image/png;base64,%s">' % (heading, _spec_png(p, req.get("theme", "light"))) \
-                    if p.get("spec") else ""
+            if p["mode"] in ("spec", "xyz"):
+                img = '<img class="specimg%s" alt="%s" src="data:image/png;base64,%s">' % (
+                    " xyzimg" if p["mode"] == "xyz" else "", heading, _spec_png(p, req.get("theme", "light"))) \
+                    if p.get("spec") or p.get("xyz") else ""
                 items.append('<section class="plot" data-p="%d"><h2>%s</h2>%s%s</section>' % (pi, heading, caption, img))
                 continue
             items.append('<section class="plot" data-p="%d"><h2>%s</h2>%s<div class="legend"></div>'
@@ -414,6 +480,9 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
     ax.grid(True, color=th["grid"], linewidth=0.8)
     ax.set_axisbelow(True)
     mode = pdata["mode"]
+    if mode == "xyz":
+        _draw_xyz(ax, pdata, th)
+        return
     if mode == "env":
         e = pdata.get("env")
         if e is not None:
@@ -477,7 +546,8 @@ def render_figure(pdata: Dict, theme: str = "light", size=(9.0, 3.6), dpi: int =
     fig, ax = plt.subplots(figsize=size, dpi=dpi)
     fig.patch.set_facecolor(FIG_THEME.get(theme, FIG_THEME["light"])["bg"])
     draw_axes(ax, pdata, theme)
-    fig.tight_layout()
+    if pdata.get("mode") != "xyz":                          # a 3D axes does not take part in tight_layout
+        fig.tight_layout()
     return fig
 
 
@@ -617,7 +687,7 @@ def build_docx(store, req: Dict, path: str, progress=None):
         if progress:
             progress(0.65 + 0.33 * i / max(1, len(items)), "pages")
         rtlize(doc.add_heading(p["title"] or f"{S['plot']} {i + 1}", 1))
-        png = figure_bytes(render_figure(p, "light", size=(9, 3.6), dpi=170), "png")
+        png = figure_bytes(render_figure(p, "light", size=(7, 5) if p["mode"] == "xyz" else (9, 3.6), dpi=170), "png")
         doc.add_picture(io.BytesIO(png), width=Inches(6.3))
         if p["caption"]:
             rtlize(doc.add_paragraph(p["caption"]))
@@ -659,7 +729,7 @@ def build_docx(store, req: Dict, path: str, progress=None):
 
 def build_image(store, spec: Dict, fmt: str, theme: str) -> bytes:
     p = plot_data(store, spec, for_html=False, points=4000)
-    fig = render_figure(p, theme, size=(10, 4), dpi=200 if fmt == "png" else 100)
+    fig = render_figure(p, theme, size=(8, 6) if p.get("mode") == "xyz" else (10, 4), dpi=200 if fmt == "png" else 100)
     if p["title"]:
         fig.suptitle(_bidi(p["title"]), fontsize=11, weight="bold", color=FIG_THEME[theme]["fg"])
         fig.subplots_adjust(top=0.88)

@@ -181,8 +181,10 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
 #   - when ECEF is involved: the vehicle's latitude and longitude (degrees), because "north" in
 #     ECEF depends on where you are.
 # Position to / from NED or ENU needs the reference point: params["ref"] "first" (the first sample
-# with a valid position - only when the source is LLA or ECEF) or "manual" with params ref_lat,
-# ref_lon (degrees) and ref_alt (m above the ellipsoid).
+# with a valid position - only when the source is LLA or ECEF), "manual" with params ref_lat,
+# ref_lon (degrees) and ref_alt (m above the ellipsoid), or "signals": three more sources (lat,
+# lon, alt of something else - e.g. the GPS of the vehicle whose local track this is), whose first
+# valid sample is the origin. "signals" is how a local XYZ track is put on the map (T17c).
 VECTOR_FRAMES = ("ned", "enu", "body", "ecef")
 POSITION_FRAMES = ("lla", "ecef", "ned", "enu")
 AXES = {"ned": ("N", "E", "D"), "enu": ("E", "N", "U"), "body": ("X", "Y", "Z"),
@@ -195,7 +197,7 @@ WGS84_E2 = WGS84_F * (2 - WGS84_F)     # first eccentricity squared
 def frame_sources(params: Dict) -> int:
     """How many source signals a conversion needs: 3 components (+ attitude) (+ lat / lon)."""
     if params.get("qty") == "position":
-        return 3
+        return 6 if params.get("ref") == "signals" else 3
     ends = (params.get("src"), params.get("dst"))
     return 3 + ((4 if params.get("att") == "quat" else 3) if "body" in ends else 0) + (2 if "ecef" in ends else 0)
 
@@ -284,8 +286,18 @@ def _overlap(signals: List[Tuple[np.ndarray, np.ndarray]]) -> np.ndarray:
     return t_base[np.searchsorted(t_base, t0, "left"):np.searchsorted(t_base, t1, "right")]
 
 
-def _reference(params: Dict, ecef: np.ndarray, src: str) -> Tuple[float, float, float]:
+def _reference(params: Dict, ecef: np.ndarray, src: str, ref_sigs=None) -> Tuple[float, float, float]:
     """(lat, lon, alt) of the NED / ENU origin."""
+    if params.get("ref") == "signals":
+        (tla, la), (tlo, lo), (tal, al) = [(_f64(ts), _f64(ys)) for ts, ys in ref_sigs]
+        m = np.vstack([la, align_to(tla, tlo, lo, "nearest"), align_to(tla, tal, al, "nearest")])
+        ok = np.flatnonzero(np.isfinite(m).all(axis=0) & (tla >= max(tlo[0], tal[0])) & (tla <= min(tlo[-1], tal[-1])))
+        if not len(ok):
+            raise OpError("The reference latitude, longitude and altitude have no valid sample in common.")
+        lat, lon, alt = (float(v) for v in m[:, ok[0]])
+        if abs(lat) > 90:
+            raise OpError("The reference latitude must be between -90 and 90 degrees.")
+        return lat, lon, alt
     if params.get("ref", "first") == "manual":
         try:
             ref = tuple(float(params[k]) for k in ("ref_lat", "ref_lon", "ref_alt"))
@@ -325,7 +337,7 @@ def _frame_position(signals, params, t, how) -> np.ndarray:
     else:
         ecef = None
     if src in local or dst in local:
-        ref = _reference(params, ecef, src)
+        ref = _reference(params, ecef, src, signals[3:6])
         ref_ecef, R = lla_to_ecef(*ref), _ecef_to_ned(ref[0], ref[1])
         if ecef is None:                                    # NED (offset from ref) -> ECEF
             ecef = ref_ecef[:, None] + R.T @ v
@@ -398,7 +410,7 @@ def _frame(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[
                                  ("the latitude and longitude", "ecef" in (src, dst))) if on and qty == "vector"]
         raise OpError(f"This conversion needs {need} signals: the three components"
                       + (" and " + " and ".join(extra) if extra else "") + ".")
-    t = _overlap(signals)
+    t = _overlap(signals[:3] if qty == "position" else signals)   # a reference may be from another time
     how = params.get("alignment", "linear")
     v = (_frame_position if qty == "position" else _frame_vector)(signals, params, t, how)
     return t, v[axis]
