@@ -177,6 +177,14 @@ Rules for every task: see `/CLAUDE.md`. Tick `[x]` only when "Done when" is met.
   download then) and shows the objects as tracks in metres east / north / up from the first
   position on the XYZ canvas, with a note. The Map plot never needed WebGL (Canvas 2D, offline
   tiles). e2e `test_globe_without_webgl_falls_back` (WebGL blocked by an init script).
+- [x] **T17e `run.py` serves the current UI** - from the source folder, a fingerprint of the UI
+  sources (paths + contents) is compared with the one stored in `frontend/.local-dist` (git
+  ignores it); when they differ and `frontend/dist` is older than the sources (its index.html
+  is not newer than every UI source file - a hand / CI `npm run build` is - and by git:
+  uncommitted UI changes, or a UI commit after the last `frontend/dist` commit) it runs
+  `npm ci` (only when needed) and `npm run build -- --outDir .local-dist` once and sets
+  `SV_DIST`. Packaged app, an explicit `SV_DIST`, `--no-build` / `SV_NO_BUILD`: untouched; no npm:
+  a message and the last build. Tests: `backend/tests/test_launcher.py`.
 
 ## Milestone 3 — 1.3.0: smoother work
 - [ ] T18 Settings dialog (language, theme, map layer, live defaults); language and theme
