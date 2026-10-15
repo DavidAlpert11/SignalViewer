@@ -749,6 +749,40 @@ def test_formula_editor(pg):
     pg.wait_for_function("[...document.querySelectorAll('.dsig-name')].some(e => e.innerText.startsWith('2*Speed'))")
 
 
+def test_frame_conversion(pg):
+    """T17b: Create signals > Frames - three components in, one derived signal per target axis;
+    attitude pickers appear only when the body frame is involved."""
+    open_files(pg, "run_a.csv")
+    for n in ("Speed", "RPM", "Gear"):
+        sig(pg, n).click()
+    pg.click("[aria-label='Create signals']"); pg.click(".seg.wide button:has-text('Frames')")
+    assert pg.locator(".analysis .picker-btn").count() == 6                  # X Y Z + roll pitch yaw
+    pg.locator(".seg.wide button", has_text="Quaternion").click()
+    assert pg.locator(".analysis .picker-btn").count() == 7
+    pg.locator(".analysis label:has-text('To frame') select").select_option("ecef")
+    assert pg.locator(".analysis .picker-btn").count() == 9                  # + vehicle lat / lon
+    pg.locator(".seg.wide button", has_text="Position").click()             # LLA -> NED by default
+    assert pg.locator(".analysis .picker-btn").count() == 3
+    assert pg.locator(".analysis h3:has-text('Reference point')").count() == 1
+    pg.locator(".seg.wide button", has_text="Manual").click()
+    assert pg.locator(".analysis input[type=number]").count() == 3
+    create = pg.get_by_role("button", name="Create 3 signals", exact=True)
+    assert create.is_disabled()                                              # reference not filled in
+    pg.locator(".analysis label:has-text('From frame') select").select_option("ned")
+    pg.locator(".analysis label:has-text('To frame') select").select_option("enu")
+    assert pg.locator(".analysis h3:has-text('Reference point')").count() == 0   # same origin: no reference
+    pg.locator(".seg.wide button", has_text="Vector").click()
+    pg.locator(".analysis label:has-text('From frame') select").select_option("ned")
+    pg.locator(".analysis label:has-text('To frame') select").select_option("enu")
+    assert pg.locator(".analysis .picker-btn").count() == 3                  # no attitude for NED -> ENU
+    assert pg.locator(".analysis .picker-btn").first.inner_text() == "Speed"  # the active plot, in order
+    pg.get_by_role("button", name="Create 3 signals", exact=True).click()
+    pg.wait_for_function("document.querySelectorAll('.dsig').length === 3")
+    assert pg.locator(".dsig-name").all_inner_texts() == [
+        "E NED→ENU(Speed, RPM, Gear)", "N NED→ENU(Speed, RPM, Gear)", "U NED→ENU(Speed, RPM, Gear)"]
+    pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 6")
+
+
 def test_play_draw_mode_and_clear_everything(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()

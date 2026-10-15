@@ -18,7 +18,8 @@ UNARY = {"derivative", "integral", "abs", "negate", "normalize", "smooth", "rms"
 FORMULA = {"expr"}
 BINARY = {"add", "sub", "mul", "div", "absdiff"}
 MULTI = {"mean", "sum", "min", "max", "norm"}
-OPS = UNARY | BINARY | MULTI | FORMULA
+FRAME = {"frame"}
+OPS = UNARY | BINARY | MULTI | FORMULA | FRAME
 
 
 class OpError(ValueError):
@@ -60,6 +61,7 @@ class DerivedDef:
             "min": lambda: f"min({', '.join(n)})",
             "max": lambda: f"max({', '.join(n)})",
             "norm": lambda: f"‖{', '.join(n)}‖",
+            "frame": lambda: frame_name(n[:3], p),
         }[self.op]()
 
 
@@ -122,6 +124,9 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
             r = apply_filter(t, y, op, cutoff)
         return t, _f64(r)
 
+    if op == "frame":
+        return _frame(signals, params)
+
     if op in BINARY:
         if len(signals) != 2:
             raise OpError("This operation needs exactly two signals.")
@@ -155,6 +160,248 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
              "min": lambda: np.nanmin(stack, axis=0), "max": lambda: np.nanmax(stack, axis=0),
              "norm": lambda: np.sqrt(np.nansum(stack * stack, axis=0))}[op]()
     return t, r
+
+
+# -------------------------------------------------------------------------- frames
+# Coordinate frames (flight logs). One derived signal = one output axis, so the three outputs of a
+# conversion are three ordinary derived signals that share sources and differ only in
+# params["axis"] - sessions, autosave and live recompute need nothing new.
+#
+# params["qty"] says WHAT is converted, because the maths differs:
+#   "vector"   (default) velocity, acceleration, magnetic field... - a direction and a length, no
+#              place. Converting is a rotation only: NED, ENU, body, ECEF.
+#   "position" a place. LLA (lat, lon in degrees, height above the WGS84 ellipsoid in m), ECEF
+#              (m from the Earth's centre) and NED / ENU (m from a reference point). Converting
+#              moves the origin as well as rotating: ECEF -> NED subtracts the reference point
+#              first; LLA <-> ECEF is the ellipsoid formula. Body is not a place.
+# Sources: the three components in the "src" frame, then (vector only)
+#   - when body is involved: the attitude (body -> NED, as PX4 / ArduPilot log it): roll, pitch,
+#     yaw ("euler", aerospace order, params["unit"] "deg" (default) or "rad") or a Hamilton
+#     w-first quaternion ("quat");
+#   - when ECEF is involved: the vehicle's latitude and longitude (degrees), because "north" in
+#     ECEF depends on where you are.
+# Position to / from NED or ENU needs the reference point: params["ref"] "first" (the first sample
+# with a valid position - only when the source is LLA or ECEF) or "manual" with params ref_lat,
+# ref_lon (degrees) and ref_alt (m above the ellipsoid).
+VECTOR_FRAMES = ("ned", "enu", "body", "ecef")
+POSITION_FRAMES = ("lla", "ecef", "ned", "enu")
+AXES = {"ned": ("N", "E", "D"), "enu": ("E", "N", "U"), "body": ("X", "Y", "Z"),
+        "ecef": ("X", "Y", "Z"), "lla": ("lat", "lon", "alt")}
+WGS84_A = 6378137.0                    # m, semi-major axis
+WGS84_F = 1 / 298.257223563
+WGS84_E2 = WGS84_F * (2 - WGS84_F)     # first eccentricity squared
+
+
+def frame_sources(params: Dict) -> int:
+    """How many source signals a conversion needs: 3 components (+ attitude) (+ lat / lon)."""
+    if params.get("qty") == "position":
+        return 3
+    ends = (params.get("src"), params.get("dst"))
+    return 3 + ((4 if params.get("att") == "quat" else 3) if "body" in ends else 0) + (2 if "ecef" in ends else 0)
+
+
+def frame_name(n: List[str], p: Dict) -> str:
+    src, dst = str(p.get("src", "")), str(p.get("dst", ""))
+    lbl = AXES.get(dst, ("?", "?", "?"))[int(p.get("axis", 0)) % 3]
+    pos = " pos" if p.get("qty") == "position" else ""
+    return f"{lbl}{pos} {src.upper()}→{dst.upper()}({', '.join(n[:3])})"
+
+
+def _unwrap(y: np.ndarray, period: float) -> np.ndarray:
+    out = y.copy()
+    ok = np.isfinite(y)
+    out[ok] = np.unwrap(y[ok], period=period)
+    return out
+
+
+def _continuous_quat(q: np.ndarray) -> np.ndarray:
+    """q and -q are the same attitude; flip signs so neighbours agree (else interpolating between
+    two samples that straddle a flip passes through a non-rotation)."""
+    flip = np.zeros(q.shape[1], dtype=bool)
+    if q.shape[1] > 1:
+        dots = np.einsum("ij,ij->j", q[:, 1:], q[:, :-1])
+        flip[1:] = np.cumsum(np.nan_to_num(dots) < 0) % 2 == 1
+    return np.where(flip, -q, q)
+
+
+def _rotation(att: str, a: np.ndarray, unit: str) -> np.ndarray:
+    """(3, 3, n) rotation matrices body -> NED from aligned attitude rows `a`."""
+    if att == "quat":
+        w, x, y, z = a / np.linalg.norm(a, axis=0)          # logs drift a little off unit length
+        return np.array([
+            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)]])
+    r, p, yw = np.radians(a) if unit != "rad" else a
+    cr, sr, cp, sp, cy, sy = np.cos(r), np.sin(r), np.cos(p), np.sin(p), np.cos(yw), np.sin(yw)
+    return np.array([                                       # Rz(yaw) . Ry(pitch) . Rx(roll)
+        [cp * cy, sr * sp * cy - cr * sy, cr * sp * cy + sr * sy],
+        [cp * sy, sr * sp * sy + cr * cy, cr * sp * sy - sr * cy],
+        [-sp, sr * cp, cr * cp]])
+
+
+def _ecef_to_ned(lat_deg, lon_deg) -> np.ndarray:
+    """(3, 3[, n]) rotation ECEF -> NED at latitude / longitude (degrees)."""
+    la, lo = np.radians(lat_deg), np.radians(lon_deg)
+    sla, cla, slo, clo = np.sin(la), np.cos(la), np.sin(lo), np.cos(lo)
+    z = np.zeros_like(la)
+    return np.array([[-sla * clo, -sla * slo, cla],
+                     [-slo, clo, z],
+                     [-cla * clo, -cla * slo, -sla]])
+
+
+def lla_to_ecef(lat_deg, lon_deg, alt):
+    la, lo = np.radians(lat_deg), np.radians(lon_deg)
+    n = WGS84_A / np.sqrt(1 - WGS84_E2 * np.sin(la) ** 2)    # prime-vertical radius
+    return np.array([(n + alt) * np.cos(la) * np.cos(lo), (n + alt) * np.cos(la) * np.sin(lo),
+                     (n * (1 - WGS84_E2) + alt) * np.sin(la)])
+
+
+def ecef_to_lla(x, y, z):
+    """Iterative inverse (sub-millimetre after a few rounds, stable at the poles)."""
+    p = np.hypot(x, y)
+    lat = np.arctan2(z, p * (1 - WGS84_E2))
+    for _ in range(6):
+        s = np.sin(lat)
+        n = WGS84_A / np.sqrt(1 - WGS84_E2 * s * s)
+        lat = np.arctan2(z + WGS84_E2 * n * s, p)
+    s, c = np.sin(lat), np.cos(lat)
+    alt = p * c + z * s - WGS84_A * np.sqrt(1 - WGS84_E2 * s * s)
+    return np.degrees(lat), np.degrees(np.arctan2(y, x)), alt
+
+
+def _swap(v: np.ndarray) -> np.ndarray:
+    """NED <-> ENU (the same swap both ways)."""
+    return np.vstack([v[1], v[0], -v[2]])
+
+
+def _overlap(signals: List[Tuple[np.ndarray, np.ndarray]]) -> np.ndarray:
+    """The first signal's samples inside the time all sources share - the output time base."""
+    t_base = _f64(signals[0][0])
+    t0, t1 = max(s[0][0] for s in signals), min(s[0][-1] for s in signals)
+    if t1 <= t0:
+        raise OpError("The signals do not overlap in time.")
+    return t_base[np.searchsorted(t_base, t0, "left"):np.searchsorted(t_base, t1, "right")]
+
+
+def _reference(params: Dict, ecef: np.ndarray, src: str) -> Tuple[float, float, float]:
+    """(lat, lon, alt) of the NED / ENU origin."""
+    if params.get("ref", "first") == "manual":
+        try:
+            ref = tuple(float(params[k]) for k in ("ref_lat", "ref_lon", "ref_alt"))
+        except (KeyError, TypeError, ValueError):
+            raise OpError("Enter the reference point: latitude, longitude (degrees) and altitude (m).") from None
+        if not all(np.isfinite(ref)) or abs(ref[0]) > 90:
+            raise OpError("The reference latitude must be between -90 and 90 degrees.")
+        return ref
+    if src not in ("lla", "ecef"):
+        raise OpError("A local position has no place on Earth by itself - enter the reference point (Manual).")
+    ok = np.flatnonzero(np.isfinite(ecef).all(axis=0))
+    if not len(ok):
+        raise OpError("The position has no valid sample to use as the reference point.")
+    lat, lon, alt = ecef_to_lla(*ecef[:, ok[0]])
+    return float(lat), float(lon), float(alt)
+
+
+def _frame_position(signals, params, t, how) -> np.ndarray:
+    src, dst = params.get("src"), params.get("dst")
+    if "body" in (src, dst):
+        raise OpError("Body axes are not a place. To convert a body offset, choose Vector.")
+    if src not in POSITION_FRAMES or dst not in POSITION_FRAMES:
+        raise OpError("Choose the frames to convert from and to: LLA, ECEF, NED or ENU.")
+    rows = [(_f64(ts), _f64(ys)) for ts, ys in signals[:3]]
+    if src == "lla":                                        # longitude across +-180 must not sweep the globe
+        rows[1] = (rows[1][0], _unwrap(rows[1][1], 360.0))
+    v = np.vstack([align_to(t, ts, ys, how) for ts, ys in rows])
+    local = ("ned", "enu")
+    if src in local and dst in local:                       # same origin: a swap, no reference needed
+        return _swap(v)
+    if src == "enu":
+        v = _swap(v)
+    if src == "lla":
+        ecef = lla_to_ecef(*v)
+    elif src == "ecef":
+        ecef = v
+    else:
+        ecef = None
+    if src in local or dst in local:
+        ref = _reference(params, ecef, src)
+        ref_ecef, R = lla_to_ecef(*ref), _ecef_to_ned(ref[0], ref[1])
+        if ecef is None:                                    # NED (offset from ref) -> ECEF
+            ecef = ref_ecef[:, None] + R.T @ v
+    if dst == "ecef":
+        return ecef
+    if dst == "lla":
+        lat, lon, alt = ecef_to_lla(*ecef)
+        return np.vstack([lat, lon, alt])
+    ned = R @ (ecef - ref_ecef[:, None])                    # position: move the origin, then rotate
+    return _swap(ned) if dst == "enu" else ned
+
+
+def _frame_vector(signals, params, t, how) -> np.ndarray:
+    src, dst, att = params.get("src"), params.get("dst"), params.get("att", "euler")
+    if "lla" in (src, dst):
+        raise OpError("LLA is a position, not a direction. To convert a position, choose Position.")
+    if src not in VECTOR_FRAMES or dst not in VECTOR_FRAMES:
+        raise OpError("Choose the frames to convert from and to: NED, ENU, body or ECEF.")
+    v = np.vstack([align_to(t, ts, ys, how) for ts, ys in signals[:3]])
+    rest = list(signals[3:])
+    R_nb = R_ne = None
+    if "body" in (src, dst):
+        n_att = 4 if att == "quat" else 3
+        rows, rest = [(_f64(ts), _f64(ys)) for ts, ys in rest[:n_att]], rest[n_att:]
+        unit = params.get("unit", "deg")
+        if att == "quat":
+            same_base = len({len(ts) for ts, _ in rows}) == 1        # one message: q[0..3] together
+            q = _continuous_quat(np.vstack([ys for _, ys in rows])) if same_base else [ys for _, ys in rows]
+            a = np.vstack([align_to(t, rows[k][0], q[k], how) for k in range(4)])
+        else:                                               # unwrap so +179 -> -179 is not a 358 deg sweep
+            full = 360.0 if unit != "rad" else 2 * np.pi
+            a = np.vstack([align_to(t, ts, _unwrap(ys, full), how) for ts, ys in rows])
+        R_nb = _rotation(att, a, unit)
+    if "ecef" in (src, dst):
+        (tla, la), (tlo, lo) = [(_f64(ts), _f64(ys)) for ts, ys in rest[:2]]
+        R_ne = _ecef_to_ned(align_to(t, tla, la, how), align_to(t, tlo, _unwrap(lo, 360.0), how))
+    # everything goes through NED; a vector only rotates - no origin, no reference point
+    if src == "enu":
+        v = _swap(v)
+    elif src == "body":
+        v = np.einsum("ijn,jn->in", R_nb, v)
+    elif src == "ecef":
+        v = np.einsum("ijn,jn->in", R_ne, v)
+    if dst == "enu":
+        return _swap(v)
+    if dst == "body":
+        return np.einsum("jin,jn->in", R_nb, v)
+    if dst == "ecef":
+        return np.einsum("jin,jn->in", R_ne, v)
+    return v
+
+
+def _frame(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    qty = params.get("qty", "vector")
+    if qty not in ("vector", "position"):
+        raise OpError("Choose what to convert: a vector (velocity, acceleration...) or a position.")
+    src, dst = params.get("src"), params.get("dst")
+    if src == dst:
+        raise OpError("The two frames are the same - choose a different target frame.")
+    axis = params.get("axis", 0)
+    if axis not in (0, 1, 2):
+        raise OpError("The output axis must be 0, 1 or 2.")
+    if qty == "vector" and "body" in (src, dst) and params.get("att", "euler") not in ("euler", "quat"):
+        raise OpError("Choose how the attitude is given: roll / pitch / yaw or a quaternion.")
+    need = frame_sources(params)
+    if qty == "vector" and not ({src, dst} <= set(VECTOR_FRAMES)):
+        need = len(signals)                                 # let _frame_vector name the real problem
+    if len(signals) != need:
+        extra = [w for w, on in (("the attitude", "body" in (src, dst)),
+                                 ("the latitude and longitude", "ecef" in (src, dst))) if on and qty == "vector"]
+        raise OpError(f"This conversion needs {need} signals: the three components"
+                      + (" and " + " and ".join(extra) if extra else "") + ".")
+    t = _overlap(signals)
+    how = params.get("alignment", "linear")
+    v = (_frame_position if qty == "position" else _frame_vector)(signals, params, t, how)
+    return t, v[axis]
 
 
 # ----------------------------------------------------------------------------- FFT
