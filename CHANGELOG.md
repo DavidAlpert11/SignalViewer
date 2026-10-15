@@ -30,6 +30,11 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- Batch reports: `python cli.py report --template "ArduPilot · Full review" --out reports/ logs/*.bin`
+  makes one report per file (HTML, PDF or Word; `--lang he`), with the same template matching and
+  drawing as the app. A file that cannot be read or has none of the template's signals is
+  skipped and named. `python cli.py templates` lists the templates it can use (built-in and
+  yours); `--template` also takes a template .json file.
 - Compare runs over a segment: "Compare over: A segment" picks a state signal (flight mode, gear,
   any text column), a value and which occurrence (1st, 2nd… or last) - e.g. the 2nd AUTO of every
   flight. Each file is compared from the start of its own segment; the list shows where the
