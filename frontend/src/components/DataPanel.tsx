@@ -1,6 +1,6 @@
 import { DATA_EXTS } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { groupByPrefix } from "../signalGroups";
+import { groupByPrefix, groupDerived, memberLabel } from "../signalGroups";
 import type { RunInfo, SignalInfo } from "../api";
 import { actions, activeTab, fileLabel, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
@@ -19,8 +19,8 @@ import { api } from "../api";
 /* Virtualized rows: only what is on screen is in the DOM (thousands of signals). */
 type Row =
   | { kind: "run"; run: RunInfo; closed: boolean; h: number }
-  | { kind: "group"; runId: string; key: string; count: number; closed: boolean; h: number }
-  | { kind: "sig"; sig: SignalInfo; depth: number; h: number };
+  | { kind: "group"; runId: string; key: string; ids: string[]; closed: boolean; h: number }
+  | { kind: "sig"; sig: SignalInfo; depth: number; h: number; group?: string };
 const H_RUN = 30, H_GROUP = 26, H_SIG = 26, OVERSCAN = 10;
 
 import { exactMatch, fuzzyMatch } from "../fuzzy";
@@ -144,16 +144,18 @@ export default function DataPanel() {
       const closedRun = !!closed[run.id] && !q;
       out.push({ kind: "run", run, closed: closedRun, h: H_RUN });
       if (closedRun) continue;
-      const groups = groupByPrefix(sigs, (s) => s.name);
+      // derived signals made together (a frame conversion's axes) are always nested
+      const derived = run.format === "derived";
+      const groups = derived ? groupDerived(sigs) : groupByPrefix(sigs, (s) => s.name);
       if (!groups) { sigs.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
-      const many = run.signals.length > 200;
+      const many = !derived && run.signals.length > 200;
       for (const g of groups) {
         const gk = `${run.id}|${g.key}`;
         // searching opens every matching group; otherwise big files start collapsed
         const open = q ? true : groupOpen[gk] ?? !many;
         if (!g.key) { g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
-        out.push({ kind: "group", runId: run.id, key: g.key, count: g.items.length, closed: !open, h: H_GROUP });
-        if (open) g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG }));
+        out.push({ kind: "group", runId: run.id, key: g.key, ids: g.items.map((x) => x.id), closed: !open, h: H_GROUP });
+        if (open) g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG, group: derived ? g.key : undefined }));
       }
     }
     return out;
@@ -214,8 +216,12 @@ export default function DataPanel() {
     if (row.kind === "group") {
       const gk = `${row.runId}|${row.key}`;
       return (
-        <div className={`grp-head${row.closed ? " closed" : ""}`} onClick={() => setGroupOpen({ ...groupOpen, [gk]: row.closed })}>
-          <Icon.Chevron className="chev" /><span className="nm">{row.key}</span><span className="run-meta">{fmtInt(row.count, lang)}</span>
+        <div className={`grp-head${row.closed ? " closed" : ""}`} onClick={() => setGroupOpen({ ...groupOpen, [gk]: row.closed })}
+          onContextMenu={(e) => openMenu(e, [
+            { label: t("groupAddAll"), run: () => actions.addSignals(row.ids) },
+            { label: t("groupEachNewPlot"), run: () => actions.addSignalsToNewPlots(row.ids) },
+          ])}>
+          <Icon.Chevron className="chev" /><span className="nm">{row.key}</span><span className="run-meta">{fmtInt(row.ids.length, lang)}</span>
         </div>
       );
     }
@@ -241,7 +247,7 @@ export default function DataPanel() {
         onContextMenu={(e) => sigMenu(e, s)}
         title={`${s.formula ?? s.name}\n${t("listSelHint")}`}>
         <span className="dot" style={color ? { background: color } : undefined} />
-        <span className="nm"><Highlight text={s.name} q={q} /></span>
+        <span className="nm"><Highlight text={row.group ? memberLabel(s.name, row.group) : s.name} q={q} /></span>
         {s.transform && <span className="tf-badge" title={`${t("tfChanged")}: ${describeTransform(s.transform)}`}>ƒ</span>}
         {s.labels && <span className="txt-badge" title={t("textSignalHint", { n: Object.keys(s.labels).length, list: Object.values(s.labels).slice(0, 8).join(", ") + (Object.keys(s.labels).length > 8 ? "…" : "") })}>Aa</span>}
       </button>

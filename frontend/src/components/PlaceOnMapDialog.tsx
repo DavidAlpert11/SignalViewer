@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api";
+import { createFrameGroup, frameGroupName } from "../frames";
 import { actions, activeTab, signalName, uid, useApp, type MapObject, type ObjectKind } from "../store";
 import { useT, type TKey } from "../i18n";
 import { guessRoles } from "../mapObjects";
@@ -61,13 +61,9 @@ export default function PlaceOnMapDialog() {
         const refParams = origin === "signals" ? { ref: "signals" }
           : { ref: "manual", ref_lat: Number(manual[0]), ref_lon: Number(manual[1]), ref_alt: Number(manual[2]) };
         const sources = [...tr.sigs, ...(origin === "signals" ? ref : [])];
-        const ids: string[] = [];
-        for (const axis of [0, 1, 2]) {
-          const r = await api.createDerived("frame", sources, { qty: "position", src: frame, dst: "lla", axis, ...refParams,
-            alignment: plot.xyAlign ?? "linear" });
-          useApp.setState({ runs: r.runs });
-          ids.push(r.id);
-        }
+        // one nested group per track: lla_Pos_ned.lat / .lon / .alt (frames.ts)
+        const ids = await createFrameGroup(sources, { qty: "position", src: frame, dst: "lla", ...refParams,
+          alignment: plot.xyAlign ?? "linear" }, frameGroupName(frame, "lla", "position"));
         objs.push({ id: uid("o"), name: tr.name, kind, color: tr.color, lat: ids[0], lon: ids[1], alt: ids[2],
           altRef: "msl", angleUnit: "auto", trail: true });
       }

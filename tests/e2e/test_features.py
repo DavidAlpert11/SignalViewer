@@ -776,11 +776,26 @@ def test_frame_conversion(pg):
     pg.locator(".analysis label:has-text('To frame') select").select_option("enu")
     assert pg.locator(".analysis .picker-btn").count() == 3                  # no attitude for NED -> ENU
     assert pg.locator(".analysis .picker-btn").first.inner_text() == "Speed"  # the active plot, in order
+    # preview: three dashed lines in the active plot, or a small chart per axis
+    pg.get_by_role("button", name="Preview", exact=True).click()
+    pg.wait_for_function("(window.__sv.state().preview?.lines || []).length === 3")
+    assert pg.locator(".pv-key-item").all_inner_texts() == ["enu_Vec_ned.E", "enu_Vec_ned.N", "enu_Vec_ned.U"]
+    pg.locator(".seg.wide button", has_text="A chart per axis").click()
+    pg.get_by_role("button", name="Preview", exact=True).click()
+    pg.wait_for_function("document.querySelectorAll('.pv-chart canvas').length >= 3")
+    assert pg.evaluate("window.__sv.state().preview") is None
     pg.get_by_role("button", name="Create 3 signals", exact=True).click()
-    pg.wait_for_function("document.querySelectorAll('.dsig').length === 3")
-    assert pg.locator(".dsig-name").all_inner_texts() == [
-        "E NED→ENU(Speed, RPM, Gear)", "N NED→ENU(Speed, RPM, Gear)", "U NED→ENU(Speed, RPM, Gear)"]
+    # one nested group "enu_Vec_ned" with E / N / U, added to the plot in one step
+    pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
+    pg.wait_for_function("document.querySelectorAll('.pv-chart').length === 0")   # creating clears the preview
+    assert pg.locator(".dsig-name").inner_text() == "enu_Vec_ned E, N, U"
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 6")
+    assert {c["sig"] for c in pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].signals")} >= {
+        "derived/enu_Vec_ned.E", "derived/enu_Vec_ned.N", "derived/enu_Vec_ned.U"}
+    pg.locator(".dsig.grp .chev-btn").click()
+    assert pg.locator(".dsig.deep .dsig-name").all_inner_texts() == ["E", "N", "U"]
+    pg.click("[aria-label='Data']")                                           # nested in the file list too
+    assert pg.locator(".grp-head .nm", has_text="enu_Vec_ned").count() == 1
 
 
 PAINTED = """(sel) => { const c = document.querySelector(sel); if (!c || !c.width) return false;
