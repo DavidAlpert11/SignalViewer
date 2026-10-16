@@ -1035,3 +1035,8 @@ input.fx-input { width: 100%; }
 .start-tpl p { margin: 0 0 6px; }
 .start-health h4 { margin: 2px 0 4px; font-size: 0.9231rem; color: var(--muted); }
 .start-health .health-list { margin: 0 0 6px; }
+/* T30: conversions suggested by the signal names (Create signals > Frames) */
+.frame-sugs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 8px; font-size: 0.8846rem; color: var(--muted); }
+.frame-sugs .chip-btn { border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); border-radius: 999px; padding: 2px 9px;
+  font: inherit; cursor: pointer; direction: ltr; }
+.frame-sugs .chip-btn.on { border-color: var(--amber); background: var(--amber-soft); color: var(--amber-ink); }

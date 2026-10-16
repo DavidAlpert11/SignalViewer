@@ -805,6 +805,29 @@ def test_frame_conversion(pg):
     assert pg.locator(".grp-head .nm").all_inner_texts()[-2:] == ["enu_Vec_ned", "enu_Vec_ned_2"]
 
 
+def test_frames_suggested_from_names(pg):
+    """T30: Frames fills in what the names suggest (a GPS position -> NED; an IMU acceleration ->
+    NED with the log's attitude); the user only confirms."""
+    d = pg.env["data"]
+    subprocess.run([sys.executable, os.path.join(ROOT, "tools", "make_test_bin.py"), os.path.join(d, "frames.bin"), "--seconds", "10"],
+                   check=True, capture_output=True)
+    open_files(pg, "frames.bin")
+    pg.click("[aria-label='Create signals']")
+    pg.locator(".analysis .seg.wide button", has_text="Frames").click()
+    chips = pg.locator(".frame-sugs .chip-btn")
+    chips.first.wait_for()
+    assert chips.all_inner_texts()[:2] == ["GPS[0]: LLA → NED", "IMU[0]: Body → NED"]
+    assert "on" in chips.first.get_attribute("class")
+    pickers = pg.locator(".analysis .picker-btn")
+    assert pickers.nth(0).inner_text().startswith("GPS[0].Lat") and pickers.nth(2).inner_text().startswith("GPS[0].Alt")
+    chips.nth(1).click()                                                       # the acceleration, with the attitude
+    assert pickers.nth(0).inner_text().startswith("IMU[0].AccX")
+    assert pickers.nth(3).inner_text().startswith("ATT.Roll")
+    assert pg.locator(".analysis label:has-text('Angles in') select").input_value() == "deg"
+    pg.get_by_role("button", name="Create 3 signals", exact=True).click()
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.format === 'derived' && r.signals.some(s => s.name === 'ned_Vec_body.N'))")
+
+
 def test_compare_same_segment_across_runs(pg):
     """T10b: Compare runs over a segment - the same value + occurrence of a state signal in each
     file, compared from each one's own start; clicking a signal shows them aligned in a new tab."""
