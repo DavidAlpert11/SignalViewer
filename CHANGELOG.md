@@ -30,6 +30,9 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- Frames: the conversion is suggested from the names - a GPS position to NED, a NED velocity into
+  the body frame, an IMU acceleration into NED with the log's attitude (and its angle unit). The
+  first suggestion is filled in when the tab opens; chips switch between them.
 - Fixed: a flight log (.bin / .tlog) or .mat in a folder with remembered CSV import settings
   opened but showed "Unexpected error while reading the file".
 - Fixed: opening a template right after choosing it could open it with no files (the files for

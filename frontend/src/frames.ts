@@ -1,5 +1,6 @@
 import { api, type RunInfo } from "./api";
 import { useApp } from "./store";
+import { guessRoles } from "./mapObjects";
 
 /** Coordinate frames (svcore/analysis.py "frame"): one derived signal per output axis. */
 export type Frame = "ned" | "enu" | "body" | "ecef" | "lla";
@@ -43,4 +44,68 @@ export async function createFrameGroup(sources: string[], params: Record<string,
     throw e;
   }
   return made;
+}
+
+/* ------------------------------------------------------------------ T30: suggested conversions */
+
+/** A conversion the names of a file suggest, with everything filled in; the user only confirms. */
+export interface FrameSuggestion {
+  key: string;
+  group: string;                                  // where the signals come from ("GPS[0]", "IMU[0]")
+  qty: Qty; src: Frame; dst: Frame;
+  vec: string[];                                  // signal ids, in the source frame's axis order
+  att?: { kind: "euler" | "quat"; sigs: string[]; unit: "deg" | "rad" };
+}
+
+const field = (n: string) => (n.split(".").pop() ?? n).replace(/ \[[^\]]*\]$/, "").toLowerCase();
+const groupOf = (n: string) => (n.includes(".") ? n.slice(0, n.lastIndexOf(".")) : "");
+/** Angle unit from the name ("[deg]" / "[rad]"); without one, MAVLink attitude is in radians and
+ *  ArduPilot / most logs in degrees. */
+const angleUnit = (n: string): "deg" | "rad" => (/\[rad\]/i.test(n) ? "rad" : /\[deg\]/i.test(n) ? "deg" : /^ATTITUDE\./.test(n) ? "rad" : "deg");
+
+/** Axis triples by field name, in the frame's order (the first set that matches a group wins). */
+const NED_VEL = [["vn", "ve", "vd"], ["veln", "vele", "veld"], ["vel_n", "vel_e", "vel_d"], ["vel_n_m_s", "vel_e_m_s", "vel_d_m_s"]];
+const NED_XYZ_GROUPS = /^(LOCAL_POSITION_NED|vehicle_local_position)(\[\d+\])?$/i;     // x/y/z there are north/east/down
+const BODY_ACC = [["accx", "accy", "accz"], ["xacc", "yacc", "zacc"], ["acc_x", "acc_y", "acc_z"]];
+
+function triples(names: string[], sets: string[][], groupOk?: (g: string) => boolean): { group: string; names: string[] }[] {
+  const byGroup = new Map<string, Map<string, string>>();
+  for (const n of names) {
+    const g = groupOf(n);
+    if (groupOk && !groupOk(g)) continue;
+    if (!byGroup.has(g)) byGroup.set(g, new Map());
+    const m = byGroup.get(g)!;
+    if (!m.has(field(n))) m.set(field(n), n);
+  }
+  const out: { group: string; names: string[] }[] = [];
+  for (const [g, m] of byGroup) {
+    const set = sets.find((s) => s.every((f) => m.has(f)));
+    if (set) out.push({ group: g, names: set.map((f) => m.get(f)!) });
+  }
+  return out.sort((a, b) => a.group.localeCompare(b.group));
+}
+
+/**
+ * Conversions a file's names suggest, the most common first: a geodetic position to NED, a NED
+ * velocity into the body frame and a body acceleration into NED (both with the file's attitude).
+ * Uses the same position / attitude guess as the map objects (guessRoles).
+ */
+export function suggestFrames(run: RunInfo | undefined): FrameSuggestion[] {
+  if (!run || run.format === "derived") return [];
+  const names = run.signals.filter((s) => !s.labels).map((s) => s.name);
+  const id = (n: string) => `${run.id}/${n}`;
+  const g = guessRoles(run);
+  const out: FrameSuggestion[] = [];
+  if (g.lat && g.lon && g.alt) {
+    out.push({ key: "lla-ned", group: groupOf(g.lat.slice(run.id.length + 1)), qty: "position", src: "lla", dst: "ned", vec: [g.lat, g.lon, g.alt] });
+  }
+  const att: FrameSuggestion["att"] | undefined = g.roll && g.pitch && g.yaw
+    ? { kind: "euler", sigs: [g.roll, g.pitch, g.yaw], unit: angleUnit(g.roll.slice(run.id.length + 1)) }
+    : g.qw && g.qx && g.qy && g.qz ? { kind: "quat", sigs: [g.qw, g.qx, g.qy, g.qz], unit: "rad" } : undefined;
+  if (att) {
+    const vel = [...triples(names, NED_VEL), ...triples(names, [["vx", "vy", "vz"]], (x) => NED_XYZ_GROUPS.test(x))];
+    for (const v of vel.slice(0, 2)) out.push({ key: `ned-body:${v.group}`, group: v.group, qty: "vector", src: "ned", dst: "body", vec: v.names.map(id), att });
+    for (const a of triples(names, BODY_ACC).slice(0, 2)) out.push({ key: `body-ned:${a.group}`, group: a.group, qty: "vector", src: "body", dst: "ned", vec: a.names.map(id), att });
+  }
+  return out;
 }

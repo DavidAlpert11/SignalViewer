@@ -271,7 +271,14 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 - [x] **F05 Template "Open" before the files were bound** (T11b made binding a server call):
   "Open" is disabled until the binding for that template and those files has arrived. Found by
   `test_object_templates.py` in the full e2e run.
-- [ ] T30 Frames: suggest the conversion and its signals from the names. Spec: TASKS.md Q10.
+- [x] T30 Frames: suggest the conversion and its signals from the names. Spec: TASKS.md Q10.
+  Done: `frames.ts` `suggestFrames(run)`: LLA -> NED from `guessRoles` (the map's lat / lon /
+  alt guess); NED velocity (VN/VE/VD, VelN.., vel_n.., x/y/z velocity of LOCAL_POSITION_NED /
+  vehicle_local_position) -> body and body acceleration (AccX.., xacc.., acc_x..) -> NED, both
+  with the attitude from `guessRoles` (Euler, else quaternion; unit from "[deg]" / "[rad]", MAVLink
+  ATTITUDE = rad). Frames tab: the first suggestion fills the fields when they are empty, chips
+  switch; without suggestions the old start (the active plot's signals) stays. e2e
+  `test_frames_suggested_from_names`.
 - [ ] T31 User Python operations from a local folder (decided: only a folder the user chooses).
   Spec: TASKS.md Q11.
 - [x] T28 `worldCountries.ts` → JSON loaded with the map. *Re-assessed: already done* -
