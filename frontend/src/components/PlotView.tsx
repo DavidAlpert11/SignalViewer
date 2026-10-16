@@ -177,6 +177,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               <option value="blackman">Blackman</option><option value="none">{t("noWindow")}</option>
             </select>
             <button className="btn" aria-pressed={plot.fftLog ?? true} onClick={() => actions.updatePlot(plot.id, { fftLog: !(plot.fftLog ?? true) })}>{t("logScale")}</button>
+            <OrderPicker plot={plot} />
           </span>
         )}
         {mode === "xyz" && (
@@ -310,3 +311,33 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     </section>
   );
 }
+
+/** T16b: which rotation signal (RPM / ESC / motor speed of the plotted files) marks the spectrum
+ *  with its 1x / 2x / 3x orders, and how many blades (the blade-pass frequency). */
+function OrderPicker({ plot }: { plot: Plot }) {
+  const t = useT();
+  const runs = useApp((s) => s.runs);
+  const ord = plot.fftOrders;
+  const rids = new Set(plot.signals.map((s) => s.sig.split("/")[0]));
+  const cands = runs.filter((r) => rids.has(r.id) || r.id === ord?.sig.split("/")[0]).flatMap((r) => r.signals
+    .filter((s) => !s.labels && (ORDER_NAME.test(s.name) || s.id === ord?.sig)).map((s) => ({ id: s.id, name: s.name })));
+  if (!cands.length && !ord) return null;
+  const unitOf = (name: string): "rpm" | "hz" => (/rpm|rev.?min|\[1\/min\]/i.test(name) ? "rpm" : "hz");
+  return <>
+    <select value={ord?.sig ?? ""} aria-label={t("fftOrders")} title={t("fftOrdersHint")}
+      onChange={(e) => {
+        const c = cands.find((x) => x.id === e.target.value);
+        actions.updatePlot(plot.id, { fftOrders: c ? { sig: c.id, unit: unitOf(c.name), blades: ord?.blades } : undefined });
+      }}>
+      <option value="">{t("fftOrdersOff")}</option>
+      {cands.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+    </select>
+    {ord && <select value={ord.blades ?? 0} aria-label={t("fftBlades")} title={t("fftBlades")}
+      onChange={(e) => actions.updatePlot(plot.id, { fftOrders: { ...ord, blades: Number(e.target.value) || undefined } })}>
+      <option value={0}>{t("fftNoBlades")}</option>
+      {[2, 3, 4, 5].map((b) => <option key={b} value={b}>{t("fftBladesN", { n: b })}</option>)}
+    </select>}
+  </>;
+}
+/** Names that are a rotation rate: RPM, ESC telemetry, motor / rotor / propeller speed. */
+const ORDER_NAME = /rpm|^esc[^.]*\.(rpm|erpm)|motor.*(speed|rate)|rotor.*(speed|rate)|prop.*(speed|rate)/i;
