@@ -14,14 +14,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 ## Current state
 
 - Branch `main`. Applied by the owner up to T29 (not pushed yet: GitHub still at `80fc362`).
-  Delivered as a patch on top: T30.
-- **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8,
-  Q5, Q6, Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b, T29, T30.
+  Delivered as patches on top: T30, T16b.
+- **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
+  (done), Q5, Q6, Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
+- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b, T29, T30, T16b.
 - Tests at the last change: backend 348 passed; e2e `test_features.py -k "frames_suggested or
   frame_conversion or xyz"` passed (T29's full run: 146 passed in every file).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q8 (T16b motor-order marks).**
+- **Next task: Q5 (T19 + T20, calmer StageBar) - a layout change: run EVERY e2e file.**
 
 ## How to work here (practical notes)
 
@@ -159,7 +159,8 @@ bundle). Local file served by the backend (range requests); offset set from a cu
 **Where:** `FFTChart.tsx`, plot fields like `fftMethod` (optional, default off).
 **Steps:** choose an RPM / ESC signal per FFT plot; draw 1×, 2×, 3× (and blade-pass) lines at
 its mean over the window.
-**Status:** not started.
+**Status:** done (see ROADMAP T16b).
+**Follow-ups (not queued):** the marks in reports (report FFT) and in templates (by name).
 
 ### Q9 · T27 Formats: MCAP (ROS 2), HDF5 — M each
 **Where:** loaders in `svcore/*_loader.py`, `Store.open_file`, `DATA_EXTS` in `values.ts`,
@@ -208,3 +209,4 @@ splitting `main.py` and `store.ts`.
   next: Q5.
 - 2026-10-15 · Owner: go on with every task in the order I set - Q10, Q8, Q5, Q6, Q7, Q9, Q11.
 - 2026-10-15 · Q10 / T30 frames suggested from the names · e2e frames tests green · next: Q8.
+- 2026-10-15 · Q8 / T16b motor-order marks on FFT plots · e2e fft tests green · next: Q5.
