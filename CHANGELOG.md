@@ -30,6 +30,9 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- FFT: motor orders - pick an RPM / ESC / motor-speed signal in an FFT plot and the spectrum is
+  marked at 1×, 2× and 3× its mean rotation rate over the same window (between the cursors, or
+  the whole signal), plus the blade-pass frequency for 2–5 blades. Saved with the plot.
 - Frames: the conversion is suggested from the names - a GPS position to NED, a NED velocity into
   the body frame, an IMU acceleration into NED with the log's attitude (and its angle unit). The
   first suggestion is filled in when the tab opens; chips switch between them.

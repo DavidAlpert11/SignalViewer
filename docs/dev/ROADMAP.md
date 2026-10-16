@@ -174,7 +174,13 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   `fftMethod` (absent = fft, so old sessions/templates are unchanged), carried everywhere
   `fftWindow` goes: plot, FFTChart, api, template save + apply, plotSpec, report (PSD scales
   with scale²), server. Test: `test_welch_psd_finds_the_tone_and_is_smoother`.
-- [ ] **T16b Motor-order marks** on spectra (needs the RPM / ESC signal chosen per plot).
+- [x] **T16b Motor-order marks** on spectra (needs the RPM / ESC signal chosen per plot).
+  Done: optional plot field `fftOrders {sig, unit: rpm | hz, blades?}`; FFT controls get a picker
+  of the plotted files' rotation signals (`ORDER_NAME`: rpm, ESC rpm / erpm, motor / rotor / prop
+  speed; unit rpm when the name says so) and a blades select. `FFTChart` takes the signal's mean
+  over the spectrum's window from `/api/stats` and draws 1x / 2x / 3x (+ blade pass) with a
+  uPlot draw hook; `data-orders` on the canvas holds the base frequency. Not in reports or
+  templates yet (the report's FFT has no marks). e2e `test_fft_motor_orders`.
   `q2roll` / `q2pitch` / `q2yaw` (Hamilton w-first quaternions, aerospace order, degrees).
   In the server list and in `formulaHelp.ts` (suggestions while typing; the sync test enforces
   both). Test: `test_formula_angles_and_quaternions`.

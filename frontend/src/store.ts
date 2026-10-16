@@ -24,6 +24,9 @@ export interface Plot {
   fftWindow?: "hanning" | "hamming" | "blackman" | "none";
   fftLog?: boolean;
   fftMethod?: "fft" | "welch";            // welch: averaged power spectral density (T16); absent = fft
+  /** T16b: marks at 1x / 2x / 3x the mean rotation rate of this signal (and the blade-pass
+   *  frequency with blades) over the spectrum's window; absent = no marks. */
+  fftOrders?: { sig: string; unit: "rpm" | "hz"; blades?: number };
   specN?: number;                  // spectrogram window (samples)
   specFmax?: number | null;        // spectrogram: highest frequency shown (null: all)
   caption?: string;                // shown under the plot in reports

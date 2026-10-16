@@ -17,6 +17,7 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
   const uRef = useRef<uPlot | null>(null);
   const size = useSize(wrapRef);
   const [data, setData] = useState<{ id: string; x: Float64Array; y: Float32Array; peak: number }[]>([]);
+  const [orderHz, setOrderHz] = useState<number | null>(null);    // T16b: the mean rotation rate, rev/s
 
   const ids = plot.signals.map((s) => s.sig);
   const idKey = ids.join("|");
@@ -38,6 +39,18 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
     return () => { cancelled = true; window.clearTimeout(h); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idKey, plot.fftWindow, plot.fftMethod, region?.[0], region?.[1], dataVersion, runsKey]);
+
+  // T16b: the rotation signal's mean over the same window as the spectrum
+  const ord = plot.fftOrders;
+  useEffect(() => {
+    if (!ord?.sig) { setOrderHz(null); return; }
+    let off = false;
+    api.stats([ord.sig], region?.[0] ?? null, region?.[1] ?? null).then((r) => {
+      const m = r.stats[ord.sig]?.mean;
+      if (!off) setOrderHz(typeof m === "number" && Number.isFinite(m) && m > 0 ? (ord.unit === "rpm" ? m / 60 : m) : null);
+    }).catch(() => { if (!off) setOrderHz(null); });
+    return () => { off = true; };
+  }, [ord?.sig, ord?.unit, region?.[0], region?.[1], dataVersion, runsKey]);
 
   const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}`).join("|");
   useEffect(() => {
@@ -68,14 +81,45 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
       },
       axes: [{ ...axis, size: 46, label: "Hz", labelSize: 14, labelGap: 2 }, { ...axis, size: 60, values: tickValues }],
       series: [{}, ...rows.map(({ ps }) => ({ stroke: ps.color, width: ps.width, points: { show: false } }))],
+      plugins: orderHz ? [orderMarks(orderHz, ord?.blades ?? 0, axis.stroke as string)] : [],
     };
     const u = new uPlot(opts, aligned, host);
     uRef.current = u;
     host.addEventListener("mousedown", () => actions.setActivePlot(index), true);
     return () => { u.destroy(); uRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, styleKey, theme, scale, plot.fftLog, size.w > 0 && size.h > 0, plot.xlim?.[0], plot.xlim?.[1], plot.ylim?.[0], plot.ylim?.[1]]);
+  }, [data, styleKey, theme, scale, plot.fftLog, size.w > 0 && size.h > 0, plot.xlim?.[0], plot.xlim?.[1], plot.ylim?.[0], plot.ylim?.[1], orderHz, ord?.blades]);
 
   useEffect(() => { uRef.current?.setSize({ width: size.w, height: size.h }); }, [size]);
-  return <div className="plot-canvas" ref={wrapRef} />;
+  // data-orders: the marked base frequency (Hz) - what the marks are drawn at, readable by tests / tools
+  return <div className="plot-canvas" ref={wrapRef} data-orders={orderHz ? orderHz.toFixed(3) : undefined} />;
+}
+
+/** T16b: vertical marks at 1x, 2x, 3x the rotation rate f (rev/s) and, with blades, at the
+ *  blade-pass frequency (blades x f) - where vibration from the motors / propellers shows. */
+function orderMarks(f: number, blades: number, color: string): uPlot.Plugin {
+  const marks = [1, 2, 3].map((k) => ({ hz: k * f, label: `${k}×`, dash: [4, 3] }));
+  if (blades > 1 && ![1, 2, 3].includes(blades)) marks.push({ hz: blades * f, label: `BP ${blades}×`, dash: [1, 2] });
+  else if (blades > 1) marks[blades - 1].label += ` BP`;
+  return {
+    hooks: {
+      draw: [(u: uPlot) => {
+        const ctx = u.ctx;
+        const { top, height } = u.bbox;
+        const pr = devicePixelRatio || 1;
+        ctx.save();
+        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = pr;
+        ctx.font = `${Math.round(11 * pr)}px system-ui, sans-serif`;
+        ctx.textBaseline = "top";
+        for (const m of marks) {
+          const x = u.valToPos(m.hz, "x", true);
+          if (!Number.isFinite(x) || x < u.bbox.left || x > u.bbox.left + u.bbox.width) continue;
+          ctx.setLineDash(m.dash.map((d) => d * pr));
+          ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + height); ctx.stroke();
+          ctx.fillText(m.label, x + 3 * pr, top + 2 * pr);
+        }
+        ctx.restore();
+      }],
+    },
+  };
 }

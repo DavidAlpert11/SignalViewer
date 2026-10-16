@@ -828,6 +828,27 @@ def test_frames_suggested_from_names(pg):
     pg.wait_for_function("window.__sv.state().runs.some(r => r.format === 'derived' && r.signals.some(s => s.name === 'ned_Vec_body.N'))")
 
 
+def test_fft_motor_orders(pg):
+    """T16b: an FFT plot marks 1x / 2x / 3x the mean rotation rate of an RPM signal (and the
+    blade-pass frequency), over the spectrum's window."""
+    import numpy as np
+    t = np.arange(0, 4, 0.001)
+    p = os.path.join(pg.env["data"], "motor.csv")
+    np.savetxt(p, np.column_stack([t, 6000 + 0 * t, np.sin(2 * np.pi * 100 * t) + 0.5 * np.sin(2 * np.pi * 200 * t)]),
+               delimiter=",", header="Time,ESC.RPM,IMU.AccZ", comments="", fmt="%.6g")
+    open_files(pg, "motor.csv")
+    pg.locator(".sig", has_text="IMU.AccZ").first.click()
+    pg.locator(".plot .seg button", has_text="FFT").first.click()
+    sel = pg.locator(".plot select[aria-label='Motor orders']")
+    sel.select_option(label="ESC.RPM")
+    pg.wait_for_function("document.querySelector('.plot-canvas[data-orders]')?.dataset.orders === '100.000'")   # 6000 rpm = 100 Hz
+    assert S(pg, "s.ws.tabs[0].plots[0].fftOrders.unit") == "rpm"
+    pg.locator(".plot select[aria-label='Propeller blades']").select_option("2")
+    assert S(pg, "s.ws.tabs[0].plots[0].fftOrders.blades") == 2
+    sel.select_option("")                                                       # off again
+    pg.wait_for_function("!document.querySelector('.plot-canvas[data-orders]')")
+
+
 def test_compare_same_segment_across_runs(pg):
     """T10b: Compare runs over a segment - the same value + occurrence of a state signal in each
     file, compared from each one's own start; clicking a signal shows them aligned in a new tab."""
