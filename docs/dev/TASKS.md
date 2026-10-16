@@ -13,15 +13,15 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Applied by the owner up to T11b. On top of it, delivered as one patch: T29
-  (smart start) + F04 (opening in a folder with remembered import settings) + F05 (template
-  "Open" before the files were bound - a regression from T11b).
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b, T29.
-- Tests at the last change: backend 348 passed; e2e: EVERY file run, one per process
-  (146 passed: features 103, globe3d 10, map_objects 4, object_templates 4, offline_map 2,
-  templates_recent_badfiles 11, timeline 5, workflows 7).
-- Q1 (T12) waits for the owner's check with real SITL / a radio (the owner cannot test now).
-- **Next task: Q5 (T19 + T20, calmer StageBar).** Nothing started.
+- Branch `main`. Applied by the owner up to T29 (not pushed yet: GitHub still at `80fc362`).
+  Delivered as a patch on top: T30.
+- **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8,
+  Q5, Q6, Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
+- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b, T29, T30.
+- Tests at the last change: backend 348 passed; e2e `test_features.py -k "frames_suggested or
+  frame_conversion or xyz"` passed (T29's full run: 146 passed in every file).
+- Q1 (T12) waits for the owner's check with real SITL / a radio.
+- **Next task: Q8 (T16b motor-order marks).**
 
 ## How to work here (practical notes)
 
@@ -174,7 +174,7 @@ lat / lon / alt), `frames.ts`.
 **Steps:** when the Frames tab opens, guess quantity, source frame and the three signals from
 the active plot / the file; show "Suggested: LLA → NED from GPS" with the fields filled; the
 user only confirms.
-**Status:** not started.
+**Status:** done (see ROADMAP T30).
 
 ### Q11 · T31 User Python operations (new) — L
 **Why:** new analyses without changing the app.
@@ -206,3 +206,5 @@ splitting `main.py` and `store.ts`.
   .tlog / .mat in a folder with remembered CSV settings opened with an error); F05 fixed (T11b
   regression: template "Open" before the binding arrived) · backend 348, every e2e file green ·
   next: Q5.
+- 2026-10-15 · Owner: go on with every task in the order I set - Q10, Q8, Q5, Q6, Q7, Q9, Q11.
+- 2026-10-15 · Q10 / T30 frames suggested from the names · e2e frames tests green · next: Q8.

@@ -8,7 +8,7 @@ import FormulaInput from "./FormulaInput";
 import MultiSignalPicker from "./MultiSignalPicker";
 import { resolveFormula } from "../formulaRefs";
 import { clearAllEdits, deleteAllDerived, editInPlace, opToStep } from "../transforms";
-import { AXES, createFrameGroup, frameGroupName, type Frame, type Qty } from "../frames";
+import { AXES, createFrameGroup, frameGroupName, suggestFrames, type Frame, type FrameSuggestion, type Qty } from "../frames";
 import { groupDerived, memberLabel } from "../signalGroups";
 import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
@@ -26,6 +26,7 @@ const MULTI: [string, TKey][] = [["mean", "opMean"], ["sum", "opSum"], ["min", "
 const FRAME_KEYS: Record<Frame, TKey> = { ned: "frameNed", enu: "frameEnu", body: "frameBody", ecef: "frameEcef", lla: "frameLla" };
 const FRAMES_OF: Record<Qty, Frame[]> = { vector: ["ned", "enu", "body", "ecef"], position: ["lla", "ecef", "ned", "enu"] };
 const LLA_KEYS: TKey[] = ["objRole_lat", "objRole_lon", "objRole_alt"];
+const FRAME_SHORT: Record<Frame, string> = { ned: "NED", enu: "ENU", body: "Body", ecef: "ECEF", lla: "LLA" };
 const EULER: TKey[] = ["objRole_roll", "objRole_pitch", "objRole_yaw"];
 const QUAT: TKey[] = ["objRole_qw", "objRole_qx", "objRole_qy", "objRole_qz"];
 
@@ -88,6 +89,17 @@ export default function AnalysisPanel() {
   const pickQty = (q: Qty) => { setQty(q); setFrSrc(q === "vector" ? "body" : "lla"); setFrDst("ned"); };
   const setAt = (arr: string[], set: (v: string[]) => void, i: number) => (v: string) => set(arr.map((x, k) => (k === i ? v : x)));
   const pickSrc = (f: Frame) => { setFrSrc(f); if (f === frDst) setFrDst(f === "ned" ? "enu" : "ned"); };
+  // T30: conversions the names suggest (the active plot's file, else the first one), filled in on a click
+  const frameRun = useApp((s) => {
+    const rid = plotSigs[0]?.split("/")[0];
+    return s.runs.find((r) => r.id === rid && r.format !== "derived") ?? s.runs.find((r) => r.format !== "derived");
+  });
+  const frameSugs = useMemo(() => suggestFrames(frameRun), [frameRun]);
+  const applySug = (g: FrameSuggestion) => {
+    setQty(g.qty); setFrSrc(g.src); setFrDst(g.dst); setVec(g.vec); setRefMode("first");
+    if (g.att) { setAtt(g.att.kind); setAttSigs([...g.att.sigs, "", "", "", ""].slice(0, 4)); setUnit(g.att.unit); }
+  };
+  const sugOn = (g: FrameSuggestion) => g.qty === qty && g.src === frSrc && g.dst === frDst && g.vec.every((x, i) => vec[i] === x);
 
   // sensible defaults: the selected signal, else the active plot's signals
   useEffect(() => {
@@ -114,9 +126,12 @@ export default function AnalysisPanel() {
 
   const switchKind = (k: Kind) => {
     setKind(k); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : "expr");
-    if (k === "frame" && vec.every((x) => !x)) {          // the active plot's signals, in order, as a start
-      setVec([0, 1, 2].map((i) => plotSigs[i] ?? ""));
-      setAttSigs([3, 4, 5, 6].map((i) => plotSigs[i] ?? ""));
+    if (k === "frame" && vec.every((x) => !x)) {
+      if (frameSugs.length) applySug(frameSugs[0]);       // what the names suggest (T30); the user confirms
+      else {                                               // else the active plot's signals, in order, as a start
+        setVec([0, 1, 2].map((i) => plotSigs[i] ?? ""));
+        setAttSigs([3, 4, 5, 6].map((i) => plotSigs[i] ?? ""));
+      }
     }
   };
   const tr = (k: string, v?: Record<string, string | number>) => t(k as never, v);
@@ -296,6 +311,14 @@ export default function AnalysisPanel() {
           {kind === "many" && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} />}
 
           {kind === "frame" && <>
+            {frameSugs.length > 0 && <div className="frame-sugs" role="group" aria-label={t("frameSuggested")}>
+              <span>{t("frameSuggested")}</span>
+              {frameSugs.map((g) => (
+                <button key={g.key} className={`chip-btn${sugOn(g) ? " on" : ""}`} onClick={() => applySug(g)}
+                  title={g.vec.map((x) => x.split("/").slice(1).join("/")).join(", ")}>
+                  {g.group ? `${g.group}: ` : ""}{FRAME_SHORT[g.src]} → {FRAME_SHORT[g.dst]}</button>
+              ))}
+            </div>}
             <div className="seg wide small" role="group" aria-label={t("frameQty")}>
               <button className={qty === "vector" ? "on" : ""} onClick={() => pickQty("vector")}>{t("qtyVector")}</button>
               <button className={qty === "position" ? "on" : ""} onClick={() => pickQty("position")}>{t("qtyPosition")}</button>
