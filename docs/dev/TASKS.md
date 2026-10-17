@@ -22,7 +22,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
 - Tests at the last change: backend 351 passed; EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q7 (T15 video synchronised to the timeline).**
+- **Next task: Q12 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -207,8 +207,122 @@ run code). Formulas keep the AST whitelist (`svcore/formula.py`).
 **Status:** not started (decision made).
 
 ### Also open (not queued yet - see ROADMAP)
-T14c, T21b, T23, T24, T25, F02 (check on a developer machine / CI), Parquet / MF4,
-splitting `main.py` and `store.ts`.
+T14c, T21b, T23, T24, T25, splitting `store.ts` (now Q23).
+
+---
+
+## Review 2026-10-17 - toward the leading tools (Q12–Q24)
+
+Source: a full review of the code at `a28469e` (owner asked: "what would make it compete with the
+best tools?"). Competitors in view: PlotJuggler, Foxglove (robotics), asammdf / Vector (automotive),
+NI DIAdem / Dewesoft (test & measurement), Tacview (flight), MATLAB SDI (simulation),
+UAV Log Viewer / MAVExplorer (ArduPilot). Conclusion: the code is strong; the gap is trust and
+reach (licence, robustness on bad files, extensibility, formats, fleet-level work).
+
+**Order (set 2026-10-17, owner: "make the list, then start, tick as you go"):**
+Q12, Q13, Q14, Q15, Q16, Q19, Q18, Q17, then Q7 (video), Q11 + Q20 (Python), Q9 + Q21 (formats),
+Q22 (fleet), Q23 (store.ts), Q24 (release & reach - mostly owner actions).
+
+Progress board (tick here AND in ROADMAP):
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q12 | T32 Licence file (MIT) + README section | S | ☐ |
+| Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☐ |
+| Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☐ |
+| Q15 | T35 Split `backend/app/main.py` into routers | L | ☐ |
+| Q16 | T36 Static type check of the backend (mypy) in CI | S | ☐ |
+| Q17 | F02 The whole e2e suite in one process | M | ☐ |
+| Q18 | T37 CSV first open: meet the 20M-row target | M | ☐ |
+| Q19 | T38 Local crash report (log file + "copy details") | S | ☐ |
+| Q7  | T15 Video synchronised to the timeline (already queued) | M | ☐ |
+| Q11 | T31 User Python operations from a local folder (already queued) | L | ☐ |
+| Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☐ |
+| Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☐ |
+| Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ☐ |
+| Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ☐ |
+| Q23 | T42 Split `frontend/src/store.ts` into slices | M | ☐ |
+| Q24 | T43 Release & reach: signed installers, docs site, public benchmark vs other tools, forum posts | M | ☐ |
+
+### Q12 · T32 Licence — S
+**Why:** without a LICENSE file the code is "all rights reserved"; no company may use it. The
+old README (v2.6) said MIT, but the file was never in the repo.
+**Steps:** `LICENSE` (MIT, holder David Alpert) at the root; README "Licence" section that also
+names the third-party licences already shipped (uPlot MIT, fonts OFL, Cesium Apache-2.0);
+installer and `pyproject.toml` show it.
+**Done when:** GitHub shows the licence badge; the installer lists the licence.
+**Owner check:** confirm MIT (vs Apache-2.0, which adds a patent grant).
+
+### Q13 · T33 Loaders survive damaged files — M
+**Why:** logs from the field are cut off (battery pulled), half-copied or corrupt; that is where
+users meet crashes or hangs, and one crash costs a user.
+**Steps:** a test that takes every sample file, damages it in fixed seeds (truncate at many
+points, flip bytes, zero blocks, random garbage with a right extension) and opens it through
+`Store.open_file` with a time limit: it must either open (what was readable) or raise a
+`ValueError`-type error with an engineer-readable message - never another exception type, never
+hang. Fix what it finds.
+**Done when:** the fuzz test runs in CI (fast, fixed seeds) and passes for every format.
+
+### Q14 · T34 Broad exception handlers — M
+**Why:** 54 `except Exception` can hide real bugs (wrong results with no message).
+**Steps:** list them; each one either narrowed to the exceptions that are expected there, or
+kept and logged (`log.exception`) with a comment why it must be broad (e.g. a background thread
+that must not die). No behaviour change for the user.
+**Done when:** no silent `except Exception: pass`; each remaining broad handler logs or reports.
+
+### Q15 · T35 Split main.py into routers — L
+**Why:** 2,100 lines and 79 endpoints in one file; every task touches it.
+**Steps:** `backend/app/routes/<area>.py` with `APIRouter` per area (files, plots/data, derived,
+compare, report, stream/live, templates, map, prefs, jobs); shared request models and helpers in
+`app/deps.py`; `main.py` keeps app creation, middleware (localhost guard) and static files.
+Pure move - no endpoint path, request or response changes.
+**Done when:** the OpenAPI schema (paths + models) is identical before/after (test compares it);
+all backend and e2e tests green.
+
+### Q16 · T36 mypy — S
+**Steps:** `mypy` config in `pyproject.toml` (lenient first: `ignore_missing_imports`, check
+`svcore` + `app`), fix real errors it finds, add a CI step.
+**Done when:** CI runs mypy and it is clean.
+
+### Q17 · F02 Whole e2e suite in one process — M
+See ROADMAP F02 (hang only when detached from a terminal). Find the shared state (server / browser
+fixtures, test home) and make the suite runnable as `pytest tests/e2e`.
+
+### Q18 · T37 CSV first open — M
+**Why:** `benchmark_20M_rows.md`: 12.16 s vs a 11.5 s target (1 CPU).
+**Steps:** profile the first open (parse vs cache write vs float conversion); overlap cache writes
+with parsing or write the cache with one pass; re-run the benchmark.
+
+### Q19 · T38 Local crash report — S
+**Why:** when it breaks in the field, the owner needs the details without a debugger.
+**Steps:** backend errors (unhandled in a request or a thread) and frontend errors
+(`window.onerror`, unhandled rejections) go to a rotating log in the app's data folder; Help
+shows "Copy error details" (version, OS, last errors - no data values). Nothing is ever sent.
+
+### Q20 · T39 Python API (push from Jupyter / a simulation) — M
+**Why:** simulation engineers live in Python; `signalviewer.show(t, {"x": x})` from a notebook
+into the open window is what MATLAB SDI gives them.
+**Steps:** a small client in the `signalviewer` package that posts arrays (binary, not JSON) to
+the running app on 127.0.0.1 with a per-start token; they appear as a run that can be updated.
+
+### Q21 · T40 Parquet, MF4, CAN + DBC — L
+**Why:** MF4 + DBC is the entry ticket to automotive / systems test (asammdf, Vector).
+**Steps:** Parquet via pyarrow (already a dependency); MF4 via `asammdf` (optional dependency);
+CAN logs (MF4 bus logging, candump, .blf) decoded with `cantools` and a DBC the user picks.
+
+### Q22 · T41 Fleet view — L
+**Why:** almost no free tool does it: "every flight with vibration above X", trends over months.
+**Steps:** index a folder of logs (header, duration, modes, health findings) into a local SQLite;
+a Fleet panel with search, filters and a trend plot per finding; open a flight at its finding.
+
+### Q23 · T42 Split store.ts — M
+Slices per area (workspace, plots, live, compare, UI); `commit` (undo/redo) stays the one way to
+change the workspace.
+
+### Q24 · T43 Release & reach — M (mostly owner)
+Signed Windows installer (needs a code-signing certificate - owner), GitHub Pages docs from
+README + docs, a public benchmark on the same log against PlotJuggler / MAVExplorer, posts on the
+ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scripts.
 
 ---
 
@@ -253,3 +367,5 @@ splitting `main.py` and `store.ts`.
   stopped waiting at the first poll that saw ANY new data (part of the 30 messages) - now it polls
   until all are in, with longer waits for slow CI machines. The tag is to be made again on the
   fixed commit.
+- 2026-10-17 · Review of the whole code; new tasks Q12–Q24 (T32–T43) with an order and a
+  progress board in this file · next: Q12.
