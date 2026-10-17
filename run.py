@@ -75,20 +75,26 @@ def _newest_source_mtime(front: str) -> float:
 
 
 def committed_dist_is_current() -> bool:
-    """Was frontend/dist built from the sources as they are now? Yes when it was built after the
-    last change to any UI source (`npm run build` by hand, or CI). Else by git: no uncommitted UI
-    changes, and no commit touched the UI sources after the last one that touched frontend/dist.
-    Without git (a zip of the code) it cannot tell, so it trusts the committed UI."""
+    """Was frontend/dist built from the sources as they are now?
+
+    Git history decides, because file times do not: `git checkout`, `pull` and `clone` give every
+    file they write a fresh time, so a dist restored or cloned AFTER newer UI sources looked "built
+    later" and the old UI was served without a word (found in T38's e2e run). So:
+      * no local changes: current when no commit touched the UI sources after the last commit that
+        touched frontend/dist;
+      * local changes (edited sources, or a dist rebuilt by hand): current only when dist was
+        built after the newest source (`npm run build` after the edits);
+      * no git (a zip of the code): it cannot tell, so it trusts the committed UI."""
     index = os.path.join(FRONT, "dist", "index.html")
-    if os.path.isfile(index) and os.path.getmtime(index) > _newest_source_mtime(FRONT):
-        return True
+    built_after = os.path.isfile(index) and os.path.getmtime(index) > _newest_source_mtime(FRONT)
+    sources = [f"frontend/{p}" for p in UI_SOURCES]
     try:
-        if _git("status", "--porcelain", "--", *[f"frontend/{p}" for p in UI_SOURCES]):
-            return False
+        if _git("status", "--porcelain", "--", *sources) or _git("status", "--porcelain", "--", "frontend/dist"):
+            return built_after
         last_dist = _git("log", "-1", "--format=%H", "--", "frontend/dist")
         if not last_dist:
-            return False
-        return not _git("log", "--format=%H", f"{last_dist}..HEAD", "--", *[f"frontend/{p}" for p in UI_SOURCES])
+            return built_after
+        return not _git("log", "--format=%H", f"{last_dist}..HEAD", "--", *sources)
     except (OSError, subprocess.SubprocessError):
         return True
 

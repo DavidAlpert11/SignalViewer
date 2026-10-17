@@ -128,6 +128,13 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 - [x] **F01 Blank window with a POSIX locale** (`en-US@posix`, `C`): uPlot builds
   `Intl.NumberFormat(navigator.language)` at load and throws. `localeGuard.ts` (first import)
   normalises the tag. Verified with Node: those tags throw, `en-US` does not.
+- [x] **F09 run.py served an old UI after git rewrote frontend/dist** (found by T38's e2e test in
+  the whole-suite run): `committed_dist_is_current` trusted file times first, and git checkout /
+  pull / clone give files fresh times - a dist restored or cloned after newer UI sources counted
+  as "built later". Git history decides now; file times only for local changes (a dist built by
+  hand, edited sources); no git: trust the committed UI. Tests: `test_launcher.py` (the old code
+  fails `test_git_history_decides_not_file_times`); e2e `test_error_details.py` passes with the
+  old dist in place (run.py builds the UI).
 - [ ] **F02 Whole e2e suite hangs when run in one process** (every file passes on its own).
   Narrowed down: the same files hang only when pytest runs detached from a terminal
   (background / nohup) in the build sandbox; in the foreground every file passes. Check on a

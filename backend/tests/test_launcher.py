@@ -76,17 +76,48 @@ def test_an_explicit_ui_folder_wins(front, monkeypatch):
     assert os.environ["SV_DIST"] == "/somewhere"
 
 
-def test_a_dist_built_after_the_sources_counts_as_current(front, monkeypatch):
-    """`npm run build` by hand / in CI writes frontend/dist after the sources: no second build."""
-    (front / "dist").mkdir()
+def _times(front, dist_newer: bool):
+    """dist/index.html newer (or older) than every UI source, by 100 s."""
+    (front / "dist").mkdir(exist_ok=True)
     (front / "dist" / "index.html").write_text("<html>")
-    old = os.path.getmtime(front / "dist" / "index.html") - 100
-    os.utime(front / "src" / "App.tsx", (old, old)); os.utime(front / "package.json", (old, old))
-    assert run.committed_dist_is_current()
-    (front / "src" / "App.tsx").write_text("changed later")                      # a newer source: not current
-    new = os.path.getmtime(front / "dist" / "index.html") + 100
-    os.utime(front / "src" / "App.tsx", (new, new))
+    base = os.path.getmtime(front / "dist" / "index.html")
+    src = base - 100 if dist_newer else base + 100
+    for f in (front / "src" / "App.tsx", front / "package.json"):
+        os.utime(f, (src, src))
+
+
+def _fake_git(monkeypatch, src_dirty="", dist_dirty="", last_dist="abc", src_commits_after=""):
+    def git(*a):
+        if a[0] == "status":
+            return dist_dirty if a[-1] == "frontend/dist" else src_dirty
+        if a[:2] == ("log", "-1"):
+            return last_dist
+        return src_commits_after                     # log <last_dist>..HEAD -- <sources>
+    monkeypatch.setattr(run, "_git", git)
+
+
+def test_git_history_decides_not_file_times(front, monkeypatch):
+    """T38: a dist rewritten by git checkout / pull / clone has a FRESH time but OLD contents."""
+    _times(front, dist_newer=True)
+    _fake_git(monkeypatch, src_commits_after="def456")              # sources committed after dist
+    assert not run.committed_dist_is_current()                      # (was True: the old UI was served)
+    _times(front, dist_newer=False)
+    _fake_git(monkeypatch, src_commits_after="")                    # dist committed after the sources
+    assert run.committed_dist_is_current()                          # a clone's file order does not matter
+
+
+def test_local_build_by_hand_counts_when_built_after_the_sources(front, monkeypatch):
+    """`npm run build` by hand (frontend/dist changed, not committed) or edited sources."""
+    for dirty in ({"dist_dirty": " M frontend/dist/index.html"}, {"src_dirty": " M frontend/src/App.tsx"}):
+        _fake_git(monkeypatch, src_commits_after="def456", **dirty)
+        _times(front, dist_newer=True)
+        assert run.committed_dist_is_current()
+        _times(front, dist_newer=False)
+        assert not run.committed_dist_is_current()
+
+
+def test_without_git_the_committed_ui_is_trusted(front, monkeypatch):
+    _times(front, dist_newer=False)
     monkeypatch.setattr(run, "_git", lambda *a: (_ for _ in ()).throw(OSError("no git")))
-    assert run.committed_dist_is_current()                                       # (no git: trusted)
-    monkeypatch.setattr(run, "_git", lambda *a: " M frontend/src/App.tsx" if a[0] == "status" else "")
-    assert not run.committed_dist_is_current()
+    assert run.committed_dist_is_current()
+
