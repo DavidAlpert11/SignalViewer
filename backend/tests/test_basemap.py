@@ -2,6 +2,7 @@
 import io
 import math
 import os
+import shutil
 import sys
 
 import pytest
@@ -83,7 +84,10 @@ def test_more_area_packs_are_picked_up(tmp_path, monkeypatch):
     (data / "packs" / "broken").mkdir()
     for f in os.listdir(basemap.DATA):                       # the real world data next to the pack
         if not os.path.isdir(os.path.join(basemap.DATA, f)):
-            os.symlink(os.path.join(basemap.DATA, f), data / f)
+            try:
+                os.symlink(os.path.join(basemap.DATA, f), data / f)
+            except OSError:          # Windows: symlinks need admin rights or Developer Mode
+                shutil.copy(os.path.join(basemap.DATA, f), data / f)
     # a 1000 m plateau in the open sea (33.0-33.2 N, 30.0-30.2 E) with one main road across it
     b = [33.0, 30.0, 33.2, 30.2]
     np.savez_compressed(data / "packs" / "testland" / "dem.npz", h=np.full((161, 161), 1000, dtype=np.int16),
