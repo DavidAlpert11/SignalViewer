@@ -1,26 +1,13 @@
 # Changelog
 
-## 1.1.0 – unreleased
+## 1.3.0 – 2026-10-17
 
-- File browser: type part of a path and pick from suggestions; Tab completes, ↑ ↓ choose,
-  Enter opens. Clickable folder path (breadcrumbs). Type letters on the list to filter it.
-- Folder listing no longer stalls on a disconnected network drive, and is faster on
-  network folders. `~` works in typed paths.
-- Envelope plot (Monte-Carlo, repeated tests): plot the same signal from many runs and switch
-  the plot to Envelope - median, 5–95 % band and min–max; runs far from the rest are named.
-  Reports (HTML, PDF, Word) show the envelope too.
-- Limits: give a signal a lower and/or upper limit in the Inspector. The plot shows them as
-  dashed lines; the Inspector says pass or fail, how often and how long the signal was outside,
-  and lists each violation (click to zoom). Kept in sessions and templates; reports get a
-  pass / fail column.
-- Clearer panel names: "Create signals" (was Analysis) and "Compare runs" (was Compare).
-- Spectrum plots: choose FFT or Welch PSD (averaged power spectral density - the usual view for
-  vibration). Kept in sessions, templates and reports.
-- Segments: show a mode signal (flight mode, gear, any text column) as states, and the
-  Inspector lists its segments and the total time in each state. Click a segment to zoom to it
-  and put the cursors on its edges - the statistics then cover that segment.
-- Formulas: `deg`, `rad`, `wrap180`, `wrap360`, and roll / pitch / yaw from a quaternion
-  (`q2roll(qw, qx, qy, qz)` …, in degrees).
+Highlights: **live MAVLink** (UDP / TCP / serial, recorded as you go), **the same segment
+across runs** (e.g. the 2nd AUTO of every flight), **batch reports** from the command line,
+**coordinate frames** (NED / ENU / body / ECEF / LLA) and a plain **3D plot**, a **smart start**
+for the first file, a calmer plot toolbar, and a file list with units, rates and a small picture
+of every signal. Note: pan is now **Alt + drag** (Shift + drag zooms the values).
+
 - Coordinate frames: Create signals > Frames converts between NED, ENU, body, ECEF and LLA, with
   separate maths for a vector (velocity, acceleration… - rotated only; body needs the attitude,
   ECEF the vehicle's lat / lon) and a position (also moves the origin; NED / ENU are metres from
@@ -88,6 +75,32 @@
 - `python run.py` from the source folder always shows the current UI: after a pull or patch it
   builds the UI once by itself (Node.js needed) into an ignored folder, without touching the
   tracked `frontend/dist`. `--build` / `--no-build` to force or skip.
+
+## 1.2.0 – 2026-10-14
+
+- Fixed: a web page open in your browser could, in principle, reach Signal Viewer's local server (DNS rebinding) and read or write files. The server now answers only requests addressed to localhost / 127.0.0.1.
+
+## 1.1.0 – 2026-10-13
+
+- File browser: type part of a path and pick from suggestions; Tab completes, ↑ ↓ choose,
+  Enter opens. Clickable folder path (breadcrumbs). Type letters on the list to filter it.
+- Folder listing no longer stalls on a disconnected network drive, and is faster on
+  network folders. `~` works in typed paths.
+- Envelope plot (Monte-Carlo, repeated tests): plot the same signal from many runs and switch
+  the plot to Envelope - median, 5–95 % band and min–max; runs far from the rest are named.
+  Reports (HTML, PDF, Word) show the envelope too.
+- Limits: give a signal a lower and/or upper limit in the Inspector. The plot shows them as
+  dashed lines; the Inspector says pass or fail, how often and how long the signal was outside,
+  and lists each violation (click to zoom). Kept in sessions and templates; reports get a
+  pass / fail column.
+- Clearer panel names: "Create signals" (was Analysis) and "Compare runs" (was Compare).
+- Spectrum plots: choose FFT or Welch PSD (averaged power spectral density - the usual view for
+  vibration). Kept in sessions, templates and reports.
+- Segments: show a mode signal (flight mode, gear, any text column) as states, and the
+  Inspector lists its segments and the total time in each state. Click a segment to zoom to it
+  and put the cursors on its edges - the statistics then cover that segment.
+- Formulas: `deg`, `rad`, `wrap180`, `wrap360`, and roll / pitch / yaw from a quaternion
+  (`q2roll(qw, qx, qy, qz)` …, in degrees).
 - Command line and Python: `python cli.py info FILE`, `python cli.py export FILE --out x.mat`
   (or .csv; choose signals and a time window), and `import signalviewer as sv; sv.load(path)`
   for numpy / pandas. From MATLAB: `system('python cli.py export f.bin --out f.mat')`.
@@ -98,7 +111,6 @@
   The live "Follow" choice is in one place: the plot bar while live mode runs.
 - Fixed: an Undo button on an older message could undo a later, unrelated change.
 - Fixed: a blank window on Linux systems whose locale is set to POSIX / C.
-- Fixed: a web page open in your browser could, in principle, reach Signal Viewer's local server (DNS rebinding) and read or write files. The server now answers only requests addressed to localhost / 127.0.0.1.
 
 ## 1.0.0 – first release
 
