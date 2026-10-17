@@ -324,6 +324,7 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   GeoChart loads it with `import()` into its own chunk (not in the main bundle).
 
 ## Milestone 4 — 1.4.0: trust, robustness, reach
+1.4.0 (2026-10-18) shipped T32-T36, T38, F08, F09; the open items here continue toward 1.5.0.
 - [x] **F08 CI warned "Node.js 20 is deprecated"** (owner, manual build 2026-10-18):
   `upload-artifact@v4` -> `@v6`, `download-artifact@v4` -> `@v7` - the first majors on Node 24
   (checked each tag's action.yml; v5 / v6 of download-artifact are still Node 20). The inputs used
