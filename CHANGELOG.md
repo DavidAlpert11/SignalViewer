@@ -15,6 +15,9 @@
   sample rate, a time that does not increase) the raw signal was shown under the filter's name.
   Now the reason is shown instead. Filtered signals in saved sessions open as before but with the
   correct (slightly different) values.
+- Help > **Copy error details**: the version, the system and the end of the app's own log, to paste
+  into a bug report. Errors are now kept in `~/.signalviewer/logs` (nothing is sent anywhere), and
+  an unexpected server error shows a readable message instead of "Internal Server Error".
 - A damaged settings file (after a crash) or a template file that holds no templates is now
   handled with a clear message instead of an error.
 

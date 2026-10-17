@@ -118,6 +118,8 @@ function decode<T extends Float64Array | Float32Array>(b64: string, Ctor: { new 
 
 export const api = {
   listRuns: () => call<RunInfo[]>("/api/runs"),
+  clientError: (b: { message: string; stack: string; where: string }) => call<{ logged: boolean }>("/api/client-error", b),
+  diagnostics: () => call<{ text: string; logFile: string; version: string }>("/api/diagnostics"),
   runLog: (id: string) => call<LogInfo>(`/api/runs/${encodeURIComponent(id)}/log`),
   syncSuggest: (ref: string, other: string, refSignal?: string | null, otherSignal?: string | null,
     opts: { feature?: { kind: string; levelPct?: number; occurrence?: number }; maxLag?: number | null } = {}) =>

@@ -373,7 +373,16 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
 - [ ] T36b Shrink the mypy baseline (pyproject.toml overrides): mostly `Signal.time` Optional
   narrowed where mypy cannot follow (bin / ulog / tlog loaders), `analysis.py` frame maths.
 - [ ] T37 CSV first open meets the 20M-row target. Spec: TASKS.md Q18.
-- [ ] T38 Local crash report. Spec: TASKS.md Q19.
+- [x] T38 Local crash report. Spec: TASKS.md Q19.
+  Done: `app/crashlog.py` - rotating `~/.signalviewer/logs/signalviewer.log` (1 MB x 4,
+  `SV_LOG_DIR` overrides; tests use a temp folder) on the `signalviewer.*` logger tree (T34), a
+  console copy of warnings, `sys.excepthook` / `threading.excepthook`; failed background jobs log
+  their traceback; an unexpected error in a request answers 500 with a readable message (was "Internal
+  Server Error") and is logged with the traceback. UI: `errorReport.ts` (window errors, unhandled
+  promises, PlotBoundary) -> `/api/client-error` (20 per session in the UI, 50 per run in the
+  backend). Help: "Copy error details" -> `/api/diagnostics` (version, packaged / source, OS,
+  Python, the last ~48 KB of the log - covers the session that crashed). `app/version.py` (a test
+  keeps it equal to build.bat). Tests: `test_crashlog.py` (7), e2e `test_error_details.py`.
 - [ ] T39 Python API: push arrays into the open app. Spec: TASKS.md Q20.
 - [ ] T40 Parquet, MF4, CAN + DBC. Spec: TASKS.md Q21.
 - [ ] T41 Fleet view (index of many logs). Spec: TASKS.md Q22.

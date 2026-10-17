@@ -20,9 +20,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
-- Tests at the last change: backend 510 passed (T36); before that backend 351, EVERY e2e file run: 151 passed (Q6).
+- Tests at the last change: backend 517 passed (T38); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q19 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q18 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -31,7 +31,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
    `docs/media` from the app itself; it does not make `06_3d_terrain.png` and the
    `02_flight_map_3d` clip (headless, the 3D view runs on software WebGL) - keep or retake those
    by hand.
-2. Version in `build.bat` (`VERSION`), `installer/SignalViewer.iss` (`AppVersion`),
+2. Version in `build.bat` (`VERSION`), `backend/app/version.py` (a test keeps the two equal),
+   `installer/SignalViewer.iss` (`AppVersion`),
    `installer/version_info.txt` (four places); the workflow takes it from the tag, and a manual
    run (Actions -> build -> Run workflow) with the version left empty takes it from build.bat.
 3. CHANGELOG: rename the open section to `## X.Y.Z – date`; README: new features and pictures.
@@ -234,7 +235,7 @@ Progress board (tick here AND in ROADMAP):
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☑ done (T36b: shrink baseline) |
 | Q17 | F02 The whole e2e suite in one process | M | ☐ |
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ☐ |
-| Q19 | T38 Local crash report (log file + "copy details") | S | ☐ |
+| Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☐ |
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☐ |
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☐ |
@@ -252,7 +253,7 @@ names the third-party licences already shipped (uPlot MIT, fonts OFL, Cesium Apa
 installer and `pyproject.toml` show it.
 **Done when:** GitHub shows the licence badge; the installer lists the licence.
 **Owner check:** confirm MIT (vs Apache-2.0, which adds a patent grant).
-**Status:** done (see ROADMAP T32). Left for the owner: confirm MIT and the copyright name.
+**Status:** done (see ROADMAP T32). Owner confirmed MIT and the name (2026-10-18).
 
 ### Q13 · T33 Loaders survive damaged files — M
 **Why:** logs from the field are cut off (battery pulled), half-copied or corrupt; that is where
@@ -324,6 +325,7 @@ with parsing or write the cache with one pass; re-run the benchmark.
 **Steps:** backend errors (unhandled in a request or a thread) and frontend errors
 (`window.onerror`, unhandled rejections) go to a rotating log in the app's data folder; Help
 shows "Copy error details" (version, OS, last errors - no data values). Nothing is ever sent.
+**Status:** done (see ROADMAP T38).
 
 ### Q20 · T39 Python API (push from Jupyter / a simulation) — M
 **Why:** simulation engineers live in Python; `signalviewer.show(t, {"x": x})` from a notebook
@@ -414,3 +416,6 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   Developer Mode on Windows - falls back to copying.
 - 2026-10-18 · F08 CI actions on Node 24 (upload v6, download v7) · Q16 / T36 mypy: 104 -> 0 with
   a per-module baseline; 2 real prefs bugs fixed (9 tests) · backend 510 · next: Q19.
+- 2026-10-18 · Owner: MIT licence confirmed. Q19 / T38 local crash report: log file, request /
+  thread / job / UI errors logged, Help > Copy error details · backend 517, mypy clean, new e2e
+  `test_error_details.py` green, Hebrew layout checked by screenshot · next: Q18.

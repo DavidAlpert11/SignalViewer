@@ -340,7 +340,8 @@ docs/images, docs/media  screenshots and clips used in this README
 ```
 
 Environment variables: `SV_FLOAT32`, `SV_CACHE`, `SV_CACHE_MIN_MB`, `SV_MAX_POINTS`.
-Workspace autosave and the binary cache live in `~/.signalviewer/`.
+Workspace autosave and the binary cache live in `~/.signalviewer/`; the error log in
+`~/.signalviewer/logs/` (Help > Copy error details puts its end on the clipboard; `SV_LOG_DIR` moves it).
 
 ---
 
