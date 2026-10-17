@@ -22,7 +22,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
 - Tests at the last change: backend 351 passed; EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q12 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q13 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -227,7 +227,7 @@ Progress board (tick here AND in ROADMAP):
 
 | # | Task | Size | Status |
 |---|---|---|---|
-| Q12 | T32 Licence file (MIT) + README section | S | ☐ |
+| Q12 | T32 Licence file (MIT) + README section | S | ☑ done |
 | Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☐ |
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☐ |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☐ |
@@ -252,6 +252,7 @@ names the third-party licences already shipped (uPlot MIT, fonts OFL, Cesium Apa
 installer and `pyproject.toml` show it.
 **Done when:** GitHub shows the licence badge; the installer lists the licence.
 **Owner check:** confirm MIT (vs Apache-2.0, which adds a patent grant).
+**Status:** done (see ROADMAP T32). Left for the owner: confirm MIT and the copyright name.
 
 ### Q13 · T33 Loaders survive damaged files — M
 **Why:** logs from the field are cut off (battery pulled), half-copied or corrupt; that is where
@@ -369,3 +370,4 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   fixed commit.
 - 2026-10-17 · Review of the whole code; new tasks Q12–Q24 (T32–T43) with an order and a
   progress board in this file · next: Q12.
+- 2026-10-17 · Q12 / T32 LICENSE (MIT), README section, installer page, in the builds · next: Q13.

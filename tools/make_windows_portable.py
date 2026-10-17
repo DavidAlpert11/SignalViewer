@@ -226,7 +226,7 @@ def main():
     need = ["requirements.txt", "run.py", "backend", os.path.join("frontend", "dist", "index.html"),
             os.path.join("assets", "icon.ico"), os.path.join("assets", "png"),
             os.path.join("installer", "portable", "make_shortcut.ps1"),
-            os.path.join("installer", "portable", "Signal Viewer.bat"), os.path.join("installer", "portable", "README-HE.txt")]
+            os.path.join("installer", "portable", "Signal Viewer.bat"), os.path.join("installer", "portable", "README-HE.txt"), "LICENSE"]
     missing = [n for n in need if not os.path.exists(os.path.join(ROOT, n))]
     if missing:
         die("Missing in the project: " + ", ".join(missing) +
@@ -290,6 +290,7 @@ def main():
     for f in sorted(os.listdir(os.path.join(ROOT, "installer", "portable"))):
         if f.lower().endswith(".bat") or f == "README-HE.txt":
             shutil.copy2(os.path.join(ROOT, "installer", "portable", f), pkg)
+    shutil.copy2(os.path.join(ROOT, "LICENSE"), pkg)                   # the app's licence (T32)
 
     # --- 4. check before zipping
     say("[4/5] Checking the package")

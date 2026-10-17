@@ -36,6 +36,7 @@ datas = [
     (os.path.join(ROOT, "backend", "app", "basemap_data"), os.path.join("app", "basemap_data")),
     (os.path.join(ROOT, "assets", "png"), os.path.join("assets", "png")),
     (os.path.join(ROOT, "assets", "icon.ico"), "assets"),          # the window icon on Windows
+    (os.path.join(ROOT, "LICENSE"), "."),                          # the app's licence (T32)
     (os.path.join(ROOT, "examples"), "examples"),                  # "Open an example" on the welcome screen
     # the built-in templates (T11b: data, read by svcore/templates.py for the app and the CLI)
     (os.path.join(ROOT, "backend", "svcore", "builtin_templates.json"), "svcore"),

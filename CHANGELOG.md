@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Licence: Signal Viewer is now explicitly MIT licensed (`LICENSE`); the installer shows it and the
+  README lists the licences of the bundled parts.
+
 ## 1.3.0 – 2026-10-17
 
 Highlights: **live MAVLink** (UDP / TCP / serial, recorded as you go), **the same segment
