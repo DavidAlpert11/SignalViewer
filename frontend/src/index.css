@@ -392,6 +392,9 @@ table.keys td.mouse { color: var(--muted); }
 .status-help { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: inherit; }
 .status-help:hover { color: var(--ink); }
 @media (max-width: 720px) { .help-body { grid-template-columns: 1fr; } }
+.help-foot { display: flex; align-items: center; gap: 12px; padding: 10px 18px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
+.help-foot span { flex: 1; }
+.help-foot .btn { white-space: nowrap; }
 .vlist { position: relative; }
 .vrow { position: absolute; left: 0; right: 0; }
 .vrow .run-head { height: 100%; margin: 0; }

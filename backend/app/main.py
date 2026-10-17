@@ -7,14 +7,16 @@ only decimated display points (binary-packed, base64) and computed values.
 """
 
 import json
+import logging
 import math
 import os
 
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from app import crashlog
 from app.routes import (
     analysis,
     compare,
@@ -118,6 +120,19 @@ class LocalOnlyMiddleware:
 
 
 app.add_middleware(LocalOnlyMiddleware)
+
+# T38: what went wrong goes to ~/.signalviewer/logs (Help > Copy error details); a request that
+# fails unexpectedly answers with a readable message instead of a bare "Internal Server Error".
+crashlog.install()
+log = logging.getLogger("signalviewer").getChild(__name__)
+
+
+@app.exception_handler(Exception)
+async def _unexpected_error(request: Request, exc: Exception):
+    log.error("unexpected error in %s %s", request.method, request.url.path, exc_info=exc)
+    return SafeJSONResponse({"detail": f"Unexpected error: {exc or exc.__class__.__name__}. "
+                                       "Help > Copy error details has what is needed to report it."},
+                            status_code=500)
 
 
 # =============================================================================
