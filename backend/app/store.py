@@ -112,6 +112,16 @@ def sniff_kind(head: bytes) -> Optional[str]:
     return None
 
 
+def _text_with_zero_block(head: bytes) -> bool:
+    """Text with a run of zero bytes in it (a file cut by a power loss, a half-finished copy)
+    is still text: without the zeros it is printable lines. Real binary files are not (T33)."""
+    rest = head.replace(b"\x00", b"")
+    if len(rest) < 16 or b"\n" not in rest:
+        return False
+    printable = sum(1 for b in rest if b in (9, 10, 13) or 32 <= b < 127 or b >= 0xC2)
+    return printable >= 0.95 * len(rest)
+
+
 def check_file(path: str, settings: Optional[dict] = None) -> None:
     """Cheap checks BEFORE a loader runs, so the user is told what is wrong in plain words:
     unsupported type, empty file, a binary file with a text extension, or a known format
@@ -137,7 +147,7 @@ def check_file(path: str, settings: Optional[dict] = None) -> None:
     if ext in TEXT_EXTS:
         enc = str((settings or {}).get("encoding") or "").lower().replace("-", "").replace("_", "")
         wide = enc.startswith(("utf16", "utf32")) or head.startswith((b"\xff\xfe", b"\xfe\xff"))
-        if not wide and b"\x00" in head:
+        if not wide and b"\x00" in head and not _text_with_zero_block(head):
             raise LoadError("This is a binary file, not text: it cannot be read as CSV.", "binaryText")
 
 
@@ -248,6 +258,9 @@ class Store:
                 raise LoadError("This is not a valid MATLAB .mat file, or it is damaged.", "badMat") from None
             if run is None:
                 raise LoadError("No numeric vectors found in this MAT file.", "matNoData")
+            if not run.signals and (getattr(run, "load_report", None) or {}).get("cutOff"):
+                raise LoadError("This .mat file is cut off before its first complete signal "
+                                "(MATLAB stopped while saving, or the copy is incomplete).", "badMat")
             report["skipped"] = skipped
         elif ext in (".bin", ".tlog", ".ulg"):
             loader = {".bin": load_bin, ".tlog": load_tlog, ".ulg": load_ulog}[ext]
