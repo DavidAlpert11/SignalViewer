@@ -344,7 +344,17 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   kept broad AND logged with a comment why (live append fallback, restore, sync methods, bidi,
   templates folder, MAVLink close / heartbeat, PX4 defaults, live Arrow fallback). One logger
   tree, `signalviewer.*` - T38 attaches the file handler to it.
-- [ ] T35 Split `backend/app/main.py` into routers. Spec: TASKS.md Q15.
+- [x] T35 Split `backend/app/main.py` into routers. Spec: TASKS.md Q15.
+  Done: `app/main.py` 2,130 -> ~170 lines (app, local-only guard, JSON response, includes, static
+  UI). `app/common.py` (paths, `b64`, `fail`, `open_with_prefs`, `_load_error`, log names) and
+  `app/routes/`: files, live, data, analysis, compare, export, maps, jobs, system, templates, fs,
+  session - one `APIRouter` each. Moved by an AST script (functions with their decorators and
+  comments, cross-module imports computed; graph acyclic). Checks: OpenAPI (paths, methods,
+  models) identical before / after; all 80 routes and the 14 pairs that can match the same request
+  in the same order; the UI catch-all last. Found by the tests: `EXAMPLES` was built from
+  `__file__`, now one folder deeper - fixed (the bundled app sets SV_EXAMPLES, source runs lost
+  the examples). Guard: `tests/test_routes_layout.py`. `app.main` still exports `app`,
+  `WATCHDOG`, `idle_too_long`, `_hostname` (run.py, tests).
 - [ ] T36 mypy for the backend in CI. Spec: TASKS.md Q16.
 - [ ] T37 CSV first open meets the 20M-row target. Spec: TASKS.md Q18.
 - [ ] T38 Local crash report. Spec: TASKS.md Q19.
