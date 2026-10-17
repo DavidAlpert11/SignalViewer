@@ -11,7 +11,7 @@ const ROWS: [string, TKey][] = [
 ];
 const MOUSE: [TKey, TKey][] = [
   ["hDrag", "hDragDo"], ["hWheel", "hWheelDo"], ["hDouble", "hDoubleDo"], ["hClick", "hClickDo"],
-  ["hShiftClick", "hShiftClickDo"], ["hDragSignal", "hDragSignalDo"], ["hPan", "hPanDo"],
+  ["hShiftClick", "hShiftClickDo"], ["hDragSignal", "hDragSignalDo"], ["hPan", "hPanDo"], ["hDragY", "hDragYDo"], ["hDragXY", "hDragXYDo"],
   ["hWheelAxis", "hWheelAxisDo"], ["hCtrlWheel", "hCtrlWheelDo"],
   ["hRight", "hRightDo"], ["hDragChip", "hDragChipDo"], ["hCtrlClick", "hCtrlClickDo"], ["hListSel", "hListSelDo"], ["hAltClick", "hAltClickDo"], ["hGutter", "hGutterDo"],
 ];

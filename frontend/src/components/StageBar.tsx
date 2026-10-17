@@ -13,6 +13,7 @@ function LayoutIcon({ r, c }: { r: number; c: number }) {
 }
 
 /** Any rows x columns with at most MAX_PLOTS plots (V-02): hover the grid or type. */
+/** The layout popover (T20): the common layouts, then any rows × columns. */
 function GridPicker({ rows, cols, anchor, onPick, onClose }: { rows: number; cols: number; anchor: DOMRect | null; onPick: (r: number, c: number) => void; onClose: () => void }) {
   const t = useT();
   const box = useRef<HTMLDivElement>(null);
@@ -30,8 +31,16 @@ function GridPicker({ rows, cols, anchor, onPick, onClose }: { rows: number; col
   const ok = (a: number, b: number) => a >= 1 && b >= 1 && a * b <= MAX_PLOTS;
   const nr = Number(r), nc = Number(c);
   return (
-    <div className="gridpick" ref={box} style={style} role="dialog" aria-label={t("layoutCustom")}
+    <div className="gridpick" ref={box} style={style} role="dialog" aria-label={t("layout")}
       onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
+      <div className="gridpick-quick">
+        {QUICK.map(([qr, qc]) => (
+          <button key={`${qr}x${qc}`} className="iconbtn" aria-pressed={rows === qr && cols === qc}
+            onClick={() => onPick(qr, qc)} title={`${qr} × ${qc}`} aria-label={`${t("layout")} ${qr} × ${qc}`}>
+            <LayoutIcon r={qr} c={qc} />
+          </button>
+        ))}
+      </div>
       <div className="gridpick-cells">
         {Array.from({ length: MAX_PLOTS * MAX_PLOTS }, (_, k) => {
           const rr = Math.floor(k / MAX_PLOTS) + 1, cc = (k % MAX_PLOTS) + 1;
@@ -54,6 +63,21 @@ function GridPicker({ rows, cols, anchor, onPick, onClose }: { rows: number; col
   );
 }
 
+/** A small popover under its button, closed by a click outside or Escape. */
+function Popover({ anchor, onClose, label, children }: { anchor: DOMRect | null; onClose: () => void; label: string; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest?.(".zoom-btn")) onClose(); };
+    window.addEventListener("mousedown", off);
+    return () => window.removeEventListener("mousedown", off);
+  }, [onClose]);
+  const rtl = document.documentElement.dir === "rtl";
+  const style: React.CSSProperties = anchor ? { position: "fixed", top: anchor.bottom + 4,
+    ...(rtl ? { right: window.innerWidth - anchor.right } : { left: anchor.left }) } : {};
+  return <div className="gridpick bar-pop" ref={box} style={style} role="dialog" aria-label={label}
+    onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>{children}</div>;
+}
+
 export default function StageBar() {
   const t = useT();
   const tab = useApp((s) => activeTab(s.ws));
@@ -65,21 +89,16 @@ export default function StageBar() {
   const [picker, setPicker] = useState(false);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const zoomMode = useApp((s) => s.zoomMode);
-  const custom = !QUICK.some(([r, c]) => r === tab.rows && c === tab.cols);
+  const [zoomMenu, setZoomMenu] = useState(false);
+  const [zoomAnchor, setZoomAnchor] = useState<DOMRect | null>(null);
 
   return (
     <div className="stage-bar">
-      <span className="bar-label hide-narrow">{t("layout")}</span>
-      {QUICK.map(([r, c]) => (
-        <button key={`${r}x${c}`} className="iconbtn" aria-pressed={tab.rows === r && tab.cols === c}
-          onClick={() => actions.setLayout(r, c)} title={`${r} × ${c}`} aria-label={`${t("layout")} ${r} × ${c}`}>
-          <LayoutIcon r={r} c={c} />
-        </button>
-      ))}
+      {/* T20: one layout button: the current layout; the popover has the common ones and any size */}
       <span className="pick-wrap">
-        <button className="btn" aria-pressed={custom} aria-expanded={picker} title={t("layoutCustom")}
+        <button className="btn layout-btn" aria-expanded={picker} aria-haspopup="dialog" title={t("layoutHint")} aria-label={t("layout")}
           onClick={(e) => { setAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setPicker(!picker); }}>
-          {custom ? `${tab.rows} × ${tab.cols}` : "…"}
+          <LayoutIcon r={Math.min(tab.rows, 3)} c={Math.min(tab.cols, 3)} /><span>{tab.rows} × {tab.cols}</span>
         </button>
         {picker && <GridPicker rows={tab.rows} cols={tab.cols} anchor={anchor} onPick={(r, c) => { actions.setLayout(r, c); setPicker(false); }} onClose={() => setPicker(false)} />}
       </span>
@@ -87,14 +106,23 @@ export default function StageBar() {
       <button className="btn" aria-pressed={tab.linkX} onClick={actions.toggleLinkX} title={t("linkX")}><Icon.Link /> X</button>
       <button className="btn" aria-pressed={!!tab.linkY} onClick={actions.toggleLinkY} title={t("linkY")}><Icon.Link /> Y</button>
       <span className="sep" />
-      <span className="bar-label hide-narrow">{t("zoom")}</span>
-      <span className="seg zoom-seg" role="group" aria-label={t("zoomMode")}>
-        {(["x", "y", "xy"] as const).map((m) => (
-          <button key={m} className={zoomMode === m ? "on" : ""} aria-pressed={zoomMode === m}
-            title={`${t(m === "x" ? "zoomX" : m === "y" ? "zoomY" : "zoomXY")} (Z)`} onClick={() => actions.setZoomMode(m)}>
-            {m === "x" ? "X" : m === "y" ? "Y" : "XY"}
-          </button>
-        ))}
+      {/* T19: the zoom mode in a menu; for one drag Shift = values, Ctrl = a box */}
+      <span className="pick-wrap">
+        <button className="btn zoom-btn" aria-expanded={zoomMenu} aria-haspopup="menu" title={t("zoomModeHint")}
+          onClick={(e) => { setZoomAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setZoomMenu(!zoomMenu); }}>
+          <Icon.Search /><span className="hide-narrow">{t("zoom")}:</span> {zoomMode === "x" ? "X" : zoomMode === "y" ? "Y" : "XY"}
+        </button>
+        {zoomMenu && <Popover anchor={zoomAnchor} onClose={() => setZoomMenu(false)} label={t("zoomMode")}>
+          <span className="seg zoom-seg" role="group" aria-label={t("zoomMode")}>
+            {(["x", "y", "xy"] as const).map((m) => (
+              <button key={m} className={zoomMode === m ? "on" : ""} aria-pressed={zoomMode === m}
+                title={`${t(m === "x" ? "zoomX" : m === "y" ? "zoomY" : "zoomXY")} (Z)`} onClick={() => { actions.setZoomMode(m); setZoomMenu(false); }}>
+                {m === "x" ? "X" : m === "y" ? "Y" : "XY"}
+              </button>
+            ))}
+          </span>
+          <p className="hint">{t("zoomKeysHint")}</p>
+        </Popover>}
       </span>
       <button className="iconbtn" disabled={!canBack} onClick={actions.zoomBack} title={`${t("zoomBack")} (Backspace)`} aria-label={t("zoomBack")}><Icon.Undo /></button>
       <button className="btn" onClick={actions.resetZoom} title={`${t("resetZoom")} (R)`}><Icon.Reset /><span className="hide-narrow">{t("resetZoom")}</span></button>
