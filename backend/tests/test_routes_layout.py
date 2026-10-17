@@ -17,15 +17,20 @@ def _flat(routes):
     for r in routes:
         if isinstance(r, APIRoute):
             yield r
-        elif hasattr(r, "original_router"):          # FastAPI keeps included routers nested
+        elif hasattr(r, "original_router"):          # newer FastAPI keeps included routers nested
             yield from _flat(r.original_router.routes)
 
 
 def test_every_route_module_is_included():
-    included = {id(r.original_router) for r in app.routes if hasattr(r, "original_router")}
+    # by endpoint function: older FastAPI copies each route into the app when a router is
+    # included, newer FastAPI keeps the router nested - the endpoint is the same either way
+    served = {r.endpoint for r in _flat(app.routes)}
     for m in pkgutil.iter_modules(routes_pkg.__path__):
         mod = importlib.import_module(f"app.routes.{m.name}")
-        assert id(mod.router) in included, f"app/routes/{m.name}.py is not included in main.py"
+        mine = [r for r in mod.router.routes if isinstance(r, APIRoute)]
+        assert mine, f"app/routes/{m.name}.py has no routes"
+        missing = [r.path for r in mine if r.endpoint not in served]
+        assert not missing, f"app/routes/{m.name}.py is not included in main.py ({missing[:3]})"
 
 
 def test_no_route_twice():

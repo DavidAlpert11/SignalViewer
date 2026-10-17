@@ -407,3 +407,8 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   files 11, workflows 7, timeline 5, map_objects 4, object_templates 4, offline_map 2. One features
   test failed once in 3 runs (flaky, see Q17). A detached run hangs (F02) - see Q17.
 - 2026-10-17 · Q16 / T36 mypy started (104 findings; `fail` -> NoReturn) · next: finish Q16.
+- 2026-10-18 · Owner's Windows run: 2 failures, both in tests. (1) `test_routes_layout` (T35) only
+  knew newer FastAPI, which keeps included routers nested; older FastAPI copies the routes into
+  the app - the test now checks by endpoint function (verified on FastAPI 0.115 and 0.143, and that
+  it still fails when a router is missing). (2) `test_basemap` (older): `os.symlink` needs admin /
+  Developer Mode on Windows - falls back to copying.
