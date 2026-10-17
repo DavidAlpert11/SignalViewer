@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 – 2026-10-18
+
+Highlights: **real Butterworth filters** (the old Low-pass / High-pass were a moving average and
+could silently show the raw signal - filtered signals in saved sessions now get correct, slightly
+different values), **damaged files open** with what is still readable, **Help > Copy error
+details** for bug reports, and an explicit **MIT licence**.
 
 - Licence: Signal Viewer is now explicitly MIT licensed (`LICENSE`); the installer shows it and the
   README lists the licences of the bundled parts.
