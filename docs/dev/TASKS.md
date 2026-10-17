@@ -19,7 +19,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   The owner tags `v1.3.0` after it (the GitHub workflow then drafts the Release).
 - **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
+- Released tags: `v1.0.0` ... `v1.3.0`; **`v1.4.0` prepared 2026-10-18** (T32-T36, T38, F08, F09) -
+  the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 517 passed (T38); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Next task: finish Q17 (the T38 e2e test in the whole-suite run), then Q7 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
@@ -453,3 +454,5 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · The T38 e2e failure in the whole-suite run was NOT isolation: F09 - run.py served
   the old committed UI (git restored frontend/dist with fresh file times). Fixed (git decides),
   regression test, e2e passes with the old dist in place.
+- 2026-10-18 · Release 1.4.0 prepared: version in build.bat / version.py / installer / version_info /
+  README, CHANGELOG 1.4.0 with highlights, frontend/dist rebuilt · owner: manual build, check, tag.
