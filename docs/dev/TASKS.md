@@ -22,7 +22,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
 - Tests at the last change: backend 517 passed (T38); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q17 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: finish Q17 (the T38 e2e test in the whole-suite run), then Q7 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -220,6 +220,9 @@ NI DIAdem / Dewesoft (test & measurement), Tacview (flight), MATLAB SDI (simulat
 UAV Log Viewer / MAVExplorer (ArduPilot). Conclusion: the code is strong; the gap is trust and
 reach (licence, robustness on bad files, extensibility, formats, fleet-level work).
 
+**Order update (2026-10-18, owner):** Q18 to the end - slow first opens are not felt by users.
+Now: Q17 (finish), Q7 (video), then the rest as below.
+
 **Order (set 2026-10-17, owner: "make the list, then start, tick as you go"):**
 Q12, Q13, Q14, Q15, Q16, Q19, Q18, Q17, then Q7 (video), Q11 + Q20 (Python), Q9 + Q21 (formats),
 Q22 (fleet), Q23 (store.ts), Q24 (release & reach - mostly owner actions).
@@ -233,8 +236,8 @@ Progress board (tick here AND in ROADMAP):
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☑ done |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☑ done |
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☑ done (T36b: shrink baseline) |
-| Q17 | F02 The whole e2e suite in one process | M | ☐ |
-| Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured |
+| Q17 | F02 The whole e2e suite in one process | M | ◐ not reproduced; 1 isolation failure to fix |
+| Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured; moved to the end (owner: not felt by users) |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☐ |
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☐ |
@@ -314,6 +317,17 @@ all files" - detaching alone is enough. Also: one test in the third quarter of
 `test_features.py` (ids 55-81 in collection order) failed once in three runs - flaky; rerun with
 `-rf` to name it when it happens. Find the shared state (server / browser
 fixtures, test home) and make the suite runnable as `pytest tests/e2e`.
+
+**Investigated 2026-10-18 (Q17):** not reproduced. Detached (`setsid nohup`), with and without
+stdin closed, `test_features.py` passed 108/108 twice (4:27); the WHOLE suite in ONE process,
+detached: 151 passed, 1 failed, 8:33 - no hang (faulthandler_timeout=90 never fired). Earlier
+"stuck at 31 tests" runs overlapped heavy work (mypy, the backend suite) on this sandbox's single
+CPU, and the dots of a run whose output goes to a file arrive in bursts - read progress over
+minutes, not one look. The one failure: `test_error_details.py` (T38, new) fails in the
+whole-suite run and passes alone - an isolation problem in that test (it imports `env` / `pg`
+from test_features like the other files; find what differs). **Next: fix that test first, then
+make `pytest tests/e2e` the documented way (CLAUDE.md, pyproject comment) and close F02.**
+The flaky `test_features.py` test (1 failure in 3 runs, 2026-10-17) did not fail in these 3 runs.
 
 ### Q18 · T37 CSV first open — M
 **Why:** `benchmark_20M_rows.md`: 12.16 s vs a 11.5 s target (1 CPU).
@@ -432,3 +446,7 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   `test_error_details.py` green, Hebrew layout checked by screenshot · next: Q18.
 - 2026-10-18 · Q18 / T37 measured: first open at ~86% of Arrow's own floor; zero-copy parts gave
   nothing measurable (reverted); one idea left, the owner decides whether it is worth it · next: Q17.
+- 2026-10-18 · Owner: Q18 is not felt by users -> end of the queue. Q17: F02 not reproduced
+  (single file detached x2, whole suite in one process detached: 151 passed, 1 isolation failure
+  in the new T38 e2e test) · Q7 read (Workspace, play loop in App.tsx, lazy components), not
+  started · next: fix test_error_details in the full run, close F02, then Q7.
