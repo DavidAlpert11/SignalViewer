@@ -7,6 +7,7 @@ only decimated display points (binary-packed, base64) and computed values.
 """
 
 import asyncio
+import logging
 import subprocess
 import sys
 import re
@@ -54,6 +55,8 @@ from svcore.compare import auto_shift, compare as compare_runs
 from app import report as reports
 from app.jobs import jobs, JobCancelled
 from app import prefs
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 APP_DIR = os.path.join(os.path.expanduser("~"), ".signalviewer")
 UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
@@ -809,7 +812,7 @@ def sparks(req: SparkRequest):
         try:
             t, y = store.signal(sid)
             out[sid] = spark(t, y, max(8, min(int(req.points), 120)))
-        except Exception:                 # closed, or not numeric: no picture
+        except (KeyError, ValueError, TypeError):     # closed, or not numeric: no picture
             out[sid] = None
     return {"sparks": out}
 
@@ -1916,7 +1919,7 @@ def _windows_drives() -> List[str]:
         import ctypes
         mask = ctypes.windll.kernel32.GetLogicalDrives()
         return [f"{d}:\\" for i, d in enumerate(string.ascii_uppercase) if mask >> i & 1]
-    except Exception:
+    except (AttributeError, OSError):   # not Windows / no kernel32: probe the letters instead
         return [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
 
 
@@ -2054,7 +2057,8 @@ def get_autosave():
     try:
         with open(AUTOSAVE, "r", encoding="utf-8") as f:
             return {"state": json.load(f)}
-    except Exception:
+    except (OSError, ValueError):       # unreadable or half-written: start clean, but say so in the log
+        log.warning("autosave %s could not be read; starting without it", AUTOSAVE, exc_info=True)
         return {"state": None}
 
 
@@ -2091,7 +2095,8 @@ async def restore(req: RestoreRequest):
         settings.pop("format", None)
         try:
             lr = await asyncio.to_thread(store.open_file, path, settings)
-        except Exception:
+        except Exception:               # listed to the user as missing; the reason goes to the log
+            log.warning("restore: %s did not open", path, exc_info=True)
             missing.append(r)
             continue
         with store._lock:

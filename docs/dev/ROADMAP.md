@@ -333,7 +333,17 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   block in its first 4 KB as binary - now `_text_with_zero_block` (printable without the zeros).
   (3) .mat v5 cut off: `_read_v5_until_damage` keeps the complete variables; report `cutOff`; cut
   before the first one -> `badMat` saying so. Flight logs (.bin / .tlog / .ulg): no failure found.
-- [ ] T34 Review the broad `except Exception` handlers. Spec: TASKS.md Q14.
+- [x] T34 Review the broad `except Exception` handlers. Spec: TASKS.md Q14.
+  Done: found that `ops.apply_filter` was a moving average and returned the RAW data on any
+  failure (and for any type but low/high-pass) -> real zero-phase Butterworth (`sosfiltfilt`,
+  median sample interval, NaN bridged and restored, short-signal padding) raising `FilterError`,
+  turned into `OpError` / `FormulaError` (`tests/test_filters.py`, 15). ~500 dead lines removed
+  from `ops.py` (Dash-era `apply_unary/binary/multi`, `align_two_signals`, `get_xy_plot_data`,
+  `compute_psd`, `create_filtered_signal`). Every other silent handler narrowed to the expected
+  errors (decimate, is_discrete, describe_derived, sparks, autosave, prefs, delimiter, drives) or
+  kept broad AND logged with a comment why (live append fallback, restore, sync methods, bidi,
+  templates folder, MAVLink close / heartbeat, PX4 defaults, live Arrow fallback). One logger
+  tree, `signalviewer.*` - T38 attaches the file handler to it.
 - [ ] T35 Split `backend/app/main.py` into routers. Spec: TASKS.md Q15.
 - [ ] T36 mypy for the backend in CI. Spec: TASKS.md Q16.
 - [ ] T37 CSV first open meets the 20M-row target. Spec: TASKS.md Q18.

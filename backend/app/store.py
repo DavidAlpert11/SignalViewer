@@ -4,6 +4,7 @@ is addressed as "<run_id>/<signal name>". Removing or reloading a file therefore
 never shifts other files' signals (the root cause of many 2.x bugs).
 """
 
+import logging
 import os
 import threading
 import time
@@ -24,6 +25,8 @@ from svcore.formula import evaluate as _evaluate_formula
 from collections import OrderedDict
 import json
 import re
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 DERIVED_ID = "derived"
 
@@ -186,8 +189,8 @@ def _csv_failure(path: str, s: CSVImportSettings) -> LoadError:
                 break
         if not numeric:
             return LoadError("No numeric values were found in this file.", "csvNoNumbers")
-    except Exception:
-        pass
+    except Exception:                   # only a better reason was looked for; the generic one stands
+        log.debug("could not find a specific reason for %s", path, exc_info=True)
     return generic
 
 
@@ -368,7 +371,10 @@ class Store:
                     n = append_tlog(lr.run)
                 else:
                     n = append_new_rows(lr.run)
-            except Exception:
+            except Exception:              # any reader problem: reload the whole file instead -
+                # correct, but slow for a big file on every poll, so it must be visible
+                log.warning("live: reading the appended part of %s failed; reloading the whole file",
+                            lr.run.file_path, exc_info=True)
                 n = -1
             if n > 0:
                 lr.last_change = now
@@ -600,7 +606,7 @@ class Store:
         if key not in self._discrete:
             try:
                 self._discrete[key] = is_discrete(self.signal(sig_id)[1])
-            except Exception:
+            except (KeyError, ValueError, TypeError):    # closed, or not numbers
                 self._discrete[key] = False
         return self._discrete[key]
 
@@ -637,7 +643,7 @@ class Store:
             try:
                 t, _ = self.signal(f"{DERIVED_ID}/{name}")
                 ok, n = True, len(t)
-            except Exception:
+            except (KeyError, ValueError):     # a source was closed / the formula fails now
                 ok, n = False, 0
             sigs.append({"id": f"{DERIVED_ID}/{name}", "name": name, "discrete": False, "op": d.op,
                          "sources": d.sources, "params": d.params, "formula": d.formula(self.short_name),

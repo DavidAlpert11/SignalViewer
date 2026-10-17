@@ -12,11 +12,14 @@ links where the autopilot only talks once a ground station asks (ArduPilot SITL 
 some serial radios).
 """
 
+import logging
 import os
 import struct
 import threading
 import time
 from typing import Optional
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 PRESETS = ("udpin:127.0.0.1:14550", "tcp:127.0.0.1:5760", "udpin:0.0.0.0:14550")
 
@@ -121,22 +124,22 @@ class Receiver:
             self._file.close()
             try:
                 self._conn.close()
-            except Exception:
-                pass
+            except Exception:                   # closing a dropped link: nothing left to do
+                log.debug("closing the MAVLink connection failed", exc_info=True)
 
     def _send_heartbeat(self):
         try:
             mav = self._conn.mav
             mav.heartbeat_send(6, 8, 0, 0, 0)                   # MAV_TYPE_GCS, MAV_AUTOPILOT_INVALID
-        except Exception:
-            pass
+        except Exception:                       # link down: the reader thread reports it
+            log.debug("heartbeat not sent", exc_info=True)
 
     def _request_streams(self):
         try:
             sysid, comp = self.vehicle
             self._conn.mav.request_data_stream_send(sysid, comp, 0, int(self.rate_hz), 1)   # MAV_DATA_STREAM_ALL
-        except Exception:
-            pass
+        except Exception:                       # link down / no vehicle yet: asked again later
+            log.debug("stream request not sent", exc_info=True)
 
     # ------------------------------------------------------------------ API
     def stop(self):
