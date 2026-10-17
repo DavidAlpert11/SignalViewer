@@ -4,6 +4,11 @@
 
 - Licence: Signal Viewer is now explicitly MIT licensed (`LICENSE`); the installer shows it and the
   README lists the licences of the bundled parts.
+- Damaged files: a CSV with a few bad bytes (a flaky SD card, a bad copy) or a block of zeros (a
+  file cut by a power loss) no longer fails as a whole - the damaged lines are skipped and the
+  rest opens, with a note. A MATLAB .mat that ends in the middle (MATLAB stopped while saving)
+  opens with every variable that was complete before the cut. Every format is now tested
+  against hundreds of damaged copies of itself.
 
 ## 1.3.0 – 2026-10-17
 

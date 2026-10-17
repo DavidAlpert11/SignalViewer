@@ -20,9 +20,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
-- Tests at the last change: backend 351 passed; EVERY e2e file run: 151 passed (Q6).
+- Tests at the last change: backend 482 passed (T33); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q13 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q14 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -228,7 +228,7 @@ Progress board (tick here AND in ROADMAP):
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q12 | T32 Licence file (MIT) + README section | S | ☑ done |
-| Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☐ |
+| Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☑ done |
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☐ |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☐ |
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☐ |
@@ -263,6 +263,9 @@ points, flip bytes, zero blocks, random garbage with a right extension) and open
 `ValueError`-type error with an engineer-readable message - never another exception type, never
 hang. Fix what it finds.
 **Done when:** the fuzz test runs in CI (fast, fixed seeds) and passes for every format.
+**Status:** done (see ROADMAP T33). Before: 42 of 150 damaged CSVs and every cut-off .mat v5
+failed to open; flight-log loaders had no failure in 1,000+ cases. e2e not run here (no Playwright
+in this sandbox) - the UI change is two toast texts; run `test_templates_recent_badfiles.py`.
 
 ### Q14 · T34 Broad exception handlers — M
 **Why:** 54 `except Exception` can hide real bugs (wrong results with no message).
@@ -371,3 +374,5 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-17 · Review of the whole code; new tasks Q12–Q24 (T32–T43) with an order and a
   progress board in this file · next: Q12.
 - 2026-10-17 · Q12 / T32 LICENSE (MIT), README section, installer page, in the builds · next: Q13.
+- 2026-10-17 · Q13 / T33 damaged files: fuzz test (126 cases, CI) + CSV repair, zero blocks,
+  cut-off .mat recovery · backend 482 · next: Q14.
