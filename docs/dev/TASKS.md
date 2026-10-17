@@ -14,14 +14,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 ## Current state
 
 - Branch `main`. Applied by the owner up to T29 (not pushed yet: GitHub still at `80fc362`).
-  Delivered as patches on top: T30, T16b.
+  Delivered as patches on top: T30, T16b, then T19 + T20 + F06 + F07.
 - **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
-  (done), Q5, Q6, Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
-- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b, T29, T30, T16b.
-- Tests at the last change: backend 348 passed; e2e `test_features.py -k "frames_suggested or
-  frame_conversion or xyz"` passed (T29's full run: 146 passed in every file).
+  (done), Q5 (done), Q6, Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
+- Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`. Not yet tagged: T17b–T17f, T12, T10b, T11b, T29, T30, T16b, T19, T20.
+- Tests at the last change: backend 348 passed; EVERY e2e file run: 150 passed (Q5).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q5 (T19 + T20, calmer StageBar) - a layout change: run EVERY e2e file.**
+- **Next task: Q6 (T22 signal list: unit, sample rate, sparkline).**
+- **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## How to work here (practical notes)
 
@@ -138,7 +138,10 @@ a real bug (F04). Run the whole file before calling a task done.
 modifier keys (Shift = Y, Ctrl = XY), X/Y/XY moves into a menu. Shortcuts and Ctrl+K stay.
 **Done when:** every old action is reachable (bar, menu, shortcut or Ctrl+K); run **all** e2e
 files (layout change - CLAUDE.md).
-**Status:** not started.
+**Status:** done (see ROADMAP T19, T20). Owner reports fixed with it: F06 (middle click on a tab),
+F07 (list checkboxes).
+**Note:** middle-drag on a PLOT pans (since before T19); middle click on a TAB closes it - they
+do not conflict (different elements), the Windows failure was autoscroll (F06).
 
 ### Q6 · T22 Signal list: unit, sample rate, sparkline — M
 **Where:** `DataPanel.tsx` (virtualized rows, keep them cheap), `units.ts`, backend run
@@ -210,3 +213,9 @@ splitting `main.py` and `store.ts`.
 - 2026-10-15 · Owner: go on with every task in the order I set - Q10, Q8, Q5, Q6, Q7, Q9, Q11.
 - 2026-10-15 · Q10 / T30 frames suggested from the names · e2e frames tests green · next: Q8.
 - 2026-10-15 · Q8 / T16b motor-order marks on FFT plots · e2e fft tests green · next: Q5.
+- 2026-10-16 · Owner: middle click no longer closed tabs; list checkboxes unclear - fixed as F06,
+  F07 with Q5.
+- 2026-10-16 · Q5 / T19 + T20 calmer StageBar, split by edge drop, + F06, F07 · backend 348;
+  EVERY e2e file, one per process: 150 passed (features 107, globe3d 10, map_objects 4,
+  object_templates 4, offline_map 2, templates_recent_badfiles 11, timeline 5, workflows 7) ·
+  next: Q6.

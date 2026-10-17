@@ -1040,3 +1040,19 @@ input.fx-input { width: 100%; }
 .frame-sugs .chip-btn { border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); border-radius: 999px; padding: 2px 9px;
   font: inherit; cursor: pointer; direction: ltr; }
 .frame-sugs .chip-btn.on { border-color: var(--amber); background: var(--amber-soft); color: var(--amber-ink); }
+/* T20 / T19: one layout button and one zoom button, their popovers */
+.layout-btn { gap: 6px; font-variant-numeric: tabular-nums; }
+.gridpick-quick { display: flex; flex-wrap: wrap; gap: 2px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.bar-pop { display: flex; flex-direction: column; gap: 6px; max-width: 260px; }
+.bar-pop .hint { margin: 0; font-size: 0.8846rem; color: var(--muted); }
+.zoom-btn { font-variant-numeric: tabular-nums; }
+/* T20: dragging a signal to a plot's right / bottom edge splits it - the edge that will open */
+.plot.split-right::after, .plot.split-bottom::after { content: ""; position: absolute; pointer-events: none; z-index: 5;
+  background: var(--amber-soft); border: 2px dashed var(--amber); border-radius: 6px; }
+.plot.split-right::after { top: 4px; bottom: 4px; inset-inline-end: 4px; width: min(48px, 15%); }
+.plot.split-bottom::after { left: 4px; right: 4px; bottom: 4px; height: min(40px, 15%); }
+/* the list selection bar: what is selected, what can be done with it, how to change it */
+.pick-actions { flex-direction: column; align-items: stretch; gap: 6px; }
+.pick-top { display: flex; align-items: center; gap: 6px; }
+.pick-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick-hint { margin: 0; font-size: 0.8077rem; color: var(--muted); }

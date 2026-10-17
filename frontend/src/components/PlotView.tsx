@@ -35,7 +35,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const selected = useApp((s) => s.selected);
   const multi = useApp((s) => s.multi);
   const hover = useApp((s) => (s.hover && s.hover.plotId === plot.id ? s.hover : null));
-  const [dragOver, setDragOver] = useState<null | "y" | "x">(null);
+  const [dragOver, setDragOver] = useState<null | "y" | "x" | "right" | "bottom">(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [loading, setLoading] = useState(false);
   const [peaks, setPeaks] = useState<Record<string, number>>({});
@@ -104,13 +104,24 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const mode: PlotMode = plot.mode ?? "time";
   const allSignals = runs.flatMap((r) => r.signals.map((s) => ({ id: s.id, label: s.name, group: r.format === "derived" ? undefined : r.name })));
 
-  const onDrop = (e: React.DragEvent, target: "x" | "y", beforeSig: string | null = null) => {
+  // T20: dropping on a plot's right or bottom edge splits it (a new plot there with the signal)
+  const edgeOf = (e: React.DragEvent): "right" | "bottom" | null => {
+    const r = sectionRef.current?.getBoundingClientRect();
+    if (!r) return null;
+    const rtl = document.documentElement.dir === "rtl";
+    const fromEnd = rtl ? e.clientX - r.left : r.right - e.clientX;
+    if (fromEnd < Math.min(48, r.width * 0.15)) return "right";
+    if (r.bottom - e.clientY < Math.min(40, r.height * 0.15)) return "bottom";
+    return null;
+  };
+  const onDrop = (e: React.DragEvent, target: "x" | "y" | "right" | "bottom", beforeSig: string | null = null) => {
     setDragOver(null);
     const chip = e.dataTransfer.getData(CHIP_MIME);
     if (chip) {
       e.preventDefault(); e.stopPropagation();
       const { plotId, sig } = JSON.parse(chip);
-      if (target === "x") actions.setAsX(plot.id, sig);
+      if (target === "right" || target === "bottom") actions.splitPlot(plot.id, sig, target, e.ctrlKey || e.altKey ? undefined : plotId);
+      else if (target === "x") actions.setAsX(plot.id, sig);
       else actions.dropSignal(plotId, sig, plot.id, beforeSig, e.ctrlKey || e.altKey);
       return;
     }
@@ -119,6 +130,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     e.preventDefault();
     e.stopPropagation();
     if (target === "x") actions.updatePlot(plot.id, { xSignal: sig });
+    else if (target === "right" || target === "bottom") actions.splitPlot(plot.id, sig, target);
     else actions.addSignalLinked(sig, plot.id);
   };
 
@@ -129,10 +141,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   return (
     <section
       ref={sectionRef}
-      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}`}
-      onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver("y"); } }}
+      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver(edgeOf(e) ?? "y"); } }}
       onDragLeave={() => setDragOver(null)}
-      onDrop={(e) => onDrop(e, "y")}
+      onDrop={(e) => onDrop(e, edgeOf(e) ?? "y")}
       onMouseDown={() => actions.setActivePlot(index)}
       aria-label={title}
     >
