@@ -62,13 +62,52 @@ def _walk_scipy(obj, prefix: str, out: Dict[str, np.ndarray], depth: int = 0):
         _add_array(out, prefix, obj)
 
 
-def _read_scipy(path: str) -> Dict[str, np.ndarray]:
+def _read_scipy(path: str) -> Tuple[Dict[str, np.ndarray], bool]:
+    """(vectors, cut_off). A v5 file that ends in the middle (MATLAB stopped while saving, a
+    half-copied file) keeps every variable that was complete before the cut (T33)."""
     from scipy.io import loadmat
-    data = loadmat(path, squeeze_me=False, struct_as_record=True)
+    try:
+        data = loadmat(path, squeeze_me=False, struct_as_record=True)
+        cut = False
+    except Exception:
+        data = _read_v5_until_damage(path)
+        if not data:
+            raise
+        cut = True
     out: Dict[str, np.ndarray] = {}
     for k, v in data.items():
         if not k.startswith("__"):
             _walk_scipy(v, k, out)
+    return out, cut
+
+
+def _read_v5_until_damage(path: str) -> Dict:
+    """The variables of a MATLAB v5 file one by one, stopping at the first one that cannot be
+    read. Empty when the file is not v5 or its header is damaged."""
+    try:
+        from scipy.io.matlab._mio5 import MatFile5Reader
+    except ImportError:                # scipy moved its private module: no recovery, the caller reports
+        return {}
+    out: Dict = {}
+    with open(path, "rb") as f:
+        try:
+            r = MatFile5Reader(f, squeeze_me=False, struct_as_record=True)
+            r.initialize_read()
+            r.read_file_header()
+        except Exception:
+            return {}
+        while True:
+            try:
+                if r.end_of_stream():
+                    break
+                hdr, next_pos = r.read_var_header()
+                name = hdr.name.decode("latin1") if isinstance(hdr.name, bytes) else str(hdr.name)
+                value = r.read_var_array(hdr, True)
+            except Exception:
+                break                  # the damaged / missing part: keep what came before
+            if name and not name.startswith("__"):
+                out[name] = value
+            f.seek(next_pos)
     return out
 
 
@@ -97,9 +136,13 @@ def _is_hdf5(path: str) -> bool:
 
 
 def read_mat_vectors(path: str) -> Dict[str, np.ndarray]:
+    return _read_mat(path)[0]
+
+
+def _read_mat(path: str) -> Tuple[Dict[str, np.ndarray], bool]:
     # v7.3 files are HDF5 containers: detect by content, not by scipy's error text
     if _is_hdf5(path):
-        return _read_h5(path)
+        return _read_h5(path), False
     return _read_scipy(path)
 
 
@@ -125,7 +168,7 @@ def choose_time(vectors: Dict[str, np.ndarray], wanted: Optional[str] = None) ->
 
 def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) -> Tuple[Optional[Run], List[str]]:
     """Returns (Run or None, list of skipped variable names)."""
-    vectors = read_mat_vectors(path)
+    vectors, cut = _read_mat(path)
     if not vectors:
         return None, []
     tname, n = choose_time(vectors, time_variable)
@@ -149,4 +192,6 @@ def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) 
     run.import_settings = {"format": "mat", "time_column": tname}
     run.byte_offset = os.path.getsize(path)
     run.compute_metadata()
+    if cut:
+        run.load_report = {"cutOff": True}
     return run, skipped

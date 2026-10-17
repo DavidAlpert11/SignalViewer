@@ -322,7 +322,17 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   Done: `LICENSE` (MIT, David Alpert); README badge + "License" section with the bundled parts'
   licences (uPlot, OFL fonts, Cesium, map data); installer licence page (`LicenseFile`);
   `LICENSE` in the PyInstaller build and the portable zip.
-- [ ] T33 Loaders survive damaged files (fuzz tests). Spec: TASKS.md Q13.
+- [x] T33 Loaders survive damaged files (fuzz tests). Spec: TASKS.md Q13.
+  Done: `tests/test_damaged_files.py` - 126 damaged copies (truncate / bit flips / zero block /
+  junk / duplicated block, fixed seeds) of CSV, .mat v5, .mat v7.3, .bin, .tlog, .ulg: each opens
+  or raises LoadError, within 10 s. Found and fixed: (1) CSV - an invalid UTF-8 byte that also
+  breaks a row made Arrow's bad-row handler fail, then pandas failed on the same byte: 42 of 150
+  damaged CSVs did not open at all. `_parse_pyarrow` now repairs ONLY a part that fails
+  (`_repair_text_bytes`: drop NULs, invalid bytes -> U+FFFD) and reads it again; pandas gets
+  `encoding_errors="replace"`; report `damagedText`. (2) `check_file` refused a CSV with a zero
+  block in its first 4 KB as binary - now `_text_with_zero_block` (printable without the zeros).
+  (3) .mat v5 cut off: `_read_v5_until_damage` keeps the complete variables; report `cutOff`; cut
+  before the first one -> `badMat` saying so. Flight logs (.bin / .tlog / .ulg): no failure found.
 - [ ] T34 Review the broad `except Exception` handlers. Spec: TASKS.md Q14.
 - [ ] T35 Split `backend/app/main.py` into routers. Spec: TASKS.md Q15.
 - [ ] T36 mypy for the backend in CI. Spec: TASKS.md Q16.

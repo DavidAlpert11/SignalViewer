@@ -280,7 +280,7 @@ def _header_info(filepath: str, settings: CSVImportSettings, delimiter: str) -> 
 PART_BYTES = 64 * 1024 * 1024
 
 
-def _parse_pyarrow(filepath, columns, skip_lines, delimiter, encoding) -> Dict[str, np.ndarray]:
+def _parse_pyarrow(filepath, columns, skip_lines, delimiter, encoding, stats: Optional[Dict] = None) -> Dict[str, np.ndarray]:
     """
     Arrow's multi-threaded parser, run on ~64 MB parts of the file cut at line breaks.
     Between parts we report progress and honour cancel, without losing Arrow's speed
@@ -317,14 +317,18 @@ def _parse_pyarrow(filepath, columns, skip_lines, delimiter, encoding) -> Dict[s
             first = False
             if not data or data.isspace():      # (not data.strip(): that copies the whole 64 MB part)
                 continue
-            # fast path: declare every column float64 (no type inference, no casts);
-            # a part with text in it (header remnants, junk) is re-read with inference
             try:
-                table = pa_csv.read_csv(pa.BufferReader(data), read_options=read_opts, parse_options=parse_opts,
-                                        convert_options=pa_csv.ConvertOptions(column_types=float_types,
-                                                                              strings_can_be_null=True))
+                table = _arrow_part(data, read_opts, parse_opts, float_types)
             except pa.ArrowInvalid:
-                table = pa_csv.read_csv(pa.BufferReader(data), read_options=read_opts, parse_options=parse_opts)
+                # a damaged part (power loss, bad copy): bytes that are not valid text make Arrow fail
+                # even in its bad-row handler. Repair ONLY this part and read it again; healthy parts
+                # never pay for the repair (T33).
+                fixed = _repair_text_bytes(data, enc)
+                if fixed == data:
+                    raise
+                table = _arrow_part(fixed, read_opts, parse_opts, float_types)
+                if stats is not None:
+                    stats["damagedText"] = True
             for ci, name in enumerate(columns):
                 col = table.column(ci)          # by index: lookup by name is O(columns) each
                 t = col.type
@@ -339,12 +343,33 @@ def _parse_pyarrow(filepath, columns, skip_lines, delimiter, encoding) -> Dict[s
     return {c: (np.concatenate(v) if v else np.array([], dtype=np.float64)) for c, v in parts.items()}
 
 
+def _arrow_part(data: bytes, read_opts, parse_opts, float_types):
+    """One part with Arrow. Fast path: every column float64 (no type inference, no casts);
+    a part with text in it (header remnants, junk) is re-read with inference."""
+    try:
+        return pa_csv.read_csv(pa.BufferReader(data), read_options=read_opts, parse_options=parse_opts,
+                               convert_options=pa_csv.ConvertOptions(column_types=float_types,
+                                                                     strings_can_be_null=True))
+    except pa.ArrowInvalid:
+        return pa_csv.read_csv(pa.BufferReader(data), read_options=read_opts, parse_options=parse_opts)
+
+
+def _repair_text_bytes(data: bytes, encoding: str) -> bytes:
+    """Damaged text -> readable text: NUL bytes (what a file cut by a power loss is padded with)
+    are dropped and bytes that are not valid in the encoding become U+FFFD. The damaged row is
+    then skipped or its value becomes NaN, like any other bad row, instead of failing the file."""
+    data = data.replace(b"\x00", b"")
+    if str(encoding).lower().replace("-", "").replace("_", "") in ("utf8", "utf8sig"):
+        return data.decode("utf-8", errors="replace").encode("utf-8")
+    return data
+
+
 def _parse_pandas_chunked(filepath, columns, skip_lines, delimiter, encoding) -> Dict[str, np.ndarray]:
     """Chunked pandas parse: memory stays bounded by one chunk of Python objects."""
     parts: Dict[str, List[np.ndarray]] = {c: [] for c in columns}
     engine = "python" if delimiter == r"\s+" else "c"
     kwargs = dict(sep=delimiter, header=None, names=columns, skiprows=skip_lines,
-                  encoding=encoding, on_bad_lines="skip", chunksize=CHUNK_ROWS,
+                  encoding=encoding, encoding_errors="replace", on_bad_lines="skip", chunksize=CHUNK_ROWS,
                   engine=engine, index_col=False)
     total = max(1, os.path.getsize(filepath))
     with open(filepath, "rb") as fh:
@@ -500,9 +525,11 @@ def load_csv(
         else:
             arrays = None
             used_arrow = False
+            parse_stats: Dict = {}
             if HAS_PYARROW:
                 try:
-                    arrays = _parse_pyarrow(filepath, source_columns, skip_lines, delimiter, settings.encoding)
+                    arrays = _parse_pyarrow(filepath, source_columns, skip_lines, delimiter, settings.encoding,
+                                            parse_stats)
                     used_arrow = True
                 except LoadCancelled:
                     raise
@@ -538,6 +565,8 @@ def load_csv(
                            "textColumns": sorted(text_labels)}
             if text_skipped:
                 load_report["tooManyTexts"] = text_skipped
+            if parse_stats.get("damagedText"):
+                load_report["damagedText"] = True
             if need_filter:
                 time_array = time_array[valid]
 
