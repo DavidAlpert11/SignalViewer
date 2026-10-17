@@ -202,7 +202,8 @@ def _xyz_data(store, spec: Dict, out: Dict) -> Dict:
     for k in range(0, len(sigs) - len(sigs) % 3, 3):
         trio = sigs[k:k + 3]
         try:
-            r = xyz_track(*(store.signal(s["id"]) for s in trio), spec.get("xyAlign") or "linear", 6000)
+            sx, sy, sz = (store.signal(s["id"]) for s in trio)
+            r = xyz_track(sx, sy, sz, spec.get("xyAlign") or "linear", 6000)
         except KeyError:
             continue
         if r is None:
