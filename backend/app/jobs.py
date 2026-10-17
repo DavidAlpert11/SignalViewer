@@ -5,12 +5,15 @@ Long operations (opening big files, reports, comparing all signals, exports) run
 a worker thread. The UI polls GET /api/jobs/{id} for progress and can cancel.
 """
 
+import logging
 import threading
 import time
 import uuid
 from typing import Callable, Dict, Optional
 
 from svcore.csv_loader import LoadCancelled, set_progress_context
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 
 class JobCancelled(LoadCancelled):
@@ -69,7 +72,8 @@ class JobManager:
                 job.progress, job.state = 1.0, "done"
             except (JobCancelled, LoadCancelled):
                 job.state = "cancelled"
-            except Exception as e:  # surfaced to the UI as a readable message
+            except Exception as e:  # surfaced to the UI as a readable message, the details to the log
+                log.exception("job %s (%s) failed", job.id, kind)
                 job.state, job.error = "error", str(e) or e.__class__.__name__
             finally:
                 set_progress_context(None, None)
