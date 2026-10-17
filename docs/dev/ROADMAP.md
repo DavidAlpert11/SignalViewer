@@ -317,6 +317,11 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   GeoChart loads it with `import()` into its own chunk (not in the main bundle).
 
 ## Milestone 4 — 1.4.0: trust, robustness, reach
+- [x] **F08 CI warned "Node.js 20 is deprecated"** (owner, manual build 2026-10-18):
+  `upload-artifact@v4` -> `@v6`, `download-artifact@v4` -> `@v7` - the first majors on Node 24
+  (checked each tag's action.yml; v5 / v6 of download-artifact are still Node 20). The inputs used
+  (name, path, if-no-files-found, compression-level; path, merge-multiple) exist unchanged; the v5
+  change (single artifact by id) does not apply to a merge-multiple download.
 Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
 - [x] T32 Licence file (MIT) + README section. Spec: TASKS.md Q12.
   Done: `LICENSE` (MIT, David Alpert); README badge + "License" section with the bundled parts'
