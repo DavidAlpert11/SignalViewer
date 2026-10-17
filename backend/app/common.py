@@ -3,7 +3,7 @@
 import base64
 import logging
 import os
-from typing import Optional
+from typing import NoReturn, Optional
 
 import numpy as np
 from fastapi import HTTPException
@@ -40,7 +40,7 @@ def b64(a: np.ndarray, dtype) -> str:
 
 
 
-def fail(status: int, message: str):
+def fail(status: int, message: str) -> NoReturn:
     raise HTTPException(status_code=status, detail=message)
 
 

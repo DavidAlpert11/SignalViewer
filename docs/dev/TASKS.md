@@ -231,7 +231,7 @@ Progress board (tick here AND in ROADMAP):
 | Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☑ done |
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☑ done |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☑ done |
-| Q16 | T36 Static type check of the backend (mypy) in CI | S | ☐ |
+| Q16 | T36 Static type check of the backend (mypy) in CI | S | ◐ started |
 | Q17 | F02 The whole e2e suite in one process | M | ☐ |
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ☐ |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☐ |
@@ -297,8 +297,21 @@ shared helpers into `app/common.py`; a new area = a new module + one `include_ro
 `svcore` + `app`), fix real errors it finds, add a CI step.
 **Done when:** CI runs mypy and it is clean.
 
+**Status (2026-10-17):** started. First run: 104 findings (`mypy --ignore-missing-imports app
+svcore signalviewer`). Done: `common.fail` is `-> NoReturn` (removed the "None has no attribute"
+findings after every `fail(404, ...)`), the report's XYZ call unpacks its three signals
+explicitly. Left: declare the dynamic `Run` attributes (`load_report`, `_flightlog`, `_tlog`,
+`_dataflash`) as optional fields in `svcore/models.py`; look at `bin_loader.py:395/514`,
+`tlog_loader.py:272`, `sync.py:138`, `compare.py:68`, `prefs.py:246/267` (possible None cases);
+annotate the rest; then a `[tool.mypy]` section in pyproject.toml and a CI step.
+
 ### Q17 · F02 Whole e2e suite in one process — M
-See ROADMAP F02 (hang only when detached from a terminal). Find the shared state (server / browser
+See ROADMAP F02 (hang only when detached from a terminal).
+**Seen again 2026-10-17:** started with `setsid nohup` per file, `test_features.py` stopped after
+31 tests and never finished; the same tests in the foreground pass. So it is not "one process for
+all files" - detaching alone is enough. Also: one test in the third quarter of
+`test_features.py` (ids 55-81 in collection order) failed once in three runs - flaky; rerun with
+`-rf` to name it when it happens. Find the shared state (server / browser
 fixtures, test home) and make the suite runnable as `pytest tests/e2e`.
 
 ### Q18 · T37 CSV first open — M
@@ -389,3 +402,8 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   failure); dead code out of ops.py; silent handlers narrowed or logged · backend 497 · next: Q15.
 - 2026-10-17 · Q15 / T35 main.py split into app/common.py + 12 route modules; OpenAPI and
   route order identical; EXAMPLES path fixed · backend 501 · next: Q16.
+- 2026-10-17 · EVERY e2e file run in the foreground after T33-T35 (test_features in 4 slices
+  under the sandbox's 5-minute limit): 151 passed - features 108, globe3d 10, templates/recent/bad
+  files 11, workflows 7, timeline 5, map_objects 4, object_templates 4, offline_map 2. One features
+  test failed once in 3 runs (flaky, see Q17). A detached run hangs (F02) - see Q17.
+- 2026-10-17 · Q16 / T36 mypy started (104 findings; `fail` -> NoReturn) · next: finish Q16.
