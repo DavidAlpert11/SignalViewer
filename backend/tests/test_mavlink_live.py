@@ -60,7 +60,7 @@ class FakeVehicle:
         self.sock.close()
 
 
-def _wait(cond, timeout=5.0):
+def _wait(cond, timeout=15.0):                  # generous: CI machines (macOS, Windows) are slow
     end = time.time() + timeout
     while time.time() < end:
         if cond():
@@ -96,9 +96,12 @@ def test_mavlink_records_and_live_mode_follows(rec):
         assert "ATTITUDE.roll [rad]" in names
         n0 = len(store.signal(f"{run['id']}/ATTITUDE.roll [rad]")[0])
         v.send(30)                                                      # live mode reads only what was added
-        assert _wait(lambda: run["id"] in store.poll_appends() or
-                     len(store.signal(f"{run['id']}/ATTITUDE.roll [rad]")[0]) >= n0 + 30)
-        assert len(store.signal(f"{run['id']}/ATTITUDE.roll [rad]")[0]) >= n0 + 30
+        # until ALL of them are in: live mode reads what is written so far, so one poll can see only
+        # part of the 30 (it did on macOS) - keep polling, as the app does every second
+        def all_in():
+            store.poll_appends()
+            return len(store.signal(f"{run['id']}/ATTITUDE.roll [rad]")[0]) >= n0 + 30
+        assert _wait(all_in), len(store.signal(f"{run['id']}/ATTITUDE.roll [rad]")[0])
         st = client.post("/api/mavlink/stop").json()
         assert not st["running"] and st["frames"] >= 50
         # the recording is a normal .tlog: it reopens with everything that came in
@@ -120,7 +123,7 @@ def test_mavlink_read_only_unless_asked(rec):
         v = FakeVehicle(port)
         try:
             v.send(3)
-            v.listen(1.5)
+            v.listen(3.0)                                              # slow CI machines
             if request:
                 assert "HEARTBEAT" in v.got and "REQUEST_DATA_STREAM" in v.got
             else:

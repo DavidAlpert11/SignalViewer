@@ -658,7 +658,8 @@ def test_frame_longitude_across_antimeridian():
     x, y, _ = _frame3(lla, qty="position", src="lla", dst="ecef")
     assert np.isclose(x[1], -WGS84_A) and abs(y[1]) < 1e-6           # on the line, not at lon 0
     east = _frame3(lla, qty="position", src="lla", dst="ned", ref="first")[1]
-    assert east[0] == 0 and abs(east[1] - east[2] / 2) < 1.0 and 22000 < east[2] < 22500
+    # the reference point is the origin: 0 up to rounding (macOS / Windows math libraries give ~1e-13)
+    assert abs(east[0]) < 1e-6 and abs(east[1] - east[2] / 2) < 1.0 and 22000 < east[2] < 22500
 
 
 def test_frame_errors_say_what_to_do():
