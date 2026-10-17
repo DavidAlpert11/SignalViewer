@@ -15,7 +15,8 @@ when you stop in the middle of a task.
 1. Read the code you are about to change **and every caller of it** (`grep` the symbol across
    `backend/` and `frontend/src/`). Write down, in the task's notes, what else it touches.
 2. Prefer extending an existing mechanism over adding a parallel one (one way to do a thing).
-   Check `store.ts` actions, `api.ts`, `files.ts`, `svcore/*` first.
+   Check `store.ts` actions, `api.ts`, `files.ts`, `svcore/*` first. Backend endpoints live in
+   `backend/app/routes/<area>.py` (shared helpers: `app/common.py`); `app/main.py` only wires them.
 3. Decide **where** a control belongs before writing it:
    - TopBar: workspace / file actions only. StageBar: things about the plots on screen.
    - Side panels: tools that need room. Inspector: properties of the selection.

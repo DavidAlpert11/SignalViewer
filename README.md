@@ -328,7 +328,8 @@ run.py                 launcher (server + window)
 SignalViewer.spec     PyInstaller build definition (build.bat / build.sh)
 tools/benchmark.py     performance benchmark
 tests/e2e/             end-to-end browser tests
-backend/app/main.py    local API, 127.0.0.1 only
+backend/app/main.py    local API, 127.0.0.1 only (wires the routes, local-only guard, UI files)
+backend/app/routes/    the API endpoints, one module per area (files, data, analysis, compare...)
 backend/app/store.py   loaded files with stable ids
 backend/svcore/        computation core: loaders, decimation, analysis, compare, sync
 backend/tests/         pytest suite

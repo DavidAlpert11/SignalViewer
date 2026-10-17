@@ -517,7 +517,7 @@ def test_fs_list_and_complete(tmp_path):
 
 
 def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
-    from app import main as m
+    from app.routes import fs as m
     r = client.get("/api/examples").json()
     assert [x["id"] for x in r] == ["flight", "car"] and len(r[1]["paths"]) == 3
     assert all(os.path.isfile(p) for x in r for p in x["paths"])

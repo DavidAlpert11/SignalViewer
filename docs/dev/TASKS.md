@@ -20,9 +20,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
-- Tests at the last change: backend 497 passed (T34); before that backend 351, EVERY e2e file run: 151 passed (Q6).
+- Tests at the last change: backend 501 passed (T35); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q15 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q16 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -230,7 +230,7 @@ Progress board (tick here AND in ROADMAP):
 | Q12 | T32 Licence file (MIT) + README section | S | ☑ done |
 | Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☑ done |
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☑ done |
-| Q15 | T35 Split `backend/app/main.py` into routers | L | ☐ |
+| Q15 | T35 Split `backend/app/main.py` into routers | L | ☑ done |
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☐ |
 | Q17 | F02 The whole e2e suite in one process | M | ☐ |
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ☐ |
@@ -286,6 +286,11 @@ compare, report, stream/live, templates, map, prefs, jobs); shared request model
 Pure move - no endpoint path, request or response changes.
 **Done when:** the OpenAPI schema (paths + models) is identical before/after (test compares it);
 all backend and e2e tests green.
+**Status:** done (see ROADMAP T35). The OpenAPI comparison was a one-time check during the move
+(identical); a permanent snapshot test would fail on every new endpoint, so the lasting guard is
+`test_routes_layout.py` (every router included, no duplicate route, catch-all last).
+**Where things are now:** a new endpoint goes into the `app/routes/<area>.py` it belongs to;
+shared helpers into `app/common.py`; a new area = a new module + one `include_router` line.
 
 ### Q16 · T36 mypy — S
 **Steps:** `mypy` config in `pyproject.toml` (lenient first: `ignore_missing_imports`, check
@@ -382,3 +387,5 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   cut-off .mat recovery · backend 482 · next: Q14.
 - 2026-10-17 · Q14 / T34 filters are Butterworth (were a moving average returning raw data on
   failure); dead code out of ops.py; silent handlers narrowed or logged · backend 497 · next: Q15.
+- 2026-10-17 · Q15 / T35 main.py split into app/common.py + 12 route modules; OpenAPI and
+  route order identical; EXAMPLES path fixed · backend 501 · next: Q16.
