@@ -316,6 +316,20 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 - [x] T28 `worldCountries.ts` → JSON loaded with the map. *Re-assessed: already done* -
   GeoChart loads it with `import()` into its own chunk (not in the main bundle).
 
+## Milestone 4 — 1.4.0: trust, robustness, reach
+Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
+- [ ] T32 Licence file (MIT) + README section. Spec: TASKS.md Q12.
+- [ ] T33 Loaders survive damaged files (fuzz tests). Spec: TASKS.md Q13.
+- [ ] T34 Review the broad `except Exception` handlers. Spec: TASKS.md Q14.
+- [ ] T35 Split `backend/app/main.py` into routers. Spec: TASKS.md Q15.
+- [ ] T36 mypy for the backend in CI. Spec: TASKS.md Q16.
+- [ ] T37 CSV first open meets the 20M-row target. Spec: TASKS.md Q18.
+- [ ] T38 Local crash report. Spec: TASKS.md Q19.
+- [ ] T39 Python API: push arrays into the open app. Spec: TASKS.md Q20.
+- [ ] T40 Parquet, MF4, CAN + DBC. Spec: TASKS.md Q21.
+- [ ] T41 Fleet view (index of many logs). Spec: TASKS.md Q22.
+- [ ] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.
+- [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
+
 ## Later
-- [ ] Parquet, "copy as pandas code", MF4.
-- [ ] Split `backend/app/main.py` into routers; split `store.ts` into slices.
+- [ ] "copy as pandas code".
