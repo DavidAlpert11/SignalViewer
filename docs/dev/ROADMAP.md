@@ -360,7 +360,18 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   `__file__`, now one folder deeper - fixed (the bundled app sets SV_EXAMPLES, source runs lost
   the examples). Guard: `tests/test_routes_layout.py`. `app.main` still exports `app`,
   `WATCHDOG`, `idle_too_long`, `_hostname` (run.py, tests).
-- [ ] T36 mypy for the backend in CI. Spec: TASKS.md Q16.
+- [x] T36 mypy for the backend in CI. Spec: TASKS.md Q16.
+  Done: `[tool.mypy]` in pyproject.toml, a CI step (Linux), `mypy` in requirements-dev, the check
+  in CLAUDE.md. 104 findings -> 0 with a baseline. Real bugs it found (tests in
+  `test_prefs_damaged.py`, 9 - all fail on the old code): a settings file holding `null` / a list
+  crashed remembering import settings (`prefs._read` now refuses the wrong shape); a template file
+  of non-objects gave a server error (now "does not hold Signal Viewer templates"). Also: `Run`
+  declares `load_report`, `_flightlog`, `_dataflash`, `_tlog` (were set from outside);
+  `fail() -> NoReturn`; Pillow `Image.Resampling.LANCZOS`; local annotations for mixed dicts.
+  Baseline: 12 modules x the error codes they have today (22 pairs) - a new kind of finding there,
+  or any finding elsewhere, fails (checked with deliberate errors in both).
+- [ ] T36b Shrink the mypy baseline (pyproject.toml overrides): mostly `Signal.time` Optional
+  narrowed where mypy cannot follow (bin / ulog / tlog loaders), `analysis.py` frame maths.
 - [ ] T37 CSV first open meets the 20M-row target. Spec: TASKS.md Q18.
 - [ ] T38 Local crash report. Spec: TASKS.md Q19.
 - [ ] T39 Python API: push arrays into the open app. Spec: TASKS.md Q20.

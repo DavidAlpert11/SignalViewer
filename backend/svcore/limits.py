@@ -1,7 +1,7 @@
 """T13: limits (pass / fail). A signal passes when every sample of the checked window is within
 [lo, hi] (either may be None = no limit). The values checked are the ones on the plot
 (scale and offset applied) - what the engineer set the limit against."""
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -17,7 +17,7 @@ def check_limits(t: np.ndarray, y: np.ndarray, lo: Optional[float], hi: Optional
         t, y = t[i0:i1], y[i0:i1]
     ok = np.isfinite(y)
     t, y = t[ok], y[ok]
-    res = {"lo": lo, "hi": hi, "samples": int(len(y)), "pass": True, "violations": 0,
+    res: Dict[str, Any] = {"lo": lo, "hi": hi, "samples": int(len(y)), "pass": True, "violations": 0,
            "timeOutside": 0.0, "first": None, "worst": None, "worstT": None, "spans": []}
     if not len(y) or (lo is None and hi is None):
         return res

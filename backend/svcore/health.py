@@ -33,7 +33,7 @@ def _spans(t: np.ndarray, mask: np.ndarray, min_dur: float = 0.0, gap: float = 1
     m = mask.astype(np.int8)
     d = np.diff(np.r_[0, m, 0])
     starts, ends = np.flatnonzero(d == 1), np.flatnonzero(d == -1) - 1
-    out = []
+    out: list = []
     for a, b in zip(t[starts], t[ends]):
         if out and a - out[-1][1] <= gap:
             out[-1][1] = float(b)

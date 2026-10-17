@@ -85,8 +85,8 @@ def open_with_prefs(path: str, settings: Optional[dict]):
 
 
 def _load_error(path: str, e: Exception) -> dict:
-    out = {"path": path, "message": str(e)}
+    out: dict = {"path": path, "message": str(e)}
     if getattr(e, "code", None):
-        out["code"] = e.code
+        out["code"] = getattr(e, "code", None)
         out["params"] = getattr(e, "params", {}) or {}
     return out

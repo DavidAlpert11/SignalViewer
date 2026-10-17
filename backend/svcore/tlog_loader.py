@@ -121,7 +121,7 @@ def _scan(raw: bytes, start: int, st: TLogState):
     last complete frame. Bytes that do not start a frame are skipped (resynchronisation)."""
     mavmap = _mav().mavlink_map
     sizes = {k: c.unpacker.size for k, c in mavmap.items()}
-    out = defaultdict(lambda: defaultdict(lambda: ([], [])))
+    out: dict = defaultdict(lambda: defaultdict(lambda: ([], [])))
     n, i = len(raw), start
     unpack_ts = struct.Struct(">Q").unpack_from
     end = start
@@ -171,7 +171,7 @@ def _decode(frames, st: TLogState) -> Dict[str, tuple]:
     # which system / component is the vehicle: its autopilot's heartbeats
     if st.main is None:
         hb = frames.get(0, {})
-        votes = Counter()
+        votes: Counter = Counter()
         for key, (ts, pl) in hb.items():
             dt, _ = _layout(mavmap[0])
             arr = np.frombuffer(b"".join(pl), dtype=dt)

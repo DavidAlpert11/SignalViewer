@@ -135,7 +135,7 @@ class FFTRequest(BaseModel):
 
 @router.post("/api/fft")
 def fft(req: FFTRequest):
-    out = []
+    out: list = []
     for sid in req.signals:
         try:
             t, y = store.signal(sid)
@@ -165,7 +165,7 @@ def xy(req: XYRequest):
         tx, x = store.signal(req.x)
     except KeyError:
         fail(404, "The X signal is no longer open.")
-    out = []
+    out: list = []
     for sid in req.ys:
         try:
             ty, y = store.signal(sid)
@@ -196,7 +196,7 @@ class XYZRequest(BaseModel):
 def xyz(req: XYZRequest):
     """T17c: plain 3D plot - each track's Y and Z on its X signal's samples (svcore.xyz)."""
     from svcore.xyz import xyz_track
-    out = []
+    out: list = []
     for tr in req.tracks:
         try:
             sx, sy, sz = store.signal(tr.x), store.signal(tr.y), store.signal(tr.z)
@@ -276,7 +276,7 @@ def object_track(req: ObjectTrackRequest):
     lon_a = onto(tlo, lon)
     if np.nanmax(np.abs(lat)) > 90 or np.nanmax(np.abs(lon_a)) > 180:     # 1e7 degrees (MAVLink ints)
         lat, lon_a = lat / 1e7, lon_a / 1e7
-    out = {"n": int(len(t)), "t": b64(t, np.float64), "lat": b64(lat, np.float64), "lon": b64(lon_a, np.float64), "units": {}}
+    out: dict = {"n": int(len(t)), "t": b64(t, np.float64), "lat": b64(lat, np.float64), "lon": b64(lon_a, np.float64), "units": {}}
     raw = {}
     for role in ("alt", "yaw", "pitch", "roll"):
         sid = getattr(req, role)
@@ -365,7 +365,7 @@ class StatesRequest(BaseModel):
 
 @router.post("/api/states")
 def states(req: StatesRequest):
-    out = {}
+    out: dict = {}
     for sid in req.signals:
         try:
             t, y = store.signal(sid)

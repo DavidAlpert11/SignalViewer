@@ -3,7 +3,7 @@
 import asyncio
 import os
 import time
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ router = APIRouter()
 # once a second. A poll reads only what was ADDED to each file, says how long ago each file last
 # grew (so the UI can show which files are still being written), and every few seconds looks for
 # NEW files next to the open ones (same name pattern) that appeared since live mode started.
-LIVE = {"since": None, "reported": set(), "last_scan": 0.0}
+LIVE: Dict[str, Any] = {"since": None, "reported": set(), "last_scan": 0.0}
 
 
 

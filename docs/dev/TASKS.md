@@ -20,9 +20,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
-- Tests at the last change: backend 501 passed (T35); before that backend 351, EVERY e2e file run: 151 passed (Q6).
+- Tests at the last change: backend 510 passed (T36); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q16 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q19 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -231,7 +231,7 @@ Progress board (tick here AND in ROADMAP):
 | Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☑ done |
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☑ done |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☑ done |
-| Q16 | T36 Static type check of the backend (mypy) in CI | S | ◐ started |
+| Q16 | T36 Static type check of the backend (mypy) in CI | S | ☑ done (T36b: shrink baseline) |
 | Q17 | F02 The whole e2e suite in one process | M | ☐ |
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ☐ |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☐ |
@@ -412,3 +412,5 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   the app - the test now checks by endpoint function (verified on FastAPI 0.115 and 0.143, and that
   it still fails when a router is missing). (2) `test_basemap` (older): `os.symlink` needs admin /
   Developer Mode on Windows - falls back to copying.
+- 2026-10-18 · F08 CI actions on Node 24 (upload v6, download v7) · Q16 / T36 mypy: 104 -> 0 with
+  a per-module baseline; 2 real prefs bugs fixed (9 tests) · backend 510 · next: Q19.

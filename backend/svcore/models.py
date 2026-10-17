@@ -80,6 +80,12 @@ class Run:
     seen_mtime: Optional[float] = None
     data_version: int = 0         # bumped whenever data changes (figure cache key)
     uid: int = field(default_factory=lambda: next(_RUN_UID))   # unique per loaded Run object
+    # what the loader wants the user told (skipped columns, damaged parts...): sent with the run
+    load_report: Dict[str, Any] = field(default_factory=dict)
+    # flight logs: the parsed log behind the signals (T36 - were attributes set from outside)
+    _flightlog: Any = None        # parameters / events / health for the Log panel (.bin .tlog .ulg)
+    _dataflash: Any = None        # .bin: formats and units, for live mode
+    _tlog: Any = None             # .tlog: parser state, for live mode
     
     @property
     def signal_names(self) -> List[str]:

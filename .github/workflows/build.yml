@@ -62,6 +62,11 @@ jobs:
       - name: Backend tests
         run: python -m pytest backend/tests -q
 
+      - name: Type check (mypy, T36)
+        if: runner.os == 'Linux'            # the same on every OS: once is enough
+        working-directory: backend
+        run: mypy --config-file ../pyproject.toml app svcore signalviewer
+
       # ---------------------------------------------------------------- Windows
       - name: Windows portable (embeddable Python)
         if: runner.os == 'Windows'

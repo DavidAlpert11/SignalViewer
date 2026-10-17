@@ -68,7 +68,7 @@ def compare_table(ca: "CompareAllRequest", progress=None) -> list:
         for name in store.get(rid).run.signals.keys():
             present.setdefault(name, []).append(rid)
     names = [n for n, rids in present.items() if len(rids) >= 2]
-    out = []
+    out: list = []
     for k, name in enumerate(names):
         rids = present[name]
         ids = [f"{rid}/{name}" for rid in rids]
