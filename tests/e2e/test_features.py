@@ -921,6 +921,27 @@ def test_middle_click_closes_tab_and_clear_selection_bar(pg):
     assert S(pg, "s.past.length") == before + 1
 
 
+def test_signal_list_unit_rate_and_picture(pg):
+    """T22: each row shows its unit apart from the name (never cut off), its sample rate (wide
+    panel, and the tooltip) and a small picture; only rows on screen ask for pictures."""
+    t = np.arange(0, 20, 0.01)                                              # 100 Hz
+    p = os.path.join(pg.env["data"], "wide_list.csv")
+    _csv(p, ["Time"] + [f"Sig{i:03d} [m/s]" for i in range(150)], [t] + [np.sin(t + i) for i in range(150)])
+    asked = []
+    pg.on("request", lambda r: asked.append(len(json.loads(r.post_data)["signals"])) if r.url.endswith("/api/sparks") else None)
+    open_files(pg, "wide_list.csv")
+    row = sig(pg, "Sig000")
+    row.wait_for()
+    assert row.locator(".sig-unit").inner_text() == "m/s" and row.locator(".nm").inner_text() == "Sig000"
+    assert "100 Hz" in row.get_attribute("title") and "2,000" in row.get_attribute("title")
+    pg.wait_for_function("document.querySelector('.sig .sig-spark path')?.getAttribute('d')?.length > 20")
+    assert 0 < sum(asked) < 80                                            # the rows on screen, not all 150
+    rs = pg.locator(".resizer").first                                       # a wider panel shows the rate too
+    rs.focus(); pg.keyboard.press("Shift+ArrowRight"); pg.keyboard.press("Shift+ArrowRight")
+    pg.wait_for_function("getComputedStyle(document.querySelector('.sig .sig-rate')).display !== 'none'")
+    assert row.locator(".sig-rate").inner_text() == "100 Hz"
+
+
 def test_compare_same_segment_across_runs(pg):
     """T10b: Compare runs over a segment - the same value + occurrence of a state signal in each
     file, compared from each one's own start; clicking a signal shows them aligned in a new tab."""
@@ -1114,7 +1135,7 @@ def test_units_from_names(pg):
     t = np.arange(0, 5, 0.01)
     _csv(p, ["Time", "Speed [km/h]", "imu[1]"], [t, t * 10, t])
     open_files(pg, "units.csv")
-    sig(pg, "Speed [km/h]").click()
+    sig(pg, "Speed").click()                         # T22: the row shows the name, the unit on its own
     pg.keyboard.press("Space")
     pg.wait_for_function("[...document.querySelectorAll('.chip .val')].some(e => e.innerText.endsWith('km/h'))")
     sig(pg, "imu[1]").click()                       # "[1]" is not a unit
@@ -1133,6 +1154,7 @@ def test_templates_save_and_apply(pg):
     pg.locator(".tpl-editor .btn.primary").click()
     pg.wait_for_selector(".toast:has-text('saved')")
     pg.wait_for_selector(".tpl-details h3:has-text('Engine check')")
+    pg.wait_for_selector(".tpl-found")                       # the counts come from the server (T11b): wait for them
     assert pg.locator(".tpl-found").all_inner_texts() == ["2 of 2 signals"]
     pg.locator(".tpl-slot select").first.select_option(label="All files that fit (overlaid)")
     pg.locator(".tpl-actions .btn.primary").click()

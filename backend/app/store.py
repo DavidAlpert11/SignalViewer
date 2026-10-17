@@ -181,6 +181,39 @@ def _csv_failure(path: str, s: CSVImportSettings) -> LoadError:
     return generic
 
 
+def _rate_of(sg, run) -> dict:
+    """T22: samples and mean sample rate (Hz) of a signal, from its own time vector (or the run's).
+    O(1): the length and the two ends only - cheap even for very wide files."""
+    t = sg.time if sg.time is not None else run.time
+    k = len(t) if t is not None else 0
+    if k < 2:
+        return {"n": int(k)}
+    span = float(t[-1]) - float(t[0])
+    return {"n": int(k), "rate": float(f"{(k - 1) / span:.4g}")} if span > 0 and np.isfinite(span) else {"n": int(k)}
+
+
+def spark(t: np.ndarray, y: np.ndarray, points: int = 40) -> Optional[dict]:
+    """T22: a tiny picture of a whole signal for the file list: min and max of `points` equal
+    slices (by sample), so spikes still show. None for an empty or all-NaN signal."""
+    y = np.asarray(y, dtype=np.float64)
+    k = len(y)
+    if k == 0:
+        return None
+    if k <= points:
+        lo = hi = y
+    else:
+        edges = np.linspace(0, k, points + 1).astype(np.int64)[:-1]
+        f = np.isfinite(y)
+        lo = np.minimum.reduceat(np.where(f, y, np.inf), edges)
+        hi = np.maximum.reduceat(np.where(f, y, -np.inf), edges)
+        lo[~np.isfinite(lo)] = np.nan
+        hi[~np.isfinite(hi)] = np.nan
+    if not np.isfinite(lo).any():
+        return None
+    r = lambda a: [None if not np.isfinite(v) else float(f"{v:.6g}") for v in a]
+    return {"lo": r(lo), "hi": r(hi)}
+
+
 class Store:
     def __init__(self):
         self._lock = threading.RLock()
@@ -572,7 +605,7 @@ class Store:
             "timeOffset": float(r.time_offset or 0),
             "importSettings": {k: v for k, v in (r.import_settings or {}).items()},
             # discrete detection reads every column: for wide files it is done on demand instead
-            "signals": [{"id": f"{lr.id}/{n}", "name": n,
+            "signals": [{"id": f"{lr.id}/{n}", "name": n, **_rate_of(sg, r),
                          "discrete": True if sg.labels else (self.is_discrete(f"{lr.id}/{n}") if len(r.signals) <= WIDE else None),
                          **({"labels": {str(k): v for k, v in sg.labels.items()}} if sg.labels else {}),
                          **({"transform": self.transforms[f"{lr.id}/{n}"]} if f"{lr.id}/{n}" in self.transforms else {})}

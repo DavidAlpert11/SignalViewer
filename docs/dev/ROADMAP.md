@@ -269,7 +269,15 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   titles, command palette; he: "יצירת סיגנלים" / "השוואת ריצות"). e2e selectors updated; the
   panel's button is now found by role, since "text=Create signal" also matched the new title.
 - [ ] T21b Signal context menus: one "Create signal ▸" entry instead of repeated operations.
-- [ ] T22 Signal list: unit, sample rate and a sparkline per signal.
+- [x] T22 Signal list: unit, sample rate and a sparkline per signal.
+  Done: `Store.describe` adds `n` and `rate` per signal (`_rate_of`: length and the two ends of the
+  signal's own time vector - O(1), also for wide files). `POST /api/sparks {signals, points}` ->
+  min / max of equal slices (`store.spark`, spikes and NaN gaps kept), at most 200 per call.
+  `sparks.ts` `useSpark`: rows on screen queue, one batched request after 60 ms, cache per signal
+  + version (samples, change). Row: name without the unit (`unitOf`), unit badge, rate (container
+  query: from 300 px panel width) and a 40x14 band; text signals get no picture. Measured: a
+  352-signal list scrolls at 60 fps (p95 16.8 ms/frame). Tests: `test_signal_list_info.py`; e2e
+  `test_signal_list_unit_rate_and_picture` (and only the visible rows ask).
 - [ ] T23 Notes over a time range (shaded span), listed in reports.
 - [ ] T24 Favourite folders and quick open (Ctrl+P, fuzzy over recent folders).
 - [ ] T25 Sim-vs-flight error signal with RMS per segment.

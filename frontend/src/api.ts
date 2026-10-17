@@ -1,6 +1,7 @@
 export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number }
 export interface SignalInfo {
   id: string; name: string; discrete?: boolean;
+  n?: number; rate?: number;            // T22: samples and mean sample rate (Hz), from the describe
   labels?: Record<string, string>;      // text values: code -> text (states, flight modes)
   transform?: SignalTransform;          // a change made on the signal itself
   // derived signals only
@@ -200,6 +201,7 @@ export const api = {
     return r;
   },
   cursor: (signals: string[], t: number) => call<{ values: Record<string, number | null> }>("/api/cursor", { signals, t }),
+  sparks: (signals: string[], points = 40) => call<{ sparks: Record<string, { lo: (number | null)[]; hi: (number | null)[] } | null> }>("/api/sparks", { signals, points }),
   stats: (signals: string[], t0: number | null, t1: number | null, where?: { state: string; values: number[]; offset?: number } | null) =>
     call<{ stats: Record<string, Stats> }>("/api/stats", { signals, t0, t1,
       ...(where ? { state: where.state, stateValues: where.values, stateOffset: where.offset ?? 0 } : {}) }),
