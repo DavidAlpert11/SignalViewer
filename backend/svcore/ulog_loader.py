@@ -7,6 +7,7 @@ Signals:  "<topic>.<field>" ("vehicle_attitude.q[0]"), "<topic>[<instance>].<fie
 Log panel: logged messages with their level, navigation-mode changes, arm / disarm, parameters
           (initial value, every change, defaults when the log has them).
 """
+import logging
 import os
 from typing import Dict, Optional
 
@@ -14,6 +15,8 @@ import numpy as np
 
 from svcore.flightlog import FlightLogInfo
 from svcore.models import Run, Signal
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 # PX4 vehicle_status.nav_state (only the values that have kept their meaning across releases)
 PX4_NAV = {0: "MANUAL", 1: "ALTCTL", 2: "POSCTL", 3: "AUTO_MISSION", 4: "AUTO_LOITER", 5: "AUTO_RTL",
@@ -88,7 +91,8 @@ def load_ulog(path: str, display_name: str):
     try:
         if u.has_default_parameters:
             defaults = u.get_default_parameters(1) or u.get_default_parameters(0) or {}
-    except Exception:
+    except Exception:                   # optional extra: the log opens without default values
+        log.debug("PX4 default parameters not read", exc_info=True)
         defaults = {}
     t0 = u.start_timestamp * 1e-6
     for nm, v in sorted(u.initial_parameters.items()):

@@ -5,6 +5,7 @@ All statistics are computed on full-resolution data. The HTML report embeds the
 data as min/max resolution levels so zooming in shows more detail with no server.
 """
 
+import logging
 import base64
 import html
 import io
@@ -20,6 +21,8 @@ from svcore.envelope import envelope
 from svcore.analysis import fft_display, fft_for, transitions, xy_pair
 from svcore.decimate import decimate_for_view, minmax_decimate
 from svcore.ops import compute_signal_stats
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 ASSETS = os.path.join(os.path.dirname(__file__), "report_assets")
 LEVELS = (4000, 40000, 150000)         # min/max points per level for long time signals
@@ -241,7 +244,7 @@ def _draw_xyz(ax, pdata: Dict, th: Dict):
                     c = [(v.min() + v.max()) / 2 for v in allv]
                     h = max(max(v.max() - v.min() for v in allv) / 2, 1e-9)
                     ax.set_xlim(c[0] - h, c[0] + h); ax.set_ylim(c[1] - h, c[1] + h); ax.set_zlim(c[2] - h, c[2] + h)
-            except Exception:                                    # older matplotlib: keep its own scaling
+            except (AttributeError, TypeError, ValueError):     # older matplotlib: keep its own scaling
                 pass
         if pdata.get("xyzFlipZ"):
             ax.invert_zaxis()
@@ -460,8 +463,12 @@ def _bidi(text: str) -> str:
         return ""
     try:
         from bidi.algorithm import get_display
+    except ImportError:                 # optional: Hebrew then shows in logical order
+        return text
+    try:
         return get_display(text)
-    except Exception:
+    except Exception:                   # odd text: draw it as it is rather than fail the report
+        log.debug("bidi failed for %r", text[:40], exc_info=True)
         return text
 
 

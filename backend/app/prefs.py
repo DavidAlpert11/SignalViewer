@@ -4,11 +4,14 @@ import settings remembered per folder. Every write is atomic (temp file + rename
 and a damaged file is treated as empty instead of breaking the app.
 """
 import json
+import logging
 import os
 import re
 import threading
 import time
 from typing import Any, Dict, List, Optional
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 APP_DIR = os.path.join(os.path.expanduser("~"), ".signalviewer")
 _lock = threading.Lock()
@@ -22,7 +25,10 @@ def _read(name: str, default):
     try:
         with open(_path(name), "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except FileNotFoundError:
+        return default
+    except (OSError, ValueError):       # damaged settings must not stop the app: defaults, and say so
+        log.warning("settings file %s could not be read; using defaults", _path(name), exc_info=True)
         return default
 
 

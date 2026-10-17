@@ -9,6 +9,12 @@
   rest opens, with a note. A MATLAB .mat that ends in the middle (MATLAB stopped while saving)
   opens with every variable that was complete before the cut. Every format is now tested
   against hundreds of damaged copies of itself.
+- Filters: **Low-pass / High-pass are now real Butterworth filters** (4th order, run forward and
+  backward so nothing is delayed), in Create signals and in formulas (`lowpass(v0, 5)`). Before,
+  they were a moving average - and when a filter could not be applied (a cut-off above half the
+  sample rate, a time that does not increase) the raw signal was shown under the filter's name.
+  Now the reason is shown instead. Filtered signals in saved sessions open as before but with the
+  correct (slightly different) values.
 
 ## 1.3.0 – 2026-10-17
 

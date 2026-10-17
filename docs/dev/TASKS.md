@@ -20,9 +20,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
-- Tests at the last change: backend 482 passed (T33); before that backend 351, EVERY e2e file run: 151 passed (Q6).
+- Tests at the last change: backend 497 passed (T34); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q14 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q15 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -229,7 +229,7 @@ Progress board (tick here AND in ROADMAP):
 |---|---|---|---|
 | Q12 | T32 Licence file (MIT) + README section | S | ☑ done |
 | Q13 | T33 Loaders survive damaged files (fuzz tests for .bin/.tlog/.ulg/.csv/.mat) | M | ☑ done |
-| Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☐ |
+| Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☑ done |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☐ |
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☐ |
 | Q17 | F02 The whole e2e suite in one process | M | ☐ |
@@ -273,6 +273,10 @@ in this sandbox) - the UI change is two toast texts; run `test_templates_recent_
 kept and logged (`log.exception`) with a comment why it must be broad (e.g. a background thread
 that must not die). No behaviour change for the user.
 **Done when:** no silent `except Exception: pass`; each remaining broad handler logs or reports.
+**Status:** done (see ROADMAP T34). The important find: the low/high-pass "filter" (a moving
+average that returned raw data silently when it could not filter) - now Butterworth. Behaviour
+change for the owner to know: filtered signals in old sessions get correct, slightly different
+values; a cut-off at or above half the sample rate is now an error instead of a mild smoothing.
 
 ### Q15 · T35 Split main.py into routers — L
 **Why:** 2,100 lines and 79 endpoints in one file; every task touches it.
@@ -376,3 +380,5 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-17 · Q12 / T32 LICENSE (MIT), README section, installer page, in the builds · next: Q13.
 - 2026-10-17 · Q13 / T33 damaged files: fuzz test (126 cases, CI) + CSV repair, zero blocks,
   cut-off .mat recovery · backend 482 · next: Q14.
+- 2026-10-17 · Q14 / T34 filters are Butterworth (were a moving average returning raw data on
+  failure); dead code out of ops.py; silent handlers narrowed or logged · backend 497 · next: Q15.

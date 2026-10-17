@@ -251,7 +251,7 @@ def hold_at(time: np.ndarray, data: np.ndarray, target: float, look_back: int = 
         seg = np.asarray(data[lo:i + 1], dtype=np.float64)
         ok = np.flatnonzero(np.isfinite(seg))
         return float(seg[ok[-1]]) if len(ok) else None
-    except Exception:
+    except (TypeError, ValueError, IndexError):     # a target or values that are not numbers
         return None
 
 
@@ -275,5 +275,5 @@ def interp_at(time: np.ndarray, data: np.ndarray, target: float) -> Optional[flo
         if t1 == t0:
             return v1
         return v0 + (v1 - v0) * (target - t0) / (t1 - t0)
-    except Exception:
+    except (TypeError, ValueError, IndexError):     # a target or values that are not numbers
         return None
