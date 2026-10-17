@@ -63,6 +63,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const uRef = useRef<uPlot | null>(null);
   const overlayRef = useRef<((u: uPlot) => void) | null>(null);
   const cursorRef = useRef(cursor);
+  const gestRef = useRef<"x" | "y" | "xy">("x");             // T19: the mode of the drag in progress
   cursorRef.current = cursor;
   const size = useSize(wrapRef);
   const [series, setSeries] = useState<Series[]>([]);
@@ -543,8 +544,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           (u) => {
             const sel = { ...u.select };           // a copy: setSelect below resets u.select itself
             const W = u.over.clientWidth, H = u.over.clientHeight;
-            const useX = zoomMode !== "y" && sel.width >= 4 && sel.width < W - 1;
-            const useY = zoomMode !== "x" && sel.height >= 4 && sel.height < H - 1;
+            const g = gestRef.current;                 // this drag's mode (the zoom mode, or by its modifier key)
+            const useX = g !== "y" && sel.width >= 4 && sel.width < W - 1;
+            const useY = g !== "x" && sel.height >= 4 && sel.height < H - 1;
             u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
             if (!useX && !useY) return;
             const xr: Range | undefined = useX ? [u.posToVal(sel.left, "x"), u.posToVal(sel.left + sel.width, "x")] : undefined;
@@ -561,7 +563,8 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     u.over.addEventListener("mouseleave", () => { if (useApp.getState().hover?.plotId === plot.id) useApp.setState({ hover: null }); });
 
     /* wheel: over the value axis -> values only; over the time axis -> time only; inside the plot ->
-       the zoom mode (X / Y / XY), with Ctrl = values only and Alt = time only for one gesture */
+       the zoom mode (X / Y / XY); for one gesture Shift = values only, Ctrl / Cmd = both, Alt = time
+       only - the same keys as for dragging (T19) */
     const onWheel = (e: WheelEvent) => {
       const rect = u.over.getBoundingClientRect();
       const onYAxis = e.clientX < rect.left || e.clientX > rect.right;
@@ -569,8 +572,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       if (!onYAxis && !onXAxis && (e.clientY < rect.top)) return;
       e.preventDefault();
       let doX = zoomMode !== "y", doY = zoomMode !== "x";
-      if (onYAxis || e.ctrlKey) { doX = false; doY = true; }
+      if (onYAxis || e.shiftKey) { doX = false; doY = true; }
       else if (onXAxis || e.altKey) { doX = true; doY = false; }
+      else if (e.ctrlKey || e.metaKey) { doX = true; doY = true; }
       const f = e.deltaY < 0 ? 0.8 : 1.25;
       let xr: Range | undefined, yr: Range | undefined;
       if (doX) {
@@ -642,7 +646,12 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         }
         return;
       }
-      if (e.shiftKey && !cursorRef.current.on || e.button === 1) {     // pan
+      // T19: a drag zooms by the zoom mode, or for this one gesture Shift = values (Y), Ctrl / Cmd =
+      // a box (XY); uPlot reads these drag settings live, the selection rectangle follows
+      const g: "x" | "y" | "xy" = e.shiftKey ? "y" : e.ctrlKey || e.metaKey ? "xy" : zoomMode;
+      gestRef.current = g;
+      u.cursor.drag!.x = g !== "y"; u.cursor.drag!.y = g !== "x"; u.cursor.drag!.uni = g === "xy" ? 20 : undefined;
+      if (e.altKey && !cursorRef.current.on || e.button === 1) {       // pan (Alt + drag, or the middle button)
         e.stopPropagation(); e.preventDefault();
         // pan follows the zoom mode: time, values, or both
         const panX = zoomMode !== "y", panY = zoomMode !== "x" && !onlyStates;

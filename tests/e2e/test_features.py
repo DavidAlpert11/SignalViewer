@@ -14,6 +14,13 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 # ----------------------------------------------------------------- fixtures
+
+def set_layout(pg, r, c):
+    """T20: the layouts are in the layout button's popover."""
+    pg.click(".stage-bar .layout-btn")
+    pg.click(f"[aria-label='Layout {r} × {c}']")
+
+
 def _free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -315,7 +322,7 @@ def test_S06_context_menu(pg):
 
 def test_S07_drag_chip_to_other_plot(pg):
     open_files(pg, "run_a.csv")
-    pg.click("[aria-label='Layout 2 × 1']")
+    set_layout(pg, 2, 1)
     sig(pg, "Speed").click(); sig(pg, "RPM").click()
     pg.locator(".plot").first.locator(".chip", has_text="RPM").drag_to(pg.locator(".plot").nth(1))
     assert chips(pg, 0) == ["Speed"] and chips(pg, 1) == ["RPM"]
@@ -345,7 +352,7 @@ def test_V02_free_layout_max_9_and_resize(pg):
     pg.locator(".gridpick-type input").nth(0).fill("3"); pg.locator(".gridpick-type input").nth(1).fill("2")
     pg.click(".gridpick-type .btn")
     assert S(pg, "[s.ws.tabs[0].rows, s.ws.tabs[0].cols]") == [3, 2]
-    pg.click("[aria-label='Layout 1 × 2']")
+    set_layout(pg, 1, 2)
     g = pg.locator(".gutter-v").first.bounding_box()
     pg.mouse.move(g["x"] + 4, g["y"] + 50); pg.mouse.down(); pg.mouse.move(g["x"] + 200, g["y"] + 50); pg.mouse.up()
     sizes = S(pg, "s.ws.tabs[0].colSizes")
@@ -354,17 +361,17 @@ def test_V02_free_layout_max_9_and_resize(pg):
 
 def test_V02b_shrinking_layout_removes_plots_with_undo(pg):
     open_files(pg, "run_a.csv")
-    pg.click("[aria-label='Layout 2 × 2']")
+    set_layout(pg, 2, 2)
     for k, name in ((1, "Speed"), (4, "RPM")):
         pg.keyboard.press(str(k)); sig(pg, name).click()
-    pg.click("[aria-label='Layout 1 × 1']")
+    set_layout(pg, 1, 1)
     assert pg.locator(".plot").count() == 1 and chips(pg) == ["Speed"]
     pg.locator(".toast button:has-text('Undo')").click()
     assert pg.locator(".plot").count() == 4 and chips(pg, 3) == ["RPM"]
 
 
 def test_V03_active_plot_keys(pg):
-    pg.click("[aria-label='Layout 2 × 2']")
+    set_layout(pg, 2, 2)
     pg.keyboard.press("3")
     assert S(pg, "s.ws.tabs[0].active") == 2
 
@@ -411,7 +418,7 @@ def test_V08_zoom_pan_back(pg):
     pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     pg.mouse.wheel(0, -300); pg.wait_for_timeout(200)
     r1 = S(pg, "Object.values(s.ranges)[0]")
-    pg.keyboard.down("Shift"); pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] / 2 - 150, box["y"] + 100); pg.mouse.up(); pg.keyboard.up("Shift")
+    pg.keyboard.down("Alt"); pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] / 2 - 150, box["y"] + 100); pg.mouse.up(); pg.keyboard.up("Alt")   # T19: pan is Alt
     r2 = S(pg, "Object.values(s.ranges)[0]")
     assert r2[0] > r1[0] and abs((r2[1] - r2[0]) - (r1[1] - r1[0])) < 1e-6        # panned, same width
     pg.keyboard.press("Backspace")
@@ -432,7 +439,7 @@ def test_V10_theme(pg):
 
 def test_V11_clear_plot_and_all(pg):
     open_files(pg, "run_a.csv")
-    pg.click("[aria-label='Layout 2 × 1']")
+    set_layout(pg, 2, 1)
     sig(pg, "Speed").click(); pg.keyboard.press("2"); sig(pg, "RPM").click()
     pg.locator(".plot-more").first.click(); pg.click("text=Clear plot")
     assert chips(pg, 0) == [] and chips(pg, 1) == ["RPM"]
@@ -849,6 +856,71 @@ def test_fft_motor_orders(pg):
     pg.wait_for_function("!document.querySelector('.plot-canvas[data-orders]')")
 
 
+def test_zoom_keys_layout_button_and_split(pg):
+    """T19: for one drag Shift zooms the values and Ctrl a box, whatever the zoom mode; T20: one
+    layout button with the common layouts and any size; dropping a signal on a plot's right edge
+    splits it."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.wait_for_selector(".plot .u-over")
+    assert S(pg, "s.zoomMode") == "x"
+    box = pg.locator(".plot .u-over").first.bounding_box()
+    cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+
+    def drag(mod):
+        pg.mouse.move(cx - 80, cy - 60)
+        if mod: pg.keyboard.down(mod)
+        pg.mouse.down(); pg.mouse.move(cx, cy, steps=5); pg.mouse.move(cx + 80, cy + 60, steps=5); pg.mouse.up()
+        if mod: pg.keyboard.up(mod)
+        pg.wait_for_timeout(150)
+    drag("Shift")
+    assert S(pg, "Object.keys(s.yRanges).length") == 1 and S(pg, "Object.keys(s.ranges).length") == 0   # values only
+    pg.keyboard.press("r")
+    drag("Control")
+    assert S(pg, "Object.keys(s.yRanges).length") == 1 and S(pg, "Object.keys(s.ranges).length") == 1   # a box
+    # the layout button shows the layout and opens the popover
+    assert pg.locator(".stage-bar .layout-btn").inner_text().strip() == "1 × 1"
+    set_layout(pg, 2, 2)
+    assert S(pg, "[s.ws.tabs[0].rows, s.ws.tabs[0].cols]") == [2, 2]
+    pg.click(".stage-bar .layout-btn")
+    pg.fill(".gridpick input[aria-label='Rows']", "1"); pg.fill(".gridpick input[aria-label='Columns']", "1")
+    pg.locator(".gridpick button", has_text="Apply").click()
+    assert S(pg, "[s.ws.tabs[0].rows, s.ws.tabs[0].cols, s.ws.tabs[0].plots.length]") == [1, 1, 1]
+    # drop RPM on the plot's right edge: a new plot to its right, the grid grows a column
+    plot = pg.locator(".plot").first
+    pb = plot.bounding_box()
+    sig(pg, "RPM").drag_to(plot, target_position={"x": pb["width"] - 12, "y": pb["height"] / 2})
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.length === 2")
+    t = S(pg, "s.ws.tabs[0]")
+    assert (t["rows"], t["cols"]) == (1, 2) and t["plots"][1]["signals"][0]["sig"].endswith("/RPM") and t["active"] == 1
+    assert [x["sig"].split("/")[1] for x in t["plots"][0]["signals"]] == ["Speed"]
+
+
+def test_middle_click_closes_tab_and_clear_selection_bar(pg):
+    """Middle click on a tab closes it (on mousedown / up: on Windows a middle press over the tab
+    strip starts autoscroll and no auxclick follows). Searching alone shows no checkboxes; a
+    selection bar says what is selected and what it is for; "Plot them" is one undo step."""
+    open_files(pg, "run_a.csv")
+    pg.click("[aria-label='New tab']")
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
+    pg.locator(".tabs .tab").last.click(button="middle")
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 1")
+    pg.fill(".filter input", "e")                                              # Speed, Gear
+    pg.wait_for_selector(".pick-bar")
+    assert pg.locator(".sig-pick").count() == 0                               # no checkboxes just for searching
+    pg.fill(".filter input", "")
+    sig(pg, "Speed").click(modifiers=["Control"])
+    sig(pg, "Gear").click(modifiers=["Control"])
+    bar = pg.locator(".pick-actions")
+    assert bar.locator(".pick-count").inner_text() == "2 signals selected"
+    assert pg.locator(".sig-pick").count() >= 2                               # now they show (and can be unticked)
+    assert "Ctrl+click" in bar.locator(".pick-hint").inner_text()
+    before = S(pg, "s.past.length")
+    bar.get_by_role("button", name="Plot them").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
+    assert S(pg, "s.past.length") == before + 1
+
+
 def test_compare_same_segment_across_runs(pg):
     """T10b: Compare runs over a segment - the same value + occurrence of a state signal in each
     file, compared from each one's own start; clicking a signal shows them aligned in a new tab."""
@@ -1052,7 +1124,7 @@ def test_units_from_names(pg):
 
 def test_templates_save_and_apply(pg):
     open_files(pg, "run_a.csv", "run_b.csv")
-    pg.click("[aria-label='Layout 2 × 1']")
+    set_layout(pg, 2, 1)
     pg.keyboard.press("1"); sig(pg, "Speed").click()
     pg.keyboard.press("2"); sig(pg, "RPM").click()
     pg.locator(".tab").first.click(button="right"); menu_item(pg, "Save as template")
@@ -1172,7 +1244,7 @@ def test_change_many_variables_from_search(pg):
     pg.click(".pick-bar .linklike")                                         # all results (both files)
     assert pg.locator(".pick-count").inner_text().startswith("6")
     pg.locator(".sig-wrap", has_text="sig_0_3").nth(1).locator("input").uncheck()   # leave one out by hand
-    pg.click(".pick-actions .btn.primary")
+    pg.click(".pick-actions .btn:has-text('Change them')")
     pg.wait_for_selector(".tf-dialog")
     pg.locator(".tf-dialog select").select_option("abs")
     inputs = pg.locator(".tf-dialog .arow input")
@@ -1189,7 +1261,7 @@ def test_change_many_variables_from_search(pg):
     pg.locator(".toast", has_text="applied to 5").locator("button", has_text="Undo").click()
     pg.wait_for_function("window.__sv.state().runs.every(r => r.signals.every(x => !x.transform))")
     # re-apply, then reload: the change is kept with the workspace
-    pg.click(".pick-actions .btn.primary"); pg.locator(".tf-dialog .arow input").nth(0).fill("3"); pg.click(".tf-dialog .btn.primary")
+    pg.click(".pick-actions .btn:has-text('Change them')"); pg.locator(".tf-dialog .arow input").nth(0).fill("3"); pg.click(".tf-dialog .btn.primary")
     pg.wait_for_selector(".toast:has-text('applied')")
     pg.wait_for_timeout(1500)
     pg.reload(); pg.wait_for_selector(".run-head")
@@ -1245,7 +1317,7 @@ def test_ctrl_shift_selection_in_file_list(pg):
     assert chips(pg) == []                                     # selecting does not plot
     sig(pg, "RPM").click(modifiers=["Control"])                # toggle one off
     assert pg.locator(".pick-count").inner_text().startswith("2")
-    pg.click(".pick-actions .btn:has-text('Edit')")
+    pg.click(".pick-actions .btn:has-text('Change them')")
     pg.wait_for_selector(".tf-dialog")
     pg.locator(".tf-dialog .arow input").nth(0).fill("2"); pg.click(".tf-dialog .btn.primary")
     pg.wait_for_function("window.__sv.state().runs[0].signals.filter(x => x.transform).length === 2")
@@ -1397,7 +1469,7 @@ def test_open_saved_session_with_new_files_from_welcome(pg):
 # ======================================================= round: arrows, 3x3, map, states only, refresh
 def test_layout_3x3_quick_button(pg):
     open_files(pg, "run_a.csv")
-    pg.click("[aria-label='Layout 3 × 3']")
+    set_layout(pg, 3, 3)
     assert pg.locator(".plot").count() == 9 and S(pg, "[s.ws.tabs[0].rows, s.ws.tabs[0].cols]") == [3, 3]
     pg.keyboard.press("9")
     assert S(pg, "s.ws.tabs[0].active") == 8
@@ -1510,6 +1582,7 @@ def test_reload_redraws_the_graph(pg, env=None):
 def test_zoom_y_only_and_back(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
+    pg.click(".stage-bar .zoom-btn")                                         # T19: the zoom mode is in a menu
     pg.locator(".zoom-seg button", has_text="Y").first.click()
     assert S(pg, "s.zoomMode") == "y"
     box = pg.locator(".plot .u-over").first.bounding_box()

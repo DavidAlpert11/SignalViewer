@@ -30,6 +30,16 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- Calmer plot toolbar: ONE layout button (it shows the current layout; its popover has the common
+  layouts and any rows × columns) instead of seven icons, and the zoom mode in a small menu.
+  For one drag, Shift zooms the values and Ctrl a box, whatever the zoom mode (the wheel uses
+  the same keys). **Pan is now Alt + drag** (or the middle button); Shift + drag zooms the values.
+- Split a plot by dragging a signal (or a legend chip) to its right or bottom edge: a new plot
+  opens there, the grid grows when it is full.
+- Fixed: middle click on a tab did not close it on Windows (the browser's autoscroll took the click).
+- The file list's selection is clearer: checkboxes appear only once signals are selected (not
+  just for searching), and the bar says "N signals selected" with "Plot them" (one undo step),
+  "Change them…" and "New signals from them…" and how to add or remove (Ctrl / Shift + click).
 - FFT: motor orders - pick an RPM / ESC / motor-speed signal in an FFT plot and the spectrum is
   marked at 1×, 2× and 3× its mean rotation rate over the same window (between the cursors, or
   the whole signal), plus the blade-pass frequency for 2–5 blades. Saved with the plot.

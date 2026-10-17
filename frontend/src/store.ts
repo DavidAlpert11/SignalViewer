@@ -402,6 +402,32 @@ export const actions = {
       return ws;
     });
   },
+  /** T20: split a plot - a new plot with this signal right after it (to its right or below it),
+   *  the grid growing a column or a row when it is full. moveFrom: a legend chip moved out of
+   *  that plot (not copied). One undo step. */
+  splitPlot(plotId: string, sig: string, side: "right" | "bottom", moveFrom?: string) {
+    let full = false;
+    useApp.getState().commit((ws) => {
+      const tab = activeTab(ws);
+      const i = tab.plots.findIndex((p) => p.id === plotId);
+      if (i < 0) return ws;
+      if (tab.plots.length >= MAX_PLOTS) { full = true; return ws; }
+      const src = moveFrom ? tab.plots.find((p) => p.id === moveFrom)?.signals.find((x) => x.sig === sig) : undefined;
+      const np: Plot = { id: uid("p"), title: "", signals: [src ? { ...src } : newPlotSignal(sig, ws)] };
+      if (moveFrom) { const from = tab.plots.find((p) => p.id === moveFrom); if (from) from.signals = from.signals.filter((x) => x.sig !== sig); }
+      tab.plots.splice(i + 1, 0, np);
+      const n = tab.plots.length;
+      if (n > tab.rows * tab.cols) {
+        if (side === "right") { tab.cols += 1; tab.rows = Math.max(1, Math.ceil(n / tab.cols)); }
+        else { tab.rows += 1; tab.cols = Math.max(1, Math.ceil(n / tab.rows)); }
+        if (tab.rows * tab.cols > MAX_PLOTS) fitLayout(tab);
+        tab.rowSizes = undefined; tab.colSizes = undefined;     // sizes were for the old grid
+      }
+      tab.active = i + 1;
+      return ws;
+    });
+    if (full) tabFullMessage();
+  },
   /** Several signals into the active plot (or plotId) as ONE undo step (a nested group). */
   addSignals(ids: string[], plotId?: string) {
     useApp.getState().commit((ws) => {

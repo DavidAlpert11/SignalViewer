@@ -244,9 +244,27 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 ## Milestone 3 — 1.3.0: smoother work
 - [ ] T18 Settings dialog (language, theme, map layer, live defaults); language and theme
   leave the TopBar.
-- [ ] T19 Zoom mode by modifier keys (Shift = Y, Ctrl = XY); X/Y/XY moves to a menu.
-- [ ] T20 One layout button (grid picker) instead of seven icons; split a plot by dragging a
+- [x] T19 Zoom mode by modifier keys (Shift = Y, Ctrl = XY); X/Y/XY moves to a menu.
+  Done: TimeChart decides each drag's mode on mousedown (Shift y, Ctrl / Cmd xy, else the zoom
+  mode) and writes it into `u.cursor.drag` (uPlot reads x / y / uni live); `gestRef` feeds
+  `setSelect`. Pan moved from Shift + drag to **Alt + drag** (middle button still pans); wheel:
+  Shift = values, Ctrl = both, Alt = time. StageBar: one zoom button (magnifier + mode) opening a
+  menu with X / Y / XY and the keys. Help lists Shift / Ctrl + drag.
+- [x] T20 One layout button (grid picker) instead of seven icons; split a plot by dragging a
   signal to its edge.
+  Done: one `.layout-btn` (icon + "r × c"); `GridPicker` got the 7 common layouts on top (same
+  aria-labels "Layout r × c"; e2e helper `set_layout`). Edge drop: PlotView `edgeOf` (end band
+  min(48 px, 15 %), bottom band min(40 px, 15 %), RTL-aware) -> `actions.splitPlot` (new plot
+  after it, grid +1 column / row when full, sizes reset; a chip is moved, Ctrl / Alt copies).
+- [x] **F06 Middle click on a tab did not close it on Windows** (owner report): the tab strip
+  scrolls, so a middle press started the browser's autoscroll and no `auxclick` followed. Now
+  mousedown(button 1) prevents autoscroll and mouseup closes. e2e
+  `test_middle_click_closes_tab_and_clear_selection_bar`.
+- [x] **F07 List checkboxes nobody understood** (owner report): every row got a checkbox as soon
+  as one typed in the search box. Now they show only while there is a selection; the search bar
+  (`.pick-bar`, "N results · select all") is the way to select results. The selection bar:
+  "N signals selected", "Plot them" (`actions.addSignals`, one undo step, was one per signal),
+  "Change them…", "New signals from them…", and the Ctrl / Shift hint.
 - [x] T21 Clearer names: Analysis → "Create signals", Compare → "Compare runs" (rail, panel
   titles, command palette; he: "יצירת סיגנלים" / "השוואת ריצות"). e2e selectors updated; the
   panel's button is now found by role, since "text=Create signal" also matched the new title.
