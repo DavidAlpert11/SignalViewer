@@ -1,6 +1,8 @@
 import { DATA_EXTS } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { groupByPrefix, groupDerived, memberLabel } from "../signalGroups";
+import { unitOf } from "../units";
+import { sparkPath, useSpark } from "../sparks";
 import type { RunInfo, SignalInfo } from "../api";
 import { actions, activeTab, fileLabel, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
@@ -246,9 +248,13 @@ export default function DataPanel() {
           if (colorOf.has(s.id)) actions.toggleSignal(s.id); else actions.addSignalLinked(s.id);
         }}
         onContextMenu={(e) => sigMenu(e, s)}
-        title={`${s.formula ?? s.name}\n${t("listSelHint")}`}>
+        title={`${s.formula ?? s.name}${rateLine(s, lang)}\n${t("listSelHint")}`} aria-label={s.name}>
         <span className="dot" style={color ? { background: color } : undefined} />
-        <span className="nm"><Highlight text={row.group ? memberLabel(s.name, row.group) : s.name} q={q} /></span>
+        <span className="nm"><Highlight text={nameOnly(row.group ? memberLabel(s.name, row.group) : s.name)} q={q} /></span>
+        {/* T22: the unit stays visible however long the name; the rate and a small picture of the signal */}
+        {unitOf(s.name) && <span className="sig-unit">{unitOf(s.name)}</span>}
+        {s.rate !== undefined && <span className="sig-rate">{fmtRate(s.rate, lang)}</span>}
+        {!s.labels && <SigSpark id={s.id} version={`${s.n ?? s.samples ?? 0}:${s.transform ? JSON.stringify(s.transform) : ""}`} />}
         {s.transform && <span className="tf-badge" title={`${t("tfChanged")}: ${describeTransform(s.transform)}`}>ƒ</span>}
         {s.labels && <span className="txt-badge" title={t("textSignalHint", { n: Object.keys(s.labels).length, list: Object.values(s.labels).slice(0, 8).join(", ") + (Object.keys(s.labels).length > 8 ? "…" : "") })}>Aa</span>}
       </button>
@@ -346,5 +352,21 @@ export default function DataPanel() {
         </div>
       )}
     </aside>
+  );
+}
+
+/* ----------------------------------------------------------------- T22: unit, rate, picture */
+const nameOnly = (n: string) => { const u = unitOf(n); return u ? n.replace(/\s*[[(][^[\]()]*[\])]\s*$/, "") : n; };
+function fmtRate(hz: number, lang: "en" | "he"): string {
+  if (hz >= 1000) return `${fmtNum(hz / 1000, lang, 2)} kHz`;
+  return `${fmtNum(hz >= 10 ? Math.round(hz) : hz, lang, hz >= 10 ? 4 : 2)} Hz`;
+}
+const rateLine = (s: SignalInfo, lang: "en" | "he") => (s.n ? `\n${fmtInt(s.n, lang)} · ${s.rate ? fmtRate(s.rate, lang) : "-"}` : "");
+function SigSpark({ id, version }: { id: string; version: string }) {
+  const sp = useSpark(id, version);
+  return (
+    <svg className="sig-spark" width="40" height="14" viewBox="0 0 40 14" aria-hidden="true">
+      {sp && <path d={sparkPath(sp, 40, 14)} />}
+    </svg>
   );
 }

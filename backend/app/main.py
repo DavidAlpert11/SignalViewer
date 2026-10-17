@@ -795,6 +795,25 @@ def _windowed(sid: str, windows: Optional[Dict[str, List[float]]]):
     return t[m] - w[0], np.asarray(y)[m]
 
 
+class SparkRequest(BaseModel):
+    signals: List[str]
+    points: int = 40
+
+
+@app.post("/api/sparks")
+def sparks(req: SparkRequest):
+    """T22: small pictures of whole signals for the file list (only the rows on screen ask)."""
+    from app.store import spark
+    out = {}
+    for sid in req.signals[:200]:
+        try:
+            t, y = store.signal(sid)
+            out[sid] = spark(t, y, max(8, min(int(req.points), 120)))
+        except Exception:                 # closed, or not numeric: no picture
+            out[sid] = None
+    return {"sparks": out}
+
+
 @app.post("/api/stats")
 def stats(req: StatsRequest):
     res = {}

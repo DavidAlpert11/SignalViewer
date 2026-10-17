@@ -30,6 +30,10 @@
   tied to the map. Rotate, move and zoom with the mouse; equal scale and "Z down" for NED.
   "Place on map" puts a track in NED / ENU metres on a map or 3D plot from an origin (the GPS's
   first fix, or typed in). Reports draw it in 3D.
+- File list: every signal shows its unit apart from the name (it is no longer cut off at the
+  end of a long name), its sample rate (in a wider panel, and in the tooltip with the number of
+  samples) and a small picture of the whole signal - spikes included. Only the rows on screen
+  fetch pictures; scrolling a file with hundreds of signals stays smooth.
 - Calmer plot toolbar: ONE layout button (it shows the current layout; its popover has the common
   layouts and any rows × columns) instead of seven icons, and the zoom mode in a small menu.
   For one drag, Shift zooms the values and Ctrl a box, whatever the zoom mode (the wheel uses
