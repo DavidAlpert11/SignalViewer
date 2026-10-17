@@ -227,7 +227,8 @@ export default function DataPanel() {
     }
     const s = row.sig;
     const color = colorOf.get(s.id);
-    const picking = q.trim() !== "" || picked.length > 0;
+    // checkboxes only while there is a selection (Ctrl / Shift + click, or "select all shown")
+    const picking = picked.length > 0;
     const button = (
       <button className={`sig${color ? " in" : ""}${row.depth ? " deep" : ""}${picking ? " pickable" : ""}`} draggable
         onDragStart={(e) => { e.dataTransfer.setData(SIGNAL_MIME, s.id); e.dataTransfer.effectAllowed = "copy"; }}
@@ -329,13 +330,19 @@ export default function DataPanel() {
       </div>
       <TemplateStrip />
       {picked.length > 0 && (
-        <div className="pick-actions">
-          <span className="pick-count">{t("nChosen", { n: picked.length })}</span>
-          <button className="btn primary" disabled={!picked.some((id) => !id.startsWith("derived/"))}
-            onClick={() => useApp.setState({ transformTargets: picked.filter((id) => !id.startsWith("derived/")) })} title={t("resultEditHint")}>{t("editSelected")}</button>
-          <button className="btn outline" onClick={() => useApp.setState({ analysisSeed: picked, panel: "analysis" })} title={t("resultNewHint")}>{t("newFromSelected")}</button>
-          <button className="btn outline" onClick={() => picked.forEach((id) => actions.addSignal(id))}>{t("plotSelected")}</button>
-          <button className="iconbtn" onClick={() => useApp.setState({ listSel: [], listAnchor: null })} aria-label={t("clearSelection")} title={t("clearSelection")}><Icon.X /></button>
+        <div className="pick-actions" role="region" aria-label={t("nChosen", { n: picked.length })}>
+          <div className="pick-top">
+            <span className="pick-count">{t("nChosen", { n: picked.length })}</span>
+            <button className="iconbtn" onClick={() => useApp.setState({ listSel: [], listAnchor: null })} aria-label={t("clearSelection")} title={t("clearSelection")}><Icon.X /></button>
+          </div>
+          <div className="pick-btns">
+            {/* what a selection is for: the same thing to several signals at once */}
+            <button className="btn primary" onClick={() => actions.addSignals(picked)} title={t("plotSelectedHint")}>{t("plotSelected")}</button>
+            <button className="btn outline" disabled={!picked.some((id) => !id.startsWith("derived/"))}
+              onClick={() => useApp.setState({ transformTargets: picked.filter((id) => !id.startsWith("derived/")) })} title={t("resultEditHint")}>{t("editSelected")}</button>
+            <button className="btn outline" onClick={() => useApp.setState({ analysisSeed: picked, panel: "analysis" })} title={t("resultNewHint")}>{t("newFromSelected")}</button>
+          </div>
+          <p className="pick-hint">{t("listSelHint")}</p>
         </div>
       )}
     </aside>

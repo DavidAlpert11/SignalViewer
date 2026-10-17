@@ -50,7 +50,10 @@ export default function TopBar() {
               className={`tab${tab.id === ws.activeTab ? " active" : ""}`}
               onClick={() => actions.switchTab(tab.id)}
               onDoubleClick={() => setEditing(tab.id)}
-              onAuxClick={(e) => { if (e.button === 1) actions.closeTab(tab.id); }}
+              // middle click closes the tab. On mousedown/up, not auxclick: on Windows (Edge / WebView2) a
+              // middle press over the scrollable tab strip starts autoscroll and no auxclick follows
+              onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
+              onMouseUp={(e) => { if (e.button === 1) { e.preventDefault(); actions.closeTab(tab.id); } }}
               onKeyDown={(e) => { if (e.key === "Enter") actions.switchTab(tab.id); if (e.key === "F2") setEditing(tab.id); }}>
               {editing === tab.id ? (
                 <input autoFocus defaultValue={tab.name} placeholder={name} onClick={(e) => e.stopPropagation()}
