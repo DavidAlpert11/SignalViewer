@@ -236,7 +236,7 @@ Progress board (tick here AND in ROADMAP):
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☑ done |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☑ done |
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☑ done (T36b: shrink baseline) |
-| Q17 | F02 The whole e2e suite in one process | M | ◐ not reproduced; 1 isolation failure to fix |
+| Q17 | F02 The whole e2e suite in one process | M | ◐ not reproduced; the 1 failure was F09 (fixed) |
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured; moved to the end (owner: not felt by users) |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☐ |
@@ -450,3 +450,6 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   (single file detached x2, whole suite in one process detached: 151 passed, 1 isolation failure
   in the new T38 e2e test) · Q7 read (Workspace, play loop in App.tsx, lazy components), not
   started · next: fix test_error_details in the full run, close F02, then Q7.
+- 2026-10-18 · The T38 e2e failure in the whole-suite run was NOT isolation: F09 - run.py served
+  the old committed UI (git restored frontend/dist with fresh file times). Fixed (git decides),
+  regression test, e2e passes with the old dist in place.
