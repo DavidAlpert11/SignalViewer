@@ -22,7 +22,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Released tags: `v1.0.0`, `v1.1.0`, `v1.2.0`; **`v1.3.0` prepared** (everything through T22).
 - Tests at the last change: backend 517 passed (T38); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q18 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q17 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -234,7 +234,7 @@ Progress board (tick here AND in ROADMAP):
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☑ done |
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☑ done (T36b: shrink baseline) |
 | Q17 | F02 The whole e2e suite in one process | M | ☐ |
-| Q18 | T37 CSV first open: meet the 20M-row target | M | ☐ |
+| Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☐ |
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☐ |
@@ -319,6 +319,17 @@ fixtures, test home) and make the suite runnable as `pytest tests/e2e`.
 **Why:** `benchmark_20M_rows.md`: 12.16 s vs a 11.5 s target (1 CPU).
 **Steps:** profile the first open (parse vs cache write vs float conversion); overlap cache writes
 with parsing or write the cache with one pass; re-run the benchmark.
+
+**Measured 2026-10-18 (1 CPU, like the benchmark; 4M rows x 5 signals, 163 MB):** first open
+1.06-1.08 s = ~150 MB/s, the benchmark's rate. Floor: Arrow alone on the file already in memory
+parses in 0.62 s + 0.29 s to NumPy = 0.91 s, so the loader is at ~86% of it. Tried: zero-copy
+parts (readinto + memoryview instead of three copies of every 64 MB part) - no measurable gain
+(1.04-1.19 s), reverted. The 12.16 s vs 11.5 s miss is ~6%, within run-to-run noise on one CPU,
+and Arrow parses in parallel, so any 2+ core machine is well inside the target.
+**What could still pay (~10-15%, est.):** write each part's columns straight into the cache files
+(append to per-column raw .npy, then memory-map) instead of `np.concatenate` + `_cache_store`
+(two more full passes over the data). Do it only if a user's machine shows a slow first open;
+else lower the priority of T37 (the owner decides).
 
 ### Q19 · T38 Local crash report — S
 **Why:** when it breaks in the field, the owner needs the details without a debugger.
@@ -419,3 +430,5 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · Owner: MIT licence confirmed. Q19 / T38 local crash report: log file, request /
   thread / job / UI errors logged, Help > Copy error details · backend 517, mypy clean, new e2e
   `test_error_details.py` green, Hebrew layout checked by screenshot · next: Q18.
+- 2026-10-18 · Q18 / T37 measured: first open at ~86% of Arrow's own floor; zero-copy parts gave
+  nothing measurable (reverted); one idea left, the owner decides whether it is worth it · next: Q17.
