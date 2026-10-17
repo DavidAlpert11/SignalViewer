@@ -1,7 +1,8 @@
 # Builds a portable package (.7z) for Windows, Linux and macOS and runs the tests.
 #
-#   Run manually:  Actions -> build -> Run workflow   (the files are in the run's Artifacts)
-#   Release:       push a tag such as v1.0.0          (also makes a draft Release with the three files)
+#   Run manually:  Actions -> build -> Run workflow   (the files are in the run's Artifacts; the
+#                  version in their names: the one typed there, else the one in build.bat)
+#   Release:       push a tag such as v1.3.0          (also makes a draft Release with the three files)
 #
 #   Windows: the official embeddable Python + the libraries + the app (tools/make_windows_portable.py)
 #   Linux / macOS: a PyInstaller folder (SignalViewer.spec) - nothing to install, no Python needed
@@ -12,8 +13,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version in the file names"
-        default: "1.0.0"
+        description: "Version in the file names (empty: the one in build.bat)"
+        default: ""
 
 permissions:
   contents: write          # only the release job uses it (to create the draft release)
@@ -41,7 +42,10 @@ jobs:
       - name: Package name
         run: |
           V="${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}"
-          V="${V#v}"; [ -n "$V" ] || V=dev
+          V="${V#v}"
+          # not given: the version a release writes into build.bat (one place to change it)
+          [ -n "$V" ] || V="$(sed -n 's/^set VERSION=\([0-9.]*\).*/\1/p' build.bat | head -1)"
+          [ -n "$V" ] || V=dev
           echo "PKG=SignalViewer-$V-${{ matrix.name }}-portable" >> "$GITHUB_ENV"
 
       - name: Build UI
