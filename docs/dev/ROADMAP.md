@@ -318,7 +318,10 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 
 ## Milestone 4 — 1.4.0: trust, robustness, reach
 Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
-- [ ] T32 Licence file (MIT) + README section. Spec: TASKS.md Q12.
+- [x] T32 Licence file (MIT) + README section. Spec: TASKS.md Q12.
+  Done: `LICENSE` (MIT, David Alpert); README badge + "License" section with the bundled parts'
+  licences (uPlot, OFL fonts, Cesium, map data); installer licence page (`LicenseFile`);
+  `LICENSE` in the PyInstaller build and the portable zip.
 - [ ] T33 Loaders survive damaged files (fuzz tests). Spec: TASKS.md Q13.
 - [ ] T34 Review the broad `except Exception` handlers. Spec: TASKS.md Q14.
 - [ ] T35 Split `backend/app/main.py` into routers. Spec: TASKS.md Q15.

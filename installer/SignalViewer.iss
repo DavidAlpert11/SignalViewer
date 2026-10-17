@@ -21,6 +21,8 @@ PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\dist
 OutputBaseFilename=SignalViewer-Setup-{#AppVersion}
 SetupIconFile=..\assets\icon.ico
+; the licence page of the installer (T32)
+LicenseFile=..\LICENSE
 UninstallDisplayIcon={app}\SignalViewer.exe
 Compression=lzma2/ultra64
 SolidCompression=yes
