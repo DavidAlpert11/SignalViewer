@@ -18,6 +18,9 @@
 - Help > **Copy error details**: the version, the system and the end of the app's own log, to paste
   into a bug report. Errors are now kept in `~/.signalviewer/logs` (nothing is sent anywhere), and
   an unexpected server error shows a readable message instead of "Internal Server Error".
+- Running from the source folder: after `git checkout`, `pull` or `clone`, `run.py` could show an
+  OLD build of the interface (it judged by file times, which git resets); it now asks git whether
+  the interface changed since its last build, and builds it when needed.
 - A damaged settings file (after a crash) or a template file that holds no templates is now
   handled with a clear message instead of an error.
 
