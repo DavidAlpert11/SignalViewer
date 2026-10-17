@@ -24,6 +24,7 @@ SV_CACHE_DIR=<path>    cache location (default: ~/.signalviewer_cache)
 SV_CACHE_MIN_MB=<n>    only cache files larger than n MB (default 50)
 """
 
+import logging
 import hashlib
 import csv
 import io
@@ -52,6 +53,8 @@ except Exception:  # pragma: no cover - depends on environment
 # =============================================================================
 
 import threading as _threading
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 _ctx = _threading.local()
 
@@ -148,7 +151,7 @@ def detect_delimiter(filepath: str, num_lines: int = 10, skip_rows: int = 0) -> 
         if all(" " in l.strip() for l in lines):
             return r"\s+"
         return ","
-    except Exception:
+    except (OSError, UnicodeError, ValueError):     # unreadable head: the usual delimiter
         return ","
 
 
@@ -746,8 +749,8 @@ def _parse_appended(raw: bytes, text: str, run: Run) -> Dict[str, np.ndarray]:
                 convert_options=pa_csv.ConvertOptions(column_types={c: (pa.string() if c in texts else pa.float64()) for c in cols},
                                                       strings_can_be_null=True))
             return encoded({c: table.column(i).to_numpy(zero_copy_only=False) for i, c in enumerate(cols)})
-        except Exception:
-            pass
+        except Exception:               # Arrow refused these rows: pandas below reads them
+            log.debug("live: Arrow could not parse the appended rows; using pandas", exc_info=True)
     engine = "python" if run.delimiter == r"\s+" else "c"
     df = pd.read_csv(io.StringIO(text), sep=run.delimiter, header=None, names=cols,
                      on_bad_lines="skip", engine=engine, index_col=False, dtype={c: str for c in texts})

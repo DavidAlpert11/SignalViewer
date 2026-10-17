@@ -8,6 +8,7 @@ the report is drawn by the same builders (app/report.py) - so a batch report sho
 the template on that file in the app and making a report would show.
 """
 
+import logging
 import contextlib
 import json
 import os
@@ -16,6 +17,8 @@ import sys
 from typing import Dict, List, Optional
 
 from svcore import templates as tplm
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 FORMATS = {"html": ".html", "pdf": ".pdf", "docx": ".docx"}
 
@@ -31,7 +34,7 @@ def all_templates() -> List[dict]:
     try:
         mine = prefs.list_templates()
     except Exception:                      # an unreadable folder: the built-in ones still work
-        pass
+        log.warning("the templates folder could not be read", exc_info=True)
     return tplm.builtin_templates() + mine
 
 

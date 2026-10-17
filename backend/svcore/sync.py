@@ -14,10 +14,13 @@ Each candidate: {method, delta, offset, quality: high|medium|low, ...}. `delta` 
 file's time onto the reference's; `offset` is the other file's new time offset (its current one +
 delta, and the reference's own offset), ready to apply.
 """
+import logging
 import re
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+
+log = logging.getLogger("signalviewer").getChild(__name__)
 
 _NAME = re.compile(r"^([^.\[]+)(\[\d+\])?\.([^ ]+)(?: \[.*\])?$")
 
@@ -341,7 +344,8 @@ def suggest(ref, other, ref_sig=None, other_sig=None, feature=None, max_lag=None
         for f in (by_boot, by_events, by_signal):
             try:
                 r = f(ref, other)
-            except Exception:
+            except Exception:           # one method failing must not hide the others' answers
+                log.warning("alignment by %s failed", f.__name__, exc_info=True)
                 r = None
             if r:
                 cands.append(r)
