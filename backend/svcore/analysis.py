@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from svcore.decimate import minmax_decimate, stride_decimate
-from svcore.ops import apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average, nearest_indices
+from svcore.ops import FilterError, apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average, nearest_indices
 
 UNARY = {"derivative", "integral", "abs", "negate", "normalize", "smooth", "rms", "lowpass", "highpass", "affine"}
 FORMULA = {"expr"}
@@ -121,7 +121,10 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
             cutoff = float(params.get("cutoff") or 0)
             if cutoff <= 0:
                 raise OpError("Enter a cut-off frequency above 0 Hz.")
-            r = apply_filter(t, y, op, cutoff)
+            try:
+                r = apply_filter(t, y, op, cutoff)
+            except FilterError as e:
+                raise OpError(str(e)) from None
         return t, _f64(r)
 
     if op == "frame":

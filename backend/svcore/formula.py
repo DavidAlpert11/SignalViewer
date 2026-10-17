@@ -18,7 +18,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from svcore.ops import apply_filter, cumulative_trapezoid, moving_average
+from svcore.ops import FilterError, apply_filter, cumulative_trapezoid, moving_average
 
 
 class FormulaError(ValueError):
@@ -47,11 +47,17 @@ def _funcs(t: np.ndarray):
         lo, hi = np.nanmin(x), np.nanmax(x)
         return (x - lo) / (hi - lo) if hi > lo else np.zeros_like(x)
 
+    def _filter(x, fc, kind):
+        try:
+            return apply_filter(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), kind, float(fc))
+        except FilterError as e:
+            raise FormulaError(f"{kind}(): {e}") from None
+
     def lowpass(x, fc):
-        return apply_filter(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape).copy(), "lowpass", float(fc))
+        return _filter(x, fc, "lowpass")
 
     def highpass(x, fc):
-        return apply_filter(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape).copy(), "highpass", float(fc))
+        return _filter(x, fc, "highpass")
 
     def smooth(x, n=10):
         return moving_average(np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), int(n))
