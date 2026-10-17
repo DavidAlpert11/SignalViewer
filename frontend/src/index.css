@@ -1056,3 +1056,12 @@ input.fx-input { width: 100%; }
 .pick-top { display: flex; align-items: center; gap: 6px; }
 .pick-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .pick-hint { margin: 0; font-size: 0.8077rem; color: var(--muted); }
+/* T22: per signal in the file list - its unit (never cut off), its rate, a small picture */
+.side { container-type: inline-size; }
+.sig .sig-unit { flex: none; color: var(--muted); font-size: 0.8077rem; direction: ltr; max-width: 64px; overflow: hidden; text-overflow: ellipsis; }
+.sig .sig-rate { flex: none; color: var(--faint); font-size: 0.7692rem; font-variant-numeric: tabular-nums; direction: ltr; }
+.sig .sig-spark { flex: none; color: var(--muted); opacity: 0.75; }
+.sig .sig-spark path { fill: currentColor; stroke: currentColor; stroke-width: 0.6; }
+.sig.in .sig-spark { opacity: 1; }
+@container (max-width: 300px) { .sig .sig-rate { display: none; } }
+@container (max-width: 230px) { .sig .sig-spark { display: none; } }
