@@ -47,6 +47,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   `for f in tests/e2e/test_*.py; do python -m pytest -q "$f"; done`. A custom Chromium can be
   given with `SV_CHROMIUM=/path/to/chrome`. The full set takes several minutes; when time is
   short run the files / `-k` filters that touch what you changed, and say so in the log.
+- CI (`.github/workflows/build.yml`) runs the backend tests on Linux, macOS and Windows: compare
+  computed floats with a tolerance (`abs(x) < 1e-6`, `pytest.approx`, `np.allclose`), never `==` -
+  the platforms' math libraries round differently (T17b's test failed on macOS / Windows at 1e-13).
+  Waits in tests: wait for the END state (all the data in), not for "something changed", and allow
+  for slow runners (seconds, not tenths).
 - Tests reach the app state through `window.__sv.state()` / `window.__sv.setState(...)`
   (`frontend/src/main.tsx`).
 - `frontend/dist` is committed. Patches between developers may leave it out (run.py rebuilds);
@@ -241,3 +246,10 @@ splitting `main.py` and `store.ts`.
   (06_3d_terrain and the 02 clip kept from 1.0: see Releasing), dist rebuilt · next: Q7 after the tag.
 - 2026-10-17 · v1.3.0 tagged and pushed by the owner (`442bc08`, main and tag). Workflow: a manual
   run without a version now names the files after build.bat's version (was a fixed 1.0.0).
+
+- 2026-10-17 · The v1.3.0 build failed on macOS and Windows: `test_frame_longitude_across_antimeridian`
+  compared a computed east of the origin with `== 0` (got 1.9e-13 there). Now a 1 µm tolerance; no
+  other computed value is compared exactly. Also on macOS: `test_mavlink_records_and_live_mode_follows`
+  stopped waiting at the first poll that saw ANY new data (part of the 30 messages) - now it polls
+  until all are in, with longer waits for slow CI machines. The tag is to be made again on the
+  fixed commit.
