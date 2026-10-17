@@ -332,7 +332,7 @@ def render_tile(style: str, z: int, x: int, y: int) -> Optional[bytes]:
     if z >= 10:
         lines(_visible("osm_runways", b, pad), (90, 90, 95) if not dark else (150, 150, 155), k * (2 + (z - 10) * 2.2))
 
-    img = img.resize((256, 256), Image.LANCZOS)
+    img = img.resize((256, 256), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, "JPEG", quality=88, optimize=True)
     return buf.getvalue()

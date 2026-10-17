@@ -60,7 +60,7 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
     """Resolve a plot spec from the UI into display data + full-resolution statistics."""
     mode = spec.get("mode") or "time"
     rng = spec.get("range")
-    out = {"title": spec.get("title") or "", "caption": spec.get("caption") or "", "mode": mode,
+    out: dict = {"title": spec.get("title") or "", "caption": spec.get("caption") or "", "mode": mode,
            "range": rng, "log": bool(spec.get("fftLog", True)), "signals": [], "notes": spec.get("notes") or []}
     if mode == "spec":
         return _spec_data(store, spec, out)
@@ -407,7 +407,7 @@ def build_html(store, req: Dict, progress=None) -> str:
     nav = "" if len(tabs) < 2 else "<nav>" + "".join(nav_items) + "</nav>"
     panes = []
     for ti, t in enumerate(tabs):
-        items = []
+        items: list = []
         for pi, p in enumerate(t["plots"]):
             heading = html.escape(p["title"] or "%s %d" % (S["plot"], pi + 1))
             caption = '<p class="caption">%s</p>' % html.escape(p["caption"]) if p["caption"] else ""

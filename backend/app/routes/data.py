@@ -36,7 +36,7 @@ class DataRequest(BaseModel):
 @router.post("/api/data")
 def get_data(req: DataRequest):
     """Display points for each signal: min/max decimated inside [x0, x1], coarse outside."""
-    out = []
+    out: list = []
     points = int(max(200, min(req.points, 20000)))
     for sid in req.signals:
         try:
@@ -120,7 +120,7 @@ def _stretches(sig_id: str, st, sy, offset: float = 0.0):
     lr = store.runs.get(sig_id.partition("/")[0])
     if lr is not None and end is not None:
         end = max(end, float(lr.run.end_time) + float(lr.run.time_offset or 0) + offset)
-    out = []
+    out: list = []
     for i, (a, v) in enumerate(pts):
         b = pts[i + 1][0] if i + 1 < len(pts) else end
         if v is not None and b is not None:
@@ -149,7 +149,7 @@ class LimitsRequest(BaseModel):
 @router.post("/api/limits")
 def limits(req: LimitsRequest):
     """T13: pass / fail of each signal against its limits, on the values as plotted."""
-    out = {}
+    out: dict = {}
     for it in req.items:
         try:
             t, y = store.signal(it.id)
@@ -235,7 +235,7 @@ class SegmentAcrossRequest(BaseModel):
 def segment_windows(runs: List[str], state: str, value: float, occurrence: int) -> List[dict]:
     """T10b: the same segment (e.g. the 2nd AUTO) in every run: [{run, t0, t1} or {run, missing}].
     Uses the stretches of the run's own state signal, in that run's time (offset included)."""
-    out = []
+    out: list = []
     for rid in runs:
         sid = f"{rid}/{state}"
         try:
@@ -287,7 +287,7 @@ class SparkRequest(BaseModel):
 def sparks(req: SparkRequest):
     """T22: small pictures of whole signals for the file list (only the rows on screen ask)."""
     from app.store import spark
-    out = {}
+    out: dict = {}
     for sid in req.signals[:200]:
         try:
             t, y = store.signal(sid)
@@ -300,7 +300,7 @@ def sparks(req: SparkRequest):
 
 @router.post("/api/stats")
 def stats(req: StatsRequest):
-    res = {}
+    res: dict = {}
     where = None
     seg_total, seg_count = 0.0, 0
     if req.state and req.stateValues:

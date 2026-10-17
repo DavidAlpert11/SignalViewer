@@ -35,7 +35,7 @@ def normalize_transform(spec: Optional[dict]) -> Optional[dict]:
     """Keep only meaningful parts; an all-default transform is no transform."""
     if not spec:
         return None
-    out = {}
+    out: dict = {}
     expr = str(spec.get("expr") or "").strip()
     if expr and expr != "x":
         out["expr"] = expr
@@ -400,7 +400,7 @@ class Store:
     def reload_all(self, progress=None, cancelled=None) -> Dict[str, list]:
         """Read every open file again (refresh all). Files dragged in as copies are skipped (they
         cannot follow the original). Returns {"reloaded": [...], "unchanged": [...], "errors": [...]}."""
-        out = {"reloaded": [], "unchanged": [], "errors": [], "skipped": []}
+        out: Dict[str, list] = {"reloaded": [], "unchanged": [], "errors": [], "skipped": []}
         ids = [rid for rid in self.order if rid in self.runs]
         for i, rid in enumerate(ids):
             if cancelled and cancelled():
@@ -435,7 +435,7 @@ class Store:
             if p.startswith(UPLOAD_DIR + os.sep):
                 continue
             folders.setdefault(os.path.dirname(os.path.abspath(p)), set()).add(name_pattern(os.path.basename(p)))
-        found = []
+        found: list = []
         for folder, pats in folders.items():
             try:
                 with os.scandir(folder) as it:

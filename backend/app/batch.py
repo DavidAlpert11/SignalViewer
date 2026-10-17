@@ -14,7 +14,7 @@ import json
 import os
 import re
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from svcore import templates as tplm
 
@@ -111,7 +111,8 @@ def batch_reports(template_ref: str, files: List[str], out_dir: str, fmt: str = 
                          "choose a template with its own tabs.")
     os.makedirs(out_dir, exist_ok=True)
     tname = t["name"][1:] if str(t.get("name", "")).startswith("@") else t.get("name", "")
-    results, taken = [], set()
+    results: List[dict] = []
+    taken: Set[str] = set()
     for path in files:
         store = Store()                                       # one file at a time: a fresh, empty store
         res: Dict = {"file": path}

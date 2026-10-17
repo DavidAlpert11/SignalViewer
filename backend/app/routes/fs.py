@@ -3,7 +3,7 @@
 import os
 import re
 import string
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -30,7 +30,7 @@ def _windows_drives() -> List[str]:
     drive cannot stall the listing (probing A:-Z: with os.path.exists could hang for seconds)."""
     try:
         import ctypes
-        mask = ctypes.windll.kernel32.GetLogicalDrives()
+        mask = ctypes.windll.kernel32.GetLogicalDrives()  # type: ignore[attr-defined]  # Windows only  # type: ignore[attr-defined]  # Windows only  # type: ignore[attr-defined]  # Windows only
         return [f"{d}:\\" for i, d in enumerate(string.ascii_uppercase) if mask >> i & 1]
     except (AttributeError, OSError):   # not Windows / no kernel32: probe the letters instead
         return [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
@@ -64,7 +64,7 @@ EXAMPLE_SETS = [
 
 @router.get("/api/examples")
 def list_examples():
-    out = []
+    out: list = []
     for ex in EXAMPLE_SETS:
         paths = [os.path.abspath(os.path.join(EXAMPLES, f)) for f in ex["files"]]
         paths = [p for p in paths if os.path.isfile(p)]
@@ -129,14 +129,14 @@ def complete_path(req: CompleteRequest):
     what was typed after the last separator (case-insensitive). `common` is the longest
     completion all matches share - what Tab fills in."""
     text = os.path.expanduser(req.text or "")
-    empty = {"dir": None, "items": [], "common": req.text or ""}
+    empty: Dict[str, Any] = {"dir": None, "items": [], "common": req.text or ""}
     if not text.strip():
         return empty
     # "c:" (or a lone "c" with no folder to complete in) -> drives; with a folder shown,
     # "c" is the start of a name in that folder
     if os.name == "nt" and (re.fullmatch(r"[A-Za-z]:", text) or (re.fullmatch(r"[A-Za-z]", text) and not req.base)):
         drives = [d for d in _windows_drives() if d.lower().startswith(text.lower())]
-        items = [{"name": d, "path": d, "dir": True} for d in drives]
+        items: list = [{"name": d, "path": d, "dir": True} for d in drives]
         return {"dir": "", "items": items, "common": drives[0] if len(drives) == 1 else text}
     if not os.path.isabs(text) and req.base:
         text = os.path.join(req.base, text)

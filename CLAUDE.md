@@ -39,6 +39,8 @@ when you stop in the middle of a task.
 
 ## After every change
 - `cd backend && python -m pytest -q` — all green.
+- `cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer` — clean (T36; the
+  baseline list in pyproject.toml may only shrink).
 - `cd frontend && npx tsc -b && npm run build` — no errors (the build updates `frontend/dist`).
 - Add or update a test for any backend behaviour you change; e2e (`tests/e2e`, Playwright)
   for UI flows when possible.

@@ -9,7 +9,7 @@ Log panel: logged messages with their level, navigation-mode changes, arm / disa
 """
 import logging
 import os
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 
@@ -87,7 +87,7 @@ def load_ulog(path: str, display_name: str):
     info = u.msg_info_dict
     ver = info.get("ver_sw_release") or info.get("ver_sw", "")
     fl.firmware = "PX4 " + (_release(ver) if isinstance(ver, int) else str(ver)[:10]) + (f" · {info['ver_hw']}" if info.get("ver_hw") else "")
-    defaults = {}
+    defaults: Dict[str, Any] = {}
     try:
         if u.has_default_parameters:
             defaults = u.get_default_parameters(1) or u.get_default_parameters(0) or {}

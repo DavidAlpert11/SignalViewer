@@ -388,9 +388,10 @@ class DataFlash:
             f = self.formats[t]
             if f.name in _SKIP_TYPES or not len(arr):
                 continue
-            tcol, tscale = next(((c, s) for c, s in _TIME_FIELDS if c in f.columns), (None, None))
-            if tcol is None:
+            hit = next(((c, s) for c, s in _TIME_FIELDS if c in f.columns), None)
+            if hit is None:
                 continue
+            tcol, tscale = hit
             ti = f.columns.index(tcol)
             time = arr[f"f{ti}"].astype(np.float64) * tscale
             inst = f.instance
@@ -505,7 +506,7 @@ def load_bin(path: str, display_name: str) -> Tuple[Optional[Run], Dict]:
     return run, report
 
 
-def _make_run(path: str, display_name: str, sigs: Dict[str, Tuple[np.ndarray, np.ndarray]]) -> Run:
+def _make_run(path: str, display_name: str, sigs: Dict[str, tuple]) -> Run:   # (t, y) or (t, y, labels)
     # the Run's own time vector: the longest stream (used only for metadata defaults)
     longest = max(sigs.values(), key=lambda v: len(v[0]))[0]
     run = Run(file_path=path, csv_display_name=display_name, time=longest)

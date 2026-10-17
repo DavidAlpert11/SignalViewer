@@ -55,8 +55,9 @@ def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_p
 PROFILE_BINS = 32
 
 
-def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS) -> List[float]:
-    """RMS of (other - base) in `bins` equal time slices, as % of the baseline's range."""
+def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS) -> List[Optional[float]]:
+    """RMS of (other - base) in `bins` equal time slices, as % of the baseline's range
+    (None for a slice with no valid sample: drawn as a gap)."""
     d = other - base
     ok = np.isfinite(d)
     span = float(np.nanmax(base) - np.nanmin(base)) if np.isfinite(base).any() else 0.0

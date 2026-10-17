@@ -24,7 +24,14 @@ def _path(name: str) -> str:
 def _read(name: str, default):
     try:
         with open(_path(name), "r", encoding="utf-8") as f:
-            return json.load(f)
+            value = json.load(f)
+        if isinstance(default, (dict, list)) and not isinstance(value, type(default)):
+            # valid JSON of the wrong shape (e.g. "null" after a crash): callers index it as the
+            # default's type, so it must not get through (T36)
+            log.warning("settings file %s holds a %s, not a %s; using defaults", _path(name),
+                        type(value).__name__, type(default).__name__)
+            return default
+        return value
     except FileNotFoundError:
         return default
     except (OSError, ValueError):       # damaged settings must not stop the app: defaults, and say so
@@ -243,6 +250,8 @@ def import_templates(path: str) -> List[Dict[str, Any]]:
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     items = data if isinstance(data, list) else data.get("templates") if isinstance(data, dict) and "templates" in data else [data]
+    if not isinstance(items, list) or not items or not all(isinstance(t, dict) for t in items):
+        raise ValueError("This file does not hold Signal Viewer templates.")
     return [save_template({**t, "id": None}, replace=False) for t in items]
 
 
