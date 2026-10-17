@@ -232,7 +232,7 @@ def resolve(t: dict, all_: List[dict], bind: Dict[str, str], runs: List[dict], c
             missing[name.split("|")[0]] = None
         return out
 
-    res = {"tabs": [], "dropped": [], "missing": []}
+    res: Dict[str, list] = {"tabs": [], "dropped": [], "missing": []}
     for tt in tabs:
         plots = []
         for tp in tt.get("plots", []):

@@ -125,7 +125,7 @@ def locate_file(name: str, size: int, mtime: float, deadline: float) -> Optional
 async def locate_files(req: LocateRequest):
     """Drag & drop: find each dropped file's ORIGINAL on disk, so it is opened from there
     (refresh and live mode then follow edits). Unfound files are uploaded as a copy instead."""
-    out = []
+    out: list = []
     for f in req.files:
         deadline = time.time() + LOCATE_SECONDS
         out.append(await asyncio.to_thread(locate_file, os.path.basename(f.name), f.size, f.mtime, deadline))

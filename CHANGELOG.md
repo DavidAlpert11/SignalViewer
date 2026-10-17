@@ -15,6 +15,8 @@
   sample rate, a time that does not increase) the raw signal was shown under the filter's name.
   Now the reason is shown instead. Filtered signals in saved sessions open as before but with the
   correct (slightly different) values.
+- A damaged settings file (after a crash) or a template file that holds no templates is now
+  handled with a clear message instead of an error.
 
 ## 1.3.0 – 2026-10-17
 

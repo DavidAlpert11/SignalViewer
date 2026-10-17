@@ -17,7 +17,7 @@ import os
 import struct
 import threading
 import time
-from typing import Optional
+from typing import List, Optional
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 
@@ -65,7 +65,7 @@ class Receiver:
         self.error: Optional[str] = None
         self.started = time.time()
         self._stop = threading.Event()
-        self._rate = []                                         # receive times of the last ~2 s, for msg/s
+        self._rate: List[float] = []                                         # receive times of the last ~2 s, for msg/s
         self._lock = threading.Lock()
         self._conn = _connect(conn, baud)                       # fails here, before the thread: the API reports it
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)

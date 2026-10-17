@@ -26,4 +26,4 @@ def ping():
 
 def idle_too_long(seconds: float) -> bool:
     last = WATCHDOG["last"]
-    return WATCHDOG["enabled"] and last is not None and time.time() - last > seconds
+    return bool(WATCHDOG["enabled"] and last is not None and time.time() - last > seconds)

@@ -17,7 +17,7 @@ CACHE = os.path.join(APP_DIR, "tiles")
 UA = "SignalViewer/1 (desktop flight-data viewer; tiles cached locally)"
 
 _ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/{svc}/MapServer/tile/{{z}}/{{y}}/{{x}}"
-SOURCES = {
+SOURCES: dict = {
     "osm": {"url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "max": 19, "ext": "png"},
     "esri": {"url": _ESRI.format(svc="World_Street_Map"), "max": 19, "ext": "jpg"},
     # Esri's grey canvases: the map and its labels are two layers (the labels are drawn on top)

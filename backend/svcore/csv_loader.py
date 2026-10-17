@@ -147,7 +147,7 @@ def detect_delimiter(filepath: str, num_lines: int = 10, skip_rows: int = 0) -> 
                 # consistent counts across lines are a strong signal
                 scores[delim] = min(counts) + (1000 if len(set(counts)) == 1 else 0)
         if scores:
-            return max(scores, key=scores.get)
+            return max(scores, key=lambda d: scores[d])
         if all(" " in l.strip() for l in lines):
             return r"\s+"
         return ","
@@ -158,7 +158,7 @@ def detect_delimiter(filepath: str, num_lines: int = 10, skip_rows: int = 0) -> 
 def _unique_names(names: List[str]) -> List[str]:
     """Make column names unique and non-empty."""
     seen: Dict[str, int] = {}
-    out = []
+    out: list = []
     for i, n in enumerate(names):
         n = "" if n is None or (isinstance(n, float) and np.isnan(n)) else str(n).strip()
         n = n or f"Col{i}"
@@ -544,7 +544,7 @@ def load_csv(
             time_array = np.asarray(arrays.pop("Time"), dtype=np.float64)
             # columns where no value is a number: text (states such as "IDLE" / "ARMED")
             text_cols = [n for n, a in arrays.items() if a.size and np.isnan(a).all()]
-            text_labels: Dict[str, Dict[int, str]] = {}
+            text_labels = {}
             text_skipped: List[str] = []
             if text_cols:
                 try:
@@ -564,7 +564,7 @@ def load_csv(
                     print(f"[LOAD] Text columns not read ({e})", flush=True)
             valid = np.isfinite(time_array)
             need_filter = not valid.all()
-            load_report = {"droppedRows": int((~valid).sum()), "sorted": False, "skippedColumns": [],
+            load_report: dict = {"droppedRows": int((~valid).sum()), "sorted": False, "skippedColumns": [],
                            "textColumns": sorted(text_labels)}
             if text_skipped:
                 load_report["tooManyTexts"] = text_skipped

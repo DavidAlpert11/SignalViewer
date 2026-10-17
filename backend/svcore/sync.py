@@ -126,16 +126,16 @@ def by_events(ref, other) -> Optional[dict]:
                 names.append(k)
     if len(diffs) < 2:
         return None
-    diffs = np.asarray(diffs)
+    darr = np.asarray(diffs)
     # the densest 1-second window of differences
-    srt = np.sort(diffs)
+    srt = np.sort(darr)
     j = np.searchsorted(srt, srt + 1.0, side="right") - np.arange(len(srt))
     i = int(np.argmax(j))
     win = srt[i:i + j[i]]
     if len(win) < 2:
         return None
     delta = float(np.median(win))
-    used = sorted({names[k] for k in np.flatnonzero(np.abs(diffs - delta) <= 0.5)})
+    used = sorted({names[k] for k in np.flatnonzero(np.abs(darr - delta) <= 0.5)})
     quality = "high" if len(win) >= 4 else "medium"
     return {"method": "events", "delta": delta, "matched": int(len(win)), "spread": float(win.max() - win.min()),
             "examples": [u.split(":", 1)[1] for u in used[:4]], "quality": quality}
