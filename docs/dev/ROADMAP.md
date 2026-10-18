@@ -466,7 +466,12 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   number by date, the limit dashed, points over it red, click -> open. `files.ts` `followJob`
   (runJob's loop for jobs other endpoints start). e2e `test_fleet.py`. Hebrew checked by
   screenshot (fixed: the intro's extension list in RTL, "1 flight" wording).
-- [ ] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.
+- [x] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.
+  Done: `store.ts` -> `frontend/src/store/` (model, types, slices/{workspace,data,view,live,ui},
+  state, selectors, inspector, actions/{plots,layout,view,notes}); `store.ts` re-exports it (no importer
+  changed). Mechanical: cut by line ranges with a script; every action line identical, all old exports
+  kept; comment fixes only (geoBase / compareTable carried other fields' comments). CLAUDE.md points
+  to the new layout. tsc, build, whole e2e suite (158) green. Found on the way: F12.
 - [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
 
 ## Milestone 5 — 1.6.0: examples, cleaner code, usability

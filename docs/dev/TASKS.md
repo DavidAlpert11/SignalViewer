@@ -267,7 +267,7 @@ Progress board (tick here AND in ROADMAP):
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☑ done |
 | Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ◐ Parquet done; CAN / MF4 POSTPONED by the owner |
 | Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ☑ done |
-| Q23 | T42 Split `frontend/src/store.ts` into slices | M | ☐ |
+| Q23 | T42 Split `frontend/src/store.ts` into slices | M | ☑ done |
 | Q24 | T43 Release & reach: signed installers, docs site, public benchmark vs other tools, forum posts | M | ☐ |
 
 ### Q12 · T32 Licence — S
@@ -415,6 +415,16 @@ open a log at a finding (open the file, cursor at the finding's time); e2e test.
 ### Q23 · T42 Split store.ts — M
 Slices per area (workspace, plots, live, compare, UI); `commit` (undo/redo) stays the one way to
 change the workspace.
+**Status:** done 2026-10-18 (see ROADMAP T42). `store.ts` (1,114 lines) is now an entry point of
+25 lines that re-exports `frontend/src/store/`; no importer changed (61 files). Slices: workspace
+(ws, past, future, commit / undo / redo), data, view, live, ui - one interface + initial values
+each, `AppState` = their intersection. Actions by area: plots (31), layout (14), view (16), notes (3),
+merged into the same `actions` object. Done by a script that cut by line ranges; checked: every
+action line identical to before (5 internal calls now name their area object), all 42 old exports
+still exported, tsc + build clean, whole e2e suite.
+**Direct writes of `ws` outside `commit` (kept on purpose):** `setActivePlot`, `switchTab`
+(selection is not an undo step), `setSizes` (live resizing), `files.ts` session load (a new
+history). The fifth, `transforms.ts` "delete all derived" Undo, was a bug - F12.
 
 ### Q24 · T43 Release & reach — M (mostly owner)
 Signed Windows installer (needs a code-signing certificate - owner), GitHub Pages docs from
@@ -611,3 +621,6 @@ backend test opens it; e2e.
   test_object_templates while the backend suite ran beside it on this 1-CPU sandbox; alone and in a
   quiet full rerun it passes). `.gitattributes`: examples/ binary (a CRLF CSV lost its CRs through
   `git am`). Patches 0001-0007 for the owner (without frontend/dist) · next: Q23.
+- 2026-10-18 · Q23 / T42 store.ts split into store/ (5 slices, 4 action files, one entry point) ·
+  tsc + build clean, whole e2e suite 158 passed · found F12 (derived-delete Undo overwrote later
+  changes) · next: F12, then Q28.
