@@ -1,22 +1,36 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 – 2026-10-18
 
-- **Examples on the welcome screen are back** in the Windows portable package (the package left the
-  example files out, so the "Try an example" line was hidden).
-- New example: **the same mission flown twice** - a calm flight and the same waypoints in a
-  cross-wind (drift off the track, nose into the wind, gusts, more battery drain), for the map with
-  two tracks and Compare runs. An example is offered only when all its files are there.
-- New example: **an ArduPilot flight log** (.bin) - a 4-minute quad-copter flight with every mode
-  from STABILIZE to LAND, a mission, and one problem to find: the health check shows a vibration
-  burst with clipping, the smart start offers "ArduPilot · Full review".
-- The welcome screen names all the formats it opens (it still said "CSV or MAT").
-- *Delete all derived signals*: its Undo now disappears with your next change instead of staying -
-  clicking it later used to throw away what you had done since.
+Highlights: **two new examples** on the welcome screen - the same mission flown twice, and an
+ArduPilot flight log with something to find - a single **Create signal ▸** in the signal menus, and
+fixes for 1.5.0: the examples missing from the Windows package, the version shown in Help, the
+flight date in Fleet and an Undo that could throw work away.
+
+### New
+- Example: **the same mission flown twice** - a calm flight and the same waypoints in a cross-wind
+  (drift off the track, nose into the wind, gusts, more battery drain), for the map with two tracks
+  and Compare runs.
+- Example: **an ArduPilot flight log** (.bin) - a 4-minute quad-copter flight with every mode from
+  STABILIZE to LAND, a mission, and one problem to find: the health check shows a vibration burst
+  with clipping, the smart start offers "ArduPilot · Full review".
 - Signal menus (file list and plot legend): one **Create signal ▸** with Derivative, Integral and
   *Other operations…*, which opens Create signals with that signal already chosen.
+- The welcome screen names all the formats it opens (it still said "CSV or MAT").
+
+### Fixed
+- **Examples on the welcome screen are back** in the Windows portable package (the package left the
+  example files out, so the "Try an example" line was hidden). An example is offered only when all
+  its files are there.
+- Help and *Copy error details* show the right version (1.5.0 showed "1.4.0").
 - Fleet: flights from current ArduPilot firmware are dated by the GPS time in the log again (they
-  got the file's date, wrong once the log had been copied).
+  got the file's date, wrong once the log had been copied). Folders already in Fleet: *Update* them.
+- *Delete all derived signals*: its Undo now disappears with your next change instead of staying -
+  clicking it later used to throw away what you had done since.
+
+### Inside
+- The app's state code is split by area (no change in behaviour); the backend's type check has no
+  exceptions left.
 
 ## 1.5.0 – 2026-10-18
 

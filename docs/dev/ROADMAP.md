@@ -487,10 +487,13 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   to the new layout. tsc, build, whole e2e suite (158) green. Found on the way: F12.
 - [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
 
-## Milestone 5 — 1.6.0: examples, cleaner code, usability
+## Milestone 5 — 1.6.0: examples, fixes, cleaner code (released 2026-10-18)
 v1.5.0 was tagged 2026-10-18 on T41 (T15, T27, T31, T39, T40 Parquet, T41) without the release
-patch; 1.6.0 releases properly. Order and specs: TASKS.md "Plan 2026-10-18" (Q25-Q35). The open
-T14c, T18, T21b, T23, T24, T25, T36b, T42 above belong to this milestone.
+patch; 1.6.0 releases properly. Order and specs: TASKS.md "Plan 2026-10-18". In 1.6.0: F10, T44,
+T45, F11, T42, F12, T36b, T21b (above / below).
+
+## Milestone 6 — 1.7.0: usability
+The open T24, T23, T25, T14c, T18 above (TASKS.md Q30-Q34; moved from 1.6.0 by the owner).
 - [x] **F10 Examples missing from the Windows portable package**. Spec: TASKS.md Q25.
   Done: `make_windows_portable.py` copies `examples/` to `app/examples` (where `routes/fs.py`
   looks from source) and checks every file is in the package. Test
@@ -533,7 +536,10 @@ T14c, T18, T21b, T23, T24, T25, T36b, T42 above belong to this milestone.
   arrives as `GPS[0].GWk` / `GPS[0].GMS [s]` - the loader applies GMS's 1e-3 multiplier. The old test
   built the names by hand. Done: `_ap_field` finds a field under any instance / unit suffix (first
   instance), GMS scaled by its unit. Test: `test_flight_date_from_gps_time` (+ the real naming, a
-  second receiver) and, with T45, the example's date.
+  second receiver) and, with T45, the example's date. At the release (Q35): an index already holding
+  such logs would keep the file date (a scan skips unchanged files) - `fleet.INDEX_VERSION` 2 in
+  `PRAGMA user_version`; an older index marks its file-dated .bin rows stale, read again once. Test
+  `test_an_index_from_before_f11_reads_its_bin_logs_again`.
 
 ## Later
 - [ ] "copy as pandas code".
