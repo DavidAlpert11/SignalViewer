@@ -73,14 +73,24 @@ export function newPlotSignal(sig: string, ws: Workspace): PlotSignal {
 }
 
 export function nextColor(ws: Workspace): string {
+  return colorAllocator(ws)();
+}
+
+/** Colours for several signals made in one go, before they are in the workspace (F13: a template's
+ *  plots are built first and added after - nextColor alone saw the same counts every time and gave
+ *  every signal the same colour). Each call returns the least used colour, counting what it gave. */
+export function colorAllocator(ws: Workspace): () => string {
   const used = new Map<string, number>();
   ws.tabs.forEach((t) => t.plots.forEach((p) => p.signals.forEach((s) => used.set(s.color, (used.get(s.color) ?? 0) + 1))));
-  let best = TRACE_COLORS[0], bestN = Infinity;
-  for (const c of TRACE_COLORS) {
-    const n = used.get(c) ?? 0;
-    if (n < bestN) { best = c; bestN = n; }
-  }
-  return best;
+  return () => {
+    let best = TRACE_COLORS[0], bestN = Infinity;
+    for (const c of TRACE_COLORS) {
+      const n = used.get(c) ?? 0;
+      if (n < bestN) { best = c; bestN = n; }
+    }
+    used.set(best, bestN + 1);
+    return best;
+  };
 }
 
 /** Put a new plot in the tab: reuse an empty one, else add one (up to MAX_PLOTS).

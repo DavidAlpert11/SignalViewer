@@ -3,6 +3,7 @@
 ## 1.6.1 – unreleased
 
 ### Fixed
+- **Compare open files** (and Quick look) drew every signal in the same colour; now each file has its own colour, the same in every plot.
 
 ### Inside
 - Running the tests no longer fills the developer's own recent files, autosave and uploads.
