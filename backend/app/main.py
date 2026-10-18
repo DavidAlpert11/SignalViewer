@@ -30,6 +30,7 @@ from app.routes import (
     session,
     system,
     templates,
+    video,
 )
 
 # kept importable from here: run.py and the tests use them
@@ -151,6 +152,7 @@ app.include_router(system.router)
 app.include_router(templates.router)
 app.include_router(fs.router)
 app.include_router(session.router)
+app.include_router(video.router)
 
 # =============================================================================
 # STATIC UI

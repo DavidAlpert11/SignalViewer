@@ -178,7 +178,21 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   the PDF / Word left the plot out while returning 200 - now checked by reading the PDF back
   (`pypdf`, tests only). Checked in Chromium: the HTML report draws it with no script errors.
 - [ ] **T14c** Zoom of an Envelope plot is its own (not linked with the tab's time plots).
-- [ ] **T15 Video synchronised to the timeline** (local file, offset by a cursor pair).
+- [x] **T15 Video synchronised to the timeline** (local file, offset by a cursor pair).
+  Done (2026-10-18): a plot MODE "video" (fits the grid, saved with the tab, in undo, left out of
+  reports - no signals). `Plot.video = {path, offset}`, data time = video time + offset;
+  `actions.setVideo / setVideoOffset`. Backend `app/routes/video.py`: `/api/video?path=` with its
+  OWN Range handling (206 / 416 / suffix ranges; older Starlette sends the whole file and the
+  player cannot seek), mp4 / m4v / mov / webm / ogv / mkv. `VideoView.tsx` (lazy): LOCKED - the
+  cursor moves the video (> 0.04 s apart; while playing > 0.3 s), timeline playback plays it at
+  `playSpeed` (<= 16x; faster it follows by seeking), the video's own play / seek moves the cursor
+  (own seeks remembered so they do not echo back); "Line up..." unlocks so the video and the cursor
+  can each be put on the same moment, "Lock here" sets offset = cursor - video time and locks; offset
+  also typed; "No video at this time" outside the clip. Design note: with only a "Sync here"
+  button the two were always coupled, so a new offset could never be set - found while writing
+  the e2e test. Tests: `test_video.py` (backend, ranges, 10), e2e `test_video.py` (a real VP8
+  clip made with ffmpeg; skipped without it). Not done: audio (muted, so autoplay is allowed);
+  several videos stay independent plots.
 - [x] **T16 Vibration: Welch PSD** - FFT plots get "Spectrum: FFT | Welch PSD" (averaged power
   spectral density, units²/Hz, ~8 pieces with 50 % overlap). New optional plot field
   `fftMethod` (absent = fft, so old sessions/templates are unchanged), carried everywhere
