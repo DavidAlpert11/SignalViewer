@@ -434,6 +434,7 @@ task, with a Log line. Phase C items may move after the release if the owner say
 | Q25 | F10 Examples missing from the Windows portable package | S | ☑ done |
 | Q26 | T44 Example: two UAV flights of the same mission, to compare | S | ☑ done |
 | Q27 | T45 Example: an ArduPilot .bin flight (GPS track, modes, vibration, battery) | S | ☐ |
+| —   | F11 Fleet: flight date of modern ArduPilot logs (found by Q27) | S | ☑ done |
 | **B** | **Infrastructure** | | |
 | Q23 | T42 Split `frontend/src/store.ts` into slices (spec above) | M | ☐ |
 | Q28 | T36b Shrink the mypy baseline | S | ☐ |
@@ -601,3 +602,5 @@ backend test opens it; e2e.
   CHANGELOG split: the old "Unreleased" is now "1.5.0" (what the tag had) · backend 639 · next: Q26.
 - 2026-10-18 · Q26 / T44 two-flights example (windy twin of uav_flight.csv) + welcome link · backend
   640, mypy clean, e2e workflows example tests green · next: Q27.
+- 2026-10-18 · F11 found while making Q27's example: Fleet dated every modern ArduPilot log by the
+  file (GPS[0].GMS [s] not read) - fixed + test · backend 641.

@@ -7,6 +7,8 @@
 - New example: **the same mission flown twice** - a calm flight and the same waypoints in a
   cross-wind (drift off the track, nose into the wind, gusts, more battery drain), for the map with
   two tracks and Compare runs. An example is offered only when all its files are there.
+- Fleet: flights from current ArduPilot firmware are dated by the GPS time in the log again (they
+  got the file's date, wrong once the log had been copied).
 
 ## 1.5.0 – 2026-10-18
 

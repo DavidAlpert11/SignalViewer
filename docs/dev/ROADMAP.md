@@ -26,7 +26,7 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   last path segment (case-insensitive on Windows), max 50, folders first.
   UI: dropdown under the path box while typing (debounced), ↑/↓ + Enter to choose,
   **Tab completes** the longest common prefix, a chosen folder continues completing
-  (`C:\Us` → `C:\Users\`), a chosen file selects it. Also:
+  (`C:\Us` → `C:\Users`), a chosen file selects it. Also:
   - typing while the list has focus filters the current folder (type-to-filter);
   - clickable breadcrumbs above the list (each segment opens that folder).
   Impact: FileBrowser is shared by open / save / folder pickers (`pickPath`) — all three
@@ -490,6 +490,12 @@ T14c, T18, T21b, T23, T24, T25, T36b, T42 above belong to this milestone.
   `test_two_flights_example_is_ready_to_compare`, e2e `test_open_the_two_flights_example`; Hebrew line
   checked by screenshot (fits one line).
 - [ ] **T45 Example: an ArduPilot .bin flight**. Spec: TASKS.md Q27.
+- [x] **F11 Fleet gave modern ArduPilot logs the FILE's date** (found by T45's example, written like
+  real firmware): `flight_date` read only `GPS.GWk` / `GPS.GMS` in ms, but an instanced GPS with FMTU
+  arrives as `GPS[0].GWk` / `GPS[0].GMS [s]` - the loader applies GMS's 1e-3 multiplier. The old test
+  built the names by hand. Done: `_ap_field` finds a field under any instance / unit suffix (first
+  instance), GMS scaled by its unit. Test: `test_flight_date_from_gps_time` (+ the real naming, a
+  second receiver) and, with T45, the example's date.
 
 ## Later
 - [ ] "copy as pandas code".
