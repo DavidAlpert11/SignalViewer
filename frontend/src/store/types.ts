@@ -10,7 +10,9 @@ export interface Toast { id: string; kind: "info" | "error"; text: string; actio
 export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "fleet";
 export type LogMarkers = "off" | "important" | "all";
 export type PlayMode = "cursor" | "draw" | "window";
-export interface MenuItem { label: string; icon?: string; run: () => void; disabled?: boolean; danger?: boolean; sep?: boolean }
+export interface MenuItem { label: string; icon?: string; run: () => void; disabled?: boolean; danger?: boolean; sep?: boolean;
+  /** a submenu (T21b): the item opens these instead of running */
+  items?: MenuItem[] }
 export interface PickerRequest {
   mode: "open" | "save" | "folder";     // folder: choose a folder (only folders are listed)
   title: string;

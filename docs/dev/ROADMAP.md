@@ -292,7 +292,13 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 - [x] T21 Clearer names: Analysis → "Create signals", Compare → "Compare runs" (rail, panel
   titles, command palette; he: "יצירת סיגנלים" / "השוואת ריצות"). e2e selectors updated; the
   panel's button is now found by role, since "text=Create signal" also matched the new title.
-- [ ] T21b Signal context menus: one "Create signal ▸" entry instead of repeated operations.
+- [x] T21b Signal context menus: one "Create signal ▸" entry instead of repeated operations.
+  Done: menus get submenus (`MenuItem.items`; `ContextMenu` opens one on hover, click or the arrow
+  toward it - ArrowLeft in Hebrew; beside its item, the other side / higher when out of room). One
+  builder, `createSignalMenu.ts` `createSignalItem(sig, plotId?)`, used by the file list's and the legend's
+  menus (each had its own Derivative / Integral code): Derivative, Integral, "Other operations…" -> the
+  panel through its existing `analysisSeed`. e2e S06 updated, new
+  `test_create_signal_submenu_from_the_file_list`; en + he checked by screenshot.
 - [x] T22 Signal list: unit, sample rate and a sparkline per signal.
   Done: `Store.describe` adds `n` and `rate` per signal (`_rate_of`: length and the two ends of the
   signal's own time vector - O(1), also for wide files). `POST /api/sparks {signals, points}` ->

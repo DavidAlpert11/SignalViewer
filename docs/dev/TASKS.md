@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   as it is; release 1.6.0 properly (Q35) and split CHANGELOG there into 1.5.0 (what the tag had:
   everything under "Unreleased" up to and including T41) and 1.6.0.
 - **Active plan: "Plan 2026-10-18 (toward 1.6.0)" below - Q25 ... Q35, in that order.**
-- Tests at the last change: backend 642 passed; whole e2e suite 158 passed (Q23), + the F12 e2e test (159).
+- Tests at the last change: backend 642 passed; whole e2e suite 160 passed (Q29).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -450,7 +450,7 @@ task, with a Log line. Phase C items may move after the release if the owner say
 | —   | F12 "Delete all derived" Undo overwrote later changes (found by Q23) | S | ☑ done |
 | Q28 | T36b Shrink the mypy baseline | S | ☑ done |
 | **C** | **Usability (open in ROADMAP)** | | |
-| Q29 | T21b Signal context menus: one "Create signal ▸" entry | S | ☐ |
+| Q29 | T21b Signal context menus: one "Create signal ▸" entry | S | ☑ done |
 | Q30 | T24 Favourite folders and quick open (Ctrl+P) | S | ☐ |
 | Q31 | T23 Notes over a time range (shaded span), listed in reports | M | ☐ |
 | Q32 | T25 Sim-vs-flight error signal with RMS per segment | M | ☐ |
@@ -629,3 +629,5 @@ backend test opens it; e2e.
   first version passed anyway: it waited, and toasts leave by themselves) · next: Q28.
 - 2026-10-18 · Q28 / T36b mypy baseline removed (39 -> 0, no real bug among them) · backend 642 ·
   next: phase C, Q29 (T21b).
+- 2026-10-18 · Q29 / T21b "Create signal ▸" submenu (menus can nest now) · e2e S06 + new test ·
+  next: Q30 (T24).
