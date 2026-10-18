@@ -526,6 +526,25 @@ def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     assert [x["id"] for x in client.get("/api/examples").json()] == ["flight"]     # car files missing
 
 
+def test_every_example_ships_in_every_package():
+    """F10: the welcome screen's examples exist in the repo and every package copies examples/ to
+    where routes/fs.py looks (beside backend/). The Windows portable build once left them out and
+    the welcome line silently disappeared."""
+    from app.routes import fs as m
+    root = os.path.join(os.path.dirname(__file__), "..", "..")
+    for ex in m.EXAMPLE_SETS:
+        for f in ex["files"]:
+            assert os.path.isfile(os.path.join(root, "examples", f)), f
+    # from source, fs.py's default is <the folder that holds backend>/examples
+    default = os.path.join(os.path.dirname(m.__file__), "..", "..", "..", "examples")
+    assert os.path.samefile(default, os.path.join(root, "examples"))
+    with open(os.path.join(root, "tools", "make_windows_portable.py"), encoding="utf-8") as f:
+        portable = f.read()
+    assert 'os.path.join(app, "backend")' in portable and 'os.path.join(app, "examples")' in portable
+    with open(os.path.join(root, "SignalViewer.spec"), encoding="utf-8") as f:
+        assert '"examples"), "examples")' in f.read()          # PyInstaller; run.py sets SV_EXAMPLES
+
+
 def test_formula_angles_and_quaternions():
     """T17: deg/rad/wrap and quaternion -> Euler (aerospace order, degrees)."""
     from svcore.formula import evaluate
