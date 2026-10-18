@@ -15,7 +15,11 @@ when you stop in the middle of a task.
 1. Read the code you are about to change **and every caller of it** (`grep` the symbol across
    `backend/` and `frontend/src/`). Write down, in the task's notes, what else it touches.
 2. Prefer extending an existing mechanism over adding a parallel one (one way to do a thing).
-   Check `store.ts` actions, `api.ts`, `files.ts`, `svcore/*` first. Backend endpoints live in
+   Check `store.ts` actions, `api.ts`, `files.ts`, `svcore/*` first. `store.ts` is the one place to
+   import state from; its parts live in `frontend/src/store/` (T42): `model.ts` (workspace types),
+   `slices/` (state by area: workspace + undo, data, view, live, ui), `state.ts` (`useApp`),
+   `selectors.ts`, `actions/` (plots, layout, view, notes). New state goes into its area's slice;
+   a new action into its area's file (it then appears as `actions.x` by itself). Backend endpoints live in
    `backend/app/routes/<area>.py` (shared helpers: `app/common.py`); `app/main.py` only wires them.
 3. Decide **where** a control belongs before writing it:
    - TopBar: workspace / file actions only. StageBar: things about the plots on screen.
