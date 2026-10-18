@@ -97,7 +97,19 @@ def _configured_template_dir() -> str:
 TEMPLATE_DIR = _configured_template_dir()
 
 
+def _same(a: str, b: str) -> bool:
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
 def template_folder_info() -> Dict[str, Any]:
+    # F14: the DEFAULT folder is ours - make it, so a first run does not report it "not available"
+    # (it was created only by the first save). A folder the user chose is never created here: if it
+    # is gone (a network drive, a USB stick) that is worth saying.
+    if _same(TEMPLATE_DIR, DEFAULT_TEMPLATE_DIR) and not os.path.isdir(TEMPLATE_DIR):
+        try:
+            os.makedirs(TEMPLATE_DIR, exist_ok=True)
+        except OSError:
+            log.warning("could not create the templates folder %s", TEMPLATE_DIR, exc_info=True)
     return {"folder": TEMPLATE_DIR, "default": os.path.normcase(os.path.abspath(TEMPLATE_DIR)) == os.path.normcase(os.path.abspath(DEFAULT_TEMPLATE_DIR)),
             "exists": os.path.isdir(TEMPLATE_DIR), "defaultFolder": DEFAULT_TEMPLATE_DIR}
 
