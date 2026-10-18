@@ -19,13 +19,13 @@ export default function StartCard() {
   return (
     <section className="start-card" role="dialog" aria-label={t("startTitle")}>
       <div className="start-head">
-        <h3>{t("startTitle")} <span className="muted">{fileLabel(runs, card.runId)}</span></h3>
+        <h3>{t("startTitle")} <span className="muted">{card.files ? t("startFiles", { n: card.files }) : fileLabel(runs, card.runId)}</span></h3>
         <button className="iconbtn" onClick={close} aria-label={t("close")} title={t("close")}><Icon.X /></button>
       </div>
       {card.template && (
         <div className="start-tpl">
           <p>{t("startSuggest")} <b>{tx(card.template.name, lang)}</b>
-            <span className="muted"> · {t("startFits", { p: fmtNum(Math.round(card.template.fit * 100), lang) })}</span></p>
+            <span className="muted"> · {card.files ? t("startCompare") : t("startFits", { p: fmtNum(Math.round(card.template.fit * 100), lang) })}</span></p>
           <div className="arow">
             <button className="btn primary" onClick={() => openSuggested(card)}>{t("startOpen")}</button>
             <button className="btn outline" onClick={() => { openTemplates(card.template!.id); close(); }}>{t("startOther")}</button>

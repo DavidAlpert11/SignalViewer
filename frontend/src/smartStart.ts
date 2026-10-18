@@ -13,17 +13,25 @@ export interface StartCard {
   runId: string;
   template: { id: string; name: string; fit: number } | null;
   health: HealthFinding[] | null;      // the worst findings (errors, then warnings); [] = nothing found
+  files?: number;                      // F20: opened together with others - the card offers Compare
 }
 
 const FIT_MIN = 0.5;                   // a suggestion must have at least half of what it plots
 const FLIGHT = new Set(["bin", "tlog", "ulg"]);
 
 /** Called by openPaths when it opened files into an empty workspace. */
-export async function offerStart(runId: string) {
+export async function offerStart(runId: string, files = 1) {
   const st = useApp.getState();
   const run = st.runs.find((r) => r.id === runId);
   if (!run || st.mavlink?.running) return;            // a live link opens its own recording: no card
   let template: StartCard["template"] = null;
+  if (files >= 2) {                                    // F20: files opened together are compared
+    try {
+      const cmp = (await api.templates()).builtin.find((x) => x.generator === "compare");
+      if (cmp) useApp.setState({ startCard: { runId, template: { id: cmp.id, name: cmp.name, fit: 1 }, health: null, files } });
+    } catch { /* no suggestion */ }
+    return;
+  }
   try {
     const r = await api.templates();
     const all = [...r.builtin, ...r.templates];
