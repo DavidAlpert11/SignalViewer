@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   as it is; release 1.6.0 properly (Q35) and split CHANGELOG there into 1.5.0 (what the tag had:
   everything under "Unreleased" up to and including T41) and 1.6.0.
 - **Active plan: "Plan 2026-10-18 (toward 1.6.0)" below - Q25 ... Q35, in that order.**
-- Tests at the last change: backend 638 passed; whole e2e suite 156 passed (T41 UI).
+- Tests at the last change: backend 639 passed; whole e2e suite 156 passed (T41 UI).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -431,7 +431,7 @@ task, with a Log line. Phase C items may move after the release if the owner say
 | # | Task | Size | Status |
 |---|---|---|---|
 | **A** | **Fixes and examples** | | |
-| Q25 | F10 Examples missing from the Windows portable package | S | ☐ |
+| Q25 | F10 Examples missing from the Windows portable package | S | ☑ done |
 | Q26 | T44 Example: two UAV flights of the same mission, to compare | S | ☐ |
 | Q27 | T45 Example: an ArduPilot .bin flight (GPS track, modes, vibration, battery) | S | ☐ |
 | **B** | **Infrastructure** | | |
@@ -597,3 +597,5 @@ backend test opens it; e2e.
   clean, whole e2e suite 156 passed · next: Q23.
 - 2026-10-18 · v1.5.0 was tagged without the release patch (version files say 1.4.0); owner: leave
   it, release 1.6.0 properly. New plan Q25-Q35 ("Plan 2026-10-18") · next: Q25.
+- 2026-10-18 · Q25 / F10 examples copied into the Windows portable package + package check + test;
+  CHANGELOG split: the old "Unreleased" is now "1.5.0" (what the tag had) · backend 639 · next: Q26.
