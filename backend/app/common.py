@@ -25,7 +25,7 @@ def _log_signal_names(path: str):
 log = logging.getLogger("signalviewer").getChild(__name__)
 
 
-APP_DIR = os.path.join(os.path.expanduser("~"), ".signalviewer")
+APP_DIR = prefs.APP_DIR
 
 UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 

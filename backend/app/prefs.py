@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 
+# The one definition of the app folder (F15): common, store, tiles and the rest take it from here.
 APP_DIR = os.path.join(os.path.expanduser("~"), ".signalviewer")
 _lock = threading.Lock()
 

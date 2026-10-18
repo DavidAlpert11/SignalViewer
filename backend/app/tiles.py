@@ -12,7 +12,8 @@ import time
 import urllib.request
 from typing import Optional
 
-APP_DIR = os.path.join(os.path.expanduser("~"), ".signalviewer")
+from app.prefs import APP_DIR
+
 CACHE = os.path.join(APP_DIR, "tiles")
 UA = "SignalViewer/1 (desktop flight-data viewer; tiles cached locally)"
 
