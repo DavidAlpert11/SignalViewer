@@ -27,6 +27,7 @@ from app.routes import (
     jobs,
     live,
     maps,
+    pyops,
     session,
     system,
     templates,
@@ -147,6 +148,7 @@ app.include_router(analysis.router)
 app.include_router(compare.router)
 app.include_router(export.router)
 app.include_router(maps.router)
+app.include_router(pyops.router)
 app.include_router(jobs.router)
 app.include_router(system.router)
 app.include_router(templates.router)
