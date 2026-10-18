@@ -103,7 +103,8 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
     const runs = await api.listRuns();
     useApp.setState({ runs });
     const firstNew = res.opened.find((o) => o?.id)?.id;
-    if (emptyStart && firstNew) offerStart(firstNew);          // in the background: never holds up the open
+    // F20: several files at once get a suggestion for several files (Compare), not for the first one
+    if (emptyStart && firstNew) offerStart(firstNew, res.opened.filter((o) => o?.id).length);   // in the background
     refreshRecent();
     for (const err of res.errors) {
       const name = err.path.split(/[\\/]/).pop() || err.path;
@@ -115,12 +116,14 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
           : { label: translate(lang, "importOptions"), run: () => useApp.setState({ importPaths: [err.path] }) },
       });
     }
-    // D-04: tell what was skipped while reading
+    // D-04: tell what was skipped while reading - F20: one message for every file with the same note
+    // (three files with a DriveMode column were three identical toasts)
+    const notes = new Map<string, string[]>();
     for (const o of res.opened) {
       const rep = o.report || {};
       const parts: string[] = [];
       if (rep.skippedColumns?.length) parts.push(translate(lang, "skippedCols", { n: rep.skippedColumns.length }) + ` (${rep.skippedColumns.slice(0, 3).join(", ")}${rep.skippedColumns.length > 3 ? "…" : ""})`);
-      if (rep.textColumns?.length) parts.push(translate(lang, "textColsRead", { n: rep.textColumns.length }) + ` (${rep.textColumns.slice(0, 3).join(", ")}${rep.textColumns.length > 3 ? "…" : ""})`);
+      if (rep.textColumns?.length) parts.push(translate(lang, "textColsRead", { list: rep.textColumns.slice(0, 3).join(", ") + (rep.textColumns.length > 3 ? ` (+${rep.textColumns.length - 3})` : "") }));
       if (rep.tooManyTexts?.length) parts.push(translate(lang, "textColsTooMany", { n: rep.tooManyTexts.length }) + ` (${rep.tooManyTexts.slice(0, 3).join(", ")}${rep.tooManyTexts.length > 3 ? "…" : ""})`);
       if (rep.corruptBytes) parts.push(translate(lang, "corruptBytes", { n: rep.corruptBytes }));
       if (rep.cutOff) parts.push(translate(lang, "cutOff"));
@@ -130,12 +133,15 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       if (rep.droppedRows) parts.push(translate(lang, "droppedRows", { n: rep.droppedRows }));
       if (rep.sorted) parts.push(translate(lang, "sortedRows"));
       if (rep.skipped?.length) parts.push(translate(lang, "skippedCols", { n: rep.skipped.length }));
-      if (parts.length) useApp.getState().toast({ kind: "info", text: translate(lang, "loadedNote", { name: o.name, details: parts.join(" · ") }) });
+      if (parts.length) notes.set(parts.join(" · "), [...(notes.get(parts.join(" · ")) ?? []), o.name]);
       if (rep.rememberedSettings) useApp.getState().toast({
         kind: "info", text: translate(lang, "usedRemembered", { name: o.name }),
         action: { label: translate(lang, "forget"), run: () => { api.forgetImport(o.path).catch(() => {}); } },
       });
     }
+    for (const [details, names] of notes)
+      useApp.getState().toast({ kind: "info", text: translate(lang, "loadedNote", {
+        name: names.length <= 2 ? names.join(", ") : translate(lang, "filesOpen", { n: names.length }), details }) });
   } catch (e) {
     useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
   } finally {

@@ -330,3 +330,15 @@ def test_opening_an_open_file_reads_it_again(page, server):
     assert page.evaluate("window.__sv.state().runs.filter((r) => r.format !== 'derived').length") == 1
     toast.get_by_role("button", name="Open another copy").click()
     page.wait_for_function("window.__sv.state().runs.filter((r) => r.format !== 'derived').length === 2")
+
+
+def test_several_files_at_once_suggest_compare(page, server):
+    """F20: three files opened together got a suggestion for the FIRST file only (or none) and a
+    toast per file. Now the card offers Compare open files for all of them."""
+    _open(page, server["data"], ["run_a.csv", "run_b.csv", "run_c.csv"])
+    card = page.locator(".start-card")
+    card.wait_for(timeout=15000)
+    assert "3 files" in card.locator("h3").inner_text()
+    assert "Compare open files" in card.locator(".start-tpl b").inner_text()
+    card.get_by_role("button", name="Open it").click()
+    page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length === 3))")
