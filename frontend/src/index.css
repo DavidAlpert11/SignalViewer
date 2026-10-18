@@ -87,7 +87,15 @@ button, input, select { font: inherit; color: inherit; }
 }
 .brand { display: flex; align-items: center; gap: 8px; padding-inline: 4px 12px; font-weight: 600; color: var(--ink-strong); white-space: nowrap; }
 .brand-mark { width: 18px; height: 18px; }
+.tabs-wrap { display: flex; align-items: center; gap: 2px; height: 100%; min-width: 120px; flex: 0 1 auto; }
+/* F22: with many tabs the tab strip gives way (it scrolls, "All tabs" lists them), not the controls on the right */
+.topbar > :not(.tabs-wrap):not(.spacer):not(.search-trigger) { flex-shrink: 0; }
+.topbar > .search-trigger { flex-shrink: 1; min-width: 150px; }
 .tabs { display: flex; align-items: stretch; gap: 2px; height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs-all { display: inline-flex; align-items: center; gap: 2px; width: auto; padding: 0 6px; flex: none; }
+.tabs-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.menu.ctx.long { max-height: calc(100vh - 16px); overflow-y: auto; }
 .tab {
   display: flex; align-items: center; gap: 6px; padding-inline: 12px 6px; height: 100%;
   border: 0; background: none; color: var(--muted); cursor: pointer; white-space: nowrap;
