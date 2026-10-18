@@ -226,7 +226,7 @@ def main():
     need = ["requirements.txt", "run.py", "backend", os.path.join("frontend", "dist", "index.html"),
             os.path.join("assets", "icon.ico"), os.path.join("assets", "png"),
             os.path.join("installer", "portable", "make_shortcut.ps1"),
-            os.path.join("installer", "portable", "Signal Viewer.bat"), os.path.join("installer", "portable", "README-HE.txt"), "LICENSE"]
+            os.path.join("installer", "portable", "Signal Viewer.bat"), os.path.join("installer", "portable", "README-HE.txt"), "LICENSE", "examples"]
     missing = [n for n in need if not os.path.exists(os.path.join(ROOT, n))]
     if missing:
         die("Missing in the project: " + ", ".join(missing) +
@@ -286,6 +286,9 @@ def main():
     os.makedirs(os.path.join(app, "assets"), exist_ok=True)
     copy_dir(os.path.join(ROOT, "assets", "png"), os.path.join(app, "assets", "png"))
     shutil.copy2(os.path.join(ROOT, "assets", "icon.ico"), os.path.join(app, "assets"))
+    # "Open an example" on the welcome screen (T09): routes/fs.py looks in app/examples (F10 - the
+    # portable package had none, so the welcome line was hidden)
+    copy_dir(os.path.join(ROOT, "examples"), os.path.join(app, "examples"))
     shutil.copy2(os.path.join(ROOT, "installer", "portable", "make_shortcut.ps1"), app)
     for f in sorted(os.listdir(os.path.join(ROOT, "installer", "portable"))):
         if f.lower().endswith(".bat") or f == "README-HE.txt":
@@ -310,6 +313,7 @@ def main():
     must += [("app", "frontend", "dist", "models", f"{k}.glb") for k in ("aircraft", "uav", "drone", "missile", "ship", "vehicle")]
     must += [("app", "backend", "app", "basemap_data", f) for f in ("dem_world.npz", "dem_region.npz", "dem_israel.npz",
                                                                     "vectors_world.json.gz", "vectors_israel.json.gz")]
+    must += [("app", "examples", f) for f in sorted(os.listdir(os.path.join(ROOT, "examples")))]   # F10
     bad = [os.path.join(*m) for m in must if not os.path.exists(lp(os.path.join(pkg, *m)))]
     if bad:
         die("The package is incomplete, missing: " + ", ".join(bad))
