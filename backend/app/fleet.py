@@ -11,6 +11,7 @@ MAVLink SYSTEM_TIME), else the file's time (said so: date_source "file")."""
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -65,12 +66,20 @@ def reset_connection() -> None:
 
 # ------------------------------------------------------------------ one log
 
+def _ap_field(sigs, msg: str, fld: str):
+    """(name, unit) of an ArduPilot field under any of the names the loader gives it: "GPS.GMS"
+    (no FMTU), "GPS[0].GMS [s]" (instanced, with units) - the first instance."""
+    pat = re.compile(rf"^{msg}(\[(\d+)\])?\.{fld}(?: \[(.*)\])?$")
+    hits = sorted((int(m.group(2) or 0), n, m.group(3) or "") for n in sigs for m in [pat.match(n)] if m)
+    return (hits[0][1], hits[0][2]) if hits else (None, "")
+
+
 def flight_date(run) -> Optional[float]:
     """Unix time of the log's first sample from the GPS time it carries, or None."""
     sigs = run.signals
 
-    def first(name: str):
-        s = sigs.get(name)
+    def first(name: Optional[str]):
+        s = sigs.get(name) if name else None
         if s is None:
             return None
         y = np.asarray(s.data, dtype=np.float64)
@@ -78,11 +87,15 @@ def flight_date(run) -> Optional[float]:
         ok = np.flatnonzero(np.isfinite(y) & (y > 0))
         return (float(t[ok[0]]), ok[0], y, t) if len(ok) else None
 
-    wk, ms = first("GPS.GWk"), sigs.get("GPS.GMS")
-    if wk and ms is not None:                                     # ArduPilot: GPS week + ms of week
+    # ArduPilot: GPS week + time of week. GMS is ms in the log; with FMTU (modern firmware) the loader
+    # applies its multiplier and it arrives in seconds, "GPS[0].GMS [s]" (F11: only "GPS.GMS" was read)
+    wk_name, _ = _ap_field(sigs, "GPS", "GWk")
+    ms_name, ms_unit = _ap_field(sigs, "GPS", "GMS")
+    wk, ms = first(wk_name), sigs.get(ms_name) if ms_name else None
+    if wk and ms is not None:
         t0, i, weeks, _ = wk
-        gms = np.asarray(ms.data, dtype=np.float64)
-        return GPS_EPOCH + weeks[i] * 604800.0 + gms[i] / 1000.0 - LEAP - (t0 - float(run.start_time or 0.0))
+        tow = np.asarray(ms.data, dtype=np.float64)[i] * (1.0 if ms_unit == "s" else 1e-3)
+        return GPS_EPOCH + weeks[i] * 604800.0 + tow - LEAP - (t0 - float(run.start_time or 0.0))
     for name in ("vehicle_gps_position.time_utc_usec", "sensor_gps.time_utc_usec", "SYSTEM_TIME.time_unix_usec"):
         hit = first(name)
         if hit:

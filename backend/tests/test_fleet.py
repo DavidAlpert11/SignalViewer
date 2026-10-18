@@ -114,6 +114,13 @@ def test_flight_date_from_gps_time():
                                                       data=np.r_[0, 1.7e15, np.full(8, 1.7e15)], time=t)
     run2.compute_metadata()
     assert fleet.flight_date(run2) == pytest.approx(1.7e9 - 1.0)
+    # F11: a modern ArduPilot log - instanced GPS, FMTU units: GMS arrives in SECONDS ("GPS[0].GMS [s]")
+    run3 = Run(file_path="y.bin", csv_display_name="y", time=t)
+    run3.signals["GPS[1].GWk"] = Signal(name="GPS[1].GWk", data=np.full(10, 2399.0), time=t)    # 2nd receiver
+    run3.signals["GPS[0].GWk"] = Signal(name="GPS[0].GWk", data=np.r_[0, 0, np.full(8, 2400.0)], time=t)
+    run3.signals["GPS[0].GMS [s]"] = Signal(name="GPS[0].GMS [s]", data=np.r_[0, 0, np.full(8, 100.0)], time=t)
+    run3.compute_metadata()
+    assert fleet.flight_date(run3) == pytest.approx(want)
 
 
 def test_through_the_api_as_a_job(logs, db):
