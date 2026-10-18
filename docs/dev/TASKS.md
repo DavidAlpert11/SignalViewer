@@ -13,12 +13,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Released tags: `v1.0.0` ... `v1.5.0`. **`v1.5.0` was tagged on `43c756d` (T41 fleet
-  UI) WITHOUT the release patch** - its version files still say 1.4.0 (Help and "Copy error details"
-  show 1.4.0) and CHANGELOG has it under "Unreleased". Owner's decision (2026-10-18): leave 1.5.0
-  as it is; release 1.6.0 properly (Q35) and split CHANGELOG there into 1.5.0 (what the tag had:
-  everything under "Unreleased" up to and including T41) and 1.6.0.
-- **Active plan: "Plan 2026-10-18 (toward 1.6.0)" below - Q25 ... Q35, in that order.**
+- Branch `main`. Released tags: `v1.0.0` ... `v1.5.0`; **1.6.0 prepared** (Q35, this commit) - the
+  owner builds the Windows portable package, checks the four welcome examples are there (F10 could
+  not be checked in the sandbox: python.org is unreachable), then tags `v1.6.0` and pushes the tag.
+  (`v1.5.0` was tagged without its release patch - its packages say 1.4.0; CHANGELOG has both.)
+- **Active plan: "Plan 2026-10-18" below. Owner (2026-10-18): release 1.6.0 after Q29; the rest of
+  phase C (Q30-Q34) goes to 1.7.0.** Next: Q30.
 - Tests at the last change: backend 642 passed; whole e2e suite 160 passed (Q29).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -436,7 +436,7 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 ## Plan 2026-10-18 (toward 1.6.0)
 
 Set with the owner after the v1.5.0 tag. Work top to bottom; tick here AND in ROADMAP after each
-task, with a Log line. Phase C items may move after the release if the owner says so.
+task, with a Log line. **1.6.0 = phases A, B and Q29; Q30-Q34 are 1.7.0** (owner, 2026-10-18).
 
 | # | Task | Size | Status |
 |---|---|---|---|
@@ -451,13 +451,14 @@ task, with a Log line. Phase C items may move after the release if the owner say
 | Q28 | T36b Shrink the mypy baseline | S | ☑ done |
 | **C** | **Usability (open in ROADMAP)** | | |
 | Q29 | T21b Signal context menus: one "Create signal ▸" entry | S | ☑ done |
+| **C2** | **Usability, continued - 1.7.0** | | |
 | Q30 | T24 Favourite folders and quick open (Ctrl+P) | S | ☐ |
 | Q31 | T23 Notes over a time range (shaded span), listed in reports | M | ☐ |
 | Q32 | T25 Sim-vs-flight error signal with RMS per segment | M | ☐ |
 | Q33 | T14c Envelope plot zoom linked with the tab's time plots | S | ☐ |
 | Q34 | T18 Settings dialog (language, theme, map layer, live defaults) | M | ☐ |
 | **D** | **Release** | | |
-| Q35 | Release 1.6.0 (see "Releasing"; CHANGELOG split 1.5.0 / 1.6.0; README "חדש ב־1.5" and "1.6") | S | ☐ |
+| Q35 | Release 1.6.0 (moved before Q30 - owner) (see "Releasing"; CHANGELOG split 1.5.0 / 1.6.0; README "חדש ב־1.5" and "1.6") | S | ☑ done |
 | Q24 | T43 Release & reach (spec above; mostly owner) | M | ☐ |
 
 Waiting for the owner, not in the plan: Q1 (SITL / radio check), Q18 (T37, not felt by users),
@@ -631,3 +632,10 @@ backend test opens it; e2e.
   next: phase C, Q29 (T21b).
 - 2026-10-18 · Q29 / T21b "Create signal ▸" submenu (menus can nest now) · e2e S06 + new test ·
   next: Q30 (T24).
+- 2026-10-18 · Owner: release 1.6.0 now, Q30-Q34 to 1.7.0. Q35 done: version 1.6.0 (build.bat,
+  version.py, .iss, version_info.txt), CHANGELOG 1.6.0 (New / Fixed / Inside), README review (examples
+  in Quick start + the welcome row, Create signal ▸ in both menu rows, test counts 643 / 160, file
+  name 1.6.0, Fleet date, "חדש ב־1.5" - missing since 1.5.0 - and "חדש ב־1.6"), quickstart clip
+  retaken (it showed the old welcome screen), frontend/dist built. Found at the release: an index
+  from 1.5.0 would keep F11's file dates (scans skip unchanged files) - fleet.INDEX_VERSION + test.
+  backend 643, mypy clean · owner: build Windows portable, check examples, tag v1.6.0 · next: Q30.
