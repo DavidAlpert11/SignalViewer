@@ -1740,7 +1740,10 @@ def test_templates_share_mode_lane_and_compare_views(pg):
     pg.wait_for_selector(".tpl-lib")
     pg.locator(".tpl-item", has_text="Attitude & altitude").click()
     # two file slots, each given the right file automatically
-    assert [pg.locator(".tpl-slot select").nth(i).evaluate("e => e.options[e.selectedIndex].text") for i in range(2)] == ["flight.bin (bin)", "flight.tlog (tlog)"]
+    # (the slots are filled after the template's match comes back: wait for that, do not read once -
+    # reading at once failed now and then in whole-suite runs, 2026-10-17/18)
+    pg.wait_for_function("""() => [...document.querySelectorAll('.tpl-slot select')].slice(0, 2)
+        .map(e => e.options[e.selectedIndex]?.text).join('|') === 'flight.bin (bin)|flight.tlog (tlog)'""")
     pg.locator(".tpl-actions .btn.primary").click()
     pg.wait_for_function("(window.__sv.state().ws.tabs.at(-1).sharedStates || []).length === 2")
     tab = S(pg, "s.ws.tabs.at(-1)")

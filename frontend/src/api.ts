@@ -128,6 +128,8 @@ export const api = {
   pyopsFolder: (path: string | null) => call<PyOpsInfo>("/api/pyops/folder", { path }),
   pyopsExample: () => call<PyOpsInfo & { example: string }>("/api/pyops/example", {}),
   pyopsReveal: () => call<{ folder: string }>("/api/pyops/reveal", {}),
+  pushEvents: (since: number) => call<{ seq: number; events: { seq: number; run: string; name: string; plot: boolean; new: boolean; age: number }[] }>(`/api/push/events?since=${since}`),
+  pushSaveClient: (path: string) => call<{ path: string }>("/api/push/save-client", { path }),
   diagnostics: () => call<{ text: string; logFile: string; version: string }>("/api/diagnostics"),
   runLog: (id: string) => call<LogInfo>(`/api/runs/${encodeURIComponent(id)}/log`),
   syncSuggest: (ref: string, other: string, refSignal?: string | null, otherSignal?: string | null,

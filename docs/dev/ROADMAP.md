@@ -415,7 +415,22 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   backend). Help: "Copy error details" -> `/api/diagnostics` (version, packaged / source, OS,
   Python, the last ~48 KB of the log - covers the session that crashed). `app/version.py` (a test
   keeps it equal to build.bat). Tests: `test_crashlog.py` (7), e2e `test_error_details.py`.
-- [ ] T39 Python API: push arrays into the open app. Spec: TASKS.md Q20.
+- [x] T39 Python API: push arrays into the open app. Spec: TASKS.md Q20.
+  Done 2026-10-18: client `backend/signalviewer/push_client.py` (one file, numpy only;
+  `show(t, {name: y})`, `show(t, y)`, `show(df)`, `show(None, ...)` = sample numbers; checks
+  lengths before sending; "not running" when push.json is missing). Server `app/push.py` +
+  `routes/push.py`: POST `/api/push?name&replace&plot` with header `X-SV-Token` (hmac compare;
+  token from `secrets`, new each start), body .npz read with `allow_pickle=False`; time sorted
+  if needed; `store.add_pushed` - the same name keeps its run id (plots, derived signals follow by
+  version). `run.py` writes `~/.signalviewer/push.json` {url, token, pid} 0600 after the server
+  starts and removes it at exit only if it is still its own. Events `/api/push/events?since`
+  with their age: the UI asks every second, refreshes runs + `dataVersion`, puts a NEW run in the
+  active plot (up to 8 signals) with a toast; on its first ask only events < 10 s old count (so
+  data sent while the page loaded is shown, and a page reload does not plot old pushes again -
+  the first design skipped them all, found by the e2e test). Pushed runs: F5 skips them, live
+  mode ignores them, reload says "send it again". "Save the Python client..." copies the file
+  (bundled as data in the PyInstaller build: modules are archived there). Tests: backend
+  `test_push.py` (8, the real client against the app on a real port), e2e `test_push.py`.
 - [ ] T40 Parquet, MF4, CAN + DBC. Spec: TASKS.md Q21.
 - [ ] T41 Fleet view (index of many logs). Spec: TASKS.md Q22.
 - [ ] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.

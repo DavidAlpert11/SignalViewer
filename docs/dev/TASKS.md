@@ -23,7 +23,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 539 passed (T31 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q20 - the Python push API (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q9 - MCAP (ROS 2) and HDF5 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -265,7 +265,7 @@ Progress board (tick here AND in ROADMAP):
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☑ done |
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☑ done |
-| Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☐ |
+| Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☑ done |
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☐ |
 | Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ☐ |
 | Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ☐ |
@@ -377,6 +377,7 @@ shows "Copy error details" (version, OS, last errors - no data values). Nothing 
 **Status:** done (see ROADMAP T38).
 
 ### Q20 · T39 Python API (push from Jupyter / a simulation) — M
+**Status:** done 2026-10-18 (see ROADMAP T39).
 **Why:** simulation engineers live in Python; `signalviewer.show(t, {"x": x})` from a notebook
 into the open window is what MATLAB SDI gives them.
 **Steps:** a small client in the `signalviewer` package that posts arrays (binary, not JSON) to
@@ -496,3 +497,9 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · Owner: patches 17-19 applied, backend 539 passed on Windows - the worker process
   (spawn) works there from source. Q11 / T31 UI: Python kind in Create signals, e2e, Hebrew checked
   by screenshot; backend 539, mypy clean, whole e2e suite 154 passed · next: Q20.
+- 2026-10-18 · Q20 / T39 push from Python: one-file client, token file, .npz, replace in place,
+  events with age (first design missed data sent while the page loaded - caught by e2e) ·
+  backend 547, mypy clean, whole e2e suite 154 passed + 1 race fixed (below) · next: Q9.
+- 2026-10-18 · The flaky e2e test named: `test_templates_share_mode_lane_and_compare_views` read the
+  template's file slots once, before the automatic match filled them (whole-suite runs only) - it
+  now waits for the filled state.
