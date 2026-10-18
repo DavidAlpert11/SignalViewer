@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Video with the data**: a plot can now show a video of the test (plot mode *Video*: mp4, webm,
+  mov…). It follows the cursor and the timeline (play plays it too), and playing or seeking in the
+  video moves the cursor. *Line up…* lets the video and the cursor be put on the same moment
+  (take-off, a step) separately, *Lock here* keeps them together from then on; the offset is saved
+  with the session and can be typed.
+
 ## 1.4.0 – 2026-10-18
 
 Highlights: **real Butterworth filters** (the old Low-pass / High-pass were a moving average and

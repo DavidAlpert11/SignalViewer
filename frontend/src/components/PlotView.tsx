@@ -13,6 +13,7 @@ import GeoChart from "./GeoChart";
 import { iconSvg } from "./mapIcons";
 // the 3D view (CesiumJS, a few MB) loads only when a plot is switched to 3D
 const Globe3D = lazy(() => import("./Globe3D"));
+const VideoView = lazy(() => import("./VideoView"));
 import FFTChart from "./FFTChart";
 import EnvelopeChart from "./EnvelopeChart";
 import XYZChart from "./XYZChart";
@@ -136,7 +137,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
 
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const geoBase = useApp((s) => s.geoBase);
-  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")]];
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")]];
 
   return (
     <section
@@ -316,8 +317,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           {mode === "xyz" && <XYZChart plot={plot} index={index} onLoading={setLoading} emptyText={t("xyzNeedsThree")} />}
           {mode === "fft" && <FFTChart plot={plot} index={index} onLoading={setLoading} onPeaks={setPeaks} />}
           {mode === "spec" && <SpecChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
+          {mode === "video" && <Suspense fallback={null}><VideoView plot={plot} /></Suspense>}
         </PlotBoundary>
-        {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && mode !== "xyz" && <div className="plot-empty">{t("emptyPlot")}</div>}
+        {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && mode !== "xyz" && mode !== "video" && <div className="plot-empty">{t("emptyPlot")}</div>}
         {loading && <div className="plot-loading">{t("loading")}</div>}
       </div>
     </section>

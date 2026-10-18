@@ -15,7 +15,7 @@ import type { Lang } from "./i18n";
 export interface PlotSignal { sig: string; color: string; width: number; scale: number; offset: number; label?: string; state?: boolean; tOffset?: number;
   /** T13: pass / fail limits on the plotted value (null / absent = no limit on that side) */
   limits?: { lo?: number | null; hi?: number | null } }  // state: drawn as state markers only (no line)
-export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz";   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c)
+export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz" | "video";   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c); video: T15
 export interface Plot {
   id: string; title: string; signals: PlotSignal[];
   mode?: PlotMode;                 // default "time"
@@ -39,6 +39,8 @@ export interface Plot {
   relatedObjects?: string[];       // 3D: up to two more objects - a line to each, with distance, in the box: their distance, height difference, bearing
   showReadout?: boolean;           // 3D: the box with the primary object's current values (default shown)
   ownTime?: number | null;         // 3D: a time of its own (not the timeline's) - null / absent: the shared time
+  /** T15 video mode: a local video file played with the timeline. data time = video time + offset (s). */
+  video?: { path: string; offset: number };
   showEvents?: boolean;            // 3D: the log's events as marks on the objects' tracks (default shown)
   xyzEqual?: boolean;              // XYZ (plain 3D, T17c): the same scale on all three axes (default true - right for positions)
   xyzFlipZ?: boolean;              // XYZ: Z drawn pointing down (NED "down", depth)
@@ -540,6 +542,25 @@ export const actions = {
   updatePlot(plotId: string, patch: Partial<Plot>) {
     useApp.getState().commit((ws) => {
       ws.tabs.forEach((t) => t.plots.forEach((p) => { if (p.id === plotId) Object.assign(p, patch); }));
+      return ws;
+    });
+  },
+  /** T15: the video a video-mode plot plays (a new file keeps the plot's offset). */
+  setVideo(plotId: string, path: string) {
+    useApp.getState().commit((ws) => {
+      ws.tabs.forEach((t) => t.plots.forEach((p) => {
+        if (p.id === plotId) p.video = { path, offset: p.video?.offset ?? 0 };
+      }));
+      return ws;
+    });
+  },
+  /** T15: data time = video time + offset. */
+  setVideoOffset(plotId: string, offset: number) {
+    if (!Number.isFinite(offset)) return;
+    useApp.getState().commit((ws) => {
+      ws.tabs.forEach((t) => t.plots.forEach((p) => {
+        if (p.id === plotId && p.video) p.video = { ...p.video, offset: Math.round(offset * 1000) / 1000 };
+      }));
       return ws;
     });
   },
