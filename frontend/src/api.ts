@@ -16,7 +16,7 @@ export interface RunInfo {
   id: string;
   name: string;
   path: string;
-  format: "csv" | "mat" | "bin" | "tlog" | "ulg" | "derived";
+  format: "csv" | "mat" | "bin" | "tlog" | "ulg" | "mcap" | "hdf5" | "derived";
   /** Only for files that carry a flight log's parameters / events (ArduPilot .bin). */
   log?: { params: number; events: number; errors: number; warnings: number };
   samples: number;
@@ -26,7 +26,7 @@ export interface RunInfo {
   importSettings: Record<string, unknown>;
   signals: SignalInfo[];
   report?: { skipped?: string[]; skippedColumns?: string[]; droppedRows?: number; sorted?: boolean; fromCache?: boolean; rememberedSettings?: boolean;
-    textColumns?: string[]; tooManyTexts?: string[]; vehicle?: string | null; corruptBytes?: number; cutOff?: boolean; damagedText?: boolean; params?: number;
+    textColumns?: string[]; tooManyTexts?: string[]; vehicle?: string | null; corruptBytes?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file

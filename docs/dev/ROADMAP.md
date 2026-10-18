@@ -307,7 +307,20 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
 - [ ] T25 Sim-vs-flight error signal with RMS per segment.
 - [x] T26 Parameter diff between two logs. *Re-assessed: already there* - the Log panel's
   Parameters tab has a "differences from another file" filter.
-- [ ] T27 Formats: MCAP (ROS 2), HDF5 (generic).
+- [x] T27 Formats: MCAP (ROS 2), HDF5 (generic).
+  Done 2026-10-18: `svcore/mcap_loader.py` (mcap + mcap-ros2-support, MIT, Foxglove, pure Python;
+  lz4 / zstandard for compressed chunks): read record by record with `StreamReader` (the
+  library's message iterator reads and SORTS everything first, so a damaged end lost the whole
+  file - found by the cut-off test); decoders per channel, bulk types skipped BEFORE decoding;
+  `_flatten` (ROS time -> seconds, text -> state labels, arrays <= 16, blobs listed); log_time from
+  the first message. `svcore/hdf5_loader.py` (h5py): own walk object by object (h5py's visititems
+  raises RuntimeError on the first damaged object - found by the damaged-files test, 48 cases now
+  in it); main time = the root group's, else the one fitting the most signals (not the longest - the
+  first version left a 10 Hz table without time next to a 100 Hz sensor). `check_file`: HDF5 and
+  MCAP signatures (HDF5 was taken for ".mat with the wrong extension"). Live mode: read again when
+  the file has settled. UI: DATA_EXTS, ROS 2 / HDF5 badges, report notes. Tests:
+  `test_mcap_hdf5.py` (9), the damaged-files test. New dependencies: mcap, mcap-ros2-support,
+  lz4, zstandard (requirements.txt says why).
 - [x] T29 Smart start: offer a fitting template when a file opens (built-in ArduPilot / PX4
   ones) and a short health summary with jump-to-time links. Spec: TASKS.md Q4.
   Done: `smartStart.ts` `offerStart` (from `openPaths`, only when the workspace had nothing
