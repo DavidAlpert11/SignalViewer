@@ -555,7 +555,8 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
   Done: `PlotView.tsx`: the ⋯ menu closes on Esc (focus back to ⋯), a mouse-down anywhere outside it, the window losing focus; the close-on-mouse-leave is gone; the first item takes the focus. It was the only hand-made menu left (`grep 'className="menu"'`). e2e `test_plot_menu_closes_like_every_menu`.
 - [x] **F18 File dialog keyboard focus (Esc, Tab)**. Spec: TASKS.md Q41.
   Done: one watcher for every modal dialog, `ModalFocus` in `Overlays.tsx` (mounted once in App): a new `.scrim > .dialog` (MutationObserver) takes the focus unless a field inside already has it, Tab / Shift+Tab cycle inside the top dialog (a picker over another dialog is the top), on close the focus returns where it was. Probed: file dialog, templates, help, the confirmation dialogs (Templates and Clear everything had the same problem). The StageBar popovers (layout, zoom) close on Esc wherever the focus is. e2e `test_dialogs_take_the_keyboard`.
-- [ ] **F19 An open file opens again silently**. Spec: TASKS.md Q42.
+- [x] **F19 An open file opens again silently**. Spec: TASKS.md Q42.
+  Done: `openPaths` (files.ts) splits the paths: a file already open (same path, case-insensitive, not a dragged-in copy) is read again from the disk (`api.reload`) and one toast says so with *Open another copy* (`openPaths(..., { copy: true })`); the rest open as before. Covers the dialog, recent files, Ctrl+P later and examples. en + he. e2e `test_opening_an_open_file_reads_it_again`.
 - [ ] **F20 Several files at once: one-file suggestion, a toast per file**. Spec: TASKS.md Q43.
 - [ ] **F21 File dialog: Shift range, Ctrl+A, last folder per purpose**. Spec: TASKS.md Q44.
 - [x] **F22 Many tabs: the hidden tabs cannot be reached** (owner). Spec: TASKS.md Q52.

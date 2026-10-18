@@ -3,6 +3,7 @@
 ## 1.6.1 – unreleased
 
 ### Fixed
+- Opening a file that is **already open** reads it again from the disk instead of adding a second copy without a word; *Open another copy* is offered in the message.
 - **Dialogs take the keyboard:** Esc closes the file dialog (and Templates, confirmations) right after it opens, typing filters the list at once, and Tab stays inside the dialog. The layout and zoom pop-ups close with Esc.
 - The plot's **⋯ menu** closes with Esc or a click anywhere else (it stayed open until the mouse passed over it).
 - **Compare runs** treats yaw / heading / course as angles: 359° and 1° are 2° apart (the yaw of the two example flights showed an RMS of 75.8° instead of 21.8°, and came first as "least similar").

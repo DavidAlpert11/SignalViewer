@@ -316,3 +316,17 @@ def test_dialogs_take_the_keyboard(page, server):
     page.wait_for_function(inside)
     page.keyboard.press("Escape")
     page.wait_for_selector(".scrim", state="detached")
+
+
+def test_opening_an_open_file_reads_it_again(page, server):
+    """F19: opening a file that is already open added a second copy without a word. Now it is read
+    again from the disk, and "Open another copy" is offered."""
+    _open(page, server["data"], ["run_a.csv"])
+    page.keyboard.press("Control+o")
+    _goto_folder(page, server["data"])
+    page.locator(".dialog .dialog-body .fs-row", has_text="run_a.csv").first.dblclick()
+    toast = page.locator(".toast", has_text="Already open")
+    toast.wait_for()
+    assert page.evaluate("window.__sv.state().runs.filter((r) => r.format !== 'derived').length") == 1
+    toast.get_by_role("button", name="Open another copy").click()
+    page.wait_for_function("window.__sv.state().runs.filter((r) => r.format !== 'derived').length === 2")
