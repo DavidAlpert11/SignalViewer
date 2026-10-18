@@ -23,7 +23,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 539 passed (T31 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q21 - Parquet, MF4 and CAN with a DBC (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: the owner's licence choice for CAN / MF4 (Q21), else Q22 - fleet view (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -268,7 +268,7 @@ Progress board (tick here AND in ROADMAP):
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☑ done |
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☑ done |
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☑ done |
-| Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ☐ |
+| Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ◐ Parquet done; CAN / MF4 wait for the owner (licences) |
 | Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ☐ |
 | Q23 | T42 Split `frontend/src/store.ts` into slices | M | ☐ |
 | Q24 | T43 Release & reach: signed installers, docs site, public benchmark vs other tools, forum posts | M | ☐ |
@@ -388,6 +388,8 @@ the running app on 127.0.0.1 with a per-start token; they appear as a run that c
 **Why:** MF4 + DBC is the entry ticket to automotive / systems test (asammdf, Vector).
 **Steps:** Parquet via pyarrow (already a dependency); MF4 via `asammdf` (optional dependency);
 CAN logs (MF4 bus logging, candump, .blf) decoded with `cantools` and a DBC the user picks.
+**Status (2026-10-18):** Parquet done (ROADMAP T40). CAN / MF4 wait for the owner's licence
+choice - see ROADMAP T40 for the options (A / B / C).
 
 ### Q22 · T41 Fleet view — L
 **Why:** almost no free tool does it: "every flight with vibration above X", trends over months.
@@ -508,3 +510,6 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   the damaged-files test found two real failures in the first versions (whole-file loss, a
   RuntimeError escaping) and a wrong main-time rule - all fixed · backend 603, mypy clean, whole
   e2e suite 155 passed · next: Q21.
+- 2026-10-18 · Q21 / T40 Parquet done (loader, signature, live, UI, 5 tests + 24 damaged copies);
+  CAN / MF4: cantools needs python-can (LGPL-3.0), asammdf is LGPLv3+ - asked the owner · backend
+  632, mypy clean, whole e2e suite 155 passed.

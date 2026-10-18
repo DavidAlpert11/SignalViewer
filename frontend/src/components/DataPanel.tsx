@@ -204,8 +204,8 @@ export default function DataPanel() {
               aria-label={on ? t("liveUpdating") : t("liveIdle")}
               title={on ? t("liveUpdating") : ago === undefined ? t("liveNoData") : t("liveIdleFor", { s: fmtNum(ago, lang, 3) })} />;
           })()}
-          {(run.format === "bin" || run.format === "tlog" || run.format === "ulg" || run.format === "mcap" || run.format === "hdf5") && (
-            <span className="badge-fmt" title={t(run.format === "bin" ? "ardupilotLog" : run.format === "tlog" ? "tlogFile" : run.format === "mcap" ? "mcapFile" : run.format === "hdf5" ? "hdf5File" : "ulogFile")}>
+          {(run.format === "bin" || run.format === "tlog" || run.format === "ulg" || run.format === "mcap" || run.format === "hdf5" || run.format === "parquet") && (
+            <span className="badge-fmt" title={t(run.format === "bin" ? "ardupilotLog" : run.format === "tlog" ? "tlogFile" : run.format === "mcap" ? "mcapFile" : run.format === "hdf5" ? "hdf5File" : run.format === "parquet" ? "parquetFile" : "ulogFile")}>
               {run.format === "ulg" ? "PX4" : run.format === "mcap" ? "ROS 2" : run.format.toUpperCase()}</span>)}
           <span className="run-meta">{fmtInt(run.signals.length, lang)}</span>
           {run.format !== "derived" && <>

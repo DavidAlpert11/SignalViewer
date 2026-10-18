@@ -445,6 +445,16 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   (bundled as data in the PyInstaller build: modules are archived there). Tests: backend
   `test_push.py` (8, the real client against the app on a real port), e2e `test_push.py`.
 - [ ] T40 Parquet, MF4, CAN + DBC. Spec: TASKS.md Q21.
+  Parquet done 2026-10-18: `svcore/parquet_loader.py` (pyarrow): time = the chosen column, else the
+  pandas index (from the file's pandas metadata), else a time-named column, else the first
+  timestamp column; date-times -> seconds from the first; dictionary / text -> states (<= 1000
+  values); lists / structs listed as left out; sorted by time; signature PAR1. Tests:
+  `test_parquet.py` (5), 24 damaged copies in the damaged-files test.
+  CAN + DBC and MF4: WAITING FOR THE OWNER - licences (2026-10-18): cantools is MIT but requires
+  python-can (LGPL-3.0-only); asammdf (MF4) is LGPLv3+ with heavy dependencies. Options: (A) use
+  them, bundled with LGPL compliance (licence texts, source, replaceable); (B) our own DBC decoder +
+  candump / ASC readers (MIT; cantools only in tests as a reference) and MF4 only when the user
+  installs asammdf; (C) both optional (pip install), nothing LGPL in the installer.
 - [ ] T41 Fleet view (index of many logs). Spec: TASKS.md Q22.
 - [ ] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.
 - [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
