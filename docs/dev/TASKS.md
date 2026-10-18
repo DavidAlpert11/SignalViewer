@@ -23,7 +23,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 517 passed (T38); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q7 - video synchronised to the timeline (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q11 + Q20 - user Python operations and the Python push API (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -177,6 +177,7 @@ lazily for visible rows only.
 **Status:** done (see ROADMAP T22).
 
 ### Q7 · T15 Video synchronised to the timeline — M
+**Status:** done 2026-10-18 (see ROADMAP T15).
 **Where:** Timeline / cursor state in store, a new lazy component (keep it out of the main
 bundle). Local file served by the backend (range requests); offset set from a cursor pair, like
 `syncCursorMenu`.
@@ -245,7 +246,7 @@ Progress board (tick here AND in ROADMAP):
 | Q17 | F02 The whole e2e suite in one process | M | ☑ done (closed: not reproducible; F09 fixed) |
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured; moved to the end (owner: not felt by users) |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
-| Q7  | T15 Video synchronised to the timeline (already queued) | M | ☐ |
+| Q7  | T15 Video synchronised to the timeline (already queued) | M | ☑ done |
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☐ |
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☐ |
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☐ |
@@ -468,3 +469,7 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · Q17 / F02 closed: the whole suite in one process passed 152/152 twice (detached,
   against a fresh and against the committed dist); `pytest tests/e2e` is the documented way
   (CLAUDE.md, README) · next: Q7.
+- 2026-10-18 · Q7 / T15 video: plot mode "video", range-serving endpoint, lock / line-up flow
+  (the first "Sync here" design could never change the offset - caught by the e2e test), Hebrew and
+  English checked by screenshot (a first layout used half the plot - fixed) · backend 529, mypy
+  clean, whole e2e suite 153 passed · next: Q11 + Q20.
