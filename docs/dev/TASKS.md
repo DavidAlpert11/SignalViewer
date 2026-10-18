@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   as it is; release 1.6.0 properly (Q35) and split CHANGELOG there into 1.5.0 (what the tag had:
   everything under "Unreleased" up to and including T41) and 1.6.0.
 - **Active plan: "Plan 2026-10-18 (toward 1.6.0)" below - Q25 ... Q35, in that order.**
-- Tests at the last change: backend 640 passed; whole e2e suite 156 passed (T41 UI).
+- Tests at the last change: backend 642 passed; whole e2e suite 156 passed (T41 UI).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -433,7 +433,7 @@ task, with a Log line. Phase C items may move after the release if the owner say
 | **A** | **Fixes and examples** | | |
 | Q25 | F10 Examples missing from the Windows portable package | S | ☑ done |
 | Q26 | T44 Example: two UAV flights of the same mission, to compare | S | ☑ done |
-| Q27 | T45 Example: an ArduPilot .bin flight (GPS track, modes, vibration, battery) | S | ☐ |
+| Q27 | T45 Example: an ArduPilot .bin flight (GPS track, modes, vibration, battery) | S | ☑ done |
 | —   | F11 Fleet: flight date of modern ArduPilot logs (found by Q27) | S | ☑ done |
 | **B** | **Infrastructure** | | |
 | Q23 | T42 Split `frontend/src/store.ts` into slices (spec above) | M | ☐ |
@@ -604,3 +604,6 @@ backend test opens it; e2e.
   640, mypy clean, e2e workflows example tests green · next: Q27.
 - 2026-10-18 · F11 found while making Q27's example: Fleet dated every modern ArduPilot log by the
   file (GPS[0].GMS [s] not read) - fixed + test · backend 641.
+- 2026-10-18 · Q27 / T45 ArduPilot example (.bin), welcome names every format · backend 642, mypy
+  clean, e2e workflows 9 · next: whole e2e suite (on-screen text changed), then Q23. Note: frontend/dist
+  is NOT in the commits from here on (patches stay small; run.py rebuilds; Q35 rebuilds and commits).

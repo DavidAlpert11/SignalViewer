@@ -13,7 +13,10 @@ Writes the demo files used for the screenshots and videos in the README.
   uav_flight_windy.csv                    the same mission flown again in a cross-wind, 12 s later
                                           (two tracks on the map, Compare runs)
 
-ArduPilot / MAVLink demo logs come from tools/make_test_bin.py and tools/make_same_flight.py.
+  copter_flight.bin                       an ArduPilot quad-copter flight (tools/make_example_bin.py):
+                                          modes, a mission, a vibration burst for the health summary
+
+Test logs (not examples) come from tools/make_test_bin.py and tools/make_same_flight.py.
 """
 import csv
 import os
@@ -121,4 +124,7 @@ if __name__ == "__main__":
     uav_flight(out)
     # T44: the same mission flown again in a 9 m/s wind blowing toward the east, 12 s later
     uav_flight(out, "uav_flight_windy", wind=(9.0, 90.0), seed=7, t_take=42, t_land=566, drain=2.6)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import make_example_bin                               # T45
+    make_example_bin.main(os.path.join(out, "copter_flight.bin"))
     print("demo files written to", os.path.abspath(out))

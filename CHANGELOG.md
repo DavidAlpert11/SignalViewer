@@ -7,6 +7,10 @@
 - New example: **the same mission flown twice** - a calm flight and the same waypoints in a
   cross-wind (drift off the track, nose into the wind, gusts, more battery drain), for the map with
   two tracks and Compare runs. An example is offered only when all its files are there.
+- New example: **an ArduPilot flight log** (.bin) - a 4-minute quad-copter flight with every mode
+  from STABILIZE to LAND, a mission, and one problem to find: the health check shows a vibration
+  burst with clipping, the smart start offers "ArduPilot · Full review".
+- The welcome screen names all the formats it opens (it still said "CSV or MAT").
 - Fleet: flights from current ArduPilot firmware are dated by the GPS time in the log again (they
   got the file's date, wrong once the log had been copied).
 

@@ -489,7 +489,21 @@ T14c, T18, T21b, T23, T24, T25, T36b, T42 above belong to this milestone.
   App.tsx (tsc enforces a label per id), en + he. Tests: backend
   `test_two_flights_example_is_ready_to_compare`, e2e `test_open_the_two_flights_example`; Hebrew line
   checked by screenshot (fits one line).
-- [ ] **T45 Example: an ArduPilot .bin flight**. Spec: TASKS.md Q27.
+- [x] **T45 Example: an ArduPilot .bin flight**. Spec: TASKS.md Q27.
+  Done: `tools/make_example_bin.py` (called by `make_demo_data.py`; deterministic, 1.0 MB, 246 s):
+  a point-mass quad model at 25 Hz - tilt from acceleration + drag in a 3 m/s westerly, the attitude
+  following the desired with lag, quad-X motor mix, current from throttle, 4S battery; FMTU as the
+  firmware writes it (that is how F11 was found). Ein Gev, 2026-09-14 06:30 UTC by GPS time. Modes
+  STABILIZE / ALT_HOLD / LOITER / AUTO (5 waypoints, "Reached command #n") / RTL / LAND, EV
+  ARMED / LAND_COMPLETE / DISARMED. Planted: vibration 137-143 s mid-leg (an earlier version put it
+  in a turn), clipping, "Vibration compensation ON/OFF"; everything else healthy. Fixed on the way:
+  yaw flicker at 0/360 (now parked at 35 deg), take-off pitch -25 deg (drag / accel limit). Guards
+  in the generator: the mission ends before RTL, it lands before the log ends. `EXAMPLE_SETS`
+  "ardupilot"; welcome title / hint and the empty-list hint name every format (were "CSV or MAT";
+  the Hebrew hint without the extension list - bidi). Tests: backend
+  `test_ardupilot_example_health_and_modes`, fleet `test_flight_date_of_the_ardupilot_example`, e2e
+  `test_open_the_ardupilot_example` (smart-start card, template + warning). Checked by screenshot:
+  the card, the Full review template, en + he welcome.
 - [x] **F11 Fleet gave modern ArduPilot logs the FILE's date** (found by T45's example, written like
   real firmware): `flight_date` read only `GPS.GWk` / `GPS.GMS` in ms, but an instanced GPS with FMTU
   arrives as `GPS[0].GWk` / `GPS[0].GMS [s]` - the loader applies GMS's 1e-3 multiplier. The old test

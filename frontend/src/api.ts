@@ -1,5 +1,5 @@
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
-export type ExampleId = "flight" | "twoFlights" | "car";
+export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot";
 export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number }
 export interface SignalInfo {
   id: string; name: string; discrete?: boolean;

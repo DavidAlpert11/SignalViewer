@@ -321,6 +321,7 @@ table.preview th.time { color: var(--amber); }
 .welcome { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
 .welcome-card { max-width: 460px; text-align: center; }
 .welcome-card .examples-line { margin: 14px 0 0; color: var(--muted); }
+.welcome-card .examples-line > span { white-space: nowrap; }
 .welcome-card svg.trace { width: 220px; height: 64px; margin-bottom: 18px; }
 .welcome-card h1 { margin: 0 0 8px; font-size: 1.692rem; font-weight: 600; color: var(--ink-strong); letter-spacing: -.01em; }
 .welcome-card p { margin: 0 0 20px; color: var(--muted); font-size: 1.077rem; }

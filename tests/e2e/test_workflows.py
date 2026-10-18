@@ -229,3 +229,13 @@ def test_open_the_two_flights_example(page, server):
     page.locator(".examples-line button", has_text="flown twice").click()
     page.wait_for_function("document.querySelectorAll('.run-head').length === 2")
     assert page.locator(".run-head", has_text="uav_flight_windy").count() == 1
+
+
+def test_open_the_ardupilot_example(page, server):
+    """T45: the flight-log example opens with the smart-start card - an ArduPilot template and the
+    vibration warning from its health check."""
+    page.locator(".examples-line button", has_text="ArduPilot").click()
+    card = page.locator(".start-card")
+    card.wait_for(timeout=20000)
+    assert "ArduPilot" in card.locator(".start-tpl b").inner_text()
+    assert "warning" in card.locator(".hrow").first.get_attribute("class")
