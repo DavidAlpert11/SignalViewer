@@ -455,7 +455,8 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   them, bundled with LGPL compliance (licence texts, source, replaceable); (B) our own DBC decoder +
   candump / ASC readers (MIT; cantools only in tests as a reference) and MF4 only when the user
   installs asammdf; (C) both optional (pip install), nothing LGPL in the installer.
-- [ ] T41 Fleet view (index of many logs). Spec: TASKS.md Q22.
+  -> 2026-10-18: the owner POSTPONED CAN / MF4.
+- [ ] T41 Fleet view (index of many logs). Spec: TASKS.md Q22. Backend done 2026-10-18 (TASKS Q22); the UI next.
 - [ ] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.
 - [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
 
