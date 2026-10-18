@@ -98,3 +98,16 @@ def test_unusable_templates_folder_is_refused(home, tmp_path):
     blocker = tmp_path / "a_file"
     blocker.write_text("x")
     assert client.post("/api/templates/folder", json={"path": str(blocker / "sub")}).status_code == 400
+
+
+def test_first_run_default_folder_is_available(home, monkeypatch):
+    """F14: on a first run (no template saved yet) the library said "The templates folder is not
+    available". The default folder is made when asked about; a chosen folder that is gone is not."""
+    monkeypatch.setattr(prefs, "DEFAULT_TEMPLATE_DIR", str(home / "templates"))
+    assert not (home / "templates").exists()
+    r = client.get("/api/templates").json()
+    assert r["exists"] and r["default"] and (home / "templates").is_dir()
+    gone = home / "usb" / "templates"
+    monkeypatch.setattr(prefs, "TEMPLATE_DIR", str(gone))
+    r = client.get("/api/templates").json()
+    assert not r["exists"] and not gone.exists()
