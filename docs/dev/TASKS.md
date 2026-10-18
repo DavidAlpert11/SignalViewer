@@ -23,7 +23,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 539 passed (T31 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q11 UI (the backend is done), then Q20 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q20 - the Python push API (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -228,9 +228,7 @@ folder"). Name: `despike(Speed, limit=3)`. Endpoints `/api/pyops` (list), `/relo
 `/example`, `/reveal`. `run.py`: `multiprocessing.freeze_support()` (the packaged app starts
 itself again for the worker). Tests: `test_pyops.py` (10: listing, params, 2 inputs, new time
 base, error line, wrong output, endless loop, crash, missing op, reload, example, folder).
-**Next (UI):** a "Python" kind in Create signals (AnalysisPanel): the operations list with
-their description, the parameters as inputs, source pickers for `inputs`, the folder with
-Open folder / Reload / Make an example / Change folder; the load errors shown; e2e test.
+**UI: done 2026-10-18** (see ROADMAP T31).
 **Check on Windows (owner):** the packaged app runs an operation (spawn + freeze_support).
 
 ### Also open (not queued yet - see ROADMAP)
@@ -266,7 +264,7 @@ Progress board (tick here AND in ROADMAP):
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured; moved to the end (owner: not felt by users) |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☑ done |
-| Q11 | T31 User Python operations from a local folder (already queued) | L | ◐ backend done, UI next |
+| Q11 | T31 User Python operations from a local folder (already queued) | L | ☑ done |
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☐ |
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☐ |
 | Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ☐ |
@@ -495,3 +493,6 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · Q11 / T31 backend: worker process, timeout / crash recovery, folder setting,
   op "py" in the analysis engine, endpoints, freeze_support, 10 tests · backend 539, mypy clean ·
   next: the UI of Q11.
+- 2026-10-18 · Owner: patches 17-19 applied, backend 539 passed on Windows - the worker process
+  (spawn) works there from source. Q11 / T31 UI: Python kind in Create signals, e2e, Hebrew checked
+  by screenshot; backend 539, mypy clean, whole e2e suite 154 passed · next: Q20.

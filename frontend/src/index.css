@@ -1080,3 +1080,13 @@ input.fx-input { width: 100%; }
 .video-outside { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 0.95rem; pointer-events: none; }
 .video-sync.on { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
 .video-lining { padding: 4px 8px; font-size: 0.82rem; background: var(--amber-soft); color: var(--ink); }
+
+/* T31 Python operations */
+.pyops { display: flex; flex-direction: column; gap: 6px; }
+.pyops .hint { font-size: 0.846rem; margin: 0; }
+.pyops-doc { color: var(--ink); }
+.pyops-errors { font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; background: rgba(239, 107, 115, .12); color: var(--ink); }
+.pyops-errors div { margin-top: 3px; overflow-wrap: anywhere; }
+.pyops-folder { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); }
+.pyops-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pyops-btns { display: flex; flex-wrap: wrap; gap: 4px; }

@@ -12,8 +12,9 @@ import { AXES, createFrameGroup, frameGroupName, suggestFrames, type Frame, type
 import { groupDerived, memberLabel } from "../signalGroups";
 import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
+import PyOpsSection, { type PyChoice } from "./PyOpsSection";
 
-type Kind = "one" | "two" | "many" | "fx" | "frame";
+type Kind = "one" | "two" | "many" | "fx" | "frame" | "py";   // py: the user's own Python operations (T31)
 const UNARY: [string, TKey][] = [
   ["derivative", "opDerivative"], ["integral", "opIntegral"], ["abs", "opAbs"], ["negate", "opNegate"],
   ["normalize", "opNormalize"], ["affine", "opAffine"], ["smooth", "opSmooth"], ["rms", "opRms"], ["lowpass", "opLowpass"], ["highpass", "opHighpass"],
@@ -44,6 +45,7 @@ export default function AnalysisPanel() {
   }))), [runs]);
 
   const [kind, setKind] = useState<Kind>("one");
+  const [py, setPy] = useState<PyChoice | null>(null);
   const [op, setOp] = useState("derivative");
   const [a, setA] = useState("");
   const [b, setB] = useState("");
@@ -125,7 +127,7 @@ export default function AnalysisPanel() {
   ];
 
   const switchKind = (k: Kind) => {
-    setKind(k); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : "expr");
+    setKind(k); setOp(k === "one" ? "derivative" : k === "two" ? "sub" : k === "many" ? "mean" : k === "frame" ? "frame" : k === "py" ? "py" : "expr");
     if (k === "frame" && vec.every((x) => !x)) {
       if (frameSugs.length) applySug(frameSugs[0]);       // what the names suggest (T30); the user confirms
       else {                                               // else the active plot's signals, in order, as a start
@@ -145,6 +147,9 @@ export default function AnalysisPanel() {
   };
   const fxRes = kind === "fx" && fx.trim() ? resolveFormula(fx, runs, tr) : null;
   const params = { window: windowN, cutoff, alignment, gain, bias };
+  // T31: a Python operation's sources follow how many inputs it takes
+  const pySources = !py ? [] : py.op.inputs === 1 ? [a] : py.op.inputs === 2 ? [a, b] : many;
+  const pyParams = py ? { op: py.op.id, args: py.args } : {};
   const batchSigs = many;
 
   const create = async () => {
@@ -182,12 +187,12 @@ export default function AnalysisPanel() {
       finally { setBusy(false); }
       return;
     }
-    const jobs: string[][] = kind === "one" ? (batch ? batchSigs.map((s) => [s]) : [[a]]) : kind === "two" ? [[a, b]] : [many];
+    const jobs: string[][] = kind === "py" ? [pySources] : kind === "one" ? (batch ? batchSigs.map((s) => [s]) : [[a]]) : kind === "two" ? [[a, b]] : [many];
     if (!jobs.length || jobs.some((j) => j.some((s) => !s))) return;
     setBusy(true);
     try {
       for (const sources of jobs) {
-        const r = await api.createDerived(op, sources, params, jobs.length === 1 ? name : undefined);
+        const r = await api.createDerived(kind === "py" ? "py" : op, sources, kind === "py" ? pyParams : params, jobs.length === 1 ? name : undefined);
         useApp.setState({ runs: r.runs });
         if (addToPlot) actions.addSignal(r.id);
       }
@@ -223,9 +228,10 @@ export default function AnalysisPanel() {
       return;
     }
     if (kind === "fx" && (!fxRes || fxRes.error)) return;
-    const sources = kind === "fx" ? fxRes!.sources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
-    const pOp = kind === "fx" ? "expr" : op;
-    const pParams = kind === "fx" ? { expr: fxRes!.expr, text: fx, alignment } : params;
+    const sources = kind === "fx" ? fxRes!.sources : kind === "py" ? pySources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
+    const pOp = kind === "fx" ? "expr" : kind === "py" ? "py" : op;
+    const pParams = kind === "fx" ? { expr: fxRes!.expr, text: fx, alignment } : kind === "py" ? pyParams : params;
+    if (kind === "py" && !py) return;
     if (sources.some((x) => !x)) return;
     try {
       const d = await api.previewDerived(pOp, sources, pParams, r?.[0] ?? null, r?.[1] ?? null);
@@ -249,6 +255,7 @@ export default function AnalysisPanel() {
   );
 
   const canCreate = kind === "frame" ? frSrc !== frDst && frameSources.every((x) => !!x) && refOk
+    : kind === "py" ? !!py && pySources.length >= py.op.inputs && pySources.every((x) => !!x)
     : kind === "fx" ? !!fxRes && !fxRes.error : kind === "one" ? (batch ? batchSigs.length > 0 : !!a) : kind === "two" ? !!a && !!b : many.length >= 2;
 
   return (
@@ -262,10 +269,17 @@ export default function AnalysisPanel() {
             <button className={kind === "many" ? "on" : ""} onClick={() => switchKind("many")}>{t("kindMany")}</button>
             <button className={kind === "fx" ? "on" : ""} onClick={() => switchKind("fx")}>{t("formula")}</button>
             <button className={kind === "frame" ? "on" : ""} onClick={() => switchKind("frame")}>{t("kindFrame")}</button>
+            <button className={kind === "py" ? "on" : ""} onClick={() => switchKind("py")} title={t("pyIntro")}>Python</button>
           </div>
 
           {kind === "fx" && <FormulaInput value={fx} onChange={setFx} runs={runs} error={fxRes?.error} />}
-          {kind !== "fx" && kind !== "frame" && <label className="afield"><span>{t("operation")}</span>
+          {kind === "py" && <>
+            <PyOpsSection choice={py} onChange={setPy} />
+            {py && py.op.inputs === 1 && sigSelect(a, setA, t("signal"))}
+            {py && py.op.inputs === 2 && <>{sigSelect(a, setA, "A")}{sigSelect(b, setB, "B")}</>}
+            {py && py.op.inputs > 2 && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} />}
+          </>}
+          {kind !== "fx" && kind !== "frame" && kind !== "py" && <label className="afield"><span>{t("operation")}</span>
             <select value={op} onChange={(e) => setOp(e.target.value)}>
               {kind === "one" && UNARY.map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}
               {kind === "two" && BINARY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}

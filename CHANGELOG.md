@@ -7,6 +7,12 @@
   video moves the cursor. *Line up…* lets the video and the cursor be put on the same moment
   (take-off, a step) separately, *Lock here* keeps them together from then on; the offset is saved
   with the session and can be typed.
+- **Your own Python operations** (*Create signals > Python*): every function marked `@operation`
+  in a `.py` file in your operations folder is listed, with its description and parameters, and
+  makes a signal like any other (preview, live updates, sessions). *Make an example* writes a file
+  with three to start from. The code runs in a process of its own: an error names the line in your
+  file, an endless loop is stopped, a crash does not take the app down. Only your folder runs - a
+  session or template keeps just the operation's name.
 
 ## 1.4.0 – 2026-10-18
 

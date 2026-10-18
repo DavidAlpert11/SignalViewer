@@ -335,7 +335,14 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   ATTITUDE = rad). Frames tab: the first suggestion fills the fields when they are empty, chips
   switch; without suggestions the old start (the active plot's signals) stays. e2e
   `test_frames_suggested_from_names`.
-- [ ] T31 User Python operations from a local folder (decided: only a folder the user chooses).
+- [x] T31 User Python operations from a local folder (decided: only a folder the user chooses).
+  Done 2026-10-18 - backend: see TASKS.md Q11 (worker process, timeout / crash recovery, op "py").
+  UI: `PyOpsSection.tsx` in Create signals (kind "Python"): the operations with their description,
+  parameters typed by their defaults (number / text / checkbox), source pickers by `inputs`
+  (1: Signal, 2: A and B, more: the multi picker), the folder (path as LTR inside RTL), Reload,
+  Open folder, Make an example, Change folder / Default folder, the files that did not load.
+  Tests: backend `test_pyops.py` (10), e2e `test_pyops.py`. Checked in Hebrew by screenshot
+  (fixed: the description and errors are LTR text, a SyntaxError named its line twice).
   Spec: TASKS.md Q11.
 - [x] T28 `worldCountries.ts` → JSON loaded with the map. *Re-assessed: already done* -
   GeoChart loads it with `import()` into its own chunk (not in the main bundle).
