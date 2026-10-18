@@ -1,3 +1,5 @@
+/** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
+export type ExampleId = "flight" | "twoFlights" | "car";
 export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number }
 export interface SignalInfo {
   id: string; name: string; discrete?: boolean;
@@ -247,7 +249,7 @@ export const api = {
   segments: (signal: string) => call<{ total: number;
     segments: { t0: number; t1: number; value: number; label: string | null }[];
     byValue: { value: number; label: string | null; duration: number; count: number }[] }>("/api/segments", { signal }),
-  examples: () => call<{ id: "flight" | "car"; paths: string[] }[]>("/api/examples"),
+  examples: () => call<{ id: ExampleId; paths: string[] }[]>("/api/examples"),
   completePath: (text: string, base: string | null, exts?: string[]) =>
     call<{ dir: string | null; items: { name: string; path: string; dir: boolean }[]; common: string }>("/api/fs/complete", { text, base, exts }),
   listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[] }>("/api/fs/list", { path, exts }),

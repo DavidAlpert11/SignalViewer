@@ -479,7 +479,16 @@ T14c, T18, T21b, T23, T24, T25, T36b, T42 above belong to this milestone.
   `test_every_example_ships_in_every_package`: the files of `EXAMPLE_SETS` exist and both packagings
   (portable script, PyInstaller spec) ship `examples/` - fails without the fix. Not run here: the
   portable build itself (python.org is not reachable from this sandbox) - the owner's next build shows it.
-- [ ] **T44 Example: two flights of the same mission**. Spec: TASKS.md Q26.
+- [x] **T44 Example: two flights of the same mission**. Spec: TASKS.md Q26.
+  Done: `tools/make_demo_data.py` `uav_flight(..., wind=...)` - with wind=None the original
+  `uav_flight.csv` is byte-identical (tests and README media use it); `uav_flight_windy.csv`: 9 m/s toward
+  the east, per-leg drift smoothed and faded in after the climb (an earlier version took the drift
+  from the track at hover speed - roll / yaw spikes at take-off), crab angle, gusts on roll, heading
+  held while slow, drain 2.6 V, take-off 12 s later. `EXAMPLE_SETS` "twoFlights"; a set is offered only
+  when ALL its files exist (a half set would be wrong). UI: `ExampleId` in api.ts, a label map in
+  App.tsx (tsc enforces a label per id), en + he. Tests: backend
+  `test_two_flights_example_is_ready_to_compare`, e2e `test_open_the_two_flights_example`; Hebrew line
+  checked by screenshot (fits one line).
 - [ ] **T45 Example: an ArduPilot .bin flight**. Spec: TASKS.md Q27.
 
 ## Later
