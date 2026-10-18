@@ -12,6 +12,43 @@ import numpy as np
 
 from svcore.analysis import align_to
 
+# F16: headings / yaw wrap at 0/360 - 359 deg vs 1 deg is 2 deg apart, not 358. An angle is a signal whose
+# unit is an angle (not a rate: "deg/s" is not) and that is named like a direction, or whose values
+# really sweep most of a turn. Roll / pitch in a small range are angles too, but never 180 apart.
+_ANGLE_UNITS = {"deg": 360.0, "degree": 360.0, "degrees": 360.0, "°": 360.0, "rad": 2 * np.pi, "radian": 2 * np.pi, "radians": 2 * np.pi}
+_ANGLE_WORDS = ("yaw", "heading", "hdg", "course", "cog", "bearing", "azimuth", "azi", "psi", "track", "wind_dir", "winddir", "direction")
+
+
+def angle_period(name: str, values: List[np.ndarray]) -> Optional[float]:
+    """360 (or 2 pi) when the signal `name` ("ATT.Yaw [deg]") is an angle that wraps, else None."""
+    unit = name[name.rfind("[") + 1:name.rfind("]")].strip().lower() if name.rstrip().endswith("]") and "[" in name else ""
+    period = _ANGLE_UNITS.get(unit)
+    if period is None:
+        return None
+    low = name.lower()
+    if any(w in low for w in _ANGLE_WORDS):
+        return period
+    spans = [float(np.nanmax(v) - np.nanmin(v)) for v in values if len(v) and np.isfinite(v).any()]
+    return period if spans and max(spans) >= 0.75 * period else None
+
+
+def _wrap(d: np.ndarray, period: float) -> np.ndarray:
+    return (d + period / 2) % period - period / 2
+
+
+def _unwrap(y: np.ndarray, period: float) -> np.ndarray:
+    y = np.asarray(y, dtype=np.float64)
+    out = y.copy()
+    ok = np.isfinite(y)
+    if ok.any():
+        out[ok] = np.unwrap(y[ok], period=period)
+    return out
+
+
+def _circular_mean(rows: np.ndarray, period: float) -> np.ndarray:
+    a = rows * (2 * np.pi / period)
+    return np.arctan2(np.nanmean(np.sin(a), axis=0), np.nanmean(np.cos(a), axis=0)) * (period / (2 * np.pi))
+
 
 def _grid(base_t: np.ndarray, lo: float, hi: float, max_points: int) -> np.ndarray:
     i0, i1 = np.searchsorted(base_t, lo, "left"), np.searchsorted(base_t, hi, "right")
@@ -21,14 +58,19 @@ def _grid(base_t: np.ndarray, lo: float, hi: float, max_points: int) -> np.ndarr
     return g
 
 
-def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float]) -> Dict:
+def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float],
+            period: Optional[float] = None) -> Dict:
     ok = np.isfinite(base) & np.isfinite(other)
     if ok.sum() < 2:
         return {"valid": False}
     b, o = base[ok], other[ok]
-    d = o - b
-    # error is relative to the baseline's range; a constant baseline uses its magnitude
+    d = _wrap(o - b, period) if period else o - b
+    if period:                  # the shapes without the 0/360 jumps, for the range and the correlation
+        b, o = _unwrap(b, period), _unwrap(o, period)
+    # error is relative to the baseline's range (an angle: at most one turn); a constant baseline uses its magnitude
     span = float(np.ptp(b)) or float(np.max(np.abs(b))) or 1.0
+    if period:
+        span = min(span, period)
     res = {
         "valid": True,
         "samples": int(ok.sum()),
@@ -55,12 +97,16 @@ def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_p
 PROFILE_BINS = 32
 
 
-def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS) -> List[Optional[float]]:
+def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS, period: Optional[float] = None) -> List[Optional[float]]:
     """RMS of (other - base) in `bins` equal time slices, as % of the baseline's range
     (None for a slice with no valid sample: drawn as a gap)."""
-    d = other - base
+    d = _wrap(other - base, period) if period else other - base
     ok = np.isfinite(d)
+    if period:
+        base = _unwrap(base, period)
     span = float(np.nanmax(base) - np.nanmin(base)) if np.isfinite(base).any() else 0.0
+    if period:
+        span = min(span, period)
     span = span or float(np.nanmax(np.abs(base))) if np.isfinite(base).any() else 1.0
     span = span or 1.0
     out = []
@@ -80,20 +126,25 @@ def compare(series: List[Tuple[str, np.ndarray, np.ndarray]], baseline: str, ali
         raise ValueError("The runs do not overlap in time. Try aligning them in time first.")
     ref = next((s for s in series if s[0] == baseline), series[0])
     grid = _grid(ref[1], lo, hi, max_points)
-    aligned = {sid: align_to(grid, t, y, alignment) for sid, t, y in series}
+    sid0 = series[0][0]
+    period = angle_period(sid0[sid0.find("/") + 1:], [np.asarray(y, dtype=np.float64) for _, _, y in series])
+    # an angle is unwrapped before resampling (else a 359 -> 1 step interpolates through 180)
+    aligned = {sid: align_to(grid, t, _unwrap(y, period) if period else y, alignment) for sid, t, y in series}
     if baseline == "mean":
-        base = np.nanmean(np.vstack(list(aligned.values())), axis=0)
+        stack = np.vstack(list(aligned.values()))
+        base = _circular_mean(stack, period) if period else np.nanmean(stack, axis=0)
     else:
         base = aligned[ref[0]]
     rows = []
     for sid, _, _ in series:
         if baseline != "mean" and sid == ref[0]:
             continue
-        m = metrics(base, aligned[sid], tol_abs, tol_pct)
+        m = metrics(base, aligned[sid], tol_abs, tol_pct, period)
         if m.get("valid"):
-            m["profile"] = diff_profile(base, aligned[sid])
+            m["profile"] = diff_profile(base, aligned[sid], period=period)
         rows.append({"id": sid, **m})
-    return {"overlap": [lo, hi], "gridPoints": int(len(grid)), "baseline": baseline if baseline == "mean" else ref[0], "rows": rows}
+    return {"overlap": [lo, hi], "gridPoints": int(len(grid)), "baseline": baseline if baseline == "mean" else ref[0], "rows": rows,
+            **({"angle": period} if period else {})}
 
 
 def _xcorr(x: np.ndarray, y: np.ndarray) -> np.ndarray:
