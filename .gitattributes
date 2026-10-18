@@ -1,0 +1,2 @@
+# example data: kept byte-for-byte (CRLF CSVs; tests and README media depend on the exact files)
+examples/** binary
