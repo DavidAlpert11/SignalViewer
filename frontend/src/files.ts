@@ -7,7 +7,11 @@ import { dictionaries, translate, type Lang, type TKey } from "./i18n";
 /** Run a long operation as a background job: progress panel + cancel (N-04).
  *  Resolves with the job's result, or null when the user cancelled. Throws on errors. */
 export async function runJob<T = any>(kind: string, body: unknown, label: string): Promise<T | null> {
-  const job = await api.startJob(kind, body, label);
+  return followJob<T>(await api.startJob(kind, body, label), label);
+}
+
+/** Follow a job some endpoint started (progress in the jobs bar, like runJob). */
+export async function followJob<T = any>(job: JobInfo, label: string): Promise<T | null> {
   const upd = (j: JobInfo) => useApp.setState({
     jobs: useApp.getState().jobs.filter((x) => x.id !== j.id).concat(j.state === "running" ? [{ id: j.id, label, progress: j.progress, phase: j.phase }] : []),
   });

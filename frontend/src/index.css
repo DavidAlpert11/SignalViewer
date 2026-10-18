@@ -1093,3 +1093,38 @@ input.fx-input { width: 100%; }
 .pyops-push { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 0.85rem; }
 .pyops-push pre { margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--raised); font-size: 0.8rem; overflow-x: auto; text-align: left; }
 .pyops-push .btn { align-self: flex-start; }
+
+/* T41 fleet */
+.fleet-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem; }
+.fleet-body .hint { margin: 0; font-size: 0.82rem; color: var(--muted); }
+.fleet-folder { display: flex; align-items: center; gap: 6px; }
+.fleet-folder bdi { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fleet-btns, .fleet-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.fleet-search { display: flex; flex-direction: column; gap: 4px; }
+.fleet-row select { flex: 1; min-width: 0; }
+.fleet-limit { width: 80px; }
+.fleet-count { font-size: 0.8rem; }
+.fleet-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fleet-log { border-bottom: 1px solid var(--line); }
+.fleet-line { width: 100%; display: flex; align-items: center; gap: 6px; padding: 5px 2px; background: none; border: 0; color: var(--ink); cursor: pointer; text-align: start; font: inherit; }
+.fleet-line:hover { background: var(--raised); }
+.fleet-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fleet-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fleet-log.bad .fleet-name { color: var(--muted); text-decoration: line-through; }
+.fleet-badge { min-width: 18px; padding: 0 5px; border-radius: 9px; font-size: 0.75rem; text-align: center; color: #fff; }
+.fleet-badge.err { background: var(--danger); }
+.fleet-badge.warn { background: var(--amber); color: var(--amber-ink); }
+.fleet-val { font-variant-numeric: tabular-nums; color: var(--ink-strong); }
+.fleet-detail { padding: 4px 4px 8px; display: flex; flex-direction: column; gap: 4px; }
+.fleet-detail p { margin: 0; font-size: 0.82rem; }
+.fleet-findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.fleet-findings li { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+.fleet-findings li span { flex: 1; }
+.fleet-findings li.error span { color: var(--danger); }
+.fleet-trend { margin: 0; }
+.fleet-trend figcaption { font-size: 0.8rem; }
+.fleet-trend svg { width: 100%; height: auto; background: var(--raised); border-radius: 6px; }
+.fleet-trendline { fill: none; stroke: var(--muted); stroke-width: 1; }
+.fleet-trend circle { fill: var(--ink); cursor: pointer; }
+.fleet-trend circle.over { fill: var(--danger); }
+.fleet-limitline { stroke: var(--amber); stroke-dasharray: 4 3; }

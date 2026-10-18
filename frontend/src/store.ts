@@ -97,7 +97,7 @@ export interface Toast { id: string; kind: "info" | "error"; text: string; actio
   /** its action undoes the LAST workspace change: valid only until the next change / undo / redo */
   undoesWs?: boolean }
 const dropWsUndo = (ts: Toast[]) => (ts.some((t) => t.undoesWs) ? ts.filter((t) => !t.undoesWs) : ts);
-export type PanelId = "data" | "analysis" | "compare" | "report" | "log";
+export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "fleet";
 export type LogMarkers = "off" | "important" | "all";
 export type PlayMode = "cursor" | "draw" | "window";
 export interface MenuItem { label: string; icon?: string; run: () => void; disabled?: boolean; danger?: boolean; sep?: boolean }
