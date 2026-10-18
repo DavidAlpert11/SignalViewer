@@ -3,6 +3,7 @@
 ## 1.6.1 – unreleased
 
 ### Fixed
+- File dialog: **Shift+click selects a range** and **Ctrl+A** every file shown; saving a session, report or image no longer changes the folder *Open files* starts in, and a first save starts where your data is.
 - Opening **several files at once** suggests *Compare open files* for all of them (it suggested a view for the first file only, or nothing), and the reading notes come as one message instead of one per file ("text read as states: DriveMode").
 - Opening a file that is **already open** reads it again from the disk instead of adding a second copy without a word; *Open another copy* is offered in the message.
 - **Dialogs take the keyboard:** Esc closes the file dialog (and Templates, confirmations) right after it opens, typing filters the list at once, and Tab stays inside the dialog. The layout and zoom pop-ups close with Esc.
