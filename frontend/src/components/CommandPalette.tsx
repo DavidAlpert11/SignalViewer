@@ -44,6 +44,9 @@ export default function CommandPalette() {
       { id: "duptab", label: t("duplicateTab"), group: t("tab"), icon: <Icon.Copy />, run: () => actions.duplicateTab(st().ws.activeTab) },
       { id: "clearplots", label: t("clearAll"), group: t("tab"), icon: <Icon.Eraser />, run: actions.clearAllPlots },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
+      // F22: every tab is reachable by name, however many there are
+      ...st().ws.tabs.map((tb, i) => ({ id: `goto-${tb.id}`, label: t("goToTab", { name: tb.name || `${t("tab")} ${i + 1}` }), group: t("tab"),
+        icon: <Icon.Layout />, run: () => actions.switchTab(tb.id) })),
       { id: "cursor", label: t("cursor"), group: t("cursor"), icon: <Icon.Cursor />, run: actions.toggleCursor, keys: "Space" },
       { id: "dual", label: t("dualCursor"), group: t("cursor"), icon: <Icon.Dual />, run: actions.toggleDual, keys: "D" },
       { id: "reset", label: t("resetZoom"), group: t("plot"), icon: <Icon.Reset />, run: actions.resetZoom, keys: "R" },

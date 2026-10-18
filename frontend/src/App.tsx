@@ -429,6 +429,9 @@ export default function App() {
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); const i = SCALES.indexOf(st.uiScale); useApp.setState({ uiScale: SCALES[Math.min(2, i + 1)] }); return; }
       if (mod && e.key === "-") { e.preventDefault(); const i = SCALES.indexOf(st.uiScale); useApp.setState({ uiScale: SCALES[Math.max(0, i - 1)] }); return; }
       if (mod && e.key === "0") { e.preventDefault(); useApp.setState({ uiScale: 1 }); return; }
+      // F22: next / previous tab (Ctrl+Tab too where the window lets it through - a browser keeps it)
+      if (mod && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); actions.cycleTab(e.key === "PageDown" ? 1 : -1); return; }
+      if (e.ctrlKey && e.key === "Tab") { e.preventDefault(); actions.cycleTab(e.shiftKey ? -1 : 1); return; }
       if (e.key === "F5" || (mod && e.key.toLowerCase() === "r")) { e.preventDefault(); refreshAll(); return; }   // not a page reload
       if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen) return;
       if (e.key === "?") { useApp.setState({ helpOpen: true }); return; }

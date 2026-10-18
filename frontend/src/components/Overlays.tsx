@@ -60,7 +60,7 @@ export function ContextMenu() {
   );
   const rtl = document.documentElement.dir === "rtl";
   return (
-    <div className="menu ctx" ref={ref} role="menu" style={{ left: pos.x, top: pos.y }} onMouseDown={(e) => e.stopPropagation()}>
+    <div className={`menu ctx${menu.items.length > 14 && !menu.items.some((it) => it.items) ? " long" : ""}`} ref={ref} role="menu" style={{ left: pos.x, top: pos.y }} onMouseDown={(e) => e.stopPropagation()}>
       {menu.items.map((it, i) => !it.items ? leaf(it, i) : (
         <div key={i} className="menu-subwrap" onMouseEnter={() => setSub(i)} onMouseLeave={() => setSub(null)}>
           <button role="menuitem" aria-haspopup="menu" aria-expanded={sub === i} disabled={it.disabled}

@@ -554,6 +554,8 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [ ] **F19 An open file opens again silently**. Spec: TASKS.md Q42.
 - [ ] **F20 Several files at once: one-file suggestion, a toast per file**. Spec: TASKS.md Q43.
 - [ ] **F21 File dialog: Shift range, Ctrl+A, last folder per purpose**. Spec: TASKS.md Q44.
+- [x] **F22 Many tabs: the hidden tabs cannot be reached** (owner). Spec: TASKS.md Q52.
+  Done: `TopBar.tsx`: the strip in `.tabs-wrap` with "+" and an "All tabs (n)" button (`.tabs-all`, shown when the tabs overflow - ResizeObserver) that lists every tab (✓ the active); the active tab `scrollIntoView` on every switch; wheel over the strip scrolls it (RTL sign); `actions.cycleTab` on Ctrl+PageUp / PageDown and Ctrl+Tab (App.tsx; Help row); palette "Go to tab: …" per tab; CSS: the strip shrinks, the right-side controls do not, the search box keeps 150 px; ContextMenu: a menu of more than 14 items without submenus scrolls (`.menu.ctx.long`). en + he; checked in Hebrew by screenshot. e2e `test_every_tab_is_reachable_with_many_tabs`.
 
 ## Milestone 6b — 1.7.0 additions from the review
 - [ ] T24 extended: places in the file dialog (recent folders, favourites, open files' folders). Spec: TASKS.md Q30+.
