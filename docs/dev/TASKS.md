@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   as it is; release 1.6.0 properly (Q35) and split CHANGELOG there into 1.5.0 (what the tag had:
   everything under "Unreleased" up to and including T41) and 1.6.0.
 - **Active plan: "Plan 2026-10-18 (toward 1.6.0)" below - Q25 ... Q35, in that order.**
-- Tests at the last change: backend 642 passed; whole e2e suite 158 passed (Q27).
+- Tests at the last change: backend 642 passed; whole e2e suite 158 passed (Q23), + the F12 e2e test (159).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -446,7 +446,8 @@ task, with a Log line. Phase C items may move after the release if the owner say
 | Q27 | T45 Example: an ArduPilot .bin flight (GPS track, modes, vibration, battery) | S | ☑ done |
 | —   | F11 Fleet: flight date of modern ArduPilot logs (found by Q27) | S | ☑ done |
 | **B** | **Infrastructure** | | |
-| Q23 | T42 Split `frontend/src/store.ts` into slices (spec above) | M | ☐ |
+| Q23 | T42 Split `frontend/src/store.ts` into slices (spec above) | M | ☑ done |
+| —   | F12 "Delete all derived" Undo overwrote later changes (found by Q23) | S | ☑ done |
 | Q28 | T36b Shrink the mypy baseline | S | ☐ |
 | **C** | **Usability (open in ROADMAP)** | | |
 | Q29 | T21b Signal context menus: one "Create signal ▸" entry | S | ☐ |
@@ -624,3 +625,5 @@ backend test opens it; e2e.
 - 2026-10-18 · Q23 / T42 store.ts split into store/ (5 slices, 4 action files, one entry point) ·
   tsc + build clean, whole e2e suite 158 passed · found F12 (derived-delete Undo overwrote later
   changes) · next: F12, then Q28.
+- 2026-10-18 · F12 fixed (toast undoesWs + restore through commit) + e2e that fails without it (a
+  first version passed anyway: it waited, and toasts leave by themselves) · next: Q28.
