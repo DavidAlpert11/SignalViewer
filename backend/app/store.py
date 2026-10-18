@@ -19,6 +19,8 @@ from svcore.mat_loader import load_mat
 from svcore.bin_loader import BinFormatError, append_new_messages, load_bin
 from svcore.tlog_loader import TLogError, append_tlog, load_tlog
 from svcore.ulog_loader import ULogError, load_ulog
+from svcore.mcap_loader import McapError, load_mcap
+from svcore.hdf5_loader import Hdf5Error, load_hdf5
 from svcore.models import Run
 from svcore.analysis import DerivedDef, OpError, compute, is_discrete
 from svcore.formula import evaluate as _evaluate_formula
@@ -99,15 +101,21 @@ class LoadError(Exception):
         self.params = params
 
 
-SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg")
+SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5")
 TEXT_EXTS = (".csv", ".txt", ".tsv", ".dat")
-_KIND_EXT = {"mat": ".mat", "ulg": ".ulg", "bin": ".bin"}
+_KIND_EXT = {"mat": ".mat", "ulg": ".ulg", "bin": ".bin", "hdf5": ".h5", "mcap": ".mcap"}
+# the extensions a signature may have: HDF5 is also MATLAB v7.3 (T27)
+_KIND_OK = {"mat": (".mat",), "hdf5": (".h5", ".hdf5", ".mat"), "ulg": (".ulg",), "bin": (".bin",), "mcap": (".mcap",)}
 
 
 def sniff_kind(head: bytes) -> Optional[str]:
     """What a file is by its first bytes, for the formats that have a clear signature."""
-    if head.startswith(b"MATLAB") or head.startswith(b"\x89HDF\r\n\x1a\n"):
+    if head.startswith(b"MATLAB"):
         return "mat"
+    if head.startswith(b"\x89HDF\r\n\x1a\n"):         # HDF5: .h5 / .hdf5, or a MATLAB v7.3 .mat
+        return "hdf5"
+    if head.startswith(b"\x89MCAP"):                  # ROS 2 / Foxglove recording
+        return "mcap"
     if head.startswith(b"ULog\x01\x12\x35"):
         return "ulg"
     if head.startswith(b"\xa3\x95\x80"):          # ArduPilot DataFlash: starts with an FMT message
@@ -144,7 +152,7 @@ def check_file(path: str, settings: Optional[dict] = None) -> None:
     if size == 0:
         raise LoadError("The file is empty.", "empty")
     kind = sniff_kind(head)
-    if kind and _KIND_EXT[kind] != ext and not (kind == "mat" and ext == ".mat"):
+    if kind and ext not in _KIND_OK[kind]:
         raise LoadError(f"{name} looks like a {_KIND_EXT[kind]} file, but its extension is {ext}. "
                         f"Rename it to {_KIND_EXT[kind]} and open it again.", "wrongExt", ext=ext, real=_KIND_EXT[kind])
     if ext in TEXT_EXTS:
@@ -265,6 +273,17 @@ class Store:
                 raise LoadError("This .mat file is cut off before its first complete signal "
                                 "(MATLAB stopped while saving, or the copy is incomplete).", "badMat")
             report["skipped"] = skipped
+        elif ext in (".mcap", ".h5", ".hdf5"):         # T27
+            loader2 = load_mcap if ext == ".mcap" else load_hdf5
+            try:
+                run, rep = loader2(path, name)
+            except (McapError, Hdf5Error) as e:
+                raise LoadError(str(e), "badMcap" if ext == ".mcap" else "badHdf5") from None
+            if run is None:
+                why = "; ".join((rep.get("skipped") or [])[:4])
+                raise LoadError("No time series found in this file" + (f" (left out: {why})." if why else "."),
+                                "noSignals")
+            report.update(rep)
         elif ext in (".bin", ".tlog", ".ulg"):
             loader = {".bin": load_bin, ".tlog": load_tlog, ".ulg": load_ulog}[ext]
             try:
@@ -382,7 +401,7 @@ class Store:
                 continue                                     # cheap path: untouched since last read
             fmt = run_format(lr.run)
             try:
-                if fmt in ("mat", "ulg"):
+                if fmt in ("mat", "ulg", "mcap", "hdf5"):      # rewritten / closed as a whole: read when settled
                     if lr.pending_stat != st:                # changed: wait one poll for it to settle
                         lr.pending_stat = st
                         continue
@@ -638,7 +657,7 @@ class Store:
             "id": lr.id,
             "name": lr.name,
             "path": r.file_path,
-            "format": run_format(r) if run_format(r) in ("mat", "bin", "tlog", "ulg") else "csv",
+            "format": run_format(r) if run_format(r) in ("mat", "bin", "tlog", "ulg", "mcap", "hdf5") else "csv",
             **({"log": self._log_summary(r)} if self._log_summary(r) else {}),
             "samples": int(r.sample_count),
             "start": float(r.start_time) + float(r.time_offset or 0),

@@ -31,7 +31,7 @@ UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 
 AUTOSAVE = os.path.join(APP_DIR, "autosave.json")
 
-SUPPORTED = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg")
+SUPPORTED = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5")
 
 
 

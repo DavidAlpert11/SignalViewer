@@ -20,6 +20,13 @@
   programs that can read your `~/.signalviewer/push.json` can send - it holds a token made fresh
   at every start.
 
+- **ROS 2 recordings (.mcap)** open directly - no ROS installation needed: every numeric field of
+  every topic, each topic on its own time; images and point clouds are left out (listed), a
+  recording cut off by a crash keeps everything before the cut. Foxglove JSON channels too.
+- **HDF5 files (.h5 / .hdf5)**: every numeric dataset, matrix column and table field, with each
+  group's own time.
+- A file saved with the wrong extension that is really an MCAP or HDF5 file is named as such.
+
 ## 1.4.0 – 2026-10-18
 
 Highlights: **real Butterworth filters** (the old Low-pass / High-pass were a moving average and
