@@ -21,9 +21,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
 - Released tags: `v1.0.0` ... `v1.3.0`; **`v1.4.0` prepared 2026-10-18** (T32-T36, T38, F08, F09) -
   the owner runs the manual build, checks the Windows package, then tags.
-- Tests at the last change: backend 539 passed (T31 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
+- Tests at the last change: backend 638 passed (T41 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: the owner's licence choice for CAN / MF4 (Q21), else Q22 - fleet view (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q22 UI - the fleet view (the backend is done) (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -268,8 +268,8 @@ Progress board (tick here AND in ROADMAP):
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☑ done |
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☑ done |
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☑ done |
-| Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ◐ Parquet done; CAN / MF4 wait for the owner (licences) |
-| Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ☐ |
+| Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ◐ Parquet done; CAN / MF4 POSTPONED by the owner |
+| Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ◐ backend done, UI next |
 | Q23 | T42 Split `frontend/src/store.ts` into slices | M | ☐ |
 | Q24 | T43 Release & reach: signed installers, docs site, public benchmark vs other tools, forum posts | M | ☐ |
 
@@ -388,13 +388,32 @@ the running app on 127.0.0.1 with a per-start token; they appear as a run that c
 **Why:** MF4 + DBC is the entry ticket to automotive / systems test (asammdf, Vector).
 **Steps:** Parquet via pyarrow (already a dependency); MF4 via `asammdf` (optional dependency);
 CAN logs (MF4 bus logging, candump, .blf) decoded with `cantools` and a DBC the user picks.
-**Status (2026-10-18):** Parquet done (ROADMAP T40). CAN / MF4 wait for the owner's licence
-choice - see ROADMAP T40 for the options (A / B / C).
+**Status (2026-10-18):** Parquet done (ROADMAP T40). CAN / MF4 **postponed by the owner**
+(2026-10-18, after the licence question: cantools needs python-can, LGPL-3.0; asammdf LGPLv3+).
+When it comes back, the options are in ROADMAP T40 (A bundle LGPL / B own DBC decoder, MIT /
+C all optional); Claude recommended B.
 
 ### Q22 · T41 Fleet view — L
 **Why:** almost no free tool does it: "every flight with vibration above X", trends over months.
 **Steps:** index a folder of logs (header, duration, modes, health findings) into a local SQLite;
 a Fleet panel with search, filters and a trend plot per finding; open a flight at its finding.
+**Status (2026-10-18):** backend done, UI next. `app/fleet.py`: SQLite (stdlib sqlite3) at
+`~/.signalviewer/fleet.sqlite` - tables folders / logs / findings / metrics / modes; `scan` walks a
+folder (sub-folders, .bin / .tlog / .ulg), reads only new / changed files (size + mtime), drops
+removed ones, records unreadable files with their reason (so they are not read again until they
+change); each file in a `Store()` of its own (the app's open files untouched). Per log: vehicle,
+firmware (ArduPilot via DataFlash.log_info - the first version crashed on it, caught by the
+test), duration, seconds per flight mode (mode events), the health findings and their numbers as
+metrics (`vibration.max`...), the date from GPS time (GWk/GMS, time_utc_usec, SYSTEM_TIME) else
+the file time ("date_source"). `query`: text, finding code at a level, a metric above / below,
+a mode; `trend(key)` by date; `keys()`. Routes `app/routes/fleet.py`: GET /api/fleet,
+POST /api/fleet/folder (a job), /rescan (a job), /remove, GET /logs, /trend. Tests:
+`test_fleet.py` (6).
+**Next (UI):** a Fleet view (side panel or a full view - follow CLAUDE.md placement): folders
+with Add / Update / Remove and the job's progress; the search row (text, finding + level, a
+number above / below, a mode); the list (date, name, vehicle, duration, error / warning badges,
+the searched number); a trend plot of the chosen number (points by date, click -> the log);
+open a log at a finding (open the file, cursor at the finding's time); e2e test.
 
 ### Q23 · T42 Split store.ts — M
 Slices per area (workspace, plots, live, compare, UI); `commit` (undo/redo) stays the one way to
@@ -513,3 +532,6 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · Q21 / T40 Parquet done (loader, signature, live, UI, 5 tests + 24 damaged copies);
   CAN / MF4: cantools needs python-can (LGPL-3.0), asammdf is LGPLv3+ - asked the owner · backend
   632, mypy clean, whole e2e suite 155 passed.
+- 2026-10-18 · Owner: CAN / MF4 postponed (licences). Q22 / T41 fleet backend: SQLite index,
+  incremental scans, search by finding / number / mode / text, trends, GPS flight date, job
+  routes, 6 tests · backend 638, mypy clean · next: the fleet UI.
