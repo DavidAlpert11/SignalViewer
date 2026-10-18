@@ -426,7 +426,7 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 ## Plan 2026-10-18 (toward 1.6.0)
 
 Set with the owner after the v1.5.0 tag. Work top to bottom; tick here AND in ROADMAP after each
-task, with a Log line. Phases C items may move after the release if the owner says so.
+task, with a Log line. Phase C items may move after the release if the owner says so.
 
 | # | Task | Size | Status |
 |---|---|---|---|
