@@ -507,7 +507,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 |---|---|---|---|
 | **P1** | **Bugs (1.6.1)** | | |
 | Q36 | F13 Templates without colours draw every signal in the same colour (Compare runs!) | S | ☑ done |
-| Q37 | F14 First run: the Templates dialog shows "templates folder is not available" | S | ☐ |
+| Q37 | F14 First run: the Templates dialog shows "templates folder is not available" | S | ☑ done |
 | Q38 | F15 Backend tests write to the developer's real `~/.signalviewer` | S | ☑ done |
 | Q39 | F16 Compare runs: angles (yaw / heading) compared without wrapping 0/360 | S | ☐ |
 | Q40 | F17 Plot options menu (⋯) does not close on Esc / click outside | S | ☐ |
@@ -927,3 +927,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Q38 / F15 tests no longer write to the real ~/.signalviewer; one APP_DIR · backend 645 · next: Q36 (F13).
 - 2026-10-18 · Q36 / F13 template colours (allocator; colour per file when a plot holds one signal from several files) · e2e new test passed · next: tab overflow (owner, F22), then Q37.
 - 2026-10-18 · Q52 / F22 (owner) many tabs: All tabs list, active tab in view, wheel, Ctrl+PgUp/PgDn, palette · e2e new test · next: Q37.
+- 2026-10-18 · Q37 / F14 first-run templates folder · backend test fails without the fix · next: Q39 (F16).
