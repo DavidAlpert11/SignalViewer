@@ -13,17 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`, pushed by the owner up to T22. Delivered on top: the 1.3.0 release patch
-  (version 1.3.0 in build.bat / installer / version_info, CHANGELOG split into 1.1.0 / 1.2.0 /
-  1.3.0, README + new screenshots and clips from `tools/make_readme_media.py`, frontend/dist).
-  The owner tags `v1.3.0` after it (the GitHub workflow then drafts the Release).
-- **Order from here (set 2026-10-15, the owner asked to go on in this order):** Q10 (done), Q8
-  (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
-- Released tags: `v1.0.0` ... `v1.3.0`; **`v1.4.0` prepared 2026-10-18** (T32-T36, T38, F08, F09) -
-  the owner runs the manual build, checks the Windows package, then tags.
-- Tests at the last change: backend 638 passed (T41 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
+- Branch `main`. Released tags: `v1.0.0` ... `v1.5.0`. **`v1.5.0` was tagged on `43c756d` (T41 fleet
+  UI) WITHOUT the release patch** - its version files still say 1.4.0 (Help and "Copy error details"
+  show 1.4.0) and CHANGELOG has it under "Unreleased". Owner's decision (2026-10-18): leave 1.5.0
+  as it is; release 1.6.0 properly (Q35) and split CHANGELOG there into 1.5.0 (what the tag had:
+  everything under "Unreleased" up to and including T41) and 1.6.0.
+- **Active plan: "Plan 2026-10-18 (toward 1.6.0)" below - Q25 ... Q35, in that order.**
+- Tests at the last change: backend 638 passed; whole e2e suite 156 passed (T41 UI).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q23 - split store.ts (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -426,6 +423,65 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 
 ---
 
+## Plan 2026-10-18 (toward 1.6.0)
+
+Set with the owner after the v1.5.0 tag. Work top to bottom; tick here AND in ROADMAP after each
+task, with a Log line. Phases C items may move after the release if the owner says so.
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| **A** | **Fixes and examples** | | |
+| Q25 | F10 Examples missing from the Windows portable package | S | ☐ |
+| Q26 | T44 Example: two UAV flights of the same mission, to compare | S | ☐ |
+| Q27 | T45 Example: an ArduPilot .bin flight (GPS track, modes, vibration, battery) | S | ☐ |
+| **B** | **Infrastructure** | | |
+| Q23 | T42 Split `frontend/src/store.ts` into slices (spec above) | M | ☐ |
+| Q28 | T36b Shrink the mypy baseline | S | ☐ |
+| **C** | **Usability (open in ROADMAP)** | | |
+| Q29 | T21b Signal context menus: one "Create signal ▸" entry | S | ☐ |
+| Q30 | T24 Favourite folders and quick open (Ctrl+P) | S | ☐ |
+| Q31 | T23 Notes over a time range (shaded span), listed in reports | M | ☐ |
+| Q32 | T25 Sim-vs-flight error signal with RMS per segment | M | ☐ |
+| Q33 | T14c Envelope plot zoom linked with the tab's time plots | S | ☐ |
+| Q34 | T18 Settings dialog (language, theme, map layer, live defaults) | M | ☐ |
+| **D** | **Release** | | |
+| Q35 | Release 1.6.0 (see "Releasing"; CHANGELOG split 1.5.0 / 1.6.0; README "חדש ב־1.5" and "1.6") | S | ☐ |
+| Q24 | T43 Release & reach (spec above; mostly owner) | M | ☐ |
+
+Waiting for the owner, not in the plan: Q1 (SITL / radio check), Q18 (T37, not felt by users),
+Q21 (CAN / MF4, licences).
+
+### Q25 · F10 Examples missing from the Windows portable package — S
+**Why:** owner: "Open an example" disappeared from the welcome screen. The welcome code (T09) is
+intact; `tools/make_windows_portable.py` (the Windows package since the embeddable-Python build)
+never copied `examples/`, so `/api/examples` finds nothing and the line is hidden. PyInstaller
+(`SignalViewer.spec`, Linux / macOS) does bundle them.
+**Steps:** copy `examples/` into `app/examples` (where `routes/fs.py` looks from source:
+`backend/app/routes/../../../examples`); add the files to the build's `must` list; a backend test
+that every file of `EXAMPLE_SETS` exists in the repo (a renamed / missing example fails CI).
+**Done when:** the portable folder has the examples; the test passes.
+
+### Q26 · T44 Example: two flights of the same mission — S
+**Why:** Compare runs and the map with two tracks, in one click; today the only flight example is
+one file.
+**Where:** `tools/make_demo_data.py` (`uav_flight`), `EXAMPLE_SETS` in `app/routes/fs.py`, the
+welcome line in `App.tsx`, `api.examples` type, `i18n.ts`.
+**Steps:** `uav_flight_a.csv` / `uav_flight_b.csv`: the same waypoints, B with a cross-wind
+(track offset, larger roll, higher battery drain, slightly later); a "Two flights" link opens both.
+**Done when:** the link opens both files; backend test lists the set; e2e opens it.
+
+### Q27 · T45 Example: an ArduPilot .bin flight — S
+**Why:** the drone users' main format; Smart start (T29) and the health summary only show with a
+flight log.
+**Where:** `tools/make_test_bin.py` (writer), `tools/make_demo_data.py`, `EXAMPLE_SETS`.
+**Steps:** a short realistic copter flight (GPS track over the example area, ATT with desired,
+MODE changes STABILIZE / LOITER / AUTO / RTL / LAND, VIBE with a burst, BAT draining, RCOU, MSG);
+small (< 2 MB); an "ArduPilot log" link.
+**Done when:** the link opens it, the health summary and the built-in template offer appear;
+backend test opens it; e2e.
+
+---
+
 ## Log
 
 - 2026-10-15 · T17f frames as one nested group + preview (in the plot, a plot per axis under
@@ -539,3 +595,5 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   finding; the e2e test first waited on a STALE "1 flights" (the previous filter's) and assumed a
   vibration value - both fixed (wait for the new list; limit from the data) · backend 638, mypy
   clean, whole e2e suite 156 passed · next: Q23.
+- 2026-10-18 · v1.5.0 was tagged without the release patch (version files say 1.4.0); owner: leave
+  it, release 1.6.0 properly. New plan Q25-Q35 ("Plan 2026-10-18") · next: Q25.
