@@ -19,8 +19,11 @@ function GridPicker({ rows, cols, anchor, onPick, onClose }: { rows: number; col
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) onClose(); };
+    // F18: Esc closes it wherever the focus is (it worked only with the focus inside)
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
     window.addEventListener("mousedown", off);
-    return () => window.removeEventListener("mousedown", off);
+    window.addEventListener("keydown", esc, true);
+    return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc, true); };
   }, [onClose]);
   // fixed, so the toolbar (which scrolls horizontally) does not clip it
   const rtl = document.documentElement.dir === "rtl";
@@ -68,8 +71,11 @@ function Popover({ anchor, onClose, label, children }: { anchor: DOMRect | null;
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest?.(".zoom-btn")) onClose(); };
+    // F18: Esc closes it wherever the focus is (it worked only with the focus inside)
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
     window.addEventListener("mousedown", off);
-    return () => window.removeEventListener("mousedown", off);
+    window.addEventListener("keydown", esc, true);
+    return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc, true); };
   }, [onClose]);
   const rtl = document.documentElement.dir === "rtl";
   const style: React.CSSProperties = anchor ? { position: "fixed", top: anchor.bottom + 4,

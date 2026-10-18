@@ -510,8 +510,8 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | Q37 | F14 First run: the Templates dialog shows "templates folder is not available" | S | ☑ done |
 | Q38 | F15 Backend tests write to the developer's real `~/.signalviewer` | S | ☑ done |
 | Q39 | F16 Compare runs: angles (yaw / heading) compared without wrapping 0/360 | S | ☑ done |
-| Q40 | F17 Plot options menu (⋯) does not close on Esc / click outside | S | ☐ |
-| Q41 | F18 File dialog: Esc does nothing at first, Tab leaves the dialog | S | ☐ |
+| Q40 | F17 Plot options menu (⋯) does not close on Esc / click outside | S | ☑ done |
+| Q41 | F18 File dialog: Esc does nothing at first, Tab leaves the dialog | S | ☑ done |
 | Q42 | F19 Opening a file that is already open adds a silent second copy | S | ☐ |
 | Q43 | F20 Several files opened at once: smart start suggests a one-file view; one toast per file | S | ☐ |
 | Q44 | F21 File dialog: Shift+click is not a range; one "last folder" for every dialog | S | ☐ |
@@ -929,3 +929,5 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Q52 / F22 (owner) many tabs: All tabs list, active tab in view, wheel, Ctrl+PgUp/PgDn, palette · e2e new test · next: Q37.
 - 2026-10-18 · Q37 / F14 first-run templates folder · backend test fails without the fix · next: Q39 (F16).
 - 2026-10-18 · Q39 / F16 compare wraps angles · backend 650, mypy clean · next: Q40 (F17).
+- 2026-10-18 · Q40 / F17 plot menu closes on Esc / click outside · e2e · next: Q41.
+- 2026-10-18 · Q41 / F18 dialogs take the keyboard (all of them, one watcher) · e2e · next: Q42.

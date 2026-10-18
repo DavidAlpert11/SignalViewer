@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { plotHasContent, actions, pickPath, signalName, useApp, type Plot, type PlotMode, type Tab } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
@@ -41,6 +41,24 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const [loading, setLoading] = useState(false);
   const [peaks, setPeaks] = useState<Record<string, number>>({});
   const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  // F17: the plot menu closes like every other menu - Esc, a click anywhere else, the window losing
+  // focus (it closed only when the mouse entered it and left again, so by keyboard never)
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(false);
+    const outside = (e: MouseEvent) => {
+      const n = e.target as Node;
+      if (!menuRef.current?.contains(n) && !moreRef.current?.contains(n)) close();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); moreRef.current?.focus(); } };
+    window.addEventListener("mousedown", outside, true);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("blur", close);
+    menuRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    return () => { window.removeEventListener("mousedown", outside, true); window.removeEventListener("keydown", onKey, true); window.removeEventListener("blur", close); };
+  }, [menu]);
   const theme = useApp((s) => s.theme);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -283,10 +301,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             );
           })}
         </div>
-        <button className="iconbtn plot-more" aria-label={t("plotMenu")} title={t("plotMenu")} aria-expanded={menu}
+        <button ref={moreRef} className="iconbtn plot-more" aria-haspopup="menu" aria-label={t("plotMenu")} title={t("plotMenu")} aria-expanded={menu}
           onClick={(e) => { e.stopPropagation(); setMenu(!menu); }}><Icon.More /></button>
         {menu && (
-          <div className="menu" role="menu" onMouseLeave={() => setMenu(false)}>
+          <div className="menu" role="menu" ref={menuRef}>
             <button role="menuitem" disabled={!plot.signals.length} onClick={exportCsv}><Icon.Table />{t("exportData")}</button>
             <button role="menuitem" disabled={!plot.signals.length} onClick={() => saveImage("png")}><Icon.Image />{t("saveImage")} (PNG)</button>
             <button role="menuitem" disabled={!plot.signals.length} onClick={() => saveImage("svg")}><Icon.Image />{t("saveImage")} (SVG)</button>
