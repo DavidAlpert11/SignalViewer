@@ -77,11 +77,14 @@ def sources(tmp_path_factory):
     for tool, name in (("make_test_bin.py", "s.bin"), ("make_test_tlog.py", "s.tlog")):
         subprocess.run([sys.executable, os.path.join(TOOLS, tool), str(d / name), "--seconds", "8"]
                        + (["--imu-hz", "50"] if name.endswith(".bin") else []), check=True, capture_output=True)
-    return {ext: (d / f"s{ext}") for ext in (".csv", ".mat", ".bin", ".tlog")} | {
+    from test_mcap_hdf5 import write_h5, write_ros2       # T27
+    write_ros2(d / "s.mcap", seconds=2, chunk_size=8 * 1024)
+    write_h5(d / "s.h5")
+    return {ext: (d / f"s{ext}") for ext in (".csv", ".mat", ".bin", ".tlog", ".mcap", ".h5")} | {
         ".mat73": d / "s73.mat", ".ulg": SAMPLE_ULG}
 
 
-CASES = [(fmt, seed) for fmt in (".csv", ".mat", ".mat73", ".bin", ".tlog") for seed in range(SEEDS)] + \
+CASES = [(fmt, seed) for fmt in (".csv", ".mat", ".mat73", ".bin", ".tlog", ".mcap", ".h5") for seed in range(SEEDS)] + \
         [(".ulg", seed) for seed in range(6)]          # the ULog sample is 4 MB: fewer cases
 
 

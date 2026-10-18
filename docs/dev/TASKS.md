@@ -23,7 +23,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 539 passed (T31 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q9 - MCAP (ROS 2) and HDF5 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q21 - Parquet, MF4 and CAN with a DBC (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -196,7 +196,8 @@ its mean over the window.
 **Where:** loaders in `svcore/*_loader.py`, `Store.open_file`, `DATA_EXTS` in `values.ts`,
 `cli.py` (gets them for free through `Store.open_file`). New dependencies need a reason in the
 task notes (CLAUDE.md).
-**Status:** not started.
+**Status:** done 2026-10-18 (see ROADMAP T27). Owner asked 2026-10-18 whether ROS works: ROS 2
+via .mcap now. Not done: ROS 1 .bag and ROS 2 .db3 (sqlite) - add if the owner needs them.
 
 ### Q10 · T30 Frames: suggest the conversion (new) — S
 **Why:** fewer technical choices: `Lat/Lng/Alt` is LLA, `VN/VE/VD` is NED velocity.
@@ -266,7 +267,7 @@ Progress board (tick here AND in ROADMAP):
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☑ done |
 | Q11 | T31 User Python operations from a local folder (already queued) | L | ☑ done |
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☑ done |
-| Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☐ |
+| Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☑ done |
 | Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ☐ |
 | Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ☐ |
 | Q23 | T42 Split `frontend/src/store.ts` into slices | M | ☐ |
@@ -503,3 +504,7 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · The flaky e2e test named: `test_templates_share_mode_lane_and_compare_views` read the
   template's file slots once, before the automatic match filled them (whole-suite runs only) - it
   now waits for the filled state.
+- 2026-10-18 · Q9 / T27 MCAP + HDF5: loaders, signatures, live, UI badges; the cut-off test and
+  the damaged-files test found two real failures in the first versions (whole-file loss, a
+  RuntimeError escaping) and a wrong main-time rule - all fixed · backend 603, mypy clean, whole
+  e2e suite 155 passed · next: Q21.
