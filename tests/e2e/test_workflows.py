@@ -222,3 +222,10 @@ def test_open_an_example_from_the_welcome_screen(page, server):
     page.locator(".examples-line button", has_text="three car runs").click()
     page.wait_for_function("document.querySelectorAll('.run-head').length === 3")
     assert page.locator(".run-head", has_text="run_013").count() == 1
+
+
+def test_open_the_two_flights_example(page, server):
+    """T44: the same mission flown twice - both files open, with the same signals."""
+    page.locator(".examples-line button", has_text="flown twice").click()
+    page.wait_for_function("document.querySelectorAll('.run-head').length === 2")
+    assert page.locator(".run-head", has_text="uav_flight_windy").count() == 1

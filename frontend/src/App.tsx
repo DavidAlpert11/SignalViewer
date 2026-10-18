@@ -9,7 +9,7 @@ const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
 const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog"));
 const TransformDialog = lazyPreload(() => import("./components/TransformDialog"));
 const RetargetDialog = lazyPreload(() => import("./components/RetargetDialog"));
-import { api } from "./api";
+import { api, type ExampleId } from "./api";
 import { handleNewFiles, refreshAll, stopLive } from "./live";
 import { ensureLogs } from "./logs";
 import { detectSameFlight } from "./sync";
@@ -48,12 +48,14 @@ const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "
   { id: "fleet", icon: "Fleet", key: "fleet" },        // T41: every flight of the indexed folders
 ];
 
+const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar" } as const satisfies Record<ExampleId, string>;
+
 function Welcome() {
   const t = useT();
   const items = useApp((s) => s.recent);
   useEffect(() => { api.recent().then((r) => useApp.setState({ recent: r.items })).catch(() => {}); }, []);
   // T09: ready examples (a drone flight; three car runs to compare) - a first look in one click
-  const [examples, setExamples] = useState<{ id: "flight" | "car"; paths: string[] }[]>([]);
+  const [examples, setExamples] = useState<{ id: ExampleId; paths: string[] }[]>([]);
   useEffect(() => { api.examples().then(setExamples).catch(() => setExamples([])); }, []);
   const files = items.filter((x) => x.kind === "file").slice(0, 6);
   const sessions = items.filter((x) => x.kind === "session").slice(0, 4);
@@ -100,7 +102,7 @@ function Welcome() {
           <p className="examples-line">{t("tryExample")}{" "}
             {examples.map((ex, i) => (
               <span key={ex.id}>{i > 0 && " · "}
-                <button className="linkbtn" onClick={() => openPaths(ex.paths)}>{t(ex.id === "flight" ? "exampleFlight" : "exampleCar")}</button>
+                <button className="linkbtn" onClick={() => openPaths(ex.paths)}>{t(EXAMPLE_LABEL[ex.id])}</button>
               </span>
             ))}
           </p>

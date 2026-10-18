@@ -54,9 +54,11 @@ def _entry(e: "os.DirEntry", is_dir: bool) -> dict:
 # (this file is app/routes/fs.py: three levels below the project root)
 EXAMPLES = os.environ.get("SV_EXAMPLES") or os.path.join(os.path.dirname(__file__), "..", "..", "..", "examples")
 
-# the welcome screen offers these; files that are missing (a trimmed install) are simply left out
+# the welcome screen offers these; a set with a missing file (a trimmed install) is left out whole -
+# "the same mission flown twice" with one file would be wrong
 EXAMPLE_SETS = [
     {"id": "flight", "files": ["uav_flight.csv"]},
+    {"id": "twoFlights", "files": ["uav_flight.csv", "uav_flight_windy.csv"]},     # T44: two tracks, Compare
     {"id": "car", "files": ["run_012.csv", "run_013.csv", "run_014.csv"]},
 ]
 
@@ -67,8 +69,7 @@ def list_examples():
     out: list = []
     for ex in EXAMPLE_SETS:
         paths = [os.path.abspath(os.path.join(EXAMPLES, f)) for f in ex["files"]]
-        paths = [p for p in paths if os.path.isfile(p)]
-        if paths:
+        if all(os.path.isfile(p) for p in paths):
             out.append({"id": ex["id"], "paths": paths})
     return out
 

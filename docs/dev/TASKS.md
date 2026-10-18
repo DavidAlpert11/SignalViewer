@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   as it is; release 1.6.0 properly (Q35) and split CHANGELOG there into 1.5.0 (what the tag had:
   everything under "Unreleased" up to and including T41) and 1.6.0.
 - **Active plan: "Plan 2026-10-18 (toward 1.6.0)" below - Q25 ... Q35, in that order.**
-- Tests at the last change: backend 639 passed; whole e2e suite 156 passed (T41 UI).
+- Tests at the last change: backend 640 passed; whole e2e suite 156 passed (T41 UI).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -432,7 +432,7 @@ task, with a Log line. Phase C items may move after the release if the owner say
 |---|---|---|---|
 | **A** | **Fixes and examples** | | |
 | Q25 | F10 Examples missing from the Windows portable package | S | ☑ done |
-| Q26 | T44 Example: two UAV flights of the same mission, to compare | S | ☐ |
+| Q26 | T44 Example: two UAV flights of the same mission, to compare | S | ☑ done |
 | Q27 | T45 Example: an ArduPilot .bin flight (GPS track, modes, vibration, battery) | S | ☐ |
 | **B** | **Infrastructure** | | |
 | Q23 | T42 Split `frontend/src/store.ts` into slices (spec above) | M | ☐ |
@@ -599,3 +599,5 @@ backend test opens it; e2e.
   it, release 1.6.0 properly. New plan Q25-Q35 ("Plan 2026-10-18") · next: Q25.
 - 2026-10-18 · Q25 / F10 examples copied into the Windows portable package + package check + test;
   CHANGELOG split: the old "Unreleased" is now "1.5.0" (what the tag had) · backend 639 · next: Q26.
+- 2026-10-18 · Q26 / T44 two-flights example (windy twin of uav_flight.csv) + welcome link · backend
+  640, mypy clean, e2e workflows example tests green · next: Q27.
