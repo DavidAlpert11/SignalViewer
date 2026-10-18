@@ -312,12 +312,28 @@ def test_S06_context_menu(pg):
     sig(pg, "Speed").click(); sig(pg, "RPM").click()
     pg.locator(".plot .chip").first.click(button="right")
     labels = pg.locator(".menu.ctx button").all_inner_texts()
-    for want in ("Move down", "Copy to a new plot", "Use as X axis", "Derivative", "Integral", "Remove"):
+    for want in ("Move down", "Copy to a new plot", "Use as X axis", "Create signal", "Remove"):
         assert any(want in l for l in labels), want
+    assert not any("Derivative" in l for l in labels)            # T21b: in the submenu, not repeated
     menu_item(pg, "Move down")
     assert chips(pg) == ["RPM", "Speed"]
-    pg.locator(".plot .chip").first.click(button="right"); menu_item(pg, "Derivative")
+    pg.locator(".plot .chip").first.click(button="right")
+    pg.locator(".menu.ctx button", has_text="Create signal").hover()
+    menu_item(pg, "Derivative")
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 3")
+
+
+def test_create_signal_submenu_from_the_file_list(pg):
+    """T21b: the file list's signal menu has the same "Create signal ▸" - a click opens it too, and
+    "Other operations…" opens Create signals with that signal chosen."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "RPM").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Create signal").click()          # click opens it as well
+    pg.wait_for_selector(".menu.ctx.sub")
+    menu_item(pg, "Other operations")
+    pg.wait_for_function("window.__sv.state().panel === 'analysis'")
+    pg.wait_for_function("!window.__sv.state().analysisSeed")             # the panel took the signal
+    assert "RPM" in pg.locator(".analysis").inner_text()
 
 
 def test_S07_drag_chip_to_other_plot(pg):
