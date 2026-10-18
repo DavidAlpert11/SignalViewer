@@ -508,7 +508,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | **P1** | **Bugs (1.6.1)** | | |
 | Q36 | F13 Templates without colours draw every signal in the same colour (Compare runs!) | S | ☐ |
 | Q37 | F14 First run: the Templates dialog shows "templates folder is not available" | S | ☐ |
-| Q38 | F15 Backend tests write to the developer's real `~/.signalviewer` | S | ☐ |
+| Q38 | F15 Backend tests write to the developer's real `~/.signalviewer` | S | ☑ done |
 | Q39 | F16 Compare runs: angles (yaw / heading) compared without wrapping 0/360 | S | ☐ |
 | Q40 | F17 Plot options menu (⋯) does not close on Esc / click outside | S | ☐ |
 | Q41 | F18 File dialog: Esc does nothing at first, Tab leaves the dialog | S | ☐ |
@@ -911,3 +911,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Review after 1.6.0 (fresh profile, every control, en + he, 1400x850 and 1100x700):
   9 bugs F13-F21 (Q36-Q44) and usability T24 extended, T46-T52 (Q45-Q51) written down in "Review
   2026-10-18". Checks at the review: backend 643 passed, tsc + mypy clean, CI run 16 green · next: Q38.
+- 2026-10-18 · Q38 / F15 tests no longer write to the real ~/.signalviewer; one APP_DIR · backend 645 · next: Q36 (F13).
