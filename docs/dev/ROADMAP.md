@@ -135,7 +135,10 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   hand, edited sources); no git: trust the committed UI. Tests: `test_launcher.py` (the old code
   fails `test_git_history_decides_not_file_times`); e2e `test_error_details.py` passes with the
   old dist in place (run.py builds the UI).
-- [ ] **F02 Whole e2e suite hangs when run in one process** (every file passes on its own).
+- [x] **F02 Whole e2e suite hangs when run in one process** (every file passes on its own).
+  Closed 2026-10-18 (Q17): not reproducible - the whole suite in ONE process, detached from any
+  terminal, passed 152/152 twice; the single failure in an earlier run was F09 (an old UI served).
+  Earlier "stuck" runs overlapped heavy work on a 1-CPU sandbox. `pytest tests/e2e` is documented.
   Narrowed down: the same files hang only when pytest runs detached from a terminal
   (background / nohup) in the build sandbox; in the foreground every file passes. Check on a
   developer machine / CI before changing the fixtures.

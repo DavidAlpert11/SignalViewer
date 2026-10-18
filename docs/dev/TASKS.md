@@ -23,7 +23,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 517 passed (T38); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: finish Q17 (the T38 e2e test in the whole-suite run), then Q7 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q7 - video synchronised to the timeline (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -36,7 +36,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
    `installer/SignalViewer.iss` (`AppVersion`),
    `installer/version_info.txt` (four places); the workflow takes it from the tag, and a manual
    run (Actions -> build -> Run workflow) with the version left empty takes it from build.bat.
-3. CHANGELOG: rename the open section to `## X.Y.Z – date`; README: new features and pictures.
+3. CHANGELOG: rename the open section to `## X.Y.Z – date` with a highlights line.
+   **README review (owner's rule: before EVERY official release):** go through the CHANGELOG
+   section and check each item against the README - the "What works" table (a new or changed
+   feature in its row), the test commands and counts, "Known limitations" (remove what was
+   fixed, add what is new), the Hebrew section ("חדש ב־X.Y" line), the file names with the
+   version (build table), the format list at the top, and the pictures (step 1).
 4. `cd frontend && npm run build` and commit `frontend/dist`; tag `vX.Y.Z` and push the tag.
 
 ## How to work here (practical notes)
@@ -237,7 +242,7 @@ Progress board (tick here AND in ROADMAP):
 | Q14 | T34 Review the broad `except Exception` handlers (54) | M | ☑ done |
 | Q15 | T35 Split `backend/app/main.py` into routers | L | ☑ done |
 | Q16 | T36 Static type check of the backend (mypy) in CI | S | ☑ done (T36b: shrink baseline) |
-| Q17 | F02 The whole e2e suite in one process | M | ◐ not reproduced; the 1 failure was F09 (fixed) |
+| Q17 | F02 The whole e2e suite in one process | M | ☑ done (closed: not reproducible; F09 fixed) |
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured; moved to the end (owner: not felt by users) |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☐ |
@@ -456,3 +461,10 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   regression test, e2e passes with the old dist in place.
 - 2026-10-18 · Release 1.4.0 prepared: version in build.bat / version.py / installer / version_info /
   README, CHANGELOG 1.4.0 with highlights, frontend/dist rebuilt · owner: manual build, check, tag.
+- 2026-10-18 · Owner: keep this file current after every task; check the README before every
+  official release (now step 3 of "Releasing"). README reviewed for 1.4.0: filters (Analysis row,
+  `lowpass` / `highpass` in Formulas), damaged files (Files row), new "Error details" row, test
+  commands and counts, the e2e known limitation (whole suite passes in one run), Hebrew "חדש ב־1.4".
+- 2026-10-18 · Q17 / F02 closed: the whole suite in one process passed 152/152 twice (detached,
+  against a fresh and against the committed dist); `pytest tests/e2e` is the documented way
+  (CLAUDE.md, README) · next: Q7.
