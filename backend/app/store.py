@@ -289,6 +289,26 @@ class Store:
             self.order.append(lr.id)
         return lr
 
+    def add_pushed(self, name: str, run: Run, replace: bool = True) -> Tuple[LoadedRun, bool]:
+        """T39: data sent from Python. With replace, a pushed run of the same name keeps its id
+        (plots and derived signals follow the new data). Returns (run, is_new)."""
+        with self._lock:
+            if replace:
+                for rid in self.order:
+                    old = self.runs.get(rid)
+                    if old and old.run.file_path == run.file_path:
+                        fresh = LoadedRun(id=rid, run=run, name=old.name, load_report=dict(run.load_report or {}))
+                        fresh.run.time_offset = old.run.time_offset
+                        fresh.run.description = old.run.description
+                        fresh.last_change = time.time()
+                        self.runs[rid] = fresh
+                        return fresh, False
+            lr = LoadedRun(id=uuid.uuid4().hex[:8], run=run, name=name, load_report=dict(run.load_report or {}))
+            lr.last_change = time.time()
+            self.runs[lr.id] = lr
+            self.order.append(lr.id)
+            return lr, True
+
     def remove(self, run_id: str):
         with self._lock:
             self.runs.pop(run_id, None)
@@ -323,6 +343,8 @@ class Store:
 
     def reload(self, run_id: str) -> LoadedRun:
         lr = self.get(run_id)
+        if lr.run.file_path.startswith("python:"):      # T39: no file behind it
+            raise LoadError("This data was sent from Python: send it again to update it.", "pushed")
         settings = dict(lr.run.import_settings or {})
         settings.pop("format", None)
         fresh = self.open_file(lr.run.file_path, settings)
@@ -350,8 +372,8 @@ class Store:
         now = time.time()
         for rid in list(self.order):
             lr = self.runs.get(rid)
-            if lr is None or lr.run.file_path.startswith(UPLOAD_DIR + os.sep):
-                continue
+            if lr is None or lr.run.file_path.startswith((UPLOAD_DIR + os.sep, "python:")):
+                continue                                     # a copy / data sent from Python (T39): no file to follow
             st = _stat(lr.run.file_path)
             if st is None:
                 self.poll_errors[rid] = "The file is no longer there."
@@ -408,7 +430,7 @@ class Store:
             lr = self.runs.get(rid)
             if lr is None:
                 continue
-            if lr.run.file_path.startswith(UPLOAD_DIR + os.sep):
+            if lr.run.file_path.startswith((UPLOAD_DIR + os.sep, "python:")):   # copies, data sent from Python
                 out["skipped"].append(rid)
                 continue
             if progress:

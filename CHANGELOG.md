@@ -13,6 +13,12 @@
   with three to start from. The code runs in a process of its own: an error names the line in your
   file, an endless loop is stopped, a crash does not take the app down. Only your folder runs - a
   session or template keeps just the operation's name.
+- **Send data from Python** (Jupyter, a simulation, a script): `show(t, {"altitude": alt})` with the
+  one-file client (*Create signals > Python > Save the Python client…*; numpy only) puts the data
+  in the open app - a new name lands in the active plot, sending the same name again updates it in
+  place (plots and signals made from it follow). A pandas DataFrame works too (index = time). Only
+  programs that can read your `~/.signalviewer/push.json` can send - it holds a token made fresh
+  at every start.
 
 ## 1.4.0 – 2026-10-18
 

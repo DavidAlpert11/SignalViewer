@@ -37,6 +37,7 @@ datas = [
     (os.path.join(ROOT, "assets", "png"), os.path.join("assets", "png")),
     (os.path.join(ROOT, "assets", "icon.ico"), "assets"),          # the window icon on Windows
     (os.path.join(ROOT, "LICENSE"), "."),                          # the app's licence (T32)
+    (os.path.join(ROOT, "backend", "signalviewer", "push_client.py"), "clients"),  # T39: saved for the user as a file
     (os.path.join(ROOT, "examples"), "examples"),                  # "Open an example" on the welcome screen
     # the built-in templates (T11b: data, read by svcore/templates.py for the app and the CLI)
     (os.path.join(ROOT, "backend", "svcore", "builtin_templates.json"), "svcore"),

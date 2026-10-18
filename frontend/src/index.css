@@ -1090,3 +1090,6 @@ input.fx-input { width: 100%; }
 .pyops-folder { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); }
 .pyops-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pyops-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.pyops-push { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 0.85rem; }
+.pyops-push pre { margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--raised); font-size: 0.8rem; overflow-x: auto; text-align: left; }
+.pyops-push .btn { align-self: flex-start; }

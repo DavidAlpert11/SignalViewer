@@ -38,6 +38,15 @@ export default function PyOpsSection({ choice, onChange }: { choice: PyChoice | 
     catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
   };
 
+  const saveClient = async () => {
+    const path = await pickPath({ mode: "folder", title: t("pushSaveClientTitle") });
+    if (!path) return;
+    try {
+      const r = await api.pushSaveClient(path);
+      useApp.getState().toast({ kind: "info", text: t("pushClientSaved", { path: r.path }) });
+    } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+  };
+
   if (!info) return <p className="hint">{t("loading")}</p>;
   const op = choice?.op;
   return (
@@ -69,6 +78,12 @@ export default function PyOpsSection({ choice, onChange }: { choice: PyChoice | 
           {info.errors.map((e, i) => <div key={i} dir="ltr"><code>{e.file}</code> {e.error}</div>)}
         </div>
       )}
+      <div className="pyops-push">
+        <b>{t("pushTitle")}</b>
+        <p className="hint">{t("pushHint")}</p>
+        <pre dir="ltr">{"from signalviewer_push import show\nshow(t, {\"altitude\": alt}, name=\"sim 3\")"}</pre>
+        <button className="btn sm" onClick={saveClient}>{t("pushSaveClient")}</button>
+      </div>
       <div className="pyops-folder">
         <span className="pyops-path">{t("pyFolder")}: <bdi dir="ltr" title={info.folder}>{info.folder}</bdi></span>
         <div className="pyops-btns">
