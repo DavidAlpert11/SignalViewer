@@ -3,6 +3,8 @@
 ## 1.6.1 – unreleased
 
 ### Fixed
+- **Dialogs take the keyboard:** Esc closes the file dialog (and Templates, confirmations) right after it opens, typing filters the list at once, and Tab stays inside the dialog. The layout and zoom pop-ups close with Esc.
+- The plot's **⋯ menu** closes with Esc or a click anywhere else (it stayed open until the mouse passed over it).
 - **Compare runs** treats yaw / heading / course as angles: 359° and 1° are 2° apart (the yaw of the two example flights showed an RMS of 75.8° instead of 21.8°, and came first as "least similar").
 - First run: the template library no longer says *The templates folder is not available*.
 - **Many tabs:** every tab can be reached again - an *All tabs* list next to +, the active tab is always scrolled into view, the mouse wheel scrolls the tabs, **Ctrl+PageUp / Ctrl+PageDown** go to the previous / next tab, and the command palette (Ctrl+K) has *Go to tab*. Many tabs no longer squeeze the search box.

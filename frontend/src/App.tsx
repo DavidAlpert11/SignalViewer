@@ -35,7 +35,7 @@ const ImportDialog = lazyPreload(() => import("./components/ImportDialog"));
 import Toasts from "./components/Toasts";
 import Jobs from "./components/Jobs";
 const Help = lazyPreload(() => import("./components/Help"));
-import { AxisDialog, ContextMenu, PromptDialog } from "./components/Overlays";
+import { AxisDialog, ContextMenu, ModalFocus, PromptDialog } from "./components/Overlays";
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
 
@@ -542,6 +542,7 @@ export default function App() {
       <Toasts />
       <Jobs />
       <ContextMenu />
+      <ModalFocus />
       <PromptDialog />
       <AxisDialog />
       {dropping && <div className="drop-overlay"><div>{t("dropOverlay")}</div></div>}
