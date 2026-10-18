@@ -545,7 +545,8 @@ The open T24, T23, T25, T14c, T18 above (TASKS.md Q30-Q34; moved from 1.6.0 by t
 Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [ ] **F13 Templates without colours draw every signal in one colour**. Spec: TASKS.md Q36.
 - [ ] **F14 First run: "templates folder is not available"**. Spec: TASKS.md Q37.
-- [ ] **F15 Backend tests write to the real ~/.signalviewer; one app folder (SV_HOME)**. Spec: TASKS.md Q38.
+- [x] **F15 Backend tests write to the real ~/.signalviewer; one app folder (SV_HOME)**. Spec: TASKS.md Q38.
+  Done: the app folder is defined once (`prefs.APP_DIR`; common, store's uploads, tiles take it from there - store and tiles had their own `expanduser`). `tests/conftest.py` points HOME / USERPROFILE (and SV_CACHE_DIR) at a temporary folder before the app is imported, as the e2e servers already did. Test `test_app_folder.py`: no app path under the real home, every module under the one folder. Checked: a whole backend run with no ~/.signalviewer leaves none behind.
 - [ ] **F16 Compare runs: angles without 0/360 wrapping**. Spec: TASKS.md Q39.
 - [ ] **F17 Plot options menu does not close (Esc / click outside)**. Spec: TASKS.md Q40.
 - [ ] **F18 File dialog keyboard focus (Esc, Tab)**. Spec: TASKS.md Q41.

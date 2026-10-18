@@ -23,6 +23,7 @@ from svcore.mcap_loader import McapError, load_mcap
 from svcore.hdf5_loader import Hdf5Error, load_hdf5
 from svcore.parquet_loader import ParquetError, load_parquet
 from svcore.models import Run
+from app.prefs import APP_DIR
 from svcore.analysis import DerivedDef, OpError, compute, is_discrete
 from svcore.formula import evaluate as _evaluate_formula
 from collections import OrderedDict
@@ -67,7 +68,7 @@ def apply_transform(t, y, spec: dict):
     return t, y
 WIDE = 300          # files with more signals than this skip per-signal work at load
 TIME_SLACK = 2.0   # seconds: see new_files()
-UPLOAD_DIR = os.path.join(os.path.expanduser("~"), ".signalviewer", "uploads")
+UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 
 
 @dataclass

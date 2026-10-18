@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 – unreleased
+
+### Fixed
+
+### Inside
+- Running the tests no longer fills the developer's own recent files, autosave and uploads.
+
 ## 1.6.0 – 2026-10-18
 
 Highlights: **two new examples** on the welcome screen - the same mission flown twice, and an
