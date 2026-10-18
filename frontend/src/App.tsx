@@ -21,6 +21,7 @@ import TopBar from "./components/TopBar";
 import StageBar from "./components/StageBar";
 import DataPanel from "./components/DataPanel";
 const AnalysisPanel = lazyPreload(() => import("./components/AnalysisPanel"));
+const FleetPanel = lazyPreload(() => import("./components/FleetPanel"));
 const ComparePanel = lazyPreload(() => import("./components/ComparePanel"));
 const ReportPanel = lazyPreload(() => import("./components/ReportPanel"));
 const LogPanel = lazyPreload(() => import("./components/LogPanel"));
@@ -38,12 +39,13 @@ import { AxisDialog, ContextMenu, PromptDialog } from "./components/Overlays";
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
 
-const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "flightLog" }[] = [
+const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "flightLog" | "fleet" }[] = [
   { id: "data", icon: "Data", key: "data" },
   { id: "analysis", icon: "Analysis", key: "analysis" },
   { id: "compare", icon: "Compare", key: "compare" },
   { id: "report", icon: "Report", key: "report" },
   { id: "log", icon: "Log", key: "flightLog" },       // only while a file with a flight log is open
+  { id: "fleet", icon: "Fleet", key: "fleet" },        // T41: every flight of the indexed folders
 ];
 
 function Welcome() {
@@ -503,7 +505,8 @@ export default function App() {
         </nav>
         <Suspense fallback={<aside className="side" />}>
           {panel === "data" ? <DataPanel /> : panel === "analysis" ? <AnalysisPanel /> : panel === "compare" ? <ComparePanel />
-            : panel === "report" ? <ReportPanel /> : panel === "log" && logErrors !== null ? <LogPanel /> : <div />}
+            : panel === "report" ? <ReportPanel /> : panel === "log" && logErrors !== null ? <LogPanel />
+            : panel === "fleet" ? <FleetPanel /> : <div />}
         </Suspense>
         <main className="stage">
           <StageBar />

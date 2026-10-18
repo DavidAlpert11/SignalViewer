@@ -456,7 +456,16 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   candump / ASC readers (MIT; cantools only in tests as a reference) and MF4 only when the user
   installs asammdf; (C) both optional (pip install), nothing LGPL in the installer.
   -> 2026-10-18: the owner POSTPONED CAN / MF4.
-- [ ] T41 Fleet view (index of many logs). Spec: TASKS.md Q22. Backend done 2026-10-18 (TASKS Q22); the UI next.
+- [x] T41 Fleet view (index of many logs). Spec: TASKS.md Q22. Backend: see TASKS Q22.
+  UI done 2026-10-18: `FleetPanel.tsx` (rail "Fleet", lazy; also in the command palette): folders
+  (Add -> built-in folder picker -> a job via `followJob`, the jobs bar shows it; Update all;
+  remove), search (text, level, finding by the health titles, a number above / below), the list
+  (date - * when from the file -, name, error / warning badges, the number), a row opens to vehicle,
+  firmware, duration, modes and the findings in the Log panel's own words with **Open here**
+  (opens or reuses the file, cursor at the finding, Log panel). Trend: a small SVG of the chosen
+  number by date, the limit dashed, points over it red, click -> open. `files.ts` `followJob`
+  (runJob's loop for jobs other endpoints start). e2e `test_fleet.py`. Hebrew checked by
+  screenshot (fixed: the intro's extension list in RTL, "1 flight" wording).
 - [ ] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.
 - [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
 

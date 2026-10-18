@@ -23,7 +23,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner runs the manual build, checks the Windows package, then tags.
 - Tests at the last change: backend 638 passed (T41 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q22 UI - the fleet view (the backend is done) (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q23 - split store.ts (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -269,7 +269,7 @@ Progress board (tick here AND in ROADMAP):
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☑ done |
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☑ done |
 | Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ◐ Parquet done; CAN / MF4 POSTPONED by the owner |
-| Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ◐ backend done, UI next |
+| Q22 | T41 Fleet view: an index of many logs, search by finding, trends | L | ☑ done |
 | Q23 | T42 Split `frontend/src/store.ts` into slices | M | ☐ |
 | Q24 | T43 Release & reach: signed installers, docs site, public benchmark vs other tools, forum posts | M | ☐ |
 
@@ -409,7 +409,7 @@ the file time ("date_source"). `query`: text, finding code at a level, a metric 
 a mode; `trend(key)` by date; `keys()`. Routes `app/routes/fleet.py`: GET /api/fleet,
 POST /api/fleet/folder (a job), /rescan (a job), /remove, GET /logs, /trend. Tests:
 `test_fleet.py` (6).
-**Next (UI):** a Fleet view (side panel or a full view - follow CLAUDE.md placement): folders
+**UI: done 2026-10-18** (see ROADMAP T41). Planned then: a Fleet view - folders
 with Add / Update / Remove and the job's progress; the search row (text, finding + level, a
 number above / below, a mode); the list (date, name, vehicle, duration, error / warning badges,
 the searched number); a trend plot of the chosen number (points by date, click -> the log);
@@ -535,3 +535,7 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
 - 2026-10-18 · Owner: CAN / MF4 postponed (licences). Q22 / T41 fleet backend: SQLite index,
   incremental scans, search by finding / number / mode / text, trends, GPS flight date, job
   routes, 6 tests · backend 638, mypy clean · next: the fleet UI.
+- 2026-10-18 · Q22 / T41 fleet UI: side panel, folder jobs with progress, search, trend, open at a
+  finding; the e2e test first waited on a STALE "1 flights" (the previous filter's) and assumed a
+  vibration value - both fixed (wait for the new list; limit from the data) · backend 638, mypy
+  clean, whole e2e suite 156 passed · next: Q23.

@@ -116,6 +116,16 @@ function decode<T extends Float64Array | Float32Array>(b64: string, Ctor: { new 
   return new Ctor(bytes.buffer);
 }
 
+/** T41: the fleet index (backend app/fleet.py). */
+export interface FleetFolder { folder: string; added: number; last_scan: number | null; logs: number }
+export interface FleetKey { key: string; logs: number; min: number; max: number }
+export interface FleetFinding { code: string; level: "error" | "warning" | "ok"; t: number | null; vals: Record<string, number | string> }
+export interface FleetLog {
+  path: string; name: string; format: string; vehicle: string | null; firmware: string | null; date: number;
+  date_source: "gps" | "file"; duration: number | null; errors: number; warnings: number; error: string | null;
+  findings: FleetFinding[]; metrics: Record<string, number>; modes: Record<string, number>;
+}
+
 /** T31: the user's own Python operations (backend app/pyops.py). */
 export interface PyOp { id: string; name: string; inputs: number; doc: string; params: Record<string, number | string | boolean> }
 export interface PyOpsInfo { folder: string; default: boolean; exists: boolean; ops: PyOp[]; errors: { file: string; error: string }[] }
@@ -130,6 +140,12 @@ export const api = {
   pyopsReveal: () => call<{ folder: string }>("/api/pyops/reveal", {}),
   pushEvents: (since: number) => call<{ seq: number; events: { seq: number; run: string; name: string; plot: boolean; new: boolean; age: number }[] }>(`/api/push/events?since=${since}`),
   pushSaveClient: (path: string) => call<{ path: string }>("/api/push/save-client", { path }),
+  fleet: () => call<{ folders: FleetFolder[]; keys: FleetKey[] }>("/api/fleet"),
+  fleetAdd: (path: string) => call<JobInfo>("/api/fleet/folder", { path }),
+  fleetRescan: () => call<JobInfo>("/api/fleet/rescan", {}),
+  fleetRemove: (path: string) => call<{ folders: FleetFolder[] }>("/api/fleet/remove", { path }),
+  fleetLogs: (q: Record<string, string | number>) => call<{ logs: FleetLog[] }>(`/api/fleet/logs?${new URLSearchParams(Object.entries(q).map(([k, v]) => [k, String(v)]))}`),
+  fleetTrend: (key: string) => call<{ points: { path: string; name: string; date: number; date_source: string; value: number }[] }>(`/api/fleet/trend?key=${encodeURIComponent(key)}`),
   diagnostics: () => call<{ text: string; logFile: string; version: string }>("/api/diagnostics"),
   runLog: (id: string) => call<LogInfo>(`/api/runs/${encodeURIComponent(id)}/log`),
   syncSuggest: (ref: string, other: string, refSignal?: string | null, otherSignal?: string | null,
