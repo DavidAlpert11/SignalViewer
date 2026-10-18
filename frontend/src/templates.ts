@@ -1,5 +1,5 @@
 import { api, type RunInfo, type Template, type TplObject, type TplObjectRole, type TplPlot, type TplSlot, type TplTab } from "./api";
-import { fileLabel, nextColor, uid, useApp, type MapObject, type ObjectKind, type Plot, type Tab } from "./store";
+import { colorAllocator, fileLabel, TRACE_COLORS, uid, useApp, type MapObject, type ObjectKind, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
 import { guessRoles } from "./mapObjects";
 
@@ -221,20 +221,31 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
   const res: ApplyResult = { tabs: 0, plots: 0, dropped: r.dropped, missing: r.missing };
   let firstNew: string | null = null;
   st.commit((ws) => {
+    const color = colorAllocator(ws);   // F13: one allocator for the whole apply
+    const fileOrder = dataRuns(st.runs).map((x) => x.id);
     // the workspace is just the empty starting tab: the template's tabs replace it
     const emptyStart = ws.tabs.length === 1 && ws.tabs[0].plots.every((p) => !p.signals.length && !p.objects?.length);
     const before = ws.tabs.length;
     for (const rt of r.tabs) {
-      const plots: Plot[] = rt.plots.map((rp) => ({
-        id: uid("p"), title: rp.title, mode: (rp.mode as Plot["mode"]) ?? "time", xyAlign: rp.xyAlign as Plot["xyAlign"],
-        fftWindow: rp.fftWindow as Plot["fftWindow"], fftMethod: rp.fftMethod as Plot["fftMethod"], fftLog: rp.fftLog, specN: rp.specN,
-        caption: rp.caption, ylim: rp.ylim ?? null, ...(rp.xSignal ? { xSignal: rp.xSignal } : {}),
-        signals: rp.signals.map((s) => ({ sig: s.sig, color: s.color ?? nextColor(ws), width: s.width ?? 1.5, scale: s.scale ?? 1,
-          offset: s.offset ?? 0, state: s.state ?? undefined, tOffset: s.tOffset ?? undefined, label: s.label ?? undefined,
-          ...(s.limits ? { limits: s.limits } : {}) })),
-        ...(rp.objects?.length ? { objects: rp.objects.map((o): MapObject => ({ ...o, id: uid("o"), kind: (o.kind as ObjectKind) ?? "aircraft",
-          color: o.color ?? nextColor(ws), angleUnit: o.angleUnit as MapObject["angleUnit"], altRef: o.altRef as MapObject["altRef"] })) } : {}),
-      }));
+      const plots: Plot[] = rt.plots.map((rp) => {
+        // the same signal from several files in one plot (Compare open files): one colour per FILE,
+        // the same in every plot, so a run keeps its colour across the tabs (F13)
+        const nameOf = (sig: string) => sig.slice(sig.indexOf("/") + 1);
+        const runsOfName = new Map<string, Set<string>>();
+        rp.signals.forEach((s) => runsOfName.set(nameOf(s.sig), (runsOfName.get(nameOf(s.sig)) ?? new Set()).add(s.sig.split("/")[0])));
+        const byFile = (sig: string) => (runsOfName.get(nameOf(sig))?.size ?? 0) >= 2 && fileOrder.includes(sig.split("/")[0])
+          ? TRACE_COLORS[fileOrder.indexOf(sig.split("/")[0]) % TRACE_COLORS.length] : null;
+        return {
+          id: uid("p"), title: rp.title, mode: (rp.mode as Plot["mode"]) ?? "time", xyAlign: rp.xyAlign as Plot["xyAlign"],
+          fftWindow: rp.fftWindow as Plot["fftWindow"], fftMethod: rp.fftMethod as Plot["fftMethod"], fftLog: rp.fftLog, specN: rp.specN,
+          caption: rp.caption, ylim: rp.ylim ?? null, ...(rp.xSignal ? { xSignal: rp.xSignal } : {}),
+          signals: rp.signals.map((s) => ({ sig: s.sig, color: s.color ?? byFile(s.sig) ?? color(), width: s.width ?? 1.5, scale: s.scale ?? 1,
+            offset: s.offset ?? 0, state: s.state ?? undefined, tOffset: s.tOffset ?? undefined, label: s.label ?? undefined,
+            ...(s.limits ? { limits: s.limits } : {}) })),
+          ...(rp.objects?.length ? { objects: rp.objects.map((o): MapObject => ({ ...o, id: uid("o"), kind: (o.kind as ObjectKind) ?? "aircraft",
+            color: o.color ?? color(), angleUnit: o.angleUnit as MapObject["angleUnit"], altRef: o.altRef as MapObject["altRef"] })) } : {}),
+        };
+      });
       const tab: Tab = { id: uid("t"), name: rt.name, rows: rt.rows, cols: rt.cols, rowSizes: rt.rowSizes ?? undefined,
         colSizes: rt.colSizes ?? undefined, plots, active: 0, linkX: rt.linkX ?? true, linkY: rt.linkY ?? undefined,
         ...(rt.sharedStates?.length ? { sharedStates: rt.sharedStates } : {}) };
