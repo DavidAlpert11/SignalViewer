@@ -7,7 +7,7 @@ or grows (live mode), and sessions save only the formula, never the arrays.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -19,7 +19,10 @@ FORMULA = {"expr"}
 BINARY = {"add", "sub", "mul", "div", "absdiff"}
 MULTI = {"mean", "sum", "min", "max", "norm"}
 FRAME = {"frame"}
-OPS = UNARY | BINARY | MULTI | FORMULA | FRAME
+PY = {"py"}                 # T31: the user's own Python operations (params: {"op": "file.py:fn", "args": {...}})
+OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | PY
+# set by app/pyops.py: runs an operation in the worker process (svcore does not import app)
+PY_RUNNER: Optional[Callable[[str, List[Tuple[np.ndarray, np.ndarray]], Dict], Tuple[np.ndarray, np.ndarray]]] = None
 
 
 class OpError(ValueError):
@@ -62,7 +65,15 @@ class DerivedDef:
             "max": lambda: f"max({', '.join(n)})",
             "norm": lambda: f"‖{', '.join(n)}‖",
             "frame": lambda: frame_name(n[:3], p),
+            "py": lambda: _py_name(n, p),
         }[self.op]()
+
+
+def _py_name(n: List[str], p: Dict) -> str:
+    """'despike(Speed, limit=3)': the function's name (not its file), the sources, the arguments."""
+    fn = str(p.get("op", "py")).rsplit(":", 1)[-1]
+    args = [f"{k}={v}" for k, v in (p.get("args") or {}).items()]
+    return f"{fn}({', '.join(list(n) + args)})"
 
 
 def _affine_name(name: str, k: float, c: float) -> str:
@@ -85,6 +96,12 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
     """signals: [(time, data), ...] in source order. Returns (time, data)."""
     if op not in OPS:
         raise OpError(f"Unknown operation: {op}")
+    if op == "py":
+        if PY_RUNNER is None:
+            raise OpError("Python operations are not available here.")
+        if not signals:
+            raise OpError("This operation needs at least one signal.")
+        return PY_RUNNER(str(params.get("op", "")), signals, dict(params.get("args") or {}))
     if op == "expr":
         from svcore.formula import FormulaError, evaluate
         try:

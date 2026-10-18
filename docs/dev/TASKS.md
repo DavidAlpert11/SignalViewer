@@ -21,9 +21,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   (done), Q5 (done), Q6 (done), Q7, Q9, Q11 - the two small ones first, Q11 (largest) last.
 - Released tags: `v1.0.0` ... `v1.3.0`; **`v1.4.0` prepared 2026-10-18** (T32-T36, T38, F08, F09) -
   the owner runs the manual build, checks the Windows package, then tags.
-- Tests at the last change: backend 517 passed (T38); before that backend 351, EVERY e2e file run: 151 passed (Q6).
+- Tests at the last change: backend 539 passed (T31 backend); before that backend 351, EVERY e2e file run: 151 passed (Q6).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Next task: Q11 + Q20 - user Python operations and the Python push API (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
+- **Next task: Q11 UI (the backend is done), then Q20 (see "Review 2026-10-17" below - the owner set a new order on 2026-10-17).**
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
 ## Releasing
@@ -212,7 +212,26 @@ user only confirms.
 **Decided (owner, 2026-10-15):** only Python files in a local folder the user chooses run,
 listed in the UI; never code that comes with a session or template (a shared session must not
 run code). Formulas keep the AST whitelist (`svcore/formula.py`).
-**Status:** not started (decision made).
+**Status (2026-10-18):** backend done, UI next.
+Done: `svcore/pyworker.py` - the WORKER process (spawn): loads the folder's `.py` files
+(`operation` decorator available without an import; `_*.py` skipped; a broken file is listed
+with its error and line, the others still load), runs `fn(t, *ys, **params)` - extra inputs
+aligned onto the first one's time, parameters coerced to their default's type, returns y or
+(t, y), wrong output explained, errors name the line in the user's file. `app/pyops.py` - the
+server side: one worker started on first use, per-run timeout (`SV_PYOPS_TIMEOUT`, 120 s) -> the
+worker is killed and restarted; a crash -> "crashed (exit code N)", restarted; folder in
+settings.json (`pyopsDir`, default `~/.signalviewer/operations`); an example file. Analysis op
+`"py"` with params `{"op": "file.py:function", "args": {...}}` (via `analysis.PY_RUNNER`, svcore
+does not import app) - so preview, live recompute and sessions work like any derived signal, and
+a session stores only the NAME (an operation the folder does not have: "not in your operations
+folder"). Name: `despike(Speed, limit=3)`. Endpoints `/api/pyops` (list), `/reload`, `/folder`,
+`/example`, `/reveal`. `run.py`: `multiprocessing.freeze_support()` (the packaged app starts
+itself again for the worker). Tests: `test_pyops.py` (10: listing, params, 2 inputs, new time
+base, error line, wrong output, endless loop, crash, missing op, reload, example, folder).
+**Next (UI):** a "Python" kind in Create signals (AnalysisPanel): the operations list with
+their description, the parameters as inputs, source pickers for `inputs`, the folder with
+Open folder / Reload / Make an example / Change folder; the load errors shown; e2e test.
+**Check on Windows (owner):** the packaged app runs an operation (spawn + freeze_support).
 
 ### Also open (not queued yet - see ROADMAP)
 T14c, T21b, T23, T24, T25, splitting `store.ts` (now Q23).
@@ -247,7 +266,7 @@ Progress board (tick here AND in ROADMAP):
 | Q18 | T37 CSV first open: meet the 20M-row target | M | ◐ measured; moved to the end (owner: not felt by users) |
 | Q19 | T38 Local crash report (log file + "copy details") | S | ☑ done |
 | Q7  | T15 Video synchronised to the timeline (already queued) | M | ☑ done |
-| Q11 | T31 User Python operations from a local folder (already queued) | L | ☐ |
+| Q11 | T31 User Python operations from a local folder (already queued) | L | ◐ backend done, UI next |
 | Q20 | T39 Python API: push arrays from Jupyter / a simulation into the open app | M | ☐ |
 | Q9  | T27 MCAP (ROS 2) and HDF5 (already queued) | M each | ☐ |
 | Q21 | T40 Parquet, MF4 (ASAM MDF) and CAN decoding with a DBC | L | ☐ |
@@ -473,3 +492,6 @@ ArduPilot and PX4 forums. Claude can prepare the docs site and the benchmark scr
   (the first "Sync here" design could never change the offset - caught by the e2e test), Hebrew and
   English checked by screenshot (a first layout used half the plot - fixed) · backend 529, mypy
   clean, whole e2e suite 153 passed · next: Q11 + Q20.
+- 2026-10-18 · Q11 / T31 backend: worker process, timeout / crash recovery, folder setting,
+  op "py" in the analysis engine, endpoints, freeze_support, 10 tests · backend 539, mypy clean ·
+  next: the UI of Q11.
