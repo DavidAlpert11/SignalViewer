@@ -60,6 +60,7 @@ EXAMPLE_SETS = [
     {"id": "flight", "files": ["uav_flight.csv"]},
     {"id": "twoFlights", "files": ["uav_flight.csv", "uav_flight_windy.csv"]},     # T44: two tracks, Compare
     {"id": "car", "files": ["run_012.csv", "run_013.csv", "run_014.csv"]},
+    {"id": "ardupilot", "files": ["copter_flight.bin"]},                               # T45: a flight log
 ]
 
 

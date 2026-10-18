@@ -123,6 +123,16 @@ def test_flight_date_from_gps_time():
     assert fleet.flight_date(run3) == pytest.approx(want)
 
 
+def test_flight_date_of_the_ardupilot_example():
+    """F11 found with T45: the example .bin is written like real firmware (GPS[0], FMTU); its GPS
+    time says 2026-09-14 06:30 UTC."""
+    import calendar
+    from app.store import Store
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "copter_flight.bin")
+    lr = Store().open_file(ex)
+    assert fleet.flight_date(lr.run) == pytest.approx(calendar.timegm((2026, 9, 14, 6, 30, 0)), abs=1.0)
+
+
 def test_through_the_api_as_a_job(logs, db):
     job = client.post("/api/fleet/folder", json={"path": str(logs)}).json()
     for _ in range(300):
