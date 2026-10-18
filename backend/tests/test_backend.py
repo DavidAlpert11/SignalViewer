@@ -519,7 +519,7 @@ def test_fs_list_and_complete(tmp_path):
 def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
-    assert [x["id"] for x in r] == ["flight", "twoFlights", "car"] and len(r[2]["paths"]) == 3
+    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "ardupilot"] and len(r[2]["paths"]) == 3
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
     (tmp_path / "uav_flight.csv").write_text("t,a\n0,1\n")
     monkeypatch.setattr(m, "EXAMPLES", str(tmp_path))
@@ -538,6 +538,27 @@ def test_two_flights_example_is_ready_to_compare():
     assert 0.0005 < np.max(np.abs(la - lb)) < 0.02                      # tens to hundreds of metres apart
     assert np.std(np.diff(sig(b, "ATT.Roll"))) > np.std(np.diff(sig(a, "ATT.Roll")))   # gusts
     assert sig(b, "Battery")[-1] < sig(a, "Battery")[-1]                                # more drain
+
+
+def test_ardupilot_example_health_and_modes():
+    """T45: the example flight log shows what it is there for - one problem (a vibration burst with
+    clipping, ~130 s) among healthy checks, the flight modes by name, the ArduPilot templates' signals."""
+    from app.store import Store
+    from svcore.health import health
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "copter_flight.bin")
+    lr = Store().open_file(ex)
+    h = health(lr.run)
+    found = {f["code"]: f for f in (h["findings"] if isinstance(h, dict) else h)}
+    assert found["vibration"]["level"] == "warning" and 135 < found["vibration"]["t"] < 145
+    assert found["clipping"]["level"] == "warning"
+    for ok in ("battOk", "ekf", "gpsSats", "gpsFix", "motorsSat", "motorsBalance", "vcc"):
+        assert found[ok]["level"] == "ok", ok
+    labels = lr.run.signals["MODE.Mode"].labels
+    modes = {labels[int(v)] for v in lr.run.signals["MODE.Mode"].data}
+    assert modes == {"STABILIZE", "ALT_HOLD", "LOITER", "AUTO", "RTL", "LAND"}
+    names = " ".join(lr.run.signals)
+    for f in ("ATT.DesRoll", "RATE.RDes", "VIBE[0].VibeZ", "BAT[0].Volt", "GPS[0].Lat", "CTUN.DAlt", "RCOU.C4", "XKF4[0].SV"):
+        assert f in names, f
 
 
 def test_every_example_ships_in_every_package():
