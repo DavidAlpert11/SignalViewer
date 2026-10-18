@@ -45,11 +45,14 @@ when you stop in the middle of a task.
 - Add or update a test for any backend behaviour you change; e2e (`tests/e2e`, Playwright)
   for UI flows when possible.
 - A change to what is on screen by default (a panel open / closed, a new toolbar control, a
-  toast) changes the space other views get: run **every** e2e file, one file per process
-  (`for f in tests/e2e/test_*.py; do python -m pytest -q "$f"; done`), not only the ones that
+  toast) changes the space other views get: run the **whole** e2e suite
+  (`python -m pytest -q tests/e2e`, ~9 min; one process is fine since F02 was closed), not only the ones that
   look related. (T08 - the Inspector starting closed - made the 3D view wider; a 3D test that
   clicked two fixed places on the globe broke and was only found three tasks later.)
 - Update `CHANGELOG.md` (user-facing wording) and the task notes in `ROADMAP.md`.
+- Keep `docs/dev/TASKS.md` current after EVERY task (owner's standing request): the progress
+  board, the task's **Status**, the "Current state" lines and a Log line - so anyone can see what
+  is done without asking.
 - Keep commits small: one task (or one coherent part of it) per commit.
 
 ## Style
