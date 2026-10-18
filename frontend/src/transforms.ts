@@ -115,9 +115,13 @@ export async function deleteAllDerived() {
     return ws;
   });
   useApp.setState({ runs: await api.listRuns() });
-  st.toast({ kind: "info", text: translate(st.lang, "derivedAllDeleted", { n: items.length }),
+  // F12: the Undo puts back the workspace as it was before the delete, so it is valid only until the
+  // next workspace change (undoesWs) - it once stayed and wiped later changes - and it is a commit
+  // (an undo step like any other), not a direct write
+  st.toast({ kind: "info", text: translate(st.lang, "derivedAllDeleted", { n: items.length }), undoesWs: true,
     action: { label: translate(st.lang, "undo"), run: async () => {
       const r = await api.restoreDerived(items);
-      useApp.setState({ runs: r.runs, ws: wsBefore, dataVersion: useApp.getState().dataVersion + 1 });
+      useApp.setState({ runs: r.runs, dataVersion: useApp.getState().dataVersion + 1 });
+      useApp.getState().commit(() => structuredClone(wsBefore));
     } } });
 }

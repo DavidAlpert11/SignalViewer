@@ -1331,6 +1331,35 @@ def test_edit_original_steps_and_undo_all(pg):
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
 
 
+def test_delete_all_derived_undo_never_overwrites_later_changes(pg):
+    """F12: the Undo of "Delete all derived" restored the old workspace directly and stayed on screen
+    after later changes - clicking it then wiped them. Now it goes with the next change, and when used
+    it puts the signals back into the plots as an undo step."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.click("[aria-label='Create signals']")
+    pg.locator(".seg.wide button", has_text="New signal").click()
+    pg.get_by_role("button", name="Create signal", exact=True).click()
+    pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.signals.some(s => s.sig.startsWith('derived/'))))")
+    in_plots = "window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.signals.some(s => s.sig.startsWith('derived/'))))"
+    # 1) Undo right away: the derived signal is back in its plot, and Ctrl+Z takes that back
+    pg.click(".bulk-undo .btn:has-text('Delete all derived')")
+    pg.wait_for_function(f"!({in_plots})")
+    pg.locator(".toast", has_text="derived signals deleted").locator("button:has-text('Undo')").click()
+    pg.wait_for_function(in_plots)
+    # 2) a change after the delete: the Undo is gone, the change stays
+    pg.click(".bulk-undo .btn:has-text('Delete all derived')")
+    pg.wait_for_function(f"!({in_plots})")
+    pg.wait_for_function("window.__sv.state().toasts.some(t => t.text.includes('derived signals deleted'))")
+    # the change and the check in ONE call: toasts also go by themselves after a few seconds
+    still = pg.evaluate("""() => { const st = window.__sv.state();
+        st.commit(ws => { ws.tabs[0].name = 'after'; return ws; });
+        return window.__sv.state().toasts.some(t => t.text.includes('derived signals deleted')); }""")
+    assert not still, "the Undo of the delete must go with the next workspace change"
+    assert S(pg, "s.ws.tabs[0].name") == "after"
+
+
 def test_ctrl_shift_selection_in_file_list(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click(modifiers=["Control"])
