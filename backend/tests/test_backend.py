@@ -519,11 +519,25 @@ def test_fs_list_and_complete(tmp_path):
 def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
-    assert [x["id"] for x in r] == ["flight", "car"] and len(r[1]["paths"]) == 3
+    assert [x["id"] for x in r] == ["flight", "twoFlights", "car"] and len(r[2]["paths"]) == 3
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
     (tmp_path / "uav_flight.csv").write_text("t,a\n0,1\n")
     monkeypatch.setattr(m, "EXAMPLES", str(tmp_path))
-    assert [x["id"] for x in client.get("/api/examples").json()] == ["flight"]     # car files missing
+    assert [x["id"] for x in client.get("/api/examples").json()] == ["flight"]     # sets with a missing file left out
+
+
+def test_two_flights_example_is_ready_to_compare():
+    """T44: the same mission twice - the same signals, the windy one drifts off the calm track."""
+    from app.store import Store
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples")
+    st = Store()
+    a, b = (st.open_file(os.path.join(ex, f)) for f in ("uav_flight.csv", "uav_flight_windy.csv"))
+    assert sorted(a.run.signals) == sorted(b.run.signals)
+    sig = lambda lr, n: np.asarray(next(s.data for k, s in lr.run.signals.items() if k.startswith(n)), float)  # noqa: E731
+    la, lb = sig(a, "GPS.Lat"), sig(b, "GPS.Lat")
+    assert 0.0005 < np.max(np.abs(la - lb)) < 0.02                      # tens to hundreds of metres apart
+    assert np.std(np.diff(sig(b, "ATT.Roll"))) > np.std(np.diff(sig(a, "ATT.Roll")))   # gusts
+    assert sig(b, "Battery")[-1] < sig(a, "Battery")[-1]                                # more drain
 
 
 def test_every_example_ships_in_every_package():

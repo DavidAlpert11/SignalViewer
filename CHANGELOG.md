@@ -4,6 +4,9 @@
 
 - **Examples on the welcome screen are back** in the Windows portable package (the package left the
   example files out, so the "Try an example" line was hidden).
+- New example: **the same mission flown twice** - a calm flight and the same waypoints in a
+  cross-wind (drift off the track, nose into the wind, gusts, more battery drain), for the map with
+  two tracks and Compare runs. An example is offered only when all its files are there.
 
 ## 1.5.0 – 2026-10-18
 
