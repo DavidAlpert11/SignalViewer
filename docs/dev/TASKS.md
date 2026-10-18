@@ -17,8 +17,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   owner builds the Windows portable package, checks the four welcome examples are there (F10 could
   not be checked in the sandbox: python.org is unreachable), then tags `v1.6.0` and pushes the tag.
   (`v1.5.0` was tagged without its release patch - its packages say 1.4.0; CHANGELOG has both.)
-- **Active plan: "Plan 2026-10-18" below. Owner (2026-10-18): release 1.6.0 after Q29; the rest of
-  phase C (Q30-Q34) goes to 1.7.0.** Next: Q30.
+- **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
+  features. P1 (bugs F13-F21, Q36-Q44) aims at 1.6.1; P2 (T24 extended, T46-T52) joins Q30-Q34 in
+  1.7.0. Next: Q38 (F15), then Q36.
 - Tests at the last change: backend 642 passed; whole e2e suite 160 passed (Q29).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -495,6 +496,274 @@ backend test opens it; e2e.
 
 ---
 
+## Review 2026-10-18 (after 1.6.0) - polish before new features
+
+Made by going through the app as a NEW user (empty `~/.signalviewer`, 1400x850 and 1100x700,
+English and Hebrew), every button, menu and context menu, with the four examples. Owner's
+direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 is usability
+(1.7.0, together with Q30). Each item says how it was seen, so it can be reproduced.
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| **P1** | **Bugs (1.6.1)** | | |
+| Q36 | F13 Templates without colours draw every signal in the same colour (Compare runs!) | S | ☐ |
+| Q37 | F14 First run: the Templates dialog shows "templates folder is not available" | S | ☐ |
+| Q38 | F15 Backend tests write to the developer's real `~/.signalviewer` | S | ☐ |
+| Q39 | F16 Compare runs: angles (yaw / heading) compared without wrapping 0/360 | S | ☐ |
+| Q40 | F17 Plot options menu (⋯) does not close on Esc / click outside | S | ☐ |
+| Q41 | F18 File dialog: Esc does nothing at first, Tab leaves the dialog | S | ☐ |
+| Q42 | F19 Opening a file that is already open adds a silent second copy | S | ☐ |
+| Q43 | F20 Several files opened at once: smart start suggests a one-file view; one toast per file | S | ☐ |
+| Q44 | F21 File dialog: Shift+click is not a range; one "last folder" for every dialog | S | ☐ |
+| **P2** | **Usability (1.7.0, with Q30-Q34)** | | |
+| Q30+ | T24 (extended) Places in the file dialog: recent folders, favourites, folders of open files | S→M | ☐ |
+| Q45 | T46 File identity: every file has a colour + short tag, used everywhere | M | ☐ |
+| Q46 | T47 Signals with different units in one plot: a second value axis | M | ☐ |
+| Q47 | T48 First impression: examples open ready, one-click template chips | S | ☐ |
+| Q48 | T49 Duplicate and unclear controls (list below) | M | ☐ |
+| Q49 | T50 Small windows and crowded headers | S | ☐ |
+| Q50 | T51 Built-in templates and their tabs in Hebrew | S | ☐ |
+| Q51 | T52 e2e "fresh user" test (empty home folder) | S | ☐ |
+
+Suggested order: Q38 first (so the tests stop touching the real profile), Q36, Q37, Q39, Q40-Q44,
+Q51 (it would have caught Q37), then P2 starting with Q30+ and Q45.
+
+### Q36 · F13 Templates without colours: every signal the same colour — S
+**Seen:** "three car runs to compare" → template chip *Compare open files* → Open: all 3 runs in
+every plot are the same blue; the runs cannot be told apart. Same for *Quick look*. Templates with
+stored colours (ArduPilot) are fine.
+**Cause:** `applyTemplate` in `frontend/src/templates.ts` builds the new plots and calls
+`s.color ?? nextColor(ws)` for each signal, but the new plots are not in `ws` yet, so
+`nextColor` (`store/selectors.ts`) sees the same usage counts every time and returns the same colour.
+Map objects (`o.color ?? nextColor(ws)`) have the same problem.
+**Steps:** a colour allocator for one apply (counts from `ws` + what this apply already gave out);
+use it for signals and objects. For the Compare generator use the file colour of T46 once it
+exists (same signal from several files = one colour per file).
+**Done when:** e2e: open the three car runs, apply Compare open files, every plot has 3 different
+colours; a unit test for the allocator.
+
+### Q37 · F14 First run: "The templates folder is not available" — S
+**Seen:** fresh profile → Templates → red line `The templates folder is not available:
+~/.signalviewer/templates` at the bottom of the library.
+**Cause:** `prefs.template_folder_info()` reports `exists: false` until the first template is
+saved (the default folder is created only by a save); `TemplateLibrary.tsx` shows `tplFolderMissing`.
+The e2e machines already have the folder, so no test saw it.
+**Steps:** create the DEFAULT folder when it is asked about (or at start-up); keep the red line only
+for a folder the user CHOSE that is gone (network drive, USB). Same check for the Python operations
+folder (`pyops.DEFAULT_DIR`).
+**Done when:** backend test with an empty home: `exists` is true for the default folder; e2e in
+Q51 opens the library with no error line.
+
+### Q38 · F15 Backend tests write to the real `~/.signalviewer` — S
+**Seen:** after `pytest`, the app's *Recent files* listed `/tmp/pytest-of-.../s.csv`, `f.bin`,
+`a.csv`... `recent.json`, `autosave.json`, `uploads/`, `push.json` are written by the tests; a
+developer's own autosave and recent list are overwritten.
+**Cause:** `conftest.py` redirects only the log folder (T38). The app folder is computed at import
+in three places: `app/common.py` (`APP_DIR`), `app/prefs.py` (`APP_DIR`), `app/store.py`
+(`UPLOAD_DIR`, its own `expanduser`).
+**Steps:** one place for the folder (`app/common.py`), honouring `SV_HOME` (default
+`~/.signalviewer`); prefs, store, fleet, push, pyops, crashlog take it from there. `conftest.py`
+sets `SV_HOME` to a temporary folder BEFORE importing the app; the e2e server too.
+**Done when:** a test that records the mtime of `~/.signalviewer` files before the session and
+checks nothing changed after (or: SV_HOME set and `prefs.APP_DIR` starts with it); grep finds no
+other `expanduser("~")` for the app folder.
+
+### Q39 · F16 Compare runs: angles compared without wrapping — S
+**Seen:** two-flights example → Compare runs: `ATT.Yaw [deg]` RMS Δ 75.8, max |Δ| 315.1. With
+wrapped differences it is RMS 21.8, max 68.4 (checked on the CSVs). A heading of 359° vs 1° counts
+as 358° apart, so the "least similar" ranking is wrong for every yaw / heading / course signal.
+**Where:** `backend/svcore/compare.py` (the difference `d`); `analysis.py` already has `_unwrap` and
+`formula.py` `wrap180` - reuse, do not add a third.
+**Steps:** decide "is an angle" once (unit deg / rad and a full-turn range, or a name list:
+Yaw, Heading, Hdg, Course, COG, Bearing - same rule as Frames uses); for angles d = wrap180(a - b)
+(or ±π). The table and the small "where" curve use the same d. Note the rule in Help.
+**Done when:** backend test: two yaw series crossing 0/360 give a small RMS; the example's yaw
+comes out ~21.8; non-angle signals unchanged.
+
+### Q40 · F17 Plot options menu (⋯) does not close — S
+**Seen:** ⋯ on a plot opens Export / Save image / Axis limits / Clear plot. Esc, a click on the plot,
+the file list or the status bar leave it open; it closes only when the mouse ENTERS and then leaves
+it (`onMouseLeave` in `PlotView.tsx` ~289). With the keyboard it never closes, and a right-click
+elsewhere opens a second menu next to it.
+**Steps:** use the same menu mechanism as the other menus (signal / chip / tab context menus
+close on Esc and click outside); drop the close-on-mouse-leave (a slip of the mouse closes it).
+Check the other hand-made `menu` divs (`grep 'className="menu"'`).
+**Done when:** e2e: open ⋯, Esc closes; open ⋯, click the plot, closed.
+
+### Q41 · F18 File dialog: keyboard focus — S
+**Seen:** Open files: the focus stays on the "Open files" button BEHIND the dialog, so Esc does
+nothing until the user clicks inside; Tab walks through the app behind the scrim. (The Help dialog
+does it right: the focus is on its close button.)
+**Steps:** focus the dialog (the list or the path box) when it opens; keep Tab inside (a small
+shared focus-trap used by every `.dialog`); give the focus back to the button on close. Check the
+other dialogs with one e2e loop.
+**Done when:** e2e: open the file dialog, Esc closes it; Tab x 30 never leaves the dialog.
+
+### Q42 · F19 A file that is already open opens again, silently — S
+**Seen:** opening `uav_flight.csv` again (dialog or recent) adds a second run named
+`examples/uav_flight.csv` with all its signals; nothing says it was already open.
+**Steps:** in `openPaths` (files.ts) split the paths into new and already open; for the open ones
+ask once: *Reload from disk* (default) / *Open another copy* (a real use: the same log with
+another time offset) / Cancel. Drag-and-drop the same.
+**Done when:** e2e: open a file twice → the question; Reload keeps one run.
+
+### Q43 · F20 Opening several files at once — S
+**Seen:** the two-flights example (2 files) → the card says "Opened: uav_flight.csv · Suggested
+view: Flight on the map & 3D" (a one-file view); the three car runs → no suggestion at all. And one
+toast per file, all saying "1 text columns read as states (DriveMode)" (also: "1 text columns").
+**Where:** `files.ts openPaths` (`offerStart(firstNew)` only for the first), `smartStart.ts`,
+the `textColsRead` toast in files.ts ~101.
+**Steps:** when 2+ files of the same kind were opened, the card offers *Compare open files* first
+(with the overlay of T46 colours); one toast for the whole open ("DriveMode read as states in 3
+files"), plural forms in en + he; consider putting this information in the file's tooltip instead
+of a toast (it is not an action item).
+**Done when:** e2e: the car runs → card with Compare; one toast.
+
+### Q44 · F21 File dialog: selection and last folder — S
+**Seen / cause:** in `FileBrowser.tsx` Shift+click is treated like Ctrl+click (toggle one file),
+not a range; no Ctrl+A. `sv3.lastDir` is ONE key for every use of the dialog: saving a report or
+exporting a template moves where *Open files* starts next time.
+**Steps:** Shift+click = range from the last clicked row (in the shown order); Ctrl+A = all files
+shown (after the filter); a last-folder key per purpose (open data / sessions / reports / exports /
+templates); when there is no last folder, start in the folder of the last opened file, not home.
+**Done when:** e2e for range and Ctrl+A; save a PNG elsewhere, Open files still opens the data
+folder.
+
+### Q30+ · T24 extended: places in the file dialog — S→M
+Owner (2026-10-18): "in the favourites, not only the recent files but also the recent folders -
+we often open more from the same folders". Extends Q30.
+**Where:** `recent.json` already stores the folder of every item (`prefs.list_recent()` returns
+`folder`), so recent folders need no new backend storage. `FileBrowser.tsx` `fs-recent`.
+**Steps:** a narrow "Places" column on the side of the dialog (the right side in Hebrew):
+1) **Folders of the open files**; 2) **Recent folders** (distinct folders of recent files /
+sessions, newest first, 8, missing ones greyed); 3) **Favourites**: pin the current folder (star in
+the path bar), unpin, reorder by drag, saved in `~/.signalviewer/settings.json`; 4) Home, Desktop,
+Documents, the drives (Windows) / `/media` (Linux) / `/Volumes` (macOS). Ctrl+P (Q30's quick open):
+fuzzy over favourites + recent folders + recent files. A message for a folder with no supported
+files ("No CSV / MAT / BIN … files here - N other files hidden").
+**Done when:** e2e: open a file from folder X, reopen the dialog in another folder, X is under
+Recent folders and one click lists it; pin / unpin survives a restart.
+
+### Q45 · T46 File identity: a colour and a short tag per file — M
+**Why (owner):** "with two files or more and signals with similar names it is hard to tell which
+belongs to which". Seen: two-flights example, GroundSpeed from both files: the chips read
+`GroundSpeed [m/s] · uav_flight.csv` and `GroundSpeed [m/s] · uav_flight_win…` - the part that
+differs is cut off; with the cursor on, both become `GroundSpeed [m/s] · uav…` (the value takes the
+room), and the chip's tooltip is the generic hint, not the name. The Create signals picker shows
+`GroundSpeed [m/s]` with no file at all. Compare runs already gives files colours, but locally
+(`runColor` in `ComparePanel.tsx`, by position among the CHECKED runs - unchecking one recolours
+the others).
+**Design:**
+- Every data file gets a **file colour** and a **tag** (A, B, C… or what the user types in
+  *File options > Rename / Short name*) when it is opened; saved in sessions (optional fields,
+  old sessions get them assigned in order).
+- **Files panel:** a colour bar and the tag on each file header.
+- **Legend chips:** a small coloured tag badge (`A`) instead of the long ` · file.csv` when 2+
+  files are open; the name truncated in the MIDDLE, never the end; the tooltip = full signal name +
+  full file path (+ the hint on a second line).
+- **Plot colour mode** (Plot options, and a default in Settings Q34): *by signal* (today) /
+  *by file* (each file its colour, several signals of one file in shades of it, or a dash pattern
+  per signal). Automatic choice: when a plot holds the SAME signal name from 2+ files, colour by
+  file (Compare open files, Link files, Compare runs' "show").
+- **Everywhere else the file is named:** Compare runs (replaces the local `runColor`), the map
+  and 3D tracks, the cursor table in the Inspector, the signal pickers (Create signals, X axis,
+  formula `ExprInput`), the report legend.
+**Done when:** e2e: two files, same signal from both → different colours, chips show A / B,
+tooltip has the path; unchecking a run in Compare does not change colours; a session from 1.6
+opens with tags assigned.
+
+### Q46 · T47 A second value axis for different units — M
+**Seen:** GroundSpeed [m/s] (0-60) and Battery [V] (14-16) in one plot: the battery is a flat line
+at the bottom. Today only scale / offset per signal or a separate plot help.
+**Steps:** per signal "axis: left / right" (chip menu *Move to the right axis*); automatic
+suggestion when a signal's unit differs from the plot's first unit and its range is <10 % of the
+axis; the right axis gets the unit label; linkY applies per side; reports and PNG/SVG export draw it
+(`plotSpec`). Saved field optional (old sessions: all left).
+**Done when:** e2e: speed + battery, battery to the right axis, both readable; export PNG shows
+two axes.
+
+### Q47 · T48 First impression — S
+**Seen:** *Try an example* opens the files and leaves an empty plot with a card "Suggested view ·
+Open it" (and for the car runs nothing). Someone who clicked an example wants to SEE something.
+The template chips in the Files panel (Quick look, Compare open files…) open the template library
+dialog with an *Open* button - two clicks for something that looks like one.
+**Steps:** an example applies its view by itself (the drone: Flight on the map & 3D; two flights:
+the map with both tracks + Compare; car runs: Compare open files; ArduPilot: Full review) - one
+Undo returns to the empty view; the chip applies directly when the template fits the open files
+without questions (choice of file needed → the dialog as today); the card stays for real files.
+**Done when:** e2e per example: plots are not empty after one click.
+
+### Q48 · T49 Duplicate and unclear controls — M
+Found by listing every control (CLAUDE.md: one place per control, + shortcut / palette):
+1. **Two buttons labelled "X"** side by side in the StageBar: *Link time axes* (🔗 X) and the zoom
+   mode (🔍 X). Make the zoom mode a small segmented "Zoom: X | Y | XY" or an icon without the
+   letter clash.
+2. **The top bar's folder icon opens a SESSION**, while Ctrl+O and "Open files" (in the Files panel)
+   open data files - the folder icon is where users look for Open files. Proposal: a **File**
+   menu in the top bar (Open files… Ctrl+O, Open recent ▸, Open session… Ctrl+Shift+O, Save session
+   Ctrl+S, Save session as…, Clear everything…) and the Files panel keeps "Open files" as the
+   in-panel second entry (allowed: the panel is where files are). This also moves the Trash
+   (*Clear everything*) away from Save, where a misclick is one dialog away from losing the work.
+3. **Clear everything confirmation**: the button says "OK"; make it "Clear everything" in the
+   danger style (Cancel default).
+4. **Reload a file is in four places**: the per-file ↻ icon, File options > Reload from disk,
+   Refresh all (F5) in the panel header, and Live ("refresh every file, then follow"). Keep the
+   per-file icon and F5 / panel ↻; remove Reload from File options (or the icon).
+5. **Templates have five entry points**: top-bar Templates ▾, the Files panel's Templates strip +
+   All templates…, the tab context menu *Templates…*, the smart-start card, the palette. Keep the
+   top bar + the strip (it shows what FITS the open files) + palette; drop the tab menu item.
+6. **Signal menu (file list) wording:** "Add the result to the active plot" (the Create signals
+   string reused - there is no result here) → "Add to the active plot", and when the signal is
+   already in it → "Remove from the active plot". "Change the variable…" → "Scale / offset /
+   function…" ("variable" is used nowhere else; the app says "signal").
+7. **Two ways to change a signal in place:** "Change the variable…" (transform dialog: scale /
+   offset / function) and Create signals > *Edit the original* (operations, marked ƒ). Same idea,
+   two mechanisms and two markings. Merge into one (one list of steps on the signal), or at least
+   name both the same and show both in one place in the Inspector.
+8. **Create signals: "One signal" twice** - the mode tab *One signal* and below it the choice *One
+   signal / Each of several*. Rename the second "Apply to: this signal / each of several".
+9. **Plot mode bar** (Time, X-Y, XYZ, Map, 3D, FFT, Spectrogram, Envelope, Video) is repeated on
+   every plot - 4 plots = 36 buttons, and it pushes the legend down. Show it on the active / hovered
+   plot only, or as one dropdown with the current mode's name.
+10. **Cursor buttons** are the letters "T" and "H" at the far right of the StageBar; give them the
+   cursor icons with the tooltip, and put them next to the zoom controls (they are used together).
+11. **Compare runs:** each row shows similarity (67.4 %) AND "err 33 %" - the same number twice
+   (100 - x). Keep one; use the room for RMS Δ with the unit.
+12. **No menu on a right-click in the plot area** (only on chips). Offer: Cursor here, Two cursors
+   from here, Note here (N), Zoom back, Reset zoom, Save image.
+13. **Help is only the tiny "?" in the status bar** (and *Copy error details* lives inside the
+   shortcuts dialog). A Help entry in the top bar or the palette ("Keyboard shortcuts", "Copy error
+   details", "Open the examples", "About / version").
+**Done when:** each item done or explicitly rejected by the owner (note it here); e2e that use
+the old labels updated; README pictures retaken (Releasing step 1).
+
+### Q49 · T50 Small windows and crowded headers — S
+**Seen:** Files panel header with 2+ files: ↻, ⇄, 🔗 *Link* and *Open files ▾* do not fit - "Link"
+is cut and touches Open files (worse in Hebrew). At 1100x700 with 4 plots each time plot shows ONE
+value label on its Y axis ("0") - unreadable. With 6 tabs the top search box shrinks to
+"Commands a…".
+**Steps:** the header's small actions go into one ⋯ (or wrap to a second row); a minimum of 3 Y
+labels (smaller font / fewer X labels when the plot is short), and a hint "too many plots for this
+window" below a height; the search box keeps a minimum width and the tabs scroll.
+**Done when:** screenshots at 1100x700 en + he, 1 / 4 / 6 plots, 1 / 3 files: nothing cut, every Y
+axis has 3+ labels.
+
+### Q50 · T51 Built-in templates in Hebrew — S
+**Seen:** in Hebrew the chips and library show *Quick look*, *Compare open files*, *ArduPilot ·
+Attitude*…, and the tabs they make are "Compare 1", "Compare 2". `builtin_templates.json` has
+English only; the generators name tabs in English.
+**Steps:** optional `name_he` / `description_he` (and tab names) in the built-ins, read through
+`tx()`; generators name tabs through i18n. User templates unchanged.
+**Done when:** screenshot of the library and a Compare result in Hebrew.
+
+### Q51 · T52 e2e "fresh user" — S
+**Why:** Q37 and the empty-plot first impression are visible only with an empty profile; the e2e
+machines have a used one.
+**Steps:** a test file that starts the server with `SV_HOME` (Q38) set to an empty temp folder and
+goes: welcome screen → each example → templates library (no error line) → file dialog (opens in a
+sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console errors and fail on any.
+**Done when:** it runs in the suite and fails on 1.6.0 (Q37), passes after.
+
 ## Log
 
 - 2026-10-15 · T17f frames as one nested group + preview (in the plot, a plot per axis under
@@ -639,3 +908,6 @@ backend test opens it; e2e.
   retaken (it showed the old welcome screen), frontend/dist built. Found at the release: an index
   from 1.5.0 would keep F11's file dates (scans skip unchanged files) - fleet.INDEX_VERSION + test.
   backend 643, mypy clean · owner: build Windows portable, check examples, tag v1.6.0 · next: Q30.
+- 2026-10-18 · Review after 1.6.0 (fresh profile, every control, en + he, 1400x850 and 1100x700):
+  9 bugs F13-F21 (Q36-Q44) and usability T24 extended, T46-T52 (Q45-Q51) written down in "Review
+  2026-10-18". Checks at the review: backend 643 passed, tsc + mypy clean, CI run 16 green · next: Q38.
