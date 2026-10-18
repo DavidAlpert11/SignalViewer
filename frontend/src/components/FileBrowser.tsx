@@ -5,7 +5,23 @@ import { useT } from "../i18n";
 import { Icon } from "../icons";
 import { openPaths, recentToOpen, refreshRecent } from "../files";
 
-const LAST_DIR = "sv3.lastDir";
+const LAST_DIR = "sv3.lastDir";        // opening data files (the key since 1.0 - kept)
+/** F21: each use of the dialog remembers its own folder (saving a report somewhere else must not
+ *  move where Open files starts); a use with no folder yet starts where the data is. */
+const lastDirKey = (picker: { mode: string; exts?: string[] } | null) =>
+  picker ? `${LAST_DIR}:${picker.mode}:${(picker.exts ?? []).join(",")}` : LAST_DIR;
+const dirOfPath = (p: string) => {        // the folder of a file path; a drive or "/" keeps its separator
+  const d = p.replace(/[\\/][^\\/]*$/, "");
+  return !d ? "/" : /^[a-zA-Z]:$/.test(d) ? `${d}\\` : d;
+};
+function startFolder(picker: { mode: string; exts?: string[] } | null): string | null {
+  const own = localStorage.getItem(lastDirKey(picker));
+  if (own) return own;
+  const st = useApp.getState();
+  const lastRun = [...st.runs].reverse().find((r) => r.format !== "derived" && r.path && !r.copy);
+  if (lastRun) return dirOfPath(lastRun.path);
+  return localStorage.getItem(LAST_DIR) ?? st.recent.find((x) => x.exists)?.folder ?? null;
+}
 const SORT_KEY = "sv3.fsSort";          // "modified" (default: newest first) or "name"
 
 function fmtSize(n?: number | null) {
@@ -65,15 +81,16 @@ export default function FileBrowser() {
   const navigated = useRef(false);   // the user moved on: the initial load must not apply
   const userTyped = useRef(false);   // the user typed in the path box: the initial load must not overwrite it
   const dialogRef = useRef<HTMLDivElement>(null);
+  const anchor = useRef<string | null>(null);     // F21: where a Shift+click range starts
   const go = async (p?: string | null, initial = false) => {
     if (!initial) navigated.current = true;
     const my = ++seq.current;
     try {
       const r = await api.listDir(p, folderMode ? [".\u0000none"] : picker?.exts);   // folder mode: folders only
       if (my !== seq.current || (initial && navigated.current)) return;
-      setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setPicked([]); setError("");
+      setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setPicked([]); anchor.current = null; setError("");
       setSugg([]); setSuggAt(-1); setFilter("");
-      if (r.path) localStorage.setItem(LAST_DIR, r.path);
+      if (r.path) localStorage.setItem(lastDirKey(picker), r.path);
     } catch (e) { if (my === seq.current) setError((e as Error).message); }
   };
   // a layout effect: runs before the dialog is painted, so nothing typed in the first moments can be
@@ -82,7 +99,7 @@ export default function FileBrowser() {
     // "show import options" is a per-open choice: it must not silently stick to the next open
     if (open) {
       setPath(""); setTyped(""); setEntries([]); setSugg([]); setFilter("");   // not the previous open's folder, even for a moment
-      navigated.current = false; userTyped.current = false; setWithOptions(false); go(localStorage.getItem(LAST_DIR), true); setName(picker?.defaultName ?? "");
+      navigated.current = false; userTyped.current = false; setWithOptions(false); go(startFolder(picker), true); setName(picker?.defaultName ?? "");
       if (!picker) refreshRecent();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,14 +146,20 @@ export default function FileBrowser() {
     if (withOptions) useApp.setState({ importPaths: paths });
     else openPaths(paths);
   };
-  const clickFile = (e: FsEntry, multi: boolean) => {
+  // F21: Shift+click selects the range from the last clicked file (in the order shown), Ctrl+click
+  // adds / removes one - as in Explorer (Shift used to act like Ctrl)
+  const clickFile = (e: FsEntry, ev: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => {
     if (saving) { setName(e.name); return; }
-    setPicked((cur) => (multi && !picker ? (cur.includes(e.path) ? cur.filter((x) => x !== e.path) : [...cur, e.path]) : [e.path]));
+    const files = shown.filter((x) => !x.dir).map((x) => x.path);
+    if (ev.shiftKey && !picker && anchor.current && files.includes(anchor.current)) {
+      const [a, b] = [files.indexOf(anchor.current), files.indexOf(e.path)].sort((x, y) => x - y);
+      setPicked(files.slice(a, b + 1));
+      return;
+    }
+    anchor.current = e.path;
+    setPicked((cur) => ((ev.ctrlKey || ev.metaKey) && !picker ? (cur.includes(e.path) ? cur.filter((x) => x !== e.path) : [...cur, e.path]) : [e.path]));
   };
-  const dirOf = (p: string) => {            // the folder of a file path; a drive or "/" keeps its separator
-    const d = p.replace(/[\\/][^\\/]*$/, "");
-    return !d ? "/" : /^[a-zA-Z]:$/.test(d) ? `${d}\\` : d;
-  };
+  const dirOf = dirOfPath;
   /** A suggestion chosen: a folder opens (and completion goes on from it); a file is picked -
    *  opened at once when opening, put in the name box when saving. */
   const choose = async (it: { path: string; dir: boolean; name: string }) => {
@@ -168,7 +191,11 @@ export default function FileBrowser() {
   /** type-to-filter: letters typed while the dialog (not a text box) has focus filter the folder. */
   const filterKey = (e: React.KeyboardEvent) => {
     const tag = (e.target as HTMLElement).tagName;
-    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a" && !picker) {      // F21: every file shown
+      e.preventDefault(); setPicked(shown.filter((x) => !x.dir).map((x) => x.path)); return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     // the focused row may be filtered away: keep the keys coming to the dialog
     const keep = () => dialogRef.current?.focus();
     if (e.key === "Backspace" && filter) { e.preventDefault(); setFilter(filter.slice(0, -1)); keep(); }
@@ -256,7 +283,7 @@ export default function FileBrowser() {
           {error && <p className="empty-note">{error}</p>}
           {shown.map((e) => (
             <button key={e.path} className={`fs-row${picked.includes(e.path) ? " on" : ""}`}
-              onClick={(ev) => (e.dir ? go(e.path) : clickFile(e, ev.ctrlKey || ev.metaKey || ev.shiftKey))}
+              onClick={(ev) => (e.dir ? go(e.path) : clickFile(e, ev))}
               onDoubleClick={() => !e.dir && !saving && confirm([e.path])}>
               {e.dir ? <Icon.Folder /> : <Icon.File />}<span>{e.name}</span>
               <span className="mtime">{fmtDate(e.mtime)}</span><span className="size">{fmtSize(e.size)}</span>

@@ -514,7 +514,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | Q41 | F18 File dialog: Esc does nothing at first, Tab leaves the dialog | S | ☑ done |
 | Q42 | F19 Opening a file that is already open adds a silent second copy | S | ☑ done |
 | Q43 | F20 Several files opened at once: smart start suggests a one-file view; one toast per file | S | ☑ done |
-| Q44 | F21 File dialog: Shift+click is not a range; one "last folder" for every dialog | S | ☐ |
+| Q44 | F21 File dialog: Shift+click is not a range; one "last folder" for every dialog | S | ☑ done |
 | Q52 | F22 Many tabs: the hidden tabs cannot be reached (owner) | S | ☑ done |
 | **P2** | **Usability (1.7.0, with Q30-Q34)** | | |
 | Q30+ | T24 (extended) Places in the file dialog: recent folders, favourites, folders of open files | S→M | ☐ |
@@ -933,3 +933,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Q41 / F18 dialogs take the keyboard (all of them, one watcher) · e2e · next: Q42.
 - 2026-10-18 · Q42 / F19 an open file opened again is re-read, copy on request · e2e · next: Q43.
 - 2026-10-18 · Q43 / F20 several files: Compare suggested, one note toast · e2e · next: Q44.
+- 2026-10-18 · Q44 / F21 file dialog: Shift range, Ctrl+A, a last folder per use · e2e · next: the whole e2e suite, then the 1.6.1 release check.
