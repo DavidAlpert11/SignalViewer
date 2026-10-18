@@ -285,3 +285,34 @@ def test_every_tab_is_reachable_with_many_tabs(page, server):
     page.wait_for_function("window.__sv.state().ws.tabs.findIndex((t) => t.id === window.__sv.state().ws.activeTab) === 6")
     # the controls on the right keep their room
     assert page.locator(".search-trigger").bounding_box()["width"] >= 149
+
+
+def test_plot_menu_closes_like_every_menu(page, server):
+    """F17: the plot's ⋯ menu closed only when the mouse entered it and left again - never by Esc
+    or a click elsewhere."""
+    _open(page, server["data"], ["run_a.csv"])
+    page.locator(".sig", has_text="Speed").first.click()
+    page.wait_for_selector(".plot .chip")
+    menu = page.locator(".plot .menu")
+    page.locator(".plot-more").first.click(); menu.wait_for()
+    page.keyboard.press("Escape"); menu.wait_for(state="detached")
+    page.locator(".plot-more").first.click(); menu.wait_for()
+    page.locator(".plot-body").first.click(position={"x": 200, "y": 100}); menu.wait_for(state="detached")
+
+
+def test_dialogs_take_the_keyboard(page, server):
+    """F18: the file dialog left the focus on the button behind it - Esc did nothing until a click,
+    and Tab walked through the app behind the scrim. Every modal dialog takes the focus now."""
+    inside = "(() => { const d = [...document.querySelectorAll('.scrim > .dialog')].pop(); return !!d && d.contains(document.activeElement); })()"
+    page.keyboard.press("Control+o")
+    page.wait_for_selector(".scrim > .dialog")
+    page.wait_for_function(inside)
+    for _ in range(25):
+        page.keyboard.press("Tab")
+        assert page.evaluate(inside)
+    page.keyboard.press("Escape")
+    page.wait_for_selector(".scrim", state="detached")
+    page.locator("button[aria-label='Clear everything']").click()
+    page.wait_for_function(inside)
+    page.keyboard.press("Escape")
+    page.wait_for_selector(".scrim", state="detached")

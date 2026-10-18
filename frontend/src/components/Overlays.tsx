@@ -13,6 +13,52 @@ export function useEscape(close: () => void, active = true) {
   }, [close, active]);
 }
 
+/* ------------------------------------------------------------ dialog focus (F18) */
+const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
+/** Every modal dialog (a .dialog on a .scrim) takes the keyboard while it is open: the focus moves
+ *  into it (it stayed on the button behind the scrim, so Esc and type-to-filter did nothing until a
+ *  click), Tab cycles inside it, and when it closes the focus goes back where it was. One watcher
+ *  for all the dialogs, mounted once in App, so a new dialog gets it without doing anything. */
+export function ModalFocus() {
+  useEffect(() => {
+    const stack: { dlg: HTMLElement; before: HTMLElement | null }[] = [];
+    const top = () => {
+      const all = Array.from(document.querySelectorAll<HTMLElement>(".scrim > .dialog"));
+      return all.find((d) => d.closest(".scrim-top")) ?? all[all.length - 1] ?? null;
+    };
+    const sync = () => {
+      while (stack.length && !document.contains(stack[stack.length - 1].dlg)) {      // closed: focus back
+        const { before } = stack.pop()!;
+        const now = top();
+        if (before && document.contains(before) && (!now || now.contains(before))) before.focus({ preventScroll: true });
+      }
+      const d = top();
+      if (!d || stack.some((x) => x.dlg === d)) return;
+      stack.push({ dlg: d, before: document.activeElement as HTMLElement | null });
+      if (!d.contains(document.activeElement)) {             // an autoFocus field inside keeps its focus
+        if (!d.hasAttribute("tabindex")) d.setAttribute("tabindex", "-1");
+        d.focus({ preventScroll: true });
+      }
+    };
+    const obs = new MutationObserver(sync);
+    obs.observe(document.body, { childList: true, subtree: true });
+    const onKey = (e: KeyboardEvent) => {
+      const d = top();
+      if (e.key !== "Tab" || !d) return;
+      const items = Array.from(d.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((x) => x.offsetParent !== null);
+      if (!items.length) { e.preventDefault(); d.focus(); return; }
+      const first = items[0], last = items[items.length - 1], at = document.activeElement as HTMLElement | null;
+      const inside = !!at && d.contains(at);
+      if (e.shiftKey && (!inside || at === first || at === d)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (!inside || at === last)) { e.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => { obs.disconnect(); window.removeEventListener("keydown", onKey, true); };
+  }, []);
+  return null;
+}
+
 /* ------------------------------------------------------------ context menu */
 export function openMenu(e: React.MouseEvent, items: MenuItem[]) {
   e.preventDefault();
