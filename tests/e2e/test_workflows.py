@@ -342,3 +342,26 @@ def test_several_files_at_once_suggest_compare(page, server):
     assert "Compare open files" in card.locator(".start-tpl b").inner_text()
     card.get_by_role("button", name="Open it").click()
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length === 3))")
+
+
+def test_file_dialog_range_select_and_own_folders(page, server):
+    """F21: Shift+click selects a range (it acted like Ctrl), Ctrl+A selects every file shown, and
+    each use of the dialog keeps its own last folder (saving elsewhere moved where Open starts)."""
+    page.keyboard.press("Control+o")
+    _goto_folder(page, server["data"])
+    row = lambda n: page.locator(".dialog .dialog-body .fs-row", has_text=n).first
+    page.locator(".dialog .fs-sort button", has_text="Name").click()
+    row("run_a.csv").click()
+    row("run_c.csv").click(modifiers=["Shift"])
+    assert page.locator(".dialog .dialog-body .fs-row.on").count() == 3
+    row("run_b.csv").click()
+    page.locator(".dialog").first.focus(); page.keyboard.press("Control+a")
+    assert page.locator(".dialog .dialog-body .fs-row.on").count() == 3
+    page.keyboard.press("Escape")
+    page.wait_for_selector(".scrim", state="detached")
+    page.keyboard.press("Control+s")                     # the session picker goes somewhere else
+    _goto_folder(page, server["home"])
+    page.keyboard.press("Escape")
+    page.wait_for_selector(".scrim", state="detached")
+    page.keyboard.press("Control+o")
+    page.wait_for_function(f"document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value === {json.dumps(server['data'])}")
