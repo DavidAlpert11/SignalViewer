@@ -116,9 +116,18 @@ function decode<T extends Float64Array | Float32Array>(b64: string, Ctor: { new 
   return new Ctor(bytes.buffer);
 }
 
+/** T31: the user's own Python operations (backend app/pyops.py). */
+export interface PyOp { id: string; name: string; inputs: number; doc: string; params: Record<string, number | string | boolean> }
+export interface PyOpsInfo { folder: string; default: boolean; exists: boolean; ops: PyOp[]; errors: { file: string; error: string }[] }
+
 export const api = {
   listRuns: () => call<RunInfo[]>("/api/runs"),
   clientError: (b: { message: string; stack: string; where: string }) => call<{ logged: boolean }>("/api/client-error", b),
+  pyops: () => call<PyOpsInfo>("/api/pyops"),
+  pyopsReload: () => call<PyOpsInfo>("/api/pyops/reload", {}),
+  pyopsFolder: (path: string | null) => call<PyOpsInfo>("/api/pyops/folder", { path }),
+  pyopsExample: () => call<PyOpsInfo & { example: string }>("/api/pyops/example", {}),
+  pyopsReveal: () => call<{ folder: string }>("/api/pyops/reveal", {}),
   diagnostics: () => call<{ text: string; logFile: string; version: string }>("/api/diagnostics"),
   runLog: (id: string) => call<LogInfo>(`/api/runs/${encodeURIComponent(id)}/log`),
   syncSuggest: (ref: string, other: string, refSignal?: string | null, otherSignal?: string | null,

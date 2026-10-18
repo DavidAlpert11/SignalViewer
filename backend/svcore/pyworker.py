@@ -75,8 +75,8 @@ def _short(e: BaseException, path: Optional[str] = None) -> str:
         if os.path.abspath(fr.filename) == os.path.abspath(path or ""):
             where = f" ({os.path.basename(fr.filename)} line {fr.lineno})"
             break
-    if isinstance(e, SyntaxError) and e.lineno:
-        where = f" ({os.path.basename(e.filename or path or '')} line {e.lineno})"
+    if isinstance(e, SyntaxError) and e.lineno:     # its str() already carries "(file, line n)"
+        return f"{type(e).__name__}: {e.msg} ({os.path.basename(e.filename or path or '')} line {e.lineno})"
     return f"{type(e).__name__}: {e}{where}"
 
 
