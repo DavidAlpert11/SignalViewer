@@ -178,6 +178,14 @@ def main():
     while not server.started:
         time.sleep(0.05)
     print(f"Signal Viewer running at {url}", flush=True)
+    # T39: where the Python client (signalviewer_push.show) finds this app, with a fresh token
+    from app import push
+    import atexit
+    try:
+        push.write_push_file(url)
+        atexit.register(push.remove_push_file)
+    except OSError as e:
+        print(f"Sending data from Python is off: {e}", flush=True)
 
     if args.no_open:
         th.join()

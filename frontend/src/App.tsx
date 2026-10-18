@@ -352,6 +352,32 @@ export default function App() {
     tb.plots.forEach((p) => actions.setRange(rangeKey(tb, p), [end - follow, end], { history: false }));
   }, [streaming, follow, runs]);
 
+  /* T39: data sent from Python (signalviewer_push.show): refresh, and put a NEW run in the active plot */
+  useEffect(() => {
+    let since = 0;
+    let first = true;                     // the first ask: data sent while the page loaded counts,
+    const h = window.setInterval(async () => {   // older data (before a reload) is not plotted again
+      try {
+        const r = await api.pushEvents(since);
+        const fresh = r.events.filter((e) => !first || e.age < 10);
+        first = false;
+        since = r.seq;
+        if (!r.events.length) return;
+        const runs = await api.listRuns();
+        const st = useApp.getState();
+        useApp.setState({ runs, dataVersion: st.dataVersion + 1 });
+        for (const e of fresh) {
+          if (!e.new) continue;
+          const run = runs.find((x) => x.id === e.run);
+          if (!run) continue;
+          if (e.plot) run.signals.slice(0, 8).forEach((s) => actions.addSignal(s.id));
+          st.toast({ kind: "info", text: translate(st.lang, "pushReceived", { name: e.name, n: run.signals.length }) });
+        }
+      } catch { /* server busy; next tick */ }
+    }, 1000);
+    return () => window.clearInterval(h);
+  }, []);
+
   /* live streaming: poll for appended rows */
   useEffect(() => {
     if (!streaming) return;
