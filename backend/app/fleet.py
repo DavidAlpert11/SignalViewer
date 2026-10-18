@@ -45,6 +45,13 @@ CREATE INDEX IF NOT EXISTS modes_path ON modes(path);
 """
 
 
+# What the index's rows were read with. When reading a format gets better, a newer number makes the
+# next scan read those logs again even though the files did not change (a scan skips unchanged files).
+#   2 (1.6.0): F11 - ArduPilot .bin dated by GPS[0].GWk / GPS[0].GMS [s]; older rows have the file date
+INDEX_VERSION = 2
+_REREAD = {2: "format = 'bin' AND date_source = 'file'"}
+
+
 def _db() -> sqlite3.Connection:
     global _conn
     if _conn is None:
@@ -52,7 +59,20 @@ def _db() -> sqlite3.Connection:
         _conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         _conn.row_factory = sqlite3.Row
         _conn.executescript(SCHEMA)
+        _upgrade(_conn)
     return _conn
+
+
+def _upgrade(conn: sqlite3.Connection) -> None:
+    """Rows read by an older reader are marked stale (mtime_ns -1): the next scan reads them again."""
+    have = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if have >= INDEX_VERSION:
+        return
+    for v in range(have + 1, INDEX_VERSION + 1):
+        if v in _REREAD:
+            conn.execute(f"UPDATE logs SET mtime_ns = -1 WHERE {_REREAD[v]}")
+    conn.execute(f"PRAGMA user_version = {INDEX_VERSION}")
+    conn.commit()
 
 
 def reset_connection() -> None:

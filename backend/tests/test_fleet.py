@@ -123,6 +123,33 @@ def test_flight_date_from_gps_time():
     assert fleet.flight_date(run3) == pytest.approx(want)
 
 
+def test_an_index_from_before_f11_reads_its_bin_logs_again(db, tmp_path):
+    """F11 in an existing index: a scan skips unchanged files, so the .bin logs a 1.5.0 index dated
+    by the file must be read again once - the index's version (PRAGMA user_version) says so."""
+    import calendar
+    import shutil
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "copter_flight.bin")
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    shutil.copy(ex, logs / "f.bin")
+    first = fleet.scan(str(logs))
+    assert first["read"] == 1
+    again = fleet.scan(str(logs))
+    assert again["read"] == 0 and again["unchanged"] == 1            # unchanged files are skipped
+    # make it look like an index written by 1.5.0: version 0, the log dated by the file
+    conn = fleet._db()
+    conn.execute("UPDATE logs SET date_source = 'file', date = 0")
+    conn.execute("PRAGMA user_version = 0")
+    conn.commit()
+    fleet.reset_connection()
+    upgraded = fleet.scan(str(logs))
+    assert upgraded["read"] == 1                                       # read again, once
+    row = fleet._db().execute("SELECT date, date_source FROM logs").fetchone()
+    assert row["date_source"] != "file"
+    assert row["date"] == pytest.approx(calendar.timegm((2026, 9, 14, 6, 30, 0)), abs=1.0)
+    assert fleet.scan(str(logs))["read"] == 0                          # and not again after that
+
+
 def test_flight_date_of_the_ardupilot_example():
     """F11 found with T45: the example .bin is written like real firmware (GPS[0], FMTU); its GPS
     time says 2026-09-14 06:30 UTC."""
