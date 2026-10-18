@@ -509,6 +509,12 @@ T14c, T18, T21b, T23, T24, T25, T36b, T42 above belong to this milestone.
   `test_ardupilot_example_health_and_modes`, fleet `test_flight_date_of_the_ardupilot_example`, e2e
   `test_open_the_ardupilot_example` (smart-start card, template + warning). Checked by screenshot:
   the card, the Full review template, en + he welcome.
+- [x] **F12 The Undo of "Delete all derived" could wipe later changes** (found while splitting
+  store.ts - it was the only direct write of the workspace that was not deliberate): the toast kept its
+  Undo after other changes and wrote the old workspace back directly (no undo step). Done: the toast is
+  `undoesWs` (goes with the next workspace change, like the other Undo toasts) and the restore is a
+  `commit`. e2e `test_delete_all_derived_undo_never_overwrites_later_changes` (fails without the fix;
+  the change and the check in one call - toasts also leave by themselves after 4 s).
 - [x] **F11 Fleet gave modern ArduPilot logs the FILE's date** (found by T45's example, written like
   real firmware): `flight_date` read only `GPS.GWk` / `GPS.GMS` in ms, but an instanced GPS with FMTU
   arrives as `GPS[0].GWk` / `GPS[0].GMS [s]` - the loader applies GMS's 1e-3 multiplier. The old test
