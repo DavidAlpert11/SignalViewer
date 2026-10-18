@@ -20,6 +20,12 @@
   programs that can read your `~/.signalviewer/push.json` can send - it holds a token made fresh
   at every start.
 
+- **Fleet** (the new rail button): add folders of flight logs (.bin / .tlog / .ulg, sub-folders
+  too) and search every flight at once - by a finding (errors, warnings, vibration, GPS…), by a
+  number ("vibration above 30"), by name / vehicle / firmware - and see a number's **trend** over
+  the flights' dates (the limit drawn, flights over it in red, click one to open it). *Open here*
+  opens a flight at its finding. *Update* reads only new and changed logs. Kept on this computer
+  (`~/.signalviewer/fleet.sqlite`).
 - **ROS 2 recordings (.mcap)** open directly - no ROS installation needed: every numeric field of
   every topic, each topic on its own time; images and point clouds are left out (listed), a
   recording cut off by a crash keeps everything before the cut. Foxglove JSON channels too.
