@@ -21,6 +21,7 @@ from svcore.tlog_loader import TLogError, append_tlog, load_tlog
 from svcore.ulog_loader import ULogError, load_ulog
 from svcore.mcap_loader import McapError, load_mcap
 from svcore.hdf5_loader import Hdf5Error, load_hdf5
+from svcore.parquet_loader import ParquetError, load_parquet
 from svcore.models import Run
 from svcore.analysis import DerivedDef, OpError, compute, is_discrete
 from svcore.formula import evaluate as _evaluate_formula
@@ -101,11 +102,11 @@ class LoadError(Exception):
         self.params = params
 
 
-SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5")
+SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq")
 TEXT_EXTS = (".csv", ".txt", ".tsv", ".dat")
-_KIND_EXT = {"mat": ".mat", "ulg": ".ulg", "bin": ".bin", "hdf5": ".h5", "mcap": ".mcap"}
+_KIND_EXT = {"mat": ".mat", "ulg": ".ulg", "bin": ".bin", "hdf5": ".h5", "mcap": ".mcap", "parquet": ".parquet"}
 # the extensions a signature may have: HDF5 is also MATLAB v7.3 (T27)
-_KIND_OK = {"mat": (".mat",), "hdf5": (".h5", ".hdf5", ".mat"), "ulg": (".ulg",), "bin": (".bin",), "mcap": (".mcap",)}
+_KIND_OK = {"mat": (".mat",), "hdf5": (".h5", ".hdf5", ".mat"), "ulg": (".ulg",), "bin": (".bin",), "mcap": (".mcap",), "parquet": (".parquet", ".pq")}
 
 
 def sniff_kind(head: bytes) -> Optional[str]:
@@ -116,6 +117,8 @@ def sniff_kind(head: bytes) -> Optional[str]:
         return "hdf5"
     if head.startswith(b"\x89MCAP"):                  # ROS 2 / Foxglove recording
         return "mcap"
+    if head.startswith(b"PAR1"):                       # Parquet (T40)
+        return "parquet"
     if head.startswith(b"ULog\x01\x12\x35"):
         return "ulg"
     if head.startswith(b"\xa3\x95\x80"):          # ArduPilot DataFlash: starts with an FMT message
@@ -273,6 +276,16 @@ class Store:
                 raise LoadError("This .mat file is cut off before its first complete signal "
                                 "(MATLAB stopped while saving, or the copy is incomplete).", "badMat")
             report["skipped"] = skipped
+        elif ext in (".parquet", ".pq"):                # T40
+            try:
+                run, rep = load_parquet(path, name, (settings or {}).get("time_column"))
+            except ParquetError as e:
+                raise LoadError(str(e), "badParquet") from None
+            if run is None:
+                why = "; ".join((rep.get("skipped") or [])[:4])
+                raise LoadError("No numeric columns found in this file" + (f" (left out: {why})." if why else "."),
+                                "noSignals")
+            report.update(rep)
         elif ext in (".mcap", ".h5", ".hdf5"):         # T27
             loader2 = load_mcap if ext == ".mcap" else load_hdf5
             try:
@@ -401,7 +414,7 @@ class Store:
                 continue                                     # cheap path: untouched since last read
             fmt = run_format(lr.run)
             try:
-                if fmt in ("mat", "ulg", "mcap", "hdf5"):      # rewritten / closed as a whole: read when settled
+                if fmt in ("mat", "ulg", "mcap", "hdf5", "parquet"):   # rewritten / closed as a whole: read when settled
                     if lr.pending_stat != st:                # changed: wait one poll for it to settle
                         lr.pending_stat = st
                         continue
@@ -657,7 +670,7 @@ class Store:
             "id": lr.id,
             "name": lr.name,
             "path": r.file_path,
-            "format": run_format(r) if run_format(r) in ("mat", "bin", "tlog", "ulg", "mcap", "hdf5") else "csv",
+            "format": run_format(r) if run_format(r) in ("mat", "bin", "tlog", "ulg", "mcap", "hdf5", "parquet") else "csv",
             **({"log": self._log_summary(r)} if self._log_summary(r) else {}),
             "samples": int(r.sample_count),
             "start": float(r.start_time) + float(r.time_offset or 0),

@@ -16,7 +16,7 @@ export interface RunInfo {
   id: string;
   name: string;
   path: string;
-  format: "csv" | "mat" | "bin" | "tlog" | "ulg" | "mcap" | "hdf5" | "derived";
+  format: "csv" | "mat" | "bin" | "tlog" | "ulg" | "mcap" | "hdf5" | "parquet" | "derived";
   /** Only for files that carry a flight log's parameters / events (ArduPilot .bin). */
   log?: { params: number; events: number; errors: number; warnings: number };
   samples: number;
