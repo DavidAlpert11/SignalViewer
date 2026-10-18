@@ -17,6 +17,7 @@ import { describeTransform } from "../transforms";
 import { startRetarget } from "../files";
 import { SIGNAL_MIME } from "./PlotView";
 import { api } from "../api";
+import { createSignalItem } from "../createSignalMenu";
 
 /* Virtualized rows: only what is on screen is in the DOM (thousands of signals). */
 type Row =
@@ -94,8 +95,7 @@ export default function DataPanel() {
     { label: t("newPlot"), run: () => actions.addSignalToNewPlot(sig.id) },
     { label: t("useAsX"), run: () => { const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active]; if (p) actions.setAsX(p.id, sig.id); } },
     { label: "", run: () => {}, sep: true },
-    { label: t("opDerivative"), run: async () => { try { const r = await api.createDerived("derivative", [sig.id], {}); useApp.setState({ runs: r.runs }); actions.addSignal(r.id); } catch (err) { fail(err); } } },
-    { label: t("opIntegral"), run: async () => { try { const r = await api.createDerived("integral", [sig.id], {}); useApp.setState({ runs: r.runs }); actions.addSignal(r.id); } catch (err) { fail(err); } } },
+    createSignalItem(sig.id),
   ]);
 
   // recent files that are not open now, to add one more file quickly

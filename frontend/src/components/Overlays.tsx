@@ -23,7 +23,18 @@ export function openMenu(e: React.MouseEvent, items: MenuItem[]) {
 export function ContextMenu() {
   const menu = useApp((s) => s.menu);
   const ref = useRef<HTMLDivElement>(null);
+  const subRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [sub, setSub] = useState<number | null>(null);       // the open submenu (T21b)
+  const [subFlip, setSubFlip] = useState({ side: false, up: 0 });
+  useEffect(() => { setSub(null); }, [menu]);
+  // a submenu that would leave the window opens on the other side / higher
+  useEffect(() => {
+    const el = subRef.current;
+    if (sub === null || !el) { setSubFlip({ side: false, up: 0 }); return; }
+    const r = el.getBoundingClientRect();
+    setSubFlip({ side: r.right > window.innerWidth - 4 || r.left < 4, up: Math.max(0, r.bottom - window.innerHeight + 8) });
+  }, [sub]);
   useEffect(() => {
     if (!menu) return;
     const close = () => useApp.setState({ menu: null });
@@ -41,13 +52,29 @@ export function ContextMenu() {
     return () => { window.removeEventListener("mousedown", outside, true); window.removeEventListener("keydown", onKey); window.removeEventListener("blur", close); };
   }, [menu]);
   if (!menu) return null;
+  const leaf = (it: MenuItem, i: number) => it.sep ? <div key={i} className="menu-sep" /> : (
+    <button key={i} role="menuitem" disabled={it.disabled} className={it.danger ? "danger" : ""}
+      onClick={() => { useApp.setState({ menu: null }); it.run(); }}>
+      {it.label}
+    </button>
+  );
+  const rtl = document.documentElement.dir === "rtl";
   return (
     <div className="menu ctx" ref={ref} role="menu" style={{ left: pos.x, top: pos.y }} onMouseDown={(e) => e.stopPropagation()}>
-      {menu.items.map((it, i) => it.sep ? <div key={i} className="menu-sep" /> : (
-        <button key={i} role="menuitem" disabled={it.disabled} className={it.danger ? "danger" : ""}
-          onClick={() => { useApp.setState({ menu: null }); it.run(); }}>
-          {it.label}
-        </button>
+      {menu.items.map((it, i) => !it.items ? leaf(it, i) : (
+        <div key={i} className="menu-subwrap" onMouseEnter={() => setSub(i)} onMouseLeave={() => setSub(null)}>
+          <button role="menuitem" aria-haspopup="menu" aria-expanded={sub === i} disabled={it.disabled}
+            className={sub === i ? "open" : ""} onClick={() => setSub(sub === i ? null : i)}
+            onKeyDown={(e) => { if (e.key === (rtl ? "ArrowLeft" : "ArrowRight")) { e.preventDefault(); setSub(i); } }}>
+            {it.label}<span className="menu-more" aria-hidden="true">›</span>
+          </button>
+          {sub === i && (
+            <div ref={subRef} role="menu" className={"menu ctx sub" + (subFlip.side ? " flip" : "")}
+              style={subFlip.up ? { top: -5 - subFlip.up } : undefined}>
+              {it.items.map(leaf)}
+            </div>
+          )}
+        </div>
       ))}
     </div>
   );

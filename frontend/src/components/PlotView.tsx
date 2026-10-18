@@ -8,6 +8,7 @@ import { labelsOf, labelText } from "../values";
 import { Icon } from "../icons";
 import TimeChart from "./TimeChart";
 import SignalPicker from "./SignalPicker";
+import { createSignalItem } from "../createSignalMenu";
 import XYChart from "./XYChart";
 import GeoChart from "./GeoChart";
 import { iconSvg } from "./mapIcons";
@@ -23,7 +24,6 @@ import PlotBoundary from "./PlotBoundary";
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
 import { openMenu } from "./Overlays";
-import { api as apiCalls } from "../api";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
 
@@ -50,13 +50,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const chipMenu = (e: React.MouseEvent, sig: string) => {
     const i = plot.signals.findIndex((x) => x.sig === sig);
     const ps = plot.signals[i];
-    const make = async (op: string) => {
-      try {
-        const r = await apiCalls.createDerived(op, [sig], {});
-        useApp.setState({ runs: r.runs });
-        actions.addSignal(r.id, plot.id);
-      } catch (err) { failed(err); }
-    };
     openMenu(e, [
       { label: t("properties"), run: () => useApp.setState({ selected: { plotId: plot.id, sig }, inspectorOpen: true }) },
       { label: ps.state ? t("asLine") : t("asStates"), run: () => actions.updateSignal(plot.id, sig, { state: !ps.state }) },
@@ -69,8 +62,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: t("duplicateNewPlot"), run: () => actions.duplicateToNewPlot(plot.id, sig) },
       { label: t("useAsX"), run: () => actions.setAsX(plot.id, sig) },
       { label: "", run: () => {}, sep: true },
-      { label: t("opDerivative"), run: () => make("derivative") },
-      { label: t("opIntegral"), run: () => make("integral") },
+      createSignalItem(sig, plot.id),
       { label: "", run: () => {}, sep: true },
       { label: t("remove"), run: () => actions.removeSignal(plot.id, sig), danger: true },
     ]);

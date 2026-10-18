@@ -428,6 +428,13 @@ table.keys td.mouse { color: var(--muted); }
 .menu-sep { height: 1px; background: var(--line); margin: 4px 2px; }
 .menu button:disabled { opacity: .45; cursor: default; }
 .menu button.danger { color: var(--danger); }
+/* T21b: a submenu beside its item (the other side when there is no room) */
+.menu-subwrap { position: relative; }
+.menu-subwrap > button.open { background: var(--panel-2); }
+.menu-more { margin-inline-start: auto; padding-inline-start: 16px; color: var(--muted); }
+[dir="rtl"] .menu-more { transform: scaleX(-1); }
+.menu.ctx.sub { position: absolute; top: -5px; inset-inline-start: calc(100% - 4px); z-index: 81; }
+.menu.ctx.sub.flip { inset-inline-start: auto; inset-inline-end: calc(100% - 4px); }
 .dialog.small { width: min(440px, 92vw); }
 .dialog-pad { padding: 12px 14px 4px; }
 .hint.err { color: var(--danger); margin: -6px 0 8px; font-size: 0.923rem; }
