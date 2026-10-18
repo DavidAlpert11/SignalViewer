@@ -541,5 +541,27 @@ The open T24, T23, T25, T14c, T18 above (TASKS.md Q30-Q34; moved from 1.6.0 by t
   `PRAGMA user_version`; an older index marks its file-dated .bin rows stale, read again once. Test
   `test_an_index_from_before_f11_reads_its_bin_logs_again`.
 
+## Milestone 7 — 1.6.1: polish (review 2026-10-18)
+Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
+- [ ] **F13 Templates without colours draw every signal in one colour**. Spec: TASKS.md Q36.
+- [ ] **F14 First run: "templates folder is not available"**. Spec: TASKS.md Q37.
+- [ ] **F15 Backend tests write to the real ~/.signalviewer; one app folder (SV_HOME)**. Spec: TASKS.md Q38.
+- [ ] **F16 Compare runs: angles without 0/360 wrapping**. Spec: TASKS.md Q39.
+- [ ] **F17 Plot options menu does not close (Esc / click outside)**. Spec: TASKS.md Q40.
+- [ ] **F18 File dialog keyboard focus (Esc, Tab)**. Spec: TASKS.md Q41.
+- [ ] **F19 An open file opens again silently**. Spec: TASKS.md Q42.
+- [ ] **F20 Several files at once: one-file suggestion, a toast per file**. Spec: TASKS.md Q43.
+- [ ] **F21 File dialog: Shift range, Ctrl+A, last folder per purpose**. Spec: TASKS.md Q44.
+
+## Milestone 6b — 1.7.0 additions from the review
+- [ ] T24 extended: places in the file dialog (recent folders, favourites, open files' folders). Spec: TASKS.md Q30+.
+- [ ] T46 File identity: colour + short tag per file, colour by file. Spec: TASKS.md Q45.
+- [ ] T47 Second value axis for different units. Spec: TASKS.md Q46.
+- [ ] T48 First impression: examples open ready, one-click template chips. Spec: TASKS.md Q47.
+- [ ] T49 Duplicate and unclear controls (13 items). Spec: TASKS.md Q48.
+- [ ] T50 Small windows and crowded headers. Spec: TASKS.md Q49.
+- [ ] T51 Built-in templates in Hebrew. Spec: TASKS.md Q50.
+- [ ] T52 e2e "fresh user" with an empty profile. Spec: TASKS.md Q51.
+
 ## Later
 - [ ] "copy as pandas code".
