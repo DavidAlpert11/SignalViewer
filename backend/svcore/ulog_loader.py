@@ -113,7 +113,7 @@ def load_ulog(path: str, display_name: str):
         t, y, lab = sigs[name]
         run.signals[name] = Signal(name=name, data=y, time=t, labels=dict(lab) if lab else None)
     run.compute_metadata()
-    times = [s.time for s in run.signals.values()]
+    times = [sigs[n][0] for n in sigs]                  # the same arrays the signals got
     run.start_time = float(min(t[0] for t in times))
     run.end_time = float(max(t[-1] for t in times))
     run.sample_count = int(max(len(t) for t in times))

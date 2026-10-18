@@ -29,8 +29,8 @@ def check_limits(t: np.ndarray, y: np.ndarray, lo: Optional[float], hi: Optional
         return res
     # stretches of consecutive outside samples; a stretch lasts until the next sample inside
     d = np.diff(bad.astype(np.int8))
-    starts = list(np.flatnonzero(d == 1) + 1)
-    ends = list(np.flatnonzero(d == -1) + 1)
+    starts: List[int] = (np.flatnonzero(d == 1) + 1).tolist()
+    ends: List[int] = (np.flatnonzero(d == -1) + 1).tolist()
     if bad[0]:
         starts.insert(0, 0)
     if bad[-1]:

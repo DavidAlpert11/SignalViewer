@@ -530,8 +530,7 @@ class Store:
             d = self.derived.get(name)
             if d is None:
                 raise KeyError(sig_id)
-            self._refresh_derived(d)
-            return d.time, d.data
+            return self._refresh_derived(d)
         lr = self.get(run_id)
         if name not in lr.run.signals:
             raise KeyError(sig_id)
@@ -588,14 +587,16 @@ class Store:
         return (base, json.dumps(spec, sort_keys=True)) if (base and spec) else base
 
     # -------------------------------------------------------------- derived
-    def _refresh_derived(self, d: DerivedDef):
+    def _refresh_derived(self, d: DerivedDef) -> Tuple[np.ndarray, np.ndarray]:
+        """The derived signal's (time, data), computed again when a source changed."""
         versions = tuple(self.version(s) for s in d.sources)
-        if d.data is not None and versions == d.source_versions:
-            return
+        if d.time is not None and d.data is not None and versions == d.source_versions:
+            return d.time, d.data
         if any(v is None for v in versions):
             raise KeyError("A source signal of this derived signal is no longer open.")
-        d.time, d.data = compute(d.op, [self.signal(s) for s in d.sources], d.params)
-        d.source_versions = versions
+        t, y = compute(d.op, [self.signal(s) for s in d.sources], d.params)
+        d.time, d.data, d.source_versions = t, y, versions
+        return t, y
 
     def short_name(self, sig_id: str) -> str:
         run_id, _, name = sig_id.partition("/")
@@ -638,7 +639,9 @@ class Store:
 
     def log_info(self, run_id: str) -> Optional[dict]:
         lr = self.runs.get(run_id)
-        df = getattr(lr.run, "_flightlog", None) if lr else None
+        if lr is None:
+            return None
+        df = getattr(lr.run, "_flightlog", None)
         if df is None:
             return None
         info = df.log_info()

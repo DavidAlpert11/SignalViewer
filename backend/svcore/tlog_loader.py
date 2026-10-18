@@ -18,7 +18,7 @@ import os
 import re
 import struct
 from collections import Counter, defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -217,7 +217,7 @@ def _decode(frames, st: TLogState) -> Dict[str, tuple]:
                 _special(name, t, arr, st, out)
                 if name != "HEARTBEAT":
                     continue
-            groups = [(None, slice(None))]
+            groups: List[Tuple[Optional[int], Any]] = [(None, slice(None))]
             if inst_field and inst_field in arr.dtype.names and not tag:
                 iv = arr[inst_field]
                 groups = [(int(v), iv == v) for v in np.unique(iv)]
@@ -260,6 +260,8 @@ def _decode(frames, st: TLogState) -> Dict[str, tuple]:
 
 def _main_boot_arrays(frames, st: TLogState):
     """(receive time, boot time) of the vehicle's messages that carry time_boot_ms."""
+    if st.ts0 is None:                       # nothing decoded yet
+        return None
     mavmap = _mav().mavlink_map
     tr, tb = [], []
     for msgid, byk in frames.items():

@@ -320,7 +320,7 @@ def _reference(params: Dict, ecef: np.ndarray, src: str, ref_sigs=None) -> Tuple
         return lat, lon, alt
     if params.get("ref", "first") == "manual":
         try:
-            ref = tuple(float(params[k]) for k in ("ref_lat", "ref_lon", "ref_alt"))
+            ref = (float(params["ref_lat"]), float(params["ref_lon"]), float(params["ref_alt"]))
         except (KeyError, TypeError, ValueError):
             raise OpError("Enter the reference point: latitude, longitude (degrees) and altitude (m).") from None
         if not all(np.isfinite(ref)) or abs(ref[0]) > 90:
@@ -378,7 +378,8 @@ def _frame_vector(signals, params, t, how) -> np.ndarray:
         raise OpError("Choose the frames to convert from and to: NED, ENU, body or ECEF.")
     v = np.vstack([align_to(t, ts, ys, how) for ts, ys in signals[:3]])
     rest = list(signals[3:])
-    R_nb = R_ne = None
+    R_nb: Optional[np.ndarray] = None       # set below when body / ECEF is involved, and only used then
+    R_ne: Optional[np.ndarray] = None
     if "body" in (src, dst):
         n_att = 4 if att == "quat" else 3
         rows, rest = [(_f64(ts), _f64(ys)) for ts, ys in rest[:n_att]], rest[n_att:]
@@ -398,14 +399,18 @@ def _frame_vector(signals, params, t, how) -> np.ndarray:
     if src == "enu":
         v = _swap(v)
     elif src == "body":
+        assert R_nb is not None
         v = np.einsum("ijn,jn->in", R_nb, v)
     elif src == "ecef":
+        assert R_ne is not None
         v = np.einsum("ijn,jn->in", R_ne, v)
     if dst == "enu":
         return _swap(v)
     if dst == "body":
+        assert R_nb is not None
         return np.einsum("jin,jn->in", R_nb, v)
     if dst == "ecef":
+        assert R_ne is not None
         return np.einsum("jin,jn->in", R_ne, v)
     return v
 
@@ -461,7 +466,8 @@ def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
     return res
 
 
-def fft_display(freqs: np.ndarray, mags: np.ndarray, points: int) -> Tuple[np.ndarray, np.ndarray, float]:
+def fft_display(freqs: np.ndarray, mags: np.ndarray, points: int) -> Tuple[np.ndarray, np.ndarray, Optional[float]]:
+    """Decimated spectrum and its peak frequency (None when nothing is finite)."""
     ok = np.isfinite(mags) if len(mags) else np.zeros(0, bool)
     peak = float(freqs[int(np.nanargmax(np.where(ok, mags, -np.inf)))]) if ok.any() else None
     fx, fy = minmax_decimate(freqs, mags, points) if len(freqs) > points else (freqs, mags)
@@ -508,10 +514,10 @@ def transitions(t: np.ndarray, y: np.ndarray, x0=None, x1=None, cap: int = 4000,
     # a sparse state column (blank cells between values): the state in force at the window start
     # is the last REAL value before it
     if 0 < i0 < len(y) and not np.isfinite(y[i0]):
-        lo = max(0, i0 - 1_000_000)
-        back = np.flatnonzero(np.isfinite(_f64(y[lo:i0])))
+        look = max(0, i0 - 1_000_000)
+        back = np.flatnonzero(np.isfinite(_f64(y[look:i0])))
         if len(back):
-            i0 = lo + int(back[-1])
+            i0 = look + int(back[-1])
     yy = _f64(y[i0:i1])
     tt = _f64(t[i0:i1])
     ok = np.isfinite(yy)
@@ -527,7 +533,8 @@ def transitions(t: np.ndarray, y: np.ndarray, x0=None, x1=None, cap: int = 4000,
     b = np.clip(((tt[idx] - lo) / w).astype(np.int64), 0, bins - 1)
     cnt = np.bincount(b, minlength=bins)
     first = np.searchsorted(b, np.arange(bins), "left")
-    pts, in_busy = [(lo, float(yy[0]))], False
+    pts: List[Tuple[float, Optional[float]]] = [(lo, float(yy[0]))]     # None: a hatched (busy) stretch starts
+    in_busy = False
     for k in np.flatnonzero(cnt).tolist():
         busy = cnt[k] >= 2
         if busy and not in_busy:
