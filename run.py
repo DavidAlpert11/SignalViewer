@@ -268,4 +268,8 @@ def native_window_available() -> bool:
 
 
 if __name__ == "__main__":
+    # T31: the Python-operations worker is a separate process; in the packaged app it starts
+    # this executable again, which must then run the worker and not a second app
+    import multiprocessing
+    multiprocessing.freeze_support()
     main()
