@@ -268,7 +268,7 @@ def _is_default(settings: Optional[dict]) -> bool:
 
 def remember_import(path: str, settings: Optional[dict]) -> None:
     """Remember non-default CSV import settings for the file's folder."""
-    if _is_default(settings) or path.lower().endswith(".mat"):
+    if settings is None or _is_default(settings) or path.lower().endswith(".mat"):
         return
     folder = os.path.dirname(os.path.abspath(path))
     with _lock:

@@ -518,7 +518,7 @@ def load_csv(
 
         use_cache = CACHE_ENABLED and file_size >= CACHE_MIN_BYTES
         key = _cache_key(filepath, file_size, file_mtime, settings) if use_cache else None
-        cached = _cache_load(key) if use_cache else None
+        cached = _cache_load(key) if key is not None else None
 
         if cached is not None:
             time_array = cached["time"]
@@ -593,7 +593,7 @@ def load_csv(
                     continue  # text column - skip instead of creating an all-NaN signal
                 signal_arrays[name] = a.astype(SIGNAL_DTYPE, copy=False)
 
-            if use_cache and len(time_array):
+            if key is not None and len(time_array):
                 _progress(1.0, "cache")
                 if _cache_store(key, {"delimiter": delimiter, "labels": {n: {str(k): v for k, v in l.items()}
                                                                           for n, l in text_labels.items()}},

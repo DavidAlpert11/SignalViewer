@@ -29,7 +29,7 @@ Live mode: append_new_messages() parses only the bytes written since the last re
 import os
 import re
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -361,7 +361,7 @@ class DataFlash:
         in the unit. c/C/e/E/L already apply their multiplier; plain integers get the power-of-ten
         ones (cm -> m); anything else (floats with a multiplier, odd ones like 3.6) keeps its raw
         value WITHOUT a unit rather than showing a wrong one."""
-        uid = f.units[k]
+        uid = f.units[k] if f.units else "-"
         mid = f.mults[k] if f.mults and k < len(f.mults) else "-"
         label = self.unit_label.get(uid, "")
         label = {"deglatitude": "deg", "deglongitude": "deg"}.get(label, label)
@@ -402,7 +402,7 @@ class DataFlash:
                         if f.fmt[k] in "bBhH" and len(np.unique(arr[f"f{k}"][:5000])) <= 16:
                             inst = k
                         break
-            groups = [(None, slice(None))]
+            groups: List[Tuple[Optional[int], Any]] = [(None, slice(None))]
             if inst is not None:
                 iv = arr[f"f{inst}"]
                 groups = [(int(v), iv == v) for v in np.unique(iv)]
@@ -426,8 +426,9 @@ class DataFlash:
                         out[name0] = (tt, codes[order] if order is not None else codes, labels)
                         continue
                     y = arr[f"f{k}"][sel].astype(np.float64)
-                    if _FMT[ch][1] != 1.0:
-                        y *= _FMT[ch][1]
+                    fmult = _FMT[ch][1]                  # None only for text, handled above
+                    if fmult is not None and fmult != 1.0:
+                        y *= fmult
                     unit = ""
                     if f.units and k < len(f.units):
                         unit, mult = self._unit(f, k, ch)
@@ -436,12 +437,12 @@ class DataFlash:
                     if order is not None:
                         y = y[order]
                     name = name0 + (f" [{unit}]" if unit else "")
-                    labels = None
+                    names: Optional[Dict[int, str]] = None      # numbers that mean a mode / an event
                     if f.name == "MODE" and col in ("Mode", "ModeNum") and self.vehicle in MODES:
-                        labels = MODES[self.vehicle]
+                        names = MODES[self.vehicle]
                     elif f.name == "EV" and col == "Id":
-                        labels = EVENTS
-                    out[name] = (tt, y, labels) if labels else (tt, y)
+                        names = EVENTS
+                    out[name] = (tt, y, names) if names else (tt, y)
         return out
 
 
@@ -525,7 +526,7 @@ def _sort_key(name: str):
 
 def _metadata(run: Run):
     run.compute_metadata()
-    times = [s.time for s in run.signals.values() if getattr(s, "time", None) is not None and len(s.time)]
+    times = [t for s in run.signals.values() if (t := getattr(s, "time", None)) is not None and len(t)]
     if times:
         run.start_time = float(min(t[0] for t in times))
         run.end_time = float(max(t[-1] for t in times))
@@ -579,9 +580,10 @@ def append_new_messages(run: Run) -> int:
         else:
             if labels:
                 s.labels = labels
-            if len(s.time) and len(t) and t[0] < s.time[-1]:
+            prev = s.time if s.time is not None else np.empty(0)
+            if len(prev) and len(t) and t[0] < prev[-1]:
                 return -1                            # time went back (new boot in the same file)
-            s.time = np.concatenate([s.time, t])
+            s.time = np.concatenate([prev, t])
             s.data = np.concatenate([np.asarray(s.data), y])
         added += len(t)
     run.byte_offset += end

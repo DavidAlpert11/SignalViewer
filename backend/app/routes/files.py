@@ -5,7 +5,7 @@ import os
 import shutil
 import tempfile
 import time
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
@@ -165,7 +165,8 @@ def suggest_files(req: SuggestRequest):
     ext = os.path.splitext(name)[1].lower()
     if not os.path.isdir(folder):
         return {"candidates": [], "best": None}
-    pat, cands = _name_pattern(name), []
+    pat = _name_pattern(name)
+    cands: List[Dict[str, Any]] = []
     try:
         with os.scandir(folder) as it:
             for e in it:

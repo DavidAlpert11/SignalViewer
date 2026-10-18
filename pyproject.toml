@@ -8,54 +8,6 @@ pythonpath = ["backend"]
 [tool.mypy]
 # T36: the backend is type-checked (cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer).
 ignore_missing_imports = true      # numpy / scipy / pymavlink / pyulog... ship no or partial types
-
-# Baseline (2026-10-18): these modules still have findings of these kinds only - Optional values
-# (mostly Signal.time) narrowed where mypy cannot follow. A new KIND of finding in them, or any
-# finding in another module, fails the check. Shrinking this list is task T36b.
-[[tool.mypy.overrides]]
-module = "app.common"
-disable_error_code = ["assignment"]
-
-[[tool.mypy.overrides]]
-module = "app.prefs"
-disable_error_code = ["operator", "union-attr"]
-
-[[tool.mypy.overrides]]
-module = "app.routes.analysis"
-disable_error_code = ["arg-type"]
-
-[[tool.mypy.overrides]]
-module = "app.routes.files"
-disable_error_code = ["operator"]
-
-[[tool.mypy.overrides]]
-module = "app.store"
-disable_error_code = ["return-value", "union-attr"]
-
-[[tool.mypy.overrides]]
-module = "svcore.analysis"
-disable_error_code = ["arg-type", "assignment", "return-value"]
-
-[[tool.mypy.overrides]]
-module = "svcore.bin_loader"
-disable_error_code = ["arg-type", "assignment", "index", "misc"]
-
-[[tool.mypy.overrides]]
-module = "svcore.csv_loader"
-disable_error_code = ["arg-type"]
-
-[[tool.mypy.overrides]]
-module = "svcore.limits"
-disable_error_code = ["arg-type"]
-
-[[tool.mypy.overrides]]
-module = "svcore.templates"
-disable_error_code = ["arg-type", "list-item"]
-
-[[tool.mypy.overrides]]
-module = "svcore.tlog_loader"
-disable_error_code = ["misc", "operator"]
-
-[[tool.mypy.overrides]]
-module = "svcore.ulog_loader"
-disable_error_code = ["arg-type", "index"]
+# No per-module baseline any more (T36b, 2026-10-18): every module is clean, so any new finding
+# fails the check. Narrow Optionals where they are known to be set (an `is None` branch, or an
+# assert for an invariant) rather than silencing a module.

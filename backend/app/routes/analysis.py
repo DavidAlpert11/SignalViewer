@@ -304,7 +304,7 @@ def object_track(req: ObjectTrackRequest):
         out[role] = b64(v, np.float32)
     # a quaternion (Hamilton, w first; body to NED as PX4 logs it) -> roll / pitch / yaw in radians,
     # for the angles not given as signals
-    if all((req.qw, req.qx, req.qy, req.qz)):
+    if req.qw and req.qx and req.qy and req.qz:
         try:
             q = [onto(*store.signal(s)) for s in (req.qw, req.qx, req.qy, req.qz)]
         except KeyError:
