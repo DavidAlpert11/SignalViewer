@@ -3,7 +3,7 @@ import { fmtNum, type Lang } from "./i18n";
 import { withUnit } from "./units";
 
 /** File types the app opens (file dialogs, "choose the original", "locate"...). */
-export const DATA_EXTS = [".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5"];
+export const DATA_EXTS = [".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq"];
 /** Flight-log formats: their own time per message, a Log panel, health checks. */
 export const LOG_FORMATS = new Set(["bin", "tlog", "ulg"]);
 
