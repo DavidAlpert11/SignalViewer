@@ -67,10 +67,32 @@ export function loadErrorText(err: LoadErrorInfo, lang: Lang): string {
 
 /** Open files by path. Errors become actionable toasts. Nothing is plotted
  *  automatically: the user picks the signals. */
-export async function openPaths(paths: string[], settings?: Record<string, unknown>) {
+export async function openPaths(paths: string[], settings?: Record<string, unknown>, opts: { copy?: boolean } = {}) {
   if (!paths.length) return;
   const st = useApp.getState();
   const lang = st.lang;
+  // F19: a file that is already open is read again from the disk instead of being added a second
+  // time without a word; "Open another copy" is one click away (the same log with another offset)
+  if (!opts.copy) {
+    const key = (p: string) => p.replace(/\\/g, "/").toLowerCase();
+    const open = new Map(st.runs.filter((r) => r.format !== "derived" && r.path && !r.copy).map((r) => [key(r.path), r]));
+    const again = paths.filter((p) => open.has(key(p)));
+    if (again.length) {
+      paths = paths.filter((p) => !open.has(key(p)));
+      const names = again.map((p) => open.get(key(p))!.name).join(", ");
+      try {
+        for (const p of again) await api.reload(open.get(key(p))!.id);
+        const s2 = useApp.getState();
+        useApp.setState({ runs: await api.listRuns(), dataVersion: s2.dataVersion + 1 });
+        actions.dropStaleRanges();
+        s2.toast({ kind: "info", text: translate(lang, "alreadyOpen", { names }),
+          action: { label: translate(lang, "openAnotherCopy"), run: () => { openPaths(again, settings, { copy: true }); } } });
+      } catch (e) {
+        useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
+      }
+      if (!paths.length) return;
+    }
+  }
   st.set({ busy: st.busy + 1 });
   const emptyStart = isEmptyStart();                    // T29: the first file(s) into an empty workspace
   try {

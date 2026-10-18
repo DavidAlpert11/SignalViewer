@@ -512,7 +512,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | Q39 | F16 Compare runs: angles (yaw / heading) compared without wrapping 0/360 | S | ☑ done |
 | Q40 | F17 Plot options menu (⋯) does not close on Esc / click outside | S | ☑ done |
 | Q41 | F18 File dialog: Esc does nothing at first, Tab leaves the dialog | S | ☑ done |
-| Q42 | F19 Opening a file that is already open adds a silent second copy | S | ☐ |
+| Q42 | F19 Opening a file that is already open adds a silent second copy | S | ☑ done |
 | Q43 | F20 Several files opened at once: smart start suggests a one-file view; one toast per file | S | ☐ |
 | Q44 | F21 File dialog: Shift+click is not a range; one "last folder" for every dialog | S | ☐ |
 | Q52 | F22 Many tabs: the hidden tabs cannot be reached (owner) | S | ☑ done |
@@ -931,3 +931,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Q39 / F16 compare wraps angles · backend 650, mypy clean · next: Q40 (F17).
 - 2026-10-18 · Q40 / F17 plot menu closes on Esc / click outside · e2e · next: Q41.
 - 2026-10-18 · Q41 / F18 dialogs take the keyboard (all of them, one watcher) · e2e · next: Q42.
+- 2026-10-18 · Q42 / F19 an open file opened again is re-read, copy on request · e2e · next: Q43.
