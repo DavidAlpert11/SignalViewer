@@ -469,5 +469,13 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
 - [ ] T42 Split `store.ts` into slices. Spec: TASKS.md Q23.
 - [ ] T43 Release & reach (signing, docs site, public benchmark). Spec: TASKS.md Q24.
 
+## Milestone 5 — 1.6.0: examples, cleaner code, usability
+v1.5.0 was tagged 2026-10-18 on T41 (T15, T27, T31, T39, T40 Parquet, T41) without the release
+patch; 1.6.0 releases properly. Order and specs: TASKS.md "Plan 2026-10-18" (Q25-Q35). The open
+T14c, T18, T21b, T23, T24, T25, T36b, T42 above belong to this milestone.
+- [ ] **F10 Examples missing from the Windows portable package**. Spec: TASKS.md Q25.
+- [ ] **T44 Example: two flights of the same mission**. Spec: TASKS.md Q26.
+- [ ] **T45 Example: an ArduPilot .bin flight**. Spec: TASKS.md Q27.
+
 ## Later
 - [ ] "copy as pandas code".
