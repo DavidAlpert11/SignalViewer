@@ -239,3 +239,20 @@ def test_open_the_ardupilot_example(page, server):
     card.wait_for(timeout=20000)
     assert "ArduPilot" in card.locator(".start-tpl b").inner_text()
     assert "warning" in card.locator(".hrow").first.get_attribute("class")
+
+
+def test_compare_open_files_gives_each_file_its_colour(page, server):
+    """F13: a template without stored colours (Compare open files) gave every signal the same
+    colour - the runs could not be told apart. Now each file has one colour, the same in every plot."""
+    _open(page, server["data"], ["run_a.csv", "run_b.csv", "run_c.csv"])
+    page.locator(".tpl-strip .chipbtn", has_text="Compare open files").click()
+    page.locator(".dialog .btn.primary", has_text="Open").click()
+    page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length === 3))")
+    plots = page.evaluate("""window.__sv.state().ws.tabs.flatMap((t) => t.plots).filter((p) => p.signals.length)
+        .map((p) => p.signals.map((s) => [s.sig.split('/')[0], s.color]))""")
+    assert len(plots) >= 2                                  # Speed and Gear
+    colour_of_run = {}
+    for plot in plots:
+        assert len({c for _, c in plot}) == len(plot)       # different colours in each plot
+        for run, c in plot:
+            assert colour_of_run.setdefault(run, c) == c    # a file keeps its colour across plots

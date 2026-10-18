@@ -543,7 +543,8 @@ The open T24, T23, T25, T14c, T18 above (TASKS.md Q30-Q34; moved from 1.6.0 by t
 
 ## Milestone 7 — 1.6.1: polish (review 2026-10-18)
 Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
-- [ ] **F13 Templates without colours draw every signal in one colour**. Spec: TASKS.md Q36.
+- [x] **F13 Templates without colours draw every signal in one colour**. Spec: TASKS.md Q36.
+  Done: `colorAllocator(ws)` in `store/selectors.ts` (nextColor uses it) counts the colours it gives out, so a template's plots built before they are in the workspace get different colours; `applyTemplate` uses one allocator for signals and map objects. A plot holding the same signal from several files colours by FILE (its order among the open files), so a run keeps its colour in every plot of Compare open files. e2e `test_compare_open_files_gives_each_file_its_colour`.
 - [ ] **F14 First run: "templates folder is not available"**. Spec: TASKS.md Q37.
 - [x] **F15 Backend tests write to the real ~/.signalviewer; one app folder (SV_HOME)**. Spec: TASKS.md Q38.
   Done: the app folder is defined once (`prefs.APP_DIR`; common, store's uploads, tiles take it from there - store and tiles had their own `expanduser`). `tests/conftest.py` points HOME / USERPROFILE (and SV_CACHE_DIR) at a temporary folder before the app is imported, as the e2e servers already did. Test `test_app_folder.py`: no app path under the real home, every module under the one folder. Checked: a whole backend run with no ~/.signalviewer leaves none behind.
