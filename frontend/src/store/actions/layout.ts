@@ -81,6 +81,13 @@ export const layoutActions = {
       return ws;
     });
   },
+  /** The next / previous tab, wrapping around (Ctrl+PageDown / Ctrl+PageUp, F22). */
+  cycleTab(dir: 1 | -1) {
+    const { ws } = useApp.getState();
+    const i = ws.tabs.findIndex((t) => t.id === ws.activeTab);
+    const next = ws.tabs[(i + dir + ws.tabs.length) % ws.tabs.length];
+    if (next && next.id !== ws.activeTab) layoutActions.switchTab(next.id);
+  },
   switchTab(id: string) {
     const st = useApp.getState();
     useApp.setState({ ws: { ...st.ws, activeTab: id }, selected: null });

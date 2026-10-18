@@ -8,7 +8,7 @@ import { copyText } from "../errorReport";
 const ROWS: [string, TKey][] = [
   ["Ctrl K", "hCommands"], ["Ctrl O", "openFiles"], ["Ctrl S", "saveSession"], ["Ctrl ⇧ O", "openSession"],
   ["Ctrl Z", "undo"], ["Ctrl Y", "redo"], ["Space", "hCursor"], ["D", "dualCursor"], ["← →", "hMoveCursor"],
-  ["⇧ ← →", "hMoveCursorFast"], ["1 – 9", "hSelectPlot"], ["R", "resetZoom"], ["Z", "hZoomMode"], ["Backspace", "zoomBack"], ["F5", "refreshAll"], ["P", "hPlay"], ["Delete", "hRemoveSignal"],
+  ["⇧ ← →", "hMoveCursorFast"], ["1 – 9", "hSelectPlot"], ["Ctrl PgUp / PgDn", "hSwitchTab"], ["R", "resetZoom"], ["Z", "hZoomMode"], ["Backspace", "zoomBack"], ["F5", "refreshAll"], ["P", "hPlay"], ["Delete", "hRemoveSignal"],
   ["Ctrl +  /  Ctrl −", "hTextSize"], ["Ctrl 0", "hTextReset"], ["?", "shortcuts"], ["Esc", "hEscape"],
 ];
 const MOUSE: [TKey, TKey][] = [

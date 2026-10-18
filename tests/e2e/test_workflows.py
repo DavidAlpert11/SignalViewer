@@ -256,3 +256,32 @@ def test_compare_open_files_gives_each_file_its_colour(page, server):
         assert len({c for _, c in plot}) == len(plot)       # different colours in each plot
         for run, c in plot:
             assert colour_of_run.setdefault(run, c) == c    # a file keeps its colour across plots
+
+
+def test_every_tab_is_reachable_with_many_tabs(page, server):
+    """F22 (owner): with many tabs the strip scrolls with a hidden scrollbar - the hidden tabs could
+    not be reached. Now: an "All tabs" list, the active tab kept in view, Ctrl+PageUp / PageDown,
+    the wheel over the strip, and "Go to tab" in the palette."""
+    page.set_viewport_size({"width": 1100, "height": 760})
+    for _ in range(24):
+        page.get_by_role("button", name="New tab").click()
+    page.wait_for_function("window.__sv.state().ws.tabs.length === 25")
+    active = lambda: page.evaluate("(() => { const w = window.__sv.state().ws; return w.tabs.findIndex((t) => t.id === w.activeTab); })()")
+    in_view = lambda: page.evaluate("""(() => { const a = document.querySelector('.tab.active').getBoundingClientRect(),
+        s = document.querySelector('.tabs').getBoundingClientRect(); return a.left >= s.left - 1 && a.right <= s.right + 1; })()""")
+    assert active() == 24 and in_view()
+    page.locator(".tabs-all").click()                       # shown only when the tabs do not fit
+    page.locator(".menu.ctx button", has_text="Tab 2").first.click()
+    page.wait_for_function("window.__sv.state().ws.tabs.findIndex((t) => t.id === window.__sv.state().ws.activeTab) === 1")
+    assert in_view()
+    page.keyboard.press("Control+PageUp"); page.keyboard.press("Control+PageUp")      # wraps to the last
+    page.wait_for_function("window.__sv.state().ws.tabs.findIndex((t) => t.id === window.__sv.state().ws.activeTab) === 24")
+    assert in_view()
+    before = page.evaluate("document.querySelector('.tabs').scrollLeft")
+    box = page.locator(".tabs").bounding_box()
+    page.mouse.move(box["x"] + 40, box["y"] + box["height"] / 2); page.mouse.wheel(0, -500)
+    page.wait_for_function(f"document.querySelector('.tabs').scrollLeft < {before}")
+    page.keyboard.press("Control+k"); page.keyboard.type("go to tab 7"); page.keyboard.press("Enter")
+    page.wait_for_function("window.__sv.state().ws.tabs.findIndex((t) => t.id === window.__sv.state().ws.activeTab) === 6")
+    # the controls on the right keep their room
+    assert page.locator(".search-trigger").bounding_box()["width"] >= 149

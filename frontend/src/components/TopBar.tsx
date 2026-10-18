@@ -26,11 +26,40 @@ export default function TopBar() {
   const lang = useApp((s) => s.lang);
   const mavOn = !!mav?.running;
   const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
+  // F22: with many tabs the strip scrolls (its scrollbar is hidden): the wheel scrolls it, the active
+  // tab is kept in view, and an "All tabs" list reaches every tab
+  const strip = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  useEffect(() => {
+    const el = strip.current;
+    if (!el) return;
+    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ws.tabs.length]);
+  useEffect(() => {
+    strip.current?.querySelector<HTMLElement>(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [ws.activeTab, ws.tabs.length]);
+  const onStripWheel = (e: React.WheelEvent) => {
+    const el = strip.current;
+    if (!el || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;      // a horizontal wheel / touchpad scrolls by itself
+    el.scrollLeft += document.documentElement.dir === "rtl" ? -e.deltaY : e.deltaY;
+  };
+  const allTabsMenu = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const rtl = document.documentElement.dir === "rtl";
+    openMenu({ clientX: rtl ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent,
+      ws.tabs.map((tab, i) => ({ label: `${tab.id === ws.activeTab ? "✓ " : "\u2003"}${tab.name || `${t("tab")} ${i + 1}`}`,
+        run: () => actions.switchTab(tab.id) })));
+  };
 
   return (
     <header className="topbar">
       <div className="brand"><BrandMark />{t("appName")}</div>
-      <nav className="tabs" role="tablist">
+      <nav className="tabs-wrap">
+      <div className="tabs" role="tablist" ref={strip} onWheel={onStripWheel}>
         {ws.tabs.map((tab, i) => {
           const name = tab.name || `${t("tab")} ${i + 1}`;
           return (
@@ -65,6 +94,13 @@ export default function TopBar() {
             </div>
           );
         })}
+      </div>
+        {overflow && (
+          <button className="iconbtn tabs-all" aria-haspopup="menu" onClick={allTabsMenu}
+            title={t("allTabs", { n: ws.tabs.length })} aria-label={t("allTabs", { n: ws.tabs.length })}>
+            <Icon.Chevron width={14} height={14} /><span className="tabs-count">{ws.tabs.length}</span>
+          </button>
+        )}
         <button className="iconbtn" onClick={actions.addTab} title={t("addTab")} aria-label={t("addTab")}
           onContextMenu={(e) => openMenu(e, [{ label: t("addTab"), run: actions.addTab }, { label: t("templates") + "…", run: () => useApp.setState({ templatesOpen: true }) }])}><Icon.Plus /></button>
       </nav>

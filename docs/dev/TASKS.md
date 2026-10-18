@@ -515,6 +515,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | Q42 | F19 Opening a file that is already open adds a silent second copy | S | ☐ |
 | Q43 | F20 Several files opened at once: smart start suggests a one-file view; one toast per file | S | ☐ |
 | Q44 | F21 File dialog: Shift+click is not a range; one "last folder" for every dialog | S | ☐ |
+| Q52 | F22 Many tabs: the hidden tabs cannot be reached (owner) | S | ☑ done |
 | **P2** | **Usability (1.7.0, with Q30-Q34)** | | |
 | Q30+ | T24 (extended) Places in the file dialog: recent folders, favourites, folders of open files | S→M | ☐ |
 | Q45 | T46 File identity: every file has a colour + short tag, used everywhere | M | ☐ |
@@ -628,6 +629,18 @@ shown (after the filter); a last-folder key per purpose (open data / sessions / 
 templates); when there is no last folder, start in the folder of the last opened file, not home.
 **Done when:** e2e for range and Ctrl+A; save a PNG elsewhere, Open files still opens the data
 folder.
+
+### Q52 · F22 Many tabs: the hidden tabs cannot be reached — S
+**Seen (owner, 2026-10-18):** with many tabs there was no way to get to the hidden ones. The strip
+(`.tabs` in `TopBar.tsx`) scrolls sideways but its scrollbar is hidden, a mouse wheel scrolls
+vertically (nothing), switching tab does not bring the tab into view, and the "+" button scrolled
+away with the tabs. Many tabs also pushed the search box down to "Commands a…".
+**Steps:** an "All tabs (n)" button next to "+" (only when the tabs do not fit) with the list of
+tabs, the active one ticked; the active tab scrolled into view; the wheel over the strip scrolls it
+(RTL too); Ctrl+PageUp / Ctrl+PageDown (and Ctrl+Tab where the window lets it through) cycle the
+tabs; "Go to tab: name" for every tab in the palette; the strip gives way, not the controls on
+the right; a long menu scrolls.
+**Done when:** e2e with 25 tabs at 1100 px: every way reaches a hidden tab and the active one is in view.
 
 ### Q30+ · T24 extended: places in the file dialog — S→M
 Owner (2026-10-18): "in the favourites, not only the recent files but also the recent folders -
@@ -913,3 +926,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
   2026-10-18". Checks at the review: backend 643 passed, tsc + mypy clean, CI run 16 green · next: Q38.
 - 2026-10-18 · Q38 / F15 tests no longer write to the real ~/.signalviewer; one APP_DIR · backend 645 · next: Q36 (F13).
 - 2026-10-18 · Q36 / F13 template colours (allocator; colour per file when a plot holds one signal from several files) · e2e new test passed · next: tab overflow (owner, F22), then Q37.
+- 2026-10-18 · Q52 / F22 (owner) many tabs: All tabs list, active tab in view, wheel, Ctrl+PgUp/PgDn, palette · e2e new test · next: Q37.

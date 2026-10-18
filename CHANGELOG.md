@@ -3,6 +3,7 @@
 ## 1.6.1 – unreleased
 
 ### Fixed
+- **Many tabs:** every tab can be reached again - an *All tabs* list next to +, the active tab is always scrolled into view, the mouse wheel scrolls the tabs, **Ctrl+PageUp / Ctrl+PageDown** go to the previous / next tab, and the command palette (Ctrl+K) has *Go to tab*. Many tabs no longer squeeze the search box.
 - **Compare open files** (and Quick look) drew every signal in the same colour; now each file has its own colour, the same in every plot.
 
 ### Inside
