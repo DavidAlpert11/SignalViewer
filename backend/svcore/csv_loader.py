@@ -435,7 +435,8 @@ def _cache_store(key: str, meta: Dict, time: np.ndarray, sigs: Dict[str, np.ndar
                     fh, {"descr": np.lib.format.dtype_to_descr(dtype), "fortran_order": True,
                          "shape": (len(time), len(names))})
                 for n in names:
-                    fh.write(memoryview(np.ascontiguousarray(sigs[n], dtype=dtype)))   # no copy
+                    # .data: the array's own buffer (no copy); memoryview(ndarray) fails mypy on Python < 3.12
+                    fh.write(np.ascontiguousarray(sigs[n], dtype=dtype).data)
         with open(os.path.join(tmp, "meta.json"), "w", encoding="utf-8") as f:
             json.dump(dict(meta, signals=names), f)
         shutil.rmtree(d, ignore_errors=True)
