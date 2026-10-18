@@ -448,7 +448,7 @@ task, with a Log line. Phase C items may move after the release if the owner say
 | **B** | **Infrastructure** | | |
 | Q23 | T42 Split `frontend/src/store.ts` into slices (spec above) | M | ☑ done |
 | —   | F12 "Delete all derived" Undo overwrote later changes (found by Q23) | S | ☑ done |
-| Q28 | T36b Shrink the mypy baseline | S | ☐ |
+| Q28 | T36b Shrink the mypy baseline | S | ☑ done |
 | **C** | **Usability (open in ROADMAP)** | | |
 | Q29 | T21b Signal context menus: one "Create signal ▸" entry | S | ☐ |
 | Q30 | T24 Favourite folders and quick open (Ctrl+P) | S | ☐ |
@@ -627,3 +627,5 @@ backend test opens it; e2e.
   changes) · next: F12, then Q28.
 - 2026-10-18 · F12 fixed (toast undoesWs + restore through commit) + e2e that fails without it (a
   first version passed anyway: it waited, and toasts leave by themselves) · next: Q28.
+- 2026-10-18 · Q28 / T36b mypy baseline removed (39 -> 0, no real bug among them) · backend 642 ·
+  next: phase C, Q29 (T21b).

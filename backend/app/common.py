@@ -9,7 +9,7 @@ import numpy as np
 from fastapi import HTTPException
 
 from app import prefs
-from app.store import LoadError, store
+from app.store import LoadedRun, LoadError, store
 from svcore.bin_loader import bin_signal_names
 
 
@@ -52,6 +52,7 @@ def open_with_prefs(path: str, settings: Optional[dict]):
     not recognise the file (it fails, or finds no time column by name). Applying them
     blindly would silently misread other files that live in the same folder.
     """
+    lr: Optional[LoadedRun]
     if settings is not None:
         lr = store.open_file(path, settings)
         prefs.remember_import(path, settings)

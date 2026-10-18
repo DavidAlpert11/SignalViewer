@@ -415,7 +415,14 @@ Spec and order: TASKS.md "Review 2026-10-17" (Q12–Q24).
   `fail() -> NoReturn`; Pillow `Image.Resampling.LANCZOS`; local annotations for mixed dicts.
   Baseline: 12 modules x the error codes they have today (22 pairs) - a new kind of finding there,
   or any finding elsewhere, fails (checked with deliberate errors in both).
-- [ ] T36b Shrink the mypy baseline (pyproject.toml overrides): mostly `Signal.time` Optional
+- [x] T36b Shrink the mypy baseline (pyproject.toml overrides): mostly `Signal.time` Optional
+  Done 2026-10-18: the baseline is GONE (12 module overrides, 39 hidden findings -> 0). None was
+  a real bug - each was a value the code knows is set where mypy cannot follow; narrowed with an
+  `is None` branch, a type, or an assert for an invariant (frames: R_nb / R_ne exist when body / ECEF is
+  converted). Also clearer: `fft_display` returns Optional peak (it always could; callers handled it),
+  `_refresh_derived` returns (t, y), `transitions` no longer reuses `lo` as int then float,
+  `_main_boot_arrays` returns None before any frame. backend 642, mypy clean with no overrides, e2e
+  subset (frames, FFT, derived, templates, logs) 15.
   narrowed where mypy cannot follow (bin / ulog / tlog loaders), `analysis.py` frame maths.
 - [ ] T37 CSV first open meets the 20M-row target. Spec: TASKS.md Q18.
 - [x] T38 Local crash report. Spec: TASKS.md Q19.

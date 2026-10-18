@@ -89,7 +89,7 @@ def match_count(run: dict, names: List[str]) -> int:
 
 
 # ----------------------------------------------------------------------------- structure
-def expand(t: dict, all_: List[dict], seen: Optional[Set[str]] = None) -> dict:
+def expand(t: dict, all_: List[dict], seen: Optional[Set[Optional[str]]] = None) -> dict:
     """A template with its included templates (recursively, each once; a loop is cut)."""
     seen = set() if seen is None else seen
     out = {"slots": list(t.get("slots") or []), "tabs": [{**x, "from": t.get("name", "")} for x in t.get("tabs") or []],
@@ -239,7 +239,8 @@ def resolve(t: dict, all_: List[dict], bind: Dict[str, str], runs: List[dict], c
             p = {"title": tp.get("title", ""), "mode": tp.get("mode") or "time", "signals": [], "ylim": tp.get("ylim"),
                  **{k: tp[k] for k in ("xyAlign", "fftWindow", "fftMethod", "fftLog", "specN", "caption") if tp.get(k) is not None}}
             if tp.get("xSignal"):
-                p["xSignal"] = (ids(tp["xSignal"], tp.get("xSlot")) or [None])[0]
+                xs = ids(tp["xSignal"], tp.get("xSlot"))
+                p["xSignal"] = xs[0] if xs else None
             for s in tp.get("signals", []):
                 got = ids(s["name"], s.get("slot"))
                 for sid in got:
