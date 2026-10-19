@@ -13,13 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Released tags: `v1.0.0` ... `v1.6.0`; **1.6.1 prepared** (review phase P1, this
-  commit) - the owner builds the Windows package, checks it, then tags `v1.6.1` and pushes the tag.
-  README pictures were not retaken: nothing they show changed (checked 03_compare_runs).
+- Branch `main`. Released tags: `v1.0.0` ... `v1.6.1`; **1.7.0 prepared** (this commit) - the owner
+  builds the Windows package, checks the Windows-only items (file dialog places: drives, Desktop /
+  Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
+  tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
 - **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
   features. P1 (bugs F13-F22) done and released as 1.6.1; P2 (T24 extended, T46-T52) joins
   Q30-Q34 in 1.7.0. Q30 / Q30+, Q45-Q47 done (1.7.0 unreleased). Next: Q48 (T49 duplicate and unclear controls).
-- Tests at the last change: backend 650 passed; whole e2e suite file by file, all passed (review P1, 2026-10-18).
+- Tests at the last change: backend 665 passed; whole e2e suite file by file, all passed (182 tests; 1.7.0 release, 2026-10-19).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -948,3 +949,5 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-19 · Q51 / T52: `tests/e2e/test_fresh_user.py` - a server per test with an EMPTY home folder; any page or console error fails. First run: welcome screen with examples, the template library without an error line (F14), the file dialog with its places and the keyboard (F18, T24), Hebrew and back; each of the four examples opens with its view applied (T48). 5 tests, passed.
 - 2026-10-19 · Q50 / T51: built-in template names and the tabs they make in Hebrew - `tx()` in templates.ts translates the built-in names part by part (`BUILTIN_HE`: "ArduPilot · Attitude" -> "ArduPilot · זוויות"; ArduPilot / MAVLink / PX4 stay); a built-in template's tabs are named through it when applied; a user's own names are not touched; the generators' tabs were already translated. Frontend only (`builtin_templates.json` unchanged). e2e `test_builtin_templates_in_hebrew`.
 - 2026-10-19 · Q49 / T50: the file panel header - the link toggle is an icon (pressed when on; its name and meaning in the tooltip), the title "Files" never gives way, the "Open files" label shrinks with an ellipsis if it must (its + stays); value axes (left and right) allow labels closer in a short plot (`space` = plot height / 4, 12-30 px) - more than one label at 1100x700 with four plots; the search box keeps its width with many tabs (F22). e2e `test_small_window_file_header`. Left: in a very short plot (4 plots at 700 px: ~40 px of curve) the mode bar + legend take most of the height - T49 item 9 (mode bar only on the active plot) is the real fix; a "too many plots for this window" hint was not added.
+- 2026-10-19 · 1.7.0 release patch: versions (build.bat, version.py, .iss, version_info.txt), CHANGELOG dated with highlights, README review (installer name, "חדש ב־1.7" in Hebrew, two known limitations: the right axis follows its data; own time columns keep their unit), README pictures and clips retaken with `tools/make_readme_media.py` (17 images, 4 clips; 06_3d_terrain and the 3D clip kept from a real screen; vid_04 / vid_05 timed out in the whole run and were made again alone), dist rebuilt · next: owner tags v1.7.0; then the T49 decisions, Q33, Q31, Q34, Q32.
+- 2026-10-19 · 1.7.0 tests: backend 665; e2e file by file all passed (features 110, workflows 28, fresh user 5, globe3d 10, templates 11, the rest) - `test_log_events_on_the_track_and_image` once waited too little for the 3D picture under load (10 s, software WebGL); it waits up to 30 s now (passed alone and with its file).

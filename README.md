@@ -150,7 +150,7 @@ Verified by running the built app with no network interface at all.
 
 | Build command (Windows) | Result | When |
 |---|---|---|
-| `build.bat installer` | `dist\SignalViewer-Setup-1.6.1.exe` | **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, uninstaller |
+| `build.bat installer` | `dist\SignalViewer-Setup-1.7.0.exe` | **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, uninstaller |
 | `build.bat portable` | `dist\SignalViewer-portable.zip` | Unzip anywhere and run `SignalViewer.exe` (fast start) |
 | `build.bat onefile` | `dist\SignalViewer.exe` | A single file to copy; starts a few seconds slower (it unpacks itself each time) |
 | `build_windows_portable.bat` (**Windows**) / `python tools/make_windows_portable.py` | `dist\SignalViewer-Windows-portable.7z` | **Windows portable build on a Windows PC**: double-click the `.bat` (needs Python 3.8+ with pip and internet, once, only to build). Downloads the official embeddable Python + the Windows builds of the libraries; the result needs no Python and no internet. **7z** (about 80 MB instead of 126 MB as zip): made with 7-Zip when installed, else with the py7zr library fetched once; Windows 11 opens .7z in Explorer, Windows 10 needs 7-Zip. `--format zip` for a zip, `--keep-folder` keeps the assembled folder, `--clean` forces a fresh download, `--build-ui` rebuilds the web UI first (Node.js; done automatically when the UI sources are newer than the built UI) |
@@ -334,6 +334,8 @@ visual language as the app.
 * Without `pyarrow` the pandas parser keeps a malformed row that has too few fields (missing values become empty), while `pyarrow` skips it.
 * The timeline's modes apply to time, X-Y, map and spectrogram plots, not to FFT.
 * In a web browser (not the desktop window) Ctrl+PageUp / Ctrl+PageDown and Ctrl+Tab switch the browser's own tabs; use the *All tabs* list or *Go to tab* (Ctrl+K) there.
+* The right value axis follows its data: zooming the values (Shift+drag), panning, the axis limits dialog and linked value axes act on the left axis.
+* Columns with a time column of their own keep that column's unit: a `time_boot_ms` column stays in milliseconds (as the main time column always has), so it does not line up with a time in seconds.
 
 ## Structure
 
@@ -397,6 +399,10 @@ Ctrl+K פותח חיפוש של כל הפקודות והסיגנלים. בורר
 חדש ב־1.6: שתי דוגמאות חדשות במסך הפתיחה – אותה משימה בשתי טיסות (רגילה וברוח צד) ולוג טיסה של ArduPilot עם ממצא לחפש,
 "יצירת סיגנל ▸" אחד בתפריטי הסיגנל, ותיקונים ל־1.5: הדוגמאות חזרו לחבילת Windows, מספר הגרסה ב־Help, תאריך הטיסה ב־Fleet
 ללוגים של ArduPilot, ו־Undo של "מחיקת כל הנגזרים" שכבר לא מוחק עבודה שנעשתה אחריו.
+חדש ב־1.7: לכל קובץ צבע ותג קצר (A, B, C…) במקרא, בסטטיסטיקה ובבוחרי הסיגנלים - סיגנלים באותו שם משני קבצים
+נצבעים לפי קובץ; מועדפים ותיקיות אחרונות בדיאלוג הקבצים ו־Ctrl+P לפתיחה מהירה; ציר ערכים שני (ימני) לסיגנל
+ביחידות אחרות; דוגמאות ותבניות שנפתחות מוכנות בלחיצה אחת; עמודות עם עמודת זמן משלהן (Speed + Speed_time,
+msg.time_boot_ms) נקראות כך; מצב Live עוקב גם אחרי קובץ MATLAB שנשמר שוב ושוב; תבניות מובנות בעברית.
 חדש ב־1.6.1 (ליטוש): כל הטאבים נגישים גם כשיש הרבה (רשימת "כל הטאבים", Ctrl+PageUp/PageDown), לכל קובץ צבע משלו
 ב־Compare open files, השוואת ריצות מחשבת זוויות (Yaw / Heading) סביב המעגל, Shift+קליק ו־Ctrl+A בדיאלוג הקבצים,
 תיקייה אחרונה נפרדת לכל שימוש, קובץ שכבר פתוח נקרא מחדש במקום להיפתח פעמיים, ודיאלוגים ותפריטים שנסגרים ב־Esc.
