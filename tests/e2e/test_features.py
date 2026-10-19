@@ -191,7 +191,7 @@ def test_D03_import_options_live_preview(pg):
 def test_D04_messy_data_and_load_report(pg):
     open_files(pg, "messy.csv")
     text = toast_text(pg)
-    assert "text column" in text and "sorted" in text
+    assert "read as states" in text and "sorted" in text      # F20: "text read as states: Status"
     assert S(pg, "s.runs[0].samples") == 4
     # the text column is a state signal with its texts (OK / FAIL), no longer skipped
     assert S(pg, "s.runs[0].signals.find(x => x.name === 'Status').labels['0']") == "OK"
