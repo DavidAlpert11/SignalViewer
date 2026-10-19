@@ -102,7 +102,7 @@ function Welcome() {
           <p className="examples-line">{t("tryExample")}{" "}
             {examples.map((ex, i) => (
               <span key={ex.id}>{i > 0 && " · "}
-                <button className="linkbtn" onClick={() => openPaths(ex.paths)}>{t(EXAMPLE_LABEL[ex.id])}</button>
+                <button className="linkbtn" onClick={() => openPaths(ex.paths, undefined, { autoView: true })}>{t(EXAMPLE_LABEL[ex.id])}</button>
               </span>
             ))}
           </p>

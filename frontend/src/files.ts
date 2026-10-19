@@ -67,7 +67,7 @@ export function loadErrorText(err: LoadErrorInfo, lang: Lang): string {
 
 /** Open files by path. Errors become actionable toasts. Nothing is plotted
  *  automatically: the user picks the signals. */
-export async function openPaths(paths: string[], settings?: Record<string, unknown>, opts: { copy?: boolean } = {}) {
+export async function openPaths(paths: string[], settings?: Record<string, unknown>, opts: { copy?: boolean; autoView?: boolean } = {}) {
   if (!paths.length) return;
   const st = useApp.getState();
   const lang = st.lang;
@@ -104,7 +104,7 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
     useApp.setState({ runs });
     const firstNew = res.opened.find((o) => o?.id)?.id;
     // F20: several files at once get a suggestion for several files (Compare), not for the first one
-    if (emptyStart && firstNew) offerStart(firstNew, res.opened.filter((o) => o?.id).length);   // in the background
+    if (emptyStart && firstNew) offerStart(firstNew, res.opened.filter((o) => o?.id).length, !!opts.autoView);   // in the background
     refreshRecent();
     for (const err of res.errors) {
       const name = err.path.split(/[\\/]/).pop() || err.path;

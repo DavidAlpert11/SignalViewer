@@ -81,9 +81,7 @@ def test_position_template_only_for_a_file_with_a_position(pg):
     open_files(pg, "tpl_track.csv", clear=False)
     chip = pg.locator(".tpl-strip .chipbtn", has_text="Position on the map")
     chip.wait_for()
-    chip.click()
-    pg.wait_for_selector(".tpl-lib .tpl-details")
-    pg.locator(".tpl-actions .btn.primary").click()
+    chip.click()                                           # T48: one file, nothing to choose - opens at once
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.mode === '3d' && (p.objects || []).length))")
     tab = [t for t in S(pg, "s.ws.tabs") if any(p.get("objects") for p in t["plots"])][-1]
     assert [p["mode"] for p in tab["plots"]] == ["geo", "3d"]
