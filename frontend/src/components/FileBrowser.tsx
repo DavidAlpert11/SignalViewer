@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api, type FsEntry } from "../api";
+import { api, type FsEntry, type FsPlaces } from "../api";
 import { useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
@@ -15,6 +15,8 @@ const dirOfPath = (p: string) => {        // the folder of a file path; a drive 
   return !d ? "/" : /^[a-zA-Z]:$/.test(d) ? `${d}\\` : d;
 };
 function startFolder(picker: { mode: string; exts?: string[] } | null): string | null {
+  const once = useApp.getState().browserStart;          // T24: quick open chose a folder
+  if (once && !picker) { useApp.setState({ browserStart: null }); return once; }
   const own = localStorage.getItem(lastDirKey(picker));
   if (own) return own;
   const st = useApp.getState();
@@ -53,6 +55,9 @@ export default function FileBrowser() {
   const [withOptions, setWithOptions] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [hidden, setHidden] = useState(0);              // files of other types in this folder
+  const [places, setPlaces] = useState<FsPlaces | null>(null);
+  const dragFav = useRef<number | null>(null);
   const [sort, setSort] = useState<"modified" | "name">(() => (localStorage.getItem(SORT_KEY) === "name" ? "name" : "modified"));
   const lang = useApp((st) => st.lang);
   // recent files that are not open now: shown above the folder when opening data files
@@ -93,7 +98,7 @@ export default function FileBrowser() {
       // refresh): keep what was picked - a click made meanwhile was lost and Open stayed disabled
       const same = !!listed.current && listed.current === r.path;
       listed.current = r.path;
-      setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setError("");
+      setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setError(""); setHidden(r.hidden ?? 0);
       setPicked((cur) => (same ? cur.filter((x) => r.entries.some((en) => en.path === x)) : []));
       if (!same) { anchor.current = null; setFilter(""); }
       setSugg([]); setSuggAt(-1);
@@ -106,6 +111,7 @@ export default function FileBrowser() {
     // "show import options" is a per-open choice: it must not silently stick to the next open
     if (open) {
       setPath(""); setTyped(""); setEntries([]); setSugg([]); setFilter("");   // not the previous open's folder, even for a moment
+      api.places().then(setPlaces).catch(() => setPlaces(null));        // T24: the side column
       navigated.current = false; userTyped.current = false; listed.current = null; setWithOptions(false); go(startFolder(picker), true); setName(picker?.defaultName ?? "");
       if (!picker) refreshRecent();
     }
@@ -209,6 +215,61 @@ export default function FileBrowser() {
     else if (e.key === "Escape" && filter) { e.stopPropagation(); setFilter(""); keep(); }
     else if (e.key.length === 1 && e.key !== " ") { e.preventDefault(); setFilter(filter + e.key); keep(); }
   };
+  // T24: favourite folders - pin the folder shown (star in the path bar), unpin, drag to reorder
+  const favs = places?.favourites ?? [];
+  const samePath = (a: string, b: string) => a.replace(/[\\/]+$/, "").toLowerCase() === b.replace(/[\\/]+$/, "").toLowerCase();
+  const pinned = !!path && favs.some((f) => samePath(f.path, path));
+  const saveFavs = (paths: string[]) => {
+    api.setFavourites(paths).then((r) => setPlaces((p) => (p ? { ...p, favourites: r.favourites } : p)))
+      .catch((e) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) }));
+  };
+  const togglePin = () => {
+    if (!path) return;
+    saveFavs(pinned ? favs.filter((f) => !samePath(f.path, path)).map((f) => f.path) : [...favs.map((f) => f.path), path]);
+  };
+  const moveFav = (from: number, to: number) => {
+    if (from === to) return;
+    const list = favs.map((f) => f.path);
+    const [it] = list.splice(from, 1);
+    list.splice(to, 0, it);
+    saveFavs(list);
+  };
+  const baseName = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || p;
+  const place = (key: string, p: string, label: string, icon: React.ReactNode, exists = true, extra?: React.ReactNode, drag?: number) => (
+    <div key={key} className={`fs-place${path && samePath(p, path) ? " on" : ""}${exists ? "" : " gone"}`}
+      draggable={drag !== undefined}
+      onDragStart={drag !== undefined ? (e) => { dragFav.current = drag; e.dataTransfer.effectAllowed = "move"; } : undefined}
+      onDragOver={drag !== undefined ? (e) => { if (dragFav.current !== null) e.preventDefault(); } : undefined}
+      onDrop={drag !== undefined ? (e) => { e.preventDefault(); if (dragFav.current !== null) moveFav(dragFav.current, drag); dragFav.current = null; } : undefined}>
+      <button className="fs-place-go" disabled={!exists} title={exists ? p : `${p} - ${t("notFound")}`} onClick={() => go(p)}>
+        {icon}<span>{label}</span>
+      </button>
+      {extra}
+    </div>
+  );
+  const stdLabel: Record<string, string> = { home: t("home"), desktop: t("placeDesktop"), documents: t("placeDocuments"), downloads: t("placeDownloads") };
+  // a recent folder that is also a folder of an open file or a favourite is listed there already
+  const recentDirs = (places?.recent ?? []).filter((r) => !places!.open.some((o) => samePath(o, r.path)) && !favs.some((f) => samePath(f.path, r.path)));
+  const placesCol = places && (
+    <nav className="fs-places" aria-label={t("places")}>
+      {places.open.length > 0 && (<>
+        <h3>{t("placesOpen")}</h3>
+        {places.open.map((p) => place(`o:${p}`, p, baseName(p), <Icon.Folder />))}
+      </>)}
+      <h3>{t("placesFav")}</h3>
+      {favs.length === 0 && <p className="fs-places-hint">{t("placesFavHint")}</p>}
+      {favs.map((f, i) => place(`f:${f.path}`, f.path, baseName(f.path), <Icon.Star />, f.exists,
+        <button className="iconbtn sm fs-unpin" onClick={() => saveFavs(favs.filter((_, j) => j !== i).map((x) => x.path))}
+          title={t("unpinFolder")} aria-label={`${t("unpinFolder")}: ${baseName(f.path)}`}><Icon.X /></button>, i))}
+      {recentDirs.length > 0 && (<>
+        <h3>{t("placesRecent")}</h3>
+        {recentDirs.map((r) => place(`r:${r.path}`, r.path, baseName(r.path), <Icon.Folder />, r.exists))}
+      </>)}
+      <h3>{t("placesPc")}</h3>
+      {places.standard.map((s) => place(`s:${s.id}`, s.path, stdLabel[s.id] ?? baseName(s.path), s.id === "home" ? <Icon.Home /> : <Icon.Folder />))}
+      {places.drives.map((d) => place(`d:${d}`, d, d, <Icon.Drive />))}
+    </nav>
+  );
   /** Breadcrumbs: every folder on the way to this one ("C:\\", "Users", ...), each clickable. */
   const crumbs = (() => {
     if (!path) return [] as { label: string; path: string }[];
@@ -228,7 +289,7 @@ export default function FileBrowser() {
   return (
     // a picker is opened FROM another dialog (templates: import, export, folder; reports...): above it
     <div className={`scrim${picker ? " scrim-top" : ""}`} onMouseDown={() => close()}>
-      <div className="dialog" role="dialog" aria-label={title} onMouseDown={(e) => e.stopPropagation()}
+      <div className="dialog fs-dialog" role="dialog" aria-label={title} onMouseDown={(e) => e.stopPropagation()}
         ref={dialogRef} tabIndex={-1}
         onKeyDown={(e) => { filterKey(e); if (e.key === "Escape" && !e.isPropagationStopped()) close(); }}>
         <div className="dialog-head"><h2>{title}</h2>
@@ -236,6 +297,8 @@ export default function FileBrowser() {
         <div className="crumbs">
           <button className="iconbtn" disabled={parent === null} onClick={() => go(parent)} title={t("up")} aria-label={t("up")}><Icon.Up /></button>
           <button className="iconbtn" onClick={() => go(null)} title={t("home")} aria-label={t("home")}><Icon.Home /></button>
+          <button className={`iconbtn fs-pin${pinned ? " on" : ""}`} disabled={!path} onClick={togglePin} aria-pressed={pinned}
+            title={pinned ? t("unpinFolder") : t("pinFolder")} aria-label={pinned ? t("unpinFolder") : t("pinFolder")}><Icon.Star /></button>
           <span className="fs-path">
             <input value={typed} onChange={(e) => { userTyped.current = true; setTyped(e.target.value); }} onKeyDown={pathKey} aria-label={t("folder")}
               title={t("pathHint")} spellCheck={false} autoComplete="off" role="combobox" aria-expanded={sugg.length > 0}
@@ -271,6 +334,9 @@ export default function FileBrowser() {
             )}
           </div>
         )}
+        <div className="fs-main">
+        {placesCol}
+        <div className="fs-content">
         {recent.length > 0 && !filter && (
           <div className="fs-recent" role="group" aria-label={t("recentOpen")}>
             <h3>{t("recentOpen")}</h3>
@@ -296,6 +362,14 @@ export default function FileBrowser() {
               <span className="mtime">{fmtDate(e.mtime)}</span><span className="size">{fmtSize(e.size)}</span>
             </button>
           ))}
+          {!error && !filter && path && !entries.length && (
+            <p className="empty-note fs-empty">{t("fsEmpty")}{hidden > 0 ? ` ${t("fsHidden", { n: hidden })}` : ""}</p>
+          )}
+          {!error && !filter && path && entries.length > 0 && !entries.some((e) => !e.dir) && !folderMode && (
+            <p className="empty-note fs-empty">{t("fsNoFilesHere")}{hidden > 0 ? ` ${t("fsHidden", { n: hidden })}` : ""}</p>
+          )}
+        </div>
+        </div>
         </div>
         <div className="dialog-foot">
           {saving ? (

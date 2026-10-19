@@ -5,7 +5,8 @@ import { actions, activeTab, useApp } from "../store";
 import { useT } from "../i18n";
 import { newCollection, openTemplates, saveAsTemplate } from "../templateMenu";
 import { Icon } from "../icons";
-import { clearEverything, openSession, pickSessionForRetarget, saveSession, startRetarget } from "../files";
+import { clearEverything, openPaths, openSession, pickSessionForRetarget, recentToOpen, refreshRecent, saveSession, startRetarget } from "../files";
+import { api, type FsPlaces } from "../api";
 import { fuzzySort } from "../fuzzy";
 
 interface Cmd { id: string; label: string; group: string; icon?: React.ReactNode; run: () => void; keys?: string }
@@ -13,17 +14,26 @@ interface Cmd { id: string; label: string; group: string; icon?: React.ReactNode
 export default function CommandPalette() {
   const t = useT();
   const open = useApp((s) => s.paletteOpen);
+  const mode = useApp((s) => s.paletteMode);
+  const [places, setPlaces] = useState<FsPlaces | null>(null);
+  useApp((s) => s.recent);
+  useEffect(() => {
+    if (!open || mode !== "open") return;
+    refreshRecent();
+    api.places().then(setPlaces).catch(() => setPlaces(null));
+  }, [open, mode]);
   const runs = useApp((s) => s.runs);
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const close = () => { useApp.setState({ paletteOpen: false }); setQ(""); setSel(0); };
+  const close = () => { useApp.setState({ paletteOpen: false, paletteMode: "all" }); setQ(""); setSel(0); };
 
   const cmds = useMemo<Cmd[]>(() => {
     const st = () => useApp.getState();
     const base: Cmd[] = [
-      { id: "open", label: t("openFiles"), group: t("files"), icon: <Icon.Folder />, run: () => useApp.setState({ browserOpen: true }) },
+      { id: "open", label: t("openFiles"), group: t("files"), icon: <Icon.Folder />, run: () => useApp.setState({ browserOpen: true }), keys: "Ctrl O" },
+      { id: "quickopen", label: t("quickOpen"), group: t("files"), icon: <Icon.Folder />, run: () => window.setTimeout(() => useApp.setState({ paletteOpen: true, paletteMode: "open" }), 0), keys: "Ctrl P" },
       { id: "savesession", label: t("saveSession"), group: t("files"), icon: <Icon.Save />, run: saveSession, keys: "Ctrl S" },
       { id: "opensession", label: t("openSession"), group: t("files"), icon: <Icon.Open />, run: openSession, keys: "Ctrl ⇧ O" },
       { id: "retarget-current", label: t("replaceInputFiles"), group: t("files"), icon: <Icon.Replace />, run: () => startRetarget() },
@@ -73,7 +83,17 @@ export default function CommandPalette() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runs, open, t]);
 
-  const items = fuzzySort(cmds, (c) => `${c.label} ${c.group}`, q).slice(0, 60);
+  // T24: quick open (Ctrl+P) - favourites, recent folders (open in the file dialog), recent files
+  const quick: Cmd[] = [];
+  if (mode === "open") {
+    const folder = (p: string) => () => useApp.setState({ browserOpen: true, browserStart: p });
+    const seen = new Set<string>();
+    const once = (p: string) => { const k = p.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; };
+    for (const f of places?.favourites ?? []) if (f.exists && once(f.path)) quick.push({ id: `fav:${f.path}`, label: f.path, group: t("placesFav"), icon: <Icon.Folder />, run: folder(f.path) });
+    for (const r of recentToOpen(12)) if (r.exists) quick.push({ id: `file:${r.path}`, label: r.name, group: r.folder, icon: <Icon.File />, run: () => { openPaths([r.path]); } });
+    for (const f of places?.recent ?? []) if (f.exists && once(f.path)) quick.push({ id: `dir:${f.path}`, label: f.path, group: t("placesRecent"), icon: <Icon.Folder />, run: folder(f.path) });
+  }
+  const items = fuzzySort(mode === "open" ? quick : cmds, (c) => `${c.label} ${c.group}`, q).slice(0, 60);
 
   useEffect(() => { setSel(0); }, [q]);
   useEffect(() => { listRef.current?.querySelector(".pal-item.on")?.scrollIntoView({ block: "nearest" }); }, [sel]);
@@ -83,7 +103,7 @@ export default function CommandPalette() {
   return (
     <div className="scrim" onMouseDown={close}>
       <div className="dialog" role="dialog" aria-label={t("commands")} onMouseDown={(e) => e.stopPropagation()}>
-        <input className="palette-input" autoFocus value={q} placeholder={t("commands")} aria-label={t("commands")}
+        <input className="palette-input" autoFocus value={q} placeholder={mode === "open" ? t("quickOpen") : t("commands")} aria-label={mode === "open" ? t("quickOpen") : t("commands")}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") close();
@@ -92,7 +112,7 @@ export default function CommandPalette() {
             else if (e.key === "Enter" && items[sel]) { items[sel].run(); close(); }
           }} />
         <div className="dialog-body" ref={listRef} role="listbox">
-          {!items.length && <p className="empty-note">{t("noCommands")}</p>}
+          {!items.length && <p className="empty-note">{mode === "open" ? t("quickOpenNone") : t("noCommands")}</p>}
           {items.map((c, i) => (
             <button key={c.id} role="option" aria-selected={i === sel} className={`pal-item${i === sel ? " on" : ""}`}
               onMouseEnter={() => setSel(i)} onClick={() => { c.run(); close(); }}>

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.0 – unreleased
+
+### Added
+- **Places in the file dialog** (owner's request): a side column with the folders of the open files, **favourite folders** (pin the folder shown with ★ next to the path; × to unpin; drag to reorder; kept between sessions), **recent folders**, and this computer's home, Desktop, Documents, Downloads and drives. One click goes back to a folder you work in.
+- **Ctrl+P – quick open:** type part of a name to open a recent file, or a favourite / recent folder in the file dialog.
+- A folder with nothing to open says so, and how many files of other types it holds.
+
 ## 1.6.1 – 2026-10-19
 
 Highlights: a polish release after a review of every button. **Many tabs** are all reachable again

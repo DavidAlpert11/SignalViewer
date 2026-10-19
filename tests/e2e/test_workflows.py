@@ -378,3 +378,68 @@ def test_relisting_the_same_folder_keeps_the_selection(page, server):
     page.wait_for_timeout(500)
     assert page.locator(".dialog .dialog-body .fs-row.on").count() == 1
     assert page.locator(".dialog-foot .btn.primary").is_enabled()
+
+
+def test_file_dialog_places(page, server):
+    """T24 (owner): the file dialog lists the folders of the open files, recent folders and pinned
+    favourites - one click goes back to a folder you work in. Pins are kept (settings.json)."""
+    page.evaluate("fetch('/api/fs/favourites', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths: [] }) })")
+    _open(page, server["data"], ["run_a.csv"])
+    page.keyboard.press("Control+o")
+    _goto_folder(page, server["home"])
+    places = page.locator(".fs-places")
+    places.locator(".fs-place-go", has_text=os.path.basename(server["data"])).first.click()   # under Open files
+    page.wait_for_function(f"document.querySelector('.crumbs input').value === {json.dumps(server['data'])}")
+    page.locator(".fs-pin").click()                                    # pin the data folder
+    places.locator("h3", has_text="Favourites").wait_for()
+    page.wait_for_function("document.querySelector('.fs-pin').getAttribute('aria-pressed') === 'true'")
+    page.keyboard.press("Escape")
+    page.wait_for_selector(".scrim", state="detached")
+    page.reload(); page.wait_for_selector(".topbar")
+    page.keyboard.press("Control+o")
+    _goto_folder(page, server["home"])
+    page.locator(".fs-places h3", has_text="Favourites").wait_for()
+    fav = page.locator(".fs-places .fs-place:has(.fs-unpin)").filter(has_text=os.path.basename(server["data"]))
+    fav.first.wait_for()                                               # still pinned after a reload
+    fav.first.locator(".fs-place-go").click()
+    page.wait_for_function(f"document.querySelector('.crumbs input').value === {json.dumps(server['data'])}")
+    page.locator(".fs-pin").click()                                    # unpin
+    page.wait_for_function("document.querySelector('.fs-pin').getAttribute('aria-pressed') === 'false'")
+    page.keyboard.press("Escape")
+
+
+def test_file_dialog_recent_folders_and_empty_folder(page, server):
+    """T24: a folder files were opened from is under Recent folders once they are closed; a folder
+    with nothing to open says so (and how many other files it holds)."""
+    page.evaluate("fetch('/api/fs/favourites', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths: [] }) })")
+    _open(page, server["data"], ["run_b.csv"])
+    page.evaluate("Promise.all(window.__sv.state().runs.map((r) => fetch('/api/runs/' + r.id, { method: 'DELETE' })))")
+    page.reload(); page.wait_for_selector(".topbar")
+    other = os.path.join(server["home"], "notes")
+    os.makedirs(other, exist_ok=True)
+    open(os.path.join(other, "notes.docx"), "w").write("x")          # not a data file
+    page.keyboard.press("Control+o")
+    _goto_folder(page, other)
+    page.locator(".fs-empty").wait_for()
+    assert "1" in page.locator(".fs-empty").inner_text()               # 1 file of another type
+    page.locator(".fs-places h3", has_text="Recent folders").wait_for()
+    page.locator(".fs-places .fs-place-go", has_text=os.path.basename(server["data"])).first.click()
+    page.wait_for_function(f"document.querySelector('.crumbs input').value === {json.dumps(server['data'])}")
+    page.keyboard.press("Escape")
+
+
+def test_quick_open(page, server):
+    """T24: Ctrl+P lists favourites, recent files and recent folders; a file opens, a folder opens
+    the file dialog there."""
+    page.evaluate("fetch('/api/fs/favourites', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths: [] }) })")
+    _open(page, server["data"], ["run_c.csv"])
+    page.evaluate("Promise.all(window.__sv.state().runs.map((r) => fetch('/api/runs/' + r.id, { method: 'DELETE' })))")
+    page.reload(); page.wait_for_selector(".topbar")
+    page.keyboard.press("Control+p")
+    page.locator(".palette-input").fill("run_c")
+    page.locator(".pal-item", has_text="run_c.csv").first.click()
+    page.wait_for_function("window.__sv.state().runs.some((r) => r.name === 'run_c.csv')")
+    page.keyboard.press("Control+p")
+    page.locator(".palette-input").fill(os.path.basename(server["data"]))
+    page.locator(".pal-item", has_text="Recent folders").first.click()
+    page.wait_for_function(f"document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value === {json.dumps(server['data'])}")
