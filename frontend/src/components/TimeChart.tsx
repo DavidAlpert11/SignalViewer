@@ -462,13 +462,16 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       const plotH = Math.max(60, size.h - 50);
       return Math.min(0.6, (stateSigs.length * (LANE_H + 2) + 4) / plotH);
     };
+    // T50: a short plot (many plots in a small window) kept one value label ("0"): the labels may
+    // come closer there, so there are about four of them
+    const valueSpace = (_u: uPlot, _i: number, _mn: number, _mx: number, dim: number) => Math.max(12, Math.min(30, dim / 4));
     const yAxis: uPlot.Axis = onlyStates
       ? { ...axis, size: 12, values: () => [], ticks: { show: false }, grid: { show: false } }
       : axisLabels && axisCodes.length <= 40
         ? { ...axis, size: Math.min(150, 18 + longest * 7.2),
             splits: (_u, _i, mn, mx) => axisCodes.filter((c) => c >= mn && c <= mx),
             values: (_u, splits) => splits.map((v) => axisLabels[String(v)] ?? String(v)) }
-        : { ...axis, size: commonUnit ? 64 : 56, values: tickValues, ...(commonUnit ? { label: commonUnit, labelSize: 14, labelGap: 0 } : {}) };
+        : { ...axis, size: commonUnit ? 64 : 56, values: tickValues, space: valueSpace, ...(commonUnit ? { label: commonUnit, labelSize: 14, labelGap: 0 } : {}) };
     const opts: uPlot.Options = {
       width: size.w,
       height: size.h,
@@ -513,7 +516,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         } : {}),
       },
       axes: [{ ...axis, size: 34 }, yAxis,
-        ...(hasRight ? [{ ...axis, scale: "y2", side: 1, size: rightUnit ? 64 : 56, values: tickValues, grid: { show: false },
+        ...(hasRight ? [{ ...axis, scale: "y2", side: 1, size: rightUnit ? 64 : 56, values: tickValues, space: valueSpace, grid: { show: false },
           ...(rightUnit ? { label: rightUnit, labelSize: 14, labelGap: 0 } : {}) } as uPlot.Axis] : [])],
       series: [
         {},
