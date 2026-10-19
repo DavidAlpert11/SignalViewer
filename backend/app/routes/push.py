@@ -1,9 +1,11 @@
 """T39: arrays sent from Python into the open app (app/push.py; the client is
 signalviewer/push_client.py)."""
 import hmac
+import logging
 import os
 import shutil
 import sys
+from typing import List
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -13,6 +15,7 @@ from app.common import fail
 from app.store import store
 
 router = APIRouter()
+log = logging.getLogger("signalviewer").getChild(__name__)
 # the client as a file: from the source folder, or bundled as data in the packaged app (modules
 # there live in an archive, not as .py files)
 CLIENT_PATHS = [os.path.join(getattr(sys, "_MEIPASS", ""), "clients", "push_client.py"),
@@ -35,9 +38,31 @@ async def push_data(request: Request, name: str = "Python", replace: bool = True
             "new": new, "seq": seq}
 
 
+class ExternalOpen(BaseModel):
+    paths: List[str]
+
+
+@router.post("/api/open-external")
+def open_external(req: ExternalOpen, request: Request):
+    """T54: files opened from outside while the app runs (a second start hands them over, app/instance.py).
+    The page opens them like files chosen in the dialog (missing ones are reported there)."""
+    if not hmac.compare_digest(request.headers.get("x-sv-token", ""), push.TOKEN):
+        fail(403, "Wrong or missing token (only a Signal Viewer start on this computer can hand files over).")
+    paths = [os.path.abspath(os.path.expanduser(p)) for p in req.paths if p and p.strip()][:200]
+    if not paths:
+        fail(400, "No files to open.")
+    seq = push.add_open_event(paths)
+    for f in list(push.ON_OPEN):
+        try:
+            f()
+        except Exception:                # bringing the window forward is a nicety; the files open anyway
+            log.warning("could not bring the window to the front", exc_info=True)
+    return {"seq": seq, "paths": paths}
+
+
 @router.get("/api/push/events")
-def push_events(since: int = 0):
-    return push.events_since(since)
+def push_events(since: int = 0, opens: bool = False):
+    return push.events_since(since, opens)
 
 
 class ClientSave(BaseModel):

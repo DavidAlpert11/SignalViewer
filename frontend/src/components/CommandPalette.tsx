@@ -35,7 +35,7 @@ export default function CommandPalette() {
       { id: "open", label: t("openFiles"), group: t("files"), icon: <Icon.Folder />, run: () => useApp.setState({ browserOpen: true }), keys: "Ctrl O" },
       { id: "quickopen", label: t("quickOpen"), group: t("files"), icon: <Icon.Folder />, run: () => window.setTimeout(() => useApp.setState({ paletteOpen: true, paletteMode: "open" }), 0), keys: "Ctrl P" },
       { id: "savesession", label: t("saveSession"), group: t("files"), icon: <Icon.Save />, run: saveSession, keys: "Ctrl S" },
-      { id: "opensession", label: t("openSession"), group: t("files"), icon: <Icon.Open />, run: openSession, keys: "Ctrl ⇧ O" },
+      { id: "opensession", label: t("openSession"), group: t("files"), icon: <Icon.Open />, run: () => openSession(), keys: "Ctrl ⇧ O" },
       { id: "retarget-current", label: t("replaceInputFiles"), group: t("files"), icon: <Icon.Replace />, run: () => startRetarget() },
       { id: "retarget-session", label: t("openSessionNewFiles"), group: t("files"), icon: <Icon.Replace />, run: pickSessionForRetarget },
       { id: "templates", label: t("tplMenuOpen"), group: t("templates"), icon: <Icon.Layout />, run: () => openTemplates() },

@@ -356,26 +356,38 @@ export default function App() {
     tb.plots.forEach((p) => actions.setRange(rangeKey(tb, p), [end - follow, end], { history: false }));
   }, [streaming, follow, runs]);
 
-  /* T39: data sent from Python (signalviewer_push.show): refresh, and put a NEW run in the active plot */
+  /* T39: data sent from Python (signalviewer_push.show): refresh, and put a NEW run in the active plot.
+     T54: files opened from outside (Open with, `SignalViewer file.bin`, a second start) come the same way */
   useEffect(() => {
     let since = 0;
     let first = true;                     // the first ask: data sent while the page loaded counts,
     const h = window.setInterval(async () => {   // older data (before a reload) is not plotted again
       try {
-        const r = await api.pushEvents(since);
-        const fresh = r.events.filter((e) => !first || e.age < 10);
+        // files to open are taken once the last work is restored (it would replace them); the server
+        // hands each out once, so a reload does not open them again
+        const r = await api.pushEvents(since, restored.current);
+        const fresh = r.events.filter((e) => e.kind === "open" || !first || e.age < 10);
         first = false;
         since = r.seq;
-        if (!r.events.length) return;
+        const opens = fresh.filter((e) => e.kind === "open");
+        for (const e of opens) {
+          const paths = e.paths ?? [];
+          const sessions = paths.filter((p) => /\.svsession$/i.test(p));
+          for (const p of sessions) await openSession(p);
+          const files = paths.filter((p) => !sessions.includes(p));
+          if (files.length) await openPaths(files);
+        }
+        const pushed = r.events.filter((e) => e.kind !== "open");
+        if (!pushed.length) return;
         const runs = await api.listRuns();
         const st = useApp.getState();
         useApp.setState({ runs, dataVersion: st.dataVersion + 1 });
         for (const e of fresh) {
-          if (!e.new) continue;
+          if (e.kind === "open" || !e.new) continue;
           const run = runs.find((x) => x.id === e.run);
           if (!run) continue;
           if (e.plot) run.signals.slice(0, 8).forEach((s) => actions.addSignal(s.id));
-          st.toast({ kind: "info", text: translate(st.lang, "pushReceived", { name: e.name, n: run.signals.length }) });
+          st.toast({ kind: "info", text: translate(st.lang, "pushReceived", { name: e.name ?? "", n: run.signals.length }) });
         }
       } catch { /* server busy; next tick */ }
     }, 1000);
