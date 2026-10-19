@@ -298,8 +298,9 @@ export default function DataPanel() {
           <button className="iconbtn" onClick={() => startRetarget()} title={t("replaceInputFiles")} aria-label={t("replaceInputFiles")}><Icon.Replace /></button>
         )}
         {runs.filter((r) => r.format !== "derived").length > 1 && (
-          <button className="btn link-toggle" aria-pressed={linkRuns} onClick={() => useApp.setState({ linkRuns: !linkRuns })}
-            title={t("linkFilesHint")} aria-label={t("linkFiles")}><Icon.Link />{t("linkShort")}</button>
+          // T50: an icon (pressed when on) - its label did not fit beside "Open files" with two files open
+          <button className="iconbtn link-toggle" aria-pressed={linkRuns} onClick={() => useApp.setState({ linkRuns: !linkRuns })}
+            title={`${t("linkFiles")} - ${t("linkFilesHint")}`} aria-label={t("linkFiles")}><Icon.Link /></button>
         )}
         <span className="split-btn">
           <button className="btn outline" onClick={() => useApp.setState({ browserOpen: true })}>
