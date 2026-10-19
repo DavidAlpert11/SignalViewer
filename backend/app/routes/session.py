@@ -141,7 +141,7 @@ def put_autosave(state: dict):
 
 
 class RestoreRequest(BaseModel):
-    runs: List[dict]   # [{id, path, name, importSettings, timeOffset}]
+    runs: List[dict]   # [{id, path, name, importSettings, timeOffset, tag?, color?}]
 
 
 
@@ -177,5 +177,8 @@ async def restore(req: RestoreRequest):
             store.runs[lr.id] = lr
             if lr.id not in store.order:
                 store.order.append(lr.id)
+            store.marks.pop(lr.id, None)
+            if r.get("tag") or r.get("color"):           # T46: the saved file colour and tag
+                store.set_mark(lr.id, r.get("tag"), r.get("color"))
         restored.append(store.describe(lr))
     return {"restored": restored, "missing": missing}

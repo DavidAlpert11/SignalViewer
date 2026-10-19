@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { actions, activeTab, useApp } from "../store";
+import { showFileTags, actions, activeTab, useApp } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
 import SignalPicker from "./SignalPicker";
@@ -40,9 +40,11 @@ export default function AnalysisPanel() {
   const plot = tab.plots[tab.active];
   const plotSigs = plot?.signals.map((s) => s.sig) ?? [];
 
+  const tagged = showFileTags(runs);         // T46: which file a signal is from, at a glance
   const options = useMemo(() => runs.flatMap((r) => r.signals.map((s) => ({
     id: s.id, label: r.format === "derived" ? `ƒ ${s.name}` : s.name, group: r.format === "derived" ? undefined : r.name,
-  }))), [runs]);
+    ...(tagged && r.format !== "derived" ? { tag: r.tag, color: r.color } : {}),
+  }))), [runs, tagged]);
 
   const [kind, setKind] = useState<Kind>("one");
   const [py, setPy] = useState<PyChoice | null>(null);
