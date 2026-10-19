@@ -18,6 +18,7 @@
 - After a suggested view is opened, the start card keeps the flight log's findings (each a click from its moment) instead of closing.
 
 ### Fixed
+- **Live mode with a MATLAB (or ULog / MCAP / HDF5 / Parquet) file that a program saves again and again:** it was shown only once the saving stopped (and live mode could stop itself as "idle" meanwhile); now it is read at least every 2 seconds while it changes. A slow read of a big file is no longer overtaken by the next poll.
 - A click on **Create signal ▸** sometimes opened and closed its submenu at once.
 - File dialog: **Tab** in the path box completes only what you typed; on a path left as it is, Tab moves to the next control (a keyboard user could not leave the path box).
 
