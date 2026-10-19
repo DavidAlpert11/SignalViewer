@@ -541,7 +541,7 @@ The open T24, T23, T25, T14c, T18 above (TASKS.md Q30-Q34; moved from 1.6.0 by t
   `PRAGMA user_version`; an older index marks its file-dated .bin rows stale, read again once. Test
   `test_an_index_from_before_f11_reads_its_bin_logs_again`.
 
-## Milestone 7 — 1.6.1: polish (review 2026-10-18)
+## Milestone 7 — 1.6.1: polish (review 2026-10-18) — prepared 2026-10-19
 Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] **F13 Templates without colours draw every signal in one colour**. Spec: TASKS.md Q36.
   Done: `colorAllocator(ws)` in `store/selectors.ts` (nextColor uses it) counts the colours it gives out, so a template's plots built before they are in the workspace get different colours; `applyTemplate` uses one allocator for signals and map objects. A plot holding the same signal from several files colours by FILE (its order among the open files), so a run keeps its colour in every plot of Compare open files. e2e `test_compare_open_files_gives_each_file_its_colour`.
