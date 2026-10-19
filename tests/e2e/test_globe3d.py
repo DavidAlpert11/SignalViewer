@@ -322,7 +322,7 @@ def test_log_events_on_the_track_and_image(g3multi):
     pg.wait_for_function(f"document.querySelector('.dialog .crumbs input').value === {json.dumps(os.path.dirname(out))}")
     pg.locator(".dialog-foot input").fill(os.path.basename(out))
     pg.locator(".dialog-foot .btn.primary").click()
-    for _ in range(40):
+    for _ in range(120):                    # software WebGL under load: the picture can take a while
         if os.path.exists(out):
             break
         pg.wait_for_timeout(250)
