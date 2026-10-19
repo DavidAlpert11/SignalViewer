@@ -389,10 +389,15 @@ export default function App() {
     // files opened from a dragged-in COPY cannot follow the original: say so right away
     st0.runs.filter((r) => r.copy).forEach((r) => explainCopy(r.id));
     const reported = new Map<string, string>();
+    let polling = false;               // a poll still running (a big file read again) is not overtaken
     const h = window.setInterval(async () => {
+      if (polling) return;
+      polling = true;
       try {
         const r = await api.poll();
         if (!useApp.getState().streaming) return;
+        // a file still being written (read when it settles) is activity too: live mode is not idle
+        if (r.writing?.length) useApp.setState({ liveLastData: Date.now() });
         if (r.changed.length && r.runs) {
           const st = useApp.getState();
           useApp.setState({ runs: r.runs, dataVersion: st.dataVersion + 1, liveLastData: Date.now() });
@@ -410,7 +415,7 @@ export default function App() {
           st.toast({ kind: "error", text: translate(st.lang, "liveReadError", { name: st.runs.find((x) => x.id === rid)?.name ?? rid, msg }) });
         }
         for (const rid of Array.from(reported.keys())) if (!(r.errors ?? {})[rid]) reported.delete(rid);
-      } catch { /* server busy; next tick */ }
+      } catch { /* server busy; next tick */ } finally { polling = false; }
     }, 1000);
     return () => window.clearInterval(h);
   }, [streaming]);
