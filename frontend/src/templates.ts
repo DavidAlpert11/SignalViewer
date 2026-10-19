@@ -26,8 +26,21 @@ const bare = (n: string) => n.replace(/ \[[^\]]*\]$/, "").replace(/^([^.[]+)\[\d
 /** "@key" -> its translation (built-in templates' texts), anything else as it is. */
 export function tx(s: string | undefined, lang = useApp.getState().lang): string {
   if (!s) return "";
-  return s.startsWith("@") ? translate(lang, s.slice(1) as "tplApAtt") : s;
+  if (s.startsWith("@")) return translate(lang, s.slice(1) as "tplApAtt");
+  // T51: the built-in templates' names and tab names ("ArduPilot · Attitude") in Hebrew, part by part;
+  // a user's own names are not in the table and stay as typed
+  if (lang === "he") return s.split(" · ").map((part) => BUILTIN_HE[part] ?? part).join(" · ");
+  return s;
 }
+
+const BUILTIN_HE: Record<string, string> = {
+  "Quick look": "מבט מהיר", "Compare open files": "השוואת הקבצים הפתוחים", "Position on the map & 3D": "מיקום במפה וב־3D",
+  "Full review": "סקירה מלאה", "Full comparison": "השוואה מלאה", "Attitude": "זוויות", "Rates (PID)": "קצבים (PID)",
+  "Rates": "קצבים", "Vibration": "רעידות", "Battery & power": "סוללה והספק", "Battery": "סוללה", "Motors & RC": "מנועים ו־RC",
+  "Motors": "מנועים", "Altitude": "גובה", "Flight on the map & 3D": "הטיסה במפה וב־3D", "Flight": "טיסה",
+  "Battery & GPS": "סוללה ו־GPS", "Radio link": "קשר רדיו", "Autopilot log vs telemetry": "לוג הטייס מול טלמטריה",
+  "Attitude & altitude": "זוויות וגובה", "Battery, GPS & link": "סוללה, GPS וקשר",
+};
 
 /* --------------------------------------------------------------- capture from the workspace */
 /** A tab's name for a template: its own name; if it never got one, what it shows (the first plot
@@ -246,7 +259,7 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
             color: o.color ?? color(), angleUnit: o.angleUnit as MapObject["angleUnit"], altRef: o.altRef as MapObject["altRef"] })) } : {}),
         };
       });
-      const tab: Tab = { id: uid("t"), name: rt.name, rows: rt.rows, cols: rt.cols, rowSizes: rt.rowSizes ?? undefined,
+      const tab: Tab = { id: uid("t"), name: t.builtin ? tx(rt.name, st.lang) : rt.name /* T51 */, rows: rt.rows, cols: rt.cols, rowSizes: rt.rowSizes ?? undefined,
         colSizes: rt.colSizes ?? undefined, plots, active: 0, linkX: rt.linkX ?? true, linkY: rt.linkY ?? undefined,
         ...(rt.sharedStates?.length ? { sharedStates: rt.sharedStates } : {}) };
       ws.tabs.push(tab);

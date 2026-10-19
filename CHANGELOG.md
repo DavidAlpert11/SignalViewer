@@ -15,6 +15,7 @@
 - **Columns with a time column of their own** (a user's request): in telemetry exports where each value has its own time column - told by the name (*Speed* + *Speed_time*, *ATTITUDE.roll* + *ATTITUDE.time_boot_ms*, or alternating *time, Speed, time, RPM*) - each value is drawn against its own time; no more X-Y plots of value against time. Works for CSV / text and MATLAB files, and for a *.tlog* that is a text table; it can be turned off in *Import options*.
 
 ### Changed
+- In Hebrew, the built-in templates and the tabs they make are named in Hebrew.
 - Clearer controls: the file list's signal menu offers **Add to / Remove from the active plot** (and *Scale, offset or function…* instead of *Change the variable…*); the zoom button always says *Zoom: X* (it was a second bare "X" next to *Link X*); *Clear everything* asks with a red *Clear everything* button; Compare runs shows one number per signal (the match %); Create signals: *This signal / Each of several*; *Templates…* left the tab menus (top bar, file panel and Ctrl+K have it).
 - After a suggested view is opened, the start card keeps the flight log's findings (each a click from its moment) instead of closing.
 
