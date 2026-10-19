@@ -1,13 +1,18 @@
 # Changelog
 
-## 1.7.0 – unreleased
+## 1.7.0 – 2026-10-19
+
+Highlights: **every file has a colour and a short tag** (A, B, C…) - signals of the same name from
+several files are told apart at a glance; **places in the file dialog** (favourite and recent
+folders) and **Ctrl+P** quick open; a **second value axis** for signals in other units; examples
+and template chips open **ready to look at**; telemetry exports where **each value has its own
+time column** are read as such; **live mode** follows a MATLAB file that is saved again and again.
 
 ### Added
 - **Places in the file dialog** (owner's request): a side column with the folders of the open files, **favourite folders** (pin the folder shown with ★ next to the path; × to unpin; drag to reorder; kept between sessions), **recent folders**, and this computer's home, Desktop, Documents, Downloads and drives. One click goes back to a folder you work in.
 - **Ctrl+P – quick open:** type part of a name to open a recent file, or a favourite / recent folder in the file dialog.
 - A folder with nothing to open says so, and how many files of other types it holds.
 - **Every file has a colour and a short tag** (A, B, C…) (owner's request): with several files open the legend shows the tag in the file's colour instead of a long, cut-off file name, and so do the cursor values, the statistics and the signal pickers. The same signal from two files in one plot is coloured by file automatically; *Colour by file* in the plot's ⋯ menu does it for every signal. Click the tag in the file list to change the colour; *File options ▸ Short tag…* to rename it. Compare runs uses the same colours (unchecking a run no longer recolours the others). Saved in sessions.
-
 - **A second value axis:** a signal in other units (speed and battery voltage) can go on the **right axis** with its own scale and unit - right-click its chip ▸ *To the right axis*; when you add a signal in other units than the plot's, a message offers it. Reports and saved images draw both axes.
 
 - **Examples open ready to look at:** a welcome-screen example opens with its view already applied (the car runs and the two flights compared, the drone flight and the ArduPilot log in their views); Undo goes back to an empty plot.
