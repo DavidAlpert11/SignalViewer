@@ -18,7 +18,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
   tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
 - **Active plan: "Review 2026-10-19 (after 1.7.0)" below** (owner approved, ranked by what brings
-  the app into use). Q53 done. Next: Q54 (T53 release assets).
+  the app into use). Q53 done; Q54 written, waits for one CI run (owner: Actions -> build -> Run
+  workflow, check the Windows artifact has the .exe, .zip and .7z). Next: Q55 (T54 open files from outside).
 - Tests at the last change: backend 666 passed, mypy clean (Q53, backend only); whole e2e suite last run at the 1.7.0 release (182 passed).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -787,7 +788,7 @@ what brings the app into use; update this table after every step.
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q53 | F23 Statistics cache returns another signal's numbers | S | ☑ done |
-| Q54 | T53 Release assets: the installer and a zip on GitHub Releases | S | ☐ |
+| Q54 | T53 Release assets: the installer and a zip on GitHub Releases | S | ◐ written; first CI run by the owner |
 | Q55 | T54 Open files from outside: paths on the command line, file associations, one instance | S→M | ☐ |
 | Q24 | T43 Signed installers (owner: certificate) | M | ☐ |
 | Q56 | F24 Linked time plots not lined up (value-axis width; spectrogram range) + Q33 (T14c) | M | ☐ |
@@ -1041,3 +1042,4 @@ overwritten by the next autosave (keep it as `.bak`).
 - 2026-10-19 · 1.7.0 tests: backend 665; e2e file by file all passed (features 110, workflows 28, fresh user 5, globe3d 10, templates 11, the rest) - `test_log_events_on_the_track_and_image` once waited too little for the 3D picture under load (10 s, software WebGL); it waits up to 30 s now (passed alone and with its file).
 - 2026-10-19 · Review after 1.7.0: plan Q53-Q63 (+ Q24, Q31-Q34, rest of Q48) written, ranked; owner approved. Next Q53.
 - 2026-10-19 · Q53 / F23: `compute_signal_stats` (svcore/ops.py) keeps weak references to the arrays with each cached result and uses it only when they are the same objects (an id alone was reused by new arrays: 193 of 200 fresh arrays got old numbers; `/api/stats` with a state filter showed B's mean for D). Cached call still ~0.02 ms (5 M samples: 46 ms first). Test `test_stats_never_reuse_another_arrays_numbers` (fails without the fix). Backend only, no e2e needed.
+- 2026-10-19 · Q54 / T53: build.yml - the Windows job also makes the portable `.zip` (7z -tzip of the assembled folder) and the installer (PyInstaller `SignalViewer.spec` + Inno Setup, `choco install innosetup` when the runner has none, `/DAppVersion`), then installs it silently for the current user into the runner's temp folder, starts it and waits for `/api/runs` (the PyInstaller Windows build had no CI check before); the artifact carries the three Windows files; the release job uploads everything with a "which file?" note (`--notes-file` + `--generate-notes`). README "Download" names the file to take. **Not run here** (no Windows runner in the sandbox; YAML and the shell steps were syntax-checked, the notes rendered): the owner runs the workflow once. Open question for the owner: a 1.7.1 with F23 + these assets, or wait for 1.8.0.

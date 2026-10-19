@@ -1,10 +1,12 @@
-# Builds a portable package (.7z) for Windows, Linux and macOS and runs the tests.
+# Builds the packages for Windows, Linux and macOS and runs the tests.
 #
 #   Run manually:  Actions -> build -> Run workflow   (the files are in the run's Artifacts; the
 #                  version in their names: the one typed there, else the one in build.bat)
-#   Release:       push a tag such as v1.3.0          (also makes a draft Release with the three files)
+#   Release:       push a tag such as v1.3.0          (also makes a draft Release with every file)
 #
-#   Windows: the official embeddable Python + the libraries + the app (tools/make_windows_portable.py)
+#   Windows: the INSTALLER (SignalViewer-Setup-X.Y.Z.exe: PyInstaller folder + Inno Setup - what
+#            most users want, T53), and the portable package (official embeddable Python + the
+#            libraries + the app, tools/make_windows_portable.py) as .zip (opens anywhere) and .7z
 #   Linux / macOS: a PyInstaller folder (SignalViewer.spec) - nothing to install, no Python needed
 name: build
 on:
@@ -47,6 +49,7 @@ jobs:
           [ -n "$V" ] || V="$(sed -n 's/^set VERSION=\([0-9.]*\).*/\1/p' build.bat | head -1)"
           [ -n "$V" ] || V=dev
           echo "PKG=SignalViewer-$V-${{ matrix.name }}-portable" >> "$GITHUB_ENV"
+          echo "VER=$V" >> "$GITHUB_ENV"
 
       - name: Build UI
         working-directory: frontend
@@ -75,6 +78,32 @@ jobs:
           mv dist/SignalViewer-Windows-portable.7z "dist/$PKG.7z"
           echo "APP_CMD=build/winportable/SignalViewer/runtime/python.exe build/winportable/SignalViewer/app/run.py" >> "$GITHUB_ENV"
 
+      - name: Windows portable as .zip (Windows 10 opens .7z only with 7-Zip)
+        if: runner.os == 'Windows'
+        run: (cd build/winportable && 7z a -tzip -mx=7 -bso0 -bsp0 "../../dist/$PKG.zip" SignalViewer)
+
+      - name: Windows installer (PyInstaller folder + Inno Setup)
+        if: runner.os == 'Windows'
+        run: |
+          pip install pyinstaller
+          pyinstaller SignalViewer.spec --noconfirm
+          ISCC="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          [ -f "$ISCC" ] || { choco install innosetup -y --no-progress >/dev/null; }
+          [ -f "$ISCC" ] || { echo "Inno Setup was not found"; exit 1; }
+          "$ISCC" //Q "//DAppVersion=$VER" installer/SignalViewer.iss
+          ls -la "dist/SignalViewer-Setup-$VER.exe"
+
+      - name: Installer smoke test (silent install for this user, starts, answers, stops)
+        if: runner.os == 'Windows'
+        run: |
+          "dist/SignalViewer-Setup-$VER.exe" //VERYSILENT //SUPPRESSMSGBOXES //CURRENTUSER //NORESTART "//DIR=$RUNNER_TEMP\\svinst"
+          "$RUNNER_TEMP/svinst/SignalViewer.exe" --port 8898 --no-open &
+          ok=0
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8898/api/runs >/dev/null && { ok=1; break; }; sleep 1; done
+          taskkill //F //IM SignalViewer.exe >/dev/null 2>&1 || true
+          [ $ok = 1 ] || { echo "The installed app did not start"; exit 1; }
+          echo "The installed app started and answered."
+
       # ---------------------------------------------------------- Linux / macOS
       - name: Linux / macOS build (PyInstaller folder)
         if: runner.os != 'Windows'
@@ -102,12 +131,15 @@ jobs:
           (cd dist && "$Z" a -t7z -mx=9 -m0=lzma2 -mmt=on -snl -bso0 -bsp0 "$PKG.7z" SignalViewer)
 
       - name: Size
-        run: ls -la "dist/$PKG.7z"
+        run: ls -la dist/$PKG.* dist/SignalViewer-Setup-*.exe 2>/dev/null || ls -la "dist/$PKG.7z"
 
       - uses: actions/upload-artifact@v6        # v6: the first on Node 24 (v4 / v5: Node 20, deprecated)
         with:
           name: ${{ env.PKG }}
-          path: dist/${{ env.PKG }}.7z
+          path: |
+            dist/${{ env.PKG }}.7z
+            dist/${{ env.PKG }}.zip
+            dist/SignalViewer-Setup-*.exe
           compression-level: 0          # already compressed
           if-no-files-found: error
 
@@ -120,14 +152,24 @@ jobs:
         with:
           path: out
           merge-multiple: true
-      - name: Draft release with the three packages
+      - name: Draft release with every package
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la out
+          V="${GITHUB_REF_NAME#v}"
+          # which file to take - first thing on the release page (T53)
+          cat > notes.md <<EOF
+          **Which file?**
+          - **Windows:** \`SignalViewer-Setup-$V.exe\` - installs for you only, no administrator rights, nothing else needed.
+          - Windows without installing: \`SignalViewer-$V-Windows-x64-portable.zip\` - extract, double-click *Signal Viewer.bat* (the .7z is the same, smaller; Windows 10 needs 7-Zip for it).
+          - **Linux / macOS:** the \`-portable.7z\` for your system - extract and run \`SignalViewer/SignalViewer\` (macOS: see *Known limitations* in the README the first time).
+
+          Everything runs offline; no Python is needed. Changes: [CHANGELOG](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md).
+          EOF
           if gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" out/*.7z --clobber -R "$GITHUB_REPOSITORY"
+            gh release upload "$GITHUB_REF_NAME" out/* --clobber -R "$GITHUB_REPOSITORY"
           else
-            gh release create "$GITHUB_REF_NAME" out/*.7z --draft --title "Signal Viewer ${GITHUB_REF_NAME#v}" \
-              --generate-notes -R "$GITHUB_REPOSITORY"
+            gh release create "$GITHUB_REF_NAME" out/* --draft --title "Signal Viewer $V" \
+              --notes-file notes.md --generate-notes -R "$GITHUB_REPOSITORY"
           fi
