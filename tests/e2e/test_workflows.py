@@ -356,7 +356,8 @@ def test_file_dialog_range_select_and_own_folders(page, server):
     assert page.locator(".dialog .dialog-body .fs-row.on").count() == 3
     row("run_b.csv").click()
     page.locator(".dialog").first.focus(); page.keyboard.press("Control+a")
-    assert page.locator(".dialog .dialog-body .fs-row.on").count() == 3
+    files = page.evaluate("[...document.querySelectorAll('.dialog .dialog-body .fs-row')].filter((r) => r.querySelector('.size').textContent).length")
+    assert files >= 3 and page.locator(".dialog .dialog-body .fs-row.on").count() == files
     page.keyboard.press("Escape")
     page.wait_for_selector(".scrim", state="detached")
     page.keyboard.press("Control+s")                     # the session picker goes somewhere else
@@ -365,3 +366,15 @@ def test_file_dialog_range_select_and_own_folders(page, server):
     page.wait_for_selector(".scrim", state="detached")
     page.keyboard.press("Control+o")
     page.wait_for_function(f"document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value === {json.dumps(server['data'])}")
+
+
+def test_relisting_the_same_folder_keeps_the_selection(page, server):
+    """The folder shown, listed again (the path typed while it was loading, Enter on it, a refresh),
+    cleared what was picked meanwhile - Open stayed disabled (seen as a flaky e2e after F21)."""
+    page.keyboard.press("Control+o")
+    _goto_folder(page, server["data"])
+    page.locator(".dialog .dialog-body .fs-row", has_text="run_a.csv").first.click()
+    page.press(".crumbs input", "Enter")                      # the same folder again
+    page.wait_for_timeout(500)
+    assert page.locator(".dialog .dialog-body .fs-row.on").count() == 1
+    assert page.locator(".dialog-foot .btn.primary").is_enabled()

@@ -82,14 +82,21 @@ export default function FileBrowser() {
   const userTyped = useRef(false);   // the user typed in the path box: the initial load must not overwrite it
   const dialogRef = useRef<HTMLDivElement>(null);
   const anchor = useRef<string | null>(null);     // F21: where a Shift+click range starts
+  const listed = useRef<string | null>(null);     // the folder listed now
   const go = async (p?: string | null, initial = false) => {
     if (!initial) navigated.current = true;
     const my = ++seq.current;
     try {
       const r = await api.listDir(p, folderMode ? [".\u0000none"] : picker?.exts);   // folder mode: folders only
       if (my !== seq.current || (initial && navigated.current)) return;
-      setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setPicked([]); anchor.current = null; setError("");
-      setSugg([]); setSuggAt(-1); setFilter("");
+      // the folder already shown, listed again (typed while it was loading, Enter on the same path, a
+      // refresh): keep what was picked - a click made meanwhile was lost and Open stayed disabled
+      const same = !!listed.current && listed.current === r.path;
+      listed.current = r.path;
+      setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setError("");
+      setPicked((cur) => (same ? cur.filter((x) => r.entries.some((en) => en.path === x)) : []));
+      if (!same) { anchor.current = null; setFilter(""); }
+      setSugg([]); setSuggAt(-1);
       if (r.path) localStorage.setItem(lastDirKey(picker), r.path);
     } catch (e) { if (my === seq.current) setError((e as Error).message); }
   };
@@ -99,7 +106,7 @@ export default function FileBrowser() {
     // "show import options" is a per-open choice: it must not silently stick to the next open
     if (open) {
       setPath(""); setTyped(""); setEntries([]); setSugg([]); setFilter("");   // not the previous open's folder, even for a moment
-      navigated.current = false; userTyped.current = false; setWithOptions(false); go(startFolder(picker), true); setName(picker?.defaultName ?? "");
+      navigated.current = false; userTyped.current = false; listed.current = null; setWithOptions(false); go(startFolder(picker), true); setName(picker?.defaultName ?? "");
       if (!picker) refreshRecent();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
