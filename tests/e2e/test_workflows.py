@@ -525,3 +525,25 @@ def test_template_chip_opens_at_once_or_asks(page, server):
     _open(page, server["data"], ["run_b.csv"])
     page.locator(".tpl-strip .chipbtn", has_text="Quick look").click()
     page.locator(".dialog", has_text="Templates").wait_for()               # which file? - the library asks
+
+
+def test_columns_with_their_own_time(page, server):
+    """A telemetry export where each value has its own time column (found by name): the value is
+    drawn against its own time, the time columns are not listed as signals, and a note says so."""
+    path = os.path.join(server["data"], "telemetry.csv")
+    with open(path, "w") as f:
+        f.write("Speed_time,Speed,Volt_time,Volt\n")
+        for i in range(40):
+            f.write(f"{i * 0.1},{10 + i}," + (f"{5 + i * 0.5},{16 - i * 0.05}" if i < 8 else ",") + "\n")
+    try:
+        _open(page, server["data"], ["telemetry.csv"])
+        page.locator(".toast", has_text="time column of their own").wait_for()
+        names = page.evaluate("window.__sv.state().runs.filter((r) => r.format !== 'derived')[0].signals.map((s) => s.name)")
+        assert sorted(names) == ["Speed", "Volt"]
+        rid = page.evaluate("window.__sv.state().runs.filter((r) => r.format !== 'derived')[0].id")
+        post = lambda url, body: page.evaluate(f"fetch('{url}', {{ method: 'POST', headers: {{ 'Content-Type': 'application/json' }}, body: JSON.stringify({json.dumps(body)}) }}).then((r) => r.json())")
+        assert post("/api/data", {"signals": [f"{rid}/Volt"]})["series"][0]["total"] == 8          # its own 8 rows
+        v = post("/api/cursor", {"signals": [f"{rid}/Volt"], "t": 5.0})["values"][f"{rid}/Volt"]
+        assert v is not None and abs(v - 16.0) < 1e-6                                               # at its own time 5.0
+    finally:
+        os.remove(path)

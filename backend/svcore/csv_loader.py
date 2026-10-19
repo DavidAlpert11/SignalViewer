@@ -39,6 +39,7 @@ import pandas as pd
 
 from svcore.models import Run, Signal
 from svcore.naming import get_csv_display_name
+from svcore.time_pairs import clean_pair, find_time_pairs
 
 try:  # optional fast parser
     import pyarrow as pa
@@ -101,6 +102,7 @@ class CSVImportSettings:
     delimiter: Optional[str] = None  # None = auto-detect
     time_column: str = "Time"  # Name or index
     encoding: str = DEFAULT_ENCODING
+    time_pairs: bool = True    # columns with a time column of their own (Speed + Speed_time ...) use it
 
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -521,6 +523,7 @@ def load_csv(
         key = _cache_key(filepath, file_size, file_mtime, settings) if use_cache else None
         cached = _cache_load(key) if key is not None else None
 
+        own: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}       # columns with their own time
         if cached is not None:
             time_array = cached["time"]
             signal_arrays = cached["signal_arrays"]
@@ -563,10 +566,33 @@ def load_csv(
                     raise
                 except Exception as e:
                     print(f"[LOAD] Text columns not read ({e})", flush=True)
+            # columns with a time column of their own (by name) are taken out BEFORE the rows
+            # without a main time are dropped: in such files the pairs have different lengths
+            if settings.time_pairs:
+                orig = [columns[time_idx] if n == "Time" else n for n in source_columns]
+                back = dict(zip(orig, source_columns))
+                pairs = {back[v]: back[t] for v, t in find_time_pairs(orig, columns[time_idx]).items()}
+                for v, tn in pairs.items():
+                    tarr = time_array if tn == "Time" else arrays.get(tn)
+                    if tarr is None or v not in arrays:
+                        continue
+                    t, y = clean_pair(tarr, arrays[v])
+                    if len(t) and np.isfinite(y).any():
+                        own[v] = (t, y)
+                for v in own:
+                    arrays.pop(v, None)
+                for tn in {pairs[v] for v in own} - {"Time"}:
+                    arrays.pop(tn, None)
+                if own:
+                    key = None                  # not cached: the cache keeps one time vector
+                    print(f"[LOAD] {len(own)} columns use a time column of their own", flush=True)
             valid = np.isfinite(time_array)
             need_filter = not valid.all()
             load_report: dict = {"droppedRows": int((~valid).sum()), "sorted": False, "skippedColumns": [],
                            "textColumns": sorted(text_labels)}
+            if own:
+                load_report["droppedRows"] = 0  # rows past a shorter time column are not lost: they belong to other pairs
+                load_report["timePairs"] = len(own)
             if text_skipped:
                 load_report["tooManyTexts"] = text_skipped
             if parse_stats.get("damagedText"):
@@ -603,17 +629,28 @@ def load_csv(
                     if reopened is not None:
                         time_array, signal_arrays = reopened["time"], reopened["signal_arrays"]
 
-        if len(time_array) == 0:
+        if len(time_array) == 0 and not own:
             print(f"[ERROR] No valid time data: {filepath}")
             return None
+        if own and (len(time_array) == 0 or not signal_arrays):
+            # every column has its own time: the run's time is the longest one (metadata only)
+            time_array = max((t for t, _y in own.values()), key=len)
 
         run = Run(
             file_path=filepath,
             csv_display_name=get_csv_display_name(filepath, all_paths),
             time=time_array,
         )
-        for name, data in signal_arrays.items():
-            run.signals[name] = Signal(name=name, data=data, labels=text_labels.get(name))
+        for name in source_columns:                   # in the file's order
+            if name in signal_arrays:
+                run.signals[name] = Signal(name=name, data=signal_arrays[name], labels=text_labels.get(name))
+            elif name in own:
+                t, y = own[name]
+                run.signals[name] = Signal(name=name, data=np.asarray(y).astype(SIGNAL_DTYPE, copy=False), time=t,
+                                           labels=text_labels.get(name))
+        for name, data in signal_arrays.items():      # (a cache keeps its own names)
+            if name not in run.signals:
+                run.signals[name] = Signal(name=name, data=data, labels=text_labels.get(name))
 
         run.import_settings = settings.to_dict()
         run.load_report = load_report if cached is None else {"fromCache": True}
@@ -672,6 +709,8 @@ def append_new_rows(run: Run, max_bytes: int = 256 * 1024 * 1024) -> int:
     size, mtime = st.st_size, st.st_mtime
     if size < run.byte_offset or not run.source_columns:
         return -1
+    if any(s.time is not None for s in run.signals.values()):
+        return -1                                     # columns with their own time: read the file again
     prev_size, prev_mtime = getattr(run, "seen_size", None), getattr(run, "seen_mtime", None)
     if size == prev_size and mtime == prev_mtime and size == run.byte_offset:
         return 0                                      # untouched
