@@ -144,6 +144,11 @@ Signal Viewer is a Python computation core and a React/TypeScript UI, in one des
 
 ## Download / build
 
+**Download:** the [latest release](https://github.com/DavidAlpert11/SignalViewer/releases/latest).
+On Windows take **`SignalViewer-Setup-X.Y.Z.exe`** (installs for you only, no administrator rights);
+to run without installing, the **`…-Windows-x64-portable.zip`** (extract, double-click *Signal
+Viewer.bat*). Linux and macOS: the `-portable.7z` for your system.
+
 **Nothing needs the internet at run time.** The installer, the portable folder and the single
 file contain Python, every library, the UI with its fonts, the report assets and the icon.
 Verified by running the built app with no network interface at all.
@@ -164,10 +169,10 @@ updated Windows 10). If it is missing (e.g. an old offline Windows 10 LTSC), the
 browser instead — still with no internet — and stops by itself when no tab has been open for 30 s.
 
 
-**Ready-made portable packages** (`.7z`, no Python and no installation needed) are built by the GitHub
-Actions workflow in `.github/workflows/build.yml` for Windows (x64), Linux (x64) and macOS (Apple silicon):
+**Ready-made packages** (no Python and no installation needed, except the Windows installer itself) are built by the GitHub
+Actions workflow in `.github/workflows/build.yml` for Windows (x64: the installer, a portable `.zip` and `.7z`), Linux (x64) and macOS (Apple silicon):
 run it manually (*Actions → build → Run workflow*) and download them from the run's artifacts, or push a
-tag such as `v1.0.0` to also get a draft Release with the three files. Windows: the embeddable-Python
+tag such as `v1.0.0` to also get a draft Release with every file and a "which file?" note. Windows: the embeddable-Python
 package described above; Linux / macOS: the PyInstaller folder (`SignalViewer.spec`) - extract it and run
 `SignalViewer/SignalViewer`.
 
