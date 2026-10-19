@@ -557,7 +557,7 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .pill.on { border-color: var(--ink-strong); color: var(--ink-strong); background: var(--panel-2); }
 .sim-filter { margin: 0 0 6px; }
 .sim-list { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; }
-.sim-row { display: grid; grid-template-columns: 1fr 64px auto; grid-template-areas: "name name pct" "bar spark err"; align-items: center; column-gap: 8px; row-gap: 4px; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: none; cursor: pointer; text-align: start; color: var(--ink); }
+.sim-row { display: grid; grid-template-columns: 1fr 64px auto; grid-template-areas: "name name pct" "bar spark spark";   /* T49: no "err %" - it is 100 - match % (in the tooltip) */ align-items: center; column-gap: 8px; row-gap: 4px; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: none; cursor: pointer; text-align: start; color: var(--ink); }
 .sim-row:hover { background: var(--panel-2); }
 .sim-row.on { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--ink-strong); }
 [dir="rtl"] .sim-row.on { box-shadow: inset -2px 0 0 var(--ink-strong); }
@@ -855,6 +855,7 @@ input.fx-input { width: 100%; }
 .tpl-tabs .hint { margin-inline-start: auto; }
 .tpl-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 .btn.danger { color: #e5534b; }
+.btn.primary.danger { background: #d1453b; border-color: #d1453b; color: #fff; }
 .fmt-chips { display: flex; gap: 3px; }
 .fmt-chips .chipbtn { height: 22px; padding: 0 6px; font-size: 0.7692rem; }
 .tpl-edit-tab { display: flex; gap: 6px; align-items: center; padding: 3px 0; }

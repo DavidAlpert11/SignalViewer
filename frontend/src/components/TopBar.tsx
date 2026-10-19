@@ -71,7 +71,6 @@ export default function TopBar() {
                 { label: t("renameTab"), run: () => setEditing(tab.id) },
                 { label: t("duplicateTab"), run: () => actions.duplicateTab(tab.id) },
                 { label: t("saveTemplate") + "…", run: () => { actions.switchTab(tab.id); useApp.setState({ templatesOpen: true, templatesNew: "tab" }); } },
-                { label: t("templates") + "…", run: () => useApp.setState({ templatesOpen: true }) },
                 { label: "", run: () => {}, sep: true },
                 { label: t("closeTab"), run: () => actions.closeTab(tab.id) },
                 { label: t("closeOthers"), run: () => actions.closeOtherTabs(tab.id), disabled: ws.tabs.length < 2 },
@@ -102,7 +101,7 @@ export default function TopBar() {
           </button>
         )}
         <button className="iconbtn" onClick={actions.addTab} title={t("addTab")} aria-label={t("addTab")}
-          onContextMenu={(e) => openMenu(e, [{ label: t("addTab"), run: actions.addTab }, { label: t("templates") + "…", run: () => useApp.setState({ templatesOpen: true }) }])}><Icon.Plus /></button>
+          onContextMenu={(e) => openMenu(e, [{ label: t("addTab"), run: actions.addTab }])}><Icon.Plus /></button>
       </nav>
       <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")}
         onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect();

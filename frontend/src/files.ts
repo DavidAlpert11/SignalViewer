@@ -347,7 +347,7 @@ export async function openSession() {
 export async function clearEverything() {
   const st = useApp.getState();
   const { confirmAsk } = await import("./components/Overlays");
-  if (!(await confirmAsk(translate(st.lang, "clearEverything"), translate(st.lang, "clearEverythingAsk")))) return;
+  if (!(await confirmAsk(translate(st.lang, "clearEverything"), translate(st.lang, "clearEverythingAsk"), translate(st.lang, "clearEverything"), true))) return;
   for (const r of st.runs) {
     if (r.format === "derived") { for (const s of r.signals) await api.deleteDerived(s.name).catch(() => {}); }
     else await api.remove(r.id).catch(() => {});

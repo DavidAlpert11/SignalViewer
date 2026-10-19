@@ -298,7 +298,7 @@ export default function AnalysisPanel() {
               <p className="hint" style={{ fontSize: "0.846rem", margin: "4px 0 0" }}>{output === "edit" ? t("resultEditHint") : t("resultNewHint")}</p>
             </div>
             <div className="seg wide small" role="group">
-              <button className={!batch ? "on" : ""} onClick={() => setBatch(false)}>{t("oneSignalOpt")}</button>
+              <button className={!batch ? "on" : ""} onClick={() => setBatch(false)}>{t("applyToThis")}</button>
               <button className={batch ? "on" : ""} onClick={() => setBatch(true)}>{t("eachOfSeveral")}</button>
             </div>
             {!batch && sigSelect(a, setA, t("signal"))}
