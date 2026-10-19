@@ -19,6 +19,8 @@ export interface RunInfo {
   name: string;
   path: string;
   format: "csv" | "mat" | "bin" | "tlog" | "ulg" | "mcap" | "hdf5" | "parquet" | "derived";
+  tag?: string;                          // T46: the file's short tag (A, B... or the user's); not for derived
+  color?: string;                        // T46: the file's colour
   /** Only for files that carry a flight log's parameters / events (ArduPilot .bin). */
   log?: { params: number; events: number; errors: number; warnings: number };
   samples: number;
@@ -180,7 +182,7 @@ export const api = {
   },
   preview: (path: string, settings?: Record<string, unknown>) => call<any>("/api/files/preview", { path, settings }),
   remove: (id: string) => call<{ ok: boolean }>(`/api/runs/${id}`, undefined, "DELETE"),
-  patchRun: (id: string, patch: { name?: string; timeOffset?: number; description?: string }) => call<RunInfo>(`/api/runs/${id}`, patch, "PATCH"),
+  patchRun: (id: string, patch: { name?: string; timeOffset?: number; description?: string; tag?: string; color?: string }) => call<RunInfo>(`/api/runs/${id}`, patch, "PATCH"),
   replace: (id: string, path: string) => call<RunInfo>(`/api/runs/${id}/replace`, { path }),
   previewDerived: async (op: string, sources: string[], params: Record<string, unknown>, x0: number | null, x1: number | null) => {
     const r = await call<{ n: number; x: string; y: string }>("/api/derived/preview", { op, sources, params, x0, x1 });

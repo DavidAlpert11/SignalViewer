@@ -4,7 +4,7 @@ import { groupByPrefix, groupDerived, memberLabel } from "../signalGroups";
 import { unitOf } from "../units";
 import { sparkPath, useSpark } from "../sparks";
 import type { RunInfo, SignalInfo } from "../api";
-import { actions, activeTab, fileLabel, useApp } from "../store";
+import { showFileTags, actions, activeTab, fileLabel, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "../files";
@@ -60,6 +60,10 @@ export default function DataPanel() {
     if (run.format === "derived") return;
     openMenu(e, [
       { label: t("rename"), run: () => setRenaming(run.id) },
+      { label: t("fileTag") + "…", run: async () => {      // T46
+        const v = await prompt(t("fileTag"), `${run.name} - ${t("fileTagLimit")}`, run.tag ?? "");
+        if (v !== null && v.trim()) { await api.patchRun(run.id, { tag: v.trim() }); refresh(); }
+      } },
       { label: t("fileDescription") + "…", run: async () => {
         const v = await prompt(t("fileDescription"), run.name, run.description ?? "", true);
         if (v !== null) { await api.patchRun(run.id, { description: v }); refresh(); }
@@ -186,6 +190,15 @@ export default function DataPanel() {
           onContextMenu={(e) => fileMenu(e, run)}
           title={run.format === "derived" ? "" : `${run.path}\n${fmtInt(run.samples, lang)} · ${fmtNum(run.start, lang)} – ${fmtNum(run.end, lang)}${run.description ? "\n\n" + run.description : ""}`}>
           <Icon.Chevron className="chev" />
+          {run.format !== "derived" && run.color && (
+            // T46: the file's colour (with several files: its tag in that colour) - click to change the colour
+            <label className={showFileTags(runs) && run.tag ? "file-tag run-tagpick" : "run-swatch"} style={{ ["--tag" as string]: run.color }}
+              title={`${showFileTags(runs) ? t("fileTagHint") + "\n" : ""}${t("fileColor")}`} onClick={(e) => e.stopPropagation()}>
+              {showFileTags(runs) && run.tag}
+              <input type="color" value={run.color} aria-label={`${t("fileColor")}: ${run.name}`}
+                onChange={async (e) => { await api.patchRun(run.id, { color: e.target.value }); refresh(); }} />
+            </label>
+          )}
           {renameRun === run.id ? (
             <input autoFocus defaultValue={run.name} className="run-name" onClick={(e) => e.stopPropagation()}
               onBlur={async (e) => {

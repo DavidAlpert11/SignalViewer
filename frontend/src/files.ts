@@ -246,7 +246,7 @@ export function currentState() {
     ws: st.ws,
     derived: (drv?.signals ?? []).map((s) => ({ name: s.name, op: s.op, sources: s.sources, params: s.params })),
     runs: st.runs.filter((r) => r.format !== "derived").map((r) => ({
-      id: r.id, path: r.path, name: r.name, importSettings: r.importSettings, timeOffset: r.timeOffset,
+      id: r.id, path: r.path, name: r.name, importSettings: r.importSettings, timeOffset: r.timeOffset, tag: r.tag, color: r.color,
     })),
     ui: { theme: st.theme, lang: st.lang, uiScale: st.uiScale, linkRuns: st.linkRuns, zoomMode: st.zoomMode,
       liveAutoStop: st.liveAutoStop, liveNewFiles: st.liveNewFiles, geoBase: st.geoBase,

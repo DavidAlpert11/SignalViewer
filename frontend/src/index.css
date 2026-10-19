@@ -1164,3 +1164,9 @@ input.fx-input { width: 100%; }
 .fleet-trend circle { fill: var(--ink); cursor: pointer; }
 .fleet-trend circle.over { fill: var(--danger); }
 .fleet-limitline { stroke: var(--amber); stroke-dasharray: 4 3; }
+/* T46: a file's tag - in the legend chips, the file list and pickers */
+.file-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 4px;
+  font-size: 0.731rem; font-weight: 700; line-height: 1; color: #fff; background: var(--tag, var(--muted)); flex: none; letter-spacing: 0; direction: ltr; }
+.run-swatch { position: relative; width: 12px; height: 12px; border-radius: 3px; flex: none; cursor: pointer; background: var(--tag, var(--muted)); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.run-tagpick { position: relative; cursor: pointer; }
+.run-tagpick input, .run-swatch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; padding: 0; }

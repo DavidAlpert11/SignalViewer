@@ -71,6 +71,22 @@ TIME_SLACK = 2.0   # seconds: see new_files()
 UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 
 
+# T46: file colours - the same palette as the traces (frontend TRACE_COLORS), in the same order
+FILE_COLORS = ["#3D8BFD", "#2FBF9F", "#E5677A", "#9B7BFF", "#7CC35A", "#F07B3F", "#4FC3E8", "#D08CE8", "#B8A33A", "#FF8FB1"]
+MAX_TAG = 4
+
+
+def _tags():
+    """A, B, ... Z, AA, AB, ... - as many as needed."""
+    letters = [chr(c) for c in range(ord("A"), ord("Z") + 1)]
+    yield from letters
+    n = 0
+    while True:
+        a, b = divmod(n, 26)
+        yield letters[a % 26] + letters[b]
+        n += 1
+
+
 @dataclass
 class LoadedRun:
     id: str
@@ -251,6 +267,9 @@ class Store:
         self.transforms: Dict[str, dict] = {}
         self._tcache: "OrderedDict[tuple, tuple]" = OrderedDict()
         self._discrete: Dict[str, bool] = {}
+        # T46: every open data file has a colour and a short tag (A, B, C...) - kept by id, so a
+        # reload / replace / live update keeps them; given when a file is first described
+        self.marks: Dict[str, Dict[str, str]] = {}
 
     # ------------------------------------------------------------------ files
     def open_file(self, path: str, settings: Optional[dict] = None) -> LoadedRun:
@@ -342,8 +361,33 @@ class Store:
             self.order.append(lr.id)
             return lr, True
 
+    def mark(self, run_id: str) -> Dict[str, str]:
+        """The file's colour and tag: the first free tag (A..Z, then AA...) and the least used
+        colour of the open files."""
+        with self._lock:
+            m = self.marks.get(run_id)
+            if m is None:
+                live = [self.marks[i] for i in self.order if i in self.marks and i in self.runs]
+                tags = {x["tag"] for x in live}
+                tag = next(t for t in _tags() if t not in tags)
+                used = {c: sum(1 for x in live if x["color"].upper() == c) for c in FILE_COLORS}
+                color = min(FILE_COLORS, key=lambda c: (used[c], FILE_COLORS.index(c)))
+                m = self.marks[run_id] = {"tag": tag, "color": color}
+            return m
+
+    def set_mark(self, run_id: str, tag: Optional[str] = None, color: Optional[str] = None) -> None:
+        m = dict(self.mark(run_id))
+        if tag is not None:
+            tag = " ".join(tag.split())[:MAX_TAG]
+            if tag:
+                m["tag"] = tag
+        if color is not None and re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            m["color"] = color.upper()
+        self.marks[run_id] = m
+
     def remove(self, run_id: str):
         with self._lock:
+            self.marks.pop(run_id, None)
             self.runs.pop(run_id, None)
             if run_id in self.order:
                 self.order.remove(run_id)
@@ -680,6 +724,7 @@ class Store:
             "start": float(r.start_time) + float(r.time_offset or 0),
             "end": float(r.end_time) + float(r.time_offset or 0),
             "timeOffset": float(r.time_offset or 0),
+            **self.mark(lr.id),                                  # T46: "tag", "color"
             "importSettings": {k: v for k, v in (r.import_settings or {}).items()},
             # discrete detection reads every column: for wide files it is done on demand instead
             "signals": [{"id": f"{lr.id}/{n}", "name": n, **_rate_of(sg, r),

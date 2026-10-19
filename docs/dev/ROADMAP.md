@@ -576,7 +576,14 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
   how many other files it holds. Ctrl+P = quick open in the palette (`paletteMode: "open"`):
   favourites, recent files, recent folders; a folder opens the dialog there (`browserStart`).
   Tests: `test_places.py`; e2e `test_file_dialog_places`, `test_file_dialog_recent_folders_and_empty_folder`, `test_quick_open`.
-- [ ] T46 File identity: colour + short tag per file, colour by file. Spec: TASKS.md Q45.
+- [x] T46 File identity: colour + short tag per file, colour by file. Spec: TASKS.md Q45.
+  Done 2026-10-19: `store.py` `Store.mark / set_mark` (tag A.., colour from FILE_COLORS, by id),
+  in `describe`, `PATCH /api/runs/{id}` (tag, color), saved / restored with sessions; UI: tag in the
+  file colour on the file header (click: colour picker; File options > Short tag…), on legend
+  chips instead of the file name (tooltip: name + path), in the Inspector and the signal pickers;
+  same-name signals from several files in a plot are coloured by file (`colorByFile`, shades),
+  Plot ⋯ > Colour by file; Compare runs / Compare open files use the file colour. Left for later:
+  map / 3D track colours and the report legend.
 - [ ] T47 Second value axis for different units. Spec: TASKS.md Q46.
 - [ ] T48 First impression: examples open ready, one-click template chips. Spec: TASKS.md Q47.
 - [ ] T49 Duplicate and unclear controls (13 items). Spec: TASKS.md Q48.

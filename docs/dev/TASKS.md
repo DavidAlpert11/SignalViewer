@@ -18,7 +18,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   README pictures were not retaken: nothing they show changed (checked 03_compare_runs).
 - **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
   features. P1 (bugs F13-F22) done and released as 1.6.1; P2 (T24 extended, T46-T52) joins
-  Q30-Q34 in 1.7.0. Q30 / Q30+ done (1.7.0 unreleased). Next: Q45 (T46 file colour + tag).
+  Q30-Q34 in 1.7.0. Q30 / Q30+ and Q45 done (1.7.0 unreleased). Next: Q46 (T47 second value axis).
 - Tests at the last change: backend 650 passed; whole e2e suite file by file, all passed (review P1, 2026-10-18).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -517,7 +517,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | Q52 | F22 Many tabs: the hidden tabs cannot be reached (owner) | S | ☑ done |
 | **P2** | **Usability (1.7.0, with Q30-Q34)** | | |
 | Q30+ | T24 (extended) Places in the file dialog: recent folders, favourites, folders of open files | S→M | ☑ done |
-| Q45 | T46 File identity: every file has a colour + short tag, used everywhere | M | ☐ |
+| Q45 | T46 File identity: every file has a colour + short tag, used everywhere | M | ☑ done |
 | Q46 | T47 Signals with different units in one plot: a second value axis | M | ☐ |
 | Q47 | T48 First impression: examples open ready, one-click template chips | S | ☐ |
 | Q48 | T49 Duplicate and unclear controls (list below) | M | ☐ |
@@ -937,3 +937,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-19 · 1.6.1 release patch: versions (build.bat, version.py, .iss, version_info.txt), CHANGELOG dated with highlights, README review (test counts 650 / 168, Files / Plots / Similarity rows, keyboard Ctrl+PageUp/PageDown, a browser limitation for those keys, Hebrew "חדש ב־1.6.1", installer name), dist rebuilt · next: owner tags v1.6.1; then Q30+.
 - 2026-10-19 · Q30 + Q30+ / T24: places column in the file dialog (open files' folders, favourites - pin with ★, unpin, drag to reorder, kept in settings.json -, recent folders, this computer: home / desktop / documents / downloads incl. OneDrive and Hebrew names, drives / volumes), the message for a folder with nothing to open (+ how many other files), Ctrl+P quick open (favourites, recent files, recent folders). Backend `/api/fs/places`, `PUT /api/fs/favourites`, `hidden` in `/api/fs/list`; tests `test_places.py` (4) and e2e `test_file_dialog_places`, `..._recent_folders_and_empty_folder`, `test_quick_open` · next: Q45 (T46).
 - 2026-10-19 · Flaky `test_create_signal_submenu_from_the_file_list` (failed in 2 of 4 whole runs): the hover that comes with a click opened the submenu and the click's toggle closed it; a click now only opens (`Overlays.tsx`). Repeated 3x alone + whole test_features 110 passed. Whole e2e suite file by file at this commit: all passed (workflows 20) · backend 654 · next: Q45 (T46).
+- 2026-10-19 · Q45 / T46 file identity: backend gives every open data file a tag (first free A..Z, AA...) and a colour (least used of FILE_COLORS = the trace palette) - `Store.marks` by id, so reload / replace / live keep them; in `describe`, `PATCH /api/runs/{id}` tag (4 chars) / colour (#RRGGBB), sessions save and restore them. UI: file list header shows the tag in the file's colour (one file: a swatch) - click = colour picker; File options > Short tag…; legend chips show the tag instead of " · file.csv" when 2+ files, tooltip = full name + path; Inspector cursor / statistics rows and the Create signals pickers show the tag; a signal joining the same name from another file colours that group by file (shades for several names of a file); Plot ⋯ > Colour by file; Compare runs and Compare open files use the file colour (Compare no longer recolours when a run is unchecked). Tests `test_file_marks.py` (2), e2e `test_each_file_has_a_colour_and_a_tag`, `test_compare_keeps_file_colours`. Not done (left for later): map / 3D tracks and the report legend still use their own colours / the file name; the plot colour mode is an action, not a stored setting · backend 656 · next: Q46 (T47).

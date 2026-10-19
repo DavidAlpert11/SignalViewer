@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { plotHasContent, actions, pickPath, signalName, useApp, type Plot, type PlotMode, type Tab } from "../store";
+import { plotHasContent, actions, fileMark, pickPath, showFileTags, signalName, useApp, type Plot, type PlotMode, type Tab } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
 import { exportRange, plotSpec } from "../plotSpec";
@@ -260,6 +260,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           {plot.signals.map((s) => {
             const inMulti = multi.some((m) => m.plotId === plot.id && m.sig === s.sig);
             const sel = (selected?.plotId === plot.id && selected.sig === s.sig) || inMulti;
+            const tagged = showFileTags(runs);
             const raw = cvals[s.sig]?.[0];
             let val: string | null = null;
             const unit = unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1));
@@ -273,9 +274,13 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               const hvv = hover.vals[s.sig] as number;     // already scaled
               val = (plain && labelText(labels, hvv)) || withUnit(fmtNum(hvv, lang), unit); hv = true;
             }
+            // T46: with several files the chip shows the file's tag (in its colour) instead of the
+            // long " · file.csv" - the part that told files apart was cut off; the tooltip has it all
+            const mark = tagged ? fileMark(runs, s.sig) : null;
+            const run = runs.find((r) => r.id === s.sig.split("/")[0]);
             return (
               <span key={s.sig} className={`chip${sel ? " sel" : ""}`} role="button" tabIndex={0} draggable
-                title={t("chipHint")}
+                title={`${s.label || signalName(runs, s.sig)}${run && run.format !== "derived" && run.path ? `\n${run.path}` : ""}\n\n${t("chipHint")}`}
                 onDragStart={(e) => { e.dataTransfer.setData(CHIP_MIME, JSON.stringify({ plotId: plot.id, sig: s.sig })); e.dataTransfer.effectAllowed = "copyMove"; }}
                 onDragOver={(e) => { if (e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); } }}
                 onDrop={(e) => onDrop(e, "y", s.sig)}
@@ -292,7 +297,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                 }}
                 onKeyDown={(e) => { if (e.key === "Delete") actions.removeSignal(plot.id, s.sig); }}>
                 <span className="sw" style={{ background: s.color }} />
-                <span className="nm">{s.label || signalName(runs, s.sig)}</span>
+                {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
+                <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
                 {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
                 {val && <span className={`val${hv ? " hov" : ""}`} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
                 <span className="rm" role="button" aria-label={t("remove")}
@@ -311,6 +317,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             <button role="menuitem" disabled={!plot.signals.length} onClick={copyImage}><Icon.Copy />{t("copyImage")}</button>
             <div className="menu-sep" />
             <button role="menuitem" onClick={() => { setMenu(false); useApp.setState({ axisDialog: plot.id }); }}><Icon.Layout />{t("axisLimits")}{(plot.xlim || plot.ylim) ? " •" : ""}</button>
+            {showFileTags(runs) && <button role="menuitem" disabled={!plot.signals.some((s) => fileMark(runs, s.sig))}
+              onClick={() => { setMenu(false); actions.colorPlotByFile(plot.id); }}><Icon.File />{t("colorByFile")}</button>}
             <button role="menuitem" disabled={!plotHasContent(plot) && !plot.xSignal} onClick={() => { setMenu(false); actions.clearPlot(plot.id); }}><Icon.Trash />{t("clearPlot")}</button>
             {mode === "3d" && <button role="menuitem" onClick={() => { setMenu(false); actions.remove3d(plot.id); }}><Icon.Trash />{t("g3Remove")}</button>}
           </div>

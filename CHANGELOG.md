@@ -6,6 +6,7 @@
 - **Places in the file dialog** (owner's request): a side column with the folders of the open files, **favourite folders** (pin the folder shown with ★ next to the path; × to unpin; drag to reorder; kept between sessions), **recent folders**, and this computer's home, Desktop, Documents, Downloads and drives. One click goes back to a folder you work in.
 - **Ctrl+P – quick open:** type part of a name to open a recent file, or a favourite / recent folder in the file dialog.
 - A folder with nothing to open says so, and how many files of other types it holds.
+- **Every file has a colour and a short tag** (A, B, C…) (owner's request): with several files open the legend shows the tag in the file's colour instead of a long, cut-off file name, and so do the cursor values, the statistics and the signal pickers. The same signal from two files in one plot is coloured by file automatically; *Colour by file* in the plot's ⋯ menu does it for every signal. Click the tag in the file list to change the colour; *File options ▸ Short tag…* to rename it. Compare runs uses the same colours (unchecking a run no longer recolours the others). Saved in sessions.
 
 ### Fixed
 - A click on **Create signal ▸** sometimes opened and closed its submenu at once.

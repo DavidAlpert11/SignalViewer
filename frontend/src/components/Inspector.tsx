@@ -1,6 +1,7 @@
+import type { RunInfo } from "../api";
 import { useEffect, useState } from "react";
 import { api, type LimitResult, type Stats } from "../api";
-import { actions, activeTab, rangeKey, signalName, TRACE_COLORS, useApp, type PlotSignal } from "../store";
+import { fileMark, showFileTags, actions, activeTab, rangeKey, signalName, TRACE_COLORS, useApp, type PlotSignal } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { Icon } from "../icons";
@@ -267,7 +268,7 @@ export default function Inspector() {
                     const v1 = a === null ? null : a * s.scale + s.offset;
                     const v2 = b === null ? null : b * s.scale + s.offset;
                     const labels = labelsOf(runs, s.sig);
-                    const name = <td title={signalName(runs, s.sig) + (unitOf(signalName(runs, s.sig, false)) ? ` [${unitOf(signalName(runs, s.sig, false))}]` : "")}><span className="sw" style={{ background: s.color }} />{s.label || signalName(runs, s.sig, false)}</td>;
+                    const name = <td title={signalName(runs, s.sig) + (unitOf(signalName(runs, s.sig, false)) ? ` [${unitOf(signalName(runs, s.sig, false))}]` : "")}><span className="sw" style={{ background: s.color }} /><FileTag runs={runs} sig={s.sig} />{s.label || signalName(runs, s.sig, false)}</td>;
                     if (labels) {        // text values: the text at each cursor; a difference means nothing here
                       const l1 = labelText(labels, a) ?? fmtNum(a, lang), l2 = labelText(labels, b) ?? fmtNum(b, lang);
                       return (
@@ -324,7 +325,7 @@ export default function Inspector() {
                 tr(st?.mean), st ? st.rms * Math.abs(s.scale) : null];
               return (
                 <tbody key={s.sig} title={st ? `${t("std")}: ${fmtNum(st.std * Math.abs(s.scale), lang)} · ${t("p2p")}: ${fmtNum(st.peak_to_peak * Math.abs(s.scale), lang)} · ${t("count")}: ${fmtInt(st.samples, lang)}` : ""}>
-                  <tr className="name-row"><td colSpan={4}><span className="sw" style={{ background: s.color }} />{s.label || signalName(runs, s.sig, false)}</td></tr>
+                  <tr className="name-row"><td colSpan={4}><span className="sw" style={{ background: s.color }} /><FileTag runs={runs} sig={s.sig} />{s.label || signalName(runs, s.sig, false)}</td></tr>
                   {labelsOf(runs, s.sig)
                     ? <tr><td colSpan={4} className="hint">{t("textStatsNote", { n: Object.keys(labelsOf(runs, s.sig)!).length })}</td></tr>
                     : <tr>{vals.map((v, i) => <td key={i} title={fmtNum(v ?? null, lang, 10)}>{!st && statsLoading ? "…" : fmtNum(v ?? null, lang, 4)}</td>)}</tr>}
@@ -421,4 +422,10 @@ export default function Inspector() {
       </div>
     </aside>
   );
+}
+
+/** T46: the file's tag before a signal name when several files are open. */
+function FileTag({ runs, sig }: { runs: RunInfo[]; sig: string }) {
+  const m = showFileTags(runs) ? fileMark(runs, sig) : null;
+  return m ? <span className="file-tag" style={{ ["--tag" as string]: m.color, marginInlineEnd: 4 }}>{m.tag}</span> : null;
 }
