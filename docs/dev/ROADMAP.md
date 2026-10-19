@@ -599,7 +599,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T52 e2e "fresh user" with an empty profile. Spec: TASKS.md Q51. Done 2026-10-19: `tests/e2e/test_fresh_user.py`.
 
 ## Milestone 8 — 1.8.0: toward wide use (review 2026-10-19). Spec: TASKS.md Q53-Q63
-- [ ] F23 Statistics cache returns another signal's numbers (Q53).
+- [x] F23 Statistics cache returns another signal's numbers (Q53). Done 2026-10-19: weak references to the arrays in each cache entry.
 - [ ] T53 Release assets: installer + zip on GitHub Releases (Q54).
 - [ ] T54 Open files from outside: command line, file associations, one instance (Q55).
 - [ ] F24 Linked time plots not lined up; spectrogram range (Q56, with T14c).

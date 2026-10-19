@@ -7,7 +7,8 @@ moving average and integral.
 them; the operations are in svcore/analysis.py and svcore/formula.py.)
 """
 
-from typing import Dict, Optional, Tuple
+import weakref
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
@@ -162,8 +163,19 @@ def apply_filter(time: np.ndarray, data: np.ndarray, filter_type: str, cutoff: f
 # SIGNAL STATISTICS
 # =============================================================================
 
-_STATS_CACHE: Dict[tuple, Dict[str, float]] = {}
+# Results per (time array, data array, range). The key holds the arrays' ids, and the entry holds
+# weak references to the arrays themselves: CPython gives a new array the address of one just freed,
+# so an id alone would hand a fresh array (a filtered or scaled copy, a reloaded file) the numbers of
+# an old one (F23). A weak reference does not keep a big temporary alive; a dead one is a miss.
+_STATS_CACHE: Dict[tuple, Tuple[Any, Any, Dict[str, float]]] = {}
 _STATS_CACHE_MAX = 256
+
+
+def _weak(a):
+    try:
+        return weakref.ref(a)
+    except TypeError:            # not weak-referenceable (a list...): never matched again
+        return lambda: None
 
 
 def compute_signal_stats(
@@ -183,8 +195,8 @@ def compute_signal_stats(
         return {}
     key = (id(time), id(data), len(data), t_start, t_end)
     hit = _STATS_CACHE.get(key)
-    if hit is not None:
-        return hit
+    if hit is not None and hit[0]() is time and hit[1]() is data:
+        return hit[2]
 
     i0, i1 = 0, len(time)
     if t_start is not None:
@@ -213,7 +225,8 @@ def compute_signal_stats(
     }
     if len(_STATS_CACHE) >= _STATS_CACHE_MAX:
         _STATS_CACHE.pop(next(iter(_STATS_CACHE)))
-    _STATS_CACHE[key] = result
+    _STATS_CACHE.pop(key, None)
+    _STATS_CACHE[key] = (_weak(time), _weak(data), result)
     return result
 
 
