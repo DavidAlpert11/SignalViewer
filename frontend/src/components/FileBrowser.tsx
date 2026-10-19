@@ -88,6 +88,7 @@ export default function FileBrowser() {
   const dialogRef = useRef<HTMLDivElement>(null);
   const anchor = useRef<string | null>(null);     // F21: where a Shift+click range starts
   const listed = useRef<string | null>(null);     // the folder listed now
+  const edited = useRef(false);                   // the path box was typed in since the last listing
   const go = async (p?: string | null, initial = false) => {
     if (!initial) navigated.current = true;
     const my = ++seq.current;
@@ -98,6 +99,7 @@ export default function FileBrowser() {
       // refresh): keep what was picked - a click made meanwhile was lost and Open stayed disabled
       const same = !!listed.current && listed.current === r.path;
       listed.current = r.path;
+      edited.current = false;
       setPath(r.path); if (!(initial && userTyped.current)) setTyped(r.path); setParent(r.parent); setEntries(r.entries); setError(""); setHidden(r.hidden ?? 0);
       setPicked((cur) => (same ? cur.filter((x) => r.entries.some((en) => en.path === x)) : []));
       if (!same) { anchor.current = null; setFilter(""); }
@@ -177,7 +179,7 @@ export default function FileBrowser() {
    *  opened at once when opening, put in the name box when saving. */
   const choose = async (it: { path: string; dir: boolean; name: string }) => {
     setSugg([]); setSuggAt(-1);
-    if (it.dir) { await go(it.path); setTyped(it.path); return; }   // ends with a separator: keep typing inside
+    if (it.dir) { await go(it.path); setTyped(it.path); edited.current = true; return; }   // keep completing inside
     await go(dirOf(it.path));
     if (saving) { setName(it.name); return; }
     if (picker) close(it.path); else confirm([it.path]);
@@ -193,7 +195,9 @@ export default function FileBrowser() {
     const n = sugg.length;
     if (e.key === "ArrowDown" && n) { e.preventDefault(); setSuggAt((i) => (i + 1) % n); }
     else if (e.key === "ArrowUp" && n) { e.preventDefault(); setSuggAt((i) => (i <= 0 ? n - 1 : i - 1)); }
-    else if (e.key === "Tab" && !e.shiftKey && typed) { e.preventDefault(); tabComplete(); }
+    // Tab completes only what was typed: in a path left as it is (just navigated), Tab moves on to the
+    // next control - a keyboard user could not leave the path box (each Tab completed again)
+    else if (e.key === "Tab" && !e.shiftKey && typed && edited.current) { e.preventDefault(); tabComplete(); }
     else if (e.key === "Escape" && n) { e.stopPropagation(); setSugg([]); }     // first Esc: only the list
     else if (e.key === "Enter") {
       if (suggAt >= 0 && sugg[suggAt]) choose(sugg[suggAt]);
@@ -300,7 +304,7 @@ export default function FileBrowser() {
           <button className={`iconbtn fs-pin${pinned ? " on" : ""}`} disabled={!path} onClick={togglePin} aria-pressed={pinned}
             title={pinned ? t("unpinFolder") : t("pinFolder")} aria-label={pinned ? t("unpinFolder") : t("pinFolder")}><Icon.Star /></button>
           <span className="fs-path">
-            <input value={typed} onChange={(e) => { userTyped.current = true; setTyped(e.target.value); }} onKeyDown={pathKey} aria-label={t("folder")}
+            <input value={typed} onChange={(e) => { userTyped.current = true; edited.current = true; setTyped(e.target.value); }} onKeyDown={pathKey} aria-label={t("folder")}
               title={t("pathHint")} spellCheck={false} autoComplete="off" role="combobox" aria-expanded={sugg.length > 0}
               aria-controls="fs-complete" aria-activedescendant={suggAt >= 0 ? `fs-sugg-${suggAt}` : undefined}
               onBlur={() => window.setTimeout(() => setSugg([]), 150)} />
