@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8.0 – unreleased
+
+### Fixed
+- **Statistics could show another signal's numbers.** With *only while* a state has a value, two signals of one file could show the same min / max / mean (one signal's numbers under the other's name); a report with scaled signals and a file reloaded with the same length could do the same. The statistics are now always computed from the signal they are shown for.
+
 ## 1.7.0 – 2026-10-19
 
 Highlights: **every file has a colour and a short tag** (A, B, C…) - signals of the same name from

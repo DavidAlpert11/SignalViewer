@@ -993,3 +993,33 @@ def test_frame_reference_from_signals():
     from svcore.analysis import OpError, compute
     with pytest.raises(OpError, match="6 signals"):
         compute("frame", ned, {"qty": "position", "src": "ned", "dst": "lla", "ref": "signals"})
+
+
+def test_stats_never_reuse_another_arrays_numbers(tmp_path):
+    """F23: the statistics cache was keyed by id(); CPython hands a new array the address of one
+    just freed, so fresh arrays of the same length got the numbers of the old ones."""
+    from svcore.ops import compute_signal_stats
+    for i in range(50):
+        t, y = np.arange(1000.0), np.full(1000, float(i))
+        assert compute_signal_stats(t, y)["mean"] == float(i)
+        del t, y
+    # through the API: state-filtered statistics make new arrays per signal (t[m], y[m]); before the
+    # fix D showed B's mean and C showed A's (seen in /api/stats)
+    p = tmp_path / "st.csv"
+    with open(p, "w") as f:
+        f.write("Time,Mode,A,B,C,D\n")
+        for i in range(400):
+            f.write(f"{i / 10},{'IDLE' if i < 200 else 'RUN'},{i},{-1000 - i},{5 * i},7\n")
+    try:
+        info = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]
+        ids = {s["name"]: s["id"] for s in info["signals"]}
+        sig = [ids[k] for k in "ABCD"]
+        for values in ([0], [1], [0, 1]):
+            st = client.post("/api/stats", json={"signals": sig, "state": ids["Mode"],
+                                                 "stateValues": values}).json()["stats"]
+            means = [st[s]["mean"] for s in sig]
+            assert means[3] == pytest.approx(7) and means[2] == pytest.approx(5 * means[0]), (values, means)
+            assert means[1] == pytest.approx(-1000 - means[0]), (values, means)
+    finally:
+        for rid in list(store.order):
+            store.remove(rid)
