@@ -547,3 +547,23 @@ def test_columns_with_their_own_time(page, server):
         assert v is not None and abs(v - 16.0) < 1e-6                                               # at its own time 5.0
     finally:
         os.remove(path)
+
+
+def test_clearer_controls(page, server):
+    """T49 (part): the file list's signal menu adds OR removes (it said "Add the result" for a
+    signal); "Clear everything" asks with a button that says so; the zoom mode is not a second
+    bare "X" next to the link button."""
+    page.set_viewport_size({"width": 1100, "height": 760})
+    _open(page, server["data"], ["run_a.csv"])
+    page.locator("[aria-label='Clear all plots']").click()
+    page.locator(".sig", has_text="Speed").first.click(button="right")
+    page.locator(".menu.ctx button", has_text="Add to the active plot").click()
+    page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    page.locator(".sig", has_text="Speed").first.click(button="right")
+    page.locator(".menu.ctx button", has_text="Remove from the active plot").click()
+    page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 0")
+    assert "Zoom" in page.locator(".zoom-btn").inner_text()
+    page.locator("button[aria-label='Clear everything']").click()
+    ok = page.locator(".dialog .btn.primary")
+    assert ok.inner_text() == "Clear everything" and "danger" in ok.get_attribute("class")
+    page.keyboard.press("Escape")

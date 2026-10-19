@@ -346,7 +346,6 @@ export default function ComparePanel() {
                     <span className={`sim-pct ${b}`}>{fmtNum(x.matchPct ?? 0, lang, 3)}%</span>
                     <span className="sim-bar"><span className={b} style={{ width: `${Math.max(2, x.matchPct ?? 0)}%` }} /></span>
                     <Spark values={x.profile} bucket={b} />
-                    <span className="sim-err">{t("errShort")} {fmtNum(x.worstRmsPct ?? null, lang, 2)}%</span>
                   </button>
                 );
               })}

@@ -116,7 +116,7 @@ export default function StageBar() {
       <span className="pick-wrap">
         <button className="btn zoom-btn" aria-expanded={zoomMenu} aria-haspopup="menu" title={t("zoomModeHint")}
           onClick={(e) => { setZoomAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setZoomMenu(!zoomMenu); }}>
-          <Icon.Search /><span className="hide-narrow">{t("zoom")}:</span> {zoomMode === "x" ? "X" : zoomMode === "y" ? "Y" : "XY"}
+          <Icon.Search /><span>{t("zoom")}:</span> {zoomMode === "x" ? "X" : zoomMode === "y" ? "Y" : "XY"}
         </button>
         {zoomMenu && <Popover anchor={zoomAnchor} onClose={() => setZoomMenu(false)} label={t("zoomMode")}>
           <span className="seg zoom-seg" role="group" aria-label={t("zoomMode")}>

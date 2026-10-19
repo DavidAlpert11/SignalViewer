@@ -1721,7 +1721,7 @@ def test_flight_log_panel_only_for_logs(pg):
 
 def test_transform_expression_autocomplete_and_checks(pg):
     open_files(pg, "run_a.csv")
-    sig(pg, "Speed").click(button="right"); menu_item(pg, "Change the variable")
+    sig(pg, "Speed").click(button="right"); menu_item(pg, "Scale, offset or function")
     pg.locator(".tf-dialog select").first.select_option("custom")
     inp = pg.locator(".tf-dialog input.fx-input")
     inp.fill(""); inp.type("smo")

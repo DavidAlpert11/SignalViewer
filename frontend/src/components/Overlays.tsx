@@ -129,9 +129,9 @@ export function ContextMenu() {
 }
 
 /* ------------------------------------------------------------ confirm (uses the prompt dialog without a field) */
-export function confirmAsk(title: string, text: string): Promise<boolean> {
+export function confirmAsk(title: string, text: string, okLabel?: string, danger = false): Promise<boolean> {
   return new Promise((resolve) => useApp.setState({
-    promptDialog: { title, label: text, value: "", confirmOnly: true, resolve: (v: string | null) => resolve(v !== null) } as never,
+    promptDialog: { title, label: text, value: "", confirmOnly: true, okLabel, danger, resolve: (v: string | null) => resolve(v !== null) } as never,
   }));
 }
 
@@ -161,7 +161,7 @@ export function PromptDialog() {
         </div>
         <div className="dialog-foot"><span className="spacer" />
           <button className="btn outline" onClick={() => done(null)}>{t("cancel")}</button>
-          <button className="btn primary" onClick={() => done(v)}>{t("ok")}</button></div>
+          <button className={`btn primary${(d as { danger?: boolean }).danger ? " danger" : ""}`} onClick={() => done(v)}>{(d as { okLabel?: string }).okLabel || t("ok")}</button></div>
       </div>
     </div>
   );

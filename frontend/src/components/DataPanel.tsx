@@ -95,7 +95,12 @@ export default function DataPanel() {
   };
   const sigMenu = (e: React.MouseEvent, sig: SignalInfo) => openMenu(e, [
     ...(sig.id.startsWith("derived/") ? [] : [{ label: t("tfEdit"), run: () => useApp.setState({ transformTargets: [sig.id] }) }, { label: "", run: () => {}, sep: true }]),
-    { label: t("addToActivePlot"), run: () => actions.addSignalLinked(sig.id) },
+    ...(() => {
+      const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active];
+      return p?.signals.some((s) => s.sig === sig.id)
+        ? [{ label: t("removeFromActivePlot"), run: () => actions.removeSignal(p.id, sig.id) }]
+        : [{ label: t("addSigToActivePlot"), run: () => actions.addSignalLinked(sig.id) }];
+    })(),
     { label: t("newPlot"), run: () => actions.addSignalToNewPlot(sig.id) },
     { label: t("useAsX"), run: () => { const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active]; if (p) actions.setAsX(p.id, sig.id); } },
     { label: "", run: () => {}, sep: true },
