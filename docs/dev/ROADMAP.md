@@ -177,7 +177,7 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   every format and language. Found by the test: `_collect` dropped plots without `signals`, so
   the PDF / Word left the plot out while returning 200 - now checked by reading the PDF back
   (`pypdf`, tests only). Checked in Chromium: the HTML report draws it with no script errors.
-- [ ] **T14c** Zoom of an Envelope plot is its own (not linked with the tab's time plots).
+- [x] **T14c** Zoom of an Envelope plot is its own (not linked with the tab's time plots). Done 2026-10-19 (Q56): the tab's range.
 - [x] **T15 Video synchronised to the timeline** (local file, offset by a cursor pair).
   Done (2026-10-18): a plot MODE "video" (fits the grid, saved with the tab, in undo, left out of
   reports - no signals). `Plot.video = {path, offset}`, data time = video time + offset;
@@ -602,7 +602,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F23 Statistics cache returns another signal's numbers (Q53). Done 2026-10-19: weak references to the arrays in each cache entry.
 - [ ] T53 Release assets: installer + zip on GitHub Releases (Q54). Written 2026-10-19 (build.yml); waits for the first CI run.
 - [x] T54 Open files from outside: command line, file associations, one instance (Q55). Done 2026-10-19: app/instance.py, "open" push events, installer task "openwith".
-- [ ] F24 Linked time plots not lined up; spectrogram range (Q56, with T14c).
+- [x] F24 Linked time plots not lined up; spectrogram range (Q56, with T14c). Done 2026-10-19: column gutters (chartUtil `useGutter`).
 - [ ] F25 Menus clipped by the plot card (Q57, with T49 items 9, 12).
 - [ ] F26 Shortcuts dialog describes the wheel wrongly (Q58, with T49 items 2, 13).
 - [ ] F27 Mouse wheel on trackpads / sideways swipe (Q59).

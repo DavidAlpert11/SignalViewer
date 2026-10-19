@@ -5,7 +5,7 @@ import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSi
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { fmtNum } from "../i18n";
 import { unitOf } from "../units";
-import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, uiScale, useSize } from "./chartUtil";
+import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, reportGutter, uiScale, useGutter, useSize } from "./chartUtil";
 
 interface Props {
   tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void;
@@ -23,6 +23,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const scale = useApp((s) => s.uiScale);
   const runs = useApp((s) => s.runs);
   const dataVersion = useApp((s) => s.dataVersion);
+  const gutter = useGutter(tab, plot.id, !previewOnly);
   const key = rangeKey(tab, plot);
   const yKey = yRangeKey(tab, plot);
   const yZoom = useApp((s) => s.yRanges[yKey] ?? null);
@@ -472,10 +473,18 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
             splits: (_u, _i, mn, mx) => axisCodes.filter((c) => c >= mn && c <= mx),
             values: (_u, splits) => splits.map((v) => axisLabels[String(v)] ?? String(v)) }
         : { ...axis, size: commonUnit ? 64 : 56, values: tickValues, space: valueSpace, ...(commonUnit ? { label: commonUnit, labelSize: 14, labelGap: 0 } : {}) };
+    // F24: the column's plots share the room left and right of the plot area, so their time axes line up
+    // (uPlot puts an axis label's labelSize next to the axis size: both count)
+    const rightSize = hasRight ? (rightUnit ? 64 : 56) : 0, rightLabel = hasRight && rightUnit ? 14 : 0;
+    const leftLabel = yAxis.label ? (yAxis.labelSize ?? 0) : 0;
+    const natL = 4 + (yAxis.size as number) + leftLabel, natR = 12 + rightSize + rightLabel;
+    if (!previewOnly) reportGutter(plot.id, natL, natR);
+    const useL = previewOnly ? natL : Math.max(natL, gutter[0]), useR = previewOnly ? natR : Math.max(natR, gutter[1]);
+    yAxis.size = useL - 4 - leftLabel;
     const opts: uPlot.Options = {
       width: size.w,
       height: size.h,
-      padding: [8, 12, 0, 4],
+      padding: [8, useR - rightSize - rightLabel, 0, 4],
       legend: { show: false },
       cursor: { y: false, points: { size: 6 },
         // zoom by dragging: a time window, a value window, or a box (a nearly flat drag zooms one axis)
@@ -516,7 +525,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         } : {}),
       },
       axes: [{ ...axis, size: 34 }, yAxis,
-        ...(hasRight ? [{ ...axis, scale: "y2", side: 1, size: rightUnit ? 64 : 56, values: tickValues, space: valueSpace, grid: { show: false },
+        ...(hasRight ? [{ ...axis, scale: "y2", side: 1, size: rightSize, values: tickValues, space: valueSpace, grid: { show: false },
           ...(rightUnit ? { label: rightUnit, labelSize: 14, labelGap: 0 } : {}) } as uPlot.Axis] : [])],
       series: [
         {},
@@ -732,7 +741,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       uRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structKey, theme, scale, size.w > 0 && size.h > 0, plot.ylim?.[0], plot.ylim?.[1], linkY, yUnion, zoomMode, stateKey, labelsKey]);
+  }, [structKey, theme, scale, size.w > 0 && size.h > 0, plot.ylim?.[0], plot.ylim?.[1], linkY, yUnion, zoomMode, stateKey, labelsKey, gutter[0], gutter[1]]);
 
   /* new data for the same series: into the existing plot (no rebuild) */
   useEffect(() => {

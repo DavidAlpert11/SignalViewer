@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type SpecData } from "../api";
 import { actions, rangeKey, shownSpan, useApp, type Plot, type Tab } from "../store";
 import { fmtNum, useT } from "../i18n";
-import { PLOT_THEME, uiScale, useSize } from "./chartUtil";
+import { PLOT_THEME, reportGutter, uiScale, useGutter, useSize } from "./chartUtil";
 
 interface Props { tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void }
 
@@ -55,7 +55,10 @@ export default function SpecChart({ tab, plot, index, onLoading }: Props) {
   const ps = plot.signals[0];
   const tOff = ps?.tOffset ?? 0;
   const nfft = plot.specN ?? 1024;
-  const M = useMemo(() => ({ l: 54, r: 46, t: 8, b: 26 }), []);
+  // F24: the room left / right of the image is the column's (the time plots above and below line up)
+  const gutter = useGutter(tab, plot.id);
+  useEffect(() => { reportGutter(plot.id, 54, 46); }, [plot.id]);
+  const M = useMemo(() => ({ l: Math.max(54, gutter[0]), r: Math.max(46, gutter[1]), t: 8, b: 26 }), [gutter[0], gutter[1]]);
   const plotW = Math.max(10, size.w - M.l - M.r), plotH = Math.max(10, size.h - M.t - M.b);
 
   useEffect(() => {
@@ -79,7 +82,9 @@ export default function SpecChart({ tab, plot, index, onLoading }: Props) {
   const ext = useMemo(() => {
     if (!data) return null;
     const cw = data.nt > 1 ? (data.t1 - data.t0) / (data.nt - 1) : data.dt;
-    return { x0: (range ? range[0] : data.t0 - cw / 2 + tOff), x1: (range ? range[1] : data.t1 + cw / 2 + tOff),
+    // the whole signal (no zoom): its own extent, like its time plot - not just where the windows fit
+    return { x0: (range ? range[0] : Math.min(data.sigT0 ?? Infinity, data.t0 - cw / 2) + tOff),
+      x1: (range ? range[1] : Math.max(data.sigT1 ?? -Infinity, data.t1 + cw / 2) + tOff),
       i0: data.t0 - cw / 2 + tOff, i1: data.t1 + cw / 2 + tOff, f0: data.f0, f1: data.f1 };
   }, [data, range, tOff]);
 

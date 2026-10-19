@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type uPlot from "uplot";
+import { useApp, type Tab } from "../store";
 
 /* Plot colors per theme. Read from this table (not from CSS) because React runs
    chart effects before App sets <html data-theme>. Keep in sync with index.css. */
@@ -106,4 +107,39 @@ export function tickValues(_u: uPlot, splits: number[]): string[] {
     if (a !== 0 && (a < 1e-3 || a >= 1e6)) return v.toExponential(0).replace("e+", "e");
     return String(+v.toPrecision(6));
   });
+}
+
+
+/* F24: with linked time the plots of a column must start and end at the same x, or the same moment
+   sits at different places (a value axis with a unit or long labels is wider). Each chart reports
+   the room it needs left and right of its plot area; every chart of the column uses the largest. */
+const ALIGNED_MODES = new Set(["time", "spec", "env"]);
+
+function columnPeers(tab: Tab, plotId: string): string[] {
+  const i = tab.plots.findIndex((p) => p.id === plotId);
+  const c = Math.max(1, tab.cols || 1);
+  return tab.plots.filter((p, k) => k % c === i % c && ALIGNED_MODES.has(p.mode ?? "time")).map((p) => p.id);
+}
+
+export function reportGutter(plotId: string, l: number, r: number) {
+  const g = useApp.getState().gutters[plotId];
+  if (g && g[0] === l && g[1] === r) return;
+  useApp.setState((s) => ({ gutters: { ...s.gutters, [plotId]: [l, r] } }));
+}
+
+/** The room left and right of the plot area that this plot's column uses (px; 0 before anyone reported). */
+export function useGutter(tab: Tab, plotId: string, on = true): [number, number] {
+  const ids = columnPeers(tab, plotId);
+  const L = useApp((s) => Math.max(0, ...ids.map((id) => s.gutters[id]?.[0] ?? 0)));
+  const R = useApp((s) => Math.max(0, ...ids.map((id) => s.gutters[id]?.[1] ?? 0)));
+  useEffect(() => () => {
+    if (!on) return;
+    useApp.setState((s) => {
+      if (!(plotId in s.gutters)) return {};
+      const g = { ...s.gutters };
+      delete g[plotId];
+      return { gutters: g };
+    });
+  }, [plotId, on]);
+  return [L, R];
 }

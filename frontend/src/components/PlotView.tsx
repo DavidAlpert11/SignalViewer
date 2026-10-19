@@ -335,7 +335,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           {mode === "3d" && <Suspense fallback={<div className="plot-empty">{t("globeLoading")}</div>}>
             <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} /></Suspense>}
           {mode === "geo" && <GeoChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
-          {mode === "env" && <EnvelopeChart plot={plot} index={index} onLoading={setLoading} />}
+          {mode === "env" && <EnvelopeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
           {mode === "xyz" && <XYZChart plot={plot} index={index} onLoading={setLoading} emptyText={t("xyzNeedsThree")} />}
           {mode === "fft" && <FFTChart plot={plot} index={index} onLoading={setLoading} onPeaks={setPeaks} />}
           {mode === "spec" && <SpecChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
