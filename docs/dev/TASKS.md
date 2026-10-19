@@ -20,7 +20,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
   features. P1 (bugs F13-F21, Q36-Q44) aims at 1.6.1; P2 (T24 extended, T46-T52) joins Q30-Q34 in
   1.7.0. Next: Q38 (F15), then Q36.
-- Tests at the last change: backend 642 passed; whole e2e suite 160 passed (Q29).
+- Tests at the last change: backend 650 passed; whole e2e suite file by file, all passed (review P1, 2026-10-18).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -934,3 +934,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Q42 / F19 an open file opened again is re-read, copy on request · e2e · next: Q43.
 - 2026-10-18 · Q43 / F20 several files: Compare suggested, one note toast · e2e · next: Q44.
 - 2026-10-18 · Q44 / F21 file dialog: Shift range, Ctrl+A, a last folder per use · e2e · next: the whole e2e suite, then the 1.6.1 release check.
+- 2026-10-18 · F21 follow-up: listing the folder already shown kept clearing the selection (a click during the load was lost, Open disabled - 5 flaky test_features tests after F21 started the dialog in the data folder); now the picked files that are still there are kept. e2e `test_relisting_the_same_folder_keeps_the_selection` (fails without the fix). Whole e2e suite file by file: all pass (features 110, workflows 17, templates 11, globe3d 10, the rest) · backend 650 · next: 1.6.1 release patch.
