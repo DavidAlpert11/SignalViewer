@@ -108,9 +108,11 @@ export function ContextMenu() {
   return (
     <div className={`menu ctx${menu.items.length > 14 && !menu.items.some((it) => it.items) ? " long" : ""}`} ref={ref} role="menu" style={{ left: pos.x, top: pos.y }} onMouseDown={(e) => e.stopPropagation()}>
       {menu.items.map((it, i) => !it.items ? leaf(it, i) : (
+        // a click opens the submenu, never toggles it: the hover that comes with the click has
+        // opened it already, and a toggle closed it again (a flaky e2e)
         <div key={i} className="menu-subwrap" onMouseEnter={() => setSub(i)} onMouseLeave={() => setSub(null)}>
           <button role="menuitem" aria-haspopup="menu" aria-expanded={sub === i} disabled={it.disabled}
-            className={sub === i ? "open" : ""} onClick={() => setSub(sub === i ? null : i)}
+            className={sub === i ? "open" : ""} onClick={() => setSub(i)}
             onKeyDown={(e) => { if (e.key === (rtl ? "ArrowLeft" : "ArrowRight")) { e.preventDefault(); setSub(i); } }}>
             {it.label}<span className="menu-more" aria-hidden="true">›</span>
           </button>
