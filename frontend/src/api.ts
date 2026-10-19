@@ -30,7 +30,7 @@ export interface RunInfo {
   importSettings: Record<string, unknown>;
   signals: SignalInfo[];
   report?: { skipped?: string[]; skippedColumns?: string[]; droppedRows?: number; sorted?: boolean; fromCache?: boolean; rememberedSettings?: boolean;
-    textColumns?: string[]; tooManyTexts?: string[]; vehicle?: string | null; corruptBytes?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
+    textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file

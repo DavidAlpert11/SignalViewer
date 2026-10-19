@@ -9,7 +9,7 @@ import { openPaths } from "../files";
 export default function ImportDialog() {
   const t = useT();
   const paths = useApp((s) => s.importPaths);
-  const [s, setS] = useState({ has_header: true, header_row: 0, skip_rows: 0, delimiter: "", time_column: "" });
+  const [s, setS] = useState({ has_header: true, header_row: 0, skip_rows: 0, delimiter: "", time_column: "", time_pairs: true });
   const [pv, setPv] = useState<any>(null);
   const [err, setErr] = useState("");
   const path = paths?.[0];
@@ -78,6 +78,8 @@ export default function ImportDialog() {
                 </select></label>
               <label style={{ flexDirection: "row", alignItems: "center", gridColumn: "span 4" }}>
                 <input type="checkbox" checked={s.has_header} onChange={(e) => set({ has_header: e.target.checked })} /> {t("hasHeader")}</label>
+              <label style={{ flexDirection: "row", alignItems: "center", gridColumn: "span 4" }} title={t("timePairsHint")}>
+                <input type="checkbox" checked={s.time_pairs} onChange={(e) => set({ time_pairs: e.target.checked })} /> {t("timePairsOpt")}</label>
             </div>
             {err && <p className="empty-note">{err}</p>}
             <div className="preview-wrap">

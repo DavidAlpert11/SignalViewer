@@ -12,6 +12,7 @@
 
 - **Examples open ready to look at:** a welcome-screen example opens with its view already applied (the car runs and the two flights compared, the drone flight and the ArduPilot log in their views); Undo goes back to an empty plot.
 - **Template chips open in one click** when it is clear which file goes where (right-click a chip for the library with its choices); with a choice to make, the library opens as before.
+- **Columns with a time column of their own** (a user's request): in telemetry exports where each value has its own time column - told by the name (*Speed* + *Speed_time*, *ATTITUDE.roll* + *ATTITUDE.time_boot_ms*, or alternating *time, Speed, time, RPM*) - each value is drawn against its own time; no more X-Y plots of value against time. Works for CSV / text and MATLAB files, and for a *.tlog* that is a text table; it can be turned off in *Import options*.
 
 ### Changed
 - After a suggested view is opened, the start card keeps the flight log's findings (each a click from its moment) instead of closing.

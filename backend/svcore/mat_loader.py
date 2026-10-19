@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from svcore.models import Run, Signal
+from svcore.time_pairs import clean_pair, find_time_pairs
 
 TIME_NAMES = ("time", "t", "timestamp", "time_s", "tout", "times")
 
@@ -179,9 +180,19 @@ def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) 
         time = time[order]
     run = Run(file_path=path, csv_display_name=display_name, time=time)
     skipped = []
+    # variables with a time variable of their own, by name (Speed + Speed_time, msg.roll + msg.time...):
+    # their own length, their own time (owner, 2026-10-19)
+    pairs = {v: t for v, t in find_time_pairs(list(vectors), tname).items()
+             if t != tname and len(vectors[v]) == len(vectors[t])}
+    used_times = set(pairs.values())
     for name, a in vectors.items():
-        if name == tname:
+        if name == tname or name in used_times:
             continue
+        if name in pairs:
+            t, y = clean_pair(vectors[pairs[name]], np.asarray(a, dtype=np.float64))
+            if len(t):
+                run.signals[name] = Signal(name=name, data=y, time=t)
+                continue
         if len(a) != n:
             skipped.append(name)
             continue
@@ -190,8 +201,10 @@ def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) 
             a = a[order]
         run.signals[name] = Signal(name=name, data=a)
     run.import_settings = {"format": "mat", "time_column": tname}
+    if pairs:
+        run.load_report = {"timePairs": sum(1 for v in pairs if v in run.signals)}
     run.byte_offset = os.path.getsize(path)
     run.compute_metadata()
     if cut:
-        run.load_report = {"cutOff": True}
+        run.load_report = {**(getattr(run, "load_report", None) or {}), "cutOff": True}
     return run, skipped

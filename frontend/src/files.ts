@@ -130,6 +130,7 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       if (rep.damagedText) parts.push(translate(lang, "damagedText"));
       if (rep.damagedObjects) parts.push(translate(lang, "damagedObjects", { n: rep.damagedObjects }));
       if (rep.noTime) parts.push(translate(lang, "noTimeSamples"));
+      if (rep.timePairs) parts.push(translate(lang, "timePairsRead", { n: rep.timePairs }));
       if (rep.droppedRows) parts.push(translate(lang, "droppedRows", { n: rep.droppedRows }));
       if (rep.sorted) parts.push(translate(lang, "sortedRows"));
       if (rep.skipped?.length) parts.push(translate(lang, "skippedCols", { n: rep.skipped.length }));
