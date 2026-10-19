@@ -21,6 +21,7 @@ export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string)
     signals: plot.signals.map((s) => ({
       id: s.sig, label: s.label || signalName(runs, s.sig), color: s.color, width: s.width,
       scale: s.scale, offset: s.offset, state: !!s.state, tOffset: s.tOffset ?? 0, limits: s.limits ?? null,
+      ...(s.axis === "right" ? { axis: "right" } : {}),
     })),
   };
 }

@@ -3,6 +3,7 @@ import { translate } from "../../i18n";
 import { MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
 import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, tabFullMessage } from "../selectors";
 import { useApp } from "../state";
+import { unitOf } from "../../units";
 
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
  *  that group is coloured by file, so "which line is which file" is the colour. */
@@ -12,9 +13,28 @@ function sameNameByFile(plot: Plot, sig: string) {
     colorByFile(plot, useApp.getState().runs);
 }
 
+/** T47: a signal in other units than the plot's lines (km/h and V) is a flat line on a shared axis -
+ *  offer the right axis once per plot and unit (a toast with the action; nothing moves by itself). */
+const offeredRight = new Set<string>();
+function offerRightAxis(plotId: string, sig: string) {
+  const st = useApp.getState();
+  const plot = findPlot(st.ws, plotId);
+  if (!plot || (plot.mode && plot.mode !== "time")) return;
+  const ps = plot.signals.find((s) => s.sig === sig);
+  const unit = (s: PlotSignal) => unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1));
+  const u = ps && !ps.state ? unit(ps) : null;
+  if (!u || plot.signals.some((s) => s.axis === "right")) return;
+  const others = new Set(plot.signals.filter((s) => s.sig !== sig && !s.state).map(unit));
+  if (others.size !== 1 || others.has(null) || others.has(u) || offeredRight.has(`${plotId}|${u}`)) return;
+  offeredRight.add(`${plotId}|${u}`);
+  st.toast({ kind: "info", text: translate(st.lang, "rightAxisOffer", { unit: u, other: [...others][0] ?? "" }),
+    action: { label: translate(st.lang, "toRightAxis"), run: () => plotActions.updateSignal(plotId, sig, { axis: "right" }) } });
+}
+
 export const plotActions = {
   addSignal(sig: string, plotId?: string) {
     const { commit } = useApp.getState();
+    let target: string | null = null;
     commit((ws) => {
       const tab = activeTab(ws);
       const plot = plotId ? tab.plots.find((p) => p.id === plotId) : tab.plots[tab.active];
@@ -22,9 +42,11 @@ export const plotActions = {
       if ((plot.mode === "xy" || plot.mode === "geo") && !plot.xSignal) { plot.xSignal = sig; return ws; }
       plot.signals.push(newPlotSignal(sig, ws));
       sameNameByFile(plot, sig);
+      target = plot.id;
       if (plotId) tab.active = tab.plots.findIndex((p) => p.id === plotId);
       return ws;
     });
+    if (target) offerRightAxis(target, sig);
   },
   /** T20: split a plot - a new plot with this signal right after it (to its right or below it),
    *  the grid growing a column or a row when it is full. moveFrom: a legend chip moved out of

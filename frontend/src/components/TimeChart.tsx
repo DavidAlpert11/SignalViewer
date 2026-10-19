@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, type Series } from "../api";
-import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PreviewLine, type Range, type Tab } from "../store";
+import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { fmtNum } from "../i18n";
 import { unitOf } from "../units";
@@ -127,7 +127,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   }, [series, plot.id]);
 
   /* ------------------------- build aligned data ------------------------- */
-  const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}:${s.offset}:${s.state ? 1 : 0}:${s.tOffset ?? 0}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}`).join("|");
+  const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}:${s.offset}:${s.state ? 1 : 0}:${s.tOffset ?? 0}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}:${s.axis ?? ""}`).join("|");
   const aligned = useMemo(() => {
     const ok = plot.signals
       .map((ps) => ({ ps, s: series.find((x) => x.id === ps.sig) }))
@@ -159,7 +159,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   /* what the plot is BUILT from (series, their styles, a preview line): new data alone is set
      into the existing plot instead of destroying and recreating it on every zoom step */
   const structKey = aligned
-    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}`).join("|") + `|${aligned.previewLabels.join("|")}`
+    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}:${s.axis === "right" ? "R" : ""}`).join("|") + `|${aligned.previewLabels.join("|")}`
     : "none";
   const lineWidth = (a: NonNullable<typeof aligned>, k: number) => (a.dense[k] ? 1 / dpr() : a.sigs[k].width);
 
@@ -396,7 +396,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         if (raw === null || raw === undefined) return;
         if (s.state) return;                     // a lane already shows its state at every time
         const v = raw * s.scale + s.offset;
-        const y = u.valToPos(v, "y", true);
+        const y = u.valToPos(v, s.axis === "right" ? "y2" : "y", true);
         if (y < top || y > top + height) return;
         ctx.beginPath(); ctx.arc(x, y, 3.5 * dpr(), 0, Math.PI * 2); ctx.fillStyle = s.color; ctx.fill();
         flag(ctx, x + 4 * dpr(), y - 9 * dpr(), labelText(labelsOf(runsRef.current, s.sig), raw) ?? fmtNum(v, "en", 5), s.color, "#ffffff", { left, width }, 0.92);
@@ -427,7 +427,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       ctx.setLineDash([6 * d, 4 * d]); ctx.lineWidth = 1.25 * d; ctx.globalAlpha = 0.9;
       lim.forEach((s) => [s.limits!.lo, s.limits!.hi].forEach((v) => {
         if (v == null || !Number.isFinite(v)) return;
-        const y = Math.round(u.valToPos(v, "y", true)) + 0.5;
+        const y = Math.round(u.valToPos(v, s.axis === "right" ? "y2" : "y", true)) + 0.5;
         if (y < top || y > top + height) return;
         ctx.strokeStyle = s.color; ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + width, y); ctx.stroke();
       }));
@@ -442,11 +442,17 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     overlayRef.current = drawOverlay;
 
     let hoverIdx = -1, hoverRaf = 0;
-    const units = sigs.map((s) => unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1)));
+    // T47: signals on the right axis have their own scale ("y2"), range and unit label
+    const onRight = (s: PlotSignal) => s.axis === "right" && !s.state;
+    const hasRight = sigs.some(onRight);
+    const unitOfSig = (s: PlotSignal) => unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1));
+    const units = sigs.filter((s) => !onRight(s) && !(hasRight && s.state)).map(unitOfSig);
     const commonUnit = units.length && units.every((x) => x && x === units[0]) ? units[0] : null;
+    const rUnits = sigs.filter(onRight).map(unitOfSig);
+    const rightUnit = rUnits.length && rUnits.every((x) => x && x === rUnits[0]) ? rUnits[0] : null;
     const yFixed = plot.ylim ?? (linkY && yUnion ? (yUnion.split("|").map(Number) as [number, number]) : null);
     // text values on the value axis: when every line in the plot uses the same texts (e.g. a mode)
-    const lineSigs = sigs.filter((s) => !s.state);
+    const lineSigs = sigs.filter((s) => !s.state && !onRight(s));
     const lineLabels = lineSigs.map((s) => (s.scale === 1 && s.offset === 0 ? labelsOf(runsRef.current, s.sig) : undefined));
     const axisLabels = lineLabels.length && lineLabels.every((l) => l && JSON.stringify(l) === JSON.stringify(lineLabels[0])) ? lineLabels[0]! : null;
     const axisCodes = axisLabels ? Object.keys(axisLabels).map(Number).sort((a, b) => a - b) : [];
@@ -493,12 +499,27 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
             return r;
           },
         },
+        ...(hasRight ? {
+          y2: {
+            auto: true,
+            range: (_u: uPlot, mn: number, mx: number): uPlot.Range.MinMax => {
+              if (!Number.isFinite(mn) || !Number.isFinite(mx)) return [0, 1];
+              const r = uPlot.rangeNum(mn, mx, 0.1, true) as [number, number];
+              const f = laneFrac();
+              if (f > 0) r[0] -= ((r[1] - r[0]) * f) / (1 - f);
+              return r;
+            },
+          },
+        } : {}),
       },
-      axes: [{ ...axis, size: 34 }, yAxis],
+      axes: [{ ...axis, size: 34 }, yAxis,
+        ...(hasRight ? [{ ...axis, scale: "y2", side: 1, size: rightUnit ? 64 : 56, values: tickValues, grid: { show: false },
+          ...(rightUnit ? { label: rightUnit, labelSize: 14, labelGap: 0 } : {}) } as uPlot.Axis] : [])],
       series: [
         {},
         ...sigs.map((s, k) => ({
           stroke: s.color,
+          scale: onRight(s) ? "y2" : "y",
           width: lineWidth(aligned, k),
           spanGaps: false,
           points: { show: false },

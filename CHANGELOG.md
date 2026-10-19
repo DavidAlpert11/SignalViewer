@@ -8,6 +8,8 @@
 - A folder with nothing to open says so, and how many files of other types it holds.
 - **Every file has a colour and a short tag** (A, B, C…) (owner's request): with several files open the legend shows the tag in the file's colour instead of a long, cut-off file name, and so do the cursor values, the statistics and the signal pickers. The same signal from two files in one plot is coloured by file automatically; *Colour by file* in the plot's ⋯ menu does it for every signal. Click the tag in the file list to change the colour; *File options ▸ Short tag…* to rename it. Compare runs uses the same colours (unchecking a run no longer recolours the others). Saved in sessions.
 
+- **A second value axis:** a signal in other units (speed and battery voltage) can go on the **right axis** with its own scale and unit - right-click its chip ▸ *To the right axis*; when you add a signal in other units than the plot's, a message offers it. Reports and saved images draw both axes.
+
 ### Fixed
 - A click on **Create signal ▸** sometimes opened and closed its submenu at once.
 - File dialog: **Tab** in the path box completes only what you typed; on a path left as it is, Tab moves to the next control (a keyboard user could not leave the path box).

@@ -121,15 +121,19 @@
       var o = { stroke: s.color, width: s.width || 1.5, points: { show: false }, show: !self.hidden[k], label: s.label };
       if (spec.mode === "xy") o.paths = orderedLines;
       else if (s.state) o.paths = uPlot.paths.stepped({ align: 1 });
+      if (spec.mode === "time" && s.axis === "right") o.scale = "y2";   // T47: the second value axis
       return o;
     }));
+    var hasRight = spec.mode === "time" && spec.signals.some(function (s) { return s.axis === "right"; });
     if (spec.mode === "time") {
       var r0 = spec.range;
       data = this.timeData(r0 ? r0[0] : null, r0 ? r0[1] : null);
       opts = { width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
         cursor: { y: false, drag: { x: true, y: false, setScale: false }, bind: { dblclick: function () { return null; } } },
-        scales: { x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined } },
-        axes: [Object.assign({}, axis, { size: 34 }), Object.assign({}, axis, { size: 56, values: ticks })],
+        scales: hasRight ? { x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined }, y2: { auto: true } }
+          : { x: { time: false, auto: !r0, range: r0 ? function () { return [r0[0], r0[1]]; } : undefined } },
+        axes: [Object.assign({}, axis, { size: 34 }), Object.assign({}, axis, { size: 56, values: ticks })]
+          .concat(hasRight ? [Object.assign({}, axis, { scale: "y2", side: 1, size: 56, values: ticks, grid: { show: false } })] : []),
         series: series,
         hooks: { draw: [drawStates, drawCursor], setSelect: [function (u) {
           if (u.select.width < 4) return;

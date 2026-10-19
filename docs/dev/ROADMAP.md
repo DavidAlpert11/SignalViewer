@@ -584,7 +584,11 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
   same-name signals from several files in a plot are coloured by file (`colorByFile`, shades),
   Plot ⋯ > Colour by file; Compare runs / Compare open files use the file colour. Left for later:
   map / 3D track colours and the report legend.
-- [ ] T47 Second value axis for different units. Spec: TASKS.md Q46.
+- [x] T47 Second value axis for different units. Spec: TASKS.md Q46.
+  Done 2026-10-19: `PlotSignal.axis` "right"; TimeChart scale `y2` with its own unit label, cursor
+  values and limits on it; chip menu to move a signal between the axes, a toast offering it when a
+  signal in other units is added; reports: HTML (viewer.js), PDF / Word / images (matplotlib twinx).
+  The value zoom, pan, limits and linked value axes stay on the left axis.
 - [ ] T48 First impression: examples open ready, one-click template chips. Spec: TASKS.md Q47.
 - [ ] T49 Duplicate and unclear controls (13 items). Spec: TASKS.md Q48.
 - [ ] T50 Small windows and crowded headers. Spec: TASKS.md Q49.
