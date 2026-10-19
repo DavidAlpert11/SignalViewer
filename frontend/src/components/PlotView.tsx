@@ -71,6 +71,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     openMenu(e, [
       { label: t("properties"), run: () => useApp.setState({ selected: { plotId: plot.id, sig }, inspectorOpen: true }) },
       { label: ps.state ? t("asLine") : t("asStates"), run: () => actions.updateSignal(plot.id, sig, { state: !ps.state }) },
+      // T47: a second value axis for a signal in other units (or another range)
+      ...(mode === "time" && !ps.state ? [{ label: ps.axis === "right" ? t("toLeftAxis") : t("toRightAxis"),
+        run: () => actions.updateSignal(plot.id, sig, { axis: ps.axis === "right" ? undefined : "right" }) }] : []),
       ...(ps.state || labelsOf(runs, sig) ? [{
         label: (tab.sharedStates ?? []).includes(sig) ? t("lanesSharedOff") : t("lanesSharedOn"),
         run: () => actions.toggleSharedState(sig) }] : []),
@@ -300,6 +303,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                 {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
                 <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
                 {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
+                {s.axis === "right" && !s.state && mode === "time" && <span className="tag" title={t("toLeftAxis")}>{t("rightAxisTag")}</span>}
                 {val && <span className={`val${hv ? " hov" : ""}`} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
                 <span className="rm" role="button" aria-label={t("remove")}
                   onClick={(e) => { e.stopPropagation(); actions.removeSignal(plot.id, s.sig); }}><Icon.X width={11} height={11} /></span>

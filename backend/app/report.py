@@ -87,6 +87,8 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
         ys = np.asarray(y, dtype=np.float64) * scale + offset if (scale != 1 or offset != 0) else y
         sig = {"label": s.get("label") or sid.split("/", 1)[-1], "color": s.get("color", "#3D8BFD"),
                "width": s.get("width", 1.5), "state": bool(s.get("state"))}
+        if s.get("axis") == "right" and mode == "time" and not s.get("state"):
+            sig["axis"] = "right"                    # T47: the plot's second value axis
         labels = store.labels(sid) if hasattr(store, "labels") and not sid.startswith("derived/") else None
         if labels and scale == 1 and offset == 0:
             st = None                                # text values: no numeric statistics
@@ -510,9 +512,18 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
             if pdata["signals"]:
                 ax.set_title(_bidi(pdata["signals"][0]["label"]), fontsize=8, color=th["axis"], loc="left")
         return
+    ax2 = None
+    if mode == "time" and any(s.get("axis") == "right" for s in pdata["signals"]):
+        ax2 = ax.twinx()                             # T47: the signals on the right axis
+        ax2.tick_params(colors=th["axis"], labelsize=8)
+        for sp in ax2.spines.values():
+            sp.set_color(th["grid"])
     for s in pdata["signals"]:
         x, y = s.get("x"), s.get("y")
         if x is None or not len(x):
+            continue
+        if ax2 is not None and s.get("axis") == "right":
+            ax2.plot(x, y, color=s["color"], linewidth=float(s.get("width") or 1.5) * 0.8, label=_bidi(s["label"]))
             continue
         kw = dict(color=s["color"], linewidth=float(s.get("width") or 1.5) * 0.8, label=_bidi(s["label"]))
         if mode == "time" and s.get("state"):
@@ -542,7 +553,12 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
     if mode == "time" and pdata.get("range"):
         ax.set_xlim(*pdata["range"])
     if pdata["signals"]:
-        leg = ax.legend(fontsize=7.5, loc="upper right", frameon=True, facecolor=th["bg"], edgecolor=th["grid"])
+        if ax2 is not None:                          # one legend for both axes
+            h1, l1 = ax.get_legend_handles_labels()
+            h2, l2 = ax2.get_legend_handles_labels()
+            leg = ax2.legend(h1 + h2, l1 + l2, fontsize=7.5, loc="upper right", frameon=True, facecolor=th["bg"], edgecolor=th["grid"])
+        else:
+            leg = ax.legend(fontsize=7.5, loc="upper right", frameon=True, facecolor=th["bg"], edgecolor=th["grid"])
         for t in leg.get_texts():
             t.set_color(th["fg"])
 

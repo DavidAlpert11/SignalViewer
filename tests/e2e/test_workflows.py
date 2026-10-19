@@ -483,3 +483,26 @@ def test_compare_keeps_file_colours(page, server):
     assert dot("run_c.csv") == rgb(colour["run_c.csv"])
     page.locator("label", has_text="run_a.csv").locator("input[type=checkbox]").first.uncheck()
     assert dot("run_c.csv") == rgb(colour["run_c.csv"])
+
+
+def test_second_value_axis(page, server):
+    """T47: a signal in other units gets the right value axis - offered when it is added (a toast),
+    or from the chip menu; back to the left the same way."""
+    path = os.path.join(server["data"], "units.csv")
+    t = np.arange(0, 20, 0.1)
+    np.savetxt(path, np.column_stack([t, 40 + 10 * np.sin(t), 15 - t / 40]), delimiter=",", header="Time,Speed [km/h],Batt [V]", comments="")
+    _open(page, server["data"], ["units.csv"])
+    plot = page.locator(".plot").first
+    if not page.evaluate("window.__sv.state().ws.tabs[0].plots[0].signals.length"):
+        page.locator(".sig", has_text="Speed").first.click()
+    page.locator(".sig", has_text="Batt").first.click()                 # km/h, then V
+    toast = page.locator(".toast", has_text="one value axis")
+    toast.wait_for()
+    toast.get_by_role("button", name="To the right axis").click()
+    page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.some((s) => s.axis === 'right')")
+    page.wait_for_function("document.querySelector('.plot').querySelectorAll('.u-axis').length === 3")
+    plot.locator(".chip", has_text="Batt").click(button="right")
+    page.locator(".menu.ctx button", has_text="Back to the left axis").click()
+    page.wait_for_function("!window.__sv.state().ws.tabs[0].plots[0].signals.some((s) => s.axis === 'right')")
+    page.wait_for_function("document.querySelector('.plot').querySelectorAll('.u-axis').length === 2")
+    os.remove(path)                                                    # the other tests list this folder
