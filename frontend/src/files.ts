@@ -331,9 +331,10 @@ export async function saveSession() {
   } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
 }
 
-export async function openSession() {
+/** Open a session: the one at `given` (T54: a .svsession opened from outside), else one chosen in the dialog. */
+export async function openSession(given?: string) {
   const L = useApp.getState().lang;
-  const path = await pickPath({ mode: "open", title: translate(L, "openSession"), exts: [".svsession", ".json"] });
+  const path = given ?? await pickPath({ mode: "open", title: translate(L, "openSession"), exts: [".svsession", ".json"] });
   if (!path) return;
   try {
     const r = await api.loadSession(path);

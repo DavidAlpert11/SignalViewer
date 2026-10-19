@@ -113,7 +113,7 @@ export default function TopBar() {
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
       </button>
       <span className="sep" />
-      <button className="iconbtn" onClick={openSession} title={`${t("openSession")} (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
+      <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")} (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
       <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
       <button className="iconbtn danger-hover" onClick={clearEverything} title={t("clearEverything")} aria-label={t("clearEverything")}><Icon.Trash /></button>
       <span className="sep" />

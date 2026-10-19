@@ -184,6 +184,7 @@ Build it yourself: `build.bat` (Windows) or `./build.sh` (Linux / macOS) → `di
 pip install -r requirements.txt
 python run.py              # native window (pywebview), or the browser if pywebview is missing
 python run.py --browser    # always use the browser
+python run.py flight.bin   # open files (or a .svsession) - in the app that is already running, if there is one
 ```
 
 The UI is already built (`frontend/dist`). When the UI code is newer than that build (after a
@@ -276,6 +277,7 @@ plus 665 backend tests.
 | Spectra | FFT or Welch, window, log scale · **motor orders**: pick an RPM / ESC signal and the spectrum is marked at 1×, 2×, 3× its mean rotation rate over the same window, plus the blade-pass frequency for 2–5 blades |
 | File list | every signal with its **unit** (kept apart from the name, never cut off), its **sample rate** (wider panel, and the tooltip with the number of samples) and a **small picture** of the whole signal (spikes included; only the rows on screen fetch theirs) · checkboxes only while signals are selected (Ctrl / Shift + click, or *select all* of a search): plot them (one undo step), change them, or make new signals from them |
 | Refresh & live | **Refresh all files** (file panel ⟳, F5 / Ctrl+R): files unchanged on disk are not read again. **Live**: refreshes every file first, then once a second reads only what was added (CSV rows, .bin / .tlog messages; a MAT, ULog, MCAP, HDF5 or Parquet file is read again once it is quiet for a moment, and at least every 2 s while a program keeps saving it). A green dot marks files that are still being written; the status bar shows "2 of 5 updating". Settings (▾ next to Live): **stop after N s without new data** (10 s – 15 min, or never; default 1 min), **new files** in the same folders with the same name pattern (run_013.csv after run_012.csv, 00000043.BIN): ask / open automatically / ignore, follow last N seconds. Files opened during live mode are followed too |
+| Opening from outside | **Open with** in Explorer (the installer offers it for .bin, .tlog, .ulg, .mcap, .mat, .csv, .parquet, .h5 and makes .svsession sessions open with the app; your default programs stay as they are) and `SignalViewer file…` on the command line: when the app is already running the files open **in it** (its window comes forward) instead of in a second app; several files chosen together end up in one app; `--new-window` for a separate one |
 | General | progress + cancel for long operations · Undo/Redo · command palette · Hebrew/English with RTL · light/dark · WCAG AA contrast · text size 100–125 % · live mode with **follow last N seconds** |
 
 ## Keyboard

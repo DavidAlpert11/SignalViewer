@@ -151,7 +151,7 @@ export const api = {
   pyopsFolder: (path: string | null) => call<PyOpsInfo>("/api/pyops/folder", { path }),
   pyopsExample: () => call<PyOpsInfo & { example: string }>("/api/pyops/example", {}),
   pyopsReveal: () => call<{ folder: string }>("/api/pyops/reveal", {}),
-  pushEvents: (since: number) => call<{ seq: number; events: { seq: number; run: string; name: string; plot: boolean; new: boolean; age: number }[] }>(`/api/push/events?since=${since}`),
+  pushEvents: (since: number, opens = false) => call<{ seq: number; events: { seq: number; kind?: "open"; paths?: string[]; run?: string; name?: string; plot?: boolean; new?: boolean; age: number }[] }>(`/api/push/events?since=${since}${opens ? "&opens=1" : ""}`),
   pushSaveClient: (path: string) => call<{ path: string }>("/api/push/save-client", { path }),
   fleet: () => call<{ folders: FleetFolder[]; keys: FleetKey[] }>("/api/fleet"),
   fleetAdd: (path: string) => call<JobInfo>("/api/fleet/folder", { path }),

@@ -126,3 +126,62 @@ def test_push_file_removed_only_by_its_owner(tmp_path, monkeypatch):
     push.write_push_file("http://127.0.0.1:1")
     push.remove_push_file()
     assert not (tmp_path / "push.json").exists()
+
+
+# ---------------------------------------------------------------- T54: files opened from outside
+
+def test_open_external_needs_the_token_and_becomes_an_open_event(tmp_path):
+    f = tmp_path / "a.csv"
+    f.write_text("t,x\n0,1\n1,2\n")
+    assert client.post("/api/open-external", json={"paths": [str(f)]}).status_code == 403
+    assert client.post("/api/open-external", json={"paths": [str(f)]},
+                       headers={"X-SV-Token": "wrong"}).status_code == 403
+    r = client.post("/api/open-external", json={"paths": [str(f), " "]}, headers={"X-SV-Token": push.TOKEN})
+    assert r.status_code == 200 and r.json()["paths"] == [str(f)]
+    assert not [e for e in push.events_since(0)["events"] if e.get("kind") == "open"]   # not before the page restored
+    ev = push.events_since(r.json()["seq"], opens=True)["events"]      # not tied to `since`
+    assert ev[-1]["kind"] == "open" and ev[-1]["paths"] == [str(f)] and ev[-1]["age"] < 5
+    assert not [e for e in push.events_since(0, opens=True)["events"] if e.get("kind") == "open"]   # handed out once
+    assert client.post("/api/open-external", json={"paths": []}, headers={"X-SV-Token": push.TOKEN}).status_code == 400
+
+
+def test_a_second_start_hands_its_files_to_the_running_app(server, tmp_path):
+    from app import instance
+    called = []
+    push.ON_OPEN.append(lambda: called.append(1))
+    try:
+        push.events_since(0, opens=True)                       # earlier tests' events taken
+        assert instance.hand_over([str(tmp_path / "flight.bin")])
+        ev = push.events_since(10**9, opens=True)["events"]
+        assert ev and ev[-1]["kind"] == "open" and ev[-1]["paths"] == [str(tmp_path / "flight.bin")]
+        assert called == [1]                                   # the window is brought forward
+    finally:
+        push.ON_OPEN.clear()
+
+
+def test_no_running_app_means_no_hand_over(tmp_path, monkeypatch):
+    from app import instance
+    monkeypatch.setattr(push, "PUSH_FILE", str(tmp_path / "push.json"))
+    assert not instance.hand_over(["x.csv"])                                  # no push.json
+    (tmp_path / "push.json").write_text('{"url": "http://127.0.0.1:9", "token": "t"}')
+    assert not instance.hand_over(["x.csv"], timeout=1)                       # a stale one: nobody answers
+    (tmp_path / "push.json").write_text("{not json")
+    assert not instance.hand_over(["x.csv"])
+
+
+def test_start_lock_one_leader_and_stale_locks(tmp_path, monkeypatch):
+    from app import instance
+    monkeypatch.setattr(push, "PUSH_FILE", str(tmp_path / "home" / "push.json"))
+    lock = tmp_path / "home" / instance.LOCK_NAME
+    assert instance.wait_or_lead(["a"]) is False and lock.exists()          # the first start leads
+    # a second start while the first is still starting: waits; nobody answers -> it leads after `wait`
+    t0 = time.time()
+    assert instance.wait_or_lead(["b"], wait=0.6, step=0.1) is False
+    assert 0.5 < time.time() - t0 < 5
+    instance.release_lock()
+    assert not lock.exists()
+    lock.write_text("")                                                       # left by a crashed start
+    os.utime(lock, (time.time() - 100, time.time() - 100))
+    t0 = time.time()
+    assert instance.wait_or_lead(["c"], wait=5) is False and time.time() - t0 < 2
+    instance.release_lock()
