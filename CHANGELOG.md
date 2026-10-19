@@ -7,6 +7,9 @@
 - **Ctrl+P – quick open:** type part of a name to open a recent file, or a favourite / recent folder in the file dialog.
 - A folder with nothing to open says so, and how many files of other types it holds.
 
+### Fixed
+- A click on **Create signal ▸** sometimes opened and closed its submenu at once.
+
 ## 1.6.1 – 2026-10-19
 
 Highlights: a polish release after a review of every button. **Many tabs** are all reachable again
