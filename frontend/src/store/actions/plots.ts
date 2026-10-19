@@ -1,8 +1,16 @@
 /* Signals and objects in plots: add, remove, move, style, plot modes. Workspace changes, through commit. */
 import { translate } from "../../i18n";
 import { MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
-import { activeTab, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, tabFullMessage } from "../selectors";
+import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, tabFullMessage } from "../selectors";
 import { useApp } from "../state";
+
+/** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
+ *  that group is coloured by file, so "which line is which file" is the colour. */
+function sameNameByFile(plot: Plot, sig: string) {
+  const name = sig.slice(sig.indexOf("/") + 1), rid = sig.split("/")[0];
+  if (plot.signals.some((s) => s.sig !== sig && s.sig.slice(s.sig.indexOf("/") + 1) === name && s.sig.split("/")[0] !== rid))
+    colorByFile(plot, useApp.getState().runs);
+}
 
 export const plotActions = {
   addSignal(sig: string, plotId?: string) {
@@ -13,6 +21,7 @@ export const plotActions = {
       if (!plot || plot.signals.some((s) => s.sig === sig)) return ws;
       if ((plot.mode === "xy" || plot.mode === "geo") && !plot.xSignal) { plot.xSignal = sig; return ws; }
       plot.signals.push(newPlotSignal(sig, ws));
+      sameNameByFile(plot, sig);
       if (plotId) tab.active = tab.plots.findIndex((p) => p.id === plotId);
       return ws;
     });
@@ -49,7 +58,7 @@ export const plotActions = {
       const tab = activeTab(ws);
       const plot = plotId ? tab.plots.find((p) => p.id === plotId) : tab.plots[tab.active];
       if (!plot) return ws;
-      for (const id of ids) if (!plot.signals.some((s) => s.sig === id)) plot.signals.push(newPlotSignal(id, ws));
+      for (const id of ids) if (!plot.signals.some((s) => s.sig === id)) { plot.signals.push(newPlotSignal(id, ws)); sameNameByFile(plot, id); }
       return ws;
     });
   },
@@ -88,6 +97,13 @@ export const plotActions = {
       return ws;
     });
     if (full) tabFullMessage();
+  },
+  /** T46: every file signal of the plot in its file's colour (shades for several from one file). */
+  colorPlotByFile(plotId: string) {
+    useApp.getState().commit((ws) => {
+      ws.tabs.forEach((t) => t.plots.forEach((p) => { if (p.id === plotId) colorByFile(p, useApp.getState().runs, true); }));
+      return ws;
+    });
   },
   removeSignal(plotId: string, sig: string) {
     // with "link files" on, the same-named signals of the other files leave together

@@ -1,5 +1,5 @@
 import { api, type RunInfo, type Template, type TplObject, type TplObjectRole, type TplPlot, type TplSlot, type TplTab } from "./api";
-import { colorAllocator, fileLabel, TRACE_COLORS, uid, useApp, type MapObject, type ObjectKind, type Plot, type Tab } from "./store";
+import { colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type MapObject, type ObjectKind, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
 import { guessRoles } from "./mapObjects";
 
@@ -234,7 +234,7 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
         const runsOfName = new Map<string, Set<string>>();
         rp.signals.forEach((s) => runsOfName.set(nameOf(s.sig), (runsOfName.get(nameOf(s.sig)) ?? new Set()).add(s.sig.split("/")[0])));
         const byFile = (sig: string) => (runsOfName.get(nameOf(sig))?.size ?? 0) >= 2 && fileOrder.includes(sig.split("/")[0])
-          ? TRACE_COLORS[fileOrder.indexOf(sig.split("/")[0]) % TRACE_COLORS.length] : null;
+          ? (fileMark(st.runs, sig)?.color ?? TRACE_COLORS[fileOrder.indexOf(sig.split("/")[0]) % TRACE_COLORS.length]) : null;   // T46: the file's colour
         return {
           id: uid("p"), title: rp.title, mode: (rp.mode as Plot["mode"]) ?? "time", xyAlign: rp.xyAlign as Plot["xyAlign"],
           fftWindow: rp.fftWindow as Plot["fftWindow"], fftMethod: rp.fftMethod as Plot["fftMethod"], fftLog: rp.fftLog, specN: rp.specN,

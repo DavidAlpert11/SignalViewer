@@ -443,3 +443,43 @@ def test_quick_open(page, server):
     page.locator(".palette-input").fill(os.path.basename(server["data"]))
     page.locator(".pal-item", has_text="Recent folders").first.click()
     page.wait_for_function(f"document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value === {json.dumps(server['data'])}")
+
+
+def test_each_file_has_a_colour_and_a_tag(page, server):
+    """T46 (owner): with several files, signals of the same name were hard to tell apart - the
+    legend cut off the file name. Each file has a colour and a tag (A, B...) shown on its chips;
+    the same signal from two files in one plot is coloured by file."""
+    _open(page, server["data"], ["run_a.csv", "run_b.csv"])
+    runs = page.evaluate("window.__sv.state().runs.filter((r) => r.format !== 'derived').map((r) => [r.id, r.tag, r.color])")
+    assert sorted(r[1] for r in runs) == ["A", "B"] and len({r[2] for r in runs}) == 2
+    colour = {rid: c for rid, _, c in runs}
+    sp = page.locator(".sig", has_text="Speed")
+    sp.nth(0).click(); sp.nth(1).click()
+    page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
+    sigs = page.evaluate("window.__sv.state().ws.tabs[0].plots[0].signals.map((s) => [s.sig.split('/')[0], s.color])")
+    assert all(c == colour[rid] for rid, c in sigs)                  # coloured by file
+    chips = page.locator(".plot .chip")
+    assert sorted(chips.locator(".file-tag").all_inner_texts()) == ["A", "B"]
+    assert "run_a.csv" in (chips.first.get_attribute("title") or "") or "run_b.csv" in (chips.first.get_attribute("title") or "")
+    # the file's tag can be changed (file menu) and the plot coloured by file (plot menu)
+    page.locator(".run-head", has_text="run_a.csv").click(button="right")
+    page.locator(".menu.ctx button", has_text="Short tag").click()
+    page.locator(".dialog input").fill("base")
+    page.keyboard.press("Enter")
+    page.wait_for_function("window.__sv.state().runs.some((r) => r.tag === 'base')")
+    page.locator(".plot .file-tag", has_text="base").wait_for()
+
+
+def test_compare_keeps_file_colours(page, server):
+    """T46: Compare runs coloured files by their position among the CHECKED runs - unchecking one
+    recoloured the others. A file has one colour everywhere now."""
+    _open(page, server["data"], ["run_a.csv", "run_b.csv", "run_c.csv"])
+    colour = dict(page.evaluate("window.__sv.state().runs.filter((r) => r.format !== 'derived').map((r) => [r.name, r.color])"))
+    page.locator("button[aria-label='Compare runs']").click()
+    dot = lambda name: page.locator(".run-row, label", has_text=name).locator(".run-dot").first.evaluate("(e) => getComputedStyle(e).backgroundColor")
+    def rgb(h):
+        return f"rgb({int(h[1:3], 16)}, {int(h[3:5], 16)}, {int(h[5:7], 16)})"
+    page.wait_for_selector(".run-dot")
+    assert dot("run_c.csv") == rgb(colour["run_c.csv"])
+    page.locator("label", has_text="run_a.csv").locator("input[type=checkbox]").first.uncheck()
+    assert dot("run_c.csv") == rgb(colour["run_c.csv"])

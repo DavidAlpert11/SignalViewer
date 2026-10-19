@@ -266,6 +266,8 @@ class RunPatch(BaseModel):
     name: Optional[str] = None
     timeOffset: Optional[float] = None
     description: Optional[str] = None
+    tag: Optional[str] = None            # T46: the file's short tag (A, B... or the user's)
+    color: Optional[str] = None          # T46: "#RRGGBB"
 
 
 
@@ -278,6 +280,9 @@ def patch_run(run_id: str, patch: RunPatch):
             store.set_time_offset(run_id, patch.timeOffset)
         if patch.description is not None:
             store.set_description(run_id, patch.description)
+        if patch.tag is not None or patch.color is not None:
+            store.get(run_id)
+            store.set_mark(run_id, patch.tag, patch.color)
         return store.describe(store.get(run_id))
     except KeyError:
         fail(404, "File is not open.")

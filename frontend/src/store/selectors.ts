@@ -66,6 +66,40 @@ export function signalName(runs: RunInfo[], sig: string, withFile = true): strin
 
 /** A signal as added to a plot. Text signals (states, flight modes) start as a state lane. */
 
+/* ------------------------------------------------------------ file identity (T46) */
+/** The colour and tag of the file a signal (or run id) belongs to; null for derived signals. */
+export function fileMark(runs: RunInfo[], sigOrRun: string): { tag: string; color: string } | null {
+  const rid = sigOrRun.split("/")[0];
+  const r = runs.find((x) => x.id === rid);
+  if (!r || r.format === "derived" || !r.color) return null;
+  return { tag: r.tag ?? "", color: r.color };
+}
+
+/** Tags are shown only when they tell files apart: two or more data files open. */
+export const showFileTags = (runs: RunInfo[]) => dataRuns(runs).length > 1;
+
+/** A shade of a colour: k = 0 the colour, then darker / lighter in turn - several signals of one
+ *  file in a plot coloured by file stay apart. */
+export function shade(hex: string, k: number): string {
+  if (!k) return hex;
+  const n = parseInt(hex.slice(1), 16), step = 0.24 * Math.ceil(k / 2), to = k % 2 ? 0 : 255;
+  const ch = (v: number) => Math.round(v + (to - v) * Math.min(0.75, step)).toString(16).padStart(2, "0");
+  return `#${ch(n >> 16)}${ch((n >> 8) & 255)}${ch(n & 255)}`.toUpperCase();
+}
+
+/** T46: colour signals by their file - all of the plot's file signals (`all`), or only the groups
+ *  where the same signal name comes from two or more files (a comparison). Several names from one
+ *  file get shades of its colour. Mutates the plot (call inside commit). */
+export function colorByFile(plot: Plot, runs: RunInfo[], all = false) {
+  const nameOf = (s: string) => s.slice(s.indexOf("/") + 1);
+  const files = new Map<string, Set<string>>();
+  plot.signals.forEach((s) => { if (fileMark(runs, s.sig)) files.set(nameOf(s.sig), (files.get(nameOf(s.sig)) ?? new Set()).add(s.sig.split("/")[0])); });
+  const chosen = plot.signals.filter((s) => fileMark(runs, s.sig) && (all || (files.get(nameOf(s.sig))?.size ?? 0) >= 2));
+  const names = [...new Set(chosen.map((s) => nameOf(s.sig)))];      // the same shade for a name in every file
+  chosen.forEach((s) => { s.color = shade(fileMark(runs, s.sig)!.color, names.indexOf(nameOf(s.sig))); });
+  return chosen.length;
+}
+
 export function newPlotSignal(sig: string, ws: Workspace): PlotSignal {
   const ps: PlotSignal = { sig, color: nextColor(ws), width: 1.5, scale: 1, offset: 0 };
   if (labelsOf(useApp.getState().runs, sig)) ps.state = true;

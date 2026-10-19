@@ -203,7 +203,7 @@ def test_D05_rename_and_description(pg):
     pg.fill(".dialog textarea", "Bench 3"); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_function("window.__sv.state().runs[0].description === 'Bench 3'")
     pg.locator(".run-head").first.click(button="right"); menu_item(pg, "Rename")
-    pg.fill(".run-head input", "Baseline"); pg.press(".run-head input", "Enter")
+    pg.fill(".run-head input.run-name", "Baseline"); pg.press(".run-head input.run-name", "Enter")
     pg.wait_for_function("window.__sv.state().runs[0].name === 'Baseline'")
 
 
@@ -757,7 +757,10 @@ def test_legend_names_follow_file_rule(pg):
         pg.screenshot(path="/tmp/legend_dbg.png"); raise
     names = pg.locator(".run-head .run-name").all_inner_texts()
     assert "A/test.csv" in names and "B/test.csv" in names and "run_a.csv" in names
-    assert chips(pg)[0] == "Speed · run_a.csv"                            # several files: named
+    # several files (T46): the chip shows the file's tag; the tooltip names the file
+    chip = pg.locator(".plot").first.locator(".chip").first
+    assert chips(pg)[0] == "Speed" and chip.locator(".file-tag").inner_text() in ("A", "B", "C")
+    assert "run_a.csv" in (chip.get_attribute("title") or "")
 
 
 def test_formula_editor(pg):

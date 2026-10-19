@@ -3,7 +3,7 @@ import { useT } from "../i18n";
 import { Icon } from "../icons";
 import { fuzzySort } from "../fuzzy";
 
-export interface PickOption { id: string; label: string; group?: string }
+export interface PickOption { id: string; label: string; group?: string; tag?: string; color?: string }   // tag / color: T46 file mark
 
 const LIMIT = 80;
 
@@ -38,7 +38,8 @@ export default function SignalPicker({ value, options, onChange, placeholder, ar
   return (
     <div className={`picker${compact ? " compact" : ""}`} ref={boxRef}>
       <button type="button" className="picker-btn" aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}
-        onClick={() => setOpen(!open)} title={current?.label}>
+        onClick={() => setOpen(!open)} title={current ? `${current.label}${current.group ? ` · ${current.group}` : ""}` : undefined}>
+        {current?.tag && <span className="file-tag" style={{ ["--tag" as string]: current.color }}>{current.tag}</span>}
         <span className="picker-val">{current ? current.label : <span className="ph">{placeholder ?? t("chooseX")}</span>}</span>
         <Icon.Chevron width={13} height={13} />
       </button>
@@ -56,6 +57,7 @@ export default function SignalPicker({ value, options, onChange, placeholder, ar
               <button key={o.id} type="button" role="option" aria-selected={o.id === value}
                 className={`pick-item${i === sel ? " on" : ""}${o.id === value ? " cur" : ""}`}
                 onMouseEnter={() => setSel(i)} onClick={() => choose(o.id)}>
+                {o.tag && <span className="file-tag" style={{ ["--tag" as string]: o.color }}>{o.tag}</span>}
                 <span className="nm">{o.label}</span>{o.group && <span className="grp">{o.group}</span>}
               </button>
             ))}

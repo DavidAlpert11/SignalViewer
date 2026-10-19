@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CompareAllRow, type CompareRow } from "../api";
-import { activeTab, fileLabel, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
+import { activeTab, fileLabel, fileMark, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { startJob } from "../files";
 import { Icon } from "../icons";
@@ -123,7 +123,9 @@ export default function ComparePanel() {
   const segWaiting = over === "segment" && !segment;
   const tolSet = num(tolAbs) !== null || num(tolPct) !== null;
   const runName = (rid: string) => fileLabel(allRuns, rid);
-  const runColor = (rid: string) => TRACE_COLORS[Math.max(0, chosen.indexOf(rid)) % TRACE_COLORS.length];
+  // T46: a file has ONE colour everywhere (it was by position among the checked runs - unchecking
+  // one recoloured the others)
+  const runColor = (rid: string) => fileMark(runs, rid)?.color ?? TRACE_COLORS[Math.max(0, chosen.indexOf(rid)) % TRACE_COLORS.length];
 
   /* ------------- similarity list: debounced, cancellable, cached ------------- */
   const key = `${[...active].sort().join(",")}|${baseline}|${alignment}|${tolAbs}|${tolPct}|${dataVersion}|${segment ? JSON.stringify(segment.windows) : ""}|${segWaiting}`;
