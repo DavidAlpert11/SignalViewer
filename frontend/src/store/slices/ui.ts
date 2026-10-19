@@ -15,6 +15,8 @@ export interface UiSlice {
   selected: { plotId: string; sig: string } | null;
   multi: { plotId: string; sig: string }[];     // Ctrl+click several legend chips
   paletteOpen: boolean;
+  paletteMode: "all" | "open";     // T24: Ctrl+P lists recent files and folders, favourites
+  browserStart: string | null;     // T24: the folder the file dialog opens in once (quick open)
   browserOpen: boolean;
   picker: PickerRequest | null;
   importPaths: string[] | null;
@@ -55,6 +57,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   selected: null,
   multi: [],
   paletteOpen: false,
+  paletteMode: "all",
+  browserStart: null,
   browserOpen: false,
   picker: null,
   importPaths: null,

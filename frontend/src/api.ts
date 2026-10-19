@@ -58,6 +58,15 @@ export interface JobInfo { id: string; kind: string; label: string; state: "runn
 export interface LoadErrorInfo { path: string; message: string; code?: string; params?: Record<string, string | number> }
 /** Where templates are kept (the user can choose the folder). */
 export interface TemplateFolderInfo { folder: string; default: boolean; exists: boolean; defaultFolder: string }
+/** T24: the file dialog's side column. */
+export interface FsPlaces {
+  open: string[];                                         // folders of the open files
+  favourites: { path: string; exists: boolean }[];        // pinned, in the user's order
+  recent: { path: string; exists: boolean }[];            // folders of recent files / sessions
+  standard: { id: "home" | "desktop" | "documents" | "downloads"; path: string }[];
+  drives: string[];
+}
+
 export interface RecentItem { path: string; kind: "file" | "session"; time: number; name: string; folder: string; exists: boolean }
 export interface FsEntry { name: string; path: string; dir: boolean; size?: number | null; mtime?: number }
 
@@ -252,7 +261,9 @@ export const api = {
   examples: () => call<{ id: ExampleId; paths: string[] }[]>("/api/examples"),
   completePath: (text: string, base: string | null, exts?: string[]) =>
     call<{ dir: string | null; items: { name: string; path: string; dir: boolean }[]; common: string }>("/api/fs/complete", { text, base, exts }),
-  listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[] }>("/api/fs/list", { path, exts }),
+  listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[]; hidden?: number }>("/api/fs/list", { path, exts }),
+  places: () => call<FsPlaces>("/api/fs/places"),
+  setFavourites: (paths: string[]) => call<{ favourites: { path: string; exists: boolean }[] }>("/api/fs/favourites", { paths }, "PUT"),
   compare: (signals: string[], baseline: string, alignment: string, tolAbs: number | null, tolPct: number | null,
     windows?: Record<string, [number, number]> | null) =>
     call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct, windows: windows ?? null }),

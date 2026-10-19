@@ -421,7 +421,9 @@ export default function App() {
       const st = useApp.getState();
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); useApp.setState({ paletteOpen: true }); return; }
+      if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); useApp.setState({ paletteOpen: true, paletteMode: "all" }); return; }
+      // T24: quick open - recent files and folders, favourites (Ctrl+P is the editors' "go to file")
+      if (mod && e.key.toLowerCase() === "p" && !e.shiftKey) { e.preventDefault(); useApp.setState({ paletteOpen: true, paletteMode: "open" }); return; }
       if (mod && e.key.toLowerCase() === "o" && e.shiftKey) { e.preventDefault(); openSession(); return; }
       if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); useApp.setState({ browserOpen: true }); return; }
       if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveSession(); return; }

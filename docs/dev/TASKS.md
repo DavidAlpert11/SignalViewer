@@ -18,7 +18,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   README pictures were not retaken: nothing they show changed (checked 03_compare_runs).
 - **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
   features. P1 (bugs F13-F22) done and released as 1.6.1; P2 (T24 extended, T46-T52) joins
-  Q30-Q34 in 1.7.0. Next: Q30+ (places in the file dialog), then Q45 (T46 file colour + tag).
+  Q30-Q34 in 1.7.0. Q30 / Q30+ done (1.7.0 unreleased). Next: Q45 (T46 file colour + tag).
 - Tests at the last change: backend 650 passed; whole e2e suite file by file, all passed (review P1, 2026-10-18).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -452,7 +452,7 @@ task, with a Log line. **1.6.0 = phases A, B and Q29; Q30-Q34 are 1.7.0** (owner
 | **C** | **Usability (open in ROADMAP)** | | |
 | Q29 | T21b Signal context menus: one "Create signal ▸" entry | S | ☑ done |
 | **C2** | **Usability, continued - 1.7.0** | | |
-| Q30 | T24 Favourite folders and quick open (Ctrl+P) | S | ☐ |
+| Q30 | T24 Favourite folders and quick open (Ctrl+P) | S | ☑ done (with Q30+) |
 | Q31 | T23 Notes over a time range (shaded span), listed in reports | M | ☐ |
 | Q32 | T25 Sim-vs-flight error signal with RMS per segment | M | ☐ |
 | Q33 | T14c Envelope plot zoom linked with the tab's time plots | S | ☐ |
@@ -516,7 +516,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | Q44 | F21 File dialog: Shift+click is not a range; one "last folder" for every dialog | S | ☑ done |
 | Q52 | F22 Many tabs: the hidden tabs cannot be reached (owner) | S | ☑ done |
 | **P2** | **Usability (1.7.0, with Q30-Q34)** | | |
-| Q30+ | T24 (extended) Places in the file dialog: recent folders, favourites, folders of open files | S→M | ☐ |
+| Q30+ | T24 (extended) Places in the file dialog: recent folders, favourites, folders of open files | S→M | ☑ done |
 | Q45 | T46 File identity: every file has a colour + short tag, used everywhere | M | ☐ |
 | Q46 | T47 Signals with different units in one plot: a second value axis | M | ☐ |
 | Q47 | T48 First impression: examples open ready, one-click template chips | S | ☐ |
@@ -935,3 +935,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Q44 / F21 file dialog: Shift range, Ctrl+A, a last folder per use · e2e · next: the whole e2e suite, then the 1.6.1 release check.
 - 2026-10-18 · F21 follow-up: listing the folder already shown kept clearing the selection (a click during the load was lost, Open disabled - 5 flaky test_features tests after F21 started the dialog in the data folder); now the picked files that are still there are kept. e2e `test_relisting_the_same_folder_keeps_the_selection` (fails without the fix). Whole e2e suite file by file: all pass (features 110, workflows 17, templates 11, globe3d 10, the rest) · backend 650 · next: 1.6.1 release patch.
 - 2026-10-19 · 1.6.1 release patch: versions (build.bat, version.py, .iss, version_info.txt), CHANGELOG dated with highlights, README review (test counts 650 / 168, Files / Plots / Similarity rows, keyboard Ctrl+PageUp/PageDown, a browser limitation for those keys, Hebrew "חדש ב־1.6.1", installer name), dist rebuilt · next: owner tags v1.6.1; then Q30+.
+- 2026-10-19 · Q30 + Q30+ / T24: places column in the file dialog (open files' folders, favourites - pin with ★, unpin, drag to reorder, kept in settings.json -, recent folders, this computer: home / desktop / documents / downloads incl. OneDrive and Hebrew names, drives / volumes), the message for a folder with nothing to open (+ how many other files), Ctrl+P quick open (favourites, recent files, recent folders). Backend `/api/fs/places`, `PUT /api/fs/favourites`, `hidden` in `/api/fs/list`; tests `test_places.py` (4) and e2e `test_file_dialog_places`, `..._recent_folders_and_empty_folder`, `test_quick_open` · next: Q45 (T46).
