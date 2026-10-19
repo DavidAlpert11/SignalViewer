@@ -327,6 +327,7 @@ export interface HealthReport { findings: HealthFinding[]; errors: number; warni
 export interface SpecData {
   nf: number; nt: number; f0: number; f1: number; t0: number; t1: number; img: string;
   dbLo: number; dbHi: number; fs: number; nfft: number; df: number; dt: number;
+  sigT0?: number; sigT1?: number;     // F24: the signal's own first / last time
 }
 
 export interface SyncCandidate {
