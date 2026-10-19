@@ -13,13 +13,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Released tags: `v1.0.0` ... `v1.6.1`; **1.7.0 prepared** (this commit) - the owner
+- Branch `main`. Released tags: `v1.0.0` ... `v1.6.1`; **1.7.0 released** (tag pushed) - before it the owner
   builds the Windows package, checks the Windows-only items (file dialog places: drives, Desktop /
   Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
   tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
-- **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
-  features. P1 (bugs F13-F22) done and released as 1.6.1; P2 (T24 extended, T46-T52) joins
-  Q30-Q34 in 1.7.0. Q30 / Q30+, Q45-Q47 done (1.7.0 unreleased). Next: Q48 (T49 duplicate and unclear controls).
+- **Active plan: "Review 2026-10-19 (after 1.7.0)" below** (owner approved, ranked by what brings
+  the app into use). Next: Q53 (F23 statistics cache).
 - Tests at the last change: backend 665 passed; whole e2e suite file by file, all passed (182 tests; 1.7.0 release, 2026-10-19).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -777,6 +776,95 @@ goes: welcome screen → each example → templates library (no error line) → 
 sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console errors and fail on any.
 **Done when:** it runs in the suite and fails on 1.6.0 (Q37), passes after.
 
+## Review 2026-10-19 (after 1.7.0) - toward 1.8.0 and wide use
+
+Made by running 1.7.0 from source in a browser (1440x900 and 1024x700, English and Hebrew, the
+four examples, every menu reachable from the plots and the file list) and reading the code behind
+what looked wrong. Not covered: 3D, Live MAVLink, Fleet, the reports' content, Windows-only items.
+**Owner approved (2026-10-19):** T49 items 2, 4, 7, 9, 12, 13 and Q31-Q34; this order, ranked by
+what brings the app into use; update this table after every step.
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q53 | F23 Statistics cache returns another signal's numbers | S | ☐ |
+| Q54 | T53 Release assets: the installer and a zip on GitHub Releases | S | ☐ |
+| Q55 | T54 Open files from outside: paths on the command line, file associations, one instance | S→M | ☐ |
+| Q24 | T43 Signed installers (owner: certificate) | M | ☐ |
+| Q56 | F24 Linked time plots not lined up (value-axis width; spectrogram range) + Q33 (T14c) | M | ☐ |
+| Q57 | T49 items 9 + 12 (mode bar on the active plot; plot right-click menu) + F25 menus clipped by the plot card | S→M | ☐ |
+| Q58 | T49 items 2 + 13 (File menu; Help in the top bar) + F26 the shortcuts dialog describes the wheel wrongly | S | ☐ |
+| Q59 | F27 Mouse wheel: trackpads zoom far too fast, a sideways swipe zooms out | S | ☐ |
+| Q60 | T55 A short user guide and a 3-minute tour | M | ☐ |
+| Q61 | T56 `pip install signalviewer` (PyPI package, `signalviewer` command) | M | ☐ |
+| Q34 | T18 Settings dialog + F28 one time format (timeline m:ss vs axes seconds) | M | ☐ |
+| Q62 | T49 items 4 + 7 (reload in four places; one way to change a signal in place) | S→M | ☐ |
+| Q31 | T23 Notes over a time range | M | ☐ |
+| Q32 | T25 Sim-vs-flight error signal | M | ☐ |
+| Q63 | F29 Small: untranslated / mistranslated labels, value precision, autosave backup | S | ☐ |
+
+Still open from Q48: item 10 (cursor buttons "T" / "H") - not in the owner's list; decide later.
+
+### Q53 · F23 Statistics cache returns another signal's numbers — S
+**Seen:** `svcore/ops.py` `compute_signal_stats` caches by `(id(time), id(data), len, t0, t1)`.
+CPython reuses the address of a freed array for the next one of the same size: 200 calls with new
+arrays of the same length and different values gave **193 stale results**. Every caller that makes
+arrays on the fly is hit: `/api/stats` with a state filter (`t[m]`, `y[m]` per signal - two signals
+of one file show the same numbers), reports with scale / offset (`ys` per signal), Compare's
+windowed arrays, and a file reloaded with the same length.
+**Steps:** key the cache by something that cannot be reused: the arrays themselves held in the key
+(identity is then safe while the entry lives) - or drop the cache for temporary arrays. Measure
+that the panels stay fast on the 5 M-row benchmark file.
+**Done when:** a unit test with fresh same-length arrays gets fresh results; an API test: state-
+filtered statistics of two signals of one file differ; backend green.
+
+### Q54 · T53 Release assets — S
+**Seen:** the GitHub Releases carry only `.7z` portables (download counts 0-2); Windows 10 cannot
+open .7z without 7-Zip; `build.bat installer` (Inno Setup) is not built by the workflow.
+**Steps:** the workflow's Windows job also builds `SignalViewer-Setup-X.Y.Z.exe` (Inno Setup on
+the runner) and a `.zip` of the portable folder; both attached to the release next to the .7z;
+README "Download" names what to pick (installer for most users).
+**Done when:** a manual workflow run produces the three Windows files; the release page lists them.
+
+### Q55 · T54 Open files from outside — S→M
+**Seen:** `run.py` takes no file paths (`SignalViewer flight.bin` fails), the installer registers no
+file types, and a second start is a second app: both write `autosave.json`, the second's
+`push.json` token replaces the first's.
+**Steps:** paths on the command line open in the window; a second start hands its paths to the
+running app (a small local request with the push token) and exits; the installer offers "Open
+.bin / .tlog / .ulg / .mcap / .mat / .csv … with Signal Viewer" (Open with, not forced default).
+**Done when:** backend tests for the hand-over; e2e opening with a path; installer checked by owner.
+
+### Q56 · F24 Linked time plots not lined up — M
+**Seen:** with Link X the plots of a column start at different x: the value axis is as wide as
+its labels ("75" + unit vs "3000"). Vibration tab of the ArduPilot example: 22 px between plots;
+the spectrogram's time axis also covers another range (30-230 s vs 10-245 s).
+**Steps:** one value-axis width per column of a tab (the widest), right axis too; the spectrogram
+uses the linked time range (empty where no window fits). Q33 (Envelope zoom linked) in the same pass.
+**Done when:** e2e: the plot areas of a linked column have the same left and width.
+
+### Q57 · T49 9 + 12, F25 — S→M
+**Seen:** at 1024x700 a 3-plot tab leaves ~60 px of curve per plot (mode bar + legend). The ⋯ menu
+is inside the plot card (`overflow: hidden`): *Axis limits* and *Clear plot* are cut off in short
+plots. **Steps:** menus in a portal (all of them); the mode bar on the active plot only (or one
+dropdown); a right-click menu on the plot area (cursor here, two cursors, note here, zoom back /
+reset, axis limits, save image).
+
+### Q58 · T49 2 + 13, F26 — S
+**Seen:** the shortcuts dialog says "Ctrl / Alt + wheel: values only / time only" and "Double-click:
+the whole time range"; the code: Shift = values, Ctrl = both, Alt = time; double-click resets both.
+**Steps:** File menu (Q48 item 2); Help menu (shortcuts, copy error details, examples, guide, about
+/ version); fix the two lines in both languages.
+
+### Q59 · F27 Mouse wheel — S
+**Seen:** `TimeChart.tsx` zooms by a fixed 0.8 / 1.25 per wheel event whatever `deltaY` is: a
+trackpad sends dozens of events per gesture; `deltaY = 0` (sideways swipe) zooms out.
+**Steps:** factor from `deltaY` (and `deltaMode`), ignore `deltaY = 0`; same in the other charts.
+
+### Q63 · F29 Small — S
+"Inspector" aria-label not translated; "Theme" is "נושא" in Hebrew (→ "ערכת נושא"); the same value
+with different digits in the legend chip and the Inspector; an unreadable `autosave.json` is
+overwritten by the next autosave (keep it as `.bak`).
+
 ## Log
 
 - 2026-10-15 · T17f frames as one nested group + preview (in the plot, a plot per axis under
@@ -951,3 +1039,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-19 · Q49 / T50: the file panel header - the link toggle is an icon (pressed when on; its name and meaning in the tooltip), the title "Files" never gives way, the "Open files" label shrinks with an ellipsis if it must (its + stays); value axes (left and right) allow labels closer in a short plot (`space` = plot height / 4, 12-30 px) - more than one label at 1100x700 with four plots; the search box keeps its width with many tabs (F22). e2e `test_small_window_file_header`. Left: in a very short plot (4 plots at 700 px: ~40 px of curve) the mode bar + legend take most of the height - T49 item 9 (mode bar only on the active plot) is the real fix; a "too many plots for this window" hint was not added.
 - 2026-10-19 · 1.7.0 release patch: versions (build.bat, version.py, .iss, version_info.txt), CHANGELOG dated with highlights, README review (installer name, "חדש ב־1.7" in Hebrew, two known limitations: the right axis follows its data; own time columns keep their unit), README pictures and clips retaken with `tools/make_readme_media.py` (17 images, 4 clips; 06_3d_terrain and the 3D clip kept from a real screen; vid_04 / vid_05 timed out in the whole run and were made again alone), dist rebuilt · next: owner tags v1.7.0; then the T49 decisions, Q33, Q31, Q34, Q32.
 - 2026-10-19 · 1.7.0 tests: backend 665; e2e file by file all passed (features 110, workflows 28, fresh user 5, globe3d 10, templates 11, the rest) - `test_log_events_on_the_track_and_image` once waited too little for the 3D picture under load (10 s, software WebGL); it waits up to 30 s now (passed alone and with its file).
+- 2026-10-19 · Review after 1.7.0: plan Q53-Q63 (+ Q24, Q31-Q34, rest of Q48) written, ranked; owner approved. Next Q53.
