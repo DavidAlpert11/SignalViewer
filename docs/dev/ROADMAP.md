@@ -598,5 +598,18 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T51 Built-in templates in Hebrew. Spec: TASKS.md Q50. Done 2026-10-19: `tx()` / `BUILTIN_HE` in templates.ts.
 - [x] T52 e2e "fresh user" with an empty profile. Spec: TASKS.md Q51. Done 2026-10-19: `tests/e2e/test_fresh_user.py`.
 
+## Milestone 8 — 1.8.0: toward wide use (review 2026-10-19). Spec: TASKS.md Q53-Q63
+- [ ] F23 Statistics cache returns another signal's numbers (Q53).
+- [ ] T53 Release assets: installer + zip on GitHub Releases (Q54).
+- [ ] T54 Open files from outside: command line, file associations, one instance (Q55).
+- [ ] F24 Linked time plots not lined up; spectrogram range (Q56, with T14c).
+- [ ] F25 Menus clipped by the plot card (Q57, with T49 items 9, 12).
+- [ ] F26 Shortcuts dialog describes the wheel wrongly (Q58, with T49 items 2, 13).
+- [ ] F27 Mouse wheel on trackpads / sideways swipe (Q59).
+- [ ] T55 User guide and a 3-minute tour (Q60).
+- [ ] T56 PyPI package (Q61).
+- [ ] F28 One time format (Q34, with T18).
+- [ ] F29 Small labels, precision, autosave backup (Q63).
+
 ## Later
 - [ ] "copy as pandas code".
