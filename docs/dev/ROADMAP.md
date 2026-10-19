@@ -595,7 +595,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
   (`openTemplateNow`), else the library; right-click a chip for the library.
 - [ ] T49 Duplicate and unclear controls (13 items). Spec: TASKS.md Q48.
 - [ ] T50 Small windows and crowded headers. Spec: TASKS.md Q49.
-- [ ] T51 Built-in templates in Hebrew. Spec: TASKS.md Q50.
+- [x] T51 Built-in templates in Hebrew. Spec: TASKS.md Q50. Done 2026-10-19: `tx()` / `BUILTIN_HE` in templates.ts.
 - [x] T52 e2e "fresh user" with an empty profile. Spec: TASKS.md Q51. Done 2026-10-19: `tests/e2e/test_fresh_user.py`.
 
 ## Later
