@@ -873,6 +873,26 @@ input.fx-input { width: 100%; }
 
 /* recent files inside the open-files dialog */
 .fs-recent { border-bottom: 1px solid var(--line); padding: 6px 0 8px; max-height: 210px; overflow-y: auto; }
+/* T24: places column */
+.fs-dialog { width: min(900px, 94vw); height: min(640px, 82vh); max-height: 82vh; }
+.fs-main { display: flex; flex: 1; min-height: 0; }
+.fs-content { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.fs-places { width: 196px; flex: none; overflow-y: auto; border-inline-end: 1px solid var(--line); padding: 6px 0 10px; background: var(--panel); }
+.fs-places h3 { margin: 10px 12px 4px; font-size: 0.769rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--faint); }
+.fs-places-hint { margin: 0 12px 4px; font-size: 0.8077rem; color: var(--faint); }
+.fs-place { display: flex; align-items: center; }
+.fs-place.on { background: var(--amber-soft); }
+.fs-place-go { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 4px 12px; border: 0; background: none; color: var(--ink); cursor: pointer; text-align: start; }
+.fs-place-go:hover { background: var(--panel-2); }
+.fs-place-go span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
+.fs-place-go svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
+.fs-place.gone .fs-place-go { color: var(--faint); cursor: default; text-decoration: line-through; }
+.fs-place[draggable="true"] .fs-place-go { cursor: grab; }
+.fs-unpin { visibility: hidden; margin-inline-end: 4px; }
+.fs-place:hover .fs-unpin, .fs-unpin:focus-visible { visibility: visible; }
+.fs-pin.on svg { fill: var(--amber); color: var(--amber); }
+.fs-empty { padding: 18px 16px; }
+@media (max-width: 720px) { .fs-places { display: none; } }
 .fs-recent h3 { margin: 2px 14px 4px; font-size: 0.846rem; font-weight: 600; color: var(--muted); }
 .fs-recent .fs-folder { overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 .fs-row.gone > span:first-of-type { text-decoration: line-through; color: var(--muted); }

@@ -8,7 +8,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.common import SUPPORTED, fail
+from app import prefs
+from app.common import SUPPORTED, UPLOAD_DIR, fail
+from app.store import store
 
 router = APIRouter()
 
@@ -30,7 +32,7 @@ def _windows_drives() -> List[str]:
     drive cannot stall the listing (probing A:-Z: with os.path.exists could hang for seconds)."""
     try:
         import ctypes
-        mask = ctypes.windll.kernel32.GetLogicalDrives()  # type: ignore[attr-defined]  # Windows only  # type: ignore[attr-defined]  # Windows only  # type: ignore[attr-defined]  # Windows only
+        mask = ctypes.windll.kernel32.GetLogicalDrives()  # type: ignore[attr-defined]  # Windows only
         return [f"{d}:\\" for i, d in enumerate(string.ascii_uppercase) if mask >> i & 1]
     except (AttributeError, OSError):   # not Windows / no kernel32: probe the letters instead
         return [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
@@ -87,6 +89,7 @@ def list_dir(req: ListDirRequest):
         fail(404, "Folder not found.")
     wanted = _wanted(req.exts)
     entries = []
+    hidden = 0                          # files of other types: "N other files hidden" in an empty folder
     try:
         for e in os.scandir(path):
             if e.name.startswith("."):
@@ -95,6 +98,8 @@ def list_dir(req: ListDirRequest):
                 is_dir = e.is_dir()
                 if is_dir or wanted(e.name):
                     entries.append(_entry(e, is_dir))
+                else:
+                    hidden += 1
             except OSError:
                 continue
     except PermissionError:
@@ -102,7 +107,65 @@ def list_dir(req: ListDirRequest):
     entries.sort(key=lambda x: (not x["dir"], x["name"].lower()))
     parent = os.path.dirname(path)
     return {"path": path, "parent": parent if parent != path else ("" if os.name == "nt" else None),
-            "entries": entries}
+            "entries": entries, "hidden": hidden}
+
+
+# ------------------------------------------------------------------ places (T24)
+# The side column of the file dialog: folders of the open files, the user's favourites, recent
+# folders, and this computer's usual places. Nothing here touches a folder that may hang (a network
+# drive): drives come from the OS bitmask; the standard folders are a few isdir checks in the profile.
+
+_STANDARD = (("desktop", ("Desktop", "שולחן העבודה")), ("documents", ("Documents", "מסמכים")),
+             ("downloads", ("Downloads", "הורדות")))
+
+
+def _standard_folders() -> List[Dict[str, str]]:
+    home = os.path.expanduser("~")
+    out = [{"id": "home", "path": home}]
+    for key, names in _STANDARD:
+        for base in (home, os.path.join(home, "OneDrive")):
+            hit = next((os.path.join(base, n) for n in names if os.path.isdir(os.path.join(base, n))), None)
+            if hit:
+                out.append({"id": key, "path": hit})
+                break
+    return out
+
+
+def _drives() -> List[str]:
+    if os.name == "nt":
+        return _windows_drives()
+    roots: List[str] = []
+    user = os.environ.get("USER") or os.path.basename(os.path.expanduser("~"))
+    for base in ("/Volumes", f"/media/{user}", f"/run/media/{user}", "/media", "/mnt"):
+        try:
+            for e in os.scandir(base):
+                if e.is_dir() and not e.name.startswith(".") and e.path != f"/media/{user}" and e.path not in roots:
+                    roots.append(e.path)
+        except OSError:
+            continue
+    return roots[:12]
+
+
+@router.get("/api/fs/places")
+def places():
+    open_folders: List[str] = []
+    for lr in store.runs.values():
+        fp = getattr(lr.run, "file_path", "") or ""
+        d = os.path.dirname(fp)
+        if d and os.path.isdir(d) and d not in open_folders and not d.startswith(UPLOAD_DIR):
+            open_folders.append(d)
+    return {"open": open_folders, "favourites": prefs.favourite_folders(), "recent": prefs.recent_folders(),
+            "standard": _standard_folders(), "drives": _drives()}
+
+
+class FavouritesRequest(BaseModel):
+    paths: List[str]
+
+
+@router.put("/api/fs/favourites")
+def set_favourites(req: FavouritesRequest):
+    """The whole list, in order (pin, unpin and reorder all send it)."""
+    return {"favourites": prefs.set_favourite_folders(req.paths)}
 
 
 

@@ -37,6 +37,8 @@ export const Icon = {
   Copy: mk(<><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" /></>),
   Up: mk(<path d="M12 19V5M5 12l7-7 7 7" />),
   Home: mk(<path d="M4 11l8-7 8 7v9H4z" />),
+  Star: mk(<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />),
+  Drive: mk(<><rect x="3" y="13" width="18" height="7" rx="1.5" /><path d="M5 13l2.5-8h9L19 13M7 16.5h.01" /></>),
   More: mk(<><circle cx="5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="19" cy="12" r="1.3" /></>),
   Save: mk(<><path d="M5 3h11l3 3v15H5z" /><path d="M8 3v6h8V3M8 21v-7h8v7" /></>),
   Open: mk(<><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1" /><path d="M3 7v11a2 2 0 0 0 2 2h13l3-9H7l-3 9" /></>),

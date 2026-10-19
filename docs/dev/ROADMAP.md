@@ -309,7 +309,7 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   352-signal list scrolls at 60 fps (p95 16.8 ms/frame). Tests: `test_signal_list_info.py`; e2e
   `test_signal_list_unit_rate_and_picture` (and only the visible rows ask).
 - [ ] T23 Notes over a time range (shaded span), listed in reports.
-- [ ] T24 Favourite folders and quick open (Ctrl+P, fuzzy over recent folders).
+- [x] T24 Favourite folders and quick open (Ctrl+P, fuzzy over recent folders). Done 2026-10-19 with the extension below.
 - [ ] T25 Sim-vs-flight error signal with RMS per segment.
 - [x] T26 Parameter diff between two logs. *Re-assessed: already there* - the Log panel's
   Parameters tab has a "differences from another file" filter.
@@ -565,7 +565,17 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
   Done: `TopBar.tsx`: the strip in `.tabs-wrap` with "+" and an "All tabs (n)" button (`.tabs-all`, shown when the tabs overflow - ResizeObserver) that lists every tab (✓ the active); the active tab `scrollIntoView` on every switch; wheel over the strip scrolls it (RTL sign); `actions.cycleTab` on Ctrl+PageUp / PageDown and Ctrl+Tab (App.tsx; Help row); palette "Go to tab: …" per tab; CSS: the strip shrinks, the right-side controls do not, the search box keeps 150 px; ContextMenu: a menu of more than 14 items without submenus scrolls (`.menu.ctx.long`). en + he; checked in Hebrew by screenshot. e2e `test_every_tab_is_reachable_with_many_tabs`.
 
 ## Milestone 6b — 1.7.0 additions from the review
-- [ ] T24 extended: places in the file dialog (recent folders, favourites, open files' folders). Spec: TASKS.md Q30+.
+- [x] T24 extended: places in the file dialog (recent folders, favourites, open files' folders). Spec: TASKS.md Q30+.
+  Done 2026-10-19: `routes/fs.py` `GET /api/fs/places` (folders of the open files, favourites,
+  recent folders from recent.json - `prefs.recent_folders`, home / desktop / documents / downloads
+  incl. OneDrive and Hebrew folder names, drives from the OS bitmask / `/Volumes` `/media` `/mnt`)
+  and `PUT /api/fs/favourites` (the whole ordered list, `settings.json` `favouriteFolders`, max 30);
+  `/api/fs/list` also returns `hidden` (files of other types). `FileBrowser.tsx`: a places column
+  (hidden under 720 px; a recent folder already listed as open / favourite is not repeated), ★ in
+  the path bar pins / unpins the folder shown, × unpins, drag reorders; an empty folder says so and
+  how many other files it holds. Ctrl+P = quick open in the palette (`paletteMode: "open"`):
+  favourites, recent files, recent folders; a folder opens the dialog there (`browserStart`).
+  Tests: `test_places.py`; e2e `test_file_dialog_places`, `test_file_dialog_recent_folders_and_empty_folder`, `test_quick_open`.
 - [ ] T46 File identity: colour + short tag per file, colour by file. Spec: TASKS.md Q45.
 - [ ] T47 Second value axis for different units. Spec: TASKS.md Q46.
 - [ ] T48 First impression: examples open ready, one-click template chips. Spec: TASKS.md Q47.

@@ -73,6 +73,45 @@ def list_recent() -> List[Dict[str, Any]]:
     return files + sessions
 
 
+def recent_folders(limit: int = 8) -> List[Dict[str, Any]]:
+    """T24: the folders of recently opened files and sessions, newest first, each once."""
+    seen, out = set(), []
+    for x in _read("recent.json", []):
+        folder = os.path.dirname(x.get("path", "") or "")
+        key = os.path.normcase(folder)
+        if not folder or key in seen or (os.sep + "uploads" + os.sep) in folder + os.sep and APP_DIR in folder:
+            continue
+        seen.add(key)
+        out.append({"path": folder, "exists": os.path.isdir(folder)})
+        if len(out) >= limit:
+            break
+    return out
+
+
+FAVOURITES_MAX = 30
+
+
+def favourite_folders() -> List[Dict[str, Any]]:
+    """T24: the folders pinned in the file dialog, in the user's order (settings.json)."""
+    favs = _read("settings.json", {}).get("favouriteFolders", [])
+    return [{"path": p, "exists": os.path.isdir(p)} for p in favs if isinstance(p, str) and p]
+
+
+def set_favourite_folders(paths: List[str]) -> List[Dict[str, Any]]:
+    seen, clean = set(), []
+    for p in paths:
+        if not isinstance(p, str) or not p.strip():
+            continue
+        p = os.path.abspath(os.path.expanduser(p.strip()))
+        if os.path.normcase(p) not in seen:
+            seen.add(os.path.normcase(p)); clean.append(p)
+    with _lock:
+        settings = _read("settings.json", {})
+        settings["favouriteFolders"] = clean[:FAVOURITES_MAX]
+        _write("settings.json", settings)
+    return favourite_folders()
+
+
 def forget_recent(path: str) -> None:
     with _lock:
         _write("recent.json", [x for x in _read("recent.json", []) if x.get("path") != path])

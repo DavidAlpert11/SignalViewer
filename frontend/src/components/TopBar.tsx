@@ -110,7 +110,7 @@ export default function TopBar() {
         <Icon.Layout /> {t("tplMenu")} <Icon.Chevron width={12} height={12} />
       </button>
       <div className="spacer" />
-      <button className="search-trigger" onClick={() => useApp.setState({ paletteOpen: true })}>
+      <button className="search-trigger" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
       </button>
       <span className="sep" />
