@@ -567,3 +567,16 @@ def test_clearer_controls(page, server):
     ok = page.locator(".dialog .btn.primary")
     assert ok.inner_text() == "Clear everything" and "danger" in ok.get_attribute("class")
     page.keyboard.press("Escape")
+
+
+def test_builtin_templates_in_hebrew(page, server):
+    """T51: in Hebrew the built-in templates (and the tabs they make) are named in Hebrew."""
+    _open(page, server["data"], ["run_a.csv"])
+    page.get_by_role("button", name="עברית").click()
+    page.wait_for_function("document.documentElement.dir === 'rtl'")
+    chip = page.locator(".tpl-strip .chipbtn", has_text="מבט מהיר")
+    chip.wait_for()
+    page.locator("[aria-label='ניקוי כל הגרפים'], [aria-label='Clear all plots']").first.click()
+    chip.click()
+    page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name.startsWith('מבט מהיר'))")
+    page.get_by_role("button", name="English").click()
