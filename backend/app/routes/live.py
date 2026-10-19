@@ -60,7 +60,8 @@ async def stream_poll():
             LIVE["reported"].add(f["path"])
         new_files = found
     return {"changed": changed, "runs": store.list() if changed else None,
-            "errors": getattr(store, "poll_errors", {}), "activity": store.activity(), "newFiles": new_files}
+            "errors": getattr(store, "poll_errors", {}), "activity": store.activity(), "newFiles": new_files,
+            "writing": list(getattr(store, "writing", []))}
 
 
 

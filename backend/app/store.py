@@ -71,6 +71,11 @@ TIME_SLACK = 2.0   # seconds: see new_files()
 UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 
 
+# live mode, files rewritten as a whole (MAT, ULog, MCAP, HDF5, Parquet): read once unchanged for
+# SETTLE_QUIET seconds, and at least every SETTLE_MAX seconds while they keep changing
+SETTLE_QUIET = 0.4
+SETTLE_MAX = 2.0
+
 # T46: file colours - the same palette as the traces (frontend TRACE_COLORS), in the same order
 FILE_COLORS = ["#3D8BFD", "#2FBF9F", "#E5677A", "#9B7BFF", "#7CC35A", "#F07B3F", "#4FC3E8", "#D08CE8", "#B8A33A", "#FF8FB1"]
 MAX_TAG = 4
@@ -96,6 +101,7 @@ class LoadedRun:
     stat: Optional[Tuple[int, int]] = None        # (size, mtime_ns) of the file as last read
     last_change: float = 0.0                      # time.time() when new data was last read (live mode)
     pending_stat: Optional[Tuple[int, int]] = None   # changed file seen once, waiting until it is stable
+    pending_since: float = 0.0                    # when a rewritten-as-a-whole file started changing
 
 
 def _stat(path: str) -> Optional[Tuple[int, int]]:
@@ -291,6 +297,9 @@ class Store:
         # T46: every open data file has a colour and a short tag (A, B, C...) - kept by id, so a
         # reload / replace / live update keeps them; given when a file is first described
         self.marks: Dict[str, Dict[str, str]] = {}
+        self._poll_lock = threading.Lock()
+        self.poll_errors: Dict[str, str] = {}
+        self.writing: List[str] = []              # live: rewritten-as-a-whole files still being written
 
     # ------------------------------------------------------------------ files
     def open_file(self, path: str, settings: Optional[dict] = None) -> LoadedRun:
@@ -465,8 +474,18 @@ class Store:
         A file that was re-saved from scratch (not appended) is reloaded. Problems (file locked
         while another program saves it, unreadable...) are kept in self.poll_errors for the UI
         instead of failing the whole poll."""
+        # one poll at a time: a slow poll (a big file read again) must not be overtaken by the next
+        if not self._poll_lock.acquire(blocking=False):
+            return []
+        try:
+            return self._poll_appends()
+        finally:
+            self._poll_lock.release()
+
+    def _poll_appends(self) -> List[str]:
         changed = []
         self.poll_errors = {}
+        self.writing = []
         now = time.time()
         for rid in list(self.order):
             lr = self.runs.get(rid)
@@ -480,11 +499,32 @@ class Store:
                 continue                                     # cheap path: untouched since last read
             fmt = run_format(lr.run)
             try:
-                if fmt in ("mat", "ulg", "mcap", "hdf5", "parquet"):   # rewritten / closed as a whole: read when settled
-                    if lr.pending_stat != st:                # changed: wait one poll for it to settle
+                if fmt in ("mat", "ulg", "mcap", "hdf5", "parquet"):   # rewritten / closed as a whole
+                    # Read it once it has been quiet for a moment - or, if it never stops changing
+                    # (saved every second by a running program), every SETTLE_MAX seconds anyway: it
+                    # used to wait for two equal polls, so a file saved often was never shown until
+                    # the writing stopped. A read of a half-written file fails and is tried again.
+                    if lr.pending_stat != st:
                         lr.pending_stat = st
+                        lr.pending_since = lr.pending_since or now
+                        lr.last_change = now                 # being written: live mode is not idle
+                    quiet = now - st[1] / 1e9 >= SETTLE_QUIET
+                    overdue = now - lr.pending_since >= SETTLE_MAX
+                    if not (quiet or overdue):
+                        self.writing.append(rid)
                         continue
-                    n = -1
+                    try:
+                        fresh = self.reload(rid)
+                    except Exception as e:
+                        if quiet:                            # settled but unreadable: say so
+                            self.poll_errors[rid] = str(e) or e.__class__.__name__
+                        else:                                # caught mid-write: next poll
+                            self.writing.append(rid)
+                        continue
+                    fresh.last_change = now
+                    fresh.pending_since = 0.0
+                    changed.append(rid)
+                    continue
                 elif fmt == "bin":
                     n = append_new_messages(lr.run)
                 elif fmt == "tlog":

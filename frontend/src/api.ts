@@ -191,7 +191,7 @@ export const api = {
   reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),
   poll: () => call<{ changed: string[]; runs: RunInfo[] | null; errors?: Record<string, string>;
-    activity?: Record<string, number>; newFiles?: { path: string; name: string; size: number; mtime: number }[] }>("/api/stream/poll", {}),
+    activity?: Record<string, number>; newFiles?: { path: string; name: string; size: number; mtime: number }[]; writing?: string[] }>("/api/stream/poll", {}),
   streamStart: (lookBack = 0) => call<{ ok: boolean }>("/api/stream/start", { lookBack }),
   streamStop: () => call<{ ok: boolean }>("/api/stream/stop", {}),
   mavlinkStart: (body: { conn: string; baud?: number; request?: boolean; rate?: number }) => call<MavStatus>("/api/mavlink/start", body),
