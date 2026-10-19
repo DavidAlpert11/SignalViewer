@@ -580,3 +580,17 @@ def test_builtin_templates_in_hebrew(page, server):
     chip.click()
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name.startsWith('מבט מהיר'))")
     page.get_by_role("button", name="English").click()
+
+
+def test_small_window_file_header(page, server):
+    """T50: with several files in a small window the file panel's header was crowded - "Link" cut,
+    touching "Open files". The link toggle is an icon now, and the title never gives way."""
+    page.set_viewport_size({"width": 1100, "height": 700})
+    _open(page, server["data"], ["run_a.csv", "run_b.csv", "run_c.csv"])
+    page.locator(".link-toggle").wait_for()
+    fits = page.evaluate("""(() => { const h = document.querySelector('.side-head'), t = h.querySelector('h2');
+        return t.scrollWidth <= t.clientWidth + 1 && h.scrollWidth <= h.clientWidth + 1; })()""")
+    assert fits
+    page.locator(".link-toggle").click()
+    page.wait_for_function("window.__sv.state().linkRuns === true")
+    page.locator(".link-toggle").click()

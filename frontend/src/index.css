@@ -144,7 +144,11 @@ button, input, select { font: inherit; color: inherit; }
 /* ------------------------------ side panel ------------------------------ */
 .side { width: auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-inline-end: 1px solid var(--line); }
 .side-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px 14px; }
-.side-head h2 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink-strong); flex: 1; }
+.side-head h2 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink-strong); flex: 1 0 auto; white-space: nowrap; }
+.side-head > :not(h2):not(.split-btn) { flex-shrink: 0; }
+/* T50: when the header is full, the "Open files" label gives way (its + stays), not the title */
+.side-head .split-btn { display: flex; min-width: 0; flex-shrink: 1; }
+.side-head .split-btn > .btn:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter { margin: 4px 10px 8px; display: flex; align-items: center; gap: 6px; padding-inline: 8px; height: 30px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .filter:focus-within { border-color: var(--focus); }
 .filter input { flex: 1; border: 0; background: none; outline: none; min-width: 0; }
@@ -495,7 +499,7 @@ table.vals.dualtbl th:first-child { width: 26%; }
 .confirm-text { margin: 0 0 8px; line-height: 1.55; }
 .iconbtn.danger-hover:hover { color: var(--danger); }
 .gridpick { z-index: 90; }
-.link-toggle { height: 28px; padding-inline: 8px; font-size: 0.923rem; }
+.link-toggle { height: 28px; }
 .link-note { margin: 0 10px 6px; padding: 6px 8px; border-radius: 6px; background: var(--panel-2); color: var(--ink); font-size: 0.885rem; line-height: 1.4; }
 .cmp-dialog { width: min(1180px, 96vw); max-height: 88vh; }
 .cmp-dialog .dialog-head h2 .muted { color: var(--muted); font-weight: 400; font-size: 0.962rem; }
