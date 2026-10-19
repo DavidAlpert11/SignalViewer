@@ -10,6 +10,7 @@
 
 ### Fixed
 - A click on **Create signal ▸** sometimes opened and closed its submenu at once.
+- File dialog: **Tab** in the path box completes only what you typed; on a path left as it is, Tab moves to the next control (a keyboard user could not leave the path box).
 
 ## 1.6.1 – 2026-10-19
 
