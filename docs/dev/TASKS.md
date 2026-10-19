@@ -18,7 +18,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   README pictures were not retaken: nothing they show changed (checked 03_compare_runs).
 - **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
   features. P1 (bugs F13-F22) done and released as 1.6.1; P2 (T24 extended, T46-T52) joins
-  Q30-Q34 in 1.7.0. Q30 / Q30+ and Q45 done (1.7.0 unreleased). Next: Q46 (T47 second value axis).
+  Q30-Q34 in 1.7.0. Q30 / Q30+, Q45, Q46 done (1.7.0 unreleased). Next: Q47 (T48 first impression).
 - Tests at the last change: backend 650 passed; whole e2e suite file by file, all passed (review P1, 2026-10-18).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -518,7 +518,7 @@ direction: polish what exists before Q31-Q34. Phase P1 is bugs (aim: 1.6.1), P2 
 | **P2** | **Usability (1.7.0, with Q30-Q34)** | | |
 | Q30+ | T24 (extended) Places in the file dialog: recent folders, favourites, folders of open files | S→M | ☑ done |
 | Q45 | T46 File identity: every file has a colour + short tag, used everywhere | M | ☑ done |
-| Q46 | T47 Signals with different units in one plot: a second value axis | M | ☐ |
+| Q46 | T47 Signals with different units in one plot: a second value axis | M | ☑ done |
 | Q47 | T48 First impression: examples open ready, one-click template chips | S | ☐ |
 | Q48 | T49 Duplicate and unclear controls (list below) | M | ☐ |
 | Q49 | T50 Small windows and crowded headers | S | ☐ |
@@ -939,3 +939,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-19 · Flaky `test_create_signal_submenu_from_the_file_list` (failed in 2 of 4 whole runs): the hover that comes with a click opened the submenu and the click's toggle closed it; a click now only opens (`Overlays.tsx`). Repeated 3x alone + whole test_features 110 passed. Whole e2e suite file by file at this commit: all passed (workflows 20) · backend 654 · next: Q45 (T46).
 - 2026-10-19 · Q45 / T46 file identity: backend gives every open data file a tag (first free A..Z, AA...) and a colour (least used of FILE_COLORS = the trace palette) - `Store.marks` by id, so reload / replace / live keep them; in `describe`, `PATCH /api/runs/{id}` tag (4 chars) / colour (#RRGGBB), sessions save and restore them. UI: file list header shows the tag in the file's colour (one file: a swatch) - click = colour picker; File options > Short tag…; legend chips show the tag instead of " · file.csv" when 2+ files, tooltip = full name + path; Inspector cursor / statistics rows and the Create signals pickers show the tag; a signal joining the same name from another file colours that group by file (shades for several names of a file); Plot ⋯ > Colour by file; Compare runs and Compare open files use the file colour (Compare no longer recolours when a run is unchecked). Tests `test_file_marks.py` (2), e2e `test_each_file_has_a_colour_and_a_tag`, `test_compare_keeps_file_colours`. Not done (left for later): map / 3D tracks and the report legend still use their own colours / the file name; the plot colour mode is an action, not a stored setting · backend 656 · next: Q46 (T47).
 - 2026-10-19 · File dialog: Tab in the path box completed again and again (a keyboard user could not leave it; seen as a flaky `test_dialogs_take_the_keyboard` in a whole run) - Tab completes only after typing (`edited` ref; still continues inside a folder chosen by completion). Whole e2e file by file: all passed (features 110, workflows 22) · next: Q46 (T47).
+- 2026-10-19 · Q46 / T47 second value axis: `PlotSignal.axis = "right"` (optional; old sessions all left). TimeChart: scale `y2` (auto range, room for state lanes), a right axis with its unit label (the left label from the left signals only), per-signal scale for the series, the values drawn at the cursor and the limit lines; chip shows "right axis"; chip menu *To the right axis* / *Back to the left axis*; adding a signal in other units than the plot's (one known unit vs another) offers the right axis in a toast once per plot and unit - nothing moves by itself. Reports: `plotSpec` passes `axis`; HTML report (viewer.js `y2`), PDF / Word / PNG / SVG (matplotlib `twinx`, one legend). Value zoom / pan / axis limits / linked value axes act on the left axis; the right axis follows its data. Tests `test_right_axis.py`, e2e `test_second_value_axis` · backend 657 · next: Q47 (T48).
