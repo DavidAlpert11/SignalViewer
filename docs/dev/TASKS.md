@@ -13,13 +13,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Released tags: `v1.0.0` ... `v1.5.0`; **1.6.0 prepared** (Q35, this commit) - the
-  owner builds the Windows portable package, checks the four welcome examples are there (F10 could
-  not be checked in the sandbox: python.org is unreachable), then tags `v1.6.0` and pushes the tag.
-  (`v1.5.0` was tagged without its release patch - its packages say 1.4.0; CHANGELOG has both.)
+- Branch `main`. Released tags: `v1.0.0` ... `v1.6.0`; **1.6.1 prepared** (review phase P1, this
+  commit) - the owner builds the Windows package, checks it, then tags `v1.6.1` and pushes the tag.
+  README pictures were not retaken: nothing they show changed (checked 03_compare_runs).
 - **Active plan: "Review 2026-10-18 (after 1.6.0)" below** - owner: polish what exists before new
-  features. P1 (bugs F13-F21, Q36-Q44) aims at 1.6.1; P2 (T24 extended, T46-T52) joins Q30-Q34 in
-  1.7.0. Next: Q38 (F15), then Q36.
+  features. P1 (bugs F13-F22) done and released as 1.6.1; P2 (T24 extended, T46-T52) joins
+  Q30-Q34 in 1.7.0. Next: Q30+ (places in the file dialog), then Q45 (T46 file colour + tag).
 - Tests at the last change: backend 650 passed; whole e2e suite file by file, all passed (review P1, 2026-10-18).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -935,3 +934,4 @@ sensible folder, Esc closes) → Hebrew → back. Collect `pageerror` / console 
 - 2026-10-18 · Q43 / F20 several files: Compare suggested, one note toast · e2e · next: Q44.
 - 2026-10-18 · Q44 / F21 file dialog: Shift range, Ctrl+A, a last folder per use · e2e · next: the whole e2e suite, then the 1.6.1 release check.
 - 2026-10-18 · F21 follow-up: listing the folder already shown kept clearing the selection (a click during the load was lost, Open disabled - 5 flaky test_features tests after F21 started the dialog in the data folder); now the picked files that are still there are kept. e2e `test_relisting_the_same_folder_keeps_the_selection` (fails without the fix). Whole e2e suite file by file: all pass (features 110, workflows 17, templates 11, globe3d 10, the rest) · backend 650 · next: 1.6.1 release patch.
+- 2026-10-19 · 1.6.1 release patch: versions (build.bat, version.py, .iss, version_info.txt), CHANGELOG dated with highlights, README review (test counts 650 / 168, Files / Plots / Similarity rows, keyboard Ctrl+PageUp/PageDown, a browser limitation for those keys, Hebrew "חדש ב־1.6.1", installer name), dist rebuilt · next: owner tags v1.6.1; then Q30+.

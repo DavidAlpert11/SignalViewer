@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.6.1 – unreleased
+## 1.6.1 – 2026-10-19
+
+Highlights: a polish release after a review of every button. **Many tabs** are all reachable again
+(an *All tabs* list, Ctrl+PageUp / PageDown); **Compare open files** gives every file its own
+colour; **Compare runs** handles yaw / heading across north; the file dialog gets **Shift+click
+ranges**, **Ctrl+A** and a last folder per use; dialogs and menus close with **Esc**.
 
 ### Fixed
 - File dialog: a file clicked while the same folder was still being listed (or listed again) stays picked; *Open* no longer stays disabled.
