@@ -199,9 +199,9 @@ npm run build    # rebuilds frontend/dist
 Tests:
 
 ```bash
-python -m pytest backend/tests          # ~650 server tests (incl. damaged copies of every format)
+python -m pytest backend/tests          # ~665 server tests (incl. damaged copies of every format)
 pip install -r requirements-dev.txt && python -m playwright install chromium
-python -m pytest tests/e2e              # ~170 browser tests, the whole suite in one run (~9 min)
+python -m pytest tests/e2e              # ~180 browser tests, the whole suite in one run (~9 min)
 python -m pytest tests/e2e/test_features.py    # or one file: one test per catalog feature
 cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer   # type check
 python tools/benchmark.py big.csv       # performance against the targets (results in docs/)
@@ -210,8 +210,8 @@ python tools/benchmark.py big.csv       # performance against the targets (resul
 ## What works
 
 Every feature of the requirements catalog is covered by an automated test that drives the
-real UI: `tests/e2e/test_features.py` (110 tests) and the other `tests/e2e/` files (168 in all),
-plus 650 backend tests.
+real UI: `tests/e2e/test_features.py` (110 tests) and the other `tests/e2e/` files (182 in all, `test_fresh_user.py` with an empty profile),
+plus 665 backend tests.
 
 | Area | Status |
 |---|---|
