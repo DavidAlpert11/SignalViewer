@@ -42,6 +42,9 @@ export interface UiSlice {
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;
+  /** F24: each plot's room left / right of its plot area (px), so a column of plots shares one -
+   *  the time axes line up. Reported by the charts; UI only. */
+  gutters: Record<string, [number, number]>;
 
   set: (p: Partial<AppState>) => void;
   toast: (t: Omit<Toast, "id">) => void;
@@ -83,6 +86,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   promptDialog: null,
   uiScale: 1,
   helpOpen: false,
+  gutters: {},
 
   set: (p) => set(p),
   toast: (t) => {

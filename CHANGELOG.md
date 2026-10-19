@@ -9,6 +9,8 @@
 - **Downloads:** every release now has the **Windows installer** (`SignalViewer-Setup-X.Y.Z.exe`, for the current user, no administrator rights) and the Windows portable package also as a **.zip** (Windows 10 opens it without 7-Zip), next to the .7z packages, with a short "which file?" note on the release page. The installer is installed and started by the build before it is published.
 
 ### Fixed
+- **Plots in a column line up.** With linked time, a plot whose value axis was wider (a unit label, larger numbers, text values) started further right, so the same moment was at a different place in each plot. The plots of a column now share one axis width; a spectrogram spans its signal's whole time like the signal's own plot (it covered only the part where its window fits).
+- **An Envelope plot zooms with the tab's time plots** (drag, double-click, Backspace and R as in a time plot); before, its zoom was its own.
 - **Statistics could show another signal's numbers.** With *only while* a state has a value, two signals of one file could show the same min / max / mean (one signal's numbers under the other's name); a report with scaled signals and a file reloaded with the same length could do the same. The statistics are now always computed from the signal they are shown for.
 
 ## 1.7.0 – 2026-10-19

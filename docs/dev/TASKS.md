@@ -21,8 +21,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the app into use). **Owner: no 1.7.1 - F23 and the rest wait for 1.8.0.** Q53, Q55 done; Q54 written,
   waits for one CI run (owner: Actions -> build -> Run workflow; the Windows artifact has the .exe,
   .zip and .7z; install it, then "Open with" a .bin / .csv while the app runs). Next: Q24 is the
-  owner's (certificate), so Q56 (F24 linked plots lined up + Q33).
-- Tests at the last change: backend 670 passed, mypy clean, tsc + build clean (Q55); e2e run: test_open_external, test_push, test_fresh_user (7 passed); whole e2e suite last run at the 1.7.0 release (182 passed).
+  owner's (certificate). Q56 (+ Q33) done. Next: Q57 (T49 items 9 + 12, F25 menus clipped).
+- Tests at the last change: backend 670 passed, mypy clean, tsc + build clean; whole e2e suite file by file, all passed (186 tests; Q56, 2026-10-19).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -45,6 +45,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 4. `cd frontend && npm run build` and commit `frontend/dist`; tag `vX.Y.Z` and push the tag.
 
 ## How to work here (practical notes)
+
+- **Patches to the owner (owner's rule, 2026-10-19):** every patch sent is ONE file with ALL the
+  commits since what is on GitHub now (`git fetch origin` first; `git rebase origin/main` drops what
+  the owner already applied; then `git format-patch --stdout origin/main..HEAD`), checked with
+  `git am` on a fresh clone. The owner sometimes applies at once and sometimes later - a patch must
+  never depend on an earlier patch having been applied.
 
 - Setup: `pip install -r requirements.txt -r requirements-dev.txt`, `cd frontend && npm ci`.
 - Run: `python run.py` (builds the UI once by itself when the sources changed, T17e).
@@ -458,7 +464,7 @@ task, with a Log line. **1.6.0 = phases A, B and Q29; Q30-Q34 are 1.7.0** (owner
 | Q30 | T24 Favourite folders and quick open (Ctrl+P) | S | ☑ done (with Q30+) |
 | Q31 | T23 Notes over a time range (shaded span), listed in reports | M | ☐ |
 | Q32 | T25 Sim-vs-flight error signal with RMS per segment | M | ☐ |
-| Q33 | T14c Envelope plot zoom linked with the tab's time plots | S | ☐ |
+| Q33 | T14c Envelope plot zoom linked with the tab's time plots | S | ☑ done (with Q56, 2026-10-19) |
 | Q34 | T18 Settings dialog (language, theme, map layer, live defaults) | M | ☐ |
 | **D** | **Release** | | |
 | Q35 | Release 1.6.0 (moved before Q30 - owner) (see "Releasing"; CHANGELOG split 1.5.0 / 1.6.0; README "חדש ב־1.5" and "1.6") | S | ☑ done |
@@ -793,7 +799,7 @@ what brings the app into use; update this table after every step.
 | Q54 | T53 Release assets: the installer and a zip on GitHub Releases | S | ◐ written; first CI run by the owner |
 | Q55 | T54 Open files from outside: paths on the command line, file associations, one instance | S→M | ☑ done (installer part: owner checks on Windows) |
 | Q24 | T43 Signed installers (owner: certificate) | M | ☐ |
-| Q56 | F24 Linked time plots not lined up (value-axis width; spectrogram range) + Q33 (T14c) | M | ☐ |
+| Q56 | F24 Linked time plots not lined up (value-axis width; spectrogram range) + Q33 (T14c) | M | ☑ done |
 | Q57 | T49 items 9 + 12 (mode bar on the active plot; plot right-click menu) + F25 menus clipped by the plot card | S→M | ☐ |
 | Q58 | T49 items 2 + 13 (File menu; Help in the top bar) + F26 the shortcuts dialog describes the wheel wrongly | S | ☐ |
 | Q59 | F27 Mouse wheel: trackpads zoom far too fast, a sideways swipe zooms out | S | ☐ |
@@ -1049,3 +1055,5 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 - 2026-10-19 · Q54 / T53: build.yml - the Windows job also makes the portable `.zip` (7z -tzip of the assembled folder) and the installer (PyInstaller `SignalViewer.spec` + Inno Setup, `choco install innosetup` when the runner has none, `/DAppVersion`), then installs it silently for the current user into the runner's temp folder, starts it and waits for `/api/runs` (the PyInstaller Windows build had no CI check before); the artifact carries the three Windows files; the release job uploads everything with a "which file?" note (`--notes-file` + `--generate-notes`). README "Download" names the file to take. **Not run here** (no Windows runner in the sandbox; YAML and the shell steps were syntax-checked, the notes rendered): the owner runs the workflow once. Open question for the owner: a 1.7.1 with F23 + these assets, or wait for 1.8.0.
 - 2026-10-19 · Owner: no 1.7.1; F23 and the release assets go out with 1.8.0.
 - 2026-10-19 · Q55 / T54: `run.py [paths…] [--new-window]`. `app/instance.py`: `hand_over` posts the paths to the running app (push.json url + token, `/api/open-external`, no proxy); `wait_or_lead`: a start lock (`~/.signalviewer/starting.lock`, O_EXCL; stale after 30 s) so Explorer's one-process-per-file starts end in ONE app - the others wait and hand over. The paths become an "open" push event; the page takes them once it has restored the autosave (`/api/push/events?opens=1`) and the server hands each out ONCE (a reload does not open them again - first version re-read them); `.svsession` goes to `openSession(path)`. The window comes forward (`push.ON_OPEN`, pywebview restore/show/on_top). Found on the way: TopBar and the palette passed the click event to `openSession` (now `() => openSession()`). Installer: task "openwith" (checked) - `SignalViewer.DataFile` ProgID, `OpenWithProgids` + `Applications\SignalViewer.exe\SupportedTypes` for 11 extensions under HKA, `.svsession` default only if unset, `ChangesAssociations`; the .iss is now UTF-8 with BOM (Hebrew task text). Tests: backend 4 (token, once-only events, no / stale push.json, start lock incl. a stale one), e2e `test_open_external` (a second `run.py file.csv` exits and the file opens in the page). Not checked here: the installer on Windows (no Windows in the sandbox).
+- 2026-10-19 · Owner's rule for patches: one cumulative patch since origin/main every time (written under "How to work here"). Owner: decide and continue without asking.
+- 2026-10-19 · Q56 / F24 + Q33 / T14c: `useGutter` / `reportGutter` (chartUtil.ts, UI-only `gutters` in the ui slice): each time / spectrogram / envelope chart reports the room left and right of its plot area, and the plots of a column (index % cols) use the largest. TimeChart counts the axis label (uPlot puts `labelSize` next to `size` - the first try missed it: 14 px off); the right axis's room evens out the right edge. SpecChart: margins from the gutter; with no zoom the image spans the signal's own extent (`sigT0` / `sigT1` from /api/spectrogram), empty where no window fits. EnvelopeChart: the tab's range (rangeKey): drag sets it, double-click clears it, a change elsewhere moves its axis without a rebuild. Measured on the ArduPilot example: Vibration tab 419/966 px for both time plots (was 91 vs 69 / different widths). Tests: backend spectrogram extent; e2e `test_aligned_plots` (units vs no units line up; Envelope lines up, its drag zooms the tab, double-click resets).

@@ -368,4 +368,7 @@ def spectrogram_ep(req: SpecRequest):
     step = float(f[1] - f[0]) if len(f) > 1 else r["df"]
     return {"nf": int(len(f)), "nt": int(len(r["t"])), "f0": max(0.0, float(f[0]) - step / 2), "f1": float(f[-1]) + step / 2,
             "t0": float(r["t"][0]), "t1": float(r["t"][-1]), "img": base64.b64encode(np.ascontiguousarray(r["img"]).tobytes()).decode(),
-            "dbLo": r["dbLo"], "dbHi": r["dbHi"], "fs": r["fs"], "nfft": r["nfft"], "df": r["df"], "dt": r["dt"]}
+            "dbLo": r["dbLo"], "dbHi": r["dbHi"], "fs": r["fs"], "nfft": r["nfft"], "df": r["df"], "dt": r["dt"],
+            # F24: the signal's own extent - the whole-signal view spans it like the signal's time plot
+            # (the image itself starts and ends half a window inside)
+            "sigT0": float(t[0]), "sigT1": float(t[-1])}

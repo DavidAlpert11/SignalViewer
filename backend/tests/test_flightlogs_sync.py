@@ -180,6 +180,7 @@ def test_stats_while_in_state_and_spectrogram(flight):
     assert r["duration"] == pytest.approx(10, abs=1.1)
     s = client.post("/api/spectrogram", json={"signal": roll, "width": 200, "height": 64}).json()
     assert s["fs"] == pytest.approx(20) and s["f1"] == pytest.approx(10, abs=0.2) and s["nt"] > 50
+    assert s["sigT0"] < s["t0"] and s["sigT1"] > s["t1"]      # F24: the signal's own extent, wider than the windows
     img = np.frombuffer(__import__("base64").b64decode(s["img"]), np.uint8)
     assert img.size == s["nf"] * s["nt"]
 
