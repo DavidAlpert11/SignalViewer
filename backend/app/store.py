@@ -182,6 +182,27 @@ def check_file(path: str, settings: Optional[dict] = None) -> None:
             raise LoadError("This is a binary file, not text: it cannot be read as CSV.", "binaryText")
 
 
+def _text_file(path: str) -> bool:
+    """A .tlog that is a TEXT table (a telemetry export with columns), not a MAVLink recording:
+    read as CSV. A MAVLink .tlog starts with an 8-byte time stamp and binary packets."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4096)
+    except OSError:
+        return False
+    if not head or b"\x00" in head:
+        return False
+    try:
+        text = head.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = head.decode("cp1252")
+        except UnicodeDecodeError:
+            return False
+    printable = sum(ch.isprintable() or ch in "\r\n\t" for ch in text) / max(1, len(text))
+    return printable > 0.97 and "\n" in text and any(d in text for d in (",", ";", "\t", " "))
+
+
 def _display_names(paths: List[str]) -> Dict[str, str]:
     """File name, plus parent folder when two files share a name."""
     names = {}
@@ -317,7 +338,7 @@ class Store:
                 raise LoadError("No time series found in this file" + (f" (left out: {why})." if why else "."),
                                 "noSignals")
             report.update(rep)
-        elif ext in (".bin", ".tlog", ".ulg"):
+        elif ext in (".bin", ".tlog", ".ulg") and not (ext == ".tlog" and _text_file(path)):
             loader = {".bin": load_bin, ".tlog": load_tlog, ".ulg": load_ulog}[ext]
             try:
                 run, rep = loader(path, name)
