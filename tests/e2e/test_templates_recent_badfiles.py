@@ -17,9 +17,11 @@ def test_templates_in_file_panel_for_csv(pg):
     strip = pg.locator(".tpl-strip")
     strip.wait_for()
     assert strip.locator(".chipbtn").count() >= 1               # at least "Quick look"
-    strip.locator(".chipbtn").first.click()
+    strip.locator(".chipbtn").first.click(button="right")         # T48: right-click = the library on it
     pg.wait_for_selector(".tpl-lib .tpl-details")
     pg.keyboard.press("Escape")
+    strip.locator(".chipbtn").first.click()                       # a click opens it at once (one file)
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.signals.length))")
     strip.locator(".linkbtn").click()                             # "All templates…"
     pg.wait_for_selector(".tpl-lib")
 
@@ -142,9 +144,9 @@ def test_template_files_are_found_from_tabs_and_matched_by_name(pg):
     pg.locator(".tpl-editor .btn.primary").click()
     pg.wait_for_selector(".tpl-details h3:has-text('Speed of A')")
     # opening it: the file with the same name is used, although run_b was opened first
+    pg.wait_for_selector(".tpl-slot-note:has-text('same file as when saved')")   # the binding has arrived
     sel = pg.locator(".tpl-slot select").first
     assert sel.evaluate("e => e.options[e.selectedIndex].text") == "run_a.csv"
-    pg.wait_for_selector(".tpl-slot-note:has-text('same file as when saved')")
     pg.keyboard.press("Escape")
     # without run_a open: another file is suggested, and the original can be opened from here
     rid = S(pg, "s.runs.find(r => r.name === 'run_a.csv').id")

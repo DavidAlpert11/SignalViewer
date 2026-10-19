@@ -1000,8 +1000,10 @@ def test_smart_start_card(pg):
     rows.first.locator(".pchange.span").first.click()                                  # jump to the finding
     pg.wait_for_function("window.__sv.state().cursor.dual")
     card.get_by_role("button", name="Open it").click()
-    pg.wait_for_function("!document.querySelector('.start-card')")
+    pg.wait_for_function("!document.querySelector('.start-card .start-tpl')")       # T48: the findings stay
     assert S(pg, "s.ws.tabs.some(t => t.plots.some(p => p.signals.length))")
+    pg.locator(".start-card .dialog-head button, .start-card button.iconbtn").first.click()
+    pg.wait_for_function("!document.querySelector('.start-card')")
     # not again once the workspace has plots
     open_files(pg, "run_a.csv", clear=False)
     pg.wait_for_timeout(1500)

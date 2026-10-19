@@ -589,7 +589,10 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
   values and limits on it; chip menu to move a signal between the axes, a toast offering it when a
   signal in other units is added; reports: HTML (viewer.js), PDF / Word / images (matplotlib twinx).
   The value zoom, pan, limits and linked value axes stay on the left axis.
-- [ ] T48 First impression: examples open ready, one-click template chips. Spec: TASKS.md Q47.
+- [x] T48 First impression: examples open ready, one-click template chips. Spec: TASKS.md Q47.
+  Done 2026-10-19: examples apply their suggested view (Undo to the empty plot), the start card
+  keeps the findings after a view opens; chips open at once when every slot has a clear file
+  (`openTemplateNow`), else the library; right-click a chip for the library.
 - [ ] T49 Duplicate and unclear controls (13 items). Spec: TASKS.md Q48.
 - [ ] T50 Small windows and crowded headers. Spec: TASKS.md Q49.
 - [ ] T51 Built-in templates in Hebrew. Spec: TASKS.md Q50.

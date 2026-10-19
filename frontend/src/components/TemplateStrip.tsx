@@ -5,6 +5,7 @@ import { useT } from "../i18n";
 import { Icon } from "../icons";
 import { fits as templateFits, tx } from "../templates";
 import { openTemplates, saveAsTemplate } from "../templateMenu";
+import { openTemplateNow } from "../smartStart";
 
 /* Templates in the file panel, for ANY kind of file (CSV, MAT, flight logs): the few that fit the
    open files best, the whole library, and saving the current plots as a template. */
@@ -51,7 +52,11 @@ export default function TemplateStrip() {
       </div>
       <div className="tpl-strip-picks">
         {picks.map((x) => (
-          <button key={x.id} className="chipbtn" onClick={() => openTemplates(x.id)} title={tx(x.description, lang) || tx(x.name, lang)}>
+          // T48: one click opens the template when nothing has to be chosen (else the library, as before);
+          // right-click: the library with its details
+          <button key={x.id} className="chipbtn" onClick={async () => { if (!(await openTemplateNow(x.id))) openTemplates(x.id); }}
+            onContextMenu={(e) => { e.preventDefault(); openTemplates(x.id); }}
+            title={`${tx(x.description, lang) || tx(x.name, lang)}\n\n${t("tplChipHint")}`}>
             {tx(x.name, lang)}
           </button>
         ))}

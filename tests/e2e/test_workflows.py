@@ -222,6 +222,8 @@ def test_open_an_example_from_the_welcome_screen(page, server):
     page.locator(".examples-line button", has_text="three car runs").click()
     page.wait_for_function("document.querySelectorAll('.run-head').length === 3")
     assert page.locator(".run-head", has_text="run_013").count() == 1
+    # T48: it opens ready to look at - Compare open files, each run in its colour
+    page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length === 3))", timeout=20000)
 
 
 def test_open_the_two_flights_example(page, server):
@@ -229,24 +231,26 @@ def test_open_the_two_flights_example(page, server):
     page.locator(".examples-line button", has_text="flown twice").click()
     page.wait_for_function("document.querySelectorAll('.run-head').length === 2")
     assert page.locator(".run-head", has_text="uav_flight_windy").count() == 1
+    page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length >= 2))", timeout=20000)   # T48
 
 
 def test_open_the_ardupilot_example(page, server):
-    """T45: the flight-log example opens with the smart-start card - an ArduPilot template and the
-    vibration warning from its health check."""
+    """T45: the flight-log example opens with the vibration warning from its health check; T48: and
+    with its ArduPilot view already open (the card keeps only the findings)."""
     page.locator(".examples-line button", has_text="ArduPilot").click()
     card = page.locator(".start-card")
     card.wait_for(timeout=20000)
-    assert "ArduPilot" in card.locator(".start-tpl b").inner_text()
+    page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length))", timeout=20000)
+    page.wait_for_selector(".start-card .hrow")
     assert "warning" in card.locator(".hrow").first.get_attribute("class")
+    assert card.locator(".start-tpl").count() == 0
 
 
 def test_compare_open_files_gives_each_file_its_colour(page, server):
     """F13: a template without stored colours (Compare open files) gave every signal the same
     colour - the runs could not be told apart. Now each file has one colour, the same in every plot."""
     _open(page, server["data"], ["run_a.csv", "run_b.csv", "run_c.csv"])
-    page.locator(".tpl-strip .chipbtn", has_text="Compare open files").click()
-    page.locator(".dialog .btn.primary", has_text="Open").click()
+    page.locator(".tpl-strip .chipbtn", has_text="Compare open files").click()      # T48: opens at once
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length === 3))")
     plots = page.evaluate("""window.__sv.state().ws.tabs.flatMap((t) => t.plots).filter((p) => p.signals.length)
         .map((p) => p.signals.map((s) => [s.sig.split('/')[0], s.color]))""")
@@ -506,3 +510,18 @@ def test_second_value_axis(page, server):
     page.wait_for_function("!window.__sv.state().ws.tabs[0].plots[0].signals.some((s) => s.axis === 'right')")
     page.wait_for_function("document.querySelector('.plot').querySelectorAll('.u-axis').length === 2")
     os.remove(path)                                                    # the other tests list this folder
+
+
+def test_template_chip_opens_at_once_or_asks(page, server):
+    """T48: a template chip opens its template in one click when nothing has to be chosen; with a
+    choice to make (Quick look with two files: of which?) it opens the library as before."""
+    _open(page, server["data"], ["run_a.csv"])
+    page.evaluate("window.__sv.state().clearAllPlots ? 0 : 0")
+    page.locator("[aria-label='Clear all plots']").click()
+    page.locator(".tpl-strip .chipbtn", has_text="Quick look").click()
+    page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length))")
+    assert page.locator(".dialog").count() == 0
+    page.locator(".toast", has_text="Quick look").wait_for()
+    _open(page, server["data"], ["run_b.csv"])
+    page.locator(".tpl-strip .chipbtn", has_text="Quick look").click()
+    page.locator(".dialog", has_text="Templates").wait_for()               # which file? - the library asks
