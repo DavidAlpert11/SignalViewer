@@ -8,6 +8,7 @@ Starts the local API server on 127.0.0.1 (free port) and opens the UI:
     python run.py            # desktop window / browser
     python run.py --browser  # force the browser
     python run.py --port 8765 --no-open
+    python run.py flight.bin run_012.csv        (opens them - in the running app, if there is one)
     python run.py --no-build # never build the UI (see ensure_ui)
     python run.py --build    # build the UI now, even when it looks up to date
 
@@ -164,7 +165,19 @@ def main():
     ap.add_argument("--no-open", action="store_true")
     ap.add_argument("--build", action="store_true", help="build the UI now (from the source folder)")
     ap.add_argument("--no-build", action="store_true", help="never build the UI; use the last build")
+    ap.add_argument("--new-window", action="store_true",
+                    help="open the files in a new app even when one is running")
+    ap.add_argument("paths", nargs="*", help="files (or a .svsession) to open - in the running app, if there is one")
     args = ap.parse_args()
+    # T54: files from outside (Open with, a double-click) go to the app that is already running
+    paths = [os.path.abspath(p) for p in args.paths]
+    leading = False
+    if paths and not args.new_window:
+        from app import instance
+        if instance.hand_over(paths) or instance.wait_or_lead(paths):
+            print("Opened in the Signal Viewer that is already running.", flush=True)
+            return
+        leading = True
     ensure_ui(force=args.build, skip=args.no_build)
 
     import uvicorn
@@ -186,6 +199,11 @@ def main():
         atexit.register(push.remove_push_file)
     except OSError as e:
         print(f"Sending data from Python is off: {e}", flush=True)
+    if paths:
+        push.add_open_event(paths)          # the page opens them once it has restored the last work
+    if leading:
+        from app import instance
+        instance.release_lock()             # other starts now find this app through push.json
 
     if args.no_open:
         th.join()
@@ -194,6 +212,7 @@ def main():
         try:
             import webview  # pywebview
             window = webview.create_window("Signal Viewer", url, width=1440, height=900, min_size=(1024, 640))
+            push.ON_OPEN.append(lambda: _to_front(window))
             # Windows (pywebview 6, WinForms) needs a real .ico; GTK / Qt take a png
             assets = os.path.join(getattr(sys, "_MEIPASS", HERE), "assets")
             icon = os.path.join(assets, "icon.ico") if sys.platform == "win32" else os.path.join(assets, "png", "icon-256.png")
@@ -224,6 +243,19 @@ def main():
                 server.should_exit = True
     except KeyboardInterrupt:
         server.should_exit = True
+
+
+def _to_front(window):
+    """T54: files handed over from outside - show the window (it may be minimised or behind)."""
+    for name in ("restore", "show"):
+        f = getattr(window, name, None)
+        if f:
+            f()
+    try:                                  # Windows only lets a window come forward briefly on top
+        window.on_top = True
+        window.on_top = False
+    except Exception:
+        pass
 
 
 def _bind_drop(window):

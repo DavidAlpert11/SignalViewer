@@ -18,9 +18,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
   tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
 - **Active plan: "Review 2026-10-19 (after 1.7.0)" below** (owner approved, ranked by what brings
-  the app into use). Q53 done; Q54 written, waits for one CI run (owner: Actions -> build -> Run
-  workflow, check the Windows artifact has the .exe, .zip and .7z). Next: Q55 (T54 open files from outside).
-- Tests at the last change: backend 666 passed, mypy clean (Q53, backend only); whole e2e suite last run at the 1.7.0 release (182 passed).
+  the app into use). **Owner: no 1.7.1 - F23 and the rest wait for 1.8.0.** Q53, Q55 done; Q54 written,
+  waits for one CI run (owner: Actions -> build -> Run workflow; the Windows artifact has the .exe,
+  .zip and .7z; install it, then "Open with" a .bin / .csv while the app runs). Next: Q24 is the
+  owner's (certificate), so Q56 (F24 linked plots lined up + Q33).
+- Tests at the last change: backend 670 passed, mypy clean, tsc + build clean (Q55); e2e run: test_open_external, test_push, test_fresh_user (7 passed); whole e2e suite last run at the 1.7.0 release (182 passed).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -789,7 +791,7 @@ what brings the app into use; update this table after every step.
 |---|---|---|---|
 | Q53 | F23 Statistics cache returns another signal's numbers | S | ☑ done |
 | Q54 | T53 Release assets: the installer and a zip on GitHub Releases | S | ◐ written; first CI run by the owner |
-| Q55 | T54 Open files from outside: paths on the command line, file associations, one instance | S→M | ☐ |
+| Q55 | T54 Open files from outside: paths on the command line, file associations, one instance | S→M | ☑ done (installer part: owner checks on Windows) |
 | Q24 | T43 Signed installers (owner: certificate) | M | ☐ |
 | Q56 | F24 Linked time plots not lined up (value-axis width; spectrogram range) + Q33 (T14c) | M | ☐ |
 | Q57 | T49 items 9 + 12 (mode bar on the active plot; plot right-click menu) + F25 menus clipped by the plot card | S→M | ☐ |
@@ -864,7 +866,9 @@ trackpad sends dozens of events per gesture; `deltaY = 0` (sideways swipe) zooms
 ### Q63 · F29 Small — S
 "Inspector" aria-label not translated; "Theme" is "נושא" in Hebrew (→ "ערכת נושא"); the same value
 with different digits in the legend chip and the Inspector; an unreadable `autosave.json` is
-overwritten by the next autosave (keep it as `.bak`).
+overwritten by the next autosave (keep it as `.bak`); the Python push client (`push_client.py`)
+uses the system proxy settings for 127.0.0.1 - bypass them as `app/instance.py` does (found in Q55);
+two apps started WITHOUT files still share `autosave.json` (last write wins; Q55 covers starts with files).
 
 ## Log
 
@@ -1043,3 +1047,5 @@ overwritten by the next autosave (keep it as `.bak`).
 - 2026-10-19 · Review after 1.7.0: plan Q53-Q63 (+ Q24, Q31-Q34, rest of Q48) written, ranked; owner approved. Next Q53.
 - 2026-10-19 · Q53 / F23: `compute_signal_stats` (svcore/ops.py) keeps weak references to the arrays with each cached result and uses it only when they are the same objects (an id alone was reused by new arrays: 193 of 200 fresh arrays got old numbers; `/api/stats` with a state filter showed B's mean for D). Cached call still ~0.02 ms (5 M samples: 46 ms first). Test `test_stats_never_reuse_another_arrays_numbers` (fails without the fix). Backend only, no e2e needed.
 - 2026-10-19 · Q54 / T53: build.yml - the Windows job also makes the portable `.zip` (7z -tzip of the assembled folder) and the installer (PyInstaller `SignalViewer.spec` + Inno Setup, `choco install innosetup` when the runner has none, `/DAppVersion`), then installs it silently for the current user into the runner's temp folder, starts it and waits for `/api/runs` (the PyInstaller Windows build had no CI check before); the artifact carries the three Windows files; the release job uploads everything with a "which file?" note (`--notes-file` + `--generate-notes`). README "Download" names the file to take. **Not run here** (no Windows runner in the sandbox; YAML and the shell steps were syntax-checked, the notes rendered): the owner runs the workflow once. Open question for the owner: a 1.7.1 with F23 + these assets, or wait for 1.8.0.
+- 2026-10-19 · Owner: no 1.7.1; F23 and the release assets go out with 1.8.0.
+- 2026-10-19 · Q55 / T54: `run.py [paths…] [--new-window]`. `app/instance.py`: `hand_over` posts the paths to the running app (push.json url + token, `/api/open-external`, no proxy); `wait_or_lead`: a start lock (`~/.signalviewer/starting.lock`, O_EXCL; stale after 30 s) so Explorer's one-process-per-file starts end in ONE app - the others wait and hand over. The paths become an "open" push event; the page takes them once it has restored the autosave (`/api/push/events?opens=1`) and the server hands each out ONCE (a reload does not open them again - first version re-read them); `.svsession` goes to `openSession(path)`. The window comes forward (`push.ON_OPEN`, pywebview restore/show/on_top). Found on the way: TopBar and the palette passed the click event to `openSession` (now `() => openSession()`). Installer: task "openwith" (checked) - `SignalViewer.DataFile` ProgID, `OpenWithProgids` + `Applications\SignalViewer.exe\SupportedTypes` for 11 extensions under HKA, `.svsession` default only if unset, `ChangesAssociations`; the .iss is now UTF-8 with BOM (Hebrew task text). Tests: backend 4 (token, once-only events, no / stale push.json, start lock incl. a stale one), e2e `test_open_external` (a second `run.py file.csv` exits and the file opens in the page). Not checked here: the installer on Windows (no Windows in the sandbox).

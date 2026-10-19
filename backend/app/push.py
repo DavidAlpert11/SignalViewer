@@ -25,8 +25,9 @@ PUSH_FILE = os.path.join(APP_DIR, "push.json")
 PREFIX = "python:"                       # file_path of a pushed run (it has no file)
 
 _lock = threading.Lock()
-_events: List[Dict[str, Any]] = []       # {"seq", "run", "plot", "name", "new", "age"}
+_events: List[Dict[str, Any]] = []       # {"seq", "run", "plot", "name", "new", "age"}; T54: {"seq", "kind": "open", "paths"}
 _seq = 0
+ON_OPEN: List[Any] = []                  # T54: run.py brings its window to the front when files come from outside
 
 
 def write_push_file(url: str) -> str:
@@ -90,10 +91,30 @@ def add_event(run_id: str, name: str, plot: bool, new: bool) -> int:
         return _seq
 
 
-def events_since(since: int) -> Dict[str, Any]:
+def add_open_event(paths: List[str]) -> int:
+    """T54: files to open, from the command line or from a second start (app/instance.py)."""
+    global _seq
+    with _lock:
+        _seq += 1
+        _events.append({"seq": _seq, "kind": "open", "paths": list(paths), "time": time.time()})
+        del _events[:-200]
+        return _seq
+
+
+def events_since(since: int, opens: bool = False) -> Dict[str, Any]:
     """Events after `since`, each with its age in seconds (the UI's first ask uses it: data sent
-    while the page was loading is shown, older data - before a page reload - is not plotted again)."""
+    while the page was loading is shown, older data - before a page reload - is not plotted again).
+    T54: files to open are not tied to `since`: they are handed out once, to the first ask that
+    takes them (`opens`: the page has restored the last work) - a reload does not open them again."""
     now = time.time()
     with _lock:
-        return {"seq": _seq, "events": [{**{k: v for k, v in e.items() if k != "time"}, "age": now - e["time"]}
-                                        for e in _events if e["seq"] > since]}
+        out = []
+        for e in _events:
+            if e.get("kind") == "open":
+                if not opens or e.get("taken"):
+                    continue
+                e["taken"] = True
+            elif e["seq"] <= since:
+                continue
+            out.append({**{k: v for k, v in e.items() if k not in ("time", "taken")}, "age": now - e["time"]})
+        return {"seq": _seq, "events": out}

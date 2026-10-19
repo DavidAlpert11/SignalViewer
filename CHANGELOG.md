@@ -2,6 +2,9 @@
 
 ## 1.8.0 – unreleased
 
+### Added
+- **Open files from outside:** *Open with* in Windows Explorer (offered by the installer for .bin, .tlog, .ulg, .mcap, .mat, .csv, .parquet and .h5 files; a saved session, .svsession, opens with a double-click) and `SignalViewer file.bin` on the command line. When Signal Viewer is already running the files open **in that window**, which comes to the front – several files chosen together open in one app, not one app each. `--new-window` starts a separate app. Your default programs for those file types are not changed.
+
 ### Changed
 - **Downloads:** every release now has the **Windows installer** (`SignalViewer-Setup-X.Y.Z.exe`, for the current user, no administrator rights) and the Windows portable package also as a **.zip** (Windows 10 opens it without 7-Zip), next to the .7z packages, with a short "which file?" note on the release page. The installer is installed and started by the build before it is published.
 
