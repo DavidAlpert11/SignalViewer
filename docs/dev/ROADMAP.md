@@ -600,7 +600,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 
 ## Milestone 8 — 1.8.0: toward wide use (review 2026-10-19). Spec: TASKS.md Q53-Q63
 - [x] F23 Statistics cache returns another signal's numbers (Q53). Done 2026-10-19: weak references to the arrays in each cache entry.
-- [ ] T53 Release assets: installer + zip on GitHub Releases (Q54).
+- [ ] T53 Release assets: installer + zip on GitHub Releases (Q54). Written 2026-10-19 (build.yml); waits for the first CI run.
 - [ ] T54 Open files from outside: command line, file associations, one instance (Q55).
 - [ ] F24 Linked time plots not lined up; spectrogram range (Q56, with T14c).
 - [ ] F25 Menus clipped by the plot card (Q57, with T49 items 9, 12).
