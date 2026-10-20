@@ -891,7 +891,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 | Q65 | F31 Python API / CLI: names without the unit, "did you mean", `sv.show` | S | ☑ done |
 | Q66 | F32 Packaging consistency (badge, pyproject note, PyPI metadata, README pictures on PyPI) | S | ☑ done |
 | Q67 | T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML for CI | M | ☑ done (limits; settling / response checks: follow-up) |
-| Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☐ |
+| Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☑ done |
 | Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☐ |
 | Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☐ |
 | Q71 | T61 Binary ICD decoder: raw packet recordings described in a YAML layout (own code, MIT) | L | ☐ |
@@ -953,6 +953,15 @@ that saves the plot's limits as a checks file.
 ### Q68 · T58 Golden-run regression — M
 `signalviewer-cli compare golden.csv new.csv [--tolerances t.yaml]`: the Compare panel's
 similarity list (`svcore/compare.py`) as a table + exit code, the worst signals first.
+**Status:** done 2026-10-20. `app/checks.py` `load_tolerances` (file default / per signal / skip; the
+flags are the default), `run_compare` (golden + file in a Store of their own; names resolved like the
+API; `svcore.compare.compare` with the golden as baseline - the same metrics and angle wrapping as
+the panel; a signal passes when every sample is within min(abs, pct of |golden|), the panel's rule;
+no tolerance = status "info", exit 0). CLI `compare` with `--signals`, `--top` (failures always
+shown), `--json`, `--junit` (info rows = passing testcases with the numbers in system-out); output
+shared with `check` (`_print_results`). Tests: 2 in `test_checks.py`. **Follow-ups:** `--auto-shift`
+(svcore.compare.auto_shift) for runs that start at different moments; the same segment of each
+run (T10b windows) from the command line.
 
 ### Q69 · T59 Lighter install — M
 Today every reader is required (pyarrow, scipy, h5py, matplotlib, pymavlink, mcap...). Core =
@@ -1173,3 +1182,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Review after 1.8.0 (plan Q65-Q73 above). Q65 / F31: `svcore/naming.py` `resolve_signal_name` (exact, without the unit, any case; several hits = error; else the closest three), used by `Recording.signal` and so by `table`, `to_dataframe` and `signalviewer-cli export`; the messages say where the full names are. `signalviewer.show` re-exports the push client's `show`. Tests: backend 675, mypy clean.
 - 2026-10-20 · Q66 / F32: README for PyPI with absolute pictures / links (tag v<version>), project URLs, keywords, classifiers; badge 3.9+; pyproject note. Backend 676, mypy clean, `make_pypi.py --check` OK.
 - 2026-10-20 · Q67 / T57: `signalviewer-cli check` (app/checks.py): checks file or a template's limits, windows and state stretches, JUnit XML, exit 0 / 1 / 2; `_stretches(..., where=store)`. Backend 680, mypy clean.
+- 2026-10-20 · Q68 / T58: `signalviewer-cli compare` (app/checks.py `run_compare`, `load_tolerances`), shared result printing with `check`. Backend 682, mypy clean.

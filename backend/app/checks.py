@@ -16,13 +16,16 @@ A checks file:
 `during.occurrence`: 1 = the first stretch, 2 = the second..., -1 = the last; left out = all.
 Signal names as in the API (the unit may be left out). The values checked are scale * y + offset,
 as plotted in the app.
+
+Against a golden run (T58):
+    signalviewer-cli compare golden.csv new/*.csv --tol-pct 2 [--tolerances tol.json] [--junit r.xml]
 """
 import contextlib
 import json
 import os
 import sys
 from typing import Any, Dict, List, Optional, Tuple
-from xml.sax.saxutils import quoteattr
+from xml.sax.saxutils import escape, quoteattr
 
 import numpy as np
 
@@ -195,6 +198,8 @@ def junit_xml(files: List[Dict[str, Any]]) -> str:
             msg = quoteattr(r.get("message", ""))
             if r["status"] == "pass":
                 cases.append(open_ + "/>")
+            elif r["status"] == "info":
+                cases.append(open_ + f'>\n      <system-out>{escape(r.get("message", ""))}</system-out>\n    </testcase>')
             elif r["status"] == "fail":
                 cases.append(open_ + f'>\n      <failure message={msg} type="limit"/>\n    </testcase>')
             elif r["status"] == "error":
@@ -207,3 +212,108 @@ def junit_xml(files: List[Dict[str, Any]]) -> str:
                 f'errors="{total["errors"]}" skipped="{total["skipped"]}">')
     rows += suites + ["</testsuites>", ""]
     return "\n".join(rows)
+
+
+# --- T58: a run against a golden run -------------------------------------------------------
+
+def load_tolerances(path: Optional[str], tol_abs: Optional[float], tol_pct: Optional[float]) -> Dict[str, Any]:
+    """{"default": {"abs": 0.5, "pct": 2}, "signals": {"Speed": {"abs": 1}, "Gear": {"skip": true}}}
+    - the command line's --tol-abs / --tol-pct are the default when the file has none."""
+    d: Dict[str, Any] = {"default": {}, "signals": {}}
+    if path:
+        try:
+            with open(path, encoding="utf-8") as f:
+                d = json.load(f)
+        except OSError as e:
+            raise ChecksError(f"Cannot read the tolerances file {path}: {e.strerror or e}.") from None
+        except ValueError as e:
+            raise ChecksError(f"The tolerances file {path} is not valid JSON: {e}.") from None
+        if not isinstance(d, dict):
+            raise ChecksError(f'{path}: expected {{"default": {{...}}, "signals": {{...}}}}.')
+        d.setdefault("default", {}); d.setdefault("signals", {})
+    dflt = dict(d.get("default") or {})
+    if tol_abs is not None:
+        dflt["abs"] = tol_abs
+    if tol_pct is not None:
+        dflt["pct"] = tol_pct
+    d["default"] = dflt
+    return d
+
+
+def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Every signal of `path` that the golden run also has, compared with svcore/compare (the
+    Compare panel's numbers: RMS / max |difference|, correlation; angles wrap). With a tolerance
+    a signal passes when every sample is within it; without one the row is information only."""
+    from app.store import Store
+    from svcore.compare import compare as compare_runs
+    store = Store()
+    out: Dict[str, Any] = {"file": path, "golden": golden, "results": []}
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            g = store.open_file(os.path.abspath(golden))
+            n = store.open_file(os.path.abspath(path))
+    except Exception as e:
+        msg = str(e) or e.__class__.__name__
+        out.update(error=msg, results=[{"name": "(open the files)", "status": "error", "message": msg}])
+        return out
+    gnames, nnames = list(g.run.signals.keys()), list(n.run.signals.keys())
+    where = os.path.basename(golden)
+    per: Dict[str, dict] = {}
+    for key, v in (tolerances.get("signals") or {}).items():
+        try:
+            per[resolve_signal_name(gnames, key, where)] = v or {}
+        except KeyError as e:                         # a tolerance for a signal the golden run lacks
+            out["results"].append({"name": key, "status": "error", "message": f"tolerances: {e}"})
+    if signals:
+        wanted = []
+        for s in signals:
+            try:
+                wanted.append(resolve_signal_name(gnames, s, where))
+            except KeyError as e:
+                out["results"].append({"name": s, "status": "error", "message": str(e)})
+    else:
+        wanted = [x for x in gnames if x in nnames]
+    rows = []
+    for name in wanted:
+        tol = {**tolerances.get("default", {}), **per.get(name, {})}
+        if tol.get("skip"):
+            continue
+        res: Dict[str, Any] = {"name": name}
+        if name not in nnames:
+            res.update(status="error", message=f"{name} is in the golden run but not in {os.path.basename(path)}")
+            rows.append(res)
+            continue
+        ta, ya = store.signal(f"{g.id}/{name}")
+        tb, yb = store.signal(f"{n.id}/{name}")
+        try:
+            r = compare_runs([("g/" + name, np.asarray(ta, dtype=np.float64), np.asarray(ya, dtype=np.float64)),
+                              ("n/" + name, np.asarray(tb, dtype=np.float64), np.asarray(yb, dtype=np.float64))],
+                             "g/" + name, "linear", tol.get("abs"), tol.get("pct"))
+        except (ValueError, IndexError) as e:
+            res.update(status="error", message=str(e) or "no samples to compare")
+            rows.append(res)
+            continue
+        m = r["rows"][0] if r["rows"] else {}
+        if not m.get("valid"):
+            res.update(status="skipped", message="fewer than two samples where both have data")
+            rows.append(res)
+            continue
+        res.update({k: m.get(k) for k in ("rmsDiff", "rmsPct", "maxAbsDiff", "meanDiff", "correlation", "withinPct")})
+        res["overlap"] = r["overlap"]
+        say = f"RMS {m['rmsDiff']:.4g} ({m['rmsPct']:.2f} % of range), max |Δ| {m['maxAbsDiff']:.4g}, r {m['correlation']:.3f}"
+        if "pass" in m:
+            res["status"] = "pass" if m["pass"] else "fail"
+            if not m["pass"]:
+                lim = " / ".join(x for x in (f"±{tol['abs']}" if tol.get("abs") is not None else "",
+                                             f"±{tol['pct']} %" if tol.get("pct") is not None else "") if x)
+                say = f"{100 - m['withinPct']:.1f} % of samples outside {lim}; " + say
+        else:
+            res["status"] = "info"
+        res["message"] = say
+        rows.append(res)
+    def rank(x: dict) -> float:                        # errors first, then the most different
+        v = x.get("rmsPct")
+        return -float(v) if v is not None else (-1e18 if x["status"] == "error" else 1.0)
+    rows.sort(key=rank)
+    out["results"] += rows
+    return out
