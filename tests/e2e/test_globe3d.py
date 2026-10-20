@@ -6,6 +6,7 @@ timeline's time with the right heading / pitch / roll, shows height above ground
 """
 import json
 import os
+import tempfile
 import urllib.request
 
 import pytest
@@ -314,7 +315,7 @@ def test_log_events_on_the_track_and_image(g3multi):
     pg.locator(".globe3d-bar button", has_text="Events").click()
     pg.wait_for_function(count + " === 0")
     # the view as a PNG file
-    out = os.path.join(pg.evaluate("'" + os.environ.get("TMPDIR", "/tmp") + "'"), "g3_view_test.png")
+    out = os.path.join(tempfile.gettempdir(), "g3_view_test.png")    # F36: "/tmp" is no folder on Windows
     if os.path.exists(out):
         os.remove(out)
     pg.locator(".globe3d-bar button", has_text="Image").click()

@@ -491,6 +491,9 @@ table.keys td.mouse { color: var(--muted); }
 .stage-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .stage-bar::-webkit-scrollbar { display: none; }
 @media (max-width: 1599px) { .hide-narrow { display: none; } }
+/* F36: on a small window (a laptop at 1100 px) the top bar's buttons left the tab strip too narrow
+   for one tab; the app name and the language's name go first (their icons stay, with a tooltip) */
+@media (max-width: 1279px) { .hide-compact { display: none; } }
 table.vals.dualtbl th:first-child { width: 26%; }
 .fx { margin-bottom: 10px; }
 .fx-box { position: relative; }
