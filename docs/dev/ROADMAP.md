@@ -611,7 +611,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [~] T56 PyPI package (Q61). Built and checked 2026-10-19 (tools/make_pypi.py, CI jobs); publishing after the owner's one-time PyPI setup.
 - [x] F28 One time format (Q34, with T18). Done 2026-10-20: seconds as recorded by default.
 - [x] F30 Choices forgotten at every start (localStorage per port). Done 2026-10-20 (Q34): ui_settings.json.
-- [ ] F29 Small labels, precision, autosave backup (Q63).
+- [x] F29 Small labels, precision, autosave backup (Q63). Done 2026-10-20 (+ the push client without proxy).
 
 ## Later
 - [ ] "copy as pandas code".

@@ -124,15 +124,22 @@ def get_autosave():
         with open(AUTOSAVE, "r", encoding="utf-8") as f:
             return {"state": json.load(f)}
     except (OSError, ValueError):       # unreadable or half-written: start clean, but say so in the log
-        log.warning("autosave %s could not be read; starting without it", AUTOSAVE, exc_info=True)
-        return {"state": None}
+        # F29: keep it aside - the next autosave would overwrite the only copy of the last work
+        kept = AUTOSAVE.replace(".json", ".damaged.json")
+        try:
+            os.replace(AUTOSAVE, kept)
+        except OSError:
+            kept = AUTOSAVE
+        log.warning("autosave %s could not be read; starting without it (kept as %s)", AUTOSAVE, kept, exc_info=True)
+        return {"state": None, "damaged": kept}
 
 
 
 @router.post("/api/autosave")
 def put_autosave(state: dict):
     os.makedirs(APP_DIR, exist_ok=True)
-    tmp = AUTOSAVE + ".tmp"
+    # each process its own temporary file: two apps started at once must not write into one
+    tmp = f"{AUTOSAVE}.{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(state, f)
     os.replace(tmp, AUTOSAVE)

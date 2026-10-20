@@ -306,7 +306,7 @@ export const api = {
   saveText: (path: string, content: string, ext = ".csv", bom = true) => call<{ path: string }>("/api/save/text", { path, content, ext, bom }),
   saveSession: (path: string, state: unknown) => call<{ path: string }>("/api/session/save", { path, state }),
   loadSession: (path: string) => call<{ state: any; converted: boolean }>("/api/session/load", { path }),
-  getAutosave: () => call<{ state: any }>("/api/autosave"),
+  getAutosave: () => call<{ state: any; damaged?: string }>("/api/autosave"),
   errorSegments: (a: string, b: string, state: string | null, alignment: string) => call<{
     total: ErrStat; rows: (ErrStat & { t0: number; t1: number; value: number; label: string | null; occurrence: number })[] }>("/api/error-segments", { a, b, state, alignment }),
   getSettings: () => call<{ settings: Record<string, unknown> }>("/api/settings"),
