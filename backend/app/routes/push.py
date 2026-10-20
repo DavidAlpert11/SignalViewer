@@ -19,7 +19,9 @@ log = logging.getLogger("signalviewer").getChild(__name__)
 # the client as a file: from the source folder, or bundled as data in the packaged app (modules
 # there live in an archive, not as .py files)
 CLIENT_PATHS = [os.path.join(getattr(sys, "_MEIPASS", ""), "clients", "push_client.py"),
-                os.path.join(os.path.dirname(__file__), "..", "..", "signalviewer", "push_client.py")]
+                os.path.join(os.path.dirname(__file__), "..", "..", "signalviewer", "push_client.py"),
+                # T56: installed with pip - signalviewer/_core/app/routes -> signalviewer/push_client.py
+                os.path.join(os.path.dirname(__file__), "..", "..", "..", "push_client.py")]
 
 
 @router.post("/api/push")

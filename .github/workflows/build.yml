@@ -8,6 +8,10 @@
 #            most users want, T53), and the portable package (official embeddable Python + the
 #            libraries + the app, tools/make_windows_portable.py) as .zip (opens anywhere) and .7z
 #   Linux / macOS: a PyInstaller folder (SignalViewer.spec) - nothing to install, no Python needed
+#   Python: `pip install signalviewer` (T56) - the wheel is built and checked on every run; on a
+#           tag it is published to PyPI when the repository variable PYPI_PUBLISH is "true" and
+#           PyPI trusts this workflow (pypi.org -> project -> Publishing -> GitHub, workflow build.yml,
+#           environment pypi). No token is stored anywhere.
 name: build
 on:
   push:
@@ -143,9 +147,45 @@ jobs:
           compression-level: 0          # already compressed
           if-no-files-found: error
 
+  pypi-build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v5
+        with: { node-version: "22" }
+      - name: Build UI
+        working-directory: frontend
+        run: npm ci && npm run build
+      - name: Build the package, install it in a fresh venv and start it
+        run: |
+          pip install build
+          python tools/make_pypi.py --check
+      - uses: actions/upload-artifact@v6
+        with:
+          name: signalviewer-python-package
+          path: dist-pypi/*
+
+  pypi-publish:
+    if: github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
+    needs: [build, pypi-build]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write          # PyPI trusted publishing: no token
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: signalviewer-python-package
+          path: dist-pypi
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist-pypi
+
   release:
     if: github.ref_type == 'tag'
-    needs: build
+    needs: [build, pypi-build]       # the Python wheel goes on the release page too
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v7      # v7: the first on Node 24
@@ -163,6 +203,7 @@ jobs:
           **Which file?**
           - **Windows:** \`SignalViewer-Setup-$V.exe\` - installs for you only, no administrator rights, nothing else needed.
           - Windows without installing: \`SignalViewer-$V-Windows-x64-portable.zip\` - extract, double-click *Signal Viewer.bat* (the .7z is the same, smaller; Windows 10 needs 7-Zip for it).
+          - **Python:** \`pip install signalviewer\` (or the \`.whl\` here), then \`signalviewer\` starts the app; \`signalviewer-cli\` and \`import signalviewer\` read files from scripts.
           - **Linux / macOS:** the \`-portable.7z\` for your system - extract and run \`SignalViewer/SignalViewer\` (macOS: see *Known limitations* in the README the first time).
 
           Everything runs offline; no Python is needed. Changes: [CHANGELOG](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md).
