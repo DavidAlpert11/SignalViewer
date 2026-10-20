@@ -613,7 +613,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F30 Choices forgotten at every start (localStorage per port). Done 2026-10-20 (Q34): ui_settings.json.
 - [x] F29 Small labels, precision, autosave backup (Q63). Done 2026-10-20 (+ the push client without proxy).
 
-## Milestone 9 — 1.9.0: into the test process (review 2026-10-20). Spec: TASKS.md Q65-Q73
+## Milestone 9 — 1.9.0: into the test process (review 2026-10-20). Spec: TASKS.md Q65-Q79. Released 2026-10-20.
 - [x] F31 Python API / CLI: names without the unit, "did you mean", `sv.show` (Q65). Done 2026-10-20: svcore/naming.py `resolve_signal_name`.
 - [x] F32 Packaging consistency (Q66). Done 2026-10-20: make_pypi.py `pypi_readme` (pictures on PyPI), URLs, classifiers; badge 3.9+.
 - [x] T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML (Q67). Done 2026-10-20: app/checks.py, examples/checks.json.
