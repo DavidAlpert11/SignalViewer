@@ -80,7 +80,9 @@ for the values.
 **Create signals** (left) makes new signals from existing ones: a formula with the signals' names
 (`Speed * 3.6`, `deriv(Altitude)`, `lowpass(Roll, 5)`…), filters, unit changes, frame conversions,
 a Python function of your own. They
-behave like recorded signals and are kept with the session.
+behave like recorded signals and are kept with the session. With *Two signals* and A − B the panel
+also tells how far apart A and B are – overall and for each stretch of a state such as the flight
+mode (a simulation against the flight, a model against the test).
 
 ## 9. Keep and share your work
 
