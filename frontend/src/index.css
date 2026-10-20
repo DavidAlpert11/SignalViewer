@@ -1199,3 +1199,11 @@ input.fx-input { width: 100%; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .set-row > span:first-child { display: flex; flex-direction: column; }
 .set-row small { color: var(--muted); font-size: .85em; margin-top: 2px; max-width: 260px; }
+
+/* T25: error between two signals */
+.err-seg { margin: 10px 0 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.err-table { width: 100%; border-collapse: collapse; font-size: .9em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.err-table th, .err-table td { padding: 3px 4px; text-align: start; border-bottom: 1px solid var(--line); }
+.err-table th { color: var(--muted); font-weight: 500; }
+.err-table tr.worst td { background: var(--amber-soft); }
+.err-table tr.total td { font-weight: 600; }

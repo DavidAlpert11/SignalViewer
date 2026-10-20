@@ -13,6 +13,7 @@ import { groupDerived, memberLabel } from "../signalGroups";
 import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
 import PyOpsSection, { type PyChoice } from "./PyOpsSection";
+import ErrorSegments from "./ErrorSegments";
 
 type Kind = "one" | "two" | "many" | "fx" | "frame" | "py";   // py: the user's own Python operations (T31)
 const UNARY: [string, TKey][] = [
@@ -404,6 +405,7 @@ export default function AnalysisPanel() {
                 <option value="none">{t("frameAddNone")}</option>
               </select></label>
           )}
+          {kind === "two" && (op === "sub" || op === "absdiff") && a && b && <ErrorSegments a={a} b={b} alignment={alignment} />}
           {!(kind === "one" && output === "edit") && kind !== "frame" && <label className="acheck"><input type="checkbox" checked={addToPlot} onChange={(e) => setAddToPlot(e.target.checked)} />{t("addToActivePlot")}</label>}
           {kind === "frame" && (
             <div className="afield"><span>{t("previewWhere")}</span>

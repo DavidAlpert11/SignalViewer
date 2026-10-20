@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.common import b64, fail
 from app.store import store
 from svcore.analysis import spectrogram as make_spectrogram
-from svcore.analysis import state_mask, transitions
+from svcore.analysis import align_to, state_mask, transitions
 from svcore.decimate import decimate_for_view, hold_at, interp_at
 from svcore.envelope import envelope
 from svcore.limits import check_limits
@@ -372,3 +372,59 @@ def spectrogram_ep(req: SpecRequest):
             # F24: the signal's own extent - the whole-signal view spans it like the signal's time plot
             # (the image itself starts and ends half a window inside)
             "sigT0": float(t[0]), "sigT1": float(t[-1])}
+
+
+
+# =============================================================================
+# T25: the error between two signals (simulation vs flight, model vs test), overall and per segment
+# =============================================================================
+
+class ErrorSegmentsRequest(BaseModel):
+    a: str                              # e.g. the simulation
+    b: str                              # e.g. the flight; aligned onto a's time
+    state: Optional[str] = None         # a state signal (flight mode...): one row per stretch of it
+    alignment: str = "linear"
+
+
+def _err_summary(e: np.ndarray, t: np.ndarray) -> dict:
+    ok = np.isfinite(e)
+    if not ok.any():
+        return {"n": 0}
+    x = e[ok]
+    return {"n": int(x.size), "rms": float(np.sqrt(np.mean(x * x))), "mean": float(np.mean(x)),
+            "maxAbs": float(np.max(np.abs(x))), "tMaxAbs": float(t[ok][int(np.argmax(np.abs(x)))])}
+
+
+@router.post("/api/error-segments")
+def error_segments(req: ErrorSegmentsRequest):
+    """The error A - B (B aligned onto A's samples) where both have data: RMS, mean and largest |error|
+    over the whole overlap, and - with a state signal - for every stretch of the state (each flight
+    mode, each test phase), so the phase where the model and the flight part ways stands out."""
+    try:
+        ta, ya = store.signal(req.a)
+        tb, yb = store.signal(req.b)
+    except KeyError:
+        fail(404, "One of the signals is no longer open.")
+    if req.alignment not in ("linear", "nearest"):
+        fail(400, "Alignment is linear or nearest.")
+    ta = np.asarray(ta, dtype=np.float64)
+    e = np.asarray(ya, dtype=np.float64) - align_to(ta, np.asarray(tb, dtype=np.float64), yb, req.alignment)
+    if req.alignment == "nearest":            # nearest has no "outside": keep A's samples inside B's time
+        e[(ta < float(np.min(tb))) | (ta > float(np.max(tb)))] = np.nan
+    rows = []
+    if req.state:
+        try:
+            st, sy = store.signal(req.state)
+        except KeyError:
+            fail(404, "The state signal is no longer open.")
+        labels = store.labels(req.state) or {}
+        seen: Dict[float, int] = {}
+        for a0, a1, v in _stretches(req.state, np.asarray(st, dtype=np.float64), sy):
+            seen[v] = seen.get(v, 0) + 1
+            i0, i1 = int(np.searchsorted(ta, a0, "left")), int(np.searchsorted(ta, a1, "left"))
+            summ = _err_summary(e[i0:i1], ta[i0:i1])
+            if not summ["n"]:
+                continue                        # the two signals do not overlap in this stretch
+            lab = labels.get(int(v)) if float(v).is_integer() else None
+            rows.append({"t0": float(a0), "t1": float(a1), "value": float(v), "label": lab, "occurrence": seen[v], **summ})
+    return {"total": _err_summary(e, ta), "rows": rows}

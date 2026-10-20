@@ -1037,3 +1037,36 @@ def test_ui_settings_are_kept_in_the_app_folder():
     assert client.put("/api/settings", json={"changes": {"big": "x" * 70000}}).status_code == 400
     assert client.get("/api/settings").json()["settings"]["lang"] == "he"       # a refused change keeps the rest
     client.put("/api/settings", json={"changes": {"lang": None, "sv3.w.side": None}})
+
+
+def test_error_between_two_signals_per_segment(tmp_path):
+    """T25: A - B (B on A's samples) overall and for every stretch of a state signal."""
+    t = np.arange(0, 30, 0.1)
+    sim = tmp_path / "sim.csv"
+    fl = tmp_path / "flight.csv"
+    with open(sim, "w") as f:
+        f.write("Time,Alt,Mode\n")
+        for x in t:
+            f.write(f"{x:.3f},{x},{'TAKEOFF' if x < 10 else 'CRUISE' if x < 20 else 'LAND'}\n")
+    with open(fl, "w") as f:                       # the flight: off by 2 in CRUISE only, other sample times
+        f.write("Time,Alt\n")
+        for x in np.arange(0.05, 29.5, 0.1):
+            f.write(f"{x:.3f},{x - (2 if 10 <= x < 20 else 0)}\n")
+    try:
+        a = client.post("/api/files/open", json={"paths": [str(sim)]}).json()["opened"][0]
+        b = client.post("/api/files/open", json={"paths": [str(fl)]}).json()["opened"][0]
+        ida = {s["name"]: s["id"] for s in a["signals"]}
+        idb = {s["name"]: s["id"] for s in b["signals"]}
+        r = client.post("/api/error-segments", json={"a": ida["Alt"], "b": idb["Alt"], "state": ida["Mode"]}).json()
+        rows = {row["label"]: row for row in r["rows"]}
+        assert set(rows) == {"TAKEOFF", "CRUISE", "LAND"}
+        assert rows["TAKEOFF"]["rms"] < 0.05 and rows["LAND"]["rms"] < 0.2      # (one sample at the step is interpolated across it)
+        assert abs(rows["CRUISE"]["rms"] - 2) < 0.15 and abs(rows["CRUISE"]["mean"] - 2) < 0.15
+        assert 10 <= rows["CRUISE"]["tMaxAbs"] <= 20
+        assert 0.5 < r["total"]["rms"] < 2 and r["total"]["n"] < len(t)        # only where both have data
+        r2 = client.post("/api/error-segments", json={"a": ida["Alt"], "b": idb["Alt"]}).json()
+        assert r2["rows"] == [] and r2["total"]["rms"] == pytest.approx(r["total"]["rms"])
+        assert client.post("/api/error-segments", json={"a": "nope/x", "b": idb["Alt"]}).status_code == 404
+    finally:
+        for rid in list(store.order):
+            store.remove(rid)

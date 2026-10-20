@@ -307,6 +307,8 @@ export const api = {
   saveSession: (path: string, state: unknown) => call<{ path: string }>("/api/session/save", { path, state }),
   loadSession: (path: string) => call<{ state: any; converted: boolean }>("/api/session/load", { path }),
   getAutosave: () => call<{ state: any }>("/api/autosave"),
+  errorSegments: (a: string, b: string, state: string | null, alignment: string) => call<{
+    total: ErrStat; rows: (ErrStat & { t0: number; t1: number; value: number; label: string | null; occurrence: number })[] }>("/api/error-segments", { a, b, state, alignment }),
   getSettings: () => call<{ settings: Record<string, unknown> }>("/api/settings"),
   putSettings: (changes: Record<string, unknown>) => call<{ settings: Record<string, unknown> }>("/api/settings", { changes }, "PUT"),
   putAutosave: (state: unknown) => call<{ ok: boolean }>("/api/autosave", state),
@@ -326,6 +328,8 @@ export interface HealthFinding {
   spans: [number, number][]; signals: string[];
 }
 export interface HealthReport { findings: HealthFinding[]; errors: number; warnings: number }
+/** T25: the error A − B over some time. */
+export interface ErrStat { n: number; rms?: number; mean?: number; maxAbs?: number; tMaxAbs?: number }
 export interface SpecData {
   nf: number; nt: number; f0: number; f1: number; t0: number; t1: number; img: string;
   dbLo: number; dbHi: number; fs: number; nfft: number; df: number; dt: number;
