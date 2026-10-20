@@ -17,6 +17,7 @@ import numpy as np
 
 from svcore.models import Run, Signal
 from svcore.time_pairs import clean_pair, find_time_pairs
+from svcore.extras import missing
 
 TIME_NAMES = ("time", "t", "timestamp", "time_s", "tout", "times")
 
@@ -128,9 +129,19 @@ def _read_h5(path: str) -> Dict[str, np.ndarray]:
     return out
 
 
+class MatNeedsExtra(Exception):
+    """T59: a MATLAB v7.3 file (HDF5 inside) and h5py is not installed."""
+
+
 def _is_hdf5(path: str) -> bool:
     try:
         import h5py
+    except ImportError:
+        with open(path, "rb") as f:
+            if f.read(128).startswith(b"MATLAB 7.3"):
+                raise MatNeedsExtra(missing("Reading MATLAB v7.3 files", "hdf5")) from None
+        return False
+    try:
         return bool(h5py.is_hdf5(path))
     except Exception:
         return False

@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from svcore.csv_loader import CSVImportSettings, _read_head_lines, append_new_rows, detect_delimiter, load_csv
-from svcore.mat_loader import load_mat
+from svcore.mat_loader import MatNeedsExtra, load_mat
 from svcore.bin_loader import BinFormatError, append_new_messages, load_bin
 from svcore.tlog_loader import TLogError, append_tlog, load_tlog
 from svcore.ulog_loader import ULogError, load_ulog
@@ -316,6 +316,8 @@ class Store:
                 run, skipped = load_mat(path, name, (settings or {}).get("time_column"))
             except LoadError:
                 raise
+            except MatNeedsExtra as e:
+                raise LoadError(str(e), "badMat") from None
             except Exception as e:
                 if e.__class__.__name__ == "LoadCancelled":
                     raise

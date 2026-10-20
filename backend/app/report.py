@@ -21,6 +21,7 @@ from svcore.envelope import envelope
 from svcore.analysis import fft_display, fft_for, transitions, xy_pair
 from svcore.decimate import decimate_for_view, minmax_decimate
 from svcore.ops import compute_signal_stats
+from svcore.extras import missing
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 
@@ -576,10 +577,22 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
             t.set_color(th["fg"])
 
 
-def render_figure(pdata: Dict, theme: str = "light", size=(9.0, 3.6), dpi: int = 150):
-    import matplotlib
+class ReportNeedsExtra(RuntimeError):
+    """T59: PDF / Word reports and images need matplotlib / python-docx (pip extra "reports")."""
+
+
+def _pyplot():
+    try:
+        import matplotlib
+    except ImportError:
+        raise ReportNeedsExtra(missing("PDF and Word reports and plot images", "reports")) from None
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    return plt
+
+
+def render_figure(pdata: Dict, theme: str = "light", size=(9.0, 3.6), dpi: int = 150):
+    plt = _pyplot()
     fig, ax = plt.subplots(figsize=size, dpi=dpi)
     fig.patch.set_facecolor(FIG_THEME.get(theme, FIG_THEME["light"])["bg"])
     draw_axes(ax, pdata, theme)
@@ -613,9 +626,7 @@ def build_pdf(store, req: Dict, path: str, progress=None):
     """A4 pages: a title page (title, date, introduction), then one page per plot with
     heading, chart, caption and full-resolution statistics, then the summary."""
     import textwrap
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    plt = _pyplot()
     from matplotlib.backends.backend_pdf import PdfPages
     lang = req.get("lang", "en")
     S = STRINGS.get(lang, STRINGS["en"])
@@ -694,6 +705,10 @@ def build_pdf(store, req: Dict, path: str, progress=None):
 
 
 def build_docx(store, req: Dict, path: str, progress=None):
+    try:
+        import docx  # noqa: F401
+    except ImportError:
+        raise ReportNeedsExtra(missing("Word reports", "reports")) from None
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml.ns import qn

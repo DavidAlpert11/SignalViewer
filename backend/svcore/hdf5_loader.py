@@ -13,6 +13,7 @@ import numpy as np
 
 from svcore.mat_loader import TIME_NAMES
 from svcore.models import Run, Signal
+from svcore.extras import missing
 
 MAX_COLS = 16
 
@@ -108,7 +109,7 @@ def load_hdf5(path: str, display_name: str) -> Tuple[Optional[Run], Dict[str, An
     try:
         import h5py
     except ImportError:
-        raise Hdf5Error("Reading HDF5 needs the 'h5py' package.") from None
+        raise Hdf5Error(missing("Reading HDF5 (.h5)", "hdf5")) from None
     try:
         with h5py.File(path, "r") as f:
             groups, damaged = _collect(f)

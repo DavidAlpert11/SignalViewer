@@ -24,6 +24,7 @@ import numpy as np
 
 from svcore.flightlog import FlightLogInfo, text_codes
 from svcore.models import Run, Signal
+from svcore.extras import missing
 
 _NP = {"b": "i1", "B": "u1", "h": "<i2", "H": "<u2", "i": "<i4", "I": "<u4", "q": "<i8", "Q": "<u8",
        "f": "<f4", "d": "<f8", "c": "S1"}
@@ -52,7 +53,10 @@ def _mav():
     global _MAV
     if _MAV is None:
         os.environ.setdefault("MAVLINK20", "1")
-        from pymavlink.dialects.v20 import ardupilotmega as m
+        try:
+            from pymavlink.dialects.v20 import ardupilotmega as m
+        except ImportError:
+            raise TLogError(missing("Reading MAVLink telemetry logs (.tlog)", "mavlink")) from None
         _MAV = m
     return _MAV
 

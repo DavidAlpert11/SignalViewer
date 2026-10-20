@@ -114,6 +114,8 @@ async def make_report(req: ReportRequest):
         await asyncio.to_thread(work)
     except KeyError:
         fail(404, "One of the signals in the report is no longer open.")
+    except reports.ReportNeedsExtra as e:
+        fail(400, str(e))
     return {"path": path, "size": os.path.getsize(path)}
 
 

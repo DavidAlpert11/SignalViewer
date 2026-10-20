@@ -15,6 +15,7 @@ import numpy as np
 
 from svcore.flightlog import FlightLogInfo
 from svcore.models import Run, Signal
+from svcore.extras import missing
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 
@@ -47,7 +48,7 @@ def load_ulog(path: str, display_name: str):
     try:
         from pyulog import ULog
     except ImportError:
-        raise ULogError("Reading PX4 logs needs the pyulog library (pip install pyulog).") from None
+        raise ULogError(missing("Reading PX4 logs (.ulg)", "px4")) from None
     try:
         u = ULog(path)
     except Exception as e:

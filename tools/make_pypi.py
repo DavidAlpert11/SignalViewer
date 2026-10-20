@@ -50,7 +50,10 @@ if __name__ == "__main__":
 
 # pywebview needs a GUI toolkit on Linux (GTK / Qt) and cannot always be installed: an extra -
 # without it the app opens in the browser
-OPTIONAL = {"pywebview": "desktop"}
+# T59: the optional parts (backend/svcore/extras.py) - package -> its extra; "all" gets every one
+sys.path.insert(0, os.path.join(ROOT, "backend"))
+from svcore.extras import EXTRAS  # noqa: E402
+OPTIONAL = {pkg: extra for extra, pkgs in EXTRAS.items() for pkg in pkgs}
 
 
 def requirements():
@@ -107,6 +110,10 @@ def stage():
         f.write(readme)
     req, extra = requirements()
     q = lambda xs: ", ".join(f'"{x}"' for x in xs)
+    unknown = sorted(set(OPTIONAL) - {re.split(r"[<>=!~ ]", x)[0] for xs in extra.values() for x in xs})
+    if unknown:                                       # extras.py names a package requirements.txt lacks
+        sys.exit(f"svcore/extras.py lists packages that are not in requirements.txt: {', '.join(unknown)}")
+    extra["all"] = sorted({x for xs in extra.values() for x in xs})
     extras = "\n".join(f"{k} = [{q(v)}]" for k, v in extra.items())
     toml = f'''[build-system]
 requires = ["setuptools>=77"]
@@ -212,7 +219,23 @@ def check(wheel):
                                          headers={"Content-Type": "application/json"})
             saved = json.loads(urllib.request.urlopen(req, timeout=5).read())["path"]
             assert os.path.isfile(saved), saved
-            print("The installed package starts, serves the UI and the examples; the command line, the Python API and the push client work.")
+            # T59: the plain install has the core; an optional part says which extra brings it
+            pq = os.path.join(tmp, "t.parquet")
+            with open(pq, "wb") as f:                # the reader asks for pyarrow before it reads a byte
+                f.write(b"PAR1")
+            code = "import signalviewer as sv, sys; print(sv.load(sys.argv[1]).signals)"
+            out = subprocess.run([py, "-c", code, pq], env=env, capture_output=True, text=True, timeout=120)
+            assert out.returncode != 0 and 'signalviewer[parquet]' in out.stderr, out.stdout + out.stderr
+            out = subprocess.run([os.path.join(bin_, "signalviewer-cli"), "info", os.path.join(ROOT, "examples", "copter_flight.bin")],
+                                 env=env, capture_output=True, text=True, timeout=120)
+            assert out.returncode == 0 and "ATT.Roll" in out.stdout, out.stdout + out.stderr
+            subprocess.check_call([py, "-m", "pip", "install", "-q", wheel + "[all]"])
+            subprocess.check_call([py, "-c", "import pyarrow as pa, pyarrow.parquet as q, sys; q.write_table("
+                                   "pa.table({'time': [0.0, 1.0, 2.0], 'x': [1.0, 2.0, 3.0]}), sys.argv[1])", pq])
+            out = subprocess.run([py, "-c", code, pq], env=env, capture_output=True, text=True, timeout=120)
+            assert out.returncode == 0 and "'x'" in out.stdout, out.stdout + out.stderr
+            print("The installed package starts, serves the UI and the examples; the command line, the Python API and the push client work;"
+                  " without extras an optional reader names its extra, and [all] brings it.")
         finally:
             proc.terminate()
             proc.wait(timeout=20)
