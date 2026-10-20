@@ -40,7 +40,7 @@ def _objects(pg):
 
 def test_template_keeps_objects_by_name_and_recreates_them_from_another_file(pg):
     open_files(pg, "tpl_flight_a.csv")
-    pg.locator(".plot .mode-seg button", has_text="Map").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.locator(".obj-add").click()
     pg.locator(".obj-kind", has_text="UAV").click()
     pg.locator(".obj-dialog .obj-name input").fill("Heron")
@@ -91,7 +91,7 @@ def test_position_template_only_for_a_file_with_a_position(pg):
 
 def test_quaternion_found_by_name(pg):
     open_files(pg, "tpl_px4.csv")
-    pg.locator(".plot .mode-seg button", has_text="Map").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.locator(".obj-add").click()
     pg.wait_for_selector(".obj-dialog")
     assert pg.locator(".obj-dialog select", has_text="a quaternion").evaluate("e => e.value") == "quat"

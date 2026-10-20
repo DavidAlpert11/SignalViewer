@@ -40,7 +40,7 @@ def wait_close(pg, js, want, tol=0.1):
 
 def test_video_follows_the_cursor_lines_up_and_moves_the_cursor(pg, clip):
     open_files(pg, "run_a.csv")
-    pg.click(".plot .mode-seg button:has-text('Video')")
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Video").click()
     pg.wait_for_selector(".video-bar button:has-text('Choose a video…')")   # empty state (loaded lazily)
     # (the built-in file browser is tested elsewhere: give the plot its video directly)
     pg.evaluate("""p => { const s = window.__sv.state(); s.commit(ws => {

@@ -12,7 +12,7 @@ from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
 def _map(pg):
     open_files(pg, "geo.csv")
     sig(pg, "Lat").click(); sig(pg, "Lon").click()
-    pg.locator(".plot .mode-seg button", has_text="Map").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.wait_for_selector(".plot .geo canvas")
 
 

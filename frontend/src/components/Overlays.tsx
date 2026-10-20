@@ -99,8 +99,10 @@ export function ContextMenu() {
   }, [menu]);
   if (!menu) return null;
   const leaf = (it: MenuItem, i: number) => it.sep ? <div key={i} className="menu-sep" /> : (
-    <button key={i} role="menuitem" disabled={it.disabled} className={it.danger ? "danger" : ""}
+    <button key={i} role={it.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={it.checked}
+      disabled={it.disabled} className={(it.danger ? "danger" : "") + (it.checked ? " checked" : "")}
       onClick={() => { useApp.setState({ menu: null }); it.run(); }}>
+      {it.checked !== undefined && <span className="menu-check" aria-hidden="true">{it.checked ? "✓" : ""}</span>}
       {it.label}
     </button>
   );

@@ -347,7 +347,7 @@ def test_remove_the_3d_view_and_undo(g3multi):
     assert pg.evaluate(f"[{P}.mode, {P}.objects.length]") == ["3d", 3]
     # "Clear plot" works on a plot that holds only objects (it was disabled for it)
     pg.locator(".plot .plot-more").first.click()
-    item = pg.locator(".plot .menu[role=menu] button", has_text="Clear plot")
+    item = pg.locator(".menu.ctx button", has_text="Clear plot")
     assert item.is_enabled()
     item.click()
     assert pg.evaluate(f"[{P}.mode, {P}.objects.length]") == ["3d", 0]

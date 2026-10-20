@@ -395,9 +395,9 @@ def test_V03_active_plot_keys(pg):
 def test_V04_plot_modes(pg):
     open_files(pg, "tones.csv")
     sig(pg, "Tone50").click()
-    pg.locator(".plot .mode-seg button", has_text="FFT").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="FFT").first.click()
     pg.wait_for_function("[...document.querySelectorAll('.chip .val')].some(e => e.innerText.startsWith('50'))")
-    pg.locator(".plot .mode-seg button", has_text="X-Y").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="X-Y").first.click()
     pg.wait_for_selector(".xpick .picker-btn")
 
 
@@ -864,7 +864,7 @@ def test_fft_motor_orders(pg):
                delimiter=",", header="Time,ESC.RPM,IMU.AccZ", comments="", fmt="%.6g")
     open_files(pg, "motor.csv")
     pg.locator(".sig", has_text="IMU.AccZ").first.click()
-    pg.locator(".plot .seg button", has_text="FFT").first.click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="FFT").first.click()
     sel = pg.locator(".plot select[aria-label='Motor orders']")
     sel.select_option(label="ESC.RPM")
     pg.wait_for_function("document.querySelector('.plot-canvas[data-orders]')?.dataset.orders === '100.000'")   # 6000 rpm = 100 Hz
@@ -1062,7 +1062,7 @@ def test_xyz_plot_and_place_on_map(pg):
     open_files(pg, "run_a.csv")
     for n in ("Speed", "RPM", "Gear"):
         sig(pg, n).click()
-    pg.locator(".plot.active .mode-seg button", has_text="XYZ").click()
+    pg.locator(".plot.active .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="XYZ").first.click()
     pg.wait_for_function(PAINTED, arg=".plot.active .xyz-canvas")                # the box and the track are drawn
     assert "Drag: rotate" in pg.locator(".plot.active .xyz-hint").inner_text()
     eq = pg.locator(".plot.active button", has_text="Equal scale")
@@ -1220,7 +1220,7 @@ def test_regression_fft_plot_survives_signal_swap(pg):
     """Swapping the signals of an FFT plot (e.g. from the similarity list) once blanked the whole app."""
     open_files(pg, "run_a.csv", "run_c.csv")
     sig(pg, "Speed").click()
-    pg.locator(".plot .mode-seg button", has_text="FFT").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="FFT").first.click()
     pg.wait_for_timeout(600)
     pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row")
@@ -1584,7 +1584,7 @@ def test_arrow_keys_move_the_cursor_that_was_clicked_last(pg):
 def test_map_plot_draws_track_on_world_outline(pg):
     open_files(pg, "geo.csv")
     sig(pg, "Lat").click(); sig(pg, "Lon").click()
-    pg.locator(".plot .mode-seg button", has_text="Map").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.wait_for_selector(".plot .geo canvas")
     assert S(pg, "s.ws.tabs[0].plots[0].xSignal.endsWith('/Lon')")          # Lon chosen as the X (longitude) signal
     assert chips(pg) == ["Lat"]
@@ -1612,7 +1612,7 @@ def test_states_show_markers_only_no_line(pg):
 def test_map_lon_and_lat_are_both_selectable(pg):
     open_files(pg, "geo.csv")
     sig(pg, "Lat").click(); sig(pg, "Lon").click()
-    pg.locator(".plot .mode-seg button", has_text="Map").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.wait_for_selector(".plot .geo canvas")
     # swap them with the two pickers: longitude <- Lat, latitude <- Lon
     pg.locator(".plot .xpick [aria-label='Lon']").first.click()
@@ -1946,7 +1946,7 @@ def test_envelope_of_several_runs(pg):
     pg.click(".side-head [aria-label='Link files']")
     sig(pg, "Speed").click()
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 3")
-    pg.locator(".plot button", has_text="Envelope").first.click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Envelope").first.click()
     pg.wait_for_function("(document.querySelector('.env-caption')?.textContent || '').includes('3 runs')")
     assert pg.locator(".env-canvas canvas").count() >= 1
     assert S(pg, "s.ws.tabs[0].plots[0].mode") == "env"

@@ -28,7 +28,7 @@ def test_column_of_plots_lines_up_and_envelope_zooms_with_them(pg):
 
     # Envelope (two runs of one quantity) in the second plot: lined up too, and its zoom is the tab's
     sig(pg, "Speed2").click()
-    pg.locator(".plot").nth(1).locator(".mode-seg button", has_text="Envelope").click()
+    pg.locator(".plot").nth(1).locator(".mode-btn").click(); pg.locator(".menu.ctx button", has_text="Envelope").click()
     pg.wait_for_function("document.querySelectorAll('.plot').length === 2 && document.querySelectorAll('.plot .u-over').length === 2")
     pg.wait_for_timeout(800)
     a, b = _boxes(pg)

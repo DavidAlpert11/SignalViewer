@@ -90,6 +90,11 @@ export default function EnvelopeChart({ tab, plot, index, onLoading }: Props) {
     uRef.current = u;
     const onDown = () => actions.setActivePlot(index);
     const onDbl = () => actions.setRange(key, null);
+    const onCtx = (e: MouseEvent) => {           // the moment under a right-click, for the plot's menu
+      const r = u.over.getBoundingClientRect();
+      (e as MouseEvent & { svTime?: number }).svTime = u.posToVal(e.clientX - r.left, "x");
+    };
+    u.over.addEventListener("contextmenu", onCtx);
     host.addEventListener("mousedown", onDown, true);
     host.addEventListener("dblclick", onDbl);
     return () => { host.removeEventListener("mousedown", onDown, true); host.removeEventListener("dblclick", onDbl); u.destroy(); uRef.current = null; };
