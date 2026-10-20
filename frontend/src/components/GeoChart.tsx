@@ -4,7 +4,7 @@ import { actions, shownSpan, useApp, type MapObject, type Plot } from "../store"
 import { drawObjectIcon } from "./mapIcons";
 import { objectAt, type ObjTrack } from "../mapObjects";
 import type { Country } from "../worldCountries";
-import { dpr, indexSpan, PLOT_THEME, uiScale, useSize } from "./chartUtil";
+import { dpr, indexSpan, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string; notDegrees: string }
 
@@ -481,7 +481,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       if (!v) return;
       e.preventDefault();
       const g = at(e, v);
-      const z = Math.max(1, Math.min(22, v.z + (e.deltaY < 0 ? 0.35 : -0.35)));
+      const f = wheelZoom(e);                 // F27: in proportion to the step (a trackpad sends many small ones)
+      if (f === null) return;
+      const z = Math.max(1, Math.min(22, v.z - Math.log2(f) * 1.09));   // a mouse notch: 0.35, as before
       const S = 256 * 2 ** z;
       userView.current = true;
       setView({ z, cx: g.wx - g.bx / S, cy: Math.max(0, Math.min(1, g.wy - g.by / S)) });   // keep the point under the pointer

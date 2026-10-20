@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, shownSpan, signalName, useApp, type Plot, type PlotSignal } from "../store";
 import { useT } from "../i18n";
-import { dpr, indexSpan, PLOT_THEME, uiScale, useSize } from "./chartUtil";
+import { dpr, indexSpan, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chartUtil";
 
 /* T17c: a plain 3D plot - any three signals as X, Y, Z (a trajectory in metres, three sensor axes,
    a state space...). Nothing geographic: the map and the 3D globe are for places on Earth; "Place
@@ -285,7 +285,9 @@ export function XYZCanvas({ shown, equal, flipZ, index, hint, children, letters 
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
       const v = view.current;
-      v.zoom = Math.max(0.25, Math.min(12, v.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+      const f = wheelZoom(e);                 // F27: in proportion to the step (a mouse notch: 1.15 as before)
+      if (f === null) return;
+      v.zoom = Math.max(0.25, Math.min(12, v.zoom / f ** 0.626));
       redraw();
     };
     const reset = () => { view.current = { ...VIEW0 }; redraw(); };
