@@ -8,7 +8,15 @@
 
 From MATLAB or a shell, use the command line instead: `python cli.py --help`.
 """
+import os as _os
+import sys as _sys
 from typing import Dict, List, Optional, Sequence, Tuple
+
+# T56: installed with pip, the app's own modules (app, svcore), its UI and the examples live in
+# signalviewer/_core; from the source folder they are next to this package (backend/).
+_CORE = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "_core")
+if _os.path.isdir(_CORE) and _CORE not in _sys.path:
+    _sys.path.insert(0, _CORE)
 
 import numpy as np
 
