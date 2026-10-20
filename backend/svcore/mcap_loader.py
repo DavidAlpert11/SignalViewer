@@ -19,6 +19,7 @@ import numpy as np
 
 from svcore.csv_loader import _progress
 from svcore.models import Run, Signal
+from svcore.extras import missing
 
 MAX_ARRAY = 16                    # longer numeric arrays (ranges, pixels...) are not signals
 # bulk data, not time series: never decoded (decoding images alone would take most of the time)
@@ -107,8 +108,7 @@ def load_mcap(path: str, display_name: str) -> Tuple[Optional[Run], Dict[str, An
         from mcap.stream_reader import StreamReader
         from mcap_ros2.decoder import DecoderFactory
     except ImportError:
-        raise McapError("Reading .mcap needs the 'mcap' and 'mcap-ros2-support' packages "
-                        "(pip install mcap mcap-ros2-support).") from None
+        raise McapError(missing("Reading ROS 2 recordings (.mcap)", "ros")) from None
     ros2 = DecoderFactory()
     decoders: Dict[int, Optional[Callable[[bytes], Any]]] = {}     # channel id -> decode (None: skip)
     skipped: Dict[str, str] = {}
