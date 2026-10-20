@@ -1,5 +1,7 @@
 # T43 / Q73: the documentation site on GitHub Pages, built from docs/ with MkDocs (mkdocs.yml).
-# One-time setup by the owner: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+# One-time setup by the owner (without it the deploy job fails with "404 ... Ensure GitHub Pages has been
+# enabled"): https://github.com/DavidAlpert11/SignalViewer/settings/pages -> Build and deployment ->
+# Source: GitHub Actions. Then Actions -> docs -> Run workflow (or push a change under docs/).
 name: docs
 on:
   push:
@@ -22,7 +24,7 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install "mkdocs==1.6.1"
       - run: mkdocs build --strict -d site     # a broken link or a missing page fails the build
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with: { path: site }
   deploy:
     needs: build
@@ -30,4 +32,4 @@ jobs:
     environment: { name: github-pages, url: "${{ steps.deployment.outputs.page_url }}" }
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
