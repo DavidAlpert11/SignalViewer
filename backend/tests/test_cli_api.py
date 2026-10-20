@@ -47,3 +47,37 @@ def test_cli_errors_exit_1(tmp_path, capsys):
     assert main(["info", str(tmp_path / "missing.csv")]) == 1
     assert "not found" in capsys.readouterr().err.lower()
     assert main(["export", os.path.join(EX, "run_012.csv"), "--out", str(tmp_path / "x.txt")]) == 1
+
+
+def test_signal_names_without_unit_and_suggestions(tmp_path, capsys):
+    """F31: scripts write "ATT.Roll", the file has "ATT.Roll [deg]"."""
+    rec = sv.load(os.path.join(EX, "copter_flight.bin"))
+    t, y = rec.signal("ATT.Roll")
+    t2, y2 = rec.signal("ATT.Roll [deg]")
+    assert np.array_equal(y, y2) and len(t) > 100
+    assert np.array_equal(rec.signal("att.roll")[1], y)               # any case
+    df = rec.to_dataframe(["ATT.Roll", "ATT.Pitch"], t0=10, t1=20)
+    assert list(df.columns) == ["Time", "ATT.Roll", "ATT.Pitch"]      # the names as written
+    with pytest.raises(KeyError) as e:
+        rec.signal("ATT.Rol")
+    assert "Did you mean 'ATT.Roll [deg]'" in str(e.value) and not str(e.value).startswith("'")
+    # the command line goes through the same names (its own --help example)
+    out = tmp_path / "roll.csv"
+    assert main(["export", os.path.join(EX, "copter_flight.bin"), "--signals", "ATT.Roll,ATT.Pitch",
+                 "--out", str(out)]) == 0
+    assert out.read_text(encoding="utf-8-sig").splitlines()[0] == "Time,ATT.Roll,ATT.Pitch"
+    assert main(["export", os.path.join(EX, "copter_flight.bin"), "--signals", "ATT.Rol",
+                 "--out", str(out)]) == 1
+    assert "Did you mean 'ATT.Roll [deg]'" in capsys.readouterr().err
+
+
+def test_resolve_signal_name_rules():
+    from svcore.naming import resolve_signal_name, SignalNameError
+    names = ["Speed [km/h]", "Speed", "Alt [m]", "Alt [ft]", "RPM"]
+    assert resolve_signal_name(names, "Speed") == "Speed"                # exact wins
+    assert resolve_signal_name(names, "rpm") == "RPM"
+    assert resolve_signal_name(names, "Speed [km/h]") == "Speed [km/h]"
+    with pytest.raises(SignalNameError, match="several signals.*Alt \\[ft\\].*Alt \\[m\\]"):
+        resolve_signal_name(names, "Alt")                                # never a guess
+    with pytest.raises(SignalNameError, match="No signal named 'zzz'"):
+        resolve_signal_name(names, "zzz")

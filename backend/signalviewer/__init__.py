@@ -3,8 +3,10 @@
     import signalviewer as sv
     rec = sv.load("flight.bin")            # .csv .mat .bin .tlog .ulg
     rec.signals                            # names
-    t, y = rec.signal("ATT.Roll")          # numpy arrays (each signal keeps its own time)
+    t, y = rec.signal("ATT.Roll")          # numpy arrays (each signal keeps its own time);
+                                           # the unit may be left out: "ATT.Roll [deg]"
     df = rec.to_dataframe(["ATT.Roll", "ATT.Pitch"], t0=10, t1=60)   # one time base (pandas)
+    sv.show(t, {"roll": y}, name="from a script")   # into the open app (see push_client)
 
 From MATLAB or a shell, use the command line instead: `python cli.py --help`.
 """
@@ -22,8 +24,11 @@ import numpy as np
 
 from app.store import Store
 from svcore.analysis import align_to
+from svcore.naming import resolve_signal_name
 
-__all__ = ["load", "Recording"]
+from .push_client import show
+
+__all__ = ["load", "Recording", "show"]
 
 
 class Recording:
@@ -41,11 +46,11 @@ class Recording:
         return list(self._store.get(self._id).run.signals.keys())
 
     def signal(self, name: str) -> Tuple[np.ndarray, np.ndarray]:
-        """(time, values) of one signal, by its name in the app."""
-        try:
-            t, y = self._store.signal(f"{self._id}/{name}")
-        except KeyError:
-            raise KeyError(f"No signal named {name!r} in {self.name}. See .signals for the names.") from None
+        """(time, values) of one signal, by its name in the app - or without its unit, in any
+        case ("ATT.Roll" for "ATT.Roll [deg]") when that is one signal. A name that is not raises
+        KeyError with the closest names."""
+        full = resolve_signal_name(self.signals, name, self.name)
+        t, y = self._store.signal(f"{self._id}/{full}")
         return np.asarray(t, dtype=np.float64), np.asarray(y, dtype=np.float64)
 
     def table(self, names: Optional[Sequence[str]] = None, t0: Optional[float] = None,

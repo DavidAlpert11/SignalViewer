@@ -156,7 +156,9 @@ Viewer.bat*). Linux and macOS: the `-portable.7z` for your system.
 
 **With Python (3.9 or newer):** `pip install signalviewer`, then `signalviewer` starts the app
 (`pip install "signalviewer[desktop]"` for its own window instead of the browser).
-`signalviewer-cli` and `import signalviewer` read and export recordings from scripts.
+`signalviewer-cli` and `import signalviewer` read and export recordings from scripts. `rec.signal("ATT.Roll")`
+finds *ATT.Roll [deg]* (the unit may be left out), and `signalviewer.show(t, {"alt": alt})` sends
+arrays from a notebook into the open app.
 
 **Nothing needs the internet at run time.** The installer, the portable folder and the single
 file contain Python, every library, the UI with its fonts, the report assets and the icon.
