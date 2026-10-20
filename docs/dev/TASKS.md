@@ -1361,3 +1361,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q75 / T62: two PyPI distributions (signalviewer = full, signalviewer-lite = core + extras), hints per flavour, both checked. Backend tests green.
 - 2026-10-20 · Q76 / T63: Clear button with scopes (clearing.ts), File submenu, Ctrl+K; e2e written (not run here). Plan Q74-Q77 done.
 - 2026-10-20 · Q78 / F35: no File menu - session, Clear, settings, day / night as top-bar buttons; the stage bar's eraser as in 1.8.
+- 2026-10-20 · docs workflow: actions/upload-pages-artifact@v5 and deploy-pages@v5 (Node 24; v3 / v4 gave the Node 20 deprecation warnings); the 404 of the first runs = Pages not enabled yet (owner: Settings -> Pages -> Source: GitHub Actions), said in the workflow's header.
