@@ -1,3 +1,4 @@
+import { addDataExts } from "./values";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
 import { getPref, setPref } from "./prefs";
@@ -60,6 +61,8 @@ function Welcome() {
   // T09: ready examples (a drone flight; three car runs to compare) - a first look in one click
   const [examples, setExamples] = useState<{ id: ExampleId; paths: string[] }[]>([]);
   useEffect(() => { api.examples().then(setExamples).catch(() => setExamples([])); }, []);
+  // T60: files of the user's own readers can be chosen and dropped like the built-in types
+  useEffect(() => { api.readers().then((r) => addDataExts(r.readers.flatMap((x) => x.extensions))).catch(() => {}); }, []);
   const files = items.filter((x) => x.kind === "file").slice(0, 6);
   const sessions = items.filter((x) => x.kind === "session").slice(0, 4);
   const openRecent = async (x: (typeof items)[number]) => {

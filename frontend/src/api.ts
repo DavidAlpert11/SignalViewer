@@ -147,6 +147,8 @@ export const api = {
   listRuns: () => call<RunInfo[]>("/api/runs"),
   clientError: (b: { message: string; stack: string; where: string }) => call<{ logged: boolean }>("/api/client-error", b),
   pyops: () => call<PyOpsInfo>("/api/pyops"),
+  readers: () => call<{ folder: string; readers: { id: string; name: string; extensions: string[]; file: string }[];
+    errors: { file: string; error: string }[] }>("/api/readers"),
   pyopsReload: () => call<PyOpsInfo>("/api/pyops/reload", {}),
   pyopsFolder: (path: string | null) => call<PyOpsInfo>("/api/pyops/folder", { path }),
   pyopsExample: () => call<PyOpsInfo & { example: string }>("/api/pyops/example", {}),

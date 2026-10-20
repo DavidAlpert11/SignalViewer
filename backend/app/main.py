@@ -30,6 +30,7 @@ from app.routes import (
     maps,
     push,
     pyops,
+    readers,
     session,
     system,
     templates,
@@ -152,6 +153,7 @@ app.include_router(compare.router)
 app.include_router(export.router)
 app.include_router(maps.router)
 app.include_router(pyops.router)
+app.include_router(readers.router)
 app.include_router(push.router)
 app.include_router(jobs.router)
 app.include_router(system.router)

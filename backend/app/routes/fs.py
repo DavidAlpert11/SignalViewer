@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import SUPPORTED, UPLOAD_DIR, fail
+from app.common import UPLOAD_DIR, fail, supported_now
 from app.store import store
 
 router = APIRouter()
@@ -41,7 +41,7 @@ def _windows_drives() -> List[str]:
 
 def _wanted(exts: Optional[List[str]]):
     """Which files a listing shows: the requested extensions, else the supported data files."""
-    allowed = tuple(x.lower() for x in exts) if exts else SUPPORTED
+    allowed = tuple(x.lower() for x in exts) if exts else supported_now()
     return lambda name: name.lower().endswith(allowed)
 
 

@@ -4,6 +4,10 @@ import { withUnit } from "./units";
 
 /** File types the app opens (file dialogs, "choose the original", "locate"...). */
 export const DATA_EXTS = [".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq"];
+/** T60: the extensions of the user's own readers join the list (it is read wherever it is used). */
+export function addDataExts(exts: string[]) {
+  for (const e of exts) if (!DATA_EXTS.includes(e.toLowerCase())) DATA_EXTS.push(e.toLowerCase());
+}
 /** Flight-log formats: their own time per message, a Log panel, health checks. */
 export const LOG_FORMATS = new Set(["bin", "tlog", "ulg"]);
 

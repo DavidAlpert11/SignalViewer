@@ -16,6 +16,8 @@ import numpy as np
 
 from svcore.csv_loader import CSVImportSettings, _read_head_lines, append_new_rows, detect_delimiter, load_csv
 from svcore.mat_loader import MatNeedsExtra, load_mat
+from svcore.readers import ReaderError
+from svcore.readers import read as user_read
 from svcore.bin_loader import BinFormatError, append_new_messages, load_bin
 from svcore.tlog_loader import TLogError, append_tlog, load_tlog
 from svcore.ulog_loader import ULogError, load_ulog
@@ -23,6 +25,7 @@ from svcore.mcap_loader import McapError, load_mcap
 from svcore.hdf5_loader import Hdf5Error, load_hdf5
 from svcore.parquet_loader import ParquetError, load_parquet
 from svcore.models import Run
+from app import userreaders
 from app.prefs import APP_DIR
 from svcore.analysis import DerivedDef, OpError, compute, is_discrete
 from svcore.formula import evaluate as _evaluate_formula
@@ -165,7 +168,8 @@ def check_file(path: str, settings: Optional[dict] = None) -> None:
     with the wrong extension. Raises LoadError."""
     ext = os.path.splitext(path)[1].lower()
     name = os.path.basename(path)
-    if ext not in SUPPORTED_EXTS:
+    own = ext not in SUPPORTED_EXTS and bool(userreaders.for_ext(ext))   # T60: a format of the user's
+    if ext not in SUPPORTED_EXTS and not own:
         raise LoadError(f"Unsupported file type ({ext or 'no extension'}). Supported: "
                         + ", ".join(e[1:].upper() for e in SUPPORTED_EXTS) + ".",
                         "unsupported", ext=ext or "-", supported=", ".join(e[1:].upper() for e in SUPPORTED_EXTS))
@@ -177,6 +181,8 @@ def check_file(path: str, settings: Optional[dict] = None) -> None:
         raise LoadError(f"The file cannot be read: {e.strerror or e}", "unreadable", reason=str(e.strerror or e)) from None
     if size == 0:
         raise LoadError("The file is empty.", "empty")
+    if own:                                        # the user's reader decides what its files look like
+        return
     kind = sniff_kind(head)
     if kind and ext not in _KIND_OK[kind]:
         raise LoadError(f"{name} looks like a {_KIND_EXT[kind]} file, but its extension is {ext}. "
@@ -311,13 +317,27 @@ class Store:
         all_paths = [r.run.file_path for r in self.runs.values()] + [path]
         name = _display_names(all_paths)[path]
         report: Dict = {}
-        if ext == ".mat":
+        run = None
+        for r in userreaders.for_ext(ext):          # T60: the user's readers first; None = not theirs
+            try:
+                run = user_read(r, path, name)
+            except ReaderError as e:
+                raise LoadError(str(e), "readerFailed") from None
+            if run is not None:
+                report["reader"] = r["name"]
+                break
+        if run is not None:
+            pass
+        elif ext not in SUPPORTED_EXTS:
+            names = ", ".join(r["name"] for r in userreaders.for_ext(ext))
+            raise LoadError(f"Your reader ({names}) found nothing to read in {os.path.basename(path)}.", "readerEmpty")
+        elif ext == ".mat":
             try:
                 run, skipped = load_mat(path, name, (settings or {}).get("time_column"))
             except LoadError:
                 raise
-            except MatNeedsExtra as e:
-                raise LoadError(str(e), "badMat") from None
+            except MatNeedsExtra as e:              # its own code: "badMat" would show "damaged" instead
+                raise LoadError(str(e), "needsExtra") from None
             except Exception as e:
                 if e.__class__.__name__ == "LoadCancelled":
                     raise

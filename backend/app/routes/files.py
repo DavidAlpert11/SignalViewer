@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import SUPPORTED, UPLOAD_DIR, _load_error, _log_signal_names, fail, open_with_prefs
+from app.common import UPLOAD_DIR, supported_now, _load_error, _log_signal_names, fail, open_with_prefs
 from app.patterns import name_pattern as _name_pattern
 from app.store import LoadError, store
 from svcore.csv_loader import CSVImportSettings, detect_delimiter, preview_csv
@@ -140,7 +140,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     paths, skipped = [], []
     for f in files:
         name = os.path.basename(f.filename or "upload.csv")
-        if not name.lower().endswith(SUPPORTED):
+        if not name.lower().endswith(supported_now()):
             skipped.append(name)       # reported to the user, never dropped silently
             continue
         dest_dir = tempfile.mkdtemp(dir=UPLOAD_DIR)
