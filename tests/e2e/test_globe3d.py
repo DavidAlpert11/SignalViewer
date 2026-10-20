@@ -315,21 +315,21 @@ def test_log_events_on_the_track_and_image(g3multi):
     pg.locator(".globe3d-bar button", has_text="Events").click()
     pg.wait_for_function(count + " === 0")
     # the view as a PNG file
-    out = os.path.join(tempfile.gettempdir(), "g3_view_test.png")    # F36: "/tmp" is no folder on Windows
-    if os.path.exists(out):
-        os.remove(out)
+    # F36: a folder of its own, given as a full path in the name box (the dialog takes a full path
+    # as it is). Typing the folder into the address box and saving at once can race the folder's
+    # listing - on Windows the shared Temp folder has thousands of files and lists slowly, and the
+    # picture then goes to the folder the dialog is still in (the likely cause of the owner's run).
+    out = os.path.join(tempfile.mkdtemp(prefix="sv_g3_"), "g3_view_test.png")
     pg.locator(".globe3d-bar button", has_text="Image").click()
-    pg.wait_for_selector(".dialog .crumbs input")
-    pg.wait_for_function("document.querySelector('.dialog .crumbs input').value !== ''")
-    pg.fill(".dialog .crumbs input", os.path.dirname(out))
-    pg.keyboard.press("Enter")
-    pg.wait_for_function(f"document.querySelector('.dialog .crumbs input').value === {json.dumps(os.path.dirname(out))}")
-    pg.locator(".dialog-foot input").fill(os.path.basename(out))
+    pg.wait_for_selector(".dialog-foot input")
+    pg.locator(".dialog-foot input").fill(out)
     pg.locator(".dialog-foot .btn.primary").click()
     for _ in range(120):                    # software WebGL under load: the picture can take a while
         if os.path.exists(out):
             break
         pg.wait_for_timeout(250)
+    if not os.path.exists(out):                 # say what the app said (an error toast), not only "no file"
+        raise AssertionError(f"no {out}; toasts: {pg.locator('.toast').all_inner_texts()}")
     data = open(out, "rb").read()
     assert data.startswith(b"\x89PNG")
     # a real picture, not an empty canvas: many colours, and object A's red model in it
