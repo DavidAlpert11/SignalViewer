@@ -617,7 +617,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F31 Python API / CLI: names without the unit, "did you mean", `sv.show` (Q65). Done 2026-10-20: svcore/naming.py `resolve_signal_name`.
 - [x] F32 Packaging consistency (Q66). Done 2026-10-20: make_pypi.py `pypi_readme` (pictures on PyPI), URLs, classifiers; badge 3.9+.
 - [x] T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML (Q67). Done 2026-10-20: app/checks.py, examples/checks.json.
-- [ ] T58 Golden-run regression from the command line (Q68).
+- [x] T58 Golden-run regression from the command line (Q68). Done 2026-10-20: `signalviewer-cli compare`, app/checks.py.
 - [ ] T59 Lighter pip install with extras (Q69).
 - [ ] T60 Reader plugins in the user's folder (Q70).
 - [ ] T61 Binary ICD decoder from a YAML layout (Q71).
