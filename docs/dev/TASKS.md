@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner pushes, tags v1.8.0 (the workflow makes the draft release with the installer, zip, 7z and
   the Python wheel; PyPI only once PYPI_PUBLISH is set). Still the owner's: Q55's "Open with" on a real
   Windows install, Q61's PyPI setup, Q60's tour video, Q24 signing.
-- Tests at the last change: backend 673 passed, mypy clean, tsc + build clean; whole e2e suite file by file, all passed (193 tests; after Q32, 2026-10-20); Q63 on top: backend + test_push, test_fresh_user, test_settings and the Inspector / cursor tests of test_features green.
+- Tests at the last change (release 1.9.0, 2026-10-20): backend 714 passed, mypy clean, tsc + build clean; whole e2e suite on the owner's Windows PC 192/194, the two failures fixed (F36) and green on re-run; here the release build: test_file_help_menus, T63, many tabs, 3D image green.
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -1382,3 +1382,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · docs workflow: actions/upload-pages-artifact@v5 and deploy-pages@v5 (Node 24; v3 / v4 gave the Node 20 deprecation warnings); the 404 of the first runs = Pages not enabled yet (owner: Settings -> Pages -> Source: GitHub Actions), said in the workflow's header.
 - 2026-10-20 · Q79 / F36: owner's e2e 192/194; tab strip room at 1100 px (.hide-compact), the 3D image test on Windows (tempfile).
 - 2026-10-20 · Q79: owner re-run - tab test green; 3D image test: own folder, full path in the name box, toasts in the failure message.
+- 2026-10-20 · **Release 1.9.0** prepared: version in build.bat, version.py, SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md); CHANGELOG `## 1.9.0 – 2026-10-20` with highlights ("No File menu" moved to Changed); README / docs review: features.md test counts (111 / 194 / 714), install.md (~710), limitations.md (CAN: no ASC FD / .blf / MF4, one message per id across buses; ICD: no checksums, arrays, variants; readers in-process, reloaded whole in live mode); README's own text already matched. `tools/make_readme_media.py`: all 17 pictures and the 01, 03, 04, 05 clips retaken (06_3d_terrain.png and the 02 clip kept, as the tool says); in the full run vid_04 and vid_05 timed out after the other scenes and were made on their own (`--only vid_04 vid_05`) - follow-up: the scenes share one App, give the clips a fresh one. frontend/dist rebuilt. Owner: tag v1.9.0 after the push (PyPI pending publisher for signalviewer-lite first).

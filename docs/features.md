@@ -1,8 +1,8 @@
 # What works
 
 Every feature of the requirements catalog is covered by an automated test that drives the
-real UI: `tests/e2e/test_features.py` (110 tests) and the other `tests/e2e/` files (193 in all, `test_fresh_user.py` with an empty profile),
-plus the backend tests (708).
+real UI: `tests/e2e/test_features.py` (111 tests) and the other `tests/e2e/` files (194 in all, `test_fresh_user.py` with an empty profile),
+plus the backend tests (714).
 
 | Area | Status |
 |---|---|
