@@ -892,7 +892,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 | Q66 | F32 Packaging consistency (badge, pyproject note, PyPI metadata, README pictures on PyPI) | S | ☑ done |
 | Q67 | T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML for CI | M | ☑ done (limits; settling / response checks: follow-up) |
 | Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☑ done |
-| Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☐ |
+| Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☑ done |
 | Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☐ |
 | Q71 | T61 Binary ICD decoder: raw packet recordings described in a YAML layout (own code, MIT) | L | ☐ |
 | Q72 | T40 part 2: CAN - own DBC decoder (option B, MIT) + candump / ASC / CSV CAN logs | L | ☐ owner decides |
@@ -968,6 +968,18 @@ Today every reader is required (pyarrow, scipy, h5py, matplotlib, pymavlink, mca
 CSV / Parquet viewing; extras `[mavlink] [px4] [ros] [matlab] [reports] [all]`. Needs: every
 loader / report imports lazily and a missing extra says *"pip install signalviewer[ros] to open
 .mcap"*; the installer and portable builds keep everything.
+**Status:** done 2026-10-20. `svcore/extras.py` (EXTRAS: parquet, hdf5, mavlink, px4, ros, reports,
+desktop; `missing()` = the message) is the one list: `tools/make_pypi.py` builds the package's
+extras + `all` from it (and stops when it names a package requirements.txt lacks). Core = FastAPI,
+numpy, pandas, scipy (filters, spectrograms, MATLAB v5 - kept: the analysis needs it). Messages in
+the readers that already imported lazily (parquet, hdf5, ulog, mcap, mavlive) and new ones where a
+missing package crashed or was misreported: .tlog (`_mav()` -> TLogError), MATLAB v7.3 without h5py
+(was "not a valid .mat": `MatNeedsExtra` from the file's header), PDF / Word / images
+(`report.ReportNeedsExtra`, 400 from /api/report; the HTML report of time plots needs neither).
+The CSV reader already fell back to pandas without pyarrow. Site-packages 764 -> 346 MB.
+`make_pypi.py --check` now also: the plain install opens the .bin example, a .parquet fails naming
+`[parquet]`, then `[all]` opens it. Tests: `test_extras.py` (5, the modules hidden via sys.modules).
+requirements.txt (source, installer, portable) unchanged.
 
 ### Q70 · T60 Reader plugins — M
 A file format as a Python file in `~/.signalviewer/readers` (same model as the Python operations:
@@ -1183,3 +1195,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Q66 / F32: README for PyPI with absolute pictures / links (tag v<version>), project URLs, keywords, classifiers; badge 3.9+; pyproject note. Backend 676, mypy clean, `make_pypi.py --check` OK.
 - 2026-10-20 · Q67 / T57: `signalviewer-cli check` (app/checks.py): checks file or a template's limits, windows and state stretches, JUnit XML, exit 0 / 1 / 2; `_stretches(..., where=store)`. Backend 680, mypy clean.
 - 2026-10-20 · Q68 / T58: `signalviewer-cli compare` (app/checks.py `run_compare`, `load_tolerances`), shared result printing with `check`. Backend 682, mypy clean.
+- 2026-10-20 · Q69 / T59: pip extras from svcore/extras.py, messages for .tlog / MAT v7.3 / reports, wheel check covers the plain and [all] installs. Backend 687, mypy clean.

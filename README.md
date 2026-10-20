@@ -156,8 +156,12 @@ On Windows take **`SignalViewer-Setup-X.Y.Z.exe`** (installs for you only, no ad
 to run without installing, the **`…-Windows-x64-portable.zip`** (extract, double-click *Signal
 Viewer.bat*). Linux and macOS: the `-portable.7z` for your system.
 
-**With Python (3.9 or newer):** `pip install signalviewer`, then `signalviewer` starts the app
-(`pip install "signalviewer[desktop]"` for its own window instead of the browser).
+**With Python (3.9 or newer):** `pip install "signalviewer[all]"`, then `signalviewer` starts the app.
+A plain `pip install signalviewer` is the core (about 350 MB instead of 760): CSV, MATLAB v5, ArduPilot
+.bin, every plot and analysis, HTML reports. The rest are extras - `[parquet]` (also a faster CSV
+reader), `[hdf5]` (.h5, MATLAB v7.3), `[mavlink]` (.tlog, live MAVLink), `[px4]` (.ulg), `[ros]`
+(.mcap), `[reports]` (PDF, Word, images), `[desktop]` (its own window instead of the browser); a
+file that needs one says which.
 `signalviewer-cli` and `import signalviewer` read and export recordings from scripts. `rec.signal("ATT.Roll")`
 finds *ATT.Roll [deg]* (the unit may be left out), and `signalviewer.show(t, {"alt": alt})` sends
 arrays from a notebook into the open app.
@@ -358,7 +362,7 @@ visual language as the app.
 * In a web browser (not the desktop window) Ctrl+PageUp / Ctrl+PageDown and Ctrl+Tab switch the browser's own tabs; use the *All tabs* list or *Go to tab* (Ctrl+K) there.
 * The right value axis follows its data: zooming the values (Shift+drag), panning, the axis limits dialog and linked value axes act on the left axis.
 * *Open with* (Explorer) is set up by the installer; with the portable packages, open files from the app or `SignalViewer file…`.
-* Installed with pip, the app opens in the browser; `pip install "signalviewer[desktop]"` gives it its own window (on Linux that needs GTK or Qt).
+* Installed with pip, only the core readers are there until their extras are added (the app says which, see Download); it opens in the browser; `pip install "signalviewer[desktop]"` gives it its own window (on Linux that needs GTK or Qt).
 * The interactive HTML report lists the notes under its summary; it does not draw them on its plots (the PDF and Word reports do).
 * Columns with a time column of their own keep that column's unit: a `time_boot_ms` column stays in milliseconds (as the main time column always has), so it does not line up with a time in seconds.
 

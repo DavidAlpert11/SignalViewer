@@ -18,6 +18,7 @@ import struct
 import threading
 import time
 from typing import List, Optional
+from svcore.extras import missing
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 
@@ -35,7 +36,7 @@ def _connect(conn: str, baud: int):
     try:
         from pymavlink import mavutil
     except ImportError as e:                                    # pragma: no cover - a dependency
-        raise MavLiveError("MAVLink support is not installed (pymavlink).") from e
+        raise MavLiveError(missing("Live MAVLink", "mavlink")) from e
     is_serial = not conn.split(":", 1)[0] in ("udp", "udpin", "udpout", "udpbcast", "tcp", "tcpin")
     if is_serial:
         try:

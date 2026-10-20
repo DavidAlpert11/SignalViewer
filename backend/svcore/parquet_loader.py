@@ -13,6 +13,7 @@ import numpy as np
 
 from svcore.mat_loader import TIME_NAMES
 from svcore.models import Run, Signal
+from svcore.extras import missing
 
 MAX_STATES = 1000
 
@@ -50,7 +51,7 @@ def load_parquet(path: str, display_name: str, time_column: Optional[str] = None
         import pyarrow as pa
         import pyarrow.parquet as pq
     except ImportError:
-        raise ParquetError("Reading Parquet needs the 'pyarrow' package.") from None
+        raise ParquetError(missing("Reading Parquet", "parquet")) from None
     try:
         table = pq.read_table(path)
     except (OSError, pa.ArrowException, ValueError) as e:
