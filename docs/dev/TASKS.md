@@ -894,7 +894,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 | Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☑ done |
 | Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☑ done |
 | Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☑ done (UI listing: follow-up) |
-| Q71 | T61 Binary ICD decoder: raw packet recordings described in a YAML layout (own code, MIT) | L | ☐ |
+| Q71 | T61 Binary ICD decoder: raw packet recordings described in a layout (own code, MIT) | L | ☑ done |
 | Q72 | T40 part 2: CAN - own DBC decoder (option B, MIT) + candump / ASC / CSV CAN logs | L | ☐ owner decides |
 | Q73 | T43 part: README slimmed to a front page, the full catalogue in a docs site (GitHub Pages) | M | ☐ |
 
@@ -1005,6 +1005,19 @@ for a reader's files (today: reloaded whole).
 Many test benches record raw packets (header, id, fields with type / scale / offset / bit fields,
 endianness) and every team writes its own decoder. A layout file (YAML) describes the packets;
 the reader turns a recording into signals named `<packet>.<field> [unit]`. Own code, MIT.
+**Status:** done 2026-10-20. `svcore/icd.py`: `parse_layout` (every item checked, the message names the
+packet / field: types, offsets inside the packet and the header, bits, ids unique, several packets
+need a header id), `read_layout` (JSON; YAML only when PyYAML is installed - not a new dependency),
+`_frames` (sync candidates found with numpy, the walk in plain bytes - about 1.5 µs a packet,
+240,000 packets in 0.36 s; fixed records without a header loop-free; resync byte by byte after a bad
+id / short length; cut-off end counted), `decode` (each field for all packets at once by fancy
+indexing + `view(dtype)`; bit fields; enums as labels, scale / offset_value not applied to them;
+time: the packet's field x time_scale, else the header's time, else numbered and said so), EXAMPLE +
+`write_example_recording`. It is a reader of T60: `app/userreaders.py` turns every `*.icd.json /
+.icd.yaml` in the readers folder into one (`kind: "icd"`); `readers.to_run` keeps a reader's
+`report` in the load report. CLI `readers --example-icd [recording]`. Tests: `test_icd.py` (10).
+**Follow-ups:** checksums (CRC-16 / sum per packet: drop the bad ones); arrays and strings in a
+payload; packets whose layout depends on a field (variants); live follow of a growing recording.
 
 ### Q72 · T40 part 2 · CAN with DBC — L (owner decides)
 Option B from ROADMAP T40: an own DBC parser + decoder (MIT), CAN logs as candump / ASC / CSV;
@@ -1213,3 +1226,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Q68 / T58: `signalviewer-cli compare` (app/checks.py `run_compare`, `load_tolerances`), shared result printing with `check`. Backend 682, mypy clean.
 - 2026-10-20 · Q69 / T59: pip extras from svcore/extras.py, messages for .tlog / MAT v7.3 / reports, wheel check covers the plain and [all] installs. Backend 687, mypy clean.
 - 2026-10-20 · Q70 / T60: user readers (svcore/readers.py, app/userreaders.py, /api/readers, CLI readers), extensions in the file dialog and drops; MAT v7.3 extra message code fixed. Backend 691, mypy clean, tsc + build clean (dist not in the patch).
+- 2026-10-20 · Q71 / T61: binary layouts (svcore/icd.py) as readers in the readers folder, CLI example. Backend 701, mypy clean.
