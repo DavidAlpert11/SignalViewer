@@ -3,6 +3,7 @@
 ## 1.8.0 – unreleased
 
 ### Added
+- **Notes over a time range:** with two cursors on, *N* (or *Note here…* on a right-click) writes a note that covers the time between them - shaded on every time plot, listed as "8 – 22 s" in the Inspector and in the report (HTML, PDF, Word).
 - **Settings** (the gear in the top bar, *File → Settings…*, Ctrl+,): theme, text size, and how the timeline writes time. Kept on this computer between starts; opening a session (a colleague's, an old one) no longer changes your theme or text size.
 - **`pip install signalviewer`:** the app as a Python package - `signalviewer` starts it, `signalviewer-cli` is the command line, `import signalviewer` reads recordings in scripts and notebooks. Built and checked (installed in a fresh environment and started) on every build; published to PyPI with the releases.
 - **A user guide**, in English and Hebrew: twelve short sections from the first start to flight logs and live data. In the app: *Help → User guide* (F1); on GitHub: `docs/GUIDE.md`, `docs/GUIDE.he.md`.

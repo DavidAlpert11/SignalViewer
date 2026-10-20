@@ -190,7 +190,7 @@ def test_report_with_spectrogram_and_notes(flight, tmp_path):
     imu = next(s["id"] for s in info["signals"] if s["name"].startswith("IMU[0].AccZ"))
     plots = [{"title": "Spec", "mode": "spec", "specN": 512, "signals": [{"id": imu, "color": "#3D8BFD"}]},
              {"title": "Time", "mode": "time", "signals": [{"id": imu, "color": "#3D8BFD"}]}]
-    notes = [{"t": 12.0, "text": "EKF spike"}]
+    notes = [{"t": 12.0, "text": "EKF spike"}, {"t": 20.0, "t2": 26.5, "text": "Hover test"}]   # T23: a range
     for fmt in ("html", "pdf", "docx"):
         p = tmp_path / f"r.{fmt}"
         r = client.post("/api/report", json={"path": str(p), "format": fmt, "title": "T",
@@ -198,6 +198,7 @@ def test_report_with_spectrogram_and_notes(flight, tmp_path):
         assert r.status_code == 200 and p.stat().st_size > 10000, (fmt, r.text)
     html = (tmp_path / "r.html").read_text(encoding="utf-8")
     assert "specimg" in html and "EKF spike" in html
+    assert "20 – 26.5 s" in html and "Hover test" in html
 
 
 def test_boot_clock_messages_land_exactly(flight):

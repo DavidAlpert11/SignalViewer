@@ -61,7 +61,8 @@ export interface Tab {
 export interface ReportMeta { title: string; intro: string; summary: string; lang: "en" | "he"; theme: "light" | "dark"; scope: "tab" | "all" }
 /** A note at a moment of the recording ("vibration starts here"): shown on every time plot, saved
  *  with the session, listed in the report. */
-export interface Note { id: string; t: number; text: string }
+/** A note at a moment, or over a time range (T23: t2 = its end). */
+export interface Note { id: string; t: number; t2?: number; text: string }
 export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta; notes?: Note[] }
 
 export const TRACE_COLORS = [

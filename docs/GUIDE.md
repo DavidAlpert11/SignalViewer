@@ -64,8 +64,8 @@ for the values.
 - **Space** turns the cursor on; click to place it; ← → step sample by sample.
 - **D** adds a second cursor: the Inspector then shows the difference and the statistics between
   the two (min, max, mean, RMS…).
-- Put the cursor on a moment and press **N** to write a note there. Notes show on every time plot
-  and in the report.
+- Put the cursor on a moment and press **N** to write a note there; with two cursors the note covers
+  the time between them (shaded). Notes show on every time plot and in the report.
 
 ## 7. Compare runs
 

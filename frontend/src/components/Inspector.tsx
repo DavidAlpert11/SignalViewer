@@ -411,7 +411,8 @@ export default function Inspector() {
           <ol className="notes-list">
             {[...(ws.notes ?? [])].sort((a, b) => a.t - b.t).map((n) => (
               <li key={n.id}>
-                <button className="pchange" onClick={() => actions.goToTime(n.t)} title={t("logGoTo")}>{fmtNum(n.t, lang, 6)}</button>
+                <button className="pchange" onClick={() => actions.goToTime(n.t)} title={t("logGoTo")}>
+                  {fmtNum(n.t, lang, 6)}{n.t2 !== undefined && <> – {fmtNum(n.t2, lang, 6)}</>}</button>
                 <span className="note-text" onDoubleClick={() => actions.editNote(n.id)}>{n.text}</span>
                 <button className="iconbtn sm" onClick={() => actions.editNote(n.id)} aria-label={t("noteEdit")} title={t("noteEdit")}><Icon.Edit /></button>
                 <button className="iconbtn sm" onClick={() => actions.removeNote(n.id)} aria-label={t("remove")} title={t("remove")}><Icon.Trash /></button>
