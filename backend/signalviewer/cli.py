@@ -6,10 +6,11 @@
     python cli.py report --template "ArduPilot · Full review" --out reports/ logs/*.bin [--format pdf]
     python cli.py templates                                # the templates --template can name
     python cli.py check runs/*.csv --checks checks.json [--junit results.xml]   # pass / fail (CI)
+    python cli.py compare golden.csv new.csv --tol-abs 0.5     # against a golden run (CI)
 
 MATLAB:  status = system('python cli.py export flight.bin --out f.mat'); d = load('f.mat');
 Exit code 0 = done, 1 = the file or a signal could not be read (the message says why).
-check:  0 = every check passed, 1 = a check failed, 2 = a check could not be made (a file or a
+check / compare:  0 = every check passed, 1 = a check failed, 2 = a check could not be made (a file or a
 signal missing, a wrong checks file) - so a CI step fails on a broken limit and on broken data.
 """
 import argparse
@@ -110,7 +111,7 @@ def cmd_templates(a) -> int:
 def cmd_check(a) -> int:
     """T57: limits as pass / fail, one line per check, an exit code for CI and optional JUnit XML."""
     import glob
-    from app.checks import ChecksError, junit_xml, load_checks, run_checks, template_checks
+    from app.checks import ChecksError, load_checks, run_checks, template_checks
     files = [f for pat in a.files for f in (sorted(glob.glob(pat)) or [pat])]
     if bool(a.checks) == bool(a.template):
         print("error: give --checks FILE.json or --template NAME (one of them).", file=sys.stderr)
@@ -134,21 +135,48 @@ def cmd_check(a) -> int:
     except ChecksError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+    count = _print_results(results, a)
+    return 2 if count["error"] else 1 if count["fail"] else 0
+
+
+def _print_results(results, a, mark_extra=None) -> dict:
+    rs = [r for f in results for r in f["results"]]
+    count = {k: sum(r["status"] == k for r in rs) for k in ("pass", "fail", "error", "skipped", "info")}
     if a.junit:
+        from app.checks import junit_xml
         with open(a.junit, "w", encoding="utf-8") as fh:
             fh.write(junit_xml(results))
-    rs = [r for f in results for r in f["results"]]
-    count = {k: sum(r["status"] == k for r in rs) for k in ("pass", "fail", "error", "skipped")}
     if a.json:
         print(json.dumps({"files": results, "count": count}, ensure_ascii=False))
-    else:
-        mark = {"pass": "PASS", "fail": "FAIL", "error": "ERROR", "skipped": "SKIP"}
-        for f in results:
-            print(f["file"])
-            for r in f["results"]:
-                print(f"  {mark[r['status']]:5} {r['name']}" + (f"  - {r['message']}" if r.get("message") else ""))
-        print(f"{count['pass']} passed, {count['fail']} failed, {count['error']} errors, {count['skipped']} skipped"
-              + (f"; JUnit XML: {a.junit}" if a.junit else ""))
+        return count
+    mark = {"pass": "PASS", "fail": "FAIL", "error": "ERROR", "skipped": "SKIP", "info": "     "}
+    top = getattr(a, "top", None)
+    for f in results:
+        print(f["file"] + (f"  vs  {f['golden']}" if f.get("golden") else ""))
+        shown = f["results"] if not top else [r for r in f["results"] if r["status"] in ("fail", "error")] or f["results"][:top]
+        for r in shown[:top] if top else shown:
+            print(f"  {mark[r['status']]:5} {r['name']}" + (f"  - {r['message']}" if r.get("message") else ""))
+        if top and len(f["results"]) > len(shown[:top]):
+            print(f"  ... {len(f['results']) - len(shown[:top])} more (--top 0 shows all)")
+    print(f"{count['pass']} passed, {count['fail']} failed, {count['error']} errors, {count['skipped']} skipped"
+          + (f", {count['info']} without a tolerance" if count["info"] else "")
+          + (f"; JUnit XML: {a.junit}" if a.junit else ""))
+    return count
+
+
+def cmd_compare(a) -> int:
+    """T58: each file against a golden run - the signals that differ most first."""
+    import glob
+    from app.checks import ChecksError, load_tolerances, run_compare
+    files = [f for pat in a.files for f in (sorted(glob.glob(pat)) or [pat])]
+    try:
+        tol = load_tolerances(a.tolerances, a.tol_abs, a.tol_pct)
+    except ChecksError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    names = [s.strip() for s in a.signals.split(",") if s.strip()] if a.signals else None
+    results = [run_compare(a.golden, f, tol, names) for f in files]
+    count = _print_results(results, a)
     return 2 if count["error"] else 1 if count["fail"] else 0
 
 
@@ -181,6 +209,17 @@ def main(argv=None) -> int:
     p.add_argument("--junit", help="also write the results as JUnit XML (CI test results)")
     p.add_argument("--json", action="store_true", help="machine-readable results on stdout")
     p.set_defaults(fn=cmd_check)
+    p = sub.add_parser("compare", help="each file against a golden run (tolerances, exit code, JUnit XML)",
+                       description="Without a tolerance the differences are listed and the exit code is 0. "
+                                   "Exit code: 0 all within, 1 a signal outside its tolerance, 2 a comparison could not be made.")
+    p.add_argument("golden", help="the reference run"); p.add_argument("files", nargs="+", help="runs to compare (wildcards allowed)")
+    p.add_argument("--signals", help="comma-separated names (default: every signal both have)")
+    p.add_argument("--tol-abs", type=float, help="allowed |difference| for every signal, in its unit")
+    p.add_argument("--tol-pct", type=float, help="allowed difference in %% of the golden value")
+    p.add_argument("--tolerances", help='a .json file: {"default": {"abs": .., "pct": ..}, "signals": {"Speed": {"abs": 1}, "Gear": {"skip": true}}}')
+    p.add_argument("--top", type=int, default=10, help="lines per file when everything passes (0 = all); failures are always shown")
+    p.add_argument("--junit", help="also write the results as JUnit XML"); p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_compare)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)
     a = ap.parse_args(argv)

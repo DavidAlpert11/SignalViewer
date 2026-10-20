@@ -36,7 +36,7 @@ def test_example_checks_pass_and_fail_with_junit(tmp_path, capsys):
     rc, so, _ = run(capsys, "check", *RUNS, "--checks", os.path.join(EX, "checks.json"), "--junit", str(junit), "--json")
     assert rc == 1                                                    # one check failed
     d = json.loads(so)
-    assert d["count"] == {"pass": 8, "fail": 1, "error": 0, "skipped": 0}
+    assert d["count"] == {"pass": 8, "fail": 1, "error": 0, "skipped": 0, "info": 0}
     r = by_name(d)
     bad = r[("run_013.csv", "Speed while cruising below 76 km/h")]
     assert bad["status"] == "fail" and bad["signal"] == "Speed [km/h]" and bad["worst"] > 0
@@ -95,3 +95,31 @@ def test_limits_saved_in_a_template(home, capsys):
         "tabs": [{"name": "T", "rows": 1, "cols": 1, "plots": [{"signals": [{"name": "RPM"}]}]}]}), encoding="utf-8")
     rc, _, se = run(capsys, "check", RUNS[0], "--template", "No limits")
     assert rc == 2 and "has no limits" in se
+
+
+# --- T58: against a golden run ---------------------------------------------------------------
+
+def test_compare_against_golden_ranks_and_tolerances(tmp_path, capsys):
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[2], "--json")
+    assert rc == 0                                                    # no tolerance: information only
+    rows = json.loads(so)["files"][0]["results"]
+    assert {r["status"] for r in rows} == {"info"} and len(rows) == 6
+    assert rows[0]["name"] == "RPM" and rows[0]["rmsPct"] >= rows[-1]["rmsPct"]   # most different first
+    tol = tmp_path / "tol.json"
+    tol.write_text(json.dumps({"default": {"abs": 15}, "signals": {"rpm": {"abs": 1000}, "Throttle": {"skip": True}}}))
+    junit = tmp_path / "r.xml"
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[1], RUNS[2], "--tolerances", str(tol), "--junit", str(junit), "--json")
+    d = json.loads(so)
+    assert rc == 0 and d["count"]["fail"] == 0 and d["count"]["pass"] == 10    # 5 signals x 2 files
+    assert all(r["name"] != "Throttle [%]" for f in d["files"] for r in f["results"])
+    root = ET.parse(junit).getroot()
+    assert root.get("tests") == "10" and root.get("failures") == "0"
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[2], "--tol-abs", "15", "--signals", "RPM,Speed", "--top", "0")
+    assert rc == 1 and "FAIL  RPM" in so and "PASS  Speed [km/h]" in so
+
+
+def test_compare_errors_exit_2(tmp_path, capsys):
+    rc, so, _ = run(capsys, "compare", RUNS[0], str(tmp_path / "gone.csv"), "--tol-abs", "1")
+    assert rc == 2 and "not found" in so.lower()
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[1], "--signals", "Spede")
+    assert rc == 2 and "Did you mean 'Speed [km/h]'" in so
