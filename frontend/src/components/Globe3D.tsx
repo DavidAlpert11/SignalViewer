@@ -1,3 +1,4 @@
+import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "cesium/Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css";
 import { api } from "../api";
@@ -99,7 +100,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const windowSec = useApp((s) => s.windowSec);
   const dataVersion = useApp((s) => s.dataVersion);
   const logs = useApp((s) => s.logs);
-  const runsKey = useApp((s) => s.runs.map((r) => r.id).join(","));
+  const runsKey = useApp((s) => runsDataKey(s.runs));
   const hostRef = useRef<HTMLDivElement>(null);
   const creditRef = useRef<HTMLDivElement>(null);
   const [cz, setCz] = useState<C | null>(null);

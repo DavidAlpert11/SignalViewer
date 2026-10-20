@@ -1,3 +1,4 @@
+import { runsDataKey } from "../values";
 import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api } from "../api";
@@ -22,7 +23,7 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
   const ids = plot.signals.map((s) => s.sig);
   const idKey = ids.join("|");
   const region = cursor.on && cursor.dual && cursor.t1 !== null && cursor.t2 !== null ? [cursor.t1, cursor.t2] : null;
-  const runsKey = runs.map((r) => `${r.id}:${r.timeOffset}:${r.samples}:${r.signals.length}`).join("|");
+  const runsKey = runsDataKey(runs);
 
   useEffect(() => {
     if (!ids.length) { setData([]); onPeaks({}); return; }

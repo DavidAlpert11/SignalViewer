@@ -8,6 +8,7 @@ export interface SignalInfo {
   transform?: SignalTransform;          // a change made on the signal itself
   // derived signals only
   op?: string; sources?: string[]; params?: Record<string, unknown>; formula?: string; valid?: boolean; samples?: number;
+  version?: string;                     // F34: changes whenever the derived signal's data does
 }
 /** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
 export interface MavStatus {
@@ -16,6 +17,7 @@ export interface MavStatus {
 }
 export interface RunInfo {
   id: string;
+  version?: string;                      // F34: changes whenever the file's data does (reload, live)
   name: string;
   path: string;
   format: "csv" | "mat" | "bin" | "tlog" | "ulg" | "mcap" | "hdf5" | "parquet" | "derived";
