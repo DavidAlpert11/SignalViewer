@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type SpecData } from "../api";
 import { actions, rangeKey, shownSpan, useApp, type Plot, type Tab } from "../store";
 import { fmtNum, useT } from "../i18n";
-import { PLOT_THEME, reportGutter, uiScale, useGutter, useSize } from "./chartUtil";
+import { PLOT_THEME, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props { tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void }
 
@@ -206,11 +206,20 @@ export default function SpecChart({ tab, plot, index, onLoading }: Props) {
   useEffect(() => {
     const cv = canvasRef.current;
     if (!cv) return;
+    let lastWheel = 0;
     const wheel = (e: WheelEvent) => {
       if (!ext) return;
       e.preventDefault();
-      const tv = toT(e.clientX), f = e.deltaY < 0 ? 0.8 : 1.25;
-      actions.setRange(key, [tv - (tv - ext.x0) * f, tv + (ext.x1 - tv) * f]);
+      const now = performance.now(), history = now - lastWheel > WHEEL_GESTURE_MS;   // F27: one gesture, one step
+      lastWheel = now;
+      const f = wheelZoom(e);
+      if (f === null) {                       // sideways: move along the time axis
+        const dv = (wheelPixels(e).dx / Math.max(1, plotW)) * (ext.x1 - ext.x0);
+        if (dv) actions.setRange(key, [ext.x0 + dv, ext.x1 + dv], { history });
+        return;
+      }
+      const tv = toT(e.clientX);
+      actions.setRange(key, [tv - (tv - ext.x0) * f, tv + (ext.x1 - tv) * f], { history });
     };
     cv.addEventListener("wheel", wheel, { passive: false });
     return () => cv.removeEventListener("wheel", wheel);

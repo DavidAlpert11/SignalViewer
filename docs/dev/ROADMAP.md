@@ -605,7 +605,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F24 Linked time plots not lined up; spectrogram range (Q56, with T14c). Done 2026-10-19: column gutters (chartUtil `useGutter`).
 - [x] F25 Menus clipped by the plot card (Q57, with T49 items 9, 12). Done 2026-10-19: the app's menu; type button; right-click menu.
 - [x] F26 Shortcuts dialog describes the wheel wrongly (Q58, with T49 items 2, 13). Done 2026-10-19: File and Help menus.
-- [ ] F27 Mouse wheel on trackpads / sideways swipe (Q59).
+- [x] F27 Mouse wheel on trackpads / sideways swipe (Q59). Done 2026-10-19: chartUtil wheelZoom.
 - [ ] T55 User guide and a 3-minute tour (Q60).
 - [ ] T56 PyPI package (Q61).
 - [ ] F28 One time format (Q34, with T18).

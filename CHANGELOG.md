@@ -12,6 +12,7 @@
 - **Downloads:** every release now has the **Windows installer** (`SignalViewer-Setup-X.Y.Z.exe`, for the current user, no administrator rights) and the Windows portable package also as a **.zip** (Windows 10 opens it without 7-Zip), next to the .7z packages, with a short "which file?" note on the release page. The installer is installed and started by the build before it is published.
 
 ### Fixed
+- **Trackpads zoomed far too fast:** every wheel event zoomed by 25 %, and a trackpad sends dozens per gesture. The zoom now follows the size of the scroll (a mouse notch is still about 25 %), one gesture is one step back with Backspace, and a sideways swipe moves along the time axis instead of zooming out. The same in the spectrogram, X-Y, XYZ and map plots.
 - **The keyboard-shortcuts list described the mouse wheel wrongly:** Shift + wheel zooms the values, Ctrl + wheel both, Alt + wheel the time; double-click shows everything (time and values).
 - Hebrew: the theme button is called "ערכת נושא"; the Inspector button has a translated name.
 - **The plot menu (⋯) was cut off in short plots** (several plots in a small window): *Axis limits* and *Clear plot* could not be reached. Menus are now drawn above everything.

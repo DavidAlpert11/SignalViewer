@@ -5,7 +5,7 @@ import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSi
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { fmtNum } from "../i18n";
 import { unitOf } from "../units";
-import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, reportGutter, uiScale, useGutter, useSize } from "./chartUtil";
+import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
   tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void;
@@ -598,17 +598,30 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     /* wheel: over the value axis -> values only; over the time axis -> time only; inside the plot ->
        the zoom mode (X / Y / XY); for one gesture Shift = values only, Ctrl / Cmd = both, Alt = time
        only - the same keys as for dragging (T19) */
+    let lastWheel = 0;
     const onWheel = (e: WheelEvent) => {
       const rect = u.over.getBoundingClientRect();
       const onYAxis = e.clientX < rect.left || e.clientX > rect.right;
       const onXAxis = e.clientY > rect.bottom;
       if (!onYAxis && !onXAxis && (e.clientY < rect.top)) return;
       e.preventDefault();
+      // F27: one gesture (a trackpad sends dozens of events) is one step back with Backspace
+      const now = performance.now(), history = now - lastWheel > WHEEL_GESTURE_MS;
+      lastWheel = now;
+      const f = wheelZoom(e);
+      if (f === null) {
+        // a sideways swipe / tilt wheel moves along the time axis (it zoomed out before)
+        const { dx } = wheelPixels(e);
+        if (!dx || onYAxis) return;
+        const min = u.scales.x.min!, max = u.scales.x.max!;
+        const dv = (dx / Math.max(1, rect.width)) * (max - min);
+        actions.setView(key, [min + dv, max + dv], yKey, undefined, { history });
+        return;
+      }
       let doX = zoomMode !== "y", doY = zoomMode !== "x";
       if (onYAxis || e.shiftKey) { doX = false; doY = true; }
       else if (onXAxis || e.altKey) { doX = true; doY = false; }
       else if (e.ctrlKey || e.metaKey) { doX = true; doY = true; }
-      const f = e.deltaY < 0 ? 0.8 : 1.25;
       let xr: Range | undefined, yr: Range | undefined;
       if (doX) {
         const xv = u.posToVal(Math.min(rect.width, Math.max(0, e.clientX - rect.left)), "x");
@@ -620,7 +633,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         const min = u.scales.y.min!, max = u.scales.y.max!;
         yr = [yv - (yv - min) * f, yv + (max - yv) * f];
       }
-      if (xr || yr) actions.setView(key, xr, yKey, yr);
+      if (xr || yr) actions.setView(key, xr, yKey, yr, { history });
     };
     const onDbl = () => actions.setView(key, null, yKey, null);
     // T49 item 12: a right-click hands the moment under the pointer to the plot's menu (PlotView)
