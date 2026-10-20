@@ -114,9 +114,10 @@ columns) open with every `.dbc` next to the log or in the readers folder. Signal
 Multiplexed signals, float signals, 29-bit ids and CAN FD payloads are decoded; frames whose id is
 in no `.dbc` are counted in the load report.
 
-## With pip: extras
+## With pip: full or light
 
-`pip install signalviewer` is the core (CSV, MATLAB v5, ArduPilot .bin, CAN, binary layouts, every
-plot and analysis, HTML reports). Extras: `[parquet]` `[hdf5]` (.h5, MATLAB v7.3) `[mavlink]` (.tlog,
-live) `[px4]` (.ulg) `[ros]` (.mcap) `[reports]` (PDF, Word, images) `[desktop]` - or `[all]`.
-A file that needs a missing extra says which.
+`pip install signalviewer` has everything. `pip install signalviewer-lite` is the core (CSV, MATLAB
+v5, ArduPilot .bin, CAN, binary layouts, every plot and analysis, HTML reports); its extras:
+`[parquet]` `[hdf5]` (.h5, MATLAB v7.3) `[mavlink]` (.tlog, live) `[px4]` (.ulg) `[ros]` (.mcap)
+`[reports]` (PDF, Word, images) `[desktop]` - or `[all]`. A file that needs a missing extra says which.
+Install one of the two packages, not both (they install the same `signalviewer` module).

@@ -1,7 +1,13 @@
-"""T56: build the `signalviewer` package for PyPI (`pip install signalviewer`).
+"""T56: build the packages for PyPI - the same code twice (T62):
 
-    python tools/make_pypi.py            # -> dist-pypi/signalviewer-X.Y.Z-py3-none-any.whl and .tar.gz
-    python tools/make_pypi.py --check    # also installs the wheel in a fresh venv and starts the app
+    signalviewer        `pip install signalviewer`: everything (every reader, PDF / Word reports)
+    signalviewer-lite   `pip install signalviewer-lite`: the core, the rest as extras
+                        ([parquet] [hdf5] [mavlink] [px4] [ros] [reports] [desktop] [all])
+
+    python tools/make_pypi.py            # -> dist-pypi/: a wheel and an sdist of each
+    python tools/make_pypi.py --check    # also installs each wheel in a fresh venv and starts the app
+
+Both install the same `signalviewer` Python package - install one of them, not both.
 
 The repository keeps its layout (backend/app, backend/svcore, frontend/dist); this script stages a
 package tree under build/pypi and builds it there:
@@ -25,7 +31,9 @@ import time
 import urllib.request
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-STAGE = os.path.join(ROOT, "build", "pypi")
+STAGE_ROOT = os.path.join(ROOT, "build", "pypi")
+STAGE = STAGE_ROOT                                   # the flavour being staged (stage() sets it)
+FLAVOURS = ("signalviewer", "signalviewer-lite")
 OUT = os.path.join(ROOT, "dist-pypi")
 
 LAUNCHER = '''"""`signalviewer` command: start the app (the same launcher as `python run.py`)."""
@@ -87,10 +95,25 @@ def version():
     return re.search(r'__version__\s*=\s*"([^"]+)"', src).group(1)
 
 
-def stage():
+def flavour_metadata(name, req, extra):
+    """(dependencies, extras) of a flavour. Full: every reader and report is a dependency; only the
+    desktop window (pywebview needs GTK / Qt on Linux) stays an extra. Lite: the core + extras."""
+    extra = dict(extra)
+    if name == "signalviewer":
+        deps = req + [x for k, xs in extra.items() if k != "desktop" for x in xs]
+        opt = {"desktop": extra.get("desktop", [])}
+        opt["all"] = list(opt["desktop"])               # "[all]" keeps working: it is the default here
+        return deps, opt
+    extra["all"] = sorted({x for xs in extra.values() for x in xs})
+    return req, extra
+
+
+def stage(name="signalviewer"):
+    global STAGE
     dist = os.path.join(ROOT, "frontend", "dist")
     if not os.path.isfile(os.path.join(dist, "index.html")):
         sys.exit("Build the UI first (cd frontend && npm ci && npm run build).")
+    STAGE = os.path.join(STAGE_ROOT, name)
     shutil.rmtree(STAGE, ignore_errors=True)
     pkg = os.path.join(STAGE, "signalviewer")
     core = os.path.join(pkg, "_core")
@@ -113,16 +136,18 @@ def stage():
     unknown = sorted(set(OPTIONAL) - {re.split(r"[<>=!~ ]", x)[0] for xs in extra.values() for x in xs})
     if unknown:                                       # extras.py names a package requirements.txt lacks
         sys.exit(f"svcore/extras.py lists packages that are not in requirements.txt: {', '.join(unknown)}")
-    extra["all"] = sorted({x for xs in extra.values() for x in xs})
+    req, extra = flavour_metadata(name, req, extra)
     extras = "\n".join(f"{k} = [{q(v)}]" for k, v in extra.items())
+    desc = ("Look at recorded signals - test runs, flight logs (ArduPilot, PX4, MAVLink), CAN, simulation output - offline."
+            + ("" if name == "signalviewer" else " The light install: the core, every other reader as an extra."))
     toml = f'''[build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "signalviewer"
+name = "{name}"
 version = "{version()}"
-description = "Look at recorded signals - test runs, flight logs (ArduPilot, PX4, MAVLink), simulation output - offline."
+description = "{desc}"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -173,12 +198,15 @@ include = ["signalviewer*"]
 
 
 def build():
+    """Both flavours into dist-pypi/."""
     shutil.rmtree(OUT, ignore_errors=True)
-    subprocess.check_call([sys.executable, "-m", "build", "--outdir", OUT, STAGE])
+    for name in FLAVOURS:
+        stage(name)
+        subprocess.check_call([sys.executable, "-m", "build", "--outdir", OUT, STAGE])
     return [os.path.join(OUT, f) for f in sorted(os.listdir(OUT))]
 
 
-def check(wheel):
+def check(wheel, lite=False):
     """Install the wheel in a fresh venv, start the app, ask it for the UI and the examples."""
     with tempfile.TemporaryDirectory() as tmp:
         venv = os.path.join(tmp, "venv")
@@ -219,23 +247,29 @@ def check(wheel):
                                          headers={"Content-Type": "application/json"})
             saved = json.loads(urllib.request.urlopen(req, timeout=5).read())["path"]
             assert os.path.isfile(saved), saved
-            # T59: the plain install has the core; an optional part says which extra brings it
             pq = os.path.join(tmp, "t.parquet")
-            with open(pq, "wb") as f:                # the reader asks for pyarrow before it reads a byte
-                f.write(b"PAR1")
             code = "import signalviewer as sv, sys; print(sv.load(sys.argv[1]).signals)"
-            out = subprocess.run([py, "-c", code, pq], env=env, capture_output=True, text=True, timeout=120)
-            assert out.returncode != 0 and 'signalviewer[parquet]' in out.stderr, out.stdout + out.stderr
             out = subprocess.run([os.path.join(bin_, "signalviewer-cli"), "info", os.path.join(ROOT, "examples", "copter_flight.bin")],
                                  env=env, capture_output=True, text=True, timeout=120)
             assert out.returncode == 0 and "ATT.Roll" in out.stdout, out.stdout + out.stderr
-            subprocess.check_call([py, "-m", "pip", "install", "-q", wheel + "[all]"])
+            if lite:
+                # T59 / T62: the light install has the core; an optional part names its extra
+                with open(pq, "wb") as f:            # the reader asks for pyarrow before it reads a byte
+                    f.write(b"PAR1")
+                out = subprocess.run([py, "-c", code, pq], env=env, capture_output=True, text=True, timeout=120)
+                assert out.returncode != 0 and 'signalviewer-lite[parquet]' in out.stderr, out.stdout + out.stderr
+                subprocess.check_call([py, "-m", "pip", "install", "-q", wheel + "[all]"])
+            # with everything (the full package as installed, the light one with [all]) Parquet opens
             subprocess.check_call([py, "-c", "import pyarrow as pa, pyarrow.parquet as q, sys; q.write_table("
                                    "pa.table({'time': [0.0, 1.0, 2.0], 'x': [1.0, 2.0, 3.0]}), sys.argv[1])", pq])
             out = subprocess.run([py, "-c", code, pq], env=env, capture_output=True, text=True, timeout=120)
             assert out.returncode == 0 and "'x'" in out.stdout, out.stdout + out.stderr
-            print("The installed package starts, serves the UI and the examples; the command line, the Python API and the push client work;"
-                  " without extras an optional reader names its extra, and [all] brings it.")
+            for mod in ("pyarrow", "h5py", "pymavlink", "pyulog", "mcap", "matplotlib", "docx"):
+                if not lite:                         # the full package brings every reader and report
+                    subprocess.check_call([py, "-c", f"import {mod}"])
+            print(f"{os.path.basename(wheel)}: starts, serves the UI and the examples; the command line, the Python API and"
+                  " the push client work; " + ("without extras an optional reader names its extra, and [all] brings it."
+                                               if lite else "every reader and report is installed."))
         finally:
             proc.terminate()
             proc.wait(timeout=20)
@@ -245,11 +279,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true", help="install the wheel in a fresh venv and start it")
     args = ap.parse_args()
-    stage()
     files = build()
     print("\n".join(files))
     if args.check:
-        check(next(f for f in files if f.endswith(".whl")))
+        for f in files:
+            if f.endswith(".whl"):
+                check(f, lite=os.path.basename(f).startswith("signalviewer_lite"))
 
 
 if __name__ == "__main__":
