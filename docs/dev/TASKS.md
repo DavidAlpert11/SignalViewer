@@ -890,7 +890,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 |---|---|---|---|
 | Q65 | F31 Python API / CLI: names without the unit, "did you mean", `sv.show` | S | ☑ done |
 | Q66 | F32 Packaging consistency (badge, pyproject note, PyPI metadata, README pictures on PyPI) | S | ☑ done |
-| Q67 | T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML for CI | M | ☐ |
+| Q67 | T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML for CI | M | ☑ done (limits; settling / response checks: follow-up) |
 | Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☐ |
 | Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☐ |
 | Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☐ |
@@ -936,6 +936,19 @@ fails the build. `svcore/limits.py` and the health check already exist - extend 
 after an event, optional state stretch) or the checks saved in a template; `check run.bin
 --checks c.yaml [--junit out.xml] [--report out.html]`; exit code 0 / 1 / 2 (pass / fail / error).
 **Done when:** the example runs give a known pass / fail set; JUnit XML opens in a CI viewer.
+**Status:** done 2026-10-20 for limits. `app/checks.py` (like `app/batch.py`: a Store of its own per
+file): `load_checks` (JSON, validated with the check's number in the message), `template_checks`
+(the template matched to the file as in batch reports; every plotted signal with `limits`, with its
+scale / offset; duplicates dropped), `run_checks` (names through `resolve_signal_name`; windows:
+t0 / t1, either may be left out; `during` {state, value as number or label in any case,
+occurrence 1, 2.., -1 or all} via `_stretches`, which now takes the Store - default the app's;
+each window through `svcore/limits.check_limits`, the worst one reported), `junit_xml`.
+Statuses pass / fail / error / skipped (no stretch, no samples - never counted as a pass). CLI
+`check` (exit 0 / 1 / 2, `--json`, `--junit`). JSON, not YAML: no new dependency.
+Example `examples/checks.json` (run_013 fails the cruise speed, everything else passes).
+Tests `test_checks.py` (4). **Follow-ups:** checks on derived signals / formulas; settling time and
+overshoot after a step; the health check's findings as checks (`--health`); a button in the app
+that saves the plot's limits as a checks file.
 
 ### Q68 · T58 Golden-run regression — M
 `signalviewer-cli compare golden.csv new.csv [--tolerances t.yaml]`: the Compare panel's
@@ -1159,3 +1172,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Q64 release 1.8.0 prepared: versions (build.bat, version.py, .iss, version_info.txt incl. the tuples), CHANGELOG dated with highlights, README review (Download section, rows: timeline seconds / clock, A − B per stretch, range notes, trackpad wheel, installer "Open with"; test counts 673 / 193; three known limitations added: Open with is the installer's, pip opens the browser without [desktop], the HTML report lists notes without drawing them; "חדש ב־1.8"), README pictures and clips retaken with `tools/make_readme_media.py` (06_3d_terrain and the 3D clip kept). Found on the way: the media tool's Hebrew scene left every later scene in Hebrew - settings are kept in the app folder since Q34 - so `reset()` removes ui_settings.json too (as the e2e fixtures do). dist rebuilt.
 - 2026-10-20 · Review after 1.8.0 (plan Q65-Q73 above). Q65 / F31: `svcore/naming.py` `resolve_signal_name` (exact, without the unit, any case; several hits = error; else the closest three), used by `Recording.signal` and so by `table`, `to_dataframe` and `signalviewer-cli export`; the messages say where the full names are. `signalviewer.show` re-exports the push client's `show`. Tests: backend 675, mypy clean.
 - 2026-10-20 · Q66 / F32: README for PyPI with absolute pictures / links (tag v<version>), project URLs, keywords, classifiers; badge 3.9+; pyproject note. Backend 676, mypy clean, `make_pypi.py --check` OK.
+- 2026-10-20 · Q67 / T57: `signalviewer-cli check` (app/checks.py): checks file or a template's limits, windows and state stretches, JUnit XML, exit 0 / 1 / 2; `_stretches(..., where=store)`. Backend 680, mypy clean.

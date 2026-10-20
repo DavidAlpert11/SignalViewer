@@ -2,6 +2,9 @@
 
 ## 1.9.0 – unreleased
 
+### Added
+- **Pass / fail from the command line, for test benches and CI:** `signalviewer-cli check runs/*.csv --checks checks.json --junit results.xml` checks every file against limits - a whole run, a time window, or only while a state holds (*Speed below 76 km/h while DriveMode = CRUISE*, every stretch or the 2nd one) - and prints one line per check with where it first went outside and how far. `--template "My limits"` uses the limits you already set on signals in the app and saved in a template. Exit code 0 = all passed, 1 = a check failed, 2 = a check could not be made (a missing file or signal is never a silent pass); `--junit` writes results that CI systems show as test results. Example: `examples/checks.json` on the three car runs.
+
 ### Changed
 - **Python and the command line take signal names the way people write them:** `rec.signal("ATT.Roll")` finds *ATT.Roll [deg]* - the unit may be left out and the case does not matter, as long as the name means one signal (two signals with the same name and different units ask for the full name, never a guess). A name that is not there says which names are closest (*Did you mean 'ATT.Roll [deg]'?*). The same in `signalviewer-cli export --signals`.
 - **`signalviewer.show(...)`:** with `pip install signalviewer`, sending data from a notebook to the open app is `import signalviewer as sv; sv.show(t, {"altitude": alt})` - no file to copy (the one-file client from *Save the Python client…* still works).

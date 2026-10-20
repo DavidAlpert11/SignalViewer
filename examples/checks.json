@@ -1,0 +1,8 @@
+{
+  "checks": [
+    {"name": "Engine temperature below 88 °C", "signal": "EngineTemp", "hi": 88},
+    {"name": "Speed while cruising below 76 km/h", "signal": "Speed", "hi": 76,
+     "during": {"state": "DriveMode", "value": "CRUISE"}},
+    {"name": "RPM 1000 - 3000", "signal": "RPM", "lo": 1000, "hi": 3000}
+  ]
+}

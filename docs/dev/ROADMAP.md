@@ -616,7 +616,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 ## Milestone 9 — 1.9.0: into the test process (review 2026-10-20). Spec: TASKS.md Q65-Q73
 - [x] F31 Python API / CLI: names without the unit, "did you mean", `sv.show` (Q65). Done 2026-10-20: svcore/naming.py `resolve_signal_name`.
 - [x] F32 Packaging consistency (Q66). Done 2026-10-20: make_pypi.py `pypi_readme` (pictures on PyPI), URLs, classifiers; badge 3.9+.
-- [ ] T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML (Q67).
+- [x] T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML (Q67). Done 2026-10-20: app/checks.py, examples/checks.json.
 - [ ] T58 Golden-run regression from the command line (Q68).
 - [ ] T59 Lighter pip install with extras (Q69).
 - [ ] T60 Reader plugins in the user's folder (Q70).
