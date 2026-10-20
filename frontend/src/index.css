@@ -1181,3 +1181,14 @@ input.fx-input { width: 100%; }
 .run-swatch { position: relative; width: 12px; height: 12px; border-radius: 3px; flex: none; cursor: pointer; background: var(--tag, var(--muted)); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
 .run-tagpick { position: relative; cursor: pointer; }
 .run-tagpick input, .run-swatch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; padding: 0; }
+
+/* T55: the user guide */
+.dialog.guide { width: min(820px, 94vw); max-height: 88vh; display: flex; flex-direction: column; }
+.guide-body { overflow-y: auto; line-height: 1.55; padding: 4px 22px 22px; }
+.guide-body h2 { font-size: 1.25rem; margin: 10px 0 6px; }
+.guide-body h3 { font-size: 1.05rem; margin: 18px 0 6px; }
+.guide-body ul { padding-inline-start: 20px; margin: 6px 0; }
+.guide-body li { margin: 3px 0; }
+.guide-body code { background: var(--panel-2); border-radius: 4px; padding: 0 4px; font-size: .92em; direction: ltr; unicode-bidi: isolate; }
+.guide-table { border-collapse: collapse; margin: 8px 0; }
+.guide-table th, .guide-table td { border: 1px solid var(--line); padding: 4px 10px; text-align: start; }

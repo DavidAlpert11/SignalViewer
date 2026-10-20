@@ -81,6 +81,7 @@ export default function TopBar() {
     try { ex = await api.examples(); } catch { /* no examples folder */ }
     const EX = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot" } as const;
     const items: MenuItem[] = [
+      { label: t("menuGuide"), keys: "F1", run: () => useApp.setState({ guideOpen: true }) },
       { label: t("shortcuts"), keys: "?", run: () => useApp.setState({ helpOpen: true }) },
       ...(ex.length ? [{ label: t("menuExamples"), run: () => {},
         items: ex.map((x) => ({ label: t(EX[x.id]), run: () => openPaths(x.paths, undefined, { autoView: true }) })) }] : []),
