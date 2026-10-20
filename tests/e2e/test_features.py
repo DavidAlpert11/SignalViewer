@@ -1887,7 +1887,7 @@ def test_inspector_starts_closed_and_respects_the_user(pg):
     pg.keyboard.press("Space")
     pg.wait_for_selector(".inspector")
     pg.keyboard.press("Space")
-    pg.click(".topbar [aria-label='Inspector']")                 # the user closes it on purpose
+    pg.click(".topbar [aria-label^='Inspector']")                 # the user closes it on purpose
     assert pg.locator(".inspector").count() == 0
     pg.keyboard.press("Space")
     pg.wait_for_timeout(300)
