@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   builds the Windows package, checks the Windows-only items (file dialog places: drives, Desktop /
   Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
   tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
-- **Active plan: "Review 2026-10-19 (after 1.7.0)" below** - done; **1.8.0 prepared** (Q64, this commit):
+- **Active plan: "Review 2026-10-20 (after 1.8.0)" below** (Q65-Q73). Before it: "Review 2026-10-19 (after 1.7.0)" - done; **1.8.0 prepared** (Q64, this commit):
   the owner pushes, tags v1.8.0 (the workflow makes the draft release with the installer, zip, 7z and
   the Python wheel; PyPI only once PYPI_PUBLISH is set). Still the owner's: Q55's "Open with" on a real
   Windows install, Q61's PyPI setup, Q60's tour video, Q24 signing.
@@ -876,6 +876,85 @@ overwritten by the next autosave (keep it as `.bak`); the Python push client (`p
 uses the system proxy settings for 127.0.0.1 - bypass them as `app/instance.py` does (found in Q55);
 two apps started WITHOUT files still share `autosave.json` (last write wins; Q55 covers starts with files).
 
+## Review 2026-10-20 (after 1.8.0) - from a tool that works to a tool engineers adopt
+
+Made by reading the repo at 1.8.0, installing `signalviewer` from PyPI in a clean venv (764 MB of
+site-packages, a 22 MB wheel) and using its Python API and command line on the examples.
+Found: the API needs the unit in every name (`rec.signal("ATT.Roll")` fails - the CLI's own
+`--help` example fails); small packaging inconsistencies; the install is heavy for a notebook
+user. Direction: lean into what few tools do - compare runs, offline / closed networks, data to
+report - and into test automation (pass / fail in CI); new formats only without LGPL (T40 rule).
+**Order proposed to the owner (2026-10-20), ranked by what brings the app into use:**
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q65 | F31 Python API / CLI: names without the unit, "did you mean", `sv.show` | S | ☑ done |
+| Q66 | F32 Packaging consistency (badge, pyproject note, PyPI metadata) | S | ☐ |
+| Q67 | T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML for CI | M | ☐ |
+| Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☐ |
+| Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☐ |
+| Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☐ |
+| Q71 | T61 Binary ICD decoder: raw packet recordings described in a YAML layout (own code, MIT) | L | ☐ |
+| Q72 | T40 part 2: CAN - own DBC decoder (option B, MIT) + candump / ASC / CSV CAN logs | L | ☐ owner decides |
+| Q73 | T43 part: README slimmed to a front page, the full catalogue in a docs site (GitHub Pages) | M | ☐ |
+
+Not queued, to decide: ROS 1 bags (`rosbags`, Apache-2.0); TDMS (npTDMS is LGPL - own reader or
+none); the wheel tested on Python 3.9 and 3.13 in CI before claiming those versions on PyPI.
+
+### Q65 · F31 Python API: names without the unit — S
+**Why:** the first thing a script user types is `rec.signal("ATT.Roll")`; it raised KeyError
+because the name is `"ATT.Roll [deg]"` - also the CLI's own `--help` example
+(`--signals "ATT.Roll,ATT.Pitch"`). The UI's search forgives this; the API did not.
+**Where:** `svcore/naming.py` (`without_unit`, `resolve_signal_name`, `SignalNameError`),
+`signalviewer/__init__.py` (`Recording.signal`; `table` / `to_dataframe` and the CLI go through it).
+Touches nothing in the app's routes (they address signals by id, CLAUDE.md invariant).
+**Rules:** exact name; else the name without its unit; else either in any case; more than one hit
+is an error listing them (never a guess); nothing -> the three closest names (difflib).
+DataFrame / CSV columns keep the names as the user wrote them.
+Also `signalviewer.show` = the push client's `show` (one implementation, re-exported).
+**Status:** done 2026-10-20. Tests: `test_signal_names_without_unit_and_suggestions`,
+`test_resolve_signal_name_rules` (backend 675, mypy clean).
+
+### Q66 · F32 Packaging consistency — S
+README badge says Python 3.8+, PyPI requires 3.9; the root `pyproject.toml` still says "no package
+metadata yet" (it lives in `tools/make_pypi.py` since T56); PyPI page without Changelog / Issues /
+Documentation links and with few keywords. Do not add per-version classifiers before CI tests them.
+
+### Q67 · T57 `signalviewer-cli check` — M
+**Why:** moves the app from "looking at a run" into the test process: a run that breaks a limit
+fails the build. `svcore/limits.py` and the health check already exist - extend them.
+**Idea:** a checks file (YAML/JSON: signal, condition - max / min / within / settles within X s
+after an event, optional state stretch) or the checks saved in a template; `check run.bin
+--checks c.yaml [--junit out.xml] [--report out.html]`; exit code 0 / 1 / 2 (pass / fail / error).
+**Done when:** the example runs give a known pass / fail set; JUnit XML opens in a CI viewer.
+
+### Q68 · T58 Golden-run regression — M
+`signalviewer-cli compare golden.csv new.csv [--tolerances t.yaml]`: the Compare panel's
+similarity list (`svcore/compare.py`) as a table + exit code, the worst signals first.
+
+### Q69 · T59 Lighter install — M
+Today every reader is required (pyarrow, scipy, h5py, matplotlib, pymavlink, mcap...). Core =
+CSV / Parquet viewing; extras `[mavlink] [px4] [ros] [matlab] [reports] [all]`. Needs: every
+loader / report imports lazily and a missing extra says *"pip install signalviewer[ros] to open
+.mcap"*; the installer and portable builds keep everything.
+
+### Q70 · T60 Reader plugins — M
+A file format as a Python file in `~/.signalviewer/readers` (same model as the Python operations:
+own process optional, listed with load errors). Lets users add in-house formats without a fork.
+
+### Q71 · T61 Binary ICD decoder — L
+Many test benches record raw packets (header, id, fields with type / scale / offset / bit fields,
+endianness) and every team writes its own decoder. A layout file (YAML) describes the packets;
+the reader turns a recording into signals named `<packet>.<field> [unit]`. Own code, MIT.
+
+### Q72 · T40 part 2 · CAN with DBC — L (owner decides)
+Option B from ROADMAP T40: an own DBC parser + decoder (MIT), CAN logs as candump / ASC / CSV;
+.blf and MF4 later or never.
+
+### Q73 · T43 part · Docs site and a shorter README — M
+README: what it is, one clip, install, three uses, a comparison with similar tools; the
+"What works" table and build details move to a MkDocs site on GitHub Pages (English + Hebrew).
+
 ## Log
 
 - 2026-10-15 · T17f frames as one nested group + preview (in the plot, a plot per axis under
@@ -1069,3 +1148,4 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 - 2026-10-20 · Q63 / F29 (labels done in Q58): the Inspector's single-cursor value uses 5 significant digits like the legend chip (was 6; the exact value is in its tooltip). An unreadable autosave is moved to `autosave.damaged.json` and GET /api/autosave says so (`damaged`) - the UI shows where, 15 s - instead of being overwritten by the next autosave; the autosave's temporary file is per process (two apps writing at once no longer write into one .tmp; the last write still wins - two apps started WITHOUT files remain two apps, by design since Q55). The Python push client opens 127.0.0.1 without any proxy (`ProxyHandler({})`, as app/instance.py). Tests: backend `test_damaged_autosave_is_kept_aside`.
 - 2026-10-20 · Owner: the CI run passed on GitHub (Windows installer built, installed silently and started; zip; Python package checked) - Q54 done.
 - 2026-10-20 · Q64 release 1.8.0 prepared: versions (build.bat, version.py, .iss, version_info.txt incl. the tuples), CHANGELOG dated with highlights, README review (Download section, rows: timeline seconds / clock, A − B per stretch, range notes, trackpad wheel, installer "Open with"; test counts 673 / 193; three known limitations added: Open with is the installer's, pip opens the browser without [desktop], the HTML report lists notes without drawing them; "חדש ב־1.8"), README pictures and clips retaken with `tools/make_readme_media.py` (06_3d_terrain and the 3D clip kept). Found on the way: the media tool's Hebrew scene left every later scene in Hebrew - settings are kept in the app folder since Q34 - so `reset()` removes ui_settings.json too (as the e2e fixtures do). dist rebuilt.
+- 2026-10-20 · Review after 1.8.0 (plan Q65-Q73 above). Q65 / F31: `svcore/naming.py` `resolve_signal_name` (exact, without the unit, any case; several hits = error; else the closest three), used by `Recording.signal` and so by `table`, `to_dataframe` and `signalviewer-cli export`; the messages say where the full names are. `signalviewer.show` re-exports the push client's `show`. Tests: backend 675, mypy clean.
