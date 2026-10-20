@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   builds the Windows package, checks the Windows-only items (file dialog places: drives, Desktop /
   Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
   tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
-- **Active plan: "Review 2026-10-20 (after 1.8.0)" below** (Q65-Q73) - all done 2026-10-20; next: release 1.9.0 (rebuild and commit frontend/dist first - the patch leaves it out) and the follow-ups listed in each task. Before it: "Review 2026-10-19 (after 1.7.0)" - done; **1.8.0 prepared** (Q64, this commit):
+- **Active plan: "Owner's review 2026-10-20 (after applying Q65-Q73)" below** (Q74-Q77). Before it: "Review 2026-10-20 (after 1.8.0)" (Q65-Q73) - all done 2026-10-20; next: release 1.9.0 (rebuild and commit frontend/dist first - the patch leaves it out) and the follow-ups listed in each task. Before it: "Review 2026-10-19 (after 1.7.0)" - done; **1.8.0 prepared** (Q64, this commit):
   the owner pushes, tags v1.8.0 (the workflow makes the draft release with the installer, zip, 7z and
   the Python wheel; PyPI only once PYPI_PUBLISH is set). Still the owner's: Q55's "Open with" on a real
   Windows install, Q61's PyPI setup, Q60's tour video, Q24 signing.
@@ -878,6 +878,41 @@ overwritten by the next autosave (keep it as `.bak`); the Python push client (`p
 uses the system proxy settings for 127.0.0.1 - bypass them as `app/instance.py` does (found in Q55);
 two apps started WITHOUT files still share `autosave.json` (last write wins; Q55 covers starts with files).
 
+## Owner's review 2026-10-20 (after applying Q65-Q73)
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q74 | F33 README: the Hebrew section is one run-on paragraph with struck-through text - fix it | S | ☐ |
+| Q75 | T62 `pip install signalviewer` = everything again; the light install under another name | M | ☐ |
+| Q76 | T63 One Clear button with a menu: this tab / the other tabs / all tabs / tabs + derived signals and edits / everything | M | ☐ |
+| Q77 | F34 Nothing cached is used after the data changed (owner: "make sure there is no cache that is used although the data was updated") | M | ☑ done |
+
+### Q77 · F34 Stale data after a change — M
+**Audit (2026-10-20)** of every cache keyed on data, and what changes the data:
+- `svcore/analysis.fft_for` and `Store.is_discrete` key on `Store.version(sig)`; a derived signal's
+  version was ("d", name, the sources' versions) - **without the definition**. A derived signal
+  replaced under the same name and sources (`/api/derived/restore` with other parameters, a Python
+  operation's file edited) kept the old spectrum and the old "discrete" answer. **Bug, fixed:**
+  `DerivedDef.serial` (new per definition and per `invalidate()`), part of the version.
+- Python operations: after *Reload* / another folder their signals kept their computed data (the
+  sources had not changed). **Bug, fixed:** `Store.invalidate_derived("py")` from
+  `/api/pyops/reload` and `/folder`; the UI then refreshes the run list.
+- The UI's data effects key on `dataVersion` + a key of the run list (id, offset, samples, signal
+  count). Creating a derived signal under an existing name does not bump `dataVersion`, and the key
+  did not change when only values did. **Bug, fixed:** the run list carries a `version` per file
+  (`uid.data_version`) and per derived signal (hash of `Store.version`); `values.runsDataKey` uses
+  them in TimeChart, FFT, XY, Geo, XYZ, Globe3D, and the file list's small pictures too.
+- CSV binary cache (`.npy`, files >= 50 MB): key = path, size, mtime + settings - a file copied over
+  with the same size and a coarse clock (FAT: 2 s, network shares) was served from the cache.
+  **Fixed:** + `st_mtime_ns` + `content_fingerprint` (first and last MB, 16 blocks between).
+- Live follow (`append_new_rows`): same size and a new time stamp was "touched, not changed" when the
+  bytes just before the end were the same - a value fixed early in the file (a re-save) was never
+  read. **Fixed:** the fingerprint, kept after every load / append, decides; a difference reloads.
+- Checked, fine: statistics cache (weak references to the arrays, F23), compare table cache (key has
+  dataVersion), reload / live / F5 bump `dataVersion`, fleet index (mtime + size per log, only an
+  index), sessions (formulas, recomputed).
+**Tests:** `test_stale_data.py` (5) - each fails without its fix.
+
 ## Review 2026-10-20 (after 1.8.0) - from a tool that works to a tool engineers adopt
 
 Made by reading the repo at 1.8.0, installing `signalviewer` from PyPI in a clean venv (764 MB of
@@ -1260,3 +1295,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q71 / T61: binary layouts (svcore/icd.py) as readers in the readers folder, CLI example. Backend 701, mypy clean.
 - 2026-10-20 · Q72 / T40b: CAN logs + own DBC decoder (svcore/dbc.py, can_loader.py), checked against cantools. Backend 708, mypy clean, tsc clean.
 - 2026-10-20 · Q73 / T43 part: docs site (mkdocs.yml, docs/*.md, workflow docs.yml), README shortened to a front page. Plan Q65-Q73 done.
+- 2026-10-20 · Owner's review after Q65-Q73: plan Q74-Q77. Q77 / F34: derived versions name their definition (serial), Python operations recomputed on reload, run / derived versions in the run list and the UI's data keys, CSV cache + live follow with a content fingerprint. Backend 713, mypy and tsc clean.

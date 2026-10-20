@@ -1,3 +1,4 @@
+import { runsDataKey } from "../values";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, shownSpan, signalName, useApp, type Plot, type PlotSignal } from "../store";
@@ -52,7 +53,7 @@ export default function XYZChart({ plot, index, onLoading, emptyText }: Props) {
     return out;
   }, [plot.signals]);
   const trioKey = trios.map((tr) => tr.map((s) => s.sig).join(",")).join("|");
-  const runsKey = runs.map((r) => `${r.id}:${r.timeOffset}:${r.samples}:${r.signals.length}`).join("|");
+  const runsKey = runsDataKey(runs);
 
   useEffect(() => {
     if (!trios.length) { setTracks([]); return; }

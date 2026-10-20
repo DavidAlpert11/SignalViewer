@@ -6,6 +6,7 @@ just numbers. They are recomputed automatically when a source file is reloaded
 or grows (live mode), and sessions save only the formula, never the arrays.
 """
 
+import itertools
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -29,6 +30,9 @@ class OpError(ValueError):
     pass
 
 
+_DERIVED_SERIAL = itertools.count(1)
+
+
 @dataclass
 class DerivedDef:
     name: str
@@ -38,6 +42,15 @@ class DerivedDef:
     time: Optional[np.ndarray] = None
     data: Optional[np.ndarray] = None
     source_versions: Tuple = ()
+    # F34: a new number for every definition and every forced recompute (a Python operation's
+    # file saved again): part of the signal's version, so caches keyed by it (FFT, "discrete")
+    # never hand a replaced signal of the same name and sources the numbers of the old one
+    serial: int = field(default_factory=lambda: next(_DERIVED_SERIAL))
+
+    def invalidate(self) -> None:
+        self.time = self.data = None
+        self.source_versions = ()
+        self.serial = next(_DERIVED_SERIAL)
 
     def formula(self, short) -> str:
         n = [short(s) for s in self.sources]

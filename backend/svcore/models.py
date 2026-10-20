@@ -78,6 +78,7 @@ class Run:
     tail_sig: Optional[bytes] = None      # bytes just before byte_offset: detects a re-saved file
     seen_size: Optional[int] = None
     seen_mtime: Optional[float] = None
+    content_fp: Optional[str] = None      # F34: fingerprint of the whole file when nothing is pending
     data_version: int = 0         # bumped whenever data changes (figure cache key)
     uid: int = field(default_factory=lambda: next(_RUN_UID))   # unique per loaded Run object
     # what the loader wants the user told (skipped columns, damaged parts...): sent with the run

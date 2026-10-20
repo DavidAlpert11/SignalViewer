@@ -4,6 +4,14 @@ import { withUnit } from "./units";
 
 /** File types the app opens (file dialogs, "choose the original", "locate"...). */
 export const DATA_EXTS = [".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq", ".asc", ".log"];
+/** F34: the part of the run list that says "the data changed" - for the effects that fetch data.
+ *  The versions come from the server: a reload or a live update of a file, a derived signal
+ *  replaced under the same name, a Python operation whose code changed. */
+export function runsDataKey(runs: RunInfo[]): string {
+  return runs.map((r) => `${r.id}:${r.timeOffset}:${r.samples}:${r.signals.length}:${r.version ?? ""}`
+    + (r.format === "derived" ? `:${r.signals.map((s) => s.version ?? "").join(",")}` : "")).join("|");
+}
+
 /** T60: the extensions of the user's own readers join the list (it is read wherever it is used). */
 export function addDataExts(exts: string[]) {
   for (const e of exts) if (!DATA_EXTS.includes(e.toLowerCase())) DATA_EXTS.push(e.toLowerCase());

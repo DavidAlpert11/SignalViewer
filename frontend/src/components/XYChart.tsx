@@ -1,3 +1,4 @@
+import { runsDataKey } from "../values";
 import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api } from "../api";
@@ -25,7 +26,7 @@ export default function XYChart({ plot, index, onLoading, emptyText }: Props) {
 
   const ys = plot.signals.map((s) => s.sig);
   const yKey = ys.join("|");
-  const runsKey = runs.map((r) => `${r.id}:${r.timeOffset}:${r.samples}:${r.signals.length}`).join("|");
+  const runsKey = runsDataKey(runs);
 
   useEffect(() => {
     if (!plot.xSignal || !ys.length) { setData([]); return; }
