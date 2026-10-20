@@ -1336,12 +1336,12 @@ def test_edit_original_steps_and_undo_all(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     pg.click("[aria-label='Create signals']")
-    pg.locator(".seg.wide button", has_text="Edit the original").click()
+    pg.locator(".seg.wide button", has_text="Change this signal").click()
     pg.locator(".analysis .afield select").first.select_option("abs")
-    pg.click("text=Apply to the original")
+    pg.click("text=Apply the change")
     pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'abs(x)'")
     pg.locator(".analysis .afield select").first.select_option("smooth")
-    pg.click("text=Apply to the original")                     # steps add up
+    pg.click("text=Apply the change")                     # steps add up
     pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'smooth(abs(x), 10)'")
     assert S(pg, "s.runs[0].signals.filter(x => !x.transform).length") == 2   # nothing else touched
     pg.locator(".seg.wide button", has_text="New signal").click()
@@ -1724,7 +1724,7 @@ def test_flight_log_panel_only_for_logs(pg):
 
 def test_transform_expression_autocomplete_and_checks(pg):
     open_files(pg, "run_a.csv")
-    sig(pg, "Speed").click(button="right"); menu_item(pg, "Scale, offset or function")
+    sig(pg, "Speed").click(button="right"); menu_item(pg, "Change this signal")
     pg.locator(".tf-dialog select").first.select_option("custom")
     inp = pg.locator(".tf-dialog input.fx-input")
     inp.fill(""); inp.type("smo")

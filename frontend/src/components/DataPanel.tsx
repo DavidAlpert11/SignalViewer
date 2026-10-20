@@ -88,13 +88,12 @@ export default function DataPanel() {
         if (!path) return;
         try { await api.replace(run.id, path); refresh(); } catch (err) { fail(err); }
       } },
-      { label: t("reload"), run: () => reloadRun(run.id) },
+      // (Reload: the ↻ next to the file, or F5 / the panel's ↻ for every file - T49 item 4)
       { label: "", run: () => {}, sep: true },
       { label: t("remove"), run: () => removeRun(run.id), danger: true },
     ]);
   };
   const sigMenu = (e: React.MouseEvent, sig: SignalInfo) => openMenu(e, [
-    ...(sig.id.startsWith("derived/") ? [] : [{ label: t("tfEdit"), run: () => useApp.setState({ transformTargets: [sig.id] }) }, { label: "", run: () => {}, sep: true }]),
     ...(() => {
       const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active];
       return p?.signals.some((s) => s.sig === sig.id)
@@ -104,6 +103,8 @@ export default function DataPanel() {
     { label: t("newPlot"), run: () => actions.addSignalToNewPlot(sig.id) },
     { label: t("useAsX"), run: () => { const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active]; if (p) actions.setAsX(p.id, sig.id); } },
     { label: "", run: () => {}, sep: true },
+    // T49 item 7: one way to change a signal itself (the same as Create signals > Change this signal)
+    ...(sig.id.startsWith("derived/") ? [] : [{ label: t("tfEdit"), run: () => useApp.setState({ transformTargets: [sig.id] }) }]),
     createSignalItem(sig.id),
   ]);
 

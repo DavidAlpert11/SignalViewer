@@ -7,7 +7,6 @@ import { actions, setInspectorByUser, useApp } from "../store";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
 import { clearEverything, openPaths, openSession, saveSession } from "../files";
-import { refreshAll } from "../live";
 import { copyErrorDetails } from "../errorReport";
 import type { MenuItem } from "../store";
 import { openMenu } from "./Overlays";
@@ -68,7 +67,6 @@ export default function TopBar() {
   const fileMenu = (e: React.MouseEvent) => openMenu(at(e), [
     { label: t("openFiles") + "…", keys: "Ctrl+O", run: () => useApp.setState({ browserOpen: true }) },
     { label: t("menuRecent"), keys: "Ctrl+P", run: () => useApp.setState({ paletteOpen: true, paletteMode: "open" }) },
-    { label: t("refreshAll"), keys: "F5", run: refreshAll, disabled: !useApp.getState().runs.some((r) => r.format !== "derived") },
     { label: "", run: () => {}, sep: true },
     { label: t("openSession") + "…", keys: "Ctrl+Shift+O", run: () => openSession() },
     { label: t("saveSession"), keys: "Ctrl+S", run: saveSession },
