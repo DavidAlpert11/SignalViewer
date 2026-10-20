@@ -1,0 +1,33 @@
+# T43 / Q73: the documentation site on GitHub Pages, built from docs/ with MkDocs (mkdocs.yml).
+# One-time setup by the owner: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+name: docs
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", "mkdocs.yml", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.11" }
+      - run: pip install "mkdocs==1.6.1"
+      - run: mkdocs build --strict -d site     # a broken link or a missing page fails the build
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+  deploy:
+    needs: build
+    runs-on: ubuntu-22.04
+    environment: { name: github-pages, url: "${{ steps.deployment.outputs.page_url }}" }
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

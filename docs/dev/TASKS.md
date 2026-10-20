@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   builds the Windows package, checks the Windows-only items (file dialog places: drives, Desktop /
   Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
   tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
-- **Active plan: "Review 2026-10-20 (after 1.8.0)" below** (Q65-Q73). Before it: "Review 2026-10-19 (after 1.7.0)" - done; **1.8.0 prepared** (Q64, this commit):
+- **Active plan: "Review 2026-10-20 (after 1.8.0)" below** (Q65-Q73) - all done 2026-10-20; next: release 1.9.0 (rebuild and commit frontend/dist first - the patch leaves it out) and the follow-ups listed in each task. Before it: "Review 2026-10-19 (after 1.7.0)" - done; **1.8.0 prepared** (Q64, this commit):
   the owner pushes, tags v1.8.0 (the workflow makes the draft release with the installer, zip, 7z and
   the Python wheel; PyPI only once PYPI_PUBLISH is set). Still the owner's: Q55's "Open with" on a real
   Windows install, Q61's PyPI setup, Q60's tour video, Q24 signing.
@@ -37,10 +37,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
    run (Actions -> build -> Run workflow) with the version left empty takes it from build.bat.
 3. CHANGELOG: rename the open section to `## X.Y.Z – date` with a highlights line.
    **README review (owner's rule: before EVERY official release):** go through the CHANGELOG
-   section and check each item against the README - the "What works" table (a new or changed
-   feature in its row), the test commands and counts, "Known limitations" (remove what was
-   fixed, add what is new), the Hebrew section ("חדש ב־X.Y" line), the file names with the
-   version (build table), the format list at the top, and the pictures (step 1).
+   section and check each item against the README and the docs site (since Q73 the long parts
+   live in `docs/`) - `docs/features.md` (a new or changed feature in its row; the test counts),
+   `docs/limitations.md` (remove what was fixed, add what is new), `docs/install.md` (the file
+   names with the version, the test commands), `docs/command-line.md`, the README's format list
+   and highlights at the top, its Hebrew section ("חדש ב־X.Y" line), and the pictures (step 1).
+   `mkdocs build --strict` must pass (the docs workflow runs it on every push).
 4. `cd frontend && npm run build` and commit `frontend/dist`; tag `vX.Y.Z` and push the tag.
 
 ## How to work here (practical notes)
@@ -896,7 +898,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 | Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☑ done (UI listing: follow-up) |
 | Q71 | T61 Binary ICD decoder: raw packet recordings described in a layout (own code, MIT) | L | ☑ done |
 | Q72 | T40 part 2: CAN - own DBC decoder (option B, MIT) + candump / ASC / CSV CAN logs | L | ☑ done (option B; MF4 not done) |
-| Q73 | T43 part: README slimmed to a front page, the full catalogue in a docs site (GitHub Pages) | M | ☐ |
+| Q73 | T43 part: README slimmed to a front page, the full catalogue in a docs site (GitHub Pages) | M | ☑ done (owner: enable Pages once) |
 
 Not queued, to decide: ROS 1 bags (`rosbags`, Apache-2.0); TDMS (npTDMS is LGPL - own reader or
 none); the wheel tested on Python 3.9 and 3.13 in CI before claiming those versions on PyPI.
@@ -1043,6 +1045,18 @@ cantools on ~1,900 random values (cantools only if installed; not a dependency).
 ### Q73 · T43 part · Docs site and a shorter README — M
 README: what it is, one clip, install, three uses, a comparison with similar tools; the
 "What works" table and build details move to a MkDocs site on GitHub Pages (English + Hebrew).
+**Status:** done 2026-10-20. README 68 KB -> 17 KB: the top (highlights + two new: CI, any recording),
+the clips, Quick start, a short Install, Command line and CI, "Where it fits" (what it brings
+together; when PlotJuggler / Foxglove / MATLAB SDI fit better - no feature table about other tools,
+those change and would go stale), Documentation, the Hebrew section, License. Moved, unchanged
+except paths: `docs/features.md` (What works + Keyboard; three new rows: own formats, CAN, command
+line), `install.md` (Download / build + Run from source), `performance.md`, `limitations.md`,
+`maps-and-3d.md`, `development.md` (Structure + Icon), `gallery.md`; new `index.md`,
+`command-line.md`. `mkdocs.yml` (built-in theme - no plugin to install; docs/dev and the benchmark
+notes excluded; `--strict` passes) and `.github/workflows/docs.yml` (build + deploy to Pages on a
+push that touches docs). The release checklist (Releasing step 3) points at the docs pages now.
+**Owner:** Settings -> Pages -> Source: GitHub Actions, once; then the site is
+https://davidalpert11.github.io/SignalViewer/ (the README badge and links already point there).
 
 ## Log
 
@@ -1245,3 +1259,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Q70 / T60: user readers (svcore/readers.py, app/userreaders.py, /api/readers, CLI readers), extensions in the file dialog and drops; MAT v7.3 extra message code fixed. Backend 691, mypy clean, tsc + build clean (dist not in the patch).
 - 2026-10-20 · Q71 / T61: binary layouts (svcore/icd.py) as readers in the readers folder, CLI example. Backend 701, mypy clean.
 - 2026-10-20 · Q72 / T40b: CAN logs + own DBC decoder (svcore/dbc.py, can_loader.py), checked against cantools. Backend 708, mypy clean, tsc clean.
+- 2026-10-20 · Q73 / T43 part: docs site (mkdocs.yml, docs/*.md, workflow docs.yml), README shortened to a front page. Plan Q65-Q73 done.
