@@ -34,6 +34,12 @@ AUTOSAVE = os.path.join(APP_DIR, "autosave.json")
 SUPPORTED = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq")
 
 
+def supported_now() -> tuple:
+    """The built-in types + the extensions of the user's own readers (T60, read when asked)."""
+    from app import userreaders
+    return SUPPORTED + tuple(e for e in userreaders.extensions() if e not in SUPPORTED)
+
+
 
 def b64(a: np.ndarray, dtype) -> str:
     return base64.b64encode(np.ascontiguousarray(a, dtype=dtype).tobytes()).decode("ascii")

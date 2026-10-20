@@ -619,7 +619,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML (Q67). Done 2026-10-20: app/checks.py, examples/checks.json.
 - [x] T58 Golden-run regression from the command line (Q68). Done 2026-10-20: `signalviewer-cli compare`, app/checks.py.
 - [x] T59 Lighter pip install with extras (Q69). Done 2026-10-20: svcore/extras.py, 764 -> 346 MB.
-- [ ] T60 Reader plugins in the user's folder (Q70).
+- [x] T60 Reader plugins in the user's folder (Q70). Done 2026-10-20: svcore/readers.py, app/userreaders.py.
 - [ ] T61 Binary ICD decoder from a YAML layout (Q71).
 - [ ] T43 part: docs site and a shorter README (Q73). (T40 part 2, CAN with DBC: Q72, owner decides.)
 

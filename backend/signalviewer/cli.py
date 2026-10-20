@@ -180,6 +180,26 @@ def cmd_compare(a) -> int:
     return 2 if count["error"] else 1 if count["fail"] else 0
 
 
+def cmd_readers(a) -> int:
+    """T60: the user's own file readers (the readers folder), or write the example reader."""
+    from app import userreaders
+    if a.example:
+        print(userreaders.write_example())
+        return 0
+    info = userreaders.listing()
+    if a.json:
+        print(json.dumps(info, ensure_ascii=False))
+        return 0
+    print(f"Readers folder: {info['folder']}")
+    for r in info["readers"]:
+        print(f"  {r['name']}  ({', '.join(r['extensions'])})  [{r['file']}]")
+    for e in info["errors"]:
+        print(f"  not loaded: {e['error']}")
+    if not info["readers"] and not info["errors"]:
+        print("  none yet - `readers --example` writes one to start from")
+    return 1 if info["errors"] else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="signalviewer", description="Read and export recordings (Signal Viewer).")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -220,6 +240,9 @@ def main(argv=None) -> int:
     p.add_argument("--top", type=int, default=10, help="lines per file when everything passes (0 = all); failures are always shown")
     p.add_argument("--junit", help="also write the results as JUnit XML"); p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_compare)
+    p = sub.add_parser("readers", help="your own file readers (a format as a Python file in the readers folder)")
+    p.add_argument("--example", action="store_true", help="write an example reader (.kv files) into the folder")
+    p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_readers)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)
     a = ap.parse_args(argv)

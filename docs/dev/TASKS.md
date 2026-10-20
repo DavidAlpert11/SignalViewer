@@ -893,7 +893,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 | Q67 | T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML for CI | M | ☑ done (limits; settling / response checks: follow-up) |
 | Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☑ done |
 | Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☑ done |
-| Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☐ |
+| Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☑ done (UI listing: follow-up) |
 | Q71 | T61 Binary ICD decoder: raw packet recordings described in a YAML layout (own code, MIT) | L | ☐ |
 | Q72 | T40 part 2: CAN - own DBC decoder (option B, MIT) + candump / ASC / CSV CAN logs | L | ☐ owner decides |
 | Q73 | T43 part: README slimmed to a front page, the full catalogue in a docs site (GitHub Pages) | M | ☐ |
@@ -984,6 +984,22 @@ requirements.txt (source, installer, portable) unchanged.
 ### Q70 · T60 Reader plugins — M
 A file format as a Python file in `~/.signalviewer/readers` (same model as the Python operations:
 own process optional, listed with load errors). Lets users add in-house formats without a fork.
+**Status:** done 2026-10-20. `svcore/readers.py` (`reader` decorator, `load_folder` - like
+pyworker.load, `to_run`: one time or a tuple (time, values) per signal, unsorted time sorted, labels,
+start / end over every signal; `EXAMPLE`: a key=value reader). `app/userreaders.py`: folder
+(settings.json `readersDir`, default `~/.signalviewer/readers`), re-read when a .py file there is
+added / removed / saved (names + mtime + size), `for_ext`, `extensions`, `listing`, `write_example`.
+`Store.open_file`: the user's readers for the extension first (None = not theirs, then the built-in
+reader); `check_file` lets their extensions through and skips the content sniffing for them.
+`common.supported_now()` (file dialog listing, drag & drop uploads); frontend `addDataExts` at start
+(`/api/readers`). Routes `/api/readers`, `/folder`, `/example`; CLI `readers [--example] [--json]`.
+**Decision:** readers run in the app's process, not a worker like the operations - a reader returns
+whole files (copying them through a pipe would double memory and time) and it is the user's own code
+from their own folder. A hanging reader blocks only that file's opening thread.
+Found on the way (Q69): MatNeedsExtra had the code "badMat", which the UI translates to "damaged" -
+now "needsExtra" (no translation, the message is shown). Tests: `test_readers.py` (4).
+**Follow-ups:** the readers in the UI (a list with errors, like Create signals > Python); live append
+for a reader's files (today: reloaded whole).
 
 ### Q71 · T61 Binary ICD decoder — L
 Many test benches record raw packets (header, id, fields with type / scale / offset / bit fields,
@@ -1196,3 +1212,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Q67 / T57: `signalviewer-cli check` (app/checks.py): checks file or a template's limits, windows and state stretches, JUnit XML, exit 0 / 1 / 2; `_stretches(..., where=store)`. Backend 680, mypy clean.
 - 2026-10-20 · Q68 / T58: `signalviewer-cli compare` (app/checks.py `run_compare`, `load_tolerances`), shared result printing with `check`. Backend 682, mypy clean.
 - 2026-10-20 · Q69 / T59: pip extras from svcore/extras.py, messages for .tlog / MAT v7.3 / reports, wheel check covers the plain and [all] installs. Backend 687, mypy clean.
+- 2026-10-20 · Q70 / T60: user readers (svcore/readers.py, app/userreaders.py, /api/readers, CLI readers), extensions in the file dialog and drops; MAT v7.3 extra message code fixed. Backend 691, mypy clean, tsc + build clean (dist not in the patch).
