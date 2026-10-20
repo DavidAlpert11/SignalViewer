@@ -2,8 +2,7 @@ import { useApp } from "../store";
 import { useEscape } from "./Overlays";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
-import { api } from "../api";
-import { copyText } from "../errorReport";
+import { copyErrorDetails } from "../errorReport";
 
 const ROWS: [string, TKey][] = [
   ["Ctrl K", "hCommands"], ["Ctrl O", "openFiles"], ["Ctrl S", "saveSession"], ["Ctrl ⇧ O", "openSession"],
@@ -24,16 +23,7 @@ export default function Help() {
   useEscape(() => useApp.setState({ helpOpen: false }), open);
   if (!open) return null;
   const close = () => useApp.setState({ helpOpen: false });
-  const copyDetails = async () => {
-    const toast = useApp.getState().toast;
-    try {
-      const d = await api.diagnostics();
-      if (await copyText(d.text)) toast({ kind: "info", text: t("errorDetailsCopied") });
-      else toast({ kind: "error", text: t("errorDetailsNotCopied", { path: d.logFile }) });
-    } catch (e) {
-      toast({ kind: "error", text: String((e as Error).message) });
-    }
-  };
+  const copyDetails = () => copyErrorDetails(t, useApp.getState().toast);
   return (
     <div className="scrim" onMouseDown={close}>
       <div className="dialog help" role="dialog" aria-label={t("shortcuts")} onMouseDown={(e) => e.stopPropagation()}

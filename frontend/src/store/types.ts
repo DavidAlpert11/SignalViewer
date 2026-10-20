@@ -13,6 +13,8 @@ export type PlayMode = "cursor" | "draw" | "window";
 export interface MenuItem { label: string; icon?: string; run: () => void; disabled?: boolean; danger?: boolean; sep?: boolean;
   /** one of a set of choices (a plot's type): the current one is marked */
   checked?: boolean;
+  /** its keyboard shortcut, shown at the end (Ctrl+O) */
+  keys?: string;
   /** a submenu (T21b): the item opens these instead of running */
   items?: MenuItem[] }
 export interface PickerRequest {

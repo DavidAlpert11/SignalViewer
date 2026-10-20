@@ -104,6 +104,7 @@ export function ContextMenu() {
       onClick={() => { useApp.setState({ menu: null }); it.run(); }}>
       {it.checked !== undefined && <span className="menu-check" aria-hidden="true">{it.checked ? "✓" : ""}</span>}
       {it.label}
+      {it.keys && <span className="menu-keys" aria-hidden="true">{it.keys}</span>}
     </button>
   );
   const rtl = document.documentElement.dir === "rtl";

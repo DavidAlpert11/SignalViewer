@@ -604,7 +604,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T54 Open files from outside: command line, file associations, one instance (Q55). Done 2026-10-19: app/instance.py, "open" push events, installer task "openwith".
 - [x] F24 Linked time plots not lined up; spectrogram range (Q56, with T14c). Done 2026-10-19: column gutters (chartUtil `useGutter`).
 - [x] F25 Menus clipped by the plot card (Q57, with T49 items 9, 12). Done 2026-10-19: the app's menu; type button; right-click menu.
-- [ ] F26 Shortcuts dialog describes the wheel wrongly (Q58, with T49 items 2, 13).
+- [x] F26 Shortcuts dialog describes the wheel wrongly (Q58, with T49 items 2, 13). Done 2026-10-19: File and Help menus.
 - [ ] F27 Mouse wheel on trackpads / sideways swipe (Q59).
 - [ ] T55 User guide and a 3-minute tour (Q60).
 - [ ] T56 PyPI package (Q61).
