@@ -113,11 +113,12 @@ class StatsRequest(BaseModel):
 
 
 
-def _stretches(sig_id: str, st, sy, offset: float = 0.0):
+def _stretches(sig_id: str, st, sy, offset: float = 0.0, where=None):
     """A state signal as stretches [(start, end, value)]: each change to the next one; the last
-    lasts to the end of its file. Shared by "statistics while state = X" and the segment list."""
+    lasts to the end of its file. Shared by "statistics while state = X", the segment list and
+    the command line's checks (`where`: their own Store; default the app's)."""
     pts, _c, end = transitions(st, sy, cap=10 ** 9)
-    lr = store.runs.get(sig_id.partition("/")[0])
+    lr = (where or store).runs.get(sig_id.partition("/")[0])
     if lr is not None and end is not None:
         end = max(end, float(lr.run.end_time) + float(lr.run.time_offset or 0) + offset)
     out: list = []

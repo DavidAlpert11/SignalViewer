@@ -5,9 +5,12 @@
     python cli.py export run.csv --out run.mat            # .mat: one variable per signal + Time
     python cli.py report --template "ArduPilot · Full review" --out reports/ logs/*.bin [--format pdf]
     python cli.py templates                                # the templates --template can name
+    python cli.py check runs/*.csv --checks checks.json [--junit results.xml]   # pass / fail (CI)
 
 MATLAB:  status = system('python cli.py export flight.bin --out f.mat'); d = load('f.mat');
 Exit code 0 = done, 1 = the file or a signal could not be read (the message says why).
+check:  0 = every check passed, 1 = a check failed, 2 = a check could not be made (a file or a
+signal missing, a wrong checks file) - so a CI step fails on a broken limit and on broken data.
 """
 import argparse
 import contextlib
@@ -104,6 +107,51 @@ def cmd_templates(a) -> int:
     return 0
 
 
+def cmd_check(a) -> int:
+    """T57: limits as pass / fail, one line per check, an exit code for CI and optional JUnit XML."""
+    import glob
+    from app.checks import ChecksError, junit_xml, load_checks, run_checks, template_checks
+    files = [f for pat in a.files for f in (sorted(glob.glob(pat)) or [pat])]
+    if bool(a.checks) == bool(a.template):
+        print("error: give --checks FILE.json or --template NAME (one of them).", file=sys.stderr)
+        return 2
+    try:
+        fixed = load_checks(a.checks) if a.checks else None
+        results = []
+        for f in files:
+            if fixed is None:
+                try:
+                    checks = template_checks(a.template, f)
+                except ChecksError:
+                    raise
+                except Exception as e:              # the file itself: report it as an error, go on
+                    msg = str(e) or e.__class__.__name__
+                    results.append({"file": f, "error": msg, "results": [{"name": "(open the file)", "status": "error", "message": msg}]})
+                    continue
+            else:
+                checks = fixed
+            results.append(run_checks(f, checks))
+    except ChecksError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if a.junit:
+        with open(a.junit, "w", encoding="utf-8") as fh:
+            fh.write(junit_xml(results))
+    rs = [r for f in results for r in f["results"]]
+    count = {k: sum(r["status"] == k for r in rs) for k in ("pass", "fail", "error", "skipped")}
+    if a.json:
+        print(json.dumps({"files": results, "count": count}, ensure_ascii=False))
+    else:
+        mark = {"pass": "PASS", "fail": "FAIL", "error": "ERROR", "skipped": "SKIP"}
+        for f in results:
+            print(f["file"])
+            for r in f["results"]:
+                print(f"  {mark[r['status']]:5} {r['name']}" + (f"  - {r['message']}" if r.get("message") else ""))
+        print(f"{count['pass']} passed, {count['fail']} failed, {count['error']} errors, {count['skipped']} skipped"
+              + (f"; JUnit XML: {a.junit}" if a.junit else ""))
+    return 2 if count["error"] else 1 if count["fail"] else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="signalviewer", description="Read and export recordings (Signal Viewer).")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -125,6 +173,14 @@ def main(argv=None) -> int:
     p.add_argument("--title", help="report title (default: file name · template name)")
     p.add_argument("--json", action="store_true", help="machine-readable summary on stdout")
     p.set_defaults(fn=cmd_report)
+    p = sub.add_parser("check", help="pass / fail against limits (exit code and JUnit XML for CI)",
+                       description="Exit code: 0 all passed, 1 a check failed, 2 a check could not be made.")
+    p.add_argument("files", nargs="+", help="data files (wildcards allowed)")
+    p.add_argument("--checks", help="a .json checks file (see app/checks.py for the format)")
+    p.add_argument("--template", help="use the limits saved in this template instead (name, id or .json)")
+    p.add_argument("--junit", help="also write the results as JUnit XML (CI test results)")
+    p.add_argument("--json", action="store_true", help="machine-readable results on stdout")
+    p.set_defaults(fn=cmd_check)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)
     a = ap.parse_args(argv)
