@@ -90,7 +90,7 @@ export default function TopBar() {
 
   return (
     <header className="topbar">
-      <div className="brand"><BrandMark />{t("appName")}</div>
+      <div className="brand" title={t("appName")}><BrandMark /><span className="hide-compact">{t("appName")}</span></div>
       <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")}… (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
       <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
       <nav className="tabs-wrap">
@@ -180,8 +180,9 @@ export default function TopBar() {
         title={`${t("theme")}: ${theme === "dark" ? t("dark") : t("light")}`} aria-label={t("theme")}>
         {theme === "dark" ? <Icon.Moon /> : <Icon.Sun />}
       </button>
-      <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}>
-        <Icon.Globe /> {t("language")}
+      <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}
+        title={t("language")} aria-label={t("language")}>
+        <Icon.Globe /><span className="hide-compact">{t("language")}</span>
       </button>
       <button className="btn menubar-btn" aria-haspopup="menu" onClick={helpMenu}>{t("menuHelp")}</button>
       <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label={t("inspector")} title={t("inspector")}><Icon.Inspector /></button>

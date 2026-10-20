@@ -888,6 +888,7 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 | Q75 | T62 `pip install signalviewer` = everything again; the light install under another name | M | ☑ done (owner: PyPI publisher for signalviewer-lite) |
 | Q76 | T63 One Clear button with a menu: this tab / the other tabs / all tabs / tabs + derived signals and edits / everything | M | ☑ done (e2e written, not run here) |
 | Q78 | F35 No File menu: open / save session, Clear ▾, settings and day / night as top-bar buttons | S | ☑ done (e2e updated, not run here) |
+| Q79 | F36 Owner's e2e run on Windows: 192 passed, 2 failed - the tab strip too narrow at 1100 px after F35; a test's "/tmp" | S | ☑ fixed (to re-run) |
 | Q77 | F34 Nothing cached is used after the data changed (owner: "make sure there is no cache that is used although the data was updated") | M | ☑ done |
 
 ### Q74 · F33 The README's Hebrew section — S
@@ -947,6 +948,17 @@ Guide (en + he) sections 2 and 9, features.md, CHANGELOG. e2e: `test_file_and_he
 button; the five buttons; the Clear menu; theme toggles and back; settings opens), helpers
 `clear_plots` / `clear_everything`, `test_T63_clear_menu_scopes` and test_workflows use the top-bar
 Clear - **written, not run here** (no browser). tsc + oxlint clean.
+
+### Q79 · F36 The owner's full e2e run (Windows, 2026-10-20) — S
+192 passed, 2 failed (11 min):
+- `test_workflows::test_every_tab_is_reachable_with_many_tabs`: at 1100 px the active tab was not in
+  view. **Cause: F35** - the top bar got ~110 px more buttons (open / save session, Clear ▾, day / night
+  for the File menu), and the tab strip shrank below one tab's width. **Fixed:** below 1280 px the app
+  name and the language button's text hide (`.hide-compact`, ~150 px; icons stay, with a tooltip and an
+  aria-label). The search box keeps its 150 px (the same test checks it).
+- `test_globe3d::test_log_events_on_the_track_and_image`: saved the PNG to `$TMPDIR or "/tmp"` - no
+  such folder on Windows (not an app bug). **Fixed:** `tempfile.gettempdir()`.
+Both fixes untested here (no browser): re-run the two tests.
 
 ### Q77 · F34 Stale data after a change — M
 **Audit (2026-10-20)** of every cache keyed on data, and what changes the data:
@@ -1362,3 +1374,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q76 / T63: Clear button with scopes (clearing.ts), File submenu, Ctrl+K; e2e written (not run here). Plan Q74-Q77 done.
 - 2026-10-20 · Q78 / F35: no File menu - session, Clear, settings, day / night as top-bar buttons; the stage bar's eraser as in 1.8.
 - 2026-10-20 · docs workflow: actions/upload-pages-artifact@v5 and deploy-pages@v5 (Node 24; v3 / v4 gave the Node 20 deprecation warnings); the 404 of the first runs = Pages not enabled yet (owner: Settings -> Pages -> Source: GitHub Actions), said in the workflow's header.
+- 2026-10-20 · Q79 / F36: owner's e2e 192/194; tab strip room at 1100 px (.hide-compact), the 3D image test on Windows (tempfile).
