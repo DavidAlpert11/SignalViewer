@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the app into use). **Owner: no 1.7.1 - F23 and the rest wait for 1.8.0.** Q53, Q55 done; Q54 written,
   waits for one CI run (owner: Actions -> build -> Run workflow; the Windows artifact has the .exe,
   .zip and .7z; install it, then "Open with" a .bin / .csv while the app runs). Next: Q24 is the
-  owner's (certificate). Q56 (+ Q33), Q57 done. Next: Q58 (T49 items 2 + 13: File menu, Help; F26 shortcuts text).
+  owner's (certificate). Q56 (+ Q33), Q57, Q58 done. Next: Q59 (F27 mouse wheel / trackpad).
 - Tests at the last change: backend 670 passed, mypy clean, tsc + build clean; whole e2e suite file by file, all passed (187 tests; Q57, 2026-10-19 - test_fresh_user's first_run failed once under load: it counted the file dialog's places before they came; it waits for them now, 3 runs green).
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -801,7 +801,7 @@ what brings the app into use; update this table after every step.
 | Q24 | T43 Signed installers (owner: certificate) | M | ☐ |
 | Q56 | F24 Linked time plots not lined up (value-axis width; spectrogram range) + Q33 (T14c) | M | ☑ done |
 | Q57 | T49 items 9 + 12 (mode bar on the active plot; plot right-click menu) + F25 menus clipped by the plot card | S→M | ☑ done |
-| Q58 | T49 items 2 + 13 (File menu; Help in the top bar) + F26 the shortcuts dialog describes the wheel wrongly | S | ☐ |
+| Q58 | T49 items 2 + 13 (File menu; Help in the top bar) + F26 the shortcuts dialog describes the wheel wrongly | S | ☑ done |
 | Q59 | F27 Mouse wheel: trackpads zoom far too fast, a sideways swipe zooms out | S | ☐ |
 | Q60 | T55 A short user guide and a 3-minute tour | M | ☐ |
 | Q61 | T56 `pip install signalviewer` (PyPI package, `signalviewer` command) | M | ☐ |
@@ -870,7 +870,7 @@ trackpad sends dozens of events per gesture; `deltaY = 0` (sideways swipe) zooms
 **Steps:** factor from `deltaY` (and `deltaMode`), ignore `deltaY = 0`; same in the other charts.
 
 ### Q63 · F29 Small — S
-"Inspector" aria-label not translated; "Theme" is "נושא" in Hebrew (→ "ערכת נושא"); the same value
+~~"Inspector" aria-label not translated; "Theme" is "נושא" in Hebrew~~ (done in Q58); the same value
 with different digits in the legend chip and the Inspector; an unreadable `autosave.json` is
 overwritten by the next autosave (keep it as `.bak`); the Python push client (`push_client.py`)
 uses the system proxy settings for 127.0.0.1 - bypass them as `app/instance.py` does (found in Q55);
@@ -1058,3 +1058,4 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 - 2026-10-19 · Owner's rule for patches: one cumulative patch since origin/main every time (written under "How to work here"). Owner: decide and continue without asking.
 - 2026-10-19 · Q56 / F24 + Q33 / T14c: `useGutter` / `reportGutter` (chartUtil.ts, UI-only `gutters` in the ui slice): each time / spectrogram / envelope chart reports the room left and right of its plot area, and the plots of a column (index % cols) use the largest. TimeChart counts the axis label (uPlot puts `labelSize` next to `size` - the first try missed it: 14 px off); the right axis's room evens out the right edge. SpecChart: margins from the gutter; with no zoom the image spans the signal's own extent (`sigT0` / `sigT1` from /api/spectrogram), empty where no window fits. EnvelopeChart: the tab's range (rangeKey): drag sets it, double-click clears it, a change elsewhere moves its axis without a rebuild. Measured on the ArduPilot example: Vibration tab 419/966 px for both time plots (was 91 vs 69 / different widths). Tests: backend spectrogram extent; e2e `test_aligned_plots` (units vs no units line up; Envelope lines up, its drag zooms the tab, double-click resets).
 - 2026-10-19 · Q57 / T49 items 9 + 12 + F25. Decision (owner: "decide"): item 9 as ONE type button for every plot (`.mode-btn`, "Time ▾", a menu of the nine types with the current one checked - `MenuItem.checked`, role menuitemradio) rather than the bar on the active plot only: no header that changes height when another plot becomes active. With it the legend may share the header line (`.plot-head .legend { order: 4; flex: 1 1 240px }`, it wraps when it does not fit): ArduPilot Attitude at 1024x700 - 94 px of curve per plot (was ~60). The ⋯ menu is the app's ContextMenu now (no local menu, nothing clips it); a right-click in a plot opens the same items after "Cursor here / Second cursor here / Note here… / Previous zoom / Show everything" - the charts put the time under the pointer on the native event (`svTime`: TimeChart, EnvelopeChart via u.posToVal, SpecChart via toT); plots without a time axis get the plot items only. Tests: e2e `test_plot_menus` (one type button with Time checked; ⋯ in a short plot fully visible and on top; right-click order and cursors; type switch); every `.mode-seg button` in the e2e files and tools changed to the button + menu.
+- 2026-10-19 · Q58 / T49 items 2 + 13 + F26. Top bar: "File" (text button after the app name; open files, recent and favourites = Ctrl+P, refresh all, open / save session, clear everything - the three loose icons are gone) and "Help" (before the Inspector button: keyboard shortcuts, Examples submenu from /api/examples, copy error details, about = version from /api/diagnostics in a toast). `MenuItem.keys` shows a shortcut at the end of a menu item. `copyErrorDetails` moved to errorReport.ts (the shortcuts dialog and the Help menu share it). F26: "Shift / Ctrl / Alt + wheel - values only / both / time only", double-click "Show everything (time and values)" (both languages). From Q63: the Inspector button's name translated (`inspector`), Hebrew "theme" = "ערכת נושא". The status bar's "?" stays. Tests: e2e `test_file_help_menus`; the three e2e places that clicked the "Clear everything" icon open File first.

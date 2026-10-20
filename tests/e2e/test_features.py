@@ -1114,7 +1114,7 @@ def test_play_draw_mode_and_clear_everything(pg):
     pg.locator(".timeline select[aria-label='What the plots show']").select_option("draw")   # the timeline
     pg.keyboard.press("p"); pg.wait_for_timeout(400); pg.keyboard.press("p")
     assert S(pg, "s.playMode") == "draw" and S(pg, "s.cursor.t1") > 0
-    pg.click(".topbar [aria-label='Clear everything']")
+    pg.click(".topbar .menubar-btn:has-text('File')"); pg.click(".menu.ctx button:has-text('Clear everything')")
     pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".welcome")
     assert S(pg, "s.runs.length") == 0
@@ -1186,7 +1186,7 @@ def test_templates_save_and_apply(pg):
 
 def test_recent_files_on_welcome(pg):
     open_files(pg, "run_a.csv")
-    pg.click(".topbar [aria-label='Clear everything']"); pg.click(".dialog-foot .btn.primary")
+    pg.click(".topbar .menubar-btn:has-text('File')"); pg.click(".menu.ctx button:has-text('Clear everything')"); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".recent-row")
     pg.locator(".recent-open", has_text="run_a.csv").first.click()
     pg.wait_for_function("window.__sv.state().runs.length === 1")
@@ -1528,7 +1528,7 @@ def test_open_saved_session_with_new_files_from_welcome(pg):
     pg.wait_for_selector(".sig"); sig(pg, "Speed").click()
     pg.keyboard.press("Control+s"); save_as(pg, "bench_session")
     pg.wait_for_selector(".toast:has-text('bench_session')")
-    pg.click(".topbar [aria-label='Clear everything']"); pg.click(".dialog-foot .btn.primary")
+    pg.click(".topbar .menubar-btn:has-text('File')"); pg.click(".menu.ctx button:has-text('Clear everything')"); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".recent-row:has-text('bench_session')")
     pg.locator(".recent-row", has_text="bench_session").locator("[aria-label='With new files…']").click()
     pg.wait_for_selector(".rt-dialog .rt-status.ok")

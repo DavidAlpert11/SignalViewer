@@ -210,6 +210,9 @@ button, input, select { font: inherit; color: inherit; }
   border-radius: 6px; background: var(--panel-2); color: var(--muted); font-size: 12px; }
 .mode-btn:hover, .mode-btn:focus-visible { color: var(--ink); border-color: var(--line-strong); }
 .menu .menu-check { display: inline-block; width: 1.1em; margin-inline-end: 4px; }
+.menu .menu-keys { margin-inline-start: auto; padding-inline-start: 18px; color: var(--muted); font-size: 0.85em; direction: ltr; }
+.menubar-btn { height: 28px; padding: 0 10px; border-color: transparent; background: transparent; }
+.menubar-btn:hover, .menubar-btn:focus-visible { background: var(--panel-2); border-color: var(--line); }
 .xpick { display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px; border-radius: 6px; }
 .xpick.over { outline: 1px solid var(--focus); }
 .xpick label { color: var(--muted); font-size: 0.8846rem; font-weight: 600; }
