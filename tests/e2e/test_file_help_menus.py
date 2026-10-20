@@ -1,5 +1,6 @@
-"""T49 items 2 + 13, F26: a File menu and a Help menu in the top bar; the shortcuts dialog describes
-the wheel as it works (Shift = values, Ctrl = both, Alt = time; double-click = everything)."""
+"""T49 items 2 + 13, F26, F35: the top bar's buttons (sessions, Clear, settings, day / night - no File
+menu since F35) and its Help menu; the shortcuts dialog describes the wheel as it works (Shift =
+values, Ctrl = both, Alt = time; double-click = everything)."""
 import pytest
 
 pytest.importorskip("playwright.sync_api")
@@ -7,14 +8,24 @@ from test_features import S, env, pg  # noqa: E402,F401
 
 
 def test_file_and_help_menus(pg):
-    pg.locator(".topbar .menubar-btn", has_text="File").click()
+    assert pg.locator(".topbar .menubar-btn", has_text="File").count() == 0
+    for label in ("Open session", "Save session", "Clear", "Settings", "Theme"):
+        assert pg.locator(f".topbar [aria-label='{label}']").count() == 1, label
+    pg.click(".topbar [aria-label='Clear']")
     items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
-    for want in ("Open files…", "Open session…", "Save session", "Clear everything"):
+    for want in ("This tab's plots", "The other tabs", "All tabs", "Clear everything"):
         assert any(i.startswith(want) for i in items), items
-    assert "Ctrl+O" in pg.locator(".menu.ctx button", has_text="Open files").inner_text()
     assert "danger" in pg.locator(".menu.ctx button", has_text="Clear everything").get_attribute("class")
-    pg.locator(".menu.ctx button", has_text="Open files").click()
-    pg.wait_for_function("window.__sv.state().browserOpen === true")
+    pg.keyboard.press("Escape")
+    # day / night in one click, and back
+    before = pg.evaluate("window.__sv.state().theme")
+    pg.click(".topbar [aria-label='Theme']")
+    pg.wait_for_function(f"window.__sv.state().theme !== '{before}'")
+    assert pg.evaluate("document.documentElement.dataset.theme") != before
+    pg.click(".topbar [aria-label='Theme']")
+    pg.wait_for_function(f"window.__sv.state().theme === '{before}'")
+    pg.click(".topbar [aria-label='Settings']")
+    pg.wait_for_function("window.__sv.state().settingsOpen === true")
     pg.keyboard.press("Escape")
     pg.wait_for_selector(".scrim", state="detached")
 
