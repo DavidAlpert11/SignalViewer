@@ -959,6 +959,12 @@ Clear - **written, not run here** (no browser). tsc + oxlint clean.
 - `test_globe3d::test_log_events_on_the_track_and_image`: saved the PNG to `$TMPDIR or "/tmp"` - no
   such folder on Windows (not an app bug). **Fixed:** `tempfile.gettempdir()`.
 Both fixes untested here (no browser): re-run the two tests.
+**Re-run (owner):** the tab test passes; the 3D image test still had no file in `%TEMP%`. The test
+typed the folder into the address box and saved at once, waiting only for the box's own text - not
+for the dialog to be in that folder. Likely: Windows' Temp lists slowly (thousands of files) and the
+picture went to the folder the dialog was still in. **Changed:** a fresh folder (`mkdtemp`) given
+as a full path in the name box (the dialog takes a full path as it is - `FileBrowser.confirm`); on a
+miss the failure now shows the toasts (an error from `/api/save/image` would be in them).
 
 ### Q77 · F34 Stale data after a change — M
 **Audit (2026-10-20)** of every cache keyed on data, and what changes the data:
@@ -1375,3 +1381,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q78 / F35: no File menu - session, Clear, settings, day / night as top-bar buttons; the stage bar's eraser as in 1.8.
 - 2026-10-20 · docs workflow: actions/upload-pages-artifact@v5 and deploy-pages@v5 (Node 24; v3 / v4 gave the Node 20 deprecation warnings); the 404 of the first runs = Pages not enabled yet (owner: Settings -> Pages -> Source: GitHub Actions), said in the workflow's header.
 - 2026-10-20 · Q79 / F36: owner's e2e 192/194; tab strip room at 1100 px (.hide-compact), the 3D image test on Windows (tempfile).
+- 2026-10-20 · Q79: owner re-run - tab test green; 3D image test: own folder, full path in the name box, toasts in the failure message.
