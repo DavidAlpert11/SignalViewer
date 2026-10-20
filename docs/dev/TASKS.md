@@ -17,11 +17,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   builds the Windows package, checks the Windows-only items (file dialog places: drives, Desktop /
   Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
   tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
-- **Active plan: "Review 2026-10-19 (after 1.7.0)" below** (owner approved, ranked by what brings
-  the app into use). **Owner: no 1.7.1 - F23 and the rest wait for 1.8.0.** Q53, Q55 done; Q54 written,
-  waits for one CI run (owner: Actions -> build -> Run workflow; the Windows artifact has the .exe,
-  .zip and .7z; install it, then "Open with" a .bin / .csv while the app runs). Next: Q24 is the
-  owner's (certificate). Q56 (+ Q33), Q57, Q58, Q59 done; Q60 guide done (the tour video is the owner's). Q61 built (publishing needs the owner's PyPI setup, see its log line). Q34 (+ F28, F30), Q62, Q31, Q32, Q63 done - the 1.8.0 plan is done except the owner's parts (Q24 signing, the CI run and the installer on Windows for Q54 / Q55, PyPI setup for Q61, the tour video for Q60). Next: the owner's checks, then the 1.8.0 release (see Releasing).
+- **Active plan: "Review 2026-10-19 (after 1.7.0)" below** - done; **1.8.0 prepared** (Q64, this commit):
+  the owner pushes, tags v1.8.0 (the workflow makes the draft release with the installer, zip, 7z and
+  the Python wheel; PyPI only once PYPI_PUBLISH is set). Still the owner's: Q55's "Open with" on a real
+  Windows install, Q61's PyPI setup, Q60's tour video, Q24 signing.
 - Tests at the last change: backend 673 passed, mypy clean, tsc + build clean; whole e2e suite file by file, all passed (193 tests; after Q32, 2026-10-20); Q63 on top: backend + test_push, test_fresh_user, test_settings and the Inspector / cursor tests of test_features green.
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
@@ -796,7 +795,7 @@ what brings the app into use; update this table after every step.
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q53 | F23 Statistics cache returns another signal's numbers | S | ☑ done |
-| Q54 | T53 Release assets: the installer and a zip on GitHub Releases | S | ◐ written; first CI run by the owner |
+| Q54 | T53 Release assets: the installer and a zip on GitHub Releases | S | ☑ done (CI green, 2026-10-20) |
 | Q55 | T54 Open files from outside: paths on the command line, file associations, one instance | S→M | ☑ done (installer part: owner checks on Windows) |
 | Q24 | T43 Signed installers (owner: certificate) | M | ☐ |
 | Q56 | F24 Linked time plots not lined up (value-axis width; spectrogram range) + Q33 (T14c) | M | ☑ done |
@@ -810,6 +809,7 @@ what brings the app into use; update this table after every step.
 | Q31 | T23 Notes over a time range | M | ☑ done |
 | Q32 | T25 Sim-vs-flight error signal | M | ☑ done |
 | Q63 | F29 Small: untranslated / mistranslated labels, value precision, autosave backup | S | ☑ done |
+| Q64 | Release 1.8.0 (see "Releasing") | S | ◐ prepared; owner pushes and tags v1.8.0 |
 
 Still open from Q48: item 10 (cursor buttons "T" / "H") - not in the owner's list; decide later.
 
@@ -1067,3 +1067,5 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 - 2026-10-20 · Q31 / T23: `Note.t2` (end of a range). `addNoteAtCursor`: with two cursors (and t1 != t2) the note covers min..max ("From a to b s" in the prompt), one cursor as before; the plot's right-click *Note here…* goes through it. TimeChart: range notes are a shaded span in the note colour (10 %) with a line at the end, the marker and text at the start; the Inspector lists "a – b". Report: `_note_when` ("20 – 26.5 s") in the HTML / PDF / Word lists, `axvspan` on PDF / Word plots (the HTML report's plots draw no notes, as before - their list is under the summary). Tests: backend `test_report_with_spectrogram_and_notes` (a range note in all three formats); e2e `test_range_notes` (range from two cursors whatever their order, Inspector text, a shaded pixel inside and not outside, one cursor still a point).
 - 2026-10-20 · Q32 / T25: the error signal itself already existed (Create signals > Two signals, A − B, aligned onto A); what was missing is the per-segment answer. `/api/error-segments` {a, b, state?, alignment}: e = A − B on A's samples (linear: NaN outside B; nearest: A's samples outside B's time dropped), RMS / mean / max |e| (+ its time) over the overlap and, with a state signal, for each stretch (`_stretches`, label + occurrence; stretches without overlap left out). UI `ErrorSegments.tsx` under Two signals when the operation is A − B or |A − B|: "For each stretch of" (signals with texts or few values, A's file first) → a table, the worst stretch marked, a stretch click zooms the active plot's time to it, a max click puts the cursor there. Tests: backend `test_error_between_two_signals_per_segment` (CRUISE off by 2 stands out, others ~0, only where both have data, 404); e2e `test_error_segments`.
 - 2026-10-20 · Q63 / F29 (labels done in Q58): the Inspector's single-cursor value uses 5 significant digits like the legend chip (was 6; the exact value is in its tooltip). An unreadable autosave is moved to `autosave.damaged.json` and GET /api/autosave says so (`damaged`) - the UI shows where, 15 s - instead of being overwritten by the next autosave; the autosave's temporary file is per process (two apps writing at once no longer write into one .tmp; the last write still wins - two apps started WITHOUT files remain two apps, by design since Q55). The Python push client opens 127.0.0.1 without any proxy (`ProxyHandler({})`, as app/instance.py). Tests: backend `test_damaged_autosave_is_kept_aside`.
+- 2026-10-20 · Owner: the CI run passed on GitHub (Windows installer built, installed silently and started; zip; Python package checked) - Q54 done.
+- 2026-10-20 · Q64 release 1.8.0 prepared: versions (build.bat, version.py, .iss, version_info.txt incl. the tuples), CHANGELOG dated with highlights, README review (Download section, rows: timeline seconds / clock, A − B per stretch, range notes, trackpad wheel, installer "Open with"; test counts 673 / 193; three known limitations added: Open with is the installer's, pip opens the browser without [desktop], the HTML report lists notes without drawing them; "חדש ב־1.8"), README pictures and clips retaken with `tools/make_readme_media.py` (06_3d_terrain and the 3D clip kept). Found on the way: the media tool's Hebrew scene left every later scene in Hebrew - settings are kept in the app folder since Q34 - so `reset()` removes ui_settings.json too (as the e2e fixtures do). dist rebuilt.

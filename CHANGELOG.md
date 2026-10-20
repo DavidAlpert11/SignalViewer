@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.8.0 – unreleased
+## 1.8.0 – 2026-10-20
+
+Highlights: **easier to get and to start** - a Windows installer and a .zip on every release, *Open with* from Explorer (into the window that is already open), `pip install signalviewer`, and a user guide in English and Hebrew (F1); **a cleaner screen** - File and Help menus, one plot-type button and the legend beside it (more room for the curves), a right-click menu in every plot, Settings that are kept between starts; **new**: notes over a time range and how far apart two signals are per flight-mode stretch; **fixes** that matter for measuring: statistics that could show another signal's numbers, plots in a column that did not line up, trackpad zoom.
 
 ### Added
 - **How far apart are two signals - simulation and flight, model and test:** *Create signals → Two signals* (A − B) shows the RMS, mean and largest difference over the time both have, and the same for each stretch of a state such as the flight mode; the stretch where they part ways is marked, a click shows it in the plots, a click on the largest difference puts the cursor there.
