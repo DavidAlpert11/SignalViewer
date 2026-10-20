@@ -283,7 +283,7 @@ export default function Inspector() {
                     return (
                       <tr key={s.sig + s.color}>
                         {name}
-                        <td title={fmtNum(v1, lang, 10)}>{fmtNum(v1, lang, dual ? 4 : 6)}</td>
+                        <td title={fmtNum(v1, lang, 10)}>{fmtNum(v1, lang, dual ? 4 : 5)}</td>
                         {dual && <><td title={fmtNum(v2, lang, 10)}>{fmtNum(v2, lang, 4)}</td><td>{v1 !== null && v2 !== null ? fmtNum(v2 - v1, lang, 4) : "—"}</td>
                           <td>{v1 !== null && v2 !== null && cursor.t2 !== cursor.t1 ? fmtNum((v2 - v1) / ((cursor.t2 ?? 0) - (cursor.t1 ?? 0)), lang, 4) : "—"}</td></>}
                       </tr>

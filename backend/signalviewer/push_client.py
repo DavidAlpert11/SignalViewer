@@ -68,7 +68,9 @@ def show(t=None, signals=None, name="Python", replace=True, plot=True, home=None
     req = urllib.request.Request(f"{url}/api/push?{query}", data=buf.getvalue(), method="POST",
                                  headers={"Content-Type": "application/octet-stream", "X-SV-Token": token})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        # never through a proxy: the app is on this computer (a company proxy setting would swallow it)
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(req, timeout=timeout) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
         try:
