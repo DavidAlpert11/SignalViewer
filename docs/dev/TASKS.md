@@ -889,7 +889,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q65 | F31 Python API / CLI: names without the unit, "did you mean", `sv.show` | S | ☑ done |
-| Q66 | F32 Packaging consistency (badge, pyproject note, PyPI metadata) | S | ☐ |
+| Q66 | F32 Packaging consistency (badge, pyproject note, PyPI metadata, README pictures on PyPI) | S | ☑ done |
 | Q67 | T57 `signalviewer-cli check`: requirement checks, exit code, JUnit XML for CI | M | ☐ |
 | Q68 | T58 Golden-run regression from the command line (`compare` with tolerances) | M | ☐ |
 | Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☐ |
@@ -919,6 +919,15 @@ Also `signalviewer.show` = the push client's `show` (one implementation, re-expo
 README badge says Python 3.8+, PyPI requires 3.9; the root `pyproject.toml` still says "no package
 metadata yet" (it lives in `tools/make_pypi.py` since T56); PyPI page without Changelog / Issues /
 Documentation links and with few keywords. Do not add per-version classifiers before CI tests them.
+**Found on the way:** the README's pictures and links are relative (`docs/images/...`), so the PyPI
+page shows them broken - PyPI has no repository to resolve them against.
+**Status:** done 2026-10-20. `tools/make_pypi.py`: `pypi_readme()` rewrites `src=` to
+raw.githubusercontent.com at the tag `v<version>` and `href=` / Markdown links to the GitHub page
+at that tag (the wheel is published from the tag; a manual run's links point at a tag that may not
+exist yet - harmless, it is not published); project URLs Documentation / Changelog / Issues /
+Releases; more keywords and classifiers (no per-version ones). Root `pyproject.toml` note says
+where the metadata lives. README badge 3.9+. Tests: `test_pypi_readme_links_are_absolute`;
+`make_pypi.py --check` passes (wheel installed in a fresh venv, app started).
 
 ### Q67 · T57 `signalviewer-cli check` — M
 **Why:** moves the app from "looking at a run" into the test process: a run that breaks a limit
@@ -1149,3 +1158,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Owner: the CI run passed on GitHub (Windows installer built, installed silently and started; zip; Python package checked) - Q54 done.
 - 2026-10-20 · Q64 release 1.8.0 prepared: versions (build.bat, version.py, .iss, version_info.txt incl. the tuples), CHANGELOG dated with highlights, README review (Download section, rows: timeline seconds / clock, A − B per stretch, range notes, trackpad wheel, installer "Open with"; test counts 673 / 193; three known limitations added: Open with is the installer's, pip opens the browser without [desktop], the HTML report lists notes without drawing them; "חדש ב־1.8"), README pictures and clips retaken with `tools/make_readme_media.py` (06_3d_terrain and the 3D clip kept). Found on the way: the media tool's Hebrew scene left every later scene in Hebrew - settings are kept in the app folder since Q34 - so `reset()` removes ui_settings.json too (as the e2e fixtures do). dist rebuilt.
 - 2026-10-20 · Review after 1.8.0 (plan Q65-Q73 above). Q65 / F31: `svcore/naming.py` `resolve_signal_name` (exact, without the unit, any case; several hits = error; else the closest three), used by `Recording.signal` and so by `table`, `to_dataframe` and `signalviewer-cli export`; the messages say where the full names are. `signalviewer.show` re-exports the push client's `show`. Tests: backend 675, mypy clean.
+- 2026-10-20 · Q66 / F32: README for PyPI with absolute pictures / links (tag v<version>), project URLs, keywords, classifiers; badge 3.9+; pyproject note. Backend 676, mypy clean, `make_pypi.py --check` OK.
