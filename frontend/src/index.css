@@ -206,7 +206,10 @@ button, input, select { font: inherit; color: inherit; }
 .chip .rm:hover { background: var(--raised); color: var(--ink); }
 .plot-body { position: relative; flex: 1; min-height: 0; display: flex; }
 .plot-canvas { position: relative; flex: 1; min-height: 0; min-width: 0; direction: ltr; }
-.mode-seg button { padding: 1px 7px; }
+.mode-btn { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 6px 0 8px; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--panel-2); color: var(--muted); font-size: 12px; }
+.mode-btn:hover, .mode-btn:focus-visible { color: var(--ink); border-color: var(--line-strong); }
+.menu .menu-check { display: inline-block; width: 1.1em; margin-inline-end: 4px; }
 .xpick { display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px; border-radius: 6px; }
 .xpick.over { outline: 1px solid var(--focus); }
 .xpick label { color: var(--muted); font-size: 0.8846rem; font-weight: 600; }
@@ -480,7 +483,7 @@ table.keys td.mouse { color: var(--muted); }
 .stage-body { position: relative; flex: 1; min-height: 0; }
 /* review fixes */
 .plot-title { flex-shrink: 0; }
-.plot-head .legend { order: 10; flex-basis: 100%; }      /* chips on their own line */
+.plot-head .legend { order: 4; flex: 1 1 240px; }   /* T49 9: next to the type button when they fit (a short plot keeps more room for the curves), else on their own line */
 .plot-more { order: 5; }
 .stage-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .stage-bar::-webkit-scrollbar { display: none; }

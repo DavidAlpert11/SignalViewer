@@ -380,7 +380,7 @@ def img_17_fft_motor_orders(b, app):
     ctx, pg = page(b, app); open_api(pg, app, "motor.csv")
     sig(pg, "IMU.AccZ").click()
     pg.wait_for_selector(".plot .u-over")
-    pg.locator(".plot .seg button", has_text="FFT").first.click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="FFT").first.click()
     pg.wait_for_selector(".plot select[aria-label='Motor orders']")
     pg.locator(".plot select[aria-label='Motor orders']").select_option(label="ESC.RPM")
     pg.locator(".plot select[aria-label='Propeller blades']").select_option("2")

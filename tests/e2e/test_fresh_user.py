@@ -71,6 +71,7 @@ def test_first_run(fresh):
     # the file dialog opens (in the home folder), takes the keyboard (F18), lists the places (T24)
     pg.keyboard.press("Control+o")
     pg.wait_for_function("document.querySelector('.crumbs input') && document.querySelector('.crumbs input').value !== ''")
+    pg.locator(".fs-places h3", has_text="This computer").wait_for(timeout=10000)   # the places come a moment later (a bare count was flaky)
     assert pg.locator(".fs-places h3", has_text="This computer").count() == 1
     pg.keyboard.press("Escape")
     pg.wait_for_selector(".scrim", state="detached")

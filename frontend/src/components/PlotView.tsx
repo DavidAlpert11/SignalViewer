@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { plotHasContent, actions, fileMark, pickPath, showFileTags, signalName, useApp, type Plot, type PlotMode, type Tab } from "../store";
+import { lazy, Suspense, useRef, useState } from "react";
+import { plotHasContent, actions, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
 import { exportRange, plotSpec } from "../plotSpec";
@@ -40,25 +40,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [loading, setLoading] = useState(false);
   const [peaks, setPeaks] = useState<Record<string, number>>({});
-  const [menu, setMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const moreRef = useRef<HTMLButtonElement>(null);
-  // F17: the plot menu closes like every other menu - Esc, a click anywhere else, the window losing
-  // focus (it closed only when the mouse entered it and left again, so by keyboard never)
-  useEffect(() => {
-    if (!menu) return;
-    const close = () => setMenu(false);
-    const outside = (e: MouseEvent) => {
-      const n = e.target as Node;
-      if (!menuRef.current?.contains(n) && !moreRef.current?.contains(n)) close();
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); moreRef.current?.focus(); } };
-    window.addEventListener("mousedown", outside, true);
-    window.addEventListener("keydown", onKey, true);
-    window.addEventListener("blur", close);
-    menuRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-    return () => { window.removeEventListener("mousedown", outside, true); window.removeEventListener("keydown", onKey, true); window.removeEventListener("blur", close); };
-  }, [menu]);
   const theme = useApp((s) => s.theme);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -89,7 +70,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ]);
   };
   const exportCsv = async () => {
-    setMenu(false);
     const path = await pickPath({ mode: "save", title: t("exportData"), exts: [".csv"], defaultName: `${baseName}.csv` });
     if (!path) return;
     const r = exportRange(tab, plot);
@@ -100,13 +80,11 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     } catch (e) { failed(e); }
   };
   const saveImage = async (format: "png" | "svg") => {
-    setMenu(false);
     const path = await pickPath({ mode: "save", title: t("saveImage"), exts: [`.${format}`], defaultName: `${baseName}.${format}` });
     if (!path) return;
     try { done((await api.image(path, format, theme, plotSpec(tab, plot, index, t("plotTitle", { n: "{n}" })))).path); } catch (e) { failed(e); }
   };
   const copyImage = async () => {
-    setMenu(false);
     const canvas = sectionRef.current?.querySelector("canvas");
     if (!canvas) return;
     try {
@@ -116,6 +94,60 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     } catch { useApp.getState().toast({ kind: "error", text: t("copyFailed") }); }
   };
   const mode: PlotMode = plot.mode ?? "time";
+  /* T49 item 12 / F25: the plot's options live in the app's one menu (drawn above everything, so a
+     short plot no longer cuts them off); the ⋯ button and a right-click on the plot open them */
+  const plotItems = (): MenuItem[] => [
+    { label: t("exportData"), run: exportCsv, disabled: !plot.signals.length },
+    { label: `${t("saveImage")} (PNG)`, run: () => saveImage("png"), disabled: !plot.signals.length },
+    { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
+    { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
+    { label: "", run: () => {}, sep: true },
+    { label: t("axisLimits") + ((plot.xlim || plot.ylim) ? " •" : ""), run: () => useApp.setState({ axisDialog: plot.id }) },
+    ...(showFileTags(runs) ? [{ label: t("colorByFile"), run: () => actions.colorPlotByFile(plot.id),
+      disabled: !plot.signals.some((s) => fileMark(runs, s.sig)) }] : []),
+    { label: t("clearPlot"), run: () => actions.clearPlot(plot.id), disabled: !plotHasContent(plot) && !plot.xSignal },
+    ...(mode === "3d" ? [{ label: t("g3Remove"), run: () => actions.remove3d(plot.id) }] : []),
+  ];
+  const openPlotMenu = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    e.stopPropagation();
+    // under the button, its end edge lined up with the button's (the menu keeps itself in the window)
+    const rtl = document.documentElement.dir === "rtl";
+    useApp.setState({ menu: { x: rtl ? r.left : r.right - 200, y: r.bottom + 4, items: plotItems() } });
+  };
+  /* a right-click in the plot: the moment under the pointer (time-like plots put it on the event) first */
+  const onPlotContext = (e: React.MouseEvent) => {
+    const at = (e.nativeEvent as MouseEvent & { svTime?: number }).svTime;
+    const st = useApp.getState();
+    const tb = tab, key = rangeKey(tb, plot);
+    const timeItems: MenuItem[] = typeof at === "number" && Number.isFinite(at) ? [
+      { label: t("ctxCursorHere"), run: () => useApp.setState({ cursor: { ...useApp.getState().cursor, on: true, t1: at, active: 1 } }) },
+      { label: t("ctxCursor2Here"), run: () => {
+        const c = useApp.getState().cursor;
+        useApp.setState({ cursor: { ...c, on: true, dual: true, t1: c.t1 ?? at, t2: at, active: 2 } });
+      } },
+      { label: t("ctxNoteHere"), run: () => {
+        const c = useApp.getState().cursor;
+        useApp.setState({ cursor: { ...c, on: true, t1: c.active === 2 && c.dual ? c.t1 : at, t2: c.active === 2 && c.dual ? at : c.t2 } });
+        actions.addNoteAtCursor();
+      } },
+      { label: "", run: () => {}, sep: true },
+      { label: t("ctxZoomBack"), run: () => actions.zoomBack(), disabled: !(st.zoomHistory[key] ?? []).length },
+      { label: t("ctxShowAll"), run: () => actions.resetZoom() },
+      { label: "", run: () => {}, sep: true },
+    ] : [];
+    openMenu(e, [...timeItems, ...plotItems()]);
+  };
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")]];
+  /* T49 item 9: the plot type is one button with its name (a menu of the types), not nine buttons on
+     every plot - the header keeps room for the legend and the type's own settings */
+  const openModeMenu = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    e.stopPropagation();
+    const rtl = document.documentElement.dir === "rtl";
+    useApp.setState({ menu: { x: rtl ? r.right - 160 : r.left, y: r.bottom + 4,
+      items: modes.map(([m, label]) => ({ label, checked: mode === m, run: () => actions.setPlotMode(plot.id, m) })) } });
+  };
   const allSignals = runs.flatMap((r) => r.signals.map((s) => ({ id: s.id, label: s.name, group: r.format === "derived" ? undefined : r.name })));
 
   // T20: dropping on a plot's right or bottom edge splits it (a new plot there with the signal)
@@ -150,7 +182,6 @@ export default function PlotView({ tab, plot, index, active }: Props) {
 
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const geoBase = useApp((s) => s.geoBase);
-  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")]];
 
   return (
     <section
@@ -170,11 +201,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         ) : (
           <button className="plot-title" onDoubleClick={() => setEditingTitle(true)} title={title}>{title}</button>
         )}
-        <span className="seg mode-seg" role="group" aria-label={t("plotMode")}>
-          {modes.map(([m, label]) => (
-            <button key={m} className={mode === m ? "on" : ""} aria-pressed={mode === m} onClick={() => actions.setPlotMode(plot.id, m)}>{label}</button>
-          ))}
-        </span>
+        <button className="mode-btn" aria-haspopup="menu" aria-label={`${t("plotMode")}: ${modes.find(([m]) => m === mode)?.[1] ?? mode}`}
+          title={t("plotMode")} onClick={openModeMenu}>
+          {modes.find(([m]) => m === mode)?.[1] ?? mode}<Icon.Chevron width={12} height={12} />
+        </button>
         {(mode === "xy" || mode === "geo") && (
           <span className={`xpick${dragOver === "x" ? " over" : ""}`}
             onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); setDragOver("x"); } }}
@@ -311,24 +341,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             );
           })}
         </div>
-        <button ref={moreRef} className="iconbtn plot-more" aria-haspopup="menu" aria-label={t("plotMenu")} title={t("plotMenu")} aria-expanded={menu}
-          onClick={(e) => { e.stopPropagation(); setMenu(!menu); }}><Icon.More /></button>
-        {menu && (
-          <div className="menu" role="menu" ref={menuRef}>
-            <button role="menuitem" disabled={!plot.signals.length} onClick={exportCsv}><Icon.Table />{t("exportData")}</button>
-            <button role="menuitem" disabled={!plot.signals.length} onClick={() => saveImage("png")}><Icon.Image />{t("saveImage")} (PNG)</button>
-            <button role="menuitem" disabled={!plot.signals.length} onClick={() => saveImage("svg")}><Icon.Image />{t("saveImage")} (SVG)</button>
-            <button role="menuitem" disabled={!plot.signals.length} onClick={copyImage}><Icon.Copy />{t("copyImage")}</button>
-            <div className="menu-sep" />
-            <button role="menuitem" onClick={() => { setMenu(false); useApp.setState({ axisDialog: plot.id }); }}><Icon.Layout />{t("axisLimits")}{(plot.xlim || plot.ylim) ? " •" : ""}</button>
-            {showFileTags(runs) && <button role="menuitem" disabled={!plot.signals.some((s) => fileMark(runs, s.sig))}
-              onClick={() => { setMenu(false); actions.colorPlotByFile(plot.id); }}><Icon.File />{t("colorByFile")}</button>}
-            <button role="menuitem" disabled={!plotHasContent(plot) && !plot.xSignal} onClick={() => { setMenu(false); actions.clearPlot(plot.id); }}><Icon.Trash />{t("clearPlot")}</button>
-            {mode === "3d" && <button role="menuitem" onClick={() => { setMenu(false); actions.remove3d(plot.id); }}><Icon.Trash />{t("g3Remove")}</button>}
-          </div>
-        )}
+        <button className="iconbtn plot-more" aria-haspopup="menu" aria-label={t("plotMenu")} title={t("plotMenu")}
+          onClick={openPlotMenu}><Icon.More /></button>
       </header>
-      <div className="plot-body">
+      <div className="plot-body" onContextMenu={onPlotContext}>
         <PlotBoundary label={t("plotFailed")} retry={t("tryAgain")} resetKey={`${mode}|${plot.signals.map((x) => x.sig).join(",")}|${plot.xSignal ?? ""}`}>
           {mode === "time" && <TimeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
           {mode === "xy" && <XYChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("xyNeedsX") : t("emptyPlot")} />}

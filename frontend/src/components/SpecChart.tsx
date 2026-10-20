@@ -236,6 +236,7 @@ export default function SpecChart({ tab, plot, index, onLoading }: Props) {
     <div className="spec-wrap" ref={wrapRef}>
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", cursor: "crosshair" }}
         onMouseDown={onDown} onMouseMove={onMove} onMouseLeave={() => setReadout("")}
+        onContextMenu={(e) => { if (ext) (e.nativeEvent as MouseEvent & { svTime?: number }).svTime = toT(e.clientX); }}
         onDoubleClick={() => actions.setRange(key, null)} role="img"
         aria-label={t("spectrogramOf", { name: ps ? ps.sig.slice(ps.sig.indexOf("/") + 1) : "" })} />
       {drag && <div className="spec-sel" style={{ left: Math.min(drag.a, drag.b) - (canvasRef.current?.getBoundingClientRect().left ?? 0), width: Math.abs(drag.b - drag.a), top: M.t, height: plotH }} />}

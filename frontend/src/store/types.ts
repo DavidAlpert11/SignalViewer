@@ -11,6 +11,8 @@ export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "flee
 export type LogMarkers = "off" | "important" | "all";
 export type PlayMode = "cursor" | "draw" | "window";
 export interface MenuItem { label: string; icon?: string; run: () => void; disabled?: boolean; danger?: boolean; sep?: boolean;
+  /** one of a set of choices (a plot's type): the current one is marked */
+  checked?: boolean;
   /** a submenu (T21b): the item opens these instead of running */
   items?: MenuItem[] }
 export interface PickerRequest {
