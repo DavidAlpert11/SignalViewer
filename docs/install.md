@@ -5,12 +5,14 @@ On Windows take **`SignalViewer-Setup-X.Y.Z.exe`** (installs for you only, no ad
 to run without installing, the **`…-Windows-x64-portable.zip`** (extract, double-click *Signal
 Viewer.bat*). Linux and macOS: the `-portable.7z` for your system.
 
-**With Python (3.9 or newer):** `pip install "signalviewer[all]"`, then `signalviewer` starts the app.
-A plain `pip install signalviewer` is the core (about 350 MB instead of 760): CSV, MATLAB v5, ArduPilot
-.bin, every plot and analysis, HTML reports. The rest are extras - `[parquet]` (also a faster CSV
-reader), `[hdf5]` (.h5, MATLAB v7.3), `[mavlink]` (.tlog, live MAVLink), `[px4]` (.ulg), `[ros]`
-(.mcap), `[reports]` (PDF, Word, images), `[desktop]` (its own window instead of the browser); a
-file that needs one says which.
+**With Python (3.9 or newer):** `pip install signalviewer`, then `signalviewer` starts the app -
+with every reader and report (`pip install "signalviewer[desktop]"` for its own window instead of the
+browser). **The light install:** `pip install signalviewer-lite` (about 350 MB instead of 760) is the
+core - CSV, MATLAB v5, ArduPilot .bin, CAN, binary layouts, every plot and analysis, HTML reports -
+and the rest are extras: `[parquet]` (also a faster CSV reader), `[hdf5]` (.h5, MATLAB v7.3),
+`[mavlink]` (.tlog, live MAVLink), `[px4]` (.ulg), `[ros]` (.mcap), `[reports]` (PDF, Word, images),
+`[desktop]`, `[all]`; a file that needs one says which. Both install the same `signalviewer` Python
+package: install one of them, not both.
 `signalviewer-cli` and `import signalviewer` read and export recordings from scripts. `rec.signal("ATT.Roll")`
 finds *ATT.Roll [deg]* (the unit may be left out), and `signalviewer.show(t, {"alt": alt})` sends
 arrays from a notebook into the open app.
