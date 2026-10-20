@@ -12,13 +12,13 @@ import { copyErrorDetails } from "../errorReport";
 import type { MenuItem } from "../store";
 import { openMenu } from "./Overlays";
 import { templateMenuItems } from "../templateMenu";
+import { getPref, setPref } from "../prefs";
 
 export default function TopBar() {
   const t = useT();
   const ws = useApp((s) => s.ws);
   const past = useApp((s) => s.past.length);
   const future = useApp((s) => s.future.length);
-  const theme = useApp((s) => s.theme);
   const streaming = useApp((s) => s.streaming);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
   const [editing, setEditing] = useState<string | null>(null);
@@ -72,6 +72,8 @@ export default function TopBar() {
     { label: "", run: () => {}, sep: true },
     { label: t("openSession") + "…", keys: "Ctrl+Shift+O", run: () => openSession() },
     { label: t("saveSession"), keys: "Ctrl+S", run: saveSession },
+    { label: "", run: () => {}, sep: true },
+    { label: t("settings") + "…", keys: "Ctrl+,", run: () => useApp.setState({ settingsOpen: true }) },
     { label: "", run: () => {}, sep: true },
     { label: t("clearEverything"), run: clearEverything, danger: true },
   ]);
@@ -175,9 +177,8 @@ export default function TopBar() {
         )}
         {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
       </span>
-      <button className="iconbtn" onClick={() => useApp.setState({ theme: theme === "dark" ? "light" : "dark" })}
-        title={theme === "dark" ? t("light") : t("dark")} aria-label={t("theme")}>
-        {theme === "dark" ? <Icon.Sun /> : <Icon.Moon />}
+      <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>
+        <Icon.Settings />
       </button>
       <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}>
         <Icon.Globe /> {t("language")}
@@ -230,7 +231,7 @@ function LiveSettings({ onClose }: { onClose: () => void }) {
 function MavlinkSection() {
   const t = useT();
   const mav = useApp((s) => s.mavlink);
-  const [conn, setConn] = useState(() => localStorage.getItem("sv3.mavConn") || "udpin:127.0.0.1:14550");
+  const [conn, setConn] = useState(() => getPref("sv3.mavConn") || "udpin:127.0.0.1:14550");
   const [baud, setBaud] = useState(57600);
   const [request, setRequest] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -241,7 +242,7 @@ function MavlinkSection() {
   const on = !!mav?.running;
   const connect = async () => {
     setBusy(true);
-    try { localStorage.setItem("sv3.mavConn", conn.trim()); } catch { /* private mode */ }
+    setPref("sv3.mavConn", conn.trim());
     await mavlinkConnect(conn.trim(), { baud, request });
     setBusy(false);
   };

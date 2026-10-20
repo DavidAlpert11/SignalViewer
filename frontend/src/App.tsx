@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
+import { getPref, setPref } from "./prefs";
 import PreviewPlots from "./components/PreviewPlots";
 import StartCard from "./components/StartCard";
 import { mavlinkResume } from "./mavlink";
@@ -36,6 +37,7 @@ import Toasts from "./components/Toasts";
 import Jobs from "./components/Jobs";
 const Help = lazyPreload(() => import("./components/Help"));
 const GuideDialog = lazyPreload(() => import("./components/GuideDialog"));
+const SettingsDialog = lazyPreload(() => import("./components/SettingsDialog"));
 import { AxisDialog, ContextMenu, ModalFocus, PromptDialog } from "./components/Overlays";
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
@@ -166,9 +168,10 @@ function PlotGrid() {
 /* ---------------------------------------------------------------- resizable side panels */
 const MIN_PANEL = 200, MIN_STAGE = 380;
 function loadWidth(key: string, def: number): number {
-  try { const v = Number(localStorage.getItem(`sv3.w.${key}`)); return v >= MIN_PANEL && v <= 1400 ? v : def; } catch { return def; }
+  const v = Number(getPref(`sv3.w.${key}`));
+  return v >= MIN_PANEL && v <= 1400 ? v : def;
 }
-function saveWidth(key: string, w: number) { try { localStorage.setItem(`sv3.w.${key}`, String(Math.round(w))); } catch { /* private mode */ } }
+function saveWidth(key: string, w: number) { setPref(`sv3.w.${key}`, Math.round(w)); }
 
 /** A draggable divider next to a side panel (mouse, touch or arrow keys; double-click = default width).
  *  `grow` is +1 when moving the pointer toward the plots makes the panel wider (the panel is on the
@@ -207,6 +210,7 @@ export default function App() {
   const importPaths = useApp((s) => s.importPaths);
   const helpOpen = useApp((s) => s.helpOpen);
   const guideOpen = useApp((s) => s.guideOpen);
+  const settingsOpen = useApp((s) => s.settingsOpen);
   const previewHtml = useApp((s) => s.reportPreviewHtml);
   const compareTable = useApp((s) => !!s.compareTable);
   const templatesOpen = useApp((s) => s.templatesOpen);
@@ -454,9 +458,10 @@ export default function App() {
       if (mod && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); actions.cycleTab(e.key === "PageDown" ? 1 : -1); return; }
       if (e.ctrlKey && e.key === "Tab") { e.preventDefault(); actions.cycleTab(e.shiftKey ? -1 : 1); return; }
       if (e.key === "F5" || (mod && e.key.toLowerCase() === "r")) { e.preventDefault(); refreshAll(); return; }   // not a page reload
-      if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen || st.guideOpen) return;
+      if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen || st.guideOpen || st.settingsOpen) return;
       if (e.key === "?") { useApp.setState({ helpOpen: true }); return; }
       if (e.key === "F1") { e.preventDefault(); useApp.setState({ guideOpen: true }); return; }   // T55
+      if (mod && e.key === ",") { e.preventDefault(); useApp.setState({ settingsOpen: true }); return; }   // T18
       if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); st.undo(); return; }
       if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); st.redo(); return; }
       if (mod) return;
@@ -553,6 +558,7 @@ export default function App() {
         {importPaths && <ImportDialog />}
         {helpOpen && <Help />}
         {guideOpen && <GuideDialog />}
+        {settingsOpen && <SettingsDialog />}
         {previewHtml && <ReportPreview />}
         {compareTable && <CompareTable />}
         {templatesOpen && <TemplateLibrary />}

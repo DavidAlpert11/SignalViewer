@@ -29,8 +29,9 @@ def g3(env):
     urllib.request.urlopen(urllib.request.Request(env["url"] + "/api/files/open", json.dumps({"paths": [os.path.join(d, "att_case.csv")]}).encode(),
                                                   {"Content-Type": "application/json"}))
     auto = os.path.join(env["home"], ".signalviewer", "autosave.json")
-    if os.path.exists(auto):
-        os.remove(auto)
+    for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
+        if os.path.exists(f):
+            os.remove(f)
     with sync_playwright() as p:
         b = p.chromium.launch(args=GL)
         pg = b.new_context(viewport={"width": 1100, "height": 800}, locale="en-US").new_page()
@@ -121,8 +122,9 @@ def g3multi(env):
     urllib.request.urlopen(urllib.request.Request(env["url"] + "/api/files/open", json.dumps(
         {"paths": [os.path.join(d, n) for n in ("obj_A.csv", "obj_B.csv", "obj_C.csv")]}).encode(), {"Content-Type": "application/json"}))
     auto = os.path.join(env["home"], ".signalviewer", "autosave.json")
-    if os.path.exists(auto):
-        os.remove(auto)
+    for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
+        if os.path.exists(f):
+            os.remove(f)
     with sync_playwright() as p:
         b = p.chromium.launch(args=GL)
         pg = b.new_context(viewport={"width": 1200, "height": 800}, locale="en-US").new_page()
@@ -199,8 +201,9 @@ def g3move(env):
     urllib.request.urlopen(urllib.request.Request(env["url"] + "/api/files/open", json.dumps({"paths": [os.path.join(d, "obj_move.csv")]}).encode(),
                                                   {"Content-Type": "application/json"}))
     auto = os.path.join(env["home"], ".signalviewer", "autosave.json")
-    if os.path.exists(auto):
-        os.remove(auto)
+    for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
+        if os.path.exists(f):
+            os.remove(f)
     with sync_playwright() as p:
         b = p.chromium.launch(args=GL)
         pg = b.new_context(viewport={"width": 1200, "height": 800}, locale="en-US").new_page()

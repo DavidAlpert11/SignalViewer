@@ -52,3 +52,27 @@ def client_error(req: ClientError):
 def diagnostics(ui: Optional[str] = None):
     from app import crashlog
     return crashlog.diagnostics(ui)
+
+
+# =============================================================================
+# UI SETTINGS (T18, F30): kept in ~/.signalviewer/ui_settings.json, not in the browser
+# =============================================================================
+
+@router.get("/api/settings")
+def get_settings():
+    from app import prefs
+    return {"settings": prefs.ui_settings()}
+
+
+class SettingsChange(BaseModel):
+    changes: dict
+
+
+@router.put("/api/settings")
+def put_settings(req: SettingsChange):
+    from app import prefs
+    from app.common import fail
+    try:
+        return {"settings": prefs.update_ui_settings(req.changes)}
+    except ValueError as e:
+        fail(400, str(e))

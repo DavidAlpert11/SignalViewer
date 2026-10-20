@@ -1192,3 +1192,10 @@ input.fx-input { width: 100%; }
 .guide-body code { background: var(--panel-2); border-radius: 4px; padding: 0 4px; font-size: .92em; direction: ltr; unicode-bidi: isolate; }
 .guide-table { border-collapse: collapse; margin: 8px 0; }
 .guide-table th, .guide-table td { border: 1px solid var(--line); padding: 4px 10px; text-align: start; }
+
+/* T18: Settings */
+.dialog.settings { width: min(560px, 94vw); }
+.settings-body { display: flex; flex-direction: column; gap: 14px; padding: 8px 20px 18px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.set-row > span:first-child { display: flex; flex-direction: column; }
+.set-row small { color: var(--muted); font-size: .85em; margin-top: 2px; max-width: 260px; }
