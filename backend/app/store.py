@@ -16,6 +16,7 @@ import numpy as np
 
 from svcore.csv_loader import CSVImportSettings, _read_head_lines, append_new_rows, detect_delimiter, load_csv
 from svcore.mat_loader import MatNeedsExtra, load_mat
+from svcore.can_loader import CAN_EXTS, CanError, load_can
 from svcore.readers import ReaderError
 from svcore.readers import read as user_read
 from svcore.bin_loader import BinFormatError, append_new_messages, load_bin
@@ -128,8 +129,9 @@ class LoadError(Exception):
         self.params = params
 
 
-SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq")
-TEXT_EXTS = (".csv", ".txt", ".tsv", ".dat")
+SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq",
+                  ".asc", ".log")       # T40b: CAN logs (with a .dbc)
+TEXT_EXTS = (".csv", ".txt", ".tsv", ".dat", ".asc", ".log")
 _KIND_EXT = {"mat": ".mat", "ulg": ".ulg", "bin": ".bin", "hdf5": ".h5", "mcap": ".mcap", "parquet": ".parquet"}
 # the extensions a signature may have: HDF5 is also MATLAB v7.3 (T27)
 _KIND_OK = {"mat": (".mat",), "hdf5": (".h5", ".hdf5", ".mat"), "ulg": (".ulg",), "bin": (".bin",), "mcap": (".mcap",), "parquet": (".parquet", ".pq")}
@@ -160,6 +162,20 @@ def _text_with_zero_block(head: bytes) -> bool:
         return False
     printable = sum(1 for b in rest if b in (9, 10, 13) or 32 <= b < 127 or b >= 0xC2)
     return printable >= 0.95 * len(rest)
+
+
+def _can_csv(path: str) -> bool:
+    """A .csv that is a CAN frame log (time,id,data) - opened with the .dbc, not as a table -
+    only when a .dbc sits next to it."""
+    d = os.path.dirname(path)
+    try:
+        if not any(f.lower().endswith(".dbc") for f in os.listdir(d)):
+            return False
+        with open(path, encoding="utf-8-sig", errors="replace") as f:
+            head = [h.strip().lower() for h in f.readline().split(",")]
+    except OSError:
+        return False
+    return len(head) <= 6 and any(h in ("id", "can_id", "arbitration_id") for h in head) and any(h in ("data", "payload") for h in head)
 
 
 def check_file(path: str, settings: Optional[dict] = None) -> None:
@@ -331,6 +347,16 @@ class Store:
         elif ext not in SUPPORTED_EXTS:
             names = ", ".join(r["name"] for r in userreaders.for_ext(ext))
             raise LoadError(f"Your reader ({names}) found nothing to read in {os.path.basename(path)}.", "readerEmpty")
+        elif ext in CAN_EXTS or (ext == ".csv" and _can_csv(path)):     # T40b: CAN bus logs + .dbc
+            try:
+                run, rep = load_can(path, name, [userreaders.folder()])
+            except CanError as e:
+                raise LoadError(str(e), "badCan") from None
+            if run is None:
+                ids = ", ".join(list(rep.get("unknownIds", {}))[:8])
+                raise LoadError(f"None of the CAN ids in {os.path.basename(path)} are in the .dbc files ({', '.join(rep.get('dbc', []))})"
+                                + (f"; the log has {ids}." if ids else "."), "badCan")
+            report.update(rep)
         elif ext == ".mat":
             try:
                 run, skipped = load_mat(path, name, (settings or {}).get("time_column"))

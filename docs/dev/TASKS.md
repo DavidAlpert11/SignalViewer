@@ -895,7 +895,7 @@ report - and into test automation (pass / fail in CI); new formats only without 
 | Q69 | T59 Lighter pip install: optional readers / reports as extras, a clear message when one is missing | M | ☑ done |
 | Q70 | T60 Reader plugins: a file format as a Python file in the user's folder (like T-operations) | M | ☑ done (UI listing: follow-up) |
 | Q71 | T61 Binary ICD decoder: raw packet recordings described in a layout (own code, MIT) | L | ☑ done |
-| Q72 | T40 part 2: CAN - own DBC decoder (option B, MIT) + candump / ASC / CSV CAN logs | L | ☐ owner decides |
+| Q72 | T40 part 2: CAN - own DBC decoder (option B, MIT) + candump / ASC / CSV CAN logs | L | ☑ done (option B; MF4 not done) |
 | Q73 | T43 part: README slimmed to a front page, the full catalogue in a docs site (GitHub Pages) | M | ☐ |
 
 Not queued, to decide: ROS 1 bags (`rosbags`, Apache-2.0); TDMS (npTDMS is LGPL - own reader or
@@ -1022,6 +1022,23 @@ payload; packets whose layout depends on a field (variants); live follow of a gr
 ### Q72 · T40 part 2 · CAN with DBC — L (owner decides)
 Option B from ROADMAP T40: an own DBC parser + decoder (MIT), CAN logs as candump / ASC / CSV;
 .blf and MF4 later or never.
+**Decision (2026-10-20):** the owner asked for every task of the plan to be done; option B was the
+recommendation of 2026-10-18 and keeps everything MIT, so it was taken. MF4 / .blf stay undone.
+**Status:** done 2026-10-20. `svcore/dbc.py`: `parse_dbc` (BO_, SG_ incl. M / m<k>, VAL_,
+SIG_VALTYPE_; a line that cannot be read names its number), `frame_key` (29-bit = bit 31, as in the
+file), `_raw_bits` (all frames of an id at once; Intel from the LSB, Motorola from the MSB in the
+"sawtooth" numbering via its big-endian bit index; up to 8 bytes vectorized, a 9-byte span exact in
+Python), `decode_signal` (two's complement, float32 / 64, factor / offset - not for value names),
+`decode_message` (multiplexed signals only where the switch matches; a signal past a frame's real
+length is NaN, not the zero padding). `svcore/can_loader.py`: candump log / screen output, Vector
+ASC classic lines, CSV (time, id, data), the .dbc files next to the log + the readers folder (the
+log's first), Unix times start at 0 (`startUnixTime` in the report), unknown ids counted.
+`Store.open_file`: .asc / .log, and a .csv with id + data columns when a .dbc is next to it (a plain
+table next to a .dbc stays a table). Extensions added to SUPPORTED_EXTS, TEXT_EXTS, common.SUPPORTED
+and DATA_EXTS. Tests: `test_can.py` (7) - hand-made frames for each format, and agreement with
+cantools on ~1,900 random values (cantools only if installed; not a dependency).
+**Follow-ups:** ASC CAN FD lines; several buses with the same id (channel per .dbc); the installer's
+*Open with* for .asc; MF4 (asammdf, LGPL - optional only, owner's call).
 
 ### Q73 · T43 part · Docs site and a shorter README — M
 README: what it is, one clip, install, three uses, a comparison with similar tools; the
@@ -1227,3 +1244,4 @@ README: what it is, one clip, install, three uses, a comparison with similar too
 - 2026-10-20 · Q69 / T59: pip extras from svcore/extras.py, messages for .tlog / MAT v7.3 / reports, wheel check covers the plain and [all] installs. Backend 687, mypy clean.
 - 2026-10-20 · Q70 / T60: user readers (svcore/readers.py, app/userreaders.py, /api/readers, CLI readers), extensions in the file dialog and drops; MAT v7.3 extra message code fixed. Backend 691, mypy clean, tsc + build clean (dist not in the patch).
 - 2026-10-20 · Q71 / T61: binary layouts (svcore/icd.py) as readers in the readers folder, CLI example. Backend 701, mypy clean.
+- 2026-10-20 · Q72 / T40b: CAN logs + own DBC decoder (svcore/dbc.py, can_loader.py), checked against cantools. Backend 708, mypy clean, tsc clean.
