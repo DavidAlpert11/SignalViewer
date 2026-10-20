@@ -64,8 +64,9 @@ def page(server):
         pg.on("pageerror", lambda e: errors.append(str(e)))
         # fresh state for every test: no autosaved workspace, no open files
         auto = os.path.join(server["home"], ".signalviewer", "autosave.json")
-        if os.path.exists(auto):
-            os.remove(auto)
+        for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
+            if os.path.exists(f):
+                os.remove(f)
         for r in json.loads(urllib.request.urlopen(server["url"] + "/api/runs").read()):
             if r["format"] != "derived":
                 urllib.request.urlopen(urllib.request.Request(f"{server['url']}/api/runs/{r['id']}", method="DELETE"))

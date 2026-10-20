@@ -266,8 +266,9 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   `test_frame_group_nested_names`; e2e `test_frame_conversion` extended.
 
 ## Milestone 3 — 1.3.0: smoother work
-- [ ] T18 Settings dialog (language, theme, map layer, live defaults); language and theme
-  leave the TopBar.
+- [x] T18 Settings dialog (language, theme, map layer, live defaults); language and theme
+  leave the TopBar. Done 2026-10-20 (Q34): theme, text size, time format in Settings; the language
+  stays a top-bar button and live choices stay in Live (one place each), all kept in ui_settings.json.
 - [x] T19 Zoom mode by modifier keys (Shift = Y, Ctrl = XY); X/Y/XY moves to a menu.
   Done: TimeChart decides each drag's mode on mousedown (Shift y, Ctrl / Cmd xy, else the zoom
   mode) and writes it into `u.cursor.drag` (uPlot reads x / y / uni live); `gestRef` feeds
@@ -608,7 +609,8 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F27 Mouse wheel on trackpads / sideways swipe (Q59). Done 2026-10-19: chartUtil wheelZoom.
 - [~] T55 User guide and a 3-minute tour (Q60). Guide done 2026-10-19 (docs/GUIDE*.md, Help > User guide); the tour video: owner.
 - [~] T56 PyPI package (Q61). Built and checked 2026-10-19 (tools/make_pypi.py, CI jobs); publishing after the owner's one-time PyPI setup.
-- [ ] F28 One time format (Q34, with T18).
+- [x] F28 One time format (Q34, with T18). Done 2026-10-20: seconds as recorded by default.
+- [x] F30 Choices forgotten at every start (localStorage per port). Done 2026-10-20 (Q34): ui_settings.json.
 - [ ] F29 Small labels, precision, autosave backup (Q63).
 
 ## Later

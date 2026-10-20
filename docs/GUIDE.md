@@ -30,7 +30,9 @@ are told apart by them.
   *Report*, and for flight logs *Flight log* and *Fleet*.
 - **Middle:** the plots of the current tab. Tabs are at the top; the layout button (1 × 1) splits a
   tab into rows and columns.
-- **Bottom:** the timeline – play, the time shown, the cursor.
+- **Bottom:** the timeline – play, the time shown, the cursor. Time is written in seconds as
+  recorded, like the axes; *Settings* (the gear, Ctrl+,) can show a clock from the start instead,
+  and holds the theme and the text size.
 - **Right:** the Inspector – values at the cursor, statistics, the selected signal's settings.
 
 ## 4. Plot

@@ -43,6 +43,10 @@ export interface UiSlice {
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;
   guideOpen: boolean;          // T55: the user guide dialog
+  settingsOpen: boolean;       // T18
+  /** F28: how the timeline writes time - seconds as recorded (like the axes, the cursor, the
+   *  Inspector) or a clock from the start of the recording (m:ss) */
+  timeFormat: "seconds" | "clock";
   /** F24: each plot's room left / right of its plot area (px), so a column of plots shares one -
    *  the time axes line up. Reported by the charts; UI only. */
   gutters: Record<string, [number, number]>;
@@ -88,6 +92,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   uiScale: 1,
   helpOpen: false,
   guideOpen: false,
+  settingsOpen: false,
+  timeFormat: "seconds",
   gutters: {},
 
   set: (p) => set(p),
