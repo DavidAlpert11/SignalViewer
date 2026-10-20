@@ -297,7 +297,7 @@ def test_plot_menu_closes_like_every_menu(page, server):
     _open(page, server["data"], ["run_a.csv"])
     page.locator(".sig", has_text="Speed").first.click()
     page.wait_for_selector(".plot .chip")
-    menu = page.locator(".plot .menu")
+    menu = page.locator(".menu.ctx")
     page.locator(".plot-more").first.click(); menu.wait_for()
     page.keyboard.press("Escape"); menu.wait_for(state="detached")
     page.locator(".plot-more").first.click(); menu.wait_for()

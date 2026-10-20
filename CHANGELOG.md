@@ -6,9 +6,12 @@
 - **Open files from outside:** *Open with* in Windows Explorer (offered by the installer for .bin, .tlog, .ulg, .mcap, .mat, .csv, .parquet and .h5 files; a saved session, .svsession, opens with a double-click) and `SignalViewer file.bin` on the command line. When Signal Viewer is already running the files open **in that window**, which comes to the front – several files chosen together open in one app, not one app each. `--new-window` starts a separate app. Your default programs for those file types are not changed.
 
 ### Changed
+- **The plot header is one line:** the plot's type is one button with its name (*Time ▾*) instead of nine buttons on every plot, and the legend sits next to it when there is room. In a small window each plot has about half again as much height for the curves.
+- **Right-click in a plot** opens its menu: cursor here, second cursor here, note here, previous zoom, show everything, and the plot's options (export, images, axis limits, clear).
 - **Downloads:** every release now has the **Windows installer** (`SignalViewer-Setup-X.Y.Z.exe`, for the current user, no administrator rights) and the Windows portable package also as a **.zip** (Windows 10 opens it without 7-Zip), next to the .7z packages, with a short "which file?" note on the release page. The installer is installed and started by the build before it is published.
 
 ### Fixed
+- **The plot menu (⋯) was cut off in short plots** (several plots in a small window): *Axis limits* and *Clear plot* could not be reached. Menus are now drawn above everything.
 - **Plots in a column line up.** With linked time, a plot whose value axis was wider (a unit label, larger numbers, text values) started further right, so the same moment was at a different place in each plot. The plots of a column now share one axis width; a spectrogram spans its signal's whole time like the signal's own plot (it covered only the part where its window fits).
 - **An Envelope plot zooms with the tab's time plots** (drag, double-click, Backspace and R as in a time plot); before, its zoom was its own.
 - **Statistics could show another signal's numbers.** With *only while* a state has a value, two signals of one file could show the same min / max / mean (one signal's numbers under the other's name); a report with scaled signals and a file reloaded with the same length could do the same. The statistics are now always computed from the signal they are shown for.

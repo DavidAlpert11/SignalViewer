@@ -30,7 +30,7 @@ def _files(pg):
 
 def _map_with_objects(pg):
     open_files(pg, "obj_aircraft.csv", "obj_ship.csv")
-    pg.locator(".plot .mode-seg button", has_text="Map").click()
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.locator(".obj-add").click()
     pg.wait_for_selector(".obj-dialog")
     filled = pg.evaluate("[...document.querySelectorAll('.obj-role select')].filter(s => !s.getAttribute('aria-label').includes('–')).map(s => s.value.split('/')[1] || '')")

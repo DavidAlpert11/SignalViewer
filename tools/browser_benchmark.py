@@ -448,7 +448,7 @@ def group_map(b):
         pg.on("requestfinished", lambda q: done.add(q.url) if "/api/tiles/offline_topo" in q.url else None)
         t0 = time.time()
         pg.evaluate("window.__sv.setState({ geoBase: 'offline' })")
-        pg.locator(".plot .mode-seg button", has_text="Map").click()
+        pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
         pg.wait_for_selector(".plot .geo canvas")
         quiet = 0
         while quiet < 4 and time.time() - t0 < 60:

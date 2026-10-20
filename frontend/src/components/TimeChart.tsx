@@ -623,6 +623,12 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       if (xr || yr) actions.setView(key, xr, yKey, yr);
     };
     const onDbl = () => actions.setView(key, null, yKey, null);
+    // T49 item 12: a right-click hands the moment under the pointer to the plot's menu (PlotView)
+    const onCtx = (e: MouseEvent) => {
+      const rect = u.over.getBoundingClientRect();
+      (e as MouseEvent & { svTime?: number }).svTime = u.posToVal(e.clientX - rect.left, "x");
+    };
+    u.over.addEventListener("contextmenu", onCtx);
     host.addEventListener("wheel", onWheel, { passive: false });
     // hovering a log marker shows its full text
     const onMoveTip = (e: MouseEvent) => {
