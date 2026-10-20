@@ -186,13 +186,20 @@ def cmd_readers(a) -> int:
     if a.example:
         print(userreaders.write_example())
         return 0
+    if a.example_icd is not None:
+        print(userreaders.write_example_icd()["layout"])
+        if a.example_icd:                            # and a recording to open with it
+            from svcore.icd import write_example_recording
+            write_example_recording(a.example_icd)
+            print(a.example_icd)
+        return 0
     info = userreaders.listing()
     if a.json:
         print(json.dumps(info, ensure_ascii=False))
         return 0
     print(f"Readers folder: {info['folder']}")
     for r in info["readers"]:
-        print(f"  {r['name']}  ({', '.join(r['extensions'])})  [{r['file']}]")
+        print(f"  {r['name']}  ({', '.join(r['extensions'])})  [{r['file']}]" + ("  binary layout" if r.get("kind") == "icd" else ""))
     for e in info["errors"]:
         print(f"  not loaded: {e['error']}")
     if not info["readers"] and not info["errors"]:
@@ -242,6 +249,8 @@ def main(argv=None) -> int:
     p.set_defaults(fn=cmd_compare)
     p = sub.add_parser("readers", help="your own file readers (a format as a Python file in the readers folder)")
     p.add_argument("--example", action="store_true", help="write an example reader (.kv files) into the folder")
+    p.add_argument("--example-icd", nargs="?", const="", metavar="RECORDING.tlm",
+                   help="write an example binary layout (.icd.json, .tlm files) into the folder; with a path, also a recording for it")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_readers)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)

@@ -140,6 +140,8 @@ def to_run(result: Any, path: str, display_name: str, reader_name: str) -> Optio
         run.start_time = min([run.start_time] + [float(x[0]) for x in times])
         run.end_time = max([run.end_time] + [float(x[-1]) for x in times])
     run.import_settings = {"format": "reader", "reader": reader_name}
+    if isinstance(result.get("report"), dict):           # what the reader wants the load report to say
+        setattr(run, "load_report", dict(result["report"]))
     return run
 
 
