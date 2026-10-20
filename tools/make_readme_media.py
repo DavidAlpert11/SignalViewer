@@ -76,10 +76,11 @@ def reset(app):
     for r in runs:
         if r.get("format") != "derived":
             urllib.request.urlopen(urllib.request.Request(f"{app.url}/api/runs/{r['id']}", method="DELETE"))
-    try:
-        os.remove(os.path.join(app.home, ".signalviewer", "autosave.json"))
-    except OSError:
-        pass
+    for name in ("autosave.json", "ui_settings.json"):    # settings too (1.8: kept in the app folder) -
+        try:                                             # the Hebrew scene must not leave the next ones in Hebrew
+            os.remove(os.path.join(app.home, ".signalviewer", name))
+        except OSError:
+            pass
 
 
 def page(browser, app, dark=False, video=None):
