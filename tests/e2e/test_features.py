@@ -142,7 +142,13 @@ def open_files(pg, *names, options=False, clear=True):
         pg.wait_for_function(f"window.__sv.state().runs.filter(r => r.format !== 'derived').length >= {before + len(names)}", timeout=30000)
         if clear:   # the first signal of a first file is plotted automatically; start each test clean
             pg.wait_for_timeout(300)
-            pg.click("[aria-label='Clear all plots']")
+            clear_plots(pg)
+
+
+def clear_plots(pg):
+    """T63: the stage bar's Clear button opens its menu; the first entry empties this tab's plots."""
+    pg.click(".stage-bar [aria-label='Clear']")
+    pg.click(".menu.ctx button:has-text(\"This tab's plots\")")
 
 
 def save_as(pg, name, folder=None):
@@ -462,19 +468,59 @@ def test_V11_clear_plot_and_all(pg):
     sig(pg, "Speed").click(); pg.keyboard.press("2"); sig(pg, "RPM").click()
     pg.locator(".plot-more").first.click(); pg.click("text=Clear plot")
     assert chips(pg, 0) == [] and chips(pg, 1) == ["RPM"]
-    pg.click("[aria-label='Clear all plots']")
+    clear_plots(pg)
     assert chips(pg, 1) == []
     pg.keyboard.press("Control+z")
     assert chips(pg, 1) == ["RPM"]
     # T06: the toast says it can be undone, and its Undo works too
-    pg.click("[aria-label='Clear all plots']")
+    clear_plots(pg)
     assert pg.locator(".toast", has_text="Plots cleared").count() == 1     # replaced, not stacked
     pg.locator(".toast", has_text="Plots cleared").locator("button", has_text="Undo").click()
     assert chips(pg, 1) == ["RPM"]
     # a stale Undo must never undo a later change: the next change takes the toast away
-    pg.click("[aria-label='Clear all plots']")
+    clear_plots(pg)
     pg.keyboard.press("Control+z")
     pg.wait_for_function("!document.querySelector('.toast')?.textContent?.includes('Plots cleared')")
+
+
+def test_T63_clear_menu_scopes(pg):
+    """T63: one Clear button, its scopes in a menu; all but "Everything" keep the files and undo."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.click("[aria-label='New tab']")
+    sig(pg, "RPM").click()
+    state = lambda js: pg.evaluate(f"(() => {{ const s = window.__sv.state(); return {js}; }})()")
+    files = lambda: state("s.runs.filter(r => r.format !== 'derived').length")
+    assert state("s.ws.tabs.length") == 2
+    def pick(text):
+        pg.click(".stage-bar [aria-label='Clear']")
+        pg.locator(".menu.ctx button", has_text=text).click()
+    # the other tabs
+    pick("The other tabs (1)")
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 1")
+    pg.locator(".toast button", has_text="Undo").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
+    # tabs + derived signals + edits: only the data stays, one Undo brings it all back
+    rid = state("s.runs.find(r => r.format !== 'derived').id")
+    pg.evaluate("""async (rid) => {
+        await fetch('/api/derived', {method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({op: 'derivative', sources: [rid + '/RPM'], params: {}, name: 'dRPM'})});
+        window.__sv.setState({runs: await (await fetch('/api/runs')).json()});
+    }""", rid)
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.format === 'derived')")
+    pick("derived signals (1)")
+    pg.wait_for_function("!window.__sv.state().runs.some(r => r.format === 'derived') && window.__sv.state().ws.tabs.length === 1")
+    assert files() == 1 and state("s.ws.tabs[0].plots.every(p => p.signals.length === 0)")
+    pg.locator(".toast button", has_text="Undo").click()
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.format === 'derived') && window.__sv.state().ws.tabs.length === 2")
+    # all tabs: one empty tab, the files and the derived signal stay
+    pick("All tabs (2)")
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 1")
+    assert files() == 1 and state("s.runs.some(r => r.format === 'derived')")
+    # the File menu has the same scopes, and "Clear everything" as before
+    pg.locator(".topbar .menubar-btn", has_text="File").click()
+    pg.locator(".menu.ctx button", has_text="Clear").first.click()
+    assert pg.locator(".menu.ctx.sub button", has_text="The other tabs").count() == 1
 
 
 # =========================================================== C / T: cursor & stats

@@ -886,7 +886,7 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 |---|---|---|---|
 | Q74 | F33 README: the Hebrew section is one run-on paragraph with struck-through text - fix it | S | ☑ done |
 | Q75 | T62 `pip install signalviewer` = everything again; the light install under another name | M | ☑ done (owner: PyPI publisher for signalviewer-lite) |
-| Q76 | T63 One Clear button with a menu: this tab / the other tabs / all tabs / tabs + derived signals and edits / everything | M | ☐ |
+| Q76 | T63 One Clear button with a menu: this tab / the other tabs / all tabs / tabs + derived signals and edits / everything | M | ☑ done (e2e written, not run here) |
 | Q77 | F34 Nothing cached is used after the data changed (owner: "make sure there is no cache that is used although the data was updated") | M | ☑ done |
 
 ### Q74 · F33 The README's Hebrew section — S
@@ -915,6 +915,23 @@ Docs: README, install.md, command-line.md, limitations.md, CHANGELOG.
 **Owner, once before the 1.9.0 release:** PyPI -> Your account -> Publishing -> "Add a new pending
 publisher": PyPI project name `signalviewer-lite`, owner `DavidAlpert11`, repository `SignalViewer`,
 workflow `build.yml`, environment `pypi` (the same as `signalviewer`). The release job uploads both.
+
+### Q76 · T63 One Clear button, a menu of scopes — M
+**Why (owner):** besides "Clear everything" (File menu) a way to clear the plots and the work and keep
+the data; a button with a drop-down is handier than a File menu entry.
+**Done 2026-10-20:** `frontend/src/clearing.ts` - `clearMenuItems()`: this tab's plots (the existing
+`clearAllPlots`), `closeOtherTabs`, `clearAllTabs` (one empty tab; zoom / ranges / selection
+forgotten), `clearWork` (tabs, notes, derived signals, in-place edits; files and their time
+alignment stay; ONE Undo restores the derived signals from their formulas, the edits from
+`/api/transforms`' `previous`, the workspace, and bumps `dataVersion`), and `clearEverything`
+(unchanged, asks). The undoable ones use the toast's Undo (`undoesWs`: it goes away at the next
+change, F12) and Ctrl+Z for the workspace. The stage bar's eraser became **Clear ▾**
+(aria-label "Clear"); File menu: a *Clear* submenu with the four undoable scopes, then *Clear
+everything* as before; Ctrl+K: other tabs / all tabs / work. Labels count what goes (tabs,
+derived signals, edits, files). i18n en + he. Guide (en + he) section 9, features.md.
+**Tests:** tsc, oxlint, vite build clean. e2e: `test_T63_clear_menu_scopes` (other tabs + Undo, work
++ Undo, all tabs, the File submenu) and the helper `clear_plots` for the tests that clicked the old
+eraser - **written, not run** (no browser in this sandbox): run `pytest tests/e2e` before the release.
 
 ### Q77 · F34 Stale data after a change — M
 **Audit (2026-10-20)** of every cache keyed on data, and what changes the data:
@@ -1327,3 +1344,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Owner's review after Q65-Q73: plan Q74-Q77. Q77 / F34: derived versions name their definition (serial), Python operations recomputed on reload, run / derived versions in the run list and the UI's data keys, CSV cache + live follow with a content fingerprint. Backend 713, mypy and tsc clean.
 - 2026-10-20 · Q74 / F33: README Hebrew section rewritten (RTL div, structured, no `~`).
 - 2026-10-20 · Q75 / T62: two PyPI distributions (signalviewer = full, signalviewer-lite = core + extras), hints per flavour, both checked. Backend tests green.
+- 2026-10-20 · Q76 / T63: Clear button with scopes (clearing.ts), File submenu, Ctrl+K; e2e written (not run here). Plan Q74-Q77 done.

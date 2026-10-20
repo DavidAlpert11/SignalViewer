@@ -1,3 +1,4 @@
+import { clearAllTabs, clearWork, closeOtherTabs } from "../clearing";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { refreshAll, toggleLive } from "../live";
 import { mavlinkDisconnect } from "../mavlink";
@@ -55,6 +56,9 @@ export default function CommandPalette() {
       { id: "tab", label: t("addTab"), group: t("tab"), icon: <Icon.Plus />, run: actions.addTab },
       { id: "duptab", label: t("duplicateTab"), group: t("tab"), icon: <Icon.Copy />, run: () => actions.duplicateTab(st().ws.activeTab) },
       { id: "clearplots", label: t("clearAll"), group: t("tab"), icon: <Icon.Eraser />, run: actions.clearAllPlots },
+      { id: "clearothertabs", label: `${t("clearMenu")}: ${t("clearOtherTabs", { n: Math.max(0, useApp.getState().ws.tabs.length - 1) })}`, group: t("tab"), icon: <Icon.Eraser />, run: closeOtherTabs },
+      { id: "clearalltabs", label: `${t("clearMenu")}: ${t("clearAllTabs", { n: useApp.getState().ws.tabs.length })}`, group: t("tab"), icon: <Icon.Eraser />, run: clearAllTabs },
+      { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       // F22: every tab is reachable by name, however many there are
       ...st().ws.tabs.map((tb, i) => ({ id: `goto-${tb.id}`, label: t("goToTab", { name: tb.name || `${t("tab")} ${i + 1}` }), group: t("tab"),
