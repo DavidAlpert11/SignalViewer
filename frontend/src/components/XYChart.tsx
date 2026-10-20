@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api } from "../api";
 import { actions, shownSpan, signalName, useApp, type Plot } from "../store";
-import { axisStyle, tickValues, dpr, indexSpan, orderedLinesIn, PLOT_THEME, useSize } from "./chartUtil";
+import { axisStyle, tickValues, dpr, indexSpan, orderedLinesIn, PLOT_THEME, useSize, wheelZoom } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string }
 
@@ -100,7 +100,8 @@ export default function XYChart({ plot, index, onLoading, emptyText }: Props) {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const r = u.over.getBoundingClientRect();
-      const f = e.deltaY < 0 ? 0.8 : 1.25;
+      const f = wheelZoom(e);                 // F27: in proportion to the step
+      if (f === null) return;
       const xv = u.posToVal(e.clientX - r.left, "x"), yv = u.posToVal(e.clientY - r.top, "y");
       const sx = u.scales.x, sy = u.scales.y;
       u.batch(() => {

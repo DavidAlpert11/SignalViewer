@@ -143,3 +143,20 @@ export function useGutter(tab: Tab, plotId: string, on = true): [number, number]
   }, [plotId, on]);
   return [L, R];
 }
+
+
+/* F27: a wheel step's size from what the device sends. A mouse notch is ~100 px (or 3 lines) and
+   zooms by 25 %, as before; a trackpad sends many small steps and zooms in proportion (it zoomed
+   25 % per event - far too fast). `deltaMode` 1 = lines, 2 = pages. */
+export function wheelPixels(e: WheelEvent): { dx: number; dy: number } {
+  const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? (window.innerHeight || 800) : 1;
+  return { dx: e.deltaX * k, dy: e.deltaY * k };
+}
+/** The zoom factor of one wheel step (< 1 = in), or null when it is not a vertical scroll. */
+export function wheelZoom(e: WheelEvent): number | null {
+  const { dx, dy } = wheelPixels(e);
+  if (dy === 0 || Math.abs(dx) > Math.abs(dy)) return null;
+  return Math.min(2, Math.max(0.5, Math.exp(Math.max(-120, Math.min(120, dy)) * 0.00223)));   // 100 px -> 1.25
+}
+/** Wheel steps in one gesture (closer than this) make one zoom-history step, not one each. */
+export const WHEEL_GESTURE_MS = 400;
