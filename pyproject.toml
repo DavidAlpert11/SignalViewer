@@ -1,4 +1,5 @@
-# Tooling only for now (no package metadata yet - that comes with the command line, T11).
+# Tooling only. The PyPI package's metadata is written by tools/make_pypi.py (T56), from
+# requirements.txt and backend/app/version.py - change it there.
 [tool.pytest.ini_options]
 # `pytest` from the repo root runs the fast backend tests; the browser tests are run on
 # purpose: `pytest tests/e2e` (one file at a time until F02 is fixed).

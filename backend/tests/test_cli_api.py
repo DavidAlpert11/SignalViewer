@@ -81,3 +81,18 @@ def test_resolve_signal_name_rules():
         resolve_signal_name(names, "Alt")                                # never a guess
     with pytest.raises(SignalNameError, match="No signal named 'zzz'"):
         resolve_signal_name(names, "zzz")
+
+
+def test_pypi_readme_links_are_absolute():
+    """F32: PyPI shows the README without the repository - pictures and links must be absolute."""
+    import importlib.util
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "tools", "make_pypi.py")
+    spec = importlib.util.spec_from_file_location("make_pypi", path)
+    mp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mp)
+    with open(os.path.join(os.path.dirname(path), "..", "README.md"), encoding="utf-8") as f:
+        out = mp.pypi_readme(f.read(), "1.2.3")
+    import re
+    assert not re.search(r'(src|href)="(?!https?:|#|mailto:|data:)', out)
+    assert not re.search(r"\]\((?!https?:|#|mailto:)", out)
+    assert "raw.githubusercontent.com/DavidAlpert11/SignalViewer/v1.2.3/docs/images/" in out
