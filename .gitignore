@@ -2,6 +2,7 @@ node_modules/
 frontend/node_modules/
 build/
 dist/
+dist-pypi/
 !frontend/dist/
 frontend/.local-dist/
 __pycache__/

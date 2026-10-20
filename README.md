@@ -154,6 +154,10 @@ On Windows take **`SignalViewer-Setup-X.Y.Z.exe`** (installs for you only, no ad
 to run without installing, the **`…-Windows-x64-portable.zip`** (extract, double-click *Signal
 Viewer.bat*). Linux and macOS: the `-portable.7z` for your system.
 
+**With Python (3.9 or newer):** `pip install signalviewer`, then `signalviewer` starts the app
+(`pip install "signalviewer[desktop]"` for its own window instead of the browser).
+`signalviewer-cli` and `import signalviewer` read and export recordings from scripts.
+
 **Nothing needs the internet at run time.** The installer, the portable folder and the single
 file contain Python, every library, the UI with its fonts, the report assets and the icon.
 Verified by running the built app with no network interface at all.
