@@ -264,10 +264,17 @@ def _spec_png(pdata: Dict, theme: str) -> str:
     return base64.b64encode(figure_bytes(fig, "png")).decode()
 
 
+def _note_when(n: Dict) -> str:
+    """When a note is: "12.5 s", or "12.5 – 18 s" for a note over a time range (T23)."""
+    if n.get("t2") is not None:
+        return f"{_num(n.get('t'))} – {_num(n.get('t2'))} s"
+    return f"{_num(n.get('t'))} s"
+
+
 def _notes_html(notes: List[Dict], S: Dict) -> str:
     if not notes:
         return ""
-    rows = "".join('<li><span class="nt">%s s</span> %s</li>' % (html.escape(_num(n.get("t"))), html.escape(n.get("text", "")))
+    rows = "".join('<li><span class="nt">%s</span> %s</li>' % (html.escape(_note_when(n)), html.escape(n.get("text", "")))
                    for n in sorted(notes, key=lambda n: n.get("t") or 0))
     return '<h2>%s</h2><ul class="notes">%s</ul>' % (S["notes"], rows)
 
@@ -548,6 +555,12 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
             except (TypeError, ValueError):
                 continue
             ax.axvline(tv, color="#3D8BFD", linestyle="--", linewidth=0.8, alpha=0.8)
+            try:                                             # T23: a note over a time range is shaded
+                t2 = float(n["t2"]) if n.get("t2") is not None else None
+            except (TypeError, ValueError):
+                t2 = None
+            if t2 is not None and t2 > tv:
+                ax.axvspan(tv, t2, color="#3D8BFD", alpha=0.1, linewidth=0)
             ax.annotate(_bidi(str(n.get("text", ""))[:40]), (tv, 1), xycoords=("data", "axes fraction"), xytext=(3, -10),
                         textcoords="offset points", fontsize=6.5, color="#3D8BFD")
     if mode == "time" and pdata.get("range"):
@@ -676,7 +689,7 @@ def build_pdf(store, req: Dict, path: str, progress=None):
                 y = paragraphs(fig, req["summary"], y - 0.04) - 0.03
             if notes:
                 fig.text(X, y, _bidi(S["notes"]), ha=ha, va="top", fontsize=14, weight="bold", color=ink)
-                paragraphs(fig, "\n".join(f"{_num(nt.get('t'))} s  {nt.get('text', '')}" for nt in notes), y - 0.04)
+                paragraphs(fig, "\n".join(f"{_note_when(nt)}  {nt.get('text', '')}" for nt in notes), y - 0.04)
             pdf.savefig(fig); plt.close(fig)
 
 
@@ -747,7 +760,7 @@ def build_docx(store, req: Dict, path: str, progress=None):
     if notes:
         rtlize(doc.add_heading(S["notes"], 1))
         for nt in notes:
-            rtlize(doc.add_paragraph(f"{_num(nt.get('t'))} s  {nt.get('text', '')}", style="List Bullet"))
+            rtlize(doc.add_paragraph(f"{_note_when(nt)}  {nt.get('text', '')}", style="List Bullet"))
     doc.save(path)
 
 
