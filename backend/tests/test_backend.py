@@ -1070,3 +1070,18 @@ def test_error_between_two_signals_per_segment(tmp_path):
     finally:
         for rid in list(store.order):
             store.remove(rid)
+
+
+def test_damaged_autosave_is_kept_aside():
+    """F29: an unreadable autosave is moved aside (the next autosave would overwrite the only copy)."""
+    from app.routes.session import AUTOSAVE
+    os.makedirs(os.path.dirname(AUTOSAVE), exist_ok=True)
+    with open(AUTOSAVE, "w") as f:
+        f.write('{"ws": {"tabs": [')                      # half-written
+    r = client.get("/api/autosave").json()
+    assert r["state"] is None and r["damaged"].endswith("autosave.damaged.json")
+    assert os.path.isfile(r["damaged"]) and not os.path.exists(AUTOSAVE)
+    client.post("/api/autosave", json={"ws": {"tabs": []}})
+    assert open(r["damaged"]).read().startswith('{"ws": {"tabs": [')     # still there after the next save
+    assert client.get("/api/autosave").json()["state"] == {"ws": {"tabs": []}}
+    os.remove(r["damaged"]); os.remove(AUTOSAVE)

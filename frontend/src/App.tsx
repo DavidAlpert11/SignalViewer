@@ -264,7 +264,8 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const { state } = await api.getAutosave();
+        const { state, damaged } = await api.getAutosave();
+        if (damaged) useApp.getState().toast({ kind: "error", text: translate(useApp.getState().lang, "autosaveDamaged", { path: damaged }), ms: 15000 });
         if (state?.ws) await applyState(state);
         else useApp.setState({ runs: await api.listRuns() });
       } finally {

@@ -18,6 +18,9 @@
 - **Downloads:** every release now has the **Windows installer** (`SignalViewer-Setup-X.Y.Z.exe`, for the current user, no administrator rights) and the Windows portable package also as a **.zip** (Windows 10 opens it without 7-Zip), next to the .7z packages, with a short "which file?" note on the release page. The installer is installed and started by the build before it is published.
 
 ### Fixed
+- **A damaged autosave is kept:** when the last work cannot be read (the computer went off while it was being saved), the app starts empty as before, but now keeps the file as `autosave.damaged.json` and says where - the next autosave no longer overwrites the only copy.
+- **Sending data from Python behind a company proxy:** the Python client no longer sends its data to the proxy (the app is on the same computer).
+- The Inspector shows a value with as many digits as the legend chip.
 - **Choices were forgotten at every start:** the panels' widths, the Inspector open or closed, the file dialog's sort and last folders, the MAVLink address. The app starts on a new port each time and the browser keeps such things per address; they are kept in the app folder now (what the browser still had is taken over once).
 - **The timeline wrote time differently from everything else** (2:03.0 where the axes, the cursor and the Inspector said 123.4). It writes seconds as recorded now; the clock from the start is a choice in Settings.
 - **Trackpads zoomed far too fast:** every wheel event zoomed by 25 %, and a trackpad sends dozens per gesture. The zoom now follows the size of the scroll (a mouse notch is still about 25 %), one gesture is one step back with Backspace, and a sideways swipe moves along the time axis instead of zooming out. The same in the spectrogram, X-Y, XYZ and map plots.
