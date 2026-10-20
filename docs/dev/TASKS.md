@@ -22,7 +22,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   waits for one CI run (owner: Actions -> build -> Run workflow; the Windows artifact has the .exe,
   .zip and .7z; install it, then "Open with" a .bin / .csv while the app runs). Next: Q24 is the
   owner's (certificate). Q56 (+ Q33), Q57, Q58, Q59 done; Q60 guide done (the tour video is the owner's). Q61 built (publishing needs the owner's PyPI setup, see its log line). Next: Q34 (T18 settings dialog + F28 one time format).
-- Tests at the last change: backend 670 passed, mypy clean, tsc + build clean; whole e2e suite file by file, all passed (187 tests; Q57, 2026-10-19 - test_fresh_user's first_run failed once under load: it counted the file dialog's places before they came; it waits for them now, 3 runs green).
+- Tests at the last change: backend 670 passed, mypy clean, tsc + build clean; whole e2e suite file by file, all passed (190 tests; after Q61, 2026-10-20); `tools/make_pypi.py --check` green.
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
