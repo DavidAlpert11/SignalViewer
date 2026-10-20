@@ -309,7 +309,7 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   query: from 300 px panel width) and a 40x14 band; text signals get no picture. Measured: a
   352-signal list scrolls at 60 fps (p95 16.8 ms/frame). Tests: `test_signal_list_info.py`; e2e
   `test_signal_list_unit_rate_and_picture` (and only the visible rows ask).
-- [ ] T23 Notes over a time range (shaded span), listed in reports.
+- [x] T23 Notes over a time range (shaded span), listed in reports. Done 2026-10-20 (Q31): two cursors + N.
 - [x] T24 Favourite folders and quick open (Ctrl+P, fuzzy over recent folders). Done 2026-10-19 with the extension below.
 - [ ] T25 Sim-vs-flight error signal with RMS per segment.
 - [x] T26 Parameter diff between two logs. *Re-assessed: already there* - the Log panel's

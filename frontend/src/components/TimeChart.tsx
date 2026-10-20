@@ -33,7 +33,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const logs = useApp((s) => s.logs);
   const logMarkers = useApp((s) => s.logMarkers);
   const notes = useApp((s) => s.ws.notes);
-  const markRef = useRef<{ t: number; text: string; level: string }[]>([]);
+  const markRef = useRef<{ t: number; t2?: number; text: string; level: string }[]>([]);
   yZoomRef.current = yZoom;
   const storeRange = useApp((s) => s.ranges[key]);
   const range = storeRange === undefined ? (plot.xlim ?? null) : storeRange;
@@ -221,6 +221,18 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       if (!marks.length) return;
       const ctx = u.ctx, { left, top, width, height } = u.bbox, d = dpr() * uiScale();
       const x0 = u.scales.x.min!, x1 = u.scales.x.max!;
+      // T23: a note over a time range is a shaded span (its marker and text at the start)
+      const noteCol = theme === "dark" ? "#6cb6ff" : "#0969da";
+      for (const m of marks) {
+        if (m.t2 === undefined || m.t2 < x0 || m.t > x1) continue;
+        const a = Math.max(left, u.valToPos(m.t, "x", true)), b = Math.min(left + width, u.valToPos(m.t2, "x", true));
+        if (b <= a) continue;
+        ctx.save();
+        ctx.globalAlpha = 0.1; ctx.fillStyle = noteCol; ctx.fillRect(a, top, b - a, height);
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = noteCol; ctx.lineWidth = Math.max(1, dpr());
+        if (m.t2 <= x1) { const xe = Math.round(b) + 0.5; ctx.beginPath(); ctx.moveTo(xe, top); ctx.lineTo(xe, top + height); ctx.stroke(); }
+        ctx.restore();
+      }
       // events on the same pixels become one marker: texts joined, the most severe colour
       const rank = (l: string) => (l === "note" ? 3 : l === "error" ? 2 : l === "warning" ? 1 : 0);
       const vis: { t: number; text: string; level: string }[] = [];
@@ -787,7 +799,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   }, [cursor, cvals, valuesOnPlot]);
   useEffect(() => { uRef.current?.redraw(false); }, [states, playMode, windowSec]);
   useEffect(() => {
-    const out: { t: number; text: string; level: string }[] = [];
+    const out: { t: number; t2?: number; text: string; level: string }[] = [];
     if (logMarkers !== "off") {
       for (const rid of new Set(sigIds.map((id) => id.slice(0, id.indexOf("/"))))) {
         const L = logs[rid];
@@ -799,7 +811,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         }
       }
     }
-    for (const n of notes ?? []) out.push({ t: n.t, text: "✎ " + n.text, level: "note" });   // the user's notes
+    for (const n of notes ?? []) out.push({ t: n.t, t2: n.t2, text: "✎ " + n.text, level: "note" });   // the user's notes (T23: t2 = a range)
     out.sort((a, b) => a.t - b.t);
     markRef.current = out;
     uRef.current?.redraw(false);
