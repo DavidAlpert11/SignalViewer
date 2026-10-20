@@ -1,0 +1,34 @@
+# T43 / Q73: the documentation site (GitHub Pages, .github/workflows/docs.yml).
+# Build locally: pip install mkdocs && mkdocs serve
+site_name: Signal Viewer
+site_url: https://davidalpert11.github.io/SignalViewer/
+repo_url: https://github.com/DavidAlpert11/SignalViewer
+edit_uri: edit/main/docs/
+docs_dir: docs
+theme:
+  name: mkdocs
+  navigation_depth: 3
+nav:
+  - Home: index.md
+  - User guide: GUIDE.md
+  - מדריך: GUIDE.he.md
+  - Install: install.md
+  - What works: features.md
+  - Command line, Python and formats: command-line.md
+  - Offline map and 3D: maps-and-3d.md
+  - Performance: performance.md
+  - Known limitations: limitations.md
+  - Gallery: gallery.md
+  - Development: development.md
+exclude_docs: |
+  dev/
+  benchmark_*.md
+  performance_baseline.md
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+validation:
+  links:
+    not_found: warn
+    anchors: warn

@@ -622,7 +622,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T60 Reader plugins in the user's folder (Q70). Done 2026-10-20: svcore/readers.py, app/userreaders.py.
 - [x] T61 Binary ICD decoder from a layout (Q71). Done 2026-10-20: svcore/icd.py, layouts in the readers folder.
 - [x] T40b CAN logs (candump, ASC, CSV) with our own .dbc decoder, option B (Q72). Done 2026-10-20: svcore/dbc.py, can_loader.py.
-- [ ] T43 part: docs site and a shorter README (Q73).
+- [x] T43 part: docs site and a shorter README (Q73). Done 2026-10-20: mkdocs.yml, docs/*.md, .github/workflows/docs.yml.
 
 ## Later
 - [ ] "copy as pandas code".

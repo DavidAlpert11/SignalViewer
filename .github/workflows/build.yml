@@ -204,7 +204,7 @@ jobs:
           - **Windows:** \`SignalViewer-Setup-$V.exe\` - installs for you only, no administrator rights, nothing else needed.
           - Windows without installing: \`SignalViewer-$V-Windows-x64-portable.zip\` - extract, double-click *Signal Viewer.bat* (the .7z is the same, smaller; Windows 10 needs 7-Zip for it).
           - **Python:** \`pip install signalviewer\` (or the \`.whl\` here), then \`signalviewer\` starts the app; \`signalviewer-cli\` and \`import signalviewer\` read files from scripts.
-          - **Linux / macOS:** the \`-portable.7z\` for your system - extract and run \`SignalViewer/SignalViewer\` (macOS: see *Known limitations* in the README the first time).
+          - **Linux / macOS:** the \`-portable.7z\` for your system - extract and run \`SignalViewer/SignalViewer\` (macOS: see *Known limitations* in the docs, docs/limitations.md, the first time).
 
           Everything runs offline; no Python is needed. Changes: [CHANGELOG](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md).
           EOF
