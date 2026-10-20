@@ -885,7 +885,7 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q74 | F33 README: the Hebrew section is one run-on paragraph with struck-through text - fix it | S | ☑ done |
-| Q75 | T62 `pip install signalviewer` = everything again; the light install under another name | M | ☐ |
+| Q75 | T62 `pip install signalviewer` = everything again; the light install under another name | M | ☑ done (owner: PyPI publisher for signalviewer-lite) |
 | Q76 | T63 One Clear button with a menu: this tab / the other tabs / all tabs / tabs + derived signals and edits / everything | M | ☐ |
 | Q77 | F34 Nothing cached is used after the data changed (owner: "make sure there is no cache that is used although the data was updated") | M | ☑ done |
 
@@ -897,6 +897,24 @@ between them - the "deleted line in the middle" the owner saw. It had also becom
 Markdown inside renders): what it is, install (3 lines), what it does (6 bullets), the Hebrew guide
 and the CHANGELOG. Commands in `<code dir="ltr">`. The release checklist no longer asks for a
 "חדש ב־X.Y" line.
+
+### Q75 · T62 Full by default, light as `signalviewer-lite` — M
+**Why:** the owner prefers `pip install signalviewer` to bring everything (Q69 had made it the core).
+pip cannot subtract from a package, so the light install needs its own name.
+**Choice:** two distributions of the same code, `signalviewer` (every reader and report a dependency;
+only `[desktop]` an extra - pywebview needs GTK / Qt on Linux; `[all]` kept, = desktop) and
+`signalviewer-lite` (Q69's core + extras). Not a meta-package (`signalviewer` -> `signalviewer-core`):
+upgrading 1.8 -> 1.9 would install the new distribution's files and then uninstall 1.8's - the same
+paths - and break the install. The cost: installing both makes them share files; the docs say one.
+**Done 2026-10-20:** `tools/make_pypi.py` `FLAVOURS`, `flavour_metadata`, `stage(name)` (build/pypi/<name>),
+`build()` builds both into dist-pypi/, `--check` checks each (full: every reader module imports and
+Parquet opens; lite: the hint names `signalviewer-lite[parquet]`, then `[all]` opens it) - run in a
+venv with only `build`, as in CI. `svcore/extras.install_hint`: lite (its distribution is installed)
+-> `signalviewer-lite[extra]`; full / source -> reinstall `signalviewer` / requirements.txt.
+Docs: README, install.md, command-line.md, limitations.md, CHANGELOG.
+**Owner, once before the 1.9.0 release:** PyPI -> Your account -> Publishing -> "Add a new pending
+publisher": PyPI project name `signalviewer-lite`, owner `DavidAlpert11`, repository `SignalViewer`,
+workflow `build.yml`, environment `pypi` (the same as `signalviewer`). The release job uploads both.
 
 ### Q77 · F34 Stale data after a change — M
 **Audit (2026-10-20)** of every cache keyed on data, and what changes the data:
@@ -1308,3 +1326,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q73 / T43 part: docs site (mkdocs.yml, docs/*.md, workflow docs.yml), README shortened to a front page. Plan Q65-Q73 done.
 - 2026-10-20 · Owner's review after Q65-Q73: plan Q74-Q77. Q77 / F34: derived versions name their definition (serial), Python operations recomputed on reload, run / derived versions in the run list and the UI's data keys, CSV cache + live follow with a content fingerprint. Backend 713, mypy and tsc clean.
 - 2026-10-20 · Q74 / F33: README Hebrew section rewritten (RTL div, structured, no `~`).
+- 2026-10-20 · Q75 / T62: two PyPI distributions (signalviewer = full, signalviewer-lite = core + extras), hints per flavour, both checked. Backend tests green.

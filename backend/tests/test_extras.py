@@ -10,6 +10,20 @@ from app.store import LoadError, Store
 EX = os.path.join(os.path.dirname(__file__), "..", "..", "examples")
 
 
+@pytest.fixture(autouse=True)
+def lite(monkeypatch):
+    """As installed with `pip install signalviewer-lite` (T62): the messages name its extras."""
+    import svcore.extras as ex
+    monkeypatch.setattr(ex, "_lite", lambda: True)
+
+
+def test_full_install_or_source_says_reinstall(monkeypatch):
+    import svcore.extras as ex
+    monkeypatch.setattr(ex, "_lite", lambda: False)
+    m = ex.missing("Reading Parquet", "parquet")
+    assert "pip install signalviewer " in m and "requirements.txt" in m and "lite" not in m
+
+
 def hide(monkeypatch, *mods):
     for m in mods:
         monkeypatch.setitem(__import__("sys").modules, m, None)
@@ -21,7 +35,7 @@ def test_parquet_names_its_extra(tmp_path, monkeypatch):
     p = tmp_path / "t.parquet"
     pq.write_table(pa.table({"time": [0.0, 1.0], "x": [1.0, 2.0]}), str(p))
     hide(monkeypatch, "pyarrow", "pyarrow.parquet")
-    with pytest.raises(LoadError, match=r'signalviewer\[parquet\]'):
+    with pytest.raises(LoadError, match=r'signalviewer-lite\[parquet\]'):
         Store().open_file(str(p))
 
 
@@ -35,7 +49,7 @@ def test_tlog_names_its_extra(tmp_path, monkeypatch):
     monkeypatch.setattr(tl, "_MAV", None)
     hide(monkeypatch, "pymavlink", "pymavlink.dialects", "pymavlink.dialects.v20",
          "pymavlink.dialects.v20.ardupilotmega")
-    with pytest.raises(LoadError, match=r'signalviewer\[mavlink\]'):
+    with pytest.raises(LoadError, match=r'signalviewer-lite\[mavlink\]'):
         Store().open_file(str(p))
 
 
@@ -43,7 +57,7 @@ def test_mat73_names_its_extra(tmp_path, monkeypatch):
     p = tmp_path / "v73.mat"
     p.write_bytes(b"MATLAB 7.3 MAT-file, Platform: GLNXA64" + b" " * 90 + b"\x00" * 512)
     hide(monkeypatch, "h5py")
-    with pytest.raises(LoadError, match=r'signalviewer\[hdf5\]'):
+    with pytest.raises(LoadError, match=r'signalviewer-lite\[hdf5\]'):
         Store().open_file(str(p))
 
 
@@ -56,9 +70,9 @@ def test_reports_name_their_extra(tmp_path, monkeypatch):
             "tabs": [{"name": "A", "plots": [{"title": "", "caption": "", "mode": "time", "xSignal": None, "xLabel": "",
                       "range": None, "signals": [{"id": f"{lr.id}/RPM", "label": "RPM", "color": "#3D8BFD", "width": 1.5,
                                                   "scale": 1, "offset": 0, "state": False, "tOffset": 0}]}]}]}
-    with pytest.raises(report.ReportNeedsExtra, match=r'signalviewer\[reports\]'):
+    with pytest.raises(report.ReportNeedsExtra, match=r'signalviewer-lite\[reports\]'):
         report.build_docx(st, body, str(tmp_path / "r.docx"))
-    with pytest.raises(report.ReportNeedsExtra, match=r'signalviewer\[reports\]'):
+    with pytest.raises(report.ReportNeedsExtra, match=r'signalviewer-lite\[reports\]'):
         report.build_pdf(st, body, str(tmp_path / "r.pdf"))
     assert "<html" in report.build_html(st, body).lower()         # HTML of time plots needs neither
 
