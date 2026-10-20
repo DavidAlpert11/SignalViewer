@@ -93,6 +93,10 @@ mode (a simulation against the flight, a model against the test).
 - **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
   interactive HTML, PDF or Word.
 - A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), copy the image.
+- **Clear ▾** (the bar above the plots, also *File → Clear*): this tab's plots, the other tabs, all
+  tabs, or all the work on the data - tabs, notes, derived signals and edits - while the files stay
+  open. Each is undone with **Undo** in the message or Ctrl+Z. *Everything* also closes the files
+  (it asks first).
 
 ## 10. Flight logs
 
