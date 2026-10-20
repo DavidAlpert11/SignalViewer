@@ -3,6 +3,7 @@
 ## 1.8.0 – unreleased
 
 ### Added
+- **A user guide**, in English and Hebrew: twelve short sections from the first start to flight logs and live data. In the app: *Help → User guide* (F1); on GitHub: `docs/GUIDE.md`, `docs/GUIDE.he.md`.
 - **Open files from outside:** *Open with* in Windows Explorer (offered by the installer for .bin, .tlog, .ulg, .mcap, .mat, .csv, .parquet and .h5 files; a saved session, .svsession, opens with a double-click) and `SignalViewer file.bin` on the command line. When Signal Viewer is already running the files open **in that window**, which comes to the front – several files chosen together open in one app, not one app each. `--new-window` starts a separate app. Your default programs for those file types are not changed.
 
 ### Changed
