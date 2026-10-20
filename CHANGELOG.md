@@ -3,6 +3,7 @@
 ## 1.9.0 – unreleased
 
 ### Added
+- **Your own file formats:** a Python file in `~/.signalviewer/readers` with a function marked `@reader(extensions=[".kv"])` that returns the time and the signals makes Signal Viewer open those files - in the file dialog, by drag & drop, in Python (`sv.load`) and on the command line - like any built-in type: plots, cursors, compare, reports, checks. Text values (a mode as words) come with their names; each signal may have its own time. `signalviewer-cli readers --example` writes a reader to start from; saving a reader is enough, no restart. A reader that fails says the line in your file.
 - **Pass / fail from the command line, for test benches and CI:** `signalviewer-cli check runs/*.csv --checks checks.json --junit results.xml` checks every file against limits - a whole run, a time window, or only while a state holds (*Speed below 76 km/h while DriveMode = CRUISE*, every stretch or the 2nd one) - and prints one line per check with where it first went outside and how far. `--template "My limits"` uses the limits you already set on signals in the app and saved in a template. Exit code 0 = all passed, 1 = a check failed, 2 = a check could not be made (a missing file or signal is never a silent pass); `--junit` writes results that CI systems show as test results. Example: `examples/checks.json` on the three car runs.
 - **A run against a golden run, from the command line:** `signalviewer-cli compare golden.csv new/*.csv --tol-pct 2` - every signal both runs have, with the Compare panel's numbers (RMS and largest difference, correlation; headings wrap at 360°), the most different first. With a tolerance - one for all (`--tol-abs`, `--tol-pct`) or per signal in a `--tolerances` file, where a signal can also be skipped - a signal outside it fails the step (exit code 1); `--junit` for CI. Without one it only lists the differences.
 
@@ -12,6 +13,7 @@
 - **`signalviewer.show(...)`:** with `pip install signalviewer`, sending data from a notebook to the open app is `import signalviewer as sv; sv.show(t, {"altitude": alt})` - no file to copy (the one-file client from *Save the Python client…* still works).
 
 ### Fixed
+- A MATLAB v7.3 file opened without the `hdf5` extra said "not a valid MATLAB file"; it now says which extra to install.
 - **The PyPI page shows the pictures:** the README's screenshots, clips and links pointed into the repository and were broken on pypi.org; the package's copy now points at the release on GitHub. The page also links the changelog, the issues and the releases. The README badge says Python 3.9+, as the package requires.
 
 ## 1.8.0 – 2026-10-20
