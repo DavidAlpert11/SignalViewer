@@ -389,8 +389,28 @@ def _parse_pandas_chunked(filepath, columns, skip_lines, delimiter, encoding) ->
 # CACHE
 # =============================================================================
 
-def _cache_key(filepath: str, size: int, mtime: float, settings: CSVImportSettings) -> str:
-    raw = json.dumps([CACHE_FORMAT_VERSION, os.path.abspath(filepath), size, mtime,
+def content_fingerprint(path: str, size: int, block: int = 65536, blocks: int = 16) -> str:
+    """F34: a fingerprint of the file's bytes - the first and last MB and 16 blocks in between
+    (a few MB read, whatever the size). With size and mtime it tells a re-saved file of the same
+    size and time stamp (a copy over it, a coarse file-system clock) from the one cached / read."""
+    h = hashlib.sha1(str(size).encode())
+    try:
+        with open(path, "rb") as f:
+            h.update(f.read(min(size, 1 << 20)))
+            if size > 2 << 20:
+                for k in range(1, blocks + 1):
+                    f.seek(size * k // (blocks + 1))
+                    h.update(f.read(block))
+                f.seek(max(0, size - (1 << 20)))
+                h.update(f.read(1 << 20))
+    except OSError:
+        return ""
+    return h.hexdigest()
+
+
+def _cache_key(filepath: str, size: int, mtime: float, settings: CSVImportSettings, mtime_ns: int = 0,
+               fingerprint: str = "") -> str:
+    raw = json.dumps([CACHE_FORMAT_VERSION, os.path.abspath(filepath), size, mtime, mtime_ns, fingerprint,
                       settings.to_dict(), np.dtype(SIGNAL_DTYPE).str], sort_keys=True)
     return hashlib.sha1(raw.encode()).hexdigest()
 
@@ -520,7 +540,8 @@ def load_csv(
         source_columns = _unique_names(source_columns)
 
         use_cache = CACHE_ENABLED and file_size >= CACHE_MIN_BYTES
-        key = _cache_key(filepath, file_size, file_mtime, settings) if use_cache else None
+        key = (_cache_key(filepath, file_size, file_mtime, settings, st.st_mtime_ns,
+                          content_fingerprint(filepath, file_size)) if use_cache else None)
         cached = _cache_load(key) if key is not None else None
 
         own: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}       # columns with their own time
@@ -690,6 +711,7 @@ def remember_tail(run: Run) -> None:
         run.tail_sig = _read_tail(run.file_path, run.byte_offset)
         st = os.stat(run.file_path)
         run.seen_size, run.seen_mtime = st.st_size, st.st_mtime
+        run.content_fp = content_fingerprint(run.file_path, st.st_size) if st.st_size == run.byte_offset else None
     except OSError:
         pass
 
@@ -720,6 +742,12 @@ def append_new_rows(run: Run, max_bytes: int = 256 * 1024 * 1024) -> int:
     if tail is not None and _read_tail(path, run.byte_offset) != tail:
         return -1
     if size == run.byte_offset:
+        # same size, new time stamp: touched, or re-saved with the same size (a value fixed in the
+        # middle) - the tail check above sees only the end, the fingerprint the whole file (F34)
+        fp = content_fingerprint(path, size)
+        if getattr(run, "content_fp", None) not in (None, fp):
+            return -1
+        run.content_fp = fp
         run.seen_size, run.seen_mtime = size, mtime   # touched but not changed
         return 0
 

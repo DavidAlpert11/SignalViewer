@@ -120,6 +120,12 @@ def run_format(run: Run) -> str:
     return (run.import_settings or {}).get("format") or "csv"
 
 
+def _vkey(v) -> str:
+    """A short text for a version tuple (F34: sent to the UI as a cache key)."""
+    import hashlib
+    return hashlib.sha1(repr(v).encode()).hexdigest()[:12]
+
+
 class LoadError(Exception):
     """A file that cannot be opened. `code` + `params` let the UI show the reason in its own
     language (the English message stays as the fallback)."""
@@ -735,7 +741,7 @@ class Store:
         run_id, _, name = sig_id.partition("/")
         if run_id == DERIVED_ID:
             d = self.derived.get(name)
-            return ("d", name, tuple(self.version(s) for s in d.sources)) if d else None
+            return ("d", name, d.serial, tuple(self.version(s) for s in d.sources)) if d else None
         base = self._raw_version(sig_id)
         spec = self.transforms.get(sig_id)
         return (base, json.dumps(spec, sort_keys=True)) if (base and spec) else base
@@ -779,6 +785,17 @@ class Store:
     def remove_derived(self, name: str):
         with self._lock:
             self.derived.pop(name, None)
+
+    def invalidate_derived(self, op: Optional[str] = None) -> List[str]:
+        """F34: recompute these derived signals on their next read (op None = all) - for the
+        Python operations, whose code can change while their sources do not."""
+        hit = []
+        with self._lock:
+            for name, d in self.derived.items():
+                if op is None or d.op == op:
+                    d.invalidate()
+                    hit.append(name)
+        return hit
 
     @staticmethod
     def _log_summary(run: Run) -> Optional[dict]:
@@ -830,6 +847,7 @@ class Store:
             "format": run_format(r) if run_format(r) in ("mat", "bin", "tlog", "ulg", "mcap", "hdf5", "parquet") else "csv",
             **({"log": self._log_summary(r)} if self._log_summary(r) else {}),
             "samples": int(r.sample_count),
+            "version": f"{r.uid}.{r.data_version}",                # F34: changes whenever the data does
             "start": float(r.start_time) + float(r.time_offset or 0),
             "end": float(r.end_time) + float(r.time_offset or 0),
             "timeOffset": float(r.time_offset or 0),
@@ -859,7 +877,7 @@ class Store:
                 ok, n = False, 0
             sigs.append({"id": f"{DERIVED_ID}/{name}", "name": name, "discrete": False, "op": d.op,
                          "sources": d.sources, "params": d.params, "formula": d.formula(self.short_name),
-                         "valid": ok, "samples": n})
+                         "valid": ok, "samples": n, "version": _vkey(self.version(f"{DERIVED_ID}/{name}"))})
         return {"id": DERIVED_ID, "name": "Derived", "path": "", "format": "derived", "samples": 0,
                 "start": 0, "end": 0, "timeOffset": 0, "importSettings": {}, "signals": sigs, "report": {}}
 

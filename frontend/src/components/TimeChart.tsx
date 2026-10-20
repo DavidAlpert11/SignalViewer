@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, type Series } from "../api";
 import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
-import { inkOn, labelsOf, labelText, stateColor } from "../values";
+import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum } from "../i18n";
 import { unitOf } from "../units";
 import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
@@ -78,7 +78,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const shared = (tab.sharedStates ?? []).filter((id) => !plot.signals.some((s) => s.sig === id));
   const stateIds = [...plot.signals.filter((s) => s.state).map((s) => s.sig), ...shared];
   const stateKey = stateIds.join("|");
-  const runsKey = runs.map((r) => `${r.id}:${r.timeOffset}:${r.samples}:${r.signals.length}`).join("|");
+  const runsKey = runsDataKey(runs);
   const runsRef = useRef(runs);
   runsRef.current = runs;
   const labelsKey = sigIds.map((id) => Object.keys(labelsOf(runs, id) ?? {}).length).join("|");

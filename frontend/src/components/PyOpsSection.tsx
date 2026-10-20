@@ -22,7 +22,12 @@ export default function PyOpsSection({ choice, onChange }: { choice: PyChoice | 
   };
   const run = async (f: () => Promise<PyOpsInfo>) => {
     setBusy(true);
-    try { apply(await f()); }
+    try {
+      apply(await f());
+      // F34: a reload / another folder recomputes the signals made with Python operations: the
+      // run list carries their new versions, and the plots showing them fetch them again
+      if (f !== api.pyops) useApp.setState({ runs: await api.listRuns() });
+    }
     catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
     finally { setBusy(false); }
   };

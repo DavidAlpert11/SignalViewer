@@ -1,3 +1,4 @@
+import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, shownSpan, useApp, type MapObject, type Plot } from "../store";
@@ -122,7 +123,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
 
   const ys = plot.signals.map((s) => s.sig);
   const yKey = ys.join("|");
-  const runsKey = runs.map((r) => `${r.id}:${r.timeOffset}:${r.samples}:${r.signals.length}`).join("|");
+  const runsKey = runsDataKey(runs);
 
   useEffect(() => { loadCountries().then(setCountries); loadPlaces().then(setPlaces); }, []);
   useEffect(() => {

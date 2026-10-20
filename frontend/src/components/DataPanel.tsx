@@ -273,7 +273,7 @@ export default function DataPanel() {
         {/* T22: the unit stays visible however long the name; the rate and a small picture of the signal */}
         {unitOf(s.name) && <span className="sig-unit">{unitOf(s.name)}</span>}
         {s.rate !== undefined && <span className="sig-rate">{fmtRate(s.rate, lang)}</span>}
-        {!s.labels && <SigSpark id={s.id} version={`${s.n ?? s.samples ?? 0}:${s.transform ? JSON.stringify(s.transform) : ""}`} />}
+        {!s.labels && <SigSpark id={s.id} version={`${s.n ?? s.samples ?? 0}:${s.version ?? runs.find((r) => s.id.startsWith(`${r.id}/`))?.version ?? ""}:${s.transform ? JSON.stringify(s.transform) : ""}`} />}
         {s.transform && <span className="tf-badge" title={`${t("tfChanged")}: ${describeTransform(s.transform)}`}>ƒ</span>}
         {s.labels && <span className="txt-badge" title={t("textSignalHint", { n: Object.keys(s.labels).length, list: Object.values(s.labels).slice(0, 8).join(", ") + (Object.keys(s.labels).length > 8 ? "…" : "") })}>Aa</span>}
       </button>

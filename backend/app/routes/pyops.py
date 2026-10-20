@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app import pyops
 from app.common import fail
+from app.store import store
 
 router = APIRouter()
 
@@ -21,6 +22,7 @@ def pyops_list():
 @router.post("/api/pyops/reload")
 def pyops_reload():
     pyops.stop()
+    store.invalidate_derived("py")          # F34: the code may have changed - not the sources
     return pyops.listing()
 
 
@@ -32,6 +34,7 @@ class FolderReq(BaseModel):
 def pyops_folder(req: FolderReq):
     try:
         pyops.set_folder(req.path)
+        store.invalidate_derived("py")
     except ValueError as e:
         fail(400, str(e))
     return pyops.listing()

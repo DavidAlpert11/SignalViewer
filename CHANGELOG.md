@@ -16,6 +16,7 @@
 - **`signalviewer.show(...)`:** with `pip install signalviewer`, sending data from a notebook to the open app is `import signalviewer as sv; sv.show(t, {"altitude": alt})` - no file to copy (the one-file client from *Save the Python client…* still works).
 
 ### Fixed
+- **Never old numbers after the data changed:** a derived signal recreated under the same name (another cut-off, a re-opened session) showed the old spectrum; signals made with a Python operation kept their values after the operation's file was edited and *Reload* pressed; a plot or the small picture in the file list could stay as it was when a file was reloaded with the same number of samples; a large CSV copied over with the same size and time stamp was read from the cache; in live mode a value fixed early in a file (re-saved with the same size) was not read. Every one of these now reads the new data.
 - A MATLAB v7.3 file opened without the `hdf5` extra said "not a valid MATLAB file"; it now says which extra to install.
 - **The PyPI page shows the pictures:** the README's screenshots, clips and links pointed into the repository and were broken on pypi.org; the package's copy now points at the release on GitHub. The page also links the changelog, the issues and the releases. The README badge says Python 3.9+, as the package requires.
 
