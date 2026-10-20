@@ -33,3 +33,16 @@ export async function copyText(text: string): Promise<boolean> {
   ta.remove();
   return ok;
 }
+
+
+/** Help > Copy error details (T38): version, system and the end of the log, to the clipboard. */
+export async function copyErrorDetails(t: (k: "errorDetailsCopied" | "errorDetailsNotCopied", v?: Record<string, string>) => string,
+  toast: (x: { kind: "info" | "error"; text: string }) => void): Promise<void> {
+  try {
+    const d = await api.diagnostics();
+    if (await copyText(d.text)) toast({ kind: "info", text: t("errorDetailsCopied") });
+    else toast({ kind: "error", text: t("errorDetailsNotCopied", { path: d.logFile }) });
+  } catch (e) {
+    toast({ kind: "error", text: String((e as Error).message) });
+  }
+}

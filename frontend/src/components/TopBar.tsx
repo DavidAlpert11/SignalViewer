@@ -6,7 +6,10 @@ import { fmtNum } from "../i18n";
 import { actions, setInspectorByUser, useApp } from "../store";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
-import { clearEverything, openSession, saveSession } from "../files";
+import { clearEverything, openPaths, openSession, saveSession } from "../files";
+import { refreshAll } from "../live";
+import { copyErrorDetails } from "../errorReport";
+import type { MenuItem } from "../store";
 import { openMenu } from "./Overlays";
 import { templateMenuItems } from "../templateMenu";
 
@@ -55,9 +58,47 @@ export default function TopBar() {
         run: () => actions.switchTab(tab.id) })));
   };
 
+  // T49 items 2 + 13: files and sessions in one File menu, help in a Help menu (they were loose icons,
+  // and help only a "?" in the status bar)
+  const at = (e: React.MouseEvent, w = 240) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const rtl = document.documentElement.dir === "rtl";
+    return { clientX: rtl ? Math.max(8, r.right - w) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
+  };
+  const fileMenu = (e: React.MouseEvent) => openMenu(at(e), [
+    { label: t("openFiles") + "…", keys: "Ctrl+O", run: () => useApp.setState({ browserOpen: true }) },
+    { label: t("menuRecent"), keys: "Ctrl+P", run: () => useApp.setState({ paletteOpen: true, paletteMode: "open" }) },
+    { label: t("refreshAll"), keys: "F5", run: refreshAll, disabled: !useApp.getState().runs.some((r) => r.format !== "derived") },
+    { label: "", run: () => {}, sep: true },
+    { label: t("openSession") + "…", keys: "Ctrl+Shift+O", run: () => openSession() },
+    { label: t("saveSession"), keys: "Ctrl+S", run: saveSession },
+    { label: "", run: () => {}, sep: true },
+    { label: t("clearEverything"), run: clearEverything, danger: true },
+  ]);
+  const helpMenu = async (e: React.MouseEvent) => {
+    const pos = at(e);
+    let ex: Awaited<ReturnType<typeof api.examples>> = [];
+    try { ex = await api.examples(); } catch { /* no examples folder */ }
+    const EX = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot" } as const;
+    const items: MenuItem[] = [
+      { label: t("shortcuts"), keys: "?", run: () => useApp.setState({ helpOpen: true }) },
+      ...(ex.length ? [{ label: t("menuExamples"), run: () => {},
+        items: ex.map((x) => ({ label: t(EX[x.id]), run: () => openPaths(x.paths, undefined, { autoView: true }) })) }] : []),
+      { label: "", run: () => {}, sep: true },
+      { label: t("copyErrorDetails"), run: () => copyErrorDetails(t, useApp.getState().toast) },
+      { label: t("menuAbout"), run: async () => {
+        let v = "";
+        try { v = (await api.diagnostics()).version; } catch { /* offline server: no version */ }
+        useApp.getState().toast({ kind: "info", text: t("aboutText", { v }), ms: 12000 });
+      } },
+    ];
+    openMenu(pos, items);
+  };
+
   return (
     <header className="topbar">
       <div className="brand"><BrandMark />{t("appName")}</div>
+      <button className="btn menubar-btn" aria-haspopup="menu" onClick={fileMenu}>{t("menuFile")}</button>
       <nav className="tabs-wrap">
       <div className="tabs" role="tablist" ref={strip} onWheel={onStripWheel}>
         {ws.tabs.map((tab, i) => {
@@ -113,10 +154,6 @@ export default function TopBar() {
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
       </button>
       <span className="sep" />
-      <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")} (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
-      <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
-      <button className="iconbtn danger-hover" onClick={clearEverything} title={t("clearEverything")} aria-label={t("clearEverything")}><Icon.Trash /></button>
-      <span className="sep" />
       <button className="iconbtn" disabled={!past} onClick={useApp.getState().undo} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
       <button className="iconbtn" disabled={!future} onClick={useApp.getState().redo} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
       <span className="sep" />
@@ -144,7 +181,8 @@ export default function TopBar() {
       <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}>
         <Icon.Globe /> {t("language")}
       </button>
-      <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label="Inspector"><Icon.Inspector /></button>
+      <button className="btn menubar-btn" aria-haspopup="menu" onClick={helpMenu}>{t("menuHelp")}</button>
+      <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label={t("inspector")} title={t("inspector")}><Icon.Inspector /></button>
     </header>
   );
 }
