@@ -41,7 +41,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
    live in `docs/`) - `docs/features.md` (a new or changed feature in its row; the test counts),
    `docs/limitations.md` (remove what was fixed, add what is new), `docs/install.md` (the file
    names with the version, the test commands), `docs/command-line.md`, the README's format list
-   and highlights at the top, its Hebrew section ("חדש ב־X.Y" line), and the pictures (step 1).
+   and highlights at the top, its Hebrew section (short and structured since Q74: install lines
+   and what it does - no version history, the CHANGELOG has it; no `~` outside code, GitHub strikes
+   text between two of them), and the pictures (step 1).
    `mkdocs build --strict` must pass (the docs workflow runs it on every push).
 4. `cd frontend && npm run build` and commit `frontend/dist`; tag `vX.Y.Z` and push the tag.
 
@@ -882,10 +884,19 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 
 | # | Task | Size | Status |
 |---|---|---|---|
-| Q74 | F33 README: the Hebrew section is one run-on paragraph with struck-through text - fix it | S | ☐ |
+| Q74 | F33 README: the Hebrew section is one run-on paragraph with struck-through text - fix it | S | ☑ done |
 | Q75 | T62 `pip install signalviewer` = everything again; the light install under another name | M | ☐ |
 | Q76 | T63 One Clear button with a menu: this tab / the other tabs / all tabs / tabs + derived signals and edits / everything | M | ☐ |
 | Q77 | F34 Nothing cached is used after the data changed (owner: "make sure there is no cache that is used although the data was updated") | M | ☑ done |
+
+### Q74 · F33 The README's Hebrew section — S
+**Why:** 40 lines without blank lines are ONE paragraph in Markdown (the line breaks vanish), and
+two `~` (in `~/.signalviewer/templates` and `~/.signalviewer/logs`) make GitHub strike out everything
+between them - the "deleted line in the middle" the owner saw. It had also become a version history.
+**Done 2026-10-20:** rewritten short, inside `<div dir="rtl">` (right to left, blank lines so the
+Markdown inside renders): what it is, install (3 lines), what it does (6 bullets), the Hebrew guide
+and the CHANGELOG. Commands in `<code dir="ltr">`. The release checklist no longer asks for a
+"חדש ב־X.Y" line.
 
 ### Q77 · F34 Stale data after a change — M
 **Audit (2026-10-20)** of every cache keyed on data, and what changes the data:
@@ -1296,3 +1307,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q72 / T40b: CAN logs + own DBC decoder (svcore/dbc.py, can_loader.py), checked against cantools. Backend 708, mypy clean, tsc clean.
 - 2026-10-20 · Q73 / T43 part: docs site (mkdocs.yml, docs/*.md, workflow docs.yml), README shortened to a front page. Plan Q65-Q73 done.
 - 2026-10-20 · Owner's review after Q65-Q73: plan Q74-Q77. Q77 / F34: derived versions name their definition (serial), Python operations recomputed on reload, run / derived versions in the run list and the UI's data keys, CSV cache + live follow with a content fingerprint. Backend 713, mypy and tsc clean.
+- 2026-10-20 · Q74 / F33: README Hebrew section rewritten (RTL div, structured, no `~`).
