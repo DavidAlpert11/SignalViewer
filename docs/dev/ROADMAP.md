@@ -311,7 +311,7 @@ The order of work and the detailed specs are in `TASKS.md` (the work queue).
   `test_signal_list_unit_rate_and_picture` (and only the visible rows ask).
 - [x] T23 Notes over a time range (shaded span), listed in reports. Done 2026-10-20 (Q31): two cursors + N.
 - [x] T24 Favourite folders and quick open (Ctrl+P, fuzzy over recent folders). Done 2026-10-19 with the extension below.
-- [ ] T25 Sim-vs-flight error signal with RMS per segment.
+- [x] T25 Sim-vs-flight error signal with RMS per segment. Done 2026-10-20 (Q32): Create signals > Two signals, /api/error-segments.
 - [x] T26 Parameter diff between two logs. *Re-assessed: already there* - the Log panel's
   Parameters tab has a "differences from another file" filter.
 - [x] T27 Formats: MCAP (ROS 2), HDF5 (generic).
