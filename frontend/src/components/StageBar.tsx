@@ -1,5 +1,3 @@
-import { openMenu } from "./Overlays";
-import { clearMenuItems } from "../clearing";
 import { useEffect, useRef, useState } from "react";
 import { actions, activeTab, MAX_PLOTS, rangeKey, useApp } from "../store";
 import { useT } from "../i18n";
@@ -134,14 +132,7 @@ export default function StageBar() {
       </span>
       <button className="iconbtn" disabled={!canBack} onClick={actions.zoomBack} title={`${t("zoomBack")} (Backspace)`} aria-label={t("zoomBack")}><Icon.Undo /></button>
       <button className="btn" onClick={actions.resetZoom} title={`${t("resetZoom")} (R)`}><Icon.Reset /><span className="hide-narrow">{t("resetZoom")}</span></button>
-      {/* T63: one Clear button, its scopes in a menu (this tab ... everything) */}
-      <button className="btn clear-btn" aria-haspopup="menu" title={t("clearMenuHint")} aria-label={t("clearMenu")}
-        onClick={(e) => {
-          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          const rtl = document.documentElement.dir === "rtl";
-          openMenu({ clientX: rtl ? Math.max(8, r.right - 300) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent,
-            clearMenuItems());
-        }}><Icon.Eraser /><span className="hide-narrow">{t("clearMenu")}</span><Icon.Chevron className="chev" /></button>
+      <button className="iconbtn" onClick={actions.clearAllPlots} title={t("clearAllHint")} aria-label={t("clearAll")}><Icon.Eraser /></button>
       {streaming && <>
         <span className="sep" />
         <span className="bar-label">{t("follow")}</span>

@@ -146,9 +146,15 @@ def open_files(pg, *names, options=False, clear=True):
 
 
 def clear_plots(pg):
-    """T63: the stage bar's Clear button opens its menu; the first entry empties this tab's plots."""
-    pg.click(".stage-bar [aria-label='Clear']")
-    pg.click(".menu.ctx button:has-text(\"This tab's plots\")")
+    """The stage bar's eraser empties this tab's plots (the other scopes: the top bar's Clear)."""
+    pg.click("[aria-label='Clear all plots']")
+
+
+def clear_everything(pg):
+    """F35: Clear (top bar) > Clear everything, then confirm."""
+    pg.click(".topbar [aria-label='Clear']")
+    pg.click(".menu.ctx button:has-text('Clear everything')")
+    pg.click(".dialog-foot .btn.primary")
 
 
 def save_as(pg, name, folder=None):
@@ -493,7 +499,7 @@ def test_T63_clear_menu_scopes(pg):
     files = lambda: state("s.runs.filter(r => r.format !== 'derived').length")
     assert state("s.ws.tabs.length") == 2
     def pick(text):
-        pg.click(".stage-bar [aria-label='Clear']")
+        pg.click(".topbar [aria-label='Clear']")
         pg.locator(".menu.ctx button", has_text=text).click()
     # the other tabs
     pick("The other tabs (1)")
@@ -517,10 +523,10 @@ def test_T63_clear_menu_scopes(pg):
     pick("All tabs (2)")
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 1")
     assert files() == 1 and state("s.runs.some(r => r.format === 'derived')")
-    # the File menu has the same scopes, and "Clear everything" as before
-    pg.locator(".topbar .menubar-btn", has_text="File").click()
-    pg.locator(".menu.ctx button", has_text="Clear").first.click()
-    assert pg.locator(".menu.ctx.sub button", has_text="The other tabs").count() == 1
+    # and the last scope closes the files too, after asking
+    pg.click(".topbar [aria-label='Clear']")
+    assert "danger" in pg.locator(".menu.ctx button", has_text="Clear everything").get_attribute("class")
+    pg.keyboard.press("Escape")
 
 
 # =========================================================== C / T: cursor & stats
@@ -1163,8 +1169,7 @@ def test_play_draw_mode_and_clear_everything(pg):
     pg.locator(".timeline select[aria-label='What the plots show']").select_option("draw")   # the timeline
     pg.keyboard.press("p"); pg.wait_for_timeout(400); pg.keyboard.press("p")
     assert S(pg, "s.playMode") == "draw" and S(pg, "s.cursor.t1") > 0
-    pg.click(".topbar .menubar-btn:has-text('File')"); pg.click(".menu.ctx button:has-text('Clear everything')")
-    pg.click(".dialog-foot .btn.primary")
+    clear_everything(pg)
     pg.wait_for_selector(".welcome")
     assert S(pg, "s.runs.length") == 0
 
@@ -1235,7 +1240,7 @@ def test_templates_save_and_apply(pg):
 
 def test_recent_files_on_welcome(pg):
     open_files(pg, "run_a.csv")
-    pg.click(".topbar .menubar-btn:has-text('File')"); pg.click(".menu.ctx button:has-text('Clear everything')"); pg.click(".dialog-foot .btn.primary")
+    clear_everything(pg)
     pg.wait_for_selector(".recent-row")
     pg.locator(".recent-open", has_text="run_a.csv").first.click()
     pg.wait_for_function("window.__sv.state().runs.length === 1")
@@ -1577,7 +1582,7 @@ def test_open_saved_session_with_new_files_from_welcome(pg):
     pg.wait_for_selector(".sig"); sig(pg, "Speed").click()
     pg.keyboard.press("Control+s"); save_as(pg, "bench_session")
     pg.wait_for_selector(".toast:has-text('bench_session')")
-    pg.click(".topbar .menubar-btn:has-text('File')"); pg.click(".menu.ctx button:has-text('Clear everything')"); pg.click(".dialog-foot .btn.primary")
+    clear_everything(pg)
     pg.wait_for_selector(".recent-row:has-text('bench_session')")
     pg.locator(".recent-row", has_text="bench_session").locator("[aria-label='With new files…']").click()
     pg.wait_for_selector(".rt-dialog .rt-status.ok")

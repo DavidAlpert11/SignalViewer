@@ -887,6 +887,7 @@ two apps started WITHOUT files still share `autosave.json` (last write wins; Q55
 | Q74 | F33 README: the Hebrew section is one run-on paragraph with struck-through text - fix it | S | ☑ done |
 | Q75 | T62 `pip install signalviewer` = everything again; the light install under another name | M | ☑ done (owner: PyPI publisher for signalviewer-lite) |
 | Q76 | T63 One Clear button with a menu: this tab / the other tabs / all tabs / tabs + derived signals and edits / everything | M | ☑ done (e2e written, not run here) |
+| Q78 | F35 No File menu: open / save session, Clear ▾, settings and day / night as top-bar buttons | S | ☑ done (e2e updated, not run here) |
 | Q77 | F34 Nothing cached is used after the data changed (owner: "make sure there is no cache that is used although the data was updated") | M | ☑ done |
 
 ### Q74 · F33 The README's Hebrew section — S
@@ -932,6 +933,20 @@ derived signals, edits, files). i18n en + he. Guide (en + he) section 9, feature
 **Tests:** tsc, oxlint, vite build clean. e2e: `test_T63_clear_menu_scopes` (other tabs + Undo, work
 + Undo, all tabs, the File submenu) and the helper `clear_plots` for the tests that clicked the old
 eraser - **written, not run** (no browser in this sandbox): run `pytest tests/e2e` before the release.
+
+### Q78 · F35 The top bar without a File menu — S
+**Why (owner, after applying Q74-Q77):** the File menu had few entries and was handier as buttons; opening
+files is in the file list already; settings, clear and day / night as three buttons look better.
+**Done 2026-10-20:** `TopBar.tsx` - the File menu is gone; buttons: open session (Icon.Open) and save
+session (Icon.Save) next to the brand, **Clear ▾** after Undo / Redo (all of `clearMenuItems()`, the
+last one "Clear everything…", danger, asks), the settings gear (was there), a day / night button
+(`theme-btn`, Sun / Moon, aria-label "Theme", `aria-pressed` in dark). The stage bar's eraser is back as
+in 1.8 (this tab's plots, aria-label "Clear all plots") - T63 had turned it into the menu, which now
+lives in the top bar. i18n: `menuFile`, `menuRecent` removed; "Clear everything…" names the scope.
+Guide (en + he) sections 2 and 9, features.md, CHANGELOG. e2e: `test_file_and_help_menus` (no File
+button; the five buttons; the Clear menu; theme toggles and back; settings opens), helpers
+`clear_plots` / `clear_everything`, `test_T63_clear_menu_scopes` and test_workflows use the top-bar
+Clear - **written, not run here** (no browser). tsc + oxlint clean.
 
 ### Q77 · F34 Stale data after a change — M
 **Audit (2026-10-20)** of every cache keyed on data, and what changes the data:
@@ -1345,3 +1360,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q74 / F33: README Hebrew section rewritten (RTL div, structured, no `~`).
 - 2026-10-20 · Q75 / T62: two PyPI distributions (signalviewer = full, signalviewer-lite = core + extras), hints per flavour, both checked. Backend tests green.
 - 2026-10-20 · Q76 / T63: Clear button with scopes (clearing.ts), File submenu, Ctrl+K; e2e written (not run here). Plan Q74-Q77 done.
+- 2026-10-20 · Q78 / F35: no File menu - session, Clear, settings, day / night as top-bar buttons; the stage bar's eraser as in 1.8.
