@@ -35,6 +35,7 @@ const ImportDialog = lazyPreload(() => import("./components/ImportDialog"));
 import Toasts from "./components/Toasts";
 import Jobs from "./components/Jobs";
 const Help = lazyPreload(() => import("./components/Help"));
+const GuideDialog = lazyPreload(() => import("./components/GuideDialog"));
 import { AxisDialog, ContextMenu, ModalFocus, PromptDialog } from "./components/Overlays";
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
@@ -205,6 +206,7 @@ export default function App() {
   const uiScale = useApp((s) => s.uiScale);
   const importPaths = useApp((s) => s.importPaths);
   const helpOpen = useApp((s) => s.helpOpen);
+  const guideOpen = useApp((s) => s.guideOpen);
   const previewHtml = useApp((s) => s.reportPreviewHtml);
   const compareTable = useApp((s) => !!s.compareTable);
   const templatesOpen = useApp((s) => s.templatesOpen);
@@ -452,8 +454,9 @@ export default function App() {
       if (mod && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); actions.cycleTab(e.key === "PageDown" ? 1 : -1); return; }
       if (e.ctrlKey && e.key === "Tab") { e.preventDefault(); actions.cycleTab(e.shiftKey ? -1 : 1); return; }
       if (e.key === "F5" || (mod && e.key.toLowerCase() === "r")) { e.preventDefault(); refreshAll(); return; }   // not a page reload
-      if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen) return;
+      if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen || st.guideOpen) return;
       if (e.key === "?") { useApp.setState({ helpOpen: true }); return; }
+      if (e.key === "F1") { e.preventDefault(); useApp.setState({ guideOpen: true }); return; }   // T55
       if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); st.undo(); return; }
       if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); st.redo(); return; }
       if (mod) return;
@@ -549,6 +552,7 @@ export default function App() {
       <Suspense fallback={null}>
         {importPaths && <ImportDialog />}
         {helpOpen && <Help />}
+        {guideOpen && <GuideDialog />}
         {previewHtml && <ReportPreview />}
         {compareTable && <CompareTable />}
         {templatesOpen && <TemplateLibrary />}

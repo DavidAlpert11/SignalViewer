@@ -33,3 +33,20 @@ def test_file_and_help_menus(pg):
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     pg.locator(".menu.ctx button", has_text="About Signal Viewer").click()
     pg.wait_for_selector(".toast:has-text('github.com/DavidAlpert11/SignalViewer')")
+
+
+def test_user_guide_in_the_app(pg):
+    """T55: Help > User guide (F1) shows docs/GUIDE.md, in Hebrew docs/GUIDE.he.md."""
+    pg.locator(".topbar .menubar-btn", has_text="Help").click()
+    pg.locator(".menu.ctx button", has_text="User guide").click()
+    pg.wait_for_selector(".dialog.guide h2:has-text('user guide')")
+    assert pg.locator(".dialog.guide h3").count() >= 10
+    assert pg.locator(".dialog.guide .guide-table td", has_text="Backspace").count() == 1
+    assert pg.locator(".dialog.guide code").count() > 5
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".dialog.guide", state="detached")
+    pg.get_by_role("button", name="עברית").click()
+    pg.keyboard.press("F1")
+    pg.wait_for_selector(".dialog.guide h2:has-text('מדריך למשתמש')")
+    pg.keyboard.press("Escape")
+    pg.get_by_role("button", name="English").click()
