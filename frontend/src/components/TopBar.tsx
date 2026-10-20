@@ -7,7 +7,7 @@ import { fmtNum } from "../i18n";
 import { actions, setInspectorByUser, useApp } from "../store";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
-import { clearEverything, openPaths, openSession, saveSession } from "../files";
+import { openPaths, openSession, saveSession } from "../files";
 import { copyErrorDetails } from "../errorReport";
 import type { MenuItem } from "../store";
 import { openMenu } from "./Overlays";
@@ -27,6 +27,7 @@ export default function TopBar() {
   const setLiveMenu = (v: boolean) => useApp.setState({ liveMenuOpen: v });
   const mav = useApp((s) => s.mavlink);
   const lang = useApp((s) => s.lang);
+  const theme = useApp((s) => s.theme);
   const mavOn = !!mav?.running;
   const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
   // F22: with many tabs the strip scrolls (its scrollbar is hidden): the wheel scrolls it, the active
@@ -58,26 +59,14 @@ export default function TopBar() {
         run: () => actions.switchTab(tab.id) })));
   };
 
-  // T49 items 2 + 13: files and sessions in one File menu, help in a Help menu (they were loose icons,
-  // and help only a "?" in the status bar)
+  // F35 (owner, 2026-10-20): no File menu - its few entries are buttons again (opening files is
+  // in the file panel and Ctrl+O): open / save session, Clear with its scopes, settings, day / night.
+  // Help stays a menu (guide, shortcuts, examples, about).
   const at = (e: React.MouseEvent, w = 240) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const rtl = document.documentElement.dir === "rtl";
     return { clientX: rtl ? Math.max(8, r.right - w) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
   };
-  const fileMenu = (e: React.MouseEvent) => openMenu(at(e), [
-    { label: t("openFiles") + "…", keys: "Ctrl+O", run: () => useApp.setState({ browserOpen: true }) },
-    { label: t("menuRecent"), keys: "Ctrl+P", run: () => useApp.setState({ paletteOpen: true, paletteMode: "open" }) },
-    { label: "", run: () => {}, sep: true },
-    { label: t("openSession") + "…", keys: "Ctrl+Shift+O", run: () => openSession() },
-    { label: t("saveSession"), keys: "Ctrl+S", run: saveSession },
-    { label: "", run: () => {}, sep: true },
-    { label: t("settings") + "…", keys: "Ctrl+,", run: () => useApp.setState({ settingsOpen: true }) },
-    { label: "", run: () => {}, sep: true },
-    // T63: the scopes that keep the files (undoable) in a submenu; "Clear everything" as before
-    { label: t("clearMenu"), run: () => {}, items: clearMenuItems().slice(0, 4) },
-    { label: t("clearEverything"), run: clearEverything, danger: true },
-  ]);
   const helpMenu = async (e: React.MouseEvent) => {
     const pos = at(e);
     let ex: Awaited<ReturnType<typeof api.examples>> = [];
@@ -102,7 +91,8 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <div className="brand"><BrandMark />{t("appName")}</div>
-      <button className="btn menubar-btn" aria-haspopup="menu" onClick={fileMenu}>{t("menuFile")}</button>
+      <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")}… (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
+      <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
       <nav className="tabs-wrap">
       <div className="tabs" role="tablist" ref={strip} onWheel={onStripWheel}>
         {ws.tabs.map((tab, i) => {
@@ -160,6 +150,11 @@ export default function TopBar() {
       <span className="sep" />
       <button className="iconbtn" disabled={!past} onClick={useApp.getState().undo} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
       <button className="iconbtn" disabled={!future} onClick={useApp.getState().redo} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
+      {/* T63 / F35: one Clear button, what to clear in its menu (this tab ... everything) */}
+      <button className="btn clear-btn" aria-haspopup="menu" title={t("clearMenuHint")} aria-label={t("clearMenu")}
+        onClick={(e) => openMenu(at(e, 320), clearMenuItems())}>
+        <Icon.Eraser /><span className="hide-narrow">{t("clearMenu")}</span><Icon.Chevron width={12} height={12} />
+      </button>
       <span className="sep" />
       <span className="live-group">
         <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
@@ -180,6 +175,10 @@ export default function TopBar() {
       </span>
       <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>
         <Icon.Settings />
+      </button>
+      <button className="iconbtn theme-btn" aria-pressed={theme === "dark"} onClick={() => useApp.setState({ theme: theme === "dark" ? "light" : "dark" })}
+        title={`${t("theme")}: ${theme === "dark" ? t("dark") : t("light")}`} aria-label={t("theme")}>
+        {theme === "dark" ? <Icon.Moon /> : <Icon.Sun />}
       </button>
       <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}>
         <Icon.Globe /> {t("language")}

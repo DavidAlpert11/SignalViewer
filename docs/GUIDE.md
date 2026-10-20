@@ -13,11 +13,11 @@ zoom, measure and compare. Everything runs on your computer; nothing is sent any
 
 ## 2. Open your files
 
-- **File → Open files…** (Ctrl+O), or drop files on the window. CSV and text tables, MATLAB `.mat`,
+- **+ Open files** in the file list (Ctrl+O), or drop files on the window. CSV and text tables, MATLAB `.mat`,
   ArduPilot `.bin`, PX4 `.ulg`, MAVLink `.tlog`, ROS 2 `.mcap`, HDF5 and Parquet are read directly.
 - From Windows Explorer: right-click a file → **Open with → Signal Viewer**. If the app is already
   open, the file opens in it.
-- **File → Recent and favourites…** (Ctrl+P) lists the files and folders you used lately.
+- **Ctrl+P** (recent and favourites) lists the files and folders you used lately.
 - A CSV with an unusual layout: tick *Show import options before opening* in the open dialog to choose the delimiter,
   the time column and the header row, with a live preview.
 
@@ -86,14 +86,14 @@ mode (a simulation against the flight, a model against the test).
 
 ## 9. Keep and share your work
 
-- **File → Save session** (Ctrl+S) keeps everything – files, tabs, plots, zoom, notes. The app also
+- **Save session** (the disk icon at the top left, Ctrl+S; opening one: the folder icon next to it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
   restores your last work by itself when it starts.
 - **Templates** (top bar): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.
 - **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
   interactive HTML, PDF or Word.
 - A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), copy the image.
-- **Clear ▾** (the bar above the plots, also *File → Clear*): this tab's plots, the other tabs, all
+- **Clear ▾** (the top bar): this tab's plots, the other tabs, all
   tabs, or all the work on the data - tabs, notes, derived signals and edits - while the files stay
   open. Each is undone with **Undo** in the message or Ctrl+Z. *Everything* also closes the files
   (it asks first).
