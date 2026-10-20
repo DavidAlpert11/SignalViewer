@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { getPref, setPref } from "../prefs";
 import { api, type FsEntry, type FsPlaces } from "../api";
 import { useApp } from "../store";
 import { useT } from "../i18n";
@@ -17,12 +18,12 @@ const dirOfPath = (p: string) => {        // the folder of a file path; a drive 
 function startFolder(picker: { mode: string; exts?: string[] } | null): string | null {
   const once = useApp.getState().browserStart;          // T24: quick open chose a folder
   if (once && !picker) { useApp.setState({ browserStart: null }); return once; }
-  const own = localStorage.getItem(lastDirKey(picker));
+  const own = getPref(lastDirKey(picker));
   if (own) return own;
   const st = useApp.getState();
   const lastRun = [...st.runs].reverse().find((r) => r.format !== "derived" && r.path && !r.copy);
   if (lastRun) return dirOfPath(lastRun.path);
-  return localStorage.getItem(LAST_DIR) ?? st.recent.find((x) => x.exists)?.folder ?? null;
+  return getPref(LAST_DIR) ?? st.recent.find((x) => x.exists)?.folder ?? null;
 }
 const SORT_KEY = "sv3.fsSort";          // "modified" (default: newest first) or "name"
 
@@ -58,13 +59,13 @@ export default function FileBrowser() {
   const [hidden, setHidden] = useState(0);              // files of other types in this folder
   const [places, setPlaces] = useState<FsPlaces | null>(null);
   const dragFav = useRef<number | null>(null);
-  const [sort, setSort] = useState<"modified" | "name">(() => (localStorage.getItem(SORT_KEY) === "name" ? "name" : "modified"));
+  const [sort, setSort] = useState<"modified" | "name">(() => (getPref(SORT_KEY) === "name" ? "name" : "modified"));
   const lang = useApp((st) => st.lang);
   // recent files that are not open now: shown above the folder when opening data files
   useApp((st) => st.recent);
   useApp((st) => st.runs);
   const recent = dataOpen && !picker ? recentToOpen(6) : [];
-  const changeSort = (v: "modified" | "name") => { setSort(v); localStorage.setItem(SORT_KEY, v); };
+  const changeSort = (v: "modified" | "name") => { setSort(v); setPref(SORT_KEY, v); };
   // last modified: folders and files mixed, newest first (whatever it is);
   // by name: folders first, as in Explorer, then A-Z with numbers in order (run_2 before run_10)
   const fq = filter.toLowerCase();
@@ -104,7 +105,7 @@ export default function FileBrowser() {
       setPicked((cur) => (same ? cur.filter((x) => r.entries.some((en) => en.path === x)) : []));
       if (!same) { anchor.current = null; setFilter(""); }
       setSugg([]); setSuggAt(-1);
-      if (r.path) localStorage.setItem(lastDirKey(picker), r.path);
+      if (r.path) setPref(lastDirKey(picker), r.path);
     } catch (e) { if (my === seq.current) setError((e as Error).message); }
   };
   // a layout effect: runs before the dialog is painted, so nothing typed in the first moments can be

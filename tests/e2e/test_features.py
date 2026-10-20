@@ -90,8 +90,9 @@ def pg(env):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         auto = os.path.join(env["home"], ".signalviewer", "autosave.json")
-        if os.path.exists(auto):
-            os.remove(auto)
+        for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
+            if os.path.exists(f):
+                os.remove(f)
         for r in json.loads(urllib.request.urlopen(env["url"] + "/api/runs").read()):
             if r["format"] == "derived":
                 for s in r["signals"]:
@@ -448,8 +449,10 @@ def test_V09_decimation_status(pg):
 
 
 def test_V10_theme(pg):
+    """T18: the theme is in Settings (the gear in the top bar)."""
     before = pg.evaluate("document.documentElement.dataset.theme")
-    pg.click("[aria-label='Theme']")
+    pg.click(".topbar [aria-label='Settings']")
+    pg.locator(".dialog.settings button[role=radio]", has_text="Light" if before == "dark" else "Dark").click()
     assert pg.evaluate("document.documentElement.dataset.theme") != before
 
 

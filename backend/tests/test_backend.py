@@ -1023,3 +1023,17 @@ def test_stats_never_reuse_another_arrays_numbers(tmp_path):
     finally:
         for rid in list(store.order):
             store.remove(rid)
+
+
+def test_ui_settings_are_kept_in_the_app_folder():
+    """T18 / F30: settings live in ~/.signalviewer (the browser's storage is per port, and the
+    port changes at every start)."""
+    r = client.put("/api/settings", json={"changes": {"lang": "he", "timeFormat": "clock", "sv3.w.side": 320}})
+    assert r.status_code == 200
+    s = client.get("/api/settings").json()["settings"]
+    assert s["lang"] == "he" and s["timeFormat"] == "clock" and s["sv3.w.side"] == 320
+    client.put("/api/settings", json={"changes": {"timeFormat": None}})          # None removes
+    assert "timeFormat" not in client.get("/api/settings").json()["settings"]
+    assert client.put("/api/settings", json={"changes": {"big": "x" * 70000}}).status_code == 400
+    assert client.get("/api/settings").json()["settings"]["lang"] == "he"       # a refused change keeps the rest
+    client.put("/api/settings", json={"changes": {"lang": None, "sv3.w.side": None}})

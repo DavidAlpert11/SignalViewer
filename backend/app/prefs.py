@@ -339,3 +339,30 @@ def forget_import(path: str) -> None:
         prefs = _read("import_prefs.json", {})
         if prefs.pop(folder, None) is not None:
             _write("import_prefs.json", prefs)
+
+
+# ------------------------------------------------------------------ UI settings (T18, F30)
+# What the user chose in the app (language, theme, text size, time format, panel widths, the file
+# dialog's sort and folders...): kept HERE, not in the browser's storage - the app runs on a new
+# port at every start, and a browser keeps its storage per address, so it was forgotten (F30).
+UI_SETTINGS = "ui_settings.json"
+UI_SETTINGS_MAX = 64 * 1024          # bytes of JSON: settings, not data
+
+
+def ui_settings() -> Dict[str, Any]:
+    return _read(UI_SETTINGS, {})
+
+
+def update_ui_settings(changes: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge `changes` into the settings (a key set to None is removed)."""
+    with _lock:
+        cur = _read(UI_SETTINGS, {})
+        for k, v in changes.items():
+            if v is None:
+                cur.pop(str(k), None)
+            else:
+                cur[str(k)[:100]] = v
+        if len(json.dumps(cur, ensure_ascii=False)) > UI_SETTINGS_MAX:
+            raise ValueError("Settings too large.")
+        _write(UI_SETTINGS, cur)
+        return cur

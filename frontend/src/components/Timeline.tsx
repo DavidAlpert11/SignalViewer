@@ -20,9 +20,16 @@ function fmtClock(sec: number, span: number): string {
   return `${neg}${h}:${String(m).padStart(2, "0")}:${String(Math.floor(s)).padStart(2, "0")}`;
 }
 
+/** F28: seconds as recorded - the same number as the axes, the cursor and the Inspector. */
+function fmtSec(v: number, span: number, lang: string): string {
+  const d = span < 60 ? 2 : span < 3600 ? 1 : 0;
+  return v.toLocaleString(lang === "he" ? "he-IL" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false });
+}
+
 export default function Timeline() {
   const t = useT();
   const lang = useApp((s) => s.lang);
+  const timeFormat = useApp((s) => s.timeFormat);
   const runs = useApp((s) => s.runs);
   const cursor = useApp((s) => s.cursor);
   const playing = useApp((s) => s.playing);
@@ -57,6 +64,8 @@ export default function Timeline() {
   const span = t1 - t0;
   const frac = (v: number) => Math.min(1, Math.max(0, (v - t0) / span));
   const now = cursor.on && cursor.t1 !== null ? cursor.t1 : null;
+  // F28: one way of writing a moment - seconds as recorded (default), or a clock from the start (Settings)
+  const clock = (v: number) => (timeFormat === "clock" ? fmtClock(v - t0, span) : fmtSec(v, span, lang));
 
   /* dragging on the track: the time follows the pointer, at most once per frame */
   const timeAt = (clientX: number) => {
@@ -96,7 +105,7 @@ export default function Timeline() {
   const track = (
     <div className="tl-track" ref={trackRef} dir="ltr" role="slider" tabIndex={0} aria-label={t("timeline")}
       aria-valuemin={0} aria-valuemax={Math.round(span * 1000) / 1000} aria-valuenow={now === null ? 0 : Math.round((now - t0) * 1000) / 1000}
-      aria-valuetext={now === null ? t("tlHint") : fmtClock(now - t0, span)}
+      aria-valuetext={now === null ? t("tlHint") : clock(now)}
       title={t("tlHint")} onPointerDown={onDown} onKeyDown={onKey}>
       <div className="tl-rail" />
       {now !== null && playMode === "draw" && <div className="tl-shown" style={{ left: 0, width: `${frac(now) * 100}%` }} />}
@@ -140,12 +149,12 @@ export default function Timeline() {
           ))}
           {marks.map((m, i) => (
             <button key={i} className={`tl-event ${m.level}`} style={{ left: `${frac(m.t) * 100}%` }}
-              title={`${fmtClock(m.t - t0, span)} · ${m.text}`} aria-label={m.text} onClick={() => jump(m.t)} />
+              title={`${clock(m.t)} · ${m.text}`} aria-label={m.text} onClick={() => jump(m.t)} />
           ))}
         </div>
       </div>
       <span className="tl-clock" title={now === null ? "" : fmtNum(now, lang, 9)}>
-        {now === null ? "–" : fmtClock(now - t0, span)} <span className="hint">/ {fmtClock(span, span)}</span>
+        {now === null ? "–" : clock(now)} <span className="hint">/ {timeFormat === "clock" ? fmtClock(span, span) : clock(t0 + span)}</span>
       </span>
       <select className="mini-select" dir="ltr" value={speed} onChange={(e) => useApp.setState({ playSpeed: Number(e.target.value) })}
         aria-label={t("tlSpeed")} title={t("tlSpeed")}>

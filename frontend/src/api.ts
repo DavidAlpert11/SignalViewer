@@ -307,6 +307,8 @@ export const api = {
   saveSession: (path: string, state: unknown) => call<{ path: string }>("/api/session/save", { path, state }),
   loadSession: (path: string) => call<{ state: any; converted: boolean }>("/api/session/load", { path }),
   getAutosave: () => call<{ state: any }>("/api/autosave"),
+  getSettings: () => call<{ settings: Record<string, unknown> }>("/api/settings"),
+  putSettings: (changes: Record<string, unknown>) => call<{ settings: Record<string, unknown> }>("/api/settings", { changes }, "PUT"),
   putAutosave: (state: unknown) => call<{ ok: boolean }>("/api/autosave", state),
   restore: (runs: unknown[]) => call<{ restored: RunInfo[]; missing: any[] }>("/api/session/restore", { runs }),
 };

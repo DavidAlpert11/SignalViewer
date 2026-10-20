@@ -3,6 +3,7 @@
 ## 1.8.0 – unreleased
 
 ### Added
+- **Settings** (the gear in the top bar, *File → Settings…*, Ctrl+,): theme, text size, and how the timeline writes time. Kept on this computer between starts; opening a session (a colleague's, an old one) no longer changes your theme or text size.
 - **`pip install signalviewer`:** the app as a Python package - `signalviewer` starts it, `signalviewer-cli` is the command line, `import signalviewer` reads recordings in scripts and notebooks. Built and checked (installed in a fresh environment and started) on every build; published to PyPI with the releases.
 - **A user guide**, in English and Hebrew: twelve short sections from the first start to flight logs and live data. In the app: *Help → User guide* (F1); on GitHub: `docs/GUIDE.md`, `docs/GUIDE.he.md`.
 - **Open files from outside:** *Open with* in Windows Explorer (offered by the installer for .bin, .tlog, .ulg, .mcap, .mat, .csv, .parquet and .h5 files; a saved session, .svsession, opens with a double-click) and `SignalViewer file.bin` on the command line. When Signal Viewer is already running the files open **in that window**, which comes to the front – several files chosen together open in one app, not one app each. `--new-window` starts a separate app. Your default programs for those file types are not changed.
@@ -14,6 +15,8 @@
 - **Downloads:** every release now has the **Windows installer** (`SignalViewer-Setup-X.Y.Z.exe`, for the current user, no administrator rights) and the Windows portable package also as a **.zip** (Windows 10 opens it without 7-Zip), next to the .7z packages, with a short "which file?" note on the release page. The installer is installed and started by the build before it is published.
 
 ### Fixed
+- **Choices were forgotten at every start:** the panels' widths, the Inspector open or closed, the file dialog's sort and last folders, the MAVLink address. The app starts on a new port each time and the browser keeps such things per address; they are kept in the app folder now (what the browser still had is taken over once).
+- **The timeline wrote time differently from everything else** (2:03.0 where the axes, the cursor and the Inspector said 123.4). It writes seconds as recorded now; the clock from the start is a choice in Settings.
 - **Trackpads zoomed far too fast:** every wheel event zoomed by 25 %, and a trackpad sends dozens per gesture. The zoom now follows the size of the scroll (a mouse notch is still about 25 %), one gesture is one step back with Backspace, and a sideways swipe moves along the time axis instead of zooming out. The same in the spectrogram, X-Y, XYZ and map plots.
 - **The keyboard-shortcuts list described the mouse wheel wrongly:** Shift + wheel zooms the values, Ctrl + wheel both, Alt + wheel the time; double-click shows everything (time and values).
 - Hebrew: the theme button is called "ערכת נושא"; the Inspector button has a translated name.

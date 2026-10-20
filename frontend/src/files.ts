@@ -1,4 +1,5 @@
 import { DATA_EXTS } from "./values";
+import { hasSetting } from "./settings";
 import { isEmptyStart, offerStart } from "./smartStart";
 import { api, type JobInfo, type LoadErrorInfo } from "./api";
 import { actions, useApp } from "./store";
@@ -263,9 +264,10 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
   const st = useApp.getState();
   st.set({ busy: st.busy + 1 });
   try {
-    if (state.ui?.theme) useApp.setState({ theme: state.ui.theme });
-    if (state.ui?.lang) useApp.setState({ lang: state.ui.lang });
-    if ([1, 1.12, 1.25].includes(state.ui?.uiScale)) useApp.setState({ uiScale: state.ui.uiScale });
+    // T18: what the user set in Settings stays - a session (a colleague's, an old one) does not change it
+    if (state.ui?.theme && !hasSetting("theme")) useApp.setState({ theme: state.ui.theme });
+    if (state.ui?.lang && !hasSetting("lang")) useApp.setState({ lang: state.ui.lang });
+    if ([1, 1.12, 1.25].includes(state.ui?.uiScale) && !hasSetting("uiScale")) useApp.setState({ uiScale: state.ui.uiScale });
     if (typeof state.ui?.linkRuns === "boolean") useApp.setState({ linkRuns: state.ui.linkRuns });
     if (["x", "y", "xy"].includes(state.ui?.zoomMode)) useApp.setState({ zoomMode: state.ui.zoomMode });
     // the timeline (sessions saved before it have none of these: the defaults stay)
@@ -273,8 +275,8 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     if (typeof state.ui?.playSpeed === "number" && state.ui.playSpeed > 0 && state.ui.playSpeed <= 1000) useApp.setState({ playSpeed: state.ui.playSpeed });
     if (typeof state.ui?.windowSec === "number" && state.ui.windowSec > 0) useApp.setState({ windowSec: state.ui.windowSec });
     if (typeof state.ui?.timelineOpen === "boolean") useApp.setState({ timelineOpen: state.ui.timelineOpen });
-    if (state.ui && "liveAutoStop" in state.ui && (state.ui.liveAutoStop === null || typeof state.ui.liveAutoStop === "number")) useApp.setState({ liveAutoStop: state.ui.liveAutoStop });
-    if (["ask", "auto", "ignore"].includes(state.ui?.liveNewFiles)) useApp.setState({ liveNewFiles: state.ui.liveNewFiles });
+    if (state.ui && "liveAutoStop" in state.ui && (state.ui.liveAutoStop === null || typeof state.ui.liveAutoStop === "number") && !hasSetting("liveAutoStop")) useApp.setState({ liveAutoStop: state.ui.liveAutoStop });
+    if (["ask", "auto", "ignore"].includes(state.ui?.liveNewFiles) && !hasSetting("liveNewFiles")) useApp.setState({ liveNewFiles: state.ui.liveNewFiles });
     if (["auto", "osm", "esri", "light", "dark", "satellite", "topo", "offline"].includes(state.ui?.geoBase)) useApp.setState({ geoBase: state.ui.geoBase });
     const res = state.runs?.length ? await api.restore(state.runs) : { restored: [], missing: [] };
     const keep = new Set<string>(res.restored.map((r) => r.id));
