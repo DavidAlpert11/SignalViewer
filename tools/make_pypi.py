@@ -67,6 +67,18 @@ def requirements():
     return req, extra
 
 
+REPO = "https://github.com/DavidAlpert11/SignalViewer"
+
+
+def pypi_readme(text, ver):
+    """F32: the README's pictures and links are relative to the repository, and PyPI shows them
+    broken. Point them at the release's tag (the wheel is published from it)."""
+    raw = f"https://raw.githubusercontent.com/DavidAlpert11/SignalViewer/v{ver}/"
+    text = re.sub(r'src="(?!https?:|data:)([^"]+)"', lambda m: f'src="{raw}{m.group(1)}"', text)
+    text = re.sub(r'href="(?!https?:|#|mailto:)([^"]+)"', lambda m: f'href="{REPO}/blob/v{ver}/{m.group(1)}"', text)
+    return re.sub(r"\]\((?!https?:|#|mailto:)([^)\s]+)\)", lambda m: f"]({REPO}/blob/v{ver}/{m.group(1)})", text)
+
+
 def version():
     src = open(os.path.join(ROOT, "backend", "app", "version.py"), encoding="utf-8").read()
     return re.search(r'__version__\s*=\s*"([^"]+)"', src).group(1)
@@ -88,8 +100,11 @@ def stage():
     shutil.copy2(os.path.join(ROOT, "run.py"), os.path.join(core, "run.py"))
     with open(os.path.join(pkg, "launcher.py"), "w", encoding="utf-8") as f:
         f.write(LAUNCHER)
-    for name in ("README.md", "LICENSE"):
-        shutil.copy2(os.path.join(ROOT, name), os.path.join(STAGE, name))
+    shutil.copy2(os.path.join(ROOT, "LICENSE"), os.path.join(STAGE, "LICENSE"))
+    with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as f:
+        readme = pypi_readme(f.read(), version())
+    with open(os.path.join(STAGE, "README.md"), "w", encoding="utf-8") as f:
+        f.write(readme)
     req, extra = requirements()
     q = lambda xs: ", ".join(f'"{x}"' for x in xs)
     extras = "\n".join(f"{k} = [{q(v)}]" for k, v in extra.items())
@@ -106,20 +121,31 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 dependencies = [{q(req)}]
-keywords = ["signals", "plotting", "flight log", "ardupilot", "px4", "mavlink", "telemetry", "csv", "matlab"]
+keywords = ["signals", "plotting", "time series", "flight log", "flight test", "ardupilot", "px4", "mavlink",
+            "ulog", "ros2", "mcap", "telemetry", "csv", "parquet", "hdf5", "matlab", "offline"]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Operating System :: OS Independent",
+  "Environment :: Web Environment",
+  "Framework :: FastAPI",
+  "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Visualization",
   "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Natural Language :: English",
+  "Natural Language :: Hebrew",
 ]
 
 [project.optional-dependencies]
 {extras}
 
 [project.urls]
-Homepage = "https://github.com/DavidAlpert11/SignalViewer"
-Guide = "https://github.com/DavidAlpert11/SignalViewer/blob/main/docs/GUIDE.md"
+Homepage = "{REPO}"
+Documentation = "{REPO}/blob/main/docs/GUIDE.md"
+Changelog = "{REPO}/blob/main/CHANGELOG.md"
+Issues = "{REPO}/issues"
+Releases = "{REPO}/releases"
 
 [project.scripts]
 signalviewer = "signalviewer.launcher:main"
