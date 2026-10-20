@@ -1,3 +1,4 @@
+import { clearMenuItems } from "../clearing";
 import { useEffect, useRef, useState } from "react";
 import { toggleLive } from "../live";
 import { mavlinkConnect, mavlinkDisconnect } from "../mavlink";
@@ -73,6 +74,8 @@ export default function TopBar() {
     { label: "", run: () => {}, sep: true },
     { label: t("settings") + "…", keys: "Ctrl+,", run: () => useApp.setState({ settingsOpen: true }) },
     { label: "", run: () => {}, sep: true },
+    // T63: the scopes that keep the files (undoable) in a submenu; "Clear everything" as before
+    { label: t("clearMenu"), run: () => {}, items: clearMenuItems().slice(0, 4) },
     { label: t("clearEverything"), run: clearEverything, danger: true },
   ]);
   const helpMenu = async (e: React.MouseEvent) => {
