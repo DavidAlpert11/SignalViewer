@@ -206,6 +206,11 @@ button, input, select { font: inherit; color: inherit; }
 .chip .rm:hover { background: var(--raised); color: var(--ink); }
 .plot-body { position: relative; flex: 1; min-height: 0; display: flex; }
 .plot-canvas { position: relative; flex: 1; min-height: 0; min-width: 0; direction: ltr; }
+/* A3: statistics weighted by time */
+.stats-tw { margin-inline-start: 6px; color: var(--muted); cursor: help; font-size: 0.9em; }
+/* A1: "gaps bridged" on a spectrum */
+.fft-grid-note { position: absolute; top: 6px; inset-inline-end: 14px; z-index: 2; padding: 1px 7px; border-radius: 4px;
+  font-size: 0.78em; color: var(--amber-ink); background: var(--amber-soft); border: 1px solid var(--amber); cursor: help; }
 .mode-btn { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 6px 0 8px; border: 1px solid var(--line);
   border-radius: 6px; background: var(--panel-2); color: var(--muted); font-size: 12px; }
 .mode-btn:hover, .mode-btn:focus-visible { color: var(--ink); border-color: var(--line-strong); }

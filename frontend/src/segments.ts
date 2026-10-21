@@ -12,7 +12,8 @@ export interface SegmentChoice { title: string; windows: Record<string, [number,
  * their own clock and a linked time axis cannot show both. newPlot: add a plot instead of
  * replacing the tab's active one (flip through signals in one plot, like the compare list does).
  */
-export function showSegmentPlot(name: string, runs: string[], seg: SegmentChoice, newPlot: boolean, colorOf?: (rid: string) => string) {
+export function showSegmentPlot(name: string, runs: string[], seg: SegmentChoice, newPlot: boolean, colorOf?: (rid: string) => string,
+  sigs?: Record<string, string>) {
   const ids = runs.filter((r) => seg.windows[r]);
   if (!ids.length) return;
   const dur = Math.max(...ids.map((r) => seg.windows[r][1] - seg.windows[r][0]));
@@ -25,7 +26,7 @@ export function showSegmentPlot(name: string, runs: string[], seg: SegmentChoice
       newPlot = false;
     }
     ws.activeTab = tab.id;
-    const signals = ids.map((rid, i) => ({ sig: `${rid}/${name}`, color: colorOf?.(rid) ?? TRACE_COLORS[i % TRACE_COLORS.length],
+    const signals = ids.map((rid, i) => ({ sig: `${rid}/${sigs?.[rid] ?? name}`, color: colorOf?.(rid) ?? TRACE_COLORS[i % TRACE_COLORS.length],
       width: 1.5, scale: 1, offset: 0, tOffset: -seg.windows[rid][0] }));
     let plot: Plot | undefined;
     if (newPlot) {

@@ -47,11 +47,11 @@ export default function CompareTable() {
     </th>
   );
   const plotRow = (x: CompareAllRow) => {
-    if (data.segment) { showSegmentPlot(x.name, x.runs ?? [], data.segment, true); close(); return; }
+    if (data.segment) { showSegmentPlot(x.name, x.runs ?? [], data.segment, true, undefined, x.sigs); close(); return; }
     let full = false;
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
-      const p = { id: uid("p"), title: x.name, signals: (x.runs ?? []).map((rid, i) => ({ sig: `${rid}/${x.name}`, color: TRACE_COLORS[i % TRACE_COLORS.length], width: 1.5, scale: 1, offset: 0 })) };
+      const p = { id: uid("p"), title: x.name, signals: (x.runs ?? []).map((rid, i) => ({ sig: `${rid}/${x.sigs?.[rid] ?? x.name}`, color: TRACE_COLORS[i % TRACE_COLORS.length], width: 1.5, scale: 1, offset: 0 })) };
       const at = placePlot(tab, p);
       if (at < 0) { full = true; return ws; }
       tab.active = at;

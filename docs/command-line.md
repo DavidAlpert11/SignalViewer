@@ -59,6 +59,25 @@ Every signal both runs have, with the Compare panel's numbers (RMS and largest d
 correlation; headings wrap at 360°), the most different first. A signal passes when every sample is
 within min(abs, pct of the golden value). Without any tolerance the differences are only listed.
 
+### A simulation against a flight
+
+Two loggers, two clocks, two naming habits: `--align auto` lines the run up with the golden run by
+cross-correlation (`--align-on NAME` to choose the signal, `--align SECONDS` to give the shift),
+names match with or without their unit, and `{"as": "name in the run"}` in the tolerances pairs
+signals named differently. A worked example: [Simulation against flight](sim-vs-flight.md).
+
+## Numerical validation: `validate`
+
+```bash
+signalviewer-cli validate                   # one line per case, then "23 passed, 0 failed"
+signalviewer-cli validate --json            # every case with expected, measured, error, tolerance
+signalviewer-cli validate --junit v.xml     # JUnit XML, e.g. as a record that this installation computes correctly
+```
+
+Spectra, filters, derivative and integral, statistics, decimation, Compare and coordinate frames,
+each against a reference that does not come from the app. Exit code 0 = every case within its
+tolerance, 1 = one is not. The cases and the conventions behind them: [Validation](validation.md).
+
 ## Python
 
 ```python

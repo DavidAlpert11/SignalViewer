@@ -5,3 +5,5 @@ playwright>=1.40      # end-to-end tests: python -m playwright install chromium
 pypdf>=4              # tests only: read report PDFs back (a plot missing from the PDF once passed unnoticed)
 pyinstaller>=6
 mypy>=1.10            # type check of the backend (T36): see [tool.mypy] in pyproject.toml
+mkdocs==1.6.1         # the documentation site (mkdocs serve); the same pins as .github/workflows/docs.yml
+mkdocs-material==9.7.7

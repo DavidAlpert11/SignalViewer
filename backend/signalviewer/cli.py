@@ -7,6 +7,7 @@
     python cli.py templates                                # the templates --template can name
     python cli.py check runs/*.csv --checks checks.json [--junit results.xml]   # pass / fail (CI)
     python cli.py compare golden.csv new.csv --tol-abs 0.5     # against a golden run (CI)
+    python cli.py validate [--json] [--junit v.xml]        # the numerical validation, on this machine
 
 MATLAB:  status = system('python cli.py export flight.bin --out f.mat'); d = load('f.mat');
 Exit code 0 = done, 1 = the file or a signal could not be read (the message says why).
@@ -142,6 +143,7 @@ def cmd_check(a) -> int:
 def _print_results(results, a, mark_extra=None) -> dict:
     rs = [r for f in results for r in f["results"]]
     count = {k: sum(r["status"] == k for r in rs) for k in ("pass", "fail", "error", "skipped", "info")}
+    count["info"] -= sum(r["name"] == "(time alignment)" and r["status"] == "info" for r in rs)   # not a signal
     if a.junit:
         from app.checks import junit_xml
         with open(a.junit, "w", encoding="utf-8") as fh:
@@ -153,11 +155,13 @@ def _print_results(results, a, mark_extra=None) -> dict:
     top = getattr(a, "top", None)
     for f in results:
         print(f["file"] + (f"  vs  {f['golden']}" if f.get("golden") else ""))
-        shown = f["results"] if not top else [r for r in f["results"] if r["status"] in ("fail", "error")] or f["results"][:top]
-        for r in shown[:top] if top else shown:
+        always = [r for r in f["results"] if r["name"] == "(time alignment)"]        # C13: the shift is always said
+        rest = [r for r in f["results"] if r["name"] != "(time alignment)"]
+        shown = rest if not top else [r for r in rest if r["status"] in ("fail", "error")] or rest[:top]
+        for r in always + (shown[:top] if top else shown):
             print(f"  {mark[r['status']]:5} {r['name']}" + (f"  - {r['message']}" if r.get("message") else ""))
-        if top and len(f["results"]) > len(shown[:top]):
-            print(f"  ... {len(f['results']) - len(shown[:top])} more (--top 0 shows all)")
+        if top and len(rest) > len(shown[:top]):
+            print(f"  ... {len(rest) - len(shown[:top])} more (--top 0 shows all)")
     print(f"{count['pass']} passed, {count['fail']} failed, {count['error']} errors, {count['skipped']} skipped"
           + (f", {count['info']} without a tolerance" if count["info"] else "")
           + (f"; JUnit XML: {a.junit}" if a.junit else ""))
@@ -175,7 +179,7 @@ def cmd_compare(a) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
     names = [s.strip() for s in a.signals.split(",") if s.strip()] if a.signals else None
-    results = [run_compare(a.golden, f, tol, names) for f in files]
+    results = [run_compare(a.golden, f, tol, names, a.align, a.align_on) for f in files]
     count = _print_results(results, a)
     return 2 if count["error"] else 1 if count["fail"] else 0
 
@@ -205,6 +209,36 @@ def cmd_readers(a) -> int:
     if not info["readers"] and not info["errors"]:
         print("  none yet - `readers --example` writes one to start from")
     return 1 if info["errors"] else 0
+
+
+def _fmt(v: float) -> str:
+    return "-" if not np.isfinite(v) else f"{v:.10g}"
+
+
+def cmd_validate(a) -> int:
+    """A4: the numerical validation cases (svcore/validation.py) on this installation: each one's
+    expected value, what this build computes, and the tolerance. Exit code 0 = all within tolerance."""
+    from svcore.validation import run_all
+    rows = run_all()
+    failed = [r for r in rows if not r["ok"]]
+    if a.json:
+        print(json.dumps(rows, ensure_ascii=False, default=float))
+    else:
+        for r in rows:
+            unit = f" {r['unit']}" if r["unit"] else ""
+            print(f"  {'PASS' if r['ok'] else 'FAIL'}  {r['id']}  {r['title']}")
+            print(f"        expected {_fmt(r['expected'])}{unit}, measured {_fmt(r['measured'])}{unit}, "
+                  f"error {_fmt(r['error'])} (tolerance {_fmt(r['tol'])})  - {r['reference']}")
+        print(f"{len(rows) - len(failed)} passed, {len(failed)} failed")
+    if a.junit:
+        from app.checks import junit_xml
+        res = [{"name": f"{r['id']} {r['title']}",
+                "status": "pass" if r["ok"] else "fail",
+                "message": f"expected {_fmt(r['expected'])}, measured {_fmt(r['measured'])}, tolerance {_fmt(r['tol'])}"}
+               for r in rows]
+        with open(a.junit, "w", encoding="utf-8") as fh:
+            fh.write(junit_xml([{"file": "validation", "results": res}]))
+    return 1 if failed else 0
 
 
 def main(argv=None) -> int:
@@ -244,6 +278,9 @@ def main(argv=None) -> int:
     p.add_argument("--tol-abs", type=float, help="allowed |difference| for every signal, in its unit")
     p.add_argument("--tol-pct", type=float, help="allowed difference in %% of the golden value")
     p.add_argument("--tolerances", help='a .json file: {"default": {"abs": .., "pct": ..}, "signals": {"Speed": {"abs": 1}, "Gear": {"skip": true}}}')
+    p.add_argument("--align", help="line the runs up in time: auto (cross-correlation, like the app's Align) or seconds "
+                                   "added to each run's time (a simulation from 0 s against a log from boot)")
+    p.add_argument("--align-on", help="with --align auto: the golden signal to align on (default: the best-correlated)")
     p.add_argument("--top", type=int, default=10, help="lines per file when everything passes (0 = all); failures are always shown")
     p.add_argument("--junit", help="also write the results as JUnit XML"); p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_compare)
@@ -252,6 +289,10 @@ def main(argv=None) -> int:
     p.add_argument("--example-icd", nargs="?", const="", metavar="RECORDING.tlm",
                    help="write an example binary layout (.icd.json, .tlm files) into the folder; with a path, also a recording for it")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_readers)
+    p = sub.add_parser("validate", help="the numerical validation: spectra, filters, statistics, compare, frames")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--junit", help="also write the results as JUnit XML")
+    p.set_defaults(fn=cmd_validate)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)
     a = ap.parse_args(argv)
@@ -267,3 +308,7 @@ def main(argv=None) -> int:
             print(f"error: {e}", file=sys.stderr)
             return 1
         raise
+
+
+if __name__ == "__main__":          # python -m signalviewer.cli ... (did nothing, silently, before A6)
+    sys.exit(main())

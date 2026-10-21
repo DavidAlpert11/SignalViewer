@@ -1,24 +1,65 @@
 # T43 / Q73: the documentation site (GitHub Pages, .github/workflows/docs.yml).
-# Build locally: pip install mkdocs && mkdocs serve
+# B9: Material for MkDocs - search, light / dark, a landing page, the Hebrew guide right to left.
+# Build locally:  pip install "mkdocs==1.6.1" "mkdocs-material==9.7.7"  &&  mkdocs serve
 site_name: Signal Viewer
+site_description: >-
+  Offline desktop app to explore, compare and report on flight logs (ArduPilot, PX4, MAVLink),
+  test runs, CAN and simulation output - every computation validated. English and Hebrew.
 site_url: https://davidalpert11.github.io/SignalViewer/
 repo_url: https://github.com/DavidAlpert11/SignalViewer
+repo_name: DavidAlpert11/SignalViewer
 edit_uri: edit/main/docs/
 docs_dir: docs
+copyright: Signal Viewer · MIT License
 theme:
-  name: mkdocs
-  navigation_depth: 3
+  name: material
+  logo: assets/icon.png
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
+  font: false                       # the system fonts: the site works offline and without Google
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: Dark }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: Light }
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+extra_css:
+  - stylesheets/extra.css
+hooks:
+  - tools/mkdocs_hooks.py           # the Hebrew guide right to left (it is also shown, unchanged, in the app)
 nav:
   - Home: index.md
-  - User guide: GUIDE.md
-  - מדריך: GUIDE.he.md
-  - Install: install.md
-  - What works: features.md
-  - Command line, Python and formats: command-line.md
-  - Offline map and 3D: maps-and-3d.md
-  - Performance: performance.md
-  - Known limitations: limitations.md
-  - Gallery: gallery.md
+  - Get started:
+      - Install: install.md
+      - User guide: GUIDE.md
+      - מדריך למשתמש: GUIDE.he.md
+  - Features:
+      - What works: features.md
+      - Command line, Python and formats: command-line.md
+      - Offline map and 3D: maps-and-3d.md
+      - Simulation against flight: sim-vs-flight.md
+      - Gallery: gallery.md
+  - Quality:
+      - Validation: validation.md
+      - Performance: performance.md
+      - Known limitations: limitations.md
   - Development: development.md
 exclude_docs: |
   dev/
@@ -26,9 +67,24 @@ exclude_docs: |
   performance_baseline.md
 markdown_extensions:
   - tables
+  - attr_list
+  - md_in_html
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - toc:
       permalink: true
 validation:
   links:
     not_found: warn
     anchors: warn
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/DavidAlpert11/SignalViewer
+      name: Source, releases and issues

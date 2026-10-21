@@ -118,6 +118,11 @@ class TLogState:
         # (median, so it includes the typical radio delay). Messages that carry the autopilot's clock are
         # placed at boot time - D: their true moment, without the radio delay of each packet.
         self.boot_D: List[float] = []
+        # A5: the boots in receive order - (receive time the boot was first seen, its D); a sample
+        # belongs to the last boot that started at or before it was received. And the last boot's
+        # newest boot time, so live mode can tell "the same boot, more data" from a reboot.
+        self.boots: List[Tuple[float, float]] = []
+        self.boot_last_tb: Optional[float] = None
 
 
 def _scan(raw: bytes, start: int, st: TLogState):
@@ -209,7 +214,7 @@ def _decode(frames, st: TLogState) -> Dict[str, tuple]:
             tag = "" if (sysid, comp) == st.main else (f"[c{comp}]" if sysid == st.main[0] else f"[s{sysid}]")
             arr = np.frombuffer(b"".join(pl), dtype=dt)
             t = (np.asarray(ts, dtype=np.float64) - st.ts0) * 1e-6
-            if tag == "" and st.boot_D:
+            if tag == "" and st.boots:
                 t = _boot_time(st, t, arr)
             if len(t) > 1 and np.any(np.diff(t) < 0):
                 o = np.argsort(t, kind="stable"); t, arr = t[o], arr[o]
@@ -282,43 +287,89 @@ def _main_boot_arrays(frames, st: TLogState):
     return np.concatenate(tr), np.concatenate(tb)
 
 
+REBOOT_DROP = 10.0       # s: the boot clock going back this much (and staying back) is a reboot
+MAX_LATENCY = 60.0       # s: a boot time further than this from its receive time is not this boot's clock
+
+
+def _boot_starts(tb: np.ndarray, start_max: float = -np.inf) -> List[int]:
+    """Indices (in receive order) where a new boot starts: the boot clock goes back by more than
+    REBOOT_DROP from the highest value of the current boot, and the next samples confirm it (one
+    corrupted or very late packet is not a reboot). start_max: the current boot's highest boot time
+    from before these samples (live mode)."""
+    starts: List[int] = []
+    n, i0, top = len(tb), 0, start_max
+    while i0 < n:
+        run_max = np.maximum.accumulate(np.concatenate([[top], tb[i0:]]))[:-1]
+        cand = np.flatnonzero(tb[i0:] < run_max - REBOOT_DROP)
+        found = None
+        for c in cand.tolist():
+            j = i0 + c
+            nxt = tb[j + 1: j + 4]
+            if not len(nxt) or np.all(nxt < run_max[c] - REBOOT_DROP):
+                found = j
+                break
+        if found is None:
+            break
+        starts.append(found)
+        i0, top = found, -np.inf
+    return starts
+
+
 def _learn_boot(frames, st: TLogState):
-    """Find D (boot time - receive time) for every autopilot boot in these frames; a reboot shows
-    as a jump of D (the boot clock restarts), and gets its own D."""
+    """Find the autopilot's boots in these frames and D (boot time - receive time) for each.
+
+    A boot is a stretch, in receive order, in which the boot clock only runs on; a reboot restarts
+    it (_boot_starts). D is the median of boot time - receive time over the boot: one constant per
+    boot, so every message that carries the boot clock keeps its exact spacing.
+
+    Before A5 the boots were found by rounding D to whole seconds, assuming that the radio delay of
+    one boot varies by well under a second. A real telemetry log (ArduPilot's own vtol.tlog) has
+    delays from 0 to 4 s: that one boot became five "boots" a second apart, and about one sample in
+    ten was moved by 1 to 3 s - and, re-sorted by the wrong time, ended up out of order."""
     got = _main_boot_arrays(frames, st)
     if got is None:
         return
     tr, tb = got
     ok = tb > 0
-    d = tb[ok] - tr[ok]
-    if not len(d):
+    tr, tb = tr[ok], tb[ok]
+    if not len(tr):
         return
-    r = np.round(d)                                    # samples of one boot share D to well within a second
-    for v, n in zip(*np.unique(r, return_counts=True)):
-        if n < 3:
-            continue
-        grp = d[np.abs(d - v) <= 1.0]
-        D = float(np.median(grp))
-        if all(abs(D - x) > 1.0 for x in st.boot_D):
-            st.boot_D.append(D)
+    o = np.argsort(tr, kind="stable")
+    tr, tb = tr[o], tb[o]
+    last_tb = st.boot_last_tb if st.boots else None           # live: the current boot's newest boot time
+    cont = last_tb is not None
+    starts = _boot_starts(tb, last_tb if last_tb is not None else -np.inf)
+    edges = [0] + starts + [len(tr)]
+    for k in range(len(edges) - 1):
+        a, b = edges[k], edges[k + 1]
+        if b - a < 3 and len(edges) > 2:
+            continue                                         # a stray packet between reboots
+        if k == 0 and cont:
+            continue                                         # live: more of the boot already known
+        D = float(np.median(tb[a:b] - tr[a:b]))
+        st.boots.append((float(tr[a]), D))
+        st.boot_D.append(D)
+    newest = float(np.max(tb[starts[-1] if starts else 0:]))
+    st.boot_last_tb = max(last_tb, newest) if (last_tb is not None and not starts) else newest
 
 
 def _boot_time(st: TLogState, t_recv: np.ndarray, arr) -> np.ndarray:
     """The message's own time when it carries the autopilot's clock (time_boot_ms, or time_usec when
-    that is boot time - not Unix time), else its receive time."""
+    that is boot time - not Unix time), else its receive time. Each sample uses the D of the boot it
+    was received in, and the boot clock as long as it is within MAX_LATENCY of the receive time."""
     names = arr.dtype.names
     tb = None
     if "time_boot_ms" in names:
         tb = arr["time_boot_ms"].astype(np.float64) * 1e-3
     elif "time_usec" in names:
         tb = arr["time_usec"].astype(np.float64) * 1e-6       # boot time in some messages, Unix time in others
-    if tb is None:
+    if tb is None or not st.boots:
         return t_recv
-    D = np.asarray(st.boot_D)
-    d = tb - t_recv
-    k = np.argmin(np.abs(d[:, None] - D[None, :]), axis=1)    # which boot each sample belongs to
-    Dk = D[k]
-    good = (tb > 0) & (np.abs(d - Dk) < 1.0)                  # consistent with that boot's clock
+    starts = np.array([b[0] for b in st.boots])
+    Ds = np.array([b[1] for b in st.boots])
+    k = np.clip(np.searchsorted(starts, t_recv, side="right") - 1, 0, len(Ds) - 1)
+    Dk = Ds[k]
+    good = (tb > 0) & (np.abs(tb - t_recv - Dk) < MAX_LATENCY)
     return np.where(good, tb - Dk, t_recv)
 
 

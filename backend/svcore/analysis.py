@@ -8,12 +8,13 @@ or grows (live mode), and sessions save only the formula, never the arrays.
 
 import itertools
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from svcore.decimate import minmax_decimate, stride_decimate
-from svcore.ops import FilterError, apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average, nearest_indices
+from svcore.ops import (FilterError, apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average,
+                        nearest_indices, uniform_samples)
 
 UNARY = {"derivative", "integral", "abs", "negate", "normalize", "smooth", "rms", "lowpass", "highpass", "affine"}
 FORMULA = {"expr"}
@@ -456,27 +457,35 @@ def _frame(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[
 
 # ----------------------------------------------------------------------------- FFT
 
-_fft_cache: Dict[tuple, Tuple[np.ndarray, np.ndarray]] = {}
+_fft_cache: Dict[tuple, Tuple[np.ndarray, np.ndarray, Dict[str, Any]]] = {}
 
 
 def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
-            t0: Optional[float], t1: Optional[float], method: str = "fft") -> Tuple[np.ndarray, np.ndarray]:
-    """method: "fft" (magnitude of one FFT) or "welch" (averaged power spectral density)."""
+            t0: Optional[float], t1: Optional[float], method: str = "fft",
+            info: Optional[Dict[str, Any]] = None) -> Tuple[np.ndarray, np.ndarray]:
+    """method: "fft" (magnitude of one FFT) or "welch" (averaged power spectral density).
+    info, when given, is filled with how the samples were put on an even grid (ops.uniform_samples):
+    resampled, fs, gaps, gapTime - so the plot can say that a gap was bridged."""
     key = (sig_id, version, window, t0, t1, method)
     hit = _fft_cache.get(key)
     if hit is not None:
-        return hit
+        if info is not None:
+            info.update(hit[2])
+        return hit[0], hit[1]
     if t0 is not None and t1 is not None:
         i0, i1 = np.searchsorted(t, min(t0, t1), "left"), np.searchsorted(t, max(t0, t1), "right")
         t, y = t[i0:i1], y[i0:i1]
+    how: Dict[str, Any] = {}
     if len(t) < 16:
-        res = (np.array([]), np.array([]))
+        f, m = np.array([]), np.array([])
     else:
-        res = (compute_welch if method == "welch" else compute_fft)(_f64(t), _f64(y), window)
+        f, m = (compute_welch if method == "welch" else compute_fft)(_f64(t), _f64(y), window, how)
     if len(_fft_cache) > 32:
         _fft_cache.pop(next(iter(_fft_cache)))
-    _fft_cache[key] = res
-    return res
+    _fft_cache[key] = (f, m, how)
+    if info is not None:
+        info.update(how)
+    return f, m
 
 
 def fft_display(freqs: np.ndarray, mags: np.ndarray, points: int) -> Tuple[np.ndarray, np.ndarray, Optional[float]]:
@@ -597,21 +606,13 @@ def spectrogram(t: np.ndarray, y: np.ndarray, x0=None, x1=None, nfft: int = 1024
     i0 = 0 if x0 is None else int(np.searchsorted(t, x0, "left"))
     i1 = len(t) if x1 is None else int(np.searchsorted(t, x1, "right"))
     tt, yy = t[i0:i1], _f64(y[i0:i1])
-    ok = np.isfinite(yy)
-    tt, yy = tt[ok], yy[ok]
-    if len(tt) < 64:
+    if int(np.isfinite(yy).sum()) < 64:
         raise ValueError("Too few samples in view for a spectrogram - zoom out.")
-    dt = float(np.median(np.diff(tt)))
+    t_first = float(tt[np.isfinite(tt) & np.isfinite(yy)][0])
+    dt, yy, _ = uniform_samples(tt, yy)              # same even grid as the FFT (A1)
     if not dt > 0:
         raise ValueError("The signal has no usable sample interval.")
-    jitter = float(np.std(np.diff(tt))) / dt
-    if jitter > 0.01:                                           # irregular: resample
-        n = int((tt[-1] - tt[0]) / dt) + 1
-        if n > 20_000_000:
-            raise ValueError("Too many samples in view - zoom in.")
-        grid = tt[0] + np.arange(n) * dt
-        yy = np.interp(grid, tt, yy)
-        tt = grid
+    tt = t_first + np.arange(len(yy)) * dt
     fs = 1.0 / dt
     nfft = int(min(nfft, max(64, 2 ** int(np.log2(len(yy) // 4 or 64)))))
     hop = max(1, (len(yy) - nfft) // max(1, width))

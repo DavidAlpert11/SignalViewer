@@ -24,6 +24,27 @@ Environment variables: `SV_FLOAT32`, `SV_CACHE`, `SV_CACHE_MIN_MB`, `SV_MAX_POIN
 Workspace autosave and the binary cache live in `~/.signalviewer/`; the error log in
 `~/.signalviewer/logs/` (Help > Copy error details puts its end on the clipboard; `SV_LOG_DIR` moves it).
 
+## Tests: numbers and real logs
+
+`cd backend && python -m pytest -q` runs everything that needs no network, including the
+[numerical validation](validation.md) (`tests/test_validation.py`; after changing a case, rewrite the
+page with `python tools/make_validation_doc.py`).
+
+**Real flight logs** (`tests/test_real_logs.py`): logs recorded by real vehicles, not only the ones our
+own tools write, checked against their projects' own readers - ArduPilot DataFlash against pymavlink's
+DFReader (every numeric field), `.tlog` against pymavlink (every sample, on the autopilot's clock),
+PX4 `.ulg` against pyulog (every field of every topic) - and for invariants (finite, non-decreasing
+time; the health check runs). The public logs are pinned to a commit and a SHA-256 and kept outside
+the repository (their licences differ from ours):
+
+```bash
+python tools/fetch_real_logs.py                          # once: ~/.cache/signalviewer-test-logs
+cd backend && python -m pytest -q tests/test_real_logs.py
+SV_REAL_LOGS=/path/to/your/logs python -m pytest -q tests/test_real_logs.py   # your own logs too
+```
+
+Without the download those tests are skipped; the regression test for radio delay always runs.
+
 ---
 
 ## Icon

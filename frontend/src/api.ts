@@ -1,5 +1,5 @@
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
-export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot";
+export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot" | "simVsFlight";
 export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number }
 export interface SignalInfo {
   id: string; name: string; discrete?: boolean;
@@ -46,12 +46,16 @@ export interface Series {
   x: Float64Array;
   y: Float32Array;
 }
-export interface Stats { min: number; max: number; mean: number; std: number; rms: number; peak_to_peak: number; samples: number; duration: number; segments?: number }
+export interface Stats { min: number; max: number; mean: number; std: number; rms: number; peak_to_peak: number; samples: number; duration: number; segments?: number;
+  /** A3: "time" when the samples are unevenly spaced and mean / RMS / std are weighted by time; gaps: dropouts not weighted */
+  weighting?: "time"; gaps?: number }
 export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean }
 export interface CompareFileStats { run: string; mean: number | null; std: number | null; min: number | null; max: number | null; rms: number | null }
 export interface CompareDiff { run: string; rmsDiff: number; rmsPct: number; maxAbsDiff: number; meanDiff: number; stdDiff: number; correlation: number; withinPct?: number | null; pass?: boolean | null }
 export interface CompareAllRow {
   name: string; runs?: string[]; baseline?: string; error?: string;
+  /** C13: the signal of each file in this row (run id -> name), when names differ by their unit */
+  sigs?: Record<string, string>;
   meanSpread?: number | null; stdSpread?: number | null; worstRmsDiff?: number | null; worstRmsPct?: number | null;
   worstMaxAbs?: number | null; minCorrelation?: number | null; pass?: boolean | null;
   matchPct?: number | null; profile?: (number | null)[] | null;
@@ -216,7 +220,8 @@ export const api = {
   fft: async (signals: string[], window: string, t0: number | null, t1: number | null, points: number, method: "fft" | "welch" = "fft") => {
     const r = await call<{ series: any[] }>("/api/fft", { signals, window, method, t0, t1, points });
     return r.series.map((s) => (s.missing ? { id: s.id, missing: true, n: 0, peak: NaN, x: new Float64Array(), y: new Float32Array() }
-      : { ...s, x: decode(s.x, Float64Array), y: decode(s.y, Float32Array) })) as { id: string; missing?: boolean; n: number; peak: number; x: Float64Array; y: Float32Array }[];
+      : { ...s, x: decode(s.x, Float64Array), y: decode(s.y, Float32Array) })) as
+      { id: string; missing?: boolean; n: number; peak: number; x: Float64Array; y: Float32Array; grid?: SpectrumGrid }[];
   },
   xy: async (x: string, ys: string[], alignment: string, t0: number | null, t1: number | null) => {
     const r = await call<{ series: any[] }>("/api/xy", { x, ys, alignment, t0, t1 });
@@ -334,6 +339,9 @@ export interface HealthFinding {
 export interface HealthReport { findings: HealthFinding[]; errors: number; warnings: number }
 /** T25: the error A − B over some time. */
 export interface ErrStat { n: number; rms?: number; mean?: number; maxAbs?: number; tMaxAbs?: number }
+/** A1: how a spectrum's samples were put on an even time grid (gaps and NaN are bridged in time). */
+export interface SpectrumGrid { resampled?: boolean; fs?: number | null; gaps?: number; gapTime?: number; error?: string }
+
 export interface SpecData {
   nf: number; nt: number; f0: number; f1: number; t0: number; t1: number; img: string;
   dbLo: number; dbHi: number; fs: number; nfft: number; df: number; dt: number;
