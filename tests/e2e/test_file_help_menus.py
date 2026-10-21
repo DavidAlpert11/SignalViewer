@@ -42,6 +42,8 @@ def test_file_and_help_menus(pg):
     pg.wait_for_function("window.__sv.state().runs.filter(r => r.format !== 'derived').length >= 3", timeout=20000)
 
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
+    # T66: next to Copy error details (not clicked here: it would open the PC's own browser)
+    pg.wait_for_selector(".menu.ctx button:has-text('Report a problem')")     # the menu opens after a request
     pg.locator(".menu.ctx button", has_text="About Signal Viewer").click()
     pg.wait_for_selector(".toast:has-text('github.com/DavidAlpert11/SignalViewer')")
 

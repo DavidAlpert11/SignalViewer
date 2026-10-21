@@ -168,6 +168,7 @@ export const api = {
   fleetLogs: (q: Record<string, string | number>) => call<{ logs: FleetLog[] }>(`/api/fleet/logs?${new URLSearchParams(Object.entries(q).map(([k, v]) => [k, String(v)]))}`),
   fleetTrend: (key: string) => call<{ points: { path: string; name: string; date: number; date_source: string; value: number }[] }>(`/api/fleet/trend?key=${encodeURIComponent(key)}`),
   diagnostics: () => call<{ text: string; logFile: string; version: string }>("/api/diagnostics"),
+  reportProblem: () => call<{ url: string; opened: boolean }>("/api/report-problem", {}),
   runLog: (id: string) => call<LogInfo>(`/api/runs/${encodeURIComponent(id)}/log`),
   syncSuggest: (ref: string, other: string, refSignal?: string | null, otherSignal?: string | null,
     opts: { feature?: { kind: string; levelPct?: number; occurrence?: number }; maxLag?: number | null } = {}) =>

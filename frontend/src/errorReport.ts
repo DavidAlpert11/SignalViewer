@@ -46,3 +46,19 @@ export async function copyErrorDetails(t: (k: "errorDetailsCopied" | "errorDetai
     toast({ kind: "error", text: String((e as Error).message) });
   }
 }
+
+
+/** Help > Report a problem (T66): the error details to the clipboard, then the issue form in the
+ *  user's browser (opened by the backend). Nothing is sent: the user pastes and submits. */
+export async function reportProblem(t: (k: "reportOpened" | "reportOpenedNoCopy" | "reportOpenHere", v?: Record<string, string>) => string,
+  toast: (x: { kind: "info" | "error"; text: string; ms?: number }) => void): Promise<void> {
+  let copied = false;
+  try { copied = await copyText((await api.diagnostics()).text); } catch { /* the form still helps */ }
+  try {
+    const r = await api.reportProblem();
+    if (r.opened) toast({ kind: "info", text: t(copied ? "reportOpened" : "reportOpenedNoCopy"), ms: 10000 });
+    else toast({ kind: "info", text: t("reportOpenHere", { url: r.url }), ms: 20000 });
+  } catch (e) {
+    toast({ kind: "error", text: String((e as Error).message) });
+  }
+}
