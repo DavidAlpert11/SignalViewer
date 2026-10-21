@@ -54,6 +54,22 @@ def diagnostics(ui: Optional[str] = None):
     return crashlog.diagnostics(ui)
 
 
+# T66: Help > Report a problem. The address is fixed here (the page cannot send one), and it is the
+# backend that opens it: in the desktop window (pywebview) a link from the page would open inside
+# the app or not at all; webbrowser opens the user's own browser in both modes.
+ISSUE_URL = "https://github.com/DavidAlpert11/SignalViewer/issues/new?template=bug_report.yml"
+
+
+@router.post("/api/report-problem")
+def report_problem():
+    import webbrowser
+    try:
+        opened = bool(webbrowser.open(ISSUE_URL, new=2))
+    except Exception:                 # no browser registered (a bare server): the UI shows the address
+        opened = False
+    return {"url": ISSUE_URL, "opened": opened}
+
+
 # =============================================================================
 # UI SETTINGS (T18, F30): kept in ~/.signalviewer/ui_settings.json, not in the browser
 # =============================================================================

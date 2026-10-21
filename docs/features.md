@@ -457,6 +457,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### Error details
 
 - Help → Copy error details: the version, the system and the end of the app's own log, to paste into a bug report
+- Help → Report a problem…: the same details copied, and the bug report form opened in your browser
 - Errors in the server, background jobs, threads and the interface are written to `~/.signalviewer/logs/signalviewer.log` (1 MB × 4; `SV_LOG_DIR` moves it)
 - An unexpected server error shows a readable message
 - Nothing is sent anywhere

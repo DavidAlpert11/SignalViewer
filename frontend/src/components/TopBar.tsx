@@ -8,7 +8,7 @@ import { actions, setInspectorByUser, useApp } from "../store";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
 import { openPaths, openSession, saveSession } from "../files";
-import { copyErrorDetails } from "../errorReport";
+import { copyErrorDetails, reportProblem } from "../errorReport";
 import type { MenuItem } from "../store";
 import { openMenu } from "./Overlays";
 import { templateMenuItems } from "../templateMenu";
@@ -79,6 +79,7 @@ export default function TopBar() {
         items: ex.map((x) => ({ label: t(EX[x.id]), run: () => openPaths(x.paths, undefined, { autoView: true }) })) }] : []),
       { label: "", run: () => {}, sep: true },
       { label: t("copyErrorDetails"), run: () => copyErrorDetails(t, useApp.getState().toast) },
+      { label: t("menuReportProblem"), run: () => reportProblem(t, useApp.getState().toast) },
       { label: t("menuAbout"), run: async () => {
         let v = "";
         try { v = (await api.diagnostics()).version; } catch { /* offline server: no version */ }

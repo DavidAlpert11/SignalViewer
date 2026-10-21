@@ -641,7 +641,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F37 Small fixes (Q80). Done 2026-10-21: `sv.load()` progress to stderr, PyPI Documentation link, README / docs/install.md (desktop extra, shallow clone, unsigned packages).
 - [x] T64 CI on every push and pull request (Q81). Done 2026-10-21: .github/workflows/ci.yml, README badge.
 - [x] T65 `compare`: a share of samples allowed outside the tolerance (Q82). Done 2026-10-21: `outside_pct`, `--allow-outside`, app/checks.py `_share`.
-- [ ] T66 Help → Report a problem (Q83).
+- [x] T66 Help → Report a problem (Q83). Done 2026-10-21: /api/report-problem, errorReport.ts `reportProblem`.
 - [ ] T67 Contributor and community files, outreach steps (Q84).
 
 ## Later

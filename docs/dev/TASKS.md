@@ -901,7 +901,7 @@ push or a pull request, and a newcomer has no path to report a problem or contri
 | Q80 | F37 Small fixes found in the review: `sv.load()` printed on stdout, the PyPI *Documentation* link, README (desktop extra, shallow clone, unsigned packages), stale notes | S | ☑ done |
 | Q81 | T64 CI on every push and pull request (backend tests, mypy, tsc + build), badge in the README | S | ☑ done (first run on GitHub: owner) |
 | Q82 | T65 `compare`: a share of samples allowed outside the tolerance (`outside_pct`, `--allow-outside`), the share written exactly | S | ☑ done |
-| Q83 | T66 *Help → Report a problem…*: copies the error details and opens the issue form | S | ☐ |
+| Q83 | T66 *Help → Report a problem…*: copies the error details and opens the issue form | S | ☑ done |
 | Q84 | T67 Contributor and community files: CONTRIBUTING, issue / PR templates, CITATION.cff, SECURITY; the owner's outreach steps | S | ☐ |
 
 Still the owner's (cannot be done from a patch): `gh repo edit` (About, homepage, topics) and the
@@ -936,6 +936,16 @@ never "0.0" when samples are outside, never "100.0" when some are inside), the J
 `outsidePct`, a wrong value is an error row (exit 2). Default 0: every earlier result unchanged.
 docs/sim-vs-flight.md: the output line (0.089 %), why to name `--align-on` in CI, the new key.
 Tests: `test_compare_share_allowed_outside`, `test_share_is_never_rounded_to_zero_or_all`.
+
+### Q83 · T66 Help → Report a problem — S
+The app has no telemetry, so a user's report is the only way to hear of a problem - and *Copy error
+details* left them to find where to send it. *Help → Report a problem…* copies the same details and
+opens the bug form (`issues/new?template=bug_report.yml`, Q84) in the user's browser. The backend
+opens it (`POST /api/report-problem`, app/routes/system.py): the address is fixed there, never sent
+by the page, and in the pywebview window a link would open inside the app or not at all. No browser
+(a bare server) or a PC without internet: the toast gives the address to open elsewhere. Nothing is
+sent. i18n en / he. Tests: `test_report_problem_opens_the_fixed_issue_form`; e2e: the item is in the
+Help menu (not clicked - it would open the test PC's browser).
 
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
@@ -1445,3 +1455,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · Review after 1.10.0 (plan Q80-Q84 above). Q80 / F37: sv.load() progress to stderr (+ test), PyPI Documentation = docs site, README (desktop extra, --depth 1, unsigned packages -> docs/install.md *First start*), pyproject note. Backend green, mkdocs --strict clean.
 - 2026-10-21 · Q81 / T64: .github/workflows/ci.yml (backend 3.9 + 3.12, mypy, validate, frontend build, e2e smoke on that build), README badge. Here: backend on 3.9 783 passed; the three e2e files 35 passed.
 - 2026-10-21 · Q82 / T65: `outside_pct` / `--allow-outside` in compare (app/checks.py), exact share in the message, docs (command-line, sim-vs-flight). Backend green.
+- 2026-10-21 · Q83 / T66: Help > Report a problem (errorReport.ts `reportProblem`, /api/report-problem). Backend green; tsc + build clean; e2e test_file_help_menus, test_fresh_user, test_workflows 35 passed (dist not in the patch).
