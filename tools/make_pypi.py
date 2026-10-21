@@ -79,6 +79,7 @@ def requirements():
 
 
 REPO = "https://github.com/DavidAlpert11/SignalViewer"
+DOCS = "https://davidalpert11.github.io/SignalViewer/"     # the documentation site (docs/, mkdocs)
 
 
 def pypi_readme(text, ver):
@@ -174,7 +175,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "{REPO}"
-Documentation = "{REPO}/blob/main/docs/GUIDE.md"
+Documentation = "{DOCS}"
 Changelog = "{REPO}/blob/main/CHANGELOG.md"
 Issues = "{REPO}/issues"
 Releases = "{REPO}/releases"

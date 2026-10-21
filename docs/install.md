@@ -17,6 +17,19 @@ package: install one of them, not both.
 finds *ATT.Roll [deg]* (the unit may be left out), and `signalviewer.show(t, {"alt": alt})` sends
 arrays from a notebook into the open app.
 
+### First start: Windows and macOS warnings
+
+The packages are not code-signed yet, so the first start may be stopped once:
+
+- **Windows** (*Windows protected your PC*, SmartScreen): *More info* → *Run anyway*. Shown for the
+  installer and for `SignalViewer.exe` from the portable package, once per version.
+- **macOS** (*"SignalViewer" cannot be opened* or *is damaged*): macOS marks files that came from
+  the internet. Remove the mark from the extracted folder once, in Terminal:
+  `xattr -dr com.apple.quarantine /path/to/SignalViewer`, then start `SignalViewer` in it (or
+  right-click it → *Open* → *Open*). The macOS package is for Apple silicon (M1 and later).
+
+### Building the packages
+
 **Nothing needs the internet at run time.** The installer, the portable folder and the single
 file contain Python, every library, the UI with its fonts, the report assets and the icon.
 Verified by running the built app with no network interface at all.

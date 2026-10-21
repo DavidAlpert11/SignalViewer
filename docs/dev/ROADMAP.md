@@ -637,5 +637,12 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] B10 docs/features.md as sections with pictures (no item dropped).
 - [x] C13 Simulation against flight: examples/sim_vs_flight (tools/make_sim_vs_flight.py), docs/sim-vs-flight.md, `compare --align / --align-on`, `{"as": ...}`; fixed: names matched without the unit in Compare / Align / CLI, xcorr on flat overlaps.
 
+## Milestone 11 — adoption (review 2026-10-21, after 1.10.0). Spec: TASKS.md Q80-Q84.
+- [x] F37 Small fixes (Q80). Done 2026-10-21: `sv.load()` progress to stderr, PyPI Documentation link, README / docs/install.md (desktop extra, shallow clone, unsigned packages).
+- [ ] T64 CI on every push and pull request (Q81).
+- [ ] T65 `compare`: a share of samples allowed outside the tolerance (Q82).
+- [ ] T66 Help → Report a problem (Q83).
+- [ ] T67 Contributor and community files, outreach steps (Q84).
+
 ## Later
 - [ ] "copy as pandas code".

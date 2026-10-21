@@ -23,6 +23,14 @@ def test_load_signal_and_dataframe():
         rec.signal("nope")
 
 
+def test_load_keeps_stdout_for_the_user(capsys):
+    """F37: sv.load() in a script or a notebook prints nothing on stdout (the readers' progress
+    line goes to stderr), so `python my_script.py > out.csv` stays clean."""
+    sv.load(os.path.join(EX, "run_012.csv"))
+    out, err = capsys.readouterr()
+    assert out == "" and "Loaded run_012.csv" in err
+
+
 def test_cli_info_json_is_clean(capsys):
     assert main(["info", os.path.join(EX, "uav_flight.csv"), "--json"]) == 0
     out = capsys.readouterr().out

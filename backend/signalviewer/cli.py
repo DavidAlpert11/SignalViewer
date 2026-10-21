@@ -15,20 +15,13 @@ check / compare:  0 = every check passed, 1 = a check failed, 2 = a check could 
 signal missing, a wrong checks file) - so a CI step fails on a broken limit and on broken data.
 """
 import argparse
-import contextlib
 import json
 import re
 import sys
 
 import numpy as np
 
-from . import load as _load
-
-
-def load(path):
-    """The readers print progress to stdout; keep stdout for results (--json, MATLAB jsondecode)."""
-    with contextlib.redirect_stdout(sys.stderr):
-        return _load(path)
+from . import load     # sends the readers' progress to stderr: stdout stays for results (--json, MATLAB jsondecode)
 
 
 def _mat_name(name: str, taken: set) -> str:

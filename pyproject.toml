@@ -2,7 +2,7 @@
 # requirements.txt and backend/app/version.py - change it there.
 [tool.pytest.ini_options]
 # `pytest` from the repo root runs the fast backend tests; the browser tests are run on
-# purpose: `pytest tests/e2e` (one file at a time until F02 is fixed).
+# purpose: `pytest tests/e2e` (one process for the whole suite since F02 was closed).
 testpaths = ["backend/tests"]
 pythonpath = ["backend"]
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.11.0 – unreleased
+
+### Fixed
+- `signalviewer.load()` in a script or a notebook printed a progress line (*[OK] Loaded …*) into your own output; it now goes to stderr, as on the command line.
+- The PyPI page's *Documentation* link opens the documentation site.
+- The README says what `pip install signalviewer` gives (the app in your browser; `[desktop]` for its own window) and what to do when Windows or macOS stops the first start of the unsigned packages (a new section in *Install*).
+
 ## 1.10.0 – 2026-10-21
 
 Highlights: **numbers you can trust** - every computation checked against a reference
