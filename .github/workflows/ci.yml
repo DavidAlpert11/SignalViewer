@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v6       # the UI of THIS commit, not the committed dist
+      - uses: actions/download-artifact@v7       # the UI of THIS commit, not the committed dist (v7: Node 24, as in build.yml)
         with:
           name: frontend-dist
           path: frontend/dist

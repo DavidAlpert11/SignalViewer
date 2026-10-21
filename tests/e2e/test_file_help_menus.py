@@ -7,6 +7,20 @@ pytest.importorskip("playwright.sync_api")
 from test_features import S, env, pg  # noqa: E402,F401
 
 
+def close_dialog(pg):
+    """Esc closes a dialog. On a slow runner an Esc pressed in the same instant the dialog appears
+    was sometimes lost (a scrim stayed and blocked the next click for 30 s): wait until the scrim is
+    gone, pressing Esc again if it is not - a dialog that never closes still fails."""
+    for _ in range(3):
+        pg.keyboard.press("Escape")
+        try:
+            pg.wait_for_selector(".scrim", state="detached", timeout=3000)
+            return
+        except Exception:
+            pass
+    raise AssertionError("the dialog did not close on Escape")
+
+
 def test_file_and_help_menus(pg):
     assert pg.locator(".topbar .menubar-btn", has_text="File").count() == 0
     for label in ("Open session", "Save session", "Clear", "Settings", "Theme"):
@@ -34,7 +48,7 @@ def test_file_and_help_menus(pg):
     body = pg.locator(".dialog.help").inner_text()
     assert "Shift / Ctrl / Alt + wheel" in body and "values only / both / time only" in body
     assert "Show everything (time and values)" in body
-    pg.keyboard.press("Escape")
+    close_dialog(pg)
 
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     pg.locator(".menu.ctx button", has_text="Examples").click()
@@ -53,13 +67,16 @@ def test_user_guide_in_the_app(pg):
     pg.locator(".topbar .menubar-btn", has_text="Help").click()
     pg.locator(".menu.ctx button", has_text="User guide").click()
     pg.wait_for_selector(".dialog.guide h2:has-text('user guide')")
+    # the dialog's own title is that h2 too, shown before the guide's text arrives (a lazy chunk,
+    # GuideDialog.tsx): wait for the text itself - on a slow CI runner it came after the count
+    pg.locator(".dialog.guide h3").nth(9).wait_for()
     assert pg.locator(".dialog.guide h3").count() >= 10
     assert pg.locator(".dialog.guide .guide-table td", has_text="Backspace").count() == 1
     assert pg.locator(".dialog.guide code").count() > 5
-    pg.keyboard.press("Escape")
-    pg.wait_for_selector(".dialog.guide", state="detached")
+    close_dialog(pg)
     pg.get_by_role("button", name="עברית").click()
     pg.keyboard.press("F1")
     pg.wait_for_selector(".dialog.guide h2:has-text('מדריך למשתמש')")
-    pg.keyboard.press("Escape")
+    pg.locator(".dialog.guide h3").nth(9).wait_for()                   # the Hebrew text, not just the title
+    close_dialog(pg)
     pg.get_by_role("button", name="English").click()
