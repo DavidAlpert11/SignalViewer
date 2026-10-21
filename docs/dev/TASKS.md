@@ -900,7 +900,7 @@ push or a pull request, and a newcomer has no path to report a problem or contri
 |---|---|---|---|
 | Q80 | F37 Small fixes found in the review: `sv.load()` printed on stdout, the PyPI *Documentation* link, README (desktop extra, shallow clone, unsigned packages), stale notes | S | ☑ done |
 | Q81 | T64 CI on every push and pull request (backend tests, mypy, tsc + build), badge in the README | S | ☑ done (first run on GitHub: owner) |
-| Q82 | T65 `compare`: a share of samples allowed outside the tolerance (`outside_pct`, `--allow-outside`), the share written exactly | S | ☐ |
+| Q82 | T65 `compare`: a share of samples allowed outside the tolerance (`outside_pct`, `--allow-outside`), the share written exactly | S | ☑ done |
 | Q83 | T66 *Help → Report a problem…*: copies the error details and opens the issue form | S | ☐ |
 | Q84 | T67 Contributor and community files: CONTRIBUTING, issue / PR templates, CITATION.cff, SECURITY; the owner's outreach steps | S | ☐ |
 
@@ -925,6 +925,17 @@ pytest on 3.9 (the oldest the package allows - checked here: 783 passed) and 3.1
 `cli.py validate` once, `npm ci && npm run build` (tsc included), then a Playwright smoke run on the
 UI built in that run (downloaded over the committed dist; run.py then sees it as current). The CI
 badge leads the README's badges. The whole e2e suite stays the owner's before a release.
+
+### Q82 · T65 `compare`: a share of samples allowed outside — S
+Found running the sim-vs-flight example: a limit on every sample is brittle. `--align auto` without
+`--align-on` picked `ATT.Pitch` (26 ms from the documented shift) and 2 FAIL became 4; `RATE.R`
+failed with "0.0 % of samples outside" (0.089 %: one spike). Now a tolerance may carry
+`"outside_pct"` (per signal or in `default`; `--allow-outside PCT` on the command line): a signal
+passes when at most that share is outside. The share is written exactly (`app/checks.py` `_share`:
+never "0.0" when samples are outside, never "100.0" when some are inside), the JSON row has
+`outsidePct`, a wrong value is an error row (exit 2). Default 0: every earlier result unchanged.
+docs/sim-vs-flight.md: the output line (0.089 %), why to name `--align-on` in CI, the new key.
+Tests: `test_compare_share_allowed_outside`, `test_share_is_never_rounded_to_zero_or_all`.
 
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
@@ -1433,3 +1444,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · **Release 1.10.0** prepared: version in build.bat, version.py, SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, the version on docs/validation.md); CHANGELOG `## 1.10.0 – 2026-10-21` with highlights and the results that change from 1.9.0; README review (Hebrew section: sim vs flight, validate); frontend/dist rebuilt. Left for the owner: the e2e suite on Windows, tag v1.10.0.
 - 2026-10-21 · Review after 1.10.0 (plan Q80-Q84 above). Q80 / F37: sv.load() progress to stderr (+ test), PyPI Documentation = docs site, README (desktop extra, --depth 1, unsigned packages -> docs/install.md *First start*), pyproject note. Backend green, mkdocs --strict clean.
 - 2026-10-21 · Q81 / T64: .github/workflows/ci.yml (backend 3.9 + 3.12, mypy, validate, frontend build, e2e smoke on that build), README badge. Here: backend on 3.9 783 passed; the three e2e files 35 passed.
+- 2026-10-21 · Q82 / T65: `outside_pct` / `--allow-outside` in compare (app/checks.py), exact share in the message, docs (command-line, sim-vs-flight). Backend green.

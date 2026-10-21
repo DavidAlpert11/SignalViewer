@@ -75,7 +75,7 @@ signalviewer-cli compare sim_attitude_doublets.mat flight_attitude_doublets.bin 
 ```text
 flight_attitude_doublets.bin  vs  sim_attitude_doublets.mat
         (time alignment)  - flight_attitude_doublets.bin moved by -104.369 s (correlation 0.998 on ATT.DesRoll)
-  FAIL  RATE.R  - 0.1 % of samples outside ±30.0; RMS 5.598 (4.04 % of range), max |Δ| 39.32, r 0.917
+  FAIL  RATE.R  - 0.089 % of samples outside ±30.0; RMS 5.598 (4.04 % of range), max |Δ| 39.32, r 0.917
   FAIL  ATT.Roll  - 1.4 % of samples outside ±3.0; RMS 0.7111 (1.76 % of range), max |Δ| 6.065, r 0.993
   ... 5 more (--top 0 shows all)
 5 passed, 2 failed, 0 errors, 0 skipped
@@ -87,10 +87,17 @@ command does:
 
 - `--align auto` lines the flight up with the model by cross-correlation (the app's *Align*);
   `--align-on` picks the signal (default: the best-correlated of the compared ones);
-  `--align -104.37` gives the shift yourself.
+  `--align -104.37` gives the shift yourself. Name the signal in CI: a limit on every single
+  sample is sensitive to tens of milliseconds of shift, and the default may pick another signal
+  as the data changes (here `ATT.Pitch`: 26 ms away, and the commands `ATT.DesRoll` and
+  `ATT.DesPitch` fail too).
 - Names match with or without their unit. Where they differ otherwise, pair them in the
   tolerances: `"signals": {"phi": {"as": "ATT.Roll", "abs": 3}}`.
 - `tolerances.json` sets the limits: `"default": {"abs": 3.0}` for every signal, larger for the
   rates, `"skip": true` for what is not compared. `--junit report.xml` for the CI's test view.
+- A few samples outside can be allowed: `"outside_pct": 0.5` (per signal or in `default`) or
+  `--allow-outside 0.5` passes a signal when at most 0.5 % of its samples are outside - for a
+  spike at a step that is not the finding. Here `RATE.R` (0.089 % outside) would then pass and
+  `ATT.Roll` (1.4 %) would still fail.
 
 The numbers in the output above may differ in the last digits on your machine; the verdict does not.

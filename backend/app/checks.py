@@ -216,9 +216,12 @@ def junit_xml(files: List[Dict[str, Any]]) -> str:
 
 # --- T58: a run against a golden run -------------------------------------------------------
 
-def load_tolerances(path: Optional[str], tol_abs: Optional[float], tol_pct: Optional[float]) -> Dict[str, Any]:
+def load_tolerances(path: Optional[str], tol_abs: Optional[float], tol_pct: Optional[float],
+                    allow_outside: Optional[float] = None) -> Dict[str, Any]:
     """{"default": {"abs": 0.5, "pct": 2}, "signals": {"Speed": {"abs": 1}, "Gear": {"skip": true}}}
-    - the command line's --tol-abs / --tol-pct are the default when the file has none."""
+    - the command line's --tol-abs / --tol-pct / --allow-outside are the default when given.
+    T65: "outside_pct" (default 0) is the share of samples, in %, that may be outside the tolerance
+    and still pass - a spike or a few samples at a step must not fail a run that otherwise matches."""
     d: Dict[str, Any] = {"default": {}, "signals": {}}
     if path:
         try:
@@ -236,8 +239,35 @@ def load_tolerances(path: Optional[str], tol_abs: Optional[float], tol_pct: Opti
         dflt["abs"] = tol_abs
     if tol_pct is not None:
         dflt["pct"] = tol_pct
+    if allow_outside is not None:
+        dflt["outside_pct"] = allow_outside
     d["default"] = dflt
     return d
+
+
+def _outside_allowed(tol: Dict[str, Any]) -> Optional[float]:
+    """T65: the tolerance's "outside_pct" as a number from 0 to 100; ValueError says what is wrong."""
+    v = tol.get("outside_pct")
+    if v is None:
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        x = float("nan")
+    if not 0.0 <= x <= 100.0:
+        raise ValueError(f"outside_pct is the share of samples allowed outside, from 0 to 100 (%), not {v!r}")
+    return x
+
+
+def _share(pct: float) -> str:
+    """A share in % for a message: never "0.0" for samples that are outside (0.04 % of 50 000 is 20)."""
+    if pct <= 0.0:
+        return "0"
+    if pct < 0.1:
+        return f"{pct:.2g}"
+    if 99.9 < pct < 100.0:                    # nor "100.0" while some samples are inside
+        return "over 99.9"
+    return f"{pct:.1f}"
 
 
 def _align_auto(store, g, n, pairs: List[Tuple[str, str]]) -> Optional[Dict[str, Any]]:
@@ -260,7 +290,8 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
                 align: Optional[str] = None, align_on: Optional[str] = None) -> Dict[str, Any]:
     """Every signal of `path` that the golden run also has, compared with svcore/compare (the
     Compare panel's numbers: RMS / max |difference|, correlation; angles wrap). With a tolerance
-    a signal passes when every sample is within it; without one the row is information only.
+    a signal passes when every sample is within it (or all but "outside_pct" % of them, T65);
+    without one the row is information only.
 
     C13 - a simulation against a flight, two loggers, two formats:
       * names match with or without their unit ("ATT.Roll" in a .mat is "ATT.Roll [deg]" in a .bin);
@@ -344,6 +375,12 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
         if tol.get("skip"):
             continue
         res: Dict[str, Any] = {"name": name}
+        try:
+            allowed = _outside_allowed(tol)
+        except ValueError as e:
+            res.update(status="error", message=f"tolerances: {e}")
+            rows.append(res)
+            continue
         other = in_run(name)
         if other is None:
             res.update(status="error", message=f"{name} is in the golden run but not in {os.path.basename(path)}")
@@ -371,11 +408,15 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
         res["overlap"] = r["overlap"]
         say = f"RMS {m['rmsDiff']:.4g} ({m['rmsPct']:.2f} % of range), max |Δ| {m['maxAbsDiff']:.4g}, r {m['correlation']:.3f}"
         if "pass" in m:
-            res["status"] = "pass" if m["pass"] else "fail"
+            outside = 100.0 - float(m["withinPct"])
+            ok = bool(m["pass"]) or (allowed is not None and outside <= allowed + 1e-9)
+            res["status"] = "pass" if ok else "fail"
+            res["outsidePct"] = outside
             if not m["pass"]:
                 lim = " / ".join(x for x in (f"±{tol['abs']}" if tol.get("abs") is not None else "",
                                              f"±{tol['pct']} %" if tol.get("pct") is not None else "") if x)
-                say = f"{100 - m['withinPct']:.1f} % of samples outside {lim}; " + say
+                also = f", {allowed:g} % allowed" if allowed is not None else ""
+                say = f"{_share(outside)} % of samples outside {lim}{also}; " + say
         else:
             res["status"] = "info"
         res["message"] = say

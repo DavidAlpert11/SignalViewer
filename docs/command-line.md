@@ -52,12 +52,14 @@ signalviewer-cli compare golden.bin today.bin --tolerances tol.json --junit comp
 ```
 
 ```json
-{"default": {"abs": 0.5}, "signals": {"Speed": {"abs": 1.0}, "RPM": {"pct": 3}, "Gear": {"skip": true}}}
+{"default": {"abs": 0.5}, "signals": {"Speed": {"abs": 1.0}, "RPM": {"pct": 3, "outside_pct": 1}, "Gear": {"skip": true}}}
 ```
 
 Every signal both runs have, with the Compare panel's numbers (RMS and largest difference,
 correlation; headings wrap at 360°), the most different first. A signal passes when every sample is
-within min(abs, pct of the golden value). Without any tolerance the differences are only listed.
+within min(abs, pct of the golden value) - or, with `"outside_pct"` (`--allow-outside PCT` for every
+signal), when no more than that share of its samples is outside. Without any tolerance the
+differences are only listed.
 
 ### A simulation against a flight
 
