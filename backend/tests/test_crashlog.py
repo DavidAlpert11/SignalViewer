@@ -75,3 +75,20 @@ def test_tail_starts_at_a_whole_line(tmp_path):
     p.write_text("".join(f"line {i}\n" for i in range(5000)))
     tail = crashlog._tail(str(p), 1000)
     assert tail.startswith("line ") and len(tail) < 1000
+
+
+def test_report_problem_opens_the_fixed_issue_form(monkeypatch):
+    """T66: Help > Report a problem - the backend opens its own fixed address (the page sends none)
+    in the user's browser; without a browser the UI gets the address to show."""
+    import webbrowser
+    from app.routes import system
+    seen = []
+    monkeypatch.setattr(webbrowser, "open", lambda url, new=0: seen.append(url) or True)
+    d = TestClient(app).post("/api/report-problem", json={"url": "https://evil.example"}).json()
+    assert d == {"url": system.ISSUE_URL, "opened": True} and seen == [system.ISSUE_URL]
+    assert system.ISSUE_URL.startswith("https://github.com/DavidAlpert11/SignalViewer/issues/new")
+
+    def no_browser(url, new=0):
+        raise webbrowser.Error("could not locate runnable browser")
+    monkeypatch.setattr(webbrowser, "open", no_browser)
+    assert TestClient(app).post("/api/report-problem").json()["opened"] is False
