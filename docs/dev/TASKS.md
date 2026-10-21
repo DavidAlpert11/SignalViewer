@@ -13,23 +13,19 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Released tags: `v1.0.0` ... `v1.6.1`; **1.7.0 released** (tag pushed) - before it the owner
-  builds the Windows package, checks the Windows-only items (file dialog places: drives, Desktop /
-  Documents incl. OneDrive, a pinned favourite kept after a restart; the colour picker on a file
-  tag; Ctrl+P and Ctrl+PageUp/PageDown in the desktop window), then tags `v1.7.0` and pushes the tag.
-- **Active plan: "Owner's review 2026-10-20 (after applying Q65-Q73)" below** (Q74-Q77). Before it: "Review 2026-10-20 (after 1.8.0)" (Q65-Q73) - all done 2026-10-20; next: release 1.9.0 (rebuild and commit frontend/dist first - the patch leaves it out) and the follow-ups listed in each task. Before it: "Review 2026-10-19 (after 1.7.0)" - done; **1.8.0 prepared** (Q64, this commit):
-  the owner pushes, tags v1.8.0 (the workflow makes the draft release with the installer, zip, 7z and
-  the Python wheel; PyPI only once PYPI_PUBLISH is set). Still the owner's: Q55's "Open with" on a real
-  Windows install, Q61's PyPI setup, Q60's tour video, Q24 signing.
-- **1.10.0 prepared 2026-10-21** (Milestone 10 in ROADMAP.md): backend 782 passed + 12 skipped (the
-  real-log tests skip until `python tools/fetch_real_logs.py`; with the logs: 12 / 12), mypy clean, tsc +
-  build clean, `mkdocs build --strict` clean. The e2e suite was not run here - the owner runs it on
-  Windows before tagging. Pictures: docs/images/20-24 are new (the sim-vs-flight walkthrough);
-  make_readme_media.py was not re-run (nothing it draws changed visibly). Owner: `gh repo edit`
-  (About fields, topics) and Settings -> Social preview (docs/images/social-preview.png).
-- Tests at the release before (1.9.0, 2026-10-20): backend 714 passed, mypy clean, tsc + build clean; whole e2e suite on the owner's Windows PC 192/194, the two failures fixed (F36) and green on re-run; here the release build: test_file_help_menus, T63, many tabs, 3D image green.
-- Q1 (T12) waits for the owner's check with real SITL / a radio.
-- **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
+- Branch `main`. Released: up to **1.10.0** (tag v1.10.0, 2026-10-21; PyPI signalviewer and
+  signalviewer-lite 1.10.0).
+- **Active plan: "Review 2026-10-21 (after 1.10.0)" below (Q80-Q84) - all done 2026-10-21**, in the
+  CHANGELOG as `1.11.0 – unreleased`. Checked here: backend 787 passed + 12 skipped (on Python 3.9 too),
+  mypy clean, tsc + build clean, `mkdocs build --strict` clean, e2e test_file_help_menus +
+  test_fresh_user + test_workflows 35 passed. Not run here: the rest of the e2e suite, the new CI
+  workflow on GitHub (its first run shows it).
+- **Owner's, from the plan:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage,
+  topics, Discussions), the social preview, private vulnerability reporting, the posts. Still open
+  from before: Q55's "Open with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12)
+  with real SITL / a radio.
+- **Behaviour changes the owner should know:** pan is Alt + drag (Shift + drag zooms values);
+  `sv.load()` prints nothing on stdout any more (its progress line is on stderr).
 
 ## Releasing
 
@@ -38,6 +34,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
    `02_flight_map_3d` clip (headless, the 3D view runs on software WebGL) - keep or retake those
    by hand.
 2. Version in `build.bat` (`VERSION`), `backend/app/version.py` (a test keeps the two equal),
+   `CITATION.cff` (`version` and `date-released`; a test checks the version),
    `installer/SignalViewer.iss` (`AppVersion`),
    `installer/version_info.txt` (four places); the workflow takes it from the tag, and a manual
    run (Actions -> build -> Run workflow) with the version left empty takes it from build.bat.
@@ -902,7 +899,7 @@ push or a pull request, and a newcomer has no path to report a problem or contri
 | Q81 | T64 CI on every push and pull request (backend tests, mypy, tsc + build), badge in the README | S | ☑ done (first run on GitHub: owner) |
 | Q82 | T65 `compare`: a share of samples allowed outside the tolerance (`outside_pct`, `--allow-outside`), the share written exactly | S | ☑ done |
 | Q83 | T66 *Help → Report a problem…*: copies the error details and opens the issue form | S | ☑ done |
-| Q84 | T67 Contributor and community files: CONTRIBUTING, issue / PR templates, CITATION.cff, SECURITY; the owner's outreach steps | S | ☐ |
+| Q84 | T67 Contributor and community files: CONTRIBUTING, issue / PR templates, CITATION.cff, SECURITY; the owner's outreach steps | S | ☑ done (owner: docs/dev/OUTREACH.md) |
 
 Still the owner's (cannot be done from a patch): `gh repo edit` (About, homepage, topics) and the
 social preview - the exact command is in `docs/dev/OUTREACH.md` (Q84); Discussions on; code signing (Q24).
@@ -946,6 +943,17 @@ by the page, and in the pywebview window a link would open inside the app or not
 (a bare server) or a PC without internet: the toast gives the address to open elsewhere. Nothing is
 sent. i18n en / he. Tests: `test_report_problem_opens_the_fixed_issue_form`; e2e: the item is in the
 Help menu (not clicked - it would open the test PC's browser).
+
+### Q84 · T67 Contributor and community files; outreach — S
+A newcomer had no way in: no CONTRIBUTING, no issue forms (a report came without version, install
+kind or file), no private channel for a security problem, nothing to cite. Added: `CONTRIBUTING.md`
+(what helps most, setup, the checks, CLAUDE.md's rules in short), `.github/ISSUE_TEMPLATE/`
+(`bug_report.yml` - the form Q83 opens: what happened, steps, install kind, file, can you share it,
+error details; `feature_request.yml` - the task, not the solution; `config.yml` - docs and the
+private security link), `.github/pull_request_template.md`, `SECURITY.md`, `CITATION.cff` (validated
+with cffconvert; `test_citation_names_the_same_version` keeps its version with app/version.py), and
+`docs/dev/OUTREACH.md` - the owner's steps (`gh repo edit` with description / homepage / topics /
+Discussions, social preview, private vulnerability reporting, `good first issue`) and post drafts.
 
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
@@ -1456,3 +1464,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · Q81 / T64: .github/workflows/ci.yml (backend 3.9 + 3.12, mypy, validate, frontend build, e2e smoke on that build), README badge. Here: backend on 3.9 783 passed; the three e2e files 35 passed.
 - 2026-10-21 · Q82 / T65: `outside_pct` / `--allow-outside` in compare (app/checks.py), exact share in the message, docs (command-line, sim-vs-flight). Backend green.
 - 2026-10-21 · Q83 / T66: Help > Report a problem (errorReport.ts `reportProblem`, /api/report-problem). Backend green; tsc + build clean; e2e test_file_help_menus, test_fresh_user, test_workflows 35 passed (dist not in the patch).
+- 2026-10-21 · Q84 / T67: CONTRIBUTING.md, SECURITY.md, CITATION.cff (+ version test), issue forms, PR template, docs/dev/OUTREACH.md; README links. Plan Q80-Q84 done.

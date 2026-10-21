@@ -173,6 +173,7 @@ Nothing leaves the PC: no account, no telemetry; English and Hebrew.
 build](docs/install.md), [offline map and 3D](docs/maps-and-3d.md), [performance](docs/performance.md),
 [known limitations](docs/limitations.md), [**validation**](docs/validation.md) (every computation checked against a reference), [gallery](docs/gallery.md), [development](docs/development.md).
 The same guide is in the app: *Help → User guide* (F1). Changes: [CHANGELOG](CHANGELOG.md).
+Found a problem or want to help? *Help → Report a problem…* in the app, or [CONTRIBUTING](CONTRIBUTING.md).
 
 ## בעברית בקצרה
 
