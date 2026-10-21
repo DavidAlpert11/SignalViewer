@@ -1,6 +1,12 @@
 # Changelog
 
-## 1.11.0 – unreleased
+## 1.11.0 – 2026-10-21
+
+Highlights: **easier to trust, report and contribute to** - every change is now tested on GitHub
+(Python 3.9 and 3.12, the UI and a short run in a browser), *Help → Report a problem…* takes you
+from an error to a filled-in report in two clicks, and `compare` can allow a few samples outside a
+tolerance so one spike does not fail a matching run. Nothing changes in results you already have:
+without the new option every sample must still be inside.
 
 ### Added
 - **Every change is checked on GitHub**: the tests, the type checks, the numerical validation and a short run of the app in a browser on every push and pull request (the *CI* badge on the README).

@@ -36,7 +36,7 @@ Verified by running the built app with no network interface at all.
 
 | Build command (Windows) | Result | When |
 |---|---|---|
-| `build.bat installer` | `dist\SignalViewer-Setup-1.10.0.exe` | **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, *Open with* for data files, uninstaller |
+| `build.bat installer` | `dist\SignalViewer-Setup-1.11.0.exe` | **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, *Open with* for data files, uninstaller |
 | `build.bat portable` | `dist\SignalViewer-portable.zip` | Unzip anywhere and run `SignalViewer.exe` (fast start) |
 | `build.bat onefile` | `dist\SignalViewer.exe` | A single file to copy; starts a few seconds slower (it unpacks itself each time) |
 | `build_windows_portable.bat` (**Windows**) / `python tools/make_windows_portable.py` | `dist\SignalViewer-Windows-portable.7z` | **Windows portable build on a Windows PC**: double-click the `.bat` (needs Python 3.8+ with pip and internet, once, only to build). Downloads the official embeddable Python + the Windows builds of the libraries; the result needs no Python and no internet. **7z** (about 80 MB instead of 126 MB as zip): made with 7-Zip when installed, else with the py7zr library fetched once; Windows 11 opens .7z in Explorer, Windows 10 needs 7-Zip. `--format zip` for a zip, `--keep-folder` keeps the assembled folder, `--clean` forces a fresh download, `--build-ui` rebuilds the web UI first (Node.js; done automatically when the UI sources are newer than the built UI) |
@@ -86,9 +86,9 @@ npm run build    # rebuilds frontend/dist
 Tests:
 
 ```bash
-python -m pytest backend/tests          # ~710 server tests (incl. damaged copies of every format)
+python -m pytest backend/tests          # ~790 server tests (incl. damaged copies of every format)
 pip install -r requirements-dev.txt && python -m playwright install chromium
-python -m pytest tests/e2e              # ~190 browser tests, the whole suite in one run (~10 min)
+python -m pytest tests/e2e              # ~195 browser tests, the whole suite in one run (~10-15 min)
 python -m pytest tests/e2e/test_features.py    # or one file: one test per catalog feature
 cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer   # type check
 python tools/benchmark.py big.csv       # performance against the targets (results in docs/)
