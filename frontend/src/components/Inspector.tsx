@@ -325,7 +325,8 @@ export default function Inspector() {
                 tr(st?.mean), st ? st.rms * Math.abs(s.scale) : null];
               return (
                 <tbody key={s.sig} title={st ? `${t("std")}: ${fmtNum(st.std * Math.abs(s.scale), lang)} · ${t("p2p")}: ${fmtNum(st.peak_to_peak * Math.abs(s.scale), lang)} · ${t("count")}: ${fmtInt(st.samples, lang)}` : ""}>
-                  <tr className="name-row"><td colSpan={4}><span className="sw" style={{ background: s.color }} /><FileTag runs={runs} sig={s.sig} />{s.label || signalName(runs, s.sig, false)}</td></tr>
+                  <tr className="name-row"><td colSpan={4}><span className="sw" style={{ background: s.color }} /><FileTag runs={runs} sig={s.sig} />{s.label || signalName(runs, s.sig, false)}
+                    {st?.weighting === "time" && <span className="stats-tw" data-gaps={st.gaps ?? 0} title={t("statsTimeWeighted", { n: st.gaps ?? 0 })}>⏱</span>}</td></tr>
                   {labelsOf(runs, s.sig)
                     ? <tr><td colSpan={4} className="hint">{t("textStatsNote", { n: Object.keys(labelsOf(runs, s.sig)!).length })}</td></tr>
                     : <tr>{vals.map((v, i) => <td key={i} title={fmtNum(v ?? null, lang, 10)}>{!st && statsLoading ? "…" : fmtNum(v ?? null, lang, 4)}</td>)}</tr>}

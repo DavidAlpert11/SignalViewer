@@ -333,7 +333,8 @@ def stats(req: StatsRequest):
                 m &= t >= req.t0
             if req.t1 is not None:
                 m &= t <= req.t1
-            s = compute_signal_stats(t[m], np.asarray(y)[m]) if m.any() else {}
+            # the mask, not t[m]: the time between two stretches is not a gap to weigh (A3)
+            s = compute_signal_stats(t, y, mask=m) if m.any() else {}
             if s:
                 s = {**s, "duration": seg_total, "segments": seg_count}     # time in the state, not first-to-last
         if s:

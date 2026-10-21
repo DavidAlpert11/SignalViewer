@@ -21,7 +21,13 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   the owner pushes, tags v1.8.0 (the workflow makes the draft release with the installer, zip, 7z and
   the Python wheel; PyPI only once PYPI_PUBLISH is set). Still the owner's: Q55's "Open with" on a real
   Windows install, Q61's PyPI setup, Q60's tour video, Q24 signing.
-- Tests at the last change (release 1.9.0, 2026-10-20): backend 714 passed, mypy clean, tsc + build clean; whole e2e suite on the owner's Windows PC 192/194, the two failures fixed (F36) and green on re-run; here the release build: test_file_help_menus, T63, many tabs, 3D image green.
+- **1.10.0 prepared 2026-10-21** (Milestone 10 in ROADMAP.md): backend 782 passed + 12 skipped (the
+  real-log tests skip until `python tools/fetch_real_logs.py`; with the logs: 12 / 12), mypy clean, tsc +
+  build clean, `mkdocs build --strict` clean. The e2e suite was not run here - the owner runs it on
+  Windows before tagging. Pictures: docs/images/20-24 are new (the sim-vs-flight walkthrough);
+  make_readme_media.py was not re-run (nothing it draws changed visibly). Owner: `gh repo edit`
+  (About fields, topics) and Settings -> Social preview (docs/images/social-preview.png).
+- Tests at the release before (1.9.0, 2026-10-20): backend 714 passed, mypy clean, tsc + build clean; whole e2e suite on the owner's Windows PC 192/194, the two failures fixed (F36) and green on re-run; here the release build: test_file_help_menus, T63, many tabs, 3D image green.
 - Q1 (T12) waits for the owner's check with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag now (Shift + drag zooms values).
 
@@ -1383,3 +1389,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · Q79 / F36: owner's e2e 192/194; tab strip room at 1100 px (.hide-compact), the 3D image test on Windows (tempfile).
 - 2026-10-20 · Q79: owner re-run - tab test green; 3D image test: own folder, full path in the name box, toasts in the failure message.
 - 2026-10-20 · **Release 1.9.0** prepared: version in build.bat, version.py, SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md); CHANGELOG `## 1.9.0 – 2026-10-20` with highlights ("No File menu" moved to Changed); README / docs review: features.md test counts (111 / 194 / 714), install.md (~710), limitations.md (CAN: no ASC FD / .blf / MF4, one message per id across buses; ICD: no checksums, arrays, variants; readers in-process, reloaded whole in live mode); README's own text already matched. `tools/make_readme_media.py`: all 17 pictures and the 01, 03, 04, 05 clips retaken (06_3d_terrain.png and the 02 clip kept, as the tool says); in the full run vid_04 and vid_05 timed out after the other scenes and were made on their own (`--only vid_04 vid_05`) - follow-up: the scenes share one App, give the clips a fresh one. frontend/dist rebuilt. Owner: tag v1.9.0 after the push (PyPI pending publisher for signalviewer-lite first).
+- 2026-10-21 · External review (A1-A6, B7-B10, C13): spectra on an even time grid, -3 dB filters, time-weighted statistics, numerical validation (23 cases, `validate`), real-vehicle log tests (the .tlog radio-delay fault fixed), docs site on Material, features page in sections, the sim-vs-flight example with `compare --align`; names matched without the unit in Compare / Align / CLI.
+- 2026-10-21 · **Release 1.10.0** prepared: version in build.bat, version.py, SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, the version on docs/validation.md); CHANGELOG `## 1.10.0 – 2026-10-21` with highlights and the results that change from 1.9.0; README review (Hebrew section: sim vs flight, validate); frontend/dist rebuilt. Left for the owner: the e2e suite on Windows, tag v1.10.0.

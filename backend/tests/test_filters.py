@@ -98,3 +98,43 @@ def test_api_says_why(tmp_path):
     assert r.status_code == 400 and "half the sample rate" in r.json()["detail"]
     for rid in list(store.order):
         store.remove(rid)
+
+
+# ---- A2: the cut-off is the -3 dB point of the zero-phase RESULT (it was -6 dB) ----
+
+def _gain(kind, fc, f, fs=FS, dur=40.0):
+    t = np.arange(0, dur, 1 / fs)
+    x = np.sin(2 * np.pi * f * t)
+    y = apply_filter(t, x, kind, fc)
+    return float(np.std(_mid(y)) / np.std(_mid(x)))
+
+
+@pytest.mark.parametrize("kind", ["lowpass", "highpass"])
+@pytest.mark.parametrize("fc", [2.0, 10.0, 40.0, 90.0])     # up to 0.9 x Nyquist (100 Hz)
+def test_cutoff_is_the_half_power_point_of_the_result(kind, fc):
+    assert _gain(kind, fc, fc) == pytest.approx(1 / np.sqrt(2), abs=0.01)
+
+
+def test_the_response_is_still_an_8th_order_slope():
+    # two passes of a 4th-order filter: -48 dB per octave well above the cut-off (and well below
+    # Nyquist, where the digital filter falls faster still)
+    g1, g2 = _gain("lowpass", 2.0, 8.0), _gain("lowpass", 2.0, 16.0)
+    assert 20 * np.log10(g1 / g2) == pytest.approx(48, abs=3)
+
+
+def test_design_cutoff_can_be_reproduced_outside_the_app():
+    """The documented recipe: filtfilt(butter(4, fd/(fs/2))) with fd = zero_phase_design_cutoff."""
+    from scipy.signal import butter, sosfiltfilt
+
+    from svcore.ops import zero_phase_design_cutoff
+    fd = zero_phase_design_cutoff(10.0, FS, "lowpass")
+    assert 11.0 < fd < 11.5                                    # about 1.12 x for order 4
+    x = SLOW + FAST
+    sos = butter(4, fd / (FS / 2), output="sos")
+    ref = sosfiltfilt(sos, x, padlen=3 * (2 * len(sos) + 1))
+    assert np.allclose(apply_filter(T, x, "lowpass", 10.0), ref, atol=1e-9)
+
+
+def test_cutoff_right_below_nyquist_still_filters():
+    out = apply_filter(T, SLOW + FAST, "lowpass", 99.99)
+    assert np.isfinite(out).all()

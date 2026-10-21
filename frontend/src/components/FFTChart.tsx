@@ -1,7 +1,8 @@
 import { runsDataKey } from "../values";
 import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
-import { api } from "../api";
+import { api, type SpectrumGrid } from "../api";
+import { fmtNum, useT } from "../i18n";
 import { actions, useApp, type Plot } from "../store";
 import { axisStyle, tickValues, useSize } from "./chartUtil";
 
@@ -14,10 +15,12 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
   const runs = useApp((s) => s.runs);
   const dataVersion = useApp((s) => s.dataVersion);
   const cursor = useApp((s) => s.cursor);
+  const lang = useApp((s) => s.lang);
+  const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
   const size = useSize(wrapRef);
-  const [data, setData] = useState<{ id: string; x: Float64Array; y: Float32Array; peak: number }[]>([]);
+  const [data, setData] = useState<{ id: string; x: Float64Array; y: Float32Array; peak: number; grid?: SpectrumGrid }[]>([]);
   const [orderHz, setOrderHz] = useState<number | null>(null);    // T16b: the mean rotation rate, rev/s
 
   const ids = plot.signals.map((s) => s.sig);
@@ -93,7 +96,16 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
 
   useEffect(() => { uRef.current?.setSize({ width: size.w, height: size.h }); }, [size]);
   // data-orders: the marked base frequency (Hz) - what the marks are drawn at, readable by tests / tools
-  return <div className="plot-canvas" ref={wrapRef} data-orders={orderHz ? orderHz.toFixed(3) : undefined} />;
+  // A1: say when gaps were bridged for the spectrum (the most-gapped signal of the plot)
+  const gapped = data.map((d) => d.grid).filter((g): g is SpectrumGrid => !!g && !!g.resampled && (g.gaps ?? 0) > 0)
+    .sort((a, b) => (b.gapTime ?? 0) - (a.gapTime ?? 0))[0];
+  return <>
+    <div className="plot-canvas" ref={wrapRef} data-orders={orderHz ? orderHz.toFixed(3) : undefined} />
+    {gapped && <div className="fft-grid-note" data-gaps={gapped.gaps}
+      title={t("fftGapsHint", { fs: fmtNum(gapped.fs ?? NaN, lang, 5) })}>
+      ⚠ {t("fftGaps", { n: gapped.gaps ?? 0, s: fmtNum(gapped.gapTime ?? 0, lang, 3) })}
+    </div>}
+  </>;
 }
 
 /** T16b: vertical marks at 1x, 2x, 3x the rotation rate f (rev/s) and, with blades, at the

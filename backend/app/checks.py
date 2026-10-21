@@ -240,10 +240,34 @@ def load_tolerances(path: Optional[str], tol_abs: Optional[float], tol_pct: Opti
     return d
 
 
-def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Optional[List[str]] = None) -> Dict[str, Any]:
+def _align_auto(store, g, n, pairs: List[Tuple[str, str]]) -> Optional[Dict[str, Any]]:
+    """C13: the time shift that lines `n` up with the golden run `g` - cross-correlation of the
+    given (golden, run) pairs (the app's *Align* by signal), the best-correlated pair wins."""
+    from svcore.sync import _xcorr_delta
+    best = None
+    for ga, nb in pairs:
+        ta, ya = (np.asarray(x, dtype=np.float64) for x in store.signal(f"{g.id}/{ga}"))
+        tb, yb = (np.asarray(x, dtype=np.float64) for x in store.signal(f"{n.id}/{nb}"))
+        if not (np.nanstd(ya) > 0 and np.nanstd(yb) > 0):
+            continue
+        r = _xcorr_delta(ta, ya, tb, yb)
+        if r and (best is None or r[1] > best["corr"]):
+            best = {"seconds": float(r[0]), "corr": float(r[1]), "pair": [ga, nb]}
+    return best
+
+
+def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Optional[List[str]] = None,
+                align: Optional[str] = None, align_on: Optional[str] = None) -> Dict[str, Any]:
     """Every signal of `path` that the golden run also has, compared with svcore/compare (the
     Compare panel's numbers: RMS / max |difference|, correlation; angles wrap). With a tolerance
-    a signal passes when every sample is within it; without one the row is information only."""
+    a signal passes when every sample is within it; without one the row is information only.
+
+    C13 - a simulation against a flight, two loggers, two formats:
+      * names match with or without their unit ("ATT.Roll" in a .mat is "ATT.Roll [deg]" in a .bin);
+        a tolerance entry {"as": "name in the run"} pairs differently named signals;
+      * align: None (the times as recorded), a number of seconds added to the run's time, or "auto"
+        (cross-correlation, like the app's *Align*; align_on names the golden signal to use, else
+        the best-correlated of the compared signals). The shift used is the first result row."""
     from app.store import Store
     from svcore.compare import compare as compare_runs
     store = Store()
@@ -264,6 +288,14 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
             per[resolve_signal_name(gnames, key, where)] = v or {}
         except KeyError as e:                         # a tolerance for a signal the golden run lacks
             out["results"].append({"name": key, "status": "error", "message": f"tolerances: {e}"})
+    def in_run(name: str) -> Optional[str]:
+        """The run's signal for the golden signal `name`: {"as": ...} in the tolerances, the same name,
+        or the same name without its unit - one match only, never a guess."""
+        want = (per.get(name) or {}).get("as") or name
+        try:
+            return resolve_signal_name(nnames, str(want), os.path.basename(path))
+        except KeyError:
+            return None
     if signals:
         wanted = []
         for s in signals:
@@ -272,19 +304,56 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
             except KeyError as e:
                 out["results"].append({"name": s, "status": "error", "message": str(e)})
     else:
-        wanted = [x for x in gnames if x in nnames]
+        wanted = [x for x in gnames if in_run(x)]
+    shift = 0.0
+    if align not in (None, "", "none"):
+        if str(align).lower() == "auto":
+            if align_on:
+                try:
+                    on = resolve_signal_name(gnames, align_on, where)
+                except KeyError as e:
+                    out["results"].append({"name": "(time alignment)", "status": "error", "message": str(e)})
+                    return out
+                cand = [on]
+            else:
+                cand = [x for x in wanted if not (per.get(x) or {}).get("skip")]
+            pairs = [(x, m) for x in cand for m in [in_run(x)] if m is not None]
+            got = _align_auto(store, g, n, pairs[:12]) if pairs else None
+            if got is None or got["corr"] < 0.5:
+                out["results"].append({"name": "(time alignment)", "status": "error",
+                                       "message": "could not align the runs in time"
+                                       + (f" (best correlation {got['corr']:.2f} on {got['pair'][0]})" if got else "")
+                                       + " - give --align SECONDS, or --align-on a signal that moves in both"})
+                return out
+            shift = got["seconds"]
+            out["shift"] = {"method": "auto", **got}
+            msg = f"{os.path.basename(path)} moved by {shift:+.3f} s (correlation {got['corr']:.3f} on {got['pair'][0]})"
+        else:
+            try:
+                shift = float(align)
+            except ValueError:
+                out["results"].append({"name": "(time alignment)", "status": "error",
+                                       "message": f"--align takes auto or a number of seconds, not {align!r}"})
+                return out
+            out["shift"] = {"method": "given", "seconds": shift}
+            msg = f"{os.path.basename(path)} moved by {shift:+.3f} s (given)"
+        out["results"].append({"name": "(time alignment)", "status": "info", "message": msg})
     rows = []
     for name in wanted:
         tol = {**tolerances.get("default", {}), **per.get(name, {})}
         if tol.get("skip"):
             continue
         res: Dict[str, Any] = {"name": name}
-        if name not in nnames:
+        other = in_run(name)
+        if other is None:
             res.update(status="error", message=f"{name} is in the golden run but not in {os.path.basename(path)}")
             rows.append(res)
             continue
+        if other != name:
+            res["as"] = other
         ta, ya = store.signal(f"{g.id}/{name}")
-        tb, yb = store.signal(f"{n.id}/{name}")
+        tb, yb = store.signal(f"{n.id}/{other}")
+        tb = np.asarray(tb, dtype=np.float64) + shift
         try:
             r = compare_runs([("g/" + name, np.asarray(ta, dtype=np.float64), np.asarray(ya, dtype=np.float64)),
                               ("n/" + name, np.asarray(tb, dtype=np.float64), np.asarray(yb, dtype=np.float64))],

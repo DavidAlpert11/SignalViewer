@@ -166,22 +166,24 @@ export default function ComparePanel() {
   }, [sim, bucket, q, sort]);
 
   /* ------------------------------ detail ------------------------------ */
+  // C13: the signal of file `rid` in the row `name` (a .mat's "ATT.Roll" is the log's "ATT.Roll [deg]")
+  const sidIn = (rid: string, name: string) => `${rid}/${sim?.find((x) => x.name === name)?.sigs?.[rid] ?? name}`;
   const detail = async (name: string, runsOf: string[]) => {
     setSignal(name);
     setBusy(true);
     try {
-      const base = baseline !== "mean" && runsOf.includes(baseline) ? `${baseline}/${name}` : "mean";
-      const r = await api.compare(runsOf.map((c) => `${c}/${name}`), base, alignment, num(tolAbs), num(tolPct), segment?.windows);
+      const base = baseline !== "mean" && runsOf.includes(baseline) ? sidIn(baseline, name) : "mean";
+      const r = await api.compare(runsOf.map((c) => sidIn(c, name)), base, alignment, num(tolAbs), num(tolPct), segment?.windows);
       setRows(r.rows);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); setRows(null); }
     finally { setBusy(false); }
   };
   const showInPlot = (name: string, runsOf: string[], newPlot: boolean) => {
-    if (segment) { showSegmentPlot(name, runsOf, segment, newPlot, runColor); return; }
+    if (segment) { showSegmentPlot(name, runsOf, segment, newPlot, runColor, sim?.find((x) => x.name === name)?.sigs); return; }
     let full = false;
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
-      const signals = runsOf.map((rid) => ({ sig: `${rid}/${name}`, color: runColor(rid), width: 1.5, scale: 1, offset: 0 }));
+      const signals = runsOf.map((rid) => ({ sig: sidIn(rid, name), color: runColor(rid), width: 1.5, scale: 1, offset: 0 }));
       if (newPlot) {
         const at = placePlot(tab, { id: uid("p"), title: name, signals });
         if (at < 0) { full = true; return ws; }
@@ -207,7 +209,7 @@ export default function ComparePanel() {
     const rid = sid.split("/")[0];
     const info = runs.find((r) => r.id === rid);
     if (!info) return;
-    const { shift } = await api.shift(`${baseline}/${signal}`, sid);
+    const { shift } = await api.shift(sidIn(baseline, signal), sid);
     const before = info.timeOffset;
     await api.patchRun(rid, { timeOffset: before + shift });
     const bump = async () => useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 });
@@ -221,8 +223,8 @@ export default function ComparePanel() {
   const plotDiffs = async () => {
     setBusy(true);
     try {
-      const ids = detailRuns.map((r) => `${r}/${signal}`);
-      let base = baseline !== "mean" && detailRuns.includes(baseline) ? `${baseline}/${signal}` : "mean";
+      const ids = detailRuns.map((r) => sidIn(r, signal));
+      let base = baseline !== "mean" && detailRuns.includes(baseline) ? sidIn(baseline, signal) : "mean";
       if (base === "mean") base = (await api.createDerived("mean", ids, { alignment }, `mean(${signal})`)).id;
       const made: string[] = [];
       for (const id of ids) {

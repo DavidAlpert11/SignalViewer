@@ -1,0 +1,26 @@
+{
+  "_comment": "Simulation (golden) against the flight. Angles in degrees, rates in deg/s. Run: signalviewer-cli compare sim_attitude_doublets.mat flight_attitude_doublets.bin --align auto --align-on ATT.DesRoll --tolerances tolerances.json",
+  "default": {
+    "abs": 3.0
+  },
+  "signals": {
+    "ATT.DesYaw": {
+      "skip": true
+    },
+    "ATT.Yaw": {
+      "abs": 3.0
+    },
+    "RATE.RDes": {
+      "skip": true
+    },
+    "RATE.PDes": {
+      "skip": true
+    },
+    "RATE.R": {
+      "abs": 30.0
+    },
+    "RATE.P": {
+      "abs": 30.0
+    }
+  }
+}

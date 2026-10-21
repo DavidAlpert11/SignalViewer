@@ -624,5 +624,18 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T40b CAN logs (candump, ASC, CSV) with our own .dbc decoder, option B (Q72). Done 2026-10-20: svcore/dbc.py, can_loader.py.
 - [x] T43 part: docs site and a shorter README (Q73). Done 2026-10-20: mkdocs.yml, docs/*.md, .github/workflows/docs.yml.
 
+## Milestone 10 — 1.10.0: numbers you can trust (external review 2026-10-21). Prepared 2026-10-21.
+- [x] A1 Spectra of signals with gaps / lost samples / NaN on an even time grid (svcore/ops.py `uniform_samples`, `isolated_gaps`); the plot says how many gaps were bridged.
+- [x] A2 Low- / high-pass: the cut-off is the -3 dB point of the zero-phase result (`zero_phase_design_cutoff`).
+- [x] A3 Mean / RMS / std weighted by time on uneven sampling (`time_weights`), ⏱ in the Inspector; evenly sampled results unchanged.
+- [x] A4 Numerical validation: 23 cases (svcore/validation.py), `signalviewer-cli validate`, docs/validation.md (tools/make_validation_doc.py).
+- [x] A5 Real-vehicle logs against pymavlink / pyulog (tests/test_real_logs.py, tools/fetch_real_logs.py); fixed: .tlog boots told apart by radio delay.
+- [x] A6 `python -m signalviewer.cli` runs.
+- [x] B7 Social preview (tools/make_social_preview.py); the GitHub About fields are the owner's (`gh repo edit`).
+- [x] B8 README: download line, who it is for, short bullets, "Where it fits" table.
+- [x] B9 Docs site on Material for MkDocs: front page, search, light / dark, Hebrew guide right to left (tools/mkdocs_hooks.py).
+- [x] B10 docs/features.md as sections with pictures (no item dropped).
+- [x] C13 Simulation against flight: examples/sim_vs_flight (tools/make_sim_vs_flight.py), docs/sim-vs-flight.md, `compare --align / --align-on`, `{"as": ...}`; fixed: names matched without the unit in Compare / Align / CLI, xcorr on flat overlaps.
+
 ## Later
 - [ ] "copy as pandas code".
