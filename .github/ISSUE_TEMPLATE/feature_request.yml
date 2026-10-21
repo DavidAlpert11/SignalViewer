@@ -1,0 +1,20 @@
+name: Idea or missing feature
+description: A file format, a plot, a check or a workflow you need
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: What are you trying to do?
+      description: The task, not the solution - "judge 30 runs of the same test every night" says more than "add a button".
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you do it today?
+      placeholder: "A MATLAB script per run, then copy the plots into Word."
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?

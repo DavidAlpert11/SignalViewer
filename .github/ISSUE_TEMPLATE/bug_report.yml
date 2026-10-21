@@ -1,0 +1,56 @@
+# T67 (Q84): the form Help > Report a problem opens (app/routes/system.py ISSUE_URL names this file).
+name: Bug report
+description: Something does not work, shows a wrong number, or a file does not open
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting. **Help → Report a problem…** in the app has already copied the
+        error details to the clipboard - paste them in the last box. Hebrew is fine too / אפשר גם בעברית.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      placeholder: "Opening a .bin from a Cube Orange: 'No valid time data'. Mission Planner opens it."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to see it
+      placeholder: |
+        1. Open flight.bin
+        2. Templates -> ArduPilot · Full review
+        3. ...
+  - type: dropdown
+    id: install
+    attributes:
+      label: How is Signal Viewer installed?
+      options:
+        - Windows installer (SignalViewer-Setup)
+        - Portable package (.zip / .7z)
+        - pip install signalviewer / signalviewer-lite
+        - From source (python run.py)
+    validations:
+      required: true
+  - type: input
+    id: file
+    attributes:
+      label: File type and size
+      placeholder: "ArduPilot .bin, 180 MB"
+  - type: dropdown
+    id: share
+    attributes:
+      label: Can you share a file that shows it?
+      description: A file that shows the problem is the fastest way to a fix. A short or anonymised piece is enough.
+      options:
+        - "Yes - attached (zip it if GitHub refuses the type)"
+        - "Yes, privately - contact me"
+        - "No (closed network / confidential)"
+  - type: textarea
+    id: details
+    attributes:
+      label: Error details
+      description: Help → Copy error details (or Report a problem…) - the version, the system and the end of the log.
+      render: text
