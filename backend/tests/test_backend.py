@@ -519,7 +519,7 @@ def test_fs_list_and_complete(tmp_path):
 def test_examples_listed_with_existing_files_only(monkeypatch, tmp_path):
     from app.routes import fs as m
     r = client.get("/api/examples").json()
-    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "ardupilot"] and len(r[2]["paths"]) == 3
+    assert [x["id"] for x in r] == ["flight", "twoFlights", "car", "ardupilot", "simVsFlight"] and len(r[2]["paths"]) == 3
     assert all(os.path.isfile(p) for x in r for p in x["paths"])
     (tmp_path / "uav_flight.csv").write_text("t,a\n0,1\n")
     monkeypatch.setattr(m, "EXAMPLES", str(tmp_path))

@@ -20,23 +20,33 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/DavidAlpert11/SignalViewer/releases/latest"><b>⬇ Download for Windows</b></a>
+  &nbsp;·&nbsp; <code>pip install signalviewer</code>
+  &nbsp;·&nbsp; <a href="https://davidalpert11.github.io/SignalViewer/"><b>Documentation</b></a>
+  &nbsp;·&nbsp; <a href="https://davidalpert11.github.io/SignalViewer/GUIDE.he/"><b>מדריך בעברית</b></a>
+</p>
+
+<p align="center">
   <img src="docs/images/01_overview.png" alt="Signal Viewer: four linked plots, two cursors and statistics between them" width="100%">
 </p>
 
-Signal Viewer is a Python computation core (FastAPI + NumPy) with a React/TypeScript UI, in one
-native desktop window. It opens multi-gigabyte recordings in seconds, keeps every sample available
-at full resolution, and works with **no internet connection at all** – including the map and the
-3D globe.
+**For flight-test, drone and simulation engineers** who have recordings to judge: several runs of
+the same test, a flight log after a flight, a simulation next to the real thing – often on a closed
+network. Open the files, see what is wrong, compare, report; then make the same check pass / fail in CI.
 
-- **Plot anything quickly** – up to 9 linked plots per tab, Time / X-Y / FFT / Spectrogram / Map / 3D modes, two cursors with Δ and statistics, zoom history, notes.
-- **Compare runs** – every shared signal ranked by similarity, automatic time alignment, a full comparison table, CSV export – over the whole runs or **the same segment of each** (the 2nd AUTO of every flight).
-- **Understand flight logs** – ArduPilot, MAVLink and PX4 logs read directly: flight modes, events, parameters and an automatic **health check**; the first log you open gets a suggested view and its three worst findings.
-- **Watch it live** – MAVLink from a vehicle or a simulator over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives and followed like any growing file.
-- **See where it happened** – an offline map and a 3D terrain view with the vehicle model, its attitude and its track, synchronised with the timeline.
-- **Do the math** – formulas such as `2*Speed - RPM/95` with autocomplete, filters, derivatives and integrals that update when the data changes; **coordinate frames** (NED / ENU / body / ECEF / LLA, suggested from the signal names); motor orders on spectra.
-- **Share the result** – interactive offline HTML, PDF and Word reports – also **one per file from the command line**; sessions and reusable templates.
-- **Into the test process** – `signalviewer-cli check` (limits as pass / fail, per flight mode) and `compare` (against a golden run) with exit codes and JUnit XML for CI.
-- **Any recording** – CAN logs with a `.dbc`, raw binary packets described by a layout (ICD), and your own formats as a short Python reader.
+- **Plot** – up to 9 linked plots per tab: Time, X-Y, FFT, spectrogram, map, 3D; two cursors with Δ and statistics.
+- **Compare runs** – every shared signal ranked by how different it is, time-aligned, also per segment (the 2nd AUTO of every flight).
+- **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check.
+- **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives.
+- **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline.
+- **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA).
+- **Reports** – offline HTML, PDF and Word; one per file from the command line.
+- **CI** – `signalviewer-cli check` (limits) and `compare` (against a golden run) with exit codes and JUnit XML.
+- **Any recording** – CAN with a `.dbc`, raw binary packets from a layout (ICD), or your own format as a short Python reader.
+
+Under the hood: a Python core (FastAPI + NumPy) and a React / TypeScript UI in one native window.
+Multi-gigabyte recordings open in seconds, every sample stays available at full resolution, and
+**nothing needs the internet** – not even the map and the 3D globe.
 
 ---
 
@@ -130,6 +140,7 @@ signalviewer-cli export flight.bin --signals "ATT.Roll,ATT.Pitch" --out roll.csv
 signalviewer-cli report --template "ArduPilot · Full review" --out reports/ logs/*.bin
 signalviewer-cli check  runs/*.csv --checks checks.json --junit results.xml     # exit 1 on a broken limit
 signalviewer-cli compare golden.csv new/*.csv --tol-pct 2                        # against a golden run
+signalviewer-cli validate                                                       # the numerical validation, here
 ```
 
 ```python
@@ -142,28 +153,22 @@ More - the checks and tolerances files, your own readers, binary layouts, CAN: [
 
 ## Where it fits
 
-Signal Viewer is for the engineer who has **recordings to judge**: several runs of the same test, a
-flight log after a flight, a simulation next to the real thing - and often a closed network. What it
-brings together, in one offline window and on the command line:
+| You mostly… | A good fit | Where Signal Viewer adds |
+|---|---|---|
+| judge test runs, flight logs and simulation output, often offline | **Signal Viewer** | – |
+| stream ROS topics live | PlotJuggler, Foxglove | comparing recorded runs, pass / fail, reports (it reads their `.mcap`, `.ulg`) |
+| work inside MATLAB / Simulink | Simulation Data Inspector | no MATLAB licence, flight logs and CAN next to the `.mat` ([a worked example](docs/sim-vs-flight.md)) |
+| review one ArduPilot / PX4 flight online | UAV Log Viewer, PX4 Flight Review | offline, several flights side by side, your own limits in CI |
+| write the final analysis as a script | Python / MATLAB | a quick look first; `sv.load()` / `sv.show()` go both ways |
 
-- **comparing runs** first-class: every shared signal ranked by how different it is, automatic time
-  alignment, the same segment of each run (the 2nd AUTO of every flight), differences per flight mode;
-- **from data to a verdict**: limits and golden-run tolerances as pass / fail, a report per file -
-  the same in the app and in CI;
-- **many sources, one view**: CSV, MATLAB, ArduPilot / PX4 / MAVLink logs, ROS 2, HDF5, Parquet, CAN
-  with a `.dbc`, your own binary packets and formats;
-- **offline and local**: nothing leaves the PC, no account, no telemetry; English and Hebrew.
-
-If you mostly stream ROS topics live, a robotics tool such as PlotJuggler or Foxglove fits that
-better; if your work lives inside MATLAB, its Simulation Data Inspector is next to your models. Signal
-Viewer reads what those tools record (`.mcap`, `.ulg`, `.mat`) when you need to compare and report.
+Nothing leaves the PC: no account, no telemetry; English and Hebrew.
 
 ## Documentation
 
 [The documentation site](https://davidalpert11.github.io/SignalViewer/) - the [user guide](docs/GUIDE.md) ([עברית](docs/GUIDE.he.md)), [what works](docs/features.md)
 (every feature and the keyboard), [command line and formats](docs/command-line.md), [install and
 build](docs/install.md), [offline map and 3D](docs/maps-and-3d.md), [performance](docs/performance.md),
-[known limitations](docs/limitations.md), [gallery](docs/gallery.md), [development](docs/development.md).
+[known limitations](docs/limitations.md), [**validation**](docs/validation.md) (every computation checked against a reference), [gallery](docs/gallery.md), [development](docs/development.md).
 The same guide is in the app: *Help → User guide* (F1). Changes: [CHANGELOG](CHANGELOG.md).
 
 ## בעברית בקצרה
@@ -183,10 +188,11 @@ The same guide is in the app: *Help → User guide* (F1). Changes: [CHANGELOG](C
 
 - לגרור קבצים לחלון: CSV, ‏MATLAB, לוגים של ArduPilot ו־PX4, ‏MAVLink, ‏ROS 2, ‏HDF5, ‏Parquet, ‏CAN עם קובץ ‎.dbc.
 - לבנות תצוגה: עד 9 גרפים מקושרים בטאב, שני סמנים עם הפרש וסטטיסטיקה, FFT, ספקטרוגרם, מפה ותלת־ממד.
-- להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, יישור זמן אוטומטי, אותו מקטע בכל ריצה.
+- להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה.
 - לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים, ופעולות Python משלכם.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.
+- לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים.
 
 **מדריך מלא בעברית:** [docs/GUIDE.he.md](docs/GUIDE.he.md), וגם בתוך האפליקציה: עזרה ← מדריך למשתמש (F1).
 מה חדש בכל גרסה: [CHANGELOG](CHANGELOG.md).

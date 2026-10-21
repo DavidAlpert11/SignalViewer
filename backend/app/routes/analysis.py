@@ -142,9 +142,12 @@ def fft(req: FFTRequest):
         except KeyError:
             out.append({"id": sid, "missing": True})
             continue
-        f, m = fft_for(sid, store.version(sid), t, y, req.window, req.t0, req.t1, req.method)
+        how: dict = {}
+        f, m = fft_for(sid, store.version(sid), t, y, req.window, req.t0, req.t1, req.method, how)
         fx, fy, peak = fft_display(f, m, int(max(200, min(req.points, 20000))))
-        out.append({"id": sid, "n": int(len(fx)), "peak": peak, "x": b64(fx, np.float64), "y": b64(fy, np.float32)})
+        # grid: how the samples were put on an even time grid (A1) - resampled, fs, gaps, gapTime, error
+        out.append({"id": sid, "n": int(len(fx)), "peak": peak, "x": b64(fx, np.float64), "y": b64(fy, np.float32),
+                    "grid": how})
     return {"series": out}
 
 

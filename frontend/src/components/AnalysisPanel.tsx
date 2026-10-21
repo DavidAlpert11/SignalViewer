@@ -315,7 +315,7 @@ export default function AnalysisPanel() {
               </div>
             )}
             {(op === "lowpass" || op === "highpass") && (
-              <label className="afield"><span>{t("cutoffHz")}</span>
+              <label className="afield" title={t("cutoffHint")}><span>{t("cutoffHz")}</span>
                 <input type="number" min={0} step="any" value={cutoff} onChange={(e) => setCutoff(+e.target.value)} /></label>
             )}
           </>}

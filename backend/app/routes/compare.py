@@ -1,7 +1,7 @@
 """Compare runs: similarity, the comparison table, time shift, sync suggestions."""
 
 import asyncio
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -63,24 +63,34 @@ def compare_table(ca: "CompareAllRequest", progress=None) -> list:
     files (mean, std), the differences against the baseline (RMS, max, mean, std of the
     difference, correlation, tolerance) and per-file statistics over the common time range."""
     from collections import OrderedDict
-    present: "OrderedDict[str, list]" = OrderedDict()
+    from svcore.naming import without_unit
+    # C13: a signal matches across files by its name, with or without its unit ("ATT.Roll" in a
+    # simulation's .mat, "ATT.Roll [deg]" in the flight log) when that bare name is one signal in each
+    # file; "sigs" says which signal of each file a row is (the name shown is the baseline's)
+    present: "OrderedDict[str, Dict[str, str]]" = OrderedDict()
     for rid in ca.runs:
-        for name in store.get(rid).run.signals.keys():
-            present.setdefault(name, []).append(rid)
-    names = [n for n, rids in present.items() if len(rids) >= 2]
+        names_of = list(store.get(rid).run.signals.keys())
+        bare_count: Dict[str, int] = {}
+        for nm in names_of:
+            bare_count[without_unit(nm)] = bare_count.get(without_unit(nm), 0) + 1
+        for nm in names_of:
+            key = without_unit(nm) if bare_count[without_unit(nm)] == 1 else nm
+            present.setdefault(key, {})[rid] = nm
+    groups = [g for g in present.values() if len(g) >= 2]
     out: list = []
-    for k, name in enumerate(names):
-        rids = present[name]
-        ids = [f"{rid}/{name}" for rid in rids]
-        base = f"{ca.baselineRun}/{name}" if ca.baselineRun in rids else "mean"
+    for k, sigs in enumerate(groups):
+        rids = list(sigs)
+        name = sigs.get(ca.baselineRun) or sigs[rids[0]]
+        ids = [f"{rid}/{sigs[rid]}" for rid in rids]
+        base = f"{ca.baselineRun}/{sigs[ca.baselineRun]}" if ca.baselineRun in rids else "mean"
         try:
             r = compare_runs([(sid, *_windowed(sid, ca.windows)) for sid in ids], base, ca.alignment, ca.tolAbs, ca.tolPct,
                              int(max(2_000, min(ca.points, 200_000))))
         except (ValueError, IndexError) as e:       # IndexError: no sample inside a run's segment
-            out.append({"name": name, "runs": rids, "error": str(e) or "No samples in the segment."})
+            out.append({"name": name, "runs": rids, "sigs": sigs, "error": str(e) or "No samples in the segment."})
             continue
         lo, hi = r["overlap"]
-        files = []
+        files: List[Dict[str, Any]] = []
         for rid, sid in zip(rids, ids):
             t, y = _windowed(sid, ca.windows)
             st = compute_signal_stats(t, y, lo, hi)
@@ -93,7 +103,7 @@ def compare_table(ca: "CompareAllRequest", progress=None) -> list:
         means = [f["mean"] for f in files if f["mean"] is not None]
         stds = [f["std"] for f in files if f["std"] is not None]
         out.append({
-            "name": name, "runs": rids, "baseline": "mean" if base == "mean" else ca.baselineRun,
+            "name": name, "runs": rids, "sigs": sigs, "baseline": "mean" if base == "mean" else ca.baselineRun,
             "meanSpread": (max(means) - min(means)) if means else None,
             "stdSpread": (max(stds) - min(stds)) if stds else None,
             "worstRmsDiff": max((d["rmsDiff"] for d in diffs), default=None),
@@ -106,7 +116,7 @@ def compare_table(ca: "CompareAllRequest", progress=None) -> list:
             "files": files, "diffs": diffs,
         })
         if progress:
-            progress((k + 1) / max(1, len(names)), name)
+            progress((k + 1) / max(1, len(groups)), name)
     out.sort(key=lambda x: -(x.get("worstRmsPct") or -1))
     return out
 

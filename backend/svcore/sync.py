@@ -171,9 +171,15 @@ def _xcorr_delta(ta, ya, tb, yb, max_lag: Optional[float] = None, rate: float = 
     sb, sb2 = cb[i1 - lags] - cb[i0 - lags], cb2[i1 - lags] - cb2[i0 - lags]
     with np.errstate(invalid="ignore", divide="ignore"):
         num = sab - sa * sb / cnt
-        den = np.sqrt(np.maximum(sa2 - sa * sa / cnt, 0) * np.maximum(sb2 - sb * sb / cnt, 0))
+        va, vb = np.maximum(sa2 - sa * sa / cnt, 0), np.maximum(sb2 - sb * sb / cnt, 0)
+        den = np.sqrt(va * vb)
         score = num / den
-    good = (cnt >= max(20, 0.25 * min(n, m))) & np.isfinite(score)
+    # C13: an overlap where one side barely moves (a command that is 0 before and after a test) has a
+    # variance of rounding noise: num / den there is anything, up to thousands - it once "won" with
+    # a near-empty overlap. Both sides must move in the overlap (each series has unit variance overall).
+    moving = (va / cnt > 1e-3) & (vb / cnt > 1e-3)
+    good = (cnt >= max(20, 0.25 * min(n, m))) & np.isfinite(score) & moving
+    score = np.clip(score, -1.0, 1.0)
     if max_lag is not None:
         d_all = ga[0] - gb[0] + lags / rate
         good &= np.abs(d_all - center) <= max_lag
@@ -217,17 +223,31 @@ def _scale(na, nb, ya, yb) -> float:
 
 
 def _same_names(ref, other) -> List[Tuple[str, str]]:
-    """Signals with the same name in both files (any file type: CSV, MAT, logs) - the most varied first."""
-    common = [n for n in ref.signals if n in other.signals and not re.search(r"(^|[._ ])(time|timestamp|t)($|[._ \[])", n, re.I)]
+    """Signals with the same name in both files (any file type: CSV, MAT, logs) - the most varied first.
+    C13: the same name with or without its unit counts ("ATT.Roll" in a simulation's .mat, "ATT.Roll [deg]"
+    in the flight log), when it means one signal on each side."""
+    from svcore.naming import without_unit
+    bare_other: Dict[str, Optional[str]] = {}
+    for n in other.signals:
+        k = without_unit(n)
+        bare_other[k] = None if k in bare_other else n            # two signals, one bare name: no guess
+    timeish = re.compile(r"(^|[._ ])(time|timestamp|t)($|[._ \[])", re.I)
+    common = []
+    for n in ref.signals:
+        if timeish.search(n):
+            continue
+        m = n if n in other.signals else bare_other.get(without_unit(n))
+        if m:
+            common.append((n, m))
     scored = []
-    for n in common[:400]:
+    for n, m in common[:400]:
         y = np.asarray(ref.signals[n].data, dtype=np.float64)
         if y.size < 20 or ref.signals[n].labels:
             continue
         sd = float(np.nanstd(y[:: max(1, y.size // 5000)]))
         if np.isfinite(sd) and sd > 0:
-            scored.append((sd / (abs(float(np.nanmean(y))) + sd), n))
-    return [(n, n) for _s, n in sorted(scored, reverse=True)[:4]]
+            scored.append((sd / (abs(float(np.nanmean(y))) + sd), n, m))
+    return [(n, m) for _s, n, m in sorted(scored, reverse=True)[:4]]
 
 
 def by_signal(ref, other, ref_sig: Optional[str] = None, other_sig: Optional[str] = None,

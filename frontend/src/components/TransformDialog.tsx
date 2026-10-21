@@ -108,7 +108,7 @@ export default function TransformDialog() {
               <option value="custom">{t("tfCustom")}</option>
             </select></label>
           {fn === "smooth" && <label className="afield"><span>{t("windowSamples")}</span><input inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} /></label>}
-          {(fn === "lowpass" || fn === "highpass") && <label className="afield"><span>{t("cutoffHz")}</span><input inputMode="decimal" value={fc} onChange={(e) => setFc(e.target.value)} /></label>}
+          {(fn === "lowpass" || fn === "highpass") && <label className="afield" title={t("cutoffHint")}><span>{t("cutoffHz")}</span><input inputMode="decimal" value={fc} onChange={(e) => setFc(e.target.value)} /></label>}
           {fn === "custom" && <div className="afield"><span>{t("tfExpr")}</span>
             <ExprInput value={custom} onChange={setCustom} vars={TF_VARS} params={tfParams} placeholder="x * 9.81" ariaLabel={t("tfExpr")}
               invalid={!!exprProblem} onSubmit={() => { if (!bad && !busy && targets.length) run(spec); }} />
