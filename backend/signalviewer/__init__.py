@@ -10,6 +10,7 @@
 
 From MATLAB or a shell, use the command line instead: `python cli.py --help`.
 """
+import contextlib as _contextlib
 import os as _os
 import sys as _sys
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -85,5 +86,8 @@ def load(path: str, settings: Optional[dict] = None) -> Recording:
     """Read a file. `settings` are the CSV import options of the app's Import dialog
     (e.g. {"delimiter": ";", "time_column": "t"}); usually not needed."""
     store = Store()
-    lr = store.open_file(path, settings)
+    # the readers print progress ("[OK] Loaded ...") for the app's console; in a script or a
+    # notebook stdout is the user's own output, so it goes to stderr (as on the command line)
+    with _contextlib.redirect_stdout(_sys.stderr):
+        lr = store.open_file(path, settings)
     return Recording(store, lr.id)

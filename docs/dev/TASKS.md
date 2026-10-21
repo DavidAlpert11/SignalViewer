@@ -886,6 +886,35 @@ overwritten by the next autosave (keep it as `.bak`); the Python push client (`p
 uses the system proxy settings for 127.0.0.1 - bypass them as `app/instance.py` does (found in Q55);
 two apps started WITHOUT files still share `autosave.json` (last write wins; Q55 covers starts with files).
 
+## Review 2026-10-21 (after 1.10.0) - from a tool that works to a tool people find and trust
+
+The app is in good shape (backend 782 + 12 skipped, mypy / tsc clean, `validate` 23 / 23, the docs'
+commands give the documented output, the Host / Origin guard answers 403). What is missing is mostly
+around it: nobody finds the repository (no About text, no topics, no social preview), nothing tests a
+push or a pull request, and a newcomer has no path to report a problem or contribute.
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q80 | F37 Small fixes found in the review: `sv.load()` printed on stdout, the PyPI *Documentation* link, README (desktop extra, shallow clone, unsigned packages), stale notes | S | ☑ done |
+| Q81 | T64 CI on every push and pull request (backend tests, mypy, tsc + build), badge in the README | S | ☐ |
+| Q82 | T65 `compare`: a share of samples allowed outside the tolerance (`outside_pct`, `--allow-outside`), the share written exactly | S | ☐ |
+| Q83 | T66 *Help → Report a problem…*: copies the error details and opens the issue form | S | ☐ |
+| Q84 | T67 Contributor and community files: CONTRIBUTING, issue / PR templates, CITATION.cff, SECURITY; the owner's outreach steps | S | ☐ |
+
+Still the owner's (cannot be done from a patch): `gh repo edit` (About, homepage, topics) and the
+social preview - the exact command is in `docs/dev/OUTREACH.md` (Q84); Discussions on; code signing (Q24).
+
+### Q80 · F37 Small fixes after 1.10.0 — S
+- `signalviewer.load()` let the readers' progress line (`[OK] Loaded ...`) reach stdout: in a
+  notebook or `python script.py > out.csv` it is in the user's output. It now goes to stderr, as the
+  command line already did (the CLI's own wrapper is gone: one way). Test: `test_load_keeps_stdout_for_the_user`.
+- PyPI *Documentation* pointed at `docs/GUIDE.md` on GitHub, not the documentation site (`tools/make_pypi.py` `DOCS`).
+- README: `pip install signalviewer` opens in the browser - its own window is `[desktop]` (docs/install.md
+  said so, the README said "everything"); `git clone --depth 1` (the history carries every picture);
+  the packages are unsigned - what Windows / macOS say on the first start and what to do (new section
+  in docs/install.md, linked from the README).
+- `pyproject.toml` still said e2e "one file at a time until F02 is fixed" (F02 is closed).
+
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
 | # | Task | Size | Status |
@@ -1391,3 +1420,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-20 · **Release 1.9.0** prepared: version in build.bat, version.py, SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md); CHANGELOG `## 1.9.0 – 2026-10-20` with highlights ("No File menu" moved to Changed); README / docs review: features.md test counts (111 / 194 / 714), install.md (~710), limitations.md (CAN: no ASC FD / .blf / MF4, one message per id across buses; ICD: no checksums, arrays, variants; readers in-process, reloaded whole in live mode); README's own text already matched. `tools/make_readme_media.py`: all 17 pictures and the 01, 03, 04, 05 clips retaken (06_3d_terrain.png and the 02 clip kept, as the tool says); in the full run vid_04 and vid_05 timed out after the other scenes and were made on their own (`--only vid_04 vid_05`) - follow-up: the scenes share one App, give the clips a fresh one. frontend/dist rebuilt. Owner: tag v1.9.0 after the push (PyPI pending publisher for signalviewer-lite first).
 - 2026-10-21 · External review (A1-A6, B7-B10, C13): spectra on an even time grid, -3 dB filters, time-weighted statistics, numerical validation (23 cases, `validate`), real-vehicle log tests (the .tlog radio-delay fault fixed), docs site on Material, features page in sections, the sim-vs-flight example with `compare --align`; names matched without the unit in Compare / Align / CLI.
 - 2026-10-21 · **Release 1.10.0** prepared: version in build.bat, version.py, SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, the version on docs/validation.md); CHANGELOG `## 1.10.0 – 2026-10-21` with highlights and the results that change from 1.9.0; README review (Hebrew section: sim vs flight, validate); frontend/dist rebuilt. Left for the owner: the e2e suite on Windows, tag v1.10.0.
+- 2026-10-21 · Review after 1.10.0 (plan Q80-Q84 above). Q80 / F37: sv.load() progress to stderr (+ test), PyPI Documentation = docs site, README (desktop extra, --depth 1, unsigned packages -> docs/install.md *First start*), pyproject note. Backend green, mkdocs --strict clean.
