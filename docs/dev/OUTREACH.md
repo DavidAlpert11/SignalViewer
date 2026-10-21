@@ -20,7 +20,7 @@ gh repo edit DavidAlpert11/SignalViewer \
   reporting* → Enable (SECURITY.md and the issue chooser link to it).
 - **Labels** used by the issue forms: `bug`, `enhancement` exist by default; add `good first issue`
   and put it on two or three small issues (a reader for a format someone asked for is a good one).
-- **Release notes:** the 1.10.0 release body could open with the GIF of comparing runs
+- **Release notes:** each release body can open with the GIF of comparing runs
   (`docs/media/03_compare_runs.gif`) - the release page is where the Download button leads.
 
 ## Where the users are (one post each, spread over a few weeks)

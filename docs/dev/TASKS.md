@@ -13,19 +13,20 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. Released: up to **1.10.0** (tag v1.10.0, 2026-10-21; PyPI signalviewer and
-  signalviewer-lite 1.10.0).
-- **Active plan: "Review 2026-10-21 (after 1.10.0)" below (Q80-Q84) - all done 2026-10-21**, in the
-  CHANGELOG as `1.11.0 – unreleased`. Checked here: backend 787 passed + 12 skipped (on Python 3.9 too),
-  mypy clean, tsc + build clean, `mkdocs build --strict` clean, e2e test_file_help_menus +
-  test_fresh_user + test_workflows 35 passed. Not run here: the rest of the e2e suite, the new CI
-  workflow on GitHub (its first run shows it).
-- **Owner's, from the plan:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage,
-  topics, Discussions), the social preview, private vulnerability reporting, the posts. Still open
-  from before: Q55's "Open with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12)
-  with real SITL / a radio.
+- Branch `main`. **1.11.0 prepared 2026-10-21** (Milestone 11 in ROADMAP.md, plan Q80-Q84): the owner
+  pushes, waits for the green `ci` run, tags `v1.11.0` and pushes the tag (build.yml: packages, PyPI,
+  draft release), then publishes the draft. Released before: up to 1.10.0.
+- Checked here for 1.11.0 (Linux): backend 787 passed + 12 skipped; with the real logs
+  (`tools/fetch_real_logs.py`) test_real_logs 12 passed (+1 that needs `SV_REAL_LOGS`); on Python
+  3.9 too; mypy clean; tsc + build clean; **the whole e2e suite in one process: 194 / 194**;
+  `mkdocs build --strict` clean; `validate` 23 / 23; `make_pypi.py --check` both wheels OK;
+  CITATION.cff valid (cffconvert). Not run here: Windows / macOS (CI and the owner), the Windows
+  installer. make_readme_media.py not re-run (nothing it draws changed: the Help menu is not pictured).
+- **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
+  social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
+  with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
 - **Behaviour changes the owner should know:** pan is Alt + drag (Shift + drag zooms values);
-  `sv.load()` prints nothing on stdout any more (its progress line is on stderr).
+  `sv.load()` prints nothing on stdout (its progress line is on stderr).
 
 ## Releasing
 
@@ -1465,3 +1466,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · Q82 / T65: `outside_pct` / `--allow-outside` in compare (app/checks.py), exact share in the message, docs (command-line, sim-vs-flight). Backend green.
 - 2026-10-21 · Q83 / T66: Help > Report a problem (errorReport.ts `reportProblem`, /api/report-problem). Backend green; tsc + build clean; e2e test_file_help_menus, test_fresh_user, test_workflows 35 passed (dist not in the patch).
 - 2026-10-21 · Q84 / T67: CONTRIBUTING.md, SECURITY.md, CITATION.cff (+ version test), issue forms, PR template, docs/dev/OUTREACH.md; README links. Plan Q80-Q84 done.
+- 2026-10-21 · **Release 1.11.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.11.0 – 2026-10-21` with highlights; README review (compare --allow-outside, the Hebrew section: desktop extra, report / contribute line), features.md (compare, validate), install.md test counts; frontend/dist rebuilt. Here: backend 787 + real logs 12, e2e 194 / 194, make_pypi --check OK. Left for the owner: tag v1.11.0, publish the draft.
