@@ -69,7 +69,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   `for f in tests/e2e/test_*.py; do python -m pytest -q "$f"; done`. A custom Chromium can be
   given with `SV_CHROMIUM=/path/to/chrome`. The full set takes several minutes; when time is
   short run the files / `-k` filters that touch what you changed, and say so in the log.
-- CI (`.github/workflows/build.yml`) runs the backend tests on Linux, macOS and Windows: compare
+- CI: `.github/workflows/ci.yml` (T64) on every push to main and every pull request - backend tests on
+  Python 3.9 and 3.12, mypy, `validate`, tsc + build, and an e2e smoke run (test_fresh_user,
+  test_workflows, test_file_help_menus) on the UI built from that commit; a few minutes. `build.yml`
+  (tag / by hand) runs the backend tests on Linux, macOS and Windows: compare
   computed floats with a tolerance (`abs(x) < 1e-6`, `pytest.approx`, `np.allclose`), never `==` -
   the platforms' math libraries round differently (T17b's test failed on macOS / Windows at 1e-13).
   Waits in tests: wait for the END state (all the data in), not for "something changed", and allow
@@ -896,7 +899,7 @@ push or a pull request, and a newcomer has no path to report a problem or contri
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q80 | F37 Small fixes found in the review: `sv.load()` printed on stdout, the PyPI *Documentation* link, README (desktop extra, shallow clone, unsigned packages), stale notes | S | ☑ done |
-| Q81 | T64 CI on every push and pull request (backend tests, mypy, tsc + build), badge in the README | S | ☐ |
+| Q81 | T64 CI on every push and pull request (backend tests, mypy, tsc + build), badge in the README | S | ☑ done (first run on GitHub: owner) |
 | Q82 | T65 `compare`: a share of samples allowed outside the tolerance (`outside_pct`, `--allow-outside`), the share written exactly | S | ☐ |
 | Q83 | T66 *Help → Report a problem…*: copies the error details and opens the issue form | S | ☐ |
 | Q84 | T67 Contributor and community files: CONTRIBUTING, issue / PR templates, CITATION.cff, SECURITY; the owner's outreach steps | S | ☐ |
@@ -914,6 +917,14 @@ social preview - the exact command is in `docs/dev/OUTREACH.md` (Q84); Discussio
   the packages are unsigned - what Windows / macOS say on the first start and what to do (new section
   in docs/install.md, linked from the README).
 - `pyproject.toml` still said e2e "one file at a time until F02 is fixed" (F02 is closed).
+
+### Q81 · T64 CI on every push and pull request — S
+`build.yml` runs only on a tag or by hand: a broken commit was found at the release, a pull request
+got no check at all, and the README had no "it builds" sign. New `.github/workflows/ci.yml`: backend
+pytest on 3.9 (the oldest the package allows - checked here: 783 passed) and 3.12, mypy and
+`cli.py validate` once, `npm ci && npm run build` (tsc included), then a Playwright smoke run on the
+UI built in that run (downloaded over the committed dist; run.py then sees it as current). The CI
+badge leads the README's badges. The whole e2e suite stays the owner's before a release.
 
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
@@ -1421,3 +1432,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · External review (A1-A6, B7-B10, C13): spectra on an even time grid, -3 dB filters, time-weighted statistics, numerical validation (23 cases, `validate`), real-vehicle log tests (the .tlog radio-delay fault fixed), docs site on Material, features page in sections, the sim-vs-flight example with `compare --align`; names matched without the unit in Compare / Align / CLI.
 - 2026-10-21 · **Release 1.10.0** prepared: version in build.bat, version.py, SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, the version on docs/validation.md); CHANGELOG `## 1.10.0 – 2026-10-21` with highlights and the results that change from 1.9.0; README review (Hebrew section: sim vs flight, validate); frontend/dist rebuilt. Left for the owner: the e2e suite on Windows, tag v1.10.0.
 - 2026-10-21 · Review after 1.10.0 (plan Q80-Q84 above). Q80 / F37: sv.load() progress to stderr (+ test), PyPI Documentation = docs site, README (desktop extra, --depth 1, unsigned packages -> docs/install.md *First start*), pyproject note. Backend green, mkdocs --strict clean.
+- 2026-10-21 · Q81 / T64: .github/workflows/ci.yml (backend 3.9 + 3.12, mypy, validate, frontend build, e2e smoke on that build), README badge. Here: backend on 3.9 783 passed; the three e2e files 35 passed.

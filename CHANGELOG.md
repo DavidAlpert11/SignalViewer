@@ -2,6 +2,9 @@
 
 ## 1.11.0 – unreleased
 
+### Added
+- **Every change is checked on GitHub**: the tests, the type checks, the numerical validation and a short run of the app in a browser on every push and pull request (the *CI* badge on the README).
+
 ### Fixed
 - `signalviewer.load()` in a script or a notebook printed a progress line (*[OK] Loaded …*) into your own output; it now goes to stderr, as on the command line.
 - The PyPI page's *Documentation* link opens the documentation site.
