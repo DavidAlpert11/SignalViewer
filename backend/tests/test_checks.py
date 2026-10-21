@@ -118,6 +118,32 @@ def test_compare_against_golden_ranks_and_tolerances(tmp_path, capsys):
     assert rc == 1 and "FAIL  RPM" in so and "PASS  Speed [km/h]" in so
 
 
+def test_compare_share_allowed_outside(tmp_path, capsys):
+    """T65: "outside_pct" / --allow-outside lets a few samples be outside the tolerance; the share
+    is written exactly (never "0.0 %" for samples that are outside)."""
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[2], "--tol-abs", "15", "--signals", "RPM", "--json")
+    row = json.loads(so)["files"][0]["results"][0]
+    share = row["outsidePct"]
+    assert rc == 1 and row["status"] == "fail" and 0 < share < 100
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[2], "--tol-abs", "15", "--signals", "RPM",
+                    "--allow-outside", str(share + 0.01), "--json")
+    row = json.loads(so)["files"][0]["results"][0]
+    assert rc == 0 and row["status"] == "pass" and "% allowed" in row["message"]
+    tol = tmp_path / "tol.json"                       # per signal in the file; the file wins for that signal
+    tol.write_text(json.dumps({"default": {"abs": 15}, "signals": {"RPM": {"outside_pct": share / 2}}}))
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[2], "--tolerances", str(tol), "--signals", "RPM")
+    assert rc == 1 and "FAIL  RPM" in so and "allowed" in so
+    tol.write_text(json.dumps({"default": {"abs": 15, "outside_pct": "a few"}}))
+    rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[2], "--tolerances", str(tol), "--signals", "RPM")
+    assert rc == 2 and "outside_pct is the share of samples" in so
+
+
+def test_share_is_never_rounded_to_zero_or_all():
+    from app.checks import _share
+    assert _share(0.0) == "0" and _share(0.0412) == "0.041" and _share(1.44) == "1.4"
+    assert _share(99.97) == "over 99.9" and _share(100.0) == "100.0"
+
+
 def test_compare_errors_exit_2(tmp_path, capsys):
     rc, so, _ = run(capsys, "compare", RUNS[0], str(tmp_path / "gone.csv"), "--tol-abs", "1")
     assert rc == 2 and "not found" in so.lower()
