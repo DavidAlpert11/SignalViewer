@@ -23,6 +23,14 @@ gh repo edit DavidAlpert11/SignalViewer \
 - **Release notes:** each release body can open with the GIF of comparing runs
   (`docs/media/03_compare_runs.gif`) - the release page is where the Download button leads.
 
+## Search engines
+
+- **Google Search Console** (property `https://davidalpert11.github.io/SignalViewer/`, URL prefix):
+  verified by `docs/google93a24742f4c5f4f6.html` - keep that file. *Sitemaps* -> `sitemap.xml`;
+  *URL inspection* -> the home page -> *Request indexing*.
+- **Bing Webmaster Tools**: *Import from Google Search Console* (Bing also serves DuckDuckGo).
+- What moves the ranking is links from elsewhere (the posts and documentation PRs below).
+
 ## Where the users are (one post each, spread over a few weeks)
 
 Lead with one concrete problem and one picture, not the feature list. Answer every reply in the
