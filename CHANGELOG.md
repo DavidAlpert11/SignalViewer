@@ -4,8 +4,10 @@
 
 ### Added
 - **Every change is checked on GitHub**: the tests, the type checks, the numerical validation and a short run of the app in a browser on every push and pull request (the *CI* badge on the README).
+- **`signalviewer-cli compare`: a few samples may be outside** - `"outside_pct": 0.5` in the tolerances (per signal or for all) or `--allow-outside 0.5` passes a signal when at most 0.5 % of its samples are outside the tolerance, so a spike at a step does not fail a run that otherwise matches. Without it every sample must be inside, as before.
 
 ### Fixed
+- `signalviewer-cli compare` wrote "0.0 % of samples outside" for a signal that failed on a few samples; the share is now written exactly (*0.089 %*).
 - `signalviewer.load()` in a script or a notebook printed a progress line (*[OK] Loaded …*) into your own output; it now goes to stderr, as on the command line.
 - The PyPI page's *Documentation* link opens the documentation site.
 - The README says what `pip install signalviewer` gives (the app in your browser; `[desktop]` for its own window) and what to do when Windows or macOS stops the first start of the unsigned packages (a new section in *Install*).
