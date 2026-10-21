@@ -27,6 +27,12 @@ def test_version_is_the_one_build_bat_releases():
     assert m and m.group(1) == __version__, "change app/version.py together with build.bat"
 
 
+def test_citation_names_the_same_version():
+    """T67: CITATION.cff ("Cite this repository") carries the release's version too."""
+    m = re.search(r"^version: *([0-9.]+)", open(os.path.join(ROOT, "CITATION.cff"), encoding="utf-8").read(), re.M)
+    assert m and m.group(1) == __version__, "change CITATION.cff (version, date-released) with app/version.py"
+
+
 def test_log_file_is_in_the_test_folder_not_the_users():
     assert "sv-test-logs-" in crashlog.LOG_FILE
     assert os.path.isfile(crashlog.LOG_FILE)

@@ -1,0 +1,27 @@
+# T67 (Q84): "Cite this repository" on GitHub. version / date-released change with every release
+# (docs/dev/TASKS.md -> Releasing, step 2; a test keeps the version equal to app/version.py).
+cff-version: 1.2.0
+message: "If you use Signal Viewer in work you publish, please cite it as below."
+type: software
+title: "Signal Viewer"
+abstract: >-
+  An offline desktop application for exploring, comparing and reporting on recorded time-series
+  data - flight-test runs, drone flight logs (ArduPilot, PX4, MAVLink), CAN, and simulation output -
+  with pass / fail checks for continuous integration and a numerical validation of its computations.
+authors:
+  - given-names: David
+    family-names: Alpert
+version: 1.10.0
+date-released: 2026-10-21
+license: MIT
+repository-code: "https://github.com/DavidAlpert11/SignalViewer"
+url: "https://davidalpert11.github.io/SignalViewer/"
+keywords:
+  - flight test
+  - flight log
+  - time series
+  - signal analysis
+  - ArduPilot
+  - PX4
+  - MAVLink
+  - simulation

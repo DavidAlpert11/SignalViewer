@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://davidalpert11.github.io/SignalViewer/
+    about: The user guide, every feature, the command line and file formats, known limitations.
+  - name: A security problem
+    url: https://github.com/DavidAlpert11/SignalViewer/security/advisories/new
+    about: Please report it privately (see SECURITY.md), not as a public issue.
