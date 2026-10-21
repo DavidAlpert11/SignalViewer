@@ -142,7 +142,7 @@ source: [Install](https://davidalpert11.github.io/SignalViewer/install/).
 signalviewer-cli export flight.bin --signals "ATT.Roll,ATT.Pitch" --out roll.csv
 signalviewer-cli report --template "ArduPilot · Full review" --out reports/ logs/*.bin
 signalviewer-cli check  runs/*.csv --checks checks.json --junit results.xml     # exit 1 on a broken limit
-signalviewer-cli compare golden.csv new/*.csv --tol-pct 2                        # against a golden run
+signalviewer-cli compare golden.csv new/*.csv --tol-pct 2 --allow-outside 0.5   # against a golden run
 signalviewer-cli validate                                                       # the numerical validation, here
 ```
 
@@ -185,7 +185,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 **התקנה**
 
 - **Windows:** קובץ ההתקנה `SignalViewer-Setup-X.Y.Z.exe` מ־[השחרור האחרון](https://github.com/DavidAlpert11/SignalViewer/releases/latest) (בלי הרשאות מנהל), או ה־zip הנייד.
-- **Python:** <code dir="ltr">pip install signalviewer</code> ואז <code dir="ltr">signalviewer</code>.
+- **Python:** <code dir="ltr">pip install signalviewer</code> ואז <code dir="ltr">signalviewer</code> (נפתח בדפדפן; חלון משלו: <code dir="ltr">pip install "signalviewer[desktop]"</code>).
 - **מקוד המקור:** <code dir="ltr">pip install -r requirements.txt</code> ואז <code dir="ltr">python run.py</code>.
 
 **מה אפשר לעשות**
@@ -200,6 +200,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 
 **מדריך מלא בעברית:** [docs/GUIDE.he.md](docs/GUIDE.he.md), וגם בתוך האפליקציה: עזרה ← מדריך למשתמש (F1).
 מה חדש בכל גרסה: [CHANGELOG](CHANGELOG.md).
+מצאתם בעיה? עזרה ← דיווח על בעיה… באפליקציה. רוצים לתרום? [CONTRIBUTING](CONTRIBUTING.md).
 
 </div>
 

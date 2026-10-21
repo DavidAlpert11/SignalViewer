@@ -439,7 +439,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Command line
 
-- `info`, `export` (.csv / .mat), `report` (one per file from a template), `check` (limits as pass / fail: whole run, time window or a state's stretches; the limits saved in a template; exit code 0 / 1 / 2; JUnit XML), `compare` (each run against a golden run, tolerances per signal, JUnit XML), `readers`, `templates`
+- `info`, `export` (.csv / .mat), `report` (one per file from a template), `check` (limits as pass / fail: whole run, time window or a state's stretches; the limits saved in a template; exit code 0 / 1 / 2; JUnit XML), `compare` (each run against a golden run, tolerances per signal, a share of samples allowed outside, alignment by cross-correlation, JUnit XML), `validate` (the numerical validation), `readers`, `templates`
 
 ## Everything else { #general }
 

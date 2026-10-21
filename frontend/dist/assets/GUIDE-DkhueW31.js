@@ -114,6 +114,8 @@ sends arrays straight into the running app.
 
 - **Help → Copy error details** copies the version, the system and the end of the log; paste it
   into your report. Nothing is sent automatically.
+- **Help → Report a problem…** copies the same details and opens the bug report form on GitHub in
+  your browser - paste them there.
 - **Help → Keyboard shortcuts** (?) lists every key and mouse gesture.
 - Windows warns about an unknown publisher on the first start: *More info → Run anyway*.
 - macOS refuses to open it the first time: right-click → *Open*, or run
