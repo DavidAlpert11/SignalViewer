@@ -1114,6 +1114,11 @@ input.fx-input { width: 100%; }
 .pick-top { display: flex; align-items: center; gap: 6px; }
 .pick-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .pick-hint { margin: 0; font-size: 0.8077rem; color: var(--muted); }
+.pick-actions .btn.pick-clear { margin-inline-start: auto; height: 26px; padding-inline: 8px; gap: 4px; font-size: 0.885rem; }
+.grp-pick { flex: none; margin: 0 2px; }
+.msp-top .btn.msp-clear { height: 22px; padding-inline: 6px; gap: 4px; font-size: 0.846rem; margin-inline-start: auto; }
+.msp-stale { margin: 0 0 6px; font-size: 0.846rem; }
+.tf-chips { max-height: 84px; overflow-y: auto; margin-bottom: 12px; }
 /* T22: per signal in the file list - its unit (never cut off), its rate, a small picture */
 .side { container-type: inline-size; }
 .sig .sig-unit { flex: none; color: var(--muted); font-size: 0.8077rem; direction: ltr; max-width: 64px; overflow: hidden; text-overflow: ellipsis; }

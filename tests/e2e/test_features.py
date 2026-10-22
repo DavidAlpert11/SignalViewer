@@ -2006,3 +2006,38 @@ def test_envelope_of_several_runs(pg):
     assert S(pg, "s.ws.tabs[0].plots[0].mode") == "env"
     pg.keyboard.press("Control+z")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].mode !== 'env'")
+
+
+def test_multi_select_search_collapse_and_x_on_each(pg):
+    """Groups can be closed while searching; a right-click on one of several selected signals acts
+    on all of them (x*8 on each); after an action the next Ctrl+click starts a new selection; Esc clears it."""
+    open_files(pg, "wide.csv")
+    pg.fill(".filter input", "s0")                                          # 100 results in 4 groups
+    pg.wait_for_function("document.querySelectorAll('.grp-head').length >= 1")   # (a virtual list: what is on screen)
+    assert pg.locator(".grp-head.closed").count() == 0                      # a search opens every group
+    pg.locator(".grp-head").first.click()                                   # ...and it can be closed again
+    pg.wait_for_function("document.querySelectorAll('.grp-head.closed').length === 1")
+    pg.locator(".grp-head").first.click()
+    pg.wait_for_function("document.querySelectorAll('.grp-head.closed').length === 0")
+    pg.locator(".pick-bar .linklike", has_text="Collapse all").click()
+    pg.wait_for_function("document.querySelectorAll('.grp-head.closed').length === 4")   # all 4 fit now
+    assert pg.locator(".sig").count() == 0
+    pg.locator(".pick-bar .linklike", has_text="Expand all").click()
+    pg.wait_for_function("document.querySelectorAll('.grp-head.closed').length === 0")
+    sig(pg, "s000").click(modifiers=["Control"]); sig(pg, "s001").click(modifiers=["Control"])
+    assert pg.locator(".pick-count").inner_text().startswith("2")
+    sig(pg, "s001").click(button="right")
+    menu_item(pg, "Change the 2 selected")
+    pg.wait_for_selector(".tf-dialog")
+    assert pg.locator(".tf-dialog .msp-chip").count() == 2
+    pg.locator(".tf-dialog select").select_option("custom")
+    pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill("x*8")
+    pg.locator(".tf-dialog .btn.primary", has_text="Apply to 2 variables").click()
+    pg.wait_for_selector(".toast:has-text('applied to 2')")
+    exprs = S(pg, "s.runs.flatMap(r => r.signals.filter(x => x.transform).map(x => x.name + '=' + x.transform.expr))")
+    assert sorted(exprs) == ["g0.s000=x*8", "g0.s001=x*8"]
+    assert "next signal you pick" in pg.locator(".pick-hint").inner_text()
+    sig(pg, "s005").click(modifiers=["Control"])                           # a new selection, not a third signal
+    assert S(pg, "s.listSel.map(id => id.split('/').pop())") == ["g0.s005"]
+    sig(pg, "s005").focus(); pg.keyboard.press("Escape")
+    pg.wait_for_function("window.__sv.state().listSel.length === 0")

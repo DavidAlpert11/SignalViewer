@@ -53,7 +53,21 @@ export default function DataPanel() {
   const picked = useApp((s) => s.listSel);
   const setPicked = (ids: string[]) => useApp.setState({ listSel: ids });
   const pickedSet = useMemo(() => new Set(picked), [picked]);
-  const togglePick = (id: string) => useApp.setState({ listSel: picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id], listAnchor: id });
+  const selUsed = useApp((s) => s.listSelUsed);
+  // after an action ran on the selection, the next pick starts a NEW selection (no removing one by one)
+  const togglePick = (id: string) => {
+    const { listSel, listSelUsed } = useApp.getState();
+    if (listSel.includes(id)) useApp.setState({ listSel: listSel.filter((x) => x !== id), listAnchor: id, listSelUsed: false });
+    else useApp.setState({ listSel: [...(listSelUsed ? [] : listSel), id], listAnchor: id, listSelUsed: false });
+  };
+  /** every id in `ids` selected -> unselect them all, else add them all (a group's checkbox / Ctrl+click) */
+  const toggleMany = (ids: string[]) => {
+    const { listSel, listSelUsed } = useApp.getState();
+    const cur = new Set(listSel);
+    const all = ids.every((id) => cur.has(id));
+    useApp.setState({ listSel: all ? listSel.filter((id) => !ids.includes(id)) : Array.from(new Set([...(listSelUsed ? [] : listSel), ...ids])), listSelUsed: false });
+  };
+  const clearSel = () => useApp.setState({ listSel: [], listAnchor: null, listSelUsed: false });
   const refresh = async () => { useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 }); actions.dropStaleRanges(); };
   const fail = (e: unknown) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
   const fileMenu = (e: React.MouseEvent, run: RunInfo) => {
@@ -93,7 +107,25 @@ export default function DataPanel() {
       { label: t("remove"), run: () => removeRun(run.id), danger: true },
     ]);
   };
-  const sigMenu = (e: React.MouseEvent, sig: SignalInfo) => openMenu(e, [
+  const sigMenu = (e: React.MouseEvent, sig: SignalInfo) => {
+    const sel = useApp.getState().listSel;
+    if (sel.length > 1 && sel.includes(sig.id)) {
+      // right-click on one of several selected signals: the menu acts on all of them
+      const originals = sel.filter((id) => !id.startsWith("derived/"));
+      const used = () => useApp.setState({ listSelUsed: true });
+      return openMenu(e, [
+        { label: t("selPlotMany", { n: sel.length }), run: () => { actions.addSignals(sel); used(); } },
+        { label: t("groupEachNewPlot"), run: () => { actions.addSignalsToNewPlots(sel); used(); } },
+        { label: "", run: () => {}, sep: true },
+        { label: t("tfEditMany", { n: originals.length }), run: () => useApp.setState({ transformTargets: originals }), disabled: !originals.length },
+        createSignalItem(sel),
+        { label: "", run: () => {}, sep: true },
+        { label: t("clearSelection"), run: clearSel },
+      ]);
+    }
+    return sigMenu1(e, sig);
+  };
+  const sigMenu1 = (e: React.MouseEvent, sig: SignalInfo) => openMenu(e, [
     ...(() => {
       const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active];
       return p?.signals.some((s) => s.sig === sig.id)
@@ -131,6 +163,11 @@ export default function DataPanel() {
   }, [activePlot]);
 
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
+  // while searching every match starts open, but files and groups can still be collapsed
+  // ("r:<run>" / "g:<run>|<group>" -> closed); forgotten when the search is cleared
+  const [sClosed, setSClosed] = useState<Record<string, boolean>>({});
+  const searching = !!q.trim();
+  useEffect(() => { if (!searching) setSClosed({}); }, [searching]);
   const treeRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 600 });
   useEffect(() => {
@@ -152,8 +189,8 @@ export default function DataPanel() {
   const rows = useMemo(() => {
     const out: Row[] = [];
     for (const { run, sigs } of filtered) {
-      if (q && !sigs.length) continue;
-      const closedRun = !!closed[run.id] && !q;
+      if (searching && !sigs.length) continue;
+      const closedRun = searching ? !!sClosed[`r:${run.id}`] : !!closed[run.id];
       out.push({ kind: "run", run, closed: closedRun, h: H_RUN });
       if (closedRun) continue;
       // derived signals made together (a frame conversion's axes) are always nested
@@ -163,8 +200,8 @@ export default function DataPanel() {
       const many = !derived && run.signals.length > 200;
       for (const g of groups) {
         const gk = `${run.id}|${g.key}`;
-        // searching opens every matching group; otherwise big files start collapsed
-        const open = q ? true : groupOpen[gk] ?? !many;
+        // searching opens every matching group (the user may close it); otherwise big files start collapsed
+        const open = searching ? !sClosed[`g:${gk}`] : groupOpen[gk] ?? !many;
         if (!g.key) { g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
         out.push({ kind: "group", runId: run.id, key: g.key, ids: g.items.map((x) => x.id), closed: !open, h: H_GROUP });
         if (open) g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG, group: derived ? g.key : undefined }));
@@ -172,7 +209,7 @@ export default function DataPanel() {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runs, q, closed, groupOpen]);
+  }, [runs, q, closed, groupOpen, sClosed]);
 
   const offsets = useMemo(() => {
     const o = new Array(rows.length + 1);
@@ -192,7 +229,9 @@ export default function DataPanel() {
     if (row.kind === "run") {
       const run = row.run;
       return (
-        <div className={`run-head${row.closed ? " closed" : ""}`} onClick={() => setClosed({ ...closed, [run.id]: !closed[run.id] })}
+        <div className={`run-head${row.closed ? " closed" : ""}`} onClick={() => (searching
+          ? setSClosed({ ...sClosed, [`r:${run.id}`]: !sClosed[`r:${run.id}`] })
+          : setClosed({ ...closed, [run.id]: !closed[run.id] }))}
           onContextMenu={(e) => fileMenu(e, run)}
           title={run.format === "derived" ? "" : `${run.path}\n${fmtInt(run.samples, lang)} · ${fmtNum(run.start, lang)} – ${fmtNum(run.end, lang)}${run.description ? "\n\n" + run.description : ""}`}>
           <Icon.Chevron className="chev" />
@@ -236,13 +275,28 @@ export default function DataPanel() {
     }
     if (row.kind === "group") {
       const gk = `${row.runId}|${row.key}`;
+      const nSel = row.ids.filter((id) => pickedSet.has(id)).length;
+      const allSel = nSel === row.ids.length;
       return (
-        <div className={`grp-head${row.closed ? " closed" : ""}`} onClick={() => setGroupOpen({ ...groupOpen, [gk]: row.closed })}
+        <div className={`grp-head${row.closed ? " closed" : ""}`}
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) { toggleMany(row.ids); return; }      // Ctrl+click: the whole group
+            if (searching) setSClosed({ ...sClosed, [`g:${gk}`]: !row.closed });
+            else setGroupOpen({ ...groupOpen, [gk]: row.closed });
+          }}
           onContextMenu={(e) => openMenu(e, [
             { label: t("groupAddAll"), run: () => actions.addSignals(row.ids) },
             { label: t("groupEachNewPlot"), run: () => actions.addSignalsToNewPlots(row.ids) },
+            { label: "", run: () => {}, sep: true },
+            { label: t(allSel ? "unselectGroup" : "selectGroup", { n: row.ids.length }), run: () => toggleMany(row.ids) },
           ])}>
-          <Icon.Chevron className="chev" /><span className="nm">{row.key}</span><span className="run-meta">{fmtInt(row.ids.length, lang)}</span>
+          <Icon.Chevron className="chev" />
+          {picked.length > 0 && (
+            <input type="checkbox" className="grp-pick" checked={allSel} aria-label={t(allSel ? "unselectGroup" : "selectGroup", { n: row.ids.length })}
+              ref={(el) => { if (el) el.indeterminate = nSel > 0 && !allSel; }}
+              onClick={(e) => e.stopPropagation()} onChange={() => toggleMany(row.ids)} />
+          )}
+          <span className="nm">{row.key}</span><span className="run-meta">{nSel > 0 && !allSel ? `${fmtInt(nSel, lang)}/` : ""}{fmtInt(row.ids.length, lang)}</span>
         </div>
       );
     }
@@ -260,7 +314,7 @@ export default function DataPanel() {
             const anchor = useApp.getState().listAnchor;
             const a = anchor ? order.indexOf(anchor) : -1, b = order.indexOf(s.id);
             const range = a < 0 ? [s.id] : order.slice(Math.min(a, b), Math.max(a, b) + 1);
-            useApp.setState({ listSel: Array.from(new Set([...(e.ctrlKey ? picked : []), ...range])), listAnchor: anchor ?? s.id });
+            useApp.setState({ listSel: Array.from(new Set([...(e.ctrlKey && !selUsed ? picked : []), ...range])), listAnchor: anchor ?? s.id, listSelUsed: false });
             return;
           }
           if (e.altKey) { actions.addSignalToNewPlot(s.id); return; }
@@ -329,6 +383,20 @@ export default function DataPanel() {
                 {matchRuns.map((f) => <option key={f.run.id} value={f.run.id}>{f.run.format === "derived" ? t("derived") : fileLabel(runs, f.run.id)} ({f.sigs.length})</option>)}
               </select>
             )}
+            {(() => {
+              // collapse / expand the results: every group closes (a file without groups closes itself)
+              const grouped = new Set(rows.flatMap((r) => (r.kind === "group" ? [r.runId] : [])));
+              const anyOpen = rows.some((r) => (r.kind === "group" && !r.closed) || (r.kind === "run" && !r.closed && !grouped.has(r.run.id)));
+              const collapse = () => {
+                const next: Record<string, boolean> = {};
+                for (const r of rows) {
+                  if (r.kind === "group") next[`g:${r.runId}|${r.key}`] = true;
+                  else if (r.kind === "run" && !grouped.has(r.run.id)) next[`r:${r.run.id}`] = true;
+                }
+                setSClosed(next);
+              };
+              return <button className="linklike" onClick={() => (anyOpen ? collapse() : setSClosed({}))}>{t(anyOpen ? "collapseAll" : "expandAll")}</button>;
+            })()}
             {hidden.length > 0 && (
               <span className="pick-warn">{t("hiddenChosen", { n: hidden.length })}{" "}
                 <button className="linklike" onClick={() => setPicked(picked.filter((id) => shown.has(id)))}>{t("keepOnlyResults")}</button></span>
@@ -339,11 +407,17 @@ export default function DataPanel() {
       {runs.length > 0 && (
         <label className="filter">
           <Icon.Search />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchSignals")} aria-label={t("searchSignals")} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchSignals")} aria-label={t("searchSignals")}
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              if (q) { setQ(""); e.stopPropagation(); } else if (picked.length) { clearSel(); e.stopPropagation(); }
+            }} />
           {q && <button className="iconbtn" style={{ height: 20, minWidth: 20 }} onClick={() => setQ("")} aria-label={t("close")}><Icon.X /></button>}
         </label>
       )}
-      <div className="tree" ref={treeRef} onScroll={(e) => setView({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight })}>
+      <div className="tree" ref={treeRef}
+        onKeyDown={(e) => { if (e.key === "Escape" && picked.length) { clearSel(); e.stopPropagation(); } }}
+        onScroll={(e) => setView({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight })}>
         {!runs.length && <p className="empty-note">{t("noFilesHint")}</p>}
         {runs.length > 0 && !anyMatch && <p className="empty-note">{t("noMatches", { q })}</p>}
         <div className="vlist" style={{ height: total }}>
@@ -359,16 +433,16 @@ export default function DataPanel() {
         <div className="pick-actions" role="region" aria-label={t("nChosen", { n: picked.length })}>
           <div className="pick-top">
             <span className="pick-count">{t("nChosen", { n: picked.length })}</span>
-            <button className="iconbtn" onClick={() => useApp.setState({ listSel: [], listAnchor: null })} aria-label={t("clearSelection")} title={t("clearSelection")}><Icon.X /></button>
+            <button className="btn outline sm pick-clear" onClick={clearSel} title={`${t("clearSelection")} (Esc)`}><Icon.X width={12} height={12} /> {t("clearSelection")}</button>
           </div>
           <div className="pick-btns">
             {/* what a selection is for: the same thing to several signals at once */}
-            <button className="btn primary" onClick={() => actions.addSignals(picked)} title={t("plotSelectedHint")}>{t("plotSelected")}</button>
+            <button className="btn primary" onClick={() => { actions.addSignals(picked); useApp.setState({ listSelUsed: true }); }} title={t("plotSelectedHint")}>{t("plotSelected")}</button>
             <button className="btn outline" disabled={!picked.some((id) => !id.startsWith("derived/"))}
               onClick={() => useApp.setState({ transformTargets: picked.filter((id) => !id.startsWith("derived/")) })} title={t("resultEditHint")}>{t("editSelected")}</button>
             <button className="btn outline" onClick={() => useApp.setState({ analysisSeed: picked, panel: "analysis" })} title={t("resultNewHint")}>{t("newFromSelected")}</button>
           </div>
-          <p className="pick-hint">{t("listSelHint")}</p>
+          <p className="pick-hint">{selUsed ? t("selUsedHint") : t("listSelHint")}</p>
         </div>
       )}
     </aside>

@@ -956,6 +956,37 @@ with cffconvert; `test_citation_names_the_same_version` keeps its version with a
 `docs/dev/OUTREACH.md` - the owner's steps (`gh repo edit` with description / homepage / topics /
 Discussions, social preview, private vulnerability reporting, `good first issue`) and post drafts.
 
+## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q85 | F38 Several signals at once: groups closed while searching, one action on all selected signals (x = each), a new selection without removing one by one | S | ☑ done |
+
+### Q85 · F38 Several signals at once — S
+The owner's three reports, and what was behind each:
+1. *Nested groups cannot be closed while searching.* DataPanel forced `open = q ? true : ...` and
+   ignored `closed[run]` while `q` was set. Now a separate map `sClosed` (`r:<run>` / `g:<run>|<group>`)
+   holds what the user closed during a search - every match still starts open - and is dropped when
+   the search is cleared. *Collapse all* / *Expand all* in the results bar (after *Choose these N only*:
+   e2e clicks the bar's first link).
+2. *"Apply to 1" - x cannot stand for several signals.* The file list's right-click *Change this
+   signal…* always sent `[sig.id]`, even with that signal in a selection. A right-click on a selected
+   signal (2 or more) now opens a menu for the selection: plot / each in a new plot / *Change the N
+   selected…* / *New signals from the N selected ▸* (createSignalItem takes an array; quick results
+   added in one undo step) / clear. The same in the legend (`multi`), and the Inspector's batch section
+   now seeds *Create signals* (it opened it empty) and has *Change them…*. TransformDialog lists the
+   targets as removable chips and says that x is each target in turn; *Apply to 1 variable* (singular).
+   Analysis → One signal: *Expression in x…* (`exprx`): new signals through the existing `expr`
+   operation with x → v0 (one per source, label with the signal's name); in place through
+   `opToStep` → `composeTransform` (stacks on an earlier change like every step).
+3. *A new selection meant removing the old one signal by signal.* `listSelUsed` (ui slice): set by
+   every action on the selection (change, plot, quick ops, Analysis on several); the next Ctrl / Shift
+   + click or checkbox starts a new selection - the selection stays for a chained action meanwhile
+   (hint under the bar). MultiSignalPicker `stale` does the same in Analysis. Esc clears (list, search
+   box); *Clear selection* is a named button. A group's checkbox (indeterminate when some) and
+   Ctrl+click on the group select it whole.
+i18n en / he. Test: e2e `test_multi_select_search_collapse_and_x_on_each`.
+
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
 | # | Task | Size | Status |
@@ -1469,3 +1500,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · **Release 1.11.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.11.0 – 2026-10-21` with highlights; README review (compare --allow-outside, the Hebrew section: desktop extra, report / contribute line), features.md (compare, validate), install.md test counts; frontend/dist rebuilt. Here: backend 787 + real logs 12, e2e 194 / 194, make_pypi --check OK. Left for the owner: tag v1.11.0, publish the draft.
 - 2026-10-21 · CI #2 (the first `ci` run) red on e2e: test_user_guide_in_the_app counted the guide's h3 before its text arrived (the dialog's own title is the h2 it waited for; the text is a lazy chunk). Now waits for the 10th h3. Running the trio 6 times here found a second race: an Esc pressed as the shortcuts dialog appeared was lost and its scrim blocked the next click - `close_dialog()` waits for the scrim and presses Esc again. ci.yml: download-artifact@v7 (Node 24, as build.yml). Trio 5 / 5 runs green. Tests and CI only: no change to 1.11.0.
 - 2026-10-21 · Google Search Console: the owner's verification file docs/google93a24742f4c5f4f6.html (copied as-is to the site's root, /SignalViewer/; not in the sitemap). Keep it: deleting it un-verifies the site. Then: Sitemaps -> sitemap.xml, URL inspection -> Request indexing (docs/dev/OUTREACH.md).
+- 2026-10-22 · Q85 / F38 (owner's report): groups close while searching, the selection's right-click (list and legend) acts on all selected, x = each target in the change dialog, *Expression in x* in Analysis, group checkboxes, the next pick after an action starts a new selection, Esc. tsc + build clean, oxlint 39 warnings (as before); e2e test_features, test_pyops, test_plot_menus, test_workflows green (+1 new test).
