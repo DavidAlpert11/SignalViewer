@@ -2041,3 +2041,27 @@ def test_multi_select_search_collapse_and_x_on_each(pg):
     assert S(pg, "s.listSel.map(id => id.split('/').pop())") == ["g0.s005"]
     sig(pg, "s005").focus(); pg.keyboard.press("Escape")
     pg.wait_for_function("window.__sv.state().listSel.length === 0")
+
+
+def test_shift_ranges_add_up_and_shift_drag(pg):
+    """Owner, 2026-10-22: hold Shift, click 1 and 3 -> 1..3; Shift again on 7, click 11 -> 7..11 is
+    added. Shift + drag selects a range too (the row is not dragged to a plot)."""
+    names = lambda: S(pg, "s.listSel.map(i => i.split('/').pop().replace('g0.', ''))")
+    open_files(pg, "wide.csv")
+    pg.fill(".filter input", "g0.s0")                                       # 30 results, no groups
+    pg.wait_for_function("document.querySelectorAll('.sig').length > 16")
+    pg.keyboard.down("Shift"); sig(pg, "s001").click(); sig(pg, "s003").click(); pg.keyboard.up("Shift")
+    assert names() == ["s001", "s002", "s003"]
+    pg.keyboard.down("Shift"); sig(pg, "s007").click(); sig(pg, "s011").click(); pg.keyboard.up("Shift")
+    assert names() == ["s001", "s002", "s003", "s007", "s008", "s009", "s010", "s011"]
+    pg.keyboard.down("Shift"); sig(pg, "s009").click(); pg.keyboard.up("Shift")   # a new range of one: nothing lost
+    assert len(names()) == 8
+    assert chips(pg) == []                                                  # selecting never plots
+    pg.click(".pick-clear")
+    b1 = sig(pg, "s004").bounding_box(); b2 = sig(pg, "s007").bounding_box()   # away from the edge: no auto-scroll
+    pg.keyboard.down("Shift"); pg.mouse.move(b1["x"] + 30, b1["y"] + 8); pg.mouse.down()
+    pg.mouse.move(b2["x"] + 30, b2["y"] + 8, steps=10); pg.mouse.up(); pg.keyboard.up("Shift")
+    assert names() == ["s004", "s005", "s006", "s007"]
+    assert chips(pg) == []
+    sig(pg, "s010").click(modifiers=["Control"]); sig(pg, "s012").click(modifiers=["Shift"])   # Ctrl then Shift: the classic way
+    assert names() == ["s004", "s005", "s006", "s007", "s010", "s011", "s012"]

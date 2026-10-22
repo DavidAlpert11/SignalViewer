@@ -56,7 +56,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### File list
 
 - Every signal with its unit (kept apart from the name, never cut off), its sample rate (wider panel, and the tooltip with the number of samples) and a small picture of the whole signal (spikes included; only the rows on screen fetch theirs)
-- Checkboxes only while signals are selected (Ctrl / Shift + click, *select all* of a search, or a group's own checkbox / Ctrl+click on the group for all of it): plot them (one undo step), change them (`x*8`, `sin(x)` – x is each of them in turn), or make new signals from them; a right-click on any selected signal offers the same for all of them. After an action the selection stays for the next one, and the next Ctrl / Shift + click starts a new selection; Esc clears it
+- Checkboxes only while signals are selected (Ctrl + click; Shift + click or Shift + drag for a range - each new press of Shift adds another range; *select all* of a search, or a group's own checkbox / Ctrl+click on the group for all of it): plot them (one undo step), change them (`x*8`, `sin(x)` – x is each of them in turn), or make new signals from them; a right-click on any selected signal offers the same for all of them. After an action the selection stays for the next one, and the next Ctrl / Shift + click starts a new selection; Esc clears it
 - While searching, files and groups of the results can still be closed and opened, or all at once (*Collapse all* / *Expand all*)
 
 ### Import settings
