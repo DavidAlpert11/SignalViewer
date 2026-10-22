@@ -1,6 +1,12 @@
 # Changelog
 
-## 1.12.0 – unreleased
+## 1.12.0 – 2026-10-22
+
+Highlights: **several signals at once** - select signals in the file list (Shift + click or Shift +
+drag for a range, and ranges add up: 1-3, then 7-11; or Ctrl+click chips in a legend), right-click
+any of them and change all of them together: `x*8` or `sin(x)` is applied to each one. *Create
+signals* takes your own expression in x too. A new selection starts with one click after an action,
+a whole group is selected with its checkbox, and the groups of search results can be closed. Nothing changes in results, sessions or templates you already have.
 
 ### Added
 - **The same change on several signals, from wherever they are selected**: right-click any of the selected signals in the file list (or of the Ctrl+clicked chips in a legend) for *Change the N selected…*, *Plot the N selected* and *New signals from the N selected ▸* (derivative and integral at once, one new signal for each). In the change dialog **x is each signal in turn** - `x*8` or `sin(x)` changes every one of them; the signals are listed and any can be taken out.
