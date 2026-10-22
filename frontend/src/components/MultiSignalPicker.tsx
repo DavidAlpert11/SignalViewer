@@ -11,9 +11,11 @@ const SHOWN = 150;
  *  - "select the N results" REPLACES the choice with exactly what the search shows;
  *    adding to the choice is a separate, explicit link;
  *  - chosen signals that the search hides are called out, with a one-click fix. */
-export default function MultiSignalPicker({ options, value, onChange, quick }: {
+export default function MultiSignalPicker({ options, value, onChange, quick, stale }: {
   options: MultiOption[]; value: string[]; onChange: (ids: string[]) => void;
   quick?: { label: string; ids: string[] }[];
+  /** an operation already ran on this choice: the next signal picked starts a new choice */
+  stale?: boolean;
 }) {
   const t = useT();
   const [q, setQ] = useState("");
@@ -25,7 +27,7 @@ export default function MultiSignalPicker({ options, value, onChange, quick }: {
   const similar = useMemo(() => (q.trim() && !matches.length ? fuzzySort(options, (o) => o.label, q).slice(0, 5) : []), [q, matches, options]);
   const matchIds = useMemo(() => new Set(matches.map((o) => o.id)), [matches]);
   const hidden = q.trim() ? value.filter((id) => !matchIds.has(id)) : [];
-  const toggle = (id: string) => onChange(chosen.has(id) ? value.filter((x) => x !== id) : [...value, id]);
+  const toggle = (id: string) => onChange(chosen.has(id) ? value.filter((x) => x !== id) : [...(stale ? [] : value), id]);
   const label = (id: string) => { const o = byId.get(id); return o ? (o.group ? `${o.label} · ${o.group}` : o.label) : id; };
 
   return (
@@ -35,8 +37,10 @@ export default function MultiSignalPicker({ options, value, onChange, quick }: {
         {quick?.filter((x) => x.ids.length).map((x) => (
           <button key={x.label} type="button" className="linklike" onClick={() => onChange(Array.from(new Set(x.ids)))}>{x.label}</button>
         ))}
-        {value.length > 0 && <button type="button" className="linklike" onClick={() => onChange([])}>{t("clearSelection")}</button>}
+        {value.length > 0 && <button type="button" className="btn outline sm msp-clear" onClick={() => onChange([])}>
+          <Icon.X width={10} height={10} /> {t("clearSelection")}</button>}
       </div>
+      {stale && value.length > 0 && <p className="hint msp-stale">{t("selUsedHint")}</p>}
       {value.length > 0 && (
         <div className="msp-chips">
           {value.slice(0, 12).map((id) => (
@@ -51,7 +55,7 @@ export default function MultiSignalPicker({ options, value, onChange, quick }: {
       {q.trim() !== "" && matches.length > 0 && (
         <div className="msp-actions">
           <button type="button" className="btn outline sm" onClick={() => onChange(matches.map((o) => o.id))}>{t("selectOnlyResults", { n: matches.length })}</button>
-          <button type="button" className="linklike" onClick={() => onChange(Array.from(new Set([...value, ...matches.map((o) => o.id)])))}>{t("addResults")}</button>
+          <button type="button" className="linklike" onClick={() => onChange(Array.from(new Set([...(stale ? [] : value), ...matches.map((o) => o.id)])))}>{t("addResults")}</button>
         </div>
       )}
       {hidden.length > 0 && (

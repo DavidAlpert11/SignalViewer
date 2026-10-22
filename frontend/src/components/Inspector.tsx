@@ -360,7 +360,15 @@ export default function Inspector() {
                   <button onClick={() => actions.updateSignals(multi, { state: true })}>{t("asStates")}</button>
                 </span></div>
               <div className="arow">
-                <button className="btn outline" onClick={() => useApp.setState({ panel: "analysis" })}>{t("batchDerived")}</button>
+                {/* hand the legend selection over: Change them / New signals start with exactly these signals */}
+                {(() => {
+                  const sigs = Array.from(new Set(multi.map((m) => m.sig)));
+                  const originals = sigs.filter((id) => !id.startsWith("derived/"));
+                  return <>
+                    <button className="btn outline" disabled={!originals.length} onClick={() => useApp.setState({ transformTargets: originals })}>{t("editSelected")}</button>
+                    <button className="btn outline" onClick={() => useApp.setState({ analysisSeed: sigs, panel: "analysis" })}>{t("batchDerived")}</button>
+                  </>;
+                })()}
                 <button className="btn outline" onClick={() => actions.removeSignals(multi)}>{t("remove")}</button>
               </div>
             </>;
