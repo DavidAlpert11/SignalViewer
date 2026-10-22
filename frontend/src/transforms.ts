@@ -32,7 +32,7 @@ export async function applyTransform(ids: string[], tf: SignalTransform | null) 
 export interface Step { expr?: string; scale?: number; offset?: number; dt?: number }
 
 /** Analysis operation -> an in-place step (every one-signal operation has one). */
-export function opToStep(op: string, p: { window?: number; cutoff?: number; gain?: number; bias?: number }): Step | null {
+export function opToStep(op: string, p: { window?: number; cutoff?: number; gain?: number; bias?: number; expr?: string }): Step | null {
   const n = Math.max(2, Math.round(p.window ?? 10)), fc = p.cutoff ?? 10;
   switch (op) {
     case "derivative": return { expr: "deriv(x)" };
@@ -45,6 +45,7 @@ export function opToStep(op: string, p: { window?: number; cutoff?: number; gain
     case "lowpass": return { expr: `lowpass(x, ${fc})` };
     case "highpass": return { expr: `highpass(x, ${fc})` };
     case "affine": return { scale: p.gain ?? 1, offset: p.bias ?? 0 };
+    case "exprx": return p.expr?.trim() ? { expr: p.expr.trim() } : null;     // the user's own f(x), e.g. x*8, sin(x)
     default: return null;
   }
 }

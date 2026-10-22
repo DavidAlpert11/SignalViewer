@@ -77,7 +77,12 @@ export default function TransformDialog() {
       if (r.error) { useApp.getState().toast({ kind: "error", text: r.error }); return; }
       tf = { ...tf, expr: r.text };
     }
-    try { await applyTransform(targets, tf); close(); }
+    try {
+      await applyTransform(targets, tf);
+      // the selection did its job: the next pick in the file list starts a new one
+      if (targets.length > 1) useApp.setState({ listSelUsed: true });
+      close();
+    }
     catch (e) { setError(String((e as Error).message)); }
     finally { setBusy(false); }
   };
@@ -90,7 +95,16 @@ export default function TransformDialog() {
           <button className="iconbtn" onClick={close} aria-label={t("close")}><Icon.X /></button></div>
         <div className="dialog-pad">
           <p className="hint tf-note">{t("tfNote")}</p>
-          <div className="tf-targets">{sigs.slice(0, 8).map((s) => s.name).join(", ")}{sigs.length > 8 ? ` … +${sigs.length - 8}` : ""}</div>
+          {sigs.length <= 1
+            ? <div className="tf-targets">{sigs.map((s) => s.name).join(", ")}</div>
+            : <div className="msp-chips tf-chips">
+                {/* every target, each removable: the same change is made on each of them, x being that signal */}
+                {sigs.map((s) => (
+                  <span key={s.id} className="msp-chip" title={s.id}>{s.name}
+                    <button type="button" aria-label={`${t("remove")}: ${s.name}`}
+                      onClick={() => useApp.setState({ transformTargets: targets.filter((id) => id !== s.id) })}><Icon.X width={10} height={10} /></button></span>
+                ))}
+              </div>}
           <label className="afield"><span>{t("tfFunction")}</span>
             <select value={fn} onChange={(e) => {
               // switching to "custom" starts from the chosen function, ready to edit
@@ -112,7 +126,8 @@ export default function TransformDialog() {
           {fn === "custom" && <div className="afield"><span>{t("tfExpr")}</span>
             <ExprInput value={custom} onChange={setCustom} vars={TF_VARS} params={tfParams} placeholder="x * 9.81" ariaLabel={t("tfExpr")}
               invalid={!!exprProblem} onSubmit={() => { if (!bad && !busy && targets.length) run(spec); }} />
-            {exprProblem ? <p className="hint err fx-err">{exprProblem}</p> : <p className="hint fx-help">{t("tfExprHint")}</p>}</div>}
+            {exprProblem ? <p className="hint err fx-err">{exprProblem}</p>
+              : <p className="hint fx-help">{targets.length > 1 ? t("tfExprHintMany", { n: targets.length }) : t("tfExprHint")}</p>}</div>}
           <div className="arow">
             <label className="afield"><span>{t("scale")}</span><input inputMode="decimal" value={scale} onChange={(e) => setScale(e.target.value)} /></label>
             <label className="afield"><span>{t("offset")}</span><input inputMode="decimal" value={offset} onChange={(e) => setOffset(e.target.value)} /></label>
@@ -126,7 +141,7 @@ export default function TransformDialog() {
           <span className="spacer" />
           <button className="btn outline" onClick={close}>{t("cancel")}</button>
           <button className="btn primary" disabled={busy || bad || !targets.length} onClick={() => run(spec)}>
-            {t("tfApply", { n: targets.length })}</button>
+            {targets.length === 1 ? t("tfApply1") : t("tfApply", { n: targets.length })}</button>
         </div>
       </div>
     </div>

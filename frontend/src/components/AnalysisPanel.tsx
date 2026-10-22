@@ -14,11 +14,19 @@ import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
 import PyOpsSection, { type PyChoice } from "./PyOpsSection";
 import ErrorSegments from "./ErrorSegments";
+import ExprInput from "./ExprInput";
+import { parenProblem, unknownNames, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
+
+// "Expression in x": the user's own f(x) on one signal or on each of several (x = that signal)
+const X_VARS = [VAR_X, VAR_T, VAR_PI, VAR_E];
+const X_ALLOWED = new Set(X_VARS.map((v) => v.name));
+const toV0 = (e: string) => e.replace(/\bx\b/g, "v0");
 
 type Kind = "one" | "two" | "many" | "fx" | "frame" | "py";   // py: the user's own Python operations (T31)
 const UNARY: [string, TKey][] = [
   ["derivative", "opDerivative"], ["integral", "opIntegral"], ["abs", "opAbs"], ["negate", "opNegate"],
   ["normalize", "opNormalize"], ["affine", "opAffine"], ["smooth", "opSmooth"], ["rms", "opRms"], ["lowpass", "opLowpass"], ["highpass", "opHighpass"],
+  ["exprx", "opExprX"],
 ];
 const BINARY: [string, string][] = [["sub", "A − B"], ["add", "A + B"], ["mul", "A × B"], ["div", "A ÷ B"], ["absdiff", "|A − B|"]];
 const MULTI: [string, TKey][] = [["mean", "opMean"], ["sum", "opSum"], ["min", "opMin"], ["max", "opMax"], ["norm", "opNorm"]];
@@ -52,7 +60,11 @@ export default function AnalysisPanel() {
   const [op, setOp] = useState("derivative");
   const [a, setA] = useState("");
   const [b, setB] = useState("");
-  const [many, setMany] = useState<string[]>([]);
+  const [many, setManyRaw] = useState<string[]>([]);
+  // after an operation ran on the chosen signals, the next pick starts a new choice
+  const [manyUsed, setManyUsed] = useState(false);
+  const setMany = (ids: string[]) => { setManyRaw(ids); setManyUsed(false); };
+  const [xexpr, setXexpr] = useState("x * 8");
   const [batch, setBatch] = useState(false);
   const [windowN, setWindowN] = useState(10);
   const [cutoff, setCutoff] = useState(10);
@@ -149,7 +161,25 @@ export default function AnalysisPanel() {
     return p;
   };
   const fxRes = kind === "fx" && fx.trim() ? resolveFormula(fx, runs, tr) : null;
-  const params = { window: windowN, cutoff, alignment, gain, bias };
+  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xexpr };
+  const isX = kind === "one" && op === "exprx";
+  const xProblem = !isX ? null : !xexpr.trim() ? "" : (() => {
+    const p = parenProblem(xexpr);
+    if (p) return t(p);
+    const unk = unknownNames(xexpr, X_ALLOWED);
+    return unk.length ? t("fxUnknownTf", { name: unk[0] }) : null;
+  })();
+  const sigName = (id: string) => runs.flatMap((r) => r.signals).find((s) => s.id === id)?.name ?? id;
+  /** the operation, its parameters and the label of the new signal made from `sources` */
+  const derivedCall = (sources: string[]): [string, Record<string, unknown>] => (isX
+    ? ["expr", { expr: toV0(xexpr.trim()), text: xexpr.trim().replace(/\bx\b/g, `{${sigName(sources[0])}}`), alignment }]
+    : [op, params]);
+  const markUsed = () => {
+    if ((kind === "one" && batch) || kind === "many" || (kind === "py" && (py?.op.inputs ?? 0) > 2)) {
+      setManyUsed(true);
+      useApp.setState({ listSelUsed: true });
+    }
+  };
   // T31: a Python operation's sources follow how many inputs it takes
   const pySources = !py ? [] : py.op.inputs === 1 ? [a] : py.op.inputs === 2 ? [a, b] : many;
   const pyParams = py ? { op: py.op.id, args: py.args } : {};
@@ -161,7 +191,7 @@ export default function AnalysisPanel() {
       const ids = batch ? many : [a];
       if (!step || !ids.length) return;
       setBusy(true);
-      try { await editInPlace(ids, step); }
+      try { await editInPlace(ids, step); markUsed(); }
       catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
       finally { setBusy(false); }
       return;
@@ -195,11 +225,13 @@ export default function AnalysisPanel() {
     setBusy(true);
     try {
       for (const sources of jobs) {
-        const r = await api.createDerived(kind === "py" ? "py" : op, sources, kind === "py" ? pyParams : params, jobs.length === 1 ? name : undefined);
+        const [jOp, jParams] = kind === "py" ? ["py", pyParams] : derivedCall(sources);
+        const r = await api.createDerived(jOp, sources, jParams, jobs.length === 1 ? name : undefined);
         useApp.setState({ runs: r.runs });
         if (addToPlot) actions.addSignal(r.id);
       }
       setName("");
+      markUsed();
     } catch (e) {
       useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
     } finally { setBusy(false); }
@@ -232,8 +264,7 @@ export default function AnalysisPanel() {
     }
     if (kind === "fx" && (!fxRes || fxRes.error)) return;
     const sources = kind === "fx" ? fxRes!.sources : kind === "py" ? pySources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
-    const pOp = kind === "fx" ? "expr" : kind === "py" ? "py" : op;
-    const pParams = kind === "fx" ? { expr: fxRes!.expr, text: fx, alignment } : kind === "py" ? pyParams : params;
+    const [pOp, pParams] = kind === "fx" ? ["expr", { expr: fxRes!.expr, text: fx, alignment }] : kind === "py" ? ["py", pyParams] : derivedCall(sources);
     if (kind === "py" && !py) return;
     if (sources.some((x) => !x)) return;
     try {
@@ -259,7 +290,9 @@ export default function AnalysisPanel() {
 
   const canCreate = kind === "frame" ? frSrc !== frDst && frameSources.every((x) => !!x) && refOk
     : kind === "py" ? !!py && pySources.length >= py.op.inputs && pySources.every((x) => !!x)
-    : kind === "fx" ? !!fxRes && !fxRes.error : kind === "one" ? (batch ? batchSigs.length > 0 : !!a) : kind === "two" ? !!a && !!b : many.length >= 2;
+    : kind === "fx" ? !!fxRes && !fxRes.error
+    : kind === "one" ? (batch ? batchSigs.length > 0 : !!a) && (!isX || xProblem === null)
+    : kind === "two" ? !!a && !!b : many.length >= 2;
 
   return (
     <aside className="side" aria-label={t("analysis")}>
@@ -280,7 +313,7 @@ export default function AnalysisPanel() {
             <PyOpsSection choice={py} onChange={setPy} />
             {py && py.op.inputs === 1 && sigSelect(a, setA, t("signal"))}
             {py && py.op.inputs === 2 && <>{sigSelect(a, setA, "A")}{sigSelect(b, setB, "B")}</>}
-            {py && py.op.inputs > 2 && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} />}
+            {py && py.op.inputs > 2 && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} stale={manyUsed} />}
           </>}
           {kind !== "fx" && kind !== "frame" && kind !== "py" && <label className="afield"><span>{t("operation")}</span>
             <select value={op} onChange={(e) => setOp(e.target.value)}>
@@ -303,7 +336,12 @@ export default function AnalysisPanel() {
               <button className={batch ? "on" : ""} onClick={() => setBatch(true)}>{t("eachOfSeveral")}</button>
             </div>
             {!batch && sigSelect(a, setA, t("signal"))}
-            {batch && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} />}
+            {batch && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} stale={manyUsed} />}
+            {isX && <div className="afield"><span>{t("tfExpr")}</span>
+              <ExprInput value={xexpr} onChange={setXexpr} vars={X_VARS} placeholder="x * 8" ariaLabel={t("tfExpr")} invalid={!!xProblem}
+                onSubmit={() => { if (canCreate && !busy) void create(); }} />
+              {xProblem ? <p className="hint err fx-err">{xProblem}</p>
+                : <p className="hint fx-help">{batch && many.length > 1 ? t("tfExprHintMany", { n: many.length }) : t("tfExprHint")}</p>}</div>}
             {(op === "smooth" || op === "rms") && (
               <label className="afield"><span>{t("windowSamples")}</span>
                 <input type="number" min={2} value={windowN} onChange={(e) => setWindowN(Math.max(2, +e.target.value))} /></label>
@@ -325,7 +363,7 @@ export default function AnalysisPanel() {
             {sigSelect(b, setB, "B")}
           </>}
 
-          {kind === "many" && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} />}
+          {kind === "many" && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} stale={manyUsed} />}
 
           {kind === "frame" && <>
             {frameSugs.length > 0 && <div className="frame-sugs" role="group" aria-label={t("frameSuggested")}>

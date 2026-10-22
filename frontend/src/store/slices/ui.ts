@@ -35,6 +35,7 @@ export interface UiSlice {
   transformTargets: string[] | null;     // signals whose change dialog is open
   listSel: string[];                      // signals selected in the file list (Ctrl / Shift + click, or from search)
   listAnchor: string | null;              // where a Shift + click range starts
+  listSelUsed: boolean;                   // an action ran on listSel: the next pick starts a new selection
   analysisSeed: string[] | null;          // signals handed to the Analysis panel from the file list
   retarget: { state: any; title: string; fromCurrent: boolean } | null;   // "open with new files"
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
@@ -84,6 +85,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   templatesOpen: false,
   transformTargets: null,
   listSel: [],
+  listSelUsed: false,
   listAnchor: null,
   analysisSeed: null,
   retarget: null,

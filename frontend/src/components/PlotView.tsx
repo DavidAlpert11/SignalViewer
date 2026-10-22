@@ -64,7 +64,16 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: t("duplicateNewPlot"), run: () => actions.duplicateToNewPlot(plot.id, sig) },
       { label: t("useAsX"), run: () => actions.setAsX(plot.id, sig) },
       { label: "", run: () => {}, sep: true },
-      createSignalItem(sig, plot.id),
+      // Ctrl+clicked legend chips: the change / new signals are made on every selected signal
+      ...(() => {
+        const sel = Array.from(new Set(useApp.getState().multi.map((m) => m.sig)));
+        const many = sel.length > 1 && sel.includes(sig) ? sel : null;
+        const originals = (many ?? [sig]).filter((id) => !id.startsWith("derived/"));
+        return [
+          ...(originals.length ? [{ label: many ? t("tfEditMany", { n: originals.length }) : t("tfEdit"), run: () => useApp.setState({ transformTargets: originals }) }] : []),
+          createSignalItem(many ?? sig, plot.id),
+        ];
+      })(),
       { label: "", run: () => {}, sep: true },
       { label: t("remove"), run: () => actions.removeSignal(plot.id, sig), danger: true },
     ]);
