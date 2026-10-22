@@ -13,15 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.11.0 prepared 2026-10-21** (Milestone 11 in ROADMAP.md, plan Q80-Q84): the owner
-  pushes, waits for the green `ci` run, tags `v1.11.0` and pushes the tag (build.yml: packages, PyPI,
-  draft release), then publishes the draft. Released before: up to 1.10.0.
-- Checked here for 1.11.0 (Linux): backend 787 passed + 12 skipped; with the real logs
-  (`tools/fetch_real_logs.py`) test_real_logs 12 passed (+1 that needs `SV_REAL_LOGS`); on Python
-  3.9 too; mypy clean; tsc + build clean; **the whole e2e suite in one process: 194 / 194**;
-  `mkdocs build --strict` clean; `validate` 23 / 23; `make_pypi.py --check` both wheels OK;
-  CITATION.cff valid (cffconvert). Not run here: Windows / macOS (CI and the owner), the Windows
-  installer. make_readme_media.py not re-run (nothing it draws changed: the Help menu is not pictured).
+- Branch `main`. **1.12.0 prepared 2026-10-22** (Milestone 12 in ROADMAP.md, Q85-Q86 - the owner's reports on
+  selecting several signals): the owner pushes, waits for the green `ci` run, tags `v1.12.0` and pushes
+  the tag (build.yml: packages, PyPI, draft release), then publishes the draft. Released before: up to 1.11.0.
+- Checked here for 1.12.0 (Linux): backend 787 passed + 12 skipped; mypy clean; tsc + build clean
+  (oxlint 39 warnings, as in 1.11.0); **the whole e2e suite in one process: 196 / 196**;
+  `mkdocs build --strict` clean; `validate` 23 / 23; `make_pypi.py --check` both wheels OK.
+  Not run here: Windows / macOS (CI and the owner), the Windows installer, the real logs
+  (no reader changed). make_readme_media.py not re-run (the pictures show no selection).
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
@@ -1519,3 +1518,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · Google Search Console: the owner's verification file docs/google93a24742f4c5f4f6.html (copied as-is to the site's root, /SignalViewer/; not in the sitemap). Keep it: deleting it un-verifies the site. Then: Sitemaps -> sitemap.xml, URL inspection -> Request indexing (docs/dev/OUTREACH.md).
 - 2026-10-22 · Q85 / F38 (owner's report): groups close while searching, the selection's right-click (list and legend) acts on all selected, x = each target in the change dialog, *Expression in x* in Analysis, group checkboxes, the next pick after an action starts a new selection, Esc. tsc + build clean, oxlint 39 warnings (as before); e2e test_features, test_pyops, test_plot_menus, test_workflows green (+1 new test).
 - 2026-10-22 · Q86 / F39 (owner, after applying Q85): Shift ranges that add up (1-3, then 7-11), Shift + drag (the range on mousedown, no native drag), auto-scroll at the edges. Reproduced first in Playwright (1-11 instead of 1-3 + 7-11; drag: nothing). tsc + build clean, oxlint 39; e2e test_shift_ranges_add_up_and_shift_drag + the selection tests green.
+- 2026-10-22 · **Release 1.12.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.12.0 – 2026-10-22` with highlights; README review (Math line, the Hebrew section's calculate line), features.md (file list, legend, analysis - in Q85 / Q86); frontend/dist rebuilt. Here: backend 787 + 12 skipped, mypy clean, e2e 196 / 196 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check OK. Left for the owner: tag v1.12.0, publish the draft.
