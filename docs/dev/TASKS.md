@@ -961,6 +961,7 @@ Discussions, social preview, private vulnerability reporting, `good first issue`
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q85 | F38 Several signals at once: groups closed while searching, one action on all selected signals (x = each), a new selection without removing one by one | S | ☑ done |
+| Q86 | F39 Shift ranges that add up (1-3, then 7-11), Shift + drag | S | ☑ done |
 
 ### Q85 · F38 Several signals at once — S
 The owner's three reports, and what was behind each:
@@ -986,6 +987,22 @@ The owner's three reports, and what was behind each:
    box); *Clear selection* is a named button. A group's checkbox (indeterminate when some) and
    Ctrl+click on the group select it whole.
 i18n en / he. Test: e2e `test_multi_select_search_collapse_and_x_on_each`.
+
+### Q86 · F39 Shift ranges that add up; Shift + drag — S
+Owner, after applying Q85: "hold Shift, click 1 and 3, let go; hold Shift on 7, click 11 - I want
+1-3 and 7-11"; and Shift + drag did nothing. Reproduced in Playwright: the second range ran from the
+first anchor (1-11: `listAnchor` never moved on a Shift+click, and a Shift+click replaced the
+selection unless Ctrl was held too); a Shift + drag started the row's native drag (it is `draggable`
+to drop on a plot), so no click came at all.
+Now the range is made on **mousedown** with Shift (`preventDefault`: no native drag, no text
+selection); hovering other rows with the button held extends it (`onMouseEnter`), and near the top or
+bottom of the list the list scrolls. A **new press of Shift** (keyup, or a mousemove without Shift -
+also when the window missed the key) starts a new range at the signal pressed, ADDED to the selection
+(`span.base` = what was selected before it, so the range can still grow or shrink while Shift is
+held). A Ctrl+click just before is the start of the next Shift range (the classic way, kept).
+After an action (`listSelUsed`) the range starts a new selection. The checkboxes behave the same.
+Shift+Enter from the keyboard works as a Shift+click. Hint and tooltip say it (en / he).
+Test: e2e `test_shift_ranges_add_up_and_shift_drag`.
 
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
@@ -1501,3 +1518,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · CI #2 (the first `ci` run) red on e2e: test_user_guide_in_the_app counted the guide's h3 before its text arrived (the dialog's own title is the h2 it waited for; the text is a lazy chunk). Now waits for the 10th h3. Running the trio 6 times here found a second race: an Esc pressed as the shortcuts dialog appeared was lost and its scrim blocked the next click - `close_dialog()` waits for the scrim and presses Esc again. ci.yml: download-artifact@v7 (Node 24, as build.yml). Trio 5 / 5 runs green. Tests and CI only: no change to 1.11.0.
 - 2026-10-21 · Google Search Console: the owner's verification file docs/google93a24742f4c5f4f6.html (copied as-is to the site's root, /SignalViewer/; not in the sitemap). Keep it: deleting it un-verifies the site. Then: Sitemaps -> sitemap.xml, URL inspection -> Request indexing (docs/dev/OUTREACH.md).
 - 2026-10-22 · Q85 / F38 (owner's report): groups close while searching, the selection's right-click (list and legend) acts on all selected, x = each target in the change dialog, *Expression in x* in Analysis, group checkboxes, the next pick after an action starts a new selection, Esc. tsc + build clean, oxlint 39 warnings (as before); e2e test_features, test_pyops, test_plot_menus, test_workflows green (+1 new test).
+- 2026-10-22 · Q86 / F39 (owner, after applying Q85): Shift ranges that add up (1-3, then 7-11), Shift + drag (the range on mousedown, no native drag), auto-scroll at the edges. Reproduced first in Playwright (1-11 instead of 1-3 + 7-11; drag: nothing). tsc + build clean, oxlint 39; e2e test_shift_ranges_add_up_and_shift_drag + the selection tests green.

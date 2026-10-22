@@ -646,6 +646,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 
 ## Milestone 12 — 1.12.0: several signals at once (owner's report 2026-10-22). Spec: TASKS.md Q85.
 - [x] F38 Several signals at once (Q85). Done 2026-10-22: groups close while searching (DataPanel `sClosed`), the selection's right-click menu (file list and legend), x = each target in the change dialog, *Expression in x* in Analysis (`exprx`, opToStep), group checkboxes, `listSelUsed` (the next pick starts a new selection), Esc / *Clear selection*.
+- [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
 ## Later
 - [ ] "copy as pandas code".
