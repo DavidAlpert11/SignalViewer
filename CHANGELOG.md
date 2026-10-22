@@ -5,6 +5,7 @@
 ### Added
 - **The same change on several signals, from wherever they are selected**: right-click any of the selected signals in the file list (or of the Ctrl+clicked chips in a legend) for *Change the N selected…*, *Plot the N selected* and *New signals from the N selected ▸* (derivative and integral at once, one new signal for each). In the change dialog **x is each signal in turn** - `x*8` or `sin(x)` changes every one of them; the signals are listed and any can be taken out.
 - **Your own expression in x** in *Create signals → One signal* (`x*8`, `sin(x)`, `deriv(x)/9.81`): on one signal or on each of several, as a new signal or changing the signal itself.
+- **Ranges with Shift, as many as you need**: hold Shift and click signals 1 and 3 - or press on 1 and drag to 3 - and 1 to 3 are selected; let go of Shift, hold it again on 7 and click 11, and 7 to 11 are added (1 to 3 stay). Dragging near the edge of the list scrolls it.
 - **Selecting a whole group**: while signals are selected each group has a checkbox (all / some / none of its signals); Ctrl+click on a group, or *Select these N* on its right-click, does the same.
 
 ### Changed
@@ -13,6 +14,7 @@
 ### Fixed
 - While searching, a file or a group of the results could not be closed - a click on it did nothing until the search was cleared. It now closes and opens as without a search, and *Collapse all* / *Expand all* do all of them.
 - *Change this signal…* on the right-click of a signal that was part of a selection changed only that signal (*Apply to 1 variables*); it now offers the change for all the selected signals.
+- A second Shift+click range in the file list started from where the first one started (1 to 11 instead of 1 to 3 and 7 to 11), and Shift + drag dragged the signal toward a plot instead of selecting.
 - In the legend, *New signals from these…* opened *Create signals* without the selected signals; they are now chosen there.
 
 ## 1.11.0 – 2026-10-21

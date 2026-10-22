@@ -57,8 +57,9 @@ export default function DataPanel() {
   // after an action ran on the selection, the next pick starts a NEW selection (no removing one by one)
   const togglePick = (id: string) => {
     const { listSel, listSelUsed } = useApp.getState();
-    if (listSel.includes(id)) useApp.setState({ listSel: listSel.filter((x) => x !== id), listAnchor: id, listSelUsed: false });
-    else useApp.setState({ listSel: [...(listSelUsed ? [] : listSel), id], listAnchor: id, listSelUsed: false });
+    const next = listSel.includes(id) ? listSel.filter((x) => x !== id) : [...(listSelUsed ? [] : listSel), id];
+    useApp.setState({ listSel: next, listAnchor: id, listSelUsed: false });
+    span.current = { base: next, fromPick: true };          // Ctrl+click X, then Shift+click Y: X..Y
   };
   /** every id in `ids` selected -> unselect them all, else add them all (a group's checkbox / Ctrl+click) */
   const toggleMany = (ids: string[]) => {
@@ -66,8 +67,31 @@ export default function DataPanel() {
     const cur = new Set(listSel);
     const all = ids.every((id) => cur.has(id));
     useApp.setState({ listSel: all ? listSel.filter((id) => !ids.includes(id)) : Array.from(new Set([...(listSelUsed ? [] : listSel), ...ids])), listSelUsed: false });
+    span.current.fromPick = false;
   };
-  const clearSel = () => useApp.setState({ listSel: [], listAnchor: null, listSelUsed: false });
+  const clearSel = () => { useApp.setState({ listSel: [], listAnchor: null, listSelUsed: false }); span.current = { base: [], fromPick: false }; };
+  /* Shift ranges (owner, 2026-10-22): hold Shift, click 1 and 3 (or press on 1 and drag to 3) -> 1..3;
+     let go of Shift, hold it again on 7 and click 11 -> 7..11 is ADDED (1..3 stays). Each new press of
+     Shift starts a new range at the first signal clicked; a Ctrl+click just before is that start.
+     `base` is what was selected before the current range, so the range can still grow or shrink. */
+  const span = useRef<{ base: string[]; fromPick: boolean }>({ base: [], fromPick: false });
+  const shiftWasUp = useRef(true);        // Shift was let go since the last Shift+press on a signal
+  const dragging = useRef(false);         // the mouse button is held after a Shift+press: hovering extends
+  useEffect(() => {
+    const keyUp = (e: KeyboardEvent) => { if (e.key === "Shift") shiftWasUp.current = true; };
+    const move = (e: MouseEvent) => {
+      if (!e.shiftKey) shiftWasUp.current = true;           // also when the window missed the key itself
+      const tree = treeRef.current;
+      if (!dragging.current || !tree) return;
+      if (!(e.buttons & 1)) { dragging.current = false; return; }
+      const r = tree.getBoundingClientRect();               // near an edge: the list scrolls on
+      if (e.clientY < r.top + 24) tree.scrollTop -= 18;
+      else if (e.clientY > r.bottom - 24) tree.scrollTop += 18;
+    };
+    const up = () => { dragging.current = false; };
+    window.addEventListener("keyup", keyUp); window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+    return () => { window.removeEventListener("keyup", keyUp); window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+  }, []);
   const refresh = async () => { useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 }); actions.dropStaleRanges(); };
   const fail = (e: unknown) => useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
   const fileMenu = (e: React.MouseEvent, run: RunInfo) => {
@@ -225,6 +249,29 @@ export default function DataPanel() {
   while (last < rows.length && offsets[last] < view.top + view.height) last++;
   last = Math.min(rows.length, last + OVERSCAN);
 
+  /** the signals in the order shown (closed files and groups left out) */
+  const sigOrder = () => rows.flatMap((r) => (r.kind === "sig" ? [r.sig.id] : []));
+  const rangeTo = (id: string) => {
+    const order = sigOrder();
+    const anchor = useApp.getState().listAnchor;
+    const a = anchor ? order.indexOf(anchor) : -1, b = order.indexOf(id);
+    const range = a < 0 || b < 0 ? [id] : order.slice(Math.min(a, b), Math.max(a, b) + 1);
+    useApp.setState({ listSel: Array.from(new Set([...span.current.base, ...range])), listSelUsed: false });
+  };
+  /** Shift + mouse button down on a signal (or its checkbox) */
+  const shiftPress = (id: string) => {
+    const { listAnchor, listSel, listSelUsed } = useApp.getState();
+    const fresh = shiftWasUp.current;
+    shiftWasUp.current = false;
+    dragging.current = true;
+    const anchorShown = !!listAnchor && sigOrder().includes(listAnchor);
+    if (anchorShown && (!fresh || span.current.fromPick)) { span.current.fromPick = false; rangeTo(id); return; }
+    // a new range starts here, added to what is already selected (after an action: a new selection)
+    const base = listSelUsed ? [] : listSel;
+    span.current = { base, fromPick: false };
+    useApp.setState({ listSel: Array.from(new Set([...base, id])), listAnchor: id, listSelUsed: false });
+  };
+  const skipChange = useRef(false);       // a Shift+press on a checkbox already did the work
   const renderRow = (row: Row) => {
     if (row.kind === "run") {
       const run = row.run;
@@ -307,16 +354,15 @@ export default function DataPanel() {
     const button = (
       <button className={`sig${color ? " in" : ""}${row.depth ? " deep" : ""}${picking ? " pickable" : ""}`} draggable
         onDragStart={(e) => { e.dataTransfer.setData(SIGNAL_MIME, s.id); e.dataTransfer.effectAllowed = "copy"; }}
+        // Shift: a range, on the press - so the row is not dragged to a plot and no text gets selected
+        onMouseDown={(e) => { if (e.button === 0 && e.shiftKey) { e.preventDefault(); shiftPress(s.id); } }}
+        onMouseEnter={(e) => { if (dragging.current && e.buttons & 1) rangeTo(s.id); }}
         onClick={(e) => {
-          if (e.ctrlKey || e.metaKey) { togglePick(s.id); return; }
-          if (e.shiftKey) {
-            const order = rows.filter((r) => r.kind === "sig").map((r) => (r as { sig: SignalInfo }).sig.id);
-            const anchor = useApp.getState().listAnchor;
-            const a = anchor ? order.indexOf(anchor) : -1, b = order.indexOf(s.id);
-            const range = a < 0 ? [s.id] : order.slice(Math.min(a, b), Math.max(a, b) + 1);
-            useApp.setState({ listSel: Array.from(new Set([...(e.ctrlKey && !selUsed ? picked : []), ...range])), listAnchor: anchor ?? s.id, listSelUsed: false });
+          if (e.shiftKey) {                                        // done on the press - unless from the keyboard
+            if (e.detail === 0) { shiftPress(s.id); dragging.current = false; }
             return;
           }
+          if (e.ctrlKey || e.metaKey) { togglePick(s.id); return; }
           if (e.altKey) { actions.addSignalToNewPlot(s.id); return; }
           if (colorOf.has(s.id)) actions.toggleSignal(s.id); else actions.addSignalLinked(s.id);
         }}
@@ -335,7 +381,10 @@ export default function DataPanel() {
     if (!picking) return button;
     return (
       <div className="sig-wrap">
-        <input type="checkbox" className="sig-pick" checked={pickedSet.has(s.id)} onChange={() => togglePick(s.id)}
+        <input type="checkbox" className="sig-pick" checked={pickedSet.has(s.id)}
+          onMouseDown={(e) => { if (e.button === 0 && e.shiftKey) { e.preventDefault(); skipChange.current = true; shiftPress(s.id); } }}
+          onMouseEnter={(e) => { if (dragging.current && e.buttons & 1) rangeTo(s.id); }}
+          onChange={() => { if (skipChange.current) { skipChange.current = false; return; } togglePick(s.id); }}
           aria-label={s.name} onClick={(e) => e.stopPropagation()} />
         {button}
       </div>
