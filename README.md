@@ -40,7 +40,7 @@ network. Open the files, see what is wrong, compare, report; then make the same 
 - **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check.
 - **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives.
 - **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline.
-- **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA).
+- **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA); the same change on many signals at once (`x*8` or `sin(x)` on each one selected).
 - **Reports** – offline HTML, PDF and Word; one per file from the command line.
 - **CI** – `signalviewer-cli check` (limits) and `compare` (against a golden run) with exit codes and JUnit XML.
 - **Any recording** – CAN with a `.dbc`, raw binary packets from a layout (ICD), or your own format as a short Python reader.
@@ -193,7 +193,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - לגרור קבצים לחלון: CSV, ‏MATLAB, לוגים של ArduPilot ו־PX4, ‏MAVLink, ‏ROS 2, ‏HDF5, ‏Parquet, ‏CAN עם קובץ ‎.dbc.
 - לבנות תצוגה: עד 9 גרפים מקושרים בטאב, שני סמנים עם הפרש וסטטיסטיקה, FFT, ספקטרוגרם, מפה ותלת־ממד.
 - להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה.
-- לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים, ופעולות Python משלכם.
+- לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – ופעולות Python משלכם.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.
 - לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים.
