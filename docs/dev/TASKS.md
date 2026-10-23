@@ -13,18 +13,23 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.12.0 prepared 2026-10-22** (Milestone 12 in ROADMAP.md, Q85-Q86 - the owner's reports on
-  selecting several signals): the owner pushes, waits for the green `ci` run, tags `v1.12.0` and pushes
-  the tag (build.yml: packages, PyPI, draft release), then publishes the draft. Released before: up to 1.11.0.
+- Branch `main`. **1.12.0 prepared 2026-10-22** (Milestone 12 in ROADMAP.md, Q85-Q87 - the owner's reports on
+  selecting several signals and on one piece of work for many runs). The tag `v1.12.0` was pushed on
+  93fd374 (Q85-Q86) before Q87 was added; nothing was published (PyPI still 1.11.0). So: delete the
+  draft release and the tag, push Q87 + the release commit, wait for the green `ci` run, tag
+  `v1.12.0` again on the new release commit and push it (build.yml: packages, PyPI, draft
+  release), then publish the draft. Released before: up to 1.11.0.
 - Checked here for 1.12.0 (Linux): backend 787 passed + 12 skipped; mypy clean; tsc + build clean
-  (oxlint 39 warnings, as in 1.11.0); **the whole e2e suite in one process: 196 / 196**;
+  (oxlint 39 warnings, as in 1.11.0); **the whole e2e suite in one process: 197 / 197**;
   `mkdocs build --strict` clean; `validate` 23 / 23; `make_pypi.py --check` both wheels OK.
   Not run here: Windows / macOS (CI and the owner), the Windows installer, the real logs
   (no reader changed). make_readme_media.py not re-run (the pictures show no selection).
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
-- **Behaviour changes the owner should know:** pan is Alt + drag (Shift + drag zooms values);
+- **Behaviour changes the owner should know:** *Link files* is now *Link plots* (same button; derived
+  signals follow it too) beside the new *Link operations*; a second Shift range in the file list is
+  added to the first; pan is Alt + drag (Shift + drag zooms values);
   `sv.load()` prints nothing on stdout (its progress line is on stderr).
 
 ## Releasing
@@ -961,6 +966,7 @@ Discussions, social preview, private vulnerability reporting, `good first issue`
 |---|---|---|---|
 | Q85 | F38 Several signals at once: groups closed while searching, one action on all selected signals (x = each), a new selection without removing one by one | S | ☑ done |
 | Q86 | F39 Shift ranges that add up (1-3, then 7-11), Shift + drag | S | ☑ done |
+| Q87 | T68 One piece of work for many runs: *Add a run with the same work* (same plots or new tabs), Link plots and Link operations each on its own | M | ☑ done |
 
 ### Q85 · F38 Several signals at once — S
 The owner's three reports, and what was behind each:
@@ -1002,6 +1008,36 @@ held). A Ctrl+click just before is the start of the next Shift range (the classi
 After an action (`listSelUsed`) the range starts a new selection. The checkboxes behave the same.
 Shift+Enter from the keyboard works as a Shift+click. Hint and tooltip say it (en / he).
 Test: e2e `test_shift_ranges_add_up_and_shift_drag`.
+
+### Q87 · T68 One piece of work for many runs — M
+Owner: "I worked on a run (changes on signals, new signals, plots); now a similar simulation should
+get the same - in separate tabs or on top of the first to compare, then a third, a fourth"; and once
+two runs are there, "link plots and link operations separately". What existed: *Replace the input
+files* keeps everything but SWAPS the files; a template keeps the layout but drops edits (ƒ) and
+derived signals on purpose; *Link files* worked only for adds and removes of same-named data signals.
+- `peers.ts` - one meaning of "the same signal in another file": a data signal by name; a derived
+  signal by its operation + parameters (not the label) with its sources mapped to one other file
+  (`homeRun`, `mapTo`, `peersOf`, `findDerived`). `copyDerived` makes a derived signal for another
+  file, its derived sources first (name: "name (run_b)").
+- **Link operations** (`linkEdits`, view slice, saved in the session's `ui` - optional, older
+  sessions stay unlinked): `applyTransform` / `editInPlace` widen their targets with `withEditPeers`
+  (each composes on its own edit; the Undo covers all); Analysis (every kind) and *Create signal ▸*
+  call `linkNewDerived` after making a signal - skipping jobs whose signal a linked one already made
+  (Speed of run_a and run_b both chosen); with Link plots on, the copies join the original's plots
+  (`addBeside`). TransformDialog says how many more signals a linked change reaches.
+- **Link plots** (the former Link files, `linkRuns`, same `.link-toggle`): `addSignalLinked` /
+  `removeSignal` use `peersOf` - derived signals now follow too. Label "Link plots" (e2e updated).
+- **Add a run with the same work…** (a file's right-click; `sameWork.ts`, `SameWorkDialog`):
+  suggests the newest file with the same name pattern (as Replace), checks the names the work uses
+  (`usedNames`: plots, X axes, states, map objects, edits, formula sources), opens it with the
+  original's import settings, copies the edits, makes the derived signals in creation order (derived
+  of derived through `copyDerived`), then either adds each counterpart beside its original in every
+  plot (overlay; drawn like it, own colour) or copies every tab that uses the file (`"<tab> · run_b"`,
+  new ids, its signals swapped, others kept). Missing names are listed in the toast. Default: also
+  turn both links on. Not linked by design: Compare's Δ / mean signals (they span files) and frames
+  made in Analysis → Frames (several outputs at once; Add a run copies them).
+Test: e2e `test_linked_operations_and_a_run_with_the_same_work` (run_b on the same plots, linked
+change / new signal / add, plots unlinked with operations linked, run_c in new tabs).
 
 ## Owner's review 2026-10-20 (after applying Q65-Q73)
 
@@ -1518,4 +1554,6 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-21 · Google Search Console: the owner's verification file docs/google93a24742f4c5f4f6.html (copied as-is to the site's root, /SignalViewer/; not in the sitemap). Keep it: deleting it un-verifies the site. Then: Sitemaps -> sitemap.xml, URL inspection -> Request indexing (docs/dev/OUTREACH.md).
 - 2026-10-22 · Q85 / F38 (owner's report): groups close while searching, the selection's right-click (list and legend) acts on all selected, x = each target in the change dialog, *Expression in x* in Analysis, group checkboxes, the next pick after an action starts a new selection, Esc. tsc + build clean, oxlint 39 warnings (as before); e2e test_features, test_pyops, test_plot_menus, test_workflows green (+1 new test).
 - 2026-10-22 · Q86 / F39 (owner, after applying Q85): Shift ranges that add up (1-3, then 7-11), Shift + drag (the range on mousedown, no native drag), auto-scroll at the edges. Reproduced first in Playwright (1-11 instead of 1-3 + 7-11; drag: nothing). tsc + build clean, oxlint 39; e2e test_shift_ranges_add_up_and_shift_drag + the selection tests green.
-- 2026-10-22 · **Release 1.12.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.12.0 – 2026-10-22` with highlights; README review (Math line, the Hebrew section's calculate line), features.md (file list, legend, analysis - in Q85 / Q86); frontend/dist rebuilt. Here: backend 787 + 12 skipped, mypy clean, e2e 196 / 196 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check OK. Left for the owner: tag v1.12.0, publish the draft.
+- 2026-10-22 · Q87 / T68 (owner): Add a run with the same work (same plots / new tabs), Link plots and Link operations each on its own (peers.ts: derived peers by operation + mapped sources). tsc + build clean, oxlint 39; e2e test_linked_operations_and_a_run_with_the_same_work green; guide en / he.
+- 2026-10-22 · Release 1.12.0 again, with Q87: the owner had pushed Q85-Q86 + the release commit and the tag v1.12.0 (not published: PyPI 1.11.0, draft only), so Q87 comes on top of origin/main as its own commit plus a release commit (dist, these notes) - no reset, no force push; the tag moves to the new release commit. The full e2e run found two things the single runs did not: the new button shared `.link-toggle` (test_small_window_file_header's locator found two - now `.link-edits`; the header still fits at 1100 px), and the Q87 test chose run_b from the 12 suggestions, which earlier tests' run_* files push out - it uses *Other…* now.
+- 2026-10-22 · **Release 1.12.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.12.0 – 2026-10-22` with highlights; README review (Math line, the Hebrew section's calculate line), features.md (file list, legend, analysis, new runs - in Q85-Q87), the guide (en / he: compare runs); frontend/dist rebuilt. Here: backend 787 + 12 skipped, mypy clean, e2e 197 / 197 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check OK. Left for the owner: tag v1.12.0, publish the draft.
