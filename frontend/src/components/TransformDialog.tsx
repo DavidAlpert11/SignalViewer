@@ -1,3 +1,4 @@
+import { linkedExtra } from "../peers";
 import { useMemo, useState } from "react";
 import { useApp } from "../store";
 import { useT } from "../i18n";
@@ -128,6 +129,7 @@ export default function TransformDialog() {
               invalid={!!exprProblem} onSubmit={() => { if (!bad && !busy && targets.length) run(spec); }} />
             {exprProblem ? <p className="hint err fx-err">{exprProblem}</p>
               : <p className="hint fx-help">{targets.length > 1 ? t("tfExprHintMany", { n: targets.length }) : t("tfExprHint")}</p>}</div>}
+          {linkedExtra(targets) > 0 && <p className="hint tf-linked">{t("tfLinkedExtra", { n: linkedExtra(targets) })}</p>}
           <div className="arow">
             <label className="afield"><span>{t("scale")}</span><input inputMode="decimal" value={scale} onChange={(e) => setScale(e.target.value)} /></label>
             <label className="afield"><span>{t("offset")}</span><input inputMode="decimal" value={offset} onChange={(e) => setOffset(e.target.value)} /></label>

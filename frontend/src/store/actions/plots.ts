@@ -4,6 +4,7 @@ import { MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type 
 import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, tabFullMessage } from "../selectors";
 import { useApp } from "../state";
 import { unitOf } from "../../units";
+import { peersOf } from "../../peers";
 
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
  *  that group is coloured by file, so "which line is which file" is the colour. */
@@ -128,13 +129,11 @@ export const plotActions = {
     });
   },
   removeSignal(plotId: string, sig: string) {
-    // with "link files" on, the same-named signals of the other files leave together
+    // with "Link plots" on, the same signal of the other files (by name; derived: peers.ts) leaves together
     const st0 = useApp.getState();
-    const [rid, ...rest] = sig.split("/");
-    const name = rest.join("/");
-    const linked = st0.linkRuns && rid !== "derived";
-    const dataIds = new Set(st0.runs.filter((r) => r.format !== "derived").map((r) => r.id));
-    const goes = (x: string) => x === sig || (linked && dataIds.has(x.split("/")[0]) && x.slice(x.indexOf("/") + 1) === name);
+    // Q87: derived signals too - their copies made for the other files (peers.ts)
+    const peers = new Set(st0.linkRuns ? peersOf(st0.runs, sig) : []);
+    const goes = (x: string) => x === sig || peers.has(x);
     useApp.getState().commit((ws) => {
       ws.tabs.forEach((t) => t.plots.forEach((p) => { if (p.id === plotId) p.signals = p.signals.filter((s) => !goes(s.sig)); }));
       return ws;
@@ -259,13 +258,12 @@ export const plotActions = {
       return ws;
     });
   },
-  /** D-12: with "link files" on, add the same-named signal from every open file. */
+  /** D-12: with "Link plots" on, add the same signal from every open file (Q87: derived signals too). */
   addSignalLinked(sig: string, plotId?: string) {
     const st = useApp.getState();
-    const [rid, ...rest] = sig.split("/");
-    const name = rest.join("/");
-    if (!st.linkRuns || rid === "derived") { plotActions.addSignal(sig, plotId); return; }
-    const ids = st.runs.filter((r) => r.format !== "derived" && r.signals.some((x) => x.name === name)).map((r) => `${r.id}/${name}`);
+    const peers = st.linkRuns ? peersOf(st.runs, sig) : [];
+    if (!peers.length) { plotActions.addSignal(sig, plotId); return; }
+    const ids = [sig, ...peers];
     st.commit((ws) => {
       const tab = activeTab(ws);
       const plot = plotId ? tab.plots.find((p) => p.id === plotId) : tab.plots[tab.active];

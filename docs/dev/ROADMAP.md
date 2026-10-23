@@ -644,8 +644,9 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T66 Help → Report a problem (Q83). Done 2026-10-21: /api/report-problem, errorReport.ts `reportProblem`.
 - [x] T67 Contributor and community files, outreach steps (Q84). Done 2026-10-21: CONTRIBUTING, SECURITY, CITATION.cff, issue / PR templates, docs/dev/OUTREACH.md.
 
-## Milestone 12 — 1.12.0: several signals at once (owner's report 2026-10-22). Spec: TASKS.md Q85-Q86. Prepared 2026-10-22.
+## Milestone 12 — 1.12.0: several signals at once (owner's report 2026-10-22). Spec: TASKS.md Q85-Q87. Prepared 2026-10-22.
 - [x] F38 Several signals at once (Q85). Done 2026-10-22: groups close while searching (DataPanel `sClosed`), the selection's right-click menu (file list and legend), x = each target in the change dialog, *Expression in x* in Analysis (`exprx`, opToStep), group checkboxes, `listSelUsed` (the next pick starts a new selection), Esc / *Clear selection*.
+- [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
 ## Later

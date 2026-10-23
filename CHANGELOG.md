@@ -2,16 +2,22 @@
 
 ## 1.12.0 – 2026-10-22
 
-Highlights: **several signals at once** - select signals in the file list (Shift + click or Shift +
-drag for a range, and ranges add up: 1-3, then 7-11; or Ctrl+click chips in a legend), right-click
-any of them and change all of them together: `x*8` or `sin(x)` is applied to each one. *Create
-signals* takes your own expression in x too. A new selection starts with one click after an action,
-a whole group is selected with its checkbox, and the groups of search results can be closed. Nothing changes in results, sessions or templates you already have.
+Highlights: **one piece of work for many runs** - *Add a run with the same work* gives a new file
+the changes, new signals and plots made for another (on the same plots, or in new tabs), and *Link
+plots* / *Link operations* keep the files together from then on. **And several signals at once**:
+select signals in the file list (Shift + click or Shift + drag for a range, and ranges add up: 1-3,
+then 7-11; or Ctrl+click chips in a legend), right-click any of them and change all of them
+together: `x*8` or `sin(x)` is applied to each one. *Create signals* takes your own expression in x
+too. A new selection starts with one click after an action, a whole group is selected with its
+checkbox, and the groups of search results can be closed. Nothing changes in results, sessions or
+templates you already have.
 
 ### Added
 - **The same change on several signals, from wherever they are selected**: right-click any of the selected signals in the file list (or of the Ctrl+clicked chips in a legend) for *Change the N selected…*, *Plot the N selected* and *New signals from the N selected ▸* (derivative and integral at once, one new signal for each). In the change dialog **x is each signal in turn** - `x*8` or `sin(x)` changes every one of them; the signals are listed and any can be taken out.
 - **Your own expression in x** in *Create signals → One signal* (`x*8`, `sin(x)`, `deriv(x)/9.81`): on one signal or on each of several, as a new signal or changing the signal itself.
 - **Ranges with Shift, as many as you need**: hold Shift and click signals 1 and 3 - or press on 1 and drag to 3 - and 1 to 3 are selected; let go of Shift, hold it again on 7 and click 11, and 7 to 11 are added (1 to 3 stay). Dragging near the edge of the list scrolls it.
+- **A new run with the same work - next to the old one**: right-click the file you worked on → *Add a run with the same work…* and choose the new file (the newest one with the same name pattern is suggested). It gets the same changes (ƒ), the same new signals (signals made from signals too) and the same place in the plots - on the same plots to compare, or in a copy of each tab - and the first run stays. Again for a third and a fourth run. (*Replace the input files* still swaps files instead.)
+- **Link plots and Link operations, each on its own**: two buttons at the top of the file list. *Link plots* (the former *Link files*): adding or removing a signal does it in every file - now for signals made from it too. *Link operations*: a change on a signal, or a new signal made from it, is made on the same signal of every file. Both are kept in the session.
 - **Selecting a whole group**: while signals are selected each group has a checkbox (all / some / none of its signals); Ctrl+click on a group, or *Select these N* on its right-click, does the same.
 
 ### Changed

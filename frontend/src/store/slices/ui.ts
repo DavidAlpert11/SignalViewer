@@ -38,6 +38,7 @@ export interface UiSlice {
   listSelUsed: boolean;                   // an action ran on listSel: the next pick starts a new selection
   analysisSeed: string[] | null;          // signals handed to the Analysis panel from the file list
   retarget: { state: any; title: string; fromCurrent: boolean } | null;   // "open with new files"
+  sameWorkFor: string | null;              // Q87: "add a run with the same work" as this run
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
     segment?: import("../../segments").SegmentChoice } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
@@ -89,6 +90,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   listAnchor: null,
   analysisSeed: null,
   retarget: null,
+  sameWorkFor: null,
   compareTable: null,
   promptDialog: null,
   uiScale: 1,
