@@ -74,6 +74,14 @@ for the values.
   largest difference, correlation, a tolerance; its table lists every signal found in two or more
   files, the worst first.
 - Runs recorded with a time shift: right-click a file → **Align time with another file**.
+- **A new run with the work you did on another:** right-click the file you worked on → **Add a run
+  with the same work…**, choose the new file. It gets the same changes (ƒ), the same new signals and
+  the same place in the plots - on the same plots, to compare, or in a copy of each tab. Do it again
+  for a third run, and a fourth.
+- **Keep the files together** with the two link buttons at the top of the file list: **Link plots**
+  (a signal added or removed in one file is added or removed in all of them) and **Link operations**
+  (a change on a signal, or a new signal made from it, is made on the same signal of every file).
+  Each one is on or off by itself.
 
 ## 8. Create signals
 
