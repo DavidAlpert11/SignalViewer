@@ -43,7 +43,8 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Load report after opening (what was skipped and why)
 - Rename, description, reload, replace with another file (plots keep their signals)
 - Time offset per file (badge in the list)
-- Link files: a signal is added to and removed from the plot together with the same-named signals of every other file (toggle in the file panel, saved with the workspace)
+- Link plots: a signal is added to and removed from the plot together with the same signal of every other file - signals made from it too (toggle in the file panel, saved with the workspace)
+- Link operations, on its own: a change on a signal (ƒ) - set, stacked or removed - or a new signal made from it (Create signals, *Create signal ▸*) is made on the same signal of every other file; with Link plots on, the new ones join the original's plots (toggle in the file panel, saved with the workspace)
 - Opening a file does not plot anything until you choose
 - Damaged files (cut off by a power loss, bad bytes, a block of zeros) open with what is still readable, with a note; a `.mat` cut off while MATLAB saved it keeps every complete variable
 - In the file dialog Shift+click selects a range and Ctrl+A every file shown; each use (open files, save a session, a report, an image) keeps its own last folder, and a first save starts where the data is
@@ -76,6 +77,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Replace the input files… (file panel, command palette) or Open a session with new files… (command palette, or the icon next to a recent session on the welcome screen): the same layout, formulas, edits (ƒ), axes and cursors with new input files
 - For each file the newest file in the same folder with the same name pattern is suggested (run_012 → run_013), or choose any other
 - Before opening, each new file is checked for the signals the work uses (missing ones are listed)
+- Add a run with the same work… (right-click a file): another file gets that file's changes (ƒ), the signals made from it (derived of derived too) and its signals in the plots - on the same plots, to compare, or in a copy of each tab that uses it; the original stays open, and it can be repeated for more runs. Suggests the newest file with the same name pattern, checks it first, and can turn on Link plots and Link operations for what comes next
 - Replacing the current files offers *Back to the previous files*
 
 ### Start over

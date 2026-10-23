@@ -24,6 +24,7 @@ export interface ViewSlice {
   logMarkers: LogMarkers;          // log events drawn on time plots: none, warnings + errors, or all
   geoBase: "auto" | "osm" | "esri" | "light" | "dark" | "satellite" | "topo" | "offline";   // map layer
   linkRuns: boolean;               // D-12: a signal clicked in one file is added from every file
+  linkEdits: boolean;              // Q87: an edit or a new signal made on one file is made on the others
 }
 
 export const viewSlice = (): ViewSlice => ({
@@ -45,4 +46,5 @@ export const viewSlice = (): ViewSlice => ({
   logMarkers: "important",
   geoBase: "auto",
   linkRuns: false,
+  linkEdits: false,
 });

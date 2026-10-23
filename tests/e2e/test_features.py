@@ -272,7 +272,7 @@ def test_D11_file_time_offset(pg):
 
 def test_D12_link_files(pg):
     open_files(pg, "run_a.csv", "run_b.csv", "run_c.csv")
-    pg.click(".side-head [aria-label='Link files']")
+    pg.click(".side-head [aria-label='Link plots']")
     sig(pg, "RPM").click()
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 3")
 
@@ -1997,7 +1997,7 @@ def test_envelope_of_several_runs(pg):
     """T14: the same signal from three runs -> Envelope mode shows the band and its summary;
     the mode change is undoable."""
     open_files(pg, "run_a.csv", "run_b.csv", "run_c.csv")
-    pg.click(".side-head [aria-label='Link files']")
+    pg.click(".side-head [aria-label='Link plots']")
     sig(pg, "Speed").click()
     pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 3")
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Envelope").first.click()
@@ -2065,3 +2065,72 @@ def test_shift_ranges_add_up_and_shift_drag(pg):
     assert chips(pg) == []
     sig(pg, "s010").click(modifiers=["Control"]); sig(pg, "s012").click(modifiers=["Shift"])   # Ctrl then Shift: the classic way
     assert names() == ["s004", "s005", "s006", "s007", "s010", "s011", "s012"]
+
+
+def test_linked_operations_and_a_run_with_the_same_work(pg):
+    """Owner, 2026-10-22: a new run gets the work done on another (changes, new signals, plots) on
+    the same plots or in new tabs; then Link plots and Link operations, each on its own, keep the
+    files together: an add, a change or a new signal on one file is done on all of them."""
+    edits = lambda run: S(pg, f"Object.fromEntries(s.runs.find(r => r.name === '{run}').signals.filter(x => x.transform).map(x => [x.name, x.transform.expr]))")
+    derived = lambda: sorted(S(pg, "(s.runs.find(r => r.format === 'derived')?.signals ?? []).map(x => x.name)"))
+    plotted = lambda: sorted(S(pg, "s.ws.tabs.find(t => t.id === s.ws.activeTab).plots[0].signals.map(x => x.sig.split('/')[0] === 'derived' ? x.sig : s.runs.find(r => r.id === x.sig.split('/')[0]).name + ':' + x.sig.split('/').pop())"))
+    def change(name, expr, run=None):
+        sig(pg, name, run).click(button="right"); menu_item(pg, "Change this signal")
+        pg.wait_for_selector(".tf-dialog")
+        pg.locator(".tf-dialog select").select_option("custom")
+        pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill(expr)
+        pg.locator(".tf-dialog .btn.primary").click()
+        pg.wait_for_selector(".tf-dialog", state="detached")
+    def pick_other(pg, name):        # "Other file…": the suggestions hold the 12 newest similar files only
+        pg.locator(".sw-dialog .rt-pick .btn").click()
+        goto_folder(pg, pg.env["data"])
+        pg.locator(".fs-dialog .fs-row", has_text=name).first.click()
+        pg.click(".fs-dialog .dialog-foot .btn.primary")
+        pg.wait_for_function(f"document.querySelector('.sw-dialog select').value.endsWith({json.dumps(name)})")
+    def derivative(name, run=None):
+        sig(pg, name, run).click(button="right")
+        pg.locator(".menu.ctx button", has_text="Create signal").click()
+        menu_item(pg, "Derivative")
+
+    # 1) the work on run_a: Speed changed, its derivative made, both plotted
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    change("Speed", "x*2")
+    derivative("Speed")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
+    # 2) run_b with the same work, on the same plots
+    pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Add a run with the same work")
+    pg.wait_for_selector(".sw-dialog")
+    pick_other(pg, "run_b.csv")
+    pg.wait_for_selector(".sw-dialog .rt-status.ok")
+    pg.click(".sw-dialog .btn.primary")
+    pg.wait_for_function("window.__sv.state().runs.some(r => r.name === 'run_b.csv')")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 4")
+    assert edits("run_b.csv") == {"Speed": "x*2"}
+    assert len(derived()) == 2 and any("run_b" in n for n in derived())
+    assert S(pg, "s.linkRuns && s.linkEdits") is True                      # linked from now on (the dialog's default)
+    # 3) linked operations: a change on run_a's RPM is made on run_b's RPM; a new signal for both
+    change("RPM", "x/95", run=0)
+    pg.wait_for_function("Object.keys(window.__sv.state().runs.find(r => r.name === 'run_b.csv').signals.filter(x => x.transform)).length === 2")
+    assert edits("run_b.csv") == {"Speed": "x*2", "RPM": "x/95"}
+    derivative("RPM", run=0)
+    pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).length === 4")
+    # 4) linked plots: adding run_a's Gear adds run_b's Gear; removing one removes both
+    sig(pg, "Gear", 0).click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.filter(x => x.sig.endsWith('/Gear')).length === 2")
+    # 5) only operations linked: a change still goes to both, an add only to one
+    pg.click(".side-head [aria-label='Link plots']")
+    change("Speed", "x*3", run=0)
+    assert edits("run_b.csv")["Speed"] == "x*3"
+    # 6) run_c in new tabs: a copy of the tab, with run_c in place of run_a
+    pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Add a run with the same work")
+    pg.wait_for_selector(".sw-dialog")
+    pick_other(pg, "run_c.csv")
+    pg.wait_for_selector(".sw-dialog .rt-status.ok")
+    pg.locator(".sw-dialog label", has_text="In new tabs").click()
+    pg.click(".sw-dialog .btn.primary")
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
+    tab2 = plotted()
+    assert "run_c.csv:Speed" in tab2 and "run_b.csv:Speed" in tab2 and not any(x.startswith("run_a.csv:") for x in tab2)
+    assert edits("run_c.csv") == {"Speed": "x*3", "RPM": "x/95"}
+    assert len(derived()) == 6                                              # 2 per file

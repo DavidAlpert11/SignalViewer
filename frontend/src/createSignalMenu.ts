@@ -5,6 +5,7 @@
 import { api } from "./api";
 import { translate } from "./i18n";
 import { actions, useApp, type MenuItem } from "./store";
+import { announceLinked, findDerived, linkNewDerived } from "./peers";
 
 const QUICK = [["derivative", "opDerivative"], ["integral", "opIntegral"]] as const;
 
@@ -16,6 +17,7 @@ export function createSignalItem(sig: string | string[], plotId?: string): MenuI
     const made: string[] = [];
     try {
       for (const id of ids) {
+        if (useApp.getState().linkEdits && findDerived(useApp.getState().runs, op, {}, [id])) continue;   // made with a linked one
         const r = await api.createDerived(op, [id], {});
         useApp.setState({ runs: r.runs });
         made.push(r.id);
@@ -25,6 +27,9 @@ export function createSignalItem(sig: string | string[], plotId?: string): MenuI
     }
     if (made.length === 1) actions.addSignal(made[0], plotId);
     else if (made.length) actions.addSignals(made, plotId);      // one undo step for all of them
+    let linked = 0;
+    for (const id of made) linked += await linkNewDerived(id, false);   // Link operations: the other files too
+    announceLinked(linked);
     if (ids.length > 1) useApp.setState({ listSelUsed: true });
   };
   return {

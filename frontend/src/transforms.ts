@@ -1,6 +1,7 @@
 import { api, type SignalTransform } from "./api";
 import { useApp } from "./store";
 import { translate } from "./i18n";
+import { withEditPeers } from "./peers";
 
 /** Human-readable form of a change made on a signal: "y = 2·abs(x) + 1, t + 0.5". */
 export function describeTransform(tf?: SignalTransform | null): string {
@@ -13,6 +14,7 @@ export function describeTransform(tf?: SignalTransform | null): string {
 
 /** Apply (or clear with null) the same change on many signals; one toast offers Undo. */
 export async function applyTransform(ids: string[], tf: SignalTransform | null) {
+  ids = withEditPeers(ids);                                   // Link operations: the other files too
   const st = useApp.getState();
   const L = st.lang;
   const r = await api.setTransforms(ids, tf);
@@ -88,7 +90,7 @@ async function setSpecs(specs: Record<string, SignalTransform | null>, message: 
 export async function editInPlace(ids: string[], step: Step) {
   const st = useApp.getState();
   const all = st.runs.flatMap((r) => r.signals);
-  const targets = ids.filter((id) => !id.startsWith("derived/"));
+  const targets = withEditPeers(ids).filter((id) => !id.startsWith("derived/"));   // each composes on its own edit
   const specs = Object.fromEntries(targets.map((id) => [id, composeTransform(all.find((s) => s.id === id)?.transform, step)]));
   if (!targets.length) throw new Error(translate(st.lang, "editNoOriginals"));
   await setSpecs(specs, translate(st.lang, "tfApplied", { n: targets.length }));

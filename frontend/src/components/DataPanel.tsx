@@ -47,6 +47,7 @@ export default function DataPanel() {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [renameRun, setRenaming] = useState<string | null>(null);
   const linkRuns = useApp((s) => s.linkRuns);
+  const linkEdits = useApp((s) => s.linkEdits);
   const streaming = useApp((s) => s.streaming);
   const activity = useApp((s) => s.activity);
   // signals selected in the list: Ctrl / Shift + click, the checkboxes, or "select" from a search
@@ -121,6 +122,7 @@ export default function DataPanel() {
           : [];
       })()),
       { label: "", run: () => {}, sep: true },
+      { label: t("sameWorkMenu"), run: () => useApp.setState({ sameWorkFor: run.id }) },
       { label: t("replaceFile"), run: async () => {
         const path = await pickPath({ mode: "open", title: t("replaceFile"), exts: DATA_EXTS });
         if (!path) return;
@@ -403,8 +405,13 @@ export default function DataPanel() {
         )}
         {runs.filter((r) => r.format !== "derived").length > 1 && (
           // T50: an icon (pressed when on) - its label did not fit beside "Open files" with two files open
-          <button className="iconbtn link-toggle" aria-pressed={linkRuns} onClick={() => useApp.setState({ linkRuns: !linkRuns })}
-            title={`${t("linkFiles")} - ${t("linkFilesHint")}`} aria-label={t("linkFiles")}><Icon.Link /></button>
+          // Q87: two links, each on its own - plots (add / remove) and operations (edits, new signals)
+          <>
+            <button className="iconbtn link-toggle" aria-pressed={linkRuns} onClick={() => useApp.setState({ linkRuns: !linkRuns })}
+              title={`${t("linkFiles")} - ${t("linkFilesHint")}`} aria-label={t("linkFiles")}><Icon.Link /></button>
+            <button className="iconbtn link-edits" aria-pressed={linkEdits} onClick={() => useApp.setState({ linkEdits: !linkEdits })}
+              title={`${t("linkEdits")} - ${t("linkEditsHint")}`} aria-label={t("linkEdits")}><Icon.Link /><span className="lk-f" aria-hidden>ƒ</span></button>
+          </>
         )}
         <span className="split-btn">
           <button className="btn outline" onClick={() => useApp.setState({ browserOpen: true })}>
@@ -415,7 +422,9 @@ export default function DataPanel() {
           </button>
         </span>
       </div>
-      {linkRuns && runs.filter((r) => r.format !== "derived").length > 1 && <p className="link-note">{t("linkOnNote")}</p>}
+      {(linkRuns || linkEdits) && runs.filter((r) => r.format !== "derived").length > 1 && (
+        <p className="link-note">{[linkRuns && t("linkOnNote"), linkEdits && t("linkEditsOnNote")].filter(Boolean).join(" ")}</p>
+      )}
       {q.trim() !== "" && (() => {
         const matchRuns = filtered.filter((f) => f.sigs.length);
         const allIds = matchRuns.flatMap((f) => f.sigs.map((x) => x.id));
