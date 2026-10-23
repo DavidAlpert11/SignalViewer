@@ -14,6 +14,7 @@ import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
 import PyOpsSection, { type PyChoice } from "./PyOpsSection";
 import ErrorSegments from "./ErrorSegments";
+import { announceLinked, findDerived, linkNewDerived } from "../peers";
 import ExprInput from "./ExprInput";
 import { parenProblem, unknownNames, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
 
@@ -215,6 +216,7 @@ export default function AnalysisPanel() {
         const r = await api.createDerived("expr", fxRes.sources, { expr: fxRes.expr, text: fx.trim(), alignment }, name);
         useApp.setState({ runs: r.runs });
         if (addToPlot) actions.addSignal(r.id);
+        await linkNewDerived(r.id);                               // Link operations: the other files too
         setName("");
       } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
       finally { setBusy(false); }
@@ -223,13 +225,18 @@ export default function AnalysisPanel() {
     const jobs: string[][] = kind === "py" ? [pySources] : kind === "one" ? (batch ? batchSigs.map((s) => [s]) : [[a]]) : kind === "two" ? [[a, b]] : [many];
     if (!jobs.length || jobs.some((j) => j.some((s) => !s))) return;
     setBusy(true);
+    let linked = 0;
     try {
       for (const sources of jobs) {
         const [jOp, jParams] = kind === "py" ? ["py", pyParams] : derivedCall(sources);
+        // Link operations: Speed of run_a and of run_b both chosen - the second was made with the first
+        if (useApp.getState().linkEdits && findDerived(useApp.getState().runs, jOp, jParams, sources)) continue;
         const r = await api.createDerived(jOp, sources, jParams, jobs.length === 1 ? name : undefined);
         useApp.setState({ runs: r.runs });
         if (addToPlot) actions.addSignal(r.id);
+        linked += await linkNewDerived(r.id, false);
       }
+      announceLinked(linked);
       setName("");
       markUsed();
     } catch (e) {
