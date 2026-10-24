@@ -11,7 +11,7 @@ const CONSTS = new Set(["t", "pi", "e"]);
 // {any text}  or  a bare name (letters incl. Hebrew, digits, _ . [ ])
 const TOKEN = /\{([^}]+)\}|([A-Za-z_\u0590-\u05FF][\w.\u0590-\u05FF[\]]*)/g;
 
-export interface Resolved { expr: string; sources: string[]; error?: string }
+export interface Resolved { expr: string; sources: string[]; error?: string; pinned?: number[] }
 
 /** Turn "2*Speed - {run_b.csv:RPM}/95" into "2*v0 - v1/95" + [id of Speed, id of RPM]. */
 const PARAM = /param\(\s*"([^"]*)"\s*\)/g;
@@ -58,6 +58,7 @@ export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string
   if (sub.error) return { expr: textIn, sources: [], error: sub.error };
   const text = sub.text;
   const sources: string[] = [];
+  const pinned = new Set<number>();          // Q91: written {file:name} - kept when made for another file
   const all = runs.flatMap((r) => r.signals.map((s) => ({ s, r })));
   let error: string | undefined;
   const out = text.replace(TOKEN, (whole, braced: string | undefined, bare: string | undefined, offset: number) => {
@@ -69,11 +70,12 @@ export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string
       if (CONSTS.has(bare)) return whole;
     }
     let candidates = all;
+    let withFile = false;
     if (braced && name.includes(":")) {                     // {file:signal}
       const i = name.indexOf(":");
       const file = name.slice(0, i).trim(), sig = name.slice(i + 1).trim();
       const inFile = all.filter(({ r }) => r.format !== "derived" && (fileLabel(runs, r.id) === file || r.name === file));
-      if (inFile.length) { candidates = inFile; name = sig; }
+      if (inFile.length) { candidates = inFile; name = sig; withFile = true; }
     }
     let hits = candidates.filter(({ s }) => s.name === name);
     if (!hits.length) hits = candidates.filter(({ s }) => s.name.toLowerCase() === name.toLowerCase());
@@ -90,10 +92,11 @@ export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string
     const id = hits[0].s.id;
     let k = sources.indexOf(id);
     if (k < 0) { sources.push(id); k = sources.length - 1; }
+    if (withFile) pinned.add(k);
     return `v${k}`;
   });
   if (!error && !sources.length && text.trim()) error = lang("fxNoSignal");
-  return { expr: out, sources, error };
+  return { expr: out, sources, error, ...(pinned.size ? { pinned: [...pinned].sort((a, b) => a - b) } : {}) };
 }
 
 /** Word being typed at the caret (for suggestions). */
