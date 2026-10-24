@@ -15,6 +15,12 @@ export const dataRuns = (runs: RunInfo[]) => runs.filter((r) => r.format !== DER
 const derivedRun = (runs: RunInfo[]) => runs.find((r) => r.format === DERIVED);
 const sigOf = (runs: RunInfo[], id: string): SignalInfo | undefined => runs.find((r) => r.id === runOf(id))?.signals.find((s) => s.id === id);
 
+/** Q91: the sources a derived signal KEEPS when it is made for another file - `params.pinned`, their
+ *  indexes: {run_b.csv:Speed} in an expression of x, the baseline of a Compare difference. The other
+ *  sources say which file the signal belongs to and are swapped for that file's. */
+export const pinnedOf = (s?: SignalInfo): Set<number> =>
+  new Set(Array.isArray(s?.params?.pinned) ? (s!.params!.pinned as unknown[]).filter((i): i is number => typeof i === "number") : []);
+
 /** a derived signal's identity apart from its sources: the operation and its parameters (not the label) */
 const opKey = (op?: string, params?: Record<string, unknown>) => {
   const { text: _text, ...rest } = params ?? {};
@@ -26,7 +32,10 @@ export function homeRun(runs: RunInfo[], id: string, depth = 0): string | null {
   if (runOf(id) !== DERIVED) return runOf(id);
   const s = sigOf(runs, id);
   if (!s?.sources?.length || depth > 20) return null;
-  const homes = new Set(s.sources.map((x) => homeRun(runs, x, depth + 1)));
+  const pin = pinnedOf(s);
+  const free = s.sources.filter((_x, i) => !pin.has(i));                 // the pinned ones say nothing
+  if (!free.length) return null;
+  const homes = new Set(free.map((x) => homeRun(runs, x, depth + 1)));
   return homes.size === 1 ? [...homes][0] : null;
 }
 
@@ -46,7 +55,8 @@ export function mapTo(runs: RunInfo[], id: string, to: string, depth = 0): strin
   }
   const s = sigOf(runs, id);
   if (!s?.sources || !s.op || depth > 20) return null;
-  const src = s.sources.map((x) => mapTo(runs, x, to, depth + 1));
+  const pin = pinnedOf(s);
+  const src = s.sources.map((x, i) => (pin.has(i) ? x : mapTo(runs, x, to, depth + 1)));
   return src.every(Boolean) ? findDerived(runs, s.op, s.params, src as string[]) : null;
 }
 
@@ -69,7 +79,7 @@ export const linkedExtra = (ids: string[]) => withEditPeers(ids).length - new Se
 
 /** The name of a derived signal's copy for another file: "name (run_b)" - the file's tag replaces
  *  the original's when the name already ends with it. */
-function peerName(runs: RunInfo[], name: string, from: string | null, to: string): string {
+export function peerName(runs: RunInfo[], name: string, from: string | null, to: string): string {
   const fromName = runs.find((r) => r.id === from)?.name;
   const base = fromName && name.endsWith(` (${fromName})`) ? name.slice(0, -fromName.length - 3) : name;
   return `${base} (${runs.find((r) => r.id === to)?.name ?? to})`;
@@ -85,7 +95,9 @@ export async function copyDerived(id: string, to: string, made: Map<string, stri
   const s = sigOf(runs, id);
   if (!s?.sources || !s.op || depth > 20) return null;
   const src: string[] = [];
-  for (const x of s.sources) {
+  const pin = pinnedOf(s);
+  for (const [i, x] of s.sources.entries()) {
+    if (pin.has(i)) { src.push(x); continue; }                            // kept: that file's, whatever the copy
     const m = runOf(x) === DERIVED ? await copyDerived(x, to, made, depth + 1) : mapTo(useApp.getState().runs, x, to);
     if (!m) return null;
     src.push(m);
@@ -144,4 +156,15 @@ export function addBeside(beside: string, ids: string[]) {
 export function newSignalLike(src: PlotSignal, id: string, ws: Workspace): PlotSignal {
   const fresh = newPlotSignal(id, ws);
   return { ...src, sig: id, color: fresh.color, label: undefined };
+}
+
+/** Q91: signals made from `from` together with another file whose intent is not recorded (made
+ *  before 1.13, or a formula whose names fell in two files): no file of their own, but a source -
+ *  not pinned - of `from`. Copy the work asks about each of them. */
+export function crossFileOf(runs: RunInfo[], from: string): SignalInfo[] {
+  return (derivedRun(runs)?.signals ?? []).filter((d) => {
+    if (homeRun(runs, d.id) !== null || !d.sources) return false;
+    const pin = pinnedOf(d);
+    return d.sources.some((x, i) => !pin.has(i) && homeRun(runs, x) === from);
+  });
 }

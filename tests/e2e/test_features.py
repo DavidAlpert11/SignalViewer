@@ -2305,3 +2305,61 @@ def test_expression_with_a_signal_of_one_file(pg):
     pg.keyboard.press("Escape")
     assert "{Speed [km/h]}" in change("x + Speed [km/h]", ok=False)        # the fix says: braces
     assert "No open file" in change("x + {nofile.csv:Speed [km/h]}", ok=False)
+
+
+def test_signals_of_two_files_copied_to_a_new_run(pg):
+    """Owner, 2026-10-24: a new signal made from two files belongs to the file whose sources are not
+    pinned - x - {run_b.csv:Speed} belongs to run_a; a Compare difference to its run (the baseline is
+    pinned) - so Copy the work makes it for a new run with the pinned source kept. Signals with no
+    recorded intent are listed in the dialog and made the same way when ticked. Clear this file
+    deletes them with the file they belong to."""
+    dsigs = lambda: S(pg, "(s.runs.find(r => r.format === 'derived')?.signals ?? []).map(x => ({ id: x.id, op: x.op, src: x.sources.map(i => s.runs.find(r => r.id === i.split('/')[0])?.name.slice(0, 5) + ':' + i.split('/').pop()), pin: x.params?.pinned ?? null }))")
+    open_files(pg, "run_a.csv", "run_b.csv")
+    ra, rb = S(pg, "s.runs.filter(r => r.format !== 'derived').map(r => r.id)")
+    # a Compare difference: Δ Speed of run_b against run_a
+    pg.click("[aria-label='Compare runs']")
+    pg.locator(".sim-row", has_text="Speed").click(); pg.wait_for_selector("table.cmp2 tbody")
+    pg.click("text=Plot differences")
+    pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).some(x => x.op === 'sub')")
+    # x - {run_b.csv:Speed} on run_a's RPM (Create signals -> Expression in x)
+    pg.click("[aria-label='Data']")
+    sig(pg, "RPM", 0).click(button="right")
+    pg.locator(".menu.ctx button", has_text="Create signal").click(); menu_item(pg, "Other operations")
+    pg.locator(".analysis .afield select").first.select_option("exprx")
+    pg.locator(".analysis [aria-label='Expression in x (and t)']").fill("x - {run_b.csv:Speed}")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
+    pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).some(x => x.op === 'expr')")
+    # a signal of both files with no recorded intent (as made before 1.13)
+    pg.evaluate(f"""async () => {{ await fetch('/api/derived', {{method: 'POST', headers: {{'Content-Type': 'application/json'}},
+        body: JSON.stringify({{op: 'sub', sources: ['{ra}/RPM', '{rb}/RPM'], params: {{}}, name: 'old RPM diff'}})}});
+        window.__sv.setState({{ runs: await (await fetch('/api/runs')).json() }}); }}""")
+    d0 = dsigs()
+    assert [d["pin"] for d in d0 if d["op"] == "sub" and d["src"][0] == "run_b:Speed"] == [[1]]       # the baseline is pinned
+    assert [d["pin"] for d in d0 if d["op"] == "expr"] == [[1]]
+    open_files(pg, "run_c.csv", clear=False)
+    pg.click("[aria-label='Data']")
+    def copy_from(run, untick=None):
+        pg.locator(".run-head", has_text=run).click(button="right"); menu_item(pg, "Copy the work to another file")
+        pg.wait_for_selector(".sw-dialog")
+        pg.locator(".sw-dialog select").select_option(value=pg.locator(".sw-dialog select option", has_text="run_c.csv").first.get_attribute("value"))
+        pg.wait_for_selector(".sw-dialog .rt-status.ok")
+        cross = pg.locator(".sw-dialog .sw-cross label").all_inner_texts()
+        if untick:
+            pg.locator(".sw-dialog .sw-cross label", has_text=untick).locator("input").uncheck()
+        pg.locator(".sw-dialog label", has_text="Not in the plots").click()
+        pg.click(".sw-dialog .btn.primary"); pg.wait_for_selector(".sw-dialog", state="detached")
+        return [c.strip() for c in cross]
+    n0 = len(d0)
+    assert copy_from("run_b.csv", untick="old RPM diff") == ["old RPM diff"]   # of both files: asked, here not taken
+    pg.wait_for_function(f"window.__sv.state().runs.find(r => r.format === 'derived').signals.length === {n0 + 1}")
+    assert any(d["op"] == "sub" and d["src"] == ["run_c:Speed", "run_a:Speed"] for d in dsigs())     # run_c against the same baseline
+    assert copy_from("run_a.csv") == ["old RPM diff"]                         # the one with no intent is asked about
+    pg.wait_for_function(f"window.__sv.state().runs.find(r => r.format === 'derived').signals.length === {n0 + 3}")
+    after = dsigs()
+    assert any(d["op"] == "expr" and d["src"] == ["run_c:RPM", "run_b:Speed"] for d in after)       # the pinned file kept
+    assert any(d["op"] == "sub" and d["src"] == ["run_c:RPM", "run_b:RPM"] and d["pin"] == [1] for d in after)
+    # Clear this file -> the signals made from run_c: the three copies, nothing of run_a / run_b
+    pg.locator(".run-head", has_text="run_c.csv").click(button="right")
+    pg.locator(".menu.ctx button", has_text="Clear this file").click()
+    menu_item(pg, "Delete the signals made from it (3)")
+    pg.wait_for_function(f"window.__sv.state().runs.find(r => r.format === 'derived').signals.length === {n0}")
