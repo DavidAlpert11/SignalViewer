@@ -1,3 +1,4 @@
+import { canonX, sharedSignalOptions } from "../xRefs";
 import { linkedExtra } from "../peers";
 import { useMemo, useState } from "react";
 import { useApp } from "../store";
@@ -7,12 +8,10 @@ import { useEscape } from "./Overlays";
 import { applyTransform, describeTransform } from "../transforms";
 import type { SignalTransform } from "../api";
 import ExprInput from "./ExprInput";
-import { FUNC_INFO, FUNC_NAMES, parenProblem, unknownNames, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
-import { fuzzySort } from "../fuzzy";
+import { parenProblem, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
 import { substituteParams } from "../formulaRefs";
 
 const TF_VARS = [VAR_X, VAR_T, VAR_PI, VAR_E];
-const TF_ALLOWED = new Set(TF_VARS.map((v) => v.name));
 
 type Fn = "none" | "abs" | "negate" | "deriv" | "integ" | "smooth" | "lowpass" | "highpass" | "custom";
 const PRESET: Record<string, Fn> = { "abs(x)": "abs", "-x": "negate", "deriv(x)": "deriv", "integ(x)": "integ" };
@@ -59,13 +58,8 @@ export default function TransformDialog() {
     if (paramSub?.error) return paramSub.error;
     const p = parenProblem(custom);
     if (p) return t(p);
-    const unk = unknownNames(custom, TF_ALLOWED);
-    if (!unk.length) return null;
-    const w = unk[0];
-    if (runs.some((r) => r.signals.some((x) => x.name === w))) return t("fxOnlyX", { name: w });
-    if (FUNC_INFO[w]) return t("fxNeedsParen", { name: w });
-    const guess = fuzzySort([...FUNC_NAMES, ...TF_ALLOWED], (x) => x, w)[0];
-    return t("fxUnknownTf", { name: w }) + (guess ? " " + t("fxDidYouMean", { name: guess }) : "");
+    // Q89: other names are signals of each target's own file - "sin(x) + Speed"
+    return canonX(paramSub?.text ?? custom, targetRuns, runs, t as never).error ?? null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fn, custom, runs, t, paramSub?.error]);
   const bad = [scale, offset, dt].some((v) => v.trim() !== "" && !Number.isFinite(Number(v))) || !!exprProblem;
@@ -78,6 +72,7 @@ export default function TransformDialog() {
       if (r.error) { useApp.getState().toast({ kind: "error", text: r.error }); return; }
       tf = { ...tf, expr: r.text };
     }
+    if (tf?.expr) tf = { ...tf, expr: canonX(tf.expr, targetRuns, runs, t as never).text };   // Speed -> {Speed}
     try {
       await applyTransform(targets, tf);
       // the selection did its job: the next pick in the file list starts a new one
@@ -88,6 +83,8 @@ export default function TransformDialog() {
     finally { setBusy(false); }
   };
   const anyChanged = sigs.some((s) => s.transform);
+  const signalOpts = useMemo(() => sharedSignalOptions(targetRuns, runs), // eslint-disable-next-line react-hooks/exhaustive-deps
+    [runs, targetRuns.join("|")]);
 
   return (
     <div className="scrim" onMouseDown={close}>
@@ -126,6 +123,7 @@ export default function TransformDialog() {
           {(fn === "lowpass" || fn === "highpass") && <label className="afield" title={t("cutoffHint")}><span>{t("cutoffHz")}</span><input inputMode="decimal" value={fc} onChange={(e) => setFc(e.target.value)} /></label>}
           {fn === "custom" && <div className="afield"><span>{t("tfExpr")}</span>
             <ExprInput value={custom} onChange={setCustom} vars={TF_VARS} params={tfParams} placeholder="x * 9.81" ariaLabel={t("tfExpr")}
+              signals={signalOpts}
               invalid={!!exprProblem} onSubmit={() => { if (!bad && !busy && targets.length) run(spec); }} />
             {exprProblem ? <p className="hint err fx-err">{exprProblem}</p>
               : <p className="hint fx-help">{targets.length > 1 ? t("tfExprHintMany", { n: targets.length }) : t("tfExprHint")}</p>}</div>}

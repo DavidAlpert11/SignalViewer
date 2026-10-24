@@ -14,14 +14,13 @@ import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
 import PyOpsSection, { type PyChoice } from "./PyOpsSection";
 import ErrorSegments from "./ErrorSegments";
-import { announceLinked, findDerived, linkNewDerived } from "../peers";
+import { announceLinked, findDerived, homeRun, linkNewDerived } from "../peers";
+import { canonX, sharedSignalOptions } from "../xRefs";
 import ExprInput from "./ExprInput";
-import { parenProblem, unknownNames, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
+import { parenProblem, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
 
 // "Expression in x": the user's own f(x) on one signal or on each of several (x = that signal)
 const X_VARS = [VAR_X, VAR_T, VAR_PI, VAR_E];
-const X_ALLOWED = new Set(X_VARS.map((v) => v.name));
-const toV0 = (e: string) => e.replace(/\bx\b/g, "v0");
 
 type Kind = "one" | "two" | "many" | "fx" | "frame" | "py";   // py: the user's own Python operations (T31)
 const UNARY: [string, TKey][] = [
@@ -162,19 +161,32 @@ export default function AnalysisPanel() {
     return p;
   };
   const fxRes = kind === "fx" && fx.trim() ? resolveFormula(fx, runs, tr) : null;
-  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xexpr };
   const isX = kind === "one" && op === "exprx";
+  // Q89: other names in the expression are signals of each chosen signal's own file ("sin(x) + Speed")
+  const xHomes = isX ? Array.from(new Set((batch ? many : [a]).filter(Boolean).map((id) => homeRun(runs, id)))) : [];
+  const xCanon = (() => {
+    if (!isX || !xexpr.trim()) return null;
+    const c = canonX(xexpr.trim(), xHomes.filter((h): h is string => !!h), runs, t as never);
+    // a signal made from several files has no file of its own to read other signals from
+    return c.names.length && xHomes.some((h) => !h) ? { ...c, error: t("fxXNoFile", { name: c.names[0] }) } : c;
+  })();
+  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr };
   const xProblem = !isX ? null : !xexpr.trim() ? "" : (() => {
     const p = parenProblem(xexpr);
     if (p) return t(p);
-    const unk = unknownNames(xexpr, X_ALLOWED);
-    return unk.length ? t("fxUnknownTf", { name: unk[0] }) : null;
+    return xCanon?.error ?? null;
   })();
   const sigName = (id: string) => runs.flatMap((r) => r.signals).find((s) => s.id === id)?.name ?? id;
-  /** the operation, its parameters and the label of the new signal made from `sources` */
-  const derivedCall = (sources: string[]): [string, Record<string, unknown>] => (isX
-    ? ["expr", { expr: toV0(xexpr.trim()), text: xexpr.trim().replace(/\bx\b/g, `{${sigName(sources[0])}}`), alignment }]
-    : [op, params]);
+  /** the operation, its parameters and its sources, for a new signal made from `sources` */
+  const derivedCall = (sources: string[]): [string, Record<string, unknown>, string[]] => {
+    if (!isX || !xCanon) return [op, params, sources];
+    // x -> v0, {Name} -> v1.. : the named signals of x's own file are sources too
+    const home = homeRun(runs, sources[0]);
+    const names = xCanon.names;
+    const expr = xCanon.text.replace(/\{([^{}]+)\}/g, (_w, n: string) => `v${names.indexOf(n) + 1}`).replace(/\bx\b/g, "v0");
+    return ["expr", { expr, text: xCanon.text.replace(/\bx\b/g, `{${sigName(sources[0])}}`), alignment },
+      [sources[0], ...names.map((n) => `${home}/${n}`)]];
+  };
   const markUsed = () => {
     if ((kind === "one" && batch) || kind === "many" || (kind === "py" && (py?.op.inputs ?? 0) > 2)) {
       setManyUsed(true);
@@ -228,10 +240,10 @@ export default function AnalysisPanel() {
     let linked = 0;
     try {
       for (const sources of jobs) {
-        const [jOp, jParams] = kind === "py" ? ["py", pyParams] : derivedCall(sources);
+        const [jOp, jParams, jSources] = kind === "py" ? ["py", pyParams, sources] : derivedCall(sources);
         // Link operations: Speed of run_a and of run_b both chosen - the second was made with the first
-        if (useApp.getState().linkEdits && findDerived(useApp.getState().runs, jOp, jParams, sources)) continue;
-        const r = await api.createDerived(jOp, sources, jParams, jobs.length === 1 ? name : undefined);
+        if (useApp.getState().linkEdits && findDerived(useApp.getState().runs, jOp, jParams, jSources)) continue;
+        const r = await api.createDerived(jOp, jSources, jParams, jobs.length === 1 ? name : undefined);
         useApp.setState({ runs: r.runs });
         if (addToPlot) actions.addSignal(r.id);
         linked += await linkNewDerived(r.id, false);
@@ -270,8 +282,9 @@ export default function AnalysisPanel() {
       return;
     }
     if (kind === "fx" && (!fxRes || fxRes.error)) return;
-    const sources = kind === "fx" ? fxRes!.sources : kind === "py" ? pySources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
-    const [pOp, pParams] = kind === "fx" ? ["expr", { expr: fxRes!.expr, text: fx, alignment }] : kind === "py" ? ["py", pyParams] : derivedCall(sources);
+    const sources0 = kind === "fx" ? fxRes!.sources : kind === "py" ? pySources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
+    const [pOp, pParams, sources] = kind === "fx" ? ["expr", { expr: fxRes!.expr, text: fx, alignment }, sources0] as const
+      : kind === "py" ? ["py", pyParams, sources0] as const : derivedCall(sources0);
     if (kind === "py" && !py) return;
     if (sources.some((x) => !x)) return;
     try {
@@ -346,6 +359,7 @@ export default function AnalysisPanel() {
             {batch && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} stale={manyUsed} />}
             {isX && <div className="afield"><span>{t("tfExpr")}</span>
               <ExprInput value={xexpr} onChange={setXexpr} vars={X_VARS} placeholder="x * 8" ariaLabel={t("tfExpr")} invalid={!!xProblem}
+                signals={sharedSignalOptions(xHomes.filter((h): h is string => !!h), runs)}
                 onSubmit={() => { if (canCreate && !busy) void create(); }} />
               {xProblem ? <p className="hint err fx-err">{xProblem}</p>
                 : <p className="hint fx-help">{batch && many.length > 1 ? t("tfExprHintMany", { n: many.length }) : t("tfExprHint")}</p>}</div>}

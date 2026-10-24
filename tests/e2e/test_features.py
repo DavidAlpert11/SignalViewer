@@ -4,7 +4,7 @@ Feature conformance suite: one test per feature ID in the requirements catalog
 
     python -m pytest tests/e2e/test_features.py -q
 """
-import json, os, re, shutil, socket, subprocess, sys, time, urllib.request
+import json, math, os, re, shutil, socket, subprocess, sys, time, urllib.request
 
 import numpy as np
 import pytest
@@ -1784,8 +1784,10 @@ def test_transform_expression_autocomplete_and_checks(pg):
     pg.keyboard.press("Tab"); pg.keyboard.type("x, ")
     pg.wait_for_function("document.querySelector('.tf-dialog input.fx-input').value === 'smooth(x, )'")   # caret inside the parentheses
     pg.wait_for_function("(document.querySelector('.fx-sig .cur')?.textContent || '').includes('n=10')")  # the argument being typed
-    inp.fill("RPM * 2")
-    pg.wait_for_function("(document.querySelector('.tf-dialog .fx-err')?.textContent || '').includes('x')")
+    inp.fill("RPM * 2")                                                     # Q89: another signal of the same file is fine
+    pg.wait_for_function("!document.querySelector('.tf-dialog .fx-err')")
+    inp.fill("Nope * 2")
+    pg.wait_for_function("(document.querySelector('.tf-dialog .fx-err')?.textContent || '').includes('Nope')")
     assert pg.locator(".tf-dialog .btn.primary").is_disabled()
     # the expression is checked a moment after typing: wait for the new verdict, not the previous one
     inp.fill("smoth(x, 5)")
@@ -2218,3 +2220,47 @@ def test_copy_the_plots_beside_each_plot(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
     assert len(layout()["plots"]) == 7                                        # the full tab is left as it was
     assert pg.locator(".toast", has_text="no room").count() == 1
+
+
+def test_expression_of_x_with_other_signals(pg):
+    """Owner, 2026-10-24: sin(x) + Speed on one signal or a group - Speed being another signal of the
+    same file (even one of the group: it is read as in the file). In place and as new signals; the
+    change copied to another file reads THAT file's Speed; a name the file lacks is explained."""
+    at = lambda sid, t=2.0: pg.evaluate(f"""async () => (await (await fetch('/api/cursor', {{method: 'POST', headers: {{'Content-Type': 'application/json'}},
+        body: JSON.stringify({{signals: [{json.dumps(sid)}], t: {t}}})}})).json()).values[{json.dumps(sid)}]""")
+    open_files(pg, "run_a.csv", "run_b.csv")
+    ra, rb = S(pg, "s.runs.filter(r => r.format !== 'derived').map(r => r.id)")
+    raw = {k: at(k) for k in (f"{ra}/RPM", f"{ra}/Speed", f"{rb}/RPM", f"{rb}/Speed")}
+    # 1) in place, on RPM and Speed of run_a together
+    sig(pg, "RPM", 0).click(modifiers=["Control"]); sig(pg, "Speed", 0).click(modifiers=["Control"])
+    sig(pg, "RPM", 0).click(button="right"); menu_item(pg, "Change the 2 selected")
+    pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").select_option("custom")
+    box = pg.locator(".tf-dialog [aria-label='Expression in x (and t)']")
+    box.fill("sin(x) + Nope")
+    assert "Nope" in pg.locator(".tf-dialog .fx-err").inner_text()
+    assert pg.locator(".tf-dialog .btn.primary").is_disabled()
+    box.fill("sin(x) + Speed")
+    pg.locator(".tf-dialog .btn.primary").click(); pg.wait_for_selector(".tf-dialog", state="detached")
+    assert S(pg, f"s.runs.find(r => r.id === '{ra}').signals.find(x => x.name === 'RPM').transform.expr") == "sin(x) + {Speed}"
+    assert abs(at(f"{ra}/RPM") - (math.sin(raw[f"{ra}/RPM"]) + raw[f"{ra}/Speed"])) < 1e-6
+    assert abs(at(f"{ra}/Speed") - (math.sin(raw[f"{ra}/Speed"]) + raw[f"{ra}/Speed"])) < 1e-6   # Speed as read
+    # 2) copied to run_b: run_b's own Speed
+    pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Copy the work to another file")
+    pg.wait_for_selector(".sw-dialog .rt-status.ok")
+    pg.locator(".sw-dialog label", has_text="Not in the plots").click()
+    pg.click(".sw-dialog .btn.primary"); pg.wait_for_selector(".sw-dialog", state="detached")
+    pg.wait_for_function(f"!!window.__sv.state().runs.find(r => r.id === '{rb}').signals.find(x => x.name === 'RPM').transform")
+    assert abs(at(f"{rb}/RPM") - (math.sin(raw[f"{rb}/RPM"]) + raw[f"{rb}/Speed"])) < 1e-6
+    # 3) as new signals: Create signals -> One signal -> Expression in x, on run_b's RPM and Gear
+    pg.click(".pick-clear")
+    sig(pg, "RPM", 1).click(modifiers=["Control"]); sig(pg, "Gear", 1).click(modifiers=["Control"])
+    sig(pg, "Gear", 1).click(button="right")
+    pg.locator(".menu.ctx button", has_text="New signals from the 2 selected").click(); menu_item(pg, "Other operations")
+    pg.locator(".analysis .afield select").first.select_option("exprx")
+    pg.locator(".analysis [aria-label='Expression in x (and t)']").fill("x - Speed")
+    pg.get_by_role("button", name="Create signal", exact=True).click()
+    pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).length === 2")
+    made = S(pg, "s.runs.find(r => r.format === 'derived').signals.map(x => ({ id: x.id, src: x.sources }))")
+    assert all(m["src"][1] == f"{rb}/Speed" for m in made)                 # Speed of the same file
+    gear = [m for m in made if m["src"][0] == f"{rb}/Gear"][0]
+    assert abs(at(gear["id"]) - (at(f"{rb}/Gear") - at(f"{rb}/Speed"))) < 1e-6
