@@ -99,7 +99,9 @@ mode (a simulation against the flight, a model against the test).
 signal…*, or *One signal → Expression in x* here), another signal is written by its name:
 \`sin(x) + Speed\`. It is the signal of the **same file** as \`x\` - for several selected signals, each
 one's own file - as read from the file, so on a group that includes Speed itself, every one sees the
-same Speed. Copied or linked to another file, it reads that file's Speed.
+same Speed. Copied or linked to another file, it reads that file's Speed. To take it from **one
+particular file** for all of them, name the file: \`x + {run_b.csv:Speed}\`. Names with spaces or
+brackets go in braces: \`{Speed [km/h]}\`.
 
 ## 9. Keep and share your work
 
