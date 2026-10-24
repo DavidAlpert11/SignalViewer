@@ -4,6 +4,7 @@ import { activeTab } from "./store";
 import { translate } from "./i18n";
 import { clearEverything } from "./files";
 import type { Workspace } from "./store/model";
+import { homeRun } from "./peers";
 
 /**
  * T63: one Clear button, five scopes, from the smallest to everything. All but the last keep the
@@ -83,4 +84,73 @@ export function clearMenuItems(): MenuItem[] {
     { label: "", run: () => {}, sep: true },
     { label: t("clearEverythingN", { f: files }), run: clearEverything, danger: true },
   ];
+}
+
+/* Q88: one file's work only, each part on its own - its signals out of every plot (signals made from
+   it too), its edits (ƒ) undone, the signals made from it deleted (and whatever was made from those).
+   The file stays open; one Undo puts all of it back. */
+export interface FileParts { plots?: boolean; edits?: boolean; derived?: boolean }
+
+/** what clearing `parts` of file `runId` would touch (for the menu's numbers and the work itself) */
+export function fileWork(runId: string, parts: FileParts) {
+  const st = useApp.getState();
+  const all = st.runs.find((r) => r.format === "derived")?.signals ?? [];
+  const doomed = new Set(parts.derived ? all.filter((d) => homeRun(st.runs, d.id) === runId).map((d) => d.id) : []);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const d of all) if (!doomed.has(d.id) && d.sources?.some((x) => doomed.has(x))) { doomed.add(d.id); grew = true; }
+  }
+  const edited = parts.edits ? (st.runs.find((r) => r.id === runId)?.signals.filter((s) => s.transform).map((s) => s.id) ?? []) : [];
+  const leaves = (id?: string | null) => !!id && (doomed.has(id) || (!!parts.plots && homeRun(st.runs, id) === runId));
+  let plotted = 0;
+  for (const t of st.ws.tabs) for (const p of t.plots) plotted += p.signals.filter((s) => leaves(s.sig)).length;
+  return { doomed: all.filter((d) => doomed.has(d.id)), edited, leaves, plotted };
+}
+
+export async function clearFileWork(runId: string, parts: FileParts) {
+  const st = useApp.getState();
+  const name = st.runs.find((r) => r.id === runId)?.name ?? runId;
+  const { doomed, edited, leaves, plotted } = fileWork(runId, parts);
+  const items = doomed.map((s) => ({ name: s.name, op: s.op!, sources: s.sources!, params: s.params }));
+  const wsBefore: Workspace = structuredClone(st.ws);
+  if (plotted || parts.plots || doomed.length) st.commit((ws) => {
+    for (const t of ws.tabs) {
+      t.sharedStates = (t.sharedStates ?? []).filter((id) => !leaves(id));
+      for (const p of t.plots) {
+        p.signals = p.signals.filter((s) => !leaves(s.sig));
+        if (leaves(p.xSignal)) p.xSignal = null;
+        p.objects = (p.objects ?? []).filter((o) => !Object.values(o).some((v) => typeof v === "string" && leaves(v)));
+      }
+    }
+    return ws;
+  });
+  for (const s of [...doomed].reverse()) await api.deleteDerived(s.name).catch(() => {});   // the last made first
+  let previous: Awaited<ReturnType<typeof api.setTransformSpecs>>["previous"] = {};
+  if (edited.length) previous = (await api.setTransformSpecs(Object.fromEntries(edited.map((id) => [id, null])))).previous;
+  if (doomed.length || edited.length) useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 });
+  undoToast(translate(st.lang, "clearFileDone", { name, p: plotted, e: edited.length, d: doomed.length }), async () => {
+    if (items.length) await api.restoreDerived(items);
+    if (edited.length) await api.setTransformSpecs(previous);
+    useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 });
+    useApp.getState().commit(() => structuredClone(wsBefore));
+  });
+}
+
+/** The file menu's "Clear this file ▸" */
+export function clearFileItem(runId: string): MenuItem {
+  const st = useApp.getState();
+  const t = (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(st.lang, k, p);
+  const p = fileWork(runId, { plots: true }).plotted;
+  const e = fileWork(runId, { edits: true }).edited.length;
+  const d = fileWork(runId, { derived: true }).doomed.length;
+  return {
+    label: t("clearFileMenu"), run: () => {},
+    items: [
+      { label: t("clearFilePlots", { n: p }), run: () => { void clearFileWork(runId, { plots: true }); }, disabled: !p },
+      { label: t("clearFileEdits", { n: e }), run: () => { void clearFileWork(runId, { edits: true }); }, disabled: !e },
+      { label: t("clearFileDerived", { n: d }), run: () => { void clearFileWork(runId, { derived: true }); }, disabled: !d },
+      { label: "", run: () => {}, sep: true },
+      { label: t("clearFileAll"), run: () => { void clearFileWork(runId, { plots: true, edits: true, derived: true }); }, disabled: !p && !e && !d },
+    ],
+  };
 }
