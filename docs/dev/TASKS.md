@@ -13,17 +13,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.12.0 prepared 2026-10-22** (Milestone 12 in ROADMAP.md, Q85-Q87 - the owner's reports on
-  selecting several signals and on one piece of work for many runs). The tag `v1.12.0` was pushed on
-  93fd374 (Q85-Q86) before Q87 was added; nothing was published (PyPI still 1.11.0). So: delete the
-  draft release and the tag, push Q87 + the release commit, wait for the green `ci` run, tag
-  `v1.12.0` again on the new release commit and push it (build.yml: packages, PyPI, draft
-  release), then publish the draft. Released before: up to 1.11.0.
-- Checked here for 1.12.0 (Linux): backend 787 passed + 12 skipped; mypy clean; tsc + build clean
-  (oxlint 39 warnings, as in 1.11.0); **the whole e2e suite in one process: 197 / 197**;
-  `mkdocs build --strict` clean; `validate` 23 / 23; `make_pypi.py --check` both wheels OK.
-  Not run here: Windows / macOS (CI and the owner), the Windows installer, the real logs
-  (no reader changed). make_readme_media.py not re-run (the pictures show no selection).
+- Branch `main`. **1.13.0 prepared 2026-10-23** (Milestone 13 in ROADMAP.md, Q88 - the owner's report
+  on the work of one file, part by part): the owner pushes, waits for the green `ci` run, tags
+  `v1.13.0` and pushes the tag (build.yml: packages, PyPI, draft release), then publishes the draft.
+  Released before: up to 1.12.0 (PyPI 1.12.0).
+- Checked here for 1.13.0 (Linux): see the log line of 2026-10-23. Not run here: Windows / macOS (CI
+  and the owner), the Windows installer, the real logs (no reader changed).
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
@@ -960,6 +955,39 @@ with cffconvert; `test_citation_names_the_same_version` keeps its version with a
 `docs/dev/OUTREACH.md` - the owner's steps (`gh repo edit` with description / homepage / topics /
 Discussions, social preview, private vulnerability reporting, `good first issue`) and post drafts.
 
+## Owner's report 2026-10-23 (after 1.12.0) - the work of one file, part by part
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q88 | T69 Copy the work to a file that is open already, each part on its own (changes / new signals / plots: same, beside each plot, new tabs, none); Clear this file ▸ (plots / changes / new signals / all) | S | ☑ done |
+
+### Q88 · T69 The work of one file, part by part — S
+Owner: "two similar files open, not linked; I work on one; then I want to copy its operations to the
+other, or its plots (same plot or separate), or both; and later remove all signals of one file and/or
+undo all operations of one file only". 1.12.0 had *Add a run with the same work*: a NEW file only,
+everything at once, and both links turned on by default; and Clear only for everything.
+- `copyWork(from, target, parts)` (sameWork.ts, was `addRunLike`): target `{ run }` (open already)
+  or `{ path }` (opened as before); `parts` = edits / derived / plots ("overlay" | "beside" | "tabs" |
+  "none"). "beside" (the owner, after the first proposal: "a plot next to each plot, same tab"): each
+  plot that shows the file gets its copy right after it; when every plot of the tab gets one and the
+  tab is one column, it becomes two (each plot and its copy side by side), otherwise fitLayout; the
+  dragged sizes are reset. A tab without room (MAX_PLOTS 9) is copied as a new tab and the toast
+  says so (`besideFull`).
+  A derived signal that is not copied (and has no copy already) is left out of the plots quietly,
+  not reported as missing; copying again adds nothing twice (existing copies are found by peers.ts).
+- SameWorkDialog → *Copy the work to another file…*: open files first (an optgroup; the first is
+  chosen), then the suggestions; its names checked from the loaded file; the parts as boxes, the
+  plots as three radios, Link plots / Link operations as two boxes, off unless ticked (already on:
+  shown on, disabled). Copy is disabled when nothing is chosen.
+- clearing.ts: `fileWork(run, parts)` (what would go: the derived signals made from the file plus
+  everything made from those; its edited signals; plot entries whose home is the file), `clearFileWork`
+  (plots / X axes / shared states / map objects in one commit, derived deleted last-made-first, edits
+  set to none; one Undo: restoreDerived + the previous specs + the workspace), `clearFileItem` (the
+  file menu's *Clear this file ▸* with the numbers, disabled at 0).
+Tests: e2e `test_copy_parts_of_the_work_to_an_open_file_and_clear_one_file`,
+`test_copy_the_plots_beside_each_plot` (2 plots -> 2x2 side by side; 7 plots -> a tab copy); the Q87 test now ticks
+the two link boxes and uses the new menu name.
+
 ## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
 
 | # | Task | Size | Status |
@@ -1557,3 +1585,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-22 · Q87 / T68 (owner): Add a run with the same work (same plots / new tabs), Link plots and Link operations each on its own (peers.ts: derived peers by operation + mapped sources). tsc + build clean, oxlint 39; e2e test_linked_operations_and_a_run_with_the_same_work green; guide en / he.
 - 2026-10-22 · Release 1.12.0 again, with Q87: the owner had pushed Q85-Q86 + the release commit and the tag v1.12.0 (not published: PyPI 1.11.0, draft only), so Q87 comes on top of origin/main as its own commit plus a release commit (dist, these notes) - no reset, no force push; the tag moves to the new release commit. The full e2e run found two things the single runs did not: the new button shared `.link-toggle` (test_small_window_file_header's locator found two - now `.link-edits`; the header still fits at 1100 px), and the Q87 test chose run_b from the 12 suggestions, which earlier tests' run_* files push out - it uses *Other…* now.
 - 2026-10-22 · **Release 1.12.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.12.0 – 2026-10-22` with highlights; README review (Math line, the Hebrew section's calculate line), features.md (file list, legend, analysis, new runs - in Q85-Q87), the guide (en / he: compare runs); frontend/dist rebuilt. Here: backend 787 + 12 skipped, mypy clean, e2e 197 / 197 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check OK. Left for the owner: tag v1.12.0, publish the draft.
+- 2026-10-23 · Q88 / T69 (owner): Copy the work to another file - an open one too - part by part (changes / new signals / plots: same, beside each plot, tabs, none; the links as two boxes, off by default); Clear this file ▸ (plots / changes / new signals / all, one Undo). **Release 1.13.0** prepared: versions (build.bat, version.py, CITATION.cff + date, .iss, version_info.txt, install.md, validation.md), CHANGELOG, README, guide en / he, features, frontend/dist. Here: backend 787 + 12 skipped, mypy clean, tsc + build clean (oxlint 39, as before), e2e 199 / 199 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check both 1.13.0 wheels OK. (One earlier full run had test_globe_without_webgl_falls_back time out while the PyPI build ran beside it; alone 3 / 3, then test_features 115 / 115, then the whole suite 199 / 199.)
