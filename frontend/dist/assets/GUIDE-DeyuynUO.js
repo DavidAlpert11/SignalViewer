@@ -76,8 +76,8 @@ for the values.
 - Runs recorded with a time shift: right-click a file → **Align time with another file**.
 - **The work you did on one file, for another:** right-click the file you worked on → **Copy the work
   to another file…**, choose a file that is open already or one to open, and what to copy: its
-  changes (ƒ), the signals made from it, its signals in the plots (on the same plots to compare, or in
-  a copy of each tab) - any of them. Again for a third file, and a fourth.
+  changes (ƒ), the signals made from it, its signals in the plots (on the same plots to compare,
+  beside each plot in the same tab, or in a copy of each tab) - any of them. Again for a third file, and a fourth.
 - **Undo one file's work only:** right-click it → **Clear this file**: its signals out of the plots,
   its changes undone, the signals made from it deleted - one of them or all. The other files keep
   theirs.
@@ -94,6 +94,12 @@ a Python function of your own. They
 behave like recorded signals and are kept with the session. With *Two signals* and A − B the panel
 also tells how far apart A and B are – overall and for each stretch of a state such as the flight
 mode (a simulation against the flight, a model against the test).
+
+**An expression of x with other signals:** wherever you write an expression of \`x\` (*Change this
+signal…*, or *One signal → Expression in x* here), another signal is written by its name:
+\`sin(x) + Speed\`. It is the signal of the **same file** as \`x\` - for several selected signals, each
+one's own file - as read from the file, so on a group that includes Speed itself, every one sees the
+same Speed. Copied or linked to another file, it reads that file's Speed.
 
 ## 9. Keep and share your work
 
