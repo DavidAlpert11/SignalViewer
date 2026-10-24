@@ -7,6 +7,7 @@ import type { RunInfo, SignalInfo } from "../api";
 import { showFileTags, actions, activeTab, fileLabel, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
+import { clearFileItem } from "../clearing";
 import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "../files";
 import TemplateStrip from "./TemplateStrip";
 import { refreshAll } from "../live";
@@ -123,6 +124,7 @@ export default function DataPanel() {
       })()),
       { label: "", run: () => {}, sep: true },
       { label: t("sameWorkMenu"), run: () => useApp.setState({ sameWorkFor: run.id }) },
+      clearFileItem(run.id),
       { label: t("replaceFile"), run: async () => {
         const path = await pickPath({ mode: "open", title: t("replaceFile"), exts: DATA_EXTS });
         if (!path) return;

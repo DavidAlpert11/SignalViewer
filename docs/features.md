@@ -77,7 +77,8 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Replace the input files… (file panel, command palette) or Open a session with new files… (command palette, or the icon next to a recent session on the welcome screen): the same layout, formulas, edits (ƒ), axes and cursors with new input files
 - For each file the newest file in the same folder with the same name pattern is suggested (run_012 → run_013), or choose any other
 - Before opening, each new file is checked for the signals the work uses (missing ones are listed)
-- Add a run with the same work… (right-click a file): another file gets that file's changes (ƒ), the signals made from it (derived of derived too) and its signals in the plots - on the same plots, to compare, or in a copy of each tab that uses it; the original stays open, and it can be repeated for more runs. Suggests the newest file with the same name pattern, checks it first, and can turn on Link plots and Link operations for what comes next
+- Copy the work to another file… (right-click a file): a file already open, or one to open, gets that file's work, each part on its own - its changes (ƒ), the signals made from it (derived of derived too), its signals in the plots (on the same plots to compare, beside each plot in the same tab, in a copy of each tab that uses it, or not at all); the original stays as it is, and it can be repeated for more files. Suggests the open files and the newest file with the same name pattern, checks the target first, and can turn on Link plots and Link operations (each on its own) for what comes next
+- Clear this file ▸ (right-click a file): its signals out of every plot, its changes (ƒ) undone, the signals made from it deleted - each on its own or all; the other files keep their work; one Undo
 - Replacing the current files offers *Back to the previous files*
 
 ### Start over

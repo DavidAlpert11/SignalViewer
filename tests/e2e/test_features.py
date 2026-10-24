@@ -2099,16 +2099,18 @@ def test_linked_operations_and_a_run_with_the_same_work(pg):
     derivative("Speed")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
     # 2) run_b with the same work, on the same plots
-    pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Add a run with the same work")
+    pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Copy the work to another file")
     pg.wait_for_selector(".sw-dialog")
     pick_other(pg, "run_b.csv")
     pg.wait_for_selector(".sw-dialog .rt-status.ok")
+    pg.locator(".sw-dialog label", has_text="Link plots").click()          # 1.13: each link on its own, off by default
+    pg.locator(".sw-dialog label", has_text="Link operations").click()
     pg.click(".sw-dialog .btn.primary")
     pg.wait_for_function("window.__sv.state().runs.some(r => r.name === 'run_b.csv')")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 4")
     assert edits("run_b.csv") == {"Speed": "x*2"}
     assert len(derived()) == 2 and any("run_b" in n for n in derived())
-    assert S(pg, "s.linkRuns && s.linkEdits") is True                      # linked from now on (the dialog's default)
+    assert S(pg, "s.linkRuns && s.linkEdits") is True                      # linked from now on (both ticked)
     # 3) linked operations: a change on run_a's RPM is made on run_b's RPM; a new signal for both
     change("RPM", "x/95", run=0)
     pg.wait_for_function("Object.keys(window.__sv.state().runs.find(r => r.name === 'run_b.csv').signals.filter(x => x.transform)).length === 2")
@@ -2123,7 +2125,7 @@ def test_linked_operations_and_a_run_with_the_same_work(pg):
     change("Speed", "x*3", run=0)
     assert edits("run_b.csv")["Speed"] == "x*3"
     # 6) run_c in new tabs: a copy of the tab, with run_c in place of run_a
-    pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Add a run with the same work")
+    pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Copy the work to another file")
     pg.wait_for_selector(".sw-dialog")
     pick_other(pg, "run_c.csv")
     pg.wait_for_selector(".sw-dialog .rt-status.ok")
@@ -2134,3 +2136,85 @@ def test_linked_operations_and_a_run_with_the_same_work(pg):
     assert "run_c.csv:Speed" in tab2 and "run_b.csv:Speed" in tab2 and not any(x.startswith("run_a.csv:") for x in tab2)
     assert edits("run_c.csv") == {"Speed": "x*3", "RPM": "x/95"}
     assert len(derived()) == 6                                              # 2 per file
+
+
+
+def test_copy_parts_of_the_work_to_an_open_file_and_clear_one_file(pg):
+    """Owner, 2026-10-23: two similar files open, nothing linked; work on one of them, then copy only
+    its changes, then its new signals and plots, to the other; later clear one file's work only -
+    its signals out of the plots, its changes undone, its new signals deleted - and Undo it all."""
+    edits = lambda run: S(pg, f"Object.fromEntries(s.runs.find(r => r.name === '{run}').signals.filter(x => x.transform).map(x => [x.name, x.transform.expr]))")
+    derived = lambda: sorted(S(pg, "(s.runs.find(r => r.format === 'derived')?.signals ?? []).map(x => x.name)"))
+    plotted = lambda: sorted(S(pg, "s.ws.tabs[0].plots[0].signals.map(x => x.sig.startsWith('derived/') ? 'D:' + x.sig.slice(8) : s.runs.find(r => r.id === x.sig.split('/')[0]).name + ':' + x.sig.split('/').pop())"))
+    open_files(pg, "run_a.csv", "run_b.csv")
+    assert S(pg, "s.linkRuns || s.linkEdits") is False
+    sig(pg, "Speed", 0).click()
+    sig(pg, "Speed", 0).click(button="right"); menu_item(pg, "Change this signal")
+    pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").select_option("custom")
+    pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill("x*2"); pg.locator(".tf-dialog .btn.primary").click()
+    sig(pg, "Speed", 0).click(button="right"); pg.locator(".menu.ctx button", has_text="Create signal").click(); menu_item(pg, "Derivative")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
+    assert edits("run_b.csv") == {} and len(derived()) == 1
+    copy = lambda: (pg.locator(".run-head", has_text="run_a.csv").click(button="right"), menu_item(pg, "Copy the work to another file"),
+                    pg.wait_for_selector(".sw-dialog .rt-status.ok"))
+    # 1) only the changes - to the file that is open already (chosen by default)
+    copy()
+    assert "run_b.csv" in pg.locator(".sw-dialog select option:checked").inner_text()
+    pg.locator(".sw-dialog .sw-derived").uncheck()
+    pg.locator(".sw-dialog label", has_text="Not in the plots").click()
+    pg.click(".sw-dialog .btn.primary"); pg.wait_for_selector(".sw-dialog", state="detached")
+    assert edits("run_b.csv") == {"Speed": "x*2"} and len(derived()) == 1 and len(plotted()) == 2
+    # 2) the new signals and the plots, on the same plots (the changes again: nothing new)
+    copy()
+    pg.click(".sw-dialog .btn.primary"); pg.wait_for_selector(".sw-dialog", state="detached")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 4")
+    assert len(derived()) == 2 and "run_b.csv:Speed" in plotted()
+    assert S(pg, "s.linkRuns || s.linkEdits") is False                      # nothing linked unless asked
+    # 3) clear run_b's work, part by part
+    clear = lambda item: (pg.locator(".run-head", has_text="run_b.csv").click(button="right"),
+                          pg.locator(".menu.ctx button", has_text="Clear this file").click(), menu_item(pg, item))
+    clear("Its signals out of the plots")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
+    assert not any(x.startswith("run_b") for x in plotted()) and len(derived()) == 2   # still made, just not shown
+    clear("Undo its changes")
+    pg.wait_for_function("Object.keys(window.__sv.state().runs.find(r => r.name === 'run_b.csv').signals.filter(x => x.transform)).length === 0")
+    assert edits("run_a.csv") == {"Speed": "x*2"}                           # the other file keeps its own
+    clear("Delete the signals made from it")
+    pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).length === 1")
+    pg.locator(".toast button", has_text="Undo").last.click()                # the last Clear comes back
+    pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).length === 2")
+    # 4) all of it at once
+    copy(); pg.click(".sw-dialog .btn.primary"); pg.wait_for_selector(".sw-dialog", state="detached")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 4")
+    clear("All of these")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
+    pg.wait_for_function("(window.__sv.state().runs.find(r => r.format === 'derived')?.signals ?? []).length === 1")
+    pg.wait_for_function("Object.keys(window.__sv.state().runs.find(r => r.name === 'run_b.csv').signals.filter(x => x.transform)).length === 0")
+    assert edits("run_b.csv") == {} and len(derived()) == 1 and edits("run_a.csv") == {"Speed": "x*2"}
+
+
+def test_copy_the_plots_beside_each_plot(pg):
+    """Owner, 2026-10-23: the copied plots can also go beside each original plot, in the same tab;
+    a tab without room for them (at most 9 plots) gets a copy of the tab instead."""
+    layout = lambda: S(pg, """(() => { const t = s.ws.tabs[0]; const nm = (id) => s.runs.find(r => r.id === id.split('/')[0]).name.slice(0, 5) + ':' + id.split('/').pop();
+        return { rows: t.rows, cols: t.cols, plots: t.plots.map(p => p.signals.map(x => nm(x.sig)).join(',')) }; })()""")
+    def copy_beside():
+        pg.locator(".run-head", has_text="run_a.csv").click(button="right"); menu_item(pg, "Copy the work to another file")
+        pg.wait_for_selector(".sw-dialog .rt-status.ok")
+        pg.locator(".sw-dialog label", has_text="Beside each plot").click()
+        pg.click(".sw-dialog .btn.primary"); pg.wait_for_selector(".sw-dialog", state="detached")
+    open_files(pg, "run_a.csv", "run_b.csv")
+    sig(pg, "Speed", 0).click()
+    sig(pg, "RPM", 0).click(modifiers=["Alt"])                               # a second plot
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.length === 2")
+    copy_beside()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.length === 4")
+    assert layout() == {"rows": 2, "cols": 2, "plots": ["run_a:Speed", "run_b:Speed", "run_a:RPM", "run_b:RPM"]}
+    # three more plots of run_a: 5 plots to copy + 7 = 12 > 9 -> a copy of the tab
+    for n in ("Gear", "Speed", "RPM"):
+        sig(pg, n, 0).click(modifiers=["Alt"])
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.length === 7")
+    copy_beside()
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
+    assert len(layout()["plots"]) == 7                                        # the full tab is left as it was
+    assert pg.locator(".toast", has_text="no room").count() == 1
