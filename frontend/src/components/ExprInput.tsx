@@ -35,7 +35,8 @@ export default function ExprInput({ value, onChange, vars, signals, params, mult
   // inside param("…"): suggest parameter names
   const pm = params?.length ? /param\(\s*("?)([A-Za-z0-9_]*)$/.exec(value.slice(0, caret)) : null;
   const start = pm ? caret - pm[2].length - pm[1].length : fresh ? caret : at.start;
-  const clean = fresh ? "" : raw;
+  // a number being typed (8, 2.5, 1e3) is not a name: nothing to suggest unless Ctrl+Space asked
+  const clean = fresh ? "" : /^[\d.]/.test(raw) && !at.word.startsWith("{") ? "" : raw;
 
   const items: Item[] = useMemo(() => {
     if (pm && params) {

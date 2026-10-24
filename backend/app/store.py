@@ -54,14 +54,41 @@ def normalize_transform(spec: Optional[dict]) -> Optional[dict]:
     return out or None
 
 
-def apply_transform(t, y, spec: dict):
-    """y' = scale * f(x) + offset, t' = t + dt;  f is an expression in x (and t)."""
+REF = re.compile(r"\{([^{}]+)\}")
+
+
+def transform_refs(spec: Optional[dict]) -> List[str]:
+    """Q89: the other signals an edit's expression reads - {Name}, of the same file."""
+    out: List[str] = []
+    for m in REF.finditer(str((spec or {}).get("expr") or "")):
+        name = m.group(1).strip()
+        if name not in out:
+            out.append(name)
+    return out
+
+
+def apply_transform(t, y, spec: dict, ref=None):
+    """y' = scale * f(x) + offset, t' = t + dt;  f is an expression in x (and t) and, Q89, of other
+    signals of the same file written {Name}: `ref(name)` gives their (time, data) as read from the
+    file (before any edit - so a group changed together sees the same values, and no edit can depend
+    on another in a circle). They are interpolated onto x's time."""
     t = np.asarray(t, dtype=np.float64)
     y = np.asarray(y, dtype=np.float64)
     if spec.get("expr"):
-        expr = re.sub(r"\bx\b", "v0", spec["expr"])
+        names = transform_refs(spec)
+        sources = [(t, y)]
+        for name in names:
+            if ref is None:
+                raise OpError(f"{name}: another signal can not be used here.")
+            got = ref(name)
+            if got is None:
+                raise OpError(f"{name} is not a signal of this file.")
+            sources.append((np.asarray(got[0], dtype=np.float64), np.asarray(got[1], dtype=np.float64)))
+        # {Name} first (a name may hold an x), then x itself
+        expr = REF.sub(lambda m: f"v{names.index(m.group(1).strip()) + 1}", spec["expr"])
+        expr = re.sub(r"\bx\b", "v0", expr)
         try:
-            t2, y = _evaluate_formula(expr, [(t, y)], lambda tt, ts, ys: np.interp(tt, ts, ys))
+            t2, y = _evaluate_formula(expr, sources, lambda tt, ts, ys: np.interp(tt, ts, ys))
         except ValueError as e:
             raise OpError(str(e)) from None
         t = t2
@@ -704,7 +731,7 @@ class Store:
         if hit is not None:
             self._tcache.move_to_end(key)
             return hit
-        t, y = apply_transform(raw[0], raw[1], spec)
+        t, y = apply_transform(raw[0], raw[1], spec, self._ref_reader(sig_id))
         self._tcache[key] = (t, y)
         while len(self._tcache) > 32:
             self._tcache.popitem(last=False)
@@ -720,7 +747,8 @@ class Store:
             spec = normalize_transform(spec)
             if spec:
                 raw = self.runs[run_id].run.get_signal_data(name)
-                apply_transform(raw[0][:64], raw[1][:64], spec)      # fails fast on a bad expression
+                n = None if transform_refs(spec) else 64     # with other signals: all of x (they may start later)
+                apply_transform(raw[0][:n], raw[1][:n], spec, self._ref_reader(sid))   # fails fast on a bad expression
             clean[sid] = spec
         previous = {sid: self.transforms.get(sid) for sid in clean}
         with self._lock:
@@ -730,6 +758,17 @@ class Store:
                 else:
                     self.transforms.pop(sid, None)
         return previous
+
+    def _ref_reader(self, sig_id: str):
+        """Q89: the reader of the other signals an edit of `sig_id` names - its own file, raw data.
+        (The cache key of an edit already holds the file's data version, so it stays right.)"""
+        lr = self.runs.get(sig_id.partition("/")[0])
+
+        def read(name: str):
+            if lr is None or name not in lr.run.signals:
+                return None
+            return lr.run.get_signal_data(name)
+        return read
 
     def _raw_version(self, sig_id: str):
         run_id = sig_id.partition("/")[0]
