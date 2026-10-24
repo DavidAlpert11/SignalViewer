@@ -95,6 +95,12 @@ behave like recorded signals and are kept with the session. With *Two signals* a
 also tells how far apart A and B are – overall and for each stretch of a state such as the flight
 mode (a simulation against the flight, a model against the test).
 
+**An expression of x with other signals:** wherever you write an expression of `x` (*Change this
+signal…*, or *One signal → Expression in x* here), another signal is written by its name:
+`sin(x) + Speed`. It is the signal of the **same file** as `x` - for several selected signals, each
+one's own file - as read from the file, so on a group that includes Speed itself, every one sees the
+same Speed. Copied or linked to another file, it reads that file's Speed.
+
 ## 9. Keep and share your work
 
 - **Save session** (the disk icon at the top left, Ctrl+S; opening one: the folder icon next to it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also

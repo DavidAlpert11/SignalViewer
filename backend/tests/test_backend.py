@@ -344,6 +344,24 @@ def test_change_on_signals_themselves(tmp_path):
     client.delete(f"/api/derived/{d['name']}"); client.delete(f"/api/runs/{run['id']}")
 
 
+def test_change_with_other_signals_of_the_same_file(tmp_path):
+    """Q89: sin(x) + {B} - another signal of the same file in an edit; a group that includes B
+    itself sees B as read from the file (no circle); a name the file lacks is refused."""
+    t = np.arange(0, 10, 0.01)
+    sigs, run = _open(tmp_path, "refs.csv", ["Time", "A", "B", "Two words"], [t, np.sin(t), t * 2, t * 0 + 3])
+    a, b, w = sigs["A"]["id"], sigs["B"]["id"], sigs["Two words"]["id"]
+    at = lambda sid, tt: client.post("/api/cursor", json={"signals": [sid], "t": tt}).json()["values"][sid]
+    r = client.post("/api/transforms", json={"signals": [a, b], "transform": {"expr": "sin(x) + {B} * {Two words}"}})
+    assert r.status_code == 200, r.text
+    assert abs(at(a, 2.0) - (np.sin(np.sin(2.0)) + 4.0 * 3)) < 1e-6        # A: sin(A) + B*3
+    assert abs(at(b, 2.0) - (np.sin(4.0) + 4.0 * 3)) < 1e-6                 # B: sin(B) + B*3 - B as read
+    bad = client.post("/api/transforms", json={"signals": [a], "transform": {"expr": "x + {Nope}"}})
+    assert bad.status_code == 400 and "Nope" in bad.text
+    client.post("/api/transforms", json={"specs": r.json()["previous"]})    # undo
+    assert abs(at(a, 2.0) - np.sin(2.0)) < 1e-6
+    client.delete(f"/api/runs/{run['id']}")
+
+
 def test_live_mode_detects_resaves_and_hand_typed_rows(tmp_path):
     """Live mode used to compare file SIZES only: a re-save that kept the size was missed and a
     larger re-save was read as 'appended rows'; a last row without a newline never appeared."""
