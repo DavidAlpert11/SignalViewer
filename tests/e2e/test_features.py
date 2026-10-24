@@ -2264,3 +2264,44 @@ def test_expression_of_x_with_other_signals(pg):
     assert all(m["src"][1] == f"{rb}/Speed" for m in made)                 # Speed of the same file
     gear = [m for m in made if m["src"][0] == f"{rb}/Gear"][0]
     assert abs(at(gear["id"]) - (at(f"{rb}/Gear") - at(f"{rb}/Speed"))) < 1e-6
+
+
+def test_expression_with_a_signal_of_one_file(pg):
+    """Owner, 2026-10-24: x + {Speed [km/h]} with two files that both have it - each signal takes its
+    own file's; {fb.csv:Speed [km/h]} takes that one file's for all of them."""
+    import numpy as np
+    for name, k in (("fa", 1.0), ("fb", 2.0)):
+        t = np.arange(0, 10, 0.1)
+        with open(os.path.join(pg.env["data"], f"{name}.csv"), "w") as f:
+            f.write("Time,Speed [km/h],RPM\n")
+            for ti in t: f.write(f"{ti:.1f},{k * ti:.6f},{100 * k + ti:.6f}\n")
+    at = lambda sid: pg.evaluate(f"""async () => (await (await fetch('/api/cursor', {{method: 'POST', headers: {{'Content-Type': 'application/json'}},
+        body: JSON.stringify({{signals: [{json.dumps(sid)}], t: 5}})}})).json()).values[{json.dumps(sid)}]""")
+    open_files(pg, "fa.csv", "fb.csv")
+    fa, fb = S(pg, "s.runs.filter(r => r.format !== 'derived').map(r => r.id)")
+    def change(expr, ok=True):
+        sig(pg, "RPM", 0).click(button="right")
+        menu_item(pg, "Change the 2 selected" if S(pg, "s.listSel.length") > 1 else "Change this signal")
+        pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").select_option("custom")
+        pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill(expr)
+        pg.wait_for_timeout(300)
+        if not ok:
+            msg = pg.locator(".tf-dialog .fx-err").inner_text()
+            pg.click(".tf-dialog .dialog-head .iconbtn"); pg.wait_for_selector(".tf-dialog", state="detached")
+            return msg
+        pg.locator(".tf-dialog .btn.primary").click(); pg.wait_for_selector(".tf-dialog", state="detached")
+    sig(pg, "RPM", 0).click(modifiers=["Control"]); sig(pg, "RPM", 1).click(modifiers=["Control"])
+    change("x + {Speed [km/h]}")                                             # each its own file
+    pg.wait_for_function(f"!!window.__sv.state().runs.find(r => r.id === '{fb}').signals.find(x => x.name === 'RPM').transform")
+    assert abs(at(f"{fa}/RPM") - 110) < 1e-6 and abs(at(f"{fb}/RPM") - 215) < 1e-6
+    change("x + {fb.csv:Speed [km/h]}")                                     # that one file for both
+    pg.wait_for_function(f"(window.__sv.state().runs.find(r => r.id === '{fa}').signals.find(x => x.name === 'RPM').transform?.expr || '').includes('@')")
+    assert S(pg, f"s.runs.find(r => r.id === '{fa}').signals.find(x => x.name === 'RPM').transform.expr") == "x + {@" + fb + ":Speed [km/h]}"
+    assert abs(at(f"{fa}/RPM") - 115) < 1e-6 and abs(at(f"{fb}/RPM") - 215) < 1e-6
+    sig(pg, "RPM", 0).click(button="right"); menu_item(pg, "Change the 2 selected")  # shown by the file's name again
+    pg.wait_for_selector(".tf-dialog")
+    shown = pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").input_value()
+    assert "@" not in shown and "fb" in shown and "Speed [km/h]}" in shown
+    pg.keyboard.press("Escape")
+    assert "{Speed [km/h]}" in change("x + Speed [km/h]", ok=False)        # the fix says: braces
+    assert "No open file" in change("x + {nofile.csv:Speed [km/h]}", ok=False)

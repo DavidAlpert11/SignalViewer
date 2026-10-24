@@ -1,4 +1,4 @@
-import { canonX, sharedSignalOptions } from "../xRefs";
+import { canonX, displayX, sharedSignalOptions } from "../xRefs";
 import { linkedExtra } from "../peers";
 import { useMemo, useState } from "react";
 import { useApp } from "../store";
@@ -27,7 +27,7 @@ export default function TransformDialog() {
     const keys = new Set(sigs.map((s) => JSON.stringify(s.transform ?? null)));
     return keys.size === 1 ? sigs[0]?.transform ?? null : null;
   }, [sigs]);
-  const init = shared?.expr ?? "";
+  const init = displayX(shared?.expr ?? "", runs);                  // {@id:Name} shown as {file:Name}
   const m = /^(smooth|lowpass|highpass)\(x, *([\d.]+)\)$/.exec(init);
   const [fn, setFn] = useState<Fn>(!init ? "none" : PRESET[init] ?? (m ? (m[1] as Fn) : "custom"));
   const [n, setN] = useState(m && m[1] === "smooth" ? m[2] : "10");

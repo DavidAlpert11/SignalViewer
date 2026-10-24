@@ -15,7 +15,7 @@ import { PREVIEW_DASH } from "./chartUtil";
 import PyOpsSection, { type PyChoice } from "./PyOpsSection";
 import ErrorSegments from "./ErrorSegments";
 import { announceLinked, findDerived, homeRun, linkNewDerived } from "../peers";
-import { canonX, sharedSignalOptions } from "../xRefs";
+import { canonX, displayX, sharedSignalOptions } from "../xRefs";
 import ExprInput from "./ExprInput";
 import { parenProblem, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
 
@@ -168,7 +168,8 @@ export default function AnalysisPanel() {
     if (!isX || !xexpr.trim()) return null;
     const c = canonX(xexpr.trim(), xHomes.filter((h): h is string => !!h), runs, t as never);
     // a signal made from several files has no file of its own to read other signals from
-    return c.names.length && xHomes.some((h) => !h) ? { ...c, error: t("fxXNoFile", { name: c.names[0] }) } : c;
+    const own = c.names.filter((n) => !n.startsWith("@"));          // {file:Name} needs no file of x's own
+    return own.length && xHomes.some((h) => !h) ? { ...c, error: t("fxXNoFile", { name: own[0] }) } : c;
   })();
   const params = { window: windowN, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr };
   const xProblem = !isX ? null : !xexpr.trim() ? "" : (() => {
@@ -184,8 +185,10 @@ export default function AnalysisPanel() {
     const home = homeRun(runs, sources[0]);
     const names = xCanon.names;
     const expr = xCanon.text.replace(/\{([^{}]+)\}/g, (_w, n: string) => `v${names.indexOf(n) + 1}`).replace(/\bx\b/g, "v0");
-    return ["expr", { expr, text: xCanon.text.replace(/\bx\b/g, `{${sigName(sources[0])}}`), alignment },
-      [sources[0], ...names.map((n) => `${home}/${n}`)]];
+    // {Name}: x's own file; {@<id>:Name} (Q90): that file
+    const srcOf = (n: string) => (n.startsWith("@") && n.includes(":") ? `${n.slice(1, n.indexOf(":"))}/${n.slice(n.indexOf(":") + 1)}` : `${home}/${n}`);
+    return ["expr", { expr, text: displayX(xCanon.text, runs).replace(/\bx\b/g, `{${sigName(sources[0])}}`), alignment },
+      [sources[0], ...names.map(srcOf)]];
   };
   const markUsed = () => {
     if ((kind === "one" && batch) || kind === "many" || (kind === "py" && (py?.op.inputs ?? 0) > 2)) {
