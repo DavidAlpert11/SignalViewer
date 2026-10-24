@@ -280,7 +280,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Formula help
 
-- While typing a formula (*Analysis → Formula*, and *Change this signal…* on a signal's right-click): suggestions for functions with what each one does, variables (x = the signal, t = time, pi, e) and signals; a function goes in with its parentheses and the caret inside; the arguments of the function the caret is in are shown with the current one highlighted (`smooth(x, n=10)`); Ctrl+Space lists everything. Checked while typing: unclosed brackets, unknown names with *did you mean…?*; in an expression of x (*Change this signal…*, *Expression in x*), other signals of the same file by name - `sin(x) + Speed` - suggested while typing, and a name some chosen file lacks is named with those files
+- While typing a formula (*Analysis → Formula*, and *Change this signal…* on a signal's right-click): suggestions for functions with what each one does, variables (x = the signal, t = time, pi, e) and signals; a function goes in with its parentheses and the caret inside; the arguments of the function the caret is in are shown with the current one highlighted (`smooth(x, n=10)`); Ctrl+Space lists everything. Checked while typing: unclosed brackets, unknown names with *did you mean…?*; in an expression of x (*Change this signal…*, *Expression in x*), other signals of the same file by name - `sin(x) + Speed` - or of one particular file - `{run_b.csv:Speed}` - suggested while typing; a name some chosen file lacks is named with those files, and a name with spaces typed without braces is answered with the braced one
 
 ### `param()` in formulas
 

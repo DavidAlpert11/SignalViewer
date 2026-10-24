@@ -362,6 +362,27 @@ def test_change_with_other_signals_of_the_same_file(tmp_path):
     client.delete(f"/api/runs/{run['id']}")
 
 
+def test_change_with_a_signal_of_another_file(tmp_path):
+    """Q90: {Speed [km/h]} is each signal's own file; {@<run id>:Speed [km/h]} that one file for all."""
+    t = np.arange(0, 10, 0.1)
+    sa, ra = _open(tmp_path, "fa.csv", ["Time", "Speed [km/h]", "RPM"], [t, t, 100 + t])
+    sb, rb = _open(tmp_path, "fb.csv", ["Time", "Speed [km/h]", "RPM"], [t, 2 * t, 200 + t])
+    a, b = sa["RPM"]["id"], sb["RPM"]["id"]
+    at = lambda sid: client.post("/api/cursor", json={"signals": [sid], "t": 5.0}).json()["values"][sid]
+    assert client.post("/api/transforms", json={"signals": [a, b], "transform": {"expr": "x + {Speed [km/h]}"}}).status_code == 200
+    assert abs(at(a) - 110) < 1e-9 and abs(at(b) - 215) < 1e-9                  # each its own file
+    pin = {"expr": "x + {@" + rb["id"] + ":Speed [km/h]}"}
+    assert client.post("/api/transforms", json={"signals": [a, b], "transform": pin}).status_code == 200
+    assert abs(at(a) - 115) < 1e-9 and abs(at(b) - 215) < 1e-9                  # fb's Speed for both
+    v1 = store.version(a)
+    store.runs[rb["id"]].run.data_version += 1                                 # fb changes (live mode)
+    assert store.version(a) != v1                                              # fa's edit is recomputed
+    client.delete(f"/api/runs/{rb['id']}")
+    r = client.post("/api/cursor", json={"signals": [a], "t": 5.0})
+    assert r.status_code != 200 or r.json()["values"].get(a) is None            # fb closed: no value made up
+    client.delete(f"/api/runs/{ra['id']}")
+
+
 def test_live_mode_detects_resaves_and_hand_typed_rows(tmp_path):
     """Live mode used to compare file SIZES only: a re-save that kept the size was missed and a
     larger re-save was read as 'appended rows'; a last row without a newline never appeared."""

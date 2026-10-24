@@ -58,13 +58,21 @@ REF = re.compile(r"\{([^{}]+)\}")
 
 
 def transform_refs(spec: Optional[dict]) -> List[str]:
-    """Q89: the other signals an edit's expression reads - {Name}, of the same file."""
+    """Q89: the other signals an edit's expression reads - {Name}: of the same file; Q90:
+    {@<run id>:Name}: of that one file (the interface shows it as {file:Name})."""
     out: List[str] = []
     for m in REF.finditer(str((spec or {}).get("expr") or "")):
         name = m.group(1).strip()
         if name not in out:
             out.append(name)
     return out
+
+
+def ref_run(token: str) -> Optional[str]:
+    """The file a reference names ({@<run id>:Name}), or None for the edited signal's own file."""
+    if token.startswith("@") and ":" in token:
+        return token[1:token.index(":")]
+    return None
 
 
 def apply_transform(t, y, spec: dict, ref=None):
@@ -82,7 +90,9 @@ def apply_transform(t, y, spec: dict, ref=None):
                 raise OpError(f"{name}: another signal can not be used here.")
             got = ref(name)
             if got is None:
-                raise OpError(f"{name} is not a signal of this file.")
+                shown = name[name.index(":") + 1:] if name.startswith("@") and ":" in name else name
+                raise OpError(f"{shown} is not a signal of this file." if not name.startswith("@")
+                              else f"{shown}: its file is not open.")
             sources.append((np.asarray(got[0], dtype=np.float64), np.asarray(got[1], dtype=np.float64)))
         # {Name} first (a name may hold an x), then x itself
         expr = REF.sub(lambda m: f"v{names.index(m.group(1).strip()) + 1}", spec["expr"])
@@ -726,7 +736,7 @@ class Store:
         return self._transformed(sig_id, raw, spec) if spec else raw
 
     def _transformed(self, sig_id: str, raw, spec: dict):
-        key = (sig_id, self._raw_version(sig_id), json.dumps(spec, sort_keys=True))
+        key = (sig_id, self._raw_version(sig_id), self._ref_versions(sig_id, spec), json.dumps(spec, sort_keys=True))
         hit = self._tcache.get(key)
         if hit is not None:
             self._tcache.move_to_end(key)
@@ -760,15 +770,28 @@ class Store:
         return previous
 
     def _ref_reader(self, sig_id: str):
-        """Q89: the reader of the other signals an edit of `sig_id` names - its own file, raw data.
-        (The cache key of an edit already holds the file's data version, so it stays right.)"""
-        lr = self.runs.get(sig_id.partition("/")[0])
+        """Q89 / Q90: the reader of the other signals an edit of `sig_id` names, as read (raw):
+        {Name} from its own file, {@<run id>:Name} from that file."""
+        own = sig_id.partition("/")[0]
 
-        def read(name: str):
+        def read(token: str):
+            rid = ref_run(token) or own
+            name = token[token.index(":") + 1:] if ref_run(token) else token
+            lr = self.runs.get(rid)
+            if lr is None and ref_run(token):
+                # like a derived signal whose source file was closed: not shown, never made up
+                raise KeyError(f"{name}: its file is no longer open.")
             if lr is None or name not in lr.run.signals:
                 return None
             return lr.run.get_signal_data(name)
         return read
+
+    def _ref_versions(self, sig_id: str, spec: Optional[dict]):
+        """Q90: the data versions of the OTHER files an edit reads - part of its cache key, so a
+        reload of such a file (live mode) recomputes it."""
+        own = sig_id.partition("/")[0]
+        rids = sorted({r for r in (ref_run(tk) for tk in transform_refs(spec)) if r and r != own})
+        return tuple(self._raw_version(f"{r}/") for r in rids)
 
     def _raw_version(self, sig_id: str):
         run_id = sig_id.partition("/")[0]
@@ -783,7 +806,7 @@ class Store:
             return ("d", name, d.serial, tuple(self.version(s) for s in d.sources)) if d else None
         base = self._raw_version(sig_id)
         spec = self.transforms.get(sig_id)
-        return (base, json.dumps(spec, sort_keys=True)) if (base and spec) else base
+        return (base, self._ref_versions(sig_id, spec), json.dumps(spec, sort_keys=True)) if (base and spec) else base
 
     # -------------------------------------------------------------- derived
     def _refresh_derived(self, d: DerivedDef) -> Tuple[np.ndarray, np.ndarray]:
