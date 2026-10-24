@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.13.0 – 2026-10-23
+
+Highlights: **the work of one file, part by part, for another** - copy only the changes, only the new
+signals, only the plots, or any mix, to a file that is already open (or one to open); and clear one
+file's work only. Nothing changes in results, sessions or templates you already have.
+
+### Added
+- **Copy the work to another file…** (a file's right-click; it was *Add a run with the same work…*): the target can be **a file that is already open** as well as a new one, and each part is chosen on its own - its changes (ƒ), the signals made from it, and its signals in the plots: on the same plots (to compare), in a plot of its own beside each plot in the same tab (side by side when every plot of the tab gets one; a tab without room for them - 9 plots at most - is copied as a new tab instead), in a copy of each tab, or not in the plots. *Link plots* and *Link operations* for what comes next are two separate boxes, off unless ticked.
+- **Clear this file ▸** (a file's right-click): its signals out of every plot (signals made from it too), undo its changes (ƒ), delete the signals made from it (and what was made from those) - one at a time or all of them; the file stays open, the other files keep their own work, and one Undo puts it back.
+
 ## 1.12.0 – 2026-10-22
 
 Highlights: **one piece of work for many runs** - *Add a run with the same work* gives a new file
