@@ -229,7 +229,8 @@ export default function ComparePanel() {
       const made: string[] = [];
       for (const id of ids) {
         if (id === base) continue;
-        const r = await api.createDerived("sub", [id, base], { alignment }, `Δ ${signal} ${runName(id.split("/")[0])}`);
+        // Q91: the baseline is kept - this difference belongs to its run, and a new run gets its own
+        const r = await api.createDerived("sub", [id, base], { alignment, pinned: [1] }, `Δ ${signal} ${runName(id.split("/")[0])}`);
         made.push(r.id);
         useApp.setState({ runs: r.runs });
       }

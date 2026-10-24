@@ -187,7 +187,9 @@ export default function AnalysisPanel() {
     const expr = xCanon.text.replace(/\{([^{}]+)\}/g, (_w, n: string) => `v${names.indexOf(n) + 1}`).replace(/\bx\b/g, "v0");
     // {Name}: x's own file; {@<id>:Name} (Q90): that file
     const srcOf = (n: string) => (n.startsWith("@") && n.includes(":") ? `${n.slice(1, n.indexOf(":"))}/${n.slice(n.indexOf(":") + 1)}` : `${home}/${n}`);
-    return ["expr", { expr, text: displayX(xCanon.text, runs).replace(/\bx\b/g, `{${sigName(sources[0])}}`), alignment },
+    // Q91: {file:Name} sources stay that file's when the signal is made for another file
+    const pinned = names.flatMap((n, i) => (n.startsWith("@") ? [i + 1] : []));
+    return ["expr", { expr, text: displayX(xCanon.text, runs).replace(/\bx\b/g, `{${sigName(sources[0])}}`), alignment, ...(pinned.length ? { pinned } : {}) },
       [sources[0], ...names.map(srcOf)]];
   };
   const markUsed = () => {
@@ -228,7 +230,7 @@ export default function AnalysisPanel() {
       if (!fxRes || fxRes.error) return;
       setBusy(true);
       try {
-        const r = await api.createDerived("expr", fxRes.sources, { expr: fxRes.expr, text: fx.trim(), alignment }, name);
+        const r = await api.createDerived("expr", fxRes.sources, { expr: fxRes.expr, text: fx.trim(), alignment, ...(fxRes.pinned ? { pinned: fxRes.pinned } : {}) }, name);
         useApp.setState({ runs: r.runs });
         if (addToPlot) actions.addSignal(r.id);
         await linkNewDerived(r.id);                               // Link operations: the other files too

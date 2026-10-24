@@ -5,7 +5,7 @@ import { pickPath, useApp } from "../store";
 import { translate, useT } from "../i18n";
 import { Icon } from "../icons";
 import { useEscape } from "./Overlays";
-import { DERIVED, homeRun } from "../peers";
+import { crossFileOf, DERIVED, homeRun } from "../peers";
 import { copyWork, usedNames, type CopyTarget, type SameWorkMode } from "../sameWork";
 
 interface Cand { path: string; name: string; mtime: number; similar: boolean }
@@ -38,6 +38,10 @@ export default function SameWorkDialog() {
   const open = useMemo(() => new Set(runs.filter((r) => r.path).map((r) => r.path.replace(/\\/g, "/").toLowerCase())), [runs]);
   const edits = run?.signals.filter((s) => s.transform).length ?? 0;
   const derived = (runs.find((r) => r.format === DERIVED)?.signals ?? []).filter((d) => homeRun(runs, d.id) === from).length;
+  // Q91: signals of this file AND another whose intent is unknown - asked about one by one
+  const cross = useMemo(() => crossFileOf(runs, from), [runs, from]);
+  const [crossOff, setCrossOff] = useState<Set<string>>(new Set());
+  const crossOn = copyDerived ? cross.filter((d) => !crossOff.has(d.id)).map((d) => d.id) : [];
 
   const choose = async (v: string) => {
     setPath(v); setCheck("checking"); setMissing([]);
@@ -75,7 +79,7 @@ export default function SameWorkDialog() {
     setBusy(true);
     try {
       const target: CopyTarget = path.startsWith("run:") ? { run: path.slice(4) } : { path: path.slice(5) };
-      const r = await copyWork(from, target, { edits: copyEdits, derived: copyDerived, plots: mode });
+      const r = await copyWork(from, target, { edits: copyEdits, derived: copyDerived, plots: mode, cross: crossOn });
       close();
       if (!r) return;
       if (linkPlots) useApp.setState({ linkRuns: true });
@@ -134,8 +138,18 @@ export default function SameWorkDialog() {
           <fieldset className="sw-mode">
             <legend>{t("sameWorkWhat")}</legend>
             <label><input type="checkbox" className="sw-edits" checked={copyEdits} disabled={!edits} onChange={(e) => setCopyEdits(e.target.checked)} /> {t("sameWorkEdits", { n: edits })}</label>
-            <label><input type="checkbox" className="sw-derived" checked={copyDerived} disabled={!derived} onChange={(e) => setCopyDerived(e.target.checked)} /> {t("sameWorkDerived", { n: derived })}</label>
+            <label><input type="checkbox" className="sw-derived" checked={copyDerived} disabled={!derived && !cross.length} onChange={(e) => setCopyDerived(e.target.checked)} /> {t("sameWorkDerived", { n: derived })}</label>
           </fieldset>
+          {copyDerived && cross.length > 0 && (
+            <fieldset className="sw-mode sw-cross">
+              <legend>{t("sameWorkCross")}</legend>
+              <p className="hint">{t("sameWorkCrossHint", { name: run.name })}</p>
+              {cross.map((d) => (
+                <label key={d.id}><input type="checkbox" checked={!crossOff.has(d.id)}
+                  onChange={(e) => { const n = new Set(crossOff); if (e.target.checked) n.delete(d.id); else n.add(d.id); setCrossOff(n); }} /> {d.name}</label>
+              ))}
+            </fieldset>
+          )}
           <fieldset className="sw-mode">
             <legend>{t("sameWorkWhere")}</legend>
             <label><input type="radio" name="sw-mode" checked={mode === "overlay"} onChange={() => setMode("overlay")} /> {t("sameWorkOverlay")}</label>
@@ -151,7 +165,7 @@ export default function SameWorkDialog() {
         </div>
         <div className="rt-summary">
           <div><span>{t("editsWord")}</span><b>{copyEdits ? edits : 0}</b></div>
-          <div><span>{t("formulasWord")}</span><b>{copyDerived ? derived : 0}</b></div>
+          <div><span>{t("formulasWord")}</span><b>{copyDerived ? derived + crossOn.length : 0}</b></div>
           <div><span>{t("layoutWord")}</span><b>{t(mode === "overlay" ? "sameWorkOverlayShort" : mode === "beside" ? "sameWorkBesideShort" : mode === "tabs" ? "sameWorkTabsShort" : "sameWorkNoPlotsShort")}</b></div>
         </div>
         <div className="dialog-foot">

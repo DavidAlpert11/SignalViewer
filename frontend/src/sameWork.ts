@@ -4,12 +4,15 @@
    or in a copy of each tab. Repeatable for more files. "Replace the input files" SWAPS files. */
 import { api, type RunInfo } from "./api";
 import { openPaths } from "./files";
-import { copyDerived, DERIVED, homeRun, mapTo, newSignalLike } from "./peers";
+import { copyDerived, DERIVED, findDerived, homeRun, mapTo, newSignalLike, peerName, pinnedOf } from "./peers";
 import { fitLayout, MAX_PLOTS, uid, useApp, type Plot, type Tab } from "./store";
 
 export type SameWorkMode = "none" | "overlay" | "beside" | "tabs";
 /** what to copy: each part on its own (Q88) */
-export interface CopyParts { edits: boolean; derived: boolean; plots: SameWorkMode }
+export interface CopyParts { edits: boolean; derived: boolean; plots: SameWorkMode;
+  /** Q91: signals of `from` and another file whose intent is not recorded (crossFileOf), to make
+   *  for the target anyway - `from`'s sources swapped, the others kept */
+  cross?: string[] }
 /** the file that gets the work: one already open, or a file to open */
 export type CopyTarget = { run: string } | { path: string };
 export interface SameWorkResult { to: string; edits: number; derived: number; plots: number; tabs: number; besideFull: number; missing: string[] }
@@ -83,11 +86,38 @@ export async function copyWork(from: string, target: CopyTarget, parts: CopyPart
     } catch { missing.add(d.name); }
   }
 
+  // 2b. (Q91) the chosen signals of `from` and another file: `from`'s sources swapped, the others
+  //     kept - and recorded as kept (pinned), so from now on they belong to one file like any other
+  if (parts.cross?.length) for (const id of parts.cross) {
+    const now = useApp.getState().runs;
+    const d = now.find((r) => r.format === DERIVED)?.signals.find((x) => x.id === id);
+    if (!d?.sources || !d.op || made.has(id)) continue;
+    const pin = pinnedOf(d);
+    const src: string[] = [], keep: number[] = [];
+    let ok = true;
+    for (const [i, x] of d.sources.entries()) {
+      if (pin.has(i) || homeRun(now, x) !== from) { src.push(x); keep.push(i); continue; }
+      const m = x.startsWith(`${DERIVED}/`) ? await copyDerived(x, to, made) : mapTo(now, x, to);
+      if (!m) { ok = false; break; }
+      src.push(m);
+    }
+    if (!ok) { missing.add(d.name); continue; }
+    const params = { ...(d.params ?? {}), pinned: keep };
+    const have = findDerived(useApp.getState().runs, d.op, params, src);
+    if (have) { made.set(id, have); continue; }
+    try {
+      const r = await api.createDerived(d.op, src, params, peerName(useApp.getState().runs, d.name, from, to));
+      useApp.setState({ runs: r.runs });
+      made.set(id, r.id); derived++;
+    } catch { missing.add(d.name); }
+  }
+
   // 3. the plots: a signal of `from` -> its counterpart in `to` (undefined: not from that file)
   runs = useApp.getState().runs;
   // undefined: not from `from` (stays as it is) · null: `to` has no such signal (reported) ·
   // "": a signal made from `from` that was not copied and has no copy already (left out quietly)
   const counterpart = (id: string): string | null | undefined => {
+    if (made.has(id)) return made.get(id)!;                              // incl. the chosen cross-file ones
     if (homeRun(runs, id) !== from) return undefined;
     const c = made.get(id) ?? mapTo(runs, id, to!);
     return c === null && !parts.derived && id.startsWith(`${DERIVED}/`) ? "" : c;

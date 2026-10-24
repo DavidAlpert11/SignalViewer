@@ -103,6 +103,11 @@ same Speed. Copied or linked to another file, it reads that file's Speed. To tak
 particular file** for all of them, name the file: `x + {run_b.csv:Speed}`. Names with spaces or
 brackets go in braces: `{Speed [km/h]}`.
 
+A new signal made from two files belongs to the file of `x` (or, in a Formula, of the names written
+without a file); a source written with its file - and the baseline of a *Compare runs* difference -
+is kept. So when the work is copied to a new run, the new run gets its own signal against the same
+fixed source.
+
 ## 9. Keep and share your work
 
 - **Save session** (the disk icon at the top left, Ctrl+S; opening one: the folder icon next to it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
