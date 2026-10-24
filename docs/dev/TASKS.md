@@ -13,7 +13,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.13.0 prepared 2026-10-24** (Milestone 13 in ROADMAP.md, Q88-Q89 - the owner's
+- Branch `main`. **1.13.0 prepared 2026-10-24** (Milestone 13 in ROADMAP.md, Q88-Q90 - the owner's
   reports on the work of one file, part by part, and other signals in an expression of x): the owner pushes, waits for the green `ci` run, tags
   `v1.13.0` and pushes the tag (build.yml: packages, PyPI, draft release), then publishes the draft.
   Released before: up to 1.12.0 (PyPI 1.12.0).
@@ -961,6 +961,7 @@ Discussions, social preview, private vulnerability reporting, `good first issue`
 |---|---|---|---|
 | Q88 | T69 Copy the work to a file that is open already, each part on its own (changes / new signals / plots: same, beside each plot, new tabs, none); Clear this file ▸ (plots / changes / new signals / all) | S | ☑ done |
 | Q89 | T70 Other signals in an expression of x: `sin(x) + Speed`, in place and as new signals, on one or a group | S | ☑ done |
+| Q90 | T71 A signal of one particular file in an expression of x: `x + {run_b.csv:Speed [km/h]}` | S | ☑ done |
 
 ### Q88 · T69 The work of one file, part by part — S
 Owner: "two similar files open, not linked; I work on one; then I want to copy its operations to the
@@ -1016,6 +1017,26 @@ signal, not one per chosen signal.
 Tests: backend `test_change_with_other_signals_of_the_same_file`; e2e
 `test_expression_of_x_with_other_signals` (a group in place incl. Speed, copied to run_b with run_b's
 Speed, new signals x - Speed, an unknown name).
+
+### Q90 · T71 A signal of one particular file in an expression of x — S
+Owner, after applying Q89: "two files, x + {Speed [km/h]} - both have it; let me choose one file, or
+each signal takes its own". Reproduced first (API and browser): `{Speed [km/h]}` already took each
+file's own (fa 105 + 5, fb 205 + 10); missing: one file for all; and `Speed [km/h]` without braces
+said "did you mean Speed [km/h]?" without the braces that make it work.
+- `{file:Name}` (the file as the file list shows it - fileLabel - or its file name; the same form as
+  Formula's): xRefs `canonX` stores it as `{@<run id>:Name}` - run ids survive a saved session
+  (api.restore keeps them) and Replace the input files - and `displayX` shows it back as
+  `{file:Name}` (describeTransform, the dialog when it reopens a change, a new signal's label).
+  Suggestions add every open file's signals as `{file:Name}`.
+- Backend: `ref_run(token)`; `_ref_reader` reads `{@id:Name}` from that file; `_ref_versions` - the
+  other files' data versions - is in the edit's cache key and in `version()`, so a reload of that
+  file (live mode) recomputes the edit and everything made from it. That file closed: KeyError
+  (like a derived signal whose source file was closed - the signal is not shown, nothing made up).
+- Create signals → Expression in x: `{@id:Name}` is a source from that file (no file of x's own is
+  needed for it). Copy the work / Link operations copy an in-place edit as it is (still that file);
+  a NEW signal that reads two files belongs to neither, so it is not copied (as Compare's Δ).
+- The "did you mean" for a name with spaces or brackets gives it in braces.
+Tests: backend `test_change_with_a_signal_of_another_file`; e2e `test_expression_with_a_signal_of_one_file`.
 
 ## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
 
@@ -1616,3 +1637,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-22 · **Release 1.12.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.12.0 – 2026-10-22` with highlights; README review (Math line, the Hebrew section's calculate line), features.md (file list, legend, analysis, new runs - in Q85-Q87), the guide (en / he: compare runs); frontend/dist rebuilt. Here: backend 787 + 12 skipped, mypy clean, e2e 197 / 197 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check OK. Left for the owner: tag v1.12.0, publish the draft.
 - 2026-10-23 · Q88 / T69 (owner): Copy the work to another file - an open one too - part by part (changes / new signals / plots: same, beside each plot, tabs, none; the links as two boxes, off by default); Clear this file ▸ (plots / changes / new signals / all, one Undo). **Release 1.13.0** prepared: versions (build.bat, version.py, CITATION.cff + date, .iss, version_info.txt, install.md, validation.md), CHANGELOG, README, guide en / he, features, frontend/dist. Here: backend 787 + 12 skipped, mypy clean, tsc + build clean (oxlint 39, as before), e2e 199 / 199 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check both 1.13.0 wheels OK. (One earlier full run had test_globe_without_webgl_falls_back time out while the PyPI build ran beside it; alone 3 / 3, then test_features 115 / 115, then the whole suite 199 / 199.)
 - 2026-10-24 · Q89 / T70 (owner, before pushing 1.13.0): other signals in an expression of x (`sin(x) + {Speed}`: the same file, as read), in place and as new signals; 1.13.0 re-prepared with it (dist, CITATION date, notes) on top of the owner's applied but unpushed 1.13.0 commits. Here: backend 788 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 200 / 200 in one process, mkdocs --strict, validate 23 / 23. An earlier full run found the number-suggestion bug and the old "only x" test; the templates test that failed with them passes alone and in this run.
+- 2026-10-24 · Q90 / T71 (owner, after applying Q89): `{file:Name}` in an expression of x - one particular file's signal for every signal changed; stored by the file's id, shown by its name; the braces hint. 1.13.0 re-prepared with it on top of the owner's applied, unpushed Q89 commits. Here: backend 789 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 201 / 201 in one process, mkdocs --strict, validate 23 / 23.
