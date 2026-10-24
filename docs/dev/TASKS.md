@@ -13,11 +13,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.13.0 prepared 2026-10-23** (Milestone 13 in ROADMAP.md, Q88 - the owner's report
-  on the work of one file, part by part): the owner pushes, waits for the green `ci` run, tags
+- Branch `main`. **1.13.0 prepared 2026-10-24** (Milestone 13 in ROADMAP.md, Q88-Q89 - the owner's
+  reports on the work of one file, part by part, and other signals in an expression of x): the owner pushes, waits for the green `ci` run, tags
   `v1.13.0` and pushes the tag (build.yml: packages, PyPI, draft release), then publishes the draft.
   Released before: up to 1.12.0 (PyPI 1.12.0).
-- Checked here for 1.13.0 (Linux): see the log line of 2026-10-23. Not run here: Windows / macOS (CI
+- Checked here for 1.13.0 (Linux): see the log lines of 2026-10-23 and 2026-10-24. Not run here: Windows / macOS (CI
   and the owner), the Windows installer, the real logs (no reader changed).
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
@@ -960,6 +960,7 @@ Discussions, social preview, private vulnerability reporting, `good first issue`
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q88 | T69 Copy the work to a file that is open already, each part on its own (changes / new signals / plots: same, beside each plot, new tabs, none); Clear this file ▸ (plots / changes / new signals / all) | S | ☑ done |
+| Q89 | T70 Other signals in an expression of x: `sin(x) + Speed`, in place and as new signals, on one or a group | S | ☑ done |
 
 ### Q88 · T69 The work of one file, part by part — S
 Owner: "two similar files open, not linked; I work on one; then I want to copy its operations to the
@@ -987,6 +988,34 @@ everything at once, and both links turned on by default; and Clear only for ever
 Tests: e2e `test_copy_parts_of_the_work_to_an_open_file_and_clear_one_file`,
 `test_copy_the_plots_beside_each_plot` (2 plots -> 2x2 side by side; 7 plots -> a tab copy); the Q87 test now ticks
 the two link boxes and uses the new menu name.
+
+### Q89 · T70 Other signals in an expression of x — S
+Owner, before pushing 1.13.0: "for one signal or a group, sin(x) + Speed, Speed another signal -
+maybe one of the group". Before: *Change this signal…* and *Expression in x* took x, t, pi, e only
+(a signal name was explained as "use Analysis → Formula"); Formula took any signals but made ONE
+signal, not one per chosen signal.
+- Meaning: a name is the signal of the SAME file as x (a group: each signal's own file), read as in
+  the file (raw, before any edit). So a group that includes Speed sees one Speed in all of them, no
+  order and no circles between edits; and the stored text `sin(x) + {Speed}` fits any file - copied
+  (Copy the work) or linked (Link operations), it reads that file's Speed.
+- Backend (store.py): `transform_refs`, `apply_transform(t, y, spec, ref)` - `{Name}` -> v1.., x ->
+  v0, the others interpolated onto x's time (formula.evaluate keeps v0's samples). `_ref_reader`: the
+  same file's raw data; the edit's cache key already holds the file's data version. Validation runs on
+  all of x when names are used (they may start after x's first 64 samples). A name the file lacks:
+  400 with the name.
+- Frontend: xRefs.ts `canonX(text, homes, runs)` - names (bare, or `{Two words}`) -> `{Name}`,
+  checked in every target's file (case-insensitive when unique), functions / x / t / pi / e /
+  param("...") / 1e5 left alone; errors: unknown (with did you mean), missing in some files (named),
+  a signal made from several files has no file of its own. `sharedSignalOptions`: the names every
+  target's file has, suggested while typing. TransformDialog and AnalysisPanel (Expression in x) use
+  it; for new signals the names become sources (`derivedCall` returns them: x -> v0, {Name} -> v1..),
+  so copies for other files map them by name as any source. The old "only x" message is gone.
+- ExprInput: no suggestions while a number is typed (`x*8`: with signals now suggested, "8" matched
+  `g0.s008` and the list covered the Apply button - found by the full e2e run).
+  test_transform_expression_autocomplete_and_checks: `RPM * 2` is now accepted, `Nope * 2` explained.
+Tests: backend `test_change_with_other_signals_of_the_same_file`; e2e
+`test_expression_of_x_with_other_signals` (a group in place incl. Speed, copied to run_b with run_b's
+Speed, new signals x - Speed, an unknown name).
 
 ## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
 
@@ -1586,3 +1615,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-22 · Release 1.12.0 again, with Q87: the owner had pushed Q85-Q86 + the release commit and the tag v1.12.0 (not published: PyPI 1.11.0, draft only), so Q87 comes on top of origin/main as its own commit plus a release commit (dist, these notes) - no reset, no force push; the tag moves to the new release commit. The full e2e run found two things the single runs did not: the new button shared `.link-toggle` (test_small_window_file_header's locator found two - now `.link-edits`; the header still fits at 1100 px), and the Q87 test chose run_b from the 12 suggestions, which earlier tests' run_* files push out - it uses *Other…* now.
 - 2026-10-22 · **Release 1.12.0** prepared: version in build.bat, version.py, CITATION.cff (+ date), SignalViewer.iss, version_info.txt (+ the installer name in docs/install.md, docs/validation.md regenerated); CHANGELOG `## 1.12.0 – 2026-10-22` with highlights; README review (Math line, the Hebrew section's calculate line), features.md (file list, legend, analysis, new runs - in Q85-Q87), the guide (en / he: compare runs); frontend/dist rebuilt. Here: backend 787 + 12 skipped, mypy clean, e2e 197 / 197 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check OK. Left for the owner: tag v1.12.0, publish the draft.
 - 2026-10-23 · Q88 / T69 (owner): Copy the work to another file - an open one too - part by part (changes / new signals / plots: same, beside each plot, tabs, none; the links as two boxes, off by default); Clear this file ▸ (plots / changes / new signals / all, one Undo). **Release 1.13.0** prepared: versions (build.bat, version.py, CITATION.cff + date, .iss, version_info.txt, install.md, validation.md), CHANGELOG, README, guide en / he, features, frontend/dist. Here: backend 787 + 12 skipped, mypy clean, tsc + build clean (oxlint 39, as before), e2e 199 / 199 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check both 1.13.0 wheels OK. (One earlier full run had test_globe_without_webgl_falls_back time out while the PyPI build ran beside it; alone 3 / 3, then test_features 115 / 115, then the whole suite 199 / 199.)
+- 2026-10-24 · Q89 / T70 (owner, before pushing 1.13.0): other signals in an expression of x (`sin(x) + {Speed}`: the same file, as read), in place and as new signals; 1.13.0 re-prepared with it (dist, CITATION date, notes) on top of the owner's applied but unpushed 1.13.0 commits. Here: backend 788 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 200 / 200 in one process, mkdocs --strict, validate 23 / 23. An earlier full run found the number-suggestion bug and the old "only x" test; the templates test that failed with them passes alone and in this run.
