@@ -1,14 +1,19 @@
 /* Q89: other signals in an expression of x - "sin(x) + Speed". A name is a signal of the SAME file
    as x (for a group: each signal's own file), so one expression fits every file. It is stored with
    braces - "sin(x) + {Speed}" - which the server reads in that file (as read, before any change)
-   and which stays right when the change is copied or linked to another file. */
+   and which stays right when the change is copied or linked to another file.
+   Q90: {file:Name} - that one file's signal, for every signal changed (the file's name as the file
+   list shows it, or its file name). Stored by the file's id - {@<id>:Name}, which a saved session
+   and Replace the input files keep - and shown again by its name (displayX). */
 import type { RunInfo } from "./api";
+import { fileLabel } from "./store";
 import { FUNC_NAMES } from "./formulaHelp";
 import { fuzzySort } from "./fuzzy";
 
 // a quoted text (param("...")) | {any text} | a bare name (letters incl. Hebrew, digits, _ . [ ])
 const TOKEN = /"[^"]*"|\{([^}]+)\}|([A-Za-z_\u0590-\u05FF][\w.\u0590-\u05FF[\]]*)/g;
 const BASE = new Set(["x", "t", "pi", "e"]);
+const BARE = /^[A-Za-z_\u0590-\u05FF][\w\u0590-\u05FF]*$/;      // a name that needs no braces
 
 export interface XRefs { text: string; names: string[]; error?: string }
 type Lang = (k: string, v?: Record<string, string | number>) => string;
@@ -28,6 +33,19 @@ export function canonX(textIn: string, homes: string[], runs: RunInfo[], lang: L
       if (BASE.has(bare)) return whole;
     }
     const want = (braced ?? bare ?? "").trim();
+    // {file:Name} - that one file (unless the whole text is itself a name of the targets' files)
+    if (braced && want.includes(":") && !files.some((r) => r.signals.some((x) => x.name === want))) {
+      const i = want.indexOf(":");
+      const label = want.slice(0, i).trim(), sname = want.slice(i + 1).trim();
+      const file = label.startsWith("@") ? runs.find((r) => r.id === label.slice(1))
+        : runs.find((r) => r.format !== "derived" && (fileLabel(runs, r.id) === label || r.name === label));
+      if (!file) { error = lang("fxXNoSuchFile", { name: label }); return whole; }
+      const hit = file.signals.find((x) => x.name === sname) ?? file.signals.find((x) => x.name.toLowerCase() === sname.toLowerCase());
+      if (!hit) { error = lang("fxXUnknown", { name: sname, file: file.name }); return whole; }
+      const tok = `@${file.id}:${hit.name}`;
+      if (!names.includes(tok)) names.push(tok);
+      return `{${tok}}`;
+    }
     if (!files.length) { error = lang("fxXNoFile", { name: want }); return whole; }
     // the exact name, or the one name that differs only in case - the same in every file
     const pick = (r: RunInfo) => r.signals.find((s) => s.name === want)?.name
@@ -37,7 +55,9 @@ export function canonX(textIn: string, homes: string[], runs: RunInfo[], lang: L
     if (!name) {
       if (bare && FUNC_NAMES.includes(bare)) { error = lang("fxNeedsParen", { name: bare }); return whole; }
       const guess = fuzzySort([...files[0].signals.map((s) => s.name), ...FUNC_NAMES], (x) => x, want)[0];
-      error = lang("fxXUnknown", { name: want, file: files[0].name }) + (guess ? " " + lang("fxDidYouMean", { name: guess }) : "");
+      // a name with spaces or brackets is only read whole in braces: say so with the fix itself
+      const fix = guess && !FUNC_NAMES.includes(guess) && !BARE.test(guess) ? `{${guess}}` : guess;
+      error = lang("fxXUnknown", { name: want, file: files[0].name }) + (fix ? " " + lang("fxDidYouMean", { name: fix }) : "");
       return whole;
     }
     const lacking = files.filter((_r, i) => found[i] !== name);
@@ -55,5 +75,14 @@ export function sharedSignalOptions(homes: string[], runs: RunInfo[]) {
   const others = files.slice(1).map((r) => new Set(r.signals.map((s) => s.name)));
   return files[0].signals.filter((s) => others.every((o) => o.has(s.name)))
     .map((s) => ({ label: s.name, sub: files.length > 1 ? `${files.length} files` : files[0].name,
-      insert: /^[A-Za-z_\u0590-\u05FF][\w\u0590-\u05FF]*$/.test(s.name) && !BASE.has(s.name) ? s.name : `{${s.name}}` }));
+      insert: BARE.test(s.name) && !BASE.has(s.name) ? s.name : `{${s.name}}` }))
+    // Q90: and every open file's signals by file - {fb.csv:Speed}, that file's for all of them
+    .concat(runs.filter((r) => r.format !== "derived" && runs.filter((x) => x.format !== "derived").length > 1)
+      .flatMap((r) => r.signals.map((s) => ({ label: `${fileLabel(runs, r.id)}:${s.name}`, sub: r.name, insert: `{${fileLabel(runs, r.id)}:${s.name}}` }))));
+}
+
+/** Q90: an expression as stored -> as shown: {@<id>:Name} becomes {file:Name}. */
+export function displayX(expr: string, runs: RunInfo[]): string {
+  return expr.replace(/\{@([^:{}]+):([^{}]+)\}/g, (whole, id: string, name: string) =>
+    (runs.some((r) => r.id === id) ? `{${fileLabel(runs, id)}:${name}}` : whole));
 }

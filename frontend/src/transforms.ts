@@ -2,11 +2,12 @@ import { api, type SignalTransform } from "./api";
 import { useApp } from "./store";
 import { translate } from "./i18n";
 import { withEditPeers } from "./peers";
+import { displayX } from "./xRefs";
 
 /** Human-readable form of a change made on a signal: "y = 2·abs(x) + 1, t + 0.5". */
 export function describeTransform(tf?: SignalTransform | null): string {
   if (!tf) return "";
-  let f = tf.expr || "x";
+  let f = displayX(tf.expr || "x", useApp.getState().runs);     // Q90: {@id:Name} as {file:Name}
   if (tf.scale !== undefined && tf.scale !== 1) f = `${tf.scale}·${wrap(f)}`;
   if (tf.offset) f += tf.offset > 0 ? ` + ${tf.offset}` : ` − ${-tf.offset}`;
   return `y = ${f}` + (tf.dt ? `,  t ${tf.dt > 0 ? "+" : "−"} ${Math.abs(tf.dt)}` : "");
