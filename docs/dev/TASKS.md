@@ -13,8 +13,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.13.0 prepared 2026-10-24** (Milestone 13 in ROADMAP.md, Q88-Q90 - the owner's
-  reports on the work of one file, part by part, and other signals in an expression of x): the owner pushes, waits for the green `ci` run, tags
+- Branch `main`. **1.13.0 prepared 2026-10-24** (Milestone 13 in ROADMAP.md, Q88-Q91 - the owner's
+  reports on the work of one file, part by part, other signals in an expression of x, and new
+  signals of two files): the owner pushes, waits for the green `ci` run, tags
   `v1.13.0` and pushes the tag (build.yml: packages, PyPI, draft release), then publishes the draft.
   Released before: up to 1.12.0 (PyPI 1.12.0).
 - Checked here for 1.13.0 (Linux): see the log lines of 2026-10-23 and 2026-10-24. Not run here: Windows / macOS (CI
@@ -962,6 +963,7 @@ Discussions, social preview, private vulnerability reporting, `good first issue`
 | Q88 | T69 Copy the work to a file that is open already, each part on its own (changes / new signals / plots: same, beside each plot, new tabs, none); Clear this file ▸ (plots / changes / new signals / all) | S | ☑ done |
 | Q89 | T70 Other signals in an expression of x: `sin(x) + Speed`, in place and as new signals, on one or a group | S | ☑ done |
 | Q90 | T71 A signal of one particular file in an expression of x: `x + {run_b.csv:Speed [km/h]}` | S | ☑ done |
+| Q91 | T72 New signals of two files belong to one of them (pinned sources); the ones with no recorded intent asked about when copying | S | ☑ done |
 
 ### Q88 · T69 The work of one file, part by part — S
 Owner: "two similar files open, not linked; I work on one; then I want to copy its operations to the
@@ -1037,6 +1039,31 @@ said "did you mean Speed [km/h]?" without the braces that make it work.
   a NEW signal that reads two files belongs to neither, so it is not copied (as Compare's Δ).
 - The "did you mean" for a name with spaces or brackets gives it in braces.
 Tests: backend `test_change_with_a_signal_of_another_file`; e2e `test_expression_with_a_signal_of_one_file`.
+
+### Q91 · T72 New signals of two files belong to one of them — S
+Owner, on Q90's note "a new signal that reads two files belongs to neither, so it is not copied":
+"important for analyses - fix it first". What was missing is the INTENT: which source is fixed and
+which follows the file.
+- Recorded at creation, in the signal's own params (stored and restored like any parameter; the
+  server computes with the others and ignores it): `pinned` = indexes of the sources to KEEP when
+  the signal is made for another file. Expression in x: the `{file:Name}` sources; Formula
+  (formulaRefs `resolveFormula` -> `pinned`): names written `{file:name}`; Compare *Plot differences*:
+  the baseline (`sub(run, base)`, `pinned: [1]`; a mean baseline is pinned the same way).
+- peers.ts `pinnedOf`: `homeRun` looks at the other sources only (so `x - {run_b:Speed}` on run_a's
+  RPM belongs to run_a; a Δ to its run); `mapTo` / `copyDerived` keep the pinned sources. So Copy the
+  work, Link operations (`linkNewDerived`), Link plots (`peersOf`) and Clear this file (`fileWork`)
+  all handle such a signal as one of that file's - no code of theirs changed.
+- No intent recorded (made before 1.13, or a Formula whose plain names fell in two files): `crossFileOf`
+  lists the signals with no file of their own and a free source of the copied file; SameWorkDialog
+  shows them under "Signals made from this file and another", each ticked; copyWork `parts.cross`
+  makes each for the target with the copied file's sources swapped and the others KEPT - and records
+  that as `pinned`, so the copy belongs to the new file from then on. Placed in the plots like the
+  others (`counterpart` looks in `made` first).
+- Older sessions: no `pinned` - as before (asked about when copying).
+Test: e2e `test_signals_of_two_files_copied_to_a_new_run` (a Compare Δ of run_b -> run_c against the
+same baseline; `x - {run_b.csv:Speed}` of run_a -> run_c with run_b kept; an old cross-file signal
+asked about from both files - unticked once, ticked once, made with `pinned`; Clear this file on
+run_c deletes exactly the three copies).
 
 ## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
 
@@ -1638,3 +1665,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-23 · Q88 / T69 (owner): Copy the work to another file - an open one too - part by part (changes / new signals / plots: same, beside each plot, tabs, none; the links as two boxes, off by default); Clear this file ▸ (plots / changes / new signals / all, one Undo). **Release 1.13.0** prepared: versions (build.bat, version.py, CITATION.cff + date, .iss, version_info.txt, install.md, validation.md), CHANGELOG, README, guide en / he, features, frontend/dist. Here: backend 787 + 12 skipped, mypy clean, tsc + build clean (oxlint 39, as before), e2e 199 / 199 in one process, mkdocs --strict, validate 23 / 23, make_pypi --check both 1.13.0 wheels OK. (One earlier full run had test_globe_without_webgl_falls_back time out while the PyPI build ran beside it; alone 3 / 3, then test_features 115 / 115, then the whole suite 199 / 199.)
 - 2026-10-24 · Q89 / T70 (owner, before pushing 1.13.0): other signals in an expression of x (`sin(x) + {Speed}`: the same file, as read), in place and as new signals; 1.13.0 re-prepared with it (dist, CITATION date, notes) on top of the owner's applied but unpushed 1.13.0 commits. Here: backend 788 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 200 / 200 in one process, mkdocs --strict, validate 23 / 23. An earlier full run found the number-suggestion bug and the old "only x" test; the templates test that failed with them passes alone and in this run.
 - 2026-10-24 · Q90 / T71 (owner, after applying Q89): `{file:Name}` in an expression of x - one particular file's signal for every signal changed; stored by the file's id, shown by its name; the braces hint. 1.13.0 re-prepared with it on top of the owner's applied, unpushed Q89 commits. Here: backend 789 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 201 / 201 in one process, mkdocs --strict, validate 23 / 23.
+- 2026-10-24 · Q91 / T72 (owner, before pushing 1.13.0): new signals of two files belong to one (pinned sources from {file:Name}, Formula {file:name}, Compare's baseline); copy / link / clear handle them; ones with no recorded intent are asked about in the copy dialog. 1.13.0 re-prepared on top of the owner's applied, unpushed Q90 commits. Here: backend 789 + 12 skipped, mypy clean, tsc + build clean (oxlint 39), e2e 202 / 202 in one process (a first full run had test_template_files_are_found_from_tabs_and_matched_by_name time out once - alone 3 / 3, its module 2 x 11 / 11, untouched code), mkdocs --strict, validate 23 / 23.
