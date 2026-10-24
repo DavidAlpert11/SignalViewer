@@ -649,5 +649,8 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 13 — 1.13.0: the work of one file, part by part (owner's report 2026-10-23). Spec: TASKS.md Q88. Prepared 2026-10-23.
+- [x] T69 Copy the work to another file, part by part; Clear this file (Q88). Done 2026-10-23: sameWork.ts `copyWork(from, {run} | {path}, parts)`, SameWorkDialog (open files first, the three parts - plots: same / beside each plot / new tabs / none - two link boxes), clearing.ts `fileWork` / `clearFileWork` / `clearFileItem`.
+
 ## Later
 - [ ] "copy as pandas code".
