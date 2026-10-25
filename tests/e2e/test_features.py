@@ -1343,7 +1343,7 @@ def test_change_many_variables_from_search(pg):
     pg.locator(".sig-wrap", has_text="sig_0_3").nth(1).locator("input").uncheck()   # leave one out by hand
     pg.click(".pick-actions .btn:has-text('Change them')")
     pg.wait_for_selector(".tf-dialog")
-    pg.locator(".tf-dialog select").select_option("abs")
+    pg.locator(".tf-dialog select").first.select_option("abs")
     inputs = pg.locator(".tf-dialog .arow input")
     inputs.nth(0).fill("10"); inputs.nth(1).fill("5")
     assert pg.locator(".tf-result").inner_text() == "y = 10·abs(x) + 5"
@@ -1474,6 +1474,75 @@ def test_refresh_and_live_follow_the_file(pg):
         if stat_max() == 2.0: break
         pg.wait_for_timeout(200)
     assert stat_max() == 2.0
+
+
+def test_live_keeps_the_time_at_the_newest_data(pg):
+    """Live mode: the time (cursor) goes to the end and moves on with every new row, so values read
+    at it and objects on the map / in 3D show the newest state; a time moved back stays there."""
+    p = os.path.join(pg.env["data"], "growing.csv")
+    open(p, "w", newline="").write("Time,A\r\n" + "".join(f"{i * 0.01:.2f},1.0\r\n" for i in range(300)))
+    open_files(pg, "growing.csv")
+    sig(pg, "A").click()
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 1.0 } })")                 # somewhere in the middle
+    pg.click(".topbar .btn:has-text('Live')")
+    pg.wait_for_function("window.__sv.state().streaming && Math.abs(window.__sv.state().cursor.t1 - 2.99) < 1e-6", timeout=8000)
+    with open(p, "a", newline="") as f:
+        f.write("".join(f"{3 + i * 0.01:.2f},2.0\r\n" for i in range(100)))
+    pg.wait_for_function("Math.abs(window.__sv.state().cursor.t1 - 3.99) < 1e-6", timeout=8000)   # followed the end
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 2.0 } })")                 # moved back on purpose
+    with open(p, "a", newline="") as f:
+        f.write("".join(f"{4 + i * 0.01:.2f},3.0\r\n" for i in range(100)))
+    pg.wait_for_function("window.__sv.state().runs[0].samples === 500", timeout=8000)
+    assert S(pg, "s.cursor.t1") == 2.0                               # stays where the user put it
+
+
+def _flight_csv(pg, name="att.csv"):
+    p = os.path.join(pg.env["data"], name)
+    rows = "".join(f"{i * 0.1:.1f},{32 + i * 1e-4:.6f},{35 + i * 1e-4:.6f},{(i % 60) * 0.05:.4f}\n" for i in range(200))
+    open(p, "w", newline="").write("Time,Lat [deg],Lng [deg],Yaw [rad]\n" + rows)
+    open_files(pg, name)
+    return p
+
+
+def test_object_signals_are_typed_and_changed_in_place(pg):
+    """A map object's signals: typed by name (like the file list's search), with the unit beside
+    each one and ƒ to change it right there - Esc closes only that dialog."""
+    _flight_csv(pg)
+    pid = S(pg, "s.ws.tabs[0].plots[0].id")
+    pg.evaluate(f"window.__sv.setState({{ objectDialog: {{ plotId: '{pid}', objectId: null }} }})")
+    pg.wait_for_selector(".obj-dialog")
+    yaw = pg.locator(".obj-role", has_text="Yaw")
+    yaw.locator(".picker-btn").click()
+    pg.keyboard.type("yaw")
+    pg.keyboard.press("Enter")
+    assert "Yaw [rad]" in yaw.locator(".picker-val").inner_text()
+    assert yaw.locator(".sigfield-unit").inner_text() == "rad"
+    yaw.locator(".sigfield-edit").click()
+    pg.wait_for_selector(".tf-dialog")
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".tf-dialog", state="detached")
+    assert pg.locator(".obj-dialog").is_visible()                      # the dialog below stays open
+
+
+def test_unit_conversion_changes_values_and_unit(pg):
+    """rad -> deg from the change dialog: the values are multiplied by 180/pi and the unit shown
+    everywhere is deg; Undo-able like any change, kept with the session."""
+    _flight_csv(pg, "att2.csv")
+    rid = S(pg, "s.runs[0].id")
+    pg.evaluate(f"window.__sv.setState({{ transformTargets: ['{rid}/Yaw [rad]'] }})")
+    pg.wait_for_selector(".tf-dialog")
+    pg.locator(".tf-units select").select_option(label="rad → deg")
+    assert abs(float(pg.locator(".tf-dialog .arow input").first.input_value()) - 57.2957795131) < 1e-6
+    assert pg.locator(".tf-units input").input_value() == "deg"
+    pg.locator(".tf-dialog .btn.primary").click()
+    pg.wait_for_selector(".tf-dialog", state="detached")
+    tf = S(pg, f"s.runs[0].signals.find(x => x.id === '{rid}/Yaw [rad]').transform")
+    assert tf["unit"] == "deg" and abs(tf["scale"] - 57.2957795131) < 1e-6
+    st = json.loads(urllib.request.urlopen(urllib.request.Request(pg.env["url"] + "/api/stats",
+        json.dumps({"signals": [f"{rid}/Yaw [rad]"]}).encode(), {"Content-Type": "application/json"})).read())["stats"].popitem()[1]
+    assert abs(st["max"] - 2.95 * 57.2957795131) < 1e-6
+    row = pg.locator(".sig", has_text="Yaw").first                       # the list shows the new unit
+    assert row.locator(".sig-unit").inner_text() == "deg"
 
 
 def test_dragged_copy_is_marked_and_can_switch_to_the_original(pg):
@@ -2032,7 +2101,7 @@ def test_multi_select_search_collapse_and_x_on_each(pg):
     menu_item(pg, "Change the 2 selected")
     pg.wait_for_selector(".tf-dialog")
     assert pg.locator(".tf-dialog .msp-chip").count() == 2
-    pg.locator(".tf-dialog select").select_option("custom")
+    pg.locator(".tf-dialog select").first.select_option("custom")
     pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill("x*8")
     pg.locator(".tf-dialog .btn.primary", has_text="Apply to 2 variables").click()
     pg.wait_for_selector(".toast:has-text('applied to 2')")
@@ -2079,7 +2148,7 @@ def test_linked_operations_and_a_run_with_the_same_work(pg):
     def change(name, expr, run=None):
         sig(pg, name, run).click(button="right"); menu_item(pg, "Change this signal")
         pg.wait_for_selector(".tf-dialog")
-        pg.locator(".tf-dialog select").select_option("custom")
+        pg.locator(".tf-dialog select").first.select_option("custom")
         pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill(expr)
         pg.locator(".tf-dialog .btn.primary").click()
         pg.wait_for_selector(".tf-dialog", state="detached")
@@ -2152,7 +2221,7 @@ def test_copy_parts_of_the_work_to_an_open_file_and_clear_one_file(pg):
     assert S(pg, "s.linkRuns || s.linkEdits") is False
     sig(pg, "Speed", 0).click()
     sig(pg, "Speed", 0).click(button="right"); menu_item(pg, "Change this signal")
-    pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").select_option("custom")
+    pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").first.select_option("custom")
     pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill("x*2"); pg.locator(".tf-dialog .btn.primary").click()
     sig(pg, "Speed", 0).click(button="right"); pg.locator(".menu.ctx button", has_text="Create signal").click(); menu_item(pg, "Derivative")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 2")
@@ -2234,7 +2303,7 @@ def test_expression_of_x_with_other_signals(pg):
     # 1) in place, on RPM and Speed of run_a together
     sig(pg, "RPM", 0).click(modifiers=["Control"]); sig(pg, "Speed", 0).click(modifiers=["Control"])
     sig(pg, "RPM", 0).click(button="right"); menu_item(pg, "Change the 2 selected")
-    pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").select_option("custom")
+    pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").first.select_option("custom")
     box = pg.locator(".tf-dialog [aria-label='Expression in x (and t)']")
     box.fill("sin(x) + Nope")
     assert "Nope" in pg.locator(".tf-dialog .fx-err").inner_text()
@@ -2282,7 +2351,7 @@ def test_expression_with_a_signal_of_one_file(pg):
     def change(expr, ok=True):
         sig(pg, "RPM", 0).click(button="right")
         menu_item(pg, "Change the 2 selected" if S(pg, "s.listSel.length") > 1 else "Change this signal")
-        pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").select_option("custom")
+        pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").first.select_option("custom")
         pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill(expr)
         pg.wait_for_timeout(300)
         if not ok:

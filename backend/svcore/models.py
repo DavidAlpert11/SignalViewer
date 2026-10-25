@@ -4,11 +4,15 @@ Signal Viewer - Data Models
 Core data structures for runs, signals, and derived signals.
 """
 
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 import numpy as np
 from enum import Enum
 import itertools
+import os
+import threading
+import weakref
 
 _RUN_UID = itertools.count(1)   # never reused (id() of a freed object can be)
 
@@ -45,6 +49,103 @@ class Signal:
     def get_data_with_offset(self, time: np.ndarray) -> tuple:
         """Get time and data with offset applied"""
         return time + self.time_offset, self.data
+
+
+
+class _LazyBudget:
+    """How much of the lazily-read values stays in memory (SV_LAZY_MB, default 1536 MB): the
+    least recently used ones are dropped beyond it and read from the file again when needed.
+    (A reader still holding the array keeps it alive; only this cache lets go of it.)"""
+    def __init__(self, limit: int):
+        self.limit = limit
+        self.total = 0
+        self._items: "OrderedDict[int, tuple]" = OrderedDict()     # id -> (weakref, nbytes)
+        self._lock = threading.RLock()
+
+    def touch(self, sig: "LazySignal", nbytes: Optional[int] = None):
+        with self._lock:
+            key = id(sig)
+            if nbytes is not None:
+                old = self._items.pop(key, None)
+                if old:
+                    self.total -= old[1]
+                self._items[key] = (weakref.ref(sig, self._gone(key)), nbytes)
+                self.total += nbytes
+            elif key in self._items:
+                self._items.move_to_end(key)
+            for k in list(self._items):
+                if self.total <= self.limit or k == key:
+                    break
+                ref, nb = self._items.pop(k)
+                self.total -= nb
+                other = ref()
+                if other is not None:
+                    other._evict()
+
+    def _gone(self, key: int):
+        """The callback of a signal's weak reference: its entry goes when the signal does."""
+        def cb(_ref: Any) -> None:
+            self.forget(key)
+        return cb
+
+    def forget(self, key: int):
+        with self._lock:
+            old = self._items.pop(key, None)
+            if old:
+                self.total -= old[1]
+
+
+LAZY_BUDGET = _LazyBudget(int(float(os.environ.get("SV_LAZY_MB", "1536")) * (1 << 20)))
+
+
+class LazySignal(Signal):
+    """A signal whose values stay in its file until first used (big ArduPilot logs): the time
+    vector is in memory, `data` is read on first access and kept within LAZY_BUDGET. `source` is
+    any object with read() -> ndarray, concat(other) and nbytes (svcore.bin_loader.LazyField).
+    Setting `data` makes the values the signal's own (no longer read from the file)."""
+
+    def __init__(self, name: str, time: np.ndarray, source: Any, labels: Optional[Dict[int, str]] = None):
+        self._source = source
+        self._cache: Optional[np.ndarray] = None
+        super().__init__(name=name, data=None, time=time, labels=labels)  # type: ignore[arg-type]
+
+    @property  # type: ignore[override]
+    def data(self) -> np.ndarray:
+        c = self._cache
+        if c is None:
+            c = self._source.read()
+            self._cache = c
+            LAZY_BUDGET.touch(self, c.nbytes)
+        elif self._source is not None:
+            LAZY_BUDGET.touch(self)
+        return c
+
+    @data.setter
+    def data(self, value: np.ndarray):
+        if value is None:                     # dataclass __init__
+            return
+        self._cache = value
+        if self._source is not None:
+            self._source = None
+            LAZY_BUDGET.forget(id(self))
+
+    @property
+    def loaded(self) -> bool:
+        return self._cache is not None
+
+    def _evict(self):
+        if self._source is not None:
+            self._cache = None
+
+    def extend(self, more: Any):
+        """Live mode: values appended to the file (another lazy source of the same field)."""
+        if self._source is None:
+            self.data = np.concatenate([np.asarray(self._cache), more.read()])
+            return
+        self._source = self._source.concat(more)
+        if self._cache is not None:
+            self._cache = np.concatenate([self._cache, more.read()])
+            LAZY_BUDGET.touch(self, self._cache.nbytes)
 
 
 @dataclass

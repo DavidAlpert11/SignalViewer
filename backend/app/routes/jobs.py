@@ -79,6 +79,20 @@ def start_job(req: JobRequest):
             res = store.reload_all(progress=lambda f, name: job.report(f, name), cancelled=job.cancelled)
             job.report(1.0, "read")
             return res
+    elif req.kind == "reload":
+        # one file read again from the disk, in the background with progress (a big log used to be
+        # one long request: the page waited without a sign of life and could give up on it)
+        rid = str(b.get("id") or "")
+        if rid not in store.runs:
+            fail(404, "File is not open.")
+
+        def work(job):
+            try:
+                lr = store.reload(rid)
+            except KeyError:
+                raise LoadError("This file is no longer open.") from None
+            job.report(1.0, "read")
+            return store.describe(lr)
     elif req.kind == "compareAll":
         ca = CompareAllRequest(**b)
 

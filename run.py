@@ -191,6 +191,8 @@ def main():
     while not server.started:
         time.sleep(0.05)
     print(f"Signal Viewer running at {url}", flush=True)
+    from app import storage                 # old dropped-file copies, the CSV cache within its limits
+    threading.Thread(target=storage.startup_cleanup, daemon=True, name="cleanup").start()
     # T39: where the Python client (signalviewer_push.show) finds this app, with a fresh token
     from app import push
     import atexit
@@ -208,7 +210,11 @@ def main():
     if args.no_open:
         th.join()
         return
-    if not args.browser and native_window_available():
+    from app.routes import system as app_system
+    import logging
+    wlog = logging.getLogger("signalviewer").getChild("window")
+    why_not = "" if args.browser else window_unavailable_reason()
+    if not args.browser and not why_not:
         try:
             import webview  # pywebview
             window = webview.create_window("Signal Viewer", url, width=1440, height=900, min_size=(1024, 640))
@@ -227,7 +233,14 @@ def main():
             server.should_exit = True
             return
         except Exception as e:   # no usable native window: use the browser instead
-            print(f"Native window not available ({e}); opening the browser.", flush=True)
+            why_not = f"{e.__class__.__name__}: {e}"
+            wlog.warning("the app window could not start; opening the browser", exc_info=True)
+    if why_not:
+        # the launcher has no console (pythonw): say it in the log AND in the page, else the app
+        # just "opens in the browser" with no way to know why
+        print(f"Native window not available ({why_not}); opening the browser.", flush=True)
+        wlog.warning("native window not available: %s", why_not)
+        app_system.WINDOW_NOTE["browserReason"] = why_not
     # Browser mode: the page pings the server; when no tab has been open for a while the
     # server exits, so no invisible process is left behind (the .exe has no console).
     from app import main as app_main
@@ -238,7 +251,7 @@ def main():
         while th.is_alive():
             th.join(1.0)
             never_opened = app_main.WATCHDOG["last"] is None and time.time() - started > 120
-            if (app_main.idle_too_long(30) or never_opened) and not server.should_exit:
+            if (app_main.idle_too_long() or never_opened) and not server.should_exit:
                 print("No open browser tab - stopping.", flush=True)
                 server.should_exit = True
     except KeyboardInterrupt:
@@ -280,14 +293,35 @@ def _bind_drop(window):
         print(f"Real paths for dropped files not available ({err}).", flush=True)
 
 
-def native_window_available() -> bool:
-    """pywebview installed, and on Windows the Edge WebView2 runtime present."""
-    try:
-        import webview  # noqa: F401
-    except ImportError:
-        return False
+def _unblock_windows_dlls() -> None:
+    """Files extracted from a downloaded zip / 7z carry Windows' "came from the internet" mark
+    (the Zone.Identifier stream), and .NET refuses to load such DLLs - pywebview's window (pythonnet,
+    the WebView2 loader) then fails and the app opened in the browser every time. Removing the mark
+    from the app's own DLLs is what "Properties > Unblock" does, for these files only."""
     if sys.platform != "win32":
-        return True
+        return
+    roots = set()
+    for name in ("webview", "pythonnet", "clr_loader"):
+        try:
+            import importlib.util
+            spec = importlib.util.find_spec(name)
+        except Exception:
+            spec = None
+        for loc in (spec.submodule_search_locations or []) if spec else []:
+            roots.add(loc)
+    for root in roots:
+        for folder, _dirs, files in os.walk(root):
+            for f in files:
+                if f.lower().endswith((".dll", ".exe", ".pyd")):
+                    try:
+                        os.remove(os.path.join(folder, f) + ":Zone.Identifier")
+                    except OSError:
+                        pass                    # no mark (the usual case), or not NTFS
+
+
+def _webview2_installed() -> bool:
+    """Edge WebView2 runtime: the registry keys its installer writes, or its folders (Windows 11
+    ships it with the system, and some installs - per user, by policy - leave no key we know)."""
     try:
         import winreg
         guid = r"{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"     # Microsoft Edge WebView2 Runtime
@@ -304,7 +338,32 @@ def native_window_available() -> bool:
                 continue
     except Exception:
         pass
+    for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")):
+        app = os.path.join(base or "", "Microsoft", "EdgeWebView", "Application")
+        try:
+            if base and any(os.path.isfile(os.path.join(app, d, "msedgewebview2.exe")) for d in os.listdir(app)):
+                return True
+        except OSError:
+            continue
     return False
+
+
+def window_unavailable_reason() -> str:
+    """Why the app cannot open its own window ("" = it can): pywebview missing or not loading, or
+    (Windows) no WebView2 runtime."""
+    _unblock_windows_dlls()
+    try:
+        import webview  # noqa: F401
+    except Exception as e:                      # ImportError, or pythonnet failing to load .NET
+        return f"pywebview could not be loaded ({e.__class__.__name__}: {e})"
+    if sys.platform == "win32" and not _webview2_installed():
+        return "the Microsoft Edge WebView2 runtime was not found"
+    return ""
+
+
+def native_window_available() -> bool:
+    """pywebview installed, and on Windows the Edge WebView2 runtime present."""
+    return not window_unavailable_reason()
 
 
 if __name__ == "__main__":

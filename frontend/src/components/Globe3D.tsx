@@ -5,7 +5,7 @@ import { api } from "../api";
 import { actions, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
-import { bearing, fmtDistance, groundDistance, objectAt, visualOrder, type ObjTrack } from "../mapObjects";
+import { bearing, fmtDistance, groundDistance, objectAt, trackTime, visualOrder, type ObjTrack } from "../mapObjects";
 import Globe3DFallback from "./Globe3DFallback";
 
 /* The 3D view: the earth with the app's own terrain (bundled elevation) and map tiles (offline or
@@ -464,7 +464,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           d.part.show = false;
         }
       }
-      const tNow = cur.on && cur.t1 !== null ? cur.t1 : tr.t[tr.t.length - 1];
+      const tNow = trackTime(tr, cur.on ? cur.t1 : null, st.streaming && own === null);
       const p = objectAt(tr, tNow, o.angleUnit);
       const m = S.models.get(o.id);
       if (!p) { if (m) m.show = false; if (d.label) d.label.show = false; continue; }

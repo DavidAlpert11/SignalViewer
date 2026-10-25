@@ -82,10 +82,12 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       paths = paths.filter((p) => !open.has(key(p)));
       const names = again.map((p) => open.get(key(p))!.name).join(", ");
       try {
-        for (const p of again) await api.reload(open.get(key(p))!.id);
+        const before = st.runs;
+        for (const p of again) await runJob("reload", { id: open.get(key(p))!.id }, translate(lang, "reloadingFile", { name: open.get(key(p))!.name }));
         const s2 = useApp.getState();
         useApp.setState({ runs: await api.listRuns(), dataVersion: s2.dataVersion + 1 });
         actions.dropStaleRanges();
+        actions.pinTimeToEnd(before);
         s2.toast({ kind: "info", text: translate(lang, "alreadyOpen", { names }),
           action: { label: translate(lang, "openAnotherCopy"), run: () => { openPaths(again, settings, { copy: true }); } } });
       } catch (e) {
@@ -161,10 +163,14 @@ export async function reloadRun(id: string) {
   const run = useApp.getState().runs.find((r) => r.id === id);
   if (run?.copy) { explainCopy(id); return; }
   try {
-    await api.reload(id);
+    // a background job: a big file shows its progress, and no single request waits minutes
+    const done = await runJob("reload", { id }, translate(useApp.getState().lang, "reloadingFile", { name: run?.name ?? "" }));
+    if (done === null) return;                    // cancelled
     const st = useApp.getState();
+    const before = st.runs;
     useApp.setState({ runs: await api.listRuns(), dataVersion: st.dataVersion + 1 });
     actions.dropStaleRanges();
+    actions.pinTimeToEnd(before);
     st.toast({ kind: "info", text: translate(st.lang, "reloaded", { name: run?.name ?? "" }) });
   } catch (e) {
     useApp.getState().toast({ kind: "error", text: String((e as Error).message) });

@@ -66,6 +66,16 @@ export interface ObjTrack { t: Float64Array; lat: Float64Array; lon: Float64Arra
 
 /** Where an object is at time t (null outside its own time span), and where it points (degrees from
  *  north): its heading signal if it has one, else its direction of travel. */
+/** The time an object is drawn at. Live mode: a time past the end of its track holds its LAST state
+ *  (the other files, or a faster message such as the IMU, are already further on - the vehicle must
+ *  not vanish from the map until its next GPS sample arrives). Otherwise the time as it is. */
+export function trackTime(tr: { t: ArrayLike<number> }, t: number | null, live: boolean): number {
+  const n = tr.t.length;
+  if (!n) return t ?? NaN;
+  if (t === null) return tr.t[n - 1];
+  return live && t > tr.t[n - 1] ? tr.t[n - 1] : t;
+}
+
 export function objectAt(tr: ObjTrack, t: number, unit: "auto" | "deg" | "rad" = "auto"): { lat: number; lon: number; heading: number | null } | null {
   const n = tr.t.length;
   if (!n || t < tr.t[0] || t > tr.t[n - 1]) return null;

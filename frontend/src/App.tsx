@@ -262,7 +262,18 @@ export default function App() {
     const ping = () => { fetch("/api/ping", { method: "POST" }).catch(() => {}); };
     ping();
     const h = window.setInterval(ping, 5000);
-    return () => window.clearInterval(h);
+    // the tab is going away: the server (browser mode) may stop soon. Without this it had to judge
+    // by missing pings alone - and a tab in the background pings only about once a minute.
+    const bye = () => { try { navigator.sendBeacon("/api/bye"); } catch { /* best effort */ } };
+    window.addEventListener("pagehide", bye);
+    // opened in the browser although the app has its own window: say why, once
+    api.windowNote().then((n) => {
+      if (!n.browserReason || sessionStorage.getItem("sv-window-note")) return;
+      sessionStorage.setItem("sv-window-note", "1");
+      const st = useApp.getState();
+      st.toast({ kind: "info", text: translate(st.lang, "browserFallback", { reason: n.browserReason }), ms: 30000 });
+    }).catch(() => {});
+    return () => { window.clearInterval(h); window.removeEventListener("pagehide", bye); };
   }, []);
 
   /* restore the last workspace once */
@@ -372,8 +383,14 @@ export default function App() {
      T54: files opened from outside (Open with, `SignalViewer file.bin`, a second start) come the same way */
   useEffect(() => {
     let since = 0;
-    let first = true;                     // the first ask: data sent while the page loaded counts,
-    const h = window.setInterval(async () => {   // older data (before a reload) is not plotted again
+    // the first ask: data sent while the page loaded counts, older data (before a reload) is not
+    // plotted again. One ask at a time: a late answer (the server busy with a big file) overtaken
+    // by the next one handled the same events twice.
+    let first = true;
+    let asking = false;
+    const h = window.setInterval(async () => {
+      if (asking) return;
+      asking = true;
       try {
         // files to open are taken once the last work is restored (it would replace them); the server
         // hands each out once, so a reload does not open them again
@@ -401,7 +418,7 @@ export default function App() {
           if (e.plot) run.signals.slice(0, 8).forEach((s) => actions.addSignal(s.id));
           st.toast({ kind: "info", text: translate(st.lang, "pushReceived", { name: e.name ?? "", n: run.signals.length }) });
         }
-      } catch { /* server busy; next tick */ }
+      } catch { /* server busy; next tick */ } finally { asking = false; }
     }, 1000);
     return () => window.clearInterval(h);
   }, []);
@@ -424,7 +441,9 @@ export default function App() {
         if (r.writing?.length) useApp.setState({ liveLastData: Date.now() });
         if (r.changed.length && r.runs) {
           const st = useApp.getState();
+          const before = st.runs;
           useApp.setState({ runs: r.runs, dataVersion: st.dataVersion + 1, liveLastData: Date.now() });
+          actions.pinTimeToEnd(before);        // a time at the end stays at the newest data
         }
         useApp.setState({ activity: r.activity ?? {}, liveIdle: (Date.now() - useApp.getState().liveLastData) / 1000 });
         if (r.newFiles?.length) handleNewFiles(r.newFiles);

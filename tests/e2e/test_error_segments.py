@@ -25,7 +25,7 @@ def test_error_per_stretch_of_a_state(pg):
     pg.click(".seg.wide button:has-text('Two signals')")
     box = pg.locator(".err-seg")
     box.wait_for()
-    box.locator("select").select_option(label=next(o for o in box.locator("option").all_inner_texts() if "Mode" in o))
+    box.locator(".picker-btn").click(); pg.keyboard.type("Mode"); pg.keyboard.press("Enter")   # typed, like the search
     box.locator("button", has_text="Show").click()
     box.locator(".err-table").wait_for()
     rows = box.locator(".err-table tbody tr").all_inner_texts()

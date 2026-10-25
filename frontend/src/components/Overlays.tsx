@@ -4,13 +4,29 @@ import { useT } from "../i18n";
 import { Icon } from "../icons";
 
 /** Escape closes a dialog wherever the keyboard focus is (not only inside the dialog). */
+// Esc closes only the LAST opened of the open dialogs: a dialog opened from another one (ƒ beside a
+// signal opens the change dialog over the map-object dialog) used to close both at once
+const escStack: { current: () => void }[] = [];
+let escListening = false;
+function onEscape(e: KeyboardEvent) {
+  if (e.key !== "Escape" || !escStack.length) return;
+  e.stopPropagation();
+  escStack[escStack.length - 1].current();
+}
+
 export function useEscape(close: () => void, active = true) {
+  const ref = useRef(close);
+  useEffect(() => { ref.current = close; }, [close]);   // the newest close, without re-stacking
   useEffect(() => {
     if (!active) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [close, active]);
+    const entry = { current: () => ref.current() };
+    escStack.push(entry);
+    if (!escListening) { window.addEventListener("keydown", onEscape); escListening = true; }
+    return () => {
+      const i = escStack.indexOf(entry);
+      if (i >= 0) escStack.splice(i, 1);
+    };
+  }, [active]);
 }
 
 /* ------------------------------------------------------------ dialog focus (F18) */

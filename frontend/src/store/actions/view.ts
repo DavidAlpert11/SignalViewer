@@ -1,5 +1,5 @@
 /* Looking at the data: zoom and its history, cursors, time, playback. UI state (not undoable). */
-import { api } from "../../api";
+import { api, type RunInfo } from "../../api";
 import { revealInspector } from "../inspector";
 import { activeTab, rangeKey, recordingExtent } from "../selectors";
 import { useApp } from "../state";
@@ -76,6 +76,22 @@ export const viewActions = {
     if (t1 >= r[1] - (r[1] - r[0]) * 0.001 || t1 < r[0]) t1 = r[0];
     useApp.setState({ cursor: { ...st.cursor, on: true, t1 }, playing: true });
     viewActions.followTime(t1);
+  },
+  /** New data (live mode, refresh): a time (cursor) that was at the end of the recording moves on
+   *  with the end, so the values read at it and the objects on the map and in 3D show the newest
+   *  state. A time moved back by the user stays where it is (End brings it to the end again).
+   *  `force` (live mode starting): to the end whatever it was. `before`: the runs before the update. */
+  pinTimeToEnd(before: RunInfo[], force = false) {
+    const st = useApp.getState();
+    const c = st.cursor;
+    const now = recordingExtent(st.runs);
+    if (!now || !c.on || c.t1 === null || st.playing) return;
+    const old = recordingExtent(before);
+    const tol = old ? Math.max(1e-6, Math.min(1, (old[1] - old[0]) * 0.002)) : 0;
+    const atEnd = force || (old !== null && c.t1 >= old[1] - tol);
+    if (!atEnd || c.t1 === now[1]) return;
+    useApp.setState({ cursor: { ...c, t1: now[1] } });
+    viewActions.followTime(now[1]);
   },
   /** Set the time (the cursor) - the timeline, its event marks, Home / End. */
   setTime(t: number) {

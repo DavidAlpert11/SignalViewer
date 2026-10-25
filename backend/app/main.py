@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import crashlog
+from app import storage  # noqa: F401  (the CSV cache must know which entries open files read)
 from app.routes import (
     analysis,
     compare,
@@ -38,7 +39,7 @@ from app.routes import (
 )
 
 # kept importable from here: run.py and the tests use them
-from app.routes.system import WATCHDOG, idle_too_long  # noqa: F401
+from app.routes.system import WATCHDOG, idle_too_long, seen_page  # noqa: F401
 
 DIST = os.environ.get("SV_DIST") or os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
 
@@ -114,6 +115,8 @@ class LocalOnlyMiddleware:
         elif origin is not None and (origin == "null" or _hostname(origin) not in ok):
             bad = "requests from other web sites are not accepted"
         if bad is None:
+            if scope["type"] == "http" and scope.get("path", "") not in ("/api/bye",):
+                seen_page()                     # any request of the page: a tab is open (watchdog)
             return await self.inner(scope, receive, send)
         if scope["type"] == "websocket":
             return await send({"type": "websocket.close", "code": 1008})

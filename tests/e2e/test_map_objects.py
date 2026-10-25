@@ -33,7 +33,8 @@ def _map_with_objects(pg):
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
     pg.locator(".obj-add").click()
     pg.wait_for_selector(".obj-dialog")
-    filled = pg.evaluate("[...document.querySelectorAll('.obj-role select')].filter(s => !s.getAttribute('aria-label').includes('–')).map(s => s.value.split('/')[1] || '')")
+    # each role: a signal typed by name (SignalField) - the one guessed from the names is shown in it
+    filled = pg.evaluate("[...document.querySelectorAll('.obj-role .picker-val')].map(e => e.querySelector('.ph') ? '' : e.textContent.trim())")
     assert filled == ["GPS.Lat", "GPS.Lng", "GPS.Alt", "ATT.Yaw", "ATT.Pitch", "ATT.Roll"]
     pg.locator(".obj-dialog .btn.primary").click()
     pg.locator(".obj-add").click()

@@ -10,7 +10,7 @@ export function describeTransform(tf?: SignalTransform | null): string {
   let f = displayX(tf.expr || "x", useApp.getState().runs);     // Q90: {@id:Name} as {file:Name}
   if (tf.scale !== undefined && tf.scale !== 1) f = `${tf.scale}·${wrap(f)}`;
   if (tf.offset) f += tf.offset > 0 ? ` + ${tf.offset}` : ` − ${-tf.offset}`;
-  return `y = ${f}` + (tf.dt ? `,  t ${tf.dt > 0 ? "+" : "−"} ${Math.abs(tf.dt)}` : "");
+  return `y = ${f}` + (tf.dt ? `,  t ${tf.dt > 0 ? "+" : "−"} ${Math.abs(tf.dt)}` : "") + (tf.unit ? `  [${tf.unit}]` : "");
 }
 
 /** Apply (or clear with null) the same change on many signals; one toast offers Undo. */
@@ -32,7 +32,7 @@ export async function applyTransform(ids: string[], tf: SignalTransform | null) 
    the previous ones ("abs" then "smooth" = smooth(abs(x))), and the whole stack
    stays ONE change on the signal, shown by its ƒ mark.
 ------------------------------------------------------------------------- */
-export interface Step { expr?: string; scale?: number; offset?: number; dt?: number }
+export interface Step { expr?: string; scale?: number; offset?: number; dt?: number; unit?: string }
 
 /** Analysis operation -> an in-place step (every one-signal operation has one). */
 export function opToStep(op: string, p: { window?: number; cutoff?: number; gain?: number; bias?: number; expr?: string }): Step | null {
@@ -72,10 +72,12 @@ export function composeTransform(prev: SignalTransform | undefined | null, step:
     let inner = prev?.expr || "x";
     if (k1 !== 1) inner = `${k1}*${wrap(inner)}`;
     if (c1) inner = `${inner} ${c1 > 0 ? "+" : "-"} ${Math.abs(c1)}`;
-    return { expr: inner === "x" ? step.expr : substitute(step.expr, inner), scale: step.scale ?? 1, offset: step.offset ?? 0, dt };
+    return { expr: inner === "x" ? step.expr : substitute(step.expr, inner), scale: step.scale ?? 1, offset: step.offset ?? 0, dt,
+      ...(step.unit ?? prev?.unit ? { unit: step.unit ?? prev?.unit } : {}) };
   }
   const k2 = step.scale ?? 1, c2 = step.offset ?? 0;
-  return { expr: prev?.expr, scale: k1 * k2, offset: k2 * c1 + c2, dt };
+  // a unit conversion names the new unit; any other step keeps the one there was
+  return { expr: prev?.expr, scale: k1 * k2, offset: k2 * c1 + c2, dt, ...(step.unit ?? prev?.unit ? { unit: step.unit ?? prev?.unit } : {}) };
 }
 
 async function setSpecs(specs: Record<string, SignalTransform | null>, message: string) {
@@ -128,4 +130,9 @@ export async function deleteAllDerived() {
       useApp.setState({ runs: r.runs, dataVersion: useApp.getState().dataVersion + 1 });
       useApp.getState().commit(() => structuredClone(wsBefore));
     } } });
+}
+
+/** A unit conversion as an in-place step (rad -> deg: x·57.2958, unit "deg"). */
+export function conversionStep(c: { to: string; scale: number; offset?: number }): Step {
+  return { scale: c.scale, offset: c.offset ?? 0, unit: c.to };
 }

@@ -10,6 +10,8 @@ import type { SignalTransform } from "../api";
 import ExprInput from "./ExprInput";
 import { parenProblem, VAR_E, VAR_PI, VAR_T, VAR_X } from "../formulaHelp";
 import { substituteParams } from "../formulaRefs";
+import { conversionsFrom, unitOf, type ConvGroup, type UnitConversion } from "../units";
+import type { TKey } from "../i18n";
 
 const TF_VARS = [VAR_X, VAR_T, VAR_PI, VAR_E];
 
@@ -36,6 +38,12 @@ export default function TransformDialog() {
   const [scale, setScale] = useState(String(shared?.scale ?? 1));
   const [offset, setOffset] = useState(String(shared?.offset ?? 0));
   const [dt, setDt] = useState(String(shared?.dt ?? 0));
+  // the unit: what the first target is in now (a conversion's, else its name's), and what it is shown in
+  const [unit, setUnit] = useState(shared?.unit ?? "");
+  const baseUnit = unitOf(sigs[0]?.name ?? "");                 // as the file names it
+  const nowUnit = unit || baseUnit;
+  const convs = useMemo(() => conversionsFrom(nowUnit), [nowUnit]);
+  const [lastConv, setLastConv] = useState<UnitConversion | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const close = () => useApp.setState({ transformTargets: null });
@@ -45,7 +53,16 @@ export default function TransformDialog() {
     : fn === "integ" ? "integ(x)" : fn === "smooth" ? `smooth(x, ${n})` : fn === "lowpass" ? `lowpass(x, ${fc})`
     : fn === "highpass" ? `highpass(x, ${fc})` : custom.trim();
   const num = (v: string, d: number) => (v.trim() === "" || !Number.isFinite(Number(v)) ? d : Number(v));
-  const spec: SignalTransform = { expr, scale: num(scale, 1), offset: num(offset, 0), dt: num(dt, 0) };
+  const spec: SignalTransform = { expr, scale: num(scale, 1), offset: num(offset, 0), dt: num(dt, 0), ...(unit.trim() ? { unit: unit.trim() } : {}) };
+  /** A unit conversion on top of what the fields say: y = k·(scale·f + offset) + c, and the new unit. */
+  const convert = (c: UnitConversion) => {
+    const k = c.scale, c0 = c.offset ?? 0;
+    const r = (v: number) => Number(v.toPrecision(12));
+    setScale(String(r(k * num(scale, 1))));
+    setOffset(String(r(k * num(offset, 0) + c0)));
+    setUnit(c.to);
+    setLastConv(c);
+  };
   const logs = useApp((s) => s.logs);
   const targetRuns = Array.from(new Set(targets.map((id) => id.slice(0, id.indexOf("/")))));
   const tfParams = useMemo(() => targetRuns.flatMap((rid) => logs[rid]?.params ?? []).map((p) => ({ name: p.name, value: p.value })),
@@ -133,7 +150,21 @@ export default function TransformDialog() {
             <label className="afield"><span>{t("offset")}</span><input inputMode="decimal" value={offset} onChange={(e) => setOffset(e.target.value)} /></label>
             <label className="afield"><span>{t("signalTimeOffset")}</span><input inputMode="decimal" value={dt} onChange={(e) => setDt(e.target.value)} /></label>
           </div>
-          <p className="tf-result" dir="ltr">{describeTransform({ expr: expr || undefined, scale: spec.scale, offset: spec.offset, dt: spec.dt }) || "y = x"}</p>
+          <div className="arow tf-units">
+            <label className="afield"><span>{t("tfConvert")}{nowUnit ? <small className="muted"> · {t("tfNowIn", { unit: nowUnit })}</small> : null}</span>
+              <select value="" aria-label={t("tfConvert")} onChange={(e) => { const c = convs[Number(e.target.value)]; if (c) convert(c); }}>
+                <option value="">{nowUnit && convs.length < 20 ? t("tfConvertFrom", { unit: nowUnit }) : t("tfConvertPick")}</option>
+                {Array.from(new Set(convs.map((c) => c.group))).map((g) => (
+                  <optgroup key={g} label={t(`conv_${g as ConvGroup}` as TKey)}>
+                    {convs.map((c, i) => (c.group === g ? <option key={i} value={i}>{c.from} → {c.to}</option> : null))}
+                  </optgroup>
+                ))}
+              </select></label>
+            <label className="afield"><span>{t("tfUnitShown")}</span>
+              <input value={unit} placeholder={baseUnit ?? ""} onChange={(e) => setUnit(e.target.value)} aria-label={t("tfUnitShown")} /></label>
+          </div>
+          {lastConv && <p className="hint tf-conv">{t("tfConverted", { from: lastConv.from, to: lastConv.to })}</p>}
+          <p className="tf-result" dir="ltr">{describeTransform({ expr: expr || undefined, scale: spec.scale, offset: spec.offset, dt: spec.dt, unit: spec.unit }) || "y = x"}</p>
           {error && <p className="hint err">{error}</p>}
         </div>
         <div className="dialog-foot">

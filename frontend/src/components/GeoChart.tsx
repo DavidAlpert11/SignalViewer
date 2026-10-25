@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { drawObjectIcon } from "./mapIcons";
-import { objectAt, type ObjTrack } from "../mapObjects";
+import { objectAt, trackTime, type ObjTrack } from "../mapObjects";
 import type { Country } from "../worldCountries";
 import { dpr, indexSpan, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chartUtil";
 
@@ -100,6 +100,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const runs = useApp((s) => s.runs);
   const dataVersion = useApp((s) => s.dataVersion);
   const cursor = useApp((s) => s.cursor);
+  const streaming = useApp((s) => s.streaming);
   const cvals = useApp((s) => s.cvals);
   const playMode = useApp((s) => s.playMode);
   const windowSec = useApp((s) => s.windowSec);
@@ -182,12 +183,12 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const tr = id ? objTracks[id] : null;
     if (!tr || !cursor.on || cursor.t1 === null) return;
     const o = objects.find((x) => x.id === id);
-    const st = objectAt(tr, cursor.t1, o?.angleUnit);
+    const st = objectAt(tr, trackTime(tr, cursor.t1, streaming), o?.angleUnit);
     if (!st) return;
     userView.current = true;
     setView((v) => (v ? { ...v, cx: mx(st.lon), cy: my(st.lat) } : v));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plot.followObject, objTracks, cursor.t1, cursor.on]);
+  }, [plot.followObject, objTracks, cursor.t1, cursor.on, streaming]);
   useEffect(() => { userView.current = false; }, [plot.xSignal, yKey]);
 
   const badRange = tracks.some((t) => {
@@ -431,7 +432,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         pathIn(a0, a1); ctx.strokeStyle = dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"; ctx.lineWidth = 4.5; ctx.stroke();
         pathIn(a0, a1); ctx.strokeStyle = o.color; ctx.lineWidth = 2; ctx.stroke();
       }
-      const tNow = cursor.on && cursor.t1 !== null ? cursor.t1 : tr.t[tr.t.length - 1];
+      const tNow = trackTime(tr, cursor.on ? cursor.t1 : null, streaming);
       const st = objectAt(tr, tNow, o.angleUnit);
       if (!st) continue;
       const px = X(mx(st.lon)), py = Y(my(st.lat));
@@ -464,7 +465,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     ctx.fillStyle = veil;
     ctx.fillRect(W - aw - 10, H - 16, aw + 10, 16);
     ctx.fillStyle = dark ? "#9fb0c3" : "#3d4650"; ctx.fillText(att, W - 5, H - 3);
-  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects]);
+  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming]);
 
   /* ------------------------- zoom / pan / readout ------------------------ */
   const viewRef = useRef(view);
