@@ -70,7 +70,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Refresh & live
 
-- Refresh all files (file panel ⟳, F5 / Ctrl+R): files unchanged on disk are not read again. Live: refreshes every file first, then once a second reads only what was added (CSV rows, .bin / .tlog messages; a MAT, ULog, MCAP, HDF5 or Parquet file is read again once it is quiet for a moment, and at least every 2 s while a program keeps saving it). A green dot marks files that are still being written; the status bar shows "2 of 5 updating". Settings (▾ next to Live): stop after N s without new data (10 s – 15 min, or never; default 1 min), new files in the same folders with the same name pattern (run_013.csv after run_012.csv, 00000043.BIN): ask / open automatically / ignore, follow last N seconds. Files opened during live mode are followed too
+- Refresh all files (file panel ⟳, F5 / Ctrl+R): files unchanged on disk are not read again. Live: refreshes every file first, then once a second reads only what was added (CSV rows, .bin / .tlog messages; a MAT, ULog, MCAP, HDF5 or Parquet file is read again once it is quiet for a moment, and at least every 2 s while a program keeps saving it). A green dot marks files that are still being written; the status bar shows "2 of 5 updating". Settings (▾ next to Live): stop after N s without new data (10 s – 15 min, or never; default 1 min), new files in the same folders with the same name pattern (run_013.csv after run_012.csv, 00000043.BIN): ask / open automatically / ignore, follow last N seconds. Files opened during live mode are followed too. A time (cursor) at the end of the recording moves on with the newest data, so the values read at it and the objects on the map and in 3D show the latest state (live mode puts it there when it starts; a time moved back stays, End follows again); an object whose track ends a moment before the newest data holds its last state. Try it without a logger: `python tools/live_demo.py` writes an aircraft and a ship that keep moving
 
 ### New runs, same work
 
@@ -97,6 +97,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### ArduPilot logs (.bin)
 
 - DataFlash logs read directly (no pymavlink): about 50 MB/s
+- Very large logs: one pass over the file on several cores without copying it into memory; above 64 MB the values stay in the file until a signal is used (a 16 M-sample signal is read in about 0.3 s) within a memory budget, and fields the log keeps as float32 stay float32 - a 1.2 GB log opens in about 7 s with under 0.5 GB of memory. Its index (time vectors and message positions) is kept in the cache: the same log opens again in a moment (about 0.03 s), only while it is unchanged
 - Every message type keeps its own time (TimeUS), so IMU at 400 Hz and GPS at 5 Hz are not resampled onto each other
 - Sensors with several instances split (`IMU[0].AccX`, `IMU[1].AccX`)
 - Units and multipliers from the log's FMTU/UNIT/MULT (`GPS[0].Alt [m]`, cm → m)
@@ -158,7 +159,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Shrinking the layout removes the extra plots (Undo)
 - Drag the gaps between plots to resize
 - Time / X-Y / FFT / Map per plot (longitude + latitude signals; wheel = zoom, drag = pan, double-click = fit; online map layers, or the offline map that ships with the app – terrain shading and colour by height, water, rivers, roads and runways, place and airport names in Hebrew or English; detailed for Israel and its surroundings (elevation ~130 m, roads down to regional roads, villages), the rest of the world coarser; it also fills in for online tiles that cannot be had without internet)
-- Objects on the map: an aircraft, UAV, drone, missile, ship or vehicle whose latitude / longitude (and altitude, heading, pitch, roll) come from signals – from any open files, filled in from their names (GPS.Lat / Lng / Alt, ATT.Yaw…; MAVLink 1e7 degrees handled) – drawn as an icon at the timeline's time, pointing along its heading or, without one, where it moves; its track follows the timeline's mode; follow keeps it in the middle; edit / remove from its chip (Undo)
+- Objects on the map: an aircraft, UAV, drone, missile, ship or vehicle whose latitude / longitude (and altitude, heading, pitch, roll) come from signals – from any open files, filled in from their names (GPS.Lat / Lng / Alt, ATT.Yaw…; MAVLink 1e7 degrees handled) – chosen by typing their names, each with the unit it is in and ƒ to change it on the spot (radians → degrees…) – drawn as an icon at the timeline's time, pointing along its heading or, without one, where it moves; its track follows the timeline's mode; follow keeps it in the middle; edit / remove from its chip (Undo)
 - 3D view (a plot mode): the earth with the bundled terrain and the same map tiles, the plot's objects as 3D models (aircraft, UAV, drone, missile, ship, vehicle) at the timeline's time with heading, pitch and roll, their tracks, names, and a readout (altitude, height above ground, attitude); altitude given above sea level, above the take-off point or above the ground; a bar to choose the object (its values in a data box that can be hidden: position, altitude, height above ground, heading, pitch, roll, ground speed, climb), the camera – general, or on the object (turning goes around it, zooming goes towards it) – and a second / third object: a dashed line to each with the distance, and in the box the horizontal distance, height difference, slant range and bearing (on the WGS84 ellipsoid); works with no internet (CesiumJS ships with the app, no Cesium ion); on a computer without graphics acceleration it switches to lighter settings and says so
 - Own time: a 3D plot can leave the timeline and get its own bar, play and speed (the other plots keep the timeline's; framed so it shows), and go back
 - Events: the log's errors, warnings and mode changes as marks on the tracks
@@ -197,7 +198,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Top bar
 
-- Buttons, no File menu (F35): open / save session, Clear ▾ (what to clear, see *Start over*), Settings, day / night (one click), and the Help menu - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions) and Help menu (keyboard shortcuts, the examples, copy error details, about)
+- Buttons, no File menu (F35): open / save session, Clear ▾ (what to clear, see *Start over*), Settings, day / night (one click), and the Help menu - opening files is in the file list (Ctrl+O), recent files Ctrl+P; Settings (theme, text size, time as seconds or a clock; kept between starts, not changed by sessions; the disk space the app uses for speed - CSV cache and log indexes, copies of files dropped into a browser, map tiles - each with its size and *Clear*) and Help menu (keyboard shortcuts, the examples, copy error details, about)
 
 ### Zoom
 
@@ -253,6 +254,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 - Hover over a plot (no cursor needed): the legend shows each signal's value under the pointer, from the points already drawn (no server round-trip)
 - Units taken from names such as `Speed [km/h]` or `Temp (°C)` are shown with values and on the value axis (`imu[1]` is not a unit)
+- Unit conversions in *Change this signal…*: rad ↔ deg, rad/s ↔ deg/s, m/s ↔ km/h ↔ kn ↔ mph ↔ ft/min, m ↔ ft ↔ km ↔ NM, m/s² ↔ g, °C ↔ °F ↔ K, Pa ↔ hPa ↔ psi, ms / µs → s, deg·1e7 → deg - the ones from the signal's unit first; an in-place change (stacked, Undo, sessions), and the unit shown on the axis, in the file list and the legend becomes the new one (or one you type)
 
 ### Inspector
 

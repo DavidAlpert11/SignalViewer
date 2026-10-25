@@ -37,10 +37,10 @@ network. Open the files, see what is wrong, compare, report; then make the same 
 
 - **Plot** – up to 9 linked plots per tab: Time, X-Y, FFT, spectrogram, map, 3D; two cursors with Δ and statistics.
 - **Compare runs** – every shared signal ranked by how different it is, time-aligned, also per segment (the 2nd AUTO of every flight); the work done on one file is copied to another in one step (its changes, new signals and plots - any of them), linked files keep getting it, and one file's work can be cleared alone.
-- **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check.
-- **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives.
+- **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check; a 1.2 GB ArduPilot log opens in seconds.
+- **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives, or any file a logger keeps writing; the map and 3D objects stay at the newest data.
 - **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline.
-- **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA); the same change on many signals at once (`x*8` or `sin(x)` on each one selected).
+- **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA); the same change on many signals at once (`x*8` or `sin(x)` on each one selected); unit conversions (rad → deg, m/s → km/h, m → ft…).
 - **Reports** – offline HTML, PDF and Word; one per file from the command line.
 - **CI** – `signalviewer-cli check` (limits) and `compare` (against a golden run) with exit codes and JUnit XML.
 - **Any recording** – CAN with a `.dbc`, raw binary packets from a layout (ICD), or your own format as a short Python reader.
@@ -190,10 +190,11 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 
 **מה אפשר לעשות**
 
-- לגרור קבצים לחלון: CSV, ‏MATLAB, לוגים של ArduPilot ו־PX4, ‏MAVLink, ‏ROS 2, ‏HDF5, ‏Parquet, ‏CAN עם קובץ ‎.dbc.
+- לגרור קבצים לחלון: CSV, ‏MATLAB, לוגים של ArduPilot ו־PX4, ‏MAVLink, ‏ROS 2, ‏HDF5, ‏Parquet, ‏CAN עם קובץ ‎.dbc – גם לוגים גדולים מאוד (לוג ArduPilot של 1.2GB נפתח בשניות).
+- לעקוב בזמן אמת (חי) אחרי קבצים שנכתבים או קישור MAVLink: הגרפים, המפה והתלת־ממד מתקדמים עם הנתונים האחרונים.
 - לבנות תצוגה: עד 9 גרפים מקושרים בטאב, שני סמנים עם הפרש וסטטיסטיקה, FFT, ספקטרוגרם, מפה ותלת־ממד.
 - להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה. העבודה שנעשתה על קובץ אחד מועתקת לקובץ אחר בצעד אחד (שינויים, סיגנלים חדשים, גרפים - כל אחד מהם), קבצים מקושרים ממשיכים לקבל אותה, ואפשר לנקות עבודה של קובץ אחד בלבד.
-- לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – ופעולות Python משלכם.
+- לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – המרת יחידות (רדיאנים למעלות, ‏m/s ל־km/h ועוד) ופעולות Python משלכם.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.
 - לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים.

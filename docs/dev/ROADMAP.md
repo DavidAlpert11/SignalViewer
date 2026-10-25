@@ -649,6 +649,14 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 14 — 1.14.0: big logs, live map, cache, typed signal choice (owner's report 2026-10-25). Spec: TASKS.md Q92-Q97. Prepared 2026-10-26.
+- [x] T73 Very large ArduPilot logs (Q92). Done 2026-10-26: bin_loader `_find_heads` (blocks, threads), run-by-run chain, `LazyField` / models `LazySignal` + `LAZY_BUDGET`, float32 fields, index cache (`_index_save` / `_index_load`).
+- [x] F40 The browser-mode server stopping (Q93). Done 2026-10-26: any request alive, `/api/bye`, 5 min, never during a job; `reload` job; "server stopped" message.
+- [x] F41 Live / refresh on the map (Q94). Done 2026-10-26: `pinTimeToEnd`, `trackTime`.
+- [x] F42 The cache (Q95). Done 2026-10-26: `prune_cache`, app/storage.py, Settings → Disk space used, `cli cache`; is_discrete / FFT cache / poll overlap fixed.
+- [x] F43 Native window on Windows (Q96). Done 2026-10-26: unblock DLLs, WebView2 by folder, `/api/window_note`. Not checked on Windows.
+- [x] F44 Typed signal choice, unit conversions (Q97). Done 2026-10-26: SignalField, Esc stack, units.ts `CONVERSIONS`, transform `unit`; tools/live_demo.py.
+
 ## Milestone 13 — 1.13.0: the work of one file, part by part (owner's report 2026-10-23). Spec: TASKS.md Q88-Q91. Prepared 2026-10-24.
 - [x] T72 New signals of two files belong to one (Q91). Done 2026-10-24: `params.pinned` (source indexes kept when made for another file) from Expression in x `{file:Name}`, Formula `{file:name}`, Compare's baseline; peers.ts `pinnedOf` in homeRun / mapTo / copyDerived, `crossFileOf`; Copy the work's "Signals made from this file and another" (parts.cross).
 - [x] T71 A signal of one particular file in an expression of x (Q90). Done 2026-10-24: `{file:Name}` -> stored `{@<run id>:Name}` (kept by sessions and Replace), shown by the file's name (displayX); backend reads that file, its data version in the edit's cache key; a closed file: not shown (KeyError), never made up.
