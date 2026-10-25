@@ -22,6 +22,12 @@ SV_FLOAT32=1           store signals as float32
 SV_CACHE=0             disable the binary cache
 SV_CACHE_DIR=<path>    cache location (default: ~/.signalviewer_cache)
 SV_CACHE_MIN_MB=<n>    only cache files larger than n MB (default 50)
+SV_CACHE_MAX_GB=<n>    keep the cache under n GB: least recently used entries go first (default 5)
+SV_CACHE_DAYS=<n>      entries not used for n days are removed (default 30)
+
+The cache keeps itself small: when a file changes, its older copy is removed as the new one is
+written (a CSV that is re-saved or grows used to leave a full copy behind on every change), and
+size / age limits are applied then and at start. An entry an open file reads from is never removed.
 """
 
 import logging
@@ -31,8 +37,9 @@ import io
 import json
 import os
 import shutil
+import time
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -86,6 +93,9 @@ SIGNAL_DTYPE = np.float32 if os.environ.get("SV_FLOAT32", "0") == "1" else np.fl
 CACHE_ENABLED = os.environ.get("SV_CACHE", "1") != "0"
 CACHE_DIR = os.environ.get("SV_CACHE_DIR", os.path.join(os.path.expanduser("~"), ".signalviewer", "cache"))
 CACHE_MIN_BYTES = int(float(os.environ.get("SV_CACHE_MIN_MB", "50")) * 1024 * 1024)
+CACHE_MAX_BYTES = int(float(os.environ.get("SV_CACHE_MAX_GB", "5")) * (1 << 30))
+CACHE_MAX_AGE = float(os.environ.get("SV_CACHE_DAYS", "30")) * 86400
+CACHE_IN_USE: Optional[Callable[[], set]] = None   # () -> entry folders open files read from (set by the app)
 CACHE_FORMAT_VERSION = 4   # v3: one column-major matrix file instead of one file per signal; v4: text columns
 MAX_TEXT_STATES = int(os.environ.get("SV_MAX_TEXT_STATES", "1000"))   # more distinct texts: not a state column
 CHUNK_ROWS = 500_000
@@ -423,6 +433,10 @@ def _cache_load(key: str) -> Optional[Dict]:
     try:
         with open(meta_path, "r", encoding="utf-8") as f:
             meta = json.load(f)
+        try:
+            os.utime(meta_path)            # last used: the size limit removes the least recently used
+        except OSError:
+            pass
         meta["time"] = np.load(os.path.join(d, "time.npy"), mmap_mode="r")
         names = meta["signals"]
         if names:
@@ -463,6 +477,7 @@ def _cache_store(key: str, meta: Dict, time: np.ndarray, sigs: Dict[str, np.ndar
             json.dump(dict(meta, signals=names), f)
         shutil.rmtree(d, ignore_errors=True)
         os.replace(tmp, d)
+        prune_cache(keep=d, source=meta.get("source"))
         return True
     except Exception as e:
         print(f"[CACHE] Could not write cache: {e}", flush=True)
@@ -472,6 +487,73 @@ def _cache_store(key: str, meta: Dict, time: np.ndarray, sigs: Dict[str, np.ndar
 
 def clear_cache():
     shutil.rmtree(CACHE_DIR, ignore_errors=True)
+
+
+def prune_cache(keep: Optional[str] = None, source: Optional[str] = None) -> int:
+    """Remove older copies of `source` (the file a new entry was just made for), entries unused for
+    CACHE_MAX_AGE, then the least recently used ones beyond CACHE_MAX_BYTES - never `keep` nor an
+    entry an open file reads from. Returns the bytes freed."""
+    try:
+        names = os.listdir(CACHE_DIR)
+    except OSError:
+        return 0
+    in_use = set()
+    if CACHE_IN_USE is not None:
+        try:
+            in_use = {os.path.abspath(p) for p in CACHE_IN_USE()}
+        except Exception:
+            in_use = set()
+    if keep:
+        in_use.add(os.path.abspath(keep))
+    entries = []                                   # (last used, size, path, source)
+    for name in names:
+        d = os.path.abspath(os.path.join(CACHE_DIR, name))
+        if not os.path.isdir(d):
+            continue
+        meta = os.path.join(d, "meta.json")
+        try:
+            used = os.path.getmtime(meta)
+            with open(meta, "r", encoding="utf-8") as f:
+                src = json.load(f).get("source")
+        except (OSError, ValueError):
+            used, src = 0.0, None                  # half-written (.tmp) or damaged: oldest
+            if name.endswith(".tmp") and time.time() - os.path.getmtime(d) < 3600:
+                continue                           # being written right now
+        size = 0
+        for fn in os.listdir(d):
+            try:
+                size += os.path.getsize(os.path.join(d, fn))
+            except OSError:
+                pass
+        entries.append((used, size, d, src))
+    freed = 0
+    now = time.time()
+
+    def drop(e) -> None:
+        nonlocal freed
+        shutil.rmtree(e[2], ignore_errors=True)
+        if not os.path.exists(e[2]):
+            freed += e[1]
+
+    rest = []
+    for e in entries:
+        if e[2] in in_use:
+            rest.append(e)
+        elif (source and e[3] == source) or now - e[0] > CACHE_MAX_AGE:
+            drop(e)
+        else:
+            rest.append(e)
+    total = sum(e[1] for e in rest)
+    for e in sorted(rest):                         # least recently used first
+        if total <= CACHE_MAX_BYTES:
+            break
+        if e[2] in in_use:
+            continue
+        drop(e)
+        total -= e[1]
+    if freed:
+        print(f"[CACHE] Freed {_fmt_bytes(freed)}", flush=True)
+    return freed
 
 
 # =============================================================================
@@ -643,7 +725,7 @@ def load_csv(
 
             if key is not None and len(time_array):
                 _progress(1.0, "cache")
-                if _cache_store(key, {"delimiter": delimiter, "labels": {n: {str(k): v for k, v in l.items()}
+                if _cache_store(key, {"delimiter": delimiter, "source": os.path.abspath(filepath), "labels": {n: {str(k): v for k, v in l.items()}
                                                                           for n, l in text_labels.items()}},
                                 time_array, signal_arrays):
                     reopened = _cache_load(key)  # switch to mmap -> frees the RAM copy

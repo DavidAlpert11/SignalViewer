@@ -5,6 +5,7 @@ import { useT, type TKey } from "../i18n";
 import { guessRoles } from "../mapObjects";
 import { OBJECT_KINDS } from "./mapIcons";
 import { useEscape } from "./Overlays";
+import SignalField from "./SignalField";
 
 /* T17c: put an XYZ plot's tracks on a map or the 3D globe - only when they are a place: metres in
    NED or ENU from an origin on Earth. Each track becomes three derived signals (the "frame"
@@ -47,7 +48,6 @@ export default function PlaceOnMapDialog() {
   const [busy, setBusy] = useState(false);
   if (!plotId || !plot) return null;
 
-  const allSigs = data.flatMap((r) => r.signals.map((s) => ({ id: `${r.id}/${s.name}`, label: data.length > 1 ? `${r.name} · ${s.name}` : s.name })));
   const ok = trios.length > 0 && (origin === "signals" ? ref.every((x) => !!x)
     : manual.every((x) => x.trim() !== "" && Number.isFinite(Number(x))) && Math.abs(Number(manual[0])) <= 90);
   const roles: TKey[] = ["objRole_lat", "objRole_lon", "objRole_alt"];
@@ -99,11 +99,9 @@ export default function PlaceOnMapDialog() {
           </div>
           <div className="obj-roles">
             {roles.map((k, i) => (origin === "signals" ? (
-              <label key={k} className="obj-role"><span>{t(k)}</span>
-                <select value={ref[i]} aria-label={t(k)} onChange={(e) => setRef(ref.map((x, j) => (j === i ? e.target.value : x)))}>
-                  <option value="">{t("objChoose")}</option>
-                  {allSigs.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select></label>
+              <div key={k} className="obj-role"><span>{t(k)}</span>
+                <SignalField value={ref[i] || null} ariaLabel={t(k)} placeholder={t("objChoose")}
+                  onChange={(id) => setRef(ref.map((x, j) => (j === i ? id ?? "" : x)))} /></div>
             ) : (
               <label key={k} className="obj-role"><span>{t(k)}{i < 2 ? " (°)" : " (m)"}</span>
                 <input type="number" step="any" aria-label={t(k)} value={manual[i]} onChange={(e) => setManual(manual.map((x, j) => (j === i ? e.target.value : x)))} /></label>

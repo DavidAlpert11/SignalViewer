@@ -1218,6 +1218,8 @@ input.fx-input { width: 100%; }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .set-row > span:first-child { display: flex; flex-direction: column; }
 .set-row small { color: var(--muted); font-size: .85em; margin-top: 2px; max-width: 260px; }
+.set-storage { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.set-row.sub { padding-inline-start: 12px; }
 
 /* T25: error between two signals */
 .err-seg { margin: 10px 0 4px; padding-top: 8px; border-top: 1px solid var(--line); }
@@ -1226,3 +1228,12 @@ input.fx-input { width: 100%; }
 .err-table th { color: var(--muted); font-weight: 500; }
 .err-table tr.worst td { background: var(--amber-soft); }
 .err-table tr.total td { font-weight: 600; }
+
+/* a signal typed by name (SignalField): the picker, the unit it is in now, ƒ to change it */
+.sigfield { display: inline-flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
+.sigfield .picker { flex: 1; min-width: 0; }
+.sigfield-unit { font-size: .82em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+.sigfield-edit { font-style: italic; font-weight: 600; min-width: 22px; }
+.sigfield-edit.on { color: var(--amber-ink); background: var(--amber-soft); }
+.sigfield-missing { color: var(--danger); font-weight: 700; }
+.tf-units .afield small { font-weight: 400; }

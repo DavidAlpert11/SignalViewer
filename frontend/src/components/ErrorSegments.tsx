@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { api } from "../api";
-import { actions, activeTab, rangeKey, signalName, useApp } from "../store";
+import { useCallback, useState } from "react";
+import { api, type SignalInfo } from "../api";
+import SignalField from "./SignalField";
+import { actions, activeTab, rangeKey, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 
 type Res = Awaited<ReturnType<typeof api.errorSegments>>;
@@ -12,17 +13,12 @@ type Res = Awaited<ReturnType<typeof api.errorSegments>>;
 export default function ErrorSegments({ a, b, alignment }: { a: string; b: string; alignment: string }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
-  const runs = useApp((s) => s.runs);
   const [state, setState] = useState("");
   const [res, setRes] = useState<Res | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  // state signals: the ones with texts (modes) or few distinct values; A's file first
-  const states = useMemo(() => {
-    const ra = a.split("/")[0];
-    const all = runs.filter((r) => r.format !== "derived").flatMap((r) => r.signals.filter((s) => s.discrete || s.labels).map((s) => ({ id: s.id, run: r.id })));
-    return [...all.filter((s) => s.run === ra), ...all.filter((s) => s.run !== ra)];
-  }, [runs, a]);
+  // per state signal: the ones with texts (modes) or few distinct values, typed by name; A's file first
+  const stateOnly = useCallback((s: SignalInfo) => !!(s.discrete || s.labels), []);
   const run = async () => {
     setBusy(true); setErr("");
     try { setRes(await api.errorSegments(a, b, state || null, alignment)); }
@@ -42,10 +38,8 @@ export default function ErrorSegments({ a, b, alignment }: { a: string; b: strin
       <p className="hint">{t("errHint")}</p>
       <div className="arow">
         <label className="afield grow"><span>{t("errPer")}</span>
-          <select value={state} onChange={(e) => { setState(e.target.value); setRes(null); }}>
-            <option value="">{t("errWhole")}</option>
-            {states.map((s) => <option key={s.id} value={s.id}>{signalName(runs, s.id, true)}</option>)}
-          </select></label>
+          <SignalField value={state || null} ariaLabel={t("errPer")} placeholder={t("errWhole")} noneLabel={t("errWhole")}
+            filter={stateOnly} prefer={a.split("/")[0]} onChange={(id) => { setState(id ?? ""); setRes(null); }} /></label>
         <button className="btn outline" disabled={!a || !b || busy} onClick={run}>{busy ? t("loading") : t("errShow")}</button>
       </div>
       {err && <p className="hint err">{err}</p>}

@@ -3,7 +3,7 @@ import { plotHasContent, actions, fileMark, pickPath, rangeKey, showFileTags, si
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
 import { exportRange, plotSpec } from "../plotSpec";
-import { unitOf, withUnit } from "../units";
+import { signalUnit, withUnit } from "../units";
 import { labelsOf, labelText } from "../values";
 import { Icon } from "../icons";
 import TimeChart from "./TimeChart";
@@ -305,7 +305,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             const tagged = showFileTags(runs);
             const raw = cvals[s.sig]?.[0];
             let val: string | null = null;
-            const unit = unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1));
+            const unit = signalUnit(runs, s.sig, s.label);
             let hv = false;
             if (mode === "fft") val = Number.isFinite(peaks[s.sig]) ? `${fmtNum(peaks[s.sig], lang, 4)} Hz` : null;
             const labels = labelsOf(runs, s.sig);

@@ -3,7 +3,7 @@ import { translate } from "../../i18n";
 import { MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
 import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, tabFullMessage } from "../selectors";
 import { useApp } from "../state";
-import { unitOf } from "../../units";
+import { signalUnit } from "../../units";
 import { peersOf } from "../../peers";
 
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
@@ -22,7 +22,7 @@ function offerRightAxis(plotId: string, sig: string) {
   const plot = findPlot(st.ws, plotId);
   if (!plot || (plot.mode && plot.mode !== "time")) return;
   const ps = plot.signals.find((s) => s.sig === sig);
-  const unit = (s: PlotSignal) => unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1));
+  const unit = (s: PlotSignal) => signalUnit(st.runs, s.sig, s.label);
   const u = ps && !ps.state ? unit(ps) : null;
   if (!u || plot.signals.some((s) => s.axis === "right")) return;
   const others = new Set(plot.signals.filter((s) => s.sig !== sig && !s.state).map(unit));

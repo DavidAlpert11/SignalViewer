@@ -9,11 +9,16 @@ import numpy as np
 from fastapi import HTTPException
 
 from app import prefs
-from app.store import LoadedRun, LoadError, store
+from app.store import LoadedRun, LoadError, _stat, store
 from svcore.bin_loader import bin_signal_names
 
 
 def _log_signal_names(path: str):
+    # the same file already open and unchanged: its names, without reading the log again
+    full = os.path.abspath(path)
+    for lr in list(store.runs.values()):
+        if os.path.normcase(os.path.abspath(lr.run.file_path)) == os.path.normcase(full) and lr.stat == _stat(full):
+            return list(lr.run.signals)
     if path.lower().endswith(".bin"):
         return bin_signal_names(path)
     from svcore.tlog_loader import load_tlog

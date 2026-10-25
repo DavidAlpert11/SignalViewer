@@ -375,7 +375,7 @@ export default function DataPanel() {
         <span className="dot" style={color ? { background: color } : undefined} />
         <span className="nm"><Highlight text={nameOnly(row.group ? memberLabel(s.name, row.group) : s.name)} q={q} /></span>
         {/* T22: the unit stays visible however long the name; the rate and a small picture of the signal */}
-        {unitOf(s.name) && <span className="sig-unit">{unitOf(s.name)}</span>}
+        {(s.transform?.unit || unitOf(s.name)) && <span className="sig-unit">{s.transform?.unit || unitOf(s.name)}</span>}
         {s.rate !== undefined && <span className="sig-rate">{fmtRate(s.rate, lang)}</span>}
         {!s.labels && <SigSpark id={s.id} version={`${s.n ?? s.samples ?? 0}:${s.version ?? runs.find((r) => s.id.startsWith(`${r.id}/`))?.version ?? ""}:${s.transform ? JSON.stringify(s.transform) : ""}`} />}
         {s.transform && <span className="tf-badge" title={`${t("tfChanged")}: ${describeTransform(s.transform)}`}>ƒ</span>}

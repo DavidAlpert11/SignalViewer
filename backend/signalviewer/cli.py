@@ -16,7 +16,9 @@ signal missing, a wrong checks file) - so a CI step fails on a broken limit and 
 """
 import argparse
 import json
+import os
 import re
+import shutil
 import sys
 
 import numpy as np
@@ -234,6 +236,31 @@ def cmd_validate(a) -> int:
     return 1 if failed else 0
 
 
+def cmd_cache(a) -> int:
+    """What the app keeps on disk for speed, and clearing it (also: Settings > Disk space used).
+    Run it with the app closed: an entry an open file reads from is skipped by the app, not here."""
+    from svcore import csv_loader
+    from app.common import UPLOAD_DIR
+    from app.tiles import CACHE as TILES
+
+    def size(path):
+        return sum(os.path.getsize(os.path.join(d, f)) for d, _s, fs in os.walk(path) for f in fs
+                   if os.path.isfile(os.path.join(d, f)))
+
+    kinds = {"cache": csv_loader.CACHE_DIR, "uploads": UPLOAD_DIR, "tiles": TILES}
+    what = list(kinds) if a.clear == ["all"] else (a.clear or [])
+    for w in what:
+        if w not in kinds:
+            print(f"Unknown: {w} (cache, uploads, tiles or all)", file=sys.stderr)
+            return 2
+        before = size(kinds[w])
+        shutil.rmtree(kinds[w], ignore_errors=True)
+        print(f"cleared {w}: {before / 1048576:.1f} MB")
+    for k, path in kinds.items():
+        print(f"{k:8s} {size(path) / 1048576:10.1f} MB  {path}")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="signalviewer", description="Read and export recordings (Signal Viewer).")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -288,6 +315,9 @@ def main(argv=None) -> int:
     p.add_argument("--json", action="store_true")
     p.add_argument("--junit", help="also write the results as JUnit XML")
     p.set_defaults(fn=cmd_validate)
+    p = sub.add_parser("cache", help="disk space the app uses for speed (CSV cache, log indexes, dropped-file copies, map tiles) and clearing it")
+    p.add_argument("--clear", nargs="+", metavar="WHAT", help="cache, uploads, tiles - or all")
+    p.set_defaults(fn=cmd_cache)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)
     a = ap.parse_args(argv)

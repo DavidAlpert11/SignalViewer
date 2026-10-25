@@ -1,7 +1,46 @@
+import { useEffect, useState } from "react";
+import { api, type StorageInfo, type StorageKind } from "../api";
 import { useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
+import { fmtSize } from "../values";
 import { useEscape } from "./Overlays";
+
+/** What the app keeps on disk for speed (the CSV cache, copies of dropped files, map tiles), each
+ *  with its size and a Clear button. A choice made once in a while: it lives in Settings. */
+function StorageSection() {
+  const t = useT();
+  const [info, setInfo] = useState<StorageInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  useEffect(() => { api.storage().then(setInfo).catch(() => {}); }, []);
+  const clear = async (what: StorageKind[]) => {
+    setBusy(true);
+    try {
+      const r = await api.clearStorage(what);
+      setInfo(r);
+      const vals = Object.values(r.result);
+      const freed = vals.reduce((a, x) => a + (x?.freed ?? 0), 0), kept = vals.reduce((a, x) => a + (x?.kept ?? 0), 0);
+      setNote(t("storageFreed", { size: fmtSize(freed) }) + (kept ? " · " + t("storageKept", { n: kept }) : ""));
+    } catch (e) {
+      useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
+    } finally { setBusy(false); }
+  };
+  const rows: [StorageKind, string][] = [["cache", t("storageCache")], ["uploads", t("storageUploads")], ["tiles", t("storageTiles")]];
+  return (
+    <div className="set-storage">
+      <div className="set-row"><span>{t("storage")}<small>{t("storageHint")}</small></span>
+        <button className="btn outline" disabled={busy || !info} onClick={() => clear(["cache", "uploads"])}>{t("storageClearAll")}</button></div>
+      {rows.map(([k, label]) => (
+        <div className="set-row sub" key={k}>
+          <span>{label}<small title={info?.[k].path}><bdi>{info ? fmtSize(info[k].bytes) : "…"}</bdi></small></span>
+          <button className="btn outline" disabled={busy || !info || !info[k].bytes} onClick={() => clear([k])}>{t("storageClear")}</button>
+        </div>
+      ))}
+      {note && <p className="hint" role="status">{note}</p>}
+    </div>
+  );
+}
 
 /* T18: Settings - kept between starts (prefs.ts / settings.ts), and a session file opened later
    does not change them. Each choice has ONE place: the language stays a button in the top bar,
@@ -31,6 +70,7 @@ export default function SettingsDialog() {
           <div className="set-row"><span>{t("setTime")}<small>{t("setTimeHint")}</small></span>
             {seg(timeFormat, [["seconds", t("setTimeSeconds")], ["clock", t("setTimeClock")]], (v) => useApp.setState({ timeFormat: v }), t("setTime"))}</div>
           <p className="hint">{t("setKept")}</p>
+          <StorageSection />
         </div>
       </div>
     </div>
