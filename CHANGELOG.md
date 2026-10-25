@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## 1.14.0 – 2026-10-26
 
 Highlights: **very large flight logs** - a 1.2 GB ArduPilot .bin opens in seconds instead of not at
-all, and reopens instantly; **live mode keeps the map and 3D object at the newest data**; the app no
-longer stops under a browser tab left in the background; and the disk space it uses for speed is kept
-small, shown and clearable.
+all, and reopens in a moment; **live mode keeps the map and 3D objects at the newest data**; the app
+no longer stops under a browser tab left in the background; the disk space it uses for speed is kept
+small, shown and clearable; and **signals are typed by name** wherever one is chosen, with its unit
+and **unit conversions** (rad → deg, m/s → km/h, m → ft...) one click away. Nothing changes in
+results, sessions or templates you already have.
 
 ### Fixed
 - **Big ArduPilot logs (.bin) froze while opening**: the reader made several temporary arrays the size of the file, one of them 8 bytes per byte (about 13 GB of memory for a 1.2 GB log), and a log with many small damaged blocks was walked again from every break. A 1.2 GB log now opens in about 7 s with under 0.5 GB of memory; the progress bar moves, and Cancel works.
@@ -17,6 +19,7 @@ small, shown and clearable.
 - The FFT cache could hold gigabytes (33 full spectra of long, fast signals); it now keeps up to 256 MB, and only the newest version of each signal.
 
 ### Added
+- **`tools/live_demo.py`**: two objects that move - an aircraft flying circles and a ship sailing a zig-zag, written to two CSV files that keep growing - to see live mode on the map and in 3D without a logger. Open both, add an object from each (they fill themselves in), press Live.
 - **Signals are typed, not scrolled for**, wherever one signal is chosen for a role - a map object's position and attitude, *Place on the map*, the state signal of error segments: type part of the name (as in the file list's search), arrows + Enter, from every open file (the main file's first, each marked with its file). Beside the field: the **unit the signal is in now**, and **ƒ** - change that signal right there (a unit conversion, a scale, a formula), e.g. angles that turn out to be in radians. Esc closes only the dialog on top.
 - **Unit conversions** in *Change this signal…*: rad ↔ deg, rad/s ↔ deg/s, m/s ↔ km/h ↔ kn ↔ mph ↔ ft/min, m ↔ ft ↔ km ↔ NM, cm / mm → m, m/s² ↔ g, °C ↔ °F ↔ K, Pa ↔ hPa ↔ psi, ms / µs → s, deg·1e7 → deg. The conversions from the signal's unit are offered first (all of them when its name does not say). It is an in-place change like any other - composed with one already there, undoable, kept in the session - and the **unit shown** changes with it: on the axis, in the file list, in the legend ("Yaw [rad]" converted shows deg). The unit shown can also be typed.
 - **Big .bin logs are read when used**: values stay in the file until a signal is plotted (a 16 M-sample signal is read in about 0.3 s), within a memory budget (`SV_LAZY_MB`, default 1536 MB); fields the log stores as float32 / small integers stay float32 (the same values, half the memory); several cores share the work.

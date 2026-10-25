@@ -13,13 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.13.0 prepared 2026-10-24** (Milestone 13 in ROADMAP.md, Q88-Q91 - the owner's
-  reports on the work of one file, part by part, other signals in an expression of x, and new
-  signals of two files): the owner pushes, waits for the green `ci` run, tags
-  `v1.13.0` and pushes the tag (build.yml: packages, PyPI, draft release), then publishes the draft.
-  Released before: up to 1.12.0 (PyPI 1.12.0).
-- Checked here for 1.13.0 (Linux): see the log lines of 2026-10-23 and 2026-10-24. Not run here: Windows / macOS (CI
-  and the owner), the Windows installer, the real logs (no reader changed).
+- Branch `main`. **1.14.0 prepared 2026-10-26** (Milestone 14 in ROADMAP.md, Q92-Q97 - the owner's
+  report of 2026-10-25: big .bin logs, the browser server stopping, live on the map, the cache, the
+  Windows window, typed signal choice and unit conversions): the owner pushes, waits for the green
+  `ci` run, tags `v1.14.0` and pushes the tag (build.yml: packages, PyPI, draft release), then
+  publishes the draft. Released before: up to 1.13.0.
+- Checked here for 1.14.0 (Linux): see the log line of 2026-10-26. Not run here: Windows / macOS (CI
+  and the owner) - in particular Q96's window fix -, the Windows installer, a real 1.2 GB log (a
+  synthetic one of the same size, and the real example log value by value).
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
@@ -1065,6 +1066,61 @@ same baseline; `x - {run_b.csv:Speed}` of run_a -> run_c with run_b kept; an old
 asked about from both files - unticked once, ticked once, made with `pinned`; Clear this file on
 run_c deletes exactly the three copies).
 
+
+## Owner's report 2026-10-25 (after 1.13.0) - big logs, live map, cache, typed signal choice
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q92 | T73 A 1.2 GB ArduPilot .bin froze while opening; reopening a big log reads it from scratch | M | ☑ done |
+| Q93 | F40 "Failed to fetch" after refreshing (browser mode): the server stopped itself | S | ☑ done |
+| Q94 | F41 Refresh / live did not move the object on the map / in 3D | S | ☑ done |
+| Q95 | F42 Where is the cache, how to clear it - it was never cleaned | S | ☑ done |
+| Q96 | F43 The Windows package opens in the browser every time | S | ☑ done (not checked on Windows here) |
+| Q97 | F44 Signals chosen by typing, with their unit and ƒ beside them; unit conversions | S | ☑ done |
+
+### Q92 · T73 Very large ArduPilot logs — M
+- bin_loader: the file memory-mapped; headers found in 64 MB blocks on several threads (`_find_heads`);
+  the FMT messages taken from the same pass; the chain of messages walked run by run (only the breaks
+  looked up - the old pointer doubling ran again from every damaged block); no padded copy for decoding.
+- Above `LAZY_MIN` (64 MB, `SV_BIN_LAZY_MB`): numeric fields are `LazyField`s (positions in time order,
+  uint32 under 4 GB) and the run's signals `LazySignal`s (models.py) read on first use within
+  `LAZY_BUDGET` (`SV_LAZY_MB`, LRU, re-read after eviction); a rewritten file raises "refresh it" instead
+  of reading other bytes. Exact float32 / small-integer fields stay float32 (`COMPACT_MIN`). Live append
+  extends the lazy fields. describe leaves `discrete` to on-demand for values not read yet.
+- Index cache: time vectors + positions + the DataFlash state in `cache/bin-<key>` (size, mtime,
+  fingerprint), memory-mapped on reopen; written in the background, only for a log quiet 60 s.
+- Checked against the 1.13.0 reader value by value (eager / lazy, 1 / 4 threads, a real log, damaged
+  blocks): identical. 1.2 GB synthetic: open 7 s / 0.46 GB kept (was ~13 GB needed), reopen 0.03 s.
+
+### Q93 · F40 The browser-mode server stopping — S
+- A background tab pings about once a minute (timer throttling): the 30 s limit stopped the server.
+  Now any request counts (main.py middleware → `seen_page`), `/api/bye` on pagehide, `IDLE_LIMIT` 5 min,
+  `BYE_LIMIT` 75 s, never while a job runs. "Failed to fetch" becomes a message saying the server stopped.
+- Refresh of one file is a job (`reload`) with progress; refresh all reports each file's progress.
+
+### Q94 · F41 Live / refresh on the map — S
+- `actions.pinTimeToEnd`: a cursor at the old end moves to the new one (live poll, refresh, reload;
+  forced when live starts); `trackTime`: in live mode a time past a track's end holds its last state.
+
+### Q95 · F42 The cache — S
+- csv_loader `prune_cache` (older copy of the same source, `SV_CACHE_DAYS`, `SV_CACHE_MAX_GB`, never an
+  entry in use - `CACHE_IN_USE` from app/storage.py), uploads older than 7 days at start, Settings → Disk
+  space used (`/api/storage`, `/api/storage/clear`), `signalviewer-cli cache [--clear …]`.
+- Leaks found on the way: `is_discrete` keyed by version (one entry per signal per live update), the FFT
+  cache (33 full spectra; now 256 MB and the newest version only), two polls that overlapped.
+
+### Q96 · F43 Native window on Windows — S
+- run.py `window_unavailable_reason`: removes the Zone.Identifier mark of the app's own DLLs (pythonnet,
+  WebView2 loader), finds WebView2 by its folders too, and when it still falls back says why in the page
+  (`/api/window_note`) and the log. Not checked on Windows here.
+
+### Q97 · F44 Typed signal choice; unit conversions — S
+- SignalField (SignalPicker over every open file + unit + ƒ → the change dialog for that signal) in the
+  map object dialog, Place on the map, error segments. Esc closes only the dialog on top (Overlays stack).
+- units.ts `CONVERSIONS`, `conversionsFrom`, `signalUnit`; the change dialog's *Convert units* and *Unit
+  shown*; transforms carry `unit` (store `normalize_transform`; a unit alone does not recompute values).
+- tools/live_demo.py: an aircraft and a ship written to two growing CSV files.
+
 ## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
 
 | # | Task | Size | Status |
@@ -1666,3 +1722,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-24 · Q89 / T70 (owner, before pushing 1.13.0): other signals in an expression of x (`sin(x) + {Speed}`: the same file, as read), in place and as new signals; 1.13.0 re-prepared with it (dist, CITATION date, notes) on top of the owner's applied but unpushed 1.13.0 commits. Here: backend 788 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 200 / 200 in one process, mkdocs --strict, validate 23 / 23. An earlier full run found the number-suggestion bug and the old "only x" test; the templates test that failed with them passes alone and in this run.
 - 2026-10-24 · Q90 / T71 (owner, after applying Q89): `{file:Name}` in an expression of x - one particular file's signal for every signal changed; stored by the file's id, shown by its name; the braces hint. 1.13.0 re-prepared with it on top of the owner's applied, unpushed Q89 commits. Here: backend 789 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 201 / 201 in one process, mkdocs --strict, validate 23 / 23.
 - 2026-10-24 · Q91 / T72 (owner, before pushing 1.13.0): new signals of two files belong to one (pinned sources from {file:Name}, Formula {file:name}, Compare's baseline); copy / link / clear handle them; ones with no recorded intent are asked about in the copy dialog. 1.13.0 re-prepared on top of the owner's applied, unpushed Q90 commits. Here: backend 789 + 12 skipped, mypy clean, tsc + build clean (oxlint 39), e2e 202 / 202 in one process (a first full run had test_template_files_are_found_from_tabs_and_matched_by_name time out once - alone 3 / 3, its module 2 x 11 / 11, untouched code), mkdocs --strict, validate 23 / 23.
+- 2026-10-26 · Q92-Q97 / T73, F40-F44 (owner's report after 1.13.0; applied by the owner as one commit, then 1.14.0 prepared on top): big .bin logs (one pass, run-by-run chain, lazy values, float32, index cache), the browser server's watchdog, live / refresh keep the time at the newest data, the cache (pruning, Settings, `cli cache`, three leaks), the Windows window (unblock, WebView2 by folder, the reason shown), typed signal choice with unit and ƒ, unit conversions, tools/live_demo.py. Here: backend 805 + 12 skipped (+16), mypy clean, tsc + build clean (oxlint 39), e2e 205 / 205 one file per process (in earlier runs in one process test_globe_without_webgl_falls_back timed out once - alone 4 / 4, its path untouched; test_compare_same_segment_across_runs fails about 1 in 8 on 1.13.0 too - left as it is). mkdocs --strict, validate 23 / 23.

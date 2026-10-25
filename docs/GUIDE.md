@@ -44,6 +44,10 @@ are told apart by them.
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
 - **Right-click in the plot** for: cursor here, note here, previous zoom, show everything, export
   the data, save or copy the image, axis limits.
+- **Map and 3D objects:** *Add object* on a Map or 3D plot. Its position and attitude are filled in
+  from the signals' names; to choose another, type part of its name in the field. Beside each field
+  you see the unit the signal is in, and **ƒ** changes that signal on the spot – e.g. angles that
+  turn out to be in radians: ƒ → *Convert units* → rad → deg.
 
 ## 5. Zoom and move
 
@@ -108,6 +112,10 @@ without a file); a source written with its file - and the baseline of a *Compare
 is kept. So when the work is copied to a new run, the new run gets its own signal against the same
 fixed source.
 
+**Convert units:** right-click a signal → *Change this signal…* → *Convert units* (rad → deg,
+m/s → km/h, m → ft, °C → °F…; the ones from the signal's unit first). The values and the unit
+shown change together – on the axis, in the list, in the legend – and it can be undone like any change.
+
 ## 9. Keep and share your work
 
 - **Save session** (the disk icon at the top left, Ctrl+S; opening one: the folder icon next to it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
@@ -133,6 +141,11 @@ the flight modes as coloured lanes) and a **health check** that points at what i
 **Live** (top bar) follows files that are still being written – a CSV growing, a MATLAB file saved
 again and again – and can connect to a MAVLink stream. From Python, `signalviewer_push.show(...)`
 sends arrays straight into the running app.
+
+While live, the time (cursor) stays at the newest data, so the values read at it and the objects on
+the map and in 3D move with each update; move it back to look at a moment, press **End** to follow
+again. To try it without a logger: `python tools/live_demo.py` writes an aircraft and a ship that
+keep moving – open both files, add an object from each, press Live.
 
 ## 12. When something goes wrong
 

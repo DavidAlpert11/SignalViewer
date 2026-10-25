@@ -36,7 +36,7 @@ Verified by running the built app with no network interface at all.
 
 | Build command (Windows) | Result | When |
 |---|---|---|
-| `build.bat installer` | `dist\SignalViewer-Setup-1.13.0.exe` | **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, *Open with* for data files, uninstaller |
+| `build.bat installer` | `dist\SignalViewer-Setup-1.14.0.exe` | **Recommended.** One file; installs for the current user (no admin), Start-menu and desktop icons, *Open with* for data files, uninstaller |
 | `build.bat portable` | `dist\SignalViewer-portable.zip` | Unzip anywhere and run `SignalViewer.exe` (fast start) |
 | `build.bat onefile` | `dist\SignalViewer.exe` | A single file to copy; starts a few seconds slower (it unpacks itself each time) |
 | `build_windows_portable.bat` (**Windows**) / `python tools/make_windows_portable.py` | `dist\SignalViewer-Windows-portable.7z` | **Windows portable build on a Windows PC**: double-click the `.bat` (needs Python 3.8+ with pip and internet, once, only to build). Downloads the official embeddable Python + the Windows builds of the libraries; the result needs no Python and no internet. **7z** (about 80 MB instead of 126 MB as zip): made with 7-Zip when installed, else with the py7zr library fetched once; Windows 11 opens .7z in Explorer, Windows 10 needs 7-Zip. `--format zip` for a zip, `--keep-folder` keeps the assembled folder, `--clean` forces a fresh download, `--build-ui` rebuilds the web UI first (Node.js; done automatically when the UI sources are newer than the built UI) |
@@ -47,7 +47,10 @@ The installer needs Inno Setup 6 on the BUILD PC only (free).
 
 **Windows window engine.** The app window uses Microsoft Edge WebView2 (built into Windows 11 and
 updated Windows 10). If it is missing (e.g. an old offline Windows 10 LTSC), the app opens in the local
-browser instead — still with no internet — and stops by itself when no tab has been open for 30 s.
+browser instead — still with no internet — says why in the page (and in the log), and stops by itself
+5 minutes after its last tab was closed (or a minute after the tab says it is closing; never while a
+file is still being read). The portable package unblocks its own DLLs that Windows marked as
+downloaded, which used to send it to the browser every time.
 
 
 **Ready-made packages** (no Python and no installation needed, except the Windows installer itself) are built by the GitHub
