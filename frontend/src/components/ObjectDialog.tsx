@@ -4,6 +4,7 @@ import { useT, type TKey } from "../i18n";
 import { iconSvg, OBJECT_KINDS } from "./mapIcons";
 import { guessRoles, QUAT_ROLES, ROLES, type Role } from "../mapObjects";
 import { useEscape } from "./Overlays";
+import SignalField from "./SignalField";
 
 /* Adding / editing a map object: what it is (aircraft, ship...), its colour, and which signals give
    its position and attitude - each from any open file. Picking a file fills in the signals by their
@@ -57,25 +58,17 @@ export default function ObjectDialog() {
     close();
   };
 
+  // each role: a signal typed by name, from any open file (the main file's first), with its unit
+  // and ƒ to change it right here (angles in radians -> degrees)
   const roleRow = (role: Role) => {
-    const cur = o[role] ?? "";
-    const rid = runOf(cur) || mainRun;
-    const run = data.find((r) => r.id === rid);
+    const required = role === "lat" || role === "lon";
     return (
-      <label key={role} className="obj-role">
-        <span>{t(`objRole_${role}` as TKey)}{role === "lat" || role === "lon" ? " *" : ""}</span>
-        {data.length > 1 && (
-          <select value={rid} aria-label={`${t(`objRole_${role}` as TKey)} – ${t("objFile")}`}
-            onChange={(e) => { const r2 = data.find((r) => r.id === e.target.value); const g = r2 ? guessRoles(r2)[role] : undefined; setO((c) => ({ ...c, [role]: g ?? (role === "lat" || role === "lon" ? "" : null) })); }}>
-            {data.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
-        )}
-        <select value={cur} aria-label={t(`objRole_${role}` as TKey)}
-          onChange={(e) => setO((c) => ({ ...c, [role]: e.target.value || (role === "lat" || role === "lon" ? "" : null) }))}>
-          <option value="">{role === "lat" || role === "lon" ? t("objChoose") : t("objNone")}</option>
-          {(run?.signals ?? []).map((s) => <option key={s.name} value={`${run!.id}/${s.name}`}>{s.name}</option>)}
-        </select>
-      </label>
+      <div key={role} className="obj-role">
+        <span>{t(`objRole_${role}` as TKey)}{required ? " *" : ""}</span>
+        <SignalField value={o[role] || null} ariaLabel={t(`objRole_${role}` as TKey)} prefer={mainRun}
+          placeholder={required ? t("objChoose") : t("objNone")} noneLabel={required ? undefined : t("objNone")}
+          onChange={(id) => setO((c) => ({ ...c, [role]: id ?? (required ? "" : null) }))} />
+      </div>
     );
   };
 

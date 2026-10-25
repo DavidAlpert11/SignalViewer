@@ -13,8 +13,10 @@ export async function refreshAll(opts: { quiet?: boolean } = {}): Promise<boolea
     const res = await runJob<{ reloaded: string[]; unchanged: string[]; errors: { id: string; name: string; message: string }[]; skipped: string[] }>(
       "reloadAll", {}, translate(L, "refreshingAll"));
     if (!res) return false;                                   // cancelled
+    const before = useApp.getState().runs;
     useApp.setState({ runs: await api.listRuns(), dataVersion: useApp.getState().dataVersion + 1 });
     actions.dropStaleRanges();
+    actions.pinTimeToEnd(before);
     for (const e of res.errors) useApp.getState().toast({ kind: "error", text: translate(L, "refreshFailed", { name: e.name, msg: e.message }) });
     if (!opts.quiet) {
       const parts = [translate(L, "refreshedN", { n: res.reloaded.length })];
@@ -39,6 +41,9 @@ export async function startLive() {
     await refreshAll({ quiet: true });
     await api.streamStart();
     useApp.setState({ streaming: true, activity: {}, liveLastData: Date.now(), liveIdle: 0 });
+    // live: the time goes to the newest data and stays there as data arrives (the map / 3D object
+    // in its latest state); moving it back still works, End returns to following
+    actions.pinTimeToEnd(useApp.getState().runs, true);
   } catch (e) {
     useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
   } finally {

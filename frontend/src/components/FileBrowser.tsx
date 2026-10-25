@@ -5,6 +5,7 @@ import { useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
 import { openPaths, recentToOpen, refreshRecent } from "../files";
+import { fmtSize } from "../values";
 
 const LAST_DIR = "sv3.lastDir";        // opening data files (the key since 1.0 - kept)
 /** F21: each use of the dialog remembers its own folder (saving a report somewhere else must not
@@ -27,13 +28,6 @@ function startFolder(picker: { mode: string; exts?: string[] } | null): string |
 }
 const SORT_KEY = "sv3.fsSort";          // "modified" (default: newest first) or "name"
 
-function fmtSize(n?: number | null) {
-  if (n == null) return "";
-  if (n < 1024) return `${n} B`;
-  if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
-  if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
-  return `${(n / 1073741824).toFixed(2)} GB`;
-}
 
 /** Built-in file browser (works on every OS).
  *  Two uses: opening data files (multi-select, import options) and a generic

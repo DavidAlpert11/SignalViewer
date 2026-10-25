@@ -71,3 +71,12 @@ export function inkOn(hex: string): string {
   const L = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
   return (L + 0.05) / 0.05 > 1.05 / (L + 0.05) ? "#111418" : "#ffffff";
 }
+
+/** A size in bytes for people: 512 B, 40 KB, 3.2 MB, 1.25 GB. */
+export function fmtSize(n?: number | null) {
+  if (n == null) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
+  if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
+  return `${(n / 1073741824).toFixed(2)} GB`;
+}

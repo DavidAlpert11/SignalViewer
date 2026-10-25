@@ -458,6 +458,7 @@ def _frame(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[
 # ----------------------------------------------------------------------------- FFT
 
 _fft_cache: Dict[tuple, Tuple[np.ndarray, np.ndarray, Dict[str, Any]]] = {}
+_FFT_CACHE_BYTES = 256 << 20
 
 
 def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
@@ -480,9 +481,15 @@ def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
         f, m = np.array([]), np.array([])
     else:
         f, m = (compute_welch if method == "welch" else compute_fft)(_f64(t), _f64(y), window, how)
-    if len(_fft_cache) > 32:
-        _fft_cache.pop(next(iter(_fft_cache)))
+    # bounded by SIZE, not only by count: a spectrum of a long high-rate signal is 100+ MB, and 33
+    # of them could hold gigabytes. An older version of the same signal (live mode: every update)
+    # is never needed again.
+    for k in [k for k in _fft_cache if k[0] == sig_id and k[1] != version]:
+        _fft_cache.pop(k, None)
     _fft_cache[key] = (f, m, how)
+    while len(_fft_cache) > 1 and (len(_fft_cache) > 32 or
+                                   sum(v[0].nbytes + v[1].nbytes for v in _fft_cache.values()) > _FFT_CACHE_BYTES):
+        _fft_cache.pop(next(iter(_fft_cache)))
     if info is not None:
         info.update(how)
     return f, m

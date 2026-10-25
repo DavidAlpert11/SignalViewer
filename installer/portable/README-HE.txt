@@ -21,11 +21,12 @@
 אם משהו לא עובד
   לחיצה כפולה על:  Signal Viewer (troubleshooting).bat
   נפתח חלון שמציג את הודעת השגיאה. יומן מלא נשמר ב:
-  %USERPROFILE%\.signalviewer\signalviewer.log
+  %USERPROFILE%\.signalviewer\logs\signalviewer.log
 
 חלון האפליקציה
   החלון משתמש ברכיב WebView2 של Windows (מובנה ב-Windows 11 וב-Windows 10 מעודכן).
   אם הוא חסר, האפליקציה נפתחת בדפדפן (Edge/Chrome) — גם זה בלי אינטרנט.
+  כשהאפליקציה נפתחת בדפדפן, מופיעה בה הודעה עם הסיבה (והיא נכתבת גם ביומן).
 
 מה יש בתיקייה
   runtime\   — Python 3.12 לWindows וכל הספריות (לא משפיע על Python אחר במחשב, אם יש)

@@ -1,6 +1,11 @@
+import { translate } from "./i18n";
+
+export type StorageKind = "cache" | "uploads" | "tiles";
+export type StorageInfo = Record<StorageKind, { path: string; bytes: number }>;
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
 export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot" | "simVsFlight";
-export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number }
+export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number;
+  unit?: string }                          // the unit shown after a unit conversion (units.ts)
 export interface SignalInfo {
   id: string; name: string; discrete?: boolean;
   n?: number; rate?: number;            // T22: samples and mean sample rate (Hz), from the describe
@@ -115,11 +120,19 @@ export interface Template {
 }
 
 async function call<T>(url: string, body?: unknown, method = body === undefined ? "GET" : "POST"): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    // no answer at all ("Failed to fetch"): the app's local server is not running any more -
+    // say that and what to do, instead of the browser's bare words
+    const lang = document.documentElement.lang === "he" ? "he" : "en";
+    throw new Error(translate(lang, "serverGone"));
+  }
   if (!res.ok) {
     let msg = res.statusText;
     try { msg = (await res.json()).detail ?? msg; } catch { /* keep status text */ }
@@ -199,6 +212,11 @@ export const api = {
   },
   reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),
+  /** Why the app opened in the browser instead of its own window ("" = it did not). */
+  windowNote: () => call<{ browserReason: string }>("/api/window_note"),
+  /** What the app keeps on disk (CSV cache, copies of dropped files, map tiles) and clearing it. */
+  storage: () => call<StorageInfo>("/api/storage"),
+  clearStorage: (what: StorageKind[]) => call<StorageInfo & { result: Partial<Record<StorageKind, { freed: number; kept: number }>> }>("/api/storage/clear", { what }),
   poll: () => call<{ changed: string[]; runs: RunInfo[] | null; errors?: Record<string, string>;
     activity?: Record<string, number>; newFiles?: { path: string; name: string; size: number; mtime: number }[]; writing?: string[] }>("/api/stream/poll", {}),
   streamStart: (lookBack = 0) => call<{ ok: boolean }>("/api/stream/start", { lookBack }),

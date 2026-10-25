@@ -43,16 +43,21 @@ function stopWatch() { window.clearInterval(timer); timer = 0; }
 /** Status once a second while connected; opens the recording when its first data is written. */
 function watch() {
   stopWatch();
+  let asking = false;                     // one status request at a time (a busy server answers late)
   timer = window.setInterval(async () => {
-    let s: MavStatus;
-    try { s = await api.mavlinkStatus(); } catch { return; }
-    useApp.setState({ mavlink: s });
-    if (!s.running) { stopWatch(); return; }
-    if (s.path && !opened && (s.written ?? 0) > 0) {
-      opened = s.path;
-      await openPaths([s.path]);
-      if (!useApp.getState().streaming && !useApp.getState().liveStarting) await startLive();
-    }
+    if (asking) return;
+    asking = true;
+    try {
+      let s: MavStatus;
+      try { s = await api.mavlinkStatus(); } catch { return; }
+      useApp.setState({ mavlink: s });
+      if (!s.running) { stopWatch(); return; }
+      if (s.path && !opened && (s.written ?? 0) > 0) {
+        opened = s.path;
+        await openPaths([s.path]);
+        if (!useApp.getState().streaming && !useApp.getState().liveStarting) await startLive();
+      }
+    } finally { asking = false; }
   }, 1000);
 }
 

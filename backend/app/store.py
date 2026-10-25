@@ -51,6 +51,10 @@ def normalize_transform(spec: Optional[dict]) -> Optional[dict]:
         v = spec.get(k)
         if v is not None and v != "" and float(v) != default:
             out[k] = float(v)
+    # the unit shown after a unit conversion ("deg" for a signal logged in rad): a label only
+    unit = " ".join(str(spec.get("unit") or "").split())[:24]
+    if unit:
+        out["unit"] = unit
     return out or None
 
 
@@ -358,7 +362,7 @@ class Store:
         # exports all see the same values. The file's data is never modified.
         self.transforms: Dict[str, dict] = {}
         self._tcache: "OrderedDict[tuple, tuple]" = OrderedDict()
-        self._discrete: Dict[str, bool] = {}
+        self._discrete: Dict[str, Tuple[str, bool]] = {}     # signal id -> (version, discrete)
         # T46: every open data file has a colour and a short tag (A, B, C...) - kept by id, so a
         # reload / replace / live update keeps them; given when a file is first described
         self.marks: Dict[str, Dict[str, str]] = {}
@@ -508,6 +512,8 @@ class Store:
 
     def remove(self, run_id: str):
         with self._lock:
+            for k in [k for k in self._discrete if k.startswith(run_id + "/")]:
+                self._discrete.pop(k, None)
             self.marks.pop(run_id, None)
             self.runs.pop(run_id, None)
             if run_id in self.order:
@@ -554,6 +560,9 @@ class Store:
             fresh.id, fresh.name = lr.id, lr.name
             fresh.last_change = lr.last_change
             self.runs[lr.id] = fresh
+        if run_format(fresh.run) == "csv":
+            from svcore.csv_loader import prune_cache
+            prune_cache(source=os.path.abspath(fresh.run.file_path))   # its copy as it was: no longer read
         return fresh
 
     def poll_appends(self) -> List[str]:
@@ -664,6 +673,9 @@ class Store:
                 continue
             if progress:
                 progress(i / max(1, len(ids)), lr.name)
+                # the loader's own progress, inside this file's share of the bar
+                from svcore.csv_loader import set_progress_context
+                set_progress_context(lambda f, _ph, i=i, nm=lr.name: progress((i + f) / max(1, len(ids)), nm), cancelled)
             try:
                 if _stat(lr.run.file_path) == lr.stat and lr.stat is not None:
                     out["unchanged"].append(rid)
@@ -733,7 +745,7 @@ class Store:
             raise KeyError(sig_id)
         raw = lr.run.get_signal_data(name)
         spec = self.transforms.get(sig_id)
-        return self._transformed(sig_id, raw, spec) if spec else raw
+        return self._transformed(sig_id, raw, spec) if spec and set(spec) - {"unit"} else raw   # (a unit alone: same values)
 
     def _transformed(self, sig_id: str, raw, spec: dict):
         key = (sig_id, self._raw_version(sig_id), self._ref_versions(sig_id, spec), json.dumps(spec, sort_keys=True))
@@ -892,13 +904,23 @@ class Store:
         return bool(self.labels(sig_id)) or self.is_discrete(sig_id)
 
     def is_discrete(self, sig_id: str) -> bool:
-        key = f"{sig_id}@{self.version(sig_id)}"
-        if key not in self._discrete:
+        # one entry per signal, for its current version: keyed by version it gained an entry per
+        # signal on every live update (a slow leak over a long live session)
+        # the same loaded file and the same edit: rows appended in live mode do not turn a signal
+        # into a state one or back - re-testing every signal on every live update (up to 200k
+        # samples each, for files of up to WIDE signals) cost more than a second per poll
+        run_id, _, _name = sig_id.partition("/")
+        lr = self.runs.get(run_id)
+        ver = repr((lr.run.uid, json.dumps(self.transforms.get(sig_id), sort_keys=True)) if lr is not None
+                   else self.version(sig_id))
+        hit = self._discrete.get(sig_id)
+        if hit is None or hit[0] != ver:
             try:
-                self._discrete[key] = is_discrete(self.signal(sig_id)[1])
+                val = is_discrete(self.signal(sig_id)[1])
             except (KeyError, ValueError, TypeError):    # closed, or not numbers
-                self._discrete[key] = False
-        return self._discrete[key]
+                val = False
+            hit = self._discrete[sig_id] = (ver, val)
+        return hit[1]
 
     def describe(self, lr: LoadedRun) -> dict:
         r = lr.run
@@ -917,7 +939,9 @@ class Store:
             "importSettings": {k: v for k, v in (r.import_settings or {}).items()},
             # discrete detection reads every column: for wide files it is done on demand instead
             "signals": [{"id": f"{lr.id}/{n}", "name": n, **_rate_of(sg, r),
-                         "discrete": True if sg.labels else (self.is_discrete(f"{lr.id}/{n}") if len(r.signals) <= WIDE else None),
+                         # (a big log's values not read yet: on demand too - describing must not read them all)
+                         "discrete": True if sg.labels else (self.is_discrete(f"{lr.id}/{n}")
+                                                             if len(r.signals) <= WIDE and getattr(sg, "loaded", True) else None),
                          **({"labels": {str(k): v for k, v in sg.labels.items()}} if sg.labels else {}),
                          **({"transform": self.transforms[f"{lr.id}/{n}"]} if f"{lr.id}/{n}" in self.transforms else {})}
                         for n, sg in r.signals.items()],

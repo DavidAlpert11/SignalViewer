@@ -4,7 +4,7 @@ import { api, type Series } from "../api";
 import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum } from "../i18n";
-import { unitOf } from "../units";
+import { signalUnit } from "../units";
 import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
@@ -458,7 +458,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     // T47: signals on the right axis have their own scale ("y2"), range and unit label
     const onRight = (s: PlotSignal) => s.axis === "right" && !s.state;
     const hasRight = sigs.some(onRight);
-    const unitOfSig = (s: PlotSignal) => unitOf(s.label || s.sig.slice(s.sig.indexOf("/") + 1));
+    const unitOfSig = (s: PlotSignal) => signalUnit(runsRef.current, s.sig, s.label);   // a converted signal: its new unit
     const units = sigs.filter((s) => !onRight(s) && !(hasRight && s.state)).map(unitOfSig);
     const commonUnit = units.length && units.every((x) => x && x === units[0]) ? units[0] : null;
     const rUnits = sigs.filter(onRight).map(unitOfSig);
