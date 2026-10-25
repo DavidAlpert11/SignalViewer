@@ -21,6 +21,18 @@ signalviewer-cli report --template "ArduPilot · Full review" --out reports/ log
 signalviewer-cli templates                              # what --template can name
 ```
 
+## Disk space: `cache`
+
+```
+signalviewer-cli cache                      # the CSV cache and log indexes, dropped-file copies, map tiles: size and folder
+signalviewer-cli cache --clear all          # or: cache / uploads / tiles - with the app closed
+```
+
+The app keeps the cache small by itself (an old copy of a changed file is removed, entries unused
+for 30 days go, at most 5 GB: `SV_CACHE_MAX_GB`, `SV_CACHE_DAYS`); Settings shows and clears it too.
+`SV_LAZY_MB` (default 1536) is the memory big logs' values may use before the least recently used are
+read again from the file.
+
 ## Pass / fail in CI: `check`
 
 ```bash
