@@ -233,7 +233,9 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Shared state lanes
 
-- A state (the flight mode…) drawn at the bottom of every time plot of a tab: right-click its chip → *Show this state on every plot of the tab*. The built-in views do it for the flight mode; saved templates keep it
+- Where a lane is shown, from one menu (right-click the lane itself, its chip, or the signal in the list): *this plot only*, *every plot of this tab*, or *every time plot, all tabs* (new tabs too) - one place at a time - and *Remove this lane*. The built-in views put the flight mode on every plot of the tab; templates keep tab lanes (not the all-tabs ones)
+- *Always as a state (every plot, every file)*: by the signal's name - every plot showing it becomes a lane at once, and so does every later add, in any open file; switched off, they become lines. Signals with texts are lanes unless switched off
+- A lane's name sits in the margin left of it, never over the data; hovering a lane shows the state there, its stretch and where the lane is shown. Several lanes under lines share at most a quarter of the plot (thinner lanes, no text when too thin)
 
 ### States
 

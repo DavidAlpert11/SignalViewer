@@ -102,8 +102,21 @@ export function colorByFile(plot: Plot, runs: RunInfo[], all = false) {
 
 export function newPlotSignal(sig: string, ws: Workspace): PlotSignal {
   const ps: PlotSignal = { sig, color: nextColor(ws), width: 1.5, scale: 1, offset: 0 };
-  if (labelsOf(useApp.getState().runs, sig)) ps.state = true;
+  if (alwaysState(ws, sig)) ps.state = true;
   return ps;
+}
+
+const sigName = (sig: string) => sig.slice(sig.indexOf("/") + 1);
+/** Is this signal a state wherever it is added? The user's choice for its name, else: it has texts. */
+export function alwaysState(ws: Workspace, sig: string): boolean {
+  return ws.stateNames?.[sigName(sig)] ?? !!labelsOf(useApp.getState().runs, sig);
+}
+export type LaneScope = "plot" | "tab" | "all";
+/** Where a state lane in this plot comes from: everywhere, the tab, or the plot itself. */
+export function laneScope(ws: Workspace, tab: Tab, plot: Plot, sig: string): LaneScope | null {
+  if ((ws.globalStates ?? []).includes(sig)) return "all";
+  if ((tab.sharedStates ?? []).includes(sig)) return "tab";
+  return plot.signals.some((s) => s.sig === sig && s.state) ? "plot" : null;
 }
 
 export function nextColor(ws: Workspace): string {

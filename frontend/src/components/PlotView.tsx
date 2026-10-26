@@ -24,6 +24,7 @@ import PlotBoundary from "./PlotBoundary";
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
 import { openMenu } from "./Overlays";
+import { laneMenuItems } from "../lanes";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
 
@@ -55,9 +56,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       // T47: a second value axis for a signal in other units (or another range)
       ...(mode === "time" && !ps.state ? [{ label: ps.axis === "right" ? t("toLeftAxis") : t("toRightAxis"),
         run: () => actions.updateSignal(plot.id, sig, { axis: ps.axis === "right" ? undefined : "right" }) }] : []),
-      ...(ps.state || labelsOf(runs, sig) ? [{
-        label: (tab.sharedStates ?? []).includes(sig) ? t("lanesSharedOff") : t("lanesSharedOn"),
-        run: () => actions.toggleSharedState(sig) }] : []),
+      // where the lane is shown (this plot / the tab / every tab) and "always a state" - lanes.ts
+      ...(ps.state || labelsOf(runs, sig) || runs.some((r) => r.signals.some((x) => x.id === sig && x.discrete))
+        ? [{ label: "", run: () => {}, sep: true }, ...laneMenuItems(plot.id, sig)] : []),
       { label: "", run: () => {}, sep: true },
       { label: t("moveUp"), run: () => actions.moveSignal(plot.id, sig, -1), disabled: i === 0 },
       { label: t("moveDown"), run: () => actions.moveSignal(plot.id, sig, 1), disabled: i === plot.signals.length - 1 },
@@ -145,7 +146,14 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: t("ctxShowAll"), run: () => actions.resetZoom() },
       { label: "", run: () => {}, sep: true },
     ] : [];
-    openMenu(e, [...timeItems, ...plotItems()]);
+    // a right-click on a state lane: that lane's menu first (where it is shown, remove it)
+    const lane = (e.nativeEvent as MouseEvent & { svLane?: string }).svLane;
+    const laneItems: MenuItem[] = lane ? [
+      { label: signalName(runs, lane, false), run: () => {}, disabled: true },
+      ...laneMenuItems(plot.id, lane, true),
+      { label: "", run: () => {}, sep: true },
+    ] : [];
+    openMenu(e, [...laneItems, ...timeItems, ...plotItems()]);
   };
   const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")]];
   /* T49 item 9: the plot type is one button with its name (a menu of the types), not nine buttons on
