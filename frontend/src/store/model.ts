@@ -63,7 +63,13 @@ export interface ReportMeta { title: string; intro: string; summary: string; lan
  *  with the session, listed in the report. */
 /** A note at a moment, or over a time range (T23: t2 = its end). */
 export interface Note { id: string; t: number; t2?: number; text: string }
-export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta; notes?: Note[] }
+export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta; notes?: Note[];
+  /** State lanes on every time plot of every tab (signal ids), beside each tab's own sharedStates. */
+  globalStates?: string[];
+  /** "Always as a state", by signal NAME (every open file): true = a lane wherever it is added,
+   *  false = a line even when it has texts; absent = automatic (signals with texts are lanes). */
+  stateNames?: Record<string, boolean>;
+}
 
 export const TRACE_COLORS = [
   "#3D8BFD", "#2FBF9F", "#E5677A", "#9B7BFF", "#7CC35A",

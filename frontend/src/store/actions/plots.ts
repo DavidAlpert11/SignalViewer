@@ -363,13 +363,37 @@ export const plotActions = {
       return ws;
     });
   },
-  /** A state signal as a lane on every time plot of the active tab (or not any more). */
-  toggleSharedState(sig: string) {
+  /** Where a state lane is shown: this plot only, every time plot of the tab, every time plot of
+   *  every tab - or nowhere (`null`: off the plot it was on, out of the tab's and the global lanes).
+   *  One place at a time, so a lane is never listed twice; one undo step. */
+  setLaneScope(plotId: string, sig: string, scope: "plot" | "tab" | "all" | null) {
     useApp.getState().commit((ws) => {
-      const tab = ws.tabs.find((t) => t.id === ws.activeTab);
-      if (!tab) return ws;
-      const cur = tab.sharedStates ?? [];
-      tab.sharedStates = cur.includes(sig) ? cur.filter((x) => x !== sig) : [...cur, sig];
+      const tab = ws.tabs.find((t) => t.plots.some((p) => p.id === plotId));
+      const plot = tab?.plots.find((p) => p.id === plotId);
+      if (!tab || !plot) return ws;
+      ws.globalStates = (ws.globalStates ?? []).filter((x) => x !== sig);
+      const drop = (t: Tab) => { t.sharedStates = (t.sharedStates ?? []).filter((x) => x !== sig); };
+      if (scope === "all") ws.tabs.forEach(drop); else drop(tab);
+      const own = plot.signals.find((s) => s.sig === sig);
+      if (scope === "plot") {
+        if (own) own.state = true; else plot.signals.push({ ...newPlotSignal(sig, ws), state: true });
+      } else if (own?.state) {
+        plot.signals = plot.signals.filter((s) => s !== own);     // shown by the wider scope now
+      }
+      if (scope === "tab") tab.sharedStates = [...(tab.sharedStates ?? []), sig];
+      if (scope === "all") ws.globalStates = [...ws.globalStates, sig];
+      return ws;
+    });
+  },
+  /** "Always as a state" for a signal NAME (every file): every plot showing it follows at once,
+   *  and every later add of it is a lane (newPlotSignal). */
+  setAlwaysState(sig: string, on: boolean) {
+    const name = sig.slice(sig.indexOf("/") + 1);
+    useApp.getState().commit((ws) => {
+      ws.stateNames = { ...(ws.stateNames ?? {}), [name]: on };
+      for (const t of ws.tabs) for (const p of t.plots) for (const s of p.signals) {
+        if (s.sig.slice(s.sig.indexOf("/") + 1) === name) s.state = on || undefined;
+      }
       return ws;
     });
   },

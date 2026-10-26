@@ -1,4 +1,5 @@
 import { DATA_EXTS } from "../values";
+import { laneMenuForSignal } from "../lanes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { groupByPrefix, groupDerived, memberLabel } from "../signalGroups";
 import { unitOf } from "../units";
@@ -161,6 +162,8 @@ export default function DataPanel() {
     // T49 item 7: one way to change a signal itself (the same as Create signals > Change this signal)
     ...(sig.id.startsWith("derived/") ? [] : [{ label: t("tfEdit"), run: () => useApp.setState({ transformTargets: [sig.id] }) }]),
     createSignalItem(sig.id),
+    // a state (texts, or a few values): a lane on the tab or on every tab without adding it to a plot first
+    ...(sig.labels || sig.discrete ? [{ label: "", run: () => {}, sep: true }, ...laneMenuForSignal(sig.id)] : []),
   ]);
 
   // recent files that are not open now, to add one more file quickly
