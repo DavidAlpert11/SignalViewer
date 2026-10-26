@@ -310,6 +310,8 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Coordinate frames
 
+- *Create signals ▸ Several ▸ Smooth a vector*: the 2-3 components of one vector (position, velocity) each a centred moving average over a window in seconds (the same at any rate), never across a gap (a step over 10x the usual one), latitude / longitude unwrapped across ±180; one new signal per component, as one group. Angles are not smoothed
+- Map / 3D objects: *Position from* latitude / longitude, ECEF, NED or ENU (NED / ENU with a reference point: the first sample of other signals or typed numbers), and *Smooth position (s)* - made as derived signals when saved, read back when the object is edited (saved unchanged: nothing new is made)
 - *Create signals ▸ Frames*: NED, ENU, body, ECEF, LLA – a vector (rotated; body needs the attitude as Euler angles or a quaternion) or a position (also moves the origin; NED / ENU from a reference point: the first sample, other signals or numbers)
 - Suggested from the names (GPS position → NED, a NED velocity → body, an IMU acceleration → NED with the log's attitude)
 - The three axes are created as one group (`ned_Pos_lla.N/E/D`), previewed in the active plot or a plot per axis, and go to the active plot, a new plot each, or none
