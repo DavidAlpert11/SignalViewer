@@ -26,6 +26,7 @@ from svcore.mcap_loader import McapError, load_mcap
 from svcore.hdf5_loader import Hdf5Error, load_hdf5
 from svcore.parquet_loader import ParquetError, load_parquet
 from svcore.models import Run
+from svcore import time_axis
 from app import userreaders
 from app.prefs import APP_DIR
 from svcore.analysis import DerivedDef, OpError, compute, is_discrete
@@ -458,6 +459,16 @@ class Store:
                 raise _csv_failure(path, s)
         if not run.signals:
             raise LoadError("The file has no numeric signal columns.", "noSignals")
+        # the time in the unit the user chose (Time axis dialog): kept in the import settings, so a
+        # refresh, live mode and a saved session read it the same way
+        scale = time_axis.scale_of(settings, "time_scale")
+        own_scale = time_axis.scale_of(settings, "own_time_scale")
+        if (scale != 1.0 or own_scale != 1.0) and run_format(run) in time_axis.TIME_SCALE_FORMATS:
+            time_axis.apply_scales(run, scale, own_scale)
+            run.import_settings = dict(run.import_settings or {})
+            for k, v in (("time_scale", scale), ("own_time_scale", own_scale)):
+                if v != 1.0:
+                    run.import_settings[k] = v
         report.update(getattr(run, "load_report", None) or {})
         lr = LoadedRun(id=uuid.uuid4().hex[:8], run=run, name=name, load_report=report)
         lr.stat = _stat(path)
@@ -545,17 +556,141 @@ class Store:
     def set_time_offset(self, run_id: str, offset: float):
         self.get(run_id).run.time_offset = float(offset)
 
+    # ------------------------------------------------------------ time axis
+    def time_axis_info(self, lr: "LoadedRun", candidates: bool = False) -> dict:
+        """What the Time axis dialog may change in this file, and how it is set now (with
+        `candidates`, the columns that can become the time - not in every file description: a
+        file can have thousands)."""
+        r = lr.run
+        fmt = run_format(r)
+        st = r.import_settings or {}
+        pushed = r.file_path.startswith("python:")
+        can_column = fmt in time_axis.TIME_COLUMN_FORMATS and not pushed
+        return {
+            "canColumn": can_column,
+            "canScale": fmt in time_axis.TIME_SCALE_FORMATS and not pushed,
+            "column": r.time_source,
+            "columnUnit": time_axis.unit_from_name(r.time_source or ""),
+            "scale": time_axis.scale_of(st, "time_scale"),
+            "ownScale": time_axis.scale_of(st, "own_time_scale"),
+            "offset": float(r.time_offset or 0.0),
+            "ownTimes": sum(1 for sg in r.signals.values() if sg.time is not None),
+            # signals that can become the time: numbers on the main time (not text, not on a time
+            # of their own) - shown by their name in the app, chosen by their name in the file
+            **({"candidates": [n for n, sg in r.signals.items() if sg.time is None and not sg.labels] if can_column else []}
+               if candidates else {}),
+            "sorted": bool((lr.load_report or {}).get("sorted")),
+        }
+
+    def check_time_axis(self, run_id: str, column: Optional[str]) -> dict:
+        """Before a change: what the column would look like as the time, and which of the file's
+        new signals and edits compute against time (their meaning changes with the axis)."""
+        lr = self.get(run_id)
+        info = self.time_axis_info(lr, candidates=True)
+        out: dict = {"info": info}
+        if column:
+            sg = lr.run.signals.get(column)
+            if sg is None or sg.time is not None or sg.labels:
+                raise LoadError(f"{column} can not be the time of this file (it is not a numeric column on the file's time).")
+            out["column"] = time_axis.analyze(np.asarray(sg.data), lr.run.original_names.get(column, column))
+            out["brokenDerived"] = [n for n, d in self.derived.items() if f"{run_id}/{column}" in d.sources]
+        out.update(self._time_dependent(run_id))
+        return out
+
+    def _time_dependent(self, run_id: str) -> dict:
+        """New signals (and edits) of this file computed against time: derivative, integral,
+        filters (a cut-off in Hz), expressions with deriv / integ / lowpass / highpass / t, and the
+        user's Python operations (they may). Followed through signals made from signals."""
+        timed = re.compile(r"\b(deriv|integ|lowpass|highpass|t)\b")
+
+        def is_timed(d: DerivedDef) -> bool:
+            if d.op in ("derivative", "integral", "lowpass", "highpass", "py"):
+                return True
+            return d.op == "expr" and bool(timed.search(str(d.params.get("text") or d.params.get("expr") or "")))
+
+        mine: Dict[str, bool] = {}
+
+        def belongs(name: str, seen: frozenset = frozenset()) -> bool:
+            if name in mine:
+                return mine[name]
+            d = self.derived.get(name)
+            if d is None or name in seen:
+                return False
+            hit = any(src.startswith(run_id + "/") or (src.startswith(DERIVED_ID + "/")
+                      and belongs(src.split("/", 1)[1], seen | {name})) for src in d.sources)
+            mine[name] = hit
+            return hit
+
+        derived = [n for n, d in self.derived.items() if belongs(n) and is_timed(d)]
+        edits = [sid.split("/", 1)[1] for sid, spec in self.transforms.items()
+                 if sid.startswith(run_id + "/") and (spec.get("dt") or timed.search(str(spec.get("expr") or "")))]
+        return {"timedDerived": derived, "timedEdits": edits}
+
+    def set_time_axis(self, run_id: str, column: Optional[str], scale: float, own_scale: float,
+                      offset: float, times: Optional[List[float]] = None) -> dict:
+        """Change the file's time: another column (CSV / MAT / Parquet), a scale (the unit) and the
+        offset. The file is read again in its place; signals made from it follow by themselves.
+        Returns the file, the settings before (for Undo) and `times` (positions on the old axis:
+        cursor, zoom, notes) on the new one - None where the rows moved."""
+        lr = self.get(run_id)
+        info = self.time_axis_info(lr)
+        before = {"column": info["column"], "scale": info["scale"], "ownScale": info["ownScale"], "offset": info["offset"]}
+        settings = dict(lr.run.import_settings or {})
+        settings.pop("format", None)
+        # the column by its name in the app, or (Undo: the old time is a signal now, perhaps
+        # renamed) by its name in the file
+        target = None
+        if column:
+            col = str(column)
+            if col in lr.run.signals:
+                target = lr.run.original_names.get(col, col)
+            elif col in lr.run.original_names.values() or col == info["column"]:
+                target, col = col, next((n for n, o in lr.run.original_names.items() if o == col), col)
+            else:
+                raise LoadError(f"{col} is not a column of this file.")
+        changes_column = target is not None and target != info["column"]
+        if changes_column:
+            if not info["canColumn"]:
+                raise LoadError("The time of this file comes from the file itself; only its offset can be changed.")
+            sg = lr.run.signals.get(col)
+            if sg is None or sg.time is not None or sg.labels:
+                raise LoadError(f"{col} can not be the time of this file (it is not a numeric column on the file's time).")
+            settings["time_column"] = target
+        for key, val in (("time_scale", scale), ("own_time_scale", own_scale)):
+            v = float(val)
+            if not np.isfinite(v) or v <= 0:
+                raise LoadError("The scale must be a positive number (a negative one would turn time backwards).")
+            if v != 1.0 and not info["canScale"]:
+                raise LoadError("The time of this file comes from the file itself in seconds; only its offset can be changed.")
+            if v == 1.0:
+                settings.pop(key, None)
+            else:
+                settings[key] = v
+        old_time, old_offset = np.asarray(lr.run.time), float(lr.run.time_offset or 0.0)
+        old_sorted = bool((lr.load_report or {}).get("sorted"))
+        fresh = self._read_again(lr, settings, offset=float(offset))
+        new_sorted = bool((fresh.load_report or {}).get("sorted"))
+        same_rows = not changes_column or (not old_sorted and not new_sorted)
+        mapped = time_axis.map_times(old_time, old_offset, np.asarray(fresh.run.time), float(fresh.run.time_offset or 0.0),
+                                     same_rows, list(times or []))
+        return {"run": self.describe(fresh), "before": before, "times": mapped}
+
     def reload(self, run_id: str) -> LoadedRun:
         lr = self.get(run_id)
         if lr.run.file_path.startswith("python:"):      # T39: no file behind it
             raise LoadError("This data was sent from Python: send it again to update it.", "pushed")
         settings = dict(lr.run.import_settings or {})
         settings.pop("format", None)
+        return self._read_again(lr, settings)
+
+    def _read_again(self, lr: "LoadedRun", settings: dict, offset: Optional[float] = None) -> "LoadedRun":
+        """Read an open file again with these import settings, in its place: the same id (and
+        therefore every signal reference), name, description and - unless given - time offset."""
         fresh = self.open_file(lr.run.file_path, settings)
         with self._lock:  # keep the id (and therefore every signal reference)
             self.runs.pop(fresh.id)
             self.order.remove(fresh.id)
-            fresh.run.time_offset = lr.run.time_offset
+            fresh.run.time_offset = lr.run.time_offset if offset is None else float(offset)
             fresh.run.description = lr.run.description
             fresh.id, fresh.name = lr.id, lr.name
             fresh.last_change = lr.last_change
@@ -937,6 +1072,7 @@ class Store:
             "timeOffset": float(r.time_offset or 0),
             **self.mark(lr.id),                                  # T46: "tag", "color"
             "importSettings": {k: v for k, v in (r.import_settings or {}).items()},
+            "timeAxis": self.time_axis_info(lr),
             # discrete detection reads every column: for wide files it is done on demand instead
             "signals": [{"id": f"{lr.id}/{n}", "name": n, **_rate_of(sg, r),
                          # (a big log's values not read yet: on demand too - describing must not read them all)

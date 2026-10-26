@@ -52,6 +52,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Several files opened together: the start card suggests Compare open files
 - Places beside the folder: the folders of the open files, favourite folders (★ next to the path; drag to reorder), recent folders, home / Desktop / Documents / Downloads and the drives
 - Ctrl+P: quick open of recent files and folders
+- **Time axis…** (right-click a file): another column as the time (CSV / text, MAT, Parquet), its unit - ready conversions (ms / µs / ns / min / h → s, s → ms / µs / min) or any scale, a separate scale for columns with a time of their own - and the offset; checks before the change (goes up and down, repeats, missing values, gaps, the unit the name says) and what it changes (plots showing the column, new signals and edits computed against time, other open files); the same change on linked files; one Undo. Kept in the session, in refresh and in live mode
 - Columns with a time column of their own (found by name: *Speed* + *Speed_time*, *msg.roll* + *msg.time_boot_ms*, or alternating *time, Speed, time, RPM*) are drawn against their own time – CSV / text, MAT, and a *.tlog* that is a text table (*Import options* to turn it off)
 
 ### File list

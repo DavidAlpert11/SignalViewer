@@ -52,6 +52,15 @@ browser instead — still with no internet — says why in the page (and in the 
 file is still being read). The portable package unblocks its own DLLs that Windows marked as
 downloaded, which used to send it to the browser every time.
 
+The UI is built for Chromium 87 / Firefox 78 and newer (`frontend/vite.config.ts`, `MIN_CHROMIUM` in
+`run.py`). An offline computer often keeps an older WebView2: the app then opens in a newer Edge or
+Chrome as a window of its own (`--app`, with a profile of its own in `~/.signalviewer/browser-profile`),
+else in Firefox, else it shows a message box with what to install (the *Evergreen Standalone
+Installer* of the WebView2 runtime). If the page still does not start, the page itself says why
+instead of staying blank. **Safe graphics** (`--safe-graphics`, the *Signal Viewer (safe graphics)*
+shortcut) draws without the graphics card - for a white or black window on virtual machines, remote
+desktop or old drivers; the 3D view still works, drawn by the processor.
+
 
 **Ready-made packages** (no Python and no installation needed, except the Windows installer itself) are built by the GitHub
 Actions workflow in `.github/workflows/build.yml` for Windows (x64: the installer, a portable `.zip` and `.7z`), Linux (x64) and macOS (Apple silicon):

@@ -212,6 +212,7 @@ def load_mat(path: str, display_name: str, time_variable: Optional[str] = None) 
             a = a[order]
         run.signals[name] = Signal(name=name, data=a)
     run.import_settings = {"format": "mat", "time_column": tname}
+    run.time_source = tname
     if pairs:
         run.load_report = {"timePairs": sum(1 for v in pairs if v in run.signals)}
     run.byte_offset = os.path.getsize(path)

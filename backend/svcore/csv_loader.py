@@ -46,6 +46,7 @@ import pandas as pd
 
 from svcore.models import Run, Signal
 from svcore.naming import get_csv_display_name
+from svcore.time_axis import scale_of as time_scale_of
 from svcore.time_pairs import clean_pair, find_time_pairs
 
 try:  # optional fast parser
@@ -756,6 +757,8 @@ def load_csv(
                 run.signals[name] = Signal(name=name, data=data, labels=text_labels.get(name))
 
         run.import_settings = settings.to_dict()
+        run.time_source = columns[time_idx]
+        run.original_names = {n: o for n, o in zip(source_columns, columns) if n != o and n != "Time"}
         run.load_report = load_report if cached is None else {"fromCache": True}
         run.load_report["timeByName"] = bool(time_by_name)
         run.delimiter = delimiter
@@ -858,6 +861,9 @@ def append_new_rows(run: Run, max_bytes: int = 256 * 1024 * 1024) -> int:
     t_new = cols_new.get("Time", np.array([]))
     valid = np.isfinite(t_new)
     t_new = t_new[valid]
+    scale = time_scale_of(run.import_settings, "time_scale")
+    if scale != 1.0:                    # the Time axis dialog put this file's time in another unit
+        t_new = t_new * scale
     if len(t_new) == 0:
         run.byte_offset += len(raw)
         return 0

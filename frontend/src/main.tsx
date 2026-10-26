@@ -1,4 +1,5 @@
 import "./localeGuard";            // must stay the first import (see the file)
+import "./polyfills";              // before any code that calls them (old offline engines)
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";

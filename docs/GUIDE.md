@@ -20,6 +20,10 @@ zoom, measure and compare. Everything runs on your computer; nothing is sent any
 - **Ctrl+P** (recent and favourites) lists the files and folders you used lately.
 - A CSV with an unusual layout: tick *Show import options before opening* in the open dialog to choose the delimiter,
   the time column and the header row, with a live preview.
+- **The time axis of an open file** (right-click the file → *Time axis…*): another column as its time
+  (CSV, MAT, Parquet), its unit (*ms → s*, *s → min*… or any scale), and its offset. The dialog says
+  first what changes: a column that goes up and down, repeated or missing values, new signals computed
+  against time (derivative, integral, filters), plots that show the column. One Undo puts it all back.
 
 Each file gets a **colour and a short tag** (A, B, C…). Signals of the same name from several files
 are told apart by them.
@@ -154,6 +158,10 @@ keep moving – open both files, add an object from each, press Live.
 - **Help → Report a problem…** copies the same details and opens the bug report form on GitHub in
   your browser - paste them there.
 - **Help → Keyboard shortcuts** (?) lists every key and mouse gesture.
+- **A blank window**: an offline computer may have a Microsoft Edge WebView2 too old for the app (it
+  needs version 87 or newer). The app then opens in a newer Edge or Chrome as a window of its own, or
+  says what to install. A white or black window on a virtual machine / remote desktop / old graphics
+  driver: start **Signal Viewer (safe graphics)**. *Help → About* shows which engine draws the app.
 - Windows warns about an unknown publisher on the first start: *More info → Run anyway*.
 - macOS refuses to open it the first time: right-click → *Open*, or run
   `xattr -dr com.apple.quarantine SignalViewer` once.

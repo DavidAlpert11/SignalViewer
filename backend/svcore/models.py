@@ -170,6 +170,12 @@ class Run:
     description: Optional[str] = None
     time_offset: float = 0.0  # Per-run time offset
 
+    # The column the time was read from, as the file names it (CSV / MAT / Parquet; None = not a
+    # column, or not known), and signals the loader renamed -> their name in the file (a column
+    # called "Time" that is not the time becomes "Time_2"). For the Time axis dialog.
+    time_source: Optional[str] = None
+    original_names: Dict[str, str] = field(default_factory=dict)
+
     # Loader bookkeeping (needed for correct reload / incremental append)
     import_settings: Dict[str, Any] = field(default_factory=dict)  # settings used to load
     delimiter: str = ","

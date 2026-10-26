@@ -108,13 +108,8 @@ export default function DataPanel() {
         const v = await prompt(t("fileDescription"), run.name, run.description ?? "", true);
         if (v !== null) { await api.patchRun(run.id, { description: v }); refresh(); }
       } },
-      { label: t("fileTimeOffset") + "…", run: async () => {
-        const v = await prompt(t("fileTimeOffset"), run.name, String(run.timeOffset ?? 0));
-        if (v === null) return;
-        const n = Number(v);
-        if (!Number.isFinite(n)) return fail(new Error(t("limitsInvalid")));
-        await api.patchRun(run.id, { timeOffset: n }); refresh();
-      } },
+      // the offset, the time column and its unit - one place (the offset alone was a prompt here)
+      ...(run.timeAxis ? [{ label: t("timeAxisMenu"), run: () => useApp.setState({ timeAxisFor: run.id }) }] : []),
       ...(runs.filter((r) => r.format !== "derived").length > 1 ? [{ label: t("syncMenu") + "…", run: () => useApp.setState({ syncFor: run.id }) }] : []),
       ...((() => {
         const c = useApp.getState().cursor;

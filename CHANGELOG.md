@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+Highlights: **change a file's time axis while working** - another column as its time, its unit,
+its offset; and **no more silent blank window** on offline computers with an old Edge WebView2.
+Nothing changes in results, sessions or templates you already have.
+
+### Added
+- **Time axis…** (right-click a file; it replaces *Time offset…*): another column as the file's time (CSV / text, MAT, Parquet), the unit of its time - ready conversions (ms → s, µs → s, s → min…) or any scale - and its offset, in one place. Before anything changes it says what the new axis looks like (only goes up / goes up and down / repeated values / missing values / long gaps, the unit its name says) and what will mean something else: the column leaves the plots it is in, new signals and edits computed against time (derivative, integral, filters, a shift in t) are computed again on the new axis, signals made from the column itself will fail, other open files keep their axis. A column that goes up and down needs a tick first, and offers an X-Y plot instead. With *Link plots* / *Link operations* on, the same change can be made on the other files. Cursor, zoom and notes follow the same rows; one Undo puts the file and the work back. Kept in sessions, refresh and live mode; in Python: `sv.load(path, {"time_scale": 0.001})`.
+- **Columns with a time column of their own** (a `time_boot_ms` beside a time in seconds) can now be put in seconds: a scale of their own in *Time axis…*.
+- **Safe graphics** (`--safe-graphics`, a *Signal Viewer (safe graphics)* shortcut in the portable package and the Start menu): draws without the graphics card, for a white or black window on virtual machines, remote desktop or old drivers. The 3D view keeps working.
+- *Help → About* says which engine draws the app (WebView2 / Edge / Chrome / Firefox and its version) and whether in its own window or a browser.
+
+### Fixed
+- **A blank white window** on computers with an old Microsoft Edge WebView2 (common offline): the UI was built for engines from 2023 on and did not even start there. It is now built for Chromium 87 / Firefox 78 and newer, with the few newer functions it uses added where missing. The launcher checks the WebView2 version; when it is too old it opens the app in a newer Edge or Chrome as a window of its own, else Firefox, else says in a message box what to install. If the page still does not start, it says why (engine, what to do, the log) instead of staying blank.
+
 ## 1.14.0 – 2026-10-26
 
 Highlights: **very large flight logs** - a 1.2 GB ArduPilot .bin opens in seconds instead of not at

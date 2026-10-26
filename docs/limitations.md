@@ -11,7 +11,9 @@
 * *Open with* (Explorer) is set up by the installer; with the portable packages, open files from the app or `SignalViewer file…`.
 * Installed with pip it opens in the browser (with `signalviewer-lite`, only the core readers are there until their extras are added - the app says which); `pip install "signalviewer[desktop]"` gives it its own window (on Linux that needs GTK or Qt).
 * The interactive HTML report lists the notes under its summary; it does not draw them on its plots (the PDF and Word reports do).
-* Columns with a time column of their own keep that column's unit: a `time_boot_ms` column stays in milliseconds (as the main time column always has), so it does not line up with a time in seconds.
+* Columns with a time column of their own keep that column's unit unless it is changed: *Time axis…* gives them one scale of their own (a `time_boot_ms` column → ×0.001), the same for all of them - a file whose own time columns are in different units can put only one of those units in seconds.
+* *Time axis…*: another column as the time for CSV / text, MAT and Parquet; a scale also for HDF5. Flight logs and ROS recordings keep their own clock (only the offset). Cursor, zoom and notes follow the same rows to the new axis only when one file is open and its rows were not re-sorted; with other files open they stay where they are.
+* The window needs an engine from about late 2020 or newer: Microsoft Edge WebView2 / Edge / Chrome 87+, or Firefox 78+. On an older one the app says so instead of starting.
 * CAN: candump logs, Vector ASC (classic CAN lines) and CAN tables in CSV are read; CAN FD lines in ASC files, `.blf` and MF4 are not. The same id on two buses is decoded as one message.
 * Binary layouts (ICD): fixed fields, bit fields and value names; no checksums (a damaged packet with a good sync and length is read), no arrays or strings inside a payload, no packets whose layout depends on a field.
 * Your own readers run inside the app: a reader that hangs holds the opening of that file (the rest of the app keeps working); files read by a reader are reloaded whole in live mode, not appended.
