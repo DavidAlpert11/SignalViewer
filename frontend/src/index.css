@@ -1237,3 +1237,13 @@ input.fx-input { width: 100%; }
 .sigfield-edit.on { color: var(--amber-ink); background: var(--amber-soft); }
 .sigfield-missing { color: var(--danger); font-weight: 700; }
 .tf-units .afield small { font-weight: 400; }
+
+/* Time axis dialog (another time column, its unit, its offset) */
+.ta-dialog { width: min(640px, 96vw); }
+.ta-dialog .ta-field { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin: 4px 0; }
+.ta-dialog .ta-field select, .ta-dialog .ta-field input { min-width: 0; flex: 0 1 260px; }
+.ta-dialog .ta-stats { margin: 4px 0 0; }
+.ta-notes { margin: 10px 0; padding-inline-start: 18px; font-size: 0.923rem; }
+.ta-notes li { margin: 4px 0; }
+.ta-notes li.warn { color: var(--danger); }
+.ta-mixed { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; }

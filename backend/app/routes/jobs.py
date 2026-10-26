@@ -93,6 +93,26 @@ def start_job(req: JobRequest):
                 raise LoadError("This file is no longer open.") from None
             job.report(1.0, "read")
             return store.describe(lr)
+    elif req.kind == "timeAxis":
+        # another time column / unit for one file: it is read again (a big file takes a while)
+        rid = str(b.get("id") or "")
+        if rid not in store.runs:
+            fail(404, "File is not open.")
+        try:
+            scale, own, offset = float(b.get("scale", 1.0)), float(b.get("ownScale", 1.0)), float(b.get("offset", 0.0))
+        except (TypeError, ValueError):
+            fail(400, "The scale and the offset must be numbers.")
+        column = b.get("column") or None
+        # positions on the old axis, in the page's order (not numbers -> None in the answer)
+        times = [float(t) if isinstance(t, (int, float)) else float("nan") for t in (b.get("times") or [])]
+
+        def work(job):
+            try:
+                res = store.set_time_axis(rid, column, scale, own, offset, times)
+            except KeyError:
+                raise LoadError("This file is no longer open.") from None
+            job.report(1.0, "read")
+            return res
     elif req.kind == "compareAll":
         ca = CompareAllRequest(**b)
 

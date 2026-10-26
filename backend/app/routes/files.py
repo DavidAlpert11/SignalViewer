@@ -289,6 +289,24 @@ def patch_run(run_id: str, patch: RunPatch):
 
 
 
+class TimeAxisCheck(BaseModel):
+    column: Optional[str] = None         # a signal of the file that would become its time
+
+
+
+@router.post("/api/runs/{run_id}/time-axis/check")
+def check_time_axis(run_id: str, req: TimeAxisCheck):
+    """The Time axis dialog, before anything changes: the column as a time axis (order, repeats,
+    gaps, unit by its name) and what of the work computes against time."""
+    try:
+        return store.check_time_axis(run_id, req.column)
+    except KeyError:
+        fail(404, "File is not open.")
+    except LoadError as e:
+        fail(400, str(e))
+
+
+
 class ReplaceRequest(BaseModel):
     path: str
 

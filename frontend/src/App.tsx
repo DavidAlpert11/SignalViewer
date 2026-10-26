@@ -12,6 +12,7 @@ const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog
 const TransformDialog = lazyPreload(() => import("./components/TransformDialog"));
 const RetargetDialog = lazyPreload(() => import("./components/RetargetDialog"));
 const SameWorkDialog = lazyPreload(() => import("./components/SameWorkDialog"));
+const TimeAxisDialog = lazyPreload(() => import("./components/TimeAxisDialog"));
 import { api, type ExampleId } from "./api";
 import { handleNewFiles, refreshAll, stopLive } from "./live";
 import { ensureLogs } from "./logs";
@@ -223,6 +224,7 @@ export default function App() {
   const transformOpen = useApp((s) => !!s.transformTargets);
   const retargetOpen = useApp((s) => !!s.retarget);
   const sameWorkOpen = useApp((s) => !!s.sameWorkFor);
+  const timeAxisOpen = useApp((s) => !!s.timeAxisFor);
   const panel = useApp((s) => s.panel);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
   const runs = useApp((s) => s.runs);
@@ -593,6 +595,7 @@ export default function App() {
         {transformOpen && <TransformDialog />}
         {retargetOpen && <RetargetDialog />}
         {sameWorkOpen && <SameWorkDialog />}
+        {timeAxisOpen && <TimeAxisDialog />}
       </Suspense>
       <Toasts />
       <Jobs />
