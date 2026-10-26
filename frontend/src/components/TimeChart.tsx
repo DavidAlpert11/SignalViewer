@@ -3,7 +3,7 @@ import uPlot from "uplot";
 import { api, type Series } from "../api";
 import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
-import { fmtNum } from "../i18n";
+import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
 import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
@@ -17,6 +17,11 @@ type StateMarks = Record<string, { points: [number, number | null][]; tooMany: b
 
 /** Height of one state lane (CSS px) when it shares the plot with ordinary lines. */
 const LANE_H = 18;
+/** Height of each of n bottom lanes in a plot this tall (CSS px): 18, smaller when they would take
+ *  more than a quarter of the plot (the lines keep the rest), never under 8. */
+function laneCss(plotH: number, n: number): number {
+  return Math.max(8, Math.min(LANE_H, (0.25 * plotH - 4) / Math.max(1, n) - 2));
+}
 
 export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: Props) {
   const theme = useApp((s) => s.theme);
@@ -74,8 +79,10 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
 
   const sigIds = plot.signals.map((s) => s.sig);
   const sigKey = sigIds.join("|");
-  // the tab's shared lanes (e.g. the flight mode on every plot), unless this plot already shows them
-  const shared = (tab.sharedStates ?? []).filter((id) => !plot.signals.some((s) => s.sig === id));
+  // the tab's shared lanes (e.g. the flight mode on every plot) and the ones on every plot of every
+  // tab, unless this plot already shows them - each lane once
+  const globalStates = useApp((s) => s.ws.globalStates);
+  const shared = [...new Set([...(globalStates ?? []), ...(tab.sharedStates ?? [])])].filter((id) => !plot.signals.some((s) => s.sig === id));
   const stateIds = [...plot.signals.filter((s) => s.state).map((s) => s.sig), ...shared];
   const stateKey = stateIds.join("|");
   const runsKey = runsDataKey(runs);
@@ -212,7 +219,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         const gap = 6 * d, h = Math.min(56 * d, (height - gap * (n - 1)) / Math.max(1, n));
         return stateSigs.map((_, k) => ({ y: top + k * (h + gap), h }));
       }
-      const h = LANE_H * d, gap = 2 * d;
+      const h = laneCss(height / d, n) * d, gap = 2 * d;
       return stateSigs.map((_, k) => ({ y: top + height - (n - k) * (h + gap) + gap, h }));
     };
     let hatch: CanvasPattern | null = null;
@@ -322,7 +329,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           ctx.fillStyle = pt.bg; ctx.fillRect(Math.round(x0), y, Math.max(1, Math.round(dpr())), h);   // separator
           const txt = labelText(labels, v) ?? (Number.isInteger(v * s.scale + s.offset) ? String(v * s.scale + s.offset) : fmtNum(v * s.scale + s.offset, "en", 4));
           const room = w - 8 * d;
-          if (room < 10 * d) continue;
+          if (room < 10 * d || h < 11 * d) continue;       // too small for a word: the colour alone
           let shown = txt;
           if (ctx.measureText(shown).width > room) {
             while (shown.length > 1 && ctx.measureText(shown + "…").width > room) shown = shown.slice(0, -1);
@@ -344,18 +351,31 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           ctx.fillRect(left + 3 * d, y, tw + 10 * d, 15 * d); ctx.globalAlpha = 1;
           ctx.fillStyle = pt.text; ctx.textBaseline = "middle";
           ctx.fillText(nm, left + 8 * d, y + 7.5 * d);
-        } else {
-          // thin lanes under lines: the name at the right end, small
-          const nm = s.label || s.sig.slice(s.sig.indexOf("/") + 1);
-          ctx.font = `${Math.round(9.5 * d)}px "IBM Plex Sans", "IBM Plex Sans Hebrew", sans-serif`;
-          const tw = ctx.measureText(nm).width;
-          ctx.fillStyle = pt.bg; ctx.globalAlpha = 0.85;
-          ctx.fillRect(left + width - tw - 8 * d, y, tw + 8 * d, h); ctx.globalAlpha = 1;
-          ctx.fillStyle = pt.axis; ctx.textBaseline = "middle";
-          ctx.fillText(nm, left + width - tw - 4 * d, y + h / 2 + 0.5);
         }
       });
       ctx.restore();
+      /* thin lanes under lines: the name in the margin left of the lane, never over the data - drawn
+         over the plot it hid the last stretch of the state, which then looked like one more state
+         with an unclear text. The value axis has no meaning beside the lanes (the lines are above). */
+      if (!onlyStates) {
+        ctx.save();
+        ctx.textBaseline = "middle"; ctx.textAlign = "right";
+        stateSigs.forEach((s, k) => {
+          const { y, h } = lanes[k];
+          const room = left - 6 * d;
+          if (room < 16 * d) return;
+          ctx.fillStyle = pt.bg; ctx.fillRect(0, y - d, left - 1, h + 2 * d);
+          ctx.font = `${Math.round(Math.min(10, Math.max(8, h / d - 4)) * d)}px "IBM Plex Sans", "IBM Plex Sans Hebrew", sans-serif`;
+          let nm = s.label || s.sig.slice(s.sig.indexOf("/") + 1);
+          if (ctx.measureText(nm).width > room) {
+            while (nm.length > 1 && ctx.measureText(nm + "…").width > room) nm = nm.slice(0, -1);
+            nm += "…";
+          }
+          ctx.fillStyle = pt.axis;
+          ctx.fillText(nm, left - 4 * d, y + h / 2 + 0.5);
+        });
+        ctx.restore();
+      }
     };
 
     const drawCursor = (u: uPlot, ctx: CanvasRenderingContext2D) => {
@@ -473,7 +493,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const laneFrac = () => {                     // share of the plot height the bottom lanes take
       if (!stateSigs.length || onlyStates) return 0;
       const plotH = Math.max(60, size.h - 50);
-      return Math.min(0.6, (stateSigs.length * (LANE_H + 2) + 4) / plotH);
+      return Math.min(0.6, (stateSigs.length * (laneCss(plotH, stateSigs.length) + 2) + 4) / plotH);
     };
     // T50: a short plot (many plots in a small window) kept one value label ("0"): the labels may
     // come closer there, so there are about four of them
@@ -652,11 +672,43 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const onCtx = (e: MouseEvent) => {
       const rect = u.over.getBoundingClientRect();
       (e as MouseEvent & { svTime?: number }).svTime = u.posToVal(e.clientX - rect.left, "x");
+      const lane = laneAt(e);                          // a lane's own menu: where it is shown (PlotView)
+      if (lane) (e as MouseEvent & { svLane?: string }).svLane = lane.sig;
     };
     u.over.addEventListener("contextmenu", onCtx);
     host.addEventListener("wheel", onWheel, { passive: false });
+    // hovering a lane: its name, the state there and its stretch, and where the lane is shown
+    const laneAt = (e: MouseEvent): { sig: string; k: number } | null => {
+      if (!stateSigs.length) return null;
+      const rect = u.over.getBoundingClientRect();
+      const yc = (e.clientY - rect.top) * dpr() + u.bbox.top;
+      const k = laneLayout(u).findIndex((l) => yc >= l.y && yc <= l.y + l.h);
+      return k < 0 ? null : { sig: stateSigs[k].sig, k };
+    };
+    const laneTip = (e: MouseEvent): string => {
+      const lane = laneAt(e);
+      if (!lane) return "";
+      const s = stateSigs[lane.k];
+      const st = useApp.getState();
+      const nm = s.label || s.sig.slice(s.sig.indexOf("/") + 1);
+      const scope = (st.ws.globalStates ?? []).includes(s.sig) ? translate(st.lang, "laneTipAll")
+        : (tab.sharedStates ?? []).includes(s.sig) ? translate(st.lang, "laneTipTab") : "";
+      const m = statesRef.current[s.sig];
+      const tv = u.posToVal(e.clientX - u.over.getBoundingClientRect().left, "x");
+      let what = "";
+      if (m) for (let i = m.points.length - 1; i >= 0; i--) {
+        if (m.points[i][0] <= tv) {
+          const v = m.points[i][1], b = i + 1 < m.points.length ? m.points[i + 1][0] : (m.end ?? m.points[i][0]);
+          if (v !== null) what = `${labelText(labelsOf(runsRef.current, s.sig), v) ?? fmtNum(v, "en", 6)} · ${fmtNum(m.points[i][0], "en", 6)}–${fmtNum(b, "en", 6)} s`;
+          break;
+        }
+      }
+      return [nm + (what ? `: ${what}` : ""), scope].filter(Boolean).join(" · ");
+    };
     // hovering a log marker shows its full text
     const onMoveTip = (e: MouseEvent) => {
+      const lt = laneTip(e);
+      if (lt) { if (u.over.title !== lt) u.over.title = lt; return; }
       if (!markRef.current.length) { if (u.over.title) u.over.title = ""; return; }
       const x = e.clientX - u.over.getBoundingClientRect().left;
       let best: { t: number; text: string } | null = null, bd = 6;

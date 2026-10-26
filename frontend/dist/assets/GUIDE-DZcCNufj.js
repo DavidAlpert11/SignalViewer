@@ -48,6 +48,9 @@ are told apart by them.
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
 - **Right-click in the plot** for: cursor here, note here, previous zoom, show everything, export
   the data, save or copy the image, axis limits.
+- **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
+  it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
+  *Always as a state* makes a signal a lane wherever it is added, in every file.
 - **Map and 3D objects:** *Add object* on a Map or 3D plot. Its position and attitude are filled in
   from the signals' names; to choose another, type part of its name in the field. Beside each field
   you see the unit the signal is in, and **ƒ** changes that signal on the spot – e.g. angles that

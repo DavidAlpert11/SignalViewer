@@ -114,6 +114,7 @@ export async function clearFileWork(runId: string, parts: FileParts) {
   const items = doomed.map((s) => ({ name: s.name, op: s.op!, sources: s.sources!, params: s.params }));
   const wsBefore: Workspace = structuredClone(st.ws);
   if (plotted || parts.plots || doomed.length) st.commit((ws) => {
+    ws.globalStates = (ws.globalStates ?? []).filter((id) => !leaves(id));
     for (const t of ws.tabs) {
       t.sharedStates = (t.sharedStates ?? []).filter((id) => !leaves(id));
       for (const p of t.plots) {
