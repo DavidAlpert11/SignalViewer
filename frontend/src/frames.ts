@@ -28,13 +28,17 @@ export function freeGroup(base: string, runs: RunInfo[], axes: string[]): string
  * Returns the ids in axis order.
  */
 export async function createFrameGroup(sources: string[], params: Record<string, unknown>, group: string): Promise<string[]> {
-  const axes = AXES[params.dst as Frame];
+  return createAxesGroup("frame", sources, params, group, AXES[params.dst as Frame]);
+}
+
+/** One derived signal per output axis (params.axis), as one group; all or nothing. */
+async function createAxesGroup(op: string, sources: string[], params: Record<string, unknown>, group: string, axes: string[]): Promise<string[]> {
   // "/" separates run id and name in signal ids (the backend does the same to names)
   const g = freeGroup(group.trim().replace(/\//g, "∕"), useApp.getState().runs, axes);
   const made: string[] = [];
   try {
     for (const [axis, lbl] of axes.entries()) {
-      const r = await api.createDerived("frame", sources, { ...params, axis, group: g }, `${g}.${lbl}`);
+      const r = await api.createDerived(op, sources, { ...params, axis, group: g }, `${g}.${lbl}`);
       useApp.setState({ runs: r.runs });
       made.push(r.id);
     }
@@ -44,6 +48,22 @@ export async function createFrameGroup(sources: string[], params: Record<string,
     throw e;
   }
   return made;
+}
+
+/* ------------------------------------------------------------- Q102: vector smoothing */
+
+export type SmoothKind = "vector" | "lla";
+/** The axis names of a smoothed vector: lat / lon / alt, else the components' own field names
+ *  (vn, ve, vd), else x / y / z. */
+export function smoothLabels(sources: string[], kind: SmoothKind): string[] {
+  if (kind === "lla") return ["lat", "lon", "alt"].slice(0, sources.length);
+  const own = sources.map((s) => (s.split("/").pop() ?? s).split(".").pop()!.replace(/\s*\[[^\]]*\]$/, "").replace(/[^\w-]+/g, "_"));
+  return new Set(own).size === own.length && own.every((x) => x) ? own : ["x", "y", "z"].slice(0, sources.length);
+}
+export const smoothGroupName = (window: number) => `smooth_${String(window).replace(".", "p")}s`;
+/** A vector's 2-3 components smoothed over `window` seconds (svcore "vecsmooth"), as one group. */
+export async function createSmoothGroup(sources: string[], window: number, kind: SmoothKind, group?: string, alignment = "linear"): Promise<string[]> {
+  return createAxesGroup("vecsmooth", sources, { window, kind, alignment }, group || smoothGroupName(window), smoothLabels(sources, kind));
 }
 
 /* ------------------------------------------------------------------ T30: suggested conversions */

@@ -21,8 +21,9 @@ FORMULA = {"expr"}
 BINARY = {"add", "sub", "mul", "div", "absdiff"}
 MULTI = {"mean", "sum", "min", "max", "norm"}
 FRAME = {"frame"}
+VECSMOOTH = {"vecsmooth"}    # Q102: a vector (2-3 components) smoothed over a window in seconds
 PY = {"py"}                 # T31: the user's own Python operations (params: {"op": "file.py:fn", "args": {...}})
-OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | PY
+OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | VECSMOOTH | PY
 # set by app/pyops.py: runs an operation in the worker process (svcore does not import app)
 PY_RUNNER: Optional[Callable[[str, List[Tuple[np.ndarray, np.ndarray]], Dict], Tuple[np.ndarray, np.ndarray]]] = None
 
@@ -79,6 +80,7 @@ class DerivedDef:
             "max": lambda: f"max({', '.join(n)})",
             "norm": lambda: f"‖{', '.join(n)}‖",
             "frame": lambda: frame_name(n[:3], p),
+            "vecsmooth": lambda: vecsmooth_name(n, p),
             "py": lambda: _py_name(n, p),
         }[self.op]()
 
@@ -160,6 +162,9 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
 
     if op == "frame":
         return _frame(signals, params)
+
+    if op == "vecsmooth":
+        return _vecsmooth(signals, params)
 
     if op in BINARY:
         if len(signals) != 2:
@@ -453,6 +458,81 @@ def _frame(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[
     how = params.get("alignment", "linear")
     v = (_frame_position if qty == "position" else _frame_vector)(signals, params, t, how)
     return t, v[axis]
+
+
+# ------------------------------------------------------------------- vector smoothing
+# Q102 (owner, 2026-10-26): a noisy position or velocity smoothed as a whole - its 2-3 components
+# on one time base, each a moving average over a window in SECONDS (the same smoothing whatever the
+# sample rate), centred (no lag). As with "frame", one derived signal per component (params.axis).
+# params["kind"] "lla": the sources are latitude, longitude (degrees) [, altitude]; the longitude
+# is unwrapped first so a track across +-180 is not averaged through 0. A window never reaches
+# across a gap in the data (a step over 10x the usual one): the two sides are smoothed apart.
+# Angles (attitude) are not smoothed here - an average of angles or quaternions needs other maths.
+
+
+def vecsmooth_name(n: List[str], p: Dict) -> str:
+    axis = int(p.get("axis", 0) or 0)
+    me = n[axis] if 0 <= axis < len(n) else "?"
+    return f"smooth({me}, {float(p.get('window', 0) or 0):g} s)"
+
+
+def time_moving_average(t: np.ndarray, y: np.ndarray, window: float) -> np.ndarray:
+    """Centred moving average over `window` seconds: each sample is the mean of the valid samples
+    within +-window/2 of it, inside its own stretch of data (gaps over 10x the usual step split the
+    stretches). Missing samples stay missing."""
+    t, y = _f64(t), _f64(y)
+    out = np.full(len(y), np.nan)
+    if len(y) == 0:
+        return out
+    d = np.diff(t)
+    pos = d[d > 0]
+    step = float(np.median(pos)) if len(pos) else 0.0
+    cuts = np.flatnonzero(d > 10 * step) + 1 if step > 0 else np.array([], dtype=int)
+    half = window / 2.0
+    for a, b in zip(np.r_[0, cuts], np.r_[cuts, len(y)]):
+        ts, ys = t[a:b], y[a:b]
+        ok = np.isfinite(ys)
+        if not ok.any():
+            continue
+        base = float(np.mean(ys[ok]))                       # centred values: no precision lost on
+        vals = np.where(ok, ys - base, 0.0)                 # big numbers (ECEF ~6e6 m)
+        cs = np.r_[0.0, np.cumsum(vals)]
+        cc = np.r_[0, np.cumsum(ok)]
+        eps = 1e-6 * step                                   # samples exactly at +-half count on both sides
+        lo = np.searchsorted(ts, ts - half - eps, "left")
+        hi = np.searchsorted(ts, ts + half + eps, "right")
+        cnt = cc[hi] - cc[lo]
+        with np.errstate(invalid="ignore", divide="ignore"):
+            seg = (cs[hi] - cs[lo]) / cnt + base
+        out[a:b] = np.where(ok & (cnt > 0), seg, np.nan)
+    return out
+
+
+def _vecsmooth(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    kind = params.get("kind", "vector")
+    if kind not in ("vector", "lla"):
+        raise OpError("Choose what is smoothed: a vector (position or velocity components) or latitude / longitude.")
+    if not 1 <= len(signals) <= 3 or (kind == "lla" and len(signals) < 2):
+        raise OpError("Vector smoothing takes the 2 or 3 components of one vector"
+                      + (" (latitude, longitude, and the altitude if there is one)." if kind == "lla" else "."))
+    try:
+        window = float(params.get("window") or 0)
+    except (TypeError, ValueError):
+        window = 0.0
+    if not np.isfinite(window) or window <= 0:
+        raise OpError("Enter a smoothing window above 0 seconds.")
+    axis = params.get("axis", 0)
+    if axis not in range(len(signals)):
+        raise OpError(f"The output component must be 0 to {len(signals) - 1}.")
+    rows = [(_f64(ts), _f64(ys)) for ts, ys in signals]
+    if kind == "lla":
+        rows[1] = (rows[1][0], _unwrap(rows[1][1], 360.0))
+    t = _overlap(rows)
+    y = align_to(t, rows[axis][0], rows[axis][1], params.get("alignment", "linear"))
+    out = time_moving_average(t, y, window)
+    if kind == "lla" and axis == 1:                          # back to -180..180
+        out = (out + 180.0) % 360.0 - 180.0
+    return t, out
 
 
 # ----------------------------------------------------------------------------- FFT

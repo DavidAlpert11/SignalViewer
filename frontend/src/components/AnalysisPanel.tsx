@@ -8,7 +8,7 @@ import FormulaInput from "./FormulaInput";
 import MultiSignalPicker from "./MultiSignalPicker";
 import { resolveFormula } from "../formulaRefs";
 import { clearAllEdits, deleteAllDerived, editInPlace, opToStep } from "../transforms";
-import { AXES, createFrameGroup, frameGroupName, suggestFrames, type Frame, type FrameSuggestion, type Qty } from "../frames";
+import { AXES, createFrameGroup, createSmoothGroup, frameGroupName, smoothGroupName, smoothLabels, suggestFrames, type Frame, type FrameSuggestion, type Qty } from "../frames";
 import { groupDerived, memberLabel } from "../signalGroups";
 import { rangeKey, type PreviewLine } from "../store";
 import { PREVIEW_DASH } from "./chartUtil";
@@ -29,7 +29,8 @@ const UNARY: [string, TKey][] = [
   ["exprx", "opExprX"],
 ];
 const BINARY: [string, string][] = [["sub", "A − B"], ["add", "A + B"], ["mul", "A × B"], ["div", "A ÷ B"], ["absdiff", "|A − B|"]];
-const MULTI: [string, TKey][] = [["mean", "opMean"], ["sum", "opSum"], ["min", "opMin"], ["max", "opMax"], ["norm", "opNorm"]];
+const MULTI: [string, TKey][] = [["mean", "opMean"], ["sum", "opSum"], ["min", "opMin"], ["max", "opMax"], ["norm", "opNorm"],
+  ["vecsmooth", "opVecSmooth"]];      // Q102: 2-3 components of one vector, a window in seconds, one signal each
 // Frame conversion (svcore/analysis.py "frame"): one derived signal per output axis, the three
 // made as one nested group (frames.ts). A vector (velocity...) only rotates; a position also moves
 // its origin, so the frames differ.
@@ -68,6 +69,8 @@ export default function AnalysisPanel() {
   const [batch, setBatch] = useState(false);
   const [windowN, setWindowN] = useState(10);
   const [cutoff, setCutoff] = useState(10);
+  const [smoothSec, setSmoothSec] = useState(1);              // vector smoothing window (s)
+  const [smoothLla, setSmoothLla] = useState(false);          // the components are lat / lon [/ alt]
   const [gain, setGain] = useState(1);
   const [bias, setBias] = useState(0);
   const multi = useApp((s) => s.multi);
@@ -226,6 +229,17 @@ export default function AnalysisPanel() {
       finally { setBusy(false); }
       return;
     }
+    if (kind === "many" && op === "vecsmooth") {
+      if (!vecSmoothOk) return;
+      setBusy(true);
+      try {
+        const ids = await createSmoothGroup(many, smoothSec, smoothLla ? "lla" : "vector", name.trim() || undefined, alignment);
+        if (addToPlot) actions.addSignals(ids);
+        setName(""); markUsed();
+      } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+      finally { setBusy(false); }
+      return;
+    }
     if (kind === "fx") {
       if (!fxRes || fxRes.error) return;
       setBusy(true);
@@ -286,6 +300,19 @@ export default function AnalysisPanel() {
       } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
       return;
     }
+    if (kind === "many" && op === "vecsmooth") {
+      if (!vecSmoothOk) return;
+      const base = name.trim() || smoothGroupName(smoothSec);
+      try {
+        const lbls = smoothLabels(many, smoothLla ? "lla" : "vector");
+        const lines = await Promise.all(lbls.map(async (lbl, axis) => {
+          const d = await api.previewDerived("vecsmooth", many, { window: smoothSec, kind: smoothLla ? "lla" : "vector", alignment, axis }, r?.[0] ?? null, r?.[1] ?? null);
+          return { label: `${base}.${lbl}`, x: d.x, y: d.y };
+        }));
+        showLines(lines, pvWhere === "separate");
+      } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+      return;
+    }
     if (kind === "fx" && (!fxRes || fxRes.error)) return;
     const sources0 = kind === "fx" ? fxRes!.sources : kind === "py" ? pySources : kind === "one" ? [a] : kind === "two" ? [a, b] : many;
     const [pOp, pParams, sources] = kind === "fx" ? ["expr", { expr: fxRes!.expr, text: fx, alignment }, sources0] as const
@@ -313,7 +340,9 @@ export default function AnalysisPanel() {
     </div>
   );
 
-  const canCreate = kind === "frame" ? frSrc !== frDst && frameSources.every((x) => !!x) && refOk
+  const vecSmoothOk = many.length >= 2 && many.length <= 3 && smoothSec > 0;
+  const canCreate = kind === "many" && op === "vecsmooth" ? vecSmoothOk
+    : kind === "frame" ? frSrc !== frDst && frameSources.every((x) => !!x) && refOk
     : kind === "py" ? !!py && pySources.length >= py.op.inputs && pySources.every((x) => !!x)
     : kind === "fx" ? !!fxRes && !fxRes.error
     : kind === "one" ? (batch ? batchSigs.length > 0 : !!a) && (!isX || xProblem === null)
@@ -390,6 +419,12 @@ export default function AnalysisPanel() {
           </>}
 
           {kind === "many" && <MultiSignalPicker options={options} value={many} onChange={setMany} quick={quick} stale={manyUsed} />}
+          {kind === "many" && op === "vecsmooth" && <>
+            <label className="afield"><span>{t("smoothWindowSec")}</span>
+              <input type="number" className="vs-window" min={0} step="any" value={smoothSec} onChange={(e) => setSmoothSec(+e.target.value)} /></label>
+            <label className="check"><input type="checkbox" className="vs-lla" checked={smoothLla} onChange={(e) => setSmoothLla(e.target.checked)} />{t("smoothLla")}</label>
+            <p className="hint">{many.length > 3 || (many.length > 0 && many.length < 2) ? t("smoothNeeds") : t("smoothHint")}</p>
+          </>}
 
           {kind === "frame" && <>
             {frameSugs.length > 0 && <div className="frame-sugs" role="group" aria-label={t("frameSuggested")}>

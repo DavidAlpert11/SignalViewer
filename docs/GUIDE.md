@@ -51,7 +51,15 @@ are told apart by them.
 - **Map and 3D objects:** *Add object* on a Map or 3D plot. Its position and attitude are filled in
   from the signals' names; to choose another, type part of its name in the field. Beside each field
   you see the unit the signal is in, and **ƒ** changes that signal on the spot – e.g. angles that
-  turn out to be in radians: ƒ → *Convert units* → rad → deg.
+  turn out to be in radians: ƒ → *Convert units* → rad → deg. Or leave the signal as it is and set
+  the object's *Angle unit* to radians: that only changes how it is drawn. The attitude can be three
+  angles or a quaternion (*Attitude from*).
+- **A position in ECEF, NED or ENU** (metres): *Position from* in the object dialog, then the three
+  components; NED / ENU also need the reference point - the first sample of a latitude / longitude /
+  altitude, or numbers typed in (a launch point). **Smooth position (s)** averages a noisy position
+  over that many seconds (centred, never across a gap). Both make new signals when you save (they are
+  in *Create signals* and the session); the recorded ones do not change. Any vector (a velocity, say)
+  can be smoothed the same way: *Create signals → Several → Smooth a vector*.
 
 ## 5. Zoom and move
 
