@@ -604,7 +604,7 @@ class Store:
         timed = re.compile(r"\b(deriv|integ|lowpass|highpass|t)\b")
 
         def is_timed(d: DerivedDef) -> bool:
-            if d.op in ("derivative", "integral", "lowpass", "highpass", "py"):
+            if d.op in ("derivative", "integral", "lowpass", "highpass", "vecsmooth", "py"):
                 return True
             return d.op == "expr" and bool(timed.search(str(d.params.get("text") or d.params.get("expr") or "")))
 
