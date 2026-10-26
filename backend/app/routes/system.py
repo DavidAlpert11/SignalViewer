@@ -29,7 +29,7 @@ BYE_LIMIT = 75.0            # s after "bye": a reload pings at once; another tab
 
 # T-window: why the app opened in the browser instead of its own window (run.py fills it; the
 # page shows it once, so the reason is not hidden in a console that pythonw does not have)
-WINDOW_NOTE = {"browserReason": ""}
+WINDOW_NOTE = {"browserReason": "", "mode": ""}   # mode: window / app-window / browser (Help > About)
 
 
 

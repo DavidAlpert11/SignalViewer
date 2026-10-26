@@ -35,12 +35,37 @@ export interface RunInfo {
   end: number;
   timeOffset: number;
   importSettings: Record<string, unknown>;
+  /** What the Time axis dialog may change, and how it is set now (not for derived signals). */
+  timeAxis?: TimeAxisInfo;
   signals: SignalInfo[];
   report?: { skipped?: string[]; skippedColumns?: string[]; droppedRows?: number; sorted?: boolean; fromCache?: boolean; rememberedSettings?: boolean;
     textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file
+}
+export interface TimeAxisInfo {
+  canColumn: boolean; canScale: boolean;
+  column: string | null;                 // the time column, as the file names it
+  columnUnit: string | null;             // the unit its name says (ms, us...)
+  scale: number; ownScale: number; offset: number;
+  ownTimes: number;                      // signals with a time column of their own
+  candidates?: string[];                 // (check only) signals that can become the time
+  sorted: boolean;                       // the rows were sorted by the time when read
+}
+export interface ColumnAsTime {
+  n: number; missing: number; unit: string | null; min: number | null; max: number | null;
+  order: "increasing" | "nondecreasing" | "decreasing" | "mixed" | "empty";
+  repeats?: number; backSteps?: number; step?: number | null; gaps?: number; maxGap?: number | null;
+}
+export interface TimeAxisCheck {
+  info: TimeAxisInfo; column?: ColumnAsTime; brokenDerived?: string[];
+  timedDerived: string[]; timedEdits: string[];
+}
+export interface TimeAxisResult {
+  run: RunInfo;
+  before: { column: string | null; scale: number; ownScale: number; offset: number };
+  times: (number | null)[];
 }
 export interface Series {
   id: string;
@@ -213,7 +238,7 @@ export const api = {
   reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),
   /** Why the app opened in the browser instead of its own window ("" = it did not). */
-  windowNote: () => call<{ browserReason: string }>("/api/window_note"),
+  windowNote: () => call<{ browserReason: string; mode?: string }>("/api/window_note"),
   /** What the app keeps on disk (CSV cache, copies of dropped files, map tiles) and clearing it. */
   storage: () => call<StorageInfo>("/api/storage"),
   clearStorage: (what: StorageKind[]) => call<StorageInfo & { result: Partial<Record<StorageKind, { freed: number; kept: number }>> }>("/api/storage/clear", { what }),
@@ -328,6 +353,7 @@ export const api = {
   setTransformSpecs: (specs: Record<string, SignalTransform | null>) =>
     call<{ previous: Record<string, SignalTransform | null>; runs: RunInfo[] }>("/api/transforms", { specs }),
   startJob: (kind: string, body: unknown, label: string) => call<JobInfo>("/api/jobs", { kind, body, label }),
+  checkTimeAxis: (id: string, column: string | null) => call<TimeAxisCheck>(`/api/runs/${id}/time-axis/check`, { column }),
   job: (id: string) => call<JobInfo>(`/api/jobs/${id}`),
   cancelJob: (id: string) => call<{ cancelled: boolean }>(`/api/jobs/${id}/cancel`, {}),
   saveImage: (path: string, dataUrl: string) => call<{ path: string }>("/api/save/image", { path, data: dataUrl }),

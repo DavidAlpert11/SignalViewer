@@ -28,6 +28,7 @@ import sys
 import threading
 import time
 import webbrowser
+from typing import List, Optional, Tuple
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if getattr(sys, "frozen", False):
@@ -167,6 +168,8 @@ def main():
     ap.add_argument("--no-build", action="store_true", help="never build the UI; use the last build")
     ap.add_argument("--new-window", action="store_true",
                     help="open the files in a new app even when one is running")
+    ap.add_argument("--safe-graphics", action="store_true",
+                    help="draw without the graphics card (a blank or black window on some computers, virtual machines, remote desktop)")
     ap.add_argument("paths", nargs="*", help="files (or a .svsession) to open - in the running app, if there is one")
     args = ap.parse_args()
     # T54: files from outside (Open with, a double-click) go to the app that is already running
@@ -213,12 +216,17 @@ def main():
     from app.routes import system as app_system
     import logging
     wlog = logging.getLogger("signalviewer").getChild("window")
+    safe = args.safe_graphics or bool(os.environ.get("SV_SAFE_GRAPHICS"))
+    if safe:
+        _safe_graphics_env()
+        print("Safe graphics: drawing without the graphics card.", flush=True)
     why_not = "" if args.browser else window_unavailable_reason()
     if not args.browser and not why_not:
         try:
             import webview  # pywebview
             window = webview.create_window("Signal Viewer", url, width=1440, height=900, min_size=(1024, 640))
             push.ON_OPEN.append(lambda: _to_front(window))
+            app_system.WINDOW_NOTE["mode"] = "window"
             # Windows (pywebview 6, WinForms) needs a real .ico; GTK / Qt take a png
             assets = os.path.join(getattr(sys, "_MEIPASS", HERE), "assets")
             icon = os.path.join(assets, "icon.ico") if sys.platform == "win32" else os.path.join(assets, "png", "icon-256.png")
@@ -235,17 +243,36 @@ def main():
         except Exception as e:   # no usable native window: use the browser instead
             why_not = f"{e.__class__.__name__}: {e}"
             wlog.warning("the app window could not start; opening the browser", exc_info=True)
+    opened = False
     if why_not:
         # the launcher has no console (pythonw): say it in the log AND in the page, else the app
         # just "opens in the browser" with no way to know why
-        print(f"Native window not available ({why_not}); opening the browser.", flush=True)
         wlog.warning("native window not available: %s", why_not)
+        # the best other engine on this computer: Edge / Chrome as a window of its own (no tabs,
+        # no address bar), else Firefox; none new enough -> say so in a message box (no console)
+        browsers = find_browsers()
+        pick = choose_fallback(browsers)
+        if pick:
+            kind, exe, version = pick
+            try:
+                open_in(kind, exe, url, safe)
+                opened = True
+                app_system.WINDOW_NOTE["mode"] = "app-window" if kind in CHROMIUM_KINDS else "browser"
+                why_not = f"{why_not} - opened in {kind} {version} instead"
+            except OSError as e:
+                wlog.warning("could not start %s: %s", exe, e)
+        elif sys.platform == "win32":
+            message_box(no_engine_message(why_not, browsers))
+        print(f"Native window not available ({why_not}).", flush=True)
         app_system.WINDOW_NOTE["browserReason"] = why_not
+    if not opened:
+        app_system.WINDOW_NOTE["mode"] = "browser"
     # Browser mode: the page pings the server; when no tab has been open for a while the
     # server exits, so no invisible process is left behind (the .exe has no console).
     from app import main as app_main
     app_main.WATCHDOG["enabled"] = True
-    webbrowser.open(url)
+    if not opened:
+        webbrowser.open(url)
     started = time.time()
     try:
         while th.is_alive():
@@ -319,9 +346,39 @@ def _unblock_windows_dlls() -> None:
                         pass                    # no mark (the usual case), or not NTFS
 
 
-def _webview2_installed() -> bool:
-    """Edge WebView2 runtime: the registry keys its installer writes, or its folders (Windows 11
-    ships it with the system, and some installs - per user, by policy - leave no key we know)."""
+# The oldest engines the UI is built for (frontend/vite.config.ts `build.target` - keep the two
+# in step). Offline computers often keep an old WebView2 / Edge for years; code built for a newer
+# engine does not even start there, and the window stays blank.
+MIN_CHROMIUM = 87
+MIN_FIREFOX = 78
+CHROMIUM_KINDS = ("Edge", "Chrome")
+
+
+def _major(version: str) -> int:
+    try:
+        return int(str(version).split(".")[0])
+    except (ValueError, IndexError):
+        return 0
+
+
+def _version_folders(app_dir: str) -> List[str]:
+    """Edge, Chrome and WebView2 keep each installed version in a folder named by it."""
+    try:
+        return [d for d in os.listdir(app_dir) if d[:1].isdigit() and d.count(".") == 3]
+    except OSError:
+        return []
+
+
+def _newest(versions) -> str:
+    vs = [v for v in versions if v and v != "0.0.0.0"]
+    return max(vs, key=lambda v: tuple(int(p) if p.isdigit() else 0 for p in v.split("."))) if vs else ""
+
+
+def webview2_version() -> str:
+    """The newest Edge WebView2 runtime on this computer ("" = none): the registry keys its
+    installer writes, or its folders (Windows 11 ships it with the system, and some installs - per
+    user, by policy - leave no key we know)."""
+    found = []
     try:
         import winreg
         guid = r"{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"     # Microsoft Edge WebView2 Runtime
@@ -331,21 +388,118 @@ def _webview2_installed() -> bool:
                           (winreg.HKEY_CURRENT_USER, key("Software"))):
             try:
                 with winreg.OpenKey(root, sub) as k:
-                    version, _ = winreg.QueryValueEx(k, "pv")
-                    if version and version != "0.0.0.0":
-                        return True
+                    found.append(str(winreg.QueryValueEx(k, "pv")[0]))
             except OSError:
                 continue
     except Exception:
         pass
     for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")):
-        app = os.path.join(base or "", "Microsoft", "EdgeWebView", "Application")
-        try:
-            if base and any(os.path.isfile(os.path.join(app, d, "msedgewebview2.exe")) for d in os.listdir(app)):
-                return True
-        except OSError:
+        if not base:
             continue
-    return False
+        app = os.path.join(base, "Microsoft", "EdgeWebView", "Application")
+        found += [d for d in _version_folders(app) if os.path.isfile(os.path.join(app, d, "msedgewebview2.exe"))]
+    return _newest(found)
+
+
+def _webview2_installed() -> bool:
+    return bool(webview2_version())
+
+
+def find_browsers() -> List[Tuple[str, str, str]]:
+    """(kind, executable, version) of the browsers installed on this computer (Windows; other
+    systems use the default browser)."""
+    if sys.platform != "win32":
+        return []
+    out: List[Tuple[str, str, str]] = []
+    bases = [b for b in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"),
+                         os.environ.get("LOCALAPPDATA")) if b]
+    for kind, parts, exe_name in (("Edge", ("Microsoft", "Edge", "Application"), "msedge.exe"),
+                                  ("Chrome", ("Google", "Chrome", "Application"), "chrome.exe")):
+        for base in bases:
+            app = os.path.join(base, *parts)
+            exe = os.path.join(app, exe_name)
+            if os.path.isfile(exe):
+                out.append((kind, exe, _newest(_version_folders(app))))
+                break
+    for base in bases:
+        exe = os.path.join(base, "Mozilla Firefox", "firefox.exe")
+        if os.path.isfile(exe):
+            version = ""
+            try:
+                with open(os.path.join(base, "Mozilla Firefox", "application.ini"), encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        if line.startswith("Version="):
+                            version = line.split("=", 1)[1].strip()
+                            break
+            except OSError:
+                pass
+            out.append(("Firefox", exe, version))
+            break
+    return out
+
+
+def choose_fallback(browsers: List[Tuple[str, str, str]]) -> Optional[Tuple[str, str, str]]:
+    """The engine to open the app in when its own window cannot start: Edge, then Chrome (they
+    open it as a window of its own), then Firefox - the first one new enough for the UI."""
+    order = {"Edge": 0, "Chrome": 1, "Firefox": 2}
+    for kind, exe, version in sorted(browsers, key=lambda b: order.get(b[0], 9)):
+        need = MIN_FIREFOX if kind == "Firefox" else MIN_CHROMIUM
+        if _major(version) >= need:
+            return kind, exe, version
+    return None
+
+
+def open_in(kind: str, exe: str, url: str, safe: bool = False) -> None:
+    """Edge / Chrome: the app as a window of its own (--app: no tabs, no address bar), with a
+    profile of its own so the user's browser profile is never touched. Firefox: a new window."""
+    if kind in CHROMIUM_KINDS:
+        profile = os.path.join(os.path.expanduser("~"), ".signalviewer", "browser-profile")
+        os.makedirs(profile, exist_ok=True)
+        cmd = [exe, f"--app={url}", f"--user-data-dir={profile}", "--no-first-run",
+               "--no-default-browser-check", "--window-size=1440,900"]
+        if safe:
+            cmd += SAFE_GRAPHICS_ARGS
+    else:
+        cmd = [exe, "-new-window", url]
+    subprocess.Popen(cmd, close_fds=True)
+
+
+def no_engine_message(why_not: str, browsers: List[Tuple[str, str, str]]) -> str:
+    found = ", ".join(f"{k} {v or '?'}" for k, _e, v in browsers) or "none"
+    return ("Signal Viewer cannot open its own window: " + why_not + ".\n\n"
+            f"Browsers found on this computer: {found}.\n"
+            f"The app needs Microsoft Edge WebView2 / Edge / Chrome {MIN_CHROMIUM} or newer, or Firefox {MIN_FIREFOX} or newer.\n\n"
+            "What to do: install the current Microsoft Edge WebView2 Runtime (the \"Evergreen Standalone "
+            "Installer\" - on a computer without internet, ask IT to bring it). The app will now try the "
+            "default browser; if the page stays blank, that browser is too old as well.\n\n"
+            "Log: %USERPROFILE%\\.signalviewer\\logs\\signalviewer.log")
+
+
+def message_box(text: str) -> None:
+    """A Windows message box (the launcher has no console), shown without holding the start."""
+    def show():
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, text, "Signal Viewer", 0x30 | 0x40000)   # warning, on top
+        except Exception:
+            pass
+    threading.Thread(target=show, daemon=True, name="message").start()
+
+
+# No graphics card: Chromium 139+ no longer draws WebGL in software by itself, so the 3D view would
+# go to its simplified fallback; the software renderer is allowed back. "Unsafe" is about web pages
+# from the internet - this window shows only the app's own page from 127.0.0.1.
+SAFE_GRAPHICS_ARGS = ["--disable-gpu", "--enable-unsafe-swiftshader"]
+
+
+def _safe_graphics_env() -> None:
+    """Draw without the graphics card: WebView2 (Windows) and WebKitGTK (Linux) read these."""
+    extra = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+    for a in SAFE_GRAPHICS_ARGS:
+        if a not in extra.split():
+            extra = (extra + " " + a).strip()
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = extra
+    os.environ.setdefault("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
 
 
 def window_unavailable_reason() -> str:
@@ -356,8 +510,12 @@ def window_unavailable_reason() -> str:
         import webview  # noqa: F401
     except Exception as e:                      # ImportError, or pythonnet failing to load .NET
         return f"pywebview could not be loaded ({e.__class__.__name__}: {e})"
-    if sys.platform == "win32" and not _webview2_installed():
-        return "the Microsoft Edge WebView2 runtime was not found"
+    if sys.platform == "win32":
+        version = webview2_version()
+        if not version:
+            return "the Microsoft Edge WebView2 runtime was not found"
+        if _major(version) < MIN_CHROMIUM:
+            return f"the Microsoft Edge WebView2 runtime is too old ({version}; the app needs {MIN_CHROMIUM} or newer)"
     return ""
 
 

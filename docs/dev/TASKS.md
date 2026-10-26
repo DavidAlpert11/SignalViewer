@@ -1078,6 +1078,26 @@ run_c deletes exactly the three copies).
 | Q96 | F43 The Windows package opens in the browser every time | S | ☑ done (not checked on Windows here) |
 | Q97 | F44 Signals chosen by typing, with their unit and ƒ beside them; unit conversions | S | ☑ done |
 
+
+## Owner's report 2026-10-26 (after 1.14.0) - blank window offline, time axis while working
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q98 | F45 A blank white window on one computer (old offline WebView2): build for Chromium 87 / Firefox 78, polyfills, version check + Edge/Chrome app window / Firefox / message box, boot guard in index.html, safe graphics, engine in About | M | ☑ done (not checked on Windows here) |
+| Q99 | T74 Time axis…: another column as the time, its unit (conversions / any scale, own-time columns), the offset - with checks, what changes, linked files, Undo | M | ☑ done |
+| Q100 | Idea (owner asked, not now): `rich` for the CLI's tables / progress - only as an optional extra, plain output when not a terminal, `--json` untouched | S | ☐ open |
+
+Q98 notes: `vite.config.ts` build.target and run.py `MIN_CHROMIUM` / `MIN_FIREFOX` must name the same
+engine (test_launcher checks). The WebView2 runtime is NOT bundled (owner's decision: a better
+fallback and a message instead). Safe graphics adds `--disable-gpu --enable-unsafe-swiftshader` (the
+page is only the app's own, from 127.0.0.1).
+Q99 notes: `svcore/time_axis.py`; the scales live in `import_settings` (`time_scale`,
+`own_time_scale`), applied in `store.open_file` after any loader (and to rows appended live), so
+refresh / sessions / live read them alike. `store.set_time_axis` reads the file again in place
+(`_read_again`, shared with reload); `before` is in file names, so Undo finds an old time column that
+is a signal now (perhaps renamed `Time_2`). Positions map by row only with one data file open and no
+re-sorting. CLI flags not added (each command would need them; the Python API takes the settings).
+
 ### Q92 · T73 Very large ArduPilot logs — M
 - bin_loader: the file memory-mapped; headers found in 64 MB blocks on several threads (`_find_heads`);
   the FMT messages taken from the same pass; the chain of messages walked run by run (only the breaks
@@ -1723,3 +1743,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-24 · Q90 / T71 (owner, after applying Q89): `{file:Name}` in an expression of x - one particular file's signal for every signal changed; stored by the file's id, shown by its name; the braces hint. 1.13.0 re-prepared with it on top of the owner's applied, unpushed Q89 commits. Here: backend 789 + 12 skipped (+1), mypy clean, tsc + build clean (oxlint 39), e2e 201 / 201 in one process, mkdocs --strict, validate 23 / 23.
 - 2026-10-24 · Q91 / T72 (owner, before pushing 1.13.0): new signals of two files belong to one (pinned sources from {file:Name}, Formula {file:name}, Compare's baseline); copy / link / clear handle them; ones with no recorded intent are asked about in the copy dialog. 1.13.0 re-prepared on top of the owner's applied, unpushed Q90 commits. Here: backend 789 + 12 skipped, mypy clean, tsc + build clean (oxlint 39), e2e 202 / 202 in one process (a first full run had test_template_files_are_found_from_tabs_and_matched_by_name time out once - alone 3 / 3, its module 2 x 11 / 11, untouched code), mkdocs --strict, validate 23 / 23.
 - 2026-10-26 · Q92-Q97 / T73, F40-F44 (owner's report after 1.13.0; applied by the owner as one commit, then 1.14.0 prepared on top): big .bin logs (one pass, run-by-run chain, lazy values, float32, index cache), the browser server's watchdog, live / refresh keep the time at the newest data, the cache (pruning, Settings, `cli cache`, three leaks), the Windows window (unblock, WebView2 by folder, the reason shown), typed signal choice with unit and ƒ, unit conversions, tools/live_demo.py. Here: backend 805 + 12 skipped (+16), mypy clean, tsc + build clean (oxlint 39), e2e 205 / 205 one file per process (in earlier runs in one process test_globe_without_webgl_falls_back timed out once - alone 4 / 4, its path untouched; test_compare_same_segment_across_runs fails about 1 in 8 on 1.13.0 too - left as it is). mkdocs --strict, validate 23 / 23.
+- 2026-10-26 · Q98 / F45 + Q99 / T74 (owner): blank window on old offline WebView2 (build target, polyfills, launcher fallback chain, boot guard, safe graphics); Time axis… dialog (column, unit, offset; checks; linked files; Undo) replacing Time offset…. Tests: test_time_axis (13), test_launcher (+6), e2e D11 updated + D11b-d + test_N_blank_window_says_why. Full run: backend 823 passed, mypy clean, tsc + build clean, e2e 208 + 1 passed.

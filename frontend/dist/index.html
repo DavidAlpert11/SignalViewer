@@ -7,12 +7,67 @@
     <link rel="apple-touch-icon" href="/icon-512.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Signal Viewer</title>
-    <script type="module" crossorigin src="/assets/index-CoW3tA2z.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/preload-helper-BKNWuTSc.js">
-    <link rel="modulepreload" crossorigin href="/assets/jsx-runtime-CEIhgFrs.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-B0WbIPSB.css">
+    <script type="module" crossorigin src="/assets/index-BVQL2H2Y.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/preload-helper-QgIZO6sU.js">
+    <link rel="modulepreload" crossorigin href="/assets/jsx-runtime-C_qKv-er.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-C861aIs2.css">
   </head>
   <body>
     <div id="root"></div>
+    <!-- When the app does not start (an engine too old for it, a file it needs missing, an error
+         while it starts) the window must not stay blank with no word of why. Plain old JavaScript
+         on purpose, apart from the app's code: it runs where the app's own code cannot even be
+         read. English + Hebrew here because i18n.ts is part of what did not load. -->
+    <div id="sv-boot-fail" hidden style="font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif;max-width:720px;margin:48px auto;padding:0 24px;color:#222"></div>
+    <script>
+    (function () {
+      var errors = [];
+      window.addEventListener("error", function (e) {
+        var t = e && e.target, src = t && (t.src || t.href);
+        errors.push(src && t !== window ? "Could not load " + src : String((e && e.message) || "error"));
+      }, true);
+      function engine() {
+        var ua = navigator.userAgent, m;
+        if ((m = /Edg\/(\d+)/.exec(ua))) return "Edge / WebView2 " + m[1];
+        if ((m = /Chrome\/(\d+)/.exec(ua))) return "Chrome " + m[1];
+        if ((m = /Firefox\/(\d+)/.exec(ua))) return "Firefox " + m[1];
+        return ua;
+      }
+      function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+      function show(nomodule) {
+        var box = document.getElementById("sv-boot-fail");
+        if (!box || !box.hidden) return;
+        box.hidden = false;
+        box.innerHTML =
+          "<h2>Signal Viewer did not start</h2>" +
+          "<p>This window's web engine is <b>" + esc(engine()) + "</b>. The app needs Chromium 87 or newer " +
+          "(Microsoft Edge WebView2, Edge or Chrome) or Firefox 78 or newer." +
+          (nomodule ? " This engine is far too old." : "") + "</p>" +
+          "<p>What to do: install the current <b>Microsoft Edge WebView2 Runtime</b> " +
+          "(the &laquo;Evergreen Standalone Installer&raquo;; on a computer without internet, ask IT to bring it), " +
+          "or start Signal Viewer with <code>--browser</code> and open it in a newer browser. " +
+          "If the computer has no graphics driver, try <code>Signal Viewer (safe graphics)</code>.</p>" +
+          "<p>Details for a bug report: <code>%USERPROFILE%\\.signalviewer\\logs\\signalviewer.log</code></p>" +
+          (errors.length ? "<pre style='white-space:pre-wrap;background:#f3f3f3;padding:8px'>" + esc(errors.slice(0, 5).join("\n")) + "</pre>" : "") +
+          "<hr><div dir='rtl' lang='he'><h2>Signal Viewer לא עלה</h2>" +
+          "<p>מנוע התצוגה של החלון הזה הוא <b dir='ltr'>" + esc(engine()) + "</b>. האפליקציה צריכה Chromium 87 ומעלה " +
+          "(Microsoft Edge WebView2, Edge או Chrome) או Firefox 78 ומעלה.</p>" +
+          "<p>מה לעשות: להתקין את <b>Microsoft Edge WebView2 Runtime</b> העדכני (Evergreen Standalone Installer; " +
+          "במחשב בלי אינטרנט לבקש מה-IT), או להפעיל את Signal Viewer עם <code>--browser</code> ולפתוח בדפדפן חדש יותר. " +
+          "במחשב בלי דרייבר גרפי לנסות את <code>Signal Viewer (safe graphics)</code>.</p></div>";
+      }
+      window.__svShowBootFail = show;
+      var started = Date.now();
+      (function check() {
+        var root = document.getElementById("root");
+        var up = root && root.children.length > 0;
+        var box = document.getElementById("sv-boot-fail");
+        if (up) { if (box) box.hidden = true; return; }       // started (late is fine)
+        if (Date.now() - started > 15000) show(false);
+        if (Date.now() - started < 120000) setTimeout(check, 1000);
+      })();
+    })();
+    </script>
+    <script nomodule>window.__svShowBootFail && window.__svShowBootFail(true);</script>
   </body>
 </html>

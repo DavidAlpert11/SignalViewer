@@ -45,6 +45,8 @@ def env(tmp_path_factory):
     tg = t[:300]
     _csv(d / "geo.csv", ["Time", "Lat", "Lon", "Gear"], [tg, 32.0 + tg * 0.01, 34.8 + tg * 0.012, np.floor(tg)])
     _csv(d / "meta.csv", ["Time", "P"], [t[:100], t[:100] * 2])
+    k = np.arange(200)                          # the Time axis dialog: a time in ms, another column
+    _csv(d / "ms.csv", ["t_ms", "Count", "Val"], [k * 10, k * 2 + 1, np.sin(k / 10)])
     txt = open(d / "meta.csv").read()
     open(d / "meta.csv", "w").write("Rig: 3\nOperator: QA\n" + txt)
     tf = np.arange(4000) / 1000.0
@@ -264,10 +266,63 @@ def test_D09_D10_live_mode_and_follow(pg):
 
 def test_D11_file_time_offset(pg):
     open_files(pg, "run_a.csv")
-    pg.locator(".run-head").first.click(button="right"); menu_item(pg, "Time offset")
-    pg.fill(".dialog input", "2.5"); pg.click(".dialog-foot .btn.primary")
+    pg.locator(".run-head").first.click(button="right"); menu_item(pg, "Time axis")
+    pg.fill(".ta-offset-in", "2.5"); pg.click(".ta-apply")
     pg.wait_for_selector(".badge-off")
     assert S(pg, "s.runs[0].timeOffset") == 2.5 and abs(S(pg, "s.runs[0].start") - 2.5) < 1e-9
+
+
+def _time_axis_dialog(pg):
+    pg.locator(".run-head").first.click(button="right"); menu_item(pg, "Time axis")
+    pg.wait_for_selector(".ta-dialog")
+
+
+def test_D11b_time_unit_ms_to_seconds_and_undo(pg):
+    open_files(pg, "ms.csv")
+    assert S(pg, "s.runs[0].timeAxis.columnUnit") == "ms"
+    _time_axis_dialog(pg)
+    pg.select_option(".ta-conv", "ms-s")
+    assert pg.input_value(".ta-scale-in") == "0.001"
+    pg.click(".ta-apply")
+    pg.wait_for_function("Math.abs(window.__sv.state().runs[0].end - 1.99) < 1e-9")
+    assert S(pg, "s.runs[0].importSettings.time_scale") == 0.001
+    pg.locator(".toast", has_text="Time axis").locator("button", has_text="Undo").click()
+    pg.wait_for_function("Math.abs(window.__sv.state().runs[0].end - 1990) < 1e-9")
+
+
+def test_D11c_another_column_as_the_time_and_undo(pg):
+    open_files(pg, "ms.csv")
+    sig(pg, "Count").click()
+    pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 1")
+    _time_axis_dialog(pg)
+    pg.select_option(".ta-col", "Count")
+    pg.wait_for_selector(".ta-stats")
+    notes = pg.locator(".ta-notes").inner_text()
+    assert "only goes up" in pg.locator(".ta-stats").inner_text()
+    assert "leaves 1 place" in notes and "becomes an ordinary signal" in notes
+    pg.click(".ta-apply")
+    pg.wait_for_function("window.__sv.state().runs[0].timeAxis.column === 'Count'")
+    assert S(pg, "s.runs[0].end") == 399
+    assert S(pg, "s.runs[0].signals.some(x => x.name === 't_ms')")       # the old time, as a signal
+    pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 0")
+    pg.locator(".toast", has_text="Time axis").locator("button", has_text="Undo").click()
+    pg.wait_for_function("window.__sv.state().runs[0].timeAxis.column === 't_ms'")
+    pg.wait_for_function("document.querySelectorAll('.plot .chip').length === 1")
+
+
+def test_D11d_a_column_that_goes_up_and_down_asks_first(pg):
+    open_files(pg, "run_a.csv")
+    _time_axis_dialog(pg)
+    pg.select_option(".ta-col", "RPM")
+    pg.wait_for_selector(".ta-sort-ok")
+    assert "goes up and down" in pg.locator(".ta-notes").inner_text()
+    assert pg.locator(".ta-apply").is_disabled()
+    pg.check(".ta-sort-ok")
+    assert pg.locator(".ta-apply").is_enabled()
+    pg.click(".ta-xy")                                       # the usual answer: an X-Y plot instead
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
+    assert S(pg, "s.ws.tabs[1].plots[0].mode") == "xy"
+    assert S(pg, "s.runs[0].timeAxis.column") == "Time"     # the file did not change
 
 
 def test_D12_link_files(pg):
@@ -2432,3 +2487,15 @@ def test_signals_of_two_files_copied_to_a_new_run(pg):
     pg.locator(".menu.ctx button", has_text="Clear this file").click()
     menu_item(pg, "Delete the signals made from it (3)")
     pg.wait_for_function(f"window.__sv.state().runs.find(r => r.format === 'derived').signals.length === {n0}")
+
+
+def test_N_blank_window_says_why(pg):
+    """F45: when the app's code does not start (an engine too old for it, a missing file), the page
+    says why after a while instead of staying blank."""
+    page = pg.context.new_page()
+    page.route(re.compile(r".*/assets/index-[^/]*\.js$"), lambda route: route.abort())
+    page.goto(pg.env["url"])
+    page.wait_for_selector("#sv-boot-fail:not([hidden])", timeout=30000)
+    text = page.locator("#sv-boot-fail").inner_text()
+    assert "did not start" in text and "Chrome" in text and "לא עלה" in text
+    page.close()

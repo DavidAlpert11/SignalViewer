@@ -81,9 +81,13 @@ export default function TopBar() {
       { label: t("copyErrorDetails"), run: () => copyErrorDetails(t, useApp.getState().toast) },
       { label: t("menuReportProblem"), run: () => reportProblem(t, useApp.getState().toast) },
       { label: t("menuAbout"), run: async () => {
-        let v = "";
+        let v = "", mode = "";
         try { v = (await api.diagnostics()).version; } catch { /* offline server: no version */ }
-        useApp.getState().toast({ kind: "info", text: t("aboutText", { v }), ms: 12000 });
+        try { mode = (await api.windowNote()).mode || ""; } catch { /* (same) */ }
+        // which engine draws the app, and in what (its own window, an Edge / Chrome app window,
+        // a browser tab): the first question when a computer shows something odd
+        const where = mode === "window" ? t("engineWindow") : mode === "app-window" ? t("engineAppWindow") : t("engineBrowser");
+        useApp.getState().toast({ kind: "info", text: t("aboutText", { v }) + " · " + t("aboutEngine", { engine: engineName(), where }), ms: 12000 });
       } },
     ];
     openMenu(pos, items);
@@ -275,4 +279,12 @@ function MavlinkSection() {
       </>}
     </div>
   );
+}
+
+/** The web engine from the user agent: WebView2 and Edge say Edg/, Chrome Chrome/. */
+function engineName(): string {
+  const ua = navigator.userAgent;
+  const m = /Edg\/(\d+)/.exec(ua) || /Chrome\/(\d+)/.exec(ua) || /Firefox\/(\d+)/.exec(ua);
+  if (!m) return ua;
+  return (ua.includes("Edg/") ? "Edge / WebView2 " : ua.includes("Firefox/") ? "Firefox " : "Chrome ") + m[1];
 }

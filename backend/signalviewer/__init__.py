@@ -84,7 +84,9 @@ class Recording:
 
 def load(path: str, settings: Optional[dict] = None) -> Recording:
     """Read a file. `settings` are the CSV import options of the app's Import dialog
-    (e.g. {"delimiter": ";", "time_column": "t"}); usually not needed."""
+    (e.g. {"delimiter": ";", "time_column": "t"}); usually not needed. As in the app's Time axis
+    dialog, {"time_scale": 0.001} puts a time logged in milliseconds into seconds (CSV, MAT,
+    Parquet, HDF5), and {"own_time_scale": ...} does the same for columns with a time of their own."""
     store = Store()
     # the readers print progress ("[OK] Loaded ...") for the app's console; in a script or a
     # notebook stdout is the user's own output, so it goes to stderr (as on the command line)

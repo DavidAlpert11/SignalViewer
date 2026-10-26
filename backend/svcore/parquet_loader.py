@@ -125,4 +125,5 @@ def load_parquet(path: str, display_name: str, time_column: Optional[str] = None
     run.signals = sigs
     run.compute_metadata()
     run.import_settings = {"format": "parquet", **({"time_column": tname} if tname else {})}
+    run.time_source = tname
     return run, report

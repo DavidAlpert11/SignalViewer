@@ -87,6 +87,8 @@ Root: HKA; Subkey: "Software\Classes\.svsession"; ValueType: string; ValueName: 
 
 [Icons]
 Name: "{group}\Signal Viewer"; Filename: "{app}\SignalViewer.exe"
+; a blank, white or black window (old graphics driver, virtual machine, remote desktop): draw without the graphics card
+Name: "{group}\Signal Viewer (safe graphics)"; Filename: "{app}\SignalViewer.exe"; Parameters: "--safe-graphics"
 Name: "{autodesktop}\Signal Viewer"; Filename: "{app}\SignalViewer.exe"; Tasks: desktopicon
 
 [Run]
