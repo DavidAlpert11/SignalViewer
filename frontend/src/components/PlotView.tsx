@@ -25,6 +25,7 @@ export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
 import { openMenu } from "./Overlays";
 import { laneMenuItems } from "../lanes";
+import OccChart from "./OccChart";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
 
@@ -155,7 +156,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ] : [];
     openMenu(e, [...laneItems, ...timeItems, ...plotItems()]);
   };
-  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")]];
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")],
+    // occ is made from the Investigate panel (it needs a condition): listed only on such a plot
+    ...(plot.occ ? [["occ", t("modeOcc")] as [PlotMode, string]] : [])];
   /* T49 item 9: the plot type is one button with its name (a menu of the types), not nine buttons on
      every plot - the header keeps room for the legend and the type's own settings */
   const openModeMenu = (e: React.MouseEvent) => {
@@ -318,7 +321,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             if (mode === "fft") val = Number.isFinite(peaks[s.sig]) ? `${fmtNum(peaks[s.sig], lang, 4)} Hz` : null;
             const labels = labelsOf(runs, s.sig);
             const plain = s.scale === 1 && s.offset === 0;
-            if (mode === "fft") { /* peak above */ }
+            if (mode === "fft" || mode === "occ") { /* peak above; occ: its axis is not the recording's time */ }
             else if (cursor.on && raw !== undefined && raw !== null) val = (plain && labelText(labels, raw)) || withUnit(fmtNum(raw * s.scale + s.offset, lang), unit);
             else if (hover && mode === "time" && hover.vals[s.sig] !== null && hover.vals[s.sig] !== undefined) {
               const hvv = hover.vals[s.sig] as number;     // already scaled
@@ -369,6 +372,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} /></Suspense>}
           {mode === "geo" && <GeoChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
           {mode === "env" && <EnvelopeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
+          {mode === "occ" && <OccChart plot={plot} index={index} onLoading={setLoading} />}
           {mode === "xyz" && <XYZChart plot={plot} index={index} onLoading={setLoading} emptyText={t("xyzNeedsThree")} />}
           {mode === "fft" && <FFTChart plot={plot} index={index} onLoading={setLoading} onPeaks={setPeaks} />}
           {mode === "spec" && <SpecChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}

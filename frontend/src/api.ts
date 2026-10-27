@@ -355,6 +355,12 @@ export const api = {
   startJob: (kind: string, body: unknown, label: string) => call<JobInfo>("/api/jobs", { kind, body, label }),
   evalCondition: (text: string, opts: { exit?: string; minDur?: number; mergeGap?: number; runs?: string[] }) =>
     call<{ results: Record<string, import("./store").CondResult> }>("/api/conditions/eval", { text, exit: opts.exit ?? "", minDur: opts.minDur ?? 0, mergeGap: opts.mergeGap ?? 0, runs: opts.runs }),
+  occTable: (runs: Record<string, [number, number][]>, names: string[]) =>
+    call<{ rows: { rid: string; a: number; b: number; values: Record<string, { max: number | null; min: number | null; mean: number | null; tMax: number | null }> }[] }>("/api/occurrences/table", { runs, names }),
+  occWindows: (items: { sig: string; intervals: [number, number][] }[], align: string, pad: number) =>
+    call<{ items: { sig: string; grid: number[]; curves: (number | null)[][]; mean: (number | null)[]; cut: boolean }[] }>("/api/occurrences/windows", { items, align, pad }),
+  occDiffer: (runs: Record<string, [number, number][]>, top = 25) =>
+    call<{ items: { name: string; effect: number; meanIn: number; meanOut: number; up: boolean; files: string[] }[] }>("/api/occurrences/differ", { runs, top }),
   checkTimeAxis: (id: string, column: string | null) => call<TimeAxisCheck>(`/api/runs/${id}/time-axis/check`, { column }),
   job: (id: string) => call<JobInfo>(`/api/jobs/${id}`),
   cancelJob: (id: string) => call<{ cancelled: boolean }>(`/api/jobs/${id}/cancel`, {}),
