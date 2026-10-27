@@ -48,6 +48,9 @@ the roll leaves its set point three times; in the light one it holds. Why?
 
 12. Open the light run's Motor3 next to the heavy one's: the same gusts, but motor 3 stays below
     2000 - it has headroom. `Motor3 > 1990` as a condition: 3 stretches heavy, 0 light.
+13. **Runs × conditions** (under the conditions): a row per run - *Payload_kg* (2.4 / 1.2, found
+    by itself: it holds one value the whole run) - and a column per condition: Roll error 3 / 0,
+    Motor3 saturated 3 / 0. Click the 3: the heavy run at its first stretch.
 
 **The answer:** the gust needs more thrust from motor 3; with the heavy payload it is already near
 its limit, saturates, and the roll cannot be held - about 0.1–0.15 s later. The light payload leaves

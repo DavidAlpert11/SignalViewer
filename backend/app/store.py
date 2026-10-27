@@ -654,6 +654,38 @@ class Store:
         items.sort(key=lambda x: -x["effect"])
         return items[:top]
 
+    # ------------------------------------------------------------ runs x conditions
+    def run_params(self, run_ids: Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
+        """Investigation step 5: what tells runs apart, per open file - signals that hold one value
+        the whole run (a payload, a gain, a seed) and numbers in the file name ("mass2.4", "wind=8",
+        "run_012")."""
+        import re as _re
+        out: Dict[str, Dict[str, float]] = {}
+        token = _re.compile(r"^([A-Za-z][A-Za-z]*)[=]?(-?\d+(?:\.\d+)?)$")
+        for rid in (run_ids or list(self.order)):
+            lr = self.runs.get(rid)
+            if lr is None or rid == DERIVED_ID:
+                continue
+            ps: Dict[str, float] = {}
+            stem = os.path.splitext(os.path.basename(lr.run.file_path))[0]
+            parts = [x for x in _re.split(r"[_\s-]+", stem) if x]
+            for i, part in enumerate(parts):
+                m = token.match(part)
+                if m:
+                    ps[m.group(1)] = float(m.group(2))
+                elif i + 1 < len(parts) and _re.fullmatch(r"-?\d+(?:\.\d+)?", parts[i + 1]) and part.isalpha():
+                    ps[part] = float(parts[i + 1])
+            if len(lr.run.signals) <= WIDE:
+                for name, sg in lr.run.signals.items():
+                    if sg.labels or not getattr(sg, "loaded", True):
+                        continue
+                    y = np.asarray(sg.data, dtype=np.float64)
+                    y = y[np.isfinite(y)]
+                    if len(y) > 1 and float(y.min()) == float(y.max()):
+                        ps[name] = float(y[0])
+            out[rid] = ps
+        return out
+
     # ------------------------------------------------------------ what changed first / lag
     def first_changes(self, sig_ids: List[str], run_ids: List[str], a: float, b: float,
                       base: Optional[Tuple[float, float]] = None, k: float = 4.0, persist: int = 3) -> List[dict]:
