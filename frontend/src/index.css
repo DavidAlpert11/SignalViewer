@@ -1283,3 +1283,19 @@ input.fx-input { width: 100%; }
 .occ-differ-list .up { color: var(--danger); } .occ-differ-list .down { color: var(--focus); }
 .occ-caption .occ-align { margin-inline-end: 6px; }
 .occ-caption .occ-align.on { font-weight: 600; text-decoration: underline; }
+
+/* Investigation step 4: what changed first, lag */
+.wc-section { border: 1px solid var(--amber); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+.wc-head { display: flex; align-items: center; justify-content: space-between; }
+.wc-head h3 { margin: 0; font-size: 0.923rem; }
+.wc-warn { margin: 0; padding: 4px 6px; border-radius: 4px; background: var(--amber-soft); font-size: 0.85rem; }
+.wc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.wc-group { border-inline-start: 2px solid var(--amber); padding-inline-start: 4px; }
+.wc-together { font-size: 0.8rem; opacity: 0.75; }
+.wc-row { display: grid; grid-template-columns: 16px 56px 1fr auto auto; gap: 6px; align-items: center; font-size: 0.85rem; }
+.wc-row.picked { background: var(--amber-soft); }
+.wc-row .wc-rate { grid-column: 3 / -1; font-size: 0.75rem; }
+.wc-name { text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-row .up { color: var(--danger); } .wc-row .down { color: var(--focus); }
+.wc-rel { font-variant-numeric: tabular-nums; }
+.wc-lag-out p { margin: 0 0 4px; font-size: 0.85rem; }

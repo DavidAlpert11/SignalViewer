@@ -654,6 +654,35 @@ class Store:
         items.sort(key=lambda x: -x["effect"])
         return items[:top]
 
+    # ------------------------------------------------------------ what changed first / lag
+    def first_changes(self, sig_ids: List[str], run_ids: List[str], a: float, b: float,
+                      base: Optional[Tuple[float, float]] = None, k: float = 4.0, persist: int = 3) -> List[dict]:
+        """Investigation step 4: for these signals (and every numeric signal of these files), when
+        each first left its usual range around the event [a, b] - candidates in time order."""
+        from svcore.firstchange import default_baseline, first_change
+        base = base or default_baseline(a, b)
+        ids = list(dict.fromkeys(sig_ids + [f"{rid}/{n}" for rid in run_ids if rid in self.runs for n in self.runs[rid].run.signals]))
+        out: List[dict] = []
+        for sid in ids:
+            rid, _, name = sid.partition("/")
+            lr = self.runs.get(rid)
+            sg = lr.run.signals.get(name) if lr else None
+            try:
+                t, y = self.signal(sid)
+            except (KeyError, ValueError):
+                continue
+            discrete = bool(sg is not None and (sg.labels or self.is_discrete(sid)))
+            r = first_change(t, y, a, b, base, k, persist, discrete)
+            out.append({"id": sid, "name": name, **r})
+        changed = sorted([x for x in out if x["status"] == "changed"], key=lambda x: x["t"])
+        return changed + [x for x in out if x["status"] != "changed"]
+
+    def lag_between(self, a_id: str, b_id: str, t0: float, t1: float) -> dict:
+        from svcore.firstchange import lag
+        ta, ya = self.signal(a_id)
+        tb, yb = self.signal(b_id)
+        return lag(ta, ya, tb, yb, t0, t1)
+
     # ------------------------------------------------------------ time axis
     def time_axis_info(self, lr: "LoadedRun", candidates: bool = False) -> dict:
         """What the Time axis dialog may change in this file, and how it is set now (with

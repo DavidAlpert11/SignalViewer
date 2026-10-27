@@ -56,6 +56,9 @@ are told apart by them.
 - **The stretches of a condition** (click its name): a table of them under the list (sort, click to go
   there), **Together in a new tab** - all of them on top of each other from their start, end or peak -
   and **What differs inside**: the signals that are most different inside the stretches than outside.
+- **What changed first?** On the selection bar: the signals in the order they left their usual
+  range around the span - candidates, not causes - and the lag between any two of them.
+  Try it all on the example *find out what went wrong*: [the tutorial](investigate-tutorial.md).
 - **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
   it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
   *Always as a state* makes a signal a lane wherever it is added, in every file.

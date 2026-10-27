@@ -65,6 +65,8 @@ EXAMPLE_SETS = [
     {"id": "ardupilot", "files": ["copter_flight.bin"]},                               # T45: a flight log
     {"id": "simVsFlight", "files": ["sim_vs_flight/sim_attitude_doublets.mat",         # C13: a model against its flight
                                      "sim_vs_flight/flight_attitude_doublets.bin"]},
+    {"id": "investigate", "files": ["investigate/heavy_payload.csv",                  # the Investigate tools,
+                                    "investigate/light_payload.csv"]},                # with a known answer
 ]
 
 

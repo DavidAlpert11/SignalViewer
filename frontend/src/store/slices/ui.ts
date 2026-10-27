@@ -45,6 +45,10 @@ export interface UiSlice {
   condResults: Record<string, Record<string, CondResult>>;
   condFocus: string | null;
   condEdit: { id: string; draft?: { name?: string; text?: string } } | null;
+  /** Investigation step 4: "What changed?" around this span (the panel shows it), and the first-change
+   *  moments drawn as dashed lines on the plots (signal id -> time). */
+  whatChanged: { a: number; b: number } | null;
+  changeMarks: Record<string, number> | null;
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
     segment?: import("../../segments").SegmentChoice } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
@@ -101,6 +105,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   condResults: {},
   condFocus: null,
   condEdit: null,
+  whatChanged: null,
+  changeMarks: null,
   compareTable: null,
   promptDialog: null,
   uiScale: 1,
