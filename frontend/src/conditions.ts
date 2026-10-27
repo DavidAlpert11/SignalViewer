@@ -11,7 +11,7 @@ import { record } from "./investigation";
 export const COND_COLORS = ["#D4A72C", "#B392F0", "#2DA44E", "#E16F24", "#1F6FEB", "#BF3989"];
 
 type Iv = [number, number][];
-function intersect(a: Iv, b: Iv): Iv {
+export function intersect(a: Iv, b: Iv): Iv {
   const out: Iv = [];
   let i = 0, j = 0;
   while (i < a.length && j < b.length) {
@@ -21,7 +21,7 @@ function intersect(a: Iv, b: Iv): Iv {
   }
   return out;
 }
-function union(a: Iv, b: Iv): Iv {
+export function union(a: Iv, b: Iv): Iv {
   const all = [...a, ...b].sort((x, y) => x[0] - y[0]);
   const out: Iv = [];
   for (const iv of all) {
@@ -128,7 +128,9 @@ export function deleteCondition(id: string) {
   const st = useApp.getState();
   const name = st.ws.conditions?.find((c) => c.id === id)?.name ?? "";
   st.commit((ws) => {
-    ws.conditions = (ws.conditions ?? []).filter((c) => c.id !== id && !c.combine?.ids.includes(id));
+    const gone = new Set((ws.conditions ?? []).filter((c) => c.id === id || c.combine?.ids.includes(id)).map((c) => c.id));
+    ws.conditions = (ws.conditions ?? []).filter((c) => !gone.has(c.id));
+    if (ws.overviewRows) ws.overviewRows = ws.overviewRows.filter((r) => r.kind !== "cond" || !gone.has(r.id));   // its strip row goes too
     return ws;
   });
   if (st.condFocus === id) useApp.setState({ condFocus: null });

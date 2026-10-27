@@ -81,6 +81,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const conditions = useApp((s) => s.ws.conditions);
   const condResults = useApp((s) => s.condResults);
   const condFocus = useApp((s) => s.condFocus);
+  const stripSel = useApp((s) => s.stripSel);
   const barRef = useRef<HTMLDivElement>(null);
   const changeMarks = useApp((s) => s.changeMarks);
   const changeRef = useRef<{ t: number; color: string }[]>([]);
@@ -920,9 +921,11 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     condRef.current = shown.map((c) => ({ color: c.color, focus: c.id === condFocus,
       iv: Object.entries(condResults[c.id] ?? {}).filter(([rid]) => rids.has(rid)).flatMap(([, r]) => r.intervals ?? []) }))
       .sort((p, q) => Number(p.focus) - Number(q.focus));
+    // a selection made on the overview strip: shaded like the condition in focus, in its run's plots
+    if (stripSel && rids.has(stripSel.rid)) condRef.current = [...condRef.current.map((c) => ({ ...c, focus: false })), { color: "#E5534B", focus: true, iv: stripSel.iv }];
     uRef.current?.redraw(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conditions, condResults, condFocus, sigIds.join("|")]);
+  }, [conditions, condResults, condFocus, stripSel, sigIds.join("|")]);
   useEffect(() => {
     changeRef.current = changeMarks ? plot.signals.filter((s) => changeMarks[s.sig] !== undefined).map((s) => ({ t: changeMarks[s.sig], color: s.color })) : [];
     uRef.current?.redraw(false);
