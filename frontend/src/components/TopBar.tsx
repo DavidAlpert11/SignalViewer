@@ -71,7 +71,7 @@ export default function TopBar() {
     const pos = at(e);
     let ex: Awaited<ReturnType<typeof api.examples>> = [];
     try { ex = await api.examples(); } catch { /* no examples folder */ }
-    const EX = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight" } as const;
+    const EX = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate" } as const;
     const items: MenuItem[] = [
       { label: t("menuGuide"), keys: "F1", run: () => useApp.setState({ guideOpen: true }) },
       { label: t("shortcuts"), keys: "?", run: () => useApp.setState({ helpOpen: true }) },

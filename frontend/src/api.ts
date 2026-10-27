@@ -3,7 +3,7 @@ import { translate } from "./i18n";
 export type StorageKind = "cache" | "uploads" | "tiles";
 export type StorageInfo = Record<StorageKind, { path: string; bytes: number }>;
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
-export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot" | "simVsFlight";
+export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot" | "simVsFlight" | "investigate";
 export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number;
   unit?: string }                          // the unit shown after a unit conversion (units.ts)
 export interface SignalInfo {
@@ -44,6 +44,11 @@ export interface RunInfo {
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file
 }
+/** Investigation step 4: one signal around a moment (svcore/firstchange.py). */
+export interface FirstChange { id: string; name: string; status: "changed" | "same" | "nodata"; t?: number; rel?: number; up?: boolean;
+  strength?: number; rate?: number; spark?: (number | null)[] }
+export interface LagResult { status: "ok" | "nooverlap" | "short" | "flat"; lag?: number; r?: number; ambiguous?: boolean; weak?: boolean;
+  resolution?: number; curve?: { lags: number[]; r: number[] } }
 export interface TimeAxisInfo {
   canColumn: boolean; canScale: boolean;
   column: string | null;                 // the time column, as the file names it
@@ -361,6 +366,9 @@ export const api = {
     call<{ items: { sig: string; grid: number[]; curves: (number | null)[][]; mean: (number | null)[]; cut: boolean }[] }>("/api/occurrences/windows", { items, align, pad }),
   occDiffer: (runs: Record<string, [number, number][]>, top = 25) =>
     call<{ items: { name: string; effect: number; meanIn: number; meanOut: number; up: boolean; files: string[] }[] }>("/api/occurrences/differ", { runs, top }),
+  firstChange: (a: number, b: number, sigs: string[], runs: string[]) =>
+    call<{ items: FirstChange[]; base: [number, number] }>("/api/firstchange", { a, b, sigs, runs }),
+  lag: (a: string, b: string, t0: number, t1: number) => call<LagResult>("/api/lag", { a, b, t0, t1 }),
   checkTimeAxis: (id: string, column: string | null) => call<TimeAxisCheck>(`/api/runs/${id}/time-axis/check`, { column }),
   job: (id: string) => call<JobInfo>(`/api/jobs/${id}`),
   cancelJob: (id: string) => call<{ cancelled: boolean }>(`/api/jobs/${id}/cancel`, {}),

@@ -50,6 +50,8 @@ nav:
       - Install: install.md
       - User guide: GUIDE.md
       - מדריך למשתמש: GUIDE.he.md
+      - "Tutorial: what went wrong": investigate-tutorial.md
+      - "מדריך: מה השתבש": investigate-tutorial.he.md
   - Features:
       - What works: features.md
       - Command line, Python and formats: command-line.md
