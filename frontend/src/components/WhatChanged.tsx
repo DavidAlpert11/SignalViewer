@@ -3,6 +3,8 @@ import { api, type FirstChange, type LagResult } from "../api";
 import { actions, activeTab, signalName, uid, useApp, type Plot, type Tab } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
+import { record } from "../investigation";
+import { translate } from "../i18n";
 
 /** Investigation step 4: around the selected span, which signals left their usual range first -
  *  ranked CANDIDATES with a small picture each, grouped when the sample rates cannot tell them apart,
@@ -37,6 +39,8 @@ export default function WhatChanged() {
       .then((r) => {
         if (gone) return;
         setItems(r.items); setBase(r.base);
+        const top = r.items.filter((x) => x.status === "changed").slice(0, 4).map((x) => `${x.name} (${(x.rel! >= 0 ? "+" : "") + x.rel!.toFixed(2)} s)`);
+        record(translate(useApp.getState().lang, "jChanged", { a: span.a.toPrecision(6), b: span.b.toPrecision(6), list: top.join(", ") || "–" }));
         useApp.setState({ changeMarks: Object.fromEntries(r.items.filter((x) => x.status === "changed").map((x) => [x.id, x.t!])) });
       })
       .catch((e) => { if (!gone) setErr(String((e as Error).message)); });
@@ -76,7 +80,11 @@ export default function WhatChanged() {
     if (picked.length !== 2) return;
     const [a, b] = [...picked].sort((p, q) => (items!.find((x) => x.id === p)?.t ?? 0) - (items!.find((x) => x.id === q)?.t ?? 0));
     const L = span.b - span.a;
-    try { setLag({ ...(await api.lag(a, b, span.a - 2 * L, span.b + 2 * L)), a, b }); }
+    try {
+      const res = await api.lag(a, b, span.a - 2 * L, span.b + 2 * L);
+      setLag({ ...res, a, b });
+      if (res.status === "ok" && !res.weak) record(translate(useApp.getState().lang, "jLag", { a: signalName(runs, a), b: signalName(runs, b), ms: Math.round(res.lag! * 1000), r: res.r!.toFixed(2) }));
+    }
     catch (e) { setErr(String((e as Error).message)); }
   };
   const showAligned = () => {

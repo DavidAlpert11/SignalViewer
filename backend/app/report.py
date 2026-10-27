@@ -326,6 +326,8 @@ th{color:var(--muted);font-weight:500}td:first-child,th:first-child{text-align:s
 .u-select{background:rgba(242,169,59,.15)!important}
 footer{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:12px}
 @media print{#theme,.hint,nav{display:none}.tabpane{display:block!important}body{background:#fff}}
+.rsec-table th, .rsec-table td { text-align: start; }
+.rsec ul { margin: 4px 0 12px; }
 """
 
 
@@ -386,6 +388,37 @@ def _stats_table(sigs: List[Dict], S: Dict) -> str:
     return f'<table><thead><tr><th>{S["signal"]}</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
 
 
+def _sections_html(sections: List[Dict]) -> str:
+    """Investigation step 6: text sections given by the app (findings, analysis steps, conditions,
+    how to reproduce) - a heading, paragraphs, a list and / or a table each."""
+    out = []
+    for sec in sections or []:
+        parts = ['<h2>%s</h2>' % html.escape(str(sec.get("title") or ""))]
+        for para in str(sec.get("text") or "").split("\n"):
+            if para.strip():
+                parts.append('<p class="text">%s</p>' % html.escape(para))
+        if sec.get("items"):
+            parts.append("<ul>%s</ul>" % "".join("<li>%s</li>" % html.escape(str(x)) for x in sec["items"]))
+        tb = sec.get("table")
+        if tb and tb.get("rows"):
+            head = "".join("<th>%s</th>" % html.escape(str(h)) for h in tb.get("head") or [])
+            rows = "".join("<tr>%s</tr>" % "".join("<td>%s</td>" % html.escape(str(c)) for c in r) for r in tb["rows"])
+            parts.append('<table class="stats rsec-table"><thead><tr>%s</tr></thead><tbody>%s</tbody></table>' % (head, rows))
+        out.append('<section class="rsec">%s</section>' % "".join(parts))
+    return "".join(out)
+
+
+def _section_lines(sec: Dict) -> List[str]:
+    """A section as plain lines (PDF): text, bullets, then the table as aligned rows."""
+    lines = [x for x in str(sec.get("text") or "").split("\n")]
+    lines += ["• " + str(x) for x in sec.get("items") or []]
+    tb = sec.get("table")
+    if tb and tb.get("rows"):
+        lines.append(" | ".join(str(h) for h in tb.get("head") or []))
+        lines += [" | ".join(str(c) for c in r) for r in tb["rows"]]
+    return lines
+
+
 def _count_plots(req: Dict) -> int:
     return max(1, sum(len(t.get("plots", [])) for t in req.get("tabs", [])))
 
@@ -436,6 +469,7 @@ def build_html(store, req: Dict, progress=None) -> str:
     title = html.escape(req.get("title") or "Signal Viewer report")
     data_json = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
     intro = '<p class="text">%s</p>' % html.escape(req["intro"]) if req.get("intro") else ""
+    intro += _sections_html(req.get("sections") or [])
     summary = '<h2>%s</h2><p class="text">%s</p>' % (S["summary"], html.escape(req["summary"])) if req.get("summary") else ""
     summary += _notes_html(req.get("notes") or [], S)
     return TEMPLATE.format(
@@ -635,7 +669,7 @@ def build_pdf(store, req: Dict, path: str, progress=None):
     ink, muted = "#0f1822", "#5a6979"
     items = _collect(store, req, progress)
     title = req.get("title") or "Signal Viewer report"
-    total = 1 + len(items) + (1 if req.get("summary") or req.get("notes") else 0)
+    total = 1 + len(items) + (1 if req.get("summary") or req.get("notes") else 0) + len(req.get("sections") or [])
 
     def page(n):
         fig = plt.figure(figsize=(8.27, 11.69))
@@ -658,6 +692,21 @@ def build_pdf(store, req: Dict, path: str, progress=None):
         fig.text(X, 0.815, _bidi("%s %s" % (S["generated"], datetime.now().strftime("%Y-%m-%d %H:%M"))), ha=ha, fontsize=9, color=muted)
         paragraphs(fig, req.get("intro"), 0.77)
         pdf.savefig(fig); plt.close(fig)
+
+        for sec in req.get("sections") or []:          # investigation: findings, steps, conditions...
+            lines: Optional[List[str]] = _section_lines(sec)
+            while lines is not None:
+                n += 1
+                fig = page(n)
+                fig.text(X, 0.92, _bidi(str(sec.get("title") or "")), ha=ha, va="top", fontsize=14, weight="bold", color=ink)
+                y, rest = 0.875, None
+                for k, line in enumerate(lines):
+                    if y < 0.08:
+                        rest = lines[k:]
+                        break
+                    y = paragraphs(fig, line, y, size=9.5)
+                pdf.savefig(fig); plt.close(fig)
+                lines = rest
 
         for i, p in enumerate(items):
             if progress:
@@ -734,6 +783,24 @@ def build_docx(store, req: Dict, path: str, progress=None):
     for para in (req.get("intro") or "").split("\n"):
         if para.strip():
             rtlize(doc.add_paragraph(para))
+    for sec in req.get("sections") or []:              # investigation: findings, steps, conditions...
+        rtlize(doc.add_heading(str(sec.get("title") or ""), 1))
+        for para in str(sec.get("text") or "").split("\n"):
+            if para.strip():
+                rtlize(doc.add_paragraph(para))
+        for it in sec.get("items") or []:
+            rtlize(doc.add_paragraph(str(it), style="List Bullet"))
+        tb = sec.get("table")
+        if tb and tb.get("rows"):
+            head = [str(h) for h in tb.get("head") or []]
+            t = doc.add_table(rows=1, cols=max(1, len(head)))
+            t.style = "Light Grid Accent 1"
+            for c, h in enumerate(head):
+                t.rows[0].cells[c].text = h
+            for r in tb["rows"]:
+                cells = t.add_row().cells
+                for c, v in enumerate(r[:len(head)]):
+                    cells[c].text = str(v)
     items = _collect(store, req, progress)
     for i, p in enumerate(items):
         if progress:

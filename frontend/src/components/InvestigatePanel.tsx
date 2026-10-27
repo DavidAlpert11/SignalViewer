@@ -5,6 +5,7 @@ import { Icon } from "../icons";
 import { openMenu } from "./Overlays";
 import ExprInput, { type SigOption } from "./ExprInput";
 import WhatChanged from "./WhatChanged";
+import { record, restoreView } from "../investigation";
 import { combineConditions, condSignals, deleteCondition, evaluateOne, intervalsByRun, overlayInNewTab, saveCondition, stepOccurrence, updateCondition, usedBy } from "../conditions";
 import { api } from "../api";
 
@@ -80,6 +81,7 @@ export default function InvestigatePanel() {
         {conds.length > 0 && <p className="hint">{t("condKeysHint")}</p>}
         {conds.length > 0 && <button className="btn outline sm cond-matrix" onClick={() => useApp.setState({ matrixOpen: true })}>{t("mxOpen", { n: files.length })}</button>}
         {focus && conds.some((c) => c.id === focus) && <OccSection key={focus} cond={conds.find((c) => c.id === focus)!} />}
+        <Journal />
       </div>
     </aside>
   );
@@ -217,7 +219,11 @@ function OccSection({ cond }: { cond: Condition }) {
   };
   const findDiffer = async () => {
     setBusy(true);
-    try { setDiffer((await api.occDiffer(intervalsByRun(cond.id))).items); }
+    try {
+      const items = (await api.occDiffer(intervalsByRun(cond.id))).items;
+      setDiffer(items);
+      record(t("jDiffer", { name: cond.name, list: items.slice(0, 4).map((d) => `${d.name} ${d.up ? "↑" : "↓"}`).join(", ") || "–" }), false);
+    }
     catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
     finally { setBusy(false); }
   };
@@ -252,7 +258,7 @@ function OccSection({ cond }: { cond: Condition }) {
         </table>
       </div>
       <div className="occ-actions">
-        <button className="btn outline sm occ-overlay" disabled={!name} onClick={() => overlayInNewTab(cond.id, name)}>{t("occOverlay")}</button>
+        <button className="btn outline sm occ-overlay" disabled={!name} onClick={() => { overlayInNewTab(cond.id, name); record(t("jOverlay", { name: cond.name, sig: name }), false); }}>{t("occOverlay")}</button>
         <button className="btn outline sm occ-differ" disabled={busy} onClick={findDiffer}>{t("occDiffer")}</button>
         <button className="btn outline sm" onClick={copy}>{t("copyTable")}</button>
       </div>
@@ -273,6 +279,34 @@ function OccSection({ cond }: { cond: Condition }) {
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+/** Investigation step 6: the steps recorded as they happened - each can go into the report (ticked)
+ *  and, where it kept the view, bring it back. */
+function Journal() {
+  const t = useT();
+  const steps = useApp((s) => s.journal);
+  const [open, setOpen] = useState(false);
+  if (!steps.length) return null;
+  const set = (id: string, include: boolean) => useApp.setState({ journal: useApp.getState().journal.map((j) => (j.id === id ? { ...j, include } : j)) });
+  const drop = (id: string) => useApp.setState({ journal: useApp.getState().journal.filter((j) => j.id !== id) });
+  return (
+    <section className="occ-section journal">
+      <button className="linklike jr-toggle" onClick={() => setOpen(!open)}><h3>{open ? "▾" : "▸"} {t("jTitle", { n: steps.length })}</h3></button>
+      {open && <>
+        <p className="hint">{t("jHint")}</p>
+        <ol className="jr-list">
+          {steps.map((j) => (
+            <li key={j.id} className={j.include ? "" : "off"}>
+              <input type="checkbox" checked={j.include} onChange={(e) => set(j.id, e.target.checked)} aria-label={t("jInclude")} title={t("jInclude")} />
+              {j.view ? <button className="linklike jr-text" title={t("jGoTo")} onClick={() => restoreView(j.view!)}>{j.text}</button> : <span className="jr-text">{j.text}</span>}
+              <button className="iconbtn sm" aria-label={t("remove")} onClick={() => drop(j.id)}><Icon.X /></button>
+            </li>
+          ))}
+        </ol>
+      </>}
     </section>
   );
 }

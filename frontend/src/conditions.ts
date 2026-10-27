@@ -5,6 +5,7 @@
 import { api } from "./api";
 import { translate } from "./i18n";
 import { actions, uid, useApp, type Condition, type CondResult } from "./store";
+import { record } from "./investigation";
 
 /** A small fixed palette: conditions never take the signals' colours. */
 export const COND_COLORS = ["#D4A72C", "#B392F0", "#2DA44E", "#E16F24", "#1F6FEB", "#BF3989"];
@@ -102,7 +103,16 @@ export function saveCondition(c: Omit<Condition, "id" | "color" | "visible"> & P
     ws.conditions = i >= 0 ? list.map((x, k) => (k === i ? full : x)) : [...list, full];
     return ws;
   });
+  const saved = useApp.getState().ws.conditions?.find((x) => x.name === c.name && (c.id ? x.id === c.id : true));
   void evaluateAll();
+  // the journal: what was asked and how many stretches it found (its own look - evaluateAll rounds
+  // can be overtaken by newer ones)
+  if (saved && !saved.combine) {
+    void evaluateOne(saved).then((r) => {
+      const n = Object.values(r).reduce((s, x) => s + (x.count ?? 0), 0);
+      record(translate(useApp.getState().lang, "jCondition", { name: saved.name, text: saved.text, n }), false);
+    }).catch(() => {});
+  }
 }
 export function updateCondition(id: string, patch: Partial<Condition>) {
   useApp.getState().commit((ws) => {

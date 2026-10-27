@@ -1,7 +1,7 @@
 /* Panels, dialogs, menus, toasts, selection, language / theme. UI state, never saved. */
 import type { StoreApi } from "zustand";
 import type { Lang } from "../../i18n";
-import { uid } from "../model";
+import { uid, type JournalStep } from "../model";
 import type { CondResult, MenuItem, PanelId, PickerRequest, Toast } from "../types";
 import type { AppState } from "../state";
 import { inspectorPref } from "../inspector";
@@ -50,6 +50,7 @@ export interface UiSlice {
   whatChanged: { a: number; b: number } | null;
   changeMarks: Record<string, number> | null;
   matrixOpen: boolean;                     // investigation step 5: runs x conditions
+  journal: JournalStep[];                  // investigation step 6: saved with the session (files.ts), no undo steps
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
     segment?: import("../../segments").SegmentChoice } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
@@ -109,6 +110,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   whatChanged: null,
   changeMarks: null,
   matrixOpen: false,
+  journal: [],
   compareTable: null,
   promptDialog: null,
   uiScale: 1,
