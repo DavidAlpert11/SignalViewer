@@ -78,6 +78,7 @@ export default function InvestigatePanel() {
           })}
         </ul>
         {conds.length > 0 && <p className="hint">{t("condKeysHint")}</p>}
+        {conds.length > 0 && <button className="btn outline sm cond-matrix" onClick={() => useApp.setState({ matrixOpen: true })}>{t("mxOpen", { n: files.length })}</button>}
         {focus && conds.some((c) => c.id === focus) && <OccSection key={focus} cond={conds.find((c) => c.id === focus)!} />}
       </div>
     </aside>

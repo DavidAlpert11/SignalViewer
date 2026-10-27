@@ -1299,3 +1299,18 @@ input.fx-input { width: 100%; }
 .wc-row .up { color: var(--danger); } .wc-row .down { color: var(--focus); }
 .wc-rel { font-variant-numeric: tabular-nums; }
 .wc-lag-out p { margin: 0 0 4px; font-size: 0.85rem; }
+
+/* Investigation step 5: runs x conditions */
+.mx-dialog { width: min(1100px, 96vw); max-height: 90vh; display: flex; flex-direction: column; }
+.mx-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 0 16px; }
+.mx-dialog > .hint { padding: 0 16px; }
+.mx-body { overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.mx-table td.mx-file { text-align: start; }
+.mx-table td.mx-param { opacity: 0.8; }
+.mx-table td.mx-cell.has { cursor: pointer; }
+.mx-table td.mx-cell.odd { background: var(--amber-soft); font-weight: 600; outline: 1px solid var(--amber); }
+.mx-table .cond-swatch { display: inline-block; vertical-align: middle; }
+.mx-fig { margin: 0; }
+.mx-table { width: auto; min-width: 40%; margin: 0 16px; }
+.mx-table th:first-child { text-align: start; }
+.mx-scatter { padding: 0 16px 12px; }

@@ -473,3 +473,13 @@ def lag_route(req: LagRequest):
         return store.lag_between(req.a, req.b, req.t0, req.t1)
     except KeyError:
         fail(404, "One of the signals is no longer open.")
+
+
+class ParamsRequest(BaseModel):
+    runs: Optional[List[str]] = None
+
+
+@router.post("/api/runs/params")
+def runs_params(req: ParamsRequest):
+    """Investigation step 5: per file, the values that tell runs apart (constant signals, name numbers)."""
+    return {"params": store.run_params(req.runs)}

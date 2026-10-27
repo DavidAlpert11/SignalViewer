@@ -59,6 +59,9 @@ are told apart by them.
 - **What changed first?** On the selection bar: the signals in the order they left their usual
   range around the span - candidates, not causes - and the lag between any two of them.
   Try it all on the example *find out what went wrong*: [the tutorial](investigate-tutorial.md).
+- **Runs × conditions** (button under the conditions): every open run against every condition, with
+  what tells the runs apart (a payload, a gain, the number in the file name). The odd run is marked; a
+  click opens it at the stretch. *Open a folder of runs…* brings in a whole Monte-Carlo set.
 - **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
   it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
   *Always as a state* makes a signal a lane wherever it is added, in every file.

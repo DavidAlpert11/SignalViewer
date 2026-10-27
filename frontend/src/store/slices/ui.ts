@@ -49,6 +49,7 @@ export interface UiSlice {
    *  moments drawn as dashed lines on the plots (signal id -> time). */
   whatChanged: { a: number; b: number } | null;
   changeMarks: Record<string, number> | null;
+  matrixOpen: boolean;                     // investigation step 5: runs x conditions
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
     segment?: import("../../segments").SegmentChoice } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
@@ -107,6 +108,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   condEdit: null,
   whatChanged: null,
   changeMarks: null,
+  matrixOpen: false,
   compareTable: null,
   promptDialog: null,
   uiScale: 1,

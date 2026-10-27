@@ -369,6 +369,7 @@ export const api = {
   firstChange: (a: number, b: number, sigs: string[], runs: string[]) =>
     call<{ items: FirstChange[]; base: [number, number] }>("/api/firstchange", { a, b, sigs, runs }),
   lag: (a: string, b: string, t0: number, t1: number) => call<LagResult>("/api/lag", { a, b, t0, t1 }),
+  runParams: (runs?: string[]) => call<{ params: Record<string, Record<string, number>> }>("/api/runs/params", { runs }),
   checkTimeAxis: (id: string, column: string | null) => call<TimeAxisCheck>(`/api/runs/${id}/time-axis/check`, { column }),
   job: (id: string) => call<JobInfo>(`/api/jobs/${id}`),
   cancelJob: (id: string) => call<{ cancelled: boolean }>(`/api/jobs/${id}/cancel`, {}),

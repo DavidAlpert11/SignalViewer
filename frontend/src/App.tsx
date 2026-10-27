@@ -14,6 +14,7 @@ const TransformDialog = lazyPreload(() => import("./components/TransformDialog")
 const RetargetDialog = lazyPreload(() => import("./components/RetargetDialog"));
 const SameWorkDialog = lazyPreload(() => import("./components/SameWorkDialog"));
 const TimeAxisDialog = lazyPreload(() => import("./components/TimeAxisDialog"));
+const RunsMatrix = lazyPreload(() => import("./components/RunsMatrix"));
 import { api, type ExampleId } from "./api";
 import { handleNewFiles, refreshAll, stopLive } from "./live";
 import { ensureLogs } from "./logs";
@@ -233,6 +234,7 @@ export default function App() {
   const retargetOpen = useApp((s) => !!s.retarget);
   const sameWorkOpen = useApp((s) => !!s.sameWorkFor);
   const timeAxisOpen = useApp((s) => !!s.timeAxisFor);
+  const matrixOpen = useApp((s) => s.matrixOpen);
   const panel = useApp((s) => s.panel);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
   const runs = useApp((s) => s.runs);
@@ -605,6 +607,7 @@ export default function App() {
         {retargetOpen && <RetargetDialog />}
         {sameWorkOpen && <SameWorkDialog />}
         {timeAxisOpen && <TimeAxisDialog />}
+        {matrixOpen && <RunsMatrix />}
       </Suspense>
       <Toasts />
       <Jobs />
