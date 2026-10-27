@@ -53,6 +53,9 @@ are told apart by them.
   around something odd and press **Find similar** on the bar above them: the condition is written
   for you, with the count as you change it. Click a condition's name (or press `]` / `[`) to step
   through its stretches; the one in focus is shaded, the others are thin strips along the top.
+- **The stretches of a condition** (click its name): a table of them under the list (sort, click to go
+  there), **Together in a new tab** - all of them on top of each other from their start, end or peak -
+  and **What differs inside**: the signals that are most different inside the stretches than outside.
 - **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
   it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
   *Always as a state* makes a signal a lane wherever it is added, in every file.

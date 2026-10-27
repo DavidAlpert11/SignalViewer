@@ -595,6 +595,65 @@ class Store:
             raise LoadError("No open file to look in.")
         return out
 
+    # ------------------------------------------------------------ occurrences
+    def occurrence_rows(self, runs: Dict[str, List[List[float]]], names: List[str]) -> List[dict]:
+        """The occurrences table: one row per stretch (file, start, end) with max / min / mean of
+        each named signal in it."""
+        from svcore.occurrences import occurrence_stats
+        rows: List[dict] = []
+        for rid, iv in runs.items():
+            lr = self.runs.get(rid)
+            if lr is None:
+                continue
+            per = {}
+            for n in names:
+                if n in lr.run.signals:
+                    t, y = self.signal(f"{rid}/{n}")
+                    per[n] = occurrence_stats(t, y, iv)
+            for k, (a, b) in enumerate(iv):
+                rows.append({"rid": rid, "a": a, "b": b, "values": {n: v[k] for n, v in per.items()}})
+        rows.sort(key=lambda r: (r["a"], r["rid"]))
+        return rows
+
+    def occurrence_windows(self, items: List[dict], align: str, pad: float) -> List[dict]:
+        """The occurrences overlay: each item {sig, intervals} -> its stretches on one axis."""
+        from svcore.occurrences import windows
+        out = []
+        for it in items:
+            t, y = self.signal(str(it["sig"]))
+            out.append({"sig": it["sig"], **windows(t, y, it.get("intervals") or [], align, pad)})
+        return out
+
+    def occurrence_differ(self, runs: Dict[str, List[List[float]]], top: int = 25) -> List[dict]:
+        """What differs in the occurrences: every numeric signal of the files with stretches, ranked
+        by how far its mean inside them is from outside, in units of its usual spread outside.
+        Signals of the same name in several files are averaged (weighted by their time inside)."""
+        from svcore.occurrences import differ_one
+        acc: Dict[str, dict] = {}
+        for rid, iv in runs.items():
+            lr = self.runs.get(rid)
+            if lr is None or not iv:
+                continue
+            for name, sg in lr.run.signals.items():
+                if sg.labels:
+                    continue
+                try:
+                    t, y = self.signal(f"{rid}/{name}")
+                except (KeyError, ValueError):
+                    continue
+                r = differ_one(t, y, iv)
+                if r is None or not np.isfinite(r[0]):
+                    continue
+                eff, mi, mo, share = r
+                a = acc.setdefault(name, {"name": name, "w": 0.0, "eff": 0.0, "in": 0.0, "out": 0.0, "files": []})
+                w = max(share, 1e-9)
+                a["w"] += w; a["eff"] += eff * w; a["in"] += mi * w; a["out"] += mo * w
+                a["files"].append(rid)
+        items = [{"name": a["name"], "effect": a["eff"] / a["w"], "meanIn": a["in"] / a["w"], "meanOut": a["out"] / a["w"],
+                  "up": a["in"] >= a["out"], "files": a["files"]} for a in acc.values()]
+        items.sort(key=lambda x: -x["effect"])
+        return items[:top]
+
     # ------------------------------------------------------------ time axis
     def time_axis_info(self, lr: "LoadedRun", candidates: bool = False) -> dict:
         """What the Time axis dialog may change in this file, and how it is set now (with

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useApp, type Condition, type CondResult, type MenuItem } from "../store";
+import { actions, activeTab, fileLabel, useApp, type Condition, type CondResult, type MenuItem } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { openMenu } from "./Overlays";
 import ExprInput, { type SigOption } from "./ExprInput";
-import { combineConditions, deleteCondition, evaluateOne, saveCondition, stepOccurrence, updateCondition, usedBy } from "../conditions";
+import { combineConditions, condSignals, deleteCondition, evaluateOne, intervalsByRun, overlayInNewTab, saveCondition, stepOccurrence, updateCondition, usedBy } from "../conditions";
+import { api } from "../api";
 
 /** Investigation spec, step 2: the session's named conditions - shown or hidden, stepped through,
  *  edited in place with a live count, combined, deleted (one undo). */
@@ -74,6 +75,7 @@ export default function InvestigatePanel() {
           })}
         </ul>
         {conds.length > 0 && <p className="hint">{t("condKeysHint")}</p>}
+        {focus && conds.some((c) => c.id === focus) && <OccSection key={focus} cond={conds.find((c) => c.id === focus)!} />}
       </div>
     </aside>
   );
@@ -159,5 +161,114 @@ function CondEditor({ cond, before }: { cond?: Condition; before?: number }) {
         <button className="btn primary sm cond-save" disabled={!ok} onClick={save}>{t("save")}</button>
       </div>
     </div>
+  );
+}
+
+/** Investigation step 3, for the condition in focus: its stretches as a table (one value of one
+ *  signal per stretch, sortable, a click goes there), the overlay of them in a new tab, and which
+ *  signals differ most inside them from outside. */
+function OccSection({ cond }: { cond: Condition }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const runs = useApp((s) => s.runs);
+  const results = useApp((s) => s.condResults[cond.id]);
+  const names = useMemo(() => condSignals(cond.id), [results, cond.id]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const [sig, setSig] = useState("");
+  const [stat, setStat] = useState<"max" | "min" | "mean">("max");
+  const [sort, setSort] = useState<{ k: "a" | "d" | "v"; up: boolean }>({ k: "a", up: true });
+  const [rows, setRows] = useState<{ rid: string; a: number; b: number; v: number | null }[]>([]);
+  const [differ, setDiffer] = useState<Awaited<ReturnType<typeof api.occDiffer>>["items"] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const name = sig || names[0] || "";
+  const multi = new Set(rows.map((r) => r.rid)).size > 1;
+
+  useEffect(() => {
+    const iv = intervalsByRun(cond.id);
+    if (!Object.keys(iv).length) { setRows([]); return; }
+    let gone = false;
+    api.occTable(iv, name ? [name] : []).then((r) => {
+      if (!gone) setRows(r.rows.map((x) => ({ rid: x.rid, a: x.a, b: x.b, v: x.values[name]?.[stat] ?? null })));
+    }).catch(() => { if (!gone) setRows([]); });
+    return () => { gone = true; };
+  }, [results, name, stat, cond.id]);
+  useEffect(() => { setDiffer(null); }, [results]);
+
+  const sorted = [...rows].sort((p, q) => {
+    const f = (r: typeof p) => (sort.k === "a" ? r.a : sort.k === "d" ? r.b - r.a : r.v ?? -Infinity);
+    return (f(p) - f(q)) * (sort.up ? 1 : -1);
+  });
+  const head = (k: "a" | "d" | "v", label: string) => (
+    <th><button className="linklike" onClick={() => setSort({ k, up: sort.k === k ? !sort.up : k === "a" })}>
+      {label}{sort.k === k ? (sort.up ? " ▴" : " ▾") : ""}</button></th>
+  );
+  const go = (r: { a: number; b: number }) => {
+    const pad = Math.max((r.b - r.a) * 0.5, 0.5);
+    actions.showSpan(r.a - pad, r.b + pad);
+    useApp.setState({ condFocus: cond.id, cursor: { ...useApp.getState().cursor, on: true, dual: true, t1: r.a, t2: r.b, active: 1 } });
+  };
+  const copy = () => {
+    const lines = [[...(multi ? ["file"] : []), "start_s", "duration_s", `${name}_${stat}`].join("\t"),
+      ...sorted.map((r) => [...(multi ? [fileLabel(runs, r.rid)] : []), r.a, r.b - r.a, r.v ?? ""].join("\t"))];
+    void navigator.clipboard.writeText(lines.join("\n")).then(() => useApp.getState().toast({ kind: "info", text: t("occCopied") }));
+  };
+  const findDiffer = async () => {
+    setBusy(true);
+    try { setDiffer((await api.occDiffer(intervalsByRun(cond.id))).items); }
+    catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+    finally { setBusy(false); }
+  };
+  const addSignal = (n: string, files: string[]) => {
+    const tb = activeTab(useApp.getState().ws);
+    if (!tb.plots[tb.active]) return;
+    actions.addSignals(files.map((rid) => `${rid}/${n}`).filter((id) => runs.some((r) => r.signals.some((s) => s.id === id))));
+  };
+  if (!rows.length) return null;
+  return (
+    <section className="occ-section">
+      <h3>{t("occTitle", { name: cond.name })}</h3>
+      <div className="occ-controls">
+        <select className="occ-sig" value={name} onChange={(e) => setSig(e.target.value)} aria-label={t("occSignal")}>
+          {names.map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <select className="occ-stat" value={stat} onChange={(e) => setStat(e.target.value as "max" | "min" | "mean")} aria-label={t("occStat")}>
+          <option value="max">max</option><option value="min">min</option><option value="mean">{t("occMean")}</option>
+        </select>
+      </div>
+      <div className="occ-table-wrap">
+        <table className="occ-table">
+          <thead><tr>{multi && <th>{t("occFile")}</th>}{head("a", t("occStartS"))}{head("d", t("occDurS"))}{head("v", `${stat}`)}</tr></thead>
+          <tbody>
+            {sorted.map((r, i) => (
+              <tr key={i} onClick={() => go(r)} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") go(r); }}>
+                {multi && <td>{fileLabel(runs, r.rid)}</td>}
+                <td>{fmtNum(r.a, lang, 5)}</td><td>{fmtNum(r.b - r.a, lang, 4)}</td><td>{r.v === null ? "–" : fmtNum(r.v, lang, 5)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="occ-actions">
+        <button className="btn outline sm occ-overlay" disabled={!name} onClick={() => overlayInNewTab(cond.id, name)}>{t("occOverlay")}</button>
+        <button className="btn outline sm occ-differ" disabled={busy} onClick={findDiffer}>{t("occDiffer")}</button>
+        <button className="btn outline sm" onClick={copy}>{t("copyTable")}</button>
+      </div>
+      {differ && (
+        <div className="occ-differ-list">
+          <p className="hint">{t("occDifferHint")}</p>
+          {!differ.length ? <p className="hint">{t("occDifferNone")}</p> : (
+            <ol>
+              {differ.map((d) => (
+                <li key={d.name}>
+                  <button className="linklike" title={t("occDifferAdd")} onClick={() => addSignal(d.name, d.files)}>{d.name}</button>
+                  {" "}<span className={d.up ? "up" : "down"}>{d.up ? "↑" : "↓"}</span>
+                  {" "}{t("occTimes", { x: fmtNum(d.effect, lang, 2) })}
+                  <span className="muted"> · {fmtNum(d.meanOut, lang, 4)} → {fmtNum(d.meanIn, lang, 4)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

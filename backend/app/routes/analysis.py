@@ -399,3 +399,40 @@ def condition_eval(req: ConditionRequest):
         return {"results": store.evaluate_condition(req.text, req.exit, req.minDur, req.mergeGap, req.runs)}
     except LoadError as e:
         fail(400, str(e))
+
+
+class OccRows(BaseModel):
+    runs: Dict[str, List[List[float]]]
+    names: List[str] = []
+
+
+@router.post("/api/occurrences/table")
+def occurrences_table(req: OccRows):
+    """Investigation step 3: one row per stretch of a condition, with max / min / mean of signals."""
+    return {"rows": store.occurrence_rows(req.runs, req.names)}
+
+
+class OccWindows(BaseModel):
+    items: List[dict]
+    align: str = "start"
+    pad: float = 0.5
+
+
+@router.post("/api/occurrences/windows")
+def occurrences_windows(req: OccWindows):
+    """Investigation step 3: the stretches of signals on one axis (from start / end / peak)."""
+    try:
+        return {"items": store.occurrence_windows(req.items, req.align, max(0.0, min(req.pad, 5.0)))}
+    except KeyError:
+        fail(404, "One of the signals is no longer open.")
+
+
+class OccDiffer(BaseModel):
+    runs: Dict[str, List[List[float]]]
+    top: int = 25
+
+
+@router.post("/api/occurrences/differ")
+def occurrences_differ(req: OccDiffer):
+    """Investigation step 3: which signals differ most inside the stretches from outside them."""
+    return {"items": store.occurrence_differ(req.runs, max(1, min(req.top, 200)))}

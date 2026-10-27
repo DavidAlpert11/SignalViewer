@@ -127,3 +127,34 @@ export function deleteCondition(id: string) {
 export function combineConditions(a: Condition, b: Condition, op: "and" | "or") {
   saveCondition({ name: `${a.name} ${op === "and" ? "∧" : "∨"} ${b.name}`, text: "", combine: { op, ids: [a.id, b.id] } });
 }
+
+/** The intervals of a condition by file (for the occurrence tools). */
+export function intervalsByRun(id: string): Record<string, [number, number][]> {
+  const r = useApp.getState().condResults[id] ?? {};
+  return Object.fromEntries(Object.entries(r).filter(([, x]) => x.intervals?.length).map(([rid, x]) => [rid, x.intervals!]));
+}
+
+/** The signals a condition reads (what its result reports a range for), in every file. */
+export function condSignals(id: string): string[] {
+  const r = useApp.getState().condResults[id] ?? {};
+  return [...new Set(Object.values(r).flatMap((x) => Object.keys(x.ranges ?? {})))];
+}
+
+/** Investigation step 3: a new tab with the condition's stretches of this signal on top of each
+ *  other (an "occ" plot), one colour per file. */
+export function overlayInNewTab(id: string, name: string) {
+  const st = useApp.getState();
+  const cond = st.ws.conditions?.find((c) => c.id === id);
+  const runsWith = Object.keys(intervalsByRun(id)).filter((rid) => st.runs.find((r) => r.id === rid)?.signals.some((s) => s.name === name));
+  if (!cond || !runsWith.length) return;
+  st.commit((ws) => {
+    const p = { id: uid("p"), title: `${cond.name} · ${name}`, mode: "occ" as const,
+      occ: { cond: id, align: "start" as const, pad: 0.5 },
+      signals: runsWith.map((rid, i) => ({ sig: `${rid}/${name}`, color: COND_PALETTE_FILES[i % COND_PALETTE_FILES.length], width: 1.5, scale: 1, offset: 0 })) };
+    const tab = { id: uid("t"), name: cond.name, rows: 1, cols: 1, plots: [p], active: 0, linkX: false };
+    ws.tabs.push(tab);
+    ws.activeTab = tab.id;
+    return ws;
+  });
+}
+const COND_PALETTE_FILES = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678"];

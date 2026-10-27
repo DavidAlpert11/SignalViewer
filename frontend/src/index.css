@@ -1266,3 +1266,20 @@ input.fx-input { width: 100%; }
 .sel-bar { position: absolute; z-index: 5; display: flex; gap: 4px; padding: 3px; border-radius: 6px;
   background: var(--raised); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
 .sel-bar[hidden] { display: none; }
+
+/* Investigation step 3: the stretches of the condition in focus */
+.occ-section { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.occ-section h3 { margin: 0; font-size: 0.923rem; }
+.occ-controls { display: flex; gap: 6px; }
+.occ-controls select { flex: 1; min-width: 0; }
+.occ-table-wrap { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+.occ-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.85rem; }
+.occ-table th, .occ-table td { padding: 3px 6px; text-align: end; white-space: nowrap; }
+.occ-table th { position: sticky; top: 0; background: var(--panel); }
+.occ-table tbody tr { cursor: pointer; }
+.occ-table tbody tr:hover, .occ-table tbody tr:focus { background: var(--amber-soft); outline: none; }
+.occ-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.occ-differ-list ol { margin: 0; padding-inline-start: 20px; font-size: 0.85rem; }
+.occ-differ-list .up { color: var(--danger); } .occ-differ-list .down { color: var(--focus); }
+.occ-caption .occ-align { margin-inline-end: 6px; }
+.occ-caption .occ-align.on { font-weight: 600; text-decoration: underline; }

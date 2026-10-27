@@ -9,10 +9,13 @@ export interface PlotSignal { sig: string; color: string; width: number; scale: 
   axis?: "right";
   /** T13: pass / fail limits on the plotted value (null / absent = no limit on that side) */
   limits?: { lo?: number | null; hi?: number | null } }  // state: drawn as state markers only (no line)
-export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz" | "video";   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c); video: T15
+export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz" | "video" | "occ";   // occ: a condition's stretches together (investigation step 3)   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c); video: T15
 export interface Plot {
   id: string; title: string; signals: PlotSignal[];
   mode?: PlotMode;                 // default "time"
+  /** occ: whose stretches (a condition id), lined up at their start / end / peak, with this share of
+   *  the longest one shown before and after */
+  occ?: { cond: string; align: "start" | "end" | "peak"; pad: number };
   xSignal?: string | null;         // X-Y: signal on the horizontal axis (geo: longitude; the plot's signals are latitudes)
   xyAlign?: "linear" | "nearest";
   fftWindow?: "hanning" | "hamming" | "blackman" | "none";
