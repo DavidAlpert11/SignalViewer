@@ -76,6 +76,12 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const [states, setStates] = useState<StateMarks>({});
   const statesRef = useRef(states);
   statesRef.current = states;
+  // named conditions shown on this plot: their stretches in the files this plot draws from
+  const condRef = useRef<{ color: string; focus: boolean; iv: [number, number][] }[]>([]);
+  const conditions = useApp((s) => s.ws.conditions);
+  const condResults = useApp((s) => s.condResults);
+  const condFocus = useApp((s) => s.condFocus);
+  const barRef = useRef<HTMLDivElement>(null);
 
   const sigIds = plot.signals.map((s) => s.sig);
   const sigKey = sigIds.join("|");
@@ -221,6 +227,32 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       }
       const h = laneCss(height / d, n) * d, gap = 2 * d;
       return stateSigs.map((_, k) => ({ y: top + height - (n - k) * (h + gap) + gap, h }));
+    };
+    /* named conditions: the one in focus shaded over the whole height; every other shown one a thin
+       strip along the top, one under the other (they never hide the lines) */
+    const drawConds = (u: uPlot) => {
+      const list = condRef.current;
+      if (!list.length) return;
+      const ctx = u.ctx, { left, top, width, height } = u.bbox, d = dpr() * uiScale();
+      const x0 = u.scales.x.min!, x1 = u.scales.x.max!;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(left, top, width, height); ctx.clip();
+      let k = 0;
+      for (const c of list) {
+        const row = c.focus ? -1 : k++;
+        for (const [a, b] of c.iv) {
+          if (b < x0 || a > x1) continue;
+          const xa = Math.max(left, u.valToPos(a, "x", true)), xb = Math.min(left + width, Math.max(u.valToPos(b, "x", true), u.valToPos(a, "x", true) + 2 * d));
+          ctx.fillStyle = c.color;
+          if (row < 0) {
+            ctx.globalAlpha = 0.13; ctx.fillRect(xa, top, xb - xa, height);
+            ctx.globalAlpha = 0.9; ctx.fillRect(xa, top, xb - xa, 3 * d);
+          } else {
+            ctx.globalAlpha = 0.85; ctx.fillRect(xa, top + row * 5 * d, xb - xa, 4 * d);
+          }
+        }
+      }
+      ctx.restore();
     };
     let hatch: CanvasPattern | null = null;
     const drawLogMarks = (u: uPlot) => {
@@ -466,7 +498,25 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       }));
       ctx.restore();
     };
+    /* the selection (both cursors) in the active plot: a small bar of what to do with it, above the
+       middle of the span - the eyes are already there */
+    const placeBar = (u: uPlot) => {
+      const bar = barRef.current;
+      if (!bar) return;
+      const c = cursorRef.current;
+      const show = !previewOnly && index >= 0 && tab.active === index && c.on && c.dual && c.t1 !== null && c.t2 !== null && c.t1 !== c.t2;
+      if (!show) { bar.hidden = true; return; }
+      const a = Math.min(c.t1!, c.t2!), b = Math.max(c.t1!, c.t2!);
+      const x0 = u.scales.x.min!, x1 = u.scales.x.max!;
+      if (b < x0 || a > x1) { bar.hidden = true; return; }
+      bar.hidden = false;
+      const mid = (u.valToPos(Math.max(a, x0), "x") + u.valToPos(Math.min(b, x1), "x")) / 2 + u.over.offsetLeft;
+      const w = bar.offsetWidth || 220;
+      bar.style.left = `${Math.max(4, Math.min(mid - w / 2, (wrapRef.current?.clientWidth ?? w) - w - 4))}px`;
+      bar.style.top = `${u.over.offsetTop + 6}px`;
+    };
     const drawOverlay = (u: uPlot) => {
+      placeBar(u);
       syncOverlay(u);
       octx.clearRect(0, 0, overlay.width, overlay.height);
       drawCursor(u, octx);
@@ -603,7 +653,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           },
         ],
         drawAxes: [clipStart],
-        draw: [clipEnd, drawStates, drawLimits, drawLogMarks, (u) => drawOverlay(u)],
+        draw: [clipEnd, drawConds, drawStates, drawLimits, drawLogMarks, (u) => drawOverlay(u)],
         setSize: [(u) => syncOverlay(u)],
         setSelect: [
           (u) => {
@@ -851,6 +901,15 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   }, [cursor, cvals, valuesOnPlot]);
   useEffect(() => { uRef.current?.redraw(false); }, [states, playMode, windowSec]);
   useEffect(() => {
+    const rids = new Set(sigIds.map((id) => id.slice(0, id.indexOf("/"))));
+    const shown = (conditions ?? []).filter((c) => c.visible);
+    condRef.current = shown.map((c) => ({ color: c.color, focus: c.id === condFocus,
+      iv: Object.entries(condResults[c.id] ?? {}).filter(([rid]) => rids.has(rid)).flatMap(([, r]) => r.intervals ?? []) }))
+      .sort((p, q) => Number(p.focus) - Number(q.focus));
+    uRef.current?.redraw(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conditions, condResults, condFocus, sigIds.join("|")]);
+  useEffect(() => {
     const out: { t: number; t2?: number; text: string; level: string }[] = [];
     if (logMarkers !== "off") {
       for (const rid of new Set(sigIds.map((id) => id.slice(0, id.indexOf("/"))))) {
@@ -879,5 +938,42 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yZoom?.[0], yZoom?.[1]]);
 
-  return <div className="plot-canvas" ref={wrapRef} />;
+  // "Find similar": a condition from the selection - the plot's first line, above (or below) half way
+  // from its level before the selection to its peak inside it
+  const findSimilar = () => {
+    const u = uRef.current, c = useApp.getState().cursor;
+    if (!u || c.t1 === null || c.t2 === null) return;
+    const a = Math.min(c.t1, c.t2), b = Math.max(c.t1, c.t2), w = b - a;
+    const xs = u.data[0] as number[];
+    const k = plot.signals.findIndex((x) => !x.state);
+    const ps = plot.signals[k];
+    const draft: { name?: string; text?: string } = {};
+    if (ps) {
+      const ys = u.data[k + 1] as (number | null)[];
+      const inside: number[] = [], before: number[] = [];
+      xs.forEach((x, i) => { const v = ys?.[i]; if (v === null || v === undefined || !Number.isFinite(v)) return;
+        if (x >= a && x <= b) inside.push(v); else if (x >= a - w && x < a) before.push(v); });
+      const name = ps.sig.slice(ps.sig.indexOf("/") + 1);
+      const ref = /^[A-Za-z_][\w.]*$/.test(name) ? name : `{${name}}`;
+      if (inside.length) {
+        const base = before.length ? before.reduce((p, q) => p + q, 0) / before.length : Math.min(...inside);
+        const hi = Math.max(...inside), lo = Math.min(...inside);
+        const up = hi - base >= base - lo;
+        const th = up ? base + (hi - base) / 2 : base - (base - lo) / 2;
+        draft.text = `${ref} ${up ? ">" : "<"} ${Number(th.toPrecision(4))}`;
+      } else draft.text = `${ref} > `;
+      draft.name = `${name} ${draft.text.includes(">") ? "↑" : "↓"}`;
+    }
+    useApp.setState({ panel: "investigate", condEdit: { id: "new", draft } });
+  };
+
+  return (
+    <div className="plot-canvas" ref={wrapRef}>
+      <div ref={barRef} className="sel-bar" hidden role="toolbar" aria-label={translate(useApp.getState().lang, "selBar")}
+        onMouseDown={(e) => e.stopPropagation()}>
+        <button className="btn sm" onClick={() => actions.addNoteAtCursor()}>✎ {translate(useApp.getState().lang, "selNote")}</button>
+        <button className="btn sm sel-find" onClick={findSimilar}>⌕ {translate(useApp.getState().lang, "selFindSimilar")}</button>
+      </div>
+    </div>
+  );
 }

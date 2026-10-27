@@ -1247,3 +1247,22 @@ input.fx-input { width: 100%; }
 .ta-notes li { margin: 4px 0; }
 .ta-notes li.warn { color: var(--danger); }
 .ta-mixed { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 10px; }
+
+/* Investigation step 2: the conditions list and the selection bar */
+.investigate .inv-body { padding: 8px 12px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.cond-head { display: flex; align-items: center; justify-content: space-between; }
+.cond-head h3 { margin: 0; font-size: 0.923rem; }
+.cond-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.cond-row { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+.cond-row.focus { border-color: var(--amber); }
+.cond-row.hidden .cond-name, .cond-row.hidden .cond-count { opacity: 0.55; }
+.cond-line { display: grid; grid-template-columns: 22px 10px 1fr auto 24px; gap: 6px; align-items: center; }
+.cond-swatch { width: 10px; height: 10px; border-radius: 2px; }
+.cond-name { text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cond-count { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.cond-text { font-family: ui-monospace, "IBM Plex Mono", monospace; font-size: 0.85rem; opacity: 0.75; padding: 2px 0 0 38px; overflow-wrap: anywhere; direction: ltr; text-align: left; }
+.cond-editor { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 2px; }
+.cond-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.sel-bar { position: absolute; z-index: 5; display: flex; gap: 4px; padding: 3px; border-radius: 6px;
+  background: var(--raised); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.sel-bar[hidden] { display: none; }

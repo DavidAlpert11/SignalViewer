@@ -556,6 +556,45 @@ class Store:
     def set_time_offset(self, run_id: str, offset: float):
         self.get(run_id).run.time_offset = float(offset)
 
+    # ------------------------------------------------------------ conditions
+    def evaluate_condition(self, text: str, exit_text: str = "", min_dur: float = 0.0, merge_gap: float = 0.0,
+                           run_ids: Optional[List[str]] = None) -> Dict[str, dict]:
+        """A named condition in every open file (or these): its stretches, as shown (offset, unit,
+        edits applied). A file without the signals it reads says which ones are missing."""
+        from svcore.analysis import align_to
+        from svcore.conditions import ConditionError, evaluate_condition, names_in
+        if not text.strip():
+            raise LoadError("Write the condition, e.g. {Speed} > 12.")
+        out: Dict[str, dict] = {}
+        for rid in (run_ids or list(self.order)):
+            lr = self.runs.get(rid)
+            if lr is None or rid == DERIVED_ID:
+                continue
+
+            def read(name: str, rid=rid, lr=lr):
+                if name in lr.run.signals:
+                    return self.signal(f"{rid}/{name}")
+                if name in self.derived:                       # a new signal made in Create signals
+                    try:
+                        return self.signal(f"{DERIVED_ID}/{name}")
+                    except KeyError:
+                        return None
+                return None
+
+            def labels(name: str, lr=lr):
+                sg = lr.run.signals.get(name)
+                return {str(k): v for k, v in (sg.labels or {}).items()} if sg is not None else None
+            try:
+                out[rid] = evaluate_condition(text, read, labels, lambda t, ts, ys: align_to(t, ts, ys, "nearest"),
+                                              exit_text, min_dur, merge_gap)
+            except ConditionError as e:
+                out[rid] = {"error": str(e)}
+            except KeyError as e:
+                out[rid] = {"error": str(e).strip("'\"")}
+        if not out and names_in(text):
+            raise LoadError("No open file to look in.")
+        return out
+
     # ------------------------------------------------------------ time axis
     def time_axis_info(self, lr: "LoadedRun", candidates: bool = False) -> dict:
         """What the Time axis dialog may change in this file, and how it is set now (with

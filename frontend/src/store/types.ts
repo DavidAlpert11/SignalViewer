@@ -7,7 +7,10 @@ export interface CursorState { on: boolean; dual: boolean; t1: number | null; t2
 export interface Toast { id: string; kind: "info" | "error"; text: string; action?: { label: string; run: () => void }; ms?: number;
   /** its action undoes the LAST workspace change: valid only until the next change / undo / redo */
   undoesWs?: boolean }
-export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "fleet";
+export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "fleet" | "investigate";
+/** One condition in one file: its stretches [start, end] as shown, or why it could not be looked for. */
+export interface CondResult { intervals?: [number, number][]; count?: number; total?: number; missing?: string[];
+  error?: string; ranges?: Record<string, [number, number]>; cut?: boolean }
 export type LogMarkers = "off" | "important" | "all";
 export type PlayMode = "cursor" | "draw" | "window";
 export interface MenuItem { label: string; icon?: string; run: () => void; disabled?: boolean; danger?: boolean; sep?: boolean;
