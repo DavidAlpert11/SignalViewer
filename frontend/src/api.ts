@@ -49,6 +49,10 @@ export interface FirstChange { id: string; name: string; status: "changed" | "sa
   strength?: number; rate?: number; spark?: (number | null)[] }
 export interface LagResult { status: "ok" | "nooverlap" | "short" | "flat"; lag?: number; r?: number; ambiguous?: boolean; weak?: boolean;
   resolution?: number; curve?: { lags: number[]; r: number[] } }
+/** Investigation step 7: a run's phases and automatic flags (svcore/overview.py). */
+export interface RunOverview { phaseSignal: string | null; phases: { a: number; b: number; label: string }[];
+  flags: { kind: "stuck" | "saturated" | "gap" | "spike"; signal: string; a: number; b: number; value?: number; edge?: "max" | "min" }[];
+  start: number; end: number; scanned: number; partial: boolean }
 export interface TimeAxisInfo {
   canColumn: boolean; canScale: boolean;
   column: string | null;                 // the time column, as the file names it
@@ -370,6 +374,7 @@ export const api = {
     call<{ items: FirstChange[]; base: [number, number] }>("/api/firstchange", { a, b, sigs, runs }),
   lag: (a: string, b: string, t0: number, t1: number) => call<LagResult>("/api/lag", { a, b, t0, t1 }),
   runParams: (runs?: string[]) => call<{ params: Record<string, Record<string, number>> }>("/api/runs/params", { runs }),
+  overview: (id: string) => call<RunOverview>(`/api/runs/${encodeURIComponent(id)}/overview`),
   checkTimeAxis: (id: string, column: string | null) => call<TimeAxisCheck>(`/api/runs/${id}/time-axis/check`, { column }),
   job: (id: string) => call<JobInfo>(`/api/jobs/${id}`),
   cancelJob: (id: string) => call<{ cancelled: boolean }>(`/api/jobs/${id}/cancel`, {}),

@@ -11,7 +11,9 @@ the roll leaves its set point three times; in the light one it holds. Why?
 
 ## 1. See it
 
-1. Put **Roll** and **DesRoll** of the heavy run in a plot. Three bumps, around 38, 63 and 91 s.
+1. Look at the strip above the plots: the run's four phases and **three red flags** - *Motor3 flat
+   at its limit*, in AUTO. Hover one; the light run (pick it in the strip) has none.
+   Put **Roll** and **DesRoll** of the heavy run in a plot. Three bumps, around 38, 63 and 91 s.
 2. Right-click **Mode** in the signal list → *Lane on every plot of this tab*: the flight mode under
    every plot. Hover the lane: the mode there and its stretch. All three bumps are in *AUTO*.
 
