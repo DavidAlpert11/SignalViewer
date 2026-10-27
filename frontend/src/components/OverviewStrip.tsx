@@ -5,12 +5,13 @@ import { fmtNum, useT } from "../i18n";
 import { getPrefValue, setPref } from "../prefs";
 import { openMenu } from "./Overlays";
 import { intersect, saveCondition, union } from "../conditions";
+import { inkOn, stateColor } from "../values";
 
 const PHASE_COLORS = ["#7F77DD", "#1D9E75", "#D85A30", "#378ADD", "#BA7517", "#888780", "#D4537E", "#639922"];
 const hue = (label: string) => PHASE_COLORS[[...label].reduce((s, c) => (s * 31 + c.charCodeAt(0)) >>> 0, 7) % PHASE_COLORS.length];
 export const SEL_COLOR = "#E5534B";
 const keyOf = (r: StripRow) => (r.kind === "state" ? `s:${r.name}` : `c:${r.id}`);
-type Seg = { a: number; b: number; label: string };
+type Seg = { a: number; b: number; label: string; v?: number };
 
 /** Investigation step 7: the whole run at a glance - automatic flags, then one row per state signal
  *  or named condition (the user's; by default the run's phase signal), and where the plots are
@@ -26,6 +27,7 @@ export default function OverviewStrip() {
   const dataVersion = useApp((s) => s.dataVersion);
   const condResults = useApp((s) => s.condResults);
   const sel = useApp((s) => s.stripSel);
+  const theme = useApp((s) => s.theme);
   const [hidden, setHidden] = useState(!!getPrefValue<boolean>("overviewOff"));
   const files = runs.filter((r) => r.format !== "derived");
   const tab = activeTab(ws);
@@ -188,7 +190,7 @@ export default function OverviewStrip() {
       <div className="ov-rows">
         <span className="ov-label muted">{t("ovFlags")}</span>
         <div className="ov-track ov-flags">
-          {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} aria-hidden="true" />}
+          {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} title={t("ovView")} />}
           {clusters.map((c, i) => (
             <button key={i} className={`ov-flag${c.items.some((f) => bad(f.kind)) ? " bad" : ""}`} style={{ left: pct(c.a) }}
               title={c.items.map(flagText).join("\n")} aria-label={c.items.map(flagText).join("; ")} onClick={() => go(c.a, c.b)}>
@@ -202,15 +204,19 @@ export default function OverviewStrip() {
             <button key={`l${i}`} className="ov-label linklike" title={t("ovRowMenu")} onContextMenu={(e) => rowMenu(e, i)} onClick={(e) => rowMenu(e, i)}>
               {r.kind === "cond" ? "⧉ " : ""}{rowName(r)}</button>,
             <div key={`t${i}`} className="ov-track ov-row" data-row={keyOf(r)}>
-              {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} aria-hidden="true" />}
-              {ov && segsOf(r).map((p, k) => (
-                <button key={k} className={`ov-phase${picked(r, p.label) ? " picked" : ""}`}
-                  style={{ left: pct(p.a), width: width(p.a, p.b), background: cond?.color ?? hue(p.label) }}
-                  title={`${rowName(r)}${r.kind === "state" ? `: ${p.label}` : ""} · ${fmtNum(p.a, lang, 5)} – ${fmtNum(p.b, lang, 5)} s`}
-                  onClick={(e) => pick(r, p.label, e.ctrlKey || e.metaKey)} onDoubleClick={() => go(p.a, p.b)}>
-                  <span>{r.kind === "state" ? p.label : ""}</span>
-                </button>
-              ))}
+              {ov && segsOf(r).map((p, k) => {
+                // the same colour as the state's lane on the plots (by its code)
+                const bg = cond?.color ?? (p.v !== undefined ? stateColor(p.v, theme) : hue(p.label));
+                const rowPicked = sel?.rid === rid && !!sel.picks[keyOf(r)]?.length;
+                return (
+                  <button key={k} className={`ov-phase${picked(r, p.label) ? " picked" : rowPicked ? " dim" : ""}`}
+                    style={{ left: pct(p.a), width: width(p.a, p.b), background: bg, color: inkOn(bg) }}
+                    title={`${rowName(r)}${r.kind === "state" ? `: ${p.label}` : ""} · ${fmtNum(p.a, lang, 5)} – ${fmtNum(p.b, lang, 5)} s`}
+                    onClick={(e) => pick(r, p.label, e.ctrlKey || e.metaKey || e.shiftKey)} onDoubleClick={() => go(p.a, p.b)}>
+                    <span>{r.kind === "state" ? p.label : ""}</span>
+                  </button>
+                );
+              })}
             </div>,
           ];
         })}
