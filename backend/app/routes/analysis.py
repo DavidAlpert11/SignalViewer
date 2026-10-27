@@ -483,3 +483,12 @@ class ParamsRequest(BaseModel):
 def runs_params(req: ParamsRequest):
     """Investigation step 5: per file, the values that tell runs apart (constant signals, name numbers)."""
     return {"params": store.run_params(req.runs)}
+
+
+@router.get("/api/runs/{run_id}/overview")
+def run_overview(run_id: str):
+    """Investigation step 7: phases and automatic flags of a run, for the overview strip."""
+    try:
+        return store.overview(run_id)
+    except KeyError:
+        fail(404, "File is not open.")

@@ -62,6 +62,8 @@ are told apart by them.
 - **Runs × conditions** (button under the conditions): every open run against every condition, with
   what tells the runs apart (a payload, a gain, the number in the file name). The odd run is marked; a
   click opens it at the stretch. *Open a folder of runs…* brings in a whole Monte-Carlo set.
+- **The run at a glance**: the strip above the plots - the run's phases and flags (a frozen or
+  saturated signal, a gap, a glitch). Click a flag or a phase to go there; × hides the strip.
 - **Findings and the report**: give a note a status in the Inspector (open, explained, fault,
   rejected hypothesis) - it keeps the view it was found in. The Investigate panel keeps the steps you
   took; tick the ones for the report. *Include the investigation* in the Report panel puts the
