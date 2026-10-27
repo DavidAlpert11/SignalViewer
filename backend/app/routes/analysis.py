@@ -436,3 +436,40 @@ class OccDiffer(BaseModel):
 def occurrences_differ(req: OccDiffer):
     """Investigation step 3: which signals differ most inside the stretches from outside them."""
     return {"items": store.occurrence_differ(req.runs, max(1, min(req.top, 200)))}
+
+
+class FirstChangeRequest(BaseModel):
+    a: float
+    b: float
+    sigs: List[str] = []
+    runs: List[str] = []
+    baseA: Optional[float] = None
+    baseB: Optional[float] = None
+    k: float = 4.0            # times the usual noise
+    persist: int = 3          # samples in a row
+
+
+@router.post("/api/firstchange")
+def first_change_route(req: FirstChangeRequest):
+    """Investigation step 4: which signals changed first around [a, b] (candidates, not causes)."""
+    if req.b <= req.a:
+        fail(400, "Put both cursors around the moment (the second after the first).")
+    from svcore.firstchange import default_baseline
+    base = (req.baseA, req.baseB) if req.baseA is not None and req.baseB is not None and req.baseB > req.baseA else default_baseline(req.a, req.b)
+    return {"items": store.first_changes(req.sigs, req.runs, req.a, req.b, base, max(1.0, req.k), max(1, req.persist)), "base": list(base)}
+
+
+class LagRequest(BaseModel):
+    a: str
+    b: str
+    t0: float
+    t1: float
+
+
+@router.post("/api/lag")
+def lag_route(req: LagRequest):
+    """Investigation step 4: how much B follows (or leads) A in a window."""
+    try:
+        return store.lag_between(req.a, req.b, req.t0, req.t1)
+    except KeyError:
+        fail(404, "One of the signals is no longer open.")

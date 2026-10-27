@@ -82,6 +82,8 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const condResults = useApp((s) => s.condResults);
   const condFocus = useApp((s) => s.condFocus);
   const barRef = useRef<HTMLDivElement>(null);
+  const changeMarks = useApp((s) => s.changeMarks);
+  const changeRef = useRef<{ t: number; color: string }[]>([]);
 
   const sigIds = plot.signals.map((s) => s.sig);
   const sigKey = sigIds.join("|");
@@ -232,7 +234,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
        strip along the top, one under the other (they never hide the lines) */
     const drawConds = (u: uPlot) => {
       const list = condRef.current;
-      if (!list.length) return;
+      if (!list.length && !changeRef.current.length) return;
       const ctx = u.ctx, { left, top, width, height } = u.bbox, d = dpr() * uiScale();
       const x0 = u.scales.x.min!, x1 = u.scales.x.max!;
       ctx.save();
@@ -253,6 +255,18 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         }
       }
       ctx.restore();
+      // "What changed?": where each signal of this plot first left its usual range (dashed, its colour)
+      if (changeRef.current.length) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(left, top, width, height); ctx.clip();
+        ctx.setLineDash([5 * d, 4 * d]); ctx.lineWidth = 1.5 * d;
+        for (const m of changeRef.current) {
+          if (m.t < x0 || m.t > x1) continue;
+          const x = u.valToPos(m.t, "x", true);
+          ctx.strokeStyle = m.color; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + height); ctx.stroke();
+        }
+        ctx.restore();
+      }
     };
     let hatch: CanvasPattern | null = null;
     const drawLogMarks = (u: uPlot) => {
@@ -910,6 +924,11 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conditions, condResults, condFocus, sigIds.join("|")]);
   useEffect(() => {
+    changeRef.current = changeMarks ? plot.signals.filter((s) => changeMarks[s.sig] !== undefined).map((s) => ({ t: changeMarks[s.sig], color: s.color })) : [];
+    uRef.current?.redraw(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changeMarks, sigIds.join("|")]);
+  useEffect(() => {
     const out: { t: number; t2?: number; text: string; level: string }[] = [];
     if (logMarkers !== "off") {
       for (const rid of new Set(sigIds.map((id) => id.slice(0, id.indexOf("/"))))) {
@@ -973,6 +992,11 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         onMouseDown={(e) => e.stopPropagation()}>
         <button className="btn sm" onClick={() => actions.addNoteAtCursor()}>✎ {translate(useApp.getState().lang, "selNote")}</button>
         <button className="btn sm sel-find" onClick={findSimilar}>⌕ {translate(useApp.getState().lang, "selFindSimilar")}</button>
+        <button className="btn sm sel-changed" onClick={() => {
+          const c = useApp.getState().cursor;
+          if (c.t1 === null || c.t2 === null) return;
+          useApp.setState({ panel: "investigate", whatChanged: { a: Math.min(c.t1, c.t2), b: Math.max(c.t1, c.t2) } });
+        }}>? {translate(useApp.getState().lang, "selWhatChanged")}</button>
       </div>
     </div>
   );

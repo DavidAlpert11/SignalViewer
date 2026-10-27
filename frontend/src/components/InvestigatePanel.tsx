@@ -4,6 +4,7 @@ import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { openMenu } from "./Overlays";
 import ExprInput, { type SigOption } from "./ExprInput";
+import WhatChanged from "./WhatChanged";
 import { combineConditions, condSignals, deleteCondition, evaluateOne, intervalsByRun, overlayInNewTab, saveCondition, stepOccurrence, updateCondition, usedBy } from "../conditions";
 import { api } from "../api";
 
@@ -18,6 +19,7 @@ export default function InvestigatePanel() {
   const runs = useApp((s) => s.runs);
   const lang = useApp((s) => s.lang);
   const files = runs.filter((r) => r.format !== "derived");
+  const whatChanged = useApp((s) => s.whatChanged);
 
   const count = (id: string) => {
     const r = results[id] ?? {};
@@ -44,6 +46,7 @@ export default function InvestigatePanel() {
     <aside className="side investigate" aria-label={t("investigate")}>
       <div className="side-head"><h2>{t("investigate")}</h2></div>
       <div className="inv-body">
+        {whatChanged && <WhatChanged key={`${whatChanged.a}|${whatChanged.b}`} />}
         <div className="cond-head">
           <h3>{t("conditions")}</h3>
           <button className="btn outline sm cond-new" onClick={() => useApp.setState({ condEdit: { id: "new" } })} disabled={!files.length}>

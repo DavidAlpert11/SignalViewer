@@ -57,7 +57,7 @@ const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "
   { id: "fleet", icon: "Fleet", key: "fleet" },        // T41: every flight of the indexed folders
 ];
 
-const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate" } as const satisfies Record<ExampleId, string>;
 
 function Welcome() {
   const t = useT();
