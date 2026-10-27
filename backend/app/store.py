@@ -654,6 +654,38 @@ class Store:
         items.sort(key=lambda x: -x["effect"])
         return items[:top]
 
+    # ------------------------------------------------------------ overview strip
+    def overview(self, run_id: str) -> dict:
+        """Investigation step 7: a run's phases (its mode / phase signal) and automatic flags -
+        stuck and saturated signals, gaps in the recording, spikes. Files with very many signals are
+        scanned on their first WIDE signals only (said in the result)."""
+        from svcore import overview as ov
+        lr = self.get(run_id)
+        r = lr.run
+        names = list(r.signals)
+        ph_name = ov.phase_signal([(n, bool(r.signals[n].labels)) for n in names])
+        phases: List[dict] = []
+        if ph_name:
+            t, y = self.signal(f"{run_id}/{ph_name}")
+            phases = ov.phases(t, y, {str(k): v for k, v in (r.signals[ph_name].labels or {}).items()})
+        flags: List[dict] = []
+        tm, _ = (np.asarray(r.time) + float(r.time_offset or 0)), None
+        flags += ov.gaps(tm)
+        scanned = 0
+        for n in names[:WIDE]:
+            sg = r.signals[n]
+            if sg.labels or not getattr(sg, "loaded", True):
+                continue
+            try:
+                t, y = self.signal(f"{run_id}/{n}")
+            except (KeyError, ValueError):
+                continue
+            scanned += 1
+            flags += ov.scan(n, t, y, self.is_discrete(f"{run_id}/{n}"))
+        return {"phaseSignal": ph_name, "phases": phases, "flags": ov.rank(flags),
+                "start": float(r.start_time + (r.time_offset or 0)), "end": float(r.end_time + (r.time_offset or 0)),
+                "scanned": scanned, "partial": len(names) > WIDE}
+
     # ------------------------------------------------------------ runs x conditions
     def run_params(self, run_ids: Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
         """Investigation step 5: what tells runs apart, per open file - signals that hold one value
