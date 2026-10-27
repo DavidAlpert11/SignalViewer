@@ -50,8 +50,8 @@ export interface FirstChange { id: string; name: string; status: "changed" | "sa
 export interface LagResult { status: "ok" | "nooverlap" | "short" | "flat"; lag?: number; r?: number; ambiguous?: boolean; weak?: boolean;
   resolution?: number; curve?: { lags: number[]; r: number[] } }
 /** Investigation step 7: a run's phases and automatic flags (svcore/overview.py). */
-export interface RunOverview { phaseSignal: string | null; phases: { a: number; b: number; label: string }[];
-  rows?: Record<string, { a: number; b: number; label: string }[]>;
+export interface RunOverview { phaseSignal: string | null; phases: { a: number; b: number; label: string; v?: number }[];
+  rows?: Record<string, { a: number; b: number; label: string; v?: number }[]>;
   flags: { kind: "stuck" | "saturated" | "gap" | "spike"; signal: string; a: number; b: number; value?: number; edge?: "max" | "min" }[];
   start: number; end: number; scanned: number; partial: boolean }
 export interface TimeAxisInfo {
