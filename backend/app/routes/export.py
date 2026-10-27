@@ -91,6 +91,7 @@ class ReportRequest(BaseModel):
     theme: str = "light"
     tabs: List[dict] = []
     notes: List[dict] = []          # the user's notes: [{t, text}]
+    sections: List[dict] = []       # investigation: [{title, text?, items?, table?: {head, rows}}]
 
 
 

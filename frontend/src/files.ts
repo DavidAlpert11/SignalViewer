@@ -260,6 +260,7 @@ export function currentState() {
       liveAutoStop: st.liveAutoStop, liveNewFiles: st.liveNewFiles, geoBase: st.geoBase,
       playMode: st.playMode, playSpeed: st.playSpeed, windowSec: st.windowSec, timelineOpen: st.timelineOpen },
     transforms: Object.fromEntries(st.runs.flatMap((r) => r.signals.filter((x) => x.transform).map((x) => [x.id, x.transform]))),
+    journal: st.journal,                  // investigation step 6
   };
 }
 
@@ -277,6 +278,7 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     if (typeof state.ui?.linkRuns === "boolean") useApp.setState({ linkRuns: state.ui.linkRuns });
     // Q87, optional: sessions saved before it have none, and operations stay unlinked
     useApp.setState({ linkEdits: state.ui?.linkEdits === true });
+    useApp.setState({ journal: Array.isArray(state.journal) ? state.journal : [] });
     if (["x", "y", "xy"].includes(state.ui?.zoomMode)) useApp.setState({ zoomMode: state.ui.zoomMode });
     // the timeline (sessions saved before it have none of these: the defaults stay)
     if (["cursor", "draw", "window"].includes(state.ui?.playMode)) useApp.setState({ playMode: state.ui.playMode });

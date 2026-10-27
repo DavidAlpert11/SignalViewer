@@ -62,6 +62,11 @@ are told apart by them.
 - **Runs × conditions** (button under the conditions): every open run against every condition, with
   what tells the runs apart (a payload, a gain, the number in the file name). The odd run is marked; a
   click opens it at the stretch. *Open a folder of runs…* brings in a whole Monte-Carlo set.
+- **Findings and the report**: give a note a status in the Inspector (open, explained, fault,
+  rejected hypothesis) - it keeps the view it was found in. The Investigate panel keeps the steps you
+  took; tick the ones for the report. *Include the investigation* in the Report panel puts the
+  findings (with their plots), the rejected hypotheses, the steps, the conditions and how to
+  reproduce it before the plots.
 - **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
   it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
   *Always as a state* makes a signal a lane wherever it is added, in every file.
