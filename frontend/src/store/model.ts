@@ -82,7 +82,11 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   stateNames?: Record<string, boolean>;
   /** Investigation step 2: named conditions (where an expression holds), in the session. */
   conditions?: Condition[];
+  /** The rows of the overview strip, in order (absent: the run's phase signal alone). */
+  overviewRows?: StripRow[];
 }
+/** A row of the overview strip: a state signal by NAME (every file), or a named condition. */
+export type StripRow = { kind: "state"; name: string } | { kind: "cond"; id: string };
 /** A named condition: the stretches of each open file where `text` holds (svcore/conditions.py), or
  *  two or more conditions combined. Kept in the session; results are not (computed again). */
 export interface Condition {

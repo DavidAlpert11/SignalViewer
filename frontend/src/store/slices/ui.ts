@@ -50,7 +50,10 @@ export interface UiSlice {
   whatChanged: { a: number; b: number } | null;
   changeMarks: Record<string, number> | null;
   matrixOpen: boolean;                     // investigation step 5: runs x conditions
-  journal: JournalStep[];                  // investigation step 6: saved with the session (files.ts), no undo steps
+  journal: JournalStep[];
+  /** A selection made on the overview strip: per row the picked values (or "in" for a condition) -
+   *  "or" within a row, "and" across rows - and its stretches in the strip's run (shaded on the plots). */
+  stripSel: { rid: string; picks: Record<string, string[]>; iv: [number, number][] } | null;                  // investigation step 6: saved with the session (files.ts), no undo steps
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
     segment?: import("../../segments").SegmentChoice } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
@@ -111,6 +114,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   changeMarks: null,
   matrixOpen: false,
   journal: [],
+  stripSel: null,
   compareTable: null,
   promptDialog: null,
   uiScale: 1,

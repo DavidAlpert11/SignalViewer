@@ -5,7 +5,7 @@ import re
 from typing import Dict, List, Optional
 
 import numpy as np
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 from app.common import b64, fail
@@ -486,9 +486,10 @@ def runs_params(req: ParamsRequest):
 
 
 @router.get("/api/runs/{run_id}/overview")
-def run_overview(run_id: str):
-    """Investigation step 7: phases and automatic flags of a run, for the overview strip."""
+def run_overview(run_id: str, rows: List[str] = Query(default=[])):
+    """Investigation step 7: phases and automatic flags of a run, for the overview strip (and the
+    stretches of the state signals the user put in it as rows)."""
     try:
-        return store.overview(run_id)
+        return store.overview(run_id, rows)
     except KeyError:
         fail(404, "File is not open.")
