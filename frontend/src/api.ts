@@ -353,6 +353,8 @@ export const api = {
   setTransformSpecs: (specs: Record<string, SignalTransform | null>) =>
     call<{ previous: Record<string, SignalTransform | null>; runs: RunInfo[] }>("/api/transforms", { specs }),
   startJob: (kind: string, body: unknown, label: string) => call<JobInfo>("/api/jobs", { kind, body, label }),
+  evalCondition: (text: string, opts: { exit?: string; minDur?: number; mergeGap?: number; runs?: string[] }) =>
+    call<{ results: Record<string, import("./store").CondResult> }>("/api/conditions/eval", { text, exit: opts.exit ?? "", minDur: opts.minDur ?? 0, mergeGap: opts.mergeGap ?? 0, runs: opts.runs }),
   checkTimeAxis: (id: string, column: string | null) => call<TimeAxisCheck>(`/api/runs/${id}/time-axis/check`, { column }),
   job: (id: string) => call<JobInfo>(`/api/jobs/${id}`),
   cancelJob: (id: string) => call<{ cancelled: boolean }>(`/api/jobs/${id}/cancel`, {}),

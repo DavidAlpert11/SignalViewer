@@ -117,12 +117,15 @@ def parse(expr: str, n_vars: int) -> ast.Expression:
         if isinstance(node, (ast.Expression, ast.Load, ast.operator, ast.unaryop, ast.cmpop)):
             if isinstance(node, ast.operator) and type(node) not in _BIN:
                 raise FormulaError("Only + - * / ** % are allowed.")
-            if isinstance(node, ast.unaryop) and not isinstance(node, (ast.USub, ast.UAdd)):
+            if isinstance(node, ast.unaryop) and not isinstance(node, (ast.USub, ast.UAdd, ast.Not)):
                 raise FormulaError("Only unary minus is allowed.")
             if isinstance(node, ast.cmpop) and type(node) not in _CMP:
                 raise FormulaError("Unsupported comparison.")
             continue
         if isinstance(node, (ast.BinOp, ast.UnaryOp, ast.Compare)):
+            continue
+        # conditions (svcore/conditions.py): a and b, a or b, not a - element by element
+        if isinstance(node, (ast.BoolOp, ast.And, ast.Or, ast.Not)):
             continue
         if isinstance(node, ast.Constant):
             if not isinstance(node.value, (int, float)) or isinstance(node.value, bool):
@@ -144,6 +147,12 @@ def parse(expr: str, n_vars: int) -> ast.Expression:
             continue
         raise FormulaError("This kind of expression is not allowed.")
     return tree
+
+
+def _truth(v) -> np.ndarray:
+    """A value as true / false: not zero and a number (a missing value is false)."""
+    a = np.asarray(v, dtype=np.float64)
+    return np.isfinite(a) & (a != 0)
 
 
 def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align) -> Tuple[np.ndarray, np.ndarray]:
@@ -172,7 +181,15 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align) -> 
             return env[node.id] if node.id in env else None
         if isinstance(node, ast.UnaryOp):
             v = ev(node.operand)
+            if isinstance(node.op, ast.Not):
+                return np.asarray(~_truth(v), dtype=np.float64)
             return -v if isinstance(node.op, ast.USub) else v
+        if isinstance(node, ast.BoolOp):
+            parts = [_truth(ev(x)) for x in node.values]
+            out = parts[0]
+            for p in parts[1:]:
+                out = np.logical_and(out, p) if isinstance(node.op, ast.And) else np.logical_or(out, p)
+            return np.asarray(out, dtype=np.float64)
         if isinstance(node, ast.BinOp):
             return _BIN[type(node.op)](ev(node.left), ev(node.right))
         if isinstance(node, ast.Compare):

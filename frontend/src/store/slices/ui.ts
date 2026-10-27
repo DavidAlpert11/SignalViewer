@@ -2,7 +2,7 @@
 import type { StoreApi } from "zustand";
 import type { Lang } from "../../i18n";
 import { uid } from "../model";
-import type { MenuItem, PanelId, PickerRequest, Toast } from "../types";
+import type { CondResult, MenuItem, PanelId, PickerRequest, Toast } from "../types";
 import type { AppState } from "../state";
 import { inspectorPref } from "../inspector";
 
@@ -40,6 +40,11 @@ export interface UiSlice {
   retarget: { state: any; title: string; fromCurrent: boolean } | null;   // "open with new files"
   sameWorkFor: string | null;              // Q87: "add a run with the same work" as this run
   timeAxisFor: string | null;              // the Time axis dialog of this file (column, unit, offset)
+  /** Named conditions: their stretches per file (computed, never saved), the one in focus (shaded
+   *  full height, ] / [ step through it), and the editor (a condition's id, or "new" with a draft). */
+  condResults: Record<string, Record<string, CondResult>>;
+  condFocus: string | null;
+  condEdit: { id: string; draft?: { name?: string; text?: string } } | null;
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
     segment?: import("../../segments").SegmentChoice } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
@@ -93,6 +98,9 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   retarget: null,
   sameWorkFor: null,
   timeAxisFor: null,
+  condResults: {},
+  condFocus: null,
+  condEdit: null,
   compareTable: null,
   promptDialog: null,
   uiScale: 1,

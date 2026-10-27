@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.common import b64, fail
+from app.store import LoadError
 from app.store import store
 from svcore.analysis import OPS, OpError, fft_display, fft_for, transitions, xy_pair
 from svcore.decimate import decimate_for_view
@@ -381,3 +382,20 @@ def states(req: StatesRequest):
             end = max(end, float(lr.run.end_time) + float(lr.run.time_offset or 0))
         out[sid] = {"points": pts, "tooMany": collapsed, "end": end}
     return {"states": out}
+
+
+class ConditionRequest(BaseModel):
+    text: str
+    exit: str = ""
+    minDur: float = 0.0
+    mergeGap: float = 0.0
+    runs: Optional[List[str]] = None
+
+
+@router.post("/api/conditions/eval")
+def condition_eval(req: ConditionRequest):
+    """Investigation step 2: where a named condition holds, in each open file (or the ones given)."""
+    try:
+        return {"results": store.evaluate_condition(req.text, req.exit, req.minDur, req.mergeGap, req.runs)}
+    except LoadError as e:
+        fail(400, str(e))
