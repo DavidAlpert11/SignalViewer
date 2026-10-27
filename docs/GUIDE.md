@@ -48,6 +48,11 @@ are told apart by them.
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
 - **Right-click in the plot** for: cursor here, note here, previous zoom, show everything, export
   the data, save or copy the image, axis limits.
+- **Conditions** (rail → *Investigate*): the moments where something holds - `Speed > 30`,
+  `abs(Vz) > 5 and Mode == "AUTO"` - in every open file that has those signals. Put both cursors
+  around something odd and press **Find similar** on the bar above them: the condition is written
+  for you, with the count as you change it. Click a condition's name (or press `]` / `[`) to step
+  through its stretches; the one in focus is shaded, the others are thin strips along the top.
 - **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
   it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
   *Always as a state* makes a signal a lane wherever it is added, in every file.

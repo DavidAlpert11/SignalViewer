@@ -69,6 +69,18 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   /** "Always as a state", by signal NAME (every open file): true = a lane wherever it is added,
    *  false = a line even when it has texts; absent = automatic (signals with texts are lanes). */
   stateNames?: Record<string, boolean>;
+  /** Investigation step 2: named conditions (where an expression holds), in the session. */
+  conditions?: Condition[];
+}
+/** A named condition: the stretches of each open file where `text` holds (svcore/conditions.py), or
+ *  two or more conditions combined. Kept in the session; results are not (computed again). */
+export interface Condition {
+  id: string; name: string; color: string; visible: boolean;
+  text: string;                    // {Speed} > 12 and Mode == "AUTO"
+  exit?: string;                   // hysteresis: a stretch lasts until this holds
+  minDur?: number;                 // s: shorter stretches are left out
+  mergeGap?: number;               // s: closer stretches are joined
+  combine?: { op: "and" | "or"; ids: string[] };   // instead of text: these conditions together
 }
 
 export const TRACE_COLORS = [

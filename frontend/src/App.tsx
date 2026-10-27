@@ -1,4 +1,5 @@
 import { addDataExts } from "./values";
+import { evaluateAll, stepOccurrence } from "./conditions";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
 import { getPref, setPref } from "./prefs";
@@ -26,6 +27,7 @@ import StageBar from "./components/StageBar";
 import DataPanel from "./components/DataPanel";
 const AnalysisPanel = lazyPreload(() => import("./components/AnalysisPanel"));
 const FleetPanel = lazyPreload(() => import("./components/FleetPanel"));
+const InvestigatePanel = lazyPreload(() => import("./components/InvestigatePanel"));
 const ComparePanel = lazyPreload(() => import("./components/ComparePanel"));
 const ReportPanel = lazyPreload(() => import("./components/ReportPanel"));
 const LogPanel = lazyPreload(() => import("./components/LogPanel"));
@@ -45,10 +47,11 @@ import { AxisDialog, ContextMenu, ModalFocus, PromptDialog } from "./components/
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
 
-const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "flightLog" | "fleet" }[] = [
+const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "flightLog" | "fleet" | "investigate" }[] = [
   { id: "data", icon: "Data", key: "data" },
   { id: "analysis", icon: "Analysis", key: "analysis" },
   { id: "compare", icon: "Compare", key: "compare" },
+  { id: "investigate", icon: "Search", key: "investigate" },  // investigation step 2: named conditions
   { id: "report", icon: "Report", key: "report" },
   { id: "log", icon: "Log", key: "flightLog" },       // only while a file with a flight log is open
   { id: "fleet", icon: "Fleet", key: "fleet" },        // T41: every flight of the indexed folders
@@ -207,7 +210,12 @@ function PanelResizer({ label, style, width, setWidth, grow, def, other }: {
 
 export default function App() {
   useEffect(() => { preloadAll(); }, []);
-  useEffect(() => { mavlinkResume(); }, []);           // a MAVLink link still running after a reload           // panels / dialogs: ready before their first open
+  useEffect(() => { mavlinkResume(); }, []);
+  // named conditions: looked for again when they, the open files or their data change
+  const condKey = useApp((s) => JSON.stringify((s.ws.conditions ?? []).map((c) => [c.id, c.text, c.exit, c.minDur, c.mergeGap, c.combine])));
+  const condRuns = useApp((s) => s.runs.map((r) => r.id).join("|"));
+  const condData = useApp((s) => s.dataVersion);
+  useEffect(() => { void evaluateAll(); }, [condKey, condRuns, condData]);           // a MAVLink link still running after a reload           // panels / dialogs: ready before their first open
   const t = useT();
   const theme = useApp((s) => s.theme);
   const lang = useApp((s) => s.lang);
@@ -497,6 +505,7 @@ export default function App() {
       else if (e.key.toLowerCase() === "r") actions.resetZoom();
       else if (e.key.toLowerCase() === "z") actions.cycleZoomMode();
       else if (e.key.toLowerCase() === "n") { e.preventDefault(); actions.addNoteAtCursor(); }
+      else if ((e.key === "]" || e.key === "[") && st.condFocus) { e.preventDefault(); stepOccurrence(st.condFocus, e.key === "]" ? 1 : -1); }
       else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowLeft")) { e.preventDefault(); actions.zoomBack(); }
       else if (e.key === "Home" || e.key === "End") {          // the timeline: start / end of the recording
         const r = recordingExtent(st.runs);
@@ -565,7 +574,7 @@ export default function App() {
         <Suspense fallback={<aside className="side" />}>
           {panel === "data" ? <DataPanel /> : panel === "analysis" ? <AnalysisPanel /> : panel === "compare" ? <ComparePanel />
             : panel === "report" ? <ReportPanel /> : panel === "log" && logErrors !== null ? <LogPanel />
-            : panel === "fleet" ? <FleetPanel /> : <div />}
+            : panel === "fleet" ? <FleetPanel /> : panel === "investigate" ? <InvestigatePanel /> : <div />}
         </Suspense>
         <main className="stage">
           <StageBar />
