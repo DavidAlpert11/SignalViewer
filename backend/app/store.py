@@ -655,7 +655,7 @@ class Store:
         return items[:top]
 
     # ------------------------------------------------------------ overview strip
-    def overview(self, run_id: str) -> dict:
+    def overview(self, run_id: str, rows: Optional[List[str]] = None) -> dict:
         """Investigation step 7: a run's phases (its mode / phase signal) and automatic flags -
         stuck and saturated signals, gaps in the recording, spikes. Files with very many signals are
         scanned on their first WIDE signals only (said in the result)."""
@@ -682,7 +682,18 @@ class Store:
                 continue
             scanned += 1
             flags += ov.scan(n, t, y, self.is_discrete(f"{run_id}/{n}"))
-        return {"phaseSignal": ph_name, "phases": phases, "flags": ov.rank(flags),
+        # rows the user put in the strip: each named state signal's stretches of one value
+        row_out: Dict[str, List[dict]] = {}
+        for n in rows or []:
+            row_sig = r.signals.get(n)
+            if row_sig is None:
+                continue
+            try:
+                t, y = self.signal(f"{run_id}/{n}")
+            except (KeyError, ValueError):
+                continue
+            row_out[n] = ov.phases(t, y, {str(k): v for k, v in (row_sig.labels or {}).items()})[:5000]
+        return {"phaseSignal": ph_name, "phases": phases, "rows": row_out, "flags": ov.rank(flags),
                 "start": float(r.start_time + (r.time_offset or 0)), "end": float(r.end_time + (r.time_offset or 0)),
                 "scanned": scanned, "partial": len(names) > WIDE}
 

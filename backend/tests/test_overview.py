@@ -42,3 +42,11 @@ def test_demo_runs():
     assert [p["label"] for p in h["phases"]] == ["TAKEOFF", "AUTO", "LOITER", "LAND"]
     assert [(f["kind"], f["signal"]) for f in h["flags"]] == [("saturated", "Motor3")] * 3
     assert li["flags"] == []
+
+
+def test_rows_of_state_signals():
+    st = Store()
+    heavy = st.open_file(os.path.join(DEMO, "heavy_payload.csv")).id
+    o = st.overview(heavy, ["Mode", "Payload_kg", "Nope"])
+    assert [p["label"] for p in o["rows"]["Mode"]] == ["TAKEOFF", "AUTO", "LOITER", "LAND"]
+    assert [p["label"] for p in o["rows"]["Payload_kg"]] == ["2.4"] and "Nope" not in o["rows"]

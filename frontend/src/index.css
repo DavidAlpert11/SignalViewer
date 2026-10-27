@@ -1327,16 +1327,24 @@ input.fx-input { width: 100%; }
 .jr-list li.off .jr-text { opacity: 0.55; }
 .jr-text { text-align: start; }
 
-/* Investigation step 7: the run at a glance */
-.ov-strip { display: grid; grid-template-columns: auto 1fr 24px; gap: 8px; align-items: center; padding: 4px 12px 2px; }
-.ov-summary { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; white-space: nowrap; }
-.ov-summary select { font-size: 0.8rem; max-width: 180px; }
-.ov-track { position: relative; height: 18px; direction: ltr; background: var(--raised); border-radius: 4px; }
+/* Investigation step 7: the run at a glance - flags, rows (state signals, conditions), a selection */
+.ov-strip { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 2px; }
+.ov-head { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; white-space: nowrap; }
+.ov-head select { font-size: 0.8rem; max-width: 180px; }
+.ov-head .ov-hint { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: 0.75rem; }
+.ov-rows { display: grid; grid-template-columns: minmax(60px, 120px) 1fr; gap: 2px 8px; align-items: center; }
+.ov-label { font-size: 0.75rem; text-align: end; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-track { position: relative; height: 16px; direction: ltr; background: var(--raised); border-radius: 4px; }
+.ov-track.ov-flags { height: 12px; background: none; }
 .ov-phase { position: absolute; top: 0; height: 100%; border: 0; padding: 0; opacity: 0.45; overflow: hidden; color: var(--ink-strong); font-size: 0.7rem; cursor: pointer; }
 .ov-phase:hover { opacity: 0.7; }
+.ov-phase.picked { opacity: 1; outline: 2px solid var(--ink); outline-offset: -2px; }
 .ov-phase span { padding: 0 3px; white-space: nowrap; }
 .ov-view { position: absolute; top: -1px; height: calc(100% + 2px); border: 1.5px solid var(--ink); border-radius: 3px; pointer-events: none; }
-.ov-flag { position: absolute; top: -3px; width: 14px; height: 14px; margin-left: -7px; border: 0; padding: 0; cursor: pointer;
+.ov-flag { position: absolute; top: -2px; width: 14px; height: 14px; margin-left: -7px; border: 0; padding: 0; cursor: pointer;
   clip-path: polygon(50% 100%, 0 0, 100% 0); background: var(--amber); color: var(--amber-ink); font-size: 0.6rem; line-height: 10px; }
 .ov-flag.bad { background: var(--danger); }
+.ov-sel-label { color: #E5534B; font-weight: 600; }
+.ov-selbar { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; padding-inline-start: 128px; }
+.ov-seltext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-show { font-size: 0.8rem; padding: 2px 12px; align-self: flex-start; }
