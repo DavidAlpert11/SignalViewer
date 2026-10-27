@@ -1,4 +1,6 @@
 import type { RunInfo } from "../api";
+import { restoreView, setFindingStatus } from "../investigation";
+import type { FindingStatus } from "../store";
 import { useEffect, useState } from "react";
 import { api, type LimitResult, type Stats } from "../api";
 import { fileMark, showFileTags, actions, activeTab, rangeKey, signalName, TRACE_COLORS, useApp, type PlotSignal } from "../store";
@@ -422,7 +424,14 @@ export default function Inspector() {
               <li key={n.id}>
                 <button className="pchange" onClick={() => actions.goToTime(n.t)} title={t("logGoTo")}>
                   {fmtNum(n.t, lang, 6)}{n.t2 !== undefined && <> – {fmtNum(n.t2, lang, 6)}</>}</button>
-                <span className="note-text" onDoubleClick={() => actions.editNote(n.id)}>{n.text}</span>
+                <span className={`note-text${n.status ? ` fs-${n.status}` : ""}`} onDoubleClick={() => actions.editNote(n.id)}>{n.text}</span>
+                <select className="note-status" value={n.status ?? ""} aria-label={t("fsLabel")} title={t("fsLabel")}
+                  onChange={(e) => setFindingStatus(n.id, e.target.value as FindingStatus | "")}>
+                  <option value="">{t("fs_mark")}</option><option value="open">{t("fs_open")}</option>
+                  <option value="explained">{t("fs_explained")}</option><option value="fault">{t("fs_fault")}</option>
+                  <option value="rejected">{t("fs_rejected")}</option>
+                </select>
+                {n.view && <button className="iconbtn sm note-view" onClick={() => restoreView(n.view!)} aria-label={t("fsView")} title={t("fsView")}>⌖</button>}
                 <button className="iconbtn sm" onClick={() => actions.editNote(n.id)} aria-label={t("noteEdit")} title={t("noteEdit")}><Icon.Edit /></button>
                 <button className="iconbtn sm" onClick={() => actions.removeNote(n.id)} aria-label={t("remove")} title={t("remove")}><Icon.Trash /></button>
               </li>

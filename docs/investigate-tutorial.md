@@ -52,6 +52,14 @@ the roll leaves its set point three times; in the light one it holds. Why?
     by itself: it holds one value the whole run) - and a column per condition: Roll error 3 / 0,
     Motor3 saturated 3 / 0. Click the 3: the heavy run at its first stretch.
 
+## 6. Write it up
+
+14. In the Inspector, give your notes a status: the saturation *Fault*, a guess that did not hold
+    (say "the battery sags first") *Rejected hypothesis*. Each keeps the view it was found in (⌖).
+15. Investigate panel → **Steps so far**: what you did, in order. Untick what the report does not need.
+16. Report panel → *Include the investigation* → **Preview**: findings with their plots, the rejected
+    hypothesis, the steps, the conditions per run, and how to reproduce it - then your plots.
+
 **The answer:** the gust needs more thrust from motor 3; with the heavy payload it is already near
 its limit, saturates, and the roll cannot be held - about 0.1–0.15 s later. The light payload leaves
 room, so the same gusts do nothing. What the tools gave: where (the condition), how often (3 of 3

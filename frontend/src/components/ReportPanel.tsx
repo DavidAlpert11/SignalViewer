@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { actions, activeTab, pickPath, useApp, type ReportMeta } from "../store";
+import { actions, activeTab, pickPath, rangeKey, useApp, type ReportMeta } from "../store";
+import { investigationSections } from "../investigation";
 import { translate, useT } from "../i18n";
 import { plotSpec } from "../plotSpec";
 import { runJob } from "../files";
@@ -18,21 +19,35 @@ export default function ReportPanel() {
   const setMeta = (patch: Partial<ReportMeta>) =>
     useApp.getState().commit((w) => { w.report = { ...DEFAULT, lang, ...(w.report ?? {}), ...patch }; return w; });
 
-  const buildBody = (format: string, path: string) => {
+  const notes = ws.notes ?? [];
+  const hasInvestigation = notes.some((n) => n.status) || (ws.conditions ?? []).length > 0 || useApp.getState().journal.length > 0;
+  const withInvestigation = hasInvestigation && meta.investigation !== false;
+  const buildBody = async (format: string, path: string) => {
     const plotLabel = translate(meta.lang, "plotTitle", { n: "{n}" });
+    // occurrences plots are not drawn in reports yet (they need a condition's stretches)
+    const tabSpecs = tabs.map((tab, i) => ({
+      name: tab.name || `${translate(meta.lang, "tab")} ${ws.tabs.indexOf(tab) + 1 || i + 1}`,
+      plots: tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => !p.excludeFromReport && p.signals.length && p.mode !== "occ")
+        .map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)),
+    })).filter((tb) => tb.plots.length);
+    // Investigation step 6: each finding with its view - the time plots of that tab, at that zoom
+    const evidence = withInvestigation ? notes.filter((n) => n.status && n.status !== "rejected" && n.view).flatMap((n) => {
+      const tab = ws.tabs.find((x) => x.id === n.view!.tab);
+      if (!tab) return [];
+      return tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => (p.mode ?? "time") === "time" && p.signals.length).slice(0, 2)
+        .map(({ p, pi }) => ({ ...plotSpec(tab, p, pi, plotLabel), range: n.view!.ranges[rangeKey(tab, p)] ?? (n.t2 !== undefined ? [n.t - (n.t2 - n.t), n.t2 + (n.t2 - n.t)] : null),
+          title: n.text, caption: translate(meta.lang, `fs_${n.status}` as "fs_open") }));
+    }) : [];
     return {
       path, format, title: meta.title, intro: meta.intro, summary: meta.summary, lang: meta.lang, theme: meta.theme,
-      notes: (ws.notes ?? []).map((n) => ({ t: n.t, text: n.text })),
-      tabs: tabs.map((tab, i) => ({
-        name: tab.name || `${translate(meta.lang, "tab")} ${ws.tabs.indexOf(tab) + 1 || i + 1}`,
-        plots: tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => !p.excludeFromReport && p.signals.length)
-          .map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)),
-      })).filter((tb) => tb.plots.length),
+      notes: notes.filter((n) => !n.status || !withInvestigation).map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text })),
+      sections: withInvestigation ? await investigationSections(meta.lang) : [],
+      tabs: [...(evidence.length ? [{ name: translate(meta.lang, "rFindings"), plots: evidence }] : []), ...tabSpecs],
     };
   };
   const preview = async () => {
-    const body = buildBody("html", "");
-    if (!body.tabs.length) { useApp.getState().toast({ kind: "error", text: t("reportEmpty") }); return; }
+    const body = await buildBody("html", "");
+    if (!body.tabs.length && !body.sections.length) { useApp.getState().toast({ kind: "error", text: t("reportEmpty") }); return; }
     setBusy("preview");
     try { useApp.setState({ reportPreviewHtml: (await api.reportPreview(body)).html }); }
     catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
@@ -45,24 +60,14 @@ export default function ReportPanel() {
     if (!path) return;
     setBusy(format);
     try {
-      const plotLabel = translate(meta.lang, "plotTitle", { n: "{n}" });
-      const body = {
-        path, format, title: meta.title, intro: meta.intro, summary: meta.summary, lang: meta.lang, theme: meta.theme,
-      notes: (ws.notes ?? []).map((n) => ({ t: n.t, text: n.text })),
-        tabs: tabs.map((tab, i) => ({
-          name: tab.name || `${translate(meta.lang, "tab")} ${ws.tabs.indexOf(tab) + 1 || i + 1}`,
-          plots: tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => !p.excludeFromReport && p.signals.length)
-            .map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)),
-        })).filter((tb) => tb.plots.length),
-      };
-      if (!body.tabs.length) throw new Error(t("reportEmpty"));
+      const body = await buildBody(format, path);
+      if (!body.tabs.length && !body.sections.length) throw new Error(t("reportEmpty"));
       const r = await runJob<{ path: string }>("report", body, translate(lang, "creatingReport"));
       if (r) useApp.getState().toast({ kind: "info", text: translate(lang, "savedTo", { path: r.path }) });
     } catch (e) {
       useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
     } finally { setBusy(null); }
   };
-
   return (
     <aside className="side" aria-label={t("report")}>
       <div className="side-head"><h2>{t("report")}</h2></div>
@@ -84,6 +89,13 @@ export default function ReportPanel() {
           <button className={meta.scope === "all" ? "on" : ""} onClick={() => setMeta({ scope: "all" })}>{t("scopeAll")}</button>
         </div>
 
+        {hasInvestigation && (
+          <label className="acheck rinv">
+            <input type="checkbox" className="report-investigation" checked={withInvestigation} onChange={(e) => setMeta({ investigation: e.target.checked })} />
+            <span>{t("rInclude")}</span>
+          </label>
+        )}
+        {withInvestigation && <p className="hint">{t("rIncludeHint")}</p>}
         <h3 className="alist-head">{t("reportPlots")}</h3>
         {tabs.map((tab) => tab.plots.filter((p) => p.signals.length).map((p) => {
           const idx = tab.plots.indexOf(p);

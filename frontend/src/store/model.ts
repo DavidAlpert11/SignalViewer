@@ -61,11 +61,19 @@ export interface Tab {
   sharedStates?: string[];         // state signals drawn as a lane at the bottom of EVERY time plot of the tab
   rowSizes?: number[]; colSizes?: number[];   // relative sizes (drag the gaps between plots)
 }
-export interface ReportMeta { title: string; intro: string; summary: string; lang: "en" | "he"; theme: "light" | "dark"; scope: "tab" | "all" }
+export interface ReportMeta { title: string; intro: string; summary: string; lang: "en" | "he"; theme: "light" | "dark"; scope: "tab" | "all"; investigation?: boolean }
 /** A note at a moment of the recording ("vibration starts here"): shown on every time plot, saved
  *  with the session, listed in the report. */
 /** A note at a moment, or over a time range (T23: t2 = its end). */
-export interface Note { id: string; t: number; t2?: number; text: string }
+export interface Note { id: string; t: number; t2?: number; text: string;
+  /** Investigation step 6: a note that is a finding (absent = a plain mark), and the view it was
+   *  found in (tab, zoom, cursors) - a click brings that view back. */
+  status?: FindingStatus; view?: SavedView }
+export type FindingStatus = "open" | "explained" | "fault" | "rejected";
+/** What was on screen: the active tab, its plots' zoom windows and the cursors. */
+export interface SavedView { tab: string; ranges: Record<string, [number, number]>; t1: number | null; t2: number | null }
+/** One step of the investigation, recorded as it happens (Investigate panel; the report's "analysis steps"). */
+export interface JournalStep { id: string; at: number; text: string; view?: SavedView; include: boolean }
 export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta; notes?: Note[];
   /** State lanes on every time plot of every tab (signal ids), beside each tab's own sharedStates. */
   globalStates?: string[];
