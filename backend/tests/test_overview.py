@@ -14,6 +14,14 @@ def test_phase_signal_and_phases():
     assert phase_signal([("Speed", False)]) is None
     p = phases(np.arange(6.0), np.array([0, 0, 1, 1, 1, 0]), {"0": "IDLE", "1": "RUN"})
     assert [(x["label"], x["a"], x["b"]) for x in p] == [("IDLE", 0, 2), ("RUN", 2, 5), ("IDLE", 5, 5)]
+    assert [x["v"] for x in p] == [0.0, 1.0, 0.0]                  # the code, for the plots' colour
+
+
+def test_phases_hold_to_the_end_of_the_run():
+    # a mode logged only when it changes: its last value holds until the end of the run, as on the plots
+    p = phases([0.0, 12.0, 30.0], [1, 2, 3], {"1": "TAKEOFF", "2": "AUTO", "3": "LAND"}, end=95.0)
+    assert [(x["label"], x["a"], x["b"]) for x in p] == [("TAKEOFF", 0, 12), ("AUTO", 12, 30), ("LAND", 30, 95)]
+    assert phases([0.0, 5.0], [1, 1], {}, end=2.0)[-1]["b"] == 5.0      # never before its own last sample
 
 
 def test_flags_are_conservative():

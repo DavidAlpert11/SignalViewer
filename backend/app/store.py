@@ -664,10 +664,11 @@ class Store:
         r = lr.run
         names = list(r.signals)
         ph_name = ov.phase_signal([(n, bool(r.signals[n].labels)) for n in names])
+        run_end = float(r.end_time + (r.time_offset or 0))
         phases: List[dict] = []
         if ph_name:
             t, y = self.signal(f"{run_id}/{ph_name}")
-            phases = ov.phases(t, y, {str(k): v for k, v in (r.signals[ph_name].labels or {}).items()})
+            phases = ov.phases(t, y, {str(k): v for k, v in (r.signals[ph_name].labels or {}).items()}, run_end)
         flags: List[dict] = []
         tm, _ = (np.asarray(r.time) + float(r.time_offset or 0)), None
         flags += ov.gaps(tm)
@@ -692,9 +693,9 @@ class Store:
                 t, y = self.signal(f"{run_id}/{n}")
             except (KeyError, ValueError):
                 continue
-            row_out[n] = ov.phases(t, y, {str(k): v for k, v in (row_sig.labels or {}).items()})[:5000]
+            row_out[n] = ov.phases(t, y, {str(k): v for k, v in (row_sig.labels or {}).items()}, run_end)[:5000]
         return {"phaseSignal": ph_name, "phases": phases, "rows": row_out, "flags": ov.rank(flags),
-                "start": float(r.start_time + (r.time_offset or 0)), "end": float(r.end_time + (r.time_offset or 0)),
+                "start": float(r.start_time + (r.time_offset or 0)), "end": run_end,
                 "scanned": scanned, "partial": len(names) > WIDE}
 
     # ------------------------------------------------------------ runs x conditions

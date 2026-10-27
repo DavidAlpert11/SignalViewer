@@ -25,18 +25,23 @@ def phase_signal(names_labels: List[Tuple[str, bool]]) -> Optional[str]:
     return with_text[0] if with_text else None
 
 
-def phases(t, y, labels: Dict[str, str]) -> List[dict]:
+def phases(t, y, labels: Dict[str, str], end: Optional[float] = None) -> List[dict]:
+    """The stretches of one value of a state signal, as its lane on the plots draws them: each value
+    holds until the next sample with another value, and the LAST one until the end of the run
+    (`end`) - a mode logged only when it changes has its last sample long before the end."""
     t, y = np.asarray(t, float), np.asarray(y, float)
     if len(t) == 0:
         return []
     out: List[dict] = []
     start = 0
+    last_t = float(t[-1]) if end is None else max(float(t[-1]), float(end))
     for i in range(1, len(y) + 1):
         if i == len(y) or y[i] != y[start]:
             v = y[start]
             if np.isfinite(v):
                 key = str(int(v)) if float(v).is_integer() else str(v)
-                out.append({"a": float(t[start]), "b": float(t[i] if i < len(t) else t[-1]), "label": labels.get(key, key)})
+                out.append({"a": float(t[start]), "b": float(t[i]) if i < len(t) else last_t,
+                            "label": labels.get(key, key), "v": float(v)})
             start = i
     return out
 
