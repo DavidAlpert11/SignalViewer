@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type RunOverview } from "../api";
 import { actions, activeTab, fileLabel, rangeKey, useApp, type StripRow, type MenuItem } from "../store";
 import { fmtNum, useT } from "../i18n";
@@ -28,6 +28,25 @@ export default function OverviewStrip() {
   const condResults = useApp((s) => s.condResults);
   const sel = useApp((s) => s.stripSel);
   const theme = useApp((s) => s.theme);
+  // the strip's time axis under the plots' own: its tracks start and end where the plotting area of
+  // the first time plot does (when that plot is about as wide as the strip; else its own layout)
+  const rowsRef = useRef<HTMLDivElement>(null);
+  const [align, setAlign] = useState<{ lab: number; end: number } | null>(null);
+  useEffect(() => {
+    const measure = () => {
+      const rows = rowsRef.current;
+      const over = document.querySelector(".plot-canvas .u-over");
+      if (!rows || !over) { setAlign((a) => (a ? null : a)); return; }
+      const r = rows.getBoundingClientRect(), o = over.getBoundingClientRect();
+      const lab = Math.round(o.left - r.left - 8), end = Math.round(r.right - o.right);
+      const ok = o.width > r.width * 0.6 && lab >= 28 && end >= 0;
+      setAlign((a) => (!ok ? (a ? null : a) : a && a.lab === lab && a.end === end ? a : { lab, end }));
+    };
+    measure();
+    const id = window.setInterval(measure, 500);
+    window.addEventListener("resize", measure);
+    return () => { window.clearInterval(id); window.removeEventListener("resize", measure); };
+  }, []);
   const [hidden, setHidden] = useState(!!getPrefValue<boolean>("overviewOff"));
   const files = runs.filter((r) => r.format !== "derived");
   const tab = activeTab(ws);
@@ -187,7 +206,8 @@ export default function OverviewStrip() {
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>
         <button className="iconbtn sm ov-hide" aria-label={t("ovHide")} title={t("ovHide")} onClick={() => { setPref("overviewOff", true); setHidden(true); }}>×</button>
       </div>
-      <div className="ov-rows">
+      <div className="ov-rows" ref={rowsRef}
+        style={align ? { gridTemplateColumns: `${align.lab}px 1fr`, paddingRight: align.end } : undefined}>
         <span className="ov-label muted">{t("ovFlags")}</span>
         <div className="ov-track ov-flags">
           {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} title={t("ovView")} />}
@@ -201,7 +221,7 @@ export default function OverviewStrip() {
         {rows.map((r, i) => {
           const cond = r.kind === "cond" ? conds.find((c) => c.id === r.id) : undefined;
           return [
-            <button key={`l${i}`} className="ov-label linklike" title={t("ovRowMenu")} onContextMenu={(e) => rowMenu(e, i)} onClick={(e) => rowMenu(e, i)}>
+            <button key={`l${i}`} className="ov-label linklike" dir="auto" title={`${rowName(r)} · ${t("ovRowMenu")}`} onContextMenu={(e) => rowMenu(e, i)} onClick={(e) => rowMenu(e, i)}>
               {r.kind === "cond" ? "⧉ " : ""}{rowName(r)}</button>,
             <div key={`t${i}`} className="ov-track ov-row" data-row={keyOf(r)}>
               {ov && segsOf(r).map((p, k) => {

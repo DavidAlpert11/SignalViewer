@@ -189,7 +189,7 @@ button, input, select { font: inherit; color: inherit; }
 .plot.active { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
 .plot.dragover { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
 .plot-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 6px 8px 2px 10px; min-height: 30px; }
-.plot-title { white-space: nowrap; border: 0; background: none; font-weight: 600; color: var(--ink-strong); padding: 2px 4px; border-radius: 4px; min-width: 40px; max-width: 220px; }
+.plot-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 0; background: none; font-weight: 600; color: var(--ink-strong); padding: 2px 4px; border-radius: 4px; min-width: 40px; max-width: min(60%, 640px); }
 .plot-title:hover { background: var(--panel-2); }
 .plot-title:focus { background: var(--raised); outline: 1px solid var(--line-strong); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 180px; min-width: 0; }
@@ -1119,6 +1119,10 @@ input.fx-input { width: 100%; }
 .pick-actions { flex-direction: column; align-items: stretch; gap: 6px; }
 .pick-top { display: flex; align-items: center; gap: 6px; }
 .pick-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn-split { display: inline-flex; }
+.btn-split > .btn:first-child { border-start-end-radius: 0; border-end-end-radius: 0; }
+.btn-split > .pick-more { border-start-start-radius: 0; border-end-start-radius: 0; padding-inline: 6px;
+  border-inline-start: 1px solid color-mix(in srgb, var(--panel) 45%, transparent); }
 .pick-hint { margin: 0; font-size: 0.8077rem; color: var(--muted); }
 .pick-actions .btn.pick-clear { margin-inline-start: auto; height: 26px; padding-inline: 8px; gap: 4px; font-size: 0.885rem; }
 .grp-pick { flex: none; margin: 0 2px; }
@@ -1292,10 +1296,28 @@ input.fx-input { width: 100%; }
 .wc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .wc-group { border-inline-start: 2px solid var(--amber); padding-inline-start: 4px; }
 .wc-together { font-size: 0.8rem; opacity: 0.75; }
-.wc-row { display: grid; grid-template-columns: 16px 56px 1fr auto auto; gap: 6px; align-items: center; font-size: 0.85rem; }
+/* a row: the name on its own line (names are long: IMU[0].GyrY [rad/s]), its numbers under it */
+.wc-row { display: grid; grid-template-columns: 16px 56px auto auto 1fr 18px; gap: 0 6px; align-items: center; font-size: 0.85rem; padding: 2px 0; }
+.wc-row > input { grid-column: 1; grid-row: 1; }
+.wc-row > .wc-name { grid-column: 2 / 6; grid-row: 1; }
+.wc-row > .wc-spark { grid-column: 2; grid-row: 2; }
+.wc-row > .up, .wc-row > .down { grid-column: 3; grid-row: 2; white-space: nowrap; }
+.wc-row > .wc-rel { grid-column: 4; grid-row: 2; white-space: nowrap; }
+.wc-row > .wc-rate { grid-column: 5; grid-row: 2; text-align: end; }
+.wc-row .wc-hide { grid-column: 6; grid-row: 1; opacity: 0; } .wc-row:hover .wc-hide, .wc-row .wc-hide:focus-visible { opacity: 0.8; }
+.wc-tools { display: flex; gap: 6px; align-items: center; }
+.wc-filter { flex: 1; min-width: 0; font-size: 0.85rem; }
+.wc-count { font-size: 0.75rem; white-space: nowrap; }
+.wc-ghead { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 0.8rem; }
+.wc-gtoggle { text-align: start; }
+.wc-more, .wc-unhide { align-self: flex-start; font-size: 0.8rem; }
 .wc-row.picked { background: var(--amber-soft); }
-.wc-row .wc-rate { grid-column: 3 / -1; font-size: 0.75rem; }
-.wc-name { text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-row .wc-rate { font-size: 0.75rem; white-space: nowrap; }
+.wc-row .wc-other { grid-column: 2 / -1; justify-self: start; font-size: 0.75rem; color: var(--ink); }
+.wc-row .wc-other.same { color: var(--muted, inherit); font-weight: 600; }
+.wc-other-hint { margin: 0; }
+.wc-other > span { white-space: nowrap; }
+.wc-name { text-align: start; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wc-row .up { color: var(--danger); } .wc-row .down { color: var(--focus); }
 .wc-rel { font-variant-numeric: tabular-nums; }
 .wc-lag-out p { margin: 0 0 4px; font-size: 0.85rem; }
@@ -1326,13 +1348,21 @@ input.fx-input { width: 100%; }
 .jr-list li { display: grid; grid-template-columns: 16px 1fr 22px; gap: 6px; align-items: start; }
 .jr-list li.off .jr-text { opacity: 0.55; }
 .jr-text { text-align: start; }
+.jr-tools { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 0.8rem; }
+.jr-filter { flex: 1 1 100%; min-width: 0; font-size: 0.85rem; }
+.jr-group { display: flex; flex-direction: column; gap: 3px; }
+.jr-ghead { display: grid; grid-template-columns: 16px 1fr 22px; gap: 6px; align-items: center; font-size: 0.85rem; font-weight: 600;
+  border-top: 1px solid var(--line); padding-top: 4px; }
+.jr-gtoggle { text-align: start; }
+.jr-group .jr-list { padding-inline-start: 10px; }
 
 /* Investigation step 7: the run at a glance - flags, rows (state signals, conditions), a selection */
 .ov-strip { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 2px; }
 .ov-head { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; white-space: nowrap; }
 .ov-head select { font-size: 0.8rem; max-width: 180px; }
 .ov-head .ov-hint { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: 0.75rem; }
-.ov-rows { display: grid; grid-template-columns: minmax(60px, 120px) 1fr; gap: 2px 8px; align-items: center; }
+/* left to right like the plots' time axis (also in Hebrew), so the tracks can sit under it */
+.ov-rows { display: grid; grid-template-columns: minmax(60px, 120px) 1fr; gap: 2px 8px; align-items: center; direction: ltr; }
 .ov-label { font-size: 0.75rem; text-align: end; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-track { position: relative; height: 16px; direction: ltr; background: var(--raised); border-radius: 4px; }
 .ov-track.ov-flags { height: 12px; background: none; }

@@ -8,6 +8,7 @@ import type { RunInfo, SignalInfo } from "../api";
 import { showFileTags, actions, activeTab, fileLabel, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
+import { targetPlots } from "../pairing";
 import { clearFileItem } from "../clearing";
 import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "../files";
 import TemplateStrip from "./TemplateStrip";
@@ -131,6 +132,19 @@ export default function DataPanel() {
       { label: t("remove"), run: () => removeRun(run.id), danger: true },
     ]);
   };
+  // several selected signals, one into each plot of the tab (X beside X, Y beside Y...)
+  const onePerPlotItem = (ids: string[], after?: () => void) => {
+    const n = targetPlots(activeTab(useApp.getState().ws).plots).length;
+    return { label: t("onePerPlot", { n }), run: () => { actions.addSignalsOnePerPlot(ids); after?.(); }, disabled: n === 0 };
+  };
+  const plotMenu = (e: React.MouseEvent, ids: string[]) => {
+    const used = () => useApp.setState({ listSelUsed: true });
+    openMenu(e, [
+      { label: t("selPlotMany", { n: ids.length }), run: () => { actions.addSignals(ids); used(); } },
+      { label: t("groupEachNewPlot"), run: () => { actions.addSignalsToNewPlots(ids); used(); } },
+      onePerPlotItem(ids, used),
+    ]);
+  };
   const sigMenu = (e: React.MouseEvent, sig: SignalInfo) => {
     const sel = useApp.getState().listSel;
     if (sel.length > 1 && sel.includes(sig.id)) {
@@ -140,6 +154,7 @@ export default function DataPanel() {
       return openMenu(e, [
         { label: t("selPlotMany", { n: sel.length }), run: () => { actions.addSignals(sel); used(); } },
         { label: t("groupEachNewPlot"), run: () => { actions.addSignalsToNewPlots(sel); used(); } },
+        onePerPlotItem(sel, used),
         { label: "", run: () => {}, sep: true },
         { label: t("tfEditMany", { n: originals.length }), run: () => useApp.setState({ transformTargets: originals }), disabled: !originals.length },
         createSignalItem(sel),
@@ -336,6 +351,7 @@ export default function DataPanel() {
           onContextMenu={(e) => openMenu(e, [
             { label: t("groupAddAll"), run: () => actions.addSignals(row.ids) },
             { label: t("groupEachNewPlot"), run: () => actions.addSignalsToNewPlots(row.ids) },
+            onePerPlotItem(row.ids),
             { label: "", run: () => {}, sep: true },
             { label: t(allSel ? "unselectGroup" : "selectGroup", { n: row.ids.length }), run: () => toggleMany(row.ids) },
           ])}>
@@ -495,7 +511,11 @@ export default function DataPanel() {
           </div>
           <div className="pick-btns">
             {/* what a selection is for: the same thing to several signals at once */}
-            <button className="btn primary" onClick={() => { actions.addSignals(picked); useApp.setState({ listSelUsed: true }); }} title={t("plotSelectedHint")}>{t("plotSelected")}</button>
+            <span className="btn-split">
+              <button className="btn primary" onClick={() => { actions.addSignals(picked); useApp.setState({ listSelUsed: true }); }} title={t("plotSelectedHint")}>{t("plotSelected")}</button>
+              <button className="btn primary pick-more" aria-label={t("plotSelectedMore")} title={t("plotSelectedMore")}
+                onClick={(e) => plotMenu(e, picked)} disabled={picked.length < 2}>▾</button>
+            </span>
             <button className="btn outline" disabled={!picked.some((id) => !id.startsWith("derived/"))}
               onClick={() => useApp.setState({ transformTargets: picked.filter((id) => !id.startsWith("derived/")) })} title={t("resultEditHint")}>{t("editSelected")}</button>
             <button className="btn outline" onClick={() => useApp.setState({ analysisSeed: picked, panel: "analysis" })} title={t("resultNewHint")}>{t("newFromSelected")}</button>

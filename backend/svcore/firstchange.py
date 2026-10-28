@@ -62,10 +62,26 @@ def first_change(t, y, a: float, b: float, base: Tuple[float, float], k: float =
     else:
         level = float(np.median(yb))
         noise = float(np.median(np.abs(yb - level)) * 1.4826) or float(np.std(yb))
+        usual = np.full(len(ys), level)
+        # a signal already drifting steadily in the baseline (a used-energy counter, a GPS time, a slow
+        # climb) is judged against its own trend carried on, not a flat level - when the trend explains
+        # the baseline much better than a level does (noisy flat signals keep the level). Its spread
+        # around the level stays the yardstick, so only a change of its course counts.
+        tb = t[bm]
+        if len(yb) >= 5 and np.ptp(tb) > 0:
+            tm = float(tb.mean())
+            slope, icpt = np.polyfit(tb - tm, yb, 1)
+            res = yb - (icpt + slope * (tb - tm))
+            rnoise = float(np.median(np.abs(res - np.median(res))) * 1.4826) or float(np.std(res))
+            q = yb - np.polyval(np.polyfit(tb - tm, yb, 2), tb - tm)       # a curve: not a steady drift
+            qnoise = float(np.median(np.abs(q - np.median(q))) * 1.4826) or float(np.std(q))
+            if rnoise < 0.25 * noise and qnoise > 0.5 * rnoise:
+                usual = icpt + slope * (ts - tm)        # the yardstick stays the baseline's own spread:
+                                                        # a smooth curve is not "noise-free" and changing
         if noise <= 0:
             span = float(np.nanmax(np.abs(ys - level))) if len(ys) else 0.0
             noise = max(span * 1e-3, 1e-12)
-        dev = (ys - level) / noise
+        dev = (ys - usual) / noise
     over = np.abs(dev) > k
     out["status"] = "same"
     out["strength"] = float(np.nanmax(np.abs(dev))) if len(dev) else 0.0
@@ -81,6 +97,27 @@ def first_change(t, y, a: float, b: float, base: Tuple[float, float], k: float =
     out.update(status="changed", t=float(ts[i]), rel=float(ts[i] - a), up=bool(dev[i] > 0),
                level=level, noise=noise)
     return out
+
+
+def selection_change(t, y, a: float, b: float, base: Tuple[float, float]) -> Optional[Dict[str, object]]:
+    """How far a signal is from its usual level INSIDE a selection [a, b], in times its usual noise
+    (read in `base`, as for first_change): the selection is the thing the user marked, so most of it
+    should be unusual - the 90th percentile of the deviation, not one noisy sample. With the level
+    halfway from the usual level to there: a condition that finds stretches like it."""
+    t, y = _f(t), _f(y)
+    bm = (t >= base[0]) & (t < base[1]) & np.isfinite(y)
+    im = (t >= a) & (t <= b) & np.isfinite(y)
+    if bm.sum() < 2 or im.sum() < 1:
+        return None
+    yb, yi = y[bm], y[im]
+    level = float(np.median(yb))
+    noise = float(np.median(np.abs(yb - level)) * 1.4826) or float(np.std(yb))
+    if noise <= 0:
+        noise = max(float(np.max(np.abs(yi - level))) * 1e-3, 1e-12)
+    hi, lo = float(np.percentile(yi, 90)), float(np.percentile(yi, 10))
+    up = hi - level >= level - lo
+    peak = hi if up else lo
+    return {"score": abs(peak - level) / noise, "up": bool(up), "level": level, "threshold": level + (peak - level) / 2}
 
 
 def lag(ta, ya, tb, yb, t0: float, t1: float, max_lag: Optional[float] = None) -> Dict[str, object]:

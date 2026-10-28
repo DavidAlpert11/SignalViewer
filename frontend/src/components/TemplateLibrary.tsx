@@ -242,7 +242,8 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
     const st = useApp.getState();
     if (!r.tabs) { st.toast({ kind: "error", text: t("tplNothing2", { names: r.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
     st.toast({ kind: "info", ms: r.dropped.length ? 12000 : 4000, text: t("tplOpened", { name: tx(tpl.name, lang), n: r.tabs, p: r.plots })
-      + (r.dropped.length ? " " + t("tplLeftOut", { list: r.dropped.slice(0, 4).join(", ") + (r.dropped.length > 4 ? "…" : "") }) : "") });
+      + (r.dropped.length ? " " + t("tplLeftOut", { list: r.dropped.slice(0, 4).join(", ") + (r.dropped.length > 4 ? "…" : "") }) : "")
+      + (r.conditions ? " " + t("tplCondsAdded", { n: r.conditions }) : "") });
     onOpened();
   };
 
@@ -252,6 +253,7 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
       <div className="tpl-badges">
         <span className="badge">{tpl.builtin ? t("tplBuiltinBadge") : t("tplMineBadge")}</span>
         {tpl.includes?.length ? <span className="badge">{t("tplCollectionN", { n: tpl.includes.length })}</span> : null}
+        {tpl.conditions?.length ? <span className="badge tpl-conds" title={tpl.conditions.map((c) => `${c.name}: ${c.text || c.combine?.op}`).join("\n")}>{t("tplCondsN", { n: tpl.conditions.length })}</span> : null}
         {tpl.file && <span className="hint tpl-file" title={tpl.file}>{tpl.file.split(/[\\/]/).pop()}</span>}
       </div>
       {tpl.description && <p className="tpl-desc">{tx(tpl.description, lang)}</p>}

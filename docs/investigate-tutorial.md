@@ -21,8 +21,8 @@ the roll leaves its set point three times; in the light one it holds. Why?
 
 3. Press `d` (two cursors) and put them around the first bump (about 38.4 – 39.3 s).
 4. On the bar above the span: **Find similar**. The Investigate panel opens with a condition
-   already written from your selection. Write it plainly instead:
-   `abs(Roll - DesRoll) > 5`, name it *Roll error*. The count shows while you type:
+   already written from your selection, on the signal most unusual inside it (whichever plot is
+   active): `Roll > 9.86` or so. Write it plainly instead: `abs(Roll - DesRoll) > 5`, name it *Roll error*. The count shows while you type:
    **3 stretches** (all in the heavy run - hover the count: 0 in the light one).
 5. **Save**. The stretches are shaded on the plots. Click the name, or press `]` / `[`, to go from one
    to the next.
@@ -40,9 +40,13 @@ the roll leaves its set point three times; in the light one it holds. Why?
 ## 4. What came first
 
 9. Click the first stretch's row (both cursors on it), then **What changed?** on the bar.
-10. Choose *All signals of the files*. The order: **Wind** (about −0.44 s), **Vibe_Z** (−0.3 s),
-    **Motor3** (−0.22 s), Motor1, **Roll** (−0.02 s). The dashed lines on the plots are those moments.
-    (Battery_V moves with the motors' current.)
+10. It looks at *All signals of heavy_payload.csv* - the file of the event, not only what is on
+    the plots. The order: **Wind** (about −0.44 s), **Vibe_Z** (−0.3 s), **Motor3** (−0.22 s), Motor1,
+    **Roll** (−0.02 s). The dashed lines on the plots are those moments. (Battery_V moves with the
+    motors' current.) Under each signal: the light run at the same time. Wind, Vibe_Z and Motor3 rise
+    there too; **Roll: no change**. So the gust and the motor's answer are not enough on their own -
+    step 12 shows what is different. On a log with many signals: type in the filter, or take a row
+    or a whole group out with its × (the dashed lines go with it).
 11. Tick **Motor3** and **Roll** → **Lag between the two picked**: *Roll follows Motor3 by about
     120 ms*. **Show aligned** shifts Roll on the active plot so the two shapes meet.
 
@@ -53,6 +57,14 @@ the roll leaves its set point three times; in the light one it holds. Why?
 13. **Runs × conditions** (under the conditions): a row per run - *Payload_kg* (2.4 / 1.2, found
     by itself: it holds one value the whole run) - and a column per condition: Roll error 3 / 0,
     Motor3 saturated 3 / 0. Click the 3: the heavy run at its first stretch.
+
+## 5½. Errors and the next flight
+
+- Two lines in a plot (a flight computer's X beside the true X; *One into each plot* in the ▾ beside
+  *Plot them* puts a set of them in): ⋯ → *Error in every plot with two lines* opens their errors with
+  RMS, the largest error and when, and the flight mode where it is worst when one stands out.
+- Save a template while investigating: it keeps your conditions. Open it on the next flight's file and
+  *Runs × conditions* counts them there straight away.
 
 ## 6. Write it up
 

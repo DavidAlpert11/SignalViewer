@@ -73,7 +73,9 @@ export type FindingStatus = "open" | "explained" | "fault" | "rejected";
 /** What was on screen: the active tab, its plots' zoom windows and the cursors. */
 export interface SavedView { tab: string; ranges: Record<string, [number, number]>; t1: number | null; t2: number | null }
 /** One step of the investigation, recorded as it happens (Investigate panel; the report's "analysis steps"). */
-export interface JournalStep { id: string; at: number; text: string; view?: SavedView; include: boolean }
+/** kind: what the step was (the list groups by it); older sessions have none */
+export type StepKind = "condition" | "changed" | "lag" | "differ" | "overlay" | "finding" | "error";
+export interface JournalStep { id: string; at: number; text: string; view?: SavedView; include: boolean; kind?: StepKind }
 export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta; notes?: Note[];
   /** State lanes on every time plot of every tab (signal ids), beside each tab's own sharedStates. */
   globalStates?: string[];
