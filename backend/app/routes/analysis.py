@@ -459,6 +459,20 @@ def first_change_route(req: FirstChangeRequest):
     return {"items": store.first_changes(req.sigs, req.runs, req.a, req.b, base, max(1.0, req.k), max(1, req.persist)), "base": list(base)}
 
 
+class SuggestConditionRequest(BaseModel):
+    a: float
+    b: float
+    sigs: List[str] = []
+
+
+@router.post("/api/condition/suggest")
+def suggest_condition_route(req: SuggestConditionRequest):
+    """"Find similar": the signal most unusual inside the selection, and a condition like it."""
+    if req.b <= req.a:
+        fail(400, "Put both cursors around the moment (the second after the first).")
+    return store.suggest_condition(req.sigs, req.a, req.b)
+
+
 class LagRequest(BaseModel):
     a: str
     b: str

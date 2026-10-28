@@ -753,6 +753,34 @@ class Store:
         changed = sorted([x for x in out if x["status"] == "changed"], key=lambda x: x["t"])
         return changed + [x for x in out if x["status"] != "changed"]
 
+    def suggest_condition(self, sig_ids: List[str], a: float, b: float) -> dict:
+        """"Find similar": of these signals, the one most unusual inside the selection [a, b] (its
+        usual level read before it, as for "what changed first"), and a condition that finds
+        stretches like it. States are left out: their own value is the condition."""
+        import re
+        from svcore.firstchange import default_baseline, selection_change
+        base = default_baseline(a, b)
+        best: Optional[dict] = None
+        for sid in dict.fromkeys(sig_ids):
+            rid, _, name = sid.partition("/")
+            lr = self.runs.get(rid)
+            sg = lr.run.signals.get(name) if lr else None
+            if sg is not None and (sg.labels or self.is_discrete(sid)):
+                continue
+            try:
+                t, y = self.signal(sid)
+            except (KeyError, ValueError):
+                continue
+            r = selection_change(t, y, a, b, base)
+            if r and np.isfinite(r["score"]) and (best is None or r["score"] > best["score"]):
+                best = {"id": sid, "name": name, **r}
+        if best is None:
+            return {"id": None}
+        ref = best["name"] if re.match(r"^[A-Za-z_][\w.]*$", best["name"]) else "{" + best["name"] + "}"
+        th = np.format_float_positional(float(f"{best['threshold']:.4g}"), trim="-")
+        return {"id": best["id"], "name": best["name"], "up": best["up"], "score": best["score"],
+                "text": f"{ref} {'>' if best['up'] else '<'} {th}"}
+
     def lag_between(self, a_id: str, b_id: str, t0: float, t1: float) -> dict:
         from svcore.firstchange import lag
         ta, ya = self.signal(a_id)

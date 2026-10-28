@@ -1,5 +1,5 @@
 import { api, type RunInfo, type Template, type TplObject, type TplObjectRole, type TplPlot, type TplSlot, type TplTab } from "./api";
-import { colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type MapObject, type ObjectKind, type Plot, type Tab } from "./store";
+import { colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type MapObject, type ObjectKind, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
 import { guessRoles } from "./mapObjects";
 
@@ -101,7 +101,28 @@ export function templateFromTabs(tabs: Tab[], name: string): { template: Templat
   }));
   const slotRuns: Record<string, string> = {};
   slotOf.forEach((slot, rid) => { slotRuns[slot] = rid; });
-  return { template: { version: 2, id: "", name, slots, tabs: tplTabs }, skipped, slotRuns };
+  // the investigation's conditions go with it: they are written by signal name, so they hold in the
+  // next flight's file too (opening the template adds the ones not there yet)
+  const conds = (st.ws.conditions ?? []).map(({ visible: _v, ...c }) => c);
+  return { template: { version: 2, id: "", name, slots, tabs: tplTabs, ...(conds.length ? { conditions: conds } : {}) }, skipped, slotRuns };
+}
+
+/** The templates' conditions not in the workspace yet (by name) - new ids, combinations re-pointed;
+ *  the conditions are then evaluated on every open file (App: evaluateAll). Returns how many came. */
+function mergeConditions(ws: { conditions?: Condition[] }, tpls: Template[]): number {
+  const have = new Set((ws.conditions ?? []).map((c) => c.name));
+  const ids = new Map<string, string>();
+  const add: Condition[] = [];
+  for (const tp of tpls) for (const c of tp.conditions ?? []) {
+    if (have.has(c.name)) { const same = ws.conditions!.find((x) => x.name === c.name); if (same) ids.set(c.id, same.id); continue; }
+    have.add(c.name);
+    const id = uid("c");
+    ids.set(c.id, id);
+    add.push({ ...c, id, visible: true });
+  }
+  for (const c of add) if (c.combine) c.combine = { ...c.combine, ids: c.combine.ids.map((x) => ids.get(x) ?? x) };
+  if (add.length) ws.conditions = [...(ws.conditions ?? []), ...add];
+  return add.length;
 }
 
 /* --------------------------------------------------------------- collections */
@@ -215,7 +236,7 @@ function compareTabs(runs: RunInfo[], slot: string, lang: "en" | "he"): TplTab[]
 }
 
 /* --------------------------------------------------------------- open a template */
-export interface ApplyResult { tabs: number; plots: number; dropped: string[]; missing: string[] }
+export interface ApplyResult { tabs: number; plots: number; dropped: string[]; missing: string[]; conditions: number }
 
 /** Open a template's tabs (or only those chosen, by index into the expanded tabs) with these files:
  *  the backend resolves the names to signal ids, this turns the result into workspace tabs. */
@@ -231,7 +252,7 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
       : compareTabs(st.runs, slot, L)));
   }
   const r = await api.resolveTemplate(t, all, bind, chosen ?? null, extraTabs);
-  const res: ApplyResult = { tabs: 0, plots: 0, dropped: r.dropped, missing: r.missing };
+  const res: ApplyResult = { tabs: 0, plots: 0, dropped: r.dropped, missing: r.missing, conditions: 0 };
   let firstNew: string | null = null;
   st.commit((ws) => {
     const color = colorAllocator(ws);   // F13: one allocator for the whole apply
@@ -270,6 +291,7 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
       ws.activeTab = firstNew;
       if (emptyStart && ws.tabs.length > before) ws.tabs = ws.tabs.slice(1);
     }
+    res.conditions = mergeConditions(ws, [t, ...(t.includes ?? []).map((id) => all.find((x) => x.id === id)).filter((x): x is Template => !!x)]);
     return ws;
   });
   return res;

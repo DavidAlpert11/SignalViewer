@@ -51,5 +51,10 @@ def test_what_differs_inside(pg):
     pg.wait_for_selector(".occ-differ-list li")
     top = pg.locator(".occ-differ-list li button").all_inner_texts()[:2]
     assert set(top) == {"Speed", "RPM"}
+    # a click: RPM in a plot of its own (not squeezed into the active plot); Ctrl+click: into the active one
     pg.locator(".occ-differ-list li button", has_text="RPM").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.some(x => x.sig.endsWith('/RPM'))")
+    pg.wait_for_function("(() => { const tb = window.__sv.state().ws.tabs[0]; const p = tb.plots[tb.active];"
+                         " return p.signals.length && p.signals.every(x => x.sig.endsWith('/RPM')); })()")
+    pg.locator(".occ-differ-list li button", has_text="Speed").click(modifiers=["Control"])
+    pg.wait_for_function("(() => { const tb = window.__sv.state().ws.tabs[0]; const p = tb.plots[tb.active];"
+                         " return p.signals.some(x => x.sig.endsWith('/RPM')) && p.signals.some(x => x.sig.endsWith('/Speed')); })()")

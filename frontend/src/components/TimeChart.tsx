@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, type Series } from "../api";
-import { actions, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
+import { actions, activeTab, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
@@ -519,7 +519,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       const bar = barRef.current;
       if (!bar) return;
       const c = cursorRef.current;
-      const show = !previewOnly && index >= 0 && tab.active === index && c.on && c.dual && c.t1 !== null && c.t2 !== null && c.t1 !== c.t2;
+      // the active plot as it is now (the plot is built once; `tab` here is from then)
+      const active = useApp.getState().ws.tabs.find((x) => x.id === tab.id)?.active ?? tab.active;
+      const show = !previewOnly && index >= 0 && active === index && c.on && c.dual && c.t1 !== null && c.t2 !== null && c.t1 !== c.t2;
       if (!show) { bar.hidden = true; return; }
       const a = Math.min(c.t1!, c.t2!), b = Math.max(c.t1!, c.t2!);
       const x0 = u.scales.x.min!, x1 = u.scales.x.max!;
@@ -960,12 +962,30 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yZoom?.[0], yZoom?.[1]]);
 
-  // "Find similar": a condition from the selection - the plot's first line, above (or below) half way
-  // from its level before the selection to its peak inside it
-  const findSimilar = () => {
-    const u = uRef.current, c = useApp.getState().cursor;
-    if (!u || c.t1 === null || c.t2 === null) return;
-    const a = Math.min(c.t1, c.t2), b = Math.max(c.t1, c.t2), w = b - a;
+  // "Find similar": a condition from the selection. Of the signals on this tab's time plots, the one
+  // most unusual inside the selection (the server reads each one's usual level before it) - not just
+  // this plot's first line, which is often not what the user marked. Without an answer: this plot's
+  // first line, above (or below) half way from its level before the selection to its peak inside it.
+  const findSimilar = async () => {
+    const c = useApp.getState().cursor;
+    if (c.t1 === null || c.t2 === null) return;
+    const a = Math.min(c.t1, c.t2), b = Math.max(c.t1, c.t2);
+    const tb = activeTab(useApp.getState().ws);
+    const sigs = [...new Set(tb.plots.filter((p) => (p.mode ?? "time") === "time")
+      .flatMap((p) => p.signals.filter((s) => !s.state).map((s) => s.sig)))];
+    try {
+      const s = await api.suggestCondition(a, b, sigs);
+      if (s.id && s.text && s.name) {
+        useApp.setState({ panel: "investigate", condEdit: { id: "new", draft: { name: `${s.name} ${s.up ? "↑" : "↓"}`, text: s.text } } });
+        return;
+      }
+    } catch { /* this plot's own line, below */ }
+    findSimilarHere(a, b);
+  };
+  const findSimilarHere = (a: number, b: number) => {
+    const u = uRef.current;
+    if (!u) return;
+    const w = b - a;
     const xs = u.data[0] as number[];
     const k = plot.signals.findIndex((x) => !x.state);
     const ps = plot.signals[k];

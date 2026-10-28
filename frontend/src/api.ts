@@ -147,9 +147,13 @@ export interface ResolvedTab {
       roll?: string | null; qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null; angleUnit?: string; altRef?: string;
       trail?: boolean; size?: number }[] }[];
 }
+/** A condition kept in a template (by signal NAME, so it holds in any file that has the names). */
+export interface TplCondition { id: string; name: string; color: string; text: string; exit?: string; minDur?: number; mergeGap?: number;
+  combine?: { op: "and" | "or"; ids: string[] } }
 export interface Template {
   version: 2; id: string; name: string; description?: string; group?: string;
   slots: TplSlot[]; tabs: TplTab[]; includes?: string[];
+  conditions?: TplCondition[];       // the investigation's conditions: added (by name) when the template opens
   generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
@@ -373,6 +377,9 @@ export const api = {
     call<{ items: { name: string; effect: number; meanIn: number; meanOut: number; up: boolean; files: string[] }[] }>("/api/occurrences/differ", { runs, top }),
   firstChange: (a: number, b: number, sigs: string[], runs: string[]) =>
     call<{ items: FirstChange[]; base: [number, number] }>("/api/firstchange", { a, b, sigs, runs }),
+  /** "Find similar": the signal most unusual inside [a, b] and a condition like it (id null: none). */
+  suggestCondition: (a: number, b: number, sigs: string[]) =>
+    call<{ id: string | null; name?: string; text?: string; up?: boolean }>("/api/condition/suggest", { a, b, sigs }),
   lag: (a: string, b: string, t0: number, t1: number) => call<LagResult>("/api/lag", { a, b, t0, t1 }),
   runParams: (runs?: string[]) => call<{ params: Record<string, Record<string, number>> }>("/api/runs/params", { runs }),
   overview: (id: string, rows: string[] = []) =>

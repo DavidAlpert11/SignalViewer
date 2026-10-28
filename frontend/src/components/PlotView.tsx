@@ -9,6 +9,7 @@ import { Icon } from "../icons";
 import TimeChart from "./TimeChart";
 import SignalPicker from "./SignalPicker";
 import { createSignalItem } from "../createSignalMenu";
+import { errorsOf, plotsWithTwoLines, twoLines } from "../errors";
 import XYChart from "./XYChart";
 import GeoChart from "./GeoChart";
 import { iconSvg } from "./mapIcons";
@@ -113,6 +114,15 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
     { label: "", run: () => {}, sep: true },
+    // the error between two lines (a flight computer's X against the true X), here or in every such plot
+    ...(() => {
+      const two = twoLines(plot);
+      const all = plotsWithTwoLines();
+      const items: MenuItem[] = [];
+      if (two) items.push({ label: t("pairErrOne", { b: signalName(runs, two[1], false), a: signalName(runs, two[0], false) }), run: () => { void errorsOf([plot]); } });
+      if (all.length > 1) items.push({ label: t("pairErrAll", { n: all.length }), run: () => { void errorsOf(all); } });
+      return items.length ? [...items, { label: "", run: () => {}, sep: true }] : [];
+    })(),
     { label: t("axisLimits") + ((plot.xlim || plot.ylim) ? " •" : ""), run: () => useApp.setState({ axisDialog: plot.id }) },
     ...(showFileTags(runs) ? [{ label: t("colorByFile"), run: () => actions.colorPlotByFile(plot.id),
       disabled: !plot.signals.some((s) => fileMark(runs, s.sig)) }] : []),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { actions, activeTab, fileLabel, useApp, type Condition, type CondResult, type MenuItem } from "../store";
-import { fmtNum, useT } from "../i18n";
+import { fmtNum, useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
 import { openMenu } from "./Overlays";
 import ExprInput, { type SigOption } from "./ExprInput";
@@ -222,15 +222,17 @@ function OccSection({ cond }: { cond: Condition }) {
     try {
       const items = (await api.occDiffer(intervalsByRun(cond.id))).items;
       setDiffer(items);
-      record(t("jDiffer", { name: cond.name, list: items.slice(0, 4).map((d) => `${d.name} ${d.up ? "↑" : "↓"}`).join(", ") || "–" }), false);
+      record(t("jDiffer", { name: cond.name, list: items.slice(0, 4).map((d) => `${d.name} ${d.up ? "↑" : "↓"}`).join(", ") || "–" }), false, "differ");
     }
     catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
     finally { setBusy(false); }
   };
-  const addSignal = (n: string, files: string[]) => {
+  // a click: a plot of its own (the signal in every file it is in); Ctrl+click: into the active plot
+  const addSignal = (n: string, files: string[], toActive: boolean) => {
+    const ids = files.map((rid) => `${rid}/${n}`).filter((id) => runs.some((r) => r.signals.some((s) => s.id === id)));
     const tb = activeTab(useApp.getState().ws);
-    if (!tb.plots[tb.active]) return;
-    actions.addSignals(files.map((rid) => `${rid}/${n}`).filter((id) => runs.some((r) => r.signals.some((s) => s.id === id))));
+    if (toActive && tb.plots[tb.active]) actions.addSignals(ids);
+    else actions.addSignalsToOneNewPlot(ids);
   };
   if (!rows.length) return null;
   return (
@@ -258,7 +260,7 @@ function OccSection({ cond }: { cond: Condition }) {
         </table>
       </div>
       <div className="occ-actions">
-        <button className="btn outline sm occ-overlay" disabled={!name} onClick={() => { overlayInNewTab(cond.id, name); record(t("jOverlay", { name: cond.name, sig: name }), false); }}>{t("occOverlay")}</button>
+        <button className="btn outline sm occ-overlay" disabled={!name} onClick={() => { overlayInNewTab(cond.id, name); record(t("jOverlay", { name: cond.name, sig: name }), false, "overlay"); }}>{t("occOverlay")}</button>
         <button className="btn outline sm occ-differ" disabled={busy} onClick={findDiffer}>{t("occDiffer")}</button>
         <button className="btn outline sm" onClick={copy}>{t("copyTable")}</button>
       </div>
@@ -269,10 +271,10 @@ function OccSection({ cond }: { cond: Condition }) {
             <ol>
               {differ.map((d) => (
                 <li key={d.name}>
-                  <button className="linklike" title={t("occDifferAdd")} onClick={() => addSignal(d.name, d.files)}>{d.name}</button>
-                  {" "}<span className={d.up ? "up" : "down"}>{d.up ? "↑" : "↓"}</span>
-                  {" "}{t("occTimes", { x: fmtNum(d.effect, lang, 2) })}
-                  <span className="muted"> · {fmtNum(d.meanOut, lang, 4)} → {fmtNum(d.meanIn, lang, 4)}</span>
+                  <button className="linklike" title={t("occDifferAdd")} onClick={(e) => addSignal(d.name, d.files, e.ctrlKey || e.metaKey)}>{d.name}</button>
+                  {" "}<bdi dir="ltr"><span className={d.up ? "up" : "down"}>{d.up ? "↑" : "↓"}</span>
+                  {" "}{t("occTimes", { x: fmtNum(d.effect, lang, 2) })}</bdi>
+                  <span className="muted"> · <bdi dir="ltr">{fmtNum(d.meanOut, lang, 4)} → {fmtNum(d.meanIn, lang, 4)}</bdi></span>
                 </li>
               ))}
             </ol>
@@ -284,28 +286,65 @@ function OccSection({ cond }: { cond: Condition }) {
 }
 
 /** Investigation step 6: the steps recorded as they happened - each can go into the report (ticked)
- *  and, where it kept the view, bring it back. */
+ *  and, where it kept the view, bring it back. Grouped by kind (conditions, what changed first,
+ *  lags, findings...), each group ticked, closed or removed at once; a filter for a long list. */
+const KINDS = ["finding", "condition", "changed", "lag", "differ", "overlay", "error", "other"] as const;
 function Journal() {
   const t = useT();
   const steps = useApp((s) => s.journal);
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [closed, setClosed] = useState<string[]>([]);
   if (!steps.length) return null;
-  const set = (id: string, include: boolean) => useApp.setState({ journal: useApp.getState().journal.map((j) => (j.id === id ? { ...j, include } : j)) });
-  const drop = (id: string) => useApp.setState({ journal: useApp.getState().journal.filter((j) => j.id !== id) });
+  const put = (ids: string[], include: boolean) =>
+    useApp.setState({ journal: useApp.getState().journal.map((j) => (ids.includes(j.id) ? { ...j, include } : j)) });
+  const drop = (ids: string[]) => useApp.setState({ journal: useApp.getState().journal.filter((j) => !ids.includes(j.id)) });
+  const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = steps.filter((j) => words.every((w) => j.text.toLowerCase().includes(w)));
+  const groups = KINDS.map((k) => ({ k, items: shown.filter((j) => (j.kind ?? "other") === k) })).filter((g) => g.items.length);
+  const inReport = steps.filter((j) => j.include).length;
   return (
     <section className="occ-section journal">
       <button className="linklike jr-toggle" onClick={() => setOpen(!open)}><h3>{open ? "▾" : "▸"} {t("jTitle", { n: steps.length })}</h3></button>
       {open && <>
         <p className="hint">{t("jHint")}</p>
-        <ol className="jr-list">
-          {steps.map((j) => (
-            <li key={j.id} className={j.include ? "" : "off"}>
-              <input type="checkbox" checked={j.include} onChange={(e) => set(j.id, e.target.checked)} aria-label={t("jInclude")} title={t("jInclude")} />
-              {j.view ? <button className="linklike jr-text" title={t("jGoTo")} onClick={() => restoreView(j.view!)}>{j.text}</button> : <span className="jr-text">{j.text}</span>}
-              <button className="iconbtn sm" aria-label={t("remove")} onClick={() => drop(j.id)}><Icon.X /></button>
-            </li>
-          ))}
-        </ol>
+        <div className="jr-tools">
+          {steps.length > 5 && <input className="jr-filter" type="search" value={filter} placeholder={t("jFilter")} aria-label={t("jFilter")}
+            onChange={(e) => setFilter(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape" && filter) { e.stopPropagation(); setFilter(""); } }} />}
+          <span className="muted jr-count">{t("jInReport", { n: inReport, m: steps.length })}</span>
+          <button className="linklike jr-all" onClick={() => put(shown.map((j) => j.id), true)}>{t("jAllIn")}</button>
+          <button className="linklike jr-none" onClick={() => put(shown.map((j) => j.id), false)}>{t("jNoneIn")}</button>
+        </div>
+        {groups.map(({ k, items }) => {
+          const on = items.filter((j) => j.include).length;
+          const isOpen = !closed.includes(k);
+          return (
+            <div key={k} className="jr-group" data-kind={k}>
+              <div className="jr-ghead">
+                <input type="checkbox" checked={on === items.length} aria-label={t("jGroupAll")} title={t("jGroupAll")}
+                  ref={(el) => { if (el) el.indeterminate = on > 0 && on < items.length; }}
+                  onChange={(e) => put(items.map((j) => j.id), e.target.checked)} />
+                <button className="linklike jr-gtoggle" aria-expanded={isOpen}
+                  onClick={() => setClosed((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))}>
+                  {isOpen ? "▾" : "▸"} {t(`jk_${k}` as TKey)} <span className="muted">({items.length})</span>
+                </button>
+                <button className="iconbtn sm jr-gremove" aria-label={t("jGroupRemove")} title={t("jGroupRemove")} onClick={() => drop(items.map((j) => j.id))}><Icon.X /></button>
+              </div>
+              {isOpen && (
+                <ol className="jr-list">
+                  {items.map((j) => (
+                    <li key={j.id} className={j.include ? "" : "off"}>
+                      <input type="checkbox" checked={j.include} onChange={(e) => put([j.id], e.target.checked)} aria-label={t("jInclude")} title={t("jInclude")} />
+                      {j.view ? <button className="linklike jr-text" title={t("jGoTo")} onClick={() => restoreView(j.view!)}>{j.text}</button> : <span className="jr-text">{j.text}</span>}
+                      <button className="iconbtn sm" aria-label={t("remove")} onClick={() => drop([j.id])}><Icon.X /></button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          );
+        })}
+        {!shown.length && <p className="hint">{t("wcNoMatch")}</p>}
       </>}
     </section>
   );
