@@ -94,3 +94,41 @@ def test_a_steady_drift_is_not_a_change_but_a_change_of_its_course_is():
     rid = st.open_file(os.path.join(os.path.dirname(__file__), "..", "..", "examples", "investigate", "heavy_payload.csv")).id
     changed = [x["name"] for x in st.first_changes([], [rid], 38.46, 39.24) if x["status"] == "changed"]
     assert changed == ["Wind", "Vibe_Z", "Battery_V", "Motor3", "Motor1", "Roll"]
+
+
+def test_a_state_that_drops_is_a_change_down():
+    mode = np.where(T >= 10.5, 1.0, 3.0)
+    m = first_change(T, mode, 10, 11, (9, 9.75), discrete=True)
+    assert m["status"] == "changed" and m["up"] is False
+    assert first_change(T, -mode, 10, 11, (9, 9.75), discrete=True)["up"] is True
+
+
+def test_the_default_baseline_fits_after_the_start_of_the_data():
+    """A span early in the file (or a long one): the usual level used to be read from before the
+    first sample - every signal "no data", and the panel said nothing changed."""
+    from svcore.firstchange import default_baseline, fit_baseline
+    assert fit_baseline(default_baseline(10, 11), 10, 0.0) == default_baseline(10, 11)   # room: unchanged
+    assert fit_baseline(default_baseline(10, 40), 10, 0.0) == (0.0, 10.0)               # long span: all before it
+    assert fit_baseline(default_baseline(2, 3), 2, 0.0) == (0.0, 2.0)
+    assert fit_baseline(default_baseline(2.5, 3), 2.5, 0.0) == (0.0, 2.0)                # the lead gets shorter
+    assert fit_baseline(default_baseline(0, 1), 0, 0.0) == (0.0, 0.0)                    # nothing before
+
+
+def test_route_long_span_finds_the_change_and_an_early_one_says_there_is_no_room(tmp_path):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.store import store
+    p = tmp_path / "early.csv"
+    y = RNG.normal(0, 0.1, len(T)) + 5.0 * (T >= 12)
+    p.write_text("Time,Y\n" + "\n".join(f"{t:.2f},{v:.5f}" for t, v in zip(T, y)))
+    c = TestClient(app)
+    rid = store.open_file(str(p), {}).id
+    try:
+        r = c.post("/api/firstchange", json={"a": 6, "b": 16, "runs": [rid]}).json()
+        assert r["base"][0] >= 0 and not r["noRoom"]
+        ch = [x for x in r["items"] if x["status"] == "changed"]
+        assert ch and abs(ch[0]["t"] - 12) < 0.05
+        r = c.post("/api/firstchange", json={"a": 0, "b": 1, "runs": [rid]}).json()
+        assert r["noRoom"] and all(x["status"] == "nodata" for x in r["items"])
+    finally:
+        store.remove(rid)

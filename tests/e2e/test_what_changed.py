@@ -158,3 +158,19 @@ def test_steps_so_far_grouped_by_kind_ticked_a_group_at_a_time(pg):
     assert pg.locator(".jr-group[data-kind='condition'] .jr-list").count() == 0
     pg.locator(".jr-group[data-kind='changed'] .jr-gremove").click()        # removed
     pg.wait_for_function("!window.__sv.state().journal.some(j => j.kind === 'changed')")
+
+
+def test_a_long_span_reads_the_usual_level_inside_the_data_and_an_early_one_says_there_is_no_room(pg):
+    open_files(pg, "heavy_payload.csv")
+    pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 20, t2: 45, active: 1 } })")
+    pg.wait_for_selector(".sel-bar:not([hidden])")
+    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    pg.wait_for_selector(".wc-row")                                  # the first gust is found
+    assert "-" not in pg.inner_text(".wc-section .hint").split("read from")[1].split("–")[0]
+    pg.locator(".wc-head .iconbtn").click()
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 0, t2: 1, active: 1 } })")
+    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    pg.wait_for_selector(".wc-noroom")
+    assert pg.locator(".wc-row").count() == 0

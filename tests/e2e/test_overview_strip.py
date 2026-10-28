@@ -62,7 +62,7 @@ def test_rows_and_a_combined_selection_saved_as_a_condition(pg):
     pg.locator(".ov-phase", has_text="AUTO").click()
     pg.locator(".ov-phase", has_text="LOITER").click(modifiers=["Control"])
     pg.wait_for_selector(".ov-selbar")
-    assert "AUTO ∨ LOITER" in pg.inner_text(".ov-seltext") and "1 stretches" in pg.inner_text(".ov-seltext")
+    assert "AUTO ∨ LOITER" in pg.inner_text(".ov-seltext") and "1 stretch" in pg.inner_text(".ov-seltext")
     # and across rows: AUTO and Motor sat
     pg.locator(".ov-phase", has_text="AUTO").click()
     pg.locator(".ov-row[data-row^='c:'] .ov-phase").first.click(modifiers=["Control"])

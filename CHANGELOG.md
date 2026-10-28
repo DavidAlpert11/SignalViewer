@@ -28,6 +28,11 @@ Nothing changes in results, sessions or templates you already have.
 - *Help → About* says which engine draws the app (WebView2 / Edge / Chrome / Firefox and its version) and whether in its own window or a browser.
 
 ### Fixed
+- **What changed first** on a span early in the file, or a long one, read the usual level from before the first sample: every signal had "no data" and the panel said *No signal left its usual range* - a wrong "nothing changed". The usual level is now read inside the data (the time before the span shrinks first, then the baseline), and a span with nothing before it says so: *pick a span later in the file*. *Find similar* reads it the same way.
+- **Numbers with an exponent** in a condition or a new signal's formula (`Speed > 1e3`, `2.5E-3`, `1_000`) were read as a signal called `e3` / `E` ("missing in every file").
+- **What changed first**: a state signal that went to a lower value was shown as rising (↑).
+- **Hebrew** in *What changed first*: "no change" came before the other file's name, the file in the scope list was cut in the middle of its name, and times said "s" instead of ש׳.
+- "1 stretches" → "1 stretch" (the condition count, the strip, the stretches table, the steps list).
 - **Find similar** writes the condition on the signal most unusual inside the selection, of all the tab's plots - not on the first line of the active plot (a flag on Motor3 with the Alt plot active gave `Alt < 29.73`, 768 stretches; now `Roll > 9.86`, 3).
 - **What changed first** looks at every signal of the event's file by default, not only the plotted ones (Wind, the start of the demo's chain, is on no plot); under each signal, the same signal in the other open files at the same time - a run without the event that has the same change shows that change alone does not explain it.
 - **The overview strip** sits under the plots' time axis: a flag at 38.5 s is above 38.5 s on the plots (it was ~70 px off).

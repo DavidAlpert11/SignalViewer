@@ -110,7 +110,7 @@ export function saveCondition(c: Omit<Condition, "id" | "color" | "visible"> & P
   if (saved && !saved.combine) {
     void evaluateOne(saved).then((r) => {
       const n = Object.values(r).reduce((s, x) => s + (x.count ?? 0), 0);
-      record(translate(useApp.getState().lang, "jCondition", { name: saved.name, text: saved.text, n }), false, "condition");
+      record(translate(useApp.getState().lang, n === 1 ? "jConditionOne" : "jCondition", { name: saved.name, text: saved.text, n }), false, "condition");
     }).catch(() => {});
   }
 }
