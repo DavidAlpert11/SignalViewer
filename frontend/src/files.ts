@@ -3,6 +3,7 @@ import { hasSetting } from "./settings";
 import { isEmptyStart, offerStart } from "./smartStart";
 import { api, type JobInfo, type LoadErrorInfo } from "./api";
 import { actions, useApp } from "./store";
+import { shortWhat } from "./refreshInfo";
 import { dictionaries, translate, type Lang, type TKey } from "./i18n";
 
 /** Run a long operation as a background job: progress panel + cancel (N-04).
@@ -171,7 +172,9 @@ export async function reloadRun(id: string) {
     useApp.setState({ runs: await api.listRuns(), dataVersion: st.dataVersion + 1 });
     actions.dropStaleRanges();
     actions.pinTimeToEnd(before);
-    st.toast({ kind: "info", text: translate(st.lang, "reloaded", { name: run?.name ?? "" }) });
+    // Q114: what it changed (the same result stays on the file in the list)
+    const r = useApp.getState().runs.find((x) => x.id === id)?.lastReload;
+    st.toast({ kind: "info", text: translate(st.lang, "reloaded", { name: run?.name ?? "" }) + (r ? `\n${shortWhat(r, st.lang)}` : ""), ms: r ? 8000 : undefined, key: "refresh" });
   } catch (e) {
     useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
   }

@@ -128,7 +128,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   toast: (t) => {
     const id = uid("m");
     // the same message again replaces the old one instead of stacking up
-    set({ toasts: [...get().toasts.filter((x) => x.text !== t.text), { ...t, id }] });
+    set({ toasts: [...get().toasts.filter((x) => x.text !== t.text && !(t.key && x.key === t.key)), { ...t, id }] });
     window.setTimeout(() => get().dismiss(id), t.ms ?? (t.kind === "error" ? 9000 : 4000));
   },
   dismiss: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),

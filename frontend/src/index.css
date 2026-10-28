@@ -339,6 +339,14 @@ table.preview th.time { color: var(--amber); }
 .toast { display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 10px 12px; border-radius: 8px; background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
 .toast.error { border-inline-start: 3px solid var(--danger); }
 .toast .btn { height: 26px; }
+.toast-text { flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }   /* Q114: a line per file */
+/* Q114: the last refresh on the file row (↻ new data / ✓ no change), and the signals it changed */
+.run-fresh { flex: none; font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--faint);
+  border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; line-height: 16px; }
+.run-fresh.new { color: var(--accent); border-color: var(--accent); animation: run-fresh-in 1.6s ease-out; }
+@keyframes run-fresh-in { 0% { background: var(--accent); color: var(--panel); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .run-fresh.new { animation: none; } }
+.sig .sig-changed { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
 /* ------------------------------ empty state ------------------------------ */
 .welcome { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
