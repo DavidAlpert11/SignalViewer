@@ -8,7 +8,7 @@ export default function Toasts() {
     <div className="toasts" aria-live="polite">
       {toasts.map((m) => (
         <div key={m.id} className={`toast ${m.kind}`}>
-          <span style={{ flex: 1 }}>{m.text}</span>
+          <span className="toast-text">{m.text}</span>
           {m.action && <button className="btn outline" onClick={() => { m.action!.run(); dismiss(m.id); }}>{m.action.label}</button>}
           <button className="iconbtn" onClick={() => dismiss(m.id)} aria-label="Dismiss"><Icon.X /></button>
         </div>

@@ -327,8 +327,8 @@ async def replace_run(run_id: str, req: ReplaceRequest):
 @router.post("/api/runs/{run_id}/reload")
 async def reload_run(run_id: str):
     try:
-        lr = await asyncio.to_thread(store.reload, run_id)
-        return store.describe(lr)
+        lr, _summary = await asyncio.to_thread(store.refresh, run_id)
+        return store.describe(lr) if lr is not None else {}
     except KeyError:
         fail(404, "File is not open.")
     except LoadError as e:

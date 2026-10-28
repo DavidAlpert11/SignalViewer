@@ -11,6 +11,7 @@ import { Icon } from "../icons";
 import { targetPlots } from "../pairing";
 import { clearFileItem } from "../clearing";
 import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "../files";
+import { clock, freshLines, kindOf } from "../refreshInfo";
 import TemplateStrip from "./TemplateStrip";
 import { refreshAll } from "../live";
 import { applySyncOffset } from "../sync";
@@ -288,6 +289,17 @@ export default function DataPanel() {
     span.current = { base, fromPick: false };
     useApp.setState({ listSel: Array.from(new Set([...base, id])), listAnchor: id, listSelUsed: false });
   };
+  // Q114: signals whose data changed at their file's last refresh -> its time (a small mark in the list)
+  const changedAt = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of runs) {
+      const lr = r.lastReload;
+      if (!lr || (!lr.changed.length && !lr.added.length)) continue;
+      const time = clock(lr.at, lang);
+      for (const n of [...lr.changed, ...lr.added]) m.set(`${r.id}/${n}`, time);
+    }
+    return m;
+  }, [runs, lang]);
   const skipChange = useRef(false);       // a Shift+press on a checkbox already did the work
   const renderRow = (row: Row) => {
     if (row.kind === "run") {
@@ -297,7 +309,8 @@ export default function DataPanel() {
           ? setSClosed({ ...sClosed, [`r:${run.id}`]: !sClosed[`r:${run.id}`] })
           : setClosed({ ...closed, [run.id]: !closed[run.id] }))}
           onContextMenu={(e) => fileMenu(e, run)}
-          title={run.format === "derived" ? "" : `${run.path}\n${fmtInt(run.samples, lang)} · ${fmtNum(run.start, lang)} – ${fmtNum(run.end, lang)}${run.description ? "\n\n" + run.description : ""}`}>
+          title={run.format === "derived" ? "" : `${run.path}\n${fmtInt(run.samples, lang)} · ${fmtNum(run.start, lang)} – ${fmtNum(run.end, lang)}${
+            freshLines(run, lang).map((x) => "\n" + x).join("")}${run.description ? "\n\n" + run.description : ""}`}>
           <Icon.Chevron className="chev" />
           {run.format !== "derived" && run.color && (
             // T46: the file's colour (with several files: its tag in that colour) - click to change the colour
@@ -329,6 +342,13 @@ export default function DataPanel() {
           {(run.format === "bin" || run.format === "tlog" || run.format === "ulg" || run.format === "mcap" || run.format === "hdf5" || run.format === "parquet") && (
             <span className="badge-fmt" title={t(run.format === "bin" ? "ardupilotLog" : run.format === "tlog" ? "tlogFile" : run.format === "mcap" ? "mcapFile" : run.format === "hdf5" ? "hdf5File" : run.format === "parquet" ? "parquetFile" : "ulogFile")}>
               {run.format === "ulg" ? "PX4" : run.format === "mcap" ? "ROS 2" : run.format.toUpperCase()}</span>)}
+          {run.lastReload && !streaming && run.format !== "derived" && (() => {
+            // Q114: the last refresh, on the file itself until the next one - a toast alone was missed
+            const r = run.lastReload, isNew = kindOf(r) === "new", time = clock(r.at, lang);
+            return <span key={r.at} className={`run-fresh${isNew ? " new" : ""}`} dir="ltr"
+              title={`${t(isNew ? "rfChipNew" : "rfChipSame", { time })}\n${freshLines(run, lang).join("\n")}`}
+              aria-label={t(isNew ? "rfChipNew" : "rfChipSame", { time })}>{isNew ? "↻" : "✓"} {clock(r.at, lang).slice(-8, -3)}</span>;   // hh:mm - the seconds in the tooltip
+          })()}
           <span className="run-meta">{fmtInt(run.signals.length, lang)}</span>
           {run.format !== "derived" && <>
             <button className="iconbtn" title={t("reload")} aria-label={t("reload")} onClick={(e) => { e.stopPropagation(); reloadRun(run.id); }}><Icon.Reload /></button>
@@ -388,6 +408,8 @@ export default function DataPanel() {
         title={`${s.formula ?? s.name}${rateLine(s, lang)}\n${t("listSelHint")}`} aria-label={s.name}>
         <span className="dot" style={color ? { background: color } : undefined} />
         <span className="nm"><Highlight text={nameOnly(row.group ? memberLabel(s.name, row.group) : s.name)} q={q} /></span>
+        {changedAt.has(s.id) && <span className="sig-changed" role="img" aria-label={t("rfSigChanged", { time: changedAt.get(s.id)! })}
+          title={t("rfSigChanged", { time: changedAt.get(s.id)! })} />}
         {/* T22: the unit stays visible however long the name; the rate and a small picture of the signal */}
         {(s.transform?.unit || unitOf(s.name)) && <span className="sig-unit">{s.transform?.unit || unitOf(s.name)}</span>}
         {s.rate !== undefined && <span className="sig-rate">{fmtRate(s.rate, lang)}</span>}
