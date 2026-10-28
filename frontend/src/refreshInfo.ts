@@ -32,15 +32,16 @@ export function shortWhat(r: ReloadSummary, lang: Lang): string {
   return parts.join(" · ");
 }
 
-/** The file row's tooltip lines: when read, when the file was saved, the last refresh. */
+/** The file row's tooltip lines: since when the data is what it is (and what changed then), the last
+ *  check, when the file itself was saved. */
 export function freshLines(run: RunInfo, lang: Lang): string[] {
   const out: string[] = [];
-  if (run.readAt) out.push(translate(lang, "rfReadAt", { time: clock(run.readAt, lang) }));
+  const u = run.lastUpdate, r = run.lastReload;
+  if (u) out.push(translate(lang, "rfChangedAt", { time: clock(u.at, lang), what: shortWhat(u, lang) }));
+  else if (run.dataAt ?? run.readAt) out.push(translate(lang, "rfReadAt", { time: clock((run.dataAt ?? run.readAt)!, lang) }));
+  if (r && (!u || r.at !== u.at)) out.push(translate(lang, "rfLast", { time: clock(r.at, lang), what: shortWhat(r, lang) }));
   if (run.fileTime) out.push(translate(lang, "rfFileTime", { time: clock(run.fileTime, lang) }));
-  const r = run.lastReload;
-  if (r) {
-    out.push(translate(lang, "rfLast", { time: clock(r.at, lang), what: shortWhat(r, lang) }));
-    if (r.notCompared > 0) out.push(translate(lang, "rfNotCompared", { n: fmtInt(r.notCompared, lang) }));
-  }
+  const nc = (r ?? u)?.notCompared ?? 0;
+  if (nc > 0) out.push(translate(lang, "rfNotCompared", { n: fmtInt(nc, lang) }));
   return out;
 }

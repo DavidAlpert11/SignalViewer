@@ -65,3 +65,26 @@ def test_a_forced_refresh_counts_new_rows_and_new_columns(tmp_path):
     assert fresh is not None and fresh.read_at > before
     assert s["samplesBefore"] == 200 and s["samplesAfter"] == 250 and s["added"] == ["Gear"]
     assert not s["same"]
+
+
+def test_what_changed_stays_after_a_refresh_that_finds_nothing(tmp_path):
+    """Q114b: ↻ then ✓ - the second refresh must not hide what changed and when."""
+    st = Store()
+    p = tmp_path / "d.csv"
+    sp, rpm = np.linspace(0, 10, 200), np.zeros(200)
+    _write(p, sp, rpm)
+    rid = st.open_file(str(p), {}).id
+    opened = st.describe(st.runs[rid])["dataAt"]
+    assert opened > 0 and "lastUpdate" not in st.describe(st.runs[rid])
+    st.reload_all()                                             # nothing: the data is as opened
+    assert st.describe(st.runs[rid])["dataAt"] == opened
+    sp2 = sp.copy(); sp2[10] += 0.5
+    _write(p, sp2, rpm); _bump_mtime(p)
+    st.reload_all()
+    d = st.describe(st.runs[rid])
+    changed_at = d["dataAt"]
+    assert changed_at > opened and d["lastUpdate"]["changed"] == ["Speed"]
+    st.reload_all()                                             # nothing new
+    d = st.describe(st.runs[rid])
+    assert d["lastReload"]["same"] and not d["lastReload"]["fileChanged"]
+    assert d["dataAt"] == changed_at and d["lastUpdate"]["changed"] == ["Speed"]
