@@ -11,7 +11,7 @@ lag: the normalised cross-correlation of two signals in a window, on one time gr
 that matches A best, its strength, and whether another shift matches almost as well (a periodic
 signal - the lag is then not one number).
 """
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TypedDict
 
 import numpy as np
 
@@ -99,7 +99,14 @@ def first_change(t, y, a: float, b: float, base: Tuple[float, float], k: float =
     return out
 
 
-def selection_change(t, y, a: float, b: float, base: Tuple[float, float]) -> Optional[Dict[str, object]]:
+class SelectionChange(TypedDict):
+    score: float        # how unusual inside the selection, in times the usual noise
+    up: bool            # above its usual level (else below)
+    level: float        # the usual level
+    threshold: float    # half way from the usual level to the selection's
+
+
+def selection_change(t, y, a: float, b: float, base: Tuple[float, float]) -> Optional[SelectionChange]:
     """How far a signal is from its usual level INSIDE a selection [a, b], in times its usual noise
     (read in `base`, as for first_change): the selection is the thing the user marked, so most of it
     should be unusual - the 90th percentile of the deviation, not one noisy sample. With the level
