@@ -40,7 +40,7 @@ def test_together_in_a_new_tab(pg):
     p = S(pg, "s.ws.tabs[1].plots[0]")
     assert p["mode"] == "occ" and p["occ"]["align"] == "start" and p["signals"][0]["sig"].endswith("/Gear")
     pg.wait_for_selector(".occ-caption")
-    assert "1 stretches" in pg.inner_text(".occ-caption")
+    assert "1 stretch" in pg.inner_text(".occ-caption")
     pg.locator(".occ-align", has_text="end").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[1].plots[0].occ.align === 'end'")
 

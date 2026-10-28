@@ -1153,6 +1153,18 @@ re-sorting. CLI flags not added (each command would need them; the Python API ta
   shown*; transforms carry `unit` (store `normalize_transform`; a unit alone does not recompute values).
 - tools/live_demo.py: an aircraft and a ship written to two growing CSV files.
 
+## Review 2026-10-28 (after Q112) - Investigate fixes, and what F5 did
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q113 | Review fixes: What changed first's baseline inside the data (+ "no room" message), exponent numbers in conditions / formulas, a state dropping shown ↓, Hebrew in What changed first, "1 stretch" | S | ☑ done |
+
+Q113 notes: `firstchange.fit_baseline` (the default baseline only; one the user gives is kept) per
+signal in `store.first_changes` and `suggest_condition`; the route returns the baseline most signals
+used and `noRoom` when every signal had nothing before the span. The bare-name regex in
+`svcore/conditions.py` and `formulaRefs.ts` skips a name right after a digit or a point (`xRefs.ts`
+and `formulaHelp.ts` already did). Plurals: separate `…One` keys, as elsewhere in i18n.ts.
+
 ## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
 
 | # | Task | Size | Status |
@@ -1765,3 +1777,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-27 · Q110 (owner): findings and report - Note.status / view (investigation.ts captureView / restoreView / setFindingStatus), journal in UI state saved by currentState / applyState (no undo steps; last 200), recorded from saveCondition (its own evaluateOne - evaluateAll rounds can be overtaken), WhatChanged, lag, differ, overlay; report.py sections (HTML _sections_html, PDF pages via _section_lines, Word headings / bullets / tables); ReportPanel buildBody shared by preview and save (was duplicated), a "Findings" report tab of finding plots at their view, occ plots left out, range notes send t2. Tests: test_report_sections (2), e2e test_findings_report (2).
 - 2026-10-27 · Q111 (owner): overview strip - svcore/overview.py (phase signal by name / first with texts; stuck / saturated only for signals that change on >= 80% of samples, never in the first / last 5%, saturated only when <= 10% of the run at that edge; gaps > 20 steps and >= 0.5 s; spikes 8x the robust diff noise and back); the first rules flagged dozens of ground / set-point stretches on the example logs - now 0 on the quiet examples, the 3 built saturations on the demo, a real cluster at 138 s on copter_flight.bin. OverviewStrip above the plots (pref overviewOff), clusters close flags. Tests: test_overview (3), e2e test_overview_strip (2).
 - 2026-10-27 · Q112 (owner, while testing): ws.overviewRows (state by name / condition id; absent = the phase signal), /api/runs/{id}/overview?rows= (stretches of those state signals), ui.stripSel (picks per row, "or" = union, "and" = intersect, in the strip's run; TimeChart shades it like the condition in focus), Save as a condition (state rows -> Name == "TEXT" / number; plain conditions inlined; conditions with options -> a combined condition with the plain part saved beside it). A click on a stretch now picks; double-click zooms (it zoomed on click before). Tests: test_overview (+1), e2e test_overview_strip (+1, two adapted).
+- 2026-10-28 · Q113 (review): baseline fitted to the data + noRoom, exponent numbers, discrete direction, Hebrew in What changed first, "1 stretch". Backend 858 green, mypy / tsc clean, e2e conditions / what_changed / occurrences / overview_strip / findings_report green.

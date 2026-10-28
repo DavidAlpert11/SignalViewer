@@ -18,7 +18,7 @@ def _new(pg, name, text):
     pg.click(".cond-new")
     pg.fill(".cond-name-in", name)
     pg.fill(".cond-editor [aria-label='When']", text)
-    pg.wait_for_function("/stretches/.test(document.querySelector('.cond-preview').textContent)")
+    pg.wait_for_function("/stretch/.test(document.querySelector('.cond-preview').textContent)")
 
 
 def test_write_a_condition_and_step_to_it(pg):
@@ -26,7 +26,7 @@ def test_write_a_condition_and_step_to_it(pg):
     sig(pg, "Speed").click()
     _panel(pg)
     _new(pg, "Fast", "Speed > 30")
-    assert "1 stretches" in pg.inner_text(".cond-preview")
+    assert "1 stretch" in pg.inner_text(".cond-preview")
     pg.click(".cond-save")
     pg.wait_for_function("(window.__sv.state().ws.conditions || []).length === 1")
     pg.wait_for_function("Object.values(window.__sv.state().condResults).length === 1")
@@ -47,7 +47,7 @@ def test_find_similar_from_the_selection(pg):
     pg.wait_for_selector(".cond-editor")
     text = pg.input_value(".cond-editor [aria-label='When']")
     assert text.startswith("Speed > ")
-    pg.wait_for_function("/stretches/.test(document.querySelector('.cond-preview').textContent)")
+    pg.wait_for_function("/stretch/.test(document.querySelector('.cond-preview').textContent)")
     pg.click(".cond-save")
     pg.wait_for_function("(window.__sv.state().ws.conditions || []).length === 1")
 
@@ -79,3 +79,11 @@ def test_combine_hide_and_delete_with_undo(pg):
     pg.wait_for_function("(window.__sv.state().ws.conditions || []).length === 1")
     pg.locator(".toast", has_text="Condition deleted").locator("button", has_text="Undo").click()
     pg.wait_for_function("(window.__sv.state().ws.conditions || []).length === 3")
+
+
+def test_a_number_with_an_exponent_in_a_condition(pg):
+    """Speed > 3e1 used to look for a signal called e3 / e1 ("missing")."""
+    open_files(pg, "run_a.csv")
+    _panel(pg)
+    _new(pg, "Fast", "Speed > 3e1")
+    assert "1 stretch." in pg.inner_text(".cond-preview")

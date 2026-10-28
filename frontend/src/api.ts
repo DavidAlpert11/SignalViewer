@@ -46,6 +46,7 @@ export interface RunInfo {
 }
 /** Investigation step 4: one signal around a moment (svcore/firstchange.py). */
 export interface FirstChange { id: string; name: string; status: "changed" | "same" | "nodata"; t?: number; rel?: number; up?: boolean;
+  base?: [number, number];                // the usual level was read here (the default one fits each signal's data)
   strength?: number; rate?: number; spark?: (number | null)[] }
 export interface LagResult { status: "ok" | "nooverlap" | "short" | "flat"; lag?: number; r?: number; ambiguous?: boolean; weak?: boolean;
   resolution?: number; curve?: { lags: number[]; r: number[] } }
@@ -376,7 +377,7 @@ export const api = {
   occDiffer: (runs: Record<string, [number, number][]>, top = 25) =>
     call<{ items: { name: string; effect: number; meanIn: number; meanOut: number; up: boolean; files: string[] }[] }>("/api/occurrences/differ", { runs, top }),
   firstChange: (a: number, b: number, sigs: string[], runs: string[]) =>
-    call<{ items: FirstChange[]; base: [number, number] }>("/api/firstchange", { a, b, sigs, runs }),
+    call<{ items: FirstChange[]; base: [number, number]; noRoom?: boolean }>("/api/firstchange", { a, b, sigs, runs }),
   /** "Find similar": the signal most unusual inside [a, b] and a condition like it (id null: none). */
   suggestCondition: (a: number, b: number, sigs: string[]) =>
     call<{ id: string | null; name?: string; text?: string; up?: boolean }>("/api/condition/suggest", { a, b, sigs }),

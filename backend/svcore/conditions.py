@@ -17,11 +17,13 @@ import numpy as np
 from svcore.formula import FUNCTION_NAMES, FormulaError, evaluate
 
 Signal = Tuple[np.ndarray, np.ndarray]
-# {any text}  or  a bare name (letters incl. Hebrew, digits, _ . [ ]) - as in the app's formulas
-_TOKEN = re.compile(r'\{([^}]+)\}|([A-Za-z_\u0590-\u05FF][\w.\u0590-\u05FF\[\]]*)')
+# {any text}  or  a bare name (letters incl. Hebrew, digits, _ . [ ]) - as in the app's formulas.
+# Not right after a digit or a point: the "e3" of 1e3, the "E" of 2.5E-3 and the "_000" of 1_000 are
+# parts of a number (they used to be read as signal names - "missing: e3").
+_TOKEN = re.compile(r'\{([^}]+)\}|(?<![\d.])([A-Za-z_\u0590-\u05FF][\w.\u0590-\u05FF\[\]]*)')
 _KEEP = {"t", "pi", "e", "and", "or", "not"}
 # {Mode} == "AUTO": a state's text compared - turned into its code in each file
-_TEXT_CMP = re.compile(r'(\{[^}]+\}|[A-Za-z_\u0590-\u05FF][\w.\u0590-\u05FF\[\]]*)\s*(==|!=)\s*"([^"]*)"')
+_TEXT_CMP = re.compile(r'(\{[^}]+\}|(?<![\d.])[A-Za-z_\u0590-\u05FF][\w.\u0590-\u05FF\[\]]*)\s*(==|!=)\s*"([^"]*)"')
 MAX_STRETCHES = 5000
 
 

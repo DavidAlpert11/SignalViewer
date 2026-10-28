@@ -38,6 +38,23 @@ def default_baseline(a: float, b: float) -> Tuple[float, float]:
     return (a - lead - length, a - lead)
 
 
+def fit_baseline(base: Tuple[float, float], a: float, start: float) -> Tuple[float, float]:
+    """The default baseline when the data starts after it (a span early in the file, or a long one):
+    it used to be read from before the first sample, so every signal had "no data" and the panel
+    said nothing changed. Keep as much of it as the data allows - its length first, then the lead
+    before the span; (start, start) when nothing is before the span."""
+    lo, hi = base
+    if lo >= start:
+        return base
+    room = a - start
+    if room <= 0:
+        return (start, start)
+    length = hi - lo
+    if room >= length:
+        return (start, start + length)      # the lead gets shorter
+    return (start, a)                       # all there is before the span
+
+
 def first_change(t, y, a: float, b: float, base: Tuple[float, float], k: float = 4.0, persist: int = 3,
                  discrete: bool = False) -> Dict[str, object]:
     t, y = _f(t), _f(y)
@@ -57,7 +74,9 @@ def first_change(t, y, a: float, b: float, base: Tuple[float, float], k: float =
     if discrete:
         vals, cnt = np.unique(yb, return_counts=True)
         usual = vals[np.argmax(cnt)]
-        dev = (ys != usual).astype(float) * (k + 1)
+        # a new state counts (k + 1 times the noise); its sign says whether the new value is above or
+        # below the usual one (it used to be always "up")
+        dev = (ys != usual).astype(float) * (k + 1) * np.where(ys < usual, -1.0, 1.0)
         noise, level = 1.0, float(usual)
     else:
         level = float(np.median(yb))
