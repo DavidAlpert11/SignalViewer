@@ -56,21 +56,28 @@ are told apart by them.
 - **The stretches of a condition** (click its name): a table of them under the list (sort, click to go
   there), **Together in a new tab** - all of them on top of each other from their start, end or peak -
   and **What differs inside**: the signals that are most different inside the stretches than outside.
-- **What changed first?** On the selection bar: the signals in the order they left their usual
-  range around the span - candidates, not causes - and the lag between any two of them.
+- **What changed first?** On the selection bar: every signal of the event's file in the order it left
+  its usual range around the span - candidates, not causes - and the lag between any two of them.
+  Under each, the same signal in the other runs: a change that a run without the problem has too
+  does not explain it alone. On a long log, filter the list or take rows and groups out with ×.
   Try it all on the example *find out what went wrong*: [the tutorial](investigate-tutorial.md).
 - **Runs × conditions** (button under the conditions): every open run against every condition, with
   what tells the runs apart (a payload, a gain, the number in the file name). The odd run is marked; a
   click opens it at the stretch. *Open a folder of runs…* brings in a whole Monte-Carlo set.
 - **The run at a glance**: the strip above the plots - flags (a frozen or saturated signal, a gap, a
   glitch) and rows of state signals or conditions (**+** adds one; click a row's name to replace,
-  move or remove it). Click a stretch to pick it, Ctrl+click to add one (same row: *or*, another
+  move or remove it). Click a stretch to pick it, Ctrl or Shift+click to add one (same row: *or*, another
   row: *and*); **Save as a condition** keeps the selection. Double-click zooms; × hides the strip.
 - **Findings and the report**: give a note a status in the Inspector (open, explained, fault,
   rejected hypothesis) - it keeps the view it was found in. The Investigate panel keeps the steps you
   took; tick the ones for the report. *Include the investigation* in the Report panel puts the
   findings (with their plots), the rejected hypotheses, the steps, the conditions and how to
-  reproduce it before the plots.
+  reproduce it before the plots. Save a template while investigating: it keeps the conditions for
+  the next flight.
+- **One into each plot, and the error per axis**: select the true X, Y, Z and choose *Each in a new
+  plot* (▾ beside *Plot them*); then select the flight computer's X, Y, Z and choose *One into each
+  plot* - X goes with X by name. ⋯ on any of those plots → *Error in every plot with two lines*: the
+  errors in a new tab, with RMS, the largest error and when.
 - **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
   it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
   *Always as a state* makes a signal a lane wherever it is added, in every file.

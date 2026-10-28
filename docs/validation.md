@@ -38,7 +38,7 @@ signalviewer-cli validate --junit v.xml    # the same as JUnit XML, for a qualif
 | V22 | **Frames** – Body -> NED: the nose (body X) at pitch 30 deg, yaw 90 deg: Down component | nose up 30 deg: D = -sin 30 = -0.5 | -0.5 | -0.5 | 1e-12 | ✓ |
 | V23 | **Frames** – Body -> NED: the nose at pitch 30 deg, yaw 90 deg: East component | heading east: E = cos 30 = 0.8660 | 0.86603 | 0.86603 | 1e-12 | ✓ |
 
-**23 of 23 cases within tolerance** (Signal Viewer 1.14.0).
+**23 of 23 cases within tolerance** (Signal Viewer 1.15.0).
 
 *Measured* is what this version computes, rounded for the page. *Tolerance* is the largest allowed
 |measured − expected|; where a case reads a spectrum or a time from samples, it is the resolution of
