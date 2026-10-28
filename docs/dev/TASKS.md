@@ -1158,6 +1158,16 @@ re-sorting. CLI flags not added (each command would need them; the Python API ta
 | # | Task | Size | Status |
 |---|---|---|---|
 | Q113 | Review fixes: What changed first's baseline inside the data (+ "no room" message), exponent numbers in conditions / formulas, a state dropping shown ↓, Hebrew in What changed first, "1 stretch" | S | ☑ done |
+| Q114 | Owner (a user pressed F5 and could not tell whether the file was read again - the changes were small): the refresh result on the file row (↻ / ✓ + time, tooltip: read at, saved at, what changed), a mark on changed signals, a message per file that replaces the last one | S | ☑ done |
+
+Q114 notes: `svcore/reload_diff.py` - a blake2b fingerprint per signal (values + its time + labels)
+before and after the read, compared by name (lazy signals of a big log that were never read are not
+read for this: counted as `notCompared`). `store.refresh(run_id, force)` is the one refresh path
+(reload_all with force=False keeps the size+date shortcut; a file's ↻ and /api/runs/{id}/reload
+force). LoadedRun.read_at (open, reload, live appends, pushed data) and last_reload (kept through
+`_read_again`, e.g. a time-axis change) go out in `describe` as readAt / fileTime / lastReload - UI
+state only, never saved in sessions. UI: `refreshInfo.ts` (texts), DataPanel `.run-fresh` and
+`.sig-changed`, toasts may carry a `key` (a new one replaces the last of that key) and keep line breaks.
 
 Q113 notes: `firstchange.fit_baseline` (the default baseline only; one the user gives is kept) per
 signal in `store.first_changes` and `suggest_condition`; the route returns the baseline most signals
@@ -1778,3 +1788,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-27 · Q111 (owner): overview strip - svcore/overview.py (phase signal by name / first with texts; stuck / saturated only for signals that change on >= 80% of samples, never in the first / last 5%, saturated only when <= 10% of the run at that edge; gaps > 20 steps and >= 0.5 s; spikes 8x the robust diff noise and back); the first rules flagged dozens of ground / set-point stretches on the example logs - now 0 on the quiet examples, the 3 built saturations on the demo, a real cluster at 138 s on copter_flight.bin. OverviewStrip above the plots (pref overviewOff), clusters close flags. Tests: test_overview (3), e2e test_overview_strip (2).
 - 2026-10-27 · Q112 (owner, while testing): ws.overviewRows (state by name / condition id; absent = the phase signal), /api/runs/{id}/overview?rows= (stretches of those state signals), ui.stripSel (picks per row, "or" = union, "and" = intersect, in the strip's run; TimeChart shades it like the condition in focus), Save as a condition (state rows -> Name == "TEXT" / number; plain conditions inlined; conditions with options -> a combined condition with the plain part saved beside it). A click on a stretch now picks; double-click zooms (it zoomed on click before). Tests: test_overview (+1), e2e test_overview_strip (+1, two adapted).
 - 2026-10-28 · Q113 (review): baseline fitted to the data + noRoom, exponent numbers, discrete direction, Hebrew in What changed first, "1 stretch". Backend 858 green, mypy / tsc clean, e2e conditions / what_changed / occurrences / overview_strip / findings_report green.
+- 2026-10-28 · Q114 (owner): refresh result on the file row + changed-signal marks + per-file message (reload_diff.py, store.refresh). Tests: backend test_refresh_summary.py, e2e test_refresh_feedback.py.

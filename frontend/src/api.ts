@@ -43,7 +43,14 @@ export interface RunInfo {
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file
+  readAt?: number;                       // Q114: when the data was last read from the disk (epoch s)
+  fileTime?: number;                     // Q114: when the file itself was last saved (epoch s)
+  lastReload?: ReloadSummary;            // Q114: the last refresh's result (until the next one)
 }
+/** Q114: what a refresh changed (backend/svcore/reload_diff.py). */
+export interface ReloadSummary { at: number; fileChanged: boolean; same: boolean;
+  changed: string[]; nChanged: number; added: string[]; nAdded: number; removed: string[]; nRemoved: number;
+  notCompared: number; samplesBefore: number; samplesAfter: number }
 /** Investigation step 4: one signal around a moment (svcore/firstchange.py). */
 export interface FirstChange { id: string; name: string; status: "changed" | "same" | "nodata"; t?: number; rel?: number; up?: boolean;
   base?: [number, number];                // the usual level was read here (the default one fits each signal's data)
