@@ -46,6 +46,8 @@ export interface RunInfo {
   readAt?: number;                       // Q114: when the data was last read from the disk (epoch s)
   fileTime?: number;                     // Q114: when the file itself was last saved (epoch s)
   lastReload?: ReloadSummary;            // Q114: the last refresh's result (until the next one)
+  dataAt?: number;                       // Q114b: when the data last changed (opened / new data found)
+  lastUpdate?: ReloadSummary;            // Q114b: the refresh that found that change (kept until the next change)
 }
 /** Q114: what a refresh changed (backend/svcore/reload_diff.py). */
 export interface ReloadSummary { at: number; fileChanged: boolean; same: boolean;

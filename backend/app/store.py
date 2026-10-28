@@ -152,6 +152,11 @@ class LoadedRun:
     # the last refresh (F5, Refresh all, its ↻): when, whether the file had changed on the disk, and
     # what changed in the data (svcore/reload_diff.compare) - None until it is refreshed
     last_reload: Optional[Dict] = None
+    # Q114b: when the data last CHANGED (opened, a refresh that found new data, live data) and that
+    # refresh's result - kept until the data changes again, so a later "no change" refresh does not
+    # hide what changed and when
+    data_at: float = 0.0
+    last_update: Optional[Dict] = None
 
 
 def _stat(path: str) -> Optional[Tuple[int, int]]:
@@ -476,7 +481,7 @@ class Store:
         report.update(getattr(run, "load_report", None) or {})
         lr = LoadedRun(id=uuid.uuid4().hex[:8], run=run, name=name, load_report=report)
         lr.stat = _stat(path)
-        lr.read_at = time.time()
+        lr.read_at = lr.data_at = time.time()
         with self._lock:
             self.runs[lr.id] = lr
             self.order.append(lr.id)
@@ -493,11 +498,11 @@ class Store:
                         fresh = LoadedRun(id=rid, run=run, name=old.name, load_report=dict(run.load_report or {}))
                         fresh.run.time_offset = old.run.time_offset
                         fresh.run.description = old.run.description
-                        fresh.last_change = fresh.read_at = time.time()
+                        fresh.last_change = fresh.read_at = fresh.data_at = time.time()
                         self.runs[rid] = fresh
                         return fresh, False
             lr = LoadedRun(id=uuid.uuid4().hex[:8], run=run, name=name, load_report=dict(run.load_report or {}))
-            lr.last_change = lr.read_at = time.time()
+            lr.last_change = lr.read_at = lr.data_at = time.time()
             self.runs[lr.id] = lr
             self.order.append(lr.id)
             return lr, True
@@ -942,6 +947,8 @@ class Store:
         summary = compare(before, after, names0, list(fresh.run.signals), n0, int(fresh.run.sample_count))
         summary.update(at=now, fileChanged=st != lr.stat)
         fresh.last_reload = summary
+        if not summary["same"]:
+            fresh.last_update, fresh.data_at = summary, now
         return fresh, summary
 
     def _read_again(self, lr: "LoadedRun", settings: dict, offset: Optional[float] = None) -> "LoadedRun":
@@ -956,6 +963,7 @@ class Store:
             fresh.id, fresh.name = lr.id, lr.name
             fresh.last_change = lr.last_change
             fresh.last_reload = lr.last_reload          # (a refresh sets its own afterwards)
+            fresh.last_update, fresh.data_at = lr.last_update, lr.data_at
             self.runs[lr.id] = fresh
         if run_format(fresh.run) == "csv":
             from svcore.csv_loader import prune_cache
@@ -1018,7 +1026,7 @@ class Store:
                         else:                                # caught mid-write: next poll
                             self.writing.append(rid)
                         continue
-                    fresh.last_change = now
+                    fresh.last_change = fresh.data_at = now
                     fresh.pending_since = 0.0
                     changed.append(rid)
                     continue
@@ -1035,14 +1043,14 @@ class Store:
                 n = -1
             if n > 0:
                 lr.last_change = now
-                lr.read_at = now
+                lr.read_at = lr.data_at = now
                 if fmt != "csv" or lr.run.byte_offset == st[0]:
                     lr.stat = st                    # (a CSV row still being written is read next time)
                 changed.append(rid)
             elif n < 0:
                 try:
                     fresh = self.reload(rid)
-                    fresh.last_change = now
+                    fresh.last_change = fresh.data_at = now
                     changed.append(rid)
                 except Exception as e:          # e.g. locked while Excel saves: try again next poll
                     self.poll_errors[rid] = str(e) or e.__class__.__name__
@@ -1351,6 +1359,8 @@ class Store:
             **({"readAt": lr.read_at} if lr.read_at else {}),
             **({"fileTime": lr.stat[1] / 1e9} if lr.stat else {}),
             **({"lastReload": lr.last_reload} if lr.last_reload else {}),
+            **({"dataAt": lr.data_at} if lr.data_at else {}),
+            **({"lastUpdate": lr.last_update} if lr.last_update else {}),
         }
 
     def describe_derived(self) -> Optional[dict]:
