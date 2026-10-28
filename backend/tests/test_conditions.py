@@ -26,6 +26,19 @@ def test_names_and_text_states():
     assert names == ["Mode", "Speed"] and "== 4" in expr and "not v1 > 3" in expr
 
 
+
+def test_numbers_written_with_an_exponent_are_numbers_not_names():
+    """Speed > 1e3 used to ask for a signal "e3" (missing in every file); 2.5E-3 for "E"."""
+    assert names_in("Speed > 1e3") == ["Speed"]
+    assert names_in("Speed > 2.5E-3 or Alt < 1_000") == ["Speed", "Alt"]
+    expr, names = resolve("{Speed} > 1.5e3 and Mode == \"AUTO\"", lambda n: {"3": "AUTO"} if n == "Mode" else None)
+    assert names == ["Speed", "Mode"] and expr == "v0 > 1.5e3 and v1 == 3"
+    from svcore.conditions import evaluate_condition
+    t = np.arange(0, 10, 0.1)
+    r = evaluate_condition("Speed > 1e3", lambda n: (t, t * 300) if n == "Speed" else None, lambda n: None,
+                           lambda a, tb, yb: np.interp(a, tb, yb))
+    assert r["count"] == 1 and abs(r["intervals"][0][0] - 3.4) < 0.11
+
 def _csv(tmp_path, name, rows):
     p = tmp_path / name
     p.write_text("Time,Speed,Mode\n" + "".join(f"{i * 0.5},{s},{m}\n" for i, (s, m) in enumerate(rows)))

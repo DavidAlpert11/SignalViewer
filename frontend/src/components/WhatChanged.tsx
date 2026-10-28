@@ -28,6 +28,7 @@ export default function WhatChanged() {
   const [opened, setOpened] = useState<string[]>([]);
   const [items, setItems] = useState<FirstChange[] | null>(null);
   const [base, setBase] = useState<[number, number] | null>(null);
+  const [noRoom, setNoRoom] = useState(false);       // nothing before the span to learn the usual level
   const [err, setErr] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [showSame, setShowSame] = useState(false);
@@ -76,7 +77,7 @@ export default function WhatChanged() {
     api.firstChange(span.a, span.b, scope === "tab" ? tabSigs : [], scope === "all" ? allFiles : scope === "file" ? [fileRid!] : [])
       .then((r) => {
         if (gone) return;
-        setItems(r.items); setBase(r.base);
+        setItems(r.items); setBase(r.base); setNoRoom(!!r.noRoom);
         const top = r.items.filter((x) => x.status === "changed").slice(0, 4).map((x) => `${x.name} (${(x.rel! >= 0 ? "+" : "") + x.rel!.toFixed(2)} s)`);
         record(translate(useApp.getState().lang, "jChanged", { a: span.a.toPrecision(6), b: span.b.toPrecision(6), list: top.join(", ") || "–" }), true, "changed");
       })
@@ -160,9 +161,9 @@ export default function WhatChanged() {
         <button className="iconbtn" aria-label={t("close")} onClick={close}><Icon.X /></button>
       </div>
       <p className="hint">{t("wcSpan", { a: fmtNum(span.a, lang, 6), b: fmtNum(span.b, lang, 6) })}
-        {base ? ` ${t("wcBase", { a: fmtNum(base[0], lang, 6), b: fmtNum(base[1], lang, 6) })}` : ""}</p>
+        {base && base[1] > base[0] ? ` ${t("wcBase", { a: fmtNum(base[0], lang, 6), b: fmtNum(base[1], lang, 6) })}` : ""}</p>
       <select className="wc-scope" value={scope} onChange={(e) => setScope(e.target.value as "file" | "tab" | "all")} aria-label={t("wcScope")}>
-        {fileRid && <option value="file">{t("wcScopeFile", { file: fileLabel(runs, fileRid), n: runs.find((r) => r.id === fileRid)?.signals.length ?? 0 })}</option>}
+        {fileRid && <option value="file">{t("wcScopeFile", { file: `\u2068${fileLabel(runs, fileRid)}\u2069`, n: runs.find((r) => r.id === fileRid)?.signals.length ?? 0 })}</option>}
         <option value="tab">{t("wcScopeTab", { n: tabSigs.length })}</option>
         <option value="all">{t("wcScopeAll", { n: total })}</option>
       </select>
@@ -172,7 +173,7 @@ export default function WhatChanged() {
         <>
           <p className="wc-warn">{t("wcNotCause")}{coarse > 0.02 ? ` ${t("wcResolution", { ms: fmtNum(coarse * 1000, lang, 3) })}` : ""}</p>
           {otherFiles.length > 0 && <p className="hint wc-other-hint">{t("wcOtherHint")}</p>}
-          {!changed.length && <p className="hint">{t("wcNone")}</p>}
+          {noRoom ? <p className="hint wc-noroom">{t("wcNoRoom")}</p> : !changed.length && <p className="hint">{t("wcNone")}</p>}
           {changed.length > 0 && (
             <div className="wc-tools">
               <input className="wc-filter" type="search" value={filter} placeholder={t("wcFilter")} aria-label={t("wcFilter")}
@@ -191,7 +192,7 @@ export default function WhatChanged() {
                 {g.length > 1 && (
                   <div className="wc-ghead" title={t("wcTogether", { ms: fmtNum(Math.max(...g.map((x) => 1000 / (x.rate || 1e9))), lang, 3) })}>
                     <button className="linklike wc-gtoggle" aria-expanded={open} onClick={() => toggleGroup(k)}>
-                      {open ? "▾" : "▸"} {t("wcGroup", { n: g.length })} <span dir="ltr">{rel(g[0])} … {rel(g[g.length - 1])} s</span>
+                      {open ? "▾" : "▸"} {t("wcGroup", { n: g.length })} <span><bdi dir="ltr">{rel(g[0])} … {rel(g[g.length - 1])}</bdi> {t("seconds")}</span>
                     </button>
                     <button className="iconbtn sm wc-ghide" aria-label={t("wcHideGroup")} title={t("wcHideGroup")} onClick={() => hide(g.map((x) => x.id))}><Icon.X /></button>
                   </div>
@@ -203,14 +204,15 @@ export default function WhatChanged() {
                     <button className="linklike wc-name" dir="ltr" title={`${signalName(runs, x.id)} - ${t("occDifferAdd")}`}
                       onClick={(e) => (e.ctrlKey || e.metaKey ? actions.addSignals([x.id]) : actions.addSignalsToOneNewPlot([x.id]))}>{x.name}</button>
                     <span className={x.up ? "up" : "down"} dir="ltr">{x.up ? "↑" : "↓"} {t("occTimes", { x: fmtNum(Math.min(x.strength ?? 0, 999), lang, 2) })}</span>
-                    <span className="wc-rel" dir="ltr">{(x.rel! >= 0 ? "+" : "") + fmtNum(x.rel!, lang, 3)} s</span>
+                    <span className="wc-rel"><bdi dir="ltr">{(x.rel! >= 0 ? "+" : "") + fmtNum(x.rel!, lang, 3)}</bdi> {t("seconds")}</span>
                     <span className="muted wc-rate"><bdi>{scope === "file" ? "" : `${fileLabel(runs, x.id.slice(0, x.id.indexOf("/")))} · `}</bdi>{x.rate ? <bdi dir="ltr">{fmtNum(x.rate, lang, 3)} Hz</bdi> : ""}</span>
                     {(others[x.name] ?? []).map((o) => {
                       const f = fileLabel(runs, o.id.slice(0, o.id.indexOf("/")));
                       return (
-                        <span key={o.id} dir="ltr" className={`wc-other${o.status === "changed" ? "" : " same"}`}>
+                        // (no dir="ltr" on the row: in Hebrew it put "no change" before the file name)
+                        <span key={o.id} className={`wc-other${o.status === "changed" ? "" : " same"}`}>
                           <bdi>{f}</bdi>: {o.status === "changed"
-                            ? <span dir="ltr">{o.up ? "↑" : "↓"} {t("occTimes", { x: fmtNum(Math.min(o.strength ?? 0, 999), lang, 2) })} · {(o.rel! >= 0 ? "+" : "") + fmtNum(o.rel!, lang, 3)} s</span>
+                            ? <><bdi dir="ltr">{o.up ? "↑" : "↓"} {t("occTimes", { x: fmtNum(Math.min(o.strength ?? 0, 999), lang, 2) })} · {(o.rel! >= 0 ? "+" : "") + fmtNum(o.rel!, lang, 3)}</bdi> {t("seconds")}</>
                             : t("wcOtherSame")}
                         </span>
                       );
@@ -230,7 +232,7 @@ export default function WhatChanged() {
             <button className="linklike wc-same" onClick={() => setShowSame(!showSame)}>{showSame ? "▾" : "▸"} {t("wcSame", { n: same.length })}</button>
           )}
           {showSame && <p className="hint">{same.map((x) => signalName(runs, x.id)).join(", ")}</p>}
-          {nodata.length > 0 && <p className="hint">{t("wcNoData", { names: nodata.map((x) => signalName(runs, x.id)).join(", ") })}</p>}
+          {nodata.length > 0 && !noRoom && <p className="hint">{t("wcNoData", { names: nodata.map((x) => signalName(runs, x.id)).join(", ") })}</p>}
           <div className="occ-actions">
             <button className="btn outline sm wc-stack" disabled={!shown.length} onClick={stacked}>
               {picked.length ? t("wcStackPicked", { n: picked.length }) : t("wcStackTop")}</button>

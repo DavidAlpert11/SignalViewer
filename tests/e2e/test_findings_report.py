@@ -41,7 +41,7 @@ def test_journal_and_report_sections(pg):
     _panel(pg)
     _new(pg, "Fast", "Speed > 30")
     pg.click(".cond-save")
-    pg.wait_for_function("window.__sv.state().journal.some(j => j.text.includes('Fast') && j.text.includes('1 stretches'))")
+    pg.wait_for_function("window.__sv.state().journal.some(j => j.text.includes('Fast') && j.text.includes('1 stretch'))")
     pg.locator(".jr-toggle").click()
     assert "Fast" in pg.inner_text(".jr-list")
     _note(pg, "an idea", 2, 4)

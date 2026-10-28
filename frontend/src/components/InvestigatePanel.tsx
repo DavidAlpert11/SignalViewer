@@ -158,7 +158,7 @@ function CondEditor({ cond, before }: { cond?: Condition; before?: number }) {
       </>}
       <p className={`hint cond-preview${preview?.err ? " err" : ""}`}>
         {preview?.err ? preview.err
-          : preview ? (cond && before !== undefined && before !== preview.n ? t("condCountChange", { a: before, b: preview.n }) : t("condCount", { n: preview.n }))
+          : preview ? (cond && before !== undefined && before !== preview.n ? t("condCountChange", { a: before, b: preview.n }) : t(preview.n === 1 ? "condCountOne" : "condCount", { n: preview.n }))
             + (preview.hint ? ` ${preview.hint}` : "")
           : t("condHint")}
       </p>

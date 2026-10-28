@@ -735,7 +735,8 @@ class Store:
                       base: Optional[Tuple[float, float]] = None, k: float = 4.0, persist: int = 3) -> List[dict]:
         """Investigation step 4: for these signals (and every numeric signal of these files), when
         each first left its usual range around the event [a, b] - candidates in time order."""
-        from svcore.firstchange import default_baseline, first_change
+        from svcore.firstchange import default_baseline, first_change, fit_baseline
+        fit = base is None                      # the default one is fitted to each signal's data
         base = base or default_baseline(a, b)
         ids = list(dict.fromkeys(sig_ids + [f"{rid}/{n}" for rid in run_ids if rid in self.runs for n in self.runs[rid].run.signals]))
         out: List[dict] = []
@@ -748,8 +749,9 @@ class Store:
             except (KeyError, ValueError):
                 continue
             discrete = bool(sg is not None and (sg.labels or self.is_discrete(sid)))
-            r = first_change(t, y, a, b, base, k, persist, discrete)
-            out.append({"id": sid, "name": name, **r})
+            own = fit_baseline(base, a, float(np.min(t))) if fit and len(t) else base
+            r = first_change(t, y, a, b, own, k, persist, discrete)
+            out.append({"id": sid, "name": name, "base": [float(own[0]), float(own[1])], **r})
         changed = sorted([x for x in out if x["status"] == "changed"], key=lambda x: x["t"])
         return changed + [x for x in out if x["status"] != "changed"]
 
@@ -758,7 +760,7 @@ class Store:
         usual level read before it, as for "what changed first"), and a condition that finds
         stretches like it. States are left out: their own value is the condition."""
         import re
-        from svcore.firstchange import default_baseline, selection_change
+        from svcore.firstchange import default_baseline, fit_baseline, selection_change
         base = default_baseline(a, b)
         best: Optional[dict] = None
         for sid in dict.fromkeys(sig_ids):
@@ -771,7 +773,7 @@ class Store:
                 t, y = self.signal(sid)
             except (KeyError, ValueError):
                 continue
-            r = selection_change(t, y, a, b, base)
+            r = selection_change(t, y, a, b, fit_baseline(base, a, float(np.min(t))) if len(t) else base)
             if r and np.isfinite(r["score"]) and (best is None or r["score"] > best["score"]):
                 best = {"id": sid, "name": name, **r}
         if best is None:

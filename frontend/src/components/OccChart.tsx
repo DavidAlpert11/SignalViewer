@@ -83,7 +83,7 @@ export default function OccChart({ plot, index, onLoading }: Props) {
       <div className="env-canvas" ref={wrapRef} />
       <div className="env-caption occ-caption">
         {!cond ? t("occNoCond") : <>
-          <b style={{ color: cond.color }}>{cond.name}</b> · {t("occSummary", { n })}
+          <b style={{ color: cond.color }}>{cond.name}</b> · {t(n === 1 ? "occSummaryOne" : "occSummary", { n })}
           {win?.some((w) => w.cut) ? ` · ${t("occCut")}` : ""}
           {" · "}{t("occAlign")}{" "}
           {(["start", "end", "peak"] as const).map((a) => (

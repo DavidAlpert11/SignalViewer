@@ -252,7 +252,7 @@ export default function OverviewStrip() {
       </div>
       {sel && sel.rid === rid && (
         <div className="ov-selbar">
-          <span className="ov-seltext">{selText} · {t("condCount", { n: sel.iv.length })}</span>
+          <span className="ov-seltext">{selText} · {t(sel.iv.length === 1 ? "condCountOne" : "condCount", { n: sel.iv.length })}</span>
           <button className="btn outline sm ov-save" disabled={!sel.iv.length} onClick={saveSel}>{t("ovSave")}</button>
           <button className="iconbtn sm" aria-label={t("close")} onClick={() => useApp.setState({ stripSel: null })}>×</button>
         </div>

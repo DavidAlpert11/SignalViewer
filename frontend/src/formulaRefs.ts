@@ -65,6 +65,7 @@ export function resolveFormula(textIn: string, runs: RunInfo[], lang: (k: string
     if (error) return whole;
     let name = (braced ?? bare ?? "").trim();
     if (bare) {
+      if (/[\d.]/.test(text[offset - 1] ?? "")) return whole;                    // 1e3, 2.5E-3, 1_000: a number
       const after = text.slice(offset + whole.length).trimStart();
       if (after.startsWith("(") && FORMULA_FUNCS.includes(bare)) return whole;     // a function call
       if (CONSTS.has(bare)) return whole;

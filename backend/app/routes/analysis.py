@@ -2,7 +2,7 @@
 
 import asyncio
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from fastapi import APIRouter, Query
@@ -454,9 +454,17 @@ def first_change_route(req: FirstChangeRequest):
     """Investigation step 4: which signals changed first around [a, b] (candidates, not causes)."""
     if req.b <= req.a:
         fail(400, "Put both cursors around the moment (the second after the first).")
-    from svcore.firstchange import default_baseline
-    base = (req.baseA, req.baseB) if req.baseA is not None and req.baseB is not None and req.baseB > req.baseA else default_baseline(req.a, req.b)
-    return {"items": store.first_changes(req.sigs, req.runs, req.a, req.b, base, max(1.0, req.k), max(1, req.persist)), "base": list(base)}
+    from collections import Counter
+    given: Optional[Tuple[float, float]] = None
+    if req.baseA is not None and req.baseB is not None and req.baseB > req.baseA:
+        given = (req.baseA, req.baseB)
+    items = store.first_changes(req.sigs, req.runs, req.a, req.b, given, max(1.0, req.k), max(1, req.persist))
+    # the baseline shown: the one most signals used (the default is fitted to where each one's data starts)
+    used = Counter(tuple(x["base"]) for x in items if x.get("base"))
+    base = list(used.most_common(1)[0][0]) if used else [req.a, req.a]
+    # nothing before the span to learn the usual level from: say so (it is not "nothing changed")
+    no_room = bool(items) and all(x["status"] == "nodata" for x in items) and base[1] - base[0] <= 0
+    return {"items": items, "base": base, "noRoom": no_room}
 
 
 class SuggestConditionRequest(BaseModel):
