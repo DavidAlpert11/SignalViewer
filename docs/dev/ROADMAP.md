@@ -649,6 +649,14 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 15 — 1.15.0: Investigate; time axis while working; blank window offline (owner's report 2026-10-26 and the review of 2026-10-28). Spec: TASKS.md Q98-Q121. Prepared 2026-10-28.
+- [x] F45 A blank white window offline (Q98). Done 2026-10-26: build target Chromium 87 / Firefox 78, polyfills, the WebView2 version check, safe graphics, the engine in About.
+- [x] T74 Time axis while working (Q99). Done 2026-10-26.
+- [x] Map objects from ECEF / NED / ENU, vector smoothing, the object dialog (Q101-Q103). Done 2026-10-26.
+- [x] Investigate, the spec's steps 1-7 (Q104-Q112). Done 2026-10-26 - 2026-10-27: state lanes, conditions, stretches together and what differs, what changed first and lag, the example and tutorial, runs x conditions, findings and the report, the run at a glance and its rows.
+- [x] The review of the investigation (Q113-Q119). Done 2026-10-28: Find similar on the signal that changed, What changed first on the event's file beside the other runs and on long logs, one into each plot, the error per axis, a candidate in a plot of its own, steps grouped, templates keep the conditions.
+- [ ] Q120 a flag shows its signal; Q121 any signal in the stretches table.
+
 ## Milestone 14 — 1.14.0: big logs, live map, cache, typed signal choice (owner's report 2026-10-25). Spec: TASKS.md Q92-Q97. Prepared 2026-10-26.
 - [x] T73 Very large ArduPilot logs (Q92). Done 2026-10-26: bin_loader `_find_heads` (blocks, threads), run-by-run chain, `LazyField` / models `LazySignal` + `LAZY_BUDGET`, float32 fields, index cache (`_index_save` / `_index_load`).
 - [x] F40 The browser-mode server stopping (Q93). Done 2026-10-26: any request alive, `/api/bye`, 5 min, never during a job; `reload` job; "server stopped" message.

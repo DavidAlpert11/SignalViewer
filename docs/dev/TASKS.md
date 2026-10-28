@@ -13,14 +13,13 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.14.0 prepared 2026-10-26** (Milestone 14 in ROADMAP.md, Q92-Q97 - the owner's
-  report of 2026-10-25: big .bin logs, the browser server stopping, live on the map, the cache, the
-  Windows window, typed signal choice and unit conversions): the owner pushes, waits for the green
-  `ci` run, tags `v1.14.0` and pushes the tag (build.yml: packages, PyPI, draft release), then
-  publishes the draft. Released before: up to 1.13.0.
-- Checked here for 1.14.0 (Linux): see the log line of 2026-10-26. Not run here: Windows / macOS (CI
-  and the owner) - in particular Q96's window fix -, the Windows installer, a real 1.2 GB log (a
-  synthetic one of the same size, and the real example log value by value).
+- Branch `main`. **1.15.0 prepared 2026-10-28** (Milestone 15 in ROADMAP.md, Q98-Q119 - the
+  investigation, the time axis while working, the blank window offline, errors per axis): the owner
+  pushes, waits for the green `ci` run, tags `v1.15.0` and pushes the tag (build.yml: packages, PyPI,
+  draft release), then publishes the draft. Released before: up to 1.14.0.
+- Checked here for 1.15.0 (Linux): see the log line of 2026-10-28. Not run here: Windows / macOS (CI
+  and the owner) - in particular Q98's old-WebView2 path -, the Windows installer, the investigation on
+  the owner's own logs (only the examples and a synthetic navigation log). Open after it: Q120, Q121.
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
@@ -1098,6 +1097,15 @@ run_c deletes exactly the three copies).
 | Q110 | Investigation spec step 6 - findings (note status + saved view), journal, report investigation sections (HTML / PDF / Word) with finding plots, reproduce appendix | M | ☑ done |
 | Q111 | Investigation spec step 7 - the run at a glance: phases + conservative automatic flags (svcore/overview.py, /api/runs/{id}/overview), OverviewStrip | M | ☑ done |
 | Q112 | Overview strip rows (state signals / conditions: add, replace, move, remove) and a combined selection (or in a row, and across rows) saved as a condition (owner, while testing) | M | ☑ done |
+| Q113 | Review of the investigation (owner, 2026-10-28): Find similar on the signal most unusual in the selection (/api/condition/suggest, firstchange.selection_change); What changed first on the event's file, the other runs under each row; the strip under the plots' time axis; the selection bar on a plot made active later; Hebrew numbers / names | M | ☑ done |
+| Q114 | What changed first on a long log (owner: "many groups at different times"): filter, × on rows / groups (their marks too), groups that close, measured from their first row; a steady drift judged against its own trend (firstchange: line vs curve) | M | ☑ done |
+| Q115 | One into each plot (owner: true X/Y/Z beside the flight computer's): pairing.ts by the part of the names that differs, else by order; one colour for the set; the ▾ menu beside Plot them | M | ☑ done |
+| Q116 | The error per axis: errors.ts (sub, reused), /api/error-segments for RMS / max / when and the worst flight mode (1.5 x the next), an "Errors" tab, the cursor on the largest | M | ☑ done |
+| Q117 | A candidate (What changed first / What differs inside) opens in a plot of its own, Ctrl+click: active plot; long plot titles cut | S | ☑ done |
+| Q118 | Steps so far grouped by kind (JournalStep.kind): a group ticked / closed / removed, a filter, "n of m in the report" | S | ☑ done |
+| Q119 | Templates keep the conditions (Template.conditions, merged by name on apply, counted in the message) | S | ☑ done |
+| Q120 | Open: a click on a strip flag also shows the flagged signal (it zooms there, the signal may be on no plot) | S | ☐ open |
+| Q121 | Open: the stretches table offers any signal of the file, not only the condition's (the tutorial's step 7 asks for Motor3) | S | ☐ open |
 
 Q98 notes: `vite.config.ts` build.target and run.py `MIN_CHROMIUM` / `MIN_FIREFOX` must name the same
 engine (test_launcher checks). The WebView2 runtime is NOT bundled (owner's decision: a better
@@ -1765,3 +1773,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-27 · Q110 (owner): findings and report - Note.status / view (investigation.ts captureView / restoreView / setFindingStatus), journal in UI state saved by currentState / applyState (no undo steps; last 200), recorded from saveCondition (its own evaluateOne - evaluateAll rounds can be overtaken), WhatChanged, lag, differ, overlay; report.py sections (HTML _sections_html, PDF pages via _section_lines, Word headings / bullets / tables); ReportPanel buildBody shared by preview and save (was duplicated), a "Findings" report tab of finding plots at their view, occ plots left out, range notes send t2. Tests: test_report_sections (2), e2e test_findings_report (2).
 - 2026-10-27 · Q111 (owner): overview strip - svcore/overview.py (phase signal by name / first with texts; stuck / saturated only for signals that change on >= 80% of samples, never in the first / last 5%, saturated only when <= 10% of the run at that edge; gaps > 20 steps and >= 0.5 s; spikes 8x the robust diff noise and back); the first rules flagged dozens of ground / set-point stretches on the example logs - now 0 on the quiet examples, the 3 built saturations on the demo, a real cluster at 138 s on copter_flight.bin. OverviewStrip above the plots (pref overviewOff), clusters close flags. Tests: test_overview (3), e2e test_overview_strip (2).
 - 2026-10-27 · Q112 (owner, while testing): ws.overviewRows (state by name / condition id; absent = the phase signal), /api/runs/{id}/overview?rows= (stretches of those state signals), ui.stripSel (picks per row, "or" = union, "and" = intersect, in the strip's run; TimeChart shades it like the condition in focus), Save as a condition (state rows -> Name == "TEXT" / number; plain conditions inlined; conditions with options -> a combined condition with the plain part saved beside it). A click on a stretch now picks; double-click zooms (it zoomed on click before). Tests: test_overview (+1), e2e test_overview_strip (+1, two adapted).
+- 2026-10-28 · Q113-Q119 (review of the investigation with the owner, applied as one commit + a mypy fix) and 1.15.0 prepared: version 1.15.0 (version.py, CITATION.cff, build.bat, the installer, install.md); CHANGELOG 1.15.0 with highlights - the fixes to features not released yet folded into their entries; README (en / he), features, guide (en / he), tutorial reviewed; validation report regenerated (23 / 23, only the version line changed). Here: backend 854 + 12 skipped, mypy clean, tsc + build clean, validate 23 / 23, mkdocs --strict, e2e 240 / 240 in one process on this tree with the rebuilt frontend/dist (test_globe_without_webgl_falls_back timed out in 2 of 5 full runs while the review was made, alone 3 / 3 - its path untouched).

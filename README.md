@@ -41,6 +41,7 @@ network. Open the files, see what is wrong, compare, report; then make the same 
 - **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives, or any file a logger keeps writing; the map and 3D objects stay at the newest data.
 - **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline.
 - **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA); the same change on many signals at once (`x*8` or `sin(x)` on each one selected); unit conversions (rad → deg, m/s → km/h, m → ft…).
+- **Investigate** – from "something went wrong" to an answer you can show: name the moments that matter (`abs(Roll - DesRoll) > 5`), see which signal left its usual range first and how long after, check it against the other runs, the error per axis in one click, findings and an investigation report. Try it on the built-in example with a known answer.
 - **Reports** – offline HTML, PDF and Word; one per file from the command line.
 - **CI** – `signalviewer-cli check` (limits) and `compare` (against a golden run) with exit codes and JUnit XML.
 - **Any recording** – CAN with a `.dbc`, raw binary packets from a layout (ICD), or your own format as a short Python reader.
@@ -195,6 +196,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - לבנות תצוגה: עד 9 גרפים מקושרים בטאב, שני סמנים עם הפרש וסטטיסטיקה, FFT, ספקטרוגרם, מפה ותלת־ממד.
 - להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה. העבודה שנעשתה על קובץ אחד מועתקת לקובץ אחר בצעד אחד (שינויים, סיגנלים חדשים, גרפים - כל אחד מהם), קבצים מקושרים ממשיכים לקבל אותה, ואפשר לנקות עבודה של קובץ אחד בלבד.
 - לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – המרת יחידות (רדיאנים למעלות, ‏m/s ל־km/h ועוד) ופעולות Python משלכם.
+- לחקור: מ"משהו השתבש בטיסה" לתשובה שאפשר להראות – לתת שם לרגעים שחשובים (<code dir="ltr">abs(Roll - DesRoll) > 5</code>), לראות איזה סיגנל יצא מהטווח הרגיל שלו ראשון ובכמה זמן לפני, לבדוק מול הריצות האחרות, שגיאה לכל ציר בקליק אחד, ממצאים ודוח חקירה. אפשר לנסות על דוגמה מובנית שהתשובה שלה ידועה.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.
 - לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים.
