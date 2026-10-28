@@ -5,6 +5,7 @@ import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, 
 import { useApp } from "../state";
 import { signalUnit } from "../../units";
 import { peersOf } from "../../peers";
+import { contrastColor, pairWithPlots } from "../../pairing";
 
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
  *  that group is coloured by file, so "which line is which file" is the colour. */
@@ -85,6 +86,41 @@ export const plotActions = {
       return ws;
     });
   },
+  /** One signal into each of the tab's plots - paired by the part of the names that differs (X / Y / Z),
+   *  else by order; signals with no plot left get new ones. One undo step; a message says what went
+   *  where (and undoes it). */
+  addSignalsOnePerPlot(ids: string[]) {
+    const st = useApp.getState();
+    const tab0 = activeTab(st.ws);
+    const pr = pairWithPlots(ids, tab0.plots, tab0.active);
+    if (!pr.pairs.length) { plotActions.addSignalsToNewPlots(ids); return; }
+    const label = (p: Plot) => p.title || (p.signals.find((s) => !s.state)?.sig ?? "").replace(/^[^/]*\//, "");
+    const lines = pr.pairs.map(({ sig, plot }) => `${sig.slice(sig.indexOf("/") + 1)} → ${label(tab0.plots[plot])}`);
+    let full = false;
+    const color = contrastColor(TRACE_COLORS, pr.pairs.flatMap(({ plot }) => tab0.plots[plot].signals.map((s) => s.color)));
+    st.commit((ws) => {
+      const tab = activeTab(ws);
+      for (const { sig, plot } of pr.pairs) {
+        const p = tab.plots[plot];
+        if (!p || p.signals.some((s) => s.sig === sig)) continue;
+        p.signals.push({ ...newPlotSignal(sig, ws), color });
+        sameNameByFile(p, sig);
+      }
+      for (const id of pr.extra) {
+        const np = newPlot();
+        np.signals.push(newPlotSignal(id, ws));
+        if (placePlot(tab, np) < 0) { full = true; break; }
+      }
+      return ws;
+    });
+    if (full) tabFullMessage();
+    const L = st.lang;
+    st.toast({ kind: "info", undoesWs: true, ms: 9000,
+      text: translate(L, pr.byName ? "onePerPlotByName" : "onePerPlotByOrder", { list: lines.join(", ") })
+        + (pr.extra.length ? ` ${translate(L, "onePerPlotExtra", { n: pr.extra.length })}` : "")
+        + ` ${translate(L, "onePerPlotErrHint")}`,
+      action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } });
+  },
   /** Each signal in a plot of its own (empty plots are used first), as one undo step. */
   addSignalsToNewPlots(ids: string[]) {
     let full = false;
@@ -114,6 +150,23 @@ export const plotActions = {
       const tab = activeTab(ws);
       const p = newPlot();
       p.signals.push(newPlotSignal(sig, ws));
+      const at = placePlot(tab, p);
+      if (at < 0) { full = true; return ws; }
+      tab.active = at;
+      return ws;
+    });
+    if (full) tabFullMessage();
+  },
+  /** These signals together in one new plot (the same signal of several files: coloured by file).
+   *  From the investigation's lists: a candidate is looked at on its own scale, not squeezed into
+   *  whatever plot is active. One undo step. */
+  addSignalsToOneNewPlot(ids: string[]) {
+    if (!ids.length) return;
+    let full = false;
+    useApp.getState().commit((ws) => {
+      const tab = activeTab(ws);
+      const p = newPlot();
+      for (const id of ids) { p.signals.push(newPlotSignal(id, ws)); sameNameByFile(p, id); }
       const at = placePlot(tab, p);
       if (at < 0) { full = true; return ws; }
       tab.active = at;

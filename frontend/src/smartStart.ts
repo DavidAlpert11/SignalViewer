@@ -77,7 +77,8 @@ export async function openSuggested(card: StartCard) {
     useApp.setState({ startCard: card.health?.length ? { ...card, template: null } : null });
     if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
     st.toast({ kind: "info", ms: res.dropped.length ? 12000 : 4000, text: translate(L, "tplOpened", { name: tx(t.name, L), n: res.tabs, p: res.plots })
-      + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "") });
+      + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
+      + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : "") });
   } catch (e) {
     st.toast({ kind: "error", text: String((e as Error).message) });
   }
@@ -110,7 +111,8 @@ export async function openTemplateNow(id: string): Promise<boolean> {
     if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return true; }
     useApp.setState({ startCard: null });
     st.toast({ kind: "info", ms: res.dropped.length ? 12000 : 5000, text: translate(L, "tplOpened", { name: tx(t.name, L), n: res.tabs, p: res.plots })
-      + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : ""),
+      + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
+      + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : ""),
       action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } });
     return true;
   } catch {

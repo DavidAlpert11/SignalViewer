@@ -2,7 +2,7 @@
    of steps recorded as they happen, and the report's investigation sections built from them. */
 import { api } from "./api";
 import { translate, type TKey } from "./i18n";
-import { activeTab, fileLabel, rangeKey, uid, useApp, type FindingStatus, type JournalStep, type SavedView } from "./store";
+import { activeTab, fileLabel, rangeKey, uid, useApp, type FindingStatus, type JournalStep, type SavedView, type StepKind } from "./store";
 
 /** What is on screen now (to bring it back later). */
 export function captureView(): SavedView {
@@ -20,9 +20,9 @@ export function restoreView(v: SavedView) {
 }
 
 /** Add a step to the journal (no undo step: it is a record, not an edit). */
-export function record(text: string, withView = true) {
+export function record(text: string, withView = true, kind?: StepKind) {
   const st = useApp.getState();
-  const step: JournalStep = { id: uid("j"), at: Date.now(), text, include: true, ...(withView ? { view: captureView() } : {}) };
+  const step: JournalStep = { id: uid("j"), at: Date.now(), text, include: true, ...(kind ? { kind } : {}), ...(withView ? { view: captureView() } : {}) };
   useApp.setState({ journal: [...st.journal, step].slice(-200) });
 }
 
@@ -36,7 +36,7 @@ export function setFindingStatus(id: string, status: FindingStatus | "") {
     ws.notes = (ws.notes ?? []).map((x) => (x.id === id ? { ...x, status: status || undefined, ...(view ? { view } : {}) } : x));
     return ws;
   });
-  if (status) record(translate(st.lang, "jFinding", { text: n.text, status: translate(st.lang, `fs_${status}` as TKey) }));
+  if (status) record(translate(st.lang, "jFinding", { text: n.text, status: translate(st.lang, `fs_${status}` as TKey) }), true, "finding");
 }
 
 const when = (t: number, t2?: number) => (t2 !== undefined ? `${t.toPrecision(6)} – ${t2.toPrecision(6)} s` : `${t.toPrecision(6)} s`);

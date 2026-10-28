@@ -60,3 +60,37 @@ def test_the_investigate_example_is_offered():
     from app.routes.fs import list_examples
     ids = {x["id"]: x["paths"] for x in list_examples()}
     assert "investigate" in ids and all(p.endswith(".csv") for p in ids["investigate"])
+
+
+def test_find_similar_picks_the_signal_that_is_unusual_inside_the_selection():
+    """Not the first line of the active plot: of the tab's signals, the one furthest from its
+    usual level inside the selection (states left out), with a condition that finds its stretches."""
+    import os
+    demo = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "investigate")
+    st = Store()
+    heavy = st.open_file(os.path.join(demo, "heavy_payload.csv")).id
+    light = st.open_file(os.path.join(demo, "light_payload.csv")).id
+    sigs = [f"{r}/{n}" for r in (heavy, light) for n in ("Mode", "Alt", "DesRoll", "Roll", "Pitch")]
+    s = st.suggest_condition(sigs, 38.46, 39.24)
+    assert s["id"] == f"{heavy}/Roll" and s["up"] and s["text"].startswith("Roll > ")
+    th = float(s["text"].split("> ")[1])
+    t, y = st.signal(f"{heavy}/Roll")
+    above = np.diff(np.r_[0, (np.asarray(y) > th).astype(int)]) == 1
+    assert above.sum() == 3                                   # the three roll errors
+    assert st.suggest_condition([f"{heavy}/Mode"], 38.46, 39.24) == {"id": None}
+
+
+def test_a_steady_drift_is_not_a_change_but_a_change_of_its_course_is():
+    """A counter that only goes on counting (used energy, a clock) is judged against its own trend;
+    a slow curve keeps the level (a straight line carried on from a curve would leave it); a step
+    on top of a drift still counts."""
+    base = (7.0, 9.0)
+    ramp = 0.3 * T + RNG.normal(0, 0.001, len(T))
+    assert first_change(T, ramp, 10.0, 13.0, base)["status"] == "same"
+    assert first_change(T, ramp + 2.0 * (T >= 10.2), 10.0, 13.0, base)["status"] == "changed"
+    # a slow curve keeps the level: the demo's DesRoll (a sine near its top) is not in the chain
+    import os
+    st = Store()
+    rid = st.open_file(os.path.join(os.path.dirname(__file__), "..", "..", "examples", "investigate", "heavy_payload.csv")).id
+    changed = [x["name"] for x in st.first_changes([], [rid], 38.46, 39.24) if x["status"] == "changed"]
+    assert changed == ["Wind", "Vibe_Z", "Battery_V", "Motor3", "Motor1", "Roll"]
