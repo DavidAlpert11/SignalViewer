@@ -1,5 +1,5 @@
-"""Q114: what F5 (Refresh all) did, on the file itself: ↻ / ✓ and the time on its row, a mark on the
-signals that changed, and a message per file - not changed on the disk / saved again with the same
+"""Q114: what F5 (Refresh all) did, on the file itself: the time of its data on its row from the start,
+↻ / ✓ after a refresh, a mark on the signals that changed (until the data changes again), and a message per file - not changed on the disk / saved again with the same
 data / which signals changed. A small change in the data used to leave the user unsure.
 
     python -m pytest tests/e2e/test_refresh_feedback.py -q
@@ -35,6 +35,9 @@ def test_f5_says_what_changed_on_the_file_and_its_signals(pg):
     _write(path)
     open_files(pg, "fresh.csv")
     rid = S(pg, "s.runs.find(r => r.name === 'fresh.csv').id")
+    chip = pg.locator(".run-fresh")                    # from the start: since when the data is what it is
+    assert chip.count() == 1 and "↻" not in chip.inner_text() and "✓" not in chip.inner_text()
+    assert "read from the disk at" in chip.get_attribute("title")
 
     time.sleep(0.05)
     _write(path, bump=0.001)               # one sample of one signal
@@ -44,11 +47,14 @@ def test_f5_says_what_changed_on_the_file_and_its_signals(pg):
     assert pg.locator(".sig-changed").count() == 1
     assert "Speed" in pg.locator(".sig", has=pg.locator(".sig-changed")).inner_text()
     title = pg.locator(".run-fresh").get_attribute("title")
-    assert "Data read from the disk at" in title and "File last saved at" in title
+    assert "1 signal changed (Speed)" in title and "File last saved at" in title
 
     text = _refresh(pg)                    # nothing touched
     assert "not changed on the disk" in text and text.count("Refresh") == 1     # replaces the last one
-    assert pg.locator(".run-fresh.new").count() == 0 and pg.locator(".sig-changed").count() == 0
+    # ✓: checked, nothing new - but what changed before stays: the mark and the tooltip
+    assert pg.locator(".run-fresh.new").count() == 0 and "✓" in pg.locator(".run-fresh").inner_text()
+    assert pg.locator(".sig-changed").count() == 1
+    assert "Data changed at the refresh of" in pg.locator(".run-fresh").get_attribute("title")
     assert S(pg, f"s.runs.find(r => r.id === '{rid}').lastReload.fileChanged") is False
 
     st = os.stat(path)                     # saved again, the same data

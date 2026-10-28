@@ -11,7 +11,7 @@ import { Icon } from "../icons";
 import { targetPlots } from "../pairing";
 import { clearFileItem } from "../clearing";
 import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "../files";
-import { clock, freshLines, kindOf } from "../refreshInfo";
+import { clock, freshLines } from "../refreshInfo";
 import TemplateStrip from "./TemplateStrip";
 import { refreshAll } from "../live";
 import { applySyncOffset } from "../sync";
@@ -293,7 +293,7 @@ export default function DataPanel() {
   const changedAt = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of runs) {
-      const lr = r.lastReload;
+      const lr = r.lastUpdate;                 // the last refresh that found new data: kept until the next one
       if (!lr || (!lr.changed.length && !lr.added.length)) continue;
       const time = clock(lr.at, lang);
       for (const n of [...lr.changed, ...lr.added]) m.set(`${r.id}/${n}`, time);
@@ -342,12 +342,18 @@ export default function DataPanel() {
           {(run.format === "bin" || run.format === "tlog" || run.format === "ulg" || run.format === "mcap" || run.format === "hdf5" || run.format === "parquet") && (
             <span className="badge-fmt" title={t(run.format === "bin" ? "ardupilotLog" : run.format === "tlog" ? "tlogFile" : run.format === "mcap" ? "mcapFile" : run.format === "hdf5" ? "hdf5File" : run.format === "parquet" ? "parquetFile" : "ulogFile")}>
               {run.format === "ulg" ? "PX4" : run.format === "mcap" ? "ROS 2" : run.format.toUpperCase()}</span>)}
-          {run.lastReload && !streaming && run.format !== "derived" && (() => {
-            // Q114: the last refresh, on the file itself until the next one - a toast alone was missed
-            const r = run.lastReload, isNew = kindOf(r) === "new", time = clock(r.at, lang);
-            return <span key={r.at} className={`run-fresh${isNew ? " new" : ""}`} dir="ltr"
-              title={`${t(isNew ? "rfChipNew" : "rfChipSame", { time })}\n${freshLines(run, lang).join("\n")}`}
-              aria-label={t(isNew ? "rfChipNew" : "rfChipSame", { time })}>{isNew ? "↻" : "✓"} {clock(r.at, lang).slice(-8, -3)}</span>;   // hh:mm - the seconds in the tooltip
+          {!streaming && run.format !== "derived" && !!(run.dataAt ?? run.readAt) && (() => {
+            // Q114: since when the data is what it is - from the moment the file is opened. ↻ (amber,
+            // a short flash): the last refresh found new data; ✓: checked since, nothing new. What
+            // changed stays in the tooltip and on the signals until the data changes again.
+            const r = run.lastReload, u = run.lastUpdate, dataAt = (run.dataAt ?? run.readAt)!;
+            const isNew = !!r && !!u && r.at === u.at, checked = !!r && !isNew;
+            const label = isNew ? t("rfChipNew", { time: clock(r!.at, lang) })
+              : checked ? t("rfChipChecked", { time: clock(r!.at, lang), data: clock(dataAt, lang) })
+              : t("rfChipOpened", { time: clock(dataAt, lang) });
+            return <span key={r?.at ?? "opened"} className={`run-fresh${isNew ? " new" : checked ? " checked" : ""}`} dir="ltr"
+              title={`${label}\n${freshLines(run, lang).join("\n")}`} aria-label={label}>
+              {isNew ? "↻ " : checked ? "✓ " : ""}{clock(dataAt, lang).slice(-8, -3)}</span>;   // hh:mm - the seconds in the tooltip
           })()}
           <span className="run-meta">{fmtInt(run.signals.length, lang)}</span>
           {run.format !== "derived" && <>
@@ -381,7 +387,14 @@ export default function DataPanel() {
               ref={(el) => { if (el) el.indeterminate = nSel > 0 && !allSel; }}
               onClick={(e) => e.stopPropagation()} onChange={() => toggleMany(row.ids)} />
           )}
-          <span className="nm">{row.key}</span><span className="run-meta">{nSel > 0 && !allSel ? `${fmtInt(nSel, lang)}/` : ""}{fmtInt(row.ids.length, lang)}</span>
+          <span className="nm">{row.key}</span>
+          {(() => {                             // Q114: a closed group still says that something in it changed
+            const ch = row.ids.filter((id) => changedAt.has(id));
+            if (!ch.length) return null;
+            const lab = t("rfGroupChanged", { n: fmtInt(ch.length, lang), time: changedAt.get(ch[0])! });
+            return <span className="grp-changed" title={lab} aria-label={lab}>{fmtInt(ch.length, lang)}</span>;
+          })()}
+          <span className="run-meta">{nSel > 0 && !allSel ? `${fmtInt(nSel, lang)}/` : ""}{fmtInt(row.ids.length, lang)}</span>
         </div>
       );
     }
