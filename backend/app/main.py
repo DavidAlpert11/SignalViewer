@@ -33,6 +33,7 @@ from app.routes import (
     pyops,
     readers,
     session,
+    sweep,
     system,
     templates,
     video,
@@ -149,6 +150,7 @@ async def _unexpected_error(request: Request, exc: Exception):
 
 app.include_router(files.router)
 app.include_router(fleet.router)
+app.include_router(sweep.router)
 app.include_router(live.router)
 app.include_router(data.router)
 app.include_router(analysis.router)

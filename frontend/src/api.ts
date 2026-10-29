@@ -161,7 +161,7 @@ export interface Template {
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
 
-async function call<T>(url: string, body?: unknown, method = body === undefined ? "GET" : "POST"): Promise<T> {
+export async function call<T>(url: string, body?: unknown, method = body === undefined ? "GET" : "POST"): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, {

@@ -8,6 +8,14 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps**, a second work area, for the results of a run envelope - a table with a row per run,
+  parameters and scenario columns first, the outputs last (CSV, Parquet or Excel). Step one: open the
+  table and see each column's role guessed - *Parameters* (what we choose), *Must hold across*
+  (scenario, wind, seed - what we don't), *Outputs*, or *Not used* (the same in every run) - correct
+  any of them, and see the shape of the study: how many parameter sets, how many combinations each
+  must hold in, which sets miss one and which runs gave no result. A million-row table opens in
+  about a second; reopening it reads a compressed copy kept in the cache. An example table is in
+  `examples/sweeps` (with the script that makes it, also in a big size for timing).
 - **Work areas** (the way Mission Planner has its screens): the top row now holds what is the same
   everywhere - the name, the area, search, live, settings, theme, language, help - and the row under
   it is the area's own: its session, plot tabs, templates, undo / redo, Clear and the Inspector. Today
