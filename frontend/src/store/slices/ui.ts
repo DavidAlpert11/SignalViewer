@@ -5,10 +5,13 @@ import { uid, type JournalStep } from "../model";
 import type { CondResult, MenuItem, PanelId, PickerRequest, Toast } from "../types";
 import type { AppState } from "../state";
 import { inspectorPref } from "../inspector";
+import { DEFAULT_AREA, type AreaId } from "../../areas";
 
 export interface UiSlice {
   theme: "light" | "dark";
   lang: Lang;
+  /** the work area on screen (areas.ts); the panels, dialogs and tabs below are the Recordings area's */
+  area: AreaId;
   panel: PanelId | null;
   inspectorOpen: boolean;
   inspectorScope: "active" | "all";
@@ -78,6 +81,7 @@ export interface UiSlice {
 export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppState>["getState"]): UiSlice => ({
   theme: window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark",
   lang: (navigator.language || "").startsWith("he") ? "he" : "en",
+  area: DEFAULT_AREA,
   panel: "data",
   inspectorOpen: inspectorPref() === "open",   // closed until there is something to show (T08)
   inspectorScope: "active",

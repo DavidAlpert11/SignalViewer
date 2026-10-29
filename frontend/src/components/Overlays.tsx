@@ -14,6 +14,9 @@ function onEscape(e: KeyboardEvent) {
   escStack[escStack.length - 1].current();
 }
 
+/** true while a dialog takes Escape - the app's own Escape (notices, selection) then waits */
+export const escapeTaken = () => escStack.length > 0;
+
 export function useEscape(close: () => void, active = true) {
   const ref = useRef(close);
   useEffect(() => { ref.current = close; }, [close]);   // the newest close, without re-stacking

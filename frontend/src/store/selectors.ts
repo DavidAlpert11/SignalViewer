@@ -100,8 +100,11 @@ export function colorByFile(plot: Plot, runs: RunInfo[], all = false) {
   return chosen.length;
 }
 
+/** the width a new line gets; a dense line at this width is drawn on the canvas fast path (TimeChart) */
+export const DEFAULT_LINE_WIDTH = 1.5;
+
 export function newPlotSignal(sig: string, ws: Workspace): PlotSignal {
-  const ps: PlotSignal = { sig, color: nextColor(ws), width: 1.5, scale: 1, offset: 0 };
+  const ps: PlotSignal = { sig, color: nextColor(ws), width: DEFAULT_LINE_WIDTH, scale: 1, offset: 0 };
   if (alwaysState(ws, sig)) ps.state = true;
   return ps;
 }

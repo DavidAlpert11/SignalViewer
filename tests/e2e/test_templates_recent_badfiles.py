@@ -28,11 +28,11 @@ def test_templates_in_file_panel_for_csv(pg):
 
 def test_top_bar_templates_menu(pg):
     open_files(pg, "run_a.csv")
-    pg.click(".topbar [aria-label='Templates']")
+    pg.click(".areabar [aria-label='Templates']")
     menu_item(pg, "Open a template or collection")
     pg.wait_for_selector(".tpl-lib")
     pg.keyboard.press("Escape")
-    pg.click(".topbar [aria-label='Templates']")
+    pg.click(".areabar [aria-label='Templates']")
     menu_item(pg, "New collection")
     pg.wait_for_selector(".tpl-editor select[aria-label='Include a template']")
 
@@ -152,7 +152,7 @@ def test_template_files_are_found_from_tabs_and_matched_by_name(pg):
     rid = S(pg, "s.runs.find(r => r.name === 'run_a.csv').id")
     pg.evaluate(f"fetch('/api/runs/{rid}', {{method: 'DELETE'}})")
     pg.evaluate("window.__sv.setState({ runs: window.__sv.state().runs.filter(r => r.name !== 'run_a.csv') })")
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
     pg.locator(".tpl-item", has_text="Speed of A").click()
     pg.wait_for_selector(".tpl-slot-note:has-text('run_a.csv is not open')")
     assert pg.locator(".tpl-slot select").first.evaluate("e => e.options[e.selectedIndex].text") == "run_b.csv"
@@ -172,7 +172,7 @@ def _save_tab_as(pg, name):
 def test_new_menu_closes_and_is_hidden_while_editing(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
     pg.locator(".tpl-side-top .btn.primary").click()
     pg.wait_for_selector(".menu.ctx")
     pg.locator(".tpl-lib .dialog-head h2").click()                # a click elsewhere in the dialog closes it

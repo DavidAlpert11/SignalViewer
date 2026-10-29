@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, type Series } from "../api";
-import { actions, activeTab, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
+import { actions, activeTab, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
@@ -163,9 +163,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const sigs = ok.map((v) => v.ps);
     for (const l of pv) tables.push([Array.from(l.x), Array.from(l.y, (v) => (Number.isFinite(v) ? v : null))] as uPlot.AlignedData);
     const data = tables.length === 1 ? tables[0] : uPlot.join(tables, tables.map(() => [1]));
-    // dense: about a point per pixel or more (decimated min/max) - drawn as a 1-device-pixel line,
-    // which the canvas strokes on its fast path; a wider line over a dense zig-zag cost ~7x more
-    // per redraw without a GPU and looks the same (a solid band)
+    // dense: about a point per pixel or more (decimated min/max) - see lineWidth below
     const dense = ok.map(({ s }) => s.decimated || s.n >= widthBucket * 0.75);
     return { data, sigs, dense, previewLabels: pv.map((l) => l.label) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,9 +174,15 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   /* what the plot is BUILT from (series, their styles, a preview line): new data alone is set
      into the existing plot instead of destroying and recreating it on every zoom step */
   const structKey = aligned
-    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}:${s.axis === "right" ? "R" : ""}`).join("|") + `|${aligned.previewLabels.join("|")}`
+    // limits too: they are drawn by a hook that reads the sigs the plot was built with - a new limit
+    // alone set no new data, so its dashed line never appeared (only after another style change)
+    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}:${s.axis === "right" ? "R" : ""}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}`).join("|") + `|${aligned.previewLabels.join("|")}`
     : "none";
-  const lineWidth = (a: NonNullable<typeof aligned>, k: number) => (a.dense[k] ? 1 / dpr() : a.sigs[k].width);
+  /* a dense line at the default width is drawn 1 device pixel wide (the canvas fast path: a wider
+     stroke over a dense zig-zag cost ~7x per redraw without a GPU). A width the user chose is always
+     kept - on a smooth signal it is visible, and ignoring it looked like a broken setting */
+  const lineWidth = (a: NonNullable<typeof aligned>, k: number) =>
+    (a.dense[k] && a.sigs[k].width <= DEFAULT_LINE_WIDTH ? 1 / dpr() : a.sigs[k].width);
 
   /* report this plot's visible value range (for linked value axes) */
   useEffect(() => {
