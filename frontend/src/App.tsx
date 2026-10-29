@@ -8,6 +8,7 @@ import PreviewPlots from "./components/PreviewPlots";
 import StartCard from "./components/StartCard";
 import { mavlinkResume } from "./mavlink";
 import Timeline from "./components/Timeline";
+const SweepsScreen = lazyPreload(() => import("./components/sweeps/SweepsArea"));
 const TemplateLibrary = lazyPreload(() => import("./components/TemplateLibrary"));
 const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
 const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog"));
@@ -499,25 +500,26 @@ export default function App() {
       const st = useApp.getState();
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
       const mod = e.ctrlKey || e.metaKey;
+      const rec = st.area === "recordings";        // files, sessions, tabs and refresh are the Recordings area's
       if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); useApp.setState({ paletteOpen: true, paletteMode: "all" }); return; }
       // T24: quick open - recent files and folders, favourites (Ctrl+P is the editors' "go to file")
-      if (mod && e.key.toLowerCase() === "p" && !e.shiftKey) { e.preventDefault(); useApp.setState({ paletteOpen: true, paletteMode: "open" }); return; }
-      if (mod && e.key.toLowerCase() === "o" && e.shiftKey) { e.preventDefault(); openSession(); return; }
-      if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); useApp.setState({ browserOpen: true }); return; }
-      if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveSession(); return; }
+      if (rec && mod && e.key.toLowerCase() === "p" && !e.shiftKey) { e.preventDefault(); useApp.setState({ paletteOpen: true, paletteMode: "open" }); return; }
+      if (rec && mod && e.key.toLowerCase() === "o" && e.shiftKey) { e.preventDefault(); openSession(); return; }
+      if (rec && mod && e.key.toLowerCase() === "o") { e.preventDefault(); useApp.setState({ browserOpen: true }); return; }
+      if (rec && mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveSession(); return; }
       const SCALES = [1, 1.12, 1.25] as const;
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); const i = SCALES.indexOf(st.uiScale); useApp.setState({ uiScale: SCALES[Math.min(2, i + 1)] }); return; }
       if (mod && e.key === "-") { e.preventDefault(); const i = SCALES.indexOf(st.uiScale); useApp.setState({ uiScale: SCALES[Math.max(0, i - 1)] }); return; }
       if (mod && e.key === "0") { e.preventDefault(); useApp.setState({ uiScale: 1 }); return; }
       // F22: next / previous tab (Ctrl+Tab too where the window lets it through - a browser keeps it)
-      if (mod && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); actions.cycleTab(e.key === "PageDown" ? 1 : -1); return; }
-      if (e.ctrlKey && e.key === "Tab") { e.preventDefault(); actions.cycleTab(e.shiftKey ? -1 : 1); return; }
-      if (e.key === "F5" || (mod && e.key.toLowerCase() === "r")) { e.preventDefault(); refreshAll(); return; }   // not a page reload
+      if (rec && mod && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); actions.cycleTab(e.key === "PageDown" ? 1 : -1); return; }
+      if (rec && e.ctrlKey && e.key === "Tab") { e.preventDefault(); actions.cycleTab(e.shiftKey ? -1 : 1); return; }
+      if (rec && (e.key === "F5" || (mod && e.key.toLowerCase() === "r"))) { e.preventDefault(); refreshAll(); return; }   // not a page reload
       if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen || st.guideOpen || st.settingsOpen) return;
-      if (st.area !== "recordings") return;        // the keys below act on the Recordings area (cursor, plots, timeline)
       if (e.key === "?") { useApp.setState({ helpOpen: true }); return; }
       if (e.key === "F1") { e.preventDefault(); useApp.setState({ guideOpen: true }); return; }   // T55
       if (mod && e.key === ",") { e.preventDefault(); useApp.setState({ settingsOpen: true }); return; }   // T18
+      if (!rec) return;        // the keys below act on the Recordings area (undo, cursor, plots, timeline)
       if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); st.undo(); return; }
       if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); st.redo(); return; }
       if (mod) return;
@@ -621,7 +623,9 @@ export default function App() {
         </main>
         {inspectorOpen ? <Inspector /> : <div />}
       </div>
-      </> } satisfies Record<AreaId, React.ReactNode>)[area]}
+      </>,
+      sweeps: <Suspense fallback={<><div className="areabar" /><div /></>}><SweepsScreen /></Suspense>,
+      } satisfies Record<AreaId, React.ReactNode>)[area]}
       <StatusBar />
       <CommandPalette />
       <FileBrowser />
