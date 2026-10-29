@@ -8,6 +8,7 @@ import { useApp } from "./store";
 import { installErrorReporting } from "./errorReport";
 import { loadPrefs } from "./prefs";
 import { applySettings } from "./settings";
+import { watchNewerOnDisk } from "./fileTimes";
 
 installErrorReporting();             // T38: UI errors into the local log
 
@@ -17,5 +18,6 @@ installErrorReporting();             // T38: UI errors into the local log
 // T18 / F30: the user's settings first (the UI reads them while it starts)
 loadPrefs().finally(() => {
   applySettings();
+  watchNewerOnDisk();          // Q123: a file saved again on the disk - its time turns amber, click to read it
   createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
 });

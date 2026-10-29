@@ -324,11 +324,17 @@ async def replace_run(run_id: str, req: ReplaceRequest):
 
 
 
+@router.get("/api/runs/newer-on-disk")
+def newer_on_disk():
+    """Q123: open files saved again since they were read (id -> when), for the file list."""
+    return store.newer_on_disk()
+
+
 @router.post("/api/runs/{run_id}/reload")
 async def reload_run(run_id: str):
     try:
-        lr, _summary = await asyncio.to_thread(store.refresh, run_id)
-        return store.describe(lr) if lr is not None else {}
+        lr = await asyncio.to_thread(store.reload, run_id)
+        return store.describe(lr)
     except KeyError:
         fail(404, "File is not open.")
     except LoadError as e:

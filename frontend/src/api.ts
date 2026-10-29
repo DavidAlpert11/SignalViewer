@@ -43,16 +43,9 @@ export interface RunInfo {
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file
-  readAt?: number;                       // Q114: when the data was last read from the disk (epoch s)
-  fileTime?: number;                     // Q114: when the file itself was last saved (epoch s)
-  lastReload?: ReloadSummary;            // Q114: the last refresh's result (until the next one)
-  dataAt?: number;                       // Q114b: when the data last changed (opened / new data found)
-  lastUpdate?: ReloadSummary;            // Q114b: the refresh that found that change (kept until the next change)
+  fileTime?: number;                     // Q123: when the version shown was saved to the disk (epoch s)
+  readAt?: number;                       // Q123: when the app read it (epoch s)
 }
-/** Q114: what a refresh changed (backend/svcore/reload_diff.py). */
-export interface ReloadSummary { at: number; fileChanged: boolean; same: boolean;
-  changed: string[]; nChanged: number; added: string[]; nAdded: number; removed: string[]; nRemoved: number;
-  notCompared: number; samplesBefore: number; samplesAfter: number }
 /** Investigation step 4: one signal around a moment (svcore/firstchange.py). */
 export interface FirstChange { id: string; name: string; status: "changed" | "same" | "nodata"; t?: number; rel?: number; up?: boolean;
   base?: [number, number];                // the usual level was read here (the default one fits each signal's data)
@@ -261,6 +254,8 @@ export const api = {
   },
   reportPreview: (body: Record<string, unknown>) => call<{ html: string }>("/api/report/preview", body),
   reload: (id: string) => call<RunInfo>(`/api/runs/${id}/reload`, {}),
+  /** Q123: open files saved again since they were read -> when (epoch s). A stat each, nothing read. */
+  newerOnDisk: () => call<Record<string, number>>("/api/runs/newer-on-disk"),
   /** Why the app opened in the browser instead of its own window ("" = it did not). */
   windowNote: () => call<{ browserReason: string; mode?: string }>("/api/window_note"),
   /** What the app keeps on disk (CSV cache, copies of dropped files, map tiles) and clearing it. */
