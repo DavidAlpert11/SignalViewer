@@ -7,7 +7,7 @@ export interface CursorState { on: boolean; dual: boolean; t1: number | null; t2
 export interface Toast { id: string; kind: "info" | "error"; text: string; action?: { label: string; run: () => void }; ms?: number;
   /** its action undoes the LAST workspace change: valid only until the next change / undo / redo */
   undoesWs?: boolean;
-  /** a message that replaces the previous one of the same key (Q114: refresh after refresh) */
+  /** a message that replaces the previous one of the same key (Q123: refresh after refresh) */
   key?: string }
 export type PanelId = "data" | "analysis" | "compare" | "report" | "log" | "fleet" | "investigate";
 /** One condition in one file: its stretches [start, end] as shown, or why it could not be looked for. */

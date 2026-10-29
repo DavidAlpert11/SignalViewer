@@ -1,11 +1,12 @@
-"""Q114: what F5 (Refresh all) did, on the file itself: the time of its data on its row from the start,
-↻ / ✓ after a refresh, a mark on the signals that changed (until the data changes again), and a message per file - not changed on the disk / saved again with the same
-data / which signals changed. A small change in the data used to leave the user unsure.
+"""Q123: the file list shows when the version on screen was saved to the disk; when the file is saved
+again it turns amber and a click (or F5) reads it; the message after F5 says, per file, whether it was
+read again and when its new version was saved. (A user pressed F5, the message went by, and with small
+changes in the data it was not clear whether the file had been read again.)
 
     python -m pytest tests/e2e/test_refresh_feedback.py -q
 """
 import os
-import time
+from datetime import datetime
 
 import numpy as np
 import pytest
@@ -14,49 +15,45 @@ pytest.importorskip("playwright.sync_api")
 from test_features import S, _csv, env, open_files, pg  # noqa: E402,F401
 
 
-def _write(path, bump=0.0):
+def _write(path, bump=0.0, at=None):
     t = np.arange(0, 10, 0.01)
     speed = np.sin(t)
     speed[500] += bump
     _csv(path, ["Time", "Speed", "RPM"], [t, speed, np.cos(t)])
+    if at is not None:
+        os.utime(path, (at, at))
 
 
-def _refresh(pg):
-    before = S(pg, "s.dataVersion")
-    pg.mouse.click(5, 300)                 # focus on the page, not in a text box
-    pg.keyboard.press("F5")
-    pg.wait_for_function(f"window.__sv.state().dataVersion > {before}")
-    pg.wait_for_selector(".toast:has-text('Refresh')")
-    return " | ".join(pg.locator(".toast").all_inner_texts())
+def _hhmm(ts):
+    return datetime.fromtimestamp(ts).strftime("%H:%M")
 
 
-def test_f5_says_what_changed_on_the_file_and_its_signals(pg):
+def test_saved_time_newer_on_disk_and_the_refresh_message(pg):
     path = os.path.join(pg.env["data"], "fresh.csv")
-    _write(path)
+    first = datetime.now().replace(hour=8, minute=15, second=0, microsecond=0).timestamp()
+    _write(path, at=first)
     open_files(pg, "fresh.csv")
     rid = S(pg, "s.runs.find(r => r.name === 'fresh.csv').id")
-    chip = pg.locator(".run-fresh")                    # from the start: since when the data is what it is
-    assert chip.count() == 1 and "↻" not in chip.inner_text() and "✓" not in chip.inner_text()
-    assert "read from the disk at" in chip.get_attribute("title")
+    chip = pg.locator(".run-ftime")
+    assert chip.inner_text().strip() == "08:15"                     # the file's saved time, not when it was opened
+    tip = chip.get_attribute("title")
+    assert "File saved at 08:15:00" in tip and "Read by the app at" in tip
 
-    time.sleep(0.05)
-    _write(path, bump=0.001)               # one sample of one signal
-    text = _refresh(pg)
-    assert "1 signal changed (Speed)" in text
-    assert pg.locator(".run-fresh.new").count() == 1
-    assert pg.locator(".sig-changed").count() == 1
-    assert "Speed" in pg.locator(".sig", has=pg.locator(".sig-changed")).inner_text()
-    title = pg.locator(".run-fresh").get_attribute("title")
-    assert "1 signal changed (Speed)" in title and "File last saved at" in title
+    later = first + 3600 + 30 * 60                                  # 09:45: saved again by another program
+    _write(path, bump=0.001, at=later)
+    pg.wait_for_selector("button.run-ftime.newer", timeout=10000)   # noticed without reading the file
+    assert "Saved again at 09:45:00" in pg.locator("button.run-ftime.newer").get_attribute("title")
+    pg.click("button.run-ftime.newer")                             # read it
+    pg.wait_for_function(f"Math.abs(window.__sv.state().runs.find(r => r.id === '{rid}').fileTime - {later}) < 1")
+    pg.wait_for_selector("button.run-ftime.newer", state="detached")
+    assert pg.locator(".run-ftime").inner_text().strip() == "09:45"
 
-    text = _refresh(pg)                    # nothing touched
-    assert "not changed on the disk" in text and text.count("Refresh") == 1     # replaces the last one
-    # ✓: checked, nothing new - but what changed before stays: the mark and the tooltip
-    assert pg.locator(".run-fresh.new").count() == 0 and "✓" in pg.locator(".run-fresh").inner_text()
-    assert pg.locator(".sig-changed").count() == 1
-    assert "Data changed at the refresh of" in pg.locator(".run-fresh").get_attribute("title")
-    assert S(pg, f"s.runs.find(r => r.id === '{rid}').lastReload.fileChanged") is False
+    pg.mouse.click(5, 300)
+    pg.keyboard.press("F5")                                         # nothing new
+    pg.wait_for_selector(".toast:has-text('not changed on the disk')")
+    assert "saved at 09:45:00" in pg.locator(".toast", has_text="not changed").inner_text()
 
-    st = os.stat(path)                     # saved again, the same data
-    os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
-    assert "saved again - the data is the same" in _refresh(pg)
+    _write(path, bump=0.002, at=later + 60)
+    pg.keyboard.press("F5")
+    pg.wait_for_selector(".toast:has-text('read again - saved at 09:46:00')")
+    assert pg.locator(".toast", has_text="fresh.csv").count() == 1   # the last message is replaced

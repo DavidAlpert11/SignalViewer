@@ -1,9 +1,8 @@
 import { api } from "./api";
 import { actions, fileLabel, useApp } from "./store";
+import { clock, forgetNewer } from "./fileTimes";
 import { translate } from "./i18n";
 import { openPaths, runJob } from "./files";
-import type { ReloadSummary } from "./api";
-import { clock, kindOf, shortWhat } from "./refreshInfo";
 
 /** Read every open file again (button "Refresh all", F5, and the first step of live mode).
  *  Files whose size and date did not change are not read again. Returns false on failure. */
@@ -12,8 +11,7 @@ export async function refreshAll(opts: { quiet?: boolean } = {}): Promise<boolea
   const L = st.lang;
   if (!st.runs.some((r) => r.format !== "derived")) return true;
   try {
-    const res = await runJob<{ reloaded: string[]; unchanged: string[]; errors: { id: string; name: string; message: string }[]; skipped: string[];
-      details?: (ReloadSummary & { id: string; name: string })[] }>(
+    const res = await runJob<{ reloaded: string[]; unchanged: string[]; errors: { id: string; name: string; message: string }[]; skipped: string[] }>(
       "reloadAll", {}, translate(L, "refreshingAll"));
     if (!res) return false;                                   // cancelled
     const before = useApp.getState().runs;
@@ -21,21 +19,22 @@ export async function refreshAll(opts: { quiet?: boolean } = {}): Promise<boolea
     actions.dropStaleRanges();
     actions.pinTimeToEnd(before);
     for (const e of res.errors) useApp.getState().toast({ kind: "error", text: translate(L, "refreshFailed", { name: e.name, msg: e.message }) });
+    forgetNewer(res.reloaded);
     if (!opts.quiet) {
-      // Q114: what each file did - "not changed on the disk" / "saved again, the data is the same" /
-      // which signals changed; the same result stays on the file in the list (↻ / ✓ and the time)
-      const det = res.details ?? [];
+      // Q123: a line per file - read again (and the time its new version was saved) or not changed on
+      // the disk - so a small change in the data still shows that the file was read; it stays 10 s and
+      // the next refresh replaces it
       const runsNow = useApp.getState().runs;
-      const head = translate(L, "rfToastTitle", { time: det.length ? clock(det[0].at, L) : clock(Date.now() / 1000, L) });
-      const name = (d: { id: string }) => `\u2068${fileLabel(runsNow, d.id)}\u2069`;      // isolated: right order in Hebrew
-      const lines = det.slice(0, 4).map((d) => `${name(d)}: ${shortWhat(d, L)}`);
-      if (det.length > 4) {
-        const nNew = det.filter((d) => kindOf(d) === "new").length;
-        lines.splice(0, lines.length, translate(L, "refreshedN", { n: nNew }), translate(L, "unchangedN", { n: det.length - nNew }),
-          ...det.filter((d) => kindOf(d) === "new").slice(0, 3).map((d) => `${name(d)}: ${shortWhat(d, L)}`));
-      }
+      const line = (id: string, key: "ftUpdated" | "ftUnchanged") => {
+        const r = runsNow.find((x) => x.id === id);
+        return translate(L, key, { name: `\u2068${fileLabel(runsNow, id)}\u2069`, time: r?.fileTime ? clock(r.fileTime, L) : "–" });
+      };
+      const ids = [...res.reloaded.map((id) => [id, "ftUpdated"] as const), ...res.unchanged.map((id) => [id, "ftUnchanged"] as const)];
+      const lines = ids.length <= 5 ? ids.map(([id, k]) => line(id, k))
+        : [translate(L, "refreshedN", { n: res.reloaded.length }) + (res.unchanged.length ? " · " + translate(L, "unchangedN", { n: res.unchanged.length }) : ""),
+           ...res.reloaded.slice(0, 4).map((id) => line(id, "ftUpdated"))];
       if (res.skipped.length) lines.push(translate(L, "copiesSkippedN", { n: res.skipped.length }));
-      useApp.getState().toast({ kind: "info", text: [head, ...lines].join("\n"), ms: 10000, key: "refresh" });
+      useApp.getState().toast({ kind: "info", text: lines.join("\n"), ms: 10000, key: "refresh" });
     }
     return true;
   } catch (e) {

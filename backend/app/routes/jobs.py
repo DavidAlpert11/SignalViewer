@@ -88,11 +88,11 @@ def start_job(req: JobRequest):
 
         def work(job):
             try:
-                lr, _summary = store.refresh(rid)          # read even when its date did not change
+                lr = store.reload(rid)
             except KeyError:
                 raise LoadError("This file is no longer open.") from None
             job.report(1.0, "read")
-            return store.describe(lr) if lr is not None else {}
+            return store.describe(lr)
     elif req.kind == "timeAxis":
         # another time column / unit for one file: it is read again (a big file takes a while)
         rid = str(b.get("id") or "")

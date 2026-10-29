@@ -339,19 +339,12 @@ table.preview th.time { color: var(--amber); }
 .toast { display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 10px 12px; border-radius: 8px; background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
 .toast.error { border-inline-start: 3px solid var(--danger); }
 .toast .btn { height: 26px; }
-.toast-text { flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }   /* Q114: a line per file */
-/* Q114: the last refresh on the file row (↻ new data / ✓ no change), and the signals it changed */
-.run-fresh { flex: none; font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--faint);
-  border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; line-height: 16px; }
-.run-fresh.new { color: var(--amber); border-color: var(--amber); background: var(--amber-soft); animation: run-fresh-in 1.6s ease-out; }
-.run-fresh.checked { animation: run-fresh-check 1.2s ease-out; }
-@keyframes run-fresh-in { 0% { background: var(--amber); color: var(--amber-ink); } 100% { background: var(--amber-soft); } }
-@keyframes run-fresh-check { 0% { border-color: var(--ink); color: var(--ink); } 100% { border-color: var(--line); color: var(--faint); } }
-@media (prefers-reduced-motion: reduce) { .run-fresh.new, .run-fresh.checked { animation: none; } }
-/* a signal whose values changed at the last refresh that found new data (until the next one) */
-.sig .sig-changed { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 2px var(--amber-soft); }
-.grp-changed { flex: none; min-width: 16px; padding: 0 4px; border-radius: 8px; background: var(--amber); color: var(--amber-ink);
-  font-size: 0.75rem; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+.toast-text { flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }   /* a line per file */
+/* Q123: when the file on the row was saved; amber (a button) when a newer version is on the disk */
+.run-ftime { flex: none; font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--faint); padding: 0 2px; }
+button.run-ftime.newer { font: inherit; font-size: 0.8rem; color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber);
+  border-radius: 4px; padding: 0 4px; line-height: 16px; cursor: pointer; }
+button.run-ftime.newer:hover { background: var(--amber); color: var(--amber-ink); }
 
 /* ------------------------------ empty state ------------------------------ */
 .welcome { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }

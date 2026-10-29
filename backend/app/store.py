@@ -149,14 +149,6 @@ class LoadedRun:
     pending_stat: Optional[Tuple[int, int]] = None   # changed file seen once, waiting until it is stable
     pending_since: float = 0.0                    # when a rewritten-as-a-whole file started changing
     read_at: float = 0.0                          # time.time() when its data was last read from the disk
-    # the last refresh (F5, Refresh all, its ↻): when, whether the file had changed on the disk, and
-    # what changed in the data (svcore/reload_diff.compare) - None until it is refreshed
-    last_reload: Optional[Dict] = None
-    # Q114b: when the data last CHANGED (opened, a refresh that found new data, live data) and that
-    # refresh's result - kept until the data changes again, so a later "no change" refresh does not
-    # hide what changed and when
-    data_at: float = 0.0
-    last_update: Optional[Dict] = None
 
 
 def _stat(path: str) -> Optional[Tuple[int, int]]:
@@ -481,7 +473,7 @@ class Store:
         report.update(getattr(run, "load_report", None) or {})
         lr = LoadedRun(id=uuid.uuid4().hex[:8], run=run, name=name, load_report=report)
         lr.stat = _stat(path)
-        lr.read_at = lr.data_at = time.time()
+        lr.read_at = time.time()
         with self._lock:
             self.runs[lr.id] = lr
             self.order.append(lr.id)
@@ -498,11 +490,11 @@ class Store:
                         fresh = LoadedRun(id=rid, run=run, name=old.name, load_report=dict(run.load_report or {}))
                         fresh.run.time_offset = old.run.time_offset
                         fresh.run.description = old.run.description
-                        fresh.last_change = fresh.read_at = fresh.data_at = time.time()
+                        fresh.last_change = fresh.read_at = time.time()
                         self.runs[rid] = fresh
                         return fresh, False
             lr = LoadedRun(id=uuid.uuid4().hex[:8], run=run, name=name, load_report=dict(run.load_report or {}))
-            lr.last_change = lr.read_at = lr.data_at = time.time()
+            lr.last_change = lr.read_at = time.time()
             self.runs[lr.id] = lr
             self.order.append(lr.id)
             return lr, True
@@ -926,31 +918,6 @@ class Store:
         settings.pop("format", None)
         return self._read_again(lr, settings)
 
-    def refresh(self, run_id: str, force: bool = True) -> Tuple[Optional["LoadedRun"], dict]:
-        """Refresh one file (F5, Refresh all, its ↻) and say what changed. Without `force`, a file whose
-        size and date did not change is not read again (the summary says so). Returns (the file read
-        again or None, the summary - also kept on the file as last_reload)."""
-        from svcore.reload_diff import compare, fingerprints
-        lr = self.get(run_id)
-        now = time.time()
-        st = _stat(lr.run.file_path)
-        if not force and st is not None and st == lr.stat:
-            lr.last_reload = {"at": now, "fileChanged": False, "same": True, "changed": [], "nChanged": 0,
-                              "added": [], "nAdded": 0, "removed": [], "nRemoved": 0, "notCompared": 0,
-                              "samplesBefore": int(lr.run.sample_count), "samplesAfter": int(lr.run.sample_count)}
-            return None, lr.last_reload
-        before = fingerprints(lr.run)
-        names0, n0 = list(lr.run.signals), int(lr.run.sample_count)
-        fresh = self.reload(run_id)
-        after = fingerprints(fresh.run, only=before)        # only what was compared before (a big log's
-                                                            # unread values stay unread)
-        summary = compare(before, after, names0, list(fresh.run.signals), n0, int(fresh.run.sample_count))
-        summary.update(at=now, fileChanged=st != lr.stat)
-        fresh.last_reload = summary
-        if not summary["same"]:
-            fresh.last_update, fresh.data_at = summary, now
-        return fresh, summary
-
     def _read_again(self, lr: "LoadedRun", settings: dict, offset: Optional[float] = None) -> "LoadedRun":
         """Read an open file again with these import settings, in its place: the same id (and
         therefore every signal reference), name, description and - unless given - time offset."""
@@ -962,8 +929,6 @@ class Store:
             fresh.run.description = lr.run.description
             fresh.id, fresh.name = lr.id, lr.name
             fresh.last_change = lr.last_change
-            fresh.last_reload = lr.last_reload          # (a refresh sets its own afterwards)
-            fresh.last_update, fresh.data_at = lr.last_update, lr.data_at
             self.runs[lr.id] = fresh
         if run_format(fresh.run) == "csv":
             from svcore.csv_loader import prune_cache
@@ -1026,7 +991,7 @@ class Store:
                         else:                                # caught mid-write: next poll
                             self.writing.append(rid)
                         continue
-                    fresh.last_change = fresh.data_at = now
+                    fresh.last_change = now
                     fresh.pending_since = 0.0
                     changed.append(rid)
                     continue
@@ -1043,14 +1008,14 @@ class Store:
                 n = -1
             if n > 0:
                 lr.last_change = now
-                lr.read_at = lr.data_at = now
+                lr.read_at = now
                 if fmt != "csv" or lr.run.byte_offset == st[0]:
                     lr.stat = st                    # (a CSV row still being written is read next time)
                 changed.append(rid)
             elif n < 0:
                 try:
                     fresh = self.reload(rid)
-                    fresh.last_change = fresh.data_at = now
+                    fresh.last_change = now
                     changed.append(rid)
                 except Exception as e:          # e.g. locked while Excel saves: try again next poll
                     self.poll_errors[rid] = str(e) or e.__class__.__name__
@@ -1066,7 +1031,7 @@ class Store:
     def reload_all(self, progress=None, cancelled=None) -> Dict[str, list]:
         """Read every open file again (refresh all). Files dragged in as copies are skipped (they
         cannot follow the original). Returns {"reloaded": [...], "unchanged": [...], "errors": [...]}."""
-        out: Dict[str, list] = {"reloaded": [], "unchanged": [], "errors": [], "skipped": [], "details": []}
+        out: Dict[str, list] = {"reloaded": [], "unchanged": [], "errors": [], "skipped": []}
         ids = [rid for rid in self.order if rid in self.runs]
         for i, rid in enumerate(ids):
             if cancelled and cancelled():
@@ -1083,11 +1048,27 @@ class Store:
                 from svcore.csv_loader import set_progress_context
                 set_progress_context(lambda f, _ph, i=i, nm=lr.name: progress((i + f) / max(1, len(ids)), nm), cancelled)
             try:
-                fresh, summary = self.refresh(rid, force=False)
-                out["unchanged" if fresh is None else "reloaded"].append(rid)
-                out["details"].append({"id": rid, "name": lr.name, **summary})
+                if _stat(lr.run.file_path) == lr.stat and lr.stat is not None:
+                    out["unchanged"].append(rid)
+                else:
+                    self.reload(rid)
+                    out["reloaded"].append(rid)
             except Exception as e:
                 out["errors"].append({"id": rid, "name": lr.name, "message": str(e) or e.__class__.__name__})
+        return out
+
+    def newer_on_disk(self) -> Dict[str, float]:
+        """Q123: the open files saved again since the app read them -> when (epoch s). Only their date
+        and size are looked at (a stat each, nothing is read), so the UI can ask every few seconds
+        and offer a refresh. Copies and data sent from Python have no file to compare."""
+        out: Dict[str, float] = {}
+        for rid in list(self.order):
+            lr = self.runs.get(rid)
+            if lr is None or lr.stat is None or lr.run.file_path.startswith((UPLOAD_DIR + os.sep, "python:")):
+                continue
+            st = _stat(lr.run.file_path)
+            if st is not None and st != lr.stat:
+                out[rid] = st[1] / 1e9
         return out
 
     def new_files(self, since: float, known: Optional[set] = None) -> List[dict]:
@@ -1354,13 +1335,10 @@ class Store:
             "description": r.description or "",
             # dragged into a browser window: the app works on a COPY, edits to the original are not seen
             "copy": os.path.abspath(lr.run.file_path).startswith(UPLOAD_DIR + os.sep),
-            # when the data was last read from the disk, when the file itself was last saved, and the
-            # last refresh's result: the file list shows them (a refresh with small changes was unclear)
-            **({"readAt": lr.read_at} if lr.read_at else {}),
+            # Q123: when the version shown was saved to the disk (the file list shows it) and when the
+            # app read it
             **({"fileTime": lr.stat[1] / 1e9} if lr.stat else {}),
-            **({"lastReload": lr.last_reload} if lr.last_reload else {}),
-            **({"dataAt": lr.data_at} if lr.data_at else {}),
-            **({"lastUpdate": lr.last_update} if lr.last_update else {}),
+            **({"readAt": lr.read_at} if lr.read_at else {}),
         }
 
     def describe_derived(self) -> Optional[dict]:
