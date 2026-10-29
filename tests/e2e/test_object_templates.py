@@ -57,7 +57,7 @@ def test_template_keeps_objects_by_name_and_recreates_them_from_another_file(pg)
     pg.locator(".run-head", has_text="tpl_flight_a.csv").click(button="right"); menu_item(pg, "Remove")
     open_files(pg, "tpl_flight_b.csv", clear=False)
     rid_b = S(pg, "s.runs.find(r => r.name === 'tpl_flight_b.csv').id")
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
     pg.locator(".tpl-item", has_text="Heron on the map").click()
     pg.locator(".tpl-actions .btn.primary").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => (p.objects || []).length))")
@@ -102,7 +102,7 @@ def test_quaternion_found_by_name(pg):
 
 def test_ardupilot_flight_template(pg):
     open_files(pg, "tpl_flight_a.csv")
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
     pg.locator(".tpl-item", has_text="ArduPilot · Flight on the map & 3D").click()
     pg.locator(".tpl-actions .btn.primary").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => (p.objects || []).length))")

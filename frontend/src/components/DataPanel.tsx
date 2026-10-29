@@ -443,8 +443,11 @@ export default function DataPanel() {
           </>
         )}
         <span className="split-btn">
-          <button className="btn outline" onClick={() => useApp.setState({ browserOpen: true })}>
-            <Icon.Plus /> {t("openFiles")}
+          {/* with files open the head also holds refresh, replace and two link toggles: the label
+              was cut to "Open fil" - from then on the + alone, its name in the tooltip */}
+          <button className="btn outline" onClick={() => useApp.setState({ browserOpen: true })}
+            aria-label={t("openFiles")} title={t("openFiles")}>
+            <Icon.Plus />{!runs.some((r) => r.format !== "derived") && <> {t("openFiles")}</>}
           </button>
           <button className="btn outline split-more" aria-label={t("recentMore")} title={t("recentMore")} onClick={recentMenu}>
             <Icon.Chevron width={12} height={12} />

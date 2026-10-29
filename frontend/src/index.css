@@ -78,8 +78,8 @@ button, input, select { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 /* ------------------------------- app frame ------------------------------- */
-.app { display: grid; height: 100%; grid-template-rows: 44px 1fr 26px; }
-.main { position: relative; display: grid; min-height: 0; grid-template-columns: 48px auto 1fr auto; }
+.app { display: grid; height: 100%; grid-template-rows: 44px 40px 1fr 26px; }   /* top row, the area's bar, the area, status */
+.main { position: relative; display: grid; min-height: 0; grid-template-columns: 64px auto 1fr auto; }
 
 .topbar {
   display: flex; align-items: center; gap: 4px; padding-inline: 8px;
@@ -90,6 +90,18 @@ button, input, select { font: inherit; color: inherit; }
 .tabs-wrap { display: flex; align-items: center; gap: 2px; height: 100%; min-width: 120px; flex: 0 1 auto; }
 /* F22: with many tabs the tab strip gives way (it scrolls, "All tabs" lists them), not the controls on the right */
 .topbar > :not(.tabs-wrap):not(.spacer):not(.search-trigger) { flex-shrink: 0; }
+/* work areas (areas.ts): the top row names them; the area's own bar is under it */
+.topbar { background: var(--bg); }
+.area-name, .area-btn { display: flex; align-items: center; height: 100%; padding: 0 14px; font: inherit; font-weight: 600; color: var(--ink-strong);
+  border: 0; border-bottom: 2px solid var(--amber); background: none; white-space: nowrap; }
+.brand + .area-name, .brand + .areas { border-inline-start: 1px solid var(--line); margin-inline-start: 4px; }
+.areas { display: flex; align-items: stretch; height: 100%; gap: 2px; }
+.area-btn { font-weight: 500; color: var(--muted); border-bottom-color: transparent; cursor: pointer; }
+.area-btn:hover { color: var(--ink); }
+.area-btn.on { font-weight: 600; color: var(--ink-strong); border-bottom-color: var(--amber); background: var(--panel); }
+.areabar { display: flex; align-items: center; gap: 4px; padding-inline: 8px; min-width: 0;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
+.areabar > :not(.tabs-wrap):not(.spacer) { flex-shrink: 0; }
 .topbar > .search-trigger { flex-shrink: 1; min-width: 150px; }
 .tabs { display: flex; align-items: stretch; gap: 2px; height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
@@ -135,10 +147,12 @@ button, input, select { font: inherit; color: inherit; }
 
 /* --------------------------------- rail --------------------------------- */
 .rail { display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 8px; background: var(--panel); border-inline-end: 1px solid var(--line); }
-.rail button { width: 36px; height: 36px; border-radius: 8px; border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; position: relative; }
+.rail button { width: 56px; min-height: 44px; padding: 6px 2px 5px; border-radius: 8px; border: 0; background: none; color: var(--muted); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
+.rail-label { font-size: 0.769rem; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail button:hover { color: var(--ink); background: var(--panel-2); }
 .rail button.on { color: var(--ink-strong); background: var(--panel-2); }
-.rail button.on::before { content: ""; position: absolute; inset-inline-start: -6px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--ink-strong); }
+.rail button.on::before { content: ""; position: absolute; inset-inline-start: -4px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--ink-strong); }
 .rail svg { width: 18px; height: 18px; }
 
 /* ------------------------------ side panel ------------------------------ */
@@ -335,8 +349,15 @@ table.preview th, table.preview td { padding: 3px 10px; border-bottom: 1px solid
 table.preview th { position: sticky; top: 0; background: var(--panel-2); font-weight: 600; color: var(--ink-strong); }
 table.preview th.time { color: var(--amber); }
 
-.toasts { position: fixed; bottom: 36px; inset-inline-end: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
-.toast { display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 10px 12px; border-radius: 8px; background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
+/* no z-index on the dock itself: the start card stays under a dialog (40), the messages above it (60) */
+.notices { position: absolute; inset-inline-start: 16px; bottom: 64px; width: min(400px, calc(100% - 32px));
+  max-height: calc(100% - 150px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.notices > * { pointer-events: auto; }
+.toasts { position: relative; z-index: 60; display: flex; flex-direction: column; gap: 8px; }
+.toast-more { flex: none; height: 22px; min-width: 26px; padding: 0 6px; border-radius: 11px; border: 1px solid var(--line-strong);
+  background: var(--bg); color: var(--muted); font: inherit; font-size: 0.8rem; cursor: pointer; }
+.toast-fold { align-self: flex-start; font-size: 0.846rem; }
+.toast { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
 .toast.error { border-inline-start: 3px solid var(--danger); }
 .toast .btn { height: 26px; }
 .toast-text { flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }   /* a line per file */
@@ -348,9 +369,19 @@ button.run-ftime.newer:hover { background: var(--amber); color: var(--amber-ink)
 
 /* ------------------------------ empty state ------------------------------ */
 .welcome { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
-.welcome-card { max-width: 460px; text-align: center; }
-.welcome-card .examples-line { margin: 14px 0 0; color: var(--muted); }
-.welcome-card .examples-line > span { white-space: nowrap; }
+.welcome-card { width: min(720px, 100%); text-align: center; }
+.welcome-card > p { max-width: 480px; margin-inline: auto; }
+.welcome-card .tagline { color: var(--ink); font-size: 1.154rem; margin-bottom: 6px; }
+.welcome-card .examples-title { margin: 28px 0 10px; font-size: 0.923rem; font-weight: 600; color: var(--muted); }
+.welcome-card .examples-line { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; text-align: start; }
+.ex-card { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--raised); color: var(--ink); font: inherit; text-align: start; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.ex-card:hover, .ex-card:focus-visible { border-color: var(--amber); box-shadow: var(--shadow); }
+.ex-card svg { flex: none; margin-top: 1px; color: var(--amber); }
+.ex-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ex-title { display: block; font-weight: 600; color: var(--ink-strong); }
+.ex-title::first-letter { text-transform: uppercase; }
+.ex-desc { font-size: 0.846rem; color: var(--muted); line-height: 1.35; }
 .welcome-card svg.trace { width: 220px; height: 64px; margin-bottom: 18px; }
 .welcome-card h1 { margin: 0 0 8px; font-size: 1.692rem; font-weight: 600; color: var(--ink-strong); letter-spacing: -.01em; }
 .welcome-card p { margin: 0 0 20px; color: var(--muted); font-size: 1.077rem; }
@@ -1096,8 +1127,8 @@ input.fx-input { width: 100%; }
 .cmp-seg { margin: 0; padding: 4px 16px 6px; color: var(--muted); font-size: 0.8846rem; }
 /* T29 start card: floats over the plot area, bottom-left (toasts are bottom-right) */
 .stage { position: relative; }
-.start-card { position: absolute; inset-inline-start: 16px; bottom: 64px; z-index: 40; width: min(380px, calc(100% - 32px));
-  max-height: 60%; overflow: auto; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 10px;
+.start-card { position: relative; z-index: 40; min-height: 0; flex: 0 1 auto;
+  overflow: auto; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 10px;
   box-shadow: var(--shadow); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .start-head { display: flex; align-items: center; gap: 6px; }
 .start-head h3 { flex: 1; margin: 0; font-size: 0.9615rem; color: var(--ink-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

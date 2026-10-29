@@ -5,6 +5,7 @@ import { mavlinkConnect, mavlinkDisconnect } from "../mavlink";
 import { api } from "../api";
 import { fmtNum } from "../i18n";
 import { actions, setInspectorByUser, useApp } from "../store";
+import { AREAS, areaDef } from "../areas";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
 import { openPaths, openSession, saveSession } from "../files";
@@ -14,14 +15,20 @@ import { openMenu } from "./Overlays";
 import { templateMenuItems } from "../templateMenu";
 import { getPref, setPref } from "../prefs";
 
+
+/** Where a menu opens under its button (left-aligned, or right-aligned in Hebrew). */
+function menuAt(e: React.MouseEvent, w = 240) {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const rtl = document.documentElement.dir === "rtl";
+  return { clientX: rtl ? Math.max(8, r.right - w) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
+}
+
+/** The app's top row: what is the same in every work area - the name, the areas, search, live,
+ *  settings, theme, language, help. What belongs to one area (the Recordings area's session, plot
+ *  tabs, undo, Clear, Inspector) is in that area's own bar under it (areas.ts). */
 export default function TopBar() {
   const t = useT();
-  const ws = useApp((s) => s.ws);
-  const past = useApp((s) => s.past.length);
-  const future = useApp((s) => s.future.length);
   const streaming = useApp((s) => s.streaming);
-  const inspectorOpen = useApp((s) => s.inspectorOpen);
-  const [editing, setEditing] = useState<string | null>(null);
   const liveStarting = useApp((s) => s.liveStarting);
   const liveMenu = useApp((s) => s.liveMenuOpen);
   const setLiveMenu = (v: boolean) => useApp.setState({ liveMenuOpen: v });
@@ -30,43 +37,11 @@ export default function TopBar() {
   const theme = useApp((s) => s.theme);
   const mavOn = !!mav?.running;
   const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
-  // F22: with many tabs the strip scrolls (its scrollbar is hidden): the wheel scrolls it, the active
-  // tab is kept in view, and an "All tabs" list reaches every tab
-  const strip = useRef<HTMLDivElement>(null);
-  const [overflow, setOverflow] = useState(false);
-  useEffect(() => {
-    const el = strip.current;
-    if (!el) return;
-    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ws.tabs.length]);
-  useEffect(() => {
-    strip.current?.querySelector<HTMLElement>(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [ws.activeTab, ws.tabs.length]);
-  const onStripWheel = (e: React.WheelEvent) => {
-    const el = strip.current;
-    if (!el || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;      // a horizontal wheel / touchpad scrolls by itself
-    el.scrollLeft += document.documentElement.dir === "rtl" ? -e.deltaY : e.deltaY;
-  };
-  const allTabsMenu = (e: React.MouseEvent) => {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const rtl = document.documentElement.dir === "rtl";
-    openMenu({ clientX: rtl ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent,
-      ws.tabs.map((tab, i) => ({ label: `${tab.id === ws.activeTab ? "✓ " : "\u2003"}${tab.name || `${t("tab")} ${i + 1}`}`,
-        run: () => actions.switchTab(tab.id) })));
-  };
+  const at = menuAt;
 
   // F35 (owner, 2026-10-20): no File menu - its few entries are buttons again (opening files is
   // in the file panel and Ctrl+O): open / save session, Clear with its scopes, settings, day / night.
   // Help stays a menu (guide, shortcuts, examples, about).
-  const at = (e: React.MouseEvent, w = 240) => {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const rtl = document.documentElement.dir === "rtl";
-    return { clientX: rtl ? Math.max(8, r.right - w) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
-  };
   const helpMenu = async (e: React.MouseEvent) => {
     const pos = at(e);
     let ex: Awaited<ReturnType<typeof api.examples>> = [];
@@ -96,6 +71,101 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <div className="brand" title={t("appName")}><BrandMark /><span className="hide-compact">{t("appName")}</span></div>
+      <AreaSwitcher />
+      <div className="spacer" />
+      <button className="search-trigger" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
+        <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
+      </button>
+      <span className="sep" />
+      <span className="live-group">
+        <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
+          title={streaming ? t("liveStopHint") : t("liveStartHint")}>
+          <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
+        </button>
+        <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
+          onClick={() => setLiveMenu(!liveMenu)}>
+          <Icon.Chevron width={12} height={12} />
+        </button>
+        {mavOn && (
+          <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
+            title={mavQuiet ? t("mavNoData", { conn: mav!.conn ?? "" }) : t("mavReceiving", { conn: mav!.conn ?? "" })}>
+            <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
+          </button>
+        )}
+        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
+      </span>
+      <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>
+        <Icon.Settings />
+      </button>
+      <button className="iconbtn theme-btn" aria-pressed={theme === "dark"} onClick={() => useApp.setState({ theme: theme === "dark" ? "light" : "dark" })}
+        title={`${t("theme")}: ${theme === "dark" ? t("dark") : t("light")}`} aria-label={t("theme")}>
+        {theme === "dark" ? <Icon.Moon /> : <Icon.Sun />}
+      </button>
+      <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}
+        title={t("language")} aria-label={t("language")}>
+        <Icon.Globe /><span className="hide-compact">{t("language")}</span>
+      </button>
+      <button className="btn menubar-btn" aria-haspopup="menu" onClick={helpMenu}>{t("menuHelp")}</button>
+    </header>
+  );
+}
+
+/** The work areas (Mission Planner style): with one area only its name shows - no tabs to explain;
+ *  the switch appears when a second area is registered in areas.ts. */
+function AreaSwitcher() {
+  const t = useT();
+  const area = useApp((s) => s.area);
+  if (AREAS.length < 2) return <span className="area-name" aria-current="page">{t(areaDef(area).label)}</span>;
+  return (
+    <nav className="areas" aria-label={t("workAreas")}>
+      {AREAS.map((a) => (
+        <button key={a.id} className={`area-btn${a.id === area ? " on" : ""}`} aria-current={a.id === area ? "page" : undefined}
+          onClick={() => useApp.setState({ area: a.id })}>{t(a.label)}</button>
+      ))}
+    </nav>
+  );
+}
+
+/** The Recordings area's bar: its session, its plot tabs, templates, undo / redo, Clear and the Inspector. */
+export function RecordingsBar() {
+  const t = useT();
+  const ws = useApp((s) => s.ws);
+  const past = useApp((s) => s.past.length);
+  const future = useApp((s) => s.future.length);
+  const inspectorOpen = useApp((s) => s.inspectorOpen);
+  const [editing, setEditing] = useState<string | null>(null);
+  const at = menuAt;
+  // F22: with many tabs the strip scrolls (its scrollbar is hidden): the wheel scrolls it, the active
+  // tab is kept in view, and an "All tabs" list reaches every tab
+  const strip = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  useEffect(() => {
+    const el = strip.current;
+    if (!el) return;
+    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ws.tabs.length]);
+  useEffect(() => {
+    strip.current?.querySelector<HTMLElement>(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [ws.activeTab, ws.tabs.length]);
+  const onStripWheel = (e: React.WheelEvent) => {
+    const el = strip.current;
+    if (!el || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;      // a horizontal wheel / touchpad scrolls by itself
+    el.scrollLeft += document.documentElement.dir === "rtl" ? -e.deltaY : e.deltaY;
+  };
+  const allTabsMenu = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const rtl = document.documentElement.dir === "rtl";
+    openMenu({ clientX: rtl ? Math.max(8, r.right - 240) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent,
+      ws.tabs.map((tab, i) => ({ label: `${tab.id === ws.activeTab ? "✓ " : "\u2003"}${tab.name || `${t("tab")} ${i + 1}`}`,
+        run: () => actions.switchTab(tab.id) })));
+  };
+
+  return (
+    <div className="areabar" role="toolbar" aria-label={t(areaDef("recordings").label)}>
       <button className="iconbtn" onClick={() => openSession()} title={`${t("openSession")}… (Ctrl+Shift+O)`} aria-label={t("openSession")}><Icon.Open /></button>
       <button className="iconbtn" onClick={saveSession} title={`${t("saveSession")} (Ctrl+S)`} aria-label={t("saveSession")}><Icon.Save /></button>
       <nav className="tabs-wrap">
@@ -149,10 +219,6 @@ export default function TopBar() {
         <Icon.Layout /> {t("tplMenu")} <Icon.Chevron width={12} height={12} />
       </button>
       <div className="spacer" />
-      <button className="search-trigger" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
-        <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
-      </button>
-      <span className="sep" />
       <button className="iconbtn" disabled={!past} onClick={useApp.getState().undo} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
       <button className="iconbtn" disabled={!future} onClick={useApp.getState().redo} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
       {/* T63 / F35: one Clear button, what to clear in its menu (this tab ... everything) */}
@@ -160,40 +226,11 @@ export default function TopBar() {
         onClick={(e) => openMenu(at(e, 320), clearMenuItems())}>
         <Icon.Eraser /><span className="hide-narrow">{t("clearMenu")}</span><Icon.Chevron width={12} height={12} />
       </button>
-      <span className="sep" />
-      <span className="live-group">
-        <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
-          title={streaming ? t("liveStopHint") : t("liveStartHint")}>
-          <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
-        </button>
-        <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
-          onClick={() => setLiveMenu(!liveMenu)}>
-          <Icon.Chevron width={12} height={12} />
-        </button>
-        {mavOn && (
-          <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
-            title={mavQuiet ? t("mavNoData", { conn: mav!.conn ?? "" }) : t("mavReceiving", { conn: mav!.conn ?? "" })}>
-            <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
-          </button>
-        )}
-        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
-      </span>
-      <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>
-        <Icon.Settings />
-      </button>
-      <button className="iconbtn theme-btn" aria-pressed={theme === "dark"} onClick={() => useApp.setState({ theme: theme === "dark" ? "light" : "dark" })}
-        title={`${t("theme")}: ${theme === "dark" ? t("dark") : t("light")}`} aria-label={t("theme")}>
-        {theme === "dark" ? <Icon.Moon /> : <Icon.Sun />}
-      </button>
-      <button className="btn" onClick={() => useApp.setState({ lang: useApp.getState().lang === "he" ? "en" : "he" })}
-        title={t("language")} aria-label={t("language")}>
-        <Icon.Globe /><span className="hide-compact">{t("language")}</span>
-      </button>
-      <button className="btn menubar-btn" aria-haspopup="menu" onClick={helpMenu}>{t("menuHelp")}</button>
       <button className="iconbtn" aria-pressed={inspectorOpen} onClick={() => setInspectorByUser(!inspectorOpen)} aria-label={t("inspector")} title={t("inspector")}><Icon.Inspector /></button>
-    </header>
+    </div>
   );
 }
+
 
 /** Live mode settings: when to stop by itself, and what to do with new files in the same folders. */
 function LiveSettings({ onClose }: { onClose: () => void }) {

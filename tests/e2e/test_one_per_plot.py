@@ -137,7 +137,7 @@ def test_a_template_takes_the_conditions_to_the_next_flight(pg):
     pg.evaluate(f"fetch('/api/runs/{rid}', {{method: 'DELETE'}})")
     pg.evaluate("window.__sv.setState({ runs: [], ws: { ...window.__sv.state().ws, conditions: [] }, condResults: {} })")
     open_files(pg, "light_payload.csv", clear=False)
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
     pg.locator(".tpl-item", has_text="Payload check").click()
     pg.wait_for_selector(".tpl-details .btn.primary:not([disabled])")
     pg.locator(".tpl-details .btn.primary").click()

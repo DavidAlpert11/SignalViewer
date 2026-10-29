@@ -154,7 +154,7 @@ def clear_plots(pg):
 
 def clear_everything(pg):
     """F35: Clear (top bar) > Clear everything, then confirm."""
-    pg.click(".topbar [aria-label='Clear']")
+    pg.click(".areabar [aria-label='Clear']")
     pg.click(".menu.ctx button:has-text('Clear everything')")
     pg.click(".dialog-foot .btn.primary")
 
@@ -554,7 +554,7 @@ def test_T63_clear_menu_scopes(pg):
     files = lambda: state("s.runs.filter(r => r.format !== 'derived').length")
     assert state("s.ws.tabs.length") == 2
     def pick(text):
-        pg.click(".topbar [aria-label='Clear']")
+        pg.click(".areabar [aria-label='Clear']")
         pg.locator(".menu.ctx button", has_text=text).click()
     # the other tabs
     pick("The other tabs (1)")
@@ -579,7 +579,7 @@ def test_T63_clear_menu_scopes(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 1")
     assert files() == 1 and state("s.runs.some(r => r.format === 'derived')")
     # and the last scope closes the files too, after asking
-    pg.click(".topbar [aria-label='Clear']")
+    pg.click(".areabar [aria-label='Clear']")
     assert "danger" in pg.locator(".menu.ctx button", has_text="Clear everything").get_attribute("class")
     pg.keyboard.press("Escape")
 
@@ -855,7 +855,7 @@ def test_legend_names_follow_file_rule(pg):
     assert chips(pg)[0] == "Speed"
     pg.click("[aria-label='Data']")
     for k, folder in enumerate((a, b)):
-        pg.click(".side-head .btn:has-text('Open files')"); goto_folder(pg, folder)
+        pg.click(".side-head .btn[aria-label='Open files']"); goto_folder(pg, folder)
         pg.locator(".dialog .dialog-body .fs-row", has_text="test.csv").click(); pg.click(".dialog-foot .btn.primary")
         # wait until this file is open before opening the next one
         pg.wait_for_function(f"window.__sv.state().runs.filter(r => r.format !== 'derived').length === {2 + k}", timeout=25000)
@@ -1951,7 +1951,7 @@ def test_same_flight_sync_health_notes_spectrogram(pg):
     pg.locator(".dialog .btn.primary").click()
     pg.wait_for_function("(window.__sv.state().ws.notes || []).some(n => n.text === 'vibration burst' && n.t === 30)")
     # a spectrogram plot draws its image
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")   # templates: top bar / file panel, for any file
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")   # templates: top bar / file panel, for any file
     pg.locator(".tpl-item", has_text="ArduPilot · Vibration").click()
     pg.locator(".tpl-actions .btn.primary").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.at(-1).plots.some(p => p.mode === 'spec')")
@@ -2025,7 +2025,7 @@ def test_align_csv_and_mat_by_name_moment_and_cursors(pg):
 
 def test_template_library_collections_and_quick_look(pg):
     open_files(pg, "run_a.csv", "run_b.csv")
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
     pg.wait_for_selector(".tpl-lib")
     # any file: a quick look of one file
     pg.locator(".tpl-item", has_text="Quick look").click()
@@ -2052,7 +2052,7 @@ def test_template_library_collections_and_quick_look(pg):
     cmp_tab = S(pg, f"s.ws.tabs.slice({n0}).find(t => t.name.startsWith('Compare'))")
     assert all(len(p["signals"]) == 2 for p in cmp_tab["plots"])           # every shared signal from both files
     # a template cannot include one that includes it (no loops)
-    pg.click(".topbar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
     pg.locator(".tpl-item", has_text="Speed set").click(); pg.locator(".tpl-actions .btn", has_text="Edit").click()
     opts = pg.locator(".tpl-editor select[aria-label='Include a template'] option").all_inner_texts()
     assert not any("All my views" in o for o in opts)
@@ -2067,7 +2067,7 @@ def test_inspector_starts_closed_and_respects_the_user(pg):
     pg.keyboard.press("Space")
     pg.wait_for_selector(".inspector")
     pg.keyboard.press("Space")
-    pg.click(".topbar [aria-label^='Inspector']")                 # the user closes it on purpose
+    pg.click(".areabar [aria-label^='Inspector']")                 # the user closes it on purpose
     assert pg.locator(".inspector").count() == 0
     pg.keyboard.press("Space")
     pg.wait_for_timeout(300)

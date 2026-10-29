@@ -21,10 +21,11 @@ import { handleNewFiles, refreshAll, stopLive } from "./live";
 import { ensureLogs } from "./logs";
 import { detectSameFlight } from "./sync";
 import { actions, activeTab, rangeKey, recordingExtent, useApp, type PanelId } from "./store";
-import { translate, useT } from "./i18n";
+import { translate, useT, type TKey } from "./i18n";
 import { Icon } from "./icons";
 import { applyState, currentState, explainCopy, openDropped, openPaths, openSession, saveSession, startRetarget } from "./files";
-import TopBar from "./components/TopBar";
+import TopBar, { RecordingsBar } from "./components/TopBar";
+import type { AreaId } from "./areas";
 import StageBar from "./components/StageBar";
 import DataPanel from "./components/DataPanel";
 const AnalysisPanel = lazyPreload(() => import("./components/AnalysisPanel"));
@@ -45,21 +46,25 @@ import Jobs from "./components/Jobs";
 const Help = lazyPreload(() => import("./components/Help"));
 const GuideDialog = lazyPreload(() => import("./components/GuideDialog"));
 const SettingsDialog = lazyPreload(() => import("./components/SettingsDialog"));
-import { AxisDialog, ContextMenu, ModalFocus, PromptDialog } from "./components/Overlays";
+import { AxisDialog, ContextMenu, escapeTaken, ModalFocus, PromptDialog } from "./components/Overlays";
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
 
-const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "flightLog" | "fleet" | "investigate" }[] = [
-  { id: "data", icon: "Data", key: "data" },
-  { id: "analysis", icon: "Analysis", key: "analysis" },
-  { id: "compare", icon: "Compare", key: "compare" },
-  { id: "investigate", icon: "Search", key: "investigate" },  // investigation step 2: named conditions
-  { id: "report", icon: "Report", key: "report" },
-  { id: "log", icon: "Log", key: "flightLog" },       // only while a file with a flight log is open
-  { id: "fleet", icon: "Fleet", key: "fleet" },        // T41: every flight of the indexed folders
+/** the tool rail's width: an icon with its short name under it (the names made Investigate and Fleet findable) */
+const RAIL_W = 64;
+const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "flightLog" | "fleet" | "investigate"; short: TKey }[] = [
+  { id: "data", icon: "Data", key: "data", short: "railData" },
+  { id: "analysis", icon: "Analysis", key: "analysis", short: "railAnalysis" },
+  { id: "compare", icon: "Compare", key: "compare", short: "railCompare" },
+  { id: "investigate", icon: "Search", key: "investigate", short: "railInvestigate" },  // investigation step 2: named conditions
+  { id: "report", icon: "Report", key: "report", short: "railReport" },
+  { id: "log", icon: "Log", key: "flightLog", short: "railLog" },       // only while a file with a flight log is open
+  { id: "fleet", icon: "Fleet", key: "fleet", short: "railFleet" },        // T41: every flight of the indexed folders
 ];
 
 const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc" } as const satisfies Record<ExampleId, string>;
+const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search } satisfies Record<ExampleId, unknown>;
 
 function Welcome() {
   const t = useT();
@@ -107,18 +112,29 @@ function Welcome() {
           <rect x="133" y="2" width="34" height="13" fill="var(--amber)" />
         </svg>
         <h1>{t("dropTitle")}</h1>
+        <p className="tagline">{t("welcomeTagline")}</p>
         <p>{t("dropHint")}</p>
         <button className="btn primary" style={{ height: 36, paddingInline: 16 }} onClick={() => useApp.setState({ browserOpen: true })}>
           <Icon.Folder /> {t("openFiles")}
         </button>
         {examples.length > 0 && (
-          <p className="examples-line">{t("tryExample")}{" "}
-            {examples.map((ex, i) => (
-              <span key={ex.id}>{i > 0 && " · "}
-                <button className="linkbtn" onClick={() => openPaths(ex.paths, undefined, { autoView: true })}>{t(EXAMPLE_LABEL[ex.id])}</button>
-              </span>
-            ))}
-          </p>
+          <>
+            {/* cards, not a line of links: the line did not wrap and its last example (the
+                Investigate one) ran off the screen below 1920 px */}
+            <h2 className="examples-title">{t("startFromExample")}</h2>
+            <div className="examples-line">
+              {examples.map((ex) => {
+                const Ico = EXAMPLE_ICON[ex.id];
+                return (
+                  <button key={ex.id} className="ex-card" onClick={() => openPaths(ex.paths, undefined, { autoView: true })}>
+                    <Ico width={18} height={18} />
+                    <span className="ex-text"><span className="ex-title">{t(EXAMPLE_LABEL[ex.id])}</span>
+                      <span className="ex-desc">{t(EXAMPLE_DESC[ex.id])}</span></span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
         {(files.length > 0 || sessions.length > 0) && (
           <div className="recent">
@@ -189,7 +205,7 @@ function saveWidth(key: string, w: number) { setPref(`sv3.w.${key}`, Math.round(
 function PanelResizer({ label, style, width, setWidth, grow, def, other }: {
   label: string; style: React.CSSProperties; width: number; setWidth: (w: number) => void; grow: 1 | -1; def: number; other: number;
 }) {
-  const clamp = (w: number) => Math.max(MIN_PANEL, Math.min(w, window.innerWidth - 48 - other - MIN_STAGE));
+  const clamp = (w: number) => Math.max(MIN_PANEL, Math.min(w, window.innerWidth - RAIL_W - other - MIN_STAGE));
   const onDown = (e: React.PointerEvent) => {
     e.preventDefault();
     const x0 = e.clientX, w0 = width, rtl = document.documentElement.dir === "rtl" ? -1 : 1;
@@ -238,6 +254,7 @@ export default function App() {
   const matrixOpen = useApp((s) => s.matrixOpen);
   const panel = useApp((s) => s.panel);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
+  const area = useApp((s) => s.area);
   const runs = useApp((s) => s.runs);
   const ws = useApp((s) => s.ws);
   const cursor = useApp((s) => s.cursor);
@@ -497,6 +514,7 @@ export default function App() {
       if (e.ctrlKey && e.key === "Tab") { e.preventDefault(); actions.cycleTab(e.shiftKey ? -1 : 1); return; }
       if (e.key === "F5" || (mod && e.key.toLowerCase() === "r")) { e.preventDefault(); refreshAll(); return; }   // not a page reload
       if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen || st.guideOpen || st.settingsOpen) return;
+      if (st.area !== "recordings") return;        // the keys below act on the Recordings area (cursor, plots, timeline)
       if (e.key === "?") { useApp.setState({ helpOpen: true }); return; }
       if (e.key === "F1") { e.preventDefault(); useApp.setState({ guideOpen: true }); return; }   // T55
       if (mod && e.key === ",") { e.preventDefault(); useApp.setState({ settingsOpen: true }); return; }   // T18
@@ -521,7 +539,13 @@ export default function App() {
         e.preventDefault();
         actions.stepCursor((e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 10 : 1));
       } else if (e.key === "Delete" && st.selected) actions.removeSignal(st.selected.plotId, st.selected.sig);
-      else if (e.key === "Escape") useApp.setState({ selected: null });
+      else if (e.key === "Escape" && !escapeTaken() && !st.menu) {
+        // one step back per press: the selection, then the newest message, then the start card
+        // (the start card used to stay over the plots until its × was clicked)
+        if (st.selected) useApp.setState({ selected: null });
+        else if (st.toasts.length) st.dismiss(st.toasts[st.toasts.length - 1].id);
+        else if (st.startCard) useApp.setState({ startCard: null });
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -552,13 +576,17 @@ export default function App() {
     };
   }, []);
 
-  const cols = [48, panel ? sideW : 0, "1fr", inspectorOpen ? inspW : 0].map((c) => (typeof c === "number" ? `${c}px` : c)).join(" ");
+  const cols = [RAIL_W, panel ? sideW : 0, "1fr", inspectorOpen ? inspW : 0].map((c) => (typeof c === "number" ? `${c}px` : c)).join(" ");
 
   return (
     <div className="app">
       <TopBar />
+      {/* the area on screen: its bar, then its body (areas.ts). A Record over AreaId, so a new area
+          does not compile until it has a view here */}
+      {({ recordings: <>
+      <RecordingsBar />
       <div className="main" style={{ gridTemplateColumns: cols }}>
-        {panel && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: 48 + sideW - 3 }} width={sideW} setWidth={setSideW}
+        {panel && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: RAIL_W + sideW - 3 }} width={sideW} setWidth={setSideW}
           grow={+1} def={280} other={inspectorOpen ? inspW : 0} />}
         {inspectorOpen && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: inspW - 3 }} width={inspW} setWidth={setInspW}
           grow={-1} def={320} other={panel ? sideW : 0} />}
@@ -567,7 +595,7 @@ export default function App() {
             const I = Icon[r.icon];
             return (
               <button key={r.id} className={`${panel === r.id ? "on" : ""}${r.id === "log" ? " rail-log" : ""}`} title={t(r.key)} aria-label={t(r.key)} aria-pressed={panel === r.id}
-                onClick={() => useApp.setState({ panel: panel === r.id ? null : r.id })}><I />
+                onClick={() => useApp.setState({ panel: panel === r.id ? null : r.id })}><I /><span className="rail-label" aria-hidden="true">{t(r.short)}</span>
                 {r.id === "log" && !!logErrors && <span className="rail-badge" aria-label={t("logErrorsN", { n: logErrors })} />}
               </button>
             );
@@ -586,11 +614,14 @@ export default function App() {
             <PlotGrid />
           )}
           {runs.length > 0 && <PreviewPlots />}
-          <StartCard />
+          {/* one place for every notice - the start card and the messages - above the timeline,
+              instead of a card over the plots and messages over the timeline's controls */}
+          <div className="notices"><StartCard /><Toasts /></div>
           {runs.length > 0 && <Timeline />}
         </main>
         {inspectorOpen ? <Inspector /> : <div />}
       </div>
+      </> } satisfies Record<AreaId, React.ReactNode>)[area]}
       <StatusBar />
       <CommandPalette />
       <FileBrowser />
@@ -611,7 +642,6 @@ export default function App() {
         {timeAxisOpen && <TimeAxisDialog />}
         {matrixOpen && <RunsMatrix />}
       </Suspense>
-      <Toasts />
       <Jobs />
       <ContextMenu />
       <ModalFocus />

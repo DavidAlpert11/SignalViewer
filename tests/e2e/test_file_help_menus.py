@@ -23,9 +23,12 @@ def close_dialog(pg):
 
 def test_file_and_help_menus(pg):
     assert pg.locator(".topbar .menubar-btn", has_text="File").count() == 0
-    for label in ("Open session", "Save session", "Clear", "Settings", "Theme"):
+    # T-areas: the top row holds what every work area shares; session and Clear are the Recordings area's bar
+    for label in ("Settings", "Theme"):
         assert pg.locator(f".topbar [aria-label='{label}']").count() == 1, label
-    pg.click(".topbar [aria-label='Clear']")
+    for label in ("Open session", "Save session", "Clear"):
+        assert pg.locator(f".areabar [aria-label='{label}']").count() == 1, label
+    pg.click(".areabar [aria-label='Clear']")
     items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
     for want in ("This tab's plots", "The other tabs", "All tabs", "Clear everything"):
         assert any(i.startswith(want) for i in items), items
