@@ -11,8 +11,8 @@ abstract: >-
 authors:
   - given-names: David
     family-names: Alpert
-version: 1.14.0
-date-released: 2026-10-26
+version: 1.16.0
+date-released: 2026-10-29
 license: MIT
 repository-code: "https://github.com/DavidAlpert11/SignalViewer"
 url: "https://davidalpert11.github.io/SignalViewer/"

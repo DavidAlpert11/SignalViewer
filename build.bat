@@ -5,7 +5,7 @@ rem  Signal Viewer - build for Windows. The RESULT needs no Python, no packages
 rem  and no internet. Only this build step needs Python 3.10+ (and, without a
 rem  "wheels" folder, internet to install the libraries once).
 rem
-rem    build.bat installer   -> dist\SignalViewer-Setup-1.14.0.exe   (recommended: one file, installs
+rem    build.bat installer   -> dist\SignalViewer-Setup-1.16.0.exe   (recommended: one file, installs
 rem                                                                    with Start menu / desktop icons)
 rem    build.bat portable    -> dist\SignalViewer-portable.zip      (unzip anywhere, run SignalViewer.exe)
 rem    build.bat onefile     -> dist\SignalViewer.exe               (single file; starts a few seconds slower)
@@ -16,7 +16,7 @@ rem ===========================================================================
 cd /d "%~dp0"
 set MODE=%1
 if "%MODE%"=="" set MODE=installer
-set VERSION=1.14.0
+set VERSION=1.16.0
 
 where python >nul 2>nul || (echo Python 3.10+ is needed to BUILD ^(not to run the result^). & exit /b 1)
 

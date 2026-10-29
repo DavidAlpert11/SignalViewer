@@ -13,14 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.14.0 prepared 2026-10-26** (Milestone 14 in ROADMAP.md, Q92-Q97 - the owner's
-  report of 2026-10-25: big .bin logs, the browser server stopping, live on the map, the cache, the
-  Windows window, typed signal choice and unit conversions): the owner pushes, waits for the green
-  `ci` run, tags `v1.14.0` and pushes the tag (build.yml: packages, PyPI, draft release), then
-  publishes the draft. Released before: up to 1.13.0.
-- Checked here for 1.14.0 (Linux): see the log line of 2026-10-26. Not run here: Windows / macOS (CI
-  and the owner) - in particular Q96's window fix -, the Windows installer, a real 1.2 GB log (a
-  synthetic one of the same size, and the real example log value by value).
+- Branch `main`. **1.16.0 prepared 2026-10-29** (Milestone 16 in ROADMAP.md, Q122-Q123 - fixes to
+  the investigation and when the file on screen was saved). 1.15.0 was tagged on a commit that never
+  reached `main`; 1.16.0 brings its version, CHANGELOG and docs back. The owner pushes, waits for the
+  green `ci` run, tags `v1.16.0` and pushes the tag (build.yml: packages, PyPI, draft release), then
+  publishes the draft. Released before: up to 1.15.0.
+- Checked here for 1.16.0 (Linux): see the log line of 2026-10-29. Not run here: Windows / macOS (CI
+  and the owner) - in particular the newer-on-disk check on a network drive -, the Windows installer.
+  Open: Q120, Q121.
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
@@ -1079,6 +1079,26 @@ run_c deletes exactly the three copies).
 | Q97 | F44 Signals chosen by typing, with their unit and ƒ beside them; unit conversions | S | ☑ done |
 
 
+## Review 2026-10-28 (after 1.15.0) - Investigate fixes, and when the file was saved (1.16.0)
+
+| # | Task | Size | Status |
+|---|---|---|---|
+| Q122 | Review fixes: What changed first's baseline inside the data (+ "no room" message), exponent numbers in conditions / formulas, a state dropping shown ↓, Hebrew in What changed first, "1 stretch" | S | ☑ done |
+| Q123 | Owner (a user pressed F5 and could not tell whether the file was read again - the changes were small): the time the version on screen was saved to the disk on each file row (tooltip: read at), amber ↻ when the file on the disk is newer (stat poll every 3 s, click / F5 reads it), a message per file that replaces the last one. (Change marks - fingerprints of every signal, dots on the signals that changed, ↻ / ✓ of the last refresh - were tried and dropped by the owner: too much for the need, and live mode has its own green dot.) | S | ☑ done |
+
+Q123 notes: describe() sends `fileTime` (lr.stat mtime - the version read) and `readAt`
+(LoadedRun.read_at: open, reload, live appends, pushed data). `store.newer_on_disk()` /
+GET /api/runs/newer-on-disk: a stat per open file against lr.stat (copies and pushed data left out).
+UI: `fileTimes.ts` (texts, `watchNewerOnDisk` - every 3 s, not in live mode or while the window is
+hidden; `ui.newerOnDisk`, UI only), DataPanel `.run-ftime`, toasts carry a `key` (the next of that key
+replaces it) and keep line breaks.
+
+Q122 notes: `firstchange.fit_baseline` (the default baseline only; one the user gives is kept) per
+signal in `store.first_changes` and `suggest_condition`; the route returns the baseline most signals
+used and `noRoom` when every signal had nothing before the span. The bare-name regex in
+`svcore/conditions.py` and `formulaRefs.ts` skips a name right after a digit or a point (`xRefs.ts`
+and `formulaHelp.ts` already did). Plurals: separate `…One` keys, as elsewhere in i18n.ts.
+
 ## Owner's report 2026-10-26 (after 1.14.0) - blank window offline, time axis while working
 
 | # | Task | Size | Status |
@@ -1098,6 +1118,15 @@ run_c deletes exactly the three copies).
 | Q110 | Investigation spec step 6 - findings (note status + saved view), journal, report investigation sections (HTML / PDF / Word) with finding plots, reproduce appendix | M | ☑ done |
 | Q111 | Investigation spec step 7 - the run at a glance: phases + conservative automatic flags (svcore/overview.py, /api/runs/{id}/overview), OverviewStrip | M | ☑ done |
 | Q112 | Overview strip rows (state signals / conditions: add, replace, move, remove) and a combined selection (or in a row, and across rows) saved as a condition (owner, while testing) | M | ☑ done |
+| Q113 | Review of the investigation (owner, 2026-10-28): Find similar on the signal most unusual in the selection (/api/condition/suggest, firstchange.selection_change); What changed first on the event's file, the other runs under each row; the strip under the plots' time axis; the selection bar on a plot made active later; Hebrew numbers / names | M | ☑ done |
+| Q114 | What changed first on a long log (owner: "many groups at different times"): filter, × on rows / groups (their marks too), groups that close, measured from their first row; a steady drift judged against its own trend (firstchange: line vs curve) | M | ☑ done |
+| Q115 | One into each plot (owner: true X/Y/Z beside the flight computer's): pairing.ts by the part of the names that differs, else by order; one colour for the set; the ▾ menu beside Plot them | M | ☑ done |
+| Q116 | The error per axis: errors.ts (sub, reused), /api/error-segments for RMS / max / when and the worst flight mode (1.5 x the next), an "Errors" tab, the cursor on the largest | M | ☑ done |
+| Q117 | A candidate (What changed first / What differs inside) opens in a plot of its own, Ctrl+click: active plot; long plot titles cut | S | ☑ done |
+| Q118 | Steps so far grouped by kind (JournalStep.kind): a group ticked / closed / removed, a filter, "n of m in the report" | S | ☑ done |
+| Q119 | Templates keep the conditions (Template.conditions, merged by name on apply, counted in the message) | S | ☑ done |
+| Q120 | Open: a click on a strip flag also shows the flagged signal (it zooms there, the signal may be on no plot) | S | ☐ open |
+| Q121 | Open: the stretches table offers any signal of the file, not only the condition's (the tutorial's step 7 asks for Motor3) | S | ☐ open |
 
 Q98 notes: `vite.config.ts` build.target and run.py `MIN_CHROMIUM` / `MIN_FIREFOX` must name the same
 engine (test_launcher checks). The WebView2 runtime is NOT bundled (owner's decision: a better
@@ -1152,29 +1181,6 @@ re-sorting. CLI flags not added (each command would need them; the Python API ta
 - units.ts `CONVERSIONS`, `conversionsFrom`, `signalUnit`; the change dialog's *Convert units* and *Unit
   shown*; transforms carry `unit` (store `normalize_transform`; a unit alone does not recompute values).
 - tools/live_demo.py: an aircraft and a ship written to two growing CSV files.
-
-## Review 2026-10-28 (after Q112) - Investigate fixes, and what F5 did
-
-| # | Task | Size | Status |
-|---|---|---|---|
-| Q113 | Review fixes: What changed first's baseline inside the data (+ "no room" message), exponent numbers in conditions / formulas, a state dropping shown ↓, Hebrew in What changed first, "1 stretch" | S | ☑ done |
-| Q114 | Owner (a user pressed F5 and could not tell whether the file was read again - the changes were small): the refresh result on the file row (↻ / ✓ + time, tooltip: read at, saved at, what changed), a mark on changed signals, a message per file that replaces the last one | S | ☑ done |
-| Q114b | Owner, after trying Q114: nothing on the row until the first refresh; a ✓ refresh hid what the ↻ one found; the signal dot could not be seen (`--accent` is not defined: transparent). Now: the data's time from the start, marks and "what changed" kept until the data changes again (LoadedRun.data_at / last_update), amber dot + a count on closed groups | S | ☑ done |
-
-Q114 notes: `svcore/reload_diff.py` - a blake2b fingerprint per signal (values + its time + labels)
-before and after the read, compared by name (lazy signals of a big log that were never read are not
-read for this: counted as `notCompared`). `store.refresh(run_id, force)` is the one refresh path
-(reload_all with force=False keeps the size+date shortcut; a file's ↻ and /api/runs/{id}/reload
-force). LoadedRun.read_at (open, reload, live appends, pushed data) and last_reload (kept through
-`_read_again`, e.g. a time-axis change) go out in `describe` as readAt / fileTime / lastReload - UI
-state only, never saved in sessions. UI: `refreshInfo.ts` (texts), DataPanel `.run-fresh` and
-`.sig-changed`, toasts may carry a `key` (a new one replaces the last of that key) and keep line breaks.
-
-Q113 notes: `firstchange.fit_baseline` (the default baseline only; one the user gives is kept) per
-signal in `store.first_changes` and `suggest_condition`; the route returns the baseline most signals
-used and `noRoom` when every signal had nothing before the span. The bare-name regex in
-`svcore/conditions.py` and `formulaRefs.ts` skips a name right after a digit or a point (`xRefs.ts`
-and `formulaHelp.ts` already did). Plurals: separate `…One` keys, as elsewhere in i18n.ts.
 
 ## Owner's report 2026-10-22 (after 1.11.0) - several signals at once
 
@@ -1788,6 +1794,7 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-27 · Q110 (owner): findings and report - Note.status / view (investigation.ts captureView / restoreView / setFindingStatus), journal in UI state saved by currentState / applyState (no undo steps; last 200), recorded from saveCondition (its own evaluateOne - evaluateAll rounds can be overtaken), WhatChanged, lag, differ, overlay; report.py sections (HTML _sections_html, PDF pages via _section_lines, Word headings / bullets / tables); ReportPanel buildBody shared by preview and save (was duplicated), a "Findings" report tab of finding plots at their view, occ plots left out, range notes send t2. Tests: test_report_sections (2), e2e test_findings_report (2).
 - 2026-10-27 · Q111 (owner): overview strip - svcore/overview.py (phase signal by name / first with texts; stuck / saturated only for signals that change on >= 80% of samples, never in the first / last 5%, saturated only when <= 10% of the run at that edge; gaps > 20 steps and >= 0.5 s; spikes 8x the robust diff noise and back); the first rules flagged dozens of ground / set-point stretches on the example logs - now 0 on the quiet examples, the 3 built saturations on the demo, a real cluster at 138 s on copter_flight.bin. OverviewStrip above the plots (pref overviewOff), clusters close flags. Tests: test_overview (3), e2e test_overview_strip (2).
 - 2026-10-27 · Q112 (owner, while testing): ws.overviewRows (state by name / condition id; absent = the phase signal), /api/runs/{id}/overview?rows= (stretches of those state signals), ui.stripSel (picks per row, "or" = union, "and" = intersect, in the strip's run; TimeChart shades it like the condition in focus), Save as a condition (state rows -> Name == "TEXT" / number; plain conditions inlined; conditions with options -> a combined condition with the plain part saved beside it). A click on a stretch now picks; double-click zooms (it zoomed on click before). Tests: test_overview (+1), e2e test_overview_strip (+1, two adapted).
-- 2026-10-28 · Q113 (review): baseline fitted to the data + noRoom, exponent numbers, discrete direction, Hebrew in What changed first, "1 stretch". Backend 858 green, mypy / tsc clean, e2e conditions / what_changed / occurrences / overview_strip / findings_report green.
-- 2026-10-28 · Q114 (owner): refresh result on the file row + changed-signal marks + per-file message (reload_diff.py, store.refresh). Tests: backend test_refresh_summary.py, e2e test_refresh_feedback.py.
-- 2026-10-28 · Q114b (owner): chip from opening (dataAt), ↻ / ✓ only describe the last check, lastUpdate keeps what changed; dot in --amber (there is no --accent variable - the old dot was transparent); group count. Full e2e run.
+- 2026-10-28 · Q113-Q119 (review of the investigation with the owner, applied as one commit + a mypy fix) and 1.15.0 prepared: version 1.15.0 (version.py, CITATION.cff, build.bat, the installer, install.md); CHANGELOG 1.15.0 with highlights - the fixes to features not released yet folded into their entries; README (en / he), features, guide (en / he), tutorial reviewed; validation report regenerated (23 / 23, only the version line changed). Here: backend 854 + 12 skipped, mypy clean, tsc + build clean, validate 23 / 23, mkdocs --strict, e2e 240 / 240 in one process on this tree with the rebuilt frontend/dist (test_globe_without_webgl_falls_back timed out in 2 of 5 full runs while the review was made, alone 3 / 3 - its path untouched).
+- 2026-10-28 · Q122 (review): baseline fitted to the data + noRoom, exponent numbers, discrete direction, Hebrew in What changed first, "1 stretch".
+- 2026-10-28 · Q123 (owner): change marks on refresh tried (fingerprints, dots, ↻ / ✓) and dropped; kept: the saved time on the file row, newer on the disk (stat poll, click / F5), a message per file.
+- 2026-10-29 · 1.16.0 prepared: the 1.15.0 release commit (tagged, never on main) brought back; version 1.16.0 (version.py, CITATION.cff, build.bat, the installer, install.md); CHANGELOG 1.16.0; docs reviewed; frontend/dist rebuilt.

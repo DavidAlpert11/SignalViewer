@@ -21,6 +21,8 @@ export interface UiSlice {
   picker: PickerRequest | null;
   importPaths: string[] | null;
   toasts: Toast[];
+  /** Q123: open files saved again on the disk since they were read -> when (polled; UI only) */
+  newerOnDisk: Record<string, number>;
   menu: { x: number; y: number; items: MenuItem[] } | null;
   startCard: import("../../smartStart").StartCard | null;   // T29: suggestions after the first file (UI only)
   syncFor: string | null;          // the file whose time the sync dialog aligns
@@ -88,6 +90,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   picker: null,
   importPaths: null,
   toasts: [],
+  newerOnDisk: {},
   menu: null,
   startCard: null,
   syncFor: null,
