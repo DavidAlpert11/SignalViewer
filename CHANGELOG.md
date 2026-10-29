@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+Highlights: **work areas**, ready for more than recordings, **names on the tool rail**, **a welcome screen that shows what the app does** - the examples as cards, each saying
+what it shows - and **one place for messages**, above the timeline. Fixes: a **line width** you
+choose is drawn, and **limits** show as soon as they are set. Nothing changes in results, sessions or
+templates you already have.
+
+### Added
+- **Work areas** (the way Mission Planner has its screens): the top row now holds what is the same
+  everywhere - the name, the area, search, live, settings, theme, language, help - and the row under
+  it is the area's own: its session, plot tabs, templates, undo / redo, Clear and the Inspector. Today
+  there is one area, **Recordings** (everything the app did so far), so only its name shows; areas for
+  other kinds of work can be added beside it without moving anything in this one.
+- **The tool rail has names**: Files, Create, Compare, Investigate, Report, Fleet under their icons -
+  Investigate and Fleet were hard to find behind an icon alone.
+- **The welcome screen**: a line on what the app is for, and the examples as cards - each with what it
+  shows (a drone flight: map, 3D and attitude; an ArduPilot log: the automatic health check; find out
+  what went wrong: Investigate…). They used to be one line of links that did not wrap: below 1920 px
+  the last one (the Investigate example) ran off the screen.
+- **One place for messages**: the start card and the messages are together at the lower corner of
+  the plots, above the timeline. At most three messages show; older ones still up wait behind
+  *+N*. **Esc** takes one step back: the selection, then the newest message, then the start card
+  (it used to stay over the plots until its × was clicked).
+
+### Fixed
+- **Line width** had no effect on most recordings: a line with about a point per pixel or more was
+  always drawn 1 pixel wide, whatever the width - in practice every long recording, even zoomed in.
+  A width you set is now drawn; only lines at the default width keep the fast thin drawing.
+- **Limits** (Inspector → Limits) were checked but their dashed line did not appear on the plot
+  until something else about the signal changed (its colour, say). They show at once now.
+- **Open files** was cut to "Open fil" (in Hebrew too) once files were open and the panel's head
+  had its other buttons; it is the + alone then, its name in the tooltip.
+- The messages no longer cover the timeline's speed and cursor controls.
+
 ## 1.16.0 – 2026-10-29
 
 Highlights: **when the file on screen was saved, and whether a newer one is on the disk** - its time

@@ -14,7 +14,7 @@ export * from "./store/model";
 export * from "./store/types";
 export {
   activeTab, plotHasContent, tabHasContent, rangeKey, yRangeKey, recordingExtent, shownSpan, fileLabel, signalName,
-  newPlotSignal, nextColor, colorAllocator, colorByFile, fileMark, showFileTags, shade, placePlot, tabFullMessage, fitLayout, pickPath, alwaysState, laneScope, type LaneScope
+  newPlotSignal, DEFAULT_LINE_WIDTH, nextColor, colorAllocator, colorByFile, fileMark, showFileTags, shade, placePlot, tabFullMessage, fitLayout, pickPath, alwaysState, laneScope, type LaneScope
 } from "./store/selectors";
 export { useApp, type AppState } from "./store/state";
 export { setInspectorByUser } from "./store/inspector";
