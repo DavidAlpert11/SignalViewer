@@ -16,8 +16,8 @@ import { useApp } from "../../store";
 import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
-import { useSweeps, useStudy, type Study } from "../../sweeps/state";
-import { colLabel, modeColumns, scaleOf, shownAxes } from "../../sweeps/view";
+import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
+import { colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import { studyReport } from "../../sweeps/report";
 import { fits } from "../../sweeps/state";
@@ -175,6 +175,13 @@ function SweepsWelcome() {
   const error = useSweeps((s) => s.error);
   const [note, setNote] = useState("");
   const example = async () => { const { path } = await sweepApi.example(); await useSweeps.getState().open(path); };
+  // the example's second sweep - finer where the first looked good - merged into it
+  const merged = async () => {
+    const { path } = await sweepApi.example();
+    await useSweeps.getState().open(path);
+    const r = await useSweeps.getState().merge(path.replace(/sweep_payload\.csv$/, "sweep_payload_refine.csv"), "new");
+    setNote(t("swMerged", { added: r.added, replaced: r.replaced }));
+  };
   return (
     <div className="sw-welcome">
       <div className="welcome-card sw-welcome-card">
@@ -201,6 +208,7 @@ function SweepsWelcome() {
           <button className="btn outline" disabled={busy} onClick={() => openFolder(t("swOpenFolder"))}><Icon.Folder /> {t("swOpenFolder")}</button>
           <button className="btn outline" disabled={busy} onClick={() => openStudy(t("swOpenStudy")).then(setNote)}>{t("swOpenStudy")}</button>
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
+          <button className="btn outline" disabled={busy} onClick={merged}>{t("swTryMerged")}</button>
         </div>
         {busy && <p className="hint">{t("swReading")}</p>}
         {(error || note) && <p className="sw-error" role="alert">{error || note}</p>}
@@ -223,18 +231,37 @@ function StudyView({ study }: { study: Study }) {
   const noParams = !study.columns.some((c) => c.role === "param");
   const [menu, setMenu] = useState<{ name: string; at: DOMRect } | null>(null);
   const v = study.view;
-  const { cols, n } = useMemo(() => modeColumns(study), [study]);
+  const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
   const axes = shownAxes(study);
   const scale = useMemo(() => (name: string) => scaleOf(study, name, cols.get(name)), [study, cols]);
   const shown = useMemo(() => { const m = keptMask(cols, v.filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, v.filters, n]);
   // the open set drawn thick: its line, or every run of it
+  const setOfRow = (r: number) => (v.mode === "sets" ? (index ? index[r] : r) : (cols.get("#set")?.values[r] ?? -1));
   const highlight = useMemo(() => {
     if (v.pinned === null || !n) return null;
     const h = new Uint8Array(n);
-    if (v.mode === "sets") h[v.pinned] = 1;
-    else { const s = cols.get("#set")?.values; if (s) for (let i = 0; i < n; i++) if (s[i] === v.pinned) h[i] = 1; }
+    for (let i = 0; i < n; i++) if (setOfRow(i) === v.pinned) h[i] = 1;
     return h;
-  }, [v.pinned, v.mode, cols, n]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v.pinned, v.mode, cols, n, index]);
+  // what is selected now: the lines every filter keeps - as parameter sets, and as runs (table rows)
+  const selection = () => {
+    const m = keptMask(cols, v.filters, n);
+    const sets = new Set<number>(), rows: number[] = [];
+    const rowCol = cols.get("#row")?.values;
+    for (let i = 0; i < n; i++) if (m[i]) { sets.add(setOfRow(i)); if (rowCol) rows.push(rowCol[i]); }
+    return { sets: [...sets], rows };
+  };
+  const exportShown = async () => {
+    const p = await pickPath({ mode: "save", title: t("swExportShown"), exts: [".csv"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_selected.csv" });
+    if (!p) return;
+    const sel = selection();
+    try {
+      const r = await sweepApi.exportRows(study.tableId, wireQuestion(study), v.mode === "runs" ? { rows: sel.rows } : { sets: sel.sets }, p);
+      setNote(t("swExported", { n: r.rows, path: r.path }));
+    } catch (e) { setNote((e as Error).message); }
+  };
+  const [note, setNote] = useState("");
   const menuCol = menu ? cols.get(menu.name) : undefined;
   return (
     <div className={`sw-study${v.pinned !== null ? " with-detail" : ""}`}>
@@ -271,12 +298,16 @@ function StudyView({ study }: { study: Study }) {
         {study.answer && v.center === "compare" && <CompareView study={study} />}
         {v.center === "lines" && (study.answer ? (
           <>
-            <PlotToolbar study={study} shown={shown} total={n} />
+            <PlotToolbar study={study} shown={shown} total={n}
+              onKeep={() => st.narrow("keep", selection().sets, scopeKey(study))}
+              onExclude={() => st.narrow("exclude", selection().sets, scopeKey(study))}
+              onExport={exportShown} />
+            {note && <p className="hint">{note}</p>}
             {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
             {axes.length ? (
               <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
                 filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)}
-                onPick={(r) => st.setView({ pinned: v.mode === "sets" ? r : (cols.get("#set")?.values[r] ?? null) })}
+                onPick={(r) => st.setView({ pinned: setOfRow(r) })}
                 onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })} />
             ) : <p className="empty-note">{t("swNoAxes")}</p>}
             <SetsTable study={study} />

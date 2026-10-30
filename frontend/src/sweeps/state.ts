@@ -32,6 +32,10 @@ export interface Study {
   changed: boolean;
   /** a template whose columns this table has, offered when it opened */
   offer: string | null;
+  /** the tables merged into this one, in order (their file names) */
+  sources: string[];
+  /** what was merged in, to merge it again when a saved study opens */
+  merged: { path: string; prefer: "new" | "old" | "both" }[];
 }
 
 /** A study as saved (.svsweep): which table, the columns' roles and scales, the question and the view. */
@@ -41,6 +45,7 @@ export interface SavedStudy {
   columns: { name: string; role: Role; scale: Scale }[];
   question: Question;
   view: Omit<View, "pinned">;
+  merged?: { path: string; prefer: "new" | "old" | "both" }[];
 }
 
 interface SweepsState {
@@ -51,6 +56,9 @@ interface SweepsState {
   open: (path: string, saved?: SavedStudy) => Promise<void>;
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => Promise<void>;
   saved: () => SavedStudy | null;
+  merge: (path: string, prefer: "new" | "old" | "both") => Promise<{ added: number; replaced: number }>;
+  narrow: (kind: "keep" | "exclude", sets: number[], key: string) => void;
+  restore: (all: boolean) => void;
   // the file
   reload: () => Promise<void>;
   checkChanged: () => Promise<void>;
@@ -143,7 +151,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
       head: r.head, summary: r.summary,
       question: saved ? { ...emptyQuestion(), ...saved.question } : emptyQuestion(),
       view: saved ? { ...emptyView(), ...saved.view, pinned: null } : emptyView(),
-      answer: null, evaluating: false, evalError: "", changed: false, offer: null };
+      answer: null, evaluating: false, evalError: "", changed: false, offer: null,
+      sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [] };
     // the table always opens; with no parameter column yet, the columns come first - say which they are
     if (!columns.some((c) => c.role === "param")) study.view = { ...study.view, left: "columns" };
     if (!saved) study.offer = get().templates.find((t) => fits(t, columns))?.name ?? null;
@@ -163,6 +172,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       try {
         const r = await sweepApi.open(path);
         add(r, saved);
+        for (const m of saved?.merged ?? []) await get().merge(m.path, m.prefer);
       } catch (e) {
         set({ busy: false, error: (e as Error).message });
       }
@@ -178,8 +188,26 @@ export const useSweeps = create<SweepsState>((set, get) => {
       const { pinned: _p, ...view } = s.view;
       void _p;
       return { kind: "signalviewer-sweep", version: 1, path: s.path, columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
-        question: s.question, view };
+        question: s.question, view, merged: s.merged };
     },
+    merge: async (path, prefer) => {
+      const s = get().studies[get().active];
+      const keys = s.columns.filter((c) => c.role === "param" || c.role === "hold").map((c) => c.name);
+      const r = await sweepApi.merge(s.tableId, path, keys, prefer);
+      const byName = new Map(s.columns.map((c) => [c.name, c]));
+      const columns: StudyColumn[] = r.columns.map((c) => {
+        const old = byName.get(c.name);
+        return { ...c, guessRole: c.role, guessScale: c.scale, role: old?.role ?? c.role, scale: old?.scale ?? c.scale };
+      });
+      patch((x) => (x.tableId !== s.tableId ? x : { ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
+        merged: [...x.merged, { path, prefer }], view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } }));
+      refreshSummary();
+      get().evaluate();
+      return { added: r.added, replaced: r.replaced };
+    },
+    narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, pinned: null,
+      scope: { key, steps: [...(v.scope.key === key ? v.scope.steps : []), { kind, sets }] } })),
+    restore: (all) => patchV((v) => ({ ...v, scope: { ...v.scope, steps: all ? [] : v.scope.steps.slice(0, -1) } })),
     reload: async () => {
       const s = get().studies[get().active];
       if (!s) return;
