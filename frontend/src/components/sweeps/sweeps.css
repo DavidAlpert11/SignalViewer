@@ -147,3 +147,59 @@
 .sw-stat-value { font-size: 1.2rem; font-weight: 600; color: var(--ink-strong); }
 .sw-stat.warn .sw-stat-value { color: var(--amber); }
 .sw-stat-label { color: var(--muted); font-size: 0.769rem; line-height: 1.2; }
+
+/* the welcome's sample table */
+.sw-welcome-card { width: min(820px, 100%); }
+.sw-sample { margin: 18px auto 0; text-align: start; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+.sw-sample-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.sw-sample-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+.sw-sample-wrap table { font-family: ui-monospace, monospace; }
+.sw-sample-legend { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 0.846rem; }
+.sw-th-param { color: var(--sw-param); } .sw-th-hold { color: var(--sw-hold); } .sw-th-output { color: var(--sw-output); }
+.sw-th-ignore, .sw-dim { color: var(--muted); opacity: .7; }
+
+/* the middle's tabs */
+.sw-center-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.sw-center-tabs button { height: 32px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: inherit; cursor: pointer; }
+.sw-center-tabs button.on { color: var(--ink-strong); border-bottom-color: var(--amber); font-weight: 600; }
+
+/* effects */
+.sw-effects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.sw-effect { padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.sw-effect-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.sw-imp { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.sw-imp span { display: block; height: 100%; background: var(--amber); }
+.sw-effect svg { width: 100%; height: auto; }
+.sw-band { fill: color-mix(in srgb, var(--focus) 18%, transparent); }
+.sw-mean { fill: none; stroke: var(--focus); stroke-width: 2; }
+.sw-dot { fill: var(--focus); }
+.sw-ax { fill: var(--muted); font-size: 10px; }
+.sw-ax-title { fill: var(--ink); font-size: 11px; }
+.sw-hold-bar-bg { fill: var(--line); } .sw-hold-bar { fill: var(--sw-output); }
+
+/* map */
+.sw-map { display: flex; flex-direction: column; gap: 8px; }
+.sw-map svg { overflow: visible; }
+.sw-cell-empty { stroke: var(--line); stroke-dasharray: 3 3; }
+.sw-cell-text { font-size: 10px; fill: #fff; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
+.sw-legend-ramp { display: inline-block; width: 90px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgb(68,1,84), rgb(59,82,139), rgb(33,145,140), rgb(94,201,98), rgb(253,231,37)); }
+.sw-mark { font-size: 14px; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+.sw-mark-edge { fill: #f2a93b; color: #f2a93b; } .sw-mark-best { fill: #6fa8ff; color: #6fa8ff; } .sw-mark-disagree { fill: #c79bf2; color: #c79bf2; }
+.sw-mark-gaps { fill: var(--ink); color: var(--ink); } .sw-mark-missing { fill: var(--muted); color: var(--muted); }
+
+/* next runs */
+.sw-next { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; min-height: 0; }
+.sw-next-side { display: flex; flex-direction: column; gap: 10px; }
+.sw-kind { display: flex; gap: 8px; align-items: flex-start; }
+.sw-next-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+/* health, compare, scatter */
+.sw-health, .sw-compare, .sw-scatter, .sw-effects { display: flex; flex-direction: column; gap: 10px; }
+.sw-ok { color: var(--sw-ok) !important; }
+.sw-scatter canvas { background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
+
+/* banners over the middle: the file changed, a template fits, nothing to ask yet */
+.sw-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--amber);
+  border-radius: 8px; background: color-mix(in srgb, var(--amber) 10%, var(--panel)); }
+.sw-banner .btn { height: 28px; }
+.sw-templates { height: 28px; max-width: 170px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; }

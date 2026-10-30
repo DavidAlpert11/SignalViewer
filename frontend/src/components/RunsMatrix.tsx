@@ -97,6 +97,15 @@ export default function RunsMatrix() {
     void navigator.clipboard.writeText(lines.join("\n")).then(() => useApp.getState().toast({ kind: "info", text: t("occCopied") }));
   };
 
+  // the same table in the Sweeps area: a row per run - its file, parameters and the conditions'
+  // measures - where a goal, conditions over scenarios and the parallel plot apply
+  const toSweeps = async () => {
+    const columns = ["recording", ...paramCols, ...condCols.map((x) => x.c.name)];
+    const rows = files.map((f) => [f.path, ...paramCols.map((n) => params[f.id]?.[n] ?? null), ...condCols.map((x) => value(f.id, x.key))]);
+    const { useSweeps } = await import("../sweeps/state");
+    useApp.setState({ matrixOpen: false, area: "sweeps" });
+    await useSweeps.getState().openRows(t("mxTitle"), columns, rows);
+  };
   return (
     <div className="scrim" onMouseDown={close}>
       <div className="dialog mx-dialog" role="dialog" aria-label={t("mxTitle")} onMouseDown={(e) => e.stopPropagation()}>
@@ -110,6 +119,7 @@ export default function RunsMatrix() {
           </select>
           <button className="btn outline sm mx-folder" onClick={addFolder}>{t("mxFolder")}</button>
           <button className="btn outline sm" onClick={copy}>{t("copyTable")}</button>
+          <button className="btn outline sm" onClick={toSweeps} title={t("mxToSweepsHint")}>{t("mxToSweeps")}</button>
           {busy && <span className="hint">{busy}</span>}
         </div>
         <p className="hint">{t("mxHint")}</p>

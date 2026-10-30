@@ -3,19 +3,34 @@
 
    This file is layout only. The pieces, each its own file:
      QuestionPanel / ColumnsPanel   the left side (the question; the columns and their roles)
-     PlotToolbar + ParallelPlot     the plot (+ AxisMenu, an axis's menu)
-     SetsTable                      the parameter sets, best first
-     SetDetail                      one set on the right: why it fails, its runs
+     CenterTabs                     what the middle shows:
+       PlotToolbar + ParallelPlot + SetsTable   the lines (+ AxisMenu) and the sets, best first
+       EffectsView  which parameter matters      MapView      two parameters as a map
+       ScatterView  any two columns as points    NextRunsView what to run next
+       HealthView   missing, failed, odd runs    CompareView  two studies, same question
+     SetDetail                      one set on the right: why it fails, its runs, its recordings
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { pickPath } from "../../store";
+import { useApp } from "../../store";
 import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, useStudy, type Study } from "../../sweeps/state";
 import { colLabel, modeColumns, scaleOf, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
+import { studyReport } from "../../sweeps/report";
+import { fits } from "../../sweeps/state";
+import { prompt } from "../Overlays";
+import type { SavedStudy } from "../../sweeps/state";
 import AxisMenu from "./AxisMenu";
+import CenterTabs from "./CenterTabs";
+import CompareView from "./CompareView";
+import EffectsView from "./EffectsView";
+import HealthView from "./HealthView";
+import MapView from "./MapView";
+import NextRunsView from "./NextRunsView";
+import ScatterView from "./ScatterView";
 import ColumnsPanel from "./ColumnsPanel";
 import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
@@ -25,10 +40,25 @@ import SetsTable from "./SetsTable";
 import "./sweeps.css";
 
 const TABLE_EXTS = [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"];
+const STUDY_EXT = ".svsweep";
 
 async function openTable(title: string) {
   const p = await pickPath({ mode: "open", title, exts: TABLE_EXTS });
   if (p) await useSweeps.getState().open(p);
+}
+async function openFolder(title: string) {
+  const p = await pickPath({ mode: "folder", title });
+  if (p) await useSweeps.getState().open(p);
+}
+async function openStudy(title: string): Promise<string> {
+  const p = await pickPath({ mode: "open", title, exts: [STUDY_EXT] });
+  if (!p) return "";
+  try {
+    const doc = JSON.parse((await sweepApi.loadText(p)).text) as SavedStudy;
+    if (doc.kind !== "signalviewer-sweep") return "not a study";
+    await useSweeps.getState().open(doc.path, doc);
+    return "";
+  } catch (e) { return (e as Error).message; }
 }
 
 /** The whole area: its bar (the app's second row) and what is under it (the third). */
@@ -39,15 +69,29 @@ export default function SweepsScreen() {
 
 function SweepsBar() {
   const t = useT();
+  const lang = useApp((s) => s.lang);
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
   const study = studies[active];
   const [note, setNote] = useState("");
+  const say = (r: Promise<string>) => r.then(setNote).catch((e) => setNote((e as Error).message));
   const exportRerun = async () => {
     const p = await pickPath({ mode: "save", title: t("swExportRerun"), exts: [".csv"], defaultName: "rerun.csv" });
     if (!p) return;
-    try { const r = await useSweeps.getState().exportRerun(p); setNote(t("swExported", { n: r.rows, path: r.path })); }
-    catch (e) { setNote((e as Error).message); }
+    say(useSweeps.getState().exportRerun(p).then((r) => t("swExported", { n: r.rows, path: r.path })));
+  };
+  const saveStudy = async () => {
+    const doc = useSweeps.getState().saved();
+    if (!doc) return;
+    if (!doc.path) { setNote(t("swCannotSaveRows")); return; }
+    const p = await pickPath({ mode: "save", title: t("swSaveStudy"), exts: [STUDY_EXT], defaultName: study.name.replace(/\.[^.]+$/, "") + STUDY_EXT });
+    if (p) say(sweepApi.saveText(p, JSON.stringify(doc, null, 1)).then((r) => t("swSaved", { path: r.path })));
+  };
+  const report = async () => {
+    const p = await pickPath({ mode: "save", title: t("swReport"), exts: [".html"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_report.html" });
+    if (!p) return;
+    const canvas = document.querySelector<HTMLCanvasElement>(".pp canvas");
+    say(sweepApi.saveText(p, studyReport(t, study, canvas ? canvas.toDataURL("image/png") : null, lang)).then((r) => t("swSaved", { path: r.path })));
   };
   return (
     <div className="areabar" role="toolbar" aria-label={t("areaSweeps")}>
@@ -64,6 +108,15 @@ function SweepsBar() {
         </div>
       </nav>
       <button className="btn outline" onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
+      <button className="iconbtn" aria-label={t("swOpenFolder")} title={t("swOpenFolder")} onClick={() => openFolder(t("swOpenFolder"))}><Icon.Folder /></button>
+      <button className="iconbtn" aria-label={t("swOpenStudy")} title={t("swOpenStudy")} onClick={() => say(openStudy(t("swOpenStudy")))}><Icon.Open /></button>
+      {study && <button className="iconbtn" aria-label={t("swSaveStudy")} title={t("swSaveStudy")} onClick={saveStudy}><Icon.Save /></button>}
+      {study?.answer && <button className="iconbtn" aria-label={t("swReport")} title={t("swReport")} onClick={report}><Icon.Report /></button>}
+      {study && <span className="sep" />}
+      {study?.path && <button className="iconbtn" aria-label={t("swRefresh")} title={t("swRefresh")} onClick={() => useSweeps.getState().reload()}><Icon.Reload /></button>}
+      {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow}
+        onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} />{t("swFollow")}</label>}
+      {study && <TemplatesMenu />}
       <div className="spacer" />
       {note && <span className="hint sw-note" title={note}>{note}</span>}
       {study && (
@@ -77,23 +130,80 @@ function SweepsBar() {
   );
 }
 
+/** Templates: apply one (those that fit this table's columns first), save this study as one, delete. */
+function TemplatesMenu() {
+  const t = useT();
+  const study = useStudy()!;
+  const templates = useSweeps((s) => s.templates);
+  const st = useSweeps.getState();
+  useEffect(() => { st.loadTemplates(); }, [st]);
+  const ok = templates.filter((x) => fits(x, study.columns)), other = templates.filter((x) => !fits(x, study.columns));
+  const act = async (v: string) => {
+    if (v === "#save") {
+      const name = await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, ""));
+      if (name?.trim()) await st.saveTemplate(name.trim());
+    } else if (v.startsWith("del:")) {
+      st.deleteTemplate(v.slice(4));
+    } else if (v) st.applyTemplate(v);
+  };
+  return (
+    <select className="sw-templates" aria-label={t("swTemplates")} value="" onChange={(e) => act(e.target.value)}>
+      <option value="">{t("swTemplates")}</option>
+      <option value="#save">{t("swSaveTemplate")}</option>
+      {ok.length > 0 && <optgroup label={t("swTemplatesFit")}>{ok.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}</optgroup>}
+      {other.length > 0 && <optgroup label={t("swTemplatesOther")}>{other.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}</optgroup>}
+      {templates.length > 0 && <optgroup label={t("swTemplatesDelete")}>{templates.map((x) => <option key={x.name} value={`del:${x.name}`}>× {x.name}</option>)}</optgroup>}
+    </select>
+  );
+}
+
+/* a few rows of the example table, to show what a results table looks like */
+const SAMPLE: { name: string; role: "hold" | "param" | "output" | "ignore" }[] = [
+  { name: "scenario_terrain", role: "hold" }, { name: "payload_kg", role: "param" }, { name: "scenario_wind_mps", role: "hold" },
+  { name: "kp_roll", role: "param" }, { name: "range_m", role: "output" }, { name: "max_roll_deg", role: "output" }, { name: "sim_version", role: "ignore" },
+];
+const SAMPLE_ROWS = [
+  ["flat", "0.5", "0", "0.10", "1907.2", "11.78", "4.2.1"],
+  ["flat", "0.5", "4", "0.10", "1871.5", "13.02", "4.2.1"],
+  ["hills", "1.0", "8", "0.18", "1631.9", "19.40", "4.2.1"],
+  ["urban", "2.0", "8", "0.22", "1180.3", "27.55", "4.2.1"],
+];
+
 function SweepsWelcome() {
   const t = useT();
   const busy = useSweeps((s) => s.busy);
   const error = useSweeps((s) => s.error);
+  const [note, setNote] = useState("");
   const example = async () => { const { path } = await sweepApi.example(); await useSweeps.getState().open(path); };
   return (
     <div className="sw-welcome">
-      <div className="welcome-card">
+      <div className="welcome-card sw-welcome-card">
         <h1>{t("swWelcomeTitle")}</h1>
         <p className="tagline">{t("swWelcomeTagline")}</p>
-        <p>{t("swWelcomeHint")}</p>
+        <div className="sw-sample" aria-label={t("swSampleTitle")}>
+          <div className="sw-sample-head"><b>{t("swSampleTitle")}</b><span className="hint">{t("swSampleHint")}</span></div>
+          <div className="sw-sample-wrap">
+            <table className="sw-table">
+              <thead><tr>{SAMPLE.map((c) => <th key={c.name} className={`sw-th-${c.role}`}>{c.name}</th>)}</tr></thead>
+              <tbody>{SAMPLE_ROWS.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} className={SAMPLE[j].role === "ignore" ? "sw-dim" : ""}>{v}</td>)}</tr>)}
+                <tr><td colSpan={SAMPLE.length} className="hint">…</td></tr></tbody>
+            </table>
+          </div>
+          <div className="sw-sample-legend">
+            <span className="sw-th-param">■ {t("swRoleParam")}</span><span className="hint">{t("swWhatWeChoose")}</span>
+            <span className="sw-th-hold">■ {t("swRoleHold")}</span><span className="hint">{t("swWhatWeDont")}</span>
+            <span className="sw-th-output">■ {t("swRoleOutput")}</span><span className="hint">{t("swSampleOutputs")}</span>
+          </div>
+          <p className="hint">{t("swSampleNote")}</p>
+        </div>
         <div className="sw-welcome-actions">
           <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
+          <button className="btn outline" disabled={busy} onClick={() => openFolder(t("swOpenFolder"))}><Icon.Folder /> {t("swOpenFolder")}</button>
+          <button className="btn outline" disabled={busy} onClick={() => openStudy(t("swOpenStudy")).then(setNote)}>{t("swOpenStudy")}</button>
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
         </div>
         {busy && <p className="hint">{t("swReading")}</p>}
-        {error && <p className="sw-error" role="alert">{error}</p>}
+        {(error || note) && <p className="sw-error" role="alert">{error || note}</p>}
       </div>
     </div>
   );
@@ -102,7 +212,15 @@ function SweepsWelcome() {
 function StudyView({ study }: { study: Study }) {
   const t = useT();
   const st = useSweeps.getState();
-  const [side, setSide] = useState<"question" | "columns">("question");
+  const side = study.view.left;
+  const setSide = (left: "question" | "columns") => st.setView({ left });
+  // follow the file: is it newer than what is on screen? (every few seconds, only this study)
+  useEffect(() => {
+    if (!study.path) return;
+    const h = window.setInterval(() => useSweeps.getState().checkChanged(), 3000);
+    return () => window.clearInterval(h);
+  }, [study.tableId, study.path]);
+  const noParams = !study.columns.some((c) => c.role === "param");
   const [menu, setMenu] = useState<{ name: string; at: DOMRect } | null>(null);
   const v = study.view;
   const { cols, n } = useMemo(() => modeColumns(study), [study]);
@@ -130,7 +248,28 @@ function StudyView({ study }: { study: Study }) {
         </div>
       </aside>
       <main className="sw-center">
-        {study.answer ? (
+        {study.changed && (
+          <div className="sw-banner" role="status">{t("swFileChanged")}
+            <button className="btn primary" onClick={() => st.reload()}>{t("swRefresh")}</button>
+            <button className="btn outline" onClick={() => { st.setView({ follow: true }); st.reload(); }}>{t("swFollowFromNow")}</button></div>
+        )}
+        {study.offer && (
+          <div className="sw-banner" role="status">{t("swTemplateFits", { n: study.offer })}
+            <button className="btn primary" onClick={() => st.applyTemplate(study.offer!)}>{t("swApply")}</button>
+            <button className="iconbtn" aria-label={t("swDismiss")} onClick={() => useSweeps.setState((x) => ({ studies: x.studies.map((y) => (y.tableId === study.tableId ? { ...y, offer: null } : y)) }))}>×</button></div>
+        )}
+        {noParams && (
+          <div className="sw-banner" role="status">{t("swChooseParams")}
+            {side !== "columns" && <button className="btn primary" onClick={() => setSide("columns")}>{t("swColumns")}</button>}</div>
+        )}
+        <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
+        {study.answer && v.center === "effects" && <EffectsView study={study} />}
+        {study.answer && v.center === "map" && <MapView study={study} />}
+        {study.answer && v.center === "scatter" && <ScatterView study={study} />}
+        {study.answer && v.center === "next" && <NextRunsView study={study} />}
+        {v.center === "health" && <HealthView study={study} />}
+        {study.answer && v.center === "compare" && <CompareView study={study} />}
+        {v.center === "lines" && (study.answer ? (
           <>
             <PlotToolbar study={study} shown={shown} total={n} />
             {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
@@ -142,7 +281,8 @@ function StudyView({ study }: { study: Study }) {
             ) : <p className="empty-note">{t("swNoAxes")}</p>}
             <SetsTable study={study} />
           </>
-        ) : <p className="empty-note">{study.evalError || t("swReading")}</p>}
+        ) : <p className="empty-note">{study.evalError || t("swReading")}</p>)}
+        {!study.answer && v.center !== "lines" && v.center !== "health" && <p className="empty-note">{study.evalError || t("swReading")}</p>}
       </main>
       {v.pinned !== null && study.answer && <SetDetail study={study} set={v.pinned} />}
       {menu && menuCol && (

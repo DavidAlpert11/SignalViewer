@@ -30,9 +30,19 @@ export interface Question {
   derived: Derived[];
   /** how an output shows per parameter set */
   outputAgg: SetOp;
+  /** several goals at once: the Pareto front and a weighted score (worst case of each) */
+  objectives: Objective[];
+  /** runs left out (rows of the table), e.g. suspicious ones */
+  exclude: number[];
 }
 
-export const emptyQuestion = (): Question => ({ holdValues: {}, goal: null, conditions: [], derived: [], outputAgg: "mean" });
+export interface Objective { column: string; direction: "max" | "min"; weight: number }
+
+export const emptyQuestion = (): Question => ({ holdValues: {}, goal: null, conditions: [], derived: [], outputAgg: "mean", objectives: [], exclude: [] });
+
+/** What the middle of the area shows. */
+export type Center = "lines" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
+export const CENTERS: Center[] = ["lines", "effects", "map", "scatter", "next", "health", "compare"];
 
 /** A range filter on an axis keeps a value inside any of its ranges; a category filter keeps the
  *  listed values (codes into the column's labels). */
@@ -55,10 +65,19 @@ export interface View {
   /** parameter sets to run again */
   rerun: number[];
   onlyMissing: boolean;
+  center: Center;
+  /** the map's and the scatter's axes */
+  mapX: string | null; mapY: string | null;
+  scatterX: string | null; scatterY: string | null;
+  /** the left side: the question, or the columns */
+  left: "question" | "columns";
+  /** read the table again by itself when its file changes */
+  follow: boolean;
 }
 
 export const emptyView = (): View => ({ mode: "sets", axes: [], colorBy: "#holds", filters: {}, reversed: {}, scales: {},
-  hideConstant: true, hideFlat: false, pinned: null, rerun: [], onlyMissing: false });
+  hideConstant: true, hideFlat: false, pinned: null, rerun: [], onlyMissing: false,
+  center: "lines", mapX: null, mapY: null, scatterX: null, scatterY: null, left: "question", follow: false });
 
 /** A decoded column of the answer. Text is codes into `labels`. */
 export interface Col {

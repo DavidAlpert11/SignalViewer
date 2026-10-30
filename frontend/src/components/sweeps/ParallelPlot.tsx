@@ -72,7 +72,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     const c = p.colorBy ? p.cols.get(p.colorBy) : undefined;
     let colour: (r: number) => string;
     if (!c) colour = () => HOLDS;
-    else if (p.colorBy === "#holds") colour = (r) => (c.values[r] === 1 ? HOLDS : FAILS);
+    else if (p.colorBy === "#holds" || p.colorBy === "#pareto" || p.colorBy === "#partial") colour = (r) => (c.values[r] === 1 ? HOLDS : FAILS);
     else if (c.kind === "cat") colour = (r) => category(c.values[r]);
     else {
       const sc: AxisScale = makeScale(c, p.scaleOf(c.name) === "log" ? "log" : "linear");

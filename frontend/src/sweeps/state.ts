@@ -7,7 +7,7 @@
    view only redraws. */
 import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
-import { sweepApi, type Role, type Scale, type SweepColumn, type SweepSummary, type WireQuestion } from "./api";
+import { sweepApi, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
 import { emptyQuestion, emptyView, type Answer, type Condition, type Derived, type Filter, type Question, type View } from "./model";
 
@@ -28,6 +28,19 @@ export interface Study {
   answer: Answer | null;
   evaluating: boolean;
   evalError: string;
+  /** the file changed on disk since it was read (and the study does not follow it) */
+  changed: boolean;
+  /** a template whose columns this table has, offered when it opened */
+  offer: string | null;
+}
+
+/** A study as saved (.svsweep): which table, the columns' roles and scales, the question and the view. */
+export interface SavedStudy {
+  kind: "signalviewer-sweep"; version: 1;
+  path: string;
+  columns: { name: string; role: Role; scale: Scale }[];
+  question: Question;
+  view: Omit<View, "pinned">;
 }
 
 interface SweepsState {
@@ -35,7 +48,18 @@ interface SweepsState {
   active: number;
   busy: boolean;
   error: string;
-  open: (path: string) => Promise<void>;
+  open: (path: string, saved?: SavedStudy) => Promise<void>;
+  openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => Promise<void>;
+  saved: () => SavedStudy | null;
+  // the file
+  reload: () => Promise<void>;
+  checkChanged: () => Promise<void>;
+  // templates
+  templates: SweepTemplate[];
+  loadTemplates: () => Promise<void>;
+  saveTemplate: (name: string) => Promise<void>;
+  applyTemplate: (name: string) => void;
+  deleteTemplate: (name: string) => Promise<void>;
   close: (i: number) => void;
   // columns
   setRole: (column: string, role: Role) => void;
@@ -75,8 +99,15 @@ export function wireQuestion(s: Study): WireQuestion {
     .concat(s.question.derived.filter((d) => d.kind === "row").map((d) => d.name));
   const q = s.question;
   return { roles, holdValues: q.holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
-    outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])) };
+    outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])), objectives: q.objectives, exclude: q.exclude };
 }
+
+/** A template fits a table that has every column it gives a role to (other columns may be there too). */
+export const fits = (t: SweepTemplate, cols: { name: string }[]) => {
+  const have = new Set(cols.map((c) => c.name));
+  const used = t.columns.filter((c) => c.role === "param" || c.role === "hold" || c.role === "output");
+  return used.length > 0 && used.every((c) => have.has(c.name));
+};
 
 /** The axes a new answer starts with: the parameters, then the outputs - none that tell nothing. */
 function defaultAxes(a: Answer): string[] {
@@ -102,28 +133,115 @@ export const useSweeps = create<SweepsState>((set, get) => {
       .then((summary) => patch((x) => (x.tableId === s.tableId ? { ...x, summary } : x)))
       .catch((e) => set({ error: (e as Error).message }));
   };
+  /** a table the server opened, as a new study: the user's remembered roles, or a saved study's */
+  const add = (r: SweepOpened, saved?: SavedStudy) => {
+    const mem = getPrefValue<Record<string, { role: Role; scale: Scale }>>(memoryKey(r.columns)) ?? {};
+    const from = saved ? Object.fromEntries(saved.columns.map((c) => [c.name, c])) : mem;
+    const columns: StudyColumn[] = r.columns.map((c) => ({ ...c, guessRole: c.role, guessScale: c.scale,
+      role: from[c.name]?.role ?? c.role, scale: from[c.name]?.scale ?? c.scale }));
+    const study: Study = { tableId: r.id, path: r.path, name: r.name, rows: r.rows, seconds: r.seconds, columns,
+      head: r.head, summary: r.summary,
+      question: saved ? { ...emptyQuestion(), ...saved.question } : emptyQuestion(),
+      view: saved ? { ...emptyView(), ...saved.view, pinned: null } : emptyView(),
+      answer: null, evaluating: false, evalError: "", changed: false, offer: null };
+    // the table always opens; with no parameter column yet, the columns come first - say which they are
+    if (!columns.some((c) => c.role === "param")) study.view = { ...study.view, left: "columns" };
+    if (!saved) study.offer = get().templates.find((t) => fits(t, columns))?.name ?? null;
+    set((st) => ({ studies: [...st.studies, study], active: st.studies.length, busy: false }));
+    if (Object.keys(from).length) refreshSummary();
+    get().evaluate();
+  };
   return {
     studies: [],
     active: 0,
     busy: false,
     error: "",
 
-    open: async (path) => {
+    open: async (path, saved) => {
       set({ busy: true, error: "" });
+      if (!get().templates.length) await get().loadTemplates();
       try {
         const r = await sweepApi.open(path);
-        const mem = getPrefValue<Record<string, { role: Role; scale: Scale }>>(memoryKey(r.columns)) ?? {};
-        const columns: StudyColumn[] = r.columns.map((c) => ({ ...c, guessRole: c.role, guessScale: c.scale,
-          role: mem[c.name]?.role ?? c.role, scale: mem[c.name]?.scale ?? c.scale }));
-        const study: Study = { tableId: r.id, path: r.path, name: r.name, rows: r.rows, seconds: r.seconds, columns,
-          head: r.head, summary: r.summary, question: emptyQuestion(), view: emptyView(), answer: null, evaluating: false, evalError: "" };
-        set((st) => ({ studies: [...st.studies, study], active: st.studies.length, busy: false }));
-        if (Object.keys(mem).length) refreshSummary();
-        get().evaluate();
+        add(r, saved);
       } catch (e) {
         set({ busy: false, error: (e as Error).message });
       }
     },
+    openRows: async (name, columns, rows) => {
+      set({ busy: true, error: "" });
+      try { add(await sweepApi.openRows(name, columns, rows)); }
+      catch (e) { set({ busy: false, error: (e as Error).message }); }
+    },
+    saved: () => {
+      const s = get().studies[get().active];
+      if (!s) return null;
+      const { pinned: _p, ...view } = s.view;
+      void _p;
+      return { kind: "signalviewer-sweep", version: 1, path: s.path, columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
+        question: s.question, view };
+    },
+    reload: async () => {
+      const s = get().studies[get().active];
+      if (!s) return;
+      try {
+        const r = await sweepApi.reload(s.tableId);
+        // the roles stay the user's; new columns get their guess
+        const byName = new Map(s.columns.map((c) => [c.name, c]));
+        const columns: StudyColumn[] = r.columns.map((c) => {
+          const old = byName.get(c.name);
+          return { ...c, guessRole: c.role, guessScale: c.scale, role: old?.role ?? c.role, scale: old?.scale ?? c.scale };
+        });
+        patch((x) => (x.tableId !== s.tableId ? x : { ...x, columns, rows: r.rows, head: r.head, seconds: r.seconds, changed: false }));
+        refreshSummary();
+        get().evaluate();
+      } catch (e) { set({ error: (e as Error).message }); }
+    },
+    checkChanged: async () => {
+      const s = get().studies[get().active];
+      if (!s || !s.path) return;
+      try {
+        const r = await sweepApi.changed(s.tableId);
+        if (!r.changed) return;
+        if (s.view.follow) await get().reload();
+        else if (!s.changed) patch((x) => (x.tableId === s.tableId ? { ...x, changed: true } : x));
+      } catch { /* the table was dropped on the server: nothing to follow */ }
+    },
+
+    templates: [],
+    loadTemplates: async () => { try { set({ templates: (await sweepApi.templates()).templates }); } catch { /* none */ } },
+    saveTemplate: async (name) => {
+      const s = get().studies[get().active];
+      if (!s) return;
+      const { pinned: _p, filters: _f, rerun: _r, ...view } = s.view;
+      void _p; void _f; void _r;
+      const r = await sweepApi.saveTemplate(name, { columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
+        question: { ...s.question, exclude: [] }, view });
+      set({ templates: r.templates });
+      patch((x) => ({ ...x, offer: null }));
+    },
+    applyTemplate: (name) => {
+      const t = get().templates.find((x) => x.name === name);
+      if (!t) return;
+      const roles = new Map(t.columns.map((c) => [c.name, c]));
+      patch((s) => {
+        const columns = s.columns.map((c) => { const r = roles.get(c.name); return r ? { ...c, role: r.role, scale: r.scale } : c; });
+        const have = new Set(columns.map((c) => c.name));
+        const q = { ...emptyQuestion(), ...(t.question as Partial<Question>), exclude: [] };
+        // keep only what this table can answer: conditions and goals on columns it has (or new columns)
+        const derived = new Set(q.derived.map((d) => d.name));
+        const ok = (c: string) => have.has(c) || derived.has(c);
+        const question: Question = { ...q, conditions: q.conditions.filter((c) => ok(c.column)),
+          goal: q.goal && ok(q.goal.column) ? q.goal : null, objectives: q.objectives.filter((o) => ok(o.column)),
+          holdValues: Object.fromEntries(Object.entries(q.holdValues).filter(([k]) => have.has(k))) };
+        const n = { ...s, columns, question, view: { ...emptyView(), ...(t.view as Partial<View>), pinned: null, filters: {}, rerun: [] }, offer: null };
+        remember(n);
+        return n;
+      });
+      refreshSummary();
+      get().evaluate();
+    },
+    deleteTemplate: async (name) => { set({ templates: (await sweepApi.deleteTemplate(name)).templates }); },
+
     close: (i) => set((st) => ({ studies: st.studies.filter((_, j) => j !== i), active: Math.max(0, Math.min(st.active, st.studies.length - 2)) })),
 
     setRole: (column, role) => {
