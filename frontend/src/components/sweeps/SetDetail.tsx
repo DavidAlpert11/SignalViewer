@@ -6,6 +6,8 @@ import { sweepApi, type SetDetail as Detail } from "../../sweeps/api";
 import type { Condition } from "../../sweeps/model";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
+import { useApp } from "../../store";
+import { openPaths } from "../../files";
 
 const breaks = (c: Condition, v: unknown) => {
   if (typeof v !== "number" || !Number.isFinite(v)) return true;
@@ -26,7 +28,13 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study.tableId, set, qKey]);
-  const holds = study.answer?.sets.find((c) => c.name === "#holds")?.values[set] === 1;
+  const col = (name: string) => study.answer?.sets.find((c) => c.name === name)?.values[set];
+  const holds = col("#holds") === 1;
+  const share = col("#neighbours"), tol = col("#tolerance");
+  const openRecordings = (paths: string[]) => {
+    useApp.setState({ area: "recordings" });
+    openPaths(paths, undefined, { autoView: true });
+  };
   const inRerun = study.view.rerun.includes(set);
   const conds = study.question.conditions;
   return (
@@ -41,6 +49,10 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
         <div className="sw-detail-body">
           <dl className="sw-params">{Object.entries(d.params).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v === null ? "–" : String(v)}</dd></div>)}</dl>
           {d.missingCombos > 0 && <p className="sw-warn">{t("swMissingCombos", { n: d.missingCombos })}</p>}
+          <div className="sw-row hint">
+            {share !== undefined && Number.isFinite(share) && <span title={t("swNeighboursHint")}>{t("swNeighboursHold", { p: Math.round(share * 100) })}</span>}
+            {holds && tol !== undefined && Number.isFinite(tol) && <span title={t("swToleranceHint")}>· {t("swToleranceSteps", { n: tol })}</span>}
+          </div>
           {d.why.length > 0 && (
             <div className="sw-why">
               <h3>{t("swWhy")}</h3>
@@ -56,9 +68,13 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
           )}
           <div className="sw-runs-wrap">
             <table className="sw-table sw-runs">
-              <thead><tr>{d.columns.map((c) => <th key={c} className={d.holds.includes(c) ? "hold" : "num"}>{c}</th>)}</tr></thead>
+              <thead><tr>{d.recordings.length > 0 && <th />}{d.columns.map((c) => <th key={c} className={d.holds.includes(c) ? "hold" : "num"}>{c}</th>)}</tr></thead>
               <tbody>{d.runs.map((r, i) => (
-                <tr key={i}>{r.map((v, j) => {
+                <tr key={i}>
+                  {d.recordings.length > 0 && <td>{d.recordingPerRun[i] && (
+                    <button className="iconbtn" aria-label={t("swOpenRun")} title={`${t("swOpenRun")}: ${d.recordingPerRun[i]}`}
+                      onClick={() => openRecordings([d.recordingPerRun[i]!])}>↗</button>)}</td>}
+                  {r.map((v, j) => {
                   const c = d.columns[j];
                   const bad = conds.some((cd) => cd.column === c && cd.mode !== "only" && breaks(cd, v));
                   return <td key={j} className={`${typeof v === "number" ? "num" : ""}${bad ? " bad" : ""}`}>{v === null ? "–" : typeof v === "number" ? fmtValue(v) : String(v)}</td>;
@@ -66,6 +82,9 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
               ))}</tbody>
             </table>
           </div>
+          {d.recordings.length > 0
+            ? <button className="btn outline" onClick={() => openRecordings(d.recordings)}>{t("swOpenRecordings", { n: d.recordings.length })}</button>
+            : <p className="hint">{t("swNoRecordings")}</p>}
           <button className={`btn ${inRerun ? "outline" : "primary"}`} onClick={() => setView({ rerun: inRerun ? study.view.rerun.filter((x) => x !== set) : [...study.view.rerun, set] })}>
             {inRerun ? t("swRemoveFromRerun") : t("swAddToRerun")}
           </button>

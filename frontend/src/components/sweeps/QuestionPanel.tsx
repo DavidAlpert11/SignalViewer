@@ -69,6 +69,27 @@ export default function QuestionPanel({ study, onColumns }: { study: Study; onCo
           onClick={() => st.addCondition({ column: outputs[0], op: "<=", value: 0, mode: "all" })}>{t("swAddCondition")}</button>
       </section>
       <section>
+        <h3>{t("swSeveralGoals")}</h3>
+        <p className="hint">{t("swSeveralGoalsHint")}</p>
+        {q.objectives.map((o, i) => (
+          <div key={i} className="sw-cond-line">
+            <select aria-label={t("swObjective")} value={o.column} onChange={(e) => st.setQuestion({ objectives: q.objectives.map((x, j) => (j === i ? { ...x, column: e.target.value } : x)) })}>
+              {outputs.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select aria-label={t("swDirection")} value={o.direction} onChange={(e) => st.setQuestion({ objectives: q.objectives.map((x, j) => (j === i ? { ...x, direction: e.target.value as "max" | "min" } : x)) })}>
+              <option value="max">{t("swMaximize")}</option><option value="min">{t("swMinimize")}</option>
+            </select>
+            <input type="number" min={0} step={0.5} aria-label={t("swWeight")} title={t("swWeight")} defaultValue={o.weight} style={{ width: 56 }}
+              onBlur={(e) => st.setQuestion({ objectives: q.objectives.map((x, j) => (j === i ? { ...x, weight: Math.max(0, Number(e.target.value) || 0) } : x)) })} />
+            <button className="iconbtn" aria-label={t("swRemove")} onClick={() => st.setQuestion({ objectives: q.objectives.filter((_, j) => j !== i) })}>×</button>
+          </div>
+        ))}
+        <button className="btn outline sw-add-btn" disabled={!outputs.length} onClick={() => {
+          st.setQuestion({ objectives: [...q.objectives, { column: outputs.find((o) => !q.objectives.some((x) => x.column === o)) ?? outputs[0], direction: "max", weight: 1 }] });
+          if (!q.objectives.length) st.setView({ colorBy: "#pareto" });
+        }}>{t("swAddObjective")}</button>
+      </section>
+      <section>
         <h3>{t("swNewColumns")}</h3>
         {q.derived.map((d, i) => (
           <div key={i} className="sw-derived">
@@ -90,6 +111,7 @@ export default function QuestionPanel({ study, onColumns }: { study: Study; onCo
           <>
             <div className="sw-answer-n">{a.counts.holding.toLocaleString()} <span>{t("swOfSetsHold", { n: a.counts.sets.toLocaleString() })}</span></div>
             {a.counts.complete < a.counts.sets && <div className="hint">{t("swIncomplete", { n: (a.counts.sets - a.counts.complete).toLocaleString() })}</div>}
+            {q.exclude.length > 0 && <div className="hint">{t("swLeftOutN", { n: q.exclude.length })} <button className="linklike" onClick={() => st.setQuestion({ exclude: [] })}>{t("swKeepAll")}</button></div>}
           </>
         ) : <p className="hint">{t("swReading")}</p>}
       </div>

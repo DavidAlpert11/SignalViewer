@@ -261,6 +261,50 @@ def cmd_cache(a) -> int:
     return 0
 
 
+def cmd_sweep(a) -> int:
+    """A run envelope's results table against a question: how many parameter sets hold in every
+    must-hold-across combination, the best of them. Exit 0 when at least --min-holding hold, 1 when
+    fewer, 2 when the table or the question cannot be read."""
+    import json as _json
+    import numpy as _np
+    from svcore import sweep
+    try:
+        df = sweep.read_any(a.table)
+        cols = sweep.describe(df)
+        q: dict = {}
+        if a.question:
+            with open(a.question, encoding="utf-8") as f:
+                doc = _json.load(f)
+            if "question" in doc:                             # a study saved by the app (.svsweep)
+                q = dict(doc["question"])
+                q["roles"] = {c["name"]: c["role"] for c in doc.get("columns", [])}
+                q["outputAgg"] = {}
+            else:
+                q = doc
+        roles = {c["name"]: c["role"] for c in cols}
+        roles.update(q.get("roles") or {})
+        q["roles"] = roles
+        p = sweep.prepare(df, q)
+        ans = sweep.answer(p, q)
+    except Exception as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    d, n = ans["data"], ans["counts"]
+    order = [i for i in _np.argsort(d["#rank"]) if _np.isfinite(d["#rank"][i])] or list(_np.where(d["#holds"] == 1)[0])
+    best = [{**{c: (None if v != v else v) for c, v in ((c, d[c][i].item() if hasattr(d[c][i], "item") else d[c][i]) for c in p.params)},
+             **({"goal": float(d["#goal"][i])} if "#goal" in d else {})} for i in order[: a.top]]
+    if a.json:
+        print(_json.dumps({"counts": n, "conditions": ans["conditions"], "best": best}, indent=2, default=str))
+    else:
+        print(f"{n['holding']} of {n['sets']} parameter sets hold in all {n['combos']} combinations "
+              f"({n['sets'] - n['complete']} miss a combination)")
+        for c in ans["conditions"]:
+            print(f"  {c['label']}: met by {c['met']}")
+        for i, b in enumerate(best, 1):
+            print(f"  {i}. " + ", ".join(f"{k}={v}" for k, v in b.items()))
+    return 0 if n["holding"] >= a.min_holding else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="signalviewer", description="Read and export recordings (Signal Viewer).")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -318,6 +362,13 @@ def main(argv=None) -> int:
     p = sub.add_parser("cache", help="disk space the app uses for speed (CSV cache, log indexes, dropped-file copies, map tiles) and clearing it")
     p.add_argument("--clear", nargs="+", metavar="WHAT", help="cache, uploads, tiles - or all")
     p.set_defaults(fn=cmd_cache)
+    p = sub.add_parser("sweep", help="a run envelope's results table: which parameter sets hold in every scenario (exit code for CI)")
+    p.add_argument("table", help="the results table (CSV, Parquet, Excel) or a folder of them")
+    p.add_argument("--question", help="a JSON question, or a study saved by the app (.svsweep)")
+    p.add_argument("--top", type=int, default=5, help="how many of the best sets to list")
+    p.add_argument("--min-holding", type=int, default=1, help="exit 1 when fewer sets hold")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_sweep)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)
     a = ap.parse_args(argv)

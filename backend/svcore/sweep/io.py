@@ -71,3 +71,39 @@ def read_table(path: str, use_cache: bool = True) -> pd.DataFrame:
     return df
 
 
+
+
+TABLE_EXTS = (".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls")
+
+
+def read_folder(folder: str) -> pd.DataFrame:
+    """A folder of statistics files (one per run, or a few rows each): read and stacked. Columns
+    missing in some files are left empty there; `_file` says where each row came from."""
+    names = sorted(n for n in os.listdir(folder) if n.lower().endswith(TABLE_EXTS) and not n.startswith("."))
+    if not names:
+        raise SweepError("No table files in this folder (CSV, Parquet or Excel).")
+    parts = []
+    for n in names:
+        try:
+            d = read_table(os.path.join(folder, n), use_cache=False)
+        except Exception as e:          # one bad file: say which
+            raise SweepError(f"{n}: {e}") from None
+        d["_file"] = n
+        parts.append(d)
+    return pd.concat(parts, ignore_index=True, sort=False)
+
+
+def read_any(path: str) -> pd.DataFrame:
+    return read_folder(path) if os.path.isdir(path) else read_table(path)
+
+
+def from_rows(columns, rows) -> pd.DataFrame:
+    """A table handed over as rows (another part of the app, e.g. Runs x conditions)."""
+    df = pd.DataFrame(rows, columns=columns)
+    for c in df.columns:                # numbers as numbers
+        conv = pd.to_numeric(df[c], errors="coerce")
+        if conv.notna().sum() == df[c].notna().sum():
+            df[c] = conv
+    if df.empty:
+        raise SweepError("The table is empty.")
+    return df

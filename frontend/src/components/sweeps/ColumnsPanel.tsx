@@ -6,8 +6,8 @@ import { ROLES, SCALES, type Role, type Scale } from "../../sweeps/api";
 import { useSweeps, type Study, type StudyColumn } from "../../sweeps/state";
 import { fmtValue } from "../../sweeps/scales";
 
-export const ROLE_KEY: Record<Role, TKey> = { param: "swRoleParam", hold: "swRoleHold", output: "swRoleOutput", id: "swRoleId", ignore: "swRoleIgnore" };
-const ROLE_HINT: Record<Role, TKey> = { param: "swRoleParamHint", hold: "swRoleHoldHint", output: "swRoleOutputHint", id: "swRoleIdHint", ignore: "swRoleIgnoreHint" };
+export const ROLE_KEY: Record<Role, TKey> = { param: "swRoleParam", hold: "swRoleHold", output: "swRoleOutput", id: "swRoleId", recording: "swRoleRecording", ignore: "swRoleIgnore" };
+const ROLE_HINT: Record<Role, TKey> = { param: "swRoleParamHint", hold: "swRoleHoldHint", output: "swRoleOutputHint", id: "swRoleIdHint", recording: "swRoleRecordingHint", ignore: "swRoleIgnoreHint" };
 export const SCALE_KEY: Record<Scale, TKey> = { linear: "swScaleLinear", log: "swScaleLog", category: "swScaleCategory", ordinal: "swScaleOrdinal" };
 
 export default function ColumnsPanel({ study }: { study: Study }) {
@@ -65,7 +65,7 @@ function ColumnRow({ study, c }: { study: Study; c: StudyColumn }) {
   return (
     <div className="sw-col">
       <label className="sw-col-name acheck" title={c.name}>
-        <input type="checkbox" checked={isAxis} disabled={c.role === "ignore" || c.role === "id"} aria-label={t("swShowAxis", { c: c.name })}
+        <input type="checkbox" checked={isAxis} disabled={c.role === "ignore" || c.role === "id" || c.role === "recording"} aria-label={t("swShowAxis", { c: c.name })}
           onChange={(e) => st.toggleAxis(c.name, e.target.checked)} />{c.name}
       </label>
       <div className="sw-col-why">{why}{!guessed && <span className="sw-changed"> · {t("swYourChoice")}</span>}</div>

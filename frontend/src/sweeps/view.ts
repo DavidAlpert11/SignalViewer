@@ -26,6 +26,11 @@ export function colLabel(t: TFn, s: Study, name: string): string {
   if (name === "#covered") return t("swCoveredCol");
   if (name === "#complete") return t("swCompleteCol");
   if (name === "#set") return t("swSetCol");
+  if (name === "#pareto") return t("swParetoCol");
+  if (name === "#score") return t("swScoreCol");
+  if (name === "#neighbours") return t("swNeighboursCol");
+  if (name === "#tolerance") return t("swToleranceCol");
+  if (name === "#partial") return t("swPartialCol");
   if (c?.group === "condition" && c.label) return `${c.label} · ${t(c.part === "worst" ? "swWorst" : c.part === "margin" ? "swMargin" : "swPassed")}`;
   if (c?.group === "output" && c.agg && s.view.mode === "sets") return `${name} · ${c.agg}`;
   return name;
@@ -38,7 +43,7 @@ export function scaleOf(s: Study, name: string, col?: Col): Scale {
   if (tc && s.view.mode === "sets" && tc.role === "output" && (tc.scale === "category" || tc.scale === "ordinal")) return "linear";
   if (tc) return tc.scale;
   if (col?.kind === "cat") return "category";
-  if (name === "#holds" || name === "#complete") return "category";
+  if (name === "#holds" || name === "#complete" || name === "#pareto" || name === "#partial") return "category";
   return "linear";
 }
 

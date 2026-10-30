@@ -9,6 +9,7 @@ import StartCard from "./components/StartCard";
 import { mavlinkResume } from "./mavlink";
 import Timeline from "./components/Timeline";
 const SweepsScreen = lazyPreload(() => import("./components/sweeps/SweepsArea"));
+const SweepsStatus = lazyPreload(() => import("./components/sweeps/SweepsStatus"));
 const TemplateLibrary = lazyPreload(() => import("./components/TemplateLibrary"));
 const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
 const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog"));
@@ -626,7 +627,7 @@ export default function App() {
       </>,
       sweeps: <Suspense fallback={<><div className="areabar" /><div /></>}><SweepsScreen /></Suspense>,
       } satisfies Record<AreaId, React.ReactNode>)[area]}
-      <StatusBar />
+      {area === "recordings" ? <StatusBar /> : <Suspense fallback={<footer className="status" />}><SweepsStatus /></Suspense>}
       <CommandPalette />
       <FileBrowser />
       <Suspense fallback={null}>
