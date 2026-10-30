@@ -5,7 +5,7 @@ import { useT } from "../../i18n";
 import { keptMask } from "../../sweeps/filters";
 import { labelOf } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { colLabel, setColumns } from "../../sweeps/view";
+import { colLabel, scopeMask, setColumns } from "../../sweeps/view";
 
 const MAX_ROWS = 300;
 
@@ -26,6 +26,8 @@ export default function SetsTable({ study }: { study: Study }) {
   }, [a, cols]);
   const order = useMemo(() => {
     const kept = keptMask(cols, v.filters, n);
+    const scope = scopeMask(study);
+    if (scope) for (let i = 0; i < n; i++) kept[i] &= scope[i];
     const rank = cols.get("#rank")!.values, holds = cols.get("#holds")!.values, goal = cols.get("#goal")?.values;
     const dir = study.question.goal?.direction === "min" ? 1 : -1;
     const rows: number[] = [];
@@ -38,7 +40,8 @@ export default function SetsTable({ study }: { study: Study }) {
       return x - y;
     });
     return rows;
-  }, [cols, v.filters, n, study.question.goal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cols, v.filters, n, study.question.goal, v.scope]);
   const rows = order.slice(0, MAX_ROWS);
   const holds = cols.get("#holds")!.values;
   return (

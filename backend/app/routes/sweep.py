@@ -134,6 +134,7 @@ def sweep_evaluate(req: QuestionReq):
         names = req.columns or (p.params + p.holds + p.outputs)
         cols = [{"name": c, **sweep.encode(p.df[c].iloc[idx].reset_index(drop=True))} for c in names if c in p.df.columns]
         cols.append({"name": "#set", **sweep.encode(r["set"].astype(float))})
+        cols.append({"name": "#row", **sweep.encode(p.row_id[idx].astype(float))})
         cols.append({"name": "#holds", **sweep.encode(r["holds"])})
         out["runs"] = {"columns": cols, "sampled": r["sampled"], "total": r["total"], "n": int(len(idx))}
     out["seconds"] = round(time.perf_counter() - t0, 3)
@@ -315,10 +316,15 @@ def sweep_reload(req: OpenReq):
     t0 = time.perf_counter()
     try:
         df = sweep.read_any(t["path"])
+        for m in t.get("merged", []):                      # the tables merged into it, again, the same way
+            df, _, _ = sweep.merge(df, sweep.read_any(m["path"]), m["keys"], m["prefer"],
+                                   os.path.basename(t["path"]), os.path.basename(m["path"]))
     except Exception as e:
         fail(400, f"Could not read the table again: {e}")
     t["df"], t["prepKey"], t["prep"] = df, None, None
     t["stat"] = _stat(t["path"])
+    for m in t.get("merged", []):
+        m["stat"] = _stat(m["path"])
     cols = sweep.describe(df)
     return {"id": req.path, "path": t["path"], "name": os.path.basename(t["path"].rstrip("/\\\\")), "rows": int(len(df)),
             "columns": cols, "head": sweep.head(df), "summary": sweep.summary(df, {c["name"]: c["role"] for c in cols}),
@@ -345,7 +351,10 @@ def sweep_changed(id: str):
     now = _stat(t["path"])
     if "stat" not in t:
         t["stat"] = now
-    return {"changed": now is not None and now != t["stat"], "missing": now is None}
+    changed = now is not None and now != t["stat"]
+    for m in t.get("merged", []):
+        changed = changed or _stat(m["path"]) != m.get("stat")
+    return {"changed": changed, "missing": now is None}
 
 
 # ----------------------------------------------------------------------------- templates
@@ -391,3 +400,58 @@ def sweep_template_delete(req: TemplateReq):
     if os.path.isfile(p):
         os.remove(p)
     return sweep_templates()
+
+
+
+# ----------------------------------------------------------------------------- merging, exporting runs
+class MergeReq(BaseModel):
+    id: str
+    path: str
+    keys: List[str] = []
+    prefer: str = "new"
+
+
+@router.post("/api/sweep/merge")
+def sweep_merge(req: MergeReq):
+    """Another results table into this study (a second sweep, finer somewhere): the rows of both."""
+    t = _get(req.id)
+    path = os.path.abspath(os.path.expanduser(req.path))
+    t0 = time.perf_counter()
+    try:
+        more = sweep.read_any(path)
+        df, added, replaced = sweep.merge(t["df"], more, req.keys, req.prefer,
+                                          os.path.basename(t.get("path") or "1"), os.path.basename(path))
+    except Exception as e:
+        fail(400, f"Could not merge {os.path.basename(path)}: {e}")
+    t["df"], t["prepKey"], t["prep"] = df, None, None
+    t.setdefault("merged", []).append({"path": path, "keys": req.keys, "prefer": req.prefer, "stat": _stat(path)})
+    cols = sweep.describe(df)
+    return {"id": req.id, "path": t.get("path", ""), "name": "", "rows": int(len(df)), "columns": cols, "head": sweep.head(df),
+            "summary": sweep.summary(df, {c["name"]: c["role"] for c in cols}), "seconds": round(time.perf_counter() - t0, 3),
+            "added": added, "replaced": replaced, "sources": [os.path.basename(t.get("path") or "")] + [os.path.basename(m["path"]) for m in t["merged"]]}
+
+
+class ExportRowsReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    sets: Optional[List[int]] = None     # every run of these parameter sets
+    rows: Optional[List[int]] = None     # or these runs (rows of the table)
+    path: str
+
+
+@router.post("/api/sweep/export-rows")
+def sweep_export_rows(req: ExportRowsReq):
+    """The runs on screen after the filters - every column of the table, as it was read."""
+    t = _get(req.id)
+    if req.rows is not None:
+        rows = sorted(set(req.rows))
+    else:
+        p = _prepared(req.id, req.question)
+        keep = set(req.sets or [])
+        rows = sorted(int(r) for r, s in zip(p.row_id, p.set_id) if int(s) in keep)
+    path = os.path.abspath(os.path.expanduser(req.path))
+    try:
+        t["df"].loc[rows].to_csv(path, index=False)
+    except (OSError, KeyError) as e:
+        fail(400, f"Could not write {path}: {e}")
+    return {"path": path, "rows": len(rows)}

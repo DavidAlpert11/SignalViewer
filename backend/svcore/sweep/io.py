@@ -107,3 +107,29 @@ def from_rows(columns, rows) -> pd.DataFrame:
     if df.empty:
         raise SweepError("The table is empty.")
     return df
+
+
+def merge(base: pd.DataFrame, more: pd.DataFrame, keys, prefer: str = "new", base_name: str = "", more_name: str = ""):
+    """Two result tables as one: the rows of both, the columns of either (missing ones empty), a
+    `_source` column saying which table each row came from. Where both ran the same run (the same
+    values in `keys` - the parameters and must-hold-across columns), prefer="new" keeps the second
+    table's row, "old" the first's, "both" keeps both. Returns (table, rows added, rows replaced)."""
+    a, b = base.copy(), more.copy()
+    if "_source" not in a.columns:
+        a["_source"] = base_name or "1"
+    b["_source"] = more_name or "2"
+    keys = [k for k in (keys or []) if k in a.columns and k in b.columns]
+    replaced = 0
+    if keys and prefer in ("new", "old"):
+        ka = a[keys].astype(str).agg("\u241f".join, axis=1) if len(keys) > 1 else a[keys[0]].astype(str)
+        kb = b[keys].astype(str).agg("\u241f".join, axis=1) if len(keys) > 1 else b[keys[0]].astype(str)
+        if prefer == "new":
+            dup = ka.isin(set(kb))
+            replaced = int(dup.sum())
+            a = a[~dup]
+        else:
+            dup = kb.isin(set(ka))
+            replaced = int(dup.sum())
+            b = b[~dup]
+    out = pd.concat([a, b], ignore_index=True, sort=False)
+    return out, int(len(out) - len(base)), replaced

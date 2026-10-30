@@ -49,6 +49,12 @@ templates you already have.
   - **Stability**: per set, the share of its neighbours that hold and how many steps it can move.
   - **Recordings**: a column of the runs' files opens a set's runs - or one run - in Recordings;
     *Runs x conditions* opens its table here.
+  - **Merge** a second sweep into a study - finer somewhere, other areas - as rows of the same table
+    (a `_source` column says where each run came from); where both ran the same run, keep the newer,
+    the older or both. A saved study merges them again when it opens; the example has a second sweep.
+  - **Keep / Exclude / Restore**, as in HiPlot: narrow what is shown to the lines the filters keep
+    (the axes fit them) or to the rest, step by step; *Step back* and *Restore all* undo it.
+  - **Export shown**: the runs on screen after the filters, every column, as a CSV.
   - **Compare** two studies of the same sets (before and after a change), **save / open a study**
     (`.svsweep`), and a **report** as one HTML file.
   - **CLI**: `signalviewer sweep TABLE --question q.json` - exit 0 when enough sets hold, for CI.
