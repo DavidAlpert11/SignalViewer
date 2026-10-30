@@ -21,7 +21,7 @@ import { colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../swe
 import { keptMask } from "../../sweeps/filters";
 import { studyReport } from "../../sweeps/report";
 import { fits } from "../../sweeps/state";
-import { prompt } from "../Overlays";
+import { openMenu, prompt } from "../Overlays";
 import type { SavedStudy } from "../../sweeps/state";
 import AxisMenu from "./AxisMenu";
 import CenterTabs from "./CenterTabs";
@@ -75,11 +75,42 @@ function SweepsBar() {
   const study = studies[active];
   const [note, setNote] = useState("");
   const say = (r: Promise<string>) => r.then(setNote).catch((e) => setNote((e as Error).message));
-  const exportRerun = async () => {
+  const exportRerun = async (onlyMissing: boolean) => {
+    useSweeps.getState().setView({ onlyMissing });
     const p = await pickPath({ mode: "save", title: t("swExportRerun"), exts: [".csv"], defaultName: "rerun.csv" });
     if (!p) return;
     say(useSweeps.getState().exportRerun(p).then((r) => t("swExported", { n: r.rows, path: r.path })));
   };
+  const below = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    return { clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
+  };
+  // the ways in: one menu (they were four buttons, two with the same icon)
+  const openMenuAt = (e: React.MouseEvent) => openMenu(below(e), [
+    { label: t("swOpenTable"), run: () => openTable(t("swOpenTable")) },
+    { label: t("swOpenFolder"), run: () => openFolder(t("swOpenFolder")) },
+    { label: t("swOpenStudy"), run: () => say(openStudy(t("swOpenStudy"))) },
+  ]);
+  // what is kept of the study: the study itself, a template, a report
+  const studyMenu = (e: React.MouseEvent) => {
+    const st = useSweeps.getState();
+    const fit = st.templates.filter((x) => fits(x, study.columns));
+    const SEP = { label: "", sep: true, run: () => {} };
+    openMenu(below(e), [
+      { label: t("swSaveStudy"), run: saveStudy },
+      SEP,
+      { label: t("swSaveTemplate"), run: async () => { const name = await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, "")); if (name?.trim()) await st.saveTemplate(name.trim()); } },
+      ...(fit.length ? [{ label: t("swApplyTemplateMenu"), run: () => {}, items: fit.map((x) => ({ label: x.name, run: () => st.applyTemplate(x.name) })) }] : []),
+      ...(st.templates.length ? [{ label: t("swDeleteTemplateMenu"), run: () => {}, items: st.templates.map((x) => ({ label: x.name, danger: true, run: () => { st.deleteTemplate(x.name); } })) }] : []),
+      SEP,
+      { label: t("swReport"), disabled: !study.answer, run: report },
+    ]);
+  };
+  const rerunMenu = (e: React.MouseEvent) => openMenu(below(e), [
+    { label: t("swRerunAll"), run: () => exportRerun(false) },
+    { label: t("swOnlyMissing"), run: () => exportRerun(true) },
+  ]);
+  useEffect(() => { useSweeps.getState().loadTemplates(); }, []);
   const saveStudy = async () => {
     const doc = useSweeps.getState().saved();
     if (!doc) return;
@@ -107,53 +138,15 @@ function SweepsBar() {
           ))}
         </div>
       </nav>
-      <button className="btn outline" onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
-      <button className="iconbtn" aria-label={t("swOpenFolder")} title={t("swOpenFolder")} onClick={() => openFolder(t("swOpenFolder"))}><Icon.Folder /></button>
-      <button className="iconbtn" aria-label={t("swOpenStudy")} title={t("swOpenStudy")} onClick={() => say(openStudy(t("swOpenStudy")))}><Icon.Open /></button>
-      {study && <button className="iconbtn" aria-label={t("swSaveStudy")} title={t("swSaveStudy")} onClick={saveStudy}><Icon.Save /></button>}
-      {study?.answer && <button className="iconbtn" aria-label={t("swReport")} title={t("swReport")} onClick={report}><Icon.Report /></button>}
-      {study && <span className="sep" />}
+      <button className="btn outline" onClick={openMenuAt}><Icon.Open /> {t("swOpen")} ▾</button>
+      {study && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}
       {study?.path && <button className="iconbtn" aria-label={t("swRefresh")} title={t("swRefresh")} onClick={() => useSweeps.getState().reload()}><Icon.Reload /></button>}
       {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow}
         onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} />{t("swFollow")}</label>}
-      {study && <TemplatesMenu />}
       <div className="spacer" />
       {note && <span className="hint sw-note" title={note}>{note}</span>}
-      {study && (
-        <>
-          <label className="acheck"><input type="checkbox" checked={study.view.onlyMissing}
-            onChange={(e) => useSweeps.getState().setView({ onlyMissing: e.target.checked })} />{t("swOnlyMissing")}</label>
-          <button className="btn primary" disabled={!study.view.rerun.length} onClick={exportRerun}>{t("swExportRerunN", { n: study.view.rerun.length })}</button>
-        </>
-      )}
+      {study && <button className="btn primary" disabled={!study.view.rerun.length} onClick={rerunMenu}>{t("swExportRerunN", { n: study.view.rerun.length })} ▾</button>}
     </div>
-  );
-}
-
-/** Templates: apply one (those that fit this table's columns first), save this study as one, delete. */
-function TemplatesMenu() {
-  const t = useT();
-  const study = useStudy()!;
-  const templates = useSweeps((s) => s.templates);
-  const st = useSweeps.getState();
-  useEffect(() => { st.loadTemplates(); }, [st]);
-  const ok = templates.filter((x) => fits(x, study.columns)), other = templates.filter((x) => !fits(x, study.columns));
-  const act = async (v: string) => {
-    if (v === "#save") {
-      const name = await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, ""));
-      if (name?.trim()) await st.saveTemplate(name.trim());
-    } else if (v.startsWith("del:")) {
-      st.deleteTemplate(v.slice(4));
-    } else if (v) st.applyTemplate(v);
-  };
-  return (
-    <select className="sw-templates" aria-label={t("swTemplates")} value="" onChange={(e) => act(e.target.value)}>
-      <option value="">{t("swTemplates")}</option>
-      <option value="#save">{t("swSaveTemplate")}</option>
-      {ok.length > 0 && <optgroup label={t("swTemplatesFit")}>{ok.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}</optgroup>}
-      {other.length > 0 && <optgroup label={t("swTemplatesOther")}>{other.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}</optgroup>}
-      {templates.length > 0 && <optgroup label={t("swTemplatesDelete")}>{templates.map((x) => <option key={x.name} value={`del:${x.name}`}>× {x.name}</option>)}</optgroup>}
-    </select>
   );
 }
 
@@ -308,7 +301,8 @@ function StudyView({ study }: { study: Study }) {
               <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
                 filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)}
                 onPick={(r) => st.setView({ pinned: setOfRow(r) })}
-                onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })} />
+                onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}
+                onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />
             ) : <p className="empty-note">{t("swNoAxes")}</p>}
             <SetsTable study={study} />
           </>

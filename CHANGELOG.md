@@ -55,6 +55,13 @@ templates you already have.
   - **Keep / Exclude / Restore**, as in HiPlot: narrow what is shown to the lines the filters keep
     (the axes fit them) or to the rest, step by step; *Step back* and *Restore all* undo it.
   - **Export shown**: the runs on screen after the filters, every column, as a CSV.
+  - **One place for each control**: the colour is chosen in an axis's menu (*Colour the lines by
+    this*) - the bar above the plot only says what the colours mean, and offers holds / the Pareto
+    front / one colour; axes move by dragging their names on the plot (the row of axis chips is
+    gone, so the bar is one line and the plot no longer jumps); a column's scale is in its axis's
+    menu, Columns only says what each column is. The area's bar: *Open* (a table, a folder, a saved
+    study), *Study* (save, templates, report), *Export re-run list* (every combination, or only
+    what is missing or failed).
   - **Compare** two studies of the same sets (before and after a change), **save / open a study**
     (`.svsweep`), and a **report** as one HTML file.
   - **CLI**: `signalviewer sweep TABLE --question q.json` - exit 0 when enough sets hold, for CI.
