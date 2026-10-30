@@ -218,3 +218,54 @@ def test_follow_the_file_and_templates(pg, tmp_path):
     pg.wait_for_selector(".sw-banner:has-text('grow check')")
     pg.locator(".sw-banner .btn", has_text="Apply").click()
     pg.wait_for_function("document.querySelector(\"select[aria-label='Goal']\").value === 'out'")
+
+
+
+def _rows(pg):
+    return pg.locator(".sw-table-wrap .sw-table tbody tr").count()
+
+
+def test_two_sweeps_merged(pg):
+    _to_sweeps(pg)
+    if pg.locator(".sw-welcome").count() == 0:
+        pg.locator(".areabar .tab .x").first.click()                 # back to the welcome
+        pg.wait_for_selector(".sw-welcome")
+    pg.locator(".sw-welcome .btn", has_text="two sweeps, merged").click()
+    pg.wait_for_selector(".sw-welcome, .sw-study")
+    pg.locator(".sw-tabs button", has_text="Columns").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-hide-box .sw-tag').length === 2")
+    pg.wait_for_function("+[...document.querySelectorAll('.sw-shape .sw-stat')].find(e => e.innerText.includes('Parameter sets')).querySelector('.sw-stat-value').innerText.replace(',', '') > 150")
+    pg.locator(".sw-tabs button", has_text="Question").click()
+
+
+def test_keep_exclude_restore_and_export_shown(pg):
+    _example(pg)
+    pg.wait_for_selector(".sw-table tbody tr")
+    total = _rows(pg)
+    b = pg.locator(".pp canvas").bounding_box()
+    x = b["x"] + 56
+    pg.mouse.move(x, b["y"] + 50); pg.mouse.down(); pg.mouse.move(x, b["y"] + 150, steps=5); pg.mouse.up()
+    pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 1 filters')")
+    kept = _rows(pg)
+    assert 0 < kept < total
+    pg.locator(".sw-scope .btn", has_text="Keep").click()
+    pg.wait_for_selector(".sw-scope .btn:has-text('Restore all (1)')")
+    assert pg.locator(".sw-plotbar .btn:has-text('Clear')").count() == 0          # the filter became the scope
+    assert _rows(pg) == kept
+    pg.locator(".sw-scope .btn", has_text="Export shown").click()
+    save_as(pg, "shown.csv")
+    pg.wait_for_selector(".sw-center .hint:has-text('runs written')")
+    lines = open(os.path.join(pg.env["out"], "shown.csv")).read().splitlines()
+    assert len(lines) - 1 >= kept and lines[0].startswith("scenario_terrain,")
+    pg.locator(".sw-scope .btn", has_text="Restore all").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total}")
+    # exclude: the other way round
+    pg.wait_for_timeout(300)
+    b = pg.locator(".pp canvas").bounding_box()                     # the bar above may have changed height
+    pg.mouse.move(x, b["y"] + 50); pg.mouse.down(); pg.mouse.move(x, b["y"] + 150, steps=5); pg.mouse.up()
+    pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 1 filters')")
+    kept = _rows(pg)
+    pg.locator(".sw-scope .btn", has_text="Exclude").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total - kept}")
+    pg.locator(".sw-scope .btn", has_text="Step back").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total}")

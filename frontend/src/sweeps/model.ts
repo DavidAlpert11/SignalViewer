@@ -73,11 +73,14 @@ export interface View {
   left: "question" | "columns";
   /** read the table again by itself when its file changes */
   follow: boolean;
+  /** HiPlot's keep / exclude: steps that narrow what is shown to some parameter sets; Restore
+   *  clears them. Valid for the question they were made with (`key`): the sets are its sets. */
+  scope: { key: string; steps: { kind: "keep" | "exclude"; sets: number[] }[] };
 }
 
 export const emptyView = (): View => ({ mode: "sets", axes: [], colorBy: "#holds", filters: {}, reversed: {}, scales: {},
   hideConstant: true, hideFlat: false, pinned: null, rerun: [], onlyMissing: false,
-  center: "lines", mapX: null, mapY: null, scatterX: null, scatterY: null, left: "question", follow: false });
+  center: "lines", mapX: null, mapY: null, scatterX: null, scatterY: null, left: "question", follow: false, scope: { key: "", steps: [] } });
 
 /** A decoded column of the answer. Text is codes into `labels`. */
 export interface Col {

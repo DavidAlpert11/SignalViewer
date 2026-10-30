@@ -273,3 +273,33 @@ def test_routes_reload_changed_and_templates(tmp_path, monkeypatch):
     t = c.post("/api/sweep/templates/save", json={"name": "risk check", "template": {"columns": [{"name": "p", "role": "param"}]}}).json()
     assert [x["name"] for x in t["templates"]] == ["risk check"]
     assert c.post("/api/sweep/templates/delete", json={"name": "risk check"}).json()["templates"] == []
+
+
+def test_merge_a_finer_second_sweep():
+    a = sweep.read_table(EXAMPLE)
+    b = sweep.read_table(EXAMPLE.replace("sweep_payload.csv", "sweep_payload_refine.csv"))
+    roles = {c["name"]: c["role"] for c in sweep.describe(a)}
+    keys = [c for c, r in roles.items() if r in ("param", "hold")]
+    m, added, replaced = sweep.merge(a, b, keys, "new", "first.csv", "refine.csv")
+    assert replaced > 0 and len(m) == len(a) + added
+    assert set(m["_source"]) == {"first.csv", "refine.csv"}
+    assert not m.duplicated(subset=keys).any()                          # each run once: the newer one
+    both, _, _ = sweep.merge(a, b, keys, "both")
+    assert len(both) == len(a) + len(b)
+    p = sweep.prepare(m, {"roles": roles})
+    assert p.n_sets > 150                                               # the finer grid added sets
+
+
+def test_routes_merge_and_export_rows(tmp_path):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    r = c.post("/api/sweep/open", json={"path": EXAMPLE}).json()
+    roles = {col["name"]: col["role"] for col in r["columns"]}
+    keys = [k for k, v in roles.items() if v in ("param", "hold")]
+    m = c.post("/api/sweep/merge", json={"id": r["id"], "path": EXAMPLE.replace("sweep_payload.csv", "sweep_payload_refine.csv"), "keys": keys}).json()
+    assert m["replaced"] > 0 and m["rows"] > r["rows"] and len(m["sources"]) == 2
+    out = tmp_path / "shown.csv"
+    e = c.post("/api/sweep/export-rows", json={"id": r["id"], "question": {"roles": roles}, "sets": [0, 1], "path": str(out)}).json()
+    lines = out.read_text().splitlines()
+    assert e["rows"] == len(lines) - 1 > 0 and lines[0].startswith("scenario_terrain,")

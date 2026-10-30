@@ -6,7 +6,7 @@ import { category, FAILS, HOLDS, ramp } from "../../sweeps/colors";
 import { keptMask } from "../../sweeps/filters";
 import { makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, modeColumns, scaleOf } from "../../sweeps/view";
+import { axisChoices, colLabel, scaleOf, scopedColumns } from "../../sweeps/view";
 
 const W = 760, H = 460, L = 60, B = 40, T = 12, R = 16;
 
@@ -14,7 +14,7 @@ export default function ScatterView({ study }: { study: Study }) {
   const t = useT();
   const st = useSweeps.getState();
   const cv = useRef<HTMLCanvasElement>(null);
-  const { cols, n } = useMemo(() => modeColumns(study), [study]);
+  const { cols, n } = useMemo(() => scopedColumns(study), [study]);
   const choices = axisChoices(study);
   const v = study.view;
   const xName = v.scatterX && cols.has(v.scatterX) ? v.scatterX : choices[0];

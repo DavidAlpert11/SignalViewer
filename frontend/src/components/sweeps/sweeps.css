@@ -203,3 +203,5 @@
   border-radius: 8px; background: color-mix(in srgb, var(--amber) 10%, var(--panel)); }
 .sw-banner .btn { height: 28px; }
 .sw-templates { height: 28px; max-width: 170px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; }
+.sw-scope { display: flex; gap: 5px; flex-wrap: wrap; }
+.sw-scope .btn { height: 26px; }

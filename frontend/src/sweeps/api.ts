@@ -87,6 +87,10 @@ export const sweepApi = {
     call<{ path: string; rows: number }>("/api/sweep/suggest/export", { id, question, params, path }),
   suspects: (id: string, question: WireQuestion) => call<{ suspects: Suspect[] }>("/api/sweep/suspects", { id, question }),
   compare: (a: { id: string; question: WireQuestion }, b: { id: string; question: WireQuestion }) => call<CompareResult>("/api/sweep/compare", { a, b }),
+  merge: (id: string, path: string, keys: string[], prefer: "new" | "old" | "both") =>
+    call<SweepOpened & { added: number; replaced: number; sources: string[] }>("/api/sweep/merge", { id, path, keys, prefer }),
+  exportRows: (id: string, question: WireQuestion, sel: { sets?: number[]; rows?: number[] }, path: string) =>
+    call<{ path: string; rows: number }>("/api/sweep/export-rows", { id, question, ...sel, path }),
   reload: (id: string) => call<SweepOpened>("/api/sweep/reload", { path: id }),
   changed: (id: string) => call<{ changed: boolean; missing?: boolean }>(`/api/sweep/changed?id=${encodeURIComponent(id)}`),
   templates: () => call<{ templates: SweepTemplate[]; folder: string }>("/api/sweep/templates"),

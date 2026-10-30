@@ -5,6 +5,7 @@ import { useT, type TKey } from "../../i18n";
 import { ROLES, SCALES, type Role, type Scale } from "../../sweeps/api";
 import { useSweeps, type Study, type StudyColumn } from "../../sweeps/state";
 import { fmtValue } from "../../sweeps/scales";
+import { pickPath } from "../../store";
 
 export const ROLE_KEY: Record<Role, TKey> = { param: "swRoleParam", hold: "swRoleHold", output: "swRoleOutput", id: "swRoleId", recording: "swRoleRecording", ignore: "swRoleIgnore" };
 const ROLE_HINT: Record<Role, TKey> = { param: "swRoleParamHint", hold: "swRoleHoldHint", output: "swRoleOutputHint", id: "swRoleIdHint", recording: "swRoleRecordingHint", ignore: "swRoleIgnoreHint" };
@@ -32,6 +33,7 @@ export default function ColumnsPanel({ study }: { study: Study }) {
       </div>
       {sm.duplicates > 0 && <p className="sw-warn">{t("swDuplicates", { n: sm.duplicates })}</p>}
       <p className="hint">{t("swReadIn", { s: study.seconds.toFixed(2), path: study.path })}</p>
+      <MergeBox study={study} />
       <input className="sw-search" placeholder={t("swSearchColumns")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("swSearchColumns")} />
       <div className="sw-hide-box">
         <b>{t("swHideNothing")}</b>
@@ -77,6 +79,32 @@ function ColumnRow({ study, c }: { study: Study; c: StudyColumn }) {
           {SCALES.map((sc) => <option key={sc} value={sc} disabled={c.kind === "text" && (sc === "linear" || sc === "log")}>{t(SCALE_KEY[sc])}</option>)}
         </select>
       </div>
+    </div>
+  );
+}
+
+/** The tables in this study, and adding another - a second sweep, finer somewhere - as rows of it. */
+function MergeBox({ study }: { study: Study }) {
+  const t = useT();
+  const [prefer, setPrefer] = useState<"new" | "old" | "both">("new");
+  const [note, setNote] = useState("");
+  const add = async () => {
+    const p = await pickPath({ mode: "open", title: t("swMergeTable"), exts: [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"] });
+    if (!p) return;
+    try { const r = await useSweeps.getState().merge(p, prefer); setNote(t("swMerged", { added: r.added, replaced: r.replaced })); }
+    catch (e) { setNote((e as Error).message); }
+  };
+  return (
+    <div className="sw-hide-box">
+      <b>{t("swTables")}</b>
+      <div className="sw-tags">{study.sources.map((s, i) => <span key={i} className="sw-tag">{s}</span>)}</div>
+      <div className="sw-row">
+        <button className="btn outline" onClick={add}>{t("swMergeTable")}</button>
+        <select aria-label={t("swWhenBoth")} title={t("swWhenBoth")} value={prefer} onChange={(e) => setPrefer(e.target.value as "new" | "old" | "both")}>
+          <option value="new">{t("swPreferNew")}</option><option value="old">{t("swPreferOld")}</option><option value="both">{t("swPreferBoth")}</option>
+        </select>
+      </div>
+      {note && <span className="hint">{note}</span>}
     </div>
   );
 }
