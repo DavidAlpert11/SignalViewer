@@ -3,7 +3,8 @@
 The columns are laid out the way run envelopes usually write them: scenario columns and parameters
 mixed at the start, the outputs at the end. 150 parameter sets x 18 scenario combinations
 (terrain x wind x mission) = 2700 runs, a few of them missing and a few that crashed (empty
-outputs) - so the "missing combination" and "failed run" paths have something to show.
+outputs) - so the "missing combination" and "failed run" paths have something to show - and four runs
+that quietly went wrong (range far below their neighbours') for the suspicious-runs check.
 
     python make_sweep.py                       # the example (about 0.3 MB)
     python make_sweep.py --repeat 400 big.csv  # ~1M rows, to time the reading of a big file
@@ -46,6 +47,8 @@ def make(repeat: int = 1, seed: int = 7) -> pd.DataFrame:
     crashed = rng.random(len(df)) < 0.004                                  # runs that crashed: no outputs
     for c in ("range_m", "max_roll_deg", "battery_end_pct", "flight_time_s", "max_current_a"):
         df.loc[crashed, c] = np.nan
+    odd = rng.choice(np.where(~crashed)[0], 4, replace=False)             # runs that broke quietly: odd values
+    df.loc[odd, "range_m"] = df.loc[odd, "range_m"] * 0.45
     return df.round({"range_m": 1, "max_roll_deg": 2, "battery_end_pct": 2, "flight_time_s": 1, "max_current_a": 2})
 
 

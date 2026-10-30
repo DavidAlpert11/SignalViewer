@@ -179,3 +179,97 @@ def test_route_evaluate_with_runs():
     assert {m["name"] for m in e["sets"]} >= {"#holds", "#goal", "#rank", "payload_kg", "range_m"}
     bad = c.post("/api/sweep/evaluate", json={"id": r["id"], "question": {**q, "goal": {"column": "nope"}}})
     assert bad.status_code == 400
+
+
+# ----------------------------------------------------------------------------- beyond holding
+def test_recording_column_and_folder_of_files(tmp_path):
+    df = pd.DataFrame({"rec": [f"/data/run_{i}.csv" for i in range(60)], "p": [1, 2, 3] * 20, "out": np.arange(60) * 1.37})
+    assert {c["name"]: c["role"] for c in sweep.describe(df)}["rec"] == "recording"
+    for i in range(3):
+        _grid().iloc[i * 6:(i + 1) * 6].to_csv(tmp_path / f"stats_{i}.csv", index=False)
+    d = sweep.read_any(str(tmp_path))
+    assert len(d) == 18 and set(d["_file"]) == {"stats_0.csv", "stats_1.csv", "stats_2.csv"}
+
+
+def test_pareto_score_effects_and_map():
+    q = {"roles": ROLES, "objectives": [{"column": "out", "direction": "max"}, {"column": "risk", "direction": "min"}]}
+    p = sweep.prepare(_grid(), q)
+    a = sweep.answer(p, q)
+    d = a["data"]
+    # out grows with p, risk grows with p: every p is a trade-off; k=0.2 beats k=0.1 on out, ties on risk
+    assert set(d["k"][d["#pareto"] == 1]) == {0.2}
+    assert np.nanmax(d["#score"]) <= 1 and np.nanmin(d["#score"]) >= 0
+    e = sweep.effects(p, d["out"], d["#holds"])
+    imp = {x["param"]: x["importance"] for x in e["params"]}
+    assert imp["p"] > 0.9 and imp["k"] < 0.1
+    m = sweep.pair_map(p, "p", "k", d["out"], d["#holds"])
+    assert len(m["xs"]) == 3 and len(m["ys"]) == 2 and m["share"][0][0] == 1.0
+
+
+def test_stability_and_suggestions():
+    q = {"roles": ROLES, "conditions": [{"column": "risk", "op": "<=", "value": 2.5}], "goal": {"column": "out"}}
+    p = sweep.prepare(_grid(), q)
+    d = sweep.answer(p, q)["data"]
+    assert np.nanmax(d["#tolerance"]) >= 0 and np.isfinite(d["#neighbours"]).all()
+    s = sweep.suggest(p, d["#holds"], d["#goal"], True, d["#partial"], ["edge", "best", "gaps"], budget=7)
+    got = s["suggestions"]
+    assert 0 < len(got) <= 7
+    keys = [tuple(x["params"].values()) for x in got]
+    assert len(keys) == len(set(keys))                               # no repeats, nothing already run
+    edge = [x for x in got if x["kind"] == "edge"]
+    assert edge and all(x["params"]["p"] in (1.5, 2.5) for x in edge if x["param"] == "p")
+
+
+def test_suspicious_run_found_and_left_out():
+    rows = []
+    for sc in ("a", "b"):
+        for p_ in range(1, 7):
+            for k in (1.0, 2.0, 3.0, 4.0):
+                rows.append({"scenario": sc, "p": float(p_), "k": k, "out": 10 * p_ + k, "risk": 1.0})
+    df = pd.DataFrame(rows)
+    df.loc[17, "out"] = 500.0
+    q = {"roles": ROLES}
+    sus = sweep.suspects(sweep.prepare(df, q))
+    assert sus and sus[0]["row"] == 17 and sus[0]["column"] == "out"
+    p = sweep.prepare(df, {**q, "exclude": [17]})
+    assert len(p.df) == len(df) - 1
+
+
+def test_compare_two_studies():
+    a_df, b_df = _grid(), _grid()
+    b_df["risk"] = b_df["risk"] * 0.5                               # after the change: less risk
+    q = {"roles": ROLES, "conditions": [{"column": "risk", "op": "<=", "value": 3}], "goal": {"column": "out"}}
+    pa, pb = sweep.prepare(a_df, q), sweep.prepare(b_df, q)
+    r = sweep.compare(pa, sweep.answer(pa, q), pb, sweep.answer(pb, q))
+    assert r["matched"] == 6 and r["nowHold"] == 4 and r["noLongerHold"] == 0
+
+
+def test_cli_sweep_exit_codes(tmp_path, capsys):
+    from signalviewer.cli import main
+    q = tmp_path / "q.json"
+    q.write_text('{"conditions": [{"column": "max_roll_deg", "op": "<=", "value": 25}]}')
+    assert main(["sweep", EXAMPLE, "--question", str(q)]) == 0
+    assert "parameter sets hold" in capsys.readouterr().out
+    assert main(["sweep", EXAMPLE, "--question", str(q), "--min-holding", "1000"]) == 1
+    assert main(["sweep", str(tmp_path / "nope.csv")]) == 2
+
+
+def test_routes_reload_changed_and_templates(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import app.routes.sweep as rs
+    monkeypatch.setattr(rs, "TEMPLATES", str(tmp_path / "tpl"))
+    c = TestClient(app)
+    f = tmp_path / "t.csv"
+    _grid().to_csv(f, index=False)
+    r = c.post("/api/sweep/open", json={"path": str(f)}).json()
+    assert c.get(f"/api/sweep/changed?id={r['id']}").json()["changed"] is False
+    pd.concat([_grid(), _grid().assign(p=4.0)]).to_csv(f, index=False)
+    os.utime(f, (os.stat(f).st_atime, os.stat(f).st_mtime + 5))
+    assert c.get(f"/api/sweep/changed?id={r['id']}").json()["changed"] is True
+    again = c.post("/api/sweep/reload", json={"path": r["id"]}).json()
+    assert again["id"] == r["id"] and again["rows"] == 36
+    assert c.get(f"/api/sweep/changed?id={r['id']}").json()["changed"] is False
+    t = c.post("/api/sweep/templates/save", json={"name": "risk check", "template": {"columns": [{"name": "p", "role": "param"}]}}).json()
+    assert [x["name"] for x in t["templates"]] == ["risk check"]
+    assert c.post("/api/sweep/templates/delete", json={"name": "risk check"}).json()["templates"] == []

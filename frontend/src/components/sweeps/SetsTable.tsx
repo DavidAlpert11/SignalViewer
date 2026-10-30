@@ -20,6 +20,7 @@ export default function SetsTable({ study }: { study: Study }) {
     const names: string[] = ["#rank", ...a.sets.filter((c) => c.group === "param").map((c) => c.name)];
     if (cols.has("#goal")) names.push("#goal");
     for (const c of a.sets) if (c.group === "condition" && c.part !== "passed") names.push(c.name);
+    for (const extra of ["#score", "#pareto", "#neighbours", "#tolerance"]) if (cols.has(extra)) names.push(extra);
     names.push("#covered");
     return names;
   }, [a, cols]);
@@ -58,7 +59,8 @@ export default function SetsTable({ study }: { study: Study }) {
               {show.map((c) => {
                 const col = cols.get(c)!, val = col.values[i];
                 const neg = col.part === "margin" && val < 0;
-                return <td key={c} className={`${col.kind === "num" ? "num" : ""}${neg ? " bad" : ""}`}>{c === "#covered" ? `${val} / ${a.counts.combos}` : labelOf(col, val)}</td>;
+                const text = c === "#covered" ? `${val} / ${a.counts.combos}` : c === "#pareto" ? (val === 1 ? "◆" : "") : c === "#neighbours" ? (Number.isFinite(val) ? `${Math.round(val * 100)}%` : "–") : labelOf(col, val);
+                return <td key={c} className={`${col.kind === "num" ? "num" : ""}${neg ? " bad" : ""}`}>{text}</td>;
               })}
               <td className={holds[i] === 1 ? "ok" : "bad"}>{holds[i] === 1 ? "✓" : "✗"}</td>
             </tr>

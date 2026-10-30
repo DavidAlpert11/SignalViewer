@@ -5,15 +5,23 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-ROLES = ("param", "hold", "output", "id", "ignore")
+ROLES = ("param", "hold", "output", "id", "recording", "ignore")
 SCALES = ("linear", "log", "category", "ordinal")
 
 _HOLD_NAME = re.compile(r"scen|case|seed|weather|disturb|noise|wind|env(iron)?|condition|תרחיש|מקרה", re.I)
+_PATH_NAME = re.compile(r"path|file|record|log|הקלטה|קובץ", re.I)
+_PATH_VALUE = re.compile(r"[\\/]|\.(?:csv|txt|tsv|bin|log|mat|ulg|parquet|pq|h5|hdf5|mcap|db3|tlog)$", re.I)
 _ID_NAME = re.compile(r"(^|_)(run|id|index|idx|row)(_|$)|run_?id|^#$", re.I)
 
 
 def _is_number(s: pd.Series) -> bool:
     return pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s)
+
+
+def _looks_like_paths(s: pd.Series) -> bool:
+    """A text column whose values are file names or paths: where each run's recording is."""
+    vals = s.dropna().astype(str).head(200)
+    return len(vals) > 0 and float(vals.str.contains(_PATH_VALUE).mean()) >= 0.8
 
 
 def describe_column(s: pd.Series, rows: int) -> Dict:
@@ -24,6 +32,8 @@ def describe_column(s: pd.Series, rows: int) -> Dict:
     info: Dict = {"name": str(s.name), "kind": "number" if _is_number(s) else "text",
                   "distinct": nunique, "missing": n_missing,
                   "constant": nunique <= 1, "empty": n_missing > 0.9 * rows}
+    if info["kind"] == "text" and nunique > 1:
+        info["paths"] = _looks_like_paths(s)
     if info["kind"] == "number" and nunique:
         info["min"] = float(vals.min())
         info["max"] = float(vals.max())
@@ -58,15 +68,19 @@ def guess_roles(cols: List[Dict], rows: int) -> List[str]:
     """See the module docstring: outputs are the trailing block from the first measurement-like column."""
     first_out = len(cols)
     for i, c in enumerate(cols):
-        if c["constant"] or c["empty"]:
+        if c["constant"] or c["empty"] or c.get("paths"):
             continue
-        if c["kind"] == "number" and not _grid_like(c, rows) and not _ID_NAME.search(c["name"]):
+        # a measurement: many distinct numbers - or, in a small table, fractional values that never repeat
+        unique_frac = not c.get("integer", True) and c["distinct"] >= rows - c["missing"] and rows >= 4
+        if c["kind"] == "number" and (not _grid_like(c, rows) or unique_frac) and not _ID_NAME.search(c["name"]):
             first_out = i
             break
     roles = []
     for i, c in enumerate(cols):
         if c["constant"] or c["empty"]:
             roles.append("ignore")
+        elif c.get("paths") and (c["distinct"] > rows // 2 or _PATH_NAME.search(c["name"])):
+            roles.append("recording")
         elif c["distinct"] == rows and rows > 50 and (_ID_NAME.search(c["name"]) or c.get("integer") or c["kind"] == "text"):
             roles.append("id")
         elif i >= first_out:

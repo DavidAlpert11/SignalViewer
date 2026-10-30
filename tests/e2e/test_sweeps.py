@@ -3,12 +3,14 @@ of the study, and correcting a role."""
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, pg  # noqa: E402,F401
+import os  # noqa: E402
+
+from test_features import env, goto_folder, pg, save_as  # noqa: E402,F401
 
 
 def _to_sweeps(pg):
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
-    pg.wait_for_selector(".sw-welcome, .sw-main")
+    pg.wait_for_selector(".sw-welcome, .sw-study")
 
 
 def test_area_switch_keeps_recordings(pg):
@@ -95,3 +97,124 @@ def test_new_column_per_set(pg):
     pg.locator(".sw-derived-editor .sw-pill", has_text="urban").click()
     pg.locator(".sw-derived-editor .btn", has_text="Add the column").click()
     pg.wait_for_selector(".pp-axis-name:has-text('range_urban_min')")
+
+
+def _center(pg, name):
+    pg.locator(".sw-center-tabs button", has_text=name).click()
+
+
+def test_effects_map_and_next_runs(pg):
+    _example(pg)
+    pg.select_option("select[aria-label='Goal']", "range_m")
+    _center(pg, "Which parameter matters")
+    pg.wait_for_selector(".sw-effect")
+    assert pg.locator(".sw-effect b").first.inner_text() == "payload_kg"          # it matters most here
+    _center(pg, "Map")
+    pg.wait_for_selector(".sw-map svg rect")
+    _center(pg, "Next runs")
+    pg.locator(".sw-next .btn", has_text="Suggest").click()
+    pg.wait_for_selector(".sw-next .sw-table tbody tr")
+    assert pg.locator(".sw-next .sw-table tbody tr").count() == 40
+    pg.locator(".sw-next .btn", has_text="Export the run list").click()
+    save_as(pg, "next.csv")
+    pg.wait_for_selector(".sw-next .hint:has-text('runs written')")
+    lines = open(os.path.join(pg.env["out"], "next.csv")).read().splitlines()
+    assert lines[0].startswith("payload_kg,kp_roll,cruise_mps,controller,scenario_terrain") and len(lines) == 1 + 40 * 18
+    _center(pg, "Lines")
+
+
+def test_data_health_leaves_a_suspicious_run_out(pg):
+    _example(pg)
+    _center(pg, "Data health")
+    pg.wait_for_selector(".sw-health .sw-table tbody tr")
+    assert pg.locator(".sw-health .sw-table tbody tr").count() == 4                 # the example's four odd runs
+    before = _holding(pg)
+    pg.locator(".sw-health .btn", has_text="Leave all of them out").click()
+    pg.wait_for_selector(".sw-answer .hint:has-text('4 runs left out')")
+    pg.locator(".sw-answer .linklike", has_text="Keep every run").click()
+    pg.wait_for_function(f"+document.querySelector('.sw-answer-n').innerText.split(' ')[0] === {before}")
+    _center(pg, "Lines")
+
+
+def test_save_and_reopen_a_study_and_report(pg):
+    _example(pg)
+    pg.select_option("select[aria-label='Goal']", "flight_time_s")
+    pg.locator(".areabar [aria-label='Save the study']").click()
+    save_as(pg, "mine.svsweep")
+    pg.wait_for_selector(".sw-note:has-text('Saved')")
+    pg.locator(".areabar [aria-label='Report (HTML)']").click()
+    save_as(pg, "mine.html")
+    pg.wait_for_function("document.querySelector('.sw-note').innerText.includes('mine.html')")
+    html = open(os.path.join(pg.env["out"], "mine.html"), encoding="utf-8").read()
+    assert "flight_time_s" in html and "<img" in html
+    n = pg.locator(".areabar .tab").count()
+    pg.locator(".areabar [aria-label='Open a saved study']").click()
+    goto_folder(pg, pg.env["out"])
+    pg.locator(".dialog .fs-row", has_text="mine.svsweep").click(); pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n + 1}")
+    assert pg.locator("select[aria-label='Goal']").input_value() == "flight_time_s"
+
+
+def test_a_sets_recordings_open_in_recordings(pg, tmp_path):
+    ex = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "examples"))
+    rows = ["recording,gain,scenario,score"]
+    for i, f in enumerate(("run_012.csv", "run_013.csv", "run_014.csv")):
+        for g in (1, 2):
+            rows.append(f"{os.path.join(ex, f)},{g},{'abc'[i]},{g * 10 + i + 0.37 * g * i}")
+    t = tmp_path / "with_recordings.csv"
+    t.write_text("\n".join(rows) + "\n")
+    _to_sweeps(pg)
+    pg.locator(".areabar .btn", has_text="Open a table").click()
+    goto_folder(pg, str(tmp_path))
+    pg.locator(".dialog .fs-row", has_text="with_recordings.csv").click(); pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_selector(".sw-table tbody tr")
+    pg.locator(".sw-tabs button", has_text="Columns").click()
+    assert "recording" in pg.locator(".sw-role-recording .sw-col-name").inner_text()
+    if pg.locator(".sw-col", has_text="scenario").locator("select").first.input_value() != "hold":
+        pg.select_option("select[aria-label='Role of scenario']", "hold")
+    pg.locator(".sw-tabs button", has_text="Question").click()
+    pg.locator(".sw-table tbody tr").first.click()
+    pg.locator(".sw-detail .btn", has_text="recordings in Recordings").click()
+    pg.wait_for_selector(".rail")
+    pg.wait_for_function("document.querySelectorAll('.run-head').length >= 3")
+
+
+
+def _open_table(pg, folder, name):
+    _to_sweeps(pg)
+    pg.locator(".areabar .btn", has_text="Open a table").click()
+    goto_folder(pg, str(folder))
+    pg.locator(".dialog .fs-row", has_text=name).click(); pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_selector(".sw-study")
+
+
+def test_a_table_with_no_parameter_still_opens(pg, tmp_path):
+    (tmp_path / "flat.csv").write_text("a,b\n1.5,2.25\n3.75,4.125\n5.5,6.875\n7.25,8.5\n")
+    _open_table(pg, tmp_path, "flat.csv")
+    pg.wait_for_selector(".sw-banner:has-text('No column is a parameter')")
+    assert pg.locator(".sw-tabs button.on").inner_text().startswith("Columns")       # the columns come first
+    pg.select_option("select[aria-label='Role of a']", "param")
+    pg.wait_for_selector(".sw-table tbody tr")
+
+
+def test_follow_the_file_and_templates(pg, tmp_path):
+    f = tmp_path / "grow.csv"
+    rows = ["scenario,p,out"] + [f"{sc},{p},{p * 10 + i * 0.37}" for i, (sc, p) in enumerate((s, p) for s in "ab" for p in (1, 2, 3))]
+    f.write_text("\n".join(rows) + "\n")
+    _open_table(pg, tmp_path, "grow.csv")
+    pg.select_option("select[aria-label='Goal']", "out")
+    # the file grows: the study says so and reads it again, question kept
+    f.write_text("\n".join(rows + [f"{sc},4,{40 + i * 0.37}" for i, sc in enumerate("ab")]) + "\n")
+    pg.wait_for_selector(".sw-banner:has-text('changed')", timeout=15000)
+    pg.locator(".sw-banner .btn", has_text="Read the table again").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-table tbody tr').length === 4")
+    assert pg.locator("select[aria-label='Goal']").input_value() == "out"
+    # a template: saved here, offered and applied on the next table with these columns
+    pg.select_option(".sw-templates", "#save")
+    pg.fill(".dialog input", "grow check"); pg.keyboard.press("Enter")
+    pg.wait_for_function("[...document.querySelectorAll('.sw-templates option')].some(o => o.textContent === 'grow check')")
+    (tmp_path / "grow2.csv").write_text(f.read_text())
+    _open_table(pg, tmp_path, "grow2.csv")
+    pg.wait_for_selector(".sw-banner:has-text('grow check')")
+    pg.locator(".sw-banner .btn", has_text="Apply").click()
+    pg.wait_for_function("document.querySelector(\"select[aria-label='Goal']\").value === 'out'")

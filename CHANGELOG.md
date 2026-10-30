@@ -31,6 +31,27 @@ templates you already have.
     and all its runs, the breaking values marked.
   - **Re-run list**: chosen sets x their combinations (or only those missing or with no result) to a
     CSV the run envelope can read.
+  - **Always opens**: whatever the guess, the table opens; with no parameter column yet, the columns
+    come first and say what to choose. A folder of statistics files (one per run) opens as one table.
+  - **Follow the file**: when the table's file changes, the study says so and reads it again (or
+    by itself, with *Follow the file*), keeping the question, the view and the roles.
+  - **Templates**: a study's roles, question and view saved by name, offered when a table with the
+    same columns opens, applied in one click (what the new table cannot answer is left out).
+  - **Several goals**: the Pareto front of the holding sets and a weighted score.
+  - **Which parameter matters**: each parameter's effect on the goal (and on holding), in order of
+    importance; **Map**: two parameters, the share of sets that hold and the best goal per cell;
+    **Points**: any two columns.
+  - **Next runs**: new parameter sets to run, each with its reason - the edge between holding and
+    failing, near the best, where scenarios disagree, the emptiest corners, what is missing - shown
+    on the map and written as a run list.
+  - **Data health**: missing combinations, runs with no result, and runs that look wrong (an output
+    far from its neighbours' in the same combination); any of them can be left out.
+  - **Stability**: per set, the share of its neighbours that hold and how many steps it can move.
+  - **Recordings**: a column of the runs' files opens a set's runs - or one run - in Recordings;
+    *Runs x conditions* opens its table here.
+  - **Compare** two studies of the same sets (before and after a change), **save / open a study**
+    (`.svsweep`), and a **report** as one HTML file.
+  - **CLI**: `signalviewer sweep TABLE --question q.json` - exit 0 when enough sets hold, for CI.
   A million-row table opens in about a second; reopening it reads a compressed copy kept in the
   cache. An example table and the script that makes it (also in a big size) are in `examples/sweeps`.
 - **Work areas** (the way Mission Planner has its screens): the top row now holds what is the same

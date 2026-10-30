@@ -8,6 +8,8 @@ A question (JSON from the page):
     conditions   [{column, op: ">=" "<=" ">" "<" "==" "!=", value, mode: "all" | "atLeast" | "only",
                    k (atLeast), where (only: {hold column: [values]})}]
     outputAgg    {output column: mean | min | max | median | p10 | p90 | std | spread}   - default mean
+    objectives   [{column, direction, weight}] - several goals: the Pareto front and a weighted score
+    exclude      [table row]                  - runs left out (e.g. suspicious ones)
 
 A parameter set holds when it ran every combination of the kept must-hold-across values and every
 condition is met: "all" - in every combination, "atLeast" - in at least k, "only" - in every
@@ -44,6 +46,7 @@ class Prepared:
     combo_id: np.ndarray                # per kept row
     n_combos: int
     covered: np.ndarray                 # per set: distinct combinations it ran
+    row_id: np.ndarray = None           # per kept row: its row in the table (to leave runs out by row)
     set_cols: Dict[str, np.ndarray] = field(default_factory=dict)   # per-set new columns
 
 
@@ -72,6 +75,10 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
     keep = hold_mask(df, {c: v for c, v in (q.get("holdValues") or {}).items() if c in holds and v})
     if keep is not None:
         df = df[keep]
+    excluded = q.get("exclude") or []
+    if excluded:                                          # runs left out by the user (suspicious ones)
+        df = df[~df.index.isin(excluded)]
+    row_id = df.index.to_numpy()
     df = df.reset_index(drop=True)
     derived = q.get("derived") or []
     new_cols = {}
@@ -90,7 +97,7 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
     combo_id = _ids(df, holds)
     n_combos = int(combo_id.max()) + 1 if len(combo_id) else 0
     covered = _distinct_per_set(set_id, combo_id, n_sets, n_combos)
-    p = Prepared(df, params, holds, outputs, set_id, n_sets, first_row, combo_id, n_combos, covered)
+    p = Prepared(df, params, holds, outputs, set_id, n_sets, first_row, combo_id, n_combos, covered, row_id=row_id)
     for d in derived:
         if d.get("kind") == "set":
             name, op, col = (d.get("name") or "").strip(), d.get("op"), d.get("column")
@@ -217,6 +224,21 @@ def answer(p: Prepared, q: Dict) -> Dict:
         if m["group"] == "output" and m["name"] in p.df.columns and p.holds:
             spread = set_aggregate(p.df[m["name"]], p.set_id, p.n_sets, "spread")
             m["flat"] = bool(np.nanmax(np.nan_to_num(spread, nan=0.0)) == 0) if len(spread) else False
+    partial = np.zeros(p.n_sets)
+    for m in meta:                                   # some combinations pass, not all: scenarios disagree
+        if m.get("part") == "passed":
+            ps, need = cols[m["name"]], p.n_combos
+            partial = np.maximum(partial, ((ps > 0) & (ps < need)).astype(float))
+    from svcore.sweep.analysis import objectives as _objectives
+    from svcore.sweep.grid import Grid, stability
+    front, score = _objectives(p, q.get("objectives") or [], holds)
+    if front is not None:
+        add("#pareto", front, "result")
+        add("#score", score, "result")
+    share, tol = stability(Grid(p), holds.astype(float))
+    add("#neighbours", share, "result")
+    add("#tolerance", tol, "result")
+    add("#partial", partial, "result")
     add("#holds", holds.astype(float), "result")
     add("#complete", complete.astype(float), "result")
     add("#covered", p.covered.astype(float), "result")
@@ -260,7 +282,11 @@ def set_rows(p: Prepared, q: Dict, set_index: int) -> Dict:
                         "worst": _py(vals[j]), "noResult": not np.isfinite(vals[j]),
                         "where": {h: _py(s[h].iloc[j]) for h in p.holds}})
     missing = p.n_combos - int(p.covered[set_index])
-    return {"params": params, "columns": keep, "holds": p.holds, "runs": runs, "why": why, "missingCombos": missing}
+    rec_cols = [c for c, r in (q.get("roles") or {}).items() if r == "recording" and c in sub.columns]
+    per_run = [None if (x is None or x != x) else str(x) for x in sub[rec_cols[0]].tolist()] if rec_cols else []
+    recordings = [x for x in per_run if x]
+    return {"params": params, "columns": keep, "holds": p.holds, "runs": runs, "why": why, "missingCombos": missing,
+            "rows": [int(x) for x in p.row_id[m]], "recordings": recordings, "recordingPerRun": per_run}
 
 
 def run_rows(p: Prepared, holds_per_set: np.ndarray, max_rows: int = 200_000, seed: int = 0) -> Dict:
