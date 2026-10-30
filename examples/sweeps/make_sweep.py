@@ -28,8 +28,8 @@ def make(repeat: int = 1, seed: int = 7) -> pd.DataFrame:
         for ter, pay, wind, kp, mis, cru, ctl in itertools.product(terrain, payloads, (0, 4, 8), kps, mission, cruises, ctrls):
             load = terrain[ter] + mission[mis] + 0.02 * wind
             rng_m = 2100 - 260 * pay - 14 * (cru - 14) ** 2 - 900 * load - 1400 * (kp - 0.17) ** 2 + (60 if ctl == "LQR" else 0)
-            roll = 9 + 30 * abs(kp - 0.15) * (1 + wind / 8) + 6 * load * 10 + 2.2 * pay + (-1.5 if ctl == "LQR" else 0)
-            batt = 38 - 7 * pay - 1.2 * (cru - 12) - 60 * load
+            roll = 9 + 30 * abs(kp - 0.15) * (1 + wind / 8) + 30 * load + 2.2 * pay + (-1.5 if ctl == "LQR" else 0)
+            batt = 40 - 6 * pay - 1.2 * (cru - 12) - 30 * load
             rows.append({
                 "scenario_terrain": ter, "payload_kg": pay, "scenario_wind_mps": wind, "kp_roll": kp,
                 "scenario_mission": mis, "cruise_mps": cru, "controller": ctl,

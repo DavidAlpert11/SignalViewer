@@ -8,14 +8,31 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
-- **Sweeps**, a second work area, for the results of a run envelope - a table with a row per run,
-  parameters and scenario columns first, the outputs last (CSV, Parquet or Excel). Step one: open the
-  table and see each column's role guessed - *Parameters* (what we choose), *Must hold across*
-  (scenario, wind, seed - what we don't), *Outputs*, or *Not used* (the same in every run) - correct
-  any of them, and see the shape of the study: how many parameter sets, how many combinations each
-  must hold in, which sets miss one and which runs gave no result. A million-row table opens in
-  about a second; reopening it reads a compressed copy kept in the cache. An example table is in
-  `examples/sweeps` (with the script that makes it, also in a big size for timing).
+- **Sweeps**, a second work area, for the results of a run envelope: a table with a row per run -
+  parameters and scenario columns first, the outputs last (CSV, Parquet or Excel) - and the question
+  *which parameters hold in every scenario, and which of them is best?*
+  - **Columns**: each column's role is guessed - *Parameters* (what we choose), *Must hold across*
+    (scenario, wind, seed: what we don't), *Outputs*, *Run id* or *Not used* - and so is its scale
+    (linear, log, category, ordinal). Any of them can be changed; the changes are remembered for the
+    next table with the same columns, and *Back to the guessed roles* undoes them. The shape of the
+    study shows at once: parameter sets, combinations to hold in, sets missing one, runs with no result.
+  - **The question**: which values of each must-hold-across column count; a goal (maximize or
+    minimize an output, by its worst case over the combinations); conditions met in every
+    combination, in at least *k*, or in every combination of chosen values. A set that misses a
+    combination, or has a run with no result, does not hold.
+  - **New columns**: a formula per run (`range_m / payload_kg`), or one value per parameter set - min,
+    max, mean, median, P10, P90, spread... of a column, over all its runs or only some scenarios.
+  - **Parallel plot**: a line per parameter set or per run; axes added, removed and dragged into
+    order; each axis linear, log, category or ordinal, and reversible; lines coloured by any column;
+    several ranges kept on one axis (drag, Shift-drag) or typed exactly; a histogram on each axis;
+    hover shows a line's values, a click opens its set. What tells nothing can be hidden.
+  - **The table** ranks the sets, best first, with each condition's worst case and margin; a set
+    opens on the right with *why it fails* (which condition, in which combination, by how much)
+    and all its runs, the breaking values marked.
+  - **Re-run list**: chosen sets x their combinations (or only those missing or with no result) to a
+    CSV the run envelope can read.
+  A million-row table opens in about a second; reopening it reads a compressed copy kept in the
+  cache. An example table and the script that makes it (also in a big size) are in `examples/sweeps`.
 - **Work areas** (the way Mission Planner has its screens): the top row now holds what is the same
   everywhere - the name, the area, search, live, settings, theme, language, help - and the row under
   it is the area's own: its session, plot tabs, templates, undo / redo, Clear and the Inspector. Today
