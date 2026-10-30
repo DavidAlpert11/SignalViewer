@@ -24,6 +24,8 @@ export interface ParallelPlotProps {
   onPick: (row: number) => void;
   onFilter: (name: string, f: Filter | null) => void;
   onAxisMenu: (name: string, at: DOMRect) => void;
+  /** an axis's name dragged to another place */
+  onMoveAxis: (from: string, toIndex: number) => void;
   height?: number;
 }
 
@@ -36,6 +38,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
   const height = p.height ?? 360;
   const [hover, setHover] = useState<{ row: number; x: number; y: number } | null>(null);
   const [brush, setBrush] = useState<{ axis: number; y0: number; y1: number; add: boolean } | null>(null);
+  const [dragAxis, setDragAxis] = useState<{ name: string; x0: number; x: number } | null>(null);
 
   useEffect(() => {
     const el = wrap.current;
@@ -215,13 +218,30 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     <div className="pp" ref={wrap} style={{ height }}>
       <canvas ref={canvas} className={brush ? "brushing" : ""} onPointerMove={onMove} onPointerDown={onDown} onPointerUp={onUp}
         onPointerLeave={() => setHover(null)} role="img" aria-label={p.axes.map(p.labelOf).join(", ")} />
-      {p.axes.map((a, i) => (
-        <button key={a} className={`pp-axis-name${hasFilter(p.filters[a]) ? " filtered" : ""}`}
-          style={{ left: axisX(i), maxWidth: k > 1 ? Math.max(40, Math.min(160, (width - 2 * PAD_X) / (k - 1) - 8)) : 160 }}
-          title={p.labelOf(a)} onClick={(e) => p.onAxisMenu(a, (e.currentTarget as HTMLElement).getBoundingClientRect())}>
-          {p.labelOf(a)}
-        </button>
-      ))}
+      {p.axes.map((a, i) => {
+        const dragging = dragAxis?.name === a;
+        const moved = dragging && Math.abs(dragAxis!.x - dragAxis!.x0) > 4;
+        return (
+          <button key={a} className={`pp-axis-name${hasFilter(p.filters[a]) ? " filtered" : ""}${moved ? " dragging" : ""}`}
+            style={{ left: axisX(i) + (moved ? dragAxis!.x - dragAxis!.x0 : 0),
+              maxWidth: k > 1 ? Math.max(40, Math.min(160, (width - 2 * PAD_X) / (k - 1) - 8)) : 160 }}
+            title={p.labelOf(a)}
+            // click: the axis's menu; drag sideways: move the axis (HiPlot's way)
+            onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); setDragAxis({ name: a, x0: e.clientX, x: e.clientX }); }}
+            onPointerMove={(e) => { if (dragAxis?.name === a) setDragAxis({ ...dragAxis, x: e.clientX }); }}
+            onPointerUp={(e) => {
+              const d = dragAxis; setDragAxis(null);
+              if (!d || d.name !== a) return;
+              if (Math.abs(d.x - d.x0) <= 4) { p.onAxisMenu(a, (e.currentTarget as HTMLElement).getBoundingClientRect()); return; }
+              const x = axisX(i) + (d.x - d.x0);
+              let to = 0, best = Infinity;
+              for (let j = 0; j < k; j++) { const dd = Math.abs(axisX(j) - x); if (dd < best) { best = dd; to = j; } }
+              if (to !== i) p.onMoveAxis(a, to);
+            }}>
+            {p.labelOf(a)}
+          </button>
+        );
+      })}
       {hover && (
         <div className="pp-tip" style={{ left: Math.min(hover.x + 14, width - 240), top: Math.max(4, hover.y - 10) }}>
           {p.axes.map((a) => { const c = p.cols.get(a)!; return <div key={a}><span>{p.labelOf(a)}</span><b>{labelOf(c, c.values[hover.row])}</b></div>; })}

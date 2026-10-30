@@ -89,7 +89,7 @@
 .sw-add { height: 24px !important; border-style: dashed !important; }
 .sw-colour { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .sw-ramp { width: 70px; height: 8px; border-radius: 4px; }
-.sw-count { margin-inline-start: auto; }
+.sw-count { margin-inline-start: auto; white-space: nowrap; }
 .pp { position: relative; flex: none; background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
 .pp canvas { display: block; cursor: crosshair; touch-action: none; }
 .pp canvas.brushing { cursor: ns-resize; }
@@ -205,3 +205,12 @@
 .sw-templates { height: 28px; max-width: 170px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; }
 .sw-scope { display: flex; gap: 5px; flex-wrap: wrap; }
 .sw-scope .btn { height: 26px; }
+
+/* the colour's key (not a chooser: that is an axis's menu) */
+.sw-colour-key { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: none; color: var(--ink); font: inherit; font-size: 0.846rem; cursor: pointer; white-space: nowrap; }
+.sw-colour-key:hover { border-color: var(--line-strong); }
+.pp-axis-name { touch-action: none; }
+.pp-axis-name.dragging { z-index: 3; border-color: var(--amber); background: var(--panel); cursor: grabbing; }
+.sw-plotbar { flex-wrap: nowrap; overflow-x: auto; }
+.sw-plotbar > * { flex: none; }
