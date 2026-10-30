@@ -2,14 +2,13 @@
    and hiding what tells nothing. "Back to the guess" undoes every change. */
 import { useState } from "react";
 import { useT, type TKey } from "../../i18n";
-import { ROLES, SCALES, type Role, type Scale } from "../../sweeps/api";
+import { ROLES, type Role } from "../../sweeps/api";
 import { useSweeps, type Study, type StudyColumn } from "../../sweeps/state";
 import { fmtValue } from "../../sweeps/scales";
 import { pickPath } from "../../store";
 
 export const ROLE_KEY: Record<Role, TKey> = { param: "swRoleParam", hold: "swRoleHold", output: "swRoleOutput", id: "swRoleId", recording: "swRoleRecording", ignore: "swRoleIgnore" };
 const ROLE_HINT: Record<Role, TKey> = { param: "swRoleParamHint", hold: "swRoleHoldHint", output: "swRoleOutputHint", id: "swRoleIdHint", recording: "swRoleRecordingHint", ignore: "swRoleIgnoreHint" };
-export const SCALE_KEY: Record<Scale, TKey> = { linear: "swScaleLinear", log: "swScaleLog", category: "swScaleCategory", ordinal: "swScaleOrdinal" };
 
 export default function ColumnsPanel({ study }: { study: Study }) {
   const t = useT();
@@ -18,7 +17,7 @@ export default function ColumnsPanel({ study }: { study: Study }) {
   const meta = new Map((study.answer?.sets ?? []).map((c) => [c.name, c]));
   const nConst = [...meta.values()].filter((c) => c.constant).length;
   const nFlat = [...meta.values()].filter((c) => c.flat).length;
-  const changed = study.columns.some((c) => c.role !== c.guessRole || c.scale !== c.guessScale);
+  const changed = study.columns.some((c) => c.role !== c.guessRole);
   const match = (c: StudyColumn) => !q || c.name.toLowerCase().includes(q.toLowerCase());
   const sm = study.summary;
   return (
@@ -42,14 +41,14 @@ export default function ColumnsPanel({ study }: { study: Study }) {
         <label className="acheck"><input type="checkbox" checked={study.view.hideFlat} onChange={(e) => st.setView({ hideFlat: e.target.checked })} />
           {t("swHideFlat")} <span className="hint">· {nFlat}</span></label>
       </div>
-      {changed && <button className="linklike" onClick={st.resetRoles}>{t("swBackToGuess")}</button>}
+      {changed && <button className="linklike" onClick={st.resetRoles}>{t("swBackToGuessRoles")}</button>}
       {ROLES.map((role) => {
         const cols = study.columns.filter((c) => c.role === role && match(c));
         if (!cols.length) return null;
         return (
           <section key={role} className={`sw-role sw-role-${role}`}>
             <h3 title={t(ROLE_HINT[role])}>{t(ROLE_KEY[role])} <span className="hint">· {cols.length}</span></h3>
-            {cols.map((c) => <ColumnRow key={c.name} study={study} c={c} />)}
+            {cols.map((c) => <ColumnRow key={c.name} c={c} />)}
           </section>
         );
       })}
@@ -57,26 +56,19 @@ export default function ColumnsPanel({ study }: { study: Study }) {
   );
 }
 
-function ColumnRow({ study, c }: { study: Study; c: StudyColumn }) {
+function ColumnRow({ c }: { c: StudyColumn }) {
   const t = useT();
   const st = useSweeps.getState();
   const why = c.constant ? t("swConstant") : c.empty ? t("swEmpty") : c.kind === "text" ? t("swDistinct", { n: c.distinct })
     : c.min !== undefined ? `${fmtValue(c.min)} – ${fmtValue(c.max!)} · ${t("swDistinct", { n: c.distinct })}` : "";
-  const isAxis = study.view.axes.includes(c.name);
-  const guessed = c.role === c.guessRole;
+  // only what the column IS here; how it is drawn (axis, scale, colour) is in its axis's menu on the plot
   return (
     <div className="sw-col">
-      <label className="sw-col-name acheck" title={c.name}>
-        <input type="checkbox" checked={isAxis} disabled={c.role === "ignore" || c.role === "id" || c.role === "recording"} aria-label={t("swShowAxis", { c: c.name })}
-          onChange={(e) => st.toggleAxis(c.name, e.target.checked)} />{c.name}
-      </label>
-      <div className="sw-col-why">{why}{!guessed && <span className="sw-changed"> · {t("swYourChoice")}</span>}</div>
+      <div className="sw-col-name" title={c.name}>{c.name}</div>
+      <div className="sw-col-why">{why}{c.role !== c.guessRole && <span className="sw-changed"> · {t("swYourChoice")}</span>}</div>
       <div className="sw-col-pick">
         <select aria-label={t("swRoleOf", { c: c.name })} value={c.role} onChange={(e) => st.setRole(c.name, e.target.value as Role)}>
           {ROLES.map((r) => <option key={r} value={r}>{t(ROLE_KEY[r])}</option>)}
-        </select>
-        <select aria-label={t("swScaleOf", { c: c.name })} value={c.scale} onChange={(e) => st.setScale(c.name, e.target.value as Scale)}>
-          {SCALES.map((sc) => <option key={sc} value={sc} disabled={c.kind === "text" && (sc === "linear" || sc === "log")}>{t(SCALE_KEY[sc])}</option>)}
         </select>
       </div>
     </div>

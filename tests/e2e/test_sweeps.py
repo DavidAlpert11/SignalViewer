@@ -99,6 +99,12 @@ def test_new_column_per_set(pg):
     pg.wait_for_selector(".pp-axis-name:has-text('range_urban_min')")
 
 
+def _bar_menu(pg, button, item):
+    """A menu of the area's bar (Open, Study): open it, pick an item."""
+    pg.locator(".areabar .btn", has_text=button).first.click()
+    pg.locator(".menu.ctx button", has_text=item).first.click()
+
+
 def _center(pg, name):
     pg.locator(".sw-center-tabs button", has_text=name).click()
 
@@ -139,16 +145,16 @@ def test_data_health_leaves_a_suspicious_run_out(pg):
 def test_save_and_reopen_a_study_and_report(pg):
     _example(pg)
     pg.select_option("select[aria-label='Goal']", "flight_time_s")
-    pg.locator(".areabar [aria-label='Save the study']").click()
+    _bar_menu(pg, "Study", "Save the study")
     save_as(pg, "mine.svsweep")
     pg.wait_for_selector(".sw-note:has-text('Saved')")
-    pg.locator(".areabar [aria-label='Report (HTML)']").click()
+    _bar_menu(pg, "Study", "Report (HTML)")
     save_as(pg, "mine.html")
     pg.wait_for_function("document.querySelector('.sw-note').innerText.includes('mine.html')")
     html = open(os.path.join(pg.env["out"], "mine.html"), encoding="utf-8").read()
     assert "flight_time_s" in html and "<img" in html
     n = pg.locator(".areabar .tab").count()
-    pg.locator(".areabar [aria-label='Open a saved study']").click()
+    _bar_menu(pg, "Open", "Open a saved study")
     goto_folder(pg, pg.env["out"])
     pg.locator(".dialog .fs-row", has_text="mine.svsweep").click(); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n + 1}")
@@ -164,7 +170,7 @@ def test_a_sets_recordings_open_in_recordings(pg, tmp_path):
     t = tmp_path / "with_recordings.csv"
     t.write_text("\n".join(rows) + "\n")
     _to_sweeps(pg)
-    pg.locator(".areabar .btn", has_text="Open a table").click()
+    _bar_menu(pg, "Open", "Open a table")
     goto_folder(pg, str(tmp_path))
     pg.locator(".dialog .fs-row", has_text="with_recordings.csv").click(); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".sw-table tbody tr")
@@ -182,7 +188,10 @@ def test_a_sets_recordings_open_in_recordings(pg, tmp_path):
 
 def _open_table(pg, folder, name):
     _to_sweeps(pg)
-    pg.locator(".areabar .btn", has_text="Open a table").click()
+    if pg.locator(".sw-welcome").count():
+        pg.locator(".sw-welcome .btn", has_text="Open a table").click()
+    else:
+        _bar_menu(pg, "Open", "Open a table")
     goto_folder(pg, str(folder))
     pg.locator(".dialog .fs-row", has_text=name).click(); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".sw-study")
@@ -210,9 +219,9 @@ def test_follow_the_file_and_templates(pg, tmp_path):
     pg.wait_for_function("document.querySelectorAll('.sw-table tbody tr').length === 4")
     assert pg.locator("select[aria-label='Goal']").input_value() == "out"
     # a template: saved here, offered and applied on the next table with these columns
-    pg.select_option(".sw-templates", "#save")
+    _bar_menu(pg, "Study", "Save as a template")
     pg.fill(".dialog input", "grow check"); pg.keyboard.press("Enter")
-    pg.wait_for_function("[...document.querySelectorAll('.sw-templates option')].some(o => o.textContent === 'grow check')")
+    pg.wait_for_selector(".dialog", state="detached")
     (tmp_path / "grow2.csv").write_text(f.read_text())
     _open_table(pg, tmp_path, "grow2.csv")
     pg.wait_for_selector(".sw-banner:has-text('grow check')")
@@ -248,16 +257,16 @@ def test_keep_exclude_restore_and_export_shown(pg):
     pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 1 filters')")
     kept = _rows(pg)
     assert 0 < kept < total
-    pg.locator(".sw-scope .btn", has_text="Keep").click()
-    pg.wait_for_selector(".sw-scope .btn:has-text('Restore all (1)')")
+    pg.locator(".sw-plotbar .btn", has_text="Keep").click()
+    pg.wait_for_selector(".sw-plotbar .btn:has-text('Restore all (1)')")
     assert pg.locator(".sw-plotbar .btn:has-text('Clear')").count() == 0          # the filter became the scope
     assert _rows(pg) == kept
-    pg.locator(".sw-scope .btn", has_text="Export shown").click()
+    pg.locator(".sw-plotbar .btn", has_text="Export shown").click()
     save_as(pg, "shown.csv")
     pg.wait_for_selector(".sw-center .hint:has-text('runs written')")
     lines = open(os.path.join(pg.env["out"], "shown.csv")).read().splitlines()
     assert len(lines) - 1 >= kept and lines[0].startswith("scenario_terrain,")
-    pg.locator(".sw-scope .btn", has_text="Restore all").click()
+    pg.locator(".sw-plotbar .btn", has_text="Restore all").click()
     pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total}")
     # exclude: the other way round
     pg.wait_for_timeout(300)
@@ -265,7 +274,31 @@ def test_keep_exclude_restore_and_export_shown(pg):
     pg.mouse.move(x, b["y"] + 50); pg.mouse.down(); pg.mouse.move(x, b["y"] + 150, steps=5); pg.mouse.up()
     pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 1 filters')")
     kept = _rows(pg)
-    pg.locator(".sw-scope .btn", has_text="Exclude").click()
+    pg.locator(".sw-plotbar .btn", has_text="Exclude").click()
     pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total - kept}")
-    pg.locator(".sw-scope .btn", has_text="Step back").click()
+    pg.locator(".sw-plotbar .btn", has_text="Step back").click()
     pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total}")
+
+
+
+def test_one_place_for_each_control(pg):
+    """The colour is chosen in an axis's menu (the bar only says what it means); axes move by
+    dragging their names on the plot; a column's scale is in its axis's menu, not in Columns."""
+    _example(pg)
+    assert pg.locator(".sw-plotbar select", has_text="Colour").count() == 0
+    assert pg.locator(".sw-columns select[aria-label^='Scale of']").count() == 0
+    names = lambda: [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
+    first = names()[0]
+    pg.locator(".pp-axis-name").nth(1).click()
+    pg.locator(".sw-axis-menu button", has_text="Colour the lines by this").click()
+    pg.keyboard.press("Escape")
+    assert names()[1].split(" ·")[0] in pg.locator(".sw-colour-key").inner_text()
+    # drag the first axis's name past the third
+    a = pg.locator(".pp-axis-name").nth(0).bounding_box(); c = pg.locator(".pp-axis-name").nth(2).bounding_box()
+    pg.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2); pg.mouse.down()
+    pg.mouse.move(c["x"] + c["width"] / 2, a["y"] + a["height"] / 2, steps=8); pg.mouse.up()
+    pg.wait_for_function(f"document.querySelectorAll('.pp-axis-name')[2].innerText.trim() === {first!r}")
+    # back to holds / fails from the key
+    pg.locator(".sw-colour-key").click()
+    pg.locator(".menu.ctx button", has_text="holds").first.click()
+    assert "holds" in pg.locator(".sw-colour-key").inner_text()
