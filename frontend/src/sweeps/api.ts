@@ -63,7 +63,7 @@ export interface SweepTemplate {
   view: unknown;
 }
 export interface VariantResult { holding?: number; sets?: number; error?: string; robust?: number | null; tolerance?: number | null;
-  best?: { value: number; params: Record<string, string | number | null> } | null; conditions?: { label: string; met: number }[] }
+  best?: { value: number; params: Record<string, string | number | null>; score?: number | null } | null; conditions?: { label: string; met: number }[] }
 export interface Effects { params: { param: string; numeric: boolean; importance: number;
   levels: { value: number | string; mean: number | null; min: number | null; max: number | null; holding: number | null; sets: number }[] }[] }
 export interface PairMap { x: string; y: string; xs: (number | string)[]; ys: (number | string)[]; share: (number | null)[][]; best: (number | null)[][]; count: number[][] }

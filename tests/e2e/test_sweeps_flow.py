@@ -48,8 +48,8 @@ def _condition(pg, column, op, value):
 
 
 def _optimize(pg, column, direction):
-    pg.locator(".sw-goal-part .btn", has_text="+ goal").click()
-    pg.locator(".sw-goal-part select[aria-label='Goal']").last.select_option(column)
+    pg.locator(".sw-goal-part .btn", has_text="+ objective").click()
+    pg.locator(".sw-goal-part select[aria-label='Objective']").last.select_option(column)
     pg.locator(".sw-goal-part select[aria-label='Direction']").last.select_option(direction)
 
 
@@ -330,7 +330,7 @@ def test_follow_the_file_and_templates(pg, tmp_path):
     pg.wait_for_selector(".sw-banner:has-text('grow check')")
     pg.locator(".sw-banner .btn", has_text="Apply").click()
     _step(pg, "goals")
-    assert pg.locator(".sw-goal-part select[aria-label='Goal']").first.input_value() == "out"
+    assert pg.locator(".sw-goal-part select[aria-label='Objective']").first.input_value() == "out"
 
 
 def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
@@ -532,3 +532,33 @@ def test_the_sets_that_hold_sorted_and_exported(pg):
     for _ in range(3):
         pg.keyboard.press("Control+z")
     pg.wait_for_function("document.querySelectorAll('.sw-sets-table tbody tr').length === 45")
+
+
+def test_optimize_says_how_it_ranks_and_weights_count(pg):
+    """Optimize: the step says by what the sets that hold are ranked; with two objectives the
+    weights decide the order (the first alone used to)."""
+    _fresh(pg)
+    _step(pg, "goals")
+    now = pg.locator(".sw-optimize-now")
+    assert "Nothing to optimize" in now.inner_text()
+    _condition(pg, "roll_error_deg", "<=", 5)
+    _optimize(pg, "energy_wh", "min")
+    pg.wait_for_function("document.querySelector('.sw-optimize-now').innerText.includes('energy_wh at its worst case, the smallest first')")
+    _optimize(pg, "roll_error_deg", "min")
+    pg.wait_for_function("document.querySelector('.sw-optimize-now').innerText.includes('weighted score')")
+
+    def best():
+        _step(pg, "results")
+        pg.wait_for_selector(".sw-sets-table tbody tr")
+        pg.wait_for_function("!document.querySelector('.sw-step-btn.on').innerText.includes('…')")
+        pg.wait_for_timeout(600)
+        heads = pg.locator(".sw-sets-table thead th").all_inner_texts()
+        cells = pg.locator(".sw-sets-table tbody tr").first.locator("td").all_inner_texts()
+        return tuple(cells[heads.index(h)] for h in heads if h.strip() in ("kp_roll", "ki_roll", "filter_hz"))
+    w = lambda i, v: (pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).fill(v),
+                      pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).press("Tab"))
+    _step(pg, "goals"); w(0, "10"); w(1, "0")
+    by_energy = best()
+    _step(pg, "goals"); w(0, "0"); w(1, "10")
+    by_error = best()
+    assert by_energy != by_error

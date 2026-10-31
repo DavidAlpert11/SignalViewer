@@ -4,12 +4,13 @@ A question (JSON from the page):
     roles        {column: param | hold | output | id | ignore}
     holdValues   {hold column: [values kept]}         - missing or empty: every value
     derived      [{name, kind: "row", expr} | {name, kind: "set", op, column, where}]
-    goal         {column, direction: "max" | "min"} or null
+    goal         {column, direction: "max" | "min"} or null - ranks the sets that hold by its worst case
     conditions   [{column, op: ">=" "<=" ">" "<" "==" "!=", value, mode: "all" | "atLeast" | "only",
                    k (atLeast), where (only: {hold column: [values]})}]
     combine      "and" (default: every condition) | "or" (at least one of them)
     outputAgg    {output column: mean | min | max | median | p10 | p90 | std | spread}   - default mean
-    objectives   [{column, direction, weight}] - several goals: the Pareto front and a weighted score
+    objectives   [{column, direction, weight}] - two or more: the Pareto front and a weighted score,
+                 and the sets that hold are ranked by the score
     exclude      [table row]                  - runs left out (e.g. suspicious ones)
 
 A parameter set holds when it ran every combination of the kept must-hold-across values and every
@@ -235,10 +236,18 @@ def answer(p: Prepared, q: Dict) -> Dict:
             partial = np.maximum(partial, ((ps > 0) & (ps < need)).astype(float))
     from svcore.sweep.analysis import objectives as _objectives
     from svcore.sweep.grid import Grid, stability
-    front, score = _objectives(p, q.get("objectives") or [], holds)
+    objs = q.get("objectives") or []
+    front, score = _objectives(p, objs, holds)
     if front is not None:
         add("#pareto", front, "result")
         add("#score", score, "result")
+    if score is not None and len(objs) >= 2:
+        # several things to optimize: the sets that hold are ranked by the weighted score (1 = best
+        # on every one), so the weights decide the order - the first alone used to rank them
+        idx = np.where(holds & np.isfinite(score))[0]
+        order = idx[np.argsort(-score[idx], kind="stable")]
+        rank = np.full(p.n_sets, np.nan)
+        rank[order] = np.arange(1, len(order) + 1)
     share, tol = stability(Grid(p), holds.astype(float))
     add("#neighbours", share, "result")
     add("#tolerance", tol, "result")
