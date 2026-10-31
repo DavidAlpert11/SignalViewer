@@ -9,7 +9,7 @@ import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
-import { emptyQuestion, emptyView, type Answer, type Condition, type Derived, type Filter, type Question, type View } from "./model";
+import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Question, type View } from "./model";
 
 export interface StudyColumn extends SweepColumn {
   guessRole: Role;
@@ -59,6 +59,8 @@ interface SweepsState {
   merge: (path: string, prefer: "new" | "old" | "both") => Promise<{ added: number; replaced: number }>;
   narrow: (kind: "keep" | "exclude", sets: number[], key: string) => void;
   restore: (all: boolean) => void;
+  /** the same table, the study from the start: no goals, nothing removed, the guessed roles */
+  resetStudy: () => void;
   // the file
   reload: () => Promise<void>;
   checkChanged: () => Promise<void>;
@@ -77,6 +79,11 @@ interface SweepsState {
   setQuestion: (patch: Partial<Question>) => void;
   setHoldValues: (column: string, values: (string | number)[]) => void;
   addCondition: (c: Condition) => void;
+  updateGoal: (patch: Partial<GoalVariant>) => void;
+  addGoal: (copy: boolean) => void;
+  removeGoal: (i: number) => void;
+  setActiveGoal: (i: number) => void;
+  setRemoved: (columns: string[]) => void;
   updateCondition: (i: number, patch: Partial<Condition>) => void;
   removeCondition: (i: number) => void;
   addDerived: (d: Derived) => void;
@@ -102,11 +109,12 @@ const remember = (s: Study) =>
     .map((c) => [c.name, { role: c.role, scale: c.scale }])));
 
 export function wireQuestion(s: Study): WireQuestion {
-  const roles = Object.fromEntries(s.columns.map((c) => [c.name, c.role])) as Record<string, Role>;
+  const removed = new Set(s.question.removed);
+  const roles = Object.fromEntries(s.columns.map((c) => [c.name, removed.has(c.name) ? "ignore" : c.role])) as Record<string, Role>;
   const outputs = s.columns.filter((c) => c.role === "output").map((c) => c.name)
     .concat(s.question.derived.filter((d) => d.kind === "row").map((d) => d.name));
   const q = s.question;
-  return { roles, holdValues: q.holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
+  return { roles, combine: q.combine, holdValues: q.holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
     outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])), objectives: q.objectives, exclude: q.exclude };
 }
 
@@ -133,6 +141,11 @@ export const useSweeps = create<SweepsState>((set, get) => {
   const patch = (f: (s: Study) => Study) => set((st) => ({ studies: st.studies.map((s, i) => (i === st.active ? f(s) : s)) }));
   const ask = () => { window.clearTimeout(timer); timer = window.setTimeout(() => get().evaluate(), 200); };
   const patchQ = (f: (q: Question) => Question) => { patch((s) => ({ ...s, question: f(s.question) })); ask(); };
+  /** change the active goal; the question's goal, conditions and objectives follow it */
+  const patchG = (f: (g: GoalVariant) => GoalVariant) => patchQ((q) => {
+    const goals = q.goals.map((g, i) => (i === q.active ? f(g) : g));
+    return materialize({ ...q, goals });
+  });
   const patchV = (f: (v: View) => View, again = false) => { patch((s) => ({ ...s, view: f(s.view) })); if (again) ask(); };
   const refreshSummary = () => {
     const s = get().studies[get().active];
@@ -149,7 +162,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       role: from[c.name]?.role ?? c.role, scale: from[c.name]?.scale ?? c.scale }));
     const study: Study = { tableId: r.id, path: r.path, name: r.name, rows: r.rows, seconds: r.seconds, columns,
       head: r.head, summary: r.summary,
-      question: saved ? { ...emptyQuestion(), ...saved.question } : emptyQuestion(),
+      question: saved ? upgradeQuestion(saved.question) : emptyQuestion(),
       view: saved ? { ...emptyView(), ...saved.view, pinned: null } : emptyView(),
       answer: null, evaluating: false, evalError: "", changed: false, offer: null,
       sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [] };
@@ -207,6 +220,11 @@ export const useSweeps = create<SweepsState>((set, get) => {
     },
     narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, pinned: null,
       scope: { key, steps: [...(v.scope.key === key ? v.scope.steps : []), { kind, sets }] } })),
+    resetStudy: () => {
+      patch((s) => ({ ...s, question: emptyQuestion(), view: emptyView(), columns: s.columns.map((c) => ({ ...c, role: c.guessRole, scale: c.guessScale })) }));
+      refreshSummary();
+      get().evaluate();
+    },
     restore: (all) => patchV((v) => ({ ...v, scope: { ...v.scope, steps: all ? [] : v.scope.steps.slice(0, -1) } })),
     reload: async () => {
       const s = get().studies[get().active];
@@ -254,13 +272,14 @@ export const useSweeps = create<SweepsState>((set, get) => {
       patch((s) => {
         const columns = s.columns.map((c) => { const r = roles.get(c.name); return r ? { ...c, role: r.role, scale: r.scale } : c; });
         const have = new Set(columns.map((c) => c.name));
-        const q = { ...emptyQuestion(), ...(t.question as Partial<Question>), exclude: [] };
+        const q = { ...upgradeQuestion(t.question as Partial<Question>), exclude: [] };
         // keep only what this table can answer: conditions and goals on columns it has (or new columns)
         const derived = new Set(q.derived.map((d) => d.name));
         const ok = (c: string) => have.has(c) || derived.has(c);
-        const question: Question = { ...q, conditions: q.conditions.filter((c) => ok(c.column)),
-          goal: q.goal && ok(q.goal.column) ? q.goal : null, objectives: q.objectives.filter((o) => ok(o.column)),
-          holdValues: Object.fromEntries(Object.entries(q.holdValues).filter(([k]) => have.has(k))) };
+        const question: Question = materialize({ ...q,
+          goals: q.goals.map((g) => ({ ...g, conditions: g.conditions.filter((c) => ok(c.column)), optimize: g.optimize.filter((o) => ok(o.column)) })),
+          removed: q.removed.filter((c) => have.has(c)),
+          holdValues: Object.fromEntries(Object.entries(q.holdValues).filter(([k]) => have.has(k))) });
         const n = { ...s, columns, question, view: { ...emptyView(), ...(t.view as Partial<View>), pinned: null, filters: {}, rerun: [] }, offer: null };
         remember(n);
         return n;
@@ -291,13 +310,35 @@ export const useSweeps = create<SweepsState>((set, get) => {
     },
 
     setQuestion: (p) => {
-      patchQ((q) => ({ ...q, ...p }));
+      patchQ((q) => {
+        const n = { ...q, ...p };
+        if (p.goal !== undefined || p.objectives !== undefined) {
+          const g = n.goals[n.active];
+          const optimize = p.objectives !== undefined && p.objectives.length ? p.objectives
+            : n.goal ? [{ ...n.goal, weight: 1 }, ...g.optimize.slice(1)] : g.optimize.slice(1);
+          n.goals = n.goals.map((x, i) => (i === n.active ? { ...x, optimize } : x));
+        }
+        return materialize(n);
+      });
       if (p.goal) patchV((v) => (v.axes.includes("#goal") ? v : { ...v, axes: [...v.axes, "#goal"], colorBy: v.colorBy ?? "#holds" }));
     },
     setHoldValues: (column, values) => patchQ((q) => ({ ...q, holdValues: { ...q.holdValues, [column]: values } })),
-    addCondition: (c) => patchQ((q) => ({ ...q, conditions: [...q.conditions, c] })),
-    updateCondition: (i, p) => patchQ((q) => ({ ...q, conditions: q.conditions.map((c, j) => (j === i ? { ...c, ...p } : c)) })),
-    removeCondition: (i) => patchQ((q) => ({ ...q, conditions: q.conditions.filter((_, j) => j !== i) })),
+    addCondition: (c) => patchG((g) => ({ ...g, conditions: [...g.conditions, c] })),
+    updateCondition: (i, p) => patchG((g) => ({ ...g, conditions: g.conditions.map((c, j) => (j === i ? { ...c, ...p } : c)) })),
+    removeCondition: (i) => patchG((g) => ({ ...g, conditions: g.conditions.filter((_, j) => j !== i) })),
+    updateGoal: (p) => patchG((g) => ({ ...g, ...p })),
+    addGoal: (copy) => patchQ((q) => {
+      const g = copy ? { ...q.goals[q.active], conditions: q.goals[q.active].conditions.map((c) => ({ ...c })) } : newGoal("");
+      const goals = [...q.goals, { ...g, name: `${q.goals.length + 1}` }];
+      return materialize({ ...q, goals, active: goals.length - 1 });
+    }),
+    removeGoal: (i) => patchQ((q) => {
+      if (q.goals.length < 2) return q;
+      const goals = q.goals.filter((_, j) => j !== i);
+      return materialize({ ...q, goals, active: Math.min(q.active === i ? 0 : q.active > i ? q.active - 1 : q.active, goals.length - 1) });
+    }),
+    setActiveGoal: (i) => patchQ((q) => materialize({ ...q, active: i })),
+    setRemoved: (columns) => patchQ((q) => ({ ...q, removed: columns })),
     addDerived: (d) => { patchQ((q) => ({ ...q, derived: [...q.derived, d] })); patchV((v) => ({ ...v, axes: [...v.axes, d.name] })); },
     removeDerived: (i) => patchQ((q) => ({ ...q, derived: q.derived.filter((_, j) => j !== i) })),
 

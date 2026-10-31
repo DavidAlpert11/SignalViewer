@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from svcore import sweep  # noqa: E402
 import svcore.sweep.io  # noqa: E402,F401
 
-EXAMPLE = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "sweeps", "sweep_payload.csv")
+EXAMPLE = os.path.join(os.path.dirname(__file__), "data", "sweep_payload.csv")
 
 
 def _table(n_sets_rep=1):
@@ -76,7 +76,8 @@ def test_routes_open_and_summary():
     from app.main import app
     c = TestClient(app)
     p = c.get("/api/sweep/example").json()["path"]
-    r = c.post("/api/sweep/open", json={"path": p}).json()
+    assert p.endswith("drone_tuning.csv")
+    r = c.post("/api/sweep/open", json={"path": EXAMPLE}).json()
     assert r["rows"] > 2000 and len(r["head"]) == 20 and r["summary"]["sets"] == 150
     roles = {col["name"]: col["role"] for col in r["columns"]}
     roles["controller"] = "hold"                         # the user moves a column
@@ -170,7 +171,7 @@ def test_route_evaluate_with_runs():
     from fastapi.testclient import TestClient
     from app.main import app
     c = TestClient(app)
-    r = c.post("/api/sweep/open", json={"path": c.get("/api/sweep/example").json()["path"]}).json()
+    r = c.post("/api/sweep/open", json={"path": EXAMPLE}).json()
     roles = {col["name"]: col["role"] for col in r["columns"]}
     q = {"roles": roles, "goal": {"column": "range_m"}, "conditions": [{"column": "max_roll_deg", "op": "<=", "value": 25}]}
     e = c.post("/api/sweep/evaluate", json={"id": r["id"], "question": q, "runs": True}).json()
@@ -330,3 +331,43 @@ def test_report_formats(tmp_path, fmt):
     if fmt == "csv":
         lines = open(out["path"], encoding="utf-8-sig").read().splitlines()
         assert len(lines) == 151 and lines[0].startswith("payload_kg")
+
+
+def test_or_variants_rows_raw_and_plot_only(tmp_path):
+    q = {"roles": ROLES, "conditions": [{"column": "risk", "op": "<=", "value": 1}, {"column": "out", "op": ">=", "value": 25}]}
+    p = sweep.prepare(_grid(), q)
+    assert sweep.answer(p, q)["counts"]["holding"] == 0                       # no set meets both
+    assert sweep.answer(p, {**q, "combine": "or"})["counts"]["holding"] == 2  # p=3 meets out in every scenario
+    q2 = {**q, "conditions": [{"column": "risk", "op": "<=", "value": 2}, {"column": "out", "op": ">=", "value": 25}], "combine": "or"}
+    assert sweep.answer(sweep.prepare(_grid(), q2), q2)["counts"]["holding"] == 4   # p=1 by risk, p=3 by out
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    r = c.post("/api/sweep/open", json={"path": EXAMPLE}).json()
+    roles = {col["name"]: col["role"] for col in r["columns"]}
+    v = c.post("/api/sweep/variants", json={"id": r["id"], "question": {"roles": roles}, "variants": [
+        {"goal": {"column": "range_m"}, "conditions": [{"column": "max_roll_deg", "op": "<=", "value": 25}]},
+        {"goal": {"column": "range_m"}, "conditions": [{"column": "max_roll_deg", "op": "<=", "value": 22}]}]}).json()["variants"]
+    assert v[0]["holding"] > v[1]["holding"] and v[0]["best"]["value"] >= v[1]["best"]["value"]
+    rows = c.get(f"/api/sweep/rows?id={r['id']}&offset=10&limit=5&sort=range_m&desc=true").json()
+    assert rows["total"] == r["rows"] and len(rows["rows"]) == 5
+    raw = c.post("/api/sweep/raw", json={"id": r["id"], "question": {}}).json()
+    assert raw["n"] == r["rows"] and {x["name"] for x in raw["columns"]} >= {"range_m", "#row"}
+    out = c.post("/api/sweep/report", json={"id": r["id"], "question": {"roles": roles}, "format": "plot", "raw": True,
+                                            "path": str(tmp_path / "raw"), "axes": ["payload_kg", "range_m"]}).json()
+    html = open(out["path"], encoding="utf-8").read()
+    assert "<canvas" in html and 'id="tw"' not in html
+
+
+def test_the_example_shows_scenarios_parameters_and_outputs():
+    ex = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "sweeps", "drone_tuning.csv")
+    df = sweep.read_table(ex)
+    roles = {c["name"]: c["role"] for c in sweep.describe(df)}
+    assert [c for c, r in roles.items() if r == "hold"] == ["scenario_wind_mps", "scenario_payload_kg", "scenario_gusts"]
+    assert [c for c, r in roles.items() if r == "param"] == ["kp_roll", "ki_roll", "filter_hz"]
+    assert roles["run_id"] == "id" and roles["sim_version"] == "ignore" and roles["crashed"] == "output"
+    q = {"roles": roles, "goal": {"column": "energy_wh", "direction": "min"},
+         "conditions": [{"column": "roll_error_deg", "op": "<=", "value": 5}, {"column": "overshoot_pct", "op": "<=", "value": 15},
+                        {"column": "crashed", "op": "==", "value": 0}]}
+    a = sweep.answer(sweep.prepare(df, q), q)
+    assert a["counts"]["sets"] == 45 and a["counts"]["combos"] == 18 and 5 <= a["counts"]["holding"] <= 20

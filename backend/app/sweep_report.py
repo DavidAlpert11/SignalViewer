@@ -179,6 +179,10 @@ def build(p, q: Dict, a: Dict, req: Dict) -> str:
     fmt, path = req["format"], req["path"]
     if fmt == "csv":
         return _csv(a, req, path)
+    if fmt == "plot":                                  # the parallel plot alone, to play with
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(_html(a, {**req, "sections": [], "summary": [], "notes": "", "plotOnly": True}, {}))
+        return path
     figs = figures(p, q, a, req)
     if fmt == "html":
         with open(path, "w", encoding="utf-8") as f:
@@ -327,6 +331,15 @@ def _esc(s: str) -> str:
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+def plot_data(df, names: List[str]) -> Dict:
+    """Runs (rows of the table) in the shape `_html` draws: for the plot of the raw results."""
+    import pandas as pd
+    d = {n: df[n].to_numpy() if pd.api.types.is_numeric_dtype(df[n]) else df[n].astype(str).to_numpy() for n in names}
+    n = len(df)
+    d["#holds"] = np.ones(n); d["#rank"] = np.full(n, np.nan)
+    return {"columns": [{"name": x} for x in names + ["#holds", "#rank"]], "data": d}
+
+
 def _html(a: Dict, req: Dict, figs: Dict[str, bytes]) -> str:
     L = req.get("labels") or {}
     lang = req.get("lang", "en")
@@ -341,7 +354,12 @@ def _html(a: Dict, req: Dict, figs: Dict[str, bytes]) -> str:
     imgs = "".join(f"<h2>{_esc(L.get(t, ''))}</h2><img alt='' src='data:image/png;base64,{base64.b64encode(figs[k]).decode()}'>"
                    for k, t in (("effects", "#effectsTitle"), ("map", "#mapTitle")) if k in figs)
     notes = "".join(f"<p>{_esc(x)}</p>" for x in (req.get("notes") or "").split("\n") if x.strip())
-    return (_PAGE.replace("{{lang}}", lang).replace("{{dir}}", "rtl" if lang == "he" else "ltr")
+    if req.get("plotOnly"):
+        data["table"] = []
+    page = _PAGE
+    if req.get("plotOnly"):                            # no answer, no table: the plot and its filters
+        page = page.replace("<h2>{{answer}}</h2><table>{{summary}}</table>", "").replace("<h2>{{best}}</h2><div id=\"tw\"><table id=\"tb\"></table></div>", "<table id=\"tb\" hidden></table>")
+    return (page.replace("{{lang}}", lang).replace("{{dir}}", "rtl" if lang == "he" else "ltr")
             .replace("{{title}}", _esc(req.get("title") or "Sweeps"))
             .replace("{{subtitle}}", _esc(f"{req.get('subtitle', '')} · {datetime.now().strftime('%Y-%m-%d %H:%M')}"))
             .replace("{{notes}}", notes).replace("{{answer}}", _esc(L.get("#answer", "Answer"))).replace("{{summary}}", summary)

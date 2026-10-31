@@ -7,6 +7,7 @@ A question (JSON from the page):
     goal         {column, direction: "max" | "min"} or null
     conditions   [{column, op: ">=" "<=" ">" "<" "==" "!=", value, mode: "all" | "atLeast" | "only",
                    k (atLeast), where (only: {hold column: [values]})}]
+    combine      "and" (default: every condition) | "or" (at least one of them)
     outputAgg    {output column: mean | min | max | median | p10 | p90 | std | spread}   - default mean
     objectives   [{column, direction, weight}] - several goals: the Pareto front and a weighted score
     exclude      [table row]                  - runs left out (e.g. suspicious ones)
@@ -189,16 +190,19 @@ def answer(p: Prepared, q: Dict) -> Dict:
     for name, v in p.set_cols.items():
         add(name, v, "derived")
     complete = p.covered == p.n_combos
-    holds = complete.copy()
+    # the conditions together: all of them (and) or at least one (or); none: every complete set holds
+    any_of = (q.get("combine") or "and") == "or"
+    met = np.zeros(p.n_sets, bool) if any_of and q.get("conditions") else np.ones(p.n_sets, bool)
     conds = []
     for i, c in enumerate(q.get("conditions") or []):
         r = _condition(p, c)
-        holds &= r["ok"]
+        met = (met | r["ok"]) if any_of else (met & r["ok"])
         label = f"{c.get('column')} {c.get('op')} {c.get('value')}"
         add(f"#c{i}.worst", r["worst"], "condition", condition=i, label=label, part="worst")
         add(f"#c{i}.margin", r["margin"], "condition", condition=i, label=label, part="margin")
         add(f"#c{i}.passed", r["passed"], "condition", condition=i, label=label, part="passed")
         conds.append({"label": label, "column": c.get("column"), "met": int(r["ok"].sum())})
+    holds = complete & met
     goal = q.get("goal") or None
     rank = np.full(p.n_sets, np.nan)
     if goal and goal.get("column"):
