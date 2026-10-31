@@ -461,3 +461,35 @@ def test_optimize_min_max_and_weights():
     assert order[0] == 4 and "#score" in d and "#pareto" in d
     order, _ = ranked({"goal": up, "objectives": [{**up, "weight": 1}, {**dn, "weight": 5}]})
     assert order[0] == 1
+
+
+def test_maps_a_slice_at_the_best_and_several_in_the_report(tmp_path):
+    """S05: a map over every value of the other parameters, or a slice through the best set; the best
+    per cell is the smallest when minimizing (the report's map once showed the largest); every map
+    on screen in the report."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    o = c.post("/api/sweep/open", json={"path": c.get("/api/sweep/example").json()["path"]}).json()
+    roles = {x["name"]: x["role"] for x in o["columns"]}
+    q = {"roles": roles, "combine": "and", "holdValues": {}, "goal": {"column": "energy_wh", "direction": "min"},
+         "conditions": [{"column": "roll_error_deg", "op": "<=", "value": 5, "mode": "all"}], "derived": [],
+         "outputAgg": {}, "objectives": [], "exclude": []}
+    every = c.post("/api/sweep/map", json={"id": o["id"], "question": q, "x": "kp_roll", "y": "ki_roll"}).json()
+    sl = c.post("/api/sweep/map", json={"id": o["id"], "question": q, "x": "kp_roll", "y": "ki_roll", "rest": "best"}).json()
+    assert every["fixed"] is None and list(sl["fixed"]) == ["filter_hz"]
+    assert sum(map(sum, sl["count"])) < sum(map(sum, every["count"])) and max(max(r) for r in sl["count"]) == 1
+    a = c.post("/api/sweep/evaluate", json={"id": o["id"], "question": q, "runs": False}).json()
+    assert a["counts"]["holding"] > 0
+    best = [v for r in every["best"] for v in r if v is not None]
+    worst = [v for r in sl["best"] for v in r if v is not None]
+    assert min(best) <= min(worst)                                   # the best over all is at least as good
+    # the cell of the best set: the slice and the full map agree there (the best of all is in it)
+    assert min(best) == min(worst)
+    html = tmp_path / "maps.html"
+    r = c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html),
+               "labels": {"#mapTitle": "Map", "#mapAt": "at"}, "include": {"plot": False, "effects": False},
+               "maps": [{"x": "kp_roll", "y": "ki_roll", "rest": "all"}, {"x": "kp_roll", "y": "filter_hz", "rest": "best"}]})
+    assert r.status_code == 200
+    text = open(html, encoding="utf-8").read()
+    assert "Map: kp_roll × ki_roll</h2>" in text and "Map: kp_roll × filter_hz (at ki_roll = " in text
