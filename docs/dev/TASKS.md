@@ -84,6 +84,73 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   die when the call ends - start it with `setsid nohup ... &`. Never `pkill -f <pattern>` in the
   same shell command line that contains the pattern (it kills its own shell).
 
+## Sweeps area plan (owner, 2026-10-31): S00–S08
+
+The owner's requests for the Sweeps area (`components/sweeps`, `sweeps/`, `routes/sweep.py`,
+`svcore/sweep`, `app/sweep_report.py`), in the order agreed. Each task is one or a few commits;
+every patch to the owner holds ALL commits since `origin/main` (see the practical notes).
+
+**Progress:** S00 done · S01–S08 open.
+
+### S00 · Groundwork for working on two areas at once — S · **Done**
+- The Sweeps strings live in `frontend/src/sweeps/i18n.ts` (`swEn`, `swHe: typeof swEn`), spread
+  into `en` / `he` in `i18n.ts`: same `TKey`, tsc still checks Hebrew. New `sw*` keys go there.
+- `PanelResizer` (`components/PanelResizer.tsx`) and `usePanelWidth` (`components/panelWidth.ts`)
+  left `App.tsx`, so any area can have resizable panels (same prefs keys `sv3.w.<key>`).
+- Still shared by both areas (expect conflicts there): `CHANGELOG.md`, this file, `ROADMAP.md`,
+  `App.tsx` (area wiring), `index.css`, `components/Overlays.tsx`, `store` (`pickPath`).
+
+### S01 · Fixes found in the review — S
+- A parameter taken out in *Clean columns* was still offered by the map, next runs and the report's
+  map (the server answered `Choose two different parameters`); one list now: `activeParams(study)`.
+- Next runs drew its marks against `mapX` / `mapY` as stored, the map against the checked
+  pair: one function, `mapAxes(study)`, for both (and the report).
+- A goal's weight (`defaultValue`) kept the previous goal's number after switching goals.
+- Saving / deleting a template from the Study menu swallowed errors and said nothing on success.
+
+### S02 · Undo / redo, autosave, one place for messages, Ctrl+K — M
+- Undo / redo of every change to a study (roles, question, goals, view steps that change what is
+  shown: filters, keep / exclude, axes); not the hover / panel state. Ctrl+Z / Ctrl+Y when the Sweeps
+  area is on screen; buttons in the area's bar.
+- Autosave of the open studies (as `.svsweep` documents, in the prefs folder) and reopening them
+  at start; a table that cannot be read any more is reported, not dropped silently.
+- Messages through the app's message strip instead of a `note` per component.
+- The area's main actions in the command palette.
+
+### S03 · Layout: resizable panels, many columns — M
+- Steps panel and set panel resizable / collapsible (`PanelResizer`).
+- Parallel plot: a minimum width per axis, horizontal scroll (the wheel scrolls sideways), *Fit
+  to width*; the tooltip in columns; sticky rank / holds / re-run columns in the tables.
+- `ColumnPicker`: fuzzy search (`fuzzy.ts`), grouped by role, several at once; replaces every
+  column `<select>` of the area.
+
+### S04 · The sets table: only those that hold, columns, export — M
+- *Only sets that hold*, chosen columns, sort by a header, pages instead of the 300-row cut.
+- **Export**: the sets (a row per set, the columns shown) or their runs (set x scenario); all /
+  shown / only holding. The report's table and CSV follow the same choice.
+
+### S05 · Several maps and point plots — M
+- `view.maps` / `view.scatters` (optional; `mapX` / `mapY` become the first map); + map; the other
+  parameters: every value (share) or at the best set (a slice); the holding boundary; a click on a
+  cell filters its sets; every map in the report.
+
+### S06 · Next runs: which parameters, robustness — L
+- Parameters to explore (all / those on the maps / chosen), the rest at the base set's values.
+- Robust in: a tolerance per parameter (%, absolute or grid steps); the goal's worst case within
+  it as a column and a ranking; a `robust` kind of suggestion that measures it.
+- `best` from the Pareto front / score; `gaps` by Latin hypercube; marks on every map (a set that
+  differs on a parameter not drawn is marked so); suggestions kept in the study and the report.
+- With the defaults `suggest()` answers as before (test).
+
+### S07 · Templates — S
+- A dialog like `TemplateLibrary`: save (ask before overwriting), update, export / import a file,
+  delete; the new fields (maps, table columns, explore / tolerance) included.
+
+### S08 · The whole process in the report — M
+- A journal of the study (optional field in `.svsweep`), consecutive changes of one kind merged;
+  each merge an iteration (a convergence plot); the report: the journal, every map, the suggestions,
+  provenance (file hash, app version).
+
 ## Queue (in this order)
 
 Sizes: S < 1 day, M 1–3 days, L about a week. Each task lists where to start; read the code and
@@ -1798,3 +1865,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-28 · Q122 (review): baseline fitted to the data + noRoom, exponent numbers, discrete direction, Hebrew in What changed first, "1 stretch".
 - 2026-10-28 · Q123 (owner): change marks on refresh tried (fingerprints, dots, ↻ / ✓) and dropped; kept: the saved time on the file row, newer on the disk (stat poll, click / F5), a message per file.
 - 2026-10-29 · 1.16.0 prepared: the 1.15.0 release commit (tagged, never on main) brought back; version 1.16.0 (version.py, CITATION.cff, build.bat, the installer, install.md); CHANGELOG 1.16.0; docs reviewed; frontend/dist rebuilt.
+- 2026-10-31 · S00 (owner's Sweeps plan): Sweeps strings moved to `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` out of App.tsx; the plan S00-S08 written here and in ROADMAP Milestone 17. No change on screen.

@@ -3,7 +3,8 @@ import OverviewStrip from "./components/OverviewStrip";
 import { evaluateAll, stepOccurrence } from "./conditions";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
-import { getPref, setPref } from "./prefs";
+import PanelResizer from "./components/PanelResizer";
+import { usePanelWidth } from "./components/panelWidth";
 import PreviewPlots from "./components/PreviewPlots";
 import StartCard from "./components/StartCard";
 import { mavlinkResume } from "./mavlink";
@@ -193,40 +194,8 @@ function PlotGrid() {
   );
 }
 
-/* ---------------------------------------------------------------- resizable side panels */
-const MIN_PANEL = 200, MIN_STAGE = 380;
-function loadWidth(key: string, def: number): number {
-  const v = Number(getPref(`sv3.w.${key}`));
-  return v >= MIN_PANEL && v <= 1400 ? v : def;
-}
-function saveWidth(key: string, w: number) { setPref(`sv3.w.${key}`, Math.round(w)); }
-
-/** A draggable divider next to a side panel (mouse, touch or arrow keys; double-click = default width).
- *  `grow` is +1 when moving the pointer toward the plots makes the panel wider (the panel is on the
- *  start side), -1 for the panel on the end side. RTL (Hebrew) mirrors the pointer direction. */
-function PanelResizer({ label, style, width, setWidth, grow, def, other }: {
-  label: string; style: React.CSSProperties; width: number; setWidth: (w: number) => void; grow: 1 | -1; def: number; other: number;
-}) {
-  const clamp = (w: number) => Math.max(MIN_PANEL, Math.min(w, window.innerWidth - RAIL_W - other - MIN_STAGE));
-  const onDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    const x0 = e.clientX, w0 = width, rtl = document.documentElement.dir === "rtl" ? -1 : 1;
-    const move = (ev: PointerEvent) => setWidth(clamp(w0 + grow * rtl * (ev.clientX - x0)));
-    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); document.body.classList.remove("resizing"); };
-    document.body.classList.add("resizing");
-    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
-  };
-  const onKey = (e: React.KeyboardEvent) => {
-    const rtl = document.documentElement.dir === "rtl" ? -1 : 1;
-    const step = e.shiftKey ? 64 : 16;
-    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      e.preventDefault(); e.stopPropagation();
-      setWidth(clamp(width + grow * rtl * (e.key === "ArrowRight" ? step : -step)));
-    }
-  };
-  return <div className="resizer" role="separator" aria-orientation="vertical" aria-label={label} title={label} tabIndex={0}
-    style={style} onPointerDown={onDown} onKeyDown={onKey} onDoubleClick={() => setWidth(clamp(def))} />;
-}
+/* resizable side panels: components/PanelResizer.tsx */
+const MIN_STAGE = 380;
 
 export default function App() {
   useEffect(() => { preloadAll(); }, []);
@@ -274,10 +243,8 @@ export default function App() {
   const liveAutoStop = useApp((s) => s.liveAutoStop);
   const liveNewFiles = useApp((s) => s.liveNewFiles);
   const [dropping, setDropping] = useState(false);
-  const [sideW, setSideW] = useState(() => loadWidth("side", 280));          // files / analysis / ... panel
-  const [inspW, setInspW] = useState(() => loadWidth("inspector", 320));     // inspector on the other side
-  useEffect(() => saveWidth("side", sideW), [sideW]);
-  useEffect(() => saveWidth("inspector", inspW), [inspW]);
+  const [sideW, setSideW] = usePanelWidth("side", 280);          // files / analysis / ... panel
+  const [inspW, setInspW] = usePanelWidth("inspector", 320);     // inspector on the other side
   const restored = useRef(false);
   const tab = activeTab(ws);
 
@@ -590,9 +557,9 @@ export default function App() {
       <RecordingsBar />
       <div className="main" style={{ gridTemplateColumns: cols }}>
         {panel && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: RAIL_W + sideW - 3 }} width={sideW} setWidth={setSideW}
-          grow={+1} def={280} other={inspectorOpen ? inspW : 0} />}
+          grow={+1} def={280} max={() => window.innerWidth - RAIL_W - (inspectorOpen ? inspW : 0) - MIN_STAGE} />}
         {inspectorOpen && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: inspW - 3 }} width={inspW} setWidth={setInspW}
-          grow={-1} def={320} other={panel ? sideW : 0} />}
+          grow={-1} def={320} max={() => window.innerWidth - RAIL_W - (panel ? sideW : 0) - MIN_STAGE} />}
         <nav className="rail" aria-label="Panels">
           {RAIL.filter((r) => r.id !== "log" || logErrors !== null).map((r) => {
             const I = Icon[r.icon];

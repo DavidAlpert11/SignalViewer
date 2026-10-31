@@ -649,6 +649,17 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 17 — the Sweeps area, the owner's requests (2026-10-31). Spec: TASKS.md S00-S08.
+- [x] S00 Groundwork: Sweeps strings in `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` shared.
+- [ ] S01 Fixes: removed parameters in the map / next runs / report; next runs' marks on the map's axes; a goal's weight; template save / delete errors.
+- [ ] S02 Undo / redo, autosave, messages, Ctrl+K.
+- [ ] S03 Resizable panels, many columns (scroll, ColumnPicker).
+- [ ] S04 Sets table: only holding, columns, export.
+- [ ] S05 Several maps and point plots.
+- [ ] S06 Next runs: parameters to explore, robustness.
+- [ ] S07 Templates dialog.
+- [ ] S08 The whole process in the report.
+
 ## Milestone 16 — 1.16.0: fixes to the investigation; when the file on screen was saved (review of 2026-10-28). Spec: TASKS.md Q122-Q123. Prepared 2026-10-29.
 - [x] The review fixes (Q122). Done 2026-10-28: What changed first reads the usual level inside the data (and says when there is nothing before the span), exponent numbers in conditions and formulas, a state going down shown ↓, Hebrew in What changed first, "1 stretch".
 - [x] When the file was saved (Q123). Done 2026-10-28: the saved time of the version on screen on each file row, amber when the file on the disk is newer (click / F5 reads it), a message per file after a refresh.
