@@ -1,7 +1,7 @@
 /* What the plot and the table show for a study: the columns of the current mode, their names on
    screen, their scales, and which axes can be added. Pure functions of the study. */
 import type { TFn, TKey } from "../i18n";
-import type { Col, Role, Scale } from "./model";
+import type { Col, MapSpec, Role, Scale } from "./model";
 import { wireQuestion, type Study } from "./state";
 import { keptMask } from "./filters";
 
@@ -21,13 +21,36 @@ export const activeColumns = (s: Study, role: "param" | "hold" | "output") => {
 };
 export const activeParams = (s: Study) => activeColumns(s, "param");
 
-/** The map's two parameters: the chosen ones while they are parameters of the question, else the
- *  first two. One answer for the map, the marks of next runs and the report. */
+/** Two parameters of a map, checked: the chosen ones while they are parameters of the question,
+ *  else the first ones that are. */
+function pairOf(params: string[], wx?: string | null, wy?: string | null): { x: string | undefined; y: string | undefined } {
+  const x = wx && params.includes(wx) ? wx : params[0];
+  const y = wy && params.includes(wy) && wy !== x ? wy : params.find((p) => p !== x);
+  return { x, y };
+}
+
+/** The maps on screen, checked (S05): the study's list, or one map of mapX / mapY (older studies).
+ *  Empty with fewer than two parameters. One answer for the maps, next runs' marks and the report. */
+export function mapList(s: Study): MapSpec[] {
+  const params = activeParams(s);
+  if (params.length < 2) return [];
+  const want = s.view.maps?.length ? s.view.maps : [{ x: s.view.mapX ?? "", y: s.view.mapY ?? "", rest: "all" as const }];
+  return want.map((m) => { const p = pairOf(params, m.x, m.y); return { x: p.x!, y: p.y!, rest: m.rest ?? "all" }; });
+}
+
+/** The first map's two parameters (and the parameters there are). */
 export function mapAxes(s: Study): { x: string | undefined; y: string | undefined; params: string[] } {
   const params = activeParams(s);
-  const x = s.view.mapX && params.includes(s.view.mapX) ? s.view.mapX : params[0];
-  const y = s.view.mapY && params.includes(s.view.mapY) && s.view.mapY !== x ? s.view.mapY : params.find((p) => p !== x);
-  return { x, y, params };
+  return { ...pairOf(params, s.view.maps?.[0]?.x ?? s.view.mapX, s.view.maps?.[0]?.y ?? s.view.mapY), params };
+}
+
+/** A pair of parameters not on any map yet, for "+ map" (or the first pair again). */
+export function nextMapPair(s: Study): MapSpec | null {
+  const params = activeParams(s), used = new Set(mapList(s).map((m) => `${m.x}|${m.y}`));
+  for (let i = 0; i < params.length; i++)
+    for (let j = 0; j < params.length; j++)
+      if (i !== j && !used.has(`${params[i]}|${params[j]}`) && !used.has(`${params[j]}|${params[i]}`)) return { x: params[i], y: params[j], rest: "all" };
+  return params.length >= 2 ? { x: params[0], y: params[1], rest: "all" } : null;
 }
 
 /** The sets' columns (the table, the detail). */

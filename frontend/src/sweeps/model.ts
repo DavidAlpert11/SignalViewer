@@ -131,7 +131,14 @@ export interface View {
   tableColumns?: string[];
   /** the table sorted by a column (missing: best first) */
   tableSort?: { column: string; desc: boolean } | null;
+  /** the maps on screen, each two parameters and the rest: every value or a slice at the best set
+   *  (missing: one map, of mapX / mapY) */
+  maps?: MapSpec[];
+  /** the point plots on screen (missing: one, of scatterX / scatterY) */
+  scatters?: { x: string; y: string }[];
 }
+
+export interface MapSpec { x: string; y: string; rest?: "all" | "best" }
 
 export const emptyView = (): View => ({ mode: "sets", axes: [], colorBy: "#holds", filters: {}, reversed: {}, scales: {},
   hideConstant: true, hideFlat: false, pinned: null, rerun: [], onlyMissing: false,

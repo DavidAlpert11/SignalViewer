@@ -562,3 +562,43 @@ def test_optimize_says_how_it_ranks_and_weights_count(pg):
     _step(pg, "goals"); w(0, "0"); w(1, "10")
     by_error = best()
     assert by_energy != by_error
+
+
+def test_several_maps_a_slice_a_cell_and_the_report(pg):
+    """S05: + map, a slice at the best set, a click on a cell keeps its sets on the lines; several
+    point plots; every map in the report."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.locator(".sw-center-tabs button", has_text="Map").click()
+    pg.wait_for_selector(".sw-map svg rect")
+    pg.locator(".sw-maps .btn", has_text="+ map").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-maps-grid .sw-map svg').length === 2")
+    second = pg.locator(".sw-maps-grid .sw-map").nth(1)
+    second.locator("select").nth(2).select_option("best")
+    pg.wait_for_selector(".sw-map-at:has-text('A slice at the best set')")
+    assert pg.locator(".sw-edge").count() > 0                                   # where holding begins
+    # a cell: its sets kept on the lines' axes
+    pg.locator(".sw-maps-grid .sw-map").first.locator("g.sw-cell").first.click()
+    pg.wait_for_selector(".toast:has-text('Kept on the lines')")
+    pg.locator(".toast .btn", has_text="Show the lines").click()
+    pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 2 filters')")
+    # points: two plots
+    pg.locator(".sw-center-tabs button", has_text="Points").click()
+    pg.locator(".sw-maps .btn", has_text="+ points").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-scatter canvas').length === 2")
+    # the report has both maps
+    _step(pg, "report")
+    pg.locator(".sw-report-format", has_text="Interactive HTML").click()
+    pg.locator(".sw-report-page .btn", has_text="Make the report").click()
+    save_as(pg, "maps.html")
+    pg.wait_for_selector(".toast:has-text('maps.html')", timeout=60000)
+    html = open(os.path.join(pg.env["out"], "maps.html"), encoding="utf-8").read()
+    assert html.count("<h2>Map: ") == 2 and "(at " in html
+    # one step back: the second map goes
+    _step(pg, "results")
+    pg.locator(".sw-center-tabs button", has_text="Map").click()
+    pg.wait_for_selector(".sw-maps-grid .sw-map svg"); pg.locator(".sw-maps .sw-row .hint").first.click()
+    for _ in range(4):
+        pg.keyboard.press("Control+z")
+    pg.wait_for_function("document.querySelectorAll('.sw-maps-grid .sw-map').length === 1")

@@ -310,3 +310,20 @@
 .sw-pages { display: inline-flex; align-items: center; gap: 4px; }
 .sw-table th.sortable { cursor: pointer; user-select: none; }
 .sw-table th.sortable:hover { color: var(--ink-strong); }
+
+/* several maps (S05) */
+.sw-maps { display: flex; flex-direction: column; gap: 10px; }
+.sw-maps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.sw-maps-grid .sw-map { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.sw-map-head label { display: inline-flex; align-items: center; gap: 4px; }
+.sw-map-head .iconbtn { margin-inline-start: auto; }
+.sw-map-at { margin: 0; }
+.sw-add-map { margin-inline-start: auto; }
+.sw-cell { cursor: pointer; }
+.sw-cell:hover rect { stroke: var(--ink-strong); stroke-width: 1.5; }
+/* fixed colours on purpose: the edge must show against the cells' colours (viridis, the same in both themes) */
+.sw-edge { stroke: #111; stroke-width: 2.5; stroke-linecap: round; pointer-events: none; }
+.sw-edge-halo { stroke: #fff; stroke-width: 5.5; stroke-linecap: round; pointer-events: none; }
+.sw-edge-key { display: inline-block; width: 18px; height: 2.5px; background: #111; outline: 1.5px solid #fff; }
+.sw-mark { pointer-events: none; }
+.sw-mark-robust { fill: #4fc3a1; color: #4fc3a1; }

@@ -11,7 +11,7 @@ import { hasFilter, keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { wireQuestion, type Study } from "../../sweeps/state";
-import { activeColumns, activeParams, colLabel, mapAxes, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, mapAxes, mapList, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { notify, notifyError } from "../../sweeps/notify";
@@ -79,7 +79,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
     const cols = setColumns(study);
     const labels: Record<string, string> = Object.fromEntries([...cols.keys()].map((n) => [n, colLabel(t, study, n)]));
     Object.assign(labels, { "#answer": t("swRepAnswer"), "#best": t("swBestSets"), "#plot": t("swCenterLines"), "#effectsTitle": t("swCenterEffects"),
-      "#mapTitle": t("swCenterMap"), "#what": "", "#value": "", "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"),
+      "#mapTitle": t("swCenterMap"), "#mapAt": t("swMapAt"), "#what": "", "#value": "", "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"),
       "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis") });
     // the sets on screen: after the filters and the keep / exclude steps
     const n = a.sets[0]?.values.length ?? 0, kept = keptMask(cols, study.view.filters, n), scope = scopeMask(study);
@@ -101,7 +101,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
           [t("swRepShownNow"), shown.length]],
         columns: table, rows: tableRows(study), axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
         include: { plot: inc.plot, effects: inc.effects, map: inc.map, table: inc.table },
-        mapX: map.x ?? null, mapY: map.y ?? null });
+        mapX: map.x ?? null, mapY: map.y ?? null, maps: mapList(study) });
       notify(t("swSaved", { path: r.path }));
     } catch (e) { notifyError(e); }
   };

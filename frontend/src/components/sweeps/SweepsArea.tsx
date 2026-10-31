@@ -44,9 +44,9 @@ import CenterTabs from "./CenterTabs";
 import CompareView from "./CompareView";
 import EffectsView from "./EffectsView";
 import HealthView from "./HealthView";
-import MapView from "./MapView";
+import MapsView from "./MapView";
 import NextRunsView from "./NextRunsView";
-import ScatterView from "./ScatterView";
+import ScattersView from "./ScatterView";
 import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
@@ -371,8 +371,8 @@ function ResultsCenter({ study }: { study: Study }) {
     <>
       <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
       {study.answer && v.center === "effects" && <EffectsView study={study} />}
-      {study.answer && v.center === "map" && <MapView study={study} />}
-      {study.answer && v.center === "scatter" && <ScatterView study={study} />}
+      {study.answer && v.center === "map" && <MapsView study={study} />}
+      {study.answer && v.center === "scatter" && <ScattersView study={study} />}
       {study.answer && v.center === "next" && <NextRunsView study={study} />}
       {v.center === "health" && <HealthView study={study} />}
       {study.answer && v.center === "compare" && <CompareView study={study} />}

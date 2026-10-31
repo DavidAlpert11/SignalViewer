@@ -1,5 +1,5 @@
 /* Any two columns as points (a point per set, or per run), coloured like the lines and with the
-   same filters; a click opens the point's set. */
+   same filters - as many plots as wanted (S05). */
 import { useEffect, useMemo, useRef } from "react";
 import { useT } from "../../i18n";
 import { category, FAILS, HOLDS, ramp } from "../../sweeps/colors";
@@ -8,17 +8,37 @@ import { makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
 import { axisChoices, colLabel, scaleOf, scopedColumns } from "../../sweeps/view";
 
-const W = 760, H = 460, L = 60, B = 40, T = 12, R = 16;
+const W = 560, H = 380, L = 60, B = 40, T = 12, R = 16;
+type Pair = { x: string; y: string };
 
-export default function ScatterView({ study }: { study: Study }) {
+export default function ScattersView({ study }: { study: Study }) {
   const t = useT();
-  const st = useSweeps.getState();
+  const v = study.view;
+  // the study's list, or the one plot older studies had
+  const list: Pair[] = v.scatters?.length ? v.scatters : [{ x: v.scatterX ?? "", y: v.scatterY ?? "" }];
+  const set = (l: Pair[]) => useSweeps.getState().setView({ scatters: l });
+  const choices = axisChoices(study);
+  const add = () => set([...list, { x: choices[list.length % Math.max(1, choices.length)] ?? "", y: study.question.goal ? "#goal" : choices[1] ?? "" }]);
+  return (
+    <div className="sw-maps">
+      <div className="sw-row"><span className="hint">{t("swScatterHint")}</span>
+        <button className="btn outline sw-add-map" onClick={add}>{t("swAddScatter")}</button></div>
+      <div className="sw-maps-grid">
+        {list.map((p, i) => <ScatterPanel key={i} study={study} pair={p} onChange={(q) => set(list.map((x, j) => (j === i ? { ...x, ...q } : x)))}
+          onRemove={list.length > 1 ? () => set(list.filter((_, j) => j !== i)) : undefined} />)}
+      </div>
+    </div>
+  );
+}
+
+function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void }) {
+  const t = useT();
   const cv = useRef<HTMLCanvasElement>(null);
   const { cols, n } = useMemo(() => scopedColumns(study), [study]);
   const choices = axisChoices(study);
   const v = study.view;
-  const xName = v.scatterX && cols.has(v.scatterX) ? v.scatterX : choices[0];
-  const yName = v.scatterY && cols.has(v.scatterY) ? v.scatterY : (study.question.goal && cols.has("#goal") ? "#goal" : choices[1]);
+  const xName = pair.x && cols.has(pair.x) ? pair.x : choices[0];
+  const yName = pair.y && cols.has(pair.y) ? pair.y : (study.question.goal && cols.has("#goal") ? "#goal" : choices[1]);
   const kept = useMemo(() => keptMask(cols, v.filters, n), [cols, v.filters, n]);
   useEffect(() => {
     const c = cv.current, xc = cols.get(xName ?? ""), yc = cols.get(yName ?? "");
@@ -50,16 +70,16 @@ export default function ScatterView({ study }: { study: Study }) {
     }
     ctx.globalAlpha = 1;
   }, [cols, n, kept, xName, yName, v.colorBy, study]);
-  const sel = (key: "scatterX" | "scatterY", val: string | undefined) => (
-    <select value={val ?? ""} onChange={(e) => st.setView({ [key]: e.target.value })}>
+  const sel = (key: "x" | "y", val: string | undefined) => (
+    <select value={val ?? ""} onChange={(e) => onChange({ [key]: e.target.value })}>
       {choices.map((c) => <option key={c} value={c}>{colLabel(t, study, c)}</option>)}
     </select>
   );
   return (
-    <div className="sw-scatter">
-      <div className="sw-row"><label>{t("swMapX")} {sel("scatterX", xName)}</label><label>{t("swMapY")} {sel("scatterY", yName)}</label>
-        <span className="hint">{t("swScatterHint")}</span></div>
-      <canvas ref={cv} style={{ width: W, maxWidth: "100%", height: H }} role="img" aria-label={`${xName} / ${yName}`} />
+    <div className="sw-scatter sw-map">
+      <div className="sw-row sw-map-head"><label>{t("swMapX")} {sel("x", xName)}</label><label>{t("swMapY")} {sel("y", yName)}</label>
+        {onRemove && <button className="iconbtn" aria-label={t("swRemoveScatter")} title={t("swRemoveScatter")} onClick={onRemove}>×</button>}</div>
+      <canvas ref={cv} style={{ width: "100%", maxWidth: W, aspectRatio: `${W} / ${H}` }} role="img" aria-label={`${xName} / ${yName}`} />
     </div>
   );
 }

@@ -200,6 +200,7 @@ class MapReq(BaseModel):
     question: Dict[str, Any]
     x: Optional[str] = None
     y: Optional[str] = None
+    rest: str = "all"                    # the other parameters: "all" their values, or "best" - at the best set's
 
 
 @router.post("/api/sweep/effects")
@@ -213,14 +214,7 @@ def sweep_map(req: MapReq):
     p, a = _answer(req.id, req.question)
     if req.x is None or req.y is None or req.x not in p.params or req.y not in p.params or req.x == req.y:
         fail(400, "Choose two different parameters.")
-    v = _value(a, req.question)
-    goal = req.question.get("goal") or {}
-    if goal.get("direction") == "min":
-        v = -v                                             # "best" is the largest of what is shown
-    m = sweep.pair_map(p, req.x, req.y, v, a["data"]["#holds"])
-    if goal.get("direction") == "min":
-        m["best"] = [[None if x is None else -x for x in r] for r in m["best"]]
-    return m
+    return sweep.map_for(p, a, req.question, req.x, req.y, req.rest)
 
 
 class SuggestReq(BaseModel):
@@ -519,6 +513,7 @@ class ReportReq(BaseModel):
     include: Dict[str, bool] = {}
     mapX: Optional[str] = None
     mapY: Optional[str] = None
+    maps: Optional[List[Dict[str, Any]]] = None   # S05: every map on screen [{x, y, rest}] (else mapX / mapY)
     raw: bool = False                    # plot: the raw table's runs instead of the parameter sets
 
 
@@ -539,7 +534,7 @@ def sweep_report(req: ReportReq):
         names = [c for c in (req.axes or list(df.columns)) if c in df.columns]
         try:
             with open(path, "w", encoding="utf-8") as f:
-                f.write(sweep_report._html(sweep_report.plot_data(df, names), {**req.model_dump(), "axes": names, "plotOnly": True}, {}))
+                f.write(sweep_report._html(sweep_report.plot_data(df, names), {**req.model_dump(), "axes": names, "plotOnly": True}, []))
         except OSError as e:
             fail(400, f"Could not write {path}: {e}")
         return {"path": path, "size": os.path.getsize(path)}
