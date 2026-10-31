@@ -210,7 +210,7 @@ def sweep_effects(req: MapReq):
 @router.post("/api/sweep/map")
 def sweep_map(req: MapReq):
     p, a = _answer(req.id, req.question)
-    if req.x not in p.params or req.y not in p.params or req.x == req.y:
+    if req.x is None or req.y is None or req.x not in p.params or req.y not in p.params or req.x == req.y:
         fail(400, "Choose two different parameters.")
     v = _value(a, req.question)
     goal = req.question.get("goal") or {}
@@ -525,7 +525,7 @@ def sweep_variants(req: VariantsReq):
     """Several goals asked of the same sets, side by side: how many hold under each, the best goal
     value, and how robust the holding sets are (the share of their neighbours that hold too)."""
     import numpy as np
-    out = []
+    out: List[Dict[str, Any]] = []
     for v in req.variants:
         q = {**req.question, "goal": v.get("goal"), "conditions": v.get("conditions") or [],
              "combine": v.get("combine") or "and", "objectives": v.get("objectives") or []}

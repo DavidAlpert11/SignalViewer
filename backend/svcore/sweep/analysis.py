@@ -156,7 +156,7 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
             lo = np.array([float(g.levels[j][0]) for j in num]); hi = np.array([float(g.levels[j][-1]) for j in num])
             have = np.vstack([(g.values[p.params[j]].to_numpy(dtype=float) - lo[k]) / (hi[k] - lo[k]) for k, j in enumerate(num)]).T
             cand = rng.random((max(400, budget * 20), len(num)))
-            picked = []
+            picked: List[np.ndarray] = []
             for _ in range(budget):
                 d = np.min(np.linalg.norm(cand[:, None, :] - (np.vstack([have] + picked) if picked else have)[None, :, :], axis=2), axis=1)
                 i = int(np.argmax(d))
@@ -179,10 +179,10 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
         for s in sorted(set(incomplete.tolist()) | set(np.where(failed)[0].tolist())):
             pools["missing"].append({"params": g.params_of(int(s)), "kind": "missing", "from": int(s), "set": int(s)})
     out: List[Dict] = []
-    i = 0
-    while len(out) < budget and any(i < len(v) for v in pools.values()):
-        for k in kinds:
-            if i < len(pools[k]) and len(out) < budget:
-                out.append(pools[k][i])
-        i += 1
+    r = 0
+    while len(out) < budget and any(r < len(v) for v in pools.values()):
+        for kind in kinds:
+            if r < len(pools[kind]) and len(out) < budget:
+                out.append(pools[kind][r])
+        r += 1
     return {"suggestions": out, "available": {k: len(v) for k, v in pools.items()}}
