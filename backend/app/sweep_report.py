@@ -163,21 +163,32 @@ def _png(fig) -> bytes:
     return buf.getvalue()
 
 
-def figures(p, q: Dict, a: Dict, req: Dict) -> Dict[str, bytes]:
-    """The figures asked for, as PNG; none (and no error) without matplotlib."""
+def maps_of(p, req: Dict) -> List[Dict]:
+    """The maps of the report: `maps` [{x, y, rest}] (S05: every map on screen), else mapX / mapY."""
+    maps = req.get("maps")
+    if maps is None:
+        maps = [{"x": req.get("mapX"), "y": req.get("mapY"), "rest": "all"}]
+    return [m for m in maps if isinstance(m.get("x"), str) and isinstance(m.get("y"), str)
+            and m["x"] in p.params and m["y"] in p.params and m["x"] != m["y"]]
+
+
+def figures(p, q: Dict, a: Dict, req: Dict) -> List[Tuple[str, str, bytes]]:
+    """The figures asked for, in order, as (key, title, PNG); none (and no error) without matplotlib."""
     inc = req.get("include") or {}
-    out: Dict[str, bytes] = {}
+    out: List[Tuple[str, str, bytes]] = []
     labels = req.get("labels") or {}
     try:
         if inc.get("plot", True):
-            out["plot"] = _png(fig_parallel(a, req.get("axes") or [], labels, req.get("shown")))
+            out.append(("plot", labels.get("#plot", ""), _png(fig_parallel(a, req.get("axes") or [], labels, req.get("shown")))))
         if inc.get("effects", True):
             val = a["data"]["#goal"] if "#goal" in a["data"] else a["data"]["#holds"]
-            out["effects"] = _png(fig_effects(sweep.effects(p, val, a["data"]["#holds"]), labels.get("#effects", "")))
-        mx, my = req.get("mapX"), req.get("mapY")
-        if inc.get("map", True) and isinstance(mx, str) and isinstance(my, str) and mx in p.params and my in p.params and mx != my:
-            val = a["data"]["#goal"] if "#goal" in a["data"] else a["data"]["#holds"]
-            out["map"] = _png(fig_map(sweep.pair_map(p, mx, my, val, a["data"]["#holds"])))
+            out.append(("effects", labels.get("#effectsTitle", ""), _png(fig_effects(sweep.effects(p, val, a["data"]["#holds"]), labels.get("#effects", "")))))
+        if inc.get("map", True):
+            for k, mp in enumerate(maps_of(p, req)):
+                m = sweep.map_for(p, a, q, mp["x"], mp["y"], mp.get("rest") or "all")
+                at = ", ".join(f"{c} = {_fmt(v)}" for c, v in (m.get("fixed") or {}).items())
+                title = f"{labels.get('#mapTitle', '')}: {mp['x']} × {mp['y']}" + (f" ({labels.get('#mapAt', 'at')} {at})" if at else "")
+                out.append((f"map{k}", title, _png(fig_map(m))))
     except ReportNeedsExtra:
         if req.get("format") in ("docx", "pdf"):
             raise
@@ -191,7 +202,7 @@ def build(p, q: Dict, a: Dict, req: Dict) -> str:
         return _csv(a, req, path)
     if fmt == "plot":                                  # the parallel plot alone, to play with
         with open(path, "w", encoding="utf-8") as f:
-            f.write(_html(a, {**req, "sections": [], "summary": [], "notes": "", "plotOnly": True}, {}))
+            f.write(_html(a, {**req, "sections": [], "summary": [], "notes": "", "plotOnly": True}, []))
         return path
     figs = figures(p, q, a, req)
     if fmt == "html":
@@ -221,7 +232,7 @@ def _sections(req: Dict) -> List[Dict]:
     return [s for s in (req.get("sections") or []) if s.get("items") or s.get("text")]
 
 
-def _docx(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
+def _docx(a: Dict, req: Dict, figs: List[Tuple[str, str, bytes]], path: str):
     try:
         import docx  # noqa: F401
     except ImportError:
@@ -267,10 +278,9 @@ def _docx(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
         r(doc.add_heading(str(sec.get("title") or ""), 1))
         for it in sec.get("items") or []:
             r(doc.add_paragraph(str(it), style="List Bullet"))
-    for key, title in (("plot", L.get("#plot", "")), ("effects", L.get("#effectsTitle", "")), ("map", L.get("#mapTitle", ""))):
-        if key in figs:
-            r(doc.add_heading(title, 1))
-            doc.add_picture(io.BytesIO(figs[key]), width=Inches(6.5))
+    for _key, title, png in figs:
+        r(doc.add_heading(title, 1))
+        doc.add_picture(io.BytesIO(png), width=Inches(6.5))
     if (req.get("include") or {}).get("table", True):
         head, rows = table(a, req.get("columns") or [], L, req.get("top") or 25, rows_of(a, req))
         r(doc.add_heading(L.get("#best", "Best"), 1))
@@ -278,7 +288,7 @@ def _docx(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
     doc.save(path)
 
 
-def _pdf(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
+def _pdf(a: Dict, req: Dict, figs: List[Tuple[str, str, bytes]], path: str):
     plt = _pyplot()
     from matplotlib.backends.backend_pdf import PdfPages
     import matplotlib.image as mpimg
@@ -303,13 +313,12 @@ def _pdf(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
         for sec in _sections(req):
             lines += [(13, str(sec.get("title") or ""))] + [(9.5, f"•  {it}") for it in sec.get("items") or []]
         text_page(lines)
-        for key, title in (("plot", L.get("#plot", "")), ("effects", L.get("#effectsTitle", "")), ("map", L.get("#mapTitle", ""))):
-            if key in figs:
-                fig = plt.figure(figsize=(11.69, 8.27))
-                fig.text(X, 0.95, _bidi(title), ha=ha, fontsize=14)
-                ax = fig.add_axes([0.04, 0.05, 0.92, 0.85]); ax.axis("off")
-                ax.imshow(mpimg.imread(io.BytesIO(figs[key]), format="png"))
-                pdf.savefig(fig); plt.close(fig)
+        for _key, title, png in figs:
+            fig = plt.figure(figsize=(11.69, 8.27))
+            fig.text(X, 0.95, _bidi(title), ha=ha, fontsize=14)
+            ax = fig.add_axes([0.04, 0.05, 0.92, 0.85]); ax.axis("off")
+            ax.imshow(mpimg.imread(io.BytesIO(png), format="png"))
+            pdf.savefig(fig); plt.close(fig)
         if (req.get("include") or {}).get("table", True):
             head, rows = table(a, req.get("columns") or [], L, req.get("top") or 25, rows_of(a, req))
             for start in range(0, max(1, len(rows)), 30):
@@ -350,7 +359,7 @@ def plot_data(df, names: List[str]) -> Dict:
     return {"columns": [{"name": x} for x in names + ["#holds", "#rank"]], "data": d}
 
 
-def _html(a: Dict, req: Dict, figs: Dict[str, bytes]) -> str:
+def _html(a: Dict, req: Dict, figs: List[Tuple[str, str, bytes]]) -> str:
     L = req.get("labels") or {}
     lang = req.get("lang", "en")
     names = [m["name"] for m in a["columns"] if m["name"] not in ("#complete", "#partial")]
@@ -362,8 +371,8 @@ def _html(a: Dict, req: Dict, figs: Dict[str, bytes]) -> str:
     sec = "".join(f"<h2>{_esc(s.get('title', ''))}</h2><ul>{''.join(f'<li>{_esc(x)}</li>' for x in s.get('items') or [])}</ul>"
                   for s in _sections(req))
     summary = "".join(f"<tr><td>{_esc(k)}</td><td>{_esc(v)}</td></tr>" for k, v in (req.get("summary") or []))
-    imgs = "".join(f"<h2>{_esc(L.get(t, ''))}</h2><img alt='' src='data:image/png;base64,{base64.b64encode(figs[k]).decode()}'>"
-                   for k, t in (("effects", "#effectsTitle"), ("map", "#mapTitle")) if k in figs)
+    imgs = "".join(f"<h2>{_esc(title)}</h2><img alt='' src='data:image/png;base64,{base64.b64encode(png).decode()}'>"
+                   for k, title, png in figs if k != "plot")          # the plot itself is interactive
     notes = "".join(f"<p>{_esc(x)}</p>" for x in (req.get("notes") or "").split("\n") if x.strip())
     if req.get("plotOnly"):
         data["table"] = []

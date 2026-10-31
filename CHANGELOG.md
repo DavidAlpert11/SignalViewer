@@ -8,6 +8,13 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: several maps and point plots**: **+ map** adds a map of two other parameters (each map
+  has its own pair, × takes it away); with three parameters or more, *The others* chooses between
+  every value (the colour is the share holding over all of them) and **a slice at the best set**
+  (the others held at its values, which the map names). A line marks where holding begins. A click
+  on a cell keeps its sets on the lines' axes (*Show the lines* goes there). **+ points** does the
+  same for the point plots. Every map on screen goes into the report, each with its title (and the
+  values of a slice); they are kept with the study and undone with Ctrl+Z.
 - **Sweeps: the sets that hold, to take elsewhere**: the table of sets has its own bar -
   **Only sets that hold (n of m)**, its **Columns** (any column of the answer: outputs per set, new
   columns, scores...), pages instead of stopping at 300 rows, and **Export**: the sets as shown (a
@@ -136,6 +143,8 @@ templates you already have.
   (it used to stay over the plots until its × was clicked).
 
 ### Fixed
+- **Sweeps, the report's map** showed the largest goal of each cell as its best when the goal was to
+  minimize; it shows the smallest now, as the map on screen does (one function makes both).
 - **Sweeps, optimize**: with two or more objectives the sets that hold are now ranked by the
   weighted score - the weights decide the order (the first objective alone ranked them, the weights
   only moved the score column). The step says, in a sentence, by what the sets are ranked now; an

@@ -6,9 +6,8 @@ import { pickPath } from "../../store";
 import { useT, type TKey } from "../../i18n";
 import { sweepApi, type Suggestion, type SuggestKind } from "../../sweeps/api";
 import { wireQuestion, type Study } from "../../sweeps/state";
-import { mapAxes } from "../../sweeps/view";
 import { notify, notifyError } from "../../sweeps/notify";
-import MapView, { MARK } from "./MapView";
+import MapsView, { MARK } from "./MapView";
 
 const KINDS: { k: SuggestKind; title: TKey; hint: TKey }[] = [
   { k: "edge", title: "swNextEdge", hint: "swNextEdgeHint" },
@@ -38,9 +37,7 @@ export default function NextRunsView({ study }: { study: Study }) {
     try { const r = await sweepApi.suggestExport(study.tableId, wireQuestion(study), res.suggestions.map((s) => s.params), p); notify(t("swExported", { n: r.rows, path: r.path })); }
     catch (e) { notifyError(e); }
   };
-  const { x, y } = mapAxes(study);                  // the marks on the axes the map draws
-  const marks = (res?.suggestions ?? []).filter((s) => x && y && s.params[x] !== undefined && s.params[y] !== undefined)
-    .map((s) => ({ x: s.params[x!] as number | string, y: s.params[y!] as number | string, kind: s.kind }));
+  const marks = (res?.suggestions ?? []).map((s) => ({ params: s.params, kind: s.kind }));     // each map places them
   return (
     <div className="sw-next">
       <div className="sw-next-side">
@@ -56,7 +53,7 @@ export default function NextRunsView({ study }: { study: Study }) {
         <button className="btn primary" disabled={busy || !kinds.length} onClick={run}>{t("swSuggest")}</button>
       </div>
       <div className="sw-next-main">
-        <MapView study={study} marks={marks} />
+        <MapsView study={study} marks={marks} />
         {res && (
           <>
             <div className="sw-row"><b>{t("swSuggested", { n: res.suggestions.length })}</b>

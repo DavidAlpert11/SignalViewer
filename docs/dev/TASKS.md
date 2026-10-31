@@ -90,7 +90,7 @@ The owner's requests for the Sweeps area (`components/sweeps`, `sweeps/`, `route
 `svcore/sweep`, `app/sweep_report.py`), in the order agreed. Each task is one or a few commits;
 every patch to the owner holds ALL commits since `origin/main` (see the practical notes).
 
-**Progress:** S00–S04 done · S05–S08 open.
+**Progress:** S00–S05 done (and S01b: optimize) · S06–S08 open.
 
 ### S00 · Groundwork for working on two areas at once — S · **Done**
 - The Sweeps strings live in `frontend/src/sweeps/i18n.ts` (`swEn`, `swHe: typeof swEn`), spread
@@ -129,7 +129,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 - **Export**: the sets (a row per set, the columns shown) or their runs (set x scenario); all /
   shown / only holding. The report's table and CSV follow the same choice.
 
-### S05 · Several maps and point plots — M
+### S05 · Several maps and point plots — M · **Done**
 - `view.maps` / `view.scatters` (optional; `mapX` / `mapY` become the first map); + map; the other
   parameters: every value (share) or at the best set (a slice); the holding boundary; a click on a
   cell filters its sets; every map in the report.
@@ -1871,3 +1871,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-31 · S03: ParallelPlot `.pp-scroll` (MIN_AXIS 110 px, a non-passive wheel listener that scrolls sideways and lets the page scroll at either end, `fit` = view.fitAxes, optional), the tooltip a grid of columns kept inside what is on screen; `ColumnPicker` = MultiSignalPicker (new `noun="columns"`) in a fixed popover, options by group (`axisOptions`, `groupLabel`, `presetChoices` in view.ts), in the results' bar and both raw views (ShowSelect and the two selects gone); StudyView: `usePanelWidth` swLeft / swDetail + `PanelResizer`, `leftHidden` (pref sv3.swLeftHidden), the grid's columns inline; SetsTable: re-run / rank / holds sticky (`.st-0..2`), holds moved next to the rank. Tests: e2e +1 (wide table: scroll by wheel, fit, typed choice, drag, hide), two adapted to the picker. Checked by eye in Hebrew (RTL).
 - 2026-10-31 · S04: view.onlyHolding / tableColumns / tableSort (optional, undoable); sweeps/view.ts `tableRows` / `tableColumns` / `tableOptions` / `defaultTableColumns` - one answer for the table, its export and the report; SetsTable rewritten (bar, pages of 100, sortable headers); `/api/sweep/export-sets` (a row per set, the columns and labels given, holds 1 / 0; a set number out of range = 400 "export again"); the runs through `export-rows`; the report's `rows` (optional - without it the table is every set best first, as before) used by CSV / Word / PDF and the HTML's table; ColumnPicker opens upward when there is more room there. Tests: test_sweep +1 (export-sets, export-rows, the report's rows), e2e +1 (only holding, sort, a column, both exports, three undo steps), three adapted (two pickers now).
 - 2026-11-01 · S01b (owner: "how does optimize min / max work, does it?"): one objective worked (worst case: min over the combinations when maximizing, max when minimizing); with 2+ the rank still came from the first only - evaluate.answer now ranks the holding sets by #score when there are 2+ objectives; variants return the best's score; GoalsStep: a sentence of what ranks now (`optimizeNow`), objective / goal named apart, the hint says what worst case means. Tests: test_sweep +1 (max / min / weights), e2e +1, `_optimize` helper renamed.
+- 2026-11-01 · S05: view.maps [{x, y, rest}] / view.scatters (optional; older studies: mapX / mapY, scatterX / scatterY as the first); `mapList` / `nextMapPair` (view.ts); svcore `map_for` (one map for the page and the report: min goals negated around pair_map - the report's map had the largest as best when minimizing), `best_set`, `slice_mask`, pair_map(only=); /api/sweep/map `rest`; the report's `maps` and figures as an ordered list (key, title, png) in HTML / Word / PDF. MapView = MapsView of MapPanel (pair, the others, ×, the edge where holding begins, a click on a cell = filters on x, y and the slice's parameters + a toast to the lines); marks carry their parameters (each map places them); ScattersView of ScatterPanel. Tests: test_sweep +1 (slice, min, report maps), e2e +1.

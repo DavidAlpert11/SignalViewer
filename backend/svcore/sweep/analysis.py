@@ -67,14 +67,34 @@ def effects(p: Prepared, value: np.ndarray, holds: np.ndarray) -> Dict:
     return {"params": out}
 
 
-def pair_map(p: Prepared, x: str, y: str, value: np.ndarray, holds: np.ndarray) -> Dict:
+def best_set(rank: np.ndarray, holds: np.ndarray) -> Optional[int]:
+    """The set ranked first, else the first that holds, else none."""
+    if np.isfinite(rank).any():
+        return int(np.nanargmin(rank))
+    h = np.where(holds == 1)[0]
+    return int(h[0]) if len(h) else None
+
+
+def slice_mask(p: Prepared, base: int, free: List[str]) -> np.ndarray:
+    """The sets equal to `base` on every parameter but those in `free`: a map's slice through it."""
+    g = Grid(p)
+    fixed = [j for j, c in enumerate(p.params) if c not in free]
+    if not fixed:
+        return np.ones(p.n_sets, bool)
+    return np.all(g.idx[:, fixed] == g.idx[base, fixed], axis=1)
+
+
+def pair_map(p: Prepared, x: str, y: str, value: np.ndarray, holds: np.ndarray, only: Optional[np.ndarray] = None) -> Dict:
     """Two parameters against each other: per pair of values, the share of sets that hold and the
-    best `value` among those that hold (over every value of the other parameters)."""
+    best `value` among those that hold (over every value of the other parameters, or only the sets
+    in `only` - a slice)."""
     g = Grid(p)
     jx, jy = p.params.index(x), p.params.index(y)
     nx, ny = len(g.levels[jx]), len(g.levels[jy])
     share = np.full((ny, nx), np.nan); best = np.full((ny, nx), np.nan); count = np.zeros((ny, nx), int)
     for s in range(p.n_sets):
+        if only is not None and not only[s]:
+            continue
         a, b = g.idx[s, jx], g.idx[s, jy]
         count[b, a] += 1
         share[b, a] = (0 if np.isnan(share[b, a]) else share[b, a]) + holds[s]
@@ -85,6 +105,27 @@ def pair_map(p: Prepared, x: str, y: str, value: np.ndarray, holds: np.ndarray) 
     tolist = lambda a: [[None if not np.isfinite(v) else float(v) for v in r] for r in a]
     lv = lambda j: [v.item() if hasattr(v, "item") else v for v in g.levels[j]]
     return {"x": x, "y": y, "xs": lv(jx), "ys": lv(jy), "share": tolist(share), "best": tolist(best), "count": count.tolist()}
+
+
+def map_for(p: Prepared, a: Dict, q: Dict, x: str, y: str, rest: str = "all") -> Dict:
+    """The map of two parameters for an answer, as the page and the report show it: per cell the
+    share of sets that hold and the best goal (the smallest when minimizing; without a goal, the
+    share). rest "best": a slice through the best set - the other parameters at its values
+    (`fixed`; None when no set holds, and then the map is over every value)."""
+    d = a["data"]
+    v = d["#goal"] if "#goal" in d else d["#holds"]
+    mini = (q.get("goal") or {}).get("direction") == "min" and "#goal" in d
+    only, fixed = None, None
+    if rest == "best":
+        b = best_set(d["#rank"], d["#holds"])
+        if b is not None:
+            from svcore.sweep.evaluate import _py
+            only = slice_mask(p, b, [x, y])
+            fixed = {c: _py(d[c][b]) for c in p.params if c not in (x, y)}
+    m = pair_map(p, x, y, -v if mini else v, d["#holds"], only)       # pair_map keeps the largest
+    if mini:
+        m["best"] = [[None if b is None else -b for b in r] for r in m["best"]]
+    return {**m, "rest": rest, "fixed": fixed}
 
 
 # ----------------------------------------------------------------------------- what to run next

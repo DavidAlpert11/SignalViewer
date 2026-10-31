@@ -89,7 +89,8 @@ export const sweepApi = {
   set: (id: string, question: WireQuestion, set: number) => call<SetDetail>("/api/sweep/set", { id, question, set }),
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => call<SweepOpened>("/api/sweep/open-rows", { name, columns, rows }),
   effects: (id: string, question: WireQuestion) => call<Effects>("/api/sweep/effects", { id, question }),
-  map: (id: string, question: WireQuestion, x: string, y: string) => call<PairMap>("/api/sweep/map", { id, question, x, y }),
+  map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
+    call<PairMap & { rest: "all" | "best"; fixed: Record<string, string | number | null> | null }>("/api/sweep/map", { id, question, x, y, rest }),
   suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number) =>
     call<{ suggestions: Suggestion[]; available: Record<string, number> }>("/api/sweep/suggest", { id, question, kinds, budget }),
   suggestExport: (id: string, question: WireQuestion, params: Suggestion["params"][], path: string) =>
