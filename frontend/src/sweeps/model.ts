@@ -22,6 +22,18 @@ export type Derived =
   | { name: string; kind: "row"; expr: string }
   | { name: string; kind: "set"; op: SetOp; column: string; where?: Record<string, (string | number)[]> };
 
+/** A goal: conditions met together (and) or any of them (or), and what to optimize - the first ranks
+ *  the sets, two or more also give the Pareto front and a weighted score. A study keeps several
+ *  goals, to see what changes when one is changed ("what if the roll limit were 4?"). */
+export interface GoalVariant {
+  name: string;
+  conditions: Condition[];
+  combine: "and" | "or";
+  optimize: Objective[];
+}
+
+export const newGoal = (name: string): GoalVariant => ({ name, conditions: [], combine: "and", optimize: [] });
+
 export interface Question {
   /** kept values of each must-hold-across column (missing or empty: all) */
   holdValues: Record<string, (string | number)[]>;
@@ -34,11 +46,43 @@ export interface Question {
   objectives: Objective[];
   /** runs left out (rows of the table), e.g. suspicious ones */
   exclude: number[];
+  /** the goals; `active` is the one answered - goal, conditions, objectives and combine above are its */
+  goals: GoalVariant[];
+  active: number;
+  combine: "and" | "or";
+  /** columns taken out in the cleaning step (constant, empty, or not wanted) */
+  removed: string[];
 }
 
 export interface Objective { column: string; direction: "max" | "min"; weight: number }
 
-export const emptyQuestion = (): Question => ({ holdValues: {}, goal: null, conditions: [], derived: [], outputAgg: "mean", objectives: [], exclude: [] });
+export const emptyQuestion = (): Question => ({ holdValues: {}, goal: null, conditions: [], derived: [], outputAgg: "mean", objectives: [], exclude: [],
+  goals: [newGoal("1")], active: 0, combine: "and", removed: [] });
+
+/** The active goal's parts, where the rest of the code reads them. */
+export function materialize(q: Question): Question {
+  const g = q.goals[q.active] ?? q.goals[0];
+  if (!g) return q;
+  const opt = g.optimize;
+  return { ...q, conditions: g.conditions, combine: g.combine,
+    goal: opt[0] ? { column: opt[0].column, direction: opt[0].direction } : null,
+    objectives: opt.length >= 2 ? opt : [] };
+}
+
+/** A question saved before goals had variants: its goal and conditions become goal 1. */
+export function upgradeQuestion(q: Partial<Question>): Question {
+  const base = { ...emptyQuestion(), ...q };
+  if (!q.goals?.length) {
+    const optimize: Objective[] = q.objectives?.length ? q.objectives : q.goal ? [{ ...q.goal, weight: 1 }] : [];
+    base.goals = [{ name: "1", conditions: q.conditions ?? [], combine: q.combine ?? "and", optimize }];
+    base.active = 0;
+  }
+  return materialize(base);
+}
+
+/** The steps of the work, in order. */
+export type Step = "raw" | "clean" | "roles" | "goals" | "results" | "report";
+export const STEPS: Step[] = ["raw", "clean", "roles", "goals", "results", "report"];
 
 /** What the middle of the area shows. */
 export type Center = "lines" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
@@ -71,6 +115,8 @@ export interface View {
   scatterX: string | null; scatterY: string | null;
   /** the left side: the question, or the columns */
   left: "question" | "columns";
+  /** the step on screen */
+  step: Step;
   /** read the table again by itself when its file changes */
   follow: boolean;
   /** HiPlot's keep / exclude: steps that narrow what is shown to some parameter sets; Restore
@@ -80,7 +126,7 @@ export interface View {
 
 export const emptyView = (): View => ({ mode: "sets", axes: [], colorBy: "#holds", filters: {}, reversed: {}, scales: {},
   hideConstant: true, hideFlat: false, pinned: null, rerun: [], onlyMissing: false,
-  center: "lines", mapX: null, mapY: null, scatterX: null, scatterY: null, left: "question", follow: false, scope: { key: "", steps: [] } });
+  center: "lines", mapX: null, mapY: null, scatterX: null, scatterY: null, left: "question", step: "raw", follow: false, scope: { key: "", steps: [] } });
 
 /** A decoded column of the answer. Text is codes into `labels`. */
 export interface Col {

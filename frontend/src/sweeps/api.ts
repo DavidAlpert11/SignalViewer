@@ -26,6 +26,7 @@ import type { Condition, Derived, Objective, SetOp } from "./model";
 /** What the server is asked: the roles of the columns and the question. */
 export interface WireQuestion {
   roles: Record<string, Role>;
+  combine: "and" | "or";
   holdValues: Record<string, (string | number)[]>;
   goal: { column: string; direction: "max" | "min" } | null;
   conditions: Condition[];
@@ -61,6 +62,8 @@ export interface SweepTemplate {
   question: unknown;
   view: unknown;
 }
+export interface VariantResult { holding?: number; sets?: number; error?: string; robust?: number | null; tolerance?: number | null;
+  best?: { value: number; params: Record<string, string | number | null> } | null; conditions?: { label: string; met: number }[] }
 export interface Effects { params: { param: string; numeric: boolean; importance: number;
   levels: { value: number | string; mean: number | null; min: number | null; max: number | null; holding: number | null; sets: number }[] }[] }
 export interface PairMap { x: string; y: string; xs: (number | string)[]; ys: (number | string)[]; share: (number | null)[][]; best: (number | null)[][]; count: number[][] }
@@ -74,7 +77,13 @@ export interface CompareResult { matched: number; onlyA: number; onlyB: number; 
 export const sweepApi = {
   open: (path: string) => call<SweepOpened>("/api/sweep/open", { path }),
   summary: (id: string, roles: Record<string, Role>) => call<SweepSummary>("/api/sweep/summary", { id, roles }),
-  example: () => call<{ path: string }>("/api/sweep/example"),
+  example: () => call<{ path: string; refine: string }>("/api/sweep/example"),
+  variants: (id: string, question: WireQuestion, variants: { goal: unknown; conditions: unknown; combine: string; objectives: unknown }[]) =>
+    call<{ variants: VariantResult[] }>("/api/sweep/variants", { id, question, variants }),
+  rows: (id: string, offset: number, limit: number, sort?: string, desc?: boolean) =>
+    call<{ total: number; offset: number; columns: string[]; rows: (string | number | null)[][]; index: number[] }>(
+      `/api/sweep/rows?id=${encodeURIComponent(id)}&offset=${offset}&limit=${limit}${sort ? `&sort=${encodeURIComponent(sort)}&desc=${!!desc}` : ""}`),
+  raw: (id: string) => call<{ columns: WireCol[]; n: number; total: number; sampled: boolean }>("/api/sweep/raw", { id, question: {} }),
   evaluate: (id: string, question: WireQuestion, runs: boolean) =>
     call<WireAnswer>("/api/sweep/evaluate", { id, question, runs }),
   set: (id: string, question: WireQuestion, set: number) => call<SetDetail>("/api/sweep/set", { id, question, set }),

@@ -95,10 +95,12 @@ def sweep_summary(req: SummaryReq):
 
 @router.get("/api/sweep/example")
 def sweep_example():
-    p = os.path.abspath(os.path.join(EXAMPLES, "sweeps", "sweep_payload.csv"))
+    """The example (a drone's roll controller tuned over wind, payload and gusts) and its second,
+    finer sweep - to try merging."""
+    p = os.path.abspath(os.path.join(EXAMPLES, "sweeps", "drone_tuning.csv"))
     if not os.path.isfile(p):
         fail(404, "The example table is not installed.")
-    return {"path": p}
+    return {"path": p, "refine": p.replace("drone_tuning.csv", "drone_tuning_refine.csv")}
 
 
 def _prepared(tid: str, q: Dict):
@@ -477,18 +479,30 @@ class ReportReq(BaseModel):
     include: Dict[str, bool] = {}
     mapX: Optional[str] = None
     mapY: Optional[str] = None
+    raw: bool = False                    # plot: the raw table's runs instead of the parameter sets
 
 
 @router.post("/api/sweep/report")
 def sweep_report(req: ReportReq):
     from app import sweep_report
     from app.report import ReportNeedsExtra
-    ext = {"html": ".html", "docx": ".docx", "pdf": ".pdf", "csv": ".csv"}.get(req.format)
+    ext = {"html": ".html", "docx": ".docx", "pdf": ".pdf", "csv": ".csv", "plot": ".html"}.get(req.format)
     if not ext:
         fail(400, "Unknown report format.")
     path = os.path.abspath(os.path.expanduser(req.path))
     if not path.lower().endswith(ext):
         path += ext
+    if req.raw:                                        # the raw results' plot: the table's runs, no question
+        df = _get(req.id)["df"]
+        if len(df) > 50_000:
+            df = df.sample(50_000, random_state=0)
+        names = [c for c in (req.axes or list(df.columns)) if c in df.columns]
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(sweep_report._html(sweep_report.plot_data(df, names), {**req.model_dump(), "axes": names, "plotOnly": True}, {}))
+        except OSError as e:
+            fail(400, f"Could not write {path}: {e}")
+        return {"path": path, "size": os.path.getsize(path)}
     p, a = _answer(req.id, req.question)
     try:
         sweep_report.build(p, req.question, a, {**req.model_dump(), "path": path})
@@ -497,3 +511,66 @@ def sweep_report(req: ReportReq):
     except OSError as e:
         fail(400, f"Could not write {path}: {e}")
     return {"path": path, "size": os.path.getsize(path)}
+
+
+# ----------------------------------------------------------------------------- goals side by side
+class VariantsReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    variants: List[Dict[str, Any]]       # each: {goal, conditions, combine, objectives}
+
+
+@router.post("/api/sweep/variants")
+def sweep_variants(req: VariantsReq):
+    """Several goals asked of the same sets, side by side: how many hold under each, the best goal
+    value, and how robust the holding sets are (the share of their neighbours that hold too)."""
+    import numpy as np
+    out = []
+    for v in req.variants:
+        q = {**req.question, "goal": v.get("goal"), "conditions": v.get("conditions") or [],
+             "combine": v.get("combine") or "and", "objectives": v.get("objectives") or []}
+        p = _prepared(req.id, q)
+        try:
+            a = sweep.answer(p, q)
+        except (sweep.QuestionError, sweep.DerivedError, ValueError) as e:
+            out.append({"error": str(e)}); continue
+        d = a["data"]
+        h = d["#holds"] == 1
+        best = None
+        if "#goal" in d and np.isfinite(d["#rank"]).any():
+            i = int(np.nanargmin(d["#rank"]))
+            best = {"value": float(d["#goal"][i]), "params": {c: sweep.evaluate._py(d[c][i]) for c in p.params}}
+        nb = d["#neighbours"][h]
+        out.append({"holding": int(h.sum()), "sets": a["counts"]["sets"], "best": best,
+                    "robust": float(np.nanmean(nb)) if h.any() and np.isfinite(nb).any() else None,
+                    "tolerance": float(np.nanmax(d["#tolerance"])) if h.any() and np.isfinite(d["#tolerance"]).any() else None,
+                    "conditions": a["conditions"]})
+    return {"variants": out}
+
+
+# ----------------------------------------------------------------------------- the raw results
+@router.get("/api/sweep/rows")
+def sweep_rows(id: str, offset: int = 0, limit: int = 100, sort: Optional[str] = None, desc: bool = False):
+    """A page of the table as it was read (the first step: the raw results)."""
+    df = _get(id)["df"]
+    if sort and sort in df.columns:
+        df = df.sort_values(sort, ascending=not desc, kind="stable")
+    page = df.iloc[max(0, offset): max(0, offset) + max(1, min(1000, limit))]
+    return {"total": int(len(df)), "offset": offset, "columns": [str(c) for c in df.columns],
+            "rows": sweep.head(page, len(page)), "index": [int(i) for i in page.index]}
+
+
+@router.post("/api/sweep/raw")
+def sweep_raw(req: QuestionReq):
+    """Every column of every run (a sample above 200 000), for a parallel plot of the raw results -
+    before any role or goal."""
+    import numpy as np
+    df = _get(req.id)["df"]
+    idx = np.arange(len(df))
+    sampled = len(df) > 200_000
+    if sampled:
+        idx = np.sort(np.random.default_rng(0).choice(len(df), 200_000, replace=False))
+    names = [c for c in (req.columns or list(df.columns)) if c in df.columns]
+    cols = [{"name": c, **sweep.encode(df[c].iloc[idx].reset_index(drop=True))} for c in names]
+    cols.append({"name": "#row", **sweep.encode(df.index.to_numpy()[idx].astype(float))})
+    return {"columns": cols, "n": int(len(idx)), "total": int(len(df)), "sampled": sampled}

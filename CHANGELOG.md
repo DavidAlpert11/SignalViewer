@@ -8,6 +8,20 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps, step by step**: the area is now a path through six steps, each with its own panel and
+  a line saying where it stands - **1 Raw results** (the table page by page and sortable, or every
+  run as a parallel plot; a second sweep is added here), **2 Clean columns** (take out the columns
+  with one value or none, add columns made from others), **3 Scenarios & parameters** (a table of
+  the columns with a choice for each: scenario, parameter, output...; the shape of the study
+  follows), **4 Goals** (conditions met together - *and* - or any of them - *or* - and what to
+  optimize; several goals kept and compared side by side: how many sets hold, the best, how
+  robust), **5 Results** (the parallel plot filtered as in HiPlot, keep / exclude, the sets, why one
+  fails, which parameter matters, the map, next runs, data health) and **6 Report** (the whole
+  process). *Export the plot* writes the parallel plot alone as an interactive page, from the raw
+  results or from the results. *Study > Start the study over* and *Close this table* say how to
+  begin again. The example is new: a drone's roll controller - parameters kp_roll, ki_roll,
+  filter_hz; scenarios wind, payload, gusts; outputs roll error, overshoot, energy... - with a
+  second, finer sweep to merge.
 - **Sweeps**, a second work area, for the results of a run envelope: a table with a row per run -
   parameters and scenario columns first, the outputs last (CSV, Parquet or Excel) - and the question
   *which parameters hold in every scenario, and which of them is best?*

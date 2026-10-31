@@ -2,8 +2,11 @@
    first, outputs last - and the question asked of it.
 
    This file is layout only. The pieces, each its own file:
-     QuestionPanel / ColumnsPanel   the left side (the question; the columns and their roles)
-     CenterTabs                     what the middle shows:
+     StepNav                        the steps, in order: raw results, clean, scenarios and
+                                    parameters, goals, results, report - each with its side panel
+                                    and its middle (RawStep, CleanStep, RolesStep, GoalsStep,
+                                    ResultsSide + ResultsCenter below, ReportStep)
+     CenterTabs                     the results' views:
        PlotToolbar + ParallelPlot + SetsTable   the lines (+ AxisMenu) and the sets, best first
        EffectsView  which parameter matters      MapView      two parameters as a map
        ScatterView  any two columns as points    NextRunsView what to run next
@@ -11,7 +14,7 @@
      SetDetail                      one set on the right: why it fails, its runs, its recordings
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
 import { useEffect, useMemo, useState } from "react";
-import { pickPath } from "../../store";
+import { pickPath, useApp } from "../../store";
 import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
@@ -19,6 +22,13 @@ import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/stat
 import { colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
+import StepNav from "./StepNav";
+import { RawCenter, RawSide } from "./RawStep";
+import { CleanCenter, CleanSide } from "./CleanStep";
+import { RolesCenter, RolesSide } from "./RolesStep";
+import { GoalsCenter, GoalsSide } from "./GoalsStep";
+import ResultsSide from "./ResultsSide";
+import { ReportCenter, ReportSide, exportPlot } from "./ReportStep";
 import { fits } from "../../sweeps/state";
 import { openMenu, prompt } from "../Overlays";
 import type { SavedStudy } from "../../sweeps/state";
@@ -30,10 +40,8 @@ import HealthView from "./HealthView";
 import MapView from "./MapView";
 import NextRunsView from "./NextRunsView";
 import ScatterView from "./ScatterView";
-import ColumnsPanel from "./ColumnsPanel";
 import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
-import QuestionPanel from "./QuestionPanel";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
 import "./sweeps.css";
@@ -96,6 +104,8 @@ function SweepsBar() {
     const SEP = { label: "", sep: true, run: () => {} };
     openMenu(below(e), [
       { label: t("swSaveStudy"), run: saveStudy },
+      { label: t("swStartOver"), run: () => st.resetStudy() },
+      { label: t("swCloseTable"), run: () => st.close(st.active) },
       SEP,
       { label: t("swSaveTemplate"), run: async () => { const name = await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, "")); if (name?.trim()) await st.saveTemplate(name.trim()); } },
       ...(fit.length ? [{ label: t("swApplyTemplateMenu"), run: () => {}, items: fit.map((x) => ({ label: x.name, run: () => st.applyTemplate(x.name) })) }] : []),
@@ -147,14 +157,14 @@ function SweepsBar() {
 
 /* a few rows of the example table, to show what a results table looks like */
 const SAMPLE: { name: string; role: "hold" | "param" | "output" | "ignore" }[] = [
-  { name: "scenario_terrain", role: "hold" }, { name: "payload_kg", role: "param" }, { name: "scenario_wind_mps", role: "hold" },
-  { name: "kp_roll", role: "param" }, { name: "range_m", role: "output" }, { name: "max_roll_deg", role: "output" }, { name: "sim_version", role: "ignore" },
+  { name: "scenario_wind_mps", role: "hold" }, { name: "kp_roll", role: "param" }, { name: "scenario_gusts", role: "hold" },
+  { name: "filter_hz", role: "param" }, { name: "roll_error_deg", role: "output" }, { name: "overshoot_pct", role: "output" }, { name: "energy_wh", role: "output" },
 ];
 const SAMPLE_ROWS = [
-  ["flat", "0.5", "0", "0.10", "1907.2", "11.78", "4.2.1"],
-  ["flat", "0.5", "4", "0.10", "1871.5", "13.02", "4.2.1"],
-  ["hills", "1.0", "8", "0.18", "1631.9", "19.40", "4.2.1"],
-  ["urban", "2.0", "8", "0.22", "1180.3", "27.55", "4.2.1"],
+  ["0", "0.10", "none", "20", "1.81", "4.1", "26.3"],
+  ["5", "0.20", "mild", "20", "2.62", "6.9", "30.4"],
+  ["10", "0.20", "strong", "40", "4.75", "9.8", "35.2"],
+  ["10", "0.30", "strong", "10", "3.10", "21.6", "38.0"],
 ];
 
 function SweepsWelcome() {
@@ -165,9 +175,9 @@ function SweepsWelcome() {
   const example = async () => { const { path } = await sweepApi.example(); await useSweeps.getState().open(path); };
   // the example's second sweep - finer where the first looked good - merged into it
   const merged = async () => {
-    const { path } = await sweepApi.example();
+    const { path, refine } = await sweepApi.example();
     await useSweeps.getState().open(path);
-    const r = await useSweeps.getState().merge(path.replace(/sweep_payload\.csv$/, "sweep_payload_refine.csv"), "new");
+    const r = await useSweeps.getState().merge(refine, "new");
     setNote(t("swMerged", { added: r.added, replaced: r.replaced }));
   };
   return (
@@ -208,15 +218,55 @@ function SweepsWelcome() {
 function StudyView({ study }: { study: Study }) {
   const t = useT();
   const st = useSweeps.getState();
-  const side = study.view.left;
-  const setSide = (left: "question" | "columns") => st.setView({ left });
+  const step = study.view.step;
   // follow the file: is it newer than what is on screen? (every few seconds, only this study)
   useEffect(() => {
     if (!study.path) return;
     const h = window.setInterval(() => useSweeps.getState().checkChanged(), 3000);
     return () => window.clearInterval(h);
   }, [study.tableId, study.path]);
-  const noParams = !study.columns.some((c) => c.role === "param");
+  const side = step === "raw" ? <RawSide study={study} /> : step === "clean" ? <CleanSide study={study} /> : step === "roles" ? <RolesSide study={study} />
+    : step === "goals" ? <GoalsSide study={study} /> : step === "results" ? <ResultsSide study={study} /> : <ReportSide study={study} />;
+  const noParams = !study.columns.some((c) => c.role === "param" && !study.question.removed.includes(c.name));
+  return (
+    <div className="sw-study-wrap">
+      <StepNav study={study} />
+      <div className={`sw-study${step === "results" && study.view.pinned !== null ? " with-detail" : ""}`}>
+        <aside className="side sw-left" aria-label={t("swSteps")}><div className="sw-left-body">{side}</div></aside>
+        <main className="sw-center">
+          {study.changed && (
+            <div className="sw-banner" role="status">{t("swFileChanged")}
+              <button className="btn primary" onClick={() => st.reload()}>{t("swRefresh")}</button>
+              <button className="btn outline" onClick={() => { st.setView({ follow: true }); st.reload(); }}>{t("swFollowFromNow")}</button></div>
+          )}
+          {study.offer && (
+            <div className="sw-banner" role="status">{t("swTemplateFits", { n: study.offer })}
+              <button className="btn primary" onClick={() => st.applyTemplate(study.offer!)}>{t("swApply")}</button>
+              <button className="iconbtn" aria-label={t("swDismiss")} onClick={() => useSweeps.setState((x) => ({ studies: x.studies.map((y) => (y.tableId === study.tableId ? { ...y, offer: null } : y)) }))}>×</button></div>
+          )}
+          {noParams && (step === "goals" || step === "results" || step === "report") && (
+            <div className="sw-banner" role="status">{t("swChooseParams")}
+              <button className="btn primary" onClick={() => st.setView({ step: "roles" })}>{t("swStepRoles")}</button></div>
+          )}
+          {step === "raw" && <RawCenter study={study} />}
+          {step === "clean" && <CleanCenter study={study} />}
+          {step === "roles" && <RolesCenter study={study} />}
+          {step === "goals" && <GoalsCenter study={study} />}
+          {step === "results" && <ResultsCenter study={study} />}
+          {step === "report" && <ReportCenter study={study} />}
+        </main>
+        {step === "results" && study.view.pinned !== null && study.answer && <SetDetail study={study} set={study.view.pinned} />}
+      </div>
+    </div>
+  );
+}
+
+/** Step 5 in the middle: the lines (the parallel plot, filtered as in HiPlot) and the sets, and the
+ *  other views of the same answer. */
+function ResultsCenter({ study }: { study: Study }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const st = useSweeps.getState();
   const [menu, setMenu] = useState<{ name: string; at: DOMRect } | null>(null);
   const v = study.view;
   const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
@@ -240,6 +290,7 @@ function StudyView({ study }: { study: Study }) {
     for (let i = 0; i < n; i++) if (m[i]) { sets.add(setOfRow(i)); if (rowCol) rows.push(rowCol[i]); }
     return { sets: [...sets], rows };
   };
+  const [note, setNote] = useState("");
   const exportShown = async () => {
     const p = await pickPath({ mode: "save", title: t("swExportShown"), exts: [".csv"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_selected.csv" });
     if (!p) return;
@@ -249,62 +300,36 @@ function StudyView({ study }: { study: Study }) {
       setNote(t("swExported", { n: r.rows, path: r.path }));
     } catch (e) { setNote((e as Error).message); }
   };
-  const [note, setNote] = useState("");
   const menuCol = menu ? cols.get(menu.name) : undefined;
   return (
-    <div className={`sw-study${v.pinned !== null ? " with-detail" : ""}`}>
-      <aside className="side sw-left" aria-label={t("swQuestion")}>
-        <div className="sw-tabs" role="tablist">
-          <button role="tab" aria-selected={side === "question"} className={side === "question" ? "on" : ""} onClick={() => setSide("question")}>{t("swQuestion")}</button>
-          <button role="tab" aria-selected={side === "columns"} className={side === "columns" ? "on" : ""} onClick={() => setSide("columns")}>{t("swColumns")} <span className="hint">{study.columns.length}</span></button>
-        </div>
-        <div className="sw-left-body">
-          {side === "question" ? <QuestionPanel study={study} onColumns={() => setSide("columns")} /> : <ColumnsPanel study={study} />}
-        </div>
-      </aside>
-      <main className="sw-center">
-        {study.changed && (
-          <div className="sw-banner" role="status">{t("swFileChanged")}
-            <button className="btn primary" onClick={() => st.reload()}>{t("swRefresh")}</button>
-            <button className="btn outline" onClick={() => { st.setView({ follow: true }); st.reload(); }}>{t("swFollowFromNow")}</button></div>
-        )}
-        {study.offer && (
-          <div className="sw-banner" role="status">{t("swTemplateFits", { n: study.offer })}
-            <button className="btn primary" onClick={() => st.applyTemplate(study.offer!)}>{t("swApply")}</button>
-            <button className="iconbtn" aria-label={t("swDismiss")} onClick={() => useSweeps.setState((x) => ({ studies: x.studies.map((y) => (y.tableId === study.tableId ? { ...y, offer: null } : y)) }))}>×</button></div>
-        )}
-        {noParams && (
-          <div className="sw-banner" role="status">{t("swChooseParams")}
-            {side !== "columns" && <button className="btn primary" onClick={() => setSide("columns")}>{t("swColumns")}</button>}</div>
-        )}
-        <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
-        {study.answer && v.center === "effects" && <EffectsView study={study} />}
-        {study.answer && v.center === "map" && <MapView study={study} />}
-        {study.answer && v.center === "scatter" && <ScatterView study={study} />}
-        {study.answer && v.center === "next" && <NextRunsView study={study} />}
-        {v.center === "health" && <HealthView study={study} />}
-        {study.answer && v.center === "compare" && <CompareView study={study} />}
-        {v.center === "lines" && (study.answer ? (
-          <>
-            <PlotToolbar study={study} shown={shown} total={n}
-              onKeep={() => st.narrow("keep", selection().sets, scopeKey(study))}
-              onExclude={() => st.narrow("exclude", selection().sets, scopeKey(study))}
-              onExport={exportShown} />
-            {note && <p className="hint">{note}</p>}
-            {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
-            {axes.length ? (
-              <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
-                filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)}
-                onPick={(r) => st.setView({ pinned: setOfRow(r) })}
-                onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}
-                onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />
-            ) : <p className="empty-note">{t("swNoAxes")}</p>}
-            <SetsTable study={study} />
-          </>
-        ) : <p className="empty-note">{study.evalError || t("swReading")}</p>)}
-        {!study.answer && v.center !== "lines" && v.center !== "health" && <p className="empty-note">{study.evalError || t("swReading")}</p>}
-      </main>
-      {v.pinned !== null && study.answer && <SetDetail study={study} set={v.pinned} />}
+    <>
+      <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
+      {study.answer && v.center === "effects" && <EffectsView study={study} />}
+      {study.answer && v.center === "map" && <MapView study={study} />}
+      {study.answer && v.center === "scatter" && <ScatterView study={study} />}
+      {study.answer && v.center === "next" && <NextRunsView study={study} />}
+      {v.center === "health" && <HealthView study={study} />}
+      {study.answer && v.center === "compare" && <CompareView study={study} />}
+      {v.center === "lines" && (study.answer ? (
+        <>
+          <PlotToolbar study={study} shown={shown} total={n}
+            onKeep={() => st.narrow("keep", selection().sets, scopeKey(study))}
+            onExclude={() => st.narrow("exclude", selection().sets, scopeKey(study))}
+            onExport={exportShown}
+            onExportPlot={() => exportPlot(t, study, lang).then((m) => m && setNote(m)).catch((e) => setNote((e as Error).message))} />
+          {note && <p className="hint">{note}</p>}
+          {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
+          {axes.length ? (
+            <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
+              filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)}
+              onPick={(r) => st.setView({ pinned: setOfRow(r) })}
+              onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}
+              onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />
+          ) : <p className="empty-note">{t("swNoAxes")}</p>}
+          <SetsTable study={study} />
+        </>
+      ) : <p className="empty-note">{study.evalError || t("swReading")}</p>)}
+      {!study.answer && v.center !== "lines" && v.center !== "health" && <p className="empty-note">{study.evalError || t("swReading")}</p>}
       {menu && menuCol && (
         <AxisMenu col={menuCol} label={colLabel(t, study, menu.name)} at={menu.at} scale={scale(menu.name)} reversed={!!v.reversed[menu.name]}
           filter={v.filters[menu.name]} colouring={v.colorBy === menu.name}
@@ -314,6 +339,6 @@ function StudyView({ study }: { study: Study }) {
           onHide={() => { st.toggleAxis(menu.name, false); setMenu(null); }}
           onFilter={(f) => st.setFilter(menu.name, f)} onClose={() => setMenu(null)} />
       )}
-    </div>
+    </>
   );
 }
