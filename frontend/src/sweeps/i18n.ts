@@ -343,6 +343,9 @@ export const swEn = {
   swYourChoice: "your choice",
   swTemplateSaved: "Template saved: {n}",
   swTemplateDeleted: "Template deleted: {n}",
+  swReopening: "Opening the studies you had open…",
+  swReopenFailed: "{name} could not be opened again: {why}",
+  swAutosaveDamaged: "The studies open last time could not be read, so none were opened. The file is kept: {path}",
 };
 
 export const swHe: typeof swEn = {
@@ -687,4 +690,7 @@ export const swHe: typeof swEn = {
   swYourChoice: "הבחירה שלך",
   swTemplateSaved: "התבנית נשמרה: {n}",
   swTemplateDeleted: "התבנית נמחקה: {n}",
+  swReopening: "פותחים את המחקרים שהיו פתוחים…",
+  swReopenFailed: "את {name} לא היה אפשר לפתוח שוב: {why}",
+  swAutosaveDamaged: "את המחקרים שהיו פתוחים בפעם הקודמת לא היה אפשר לקרוא, ולכן לא נפתח אף אחד. הקובץ נשמר: {path}",
 };

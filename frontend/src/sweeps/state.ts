@@ -36,6 +36,41 @@ export interface Study {
   sources: string[];
   /** what was merged in, to merge it again when a saved study opens */
   merged: { path: string; prefer: "new" | "old" | "both" }[];
+  /** undo / redo of this study (never saved) */
+  history: History;
+}
+
+/** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
+ *  the view that change what is shown. Not where one is (step, tab, open set, map axes, follow). */
+const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "onlyMissing", "scope"] as const;
+type UndoView = Pick<View, (typeof UNDO_VIEW)[number]>;
+export interface Snap { roles: Record<string, { role: Role; scale: Scale }>; question: Question; view: UndoView }
+export interface History { past: Snap[]; future: Snap[]; kind: string; at: number }
+const emptyHistory = (): History => ({ past: [], future: [], kind: "", at: 0 });
+const UNDO_DEPTH = 100;
+/** changes of one kind closer than this make one undo step (a drag on an axis, typing a limit) */
+const UNDO_MERGE_MS = 1000;
+/** an action that changes two parts (a goal and its axis, a new column and its axis) is one step */
+const UNDO_SAME_ACTION_MS = 50;
+
+const snapOf = (s: Study): Snap => ({
+  roles: Object.fromEntries(s.columns.map((c) => [c.name, { role: c.role, scale: c.scale }])),
+  question: s.question,
+  view: Object.fromEntries(UNDO_VIEW.map((k) => [k, s.view[k]])) as UndoView,
+});
+/** Which undoable parts differ between two states of a study ("" when none): the parts are
+ *  immutable, so a changed part is a new object. */
+function changedKind(a: Study, b: Study): string {
+  const out: string[] = [];
+  if (a.columns !== b.columns && a.columns.some((c, i) => c.role !== b.columns[i]?.role || c.scale !== b.columns[i]?.scale)) out.push("roles");
+  if (a.question !== b.question) out.push("q");
+  for (const k of UNDO_VIEW) if (a.view[k] !== b.view[k]) out.push(k);
+  return out.join(",");
+}
+/** A study with a snapshot put back. */
+function applySnap(s: Study, snap: Snap): Study {
+  return { ...s, columns: s.columns.map((c) => (snap.roles[c.name] ? { ...c, ...snap.roles[c.name] } : c)),
+    question: snap.question, view: { ...s.view, ...snap.view } };
 }
 
 /** A study as saved (.svsweep): which table, the columns' roles and scales, the question and the view. */
@@ -54,6 +89,12 @@ interface SweepsState {
   busy: boolean;
   error: string;
   open: (path: string, saved?: SavedStudy) => Promise<void>;
+  /** the report dialog is open (the Study menu, Ctrl+K) */
+  reportOpen: boolean;
+  /** opening the studies of the last run again (autosave) */
+  restoring: boolean;
+  /** open the studies the app had open when it last ran; what could not be opened, and why */
+  reopenLast: () => Promise<{ name: string; why: string }[]>;
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => Promise<void>;
   saved: () => SavedStudy | null;
   merge: (path: string, prefer: "new" | "old" | "both") => Promise<{ added: number; replaced: number }>;
@@ -73,6 +114,9 @@ interface SweepsState {
   applyTemplate: (name: string) => void;
   deleteTemplate: (name: string) => Promise<void>;
   close: (i: number) => void;
+  // undo / redo of the active study
+  undo: () => void;
+  redo: () => void;
   // columns
   setRole: (column: string, role: Role) => void;
   setScale: (column: string, scale: Scale) => void;
@@ -136,11 +180,34 @@ function defaultAxes(a: Answer): string[] {
   return [...params, ...rest].slice(0, Math.max(8, params.length + 2));
 }
 
+/** A study as a .svsweep document (also what autosave keeps). */
+export function savedOf(s: Study): SavedStudy {
+  const { pinned: _p, ...view } = s.view;
+  void _p;
+  return { kind: "signalviewer-sweep", version: 1, path: s.path, columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
+    question: s.question, view, merged: s.merged };
+}
+
 let timer = 0;
 let seq = 0;
 
 export const useSweeps = create<SweepsState>((set, get) => {
-  const patch = (f: (s: Study) => Study) => set((st) => ({ studies: st.studies.map((s, i) => (i === st.active ? f(s) : s)) }));
+  /** Change the active study. A change to its roles, question or what is shown is one undo step
+   *  (consecutive changes of the same kind within UNDO_MERGE_MS are one); `track: false` is for what
+   *  the app does by itself (answers, summaries, a re-read file). */
+  const patch = (f: (s: Study) => Study, track = true) => set((st) => ({ studies: st.studies.map((s, i) => {
+    if (i !== st.active) return s;
+    const n = f(s);
+    if (!track || n === s) return n;
+    const kind = changedKind(s, n);
+    if (!kind) return n;
+    const h = s.history, now = Date.now();
+    // one step: the same kind of change again soon, or a second change made by the same action
+    const same = h.past.length > 0 && ((kind === h.kind && now - h.at < UNDO_MERGE_MS) || now - h.at < UNDO_SAME_ACTION_MS);
+    const past = same ? h.past : [...h.past, snapOf(s)].slice(-UNDO_DEPTH);
+    return { ...n, history: { past, future: [], kind, at: now } };
+  }) }));
+  const forget = (x: Study): Study => ({ ...x, history: emptyHistory() });
   const ask = () => { window.clearTimeout(timer); timer = window.setTimeout(() => get().evaluate(), 200); };
   const patchQ = (f: (q: Question) => Question) => { patch((s) => ({ ...s, question: f(s.question) })); ask(); };
   /** change the active goal; the question's goal, conditions and objectives follow it */
@@ -153,7 +220,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     const s = get().studies[get().active];
     if (!s) return;
     sweepApi.summary(s.tableId, wireQuestion(s).roles)
-      .then((summary) => patch((x) => (x.tableId === s.tableId ? { ...x, summary } : x)))
+      .then((summary) => patch((x) => (x.tableId === s.tableId ? { ...x, summary } : x), false))
       .catch((e) => set({ error: (e as Error).message }));
   };
   /** a table the server opened, as a new study: the user's remembered roles, or a saved study's */
@@ -167,13 +234,20 @@ export const useSweeps = create<SweepsState>((set, get) => {
       question: saved ? upgradeQuestion(saved.question) : emptyQuestion(),
       view: saved ? { ...emptyView(), ...saved.view, pinned: null } : emptyView(),
       answer: null, evaluating: false, evalError: "", changed: false, offer: null,
-      sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [] };
+      sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [], history: emptyHistory() };
     // the table always opens; with no parameter column yet, the columns come first - say which they are
     if (!columns.some((c) => c.role === "param")) study.view = { ...study.view, left: "columns" };
     if (!saved) study.offer = get().templates.find((t) => fits(t, columns))?.name ?? null;
     set((st) => ({ studies: [...st.studies, study], active: st.studies.length, busy: false }));
     if (Object.keys(from).length) refreshSummary();
     get().evaluate();
+  };
+  /** open a table as a new study (and merge what a saved study merged); throws what went wrong */
+  const openOne = async (path: string, saved?: SavedStudy) => {
+    if (!get().templates.length) await get().loadTemplates();
+    const r = await sweepApi.open(path);
+    add(r, saved);
+    for (const m of saved?.merged ?? []) await get().merge(m.path, m.prefer);
   };
   return {
     studies: [],
@@ -183,28 +257,37 @@ export const useSweeps = create<SweepsState>((set, get) => {
 
     open: async (path, saved) => {
       set({ busy: true, error: "" });
-      if (!get().templates.length) await get().loadTemplates();
+      try { await openOne(path, saved); }
+      catch (e) { set({ busy: false, error: (e as Error).message }); }
+    },
+    reportOpen: false,
+    restoring: false,
+    reopenLast: async () => {
+      if (restoreStarted) return [];
+      restoreStarted = true;
+      const failed: { name: string; why: string }[] = [];
+      set({ restoring: true, busy: true });
       try {
-        const r = await sweepApi.open(path);
-        add(r, saved);
-        for (const m of saved?.merged ?? []) await get().merge(m.path, m.prefer);
-      } catch (e) {
-        set({ busy: false, error: (e as Error).message });
-      }
+        const { state, damaged } = await sweepApi.autosave();
+        if (damaged) failed.push({ name: damaged, why: "damaged" });
+        const doc = state as AutosaveDoc | null;
+        for (const s of doc?.studies ?? []) {
+          try { await openOne(s.path, s); }
+          catch (e) { failed.push({ name: s.path, why: (e as Error).message }); set({ busy: false }); }
+        }
+        if (doc && get().studies.length) set({ active: Math.max(0, Math.min(doc.active ?? 0, get().studies.length - 1)) });
+      } catch { /* no autosave: start empty */ }
+      // the studies opened again are not changes to undo
+      set((st) => ({ restoring: false, busy: false, studies: st.studies.map((x) => ({ ...x, history: emptyHistory() })) }));
+      restored = true;
+      return failed;
     },
     openRows: async (name, columns, rows) => {
       set({ busy: true, error: "" });
       try { add(await sweepApi.openRows(name, columns, rows)); }
       catch (e) { set({ busy: false, error: (e as Error).message }); }
     },
-    saved: () => {
-      const s = get().studies[get().active];
-      if (!s) return null;
-      const { pinned: _p, ...view } = s.view;
-      void _p;
-      return { kind: "signalviewer-sweep", version: 1, path: s.path, columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
-        question: s.question, view, merged: s.merged };
-    },
+    saved: () => { const s = get().studies[get().active]; return s ? savedOf(s) : null; },
     merge: async (path, prefer) => {
       const s = get().studies[get().active];
       const keys = s.columns.filter((c) => c.role === "param" || c.role === "hold").map((c) => c.name);
@@ -214,8 +297,9 @@ export const useSweeps = create<SweepsState>((set, get) => {
         const old = byName.get(c.name);
         return { ...c, guessRole: c.role, guessScale: c.scale, role: old?.role ?? c.role, scale: old?.scale ?? c.scale };
       });
-      patch((x) => (x.tableId !== s.tableId ? x : { ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
-        merged: [...x.merged, { path, prefer }], view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } }));
+      // the sets are numbered anew: what undo kept points at other sets
+      patch((x) => (x.tableId !== s.tableId ? x : forget({ ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
+        merged: [...x.merged, { path, prefer }], view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } })), false);
       refreshSummary();
       get().evaluate();
       return { added: r.added, replaced: r.replaced };
@@ -230,8 +314,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
         const old = byName.get(c.name);
         return { ...c, guessRole: c.role, guessScale: c.scale, role: old?.role ?? c.role, scale: old?.scale ?? c.scale };
       });
-      patch((x) => (x.tableId !== s.tableId ? x : { ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
-        merged: x.merged.filter((_, j) => j !== i - 1), view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } }));
+      patch((x) => (x.tableId !== s.tableId ? x : forget({ ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
+        merged: x.merged.filter((_, j) => j !== i - 1), view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } })), false);
       refreshSummary();
       get().evaluate();
     },
@@ -254,7 +338,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
           const old = byName.get(c.name);
           return { ...c, guessRole: c.role, guessScale: c.scale, role: old?.role ?? c.role, scale: old?.scale ?? c.scale };
         });
-        patch((x) => (x.tableId !== s.tableId ? x : { ...x, columns, rows: r.rows, head: r.head, seconds: r.seconds, changed: false }));
+        patch((x) => (x.tableId !== s.tableId ? x : { ...x, columns, rows: r.rows, head: r.head, seconds: r.seconds, changed: false }), false);
         refreshSummary();
         get().evaluate();
       } catch (e) { set({ error: (e as Error).message }); }
@@ -266,7 +350,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
         const r = await sweepApi.changed(s.tableId);
         if (!r.changed) return;
         if (s.view.follow) await get().reload();
-        else if (!s.changed) patch((x) => (x.tableId === s.tableId ? { ...x, changed: true } : x));
+        else if (!s.changed) patch((x) => (x.tableId === s.tableId ? { ...x, changed: true } : x), false);
       } catch { /* the table was dropped on the server: nothing to follow */ }
     },
 
@@ -280,7 +364,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       const r = await sweepApi.saveTemplate(name, { columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
         question: { ...s.question, exclude: [] }, view });
       set({ templates: r.templates });
-      patch((x) => ({ ...x, offer: null }));
+      patch((x) => ({ ...x, offer: null }), false);
     },
     applyTemplate: (name) => {
       const t = get().templates.find((x) => x.name === name);
@@ -305,6 +389,25 @@ export const useSweeps = create<SweepsState>((set, get) => {
       get().evaluate();
     },
     deleteTemplate: async (name) => { set({ templates: (await sweepApi.deleteTemplate(name)).templates }); },
+
+    undo: () => {
+      const s = get().studies[get().active];
+      const snap = s?.history.past[s.history.past.length - 1];
+      if (!snap) return;
+      patch((x) => { const n = applySnap(x, snap); remember(n);
+        return { ...n, history: { past: x.history.past.slice(0, -1), future: [...x.history.future, snapOf(x)], kind: "", at: 0 } }; }, false);
+      refreshSummary();
+      get().evaluate();
+    },
+    redo: () => {
+      const s = get().studies[get().active];
+      const snap = s?.history.future[s.history.future.length - 1];
+      if (!snap) return;
+      patch((x) => { const n = applySnap(x, snap); remember(n);
+        return { ...n, history: { past: [...x.history.past, snapOf(x)], future: x.history.future.slice(0, -1), kind: "", at: 0 } }; }, false);
+      refreshSummary();
+      get().evaluate();
+    },
 
     close: (i) => set((st) => ({ studies: st.studies.filter((_, j) => j !== i), active: Math.max(0, Math.min(st.active, st.studies.length - 2)) })),
 
@@ -377,17 +480,17 @@ export const useSweeps = create<SweepsState>((set, get) => {
       const s = get().studies[get().active];
       if (!s) return;
       const my = ++seq;
-      patch((x) => ({ ...x, evaluating: true }));
+      patch((x) => ({ ...x, evaluating: true }), false);
       sweepApi.evaluate(s.tableId, wireQuestion(s), s.view.mode === "runs").then((w) => {
         if (my !== seq) return;
         const answer: Answer = { counts: w.counts, conditions: w.conditions, seconds: w.seconds,
           sets: w.sets.map((c) => decodeCol(c)),
           runs: w.runs && { ...w.runs, columns: w.runs.columns.map((c) => decodeCol(c, "run")) } };
         patch((x) => (x.tableId !== s.tableId ? x : { ...x, answer, evaluating: false, evalError: "",
-          view: x.view.axes.length ? x.view : { ...x.view, axes: defaultAxes(answer) } }));
+          view: x.view.axes.length ? x.view : { ...x.view, axes: defaultAxes(answer) } }), false);
       }).catch((e) => {
         if (my !== seq) return;
-        patch((x) => ({ ...x, evaluating: false, evalError: (e as Error).message }));
+        patch((x) => ({ ...x, evaluating: false, evalError: (e as Error).message }), false);
       });
     },
     exportRerun: (path) => {
@@ -395,6 +498,29 @@ export const useSweeps = create<SweepsState>((set, get) => {
       return sweepApi.exportRerun(s.tableId, wireQuestion(s), s.view.rerun, s.view.onlyMissing, path);
     },
   };
+});
+
+/* ------------------------------------------------------------------ autosave
+   The open studies, as .svsweep documents, a moment after each change - only once the last ones
+   were opened again (reopenLast), so an empty start never overwrites them. A table that was not read
+   from a file (rows pasted from Recordings) cannot be opened again and is left out. */
+interface AutosaveDoc { version: 1; active: number; studies: SavedStudy[] }
+let restoreStarted = false;
+let restored = false;
+let lastSaved = "";
+let saveTimer = 0;
+useSweeps.subscribe((st, prev) => {
+  if (!restored || (st.studies === prev.studies && st.active === prev.active)) return;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    const now = useSweeps.getState();
+    const kept = now.studies.filter((s) => s.path);
+    const doc: AutosaveDoc = { version: 1, active: Math.max(0, kept.indexOf(now.studies[now.active])), studies: kept.map(savedOf) };
+    const text = JSON.stringify(doc);
+    if (text === lastSaved) return;
+    lastSaved = text;
+    sweepApi.autosaveSave(doc).catch(() => { lastSaved = ""; });
+  }, 800);
 });
 
 /** The active study (or undefined), for components. */

@@ -91,7 +91,7 @@ def test_raw_results_table_and_plot(pg, tmp_path):
     # the plot alone, to play with
     pg.locator(".sw-plotbar .btn", has_text="Export the plot").click()
     save_as(pg, "raw_plot.html")
-    pg.wait_for_selector(".sw-center .hint:has-text('raw_plot.html')")
+    pg.wait_for_selector(".toast:has-text('raw_plot.html')")
     html = open(os.path.join(pg.env["out"], "raw_plot.html"), encoding="utf-8").read()
     assert "<canvas" in html and "kp_roll" in html
 
@@ -153,7 +153,7 @@ def test_results_filter_keep_exclude_export_and_why(pg):
     assert rows() == kept
     pg.locator(".sw-plotbar .btn", has_text="Export shown").click()
     save_as(pg, "shown.csv")
-    pg.wait_for_selector(".sw-center .hint:has-text('runs written')")
+    pg.wait_for_selector(".toast:has-text('runs written')")
     assert len(open(os.path.join(pg.env["out"], "shown.csv")).read().splitlines()) - 1 == kept * 18
     pg.locator(".sw-plotbar .btn", has_text="Restore all").click()
     pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total}")
@@ -165,7 +165,7 @@ def test_results_filter_keep_exclude_export_and_why(pg):
     # the plot alone, from the results
     pg.locator(".sw-plotbar .btn", has_text="Export the plot").click()
     save_as(pg, "sets_plot.html")
-    pg.wait_for_selector(".sw-center .hint:has-text('sets_plot.html')")
+    pg.wait_for_selector(".toast:has-text('sets_plot.html')")
 
 
 def test_new_column_in_the_cleaning_step(pg):
@@ -211,14 +211,14 @@ def test_report_of_the_process(pg):
     pg.locator(".sw-report-format", has_text="Interactive HTML").click()
     pg.locator(".sw-report-page .btn", has_text="Make the report").click()
     save_as(pg, "process.html")
-    pg.wait_for_selector(".sw-report-page .hint:has-text('process.html')", timeout=60000)
+    pg.wait_for_selector(".toast:has-text('process.html')", timeout=60000)
     html = open(os.path.join(pg.env["out"], "process.html"), encoding="utf-8").read()
     assert "Columns taken out" in html and "Goal 2" in html and "<canvas" in html
     assert "filters" in preview.lower() or "every parameter set" in preview.lower()
     pg.locator(".sw-report-format", has_text="Word").click()
     pg.locator(".sw-report-page .btn", has_text="Make the report").click()
     save_as(pg, "process.docx")
-    pg.wait_for_selector(".sw-report-page .hint:has-text('process.docx')", timeout=60000)
+    pg.wait_for_selector(".toast:has-text('process.docx')", timeout=60000)
 
 
 def test_save_reopen_and_close(pg):
@@ -226,7 +226,7 @@ def test_save_reopen_and_close(pg):
     _the_goal(pg)
     _bar_menu(pg, "Study", "Save the study")
     save_as(pg, "drone.svsweep")
-    pg.wait_for_selector(".sw-note:has-text('Saved')")
+    pg.wait_for_selector(".toast:has-text('Saved')")
     n = pg.locator(".areabar .tab").count()
     _bar_menu(pg, "Open", "Open a saved study")
     goto_folder(pg, pg.env["out"])
@@ -397,7 +397,40 @@ def test_a_goals_weight_is_its_own_and_template_saved_says_so(pg):
     assert pg.locator(".sw-goal-part input[aria-label='Weight']").last.input_value() == "3"
     _bar_menu(pg, "Study", "Save as a template")
     pg.fill(".dialog input", "weights check"); pg.keyboard.press("Enter")
-    pg.wait_for_selector(".sw-note:has-text('Template saved: weights check')")
+    pg.wait_for_selector(".toast:has-text('Template saved: weights check')")
     _bar_menu(pg, "Study", "Delete a template")
     pg.locator(".menu.ctx button", has_text="weights check").click()
-    pg.wait_for_selector(".sw-note:has-text('Template deleted: weights check')")
+    pg.wait_for_selector(".toast:has-text('Template deleted: weights check')")
+
+
+def test_undo_redo_and_the_studies_open_again(pg):
+    """S02: a change to the question is undone and redone (buttons, Ctrl+Z / Ctrl+Y, Ctrl+K); the
+    open studies come back after the app starts again, where they were."""
+    _fresh(pg)
+    _step(pg, "goals")
+    undo = pg.locator(".areabar button[aria-label='Undo']")
+    redo = pg.locator(".areabar button[aria-label='Redo']")
+    assert undo.is_disabled()                                         # opening a table is not a change
+    _condition(pg, "roll_error_deg", "<=", 5)
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 1")
+    undo.click()
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    redo.click()
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 1")
+    pg.locator(".sw-side-step").click(position={"x": 5, "y": 5})     # out of any input
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    pg.keyboard.press("Control+y")
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 1")
+    pg.keyboard.press("Control+k")
+    pg.fill(".palette-input", "Undo"); pg.keyboard.press("Enter")
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    _condition(pg, "overshoot_pct", "<=", 15)
+    pg.wait_for_timeout(1500)                                        # the autosave, a moment after the change
+    pg.reload()
+    pg.wait_for_selector(".app")
+    _to_sweeps(pg)
+    pg.wait_for_selector(".sw-steps")
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "4"
+    assert pg.locator(".sw-cond").count() == 1
+    assert undo.is_disabled()                                        # what was reopened is not a change to undo

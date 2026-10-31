@@ -15,10 +15,15 @@
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
 import { useEffect, useMemo, useState } from "react";
 import { pickPath, useApp } from "../../store";
-import { useT } from "../../i18n";
+import { translate, useT, type TFn } from "../../i18n";
+import { registerArea } from "../../areaCommands";
+import Toasts from "../Toasts";
+import { STEPS } from "../../sweeps/model";
+import { stepTitle } from "./StepNav";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
+import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
@@ -68,9 +73,56 @@ async function openStudy(title: string): Promise<string> {
   } catch (e) { return (e as Error).message; }
 }
 
+async function saveStudy(t: TFn) {
+  const st = useSweeps.getState(), study = st.studies[st.active], doc = st.saved();
+  if (!study || !doc) return;
+  if (!doc.path) { notify(t("swCannotSaveRows"), "error"); return; }
+  const p = await pickPath({ mode: "save", title: t("swSaveStudy"), exts: [STUDY_EXT], defaultName: study.name.replace(/\.[^.]+$/, "") + STUDY_EXT });
+  if (p) say(sweepApi.saveText(p, JSON.stringify(doc, null, 1)).then((r) => t("swSaved", { path: r.path })));
+}
+
+/* The area's keys and its commands in Ctrl+K (areaCommands.ts): registered when this code loads. */
+const tNow: TFn = (k, v) => translate(useApp.getState().lang, k, v);
+registerArea("sweeps", {
+  onKey: (e) => {
+    const st = useSweeps.getState();
+    if (!(e.ctrlKey || e.metaKey) || !st.studies[st.active]) return false;
+    const k = e.key.toLowerCase();
+    if (k === "z" && !e.shiftKey) { st.undo(); return true; }
+    if (k === "y" || (k === "z" && e.shiftKey)) { st.redo(); return true; }
+    return false;
+  },
+  commands: () => {
+    const t = tNow, st = useSweeps.getState(), study = st.studies[st.active], g = t("areaSweeps");
+    const open = [
+      { id: "sw-open-table", label: t("swOpenTable"), group: g, icon: "open" as const, run: () => { openTable(t("swOpenTable")); } },
+      { id: "sw-open-folder", label: t("swOpenFolder"), group: g, icon: "open" as const, run: () => { openFolder(t("swOpenFolder")); } },
+      { id: "sw-open-study", label: t("swOpenStudy"), group: g, icon: "open" as const, run: () => { openStudy(t("swOpenStudy")).then((m) => m && notify(m, "error")); } },
+    ];
+    if (!study) return open;
+    return [
+      { id: "sw-undo", label: t("undo"), group: g, icon: "undo" as const, keys: "Ctrl Z", run: st.undo },
+      { id: "sw-redo", label: t("redo"), group: g, icon: "redo" as const, keys: "Ctrl Y", run: st.redo },
+      ...open,
+      { id: "sw-save-study", label: t("swSaveStudy"), group: g, icon: "save" as const, run: () => { saveStudy(t); } },
+      { id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) },
+      { id: "sw-start-over", label: t("swStartOver"), group: g, run: st.resetStudy },
+      ...STEPS.map((s, i) => ({ id: `sw-step-${s}`, label: `${i + 1} ${stepTitle(t, s)}`, group: t("swSteps"), run: () => st.setView({ step: s }) })),
+    ];
+  },
+});
+
 /** The whole area: its bar (the app's second row) and what is under it (the third). */
 export default function SweepsScreen() {
   const study = useStudy();
+  // the studies open when the app last ran, opened again the first time the area is shown
+  useEffect(() => {
+    const lang = useApp.getState().lang;
+    useSweeps.getState().reopenLast().then((failed) => {
+      for (const f of failed) notify(f.why === "damaged" ? translate(lang, "swAutosaveDamaged", { path: f.name })
+        : translate(lang, "swReopenFailed", { name: f.name, why: f.why }), "error", 15000);
+    });
+  }, []);
   return <><SweepsBar />{study ? <StudyView study={study} /> : <SweepsWelcome />}</>;
 }
 
@@ -79,8 +131,6 @@ function SweepsBar() {
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
   const study = studies[active];
-  const [note, setNote] = useState("");
-  const say = (r: Promise<string>) => r.then(setNote).catch((e) => setNote((e as Error).message));
   const exportRerun = async (onlyMissing: boolean) => {
     useSweeps.getState().setView({ onlyMissing });
     const p = await pickPath({ mode: "save", title: t("swExportRerun"), exts: [".csv"], defaultName: "rerun.csv" });
@@ -95,7 +145,7 @@ function SweepsBar() {
   const openMenuAt = (e: React.MouseEvent) => openMenu(below(e), [
     { label: t("swOpenTable"), run: () => openTable(t("swOpenTable")) },
     { label: t("swOpenFolder"), run: () => openFolder(t("swOpenFolder")) },
-    { label: t("swOpenStudy"), run: () => say(openStudy(t("swOpenStudy"))) },
+    { label: t("swOpenStudy"), run: () => say(openStudy(t("swOpenStudy")).then((m) => { if (m) throw new Error(m); })) },
   ]);
   // what is kept of the study: the study itself, a template, a report
   const studyMenu = (e: React.MouseEvent) => {
@@ -103,7 +153,7 @@ function SweepsBar() {
     const fit = st.templates.filter((x) => fits(x, study.columns));
     const SEP = { label: "", sep: true, run: () => {} };
     openMenu(below(e), [
-      { label: t("swSaveStudy"), run: saveStudy },
+      { label: t("swSaveStudy"), run: () => saveStudy(t) },
       { label: t("swStartOver"), run: () => st.resetStudy() },
       { label: t("swCloseTable"), run: () => st.close(st.active) },
       SEP,
@@ -122,15 +172,8 @@ function SweepsBar() {
     { label: t("swOnlyMissing"), run: () => exportRerun(true) },
   ]);
   useEffect(() => { useSweeps.getState().loadTemplates(); }, []);
-  const saveStudy = async () => {
-    const doc = useSweeps.getState().saved();
-    if (!doc) return;
-    if (!doc.path) { setNote(t("swCannotSaveRows")); return; }
-    const p = await pickPath({ mode: "save", title: t("swSaveStudy"), exts: [STUDY_EXT], defaultName: study.name.replace(/\.[^.]+$/, "") + STUDY_EXT });
-    if (p) say(sweepApi.saveText(p, JSON.stringify(doc, null, 1)).then((r) => t("swSaved", { path: r.path })));
-  };
-  const [reportOpen, setReportOpen] = useState(false);
-  const report = () => setReportOpen(true);
+  const reportOpen = useSweeps((s) => s.reportOpen);
+  const report = () => useSweeps.setState({ reportOpen: true });
   return (
     <div className="areabar" role="toolbar" aria-label={t("areaSweeps")}>
       <nav className="tabs-wrap">
@@ -145,14 +188,17 @@ function SweepsBar() {
           ))}
         </div>
       </nav>
+      {study && <>
+        <button className="iconbtn" disabled={!study.history.past.length} onClick={() => useSweeps.getState().undo()} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
+        <button className="iconbtn" disabled={!study.history.future.length} onClick={() => useSweeps.getState().redo()} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
+      </>}
       <button className="btn outline" onClick={openMenuAt}><Icon.Open /> {t("swOpen")} ▾</button>
       {study && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}
       {study?.path && <button className="iconbtn" aria-label={t("swRefresh")} title={t("swRefresh")} onClick={() => useSweeps.getState().reload()}><Icon.Reload /></button>}
       {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow}
         onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} />{t("swFollow")}</label>}
       <div className="spacer" />
-      {note && <span className="hint sw-note" title={note}>{note}</span>}
-      {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => setReportOpen(false)} onNote={setNote} />}
+      {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => useSweeps.setState({ reportOpen: false })} />}
       {study && <button className="btn primary" disabled={!study.view.rerun.length} onClick={rerunMenu}>{t("swExportRerunN", { n: study.view.rerun.length })} ▾</button>}
     </div>
   );
@@ -174,17 +220,18 @@ function SweepsWelcome() {
   const t = useT();
   const busy = useSweeps((s) => s.busy);
   const error = useSweeps((s) => s.error);
-  const [note, setNote] = useState("");
+  const restoring = useSweeps((s) => s.restoring);
   const example = async () => { const { path } = await sweepApi.example(); await useSweeps.getState().open(path); };
   // the example's second sweep - finer where the first looked good - merged into it
   const merged = async () => {
     const { path, refine } = await sweepApi.example();
     await useSweeps.getState().open(path);
     const r = await useSweeps.getState().merge(refine, "new");
-    setNote(t("swMerged", { added: r.added, replaced: r.replaced }));
+    notify(t("swMerged", { added: r.added, replaced: r.replaced }));
   };
   return (
     <div className="sw-welcome">
+      <div className="notices sw-notices"><Toasts /></div>
       <div className="welcome-card sw-welcome-card">
         <h1>{t("swWelcomeTitle")}</h1>
         <p className="tagline">{t("swWelcomeTagline")}</p>
@@ -207,12 +254,12 @@ function SweepsWelcome() {
         <div className="sw-welcome-actions">
           <button className="btn primary" disabled={busy} onClick={() => openTable(t("swOpenTable"))}><Icon.Open /> {t("swOpenTable")}</button>
           <button className="btn outline" disabled={busy} onClick={() => openFolder(t("swOpenFolder"))}><Icon.Folder /> {t("swOpenFolder")}</button>
-          <button className="btn outline" disabled={busy} onClick={() => openStudy(t("swOpenStudy")).then(setNote)}>{t("swOpenStudy")}</button>
+          <button className="btn outline" disabled={busy} onClick={() => openStudy(t("swOpenStudy")).then((m) => m && notify(m, "error"))}>{t("swOpenStudy")}</button>
           <button className="btn outline" disabled={busy} onClick={example}>{t("swTryExample")}</button>
-          <button className="btn outline" disabled={busy} onClick={merged}>{t("swTryMerged")}</button>
+          <button className="btn outline" disabled={busy} onClick={() => merged().catch(notifyError)}>{t("swTryMerged")}</button>
         </div>
-        {busy && <p className="hint">{t("swReading")}</p>}
-        {(error || note) && <p className="sw-error" role="alert">{error || note}</p>}
+        {busy && <p className="hint">{restoring ? t("swReopening") : t("swReading")}</p>}
+        {error && <p className="sw-error" role="alert">{error}</p>}
       </div>
     </div>
   );
@@ -233,6 +280,7 @@ function StudyView({ study }: { study: Study }) {
   const noParams = !activeParams(study).length;
   return (
     <div className="sw-study-wrap">
+      <div className="notices sw-notices"><Toasts /></div>
       <StepNav study={study} />
       <div className={`sw-study${step === "results" && study.view.pinned !== null ? " with-detail" : ""}`}>
         <aside className="side sw-left" aria-label={t("swSteps")}><div className="sw-left-body">{side}</div></aside>
@@ -293,15 +341,14 @@ function ResultsCenter({ study }: { study: Study }) {
     for (let i = 0; i < n; i++) if (m[i]) { sets.add(setOfRow(i)); if (rowCol) rows.push(rowCol[i]); }
     return { sets: [...sets], rows };
   };
-  const [note, setNote] = useState("");
   const exportShown = async () => {
     const p = await pickPath({ mode: "save", title: t("swExportShown"), exts: [".csv"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_selected.csv" });
     if (!p) return;
     const sel = selection();
     try {
       const r = await sweepApi.exportRows(study.tableId, wireQuestion(study), v.mode === "runs" ? { rows: sel.rows } : { sets: sel.sets }, p);
-      setNote(t("swExported", { n: r.rows, path: r.path }));
-    } catch (e) { setNote((e as Error).message); }
+      notify(t("swExported", { n: r.rows, path: r.path }));
+    } catch (e) { notifyError(e); }
   };
   const menuCol = menu ? cols.get(menu.name) : undefined;
   return (
@@ -319,9 +366,8 @@ function ResultsCenter({ study }: { study: Study }) {
             onKeep={() => st.narrow("keep", selection().sets, scopeKey(study))}
             onExclude={() => st.narrow("exclude", selection().sets, scopeKey(study))}
             onExport={exportShown}
-            onExportPlot={() => exportPlot(t, study, lang).then((m) => m && setNote(m)).catch((e) => setNote((e as Error).message))} />
+            onExportPlot={() => say(exportPlot(t, study, lang))} />
           <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}</p>
-          {note && <p className="hint">{note}</p>}
           {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
