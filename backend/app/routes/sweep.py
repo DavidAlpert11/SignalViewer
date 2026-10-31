@@ -578,7 +578,8 @@ def sweep_variants(req: VariantsReq):
         best = None
         if "#goal" in d and np.isfinite(d["#rank"]).any():
             i = int(np.nanargmin(d["#rank"]))
-            best = {"value": float(d["#goal"][i]), "params": {c: sweep.evaluate._py(d[c][i]) for c in p.params}}
+            best = {"value": float(d["#goal"][i]), "params": {c: sweep.evaluate._py(d[c][i]) for c in p.params},
+                    "score": float(d["#score"][i]) if "#score" in d and np.isfinite(d["#score"][i]) else None}
         nb = d["#neighbours"][h]
         out.append({"holding": int(h.sum()), "sets": a["counts"]["sets"], "best": best,
                     "robust": float(np.nanmean(nb)) if h.any() and np.isfinite(nb).any() else None,

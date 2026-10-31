@@ -136,6 +136,12 @@ templates you already have.
   (it used to stay over the plots until its × was clicked).
 
 ### Fixed
+- **Sweeps, optimize**: with two or more objectives the sets that hold are now ranked by the
+  weighted score - the weights decide the order (the first objective alone ranked them, the weights
+  only moved the score column). The step says, in a sentence, by what the sets are ranked now; an
+  objective is called *objective* (*+ objective*), not *goal* like the goal it is part of, and its
+  column says *worst case (maximize)* / *(minimize)*: the smallest value over the scenarios when
+  maximizing, the largest when minimizing. *Compare goals* shows the best set's score too.
 - **Sweeps**: a parameter taken out in *Clean columns* is no longer offered by the map, next runs
   or the report's map (the map said *Choose two different parameters*); the marks of next runs are
   drawn on the axes the map shows; a goal's weight shows that goal's number after switching goals;
