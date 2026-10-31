@@ -341,6 +341,8 @@ export const swEn = {
   swWorst: "worst",
   swWorstAt: "worst {v}",
   swYourChoice: "your choice",
+  swTemplateSaved: "Template saved: {n}",
+  swTemplateDeleted: "Template deleted: {n}",
 };
 
 export const swHe: typeof swEn = {
@@ -683,4 +685,6 @@ export const swHe: typeof swEn = {
   swWorst: "הגרוע",
   swWorstAt: "הגרוע {v}",
   swYourChoice: "הבחירה שלך",
+  swTemplateSaved: "התבנית נשמרה: {n}",
+  swTemplateDeleted: "התבנית נמחקה: {n}",
 };

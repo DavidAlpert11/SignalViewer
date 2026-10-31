@@ -72,6 +72,7 @@ export function GoalsSide({ study }: { study: Study }) {
               <option value="max">{t("swMaximize")}</option><option value="min">{t("swMinimize")}</option>
             </select>
             {g.optimize.length > 1 && <input type="number" min={0} step={0.5} aria-label={t("swWeight")} title={t("swWeight")} defaultValue={o.weight} style={{ width: 56 }}
+              key={`w${q.active}:${i}:${o.weight}`}
               onBlur={(e) => st.updateGoal({ optimize: g.optimize.map((x, j) => (j === i ? { ...x, weight: Math.max(0, Number(e.target.value) || 0) } : x)) })} />}
             <button className="iconbtn" aria-label={t("swRemove")} onClick={() => st.updateGoal({ optimize: g.optimize.filter((_, j) => j !== i) })}>×</button>
           </div>

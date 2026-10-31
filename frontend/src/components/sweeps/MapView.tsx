@@ -6,15 +6,14 @@ import { ramp } from "../../sweeps/colors";
 import { sweepApi, type PairMap } from "../../sweeps/api";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
+import { mapAxes } from "../../sweeps/view";
 
 export interface Mark { x: number | string; y: number | string; kind: string }
 
 export default function MapView({ study, marks }: { study: Study; marks?: Mark[] }) {
   const t = useT();
   const st = useSweeps.getState();
-  const params = study.columns.filter((c) => c.role === "param").map((c) => c.name);
-  const x = study.view.mapX && params.includes(study.view.mapX) ? study.view.mapX : params[0];
-  const y = study.view.mapY && params.includes(study.view.mapY) && study.view.mapY !== x ? study.view.mapY : params.find((p) => p !== x);
+  const { x, y, params } = mapAxes(study);
   const [m, setM] = useState<PairMap | null>(null);
   const [err, setErr] = useState("");
   const qk = JSON.stringify(wireQuestion(study));

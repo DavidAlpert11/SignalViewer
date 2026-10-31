@@ -90,7 +90,7 @@ The owner's requests for the Sweeps area (`components/sweeps`, `sweeps/`, `route
 `svcore/sweep`, `app/sweep_report.py`), in the order agreed. Each task is one or a few commits;
 every patch to the owner holds ALL commits since `origin/main` (see the practical notes).
 
-**Progress:** S00 done · S01–S08 open.
+**Progress:** S00 done · S01 done · S02–S08 open.
 
 ### S00 · Groundwork for working on two areas at once — S · **Done**
 - The Sweeps strings live in `frontend/src/sweeps/i18n.ts` (`swEn`, `swHe: typeof swEn`), spread
@@ -100,7 +100,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 - Still shared by both areas (expect conflicts there): `CHANGELOG.md`, this file, `ROADMAP.md`,
   `App.tsx` (area wiring), `index.css`, `components/Overlays.tsx`, `store` (`pickPath`).
 
-### S01 · Fixes found in the review — S
+### S01 · Fixes found in the review — S · **Done**
 - A parameter taken out in *Clean columns* was still offered by the map, next runs and the report's
   map (the server answered `Choose two different parameters`); one list now: `activeParams(study)`.
 - Next runs drew its marks against `mapX` / `mapY` as stored, the map against the checked
@@ -1866,3 +1866,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-10-28 · Q123 (owner): change marks on refresh tried (fingerprints, dots, ↻ / ✓) and dropped; kept: the saved time on the file row, newer on the disk (stat poll, click / F5), a message per file.
 - 2026-10-29 · 1.16.0 prepared: the 1.15.0 release commit (tagged, never on main) brought back; version 1.16.0 (version.py, CITATION.cff, build.bat, the installer, install.md); CHANGELOG 1.16.0; docs reviewed; frontend/dist rebuilt.
 - 2026-10-31 · S00 (owner's Sweeps plan): Sweeps strings moved to `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` out of App.tsx; the plan S00-S08 written here and in ROADMAP Milestone 17. No change on screen.
+- 2026-10-31 · S01: `activeColumns` / `activeParams` / `mapAxes` (sweeps/view.ts) used by MapView, NextRunsView, ReportDialog, ConditionRow, SweepsArea; a goal's weight input keyed by goal; template save / delete messages (swTemplateSaved / swTemplateDeleted). Tests: e2e test_sweeps_flow +2 (17 / 17).

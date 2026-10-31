@@ -3,11 +3,13 @@
 import { useT } from "../../i18n";
 import { OPS, type Condition, type Op } from "../../sweeps/model";
 import { useSweeps, type Study } from "../../sweeps/state";
+import { activeColumns } from "../../sweeps/view";
 
 export default function ConditionRow({ study, i, c, outputs, met }: { study: Study; i: number; c: Condition; outputs: string[]; met?: number }) {
   const t = useT();
   const st = useSweeps.getState();
-  const holds = study.columns.filter((x) => x.role === "hold");
+  const active = new Set(activeColumns(study, "hold"));
+  const holds = study.columns.filter((x) => active.has(x.name));
   const up = (p: Partial<Condition>) => st.updateCondition(i, p);
   return (
     <div className="sw-cond">

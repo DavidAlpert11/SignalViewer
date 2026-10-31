@@ -11,7 +11,7 @@ import { hasFilter, keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { wireQuestion, type Study } from "../../sweeps/state";
-import { colLabel, scopeKey, scopeMask, setColumns, shownAxes } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, mapAxes, scopeKey, scopeMask, setColumns, shownAxes } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 
@@ -21,8 +21,9 @@ const EXT: Record<Format, string> = { html: ".html", docx: ".docx", pdf: ".pdf",
 /** The question, as sentences. */
 function questionLines(t: TFn, s: Study): string[] {
   const q = s.question;
-  const out = [`${t("swRoleParam")}: ${s.columns.filter((c) => c.role === "param").map((c) => c.name).join(", ")}`];
-  for (const h of s.columns.filter((c) => c.role === "hold"))
+  const out = [`${t("swRoleParam")}: ${activeParams(s).join(", ")}`];
+  const holds = new Set(activeColumns(s, "hold"));
+  for (const h of s.columns.filter((c) => holds.has(c.name)))
     out.push(`${t("swRoleHold")} - ${h.name}: ${(q.holdValues[h.name]?.length ? q.holdValues[h.name] : h.values ?? []).join(", ")}`);
   if (q.removed.length) out.push(t("swRepRemoved", { list: q.removed.join(", ") }));
   q.goals.forEach((g, i) => {
@@ -87,7 +88,7 @@ export function ReportForm({ study, onNote, onBefore }: { study: Study; onNote: 
       ...(inc.question ? [{ title: t("swQuestion"), items: questionLines(t, study) }] : []),
       ...(inc.process ? [{ title: t("swRepProcess"), items: processLines(t, study) }] : []),
     ];
-    const params = study.columns.filter((c) => c.role === "param").map((c) => c.name);
+    const map = mapAxes(study);
     onNote(t("swRepMaking"));
     try {
       const r = await sweepApi.report(study.tableId, wireQuestion(study), {
@@ -97,7 +98,7 @@ export function ReportForm({ study, onNote, onBefore }: { study: Study; onNote: 
           [t("swRepShownNow"), shown.length]],
         columns: table, axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
         include: { plot: inc.plot, effects: inc.effects, map: inc.map, table: inc.table },
-        mapX: study.view.mapX ?? params[0] ?? null, mapY: study.view.mapY ?? params.find((x) => x !== (study.view.mapX ?? params[0])) ?? null });
+        mapX: map.x ?? null, mapY: map.y ?? null });
       onNote(t("swSaved", { path: r.path }));
     } catch (e) { onNote((e as Error).message); }
   };

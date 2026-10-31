@@ -12,6 +12,23 @@ export function modeColumns(s: Study): { cols: Map<string, Col>; n: number } {
   return { cols: new Map(list.map((c) => [c.name, c])), n: list[0]?.values.length ?? 0 };
 }
 
+/** The table's columns of a role that the question uses: a column taken out in *Clean columns* is
+ *  not one (the server sees it as not used). */
+export const activeColumns = (s: Study, role: "param" | "hold" | "output") => {
+  const removed = new Set(s.question.removed);
+  return s.columns.filter((c) => c.role === role && !removed.has(c.name)).map((c) => c.name);
+};
+export const activeParams = (s: Study) => activeColumns(s, "param");
+
+/** The map's two parameters: the chosen ones while they are parameters of the question, else the
+ *  first two. One answer for the map, the marks of next runs and the report. */
+export function mapAxes(s: Study): { x: string | undefined; y: string | undefined; params: string[] } {
+  const params = activeParams(s);
+  const x = s.view.mapX && params.includes(s.view.mapX) ? s.view.mapX : params[0];
+  const y = s.view.mapY && params.includes(s.view.mapY) && s.view.mapY !== x ? s.view.mapY : params.find((p) => p !== x);
+  return { x, y, params };
+}
+
 /** The sets' columns (the table, the detail). */
 export const setColumns = (s: Study) => new Map((s.answer?.sets ?? []).map((c) => [c.name, c]));
 
@@ -109,8 +126,7 @@ export const PRESETS: ColumnPreset[] = ["all", "params-outputs", "params-goal", 
 
 /** The columns of a group, in table order, among `available` (what the current view can show). */
 export function presetColumns(s: Study, preset: ColumnPreset, available: string[]): string[] {
-  const removed = new Set(s.question.removed);
-  const role = (r: string) => s.columns.filter((c) => c.role === r && !removed.has(c.name)).map((c) => c.name);
+  const role = (r: "param" | "hold" | "output") => activeColumns(s, r);
   const derived = s.question.derived.map((d) => d.name);
   const goalCols = ["#goal", ...(s.answer?.sets.filter((c) => c.group === "condition" && c.part === "worst").map((c) => c.name) ?? [])];
   const want = preset === "all" ? [...role("hold"), ...role("param"), ...role("output"), ...derived, "#goal"]

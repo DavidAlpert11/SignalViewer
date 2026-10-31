@@ -359,3 +359,45 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     pg.wait_for_timeout(300)
     names = [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
     assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6
+
+
+def test_a_parameter_taken_out_leaves_the_map_and_next_runs(pg):
+    """S01: a parameter taken out in Clean columns is not offered by the map (the server refused it)."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "clean")
+    pg.locator("input[aria-label='Keep kp_roll']").uncheck()
+    _step(pg, "results")
+    pg.locator(".sw-center-tabs button", has_text="Map").click()
+    pg.wait_for_selector(".sw-map svg rect")
+    assert pg.locator(".sw-map .sw-error").count() == 0
+    options = pg.locator(".sw-map select").first.locator("option").all_inner_texts()
+    assert "kp_roll" not in options and "ki_roll" in options
+    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    pg.locator(".sw-next .btn", has_text="Suggest").click()
+    pg.wait_for_selector(".sw-next-main b:has-text('Suggested')")        # an answer (maybe none), not an error
+    assert pg.locator(".sw-next .sw-error").count() == 0
+    _step(pg, "clean")
+    pg.locator("input[aria-label='Keep kp_roll']").check()
+
+
+def test_a_goals_weight_is_its_own_and_template_saved_says_so(pg):
+    """S01: switching goals shows each goal's own weight; saving a template says it was saved."""
+    _fresh(pg)
+    _step(pg, "goals")
+    _optimize(pg, "energy_wh", "min")
+    _optimize(pg, "roll_error_deg", "min")
+    w = pg.locator(".sw-goal-part input[aria-label='Weight']").last
+    w.fill("3"); w.press("Tab")
+    pg.locator(".sw-goal-tabs .linklike", has_text="+ empty goal").click()
+    _optimize(pg, "energy_wh", "min")
+    _optimize(pg, "roll_error_deg", "min")
+    assert pg.locator(".sw-goal-part input[aria-label='Weight']").last.input_value() == "1"
+    pg.locator(".sw-goal-tabs button[role='tab']").first.click()
+    assert pg.locator(".sw-goal-part input[aria-label='Weight']").last.input_value() == "3"
+    _bar_menu(pg, "Study", "Save as a template")
+    pg.fill(".dialog input", "weights check"); pg.keyboard.press("Enter")
+    pg.wait_for_selector(".sw-note:has-text('Template saved: weights check')")
+    _bar_menu(pg, "Study", "Delete a template")
+    pg.locator(".menu.ctx button", has_text="weights check").click()
+    pg.wait_for_selector(".sw-note:has-text('Template deleted: weights check')")

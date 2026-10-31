@@ -19,7 +19,7 @@ import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
-import { colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
+import { activeParams, colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
 import StepNav from "./StepNav";
@@ -107,9 +107,12 @@ function SweepsBar() {
       { label: t("swStartOver"), run: () => st.resetStudy() },
       { label: t("swCloseTable"), run: () => st.close(st.active) },
       SEP,
-      { label: t("swSaveTemplate"), run: async () => { const name = await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, "")); if (name?.trim()) await st.saveTemplate(name.trim()); } },
+      { label: t("swSaveTemplate"), run: async () => {
+        const name = (await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, "")))?.trim();
+        if (name) say(st.saveTemplate(name).then(() => t("swTemplateSaved", { n: name })));
+      } },
       ...(fit.length ? [{ label: t("swApplyTemplateMenu"), run: () => {}, items: fit.map((x) => ({ label: x.name, run: () => st.applyTemplate(x.name) })) }] : []),
-      ...(st.templates.length ? [{ label: t("swDeleteTemplateMenu"), run: () => {}, items: st.templates.map((x) => ({ label: x.name, danger: true, run: () => { st.deleteTemplate(x.name); } })) }] : []),
+      ...(st.templates.length ? [{ label: t("swDeleteTemplateMenu"), run: () => {}, items: st.templates.map((x) => ({ label: x.name, danger: true, run: () => say(st.deleteTemplate(x.name).then(() => t("swTemplateDeleted", { n: x.name }))) })) }] : []),
       SEP,
       { label: t("swReportMenu"), disabled: !study.answer, run: report },
     ]);
@@ -227,7 +230,7 @@ function StudyView({ study }: { study: Study }) {
   }, [study.tableId, study.path]);
   const side = step === "raw" ? <RawSide study={study} /> : step === "clean" ? <CleanSide study={study} /> : step === "roles" ? <RolesSide study={study} />
     : step === "goals" ? <GoalsSide study={study} /> : step === "results" ? <ResultsSide study={study} /> : <ReportSide study={study} />;
-  const noParams = !study.columns.some((c) => c.role === "param" && !study.question.removed.includes(c.name));
+  const noParams = !activeParams(study).length;
   return (
     <div className="sw-study-wrap">
       <StepNav study={study} />
