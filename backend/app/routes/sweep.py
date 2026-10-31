@@ -455,3 +455,45 @@ def sweep_export_rows(req: ExportRowsReq):
     except (OSError, KeyError) as e:
         fail(400, f"Could not write {path}: {e}")
     return {"path": path, "rows": len(rows)}
+
+
+# ----------------------------------------------------------------------------- the report
+class ReportReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    format: str                          # html | docx | pdf | csv
+    path: str
+    title: str = ""
+    subtitle: str = ""
+    notes: str = ""
+    lang: str = "en"
+    sections: List[Dict[str, Any]] = []  # [{title, items}] - the question, the process, in the user's language
+    summary: List[List[Any]] = []        # [[what, value]]
+    labels: Dict[str, str] = {}          # a column's name on screen, and a few headings (#answer, #best...)
+    columns: List[str] = []              # the table's columns
+    axes: List[str] = []                 # the plot's axes
+    shown: Optional[List[int]] = None    # the sets on screen after the filters
+    top: int = 25
+    include: Dict[str, bool] = {}
+    mapX: Optional[str] = None
+    mapY: Optional[str] = None
+
+
+@router.post("/api/sweep/report")
+def sweep_report(req: ReportReq):
+    from app import sweep_report
+    from app.report import ReportNeedsExtra
+    ext = {"html": ".html", "docx": ".docx", "pdf": ".pdf", "csv": ".csv"}.get(req.format)
+    if not ext:
+        fail(400, "Unknown report format.")
+    path = os.path.abspath(os.path.expanduser(req.path))
+    if not path.lower().endswith(ext):
+        path += ext
+    p, a = _answer(req.id, req.question)
+    try:
+        sweep_report.build(p, req.question, a, {**req.model_dump(), "path": path})
+    except ReportNeedsExtra as e:
+        fail(400, str(e))
+    except OSError as e:
+        fail(400, f"Could not write {path}: {e}")
+    return {"path": path, "size": os.path.getsize(path)}

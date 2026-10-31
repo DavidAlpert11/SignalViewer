@@ -12,14 +12,13 @@
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
 import { useEffect, useMemo, useState } from "react";
 import { pickPath } from "../../store";
-import { useApp } from "../../store";
 import { useT } from "../../i18n";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
 import { colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
-import { studyReport } from "../../sweeps/report";
+import ReportDialog from "./ReportDialog";
 import { fits } from "../../sweeps/state";
 import { openMenu, prompt } from "../Overlays";
 import type { SavedStudy } from "../../sweeps/state";
@@ -69,7 +68,6 @@ export default function SweepsScreen() {
 
 function SweepsBar() {
   const t = useT();
-  const lang = useApp((s) => s.lang);
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
   const study = studies[active];
@@ -103,7 +101,7 @@ function SweepsBar() {
       ...(fit.length ? [{ label: t("swApplyTemplateMenu"), run: () => {}, items: fit.map((x) => ({ label: x.name, run: () => st.applyTemplate(x.name) })) }] : []),
       ...(st.templates.length ? [{ label: t("swDeleteTemplateMenu"), run: () => {}, items: st.templates.map((x) => ({ label: x.name, danger: true, run: () => { st.deleteTemplate(x.name); } })) }] : []),
       SEP,
-      { label: t("swReport"), disabled: !study.answer, run: report },
+      { label: t("swReportMenu"), disabled: !study.answer, run: report },
     ]);
   };
   const rerunMenu = (e: React.MouseEvent) => openMenu(below(e), [
@@ -118,12 +116,8 @@ function SweepsBar() {
     const p = await pickPath({ mode: "save", title: t("swSaveStudy"), exts: [STUDY_EXT], defaultName: study.name.replace(/\.[^.]+$/, "") + STUDY_EXT });
     if (p) say(sweepApi.saveText(p, JSON.stringify(doc, null, 1)).then((r) => t("swSaved", { path: r.path })));
   };
-  const report = async () => {
-    const p = await pickPath({ mode: "save", title: t("swReport"), exts: [".html"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_report.html" });
-    if (!p) return;
-    const canvas = document.querySelector<HTMLCanvasElement>(".pp canvas");
-    say(sweepApi.saveText(p, studyReport(t, study, canvas ? canvas.toDataURL("image/png") : null, lang)).then((r) => t("swSaved", { path: r.path })));
-  };
+  const [reportOpen, setReportOpen] = useState(false);
+  const report = () => setReportOpen(true);
   return (
     <div className="areabar" role="toolbar" aria-label={t("areaSweeps")}>
       <nav className="tabs-wrap">
@@ -145,6 +139,7 @@ function SweepsBar() {
         onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} />{t("swFollow")}</label>}
       <div className="spacer" />
       {note && <span className="hint sw-note" title={note}>{note}</span>}
+      {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => setReportOpen(false)} onNote={setNote} />}
       {study && <button className="btn primary" disabled={!study.view.rerun.length} onClick={rerunMenu}>{t("swExportRerunN", { n: study.view.rerun.length })} ▾</button>}
     </div>
   );

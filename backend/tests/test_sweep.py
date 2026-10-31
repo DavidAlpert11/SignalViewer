@@ -303,3 +303,30 @@ def test_routes_merge_and_export_rows(tmp_path):
     e = c.post("/api/sweep/export-rows", json={"id": r["id"], "question": {"roles": roles}, "sets": [0, 1], "path": str(out)}).json()
     lines = out.read_text().splitlines()
     assert e["rows"] == len(lines) - 1 > 0 and lines[0].startswith("scenario_terrain,")
+
+
+@pytest.mark.parametrize("fmt", ["html", "docx", "pdf", "csv"])
+def test_report_formats(tmp_path, fmt):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    r = c.post("/api/sweep/open", json={"path": EXAMPLE}).json()
+    roles = {col["name"]: col["role"] for col in r["columns"]}
+    q = {"roles": roles, "goal": {"column": "range_m"}, "conditions": [{"column": "max_roll_deg", "op": "<=", "value": 25}]}
+    body = {"id": r["id"], "question": q, "format": fmt, "path": str(tmp_path / "rep"), "title": "Payload sweep",
+            "sections": [{"title": "Question", "items": ["max_roll_deg <= 25 in every combination"]},
+                         {"title": "Process", "items": ["Kept 12 sets (payload 0.5 - 1.0)"]}],
+            "summary": [["Parameter sets", 150], ["Hold", 43]], "labels": {"#goal": "range_m · worst", "#best": "Best"},
+            "columns": ["#rank", "payload_kg", "kp_roll", "#goal"], "axes": ["payload_kg", "kp_roll", "range_m", "#goal"],
+            "shown": list(range(40)), "mapX": "payload_kg", "mapY": "kp_roll"}
+    out = c.post("/api/sweep/report", json=body)
+    if out.status_code == 400 and "install" in out.text.lower():
+        pytest.skip("reports extra not installed")
+    out = out.json()
+    assert out["path"].endswith("." + fmt) and out["size"] > 500
+    if fmt == "html":
+        html = open(out["path"], encoding="utf-8").read()
+        assert "Payload sweep" in html and "<canvas" in html and "Kept 12 sets" in html and "data:image/png" in html
+    if fmt == "csv":
+        lines = open(out["path"], encoding="utf-8-sig").read().splitlines()
+        assert len(lines) == 151 and lines[0].startswith("payload_kg")
