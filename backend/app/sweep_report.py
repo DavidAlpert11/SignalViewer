@@ -52,10 +52,20 @@ def _value(a: Dict, name: str, i: int):
     return v.item() if hasattr(v, "item") else v
 
 
-def table(a: Dict, columns: List[str], labels: Dict[str, str], top: Optional[int]):
+def rows_of(a: Dict, req: Dict) -> List[int]:
+    """The sets of the report's table: those of the table on screen, in its order (`rows`, S04),
+    else every set, best first."""
+    rows = req.get("rows")
+    if rows is None:
+        return _order(a)
+    n = len(a["data"]["#holds"])
+    return [int(i) for i in rows if 0 <= int(i) < n]
+
+
+def table(a: Dict, columns: List[str], labels: Dict[str, str], top: Optional[int], order: Optional[List[int]] = None):
     cols = [c for c in columns if c in a["data"]]
     rows = []
-    for i in _order(a)[: top or None]:
+    for i in (order if order is not None else _order(a))[: top or None]:
         rows.append([_fmt(_value(a, c, i)) if c != "#holds" else ("✓" if a["data"][c][i] == 1 else "✗") for c in cols])
     return [labels.get(c, c) for c in cols], rows
 
@@ -202,7 +212,7 @@ def _csv(a: Dict, req: Dict, path: str) -> str:
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow([labels.get(n, n) for n in names])
-        for i in _order(a):
+        for i in rows_of(a, req):
             w.writerow(["" if (isinstance(v := _value(a, n, i), float) and not np.isfinite(v)) else v for n in names])
     return path
 
@@ -262,7 +272,7 @@ def _docx(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
             r(doc.add_heading(title, 1))
             doc.add_picture(io.BytesIO(figs[key]), width=Inches(6.5))
     if (req.get("include") or {}).get("table", True):
-        head, rows = table(a, req.get("columns") or [], L, req.get("top") or 25)
+        head, rows = table(a, req.get("columns") or [], L, req.get("top") or 25, rows_of(a, req))
         r(doc.add_heading(L.get("#best", "Best"), 1))
         tbl(head, rows)
     doc.save(path)
@@ -301,7 +311,7 @@ def _pdf(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
                 ax.imshow(mpimg.imread(io.BytesIO(figs[key]), format="png"))
                 pdf.savefig(fig); plt.close(fig)
         if (req.get("include") or {}).get("table", True):
-            head, rows = table(a, req.get("columns") or [], L, req.get("top") or 25)
+            head, rows = table(a, req.get("columns") or [], L, req.get("top") or 25, rows_of(a, req))
             for start in range(0, max(1, len(rows)), 30):
                 fig = plt.figure(figsize=(11.69, 8.27))
                 fig.text(X, 0.95, _bidi(L.get("#best", "Best")), ha=ha, fontsize=14)
@@ -347,6 +357,7 @@ def _html(a: Dict, req: Dict, figs: Dict[str, bytes]) -> str:
     data = {"cols": {n: {**_col_json(a, n), "label": L.get(n, n)} for n in names},
             "axes": [x for x in (req.get("axes") or []) if x in a["data"]],
             "table": [c for c in (req.get("columns") or []) if c in a["data"]],
+            "rows": rows_of(a, req) if req.get("rows") is not None else None,
             "n": int(len(a["data"]["#holds"])), "ui": {k: L.get(k, k) for k in ("#shown", "#clear", "#hint", "#best", "#colour", "#holdsKey")}}
     sec = "".join(f"<h2>{_esc(s.get('title', ''))}</h2><ul>{''.join(f'<li>{_esc(x)}</li>' for x in s.get('items') or [])}</ul>"
                   for s in _sections(req))
@@ -422,8 +433,9 @@ function fmt(v){if(v==null||!isFinite(v))return'–';const a=Math.abs(v);return 
 function names(){wrap.querySelectorAll('.ax').forEach(e=>e.remove());D.axes.forEach((n,k)=>{const b=document.createElement('button');b.className='ax'+(colorBy===n?' on':'');b.textContent=col(n).label;b.title=D.ui['#colour'];
  b.style.left=ax(k)+'px';b.onclick=()=>{colorBy=colorBy===n?'#holds':n;draw()};wrap.appendChild(b)})}
 function cell(n,i){const c=col(n),v=c.v[i];if(n==='#holds')return v===1?'<td class="ok">✓</td>':'<td class="bad">✗</td>';if(c.kind==='cat')return'<td>'+(v==null?'–':c.labels[v])+'</td>';return'<td class="n">'+fmt(v)+'</td>'}
-function rows(keep){const r=D.cols['#rank'].v;const idx=[];for(let i=0;i<N;i++)if(keep[i])idx.push(i);
- idx.sort((a,b)=>(r[a]??1e18)-(r[b]??1e18)||D.cols['#holds'].v[b]-D.cols['#holds'].v[a]);
+function rows(keep){const r=D.cols['#rank'].v;let idx=[];
+ if(D.rows)idx=D.rows.filter(i=>keep[i]);else{for(let i=0;i<N;i++)if(keep[i])idx.push(i);
+ idx.sort((a,b)=>(r[a]??1e18)-(r[b]??1e18)||D.cols['#holds'].v[b]-D.cols['#holds'].v[a])}
  const cols=D.table.includes('#holds')?D.table:[...D.table,'#holds'];document.getElementById('tb').innerHTML='<tr>'+cols.map(n=>'<th>'+col(n).label+'</th>').join('')+'</tr>'+idx.slice(0,300).map(i=>'<tr>'+cols.map(n=>cell(n,i)).join('')+'</tr>').join('')}
 cv.onpointerdown=e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;for(let k=0;k<D.axes.length;k++)if(Math.abs(x-ax(k))<12){brush={k,y0:y,y1:y,add:e.shiftKey};cv.setPointerCapture(e.pointerId);return}};
 cv.onpointermove=e=>{if(!brush)return;const r=cv.getBoundingClientRect();brush.y1=Math.max(T,Math.min(H-B,e.clientY-r.top));draw()};

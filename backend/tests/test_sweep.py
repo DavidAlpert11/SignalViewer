@@ -392,3 +392,42 @@ def test_autosave_of_the_open_studies():
     r = c.get("/api/sweep/autosave").json()
     assert r["state"] is None and r["damaged"].endswith("sweep_autosave.damaged.json") and os.path.isfile(r["damaged"])
     os.remove(r["damaged"])
+
+
+def test_export_the_sets_shown(tmp_path):
+    """S04: the table of sets as shown - its rows in its order, its columns, holds as 1 / 0 - and
+    the runs of those sets."""
+    import csv as _csv
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    p = c.get("/api/sweep/example").json()["path"]
+    o = c.post("/api/sweep/open", json={"path": p}).json()
+    roles = {x["name"]: x["role"] for x in o["columns"]}
+    q = {"roles": roles, "combine": "and", "holdValues": {}, "goal": {"column": "energy_wh", "direction": "min"},
+         "conditions": [{"column": "roll_error_deg", "op": "<=", "value": 5, "mode": "all"}], "derived": [],
+         "outputAgg": {}, "objectives": [], "exclude": []}
+    a = c.post("/api/sweep/evaluate", json={"id": o["id"], "question": q, "runs": False}).json()
+    assert a["counts"]["holding"] > 0
+    out = tmp_path / "sets.csv"
+    r = c.post("/api/sweep/export-sets", json={"id": o["id"], "question": q, "sets": [3, 0, 7],
+               "columns": ["#rank", "#holds", "kp_roll", "ki_roll", "filter_hz", "#goal", "no_such"],
+               "labels": {"#goal": "energy (worst)"}, "path": str(out)}).json()
+    assert r["rows"] == 3
+    rows = list(_csv.reader(open(out, encoding="utf-8-sig")))
+    assert rows[0] == ["#rank", "#holds", "kp_roll", "ki_roll", "filter_hz", "energy (worst)"]     # unknown left out
+    assert len(rows) == 4 and all(x[1] in ("0", "1") for x in rows[1:])
+    bad = c.post("/api/sweep/export-sets", json={"id": o["id"], "question": q, "sets": [10 ** 6], "columns": ["#holds"], "path": str(out)})
+    assert bad.status_code == 400 and "export again" in bad.json()["detail"]
+    runs = tmp_path / "runs.csv"
+    r = c.post("/api/sweep/export-rows", json={"id": o["id"], "question": q, "sets": [3, 0, 7], "path": str(runs)}).json()
+    assert r["rows"] == 3 * a["counts"]["combos"]
+    # the report's table follows the table on screen (S04): its sets, in its order
+    rep = tmp_path / "answer.csv"
+    c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "csv", "path": str(rep), "rows": [7, 3]})
+    body = list(_csv.reader(open(rep, encoding="utf-8-sig")))
+    assert len(body) == 3
+    html = tmp_path / "r.html"
+    c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html), "rows": [7, 3],
+                                       "columns": ["#rank", "kp_roll"], "include": {"plot": False, "effects": False, "map": False}})
+    assert '"rows": [7, 3]' in open(html, encoding="utf-8").read()

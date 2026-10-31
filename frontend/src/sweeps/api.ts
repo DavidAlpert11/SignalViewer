@@ -99,6 +99,8 @@ export const sweepApi = {
   merge: (id: string, path: string, keys: string[], prefer: "new" | "old" | "both") =>
     call<SweepOpened & { added: number; replaced: number; sources: string[] }>("/api/sweep/merge", { id, path, keys, prefer }),
   unmerge: (id: string, path: string) => call<SweepOpened & { sources: string[] }>("/api/sweep/unmerge", { id, path }),
+  exportSets: (id: string, question: WireQuestion, sets: number[], columns: string[], labels: Record<string, string>, path: string) =>
+    call<{ path: string; rows: number }>("/api/sweep/export-sets", { id, question, sets, columns, labels, path }),
   exportRows: (id: string, question: WireQuestion, sel: { sets?: number[]; rows?: number[] }, path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/export-rows", { id, question, ...sel, path }),
   reload: (id: string) => call<SweepOpened>("/api/sweep/reload", { path: id }),

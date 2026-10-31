@@ -3,6 +3,7 @@
 import type { TFn, TKey } from "../i18n";
 import type { Col, Role, Scale } from "./model";
 import { wireQuestion, type Study } from "./state";
+import { keptMask } from "./filters";
 
 /** The columns the plot draws: one entry per parameter set, or per run. */
 export function modeColumns(s: Study): { cols: Map<string, Col>; n: number } {
@@ -161,4 +162,70 @@ export function axisOptions(t: TFn, s: Study): { id: string; label: string; grou
 /** The groups as one-click choices of the picker (Show columns: all, parameters, outputs...). */
 export function presetChoices(t: TFn, s: Study, available: string[], keys: Record<ColumnPreset, TKey>, skip: ColumnPreset[] = []) {
   return PRESETS.filter((p) => !skip.includes(p)).map((p) => ({ label: t(keys[p]), ids: presetColumns(s, p, available) })).filter((p) => p.ids.length);
+}
+
+/* ------------------------------------------------------------------ the table of sets
+   One answer for the table on screen, its export and the report's table: which sets, in which
+   order, with which columns. */
+
+/** always in the table, kept in view when it scrolls (SetsTable draws them itself) */
+export const TABLE_FIXED = ["#rank", "#holds"];
+const NOT_IN_TABLE = new Set(["#set", "#row", ...TABLE_FIXED]);
+
+/** The columns a table starts with: the parameters, the goal, each condition's worst case and
+ *  margin, the scores there are, and how many combinations ran. */
+export function defaultTableColumns(s: Study): string[] {
+  const sets = s.answer?.sets ?? [];
+  const have = new Set(sets.map((c) => c.name));
+  return [...sets.filter((c) => c.group === "param").map((c) => c.name), ...(have.has("#goal") ? ["#goal"] : []),
+    ...sets.filter((c) => c.group === "condition" && c.part !== "passed").map((c) => c.name),
+    ...["#score", "#pareto", "#neighbours", "#tolerance", "#covered"].filter((x) => have.has(x))];
+}
+
+/** The table's columns now: the chosen ones that this answer has, else the default. */
+export function tableColumns(s: Study): string[] {
+  const have = new Set((s.answer?.sets ?? []).map((c) => c.name));
+  const chosen = s.view.tableColumns?.filter((c) => have.has(c) && !NOT_IN_TABLE.has(c));
+  return chosen?.length ? chosen : defaultTableColumns(s);
+}
+
+/** Every column the table can show, for the picker. */
+export function tableOptions(t: TFn, s: Study): { id: string; label: string; group: string }[] {
+  return (s.answer?.sets ?? []).filter((c) => !NOT_IN_TABLE.has(c.name))
+    .map((c) => ({ id: c.name, label: colLabel(t, s, c.name), group: groupLabel(t, c.group) }));
+}
+
+/** The sets the table shows, in its order: kept by the plot's filters, the keep / exclude steps and
+ *  "only those that hold"; sorted by the chosen column, else best first (rank, holds, the goal). */
+export function tableRows(s: Study): number[] {
+  const a = s.answer;
+  const cols = setColumns(s);
+  const n = a?.sets[0]?.values.length ?? 0;
+  if (!a || !n) return [];
+  const kept = keptMask(cols, s.view.filters, n);
+  const scope = scopeMask(s);
+  const holds = cols.get("#holds")!.values;
+  const rows: number[] = [];
+  for (let i = 0; i < n; i++) if (kept[i] && (!scope || scope[i]) && (!s.view.onlyHolding || holds[i] === 1)) rows.push(i);
+  const sort = s.view.tableSort, sc = sort ? cols.get(sort.column) : undefined;
+  if (sort && sc) {
+    const v = sc.values, lab = sc.kind === "cat" ? sc.labels ?? [] : null, dir = sort.desc ? -1 : 1;
+    rows.sort((x, y) => {
+      const fx = Number.isFinite(v[x]), fy = Number.isFinite(v[y]);
+      if (fx !== fy) return fx ? -1 : 1;                                    // no value: last, either way
+      if (!fx) return x - y;
+      const d = lab ? String(lab[v[x]] ?? "").localeCompare(String(lab[v[y]] ?? ""), undefined, { numeric: true }) : v[x] - v[y];
+      return d ? dir * d : x - y;
+    });
+    return rows;
+  }
+  const rank = cols.get("#rank")!.values, goal = cols.get("#goal")?.values;
+  const g = s.question.goal?.direction === "min" ? 1 : -1;
+  return rows.sort((x, y) => {
+    const rx = Number.isFinite(rank[x]) ? rank[x] : Infinity, ry = Number.isFinite(rank[y]) ? rank[y] : Infinity;
+    if (rx !== ry) return rx - ry;
+    if (holds[x] !== holds[y]) return holds[y] - holds[x];
+    if (goal) { const gx = goal[x], gy = goal[y]; if (gx !== gy) return Number.isFinite(gx) ? (Number.isFinite(gy) ? g * (gx - gy) : -1) : 1; }
+    return x - y;
+  });
 }
