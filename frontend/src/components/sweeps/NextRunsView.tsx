@@ -7,6 +7,7 @@ import { useT, type TKey } from "../../i18n";
 import { sweepApi, type Suggestion, type SuggestKind } from "../../sweeps/api";
 import { wireQuestion, type Study } from "../../sweeps/state";
 import { mapAxes } from "../../sweeps/view";
+import { notify, notifyError } from "../../sweeps/notify";
 import MapView, { MARK } from "./MapView";
 
 const KINDS: { k: SuggestKind; title: TKey; hint: TKey }[] = [
@@ -23,20 +24,19 @@ export default function NextRunsView({ study }: { study: Study }) {
   const [budget, setBudget] = useState(40);
   const [res, setRes] = useState<{ suggestions: Suggestion[]; available: Record<string, number> } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState("");
   const combos = study.answer?.counts.combos ?? 1;
   const run = async () => {
-    setBusy(true); setNote("");
+    setBusy(true);
     try { setRes(await sweepApi.suggest(study.tableId, wireQuestion(study), kinds, budget)); }
-    catch (e) { setNote((e as Error).message); }
+    catch (e) { notifyError(e); }
     setBusy(false);
   };
   const exportList = async () => {
     if (!res) return;
     const p = await pickPath({ mode: "save", title: t("swNextExport"), exts: [".csv"], defaultName: "next_runs.csv" });
     if (!p) return;
-    try { const r = await sweepApi.suggestExport(study.tableId, wireQuestion(study), res.suggestions.map((s) => s.params), p); setNote(t("swExported", { n: r.rows, path: r.path })); }
-    catch (e) { setNote((e as Error).message); }
+    try { const r = await sweepApi.suggestExport(study.tableId, wireQuestion(study), res.suggestions.map((s) => s.params), p); notify(t("swExported", { n: r.rows, path: r.path })); }
+    catch (e) { notifyError(e); }
   };
   const { x, y } = mapAxes(study);                  // the marks on the axes the map draws
   const marks = (res?.suggestions ?? []).filter((s) => x && y && s.params[x] !== undefined && s.params[y] !== undefined)
@@ -54,7 +54,6 @@ export default function NextRunsView({ study }: { study: Study }) {
           </label>
         ))}
         <button className="btn primary" disabled={busy || !kinds.length} onClick={run}>{t("swSuggest")}</button>
-        {note && <p className="hint">{note}</p>}
       </div>
       <div className="sw-next-main">
         <MapView study={study} marks={marks} />

@@ -4,6 +4,7 @@ import { evaluateAll, stepOccurrence } from "./conditions";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
 import PanelResizer from "./components/PanelResizer";
+import { areaKey } from "./areaCommands";
 import { usePanelWidth } from "./components/panelWidth";
 import PreviewPlots from "./components/PreviewPlots";
 import StartCard from "./components/StartCard";
@@ -487,7 +488,8 @@ export default function App() {
       if (e.key === "?") { useApp.setState({ helpOpen: true }); return; }
       if (e.key === "F1") { e.preventDefault(); useApp.setState({ guideOpen: true }); return; }   // T55
       if (mod && e.key === ",") { e.preventDefault(); useApp.setState({ settingsOpen: true }); return; }   // T18
-      if (!rec) return;        // the keys below act on the Recordings area (undo, cursor, plots, timeline)
+      if (!rec) { if (areaKey(st.area, e)) e.preventDefault(); return; }   // another area's own keys (areaCommands.ts)
+      // the keys below act on the Recordings area (undo, cursor, plots, timeline)
       if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); st.undo(); return; }
       if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); st.redo(); return; }
       if (mod) return;

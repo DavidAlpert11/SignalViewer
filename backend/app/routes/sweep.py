@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.common import fail
+from app.common import SWEEP_AUTOSAVE, fail, read_autosave, write_autosave
 from app.routes.fs import EXAMPLES
 from svcore import sweep
 
@@ -602,3 +602,15 @@ def sweep_unmerge(req: UnmergeReq):
     return {"id": req.id, "path": t["path"], "name": "", "rows": int(len(df)), "columns": cols, "head": sweep.head(df),
             "summary": sweep.summary(df, {c["name"]: c["role"] for c in cols}), "seconds": round(time.perf_counter() - t0, 3),
             "added": 0, "replaced": 0, "sources": [os.path.basename(t["path"])] + [os.path.basename(m["path"]) for m in merged]}
+
+
+# ----------------------------------------------------------------------------- autosave
+@router.get("/api/sweep/autosave")
+def sweep_autosave_get():
+    """The studies open when the app last ran (their .svsweep documents), to open them again."""
+    return read_autosave(SWEEP_AUTOSAVE)
+
+
+@router.post("/api/sweep/autosave")
+def sweep_autosave_put(state: Dict[str, Any]):
+    return write_autosave(SWEEP_AUTOSAVE, state)

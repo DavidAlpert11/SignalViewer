@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { pickPath } from "../../store";
 import { useT } from "../../i18n";
+import { notify, notifyError } from "../../sweeps/notify";
 import { useSweeps, type Study } from "../../sweeps/state";
 
 export function Stat({ label, value, warn }: { label: string; value: number | string; warn?: boolean }) {
@@ -33,12 +34,11 @@ export function ShapeStats({ study }: { study: Study }) {
 export function MergeBox({ study }: { study: Study }) {
   const t = useT();
   const [prefer, setPrefer] = useState<"new" | "old" | "both">("new");
-  const [note, setNote] = useState("");
   const add = async () => {
     const p = await pickPath({ mode: "open", title: t("swMergeTable"), exts: [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"] });
     if (!p) return;
-    try { const r = await useSweeps.getState().merge(p, prefer); setNote(t("swMerged", { added: r.added, replaced: r.replaced })); }
-    catch (e) { setNote((e as Error).message); }
+    try { const r = await useSweeps.getState().merge(p, prefer); notify(t("swMerged", { added: r.added, replaced: r.replaced })); }
+    catch (e) { notifyError(e); }
   };
   return (
     <div className="sw-hide-box">
@@ -47,7 +47,7 @@ export function MergeBox({ study }: { study: Study }) {
         <span key={i} className="sw-tag">{s}
           {/* the first is the study's own table (close it with the button below); the others were merged in */}
           {i > 0 && <button className="sw-tag-x" aria-label={t("swUnmerge", { n: s })} title={t("swUnmerge", { n: s })}
-            onClick={() => useSweeps.getState().unmerge(i).then(() => setNote(t("swUnmerged", { n: s }))).catch((e) => setNote((e as Error).message))}>×</button>}
+            onClick={() => useSweeps.getState().unmerge(i).then(() => notify(t("swUnmerged", { n: s }))).catch(notifyError)}>×</button>}
         </span>
       ))}</div>
       <div className="sw-row">
@@ -56,7 +56,6 @@ export function MergeBox({ study }: { study: Study }) {
           <option value="new">{t("swPreferNew")}</option><option value="old">{t("swPreferOld")}</option><option value="both">{t("swPreferBoth")}</option>
         </select>
       </div>
-      {note && <span className="hint">{note}</span>}
       <button className="btn sw-close-table" onClick={() => { const st = useSweeps.getState(); st.close(st.active); }}>{t("swCloseTable")}</button>
     </div>
   );

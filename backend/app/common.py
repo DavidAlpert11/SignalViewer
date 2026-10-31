@@ -1,6 +1,7 @@
 """Shared by the API routes: data paths, response helpers, opening a file with remembered settings."""
 
 import base64
+import json
 import logging
 import os
 from typing import NoReturn, Optional
@@ -35,6 +36,35 @@ APP_DIR = prefs.APP_DIR
 UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 
 AUTOSAVE = os.path.join(APP_DIR, "autosave.json")
+SWEEP_AUTOSAVE = os.path.join(APP_DIR, "sweep_autosave.json")     # the Sweeps area's open studies
+
+
+def read_autosave(path: str) -> dict:
+    """{"state": the saved JSON or None}; a file that cannot be read is set aside, not overwritten by
+    the next autosave (F29), and named in "damaged"."""
+    if not os.path.isfile(path):
+        return {"state": None}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return {"state": json.load(f)}
+    except (OSError, ValueError):       # unreadable or half-written: start clean, but say so in the log
+        kept = path.replace(".json", ".damaged.json")
+        try:
+            os.replace(path, kept)
+        except OSError:
+            kept = path
+        log.warning("autosave %s could not be read; starting without it (kept as %s)", path, kept, exc_info=True)
+        return {"state": None, "damaged": kept}
+
+
+def write_autosave(path: str, state) -> dict:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    # each process its own temporary file: two apps started at once must not write into one
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(state, f)
+    os.replace(tmp, path)
+    return {"ok": True}
 
 SUPPORTED = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq",
              ".asc", ".log")

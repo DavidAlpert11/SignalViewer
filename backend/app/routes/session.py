@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import APP_DIR, AUTOSAVE, fail, log
+from app.common import APP_DIR, AUTOSAVE, fail, log, read_autosave, write_autosave
 from app.routes.export import _check_target
 from app.store import store
 
@@ -118,32 +118,13 @@ def convert_v2_session(doc: dict) -> dict:
 
 @router.get("/api/autosave")
 def get_autosave():
-    if not os.path.isfile(AUTOSAVE):
-        return {"state": None}
-    try:
-        with open(AUTOSAVE, "r", encoding="utf-8") as f:
-            return {"state": json.load(f)}
-    except (OSError, ValueError):       # unreadable or half-written: start clean, but say so in the log
-        # F29: keep it aside - the next autosave would overwrite the only copy of the last work
-        kept = AUTOSAVE.replace(".json", ".damaged.json")
-        try:
-            os.replace(AUTOSAVE, kept)
-        except OSError:
-            kept = AUTOSAVE
-        log.warning("autosave %s could not be read; starting without it (kept as %s)", AUTOSAVE, kept, exc_info=True)
-        return {"state": None, "damaged": kept}
+    return read_autosave(AUTOSAVE)
 
 
 
 @router.post("/api/autosave")
 def put_autosave(state: dict):
-    os.makedirs(APP_DIR, exist_ok=True)
-    # each process its own temporary file: two apps started at once must not write into one
-    tmp = f"{AUTOSAVE}.{os.getpid()}.tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(state, f)
-    os.replace(tmp, AUTOSAVE)
-    return {"ok": True}
+    return write_autosave(AUTOSAVE, state)
 
 
 

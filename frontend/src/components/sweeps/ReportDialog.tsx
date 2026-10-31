@@ -14,6 +14,7 @@ import { wireQuestion, type Study } from "../../sweeps/state";
 import { activeColumns, activeParams, colLabel, mapAxes, scopeKey, scopeMask, setColumns, shownAxes } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
+import { notify, notifyError } from "../../sweeps/notify";
 
 type Format = "html" | "docx" | "pdf" | "csv";
 const EXT: Record<Format, string> = { html: ".html", docx: ".docx", pdf: ".pdf", csv: ".csv" };
@@ -59,7 +60,7 @@ function processLines(t: TFn, s: Study): string[] {
 }
 
 /** The report's choices and the button that makes it - in the Report step, and in the dialog. */
-export function ReportForm({ study, onNote, onBefore }: { study: Study; onNote: (msg: string) => void; onBefore?: () => void }) {
+export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () => void }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const [format, setFormat] = useState<Format>("html");
@@ -89,7 +90,7 @@ export function ReportForm({ study, onNote, onBefore }: { study: Study; onNote: 
       ...(inc.process ? [{ title: t("swRepProcess"), items: processLines(t, study) }] : []),
     ];
     const map = mapAxes(study);
-    onNote(t("swRepMaking"));
+    notify(t("swRepMaking"));
     try {
       const r = await sweepApi.report(study.tableId, wireQuestion(study), {
         format, path: p, title, notes, lang, subtitle: study.sources.join(" + "), sections, labels,
@@ -99,8 +100,8 @@ export function ReportForm({ study, onNote, onBefore }: { study: Study; onNote: 
         columns: table, axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
         include: { plot: inc.plot, effects: inc.effects, map: inc.map, table: inc.table },
         mapX: map.x ?? null, mapY: map.y ?? null });
-      onNote(t("swSaved", { path: r.path }));
-    } catch (e) { onNote((e as Error).message); }
+      notify(t("swSaved", { path: r.path }));
+    } catch (e) { notifyError(e); }
   };
   const box = (k: keyof typeof inc, label: string) => (
     <label className="acheck"><input type="checkbox" checked={inc[k]} disabled={format === "csv"} onChange={(e) => setInc({ ...inc, [k]: e.target.checked })} />{label}</label>
@@ -137,7 +138,7 @@ export function ReportForm({ study, onNote, onBefore }: { study: Study; onNote: 
   );
 }
 
-export default function ReportDialog({ study, onClose, onNote }: { study: Study; onClose: () => void; onNote: (msg: string) => void }) {
+export default function ReportDialog({ study, onClose }: { study: Study; onClose: () => void }) {
   const t = useT();
   useEscape(onClose);
   return (
@@ -145,7 +146,7 @@ export default function ReportDialog({ study, onClose, onNote }: { study: Study;
       <div className="dialog sw-report" role="dialog" aria-label={t("swReport")} onMouseDown={(e) => e.stopPropagation()}>
         <div className="dialog-head"><h2>{t("swReport")}</h2>
           <button className="iconbtn" onClick={onClose} aria-label={t("close")}><Icon.X /></button></div>
-        <div className="dialog-body"><ReportForm study={study} onNote={onNote} onBefore={onClose} /></div>
+        <div className="dialog-body"><ReportForm study={study} onBefore={onClose} /></div>
       </div>
     </div>
   );

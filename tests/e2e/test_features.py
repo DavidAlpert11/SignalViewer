@@ -92,7 +92,7 @@ def pg(env):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         auto = os.path.join(env["home"], ".signalviewer", "autosave.json")
-        for f in (auto, auto.replace("autosave.json", "ui_settings.json")):   # T18: settings too - each test starts like a new user
+        for f in (auto, auto.replace("autosave.json", "ui_settings.json"), auto.replace("autosave.json", "sweep_autosave.json")):   # T18: settings too (and Sweeps' studies, S02) - each test starts like a new user
             if os.path.exists(f):
                 os.remove(f)
         for r in json.loads(urllib.request.urlopen(env["url"] + "/api/runs").read()):
