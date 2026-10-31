@@ -16,6 +16,7 @@ import AxisMenu from "./AxisMenu";
 import ParallelPlot from "./ParallelPlot";
 import { MergeBox } from "./Shape";
 import { StepFoot } from "./StepNav";
+import { notify, notifyError } from "../../sweeps/notify";
 
 export function RawSide({ study }: { study: Study }) {
   const t = useT();
@@ -103,7 +104,7 @@ export function RawPlot({ study }: { study: Study }) {
   const [scales, setScales] = useState<Record<string, Scale>>({});
   const [reversed, setReversed] = useState<Record<string, boolean>>({});
   const [menu, setMenu] = useState<{ name: string; at: DOMRect } | null>(null);
-  const [note, setNote] = useState("");
+  const [err, setErr] = useState("");
   useEffect(() => {
     let live = true;
     sweepApi.raw(study.tableId).then((r) => {
@@ -113,11 +114,11 @@ export function RawPlot({ study }: { study: Study }) {
       const removed = new Set(study.question.removed);
       const useful = study.columns.filter((c) => !c.constant && !c.empty && c.role !== "id" && !removed.has(c.name)).map((c) => c.name);
       setAxes(useful.slice(0, 12));
-    }).catch((e) => live && setNote((e as Error).message));
+    }).catch((e) => live && setErr((e as Error).message));
     return () => { live = false; };
   }, [study.tableId, study.rows, study.columns, study.question.removed]);
   const shown = useMemo(() => { if (!cols) return 0; const m = keptMask(cols, filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, filters, n]);
-  if (!cols) return <p className="hint">{note || t("swReading")}</p>;
+  if (!cols) return <p className="hint">{err || t("swReading")}</p>;
   const scaleOf = (a: string) => scales[a] ?? study.columns.find((c) => c.name === a)?.scale ?? "linear";
   const choices = study.columns.map((c) => c.name).filter((c) => cols.has(c) && !axes.includes(c));
   const exportPlot = async () => {
@@ -126,8 +127,8 @@ export function RawPlot({ study }: { study: Study }) {
     try {
       const r = await sweepApi.report(study.tableId, { roles: {}, combine: "and", holdValues: {}, goal: null, conditions: [], derived: [], outputAgg: {}, objectives: [], exclude: [] },
         { format: "plot", raw: true, path: p, axes, title: study.name, labels: { "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"), "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis") } });
-      setNote(t("swSaved", { path: r.path }));
-    } catch (e) { setNote((e as Error).message); }
+      notify(t("swSaved", { path: r.path }));
+    } catch (e) { notifyError(e); }
   };
   return (
     <>
@@ -143,7 +144,6 @@ export function RawPlot({ study }: { study: Study }) {
         {Object.keys(filters).length > 0 && <button className="btn outline" onClick={() => setFilters({})}>{t("swClearFilters", { n: Object.keys(filters).length })}</button>}
         <button className="btn outline" onClick={exportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
       </div>
-      {note && <p className="hint">{note}</p>}
       <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scaleOf} reversed={reversed} colorBy={colorBy} filters={filters} highlight={null}
         labelOf={(a) => a} onPick={() => {}} onFilter={(a, f) => { const x = { ...filters }; if (f) x[a] = f; else delete x[a]; setFilters(x); }}
         onAxisMenu={(name, at) => setMenu({ name, at })}

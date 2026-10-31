@@ -8,6 +8,14 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: undo / redo, and the studies kept**: every change to a study - the columns' roles, the
+  goals and conditions, what is shown (filters, keep / exclude, axes, *Start the study over*) - is
+  undone with **Ctrl+Z** or the ↶ button in the area's bar, and redone with **Ctrl+Y** (a drag on an
+  axis or typing a limit is one step; merging a table starts the history again). The open studies
+  are kept as you work and open again, where they were, the next time the app starts (a table that
+  cannot be read any more is named in a message). The area's messages - saved, exported, merged, or
+  why something failed - appear in the app's one place for messages, and **Ctrl+K** offers the
+  area's own commands (open, save the study, report, undo / redo, go to a step).
 - **Sweeps, easier to undo and to read**: a merged table is taken out again with the × on its
   name (Raw results); *Close this table* is a button there too. A goal is deleted with the × on its
   tab or in the comparison table (the last one is cleared). *Show columns* sets the plot's axes - or

@@ -9,6 +9,13 @@ import { Icon } from "../icons";
 import { clearEverything, openPaths, openSession, pickSessionForRetarget, recentToOpen, refreshRecent, saveSession, startRetarget } from "../files";
 import { api, type FsPlaces } from "../api";
 import { fuzzySort } from "../fuzzy";
+import { areaCommands, type AreaCommand } from "../areaCommands";
+
+const AREA_ICON: Record<NonNullable<AreaCommand["icon"]>, React.ReactNode> = {
+  undo: <Icon.Undo />, redo: <Icon.Redo />, open: <Icon.Open />, save: <Icon.Save />, report: <Icon.Report />,
+};
+/** what the palette offers in every area: help, settings, text size, theme, language */
+const EVERYWHERE = new Set(["settings", "guide", "help", "text1", "text2", "text3", "theme", "lang"]);
 
 interface Cmd { id: string; label: string; group: string; icon?: React.ReactNode; run: () => void; keys?: string }
 
@@ -80,6 +87,10 @@ export default function CommandPalette() {
       { id: "zoomy", label: t("zoomY"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("y"), keys: "Z" },
       { id: "zoomxy", label: t("zoomXY"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("xy"), keys: "Z" },
     ];
+    // another area: its own commands, and what is the same everywhere (areaCommands.ts)
+    const area = st().area;
+    if (area !== "recordings")
+      return [...areaCommands(area).map((c) => ({ ...c, icon: c.icon ? AREA_ICON[c.icon] : <Icon.Analysis /> })), ...base.filter((c) => EVERYWHERE.has(c.id))];
     for (const [r, c] of [[1, 1], [2, 1], [3, 1], [4, 1], [2, 2]] as const)
       base.push({ id: `layout${r}${c}`, label: `${t("layout")} ${r} × ${c}`, group: t("layout"), icon: <Icon.Layout />, run: () => actions.setLayout(r, c) });
     for (const run of runs)

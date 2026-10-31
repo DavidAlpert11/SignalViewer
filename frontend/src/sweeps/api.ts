@@ -110,6 +110,8 @@ export const sweepApi = {
     call<{ path: string; size: number }>("/api/sweep/report", { id, question, ...body }),
   saveText: (path: string, text: string) => call<{ path: string }>("/api/sweep/save-text", { path, text }),
   loadText: (path: string) => call<{ path: string; text: string }>("/api/sweep/load-text", { path }),
+  autosave: () => call<{ state: unknown; damaged?: string }>("/api/sweep/autosave"),
+  autosaveSave: (state: unknown) => call<{ ok: boolean }>("/api/sweep/autosave", state),
   exportRerun: (id: string, question: WireQuestion, sets: number[], onlyMissing: boolean, path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/export", { id, question, sets, onlyMissing, path }),
 };

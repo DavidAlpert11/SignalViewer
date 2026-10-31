@@ -371,3 +371,24 @@ def test_the_example_shows_scenarios_parameters_and_outputs():
                         {"column": "crashed", "op": "==", "value": 0}]}
     a = sweep.answer(sweep.prepare(df, q), q)
     assert a["counts"]["sets"] == 45 and a["counts"]["combos"] == 18 and 5 <= a["counts"]["holding"] <= 20
+
+
+def test_autosave_of_the_open_studies():
+    """S02: the Sweeps area keeps its open studies apart from Recordings' autosave; a damaged file
+    is set aside the same way (F29), not overwritten."""
+    from fastapi.testclient import TestClient
+    from app.common import AUTOSAVE, SWEEP_AUTOSAVE
+    from app.main import app
+    c = TestClient(app)
+    if os.path.exists(SWEEP_AUTOSAVE):
+        os.remove(SWEEP_AUTOSAVE)
+    assert c.get("/api/sweep/autosave").json() == {"state": None}
+    doc = {"version": 1, "active": 0, "studies": [{"kind": "signalviewer-sweep", "version": 1, "path": "/x/runs.csv"}]}
+    assert c.post("/api/sweep/autosave", json=doc).json() == {"ok": True}
+    assert c.get("/api/sweep/autosave").json()["state"] == doc
+    assert SWEEP_AUTOSAVE != AUTOSAVE
+    with open(SWEEP_AUTOSAVE, "w") as f:
+        f.write('{"studies": [')                                  # half-written
+    r = c.get("/api/sweep/autosave").json()
+    assert r["state"] is None and r["damaged"].endswith("sweep_autosave.damaged.json") and os.path.isfile(r["damaged"])
+    os.remove(r["damaged"])

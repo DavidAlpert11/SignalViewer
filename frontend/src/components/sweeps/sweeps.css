@@ -280,3 +280,7 @@
 .sw-goal-tab.on button[role="tab"] { font-weight: 600; }
 .sw-close-table { align-self: flex-start; }
 .sw-what-line { margin: -2px 0 0; }
+
+/* messages (Toasts, the app's one place for them) at the lower corner of the area */
+.sw-welcome, .sw-study-wrap { position: relative; }
+.sw-notices { bottom: 16px; z-index: 60; }
