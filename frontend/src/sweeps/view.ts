@@ -1,7 +1,7 @@
 /* What the plot and the table show for a study: the columns of the current mode, their names on
    screen, their scales, and which axes can be added. Pure functions of the study. */
-import type { TFn } from "../i18n";
-import type { Col, Scale } from "./model";
+import type { TFn, TKey } from "../i18n";
+import type { Col, Role, Scale } from "./model";
 import { wireQuestion, type Study } from "./state";
 
 /** The columns the plot draws: one entry per parameter set, or per run. */
@@ -137,4 +137,28 @@ export function presetColumns(s: Study, preset: ColumnPreset, available: string[
     : [...role("output"), ...derived];
   const ok = new Set(available);
   return want.filter((c, i) => ok.has(c) && want.indexOf(c) === i);
+}
+
+/** A column's group in the column picker: its role, a new column, or part of the answer. */
+export function groupLabel(t: TFn, group: Col["group"] | Role): string {
+  return group === "param" ? t("swRoleParam") : group === "hold" ? t("swRoleHold") : group === "output" ? t("swRoleOutput")
+    : group === "derived" ? t("swNewColumns") : group === "id" ? t("swRoleId") : group === "recording" ? t("swRoleRecording")
+    : group === "ignore" ? t("swRoleIgnore") : t("swGroupAnswer");
+}
+
+/** The column picker's choices for the plot of the results: what can be an axis now, by group. */
+export function axisOptions(t: TFn, s: Study): { id: string; label: string; group: string }[] {
+  const { cols } = modeColumns(s);
+  const role = new Map(s.columns.map((c) => [c.name, c.role]));
+  return axisChoices(s).map((name) => {
+    const g = cols.get(name)?.group;
+    // in the runs mode a table column comes back as "run": its role says more
+    const group = g && g !== "run" ? g : role.get(name) ?? "derived";
+    return { id: name, label: colLabel(t, s, name), group: groupLabel(t, group) };
+  });
+}
+
+/** The groups as one-click choices of the picker (Show columns: all, parameters, outputs...). */
+export function presetChoices(t: TFn, s: Study, available: string[], keys: Record<ColumnPreset, TKey>, skip: ColumnPreset[] = []) {
+  return PRESETS.filter((p) => !skip.includes(p)).map((p) => ({ label: t(keys[p]), ids: presetColumns(s, p, available) })).filter((p) => p.ids.length);
 }

@@ -6,8 +6,6 @@
   --sw-output: var(--amber);
   --sw-ok: var(--ok);
   --sw-bad: var(--danger);
-  --sw-left-w: 340px;
-  --sw-detail-w: 380px;
 }
 
 /* welcome */
@@ -18,8 +16,7 @@
 .sw-note { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* layout: question | plot and table | one set */
-.sw-study { display: grid; grid-template-columns: var(--sw-left-w) minmax(0, 1fr); min-height: 0; background: var(--bg); }
-.sw-study.with-detail { grid-template-columns: var(--sw-left-w) minmax(0, 1fr) var(--sw-detail-w); }
+.sw-study { position: relative; display: grid; min-height: 0; background: var(--bg); }      /* its columns: StudyView (widths dragged) */
 .sw-left { display: flex; flex-direction: column; min-height: 0; }
 .sw-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
 .sw-tabs button { height: 36px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: inherit; font-weight: 500; cursor: pointer; }
@@ -90,15 +87,17 @@
 .sw-colour { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .sw-ramp { width: 70px; height: 8px; border-radius: 4px; }
 .sw-count { margin-inline-start: auto; white-space: nowrap; }
-.pp { position: relative; flex: none; background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
+.pp-scroll { flex: none; overflow-x: auto; overflow-y: hidden; direction: ltr; background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
+.pp { position: relative; flex: none; }
 .pp canvas { display: block; cursor: crosshair; touch-action: none; }
 .pp canvas.brushing { cursor: ns-resize; }
 .pp-axis-name { unicode-bidi: plaintext; position: absolute; top: 8px; transform: translateX(-50%); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   padding: 2px 6px; border: 1px solid transparent; border-radius: 5px; background: none; color: var(--ink); font: inherit; font-size: 0.8rem; cursor: pointer; }
 .pp-axis-name:hover { border-color: var(--line-strong); background: var(--panel); }
 .pp-axis-name.filtered { color: var(--amber); }
-.pp-tip { position: absolute; z-index: 5; width: 230px; padding: 8px 10px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px;
-  box-shadow: var(--shadow); font-size: 0.8rem; pointer-events: none; display: flex; flex-direction: column; gap: 2px; }
+.pp-tip { position: absolute; z-index: 5; box-sizing: border-box; padding: 8px 10px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: var(--shadow); font-size: 0.8rem; pointer-events: none; display: grid; grid-auto-flow: column;
+  gap: 2px 16px; overflow: hidden; }
 .pp-tip div { display: flex; justify-content: space-between; gap: 8px; }
 .pp-tip span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sw-axis-menu { z-index: 70; width: 270px; padding: 10px; display: flex; flex-direction: column; gap: 10px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); }
@@ -284,3 +283,21 @@
 /* messages (Toasts, the app's one place for them) at the lower corner of the area */
 .sw-welcome, .sw-study-wrap { position: relative; }
 .sw-notices { bottom: 16px; z-index: 60; }
+.sw-panel-toggle { flex: none; align-self: center; font-size: 1.1rem; }
+[dir="rtl"] .sw-panel-toggle { transform: scaleX(-1); }
+
+/* columns that stay in view when a table scrolls sideways (the sets: re-run, rank, holds) */
+.sw-table .st { position: sticky; z-index: 1; background: var(--panel); box-sizing: border-box; }
+.sw-table th.st { z-index: 3; background: var(--panel-2); }
+.sw-table .st-0 { inset-inline-start: 0; width: 34px; min-width: 34px; }
+.sw-table .st-1 { inset-inline-start: 34px; width: 56px; min-width: 56px; }
+.sw-table .st-2 { inset-inline-start: 90px; width: 44px; min-width: 44px; text-align: center; box-shadow: inset -1px 0 0 var(--line-strong); }
+[dir="rtl"] .sw-table .st-2 { box-shadow: inset 1px 0 0 var(--line-strong); }
+.sw-table tbody tr:hover .st { background: var(--panel-2); }
+.sw-table tr.pinned .st { background: color-mix(in srgb, var(--focus) 14%, var(--panel)); }
+
+/* the column picker's list (MultiSignalPicker in a popover) */
+.sw-colpick { flex: none; }
+.sw-colpick-pop { position: fixed; z-index: 70; max-height: min(70vh, 560px); overflow: auto; padding: 10px; box-sizing: border-box;
+  background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); }
+.sw-colpick-pop .msp-list { max-height: 340px; }

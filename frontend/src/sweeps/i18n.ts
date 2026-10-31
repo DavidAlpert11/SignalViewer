@@ -346,6 +346,13 @@ export const swEn = {
   swReopening: "Opening the studies you had open…",
   swReopenFailed: "{name} could not be opened again: {why}",
   swAutosaveDamaged: "The studies open last time could not be read, so none were opened. The file is kept: {path}",
+  swColumnsOf: "Columns ({n} of {of})",
+  swColumnsHint: "Choose the columns to show: type part of a name, take what matches in one go, or a whole group",
+  swGroupAnswer: "The answer",
+  swFitAxes: "Fit to width",
+  swFitAxesHint: "Every axis in the width of the screen. Off: each axis gets room to read, and the plot scrolls sideways (the mouse wheel, or Shift + wheel)",
+  swHidePanel: "Hide the steps' panel (more room for the plot)",
+  swShowPanel: "Show the steps' panel",
 };
 
 export const swHe: typeof swEn = {
@@ -693,4 +700,11 @@ export const swHe: typeof swEn = {
   swReopening: "פותחים את המחקרים שהיו פתוחים…",
   swReopenFailed: "את {name} לא היה אפשר לפתוח שוב: {why}",
   swAutosaveDamaged: "את המחקרים שהיו פתוחים בפעם הקודמת לא היה אפשר לקרוא, ולכן לא נפתח אף אחד. הקובץ נשמר: {path}",
+  swColumnsOf: "עמודות ({n} מתוך {of})",
+  swColumnsHint: "בחירת העמודות להצגה: הקלידו חלק משם, קחו את כל מה שמתאים בבת אחת, או קבוצה שלמה",
+  swGroupAnswer: "התשובה",
+  swFitAxes: "התאמה לרוחב",
+  swFitAxesHint: "כל הצירים ברוחב המסך. כבוי: לכל ציר יש מקום לקריאה, והגרף נגלל הצידה (גלגלת העכבר, או Shift + גלגלת)",
+  swHidePanel: "הסתרת פאנל השלבים (יותר מקום לגרף)",
+  swShowPanel: "הצגת פאנל השלבים",
 };

@@ -11,9 +11,11 @@ const SHOWN = 150;
  *  - "select the N results" REPLACES the choice with exactly what the search shows;
  *    adding to the choice is a separate, explicit link;
  *  - chosen signals that the search hides are called out, with a one-click fix. */
-export default function MultiSignalPicker({ options, value, onChange, quick, stale }: {
+export default function MultiSignalPicker({ options, value, onChange, quick, stale, noun = "signals" }: {
   options: MultiOption[]; value: string[]; onChange: (ids: string[]) => void;
   quick?: { label: string; ids: string[] }[];
+  /** what is chosen, in the counts and messages (the Sweeps area chooses a table's columns) */
+  noun?: "signals" | "columns";
   /** an operation already ran on this choice: the next signal picked starts a new choice */
   stale?: boolean;
 }) {
@@ -33,7 +35,7 @@ export default function MultiSignalPicker({ options, value, onChange, quick, sta
   return (
     <div className="msp">
       <div className="msp-top">
-        <span className="msp-count">{t("nChosen", { n: value.length })}</span>
+        <span className="msp-count">{t(noun === "columns" ? "nChosenCols" : "nChosen", { n: value.length })}</span>
         {quick?.filter((x) => x.ids.length).map((x) => (
           <button key={x.label} type="button" className="linklike" onClick={() => onChange(Array.from(new Set(x.ids)))}>{x.label}</button>
         ))}
@@ -59,7 +61,7 @@ export default function MultiSignalPicker({ options, value, onChange, quick, sta
         </div>
       )}
       {hidden.length > 0 && (
-        <p className="msp-warn">{t("hiddenChosen", { n: hidden.length })}{" "}
+        <p className="msp-warn">{t(noun === "columns" ? "hiddenChosenCols" : "hiddenChosen", { n: hidden.length })}{" "}
           <button type="button" className="linklike" onClick={() => onChange(value.filter((id) => matchIds.has(id)))}>{t("keepOnlyResults")}</button></p>
       )}
       <div className="msp-list">
@@ -70,7 +72,7 @@ export default function MultiSignalPicker({ options, value, onChange, quick, sta
           </label>
         ))}
         {matches.length > SHOWN && <p className="hint">{t("moreMatches", { n: matches.length - SHOWN })}</p>}
-        {!matches.length && <p className="hint">{t("noMatches", { q })}</p>}
+        {!matches.length && <p className="hint">{t(noun === "columns" ? "noMatchesCols" : "noMatches", { q })}</p>}
         {similar.length > 0 && <>
           <p className="hint msp-similar">{t("similarNames")}</p>
           {similar.map((o) => (
