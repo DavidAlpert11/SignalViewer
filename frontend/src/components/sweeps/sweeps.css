@@ -270,3 +270,13 @@
 .sw-report-page h2 { margin: 0; }
 .sw-note-line { overflow-wrap: anywhere; }
 .sw-left-body { height: 100%; box-sizing: border-box; }
+
+.sw-tag { display: inline-flex; align-items: center; gap: 4px; }
+.sw-tag-x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 1rem; line-height: 1; }
+.sw-tag-x:hover { color: var(--danger); }
+.sw-goal-tab { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 14px; padding-inline-end: 4px; }
+.sw-goal-tab.on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+.sw-goal-tab button[role="tab"] { height: 26px; padding: 0 4px 0 10px; border: 0; background: none; color: var(--ink); font: inherit; cursor: pointer; }
+.sw-goal-tab.on button[role="tab"] { font-weight: 600; }
+.sw-close-table { align-self: flex-start; }
+.sw-what-line { margin: -2px 0 0; }

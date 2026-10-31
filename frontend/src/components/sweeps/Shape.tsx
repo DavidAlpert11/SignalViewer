@@ -43,7 +43,13 @@ export function MergeBox({ study }: { study: Study }) {
   return (
     <div className="sw-hide-box">
       <b>{t("swTables")}</b>
-      <div className="sw-tags">{study.sources.map((s, i) => <span key={i} className="sw-tag">{s}</span>)}</div>
+      <div className="sw-tags">{study.sources.map((s, i) => (
+        <span key={i} className="sw-tag">{s}
+          {/* the first is the study's own table (close it with the button below); the others were merged in */}
+          {i > 0 && <button className="sw-tag-x" aria-label={t("swUnmerge", { n: s })} title={t("swUnmerge", { n: s })}
+            onClick={() => useSweeps.getState().unmerge(i).then(() => setNote(t("swUnmerged", { n: s }))).catch((e) => setNote((e as Error).message))}>×</button>}
+        </span>
+      ))}</div>
       <div className="sw-row">
         <button className="btn outline" onClick={add}>{t("swMergeTable")}</button>
         <select aria-label={t("swWhenBoth")} title={t("swWhenBoth")} value={prefer} onChange={(e) => setPrefer(e.target.value as "new" | "old" | "both")}>
@@ -51,6 +57,7 @@ export function MergeBox({ study }: { study: Study }) {
         </select>
       </div>
       {note && <span className="hint">{note}</span>}
+      <button className="btn sw-close-table" onClick={() => { const st = useSweeps.getState(); st.close(st.active); }}>{t("swCloseTable")}</button>
     </div>
   );
 }

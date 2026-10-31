@@ -8,6 +8,13 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps, easier to undo and to read**: a merged table is taken out again with the × on its
+  name (Raw results); *Close this table* is a button there too. A goal is deleted with the × on its
+  tab or in the comparison table (the last one is cleared). *Show columns* sets the plot's axes - or
+  the raw table's columns - to all of them, or to the parameters, scenarios, outputs, or the
+  parameters and the goal. The plot says what one line is: a parameter set (all its scenarios
+  together: outputs as their mean, the goal and conditions as their worst case) or a run (one
+  parameter set in one scenario - one row of the table).
 - **Sweeps, step by step**: the area is now a path through six steps, each with its own panel and
   a line saying where it stands - **1 Raw results** (the table page by page and sortable, or every
   run as a parallel plot; a second sweep is added here), **2 Clean columns** (take out the columns

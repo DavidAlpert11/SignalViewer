@@ -10,6 +10,8 @@ import type { Col, Filter, Scale } from "../../sweeps/model";
 import { keptMask } from "../../sweeps/filters";
 import { fmtValue } from "../../sweeps/scales";
 import type { Study } from "../../sweeps/state";
+import { PRESETS, presetColumns, type ColumnPreset } from "../../sweeps/view";
+import { PRESET_KEY } from "./PlotToolbar";
 import AxisMenu from "./AxisMenu";
 import ParallelPlot from "./ParallelPlot";
 import { MergeBox } from "./Shape";
@@ -49,6 +51,7 @@ const PAGE = 100;
 
 function RawTable({ study }: { study: Study }) {
   const t = useT();
+  const [preset, setPreset] = useState<ColumnPreset>("all");
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<{ c: string; desc: boolean } | null>(null);
   const [data, setData] = useState<{ total: number; columns: string[]; rows: (string | number | null)[][] } | null>(null);
@@ -60,6 +63,9 @@ function RawTable({ study }: { study: Study }) {
   const role = new Map(study.columns.map((c) => [c.name, study.question.removed.includes(c.name) ? "ignore" : c.role]));
   if (!data) return <p className="hint">{t("swReading")}</p>;
   const pages = Math.max(1, Math.ceil(data.total / PAGE));
+  // the columns to show: all of them (as read, the removed ones too), or a group by role
+  const show = preset === "all" ? data.columns.map((_, j) => j)
+    : presetColumns(study, preset, data.columns).map((c) => data.columns.indexOf(c));
   return (
     <div className="sw-raw">
       <div className="sw-row">
@@ -67,15 +73,16 @@ function RawTable({ study }: { study: Study }) {
         <span className="hint">{t("swRawRows", { a: (page * PAGE + 1).toLocaleString(), b: Math.min(data.total, (page + 1) * PAGE).toLocaleString(), n: data.total.toLocaleString() })}</span>
         <button className="btn outline" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>→</button>
         <span className="hint">{t("swRawSortHint")}</span>
+        <ShowSelect value={preset} onChange={setPreset} raw />
       </div>
       <div className="sw-table-wrap">
         <table className="sw-table">
-          <thead><tr>{data.columns.map((c) => (
+          <thead><tr>{show.map((j) => data.columns[j]).map((c) => (
             <th key={c} className={`sw-th-${role.get(c) ?? "output"}`} onClick={() => setSort(sort?.c === c ? { c, desc: !sort.desc } : { c, desc: false })}>
               {c}{sort?.c === c ? (sort.desc ? " ▼" : " ▲") : ""}</th>
           ))}</tr></thead>
           <tbody>{data.rows.map((r, i) => (
-            <tr key={i}>{r.map((v, j) => <td key={j} className={`${typeof v === "number" ? "num" : ""}${role.get(data.columns[j]) === "ignore" ? " sw-dim" : ""}`}>
+            <tr key={i}>{show.map((j) => [r[j], j] as const).map(([v, j]) => <td key={j} className={`${typeof v === "number" ? "num" : ""}${role.get(data.columns[j]) === "ignore" ? " sw-dim" : ""}`}>
               {v === null ? "–" : typeof v === "number" ? fmtValue(v) : String(v)}</td>)}</tr>
           ))}</tbody>
         </table>
@@ -125,6 +132,7 @@ export function RawPlot({ study }: { study: Study }) {
   return (
     <>
       <div className="sw-plotbar">
+        <ShowSelect value={null} onChange={(p) => { const c = presetColumns(study, p, [...cols.keys()]); if (c.length) setAxes(c); }} raw />
         {choices.length > 0 && (
           <select className="sw-add" aria-label={t("swAddAxis")} value="" onChange={(e) => e.target.value && setAxes([...axes, e.target.value])}>
             <option value="">{t("swAddAxis")}</option>{choices.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -148,5 +156,18 @@ export function RawPlot({ study }: { study: Study }) {
           onFilter={(f) => { const x = { ...filters }; if (f) x[menu.name] = f; else delete x[menu.name]; setFilters(x); }} onClose={() => setMenu(null)} />
       )}
     </>
+  );
+}
+
+/** "Show: all columns / parameters / scenarios / outputs..." */
+function ShowSelect({ value, onChange, raw }: { value: ColumnPreset | null; onChange: (p: ColumnPreset) => void; raw?: boolean }) {
+  const t = useT();
+  return (
+    <label className="sw-colour">{t("swShowColumns")}
+      <select value={value ?? ""} onChange={(e) => e.target.value && onChange(e.target.value as ColumnPreset)} title={t("swShowColumnsHint")}>
+        {value === null && <option value="">…</option>}
+        {PRESETS.filter((p) => !raw || p !== "params-goal").map((p) => <option key={p} value={p}>{t(PRESET_KEY[p])}</option>)}
+      </select>
+    </label>
   );
 }

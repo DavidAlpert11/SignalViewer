@@ -574,3 +574,31 @@ def sweep_raw(req: QuestionReq):
     cols = [{"name": c, **sweep.encode(df[c].iloc[idx].reset_index(drop=True))} for c in names]
     cols.append({"name": "#row", **sweep.encode(df.index.to_numpy()[idx].astype(float))})
     return {"columns": cols, "n": int(len(idx)), "total": int(len(df)), "sampled": sampled}
+
+
+class UnmergeReq(BaseModel):
+    id: str
+    path: str
+
+
+@router.post("/api/sweep/unmerge")
+def sweep_unmerge(req: UnmergeReq):
+    """Take a merged table out of the study again: the study is read again from its first table and
+    the tables still merged into it."""
+    t = _get(req.id)
+    merged = [m for m in t.get("merged", []) if m["path"] != os.path.abspath(req.path)]
+    if len(merged) == len(t.get("merged", [])):
+        fail(404, "That table is not merged into this study.")
+    t0 = time.perf_counter()
+    try:
+        df = sweep.read_any(t["path"])
+        for m in merged:
+            df, _, _ = sweep.merge(df, sweep.read_any(m["path"]), m["keys"], m["prefer"],
+                                   os.path.basename(t["path"]), os.path.basename(m["path"]))
+    except Exception as e:
+        fail(400, f"Could not read the tables again: {e}")
+    t["df"], t["prepKey"], t["prep"], t["merged"] = df, None, None, merged
+    cols = sweep.describe(df)
+    return {"id": req.id, "path": t["path"], "name": "", "rows": int(len(df)), "columns": cols, "head": sweep.head(df),
+            "summary": sweep.summary(df, {c["name"]: c["role"] for c in cols}), "seconds": round(time.perf_counter() - t0, 3),
+            "added": 0, "replaced": 0, "sources": [os.path.basename(t["path"])] + [os.path.basename(m["path"]) for m in merged]}
