@@ -7,7 +7,8 @@ import { FAILS, HOLDS, rampCss } from "../../sweeps/colors";
 import { hasFilter } from "../../sweeps/filters";
 import { fmtValue, makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, modeColumns, PRESETS, presetColumns, scaleOf, scopeKey, shownAxes, type ColumnPreset } from "../../sweeps/view";
+import { axisChoices, axisOptions, colLabel, modeColumns, presetChoices, scaleOf, scopeKey, shownAxes, type ColumnPreset } from "../../sweeps/view";
+import ColumnPicker from "./ColumnPicker";
 import type { TKey } from "../../i18n";
 
 export const PRESET_KEY: Record<ColumnPreset, TKey> = { all: "swShowAll", "params-outputs": "swShowParamsOutputs", "params-goal": "swShowParamsGoal",
@@ -17,10 +18,9 @@ import { openMenu } from "../Overlays";
 export default function PlotToolbar({ study, shown, total, onKeep, onExclude, onExport, onExportPlot }:
   { study: Study; shown: number; total: number; onKeep: () => void; onExclude: () => void; onExport: () => void; onExportPlot: () => void }) {
   const t = useT();
-  const { setView, toggleAxis } = useSweeps.getState();
+  const { setView } = useSweeps.getState();
   const v = study.view;
   const axes = shownAxes(study);
-  const choices = axisChoices(study).filter((c) => !axes.includes(c));
   const nFilters = Object.values(v.filters).filter(hasFilter).length;
   const scoped = v.scope.key === scopeKey(study) ? v.scope.steps.length : 0;
   return (
@@ -29,17 +29,12 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
         <button role="radio" aria-checked={v.mode === "sets"} className={v.mode === "sets" ? "on" : ""} onClick={() => setView({ mode: "sets" })} title={t("swPerSetHint")}>{t("swPerSet")}</button>
         <button role="radio" aria-checked={v.mode === "runs"} className={v.mode === "runs" ? "on" : ""} onClick={() => setView({ mode: "runs" })} title={t("swPerRunHint")}>{t("swPerRun")}</button>
       </div>
-      <select className="sw-add" aria-label={t("swShowColumns")} value="" title={t("swShowColumnsHint")}
-        onChange={(e) => { const cols = presetColumns(study, e.target.value as ColumnPreset, axisChoices(study)); if (cols.length) setView({ axes: cols }); }}>
-        <option value="">{t("swShowColumns")}</option>
-        {PRESETS.filter((p) => p !== "scenarios" || v.mode === "runs").map((p) => <option key={p} value={p}>{t(PRESET_KEY[p])}</option>)}
-      </select>
-      {choices.length > 0 && (
-        <select className="sw-add" aria-label={t("swAddAxis")} value="" onChange={(e) => e.target.value && toggleAxis(e.target.value, true)}>
-          <option value="">{t("swAddAxis")}</option>
-          {choices.map((c) => <option key={c} value={c}>{colLabel(t, study, c)}</option>)}
-        </select>
-      )}
+      {/* the axes: chosen in one list (type to search, groups as one click); dragged on the plot to reorder */}
+      <ColumnPicker options={axisOptions(t, study)} value={axes}
+        presets={presetChoices(t, study, axisChoices(study), PRESET_KEY, v.mode === "runs" ? [] : ["scenarios"])}
+        onChange={(ids) => { const here = new Set(axisChoices(study)); setView({ axes: [...ids, ...v.axes.filter((a) => !here.has(a))] }); }} />
+      <button className={`btn outline${v.fitAxes ? " on" : ""}`} aria-pressed={!!v.fitAxes} onClick={() => setView({ fitAxes: !v.fitAxes })}
+        title={t("swFitAxesHint")}>{t("swFitAxes")}</button>
       <ColourKey study={study} />
       <span className="hint sw-count">{t("swShown", { n: shown.toLocaleString(), of: total.toLocaleString() })}</span>
       {nFilters > 0 && <button className="btn outline" onClick={() => setView({ filters: {} })}>{t("swClearFilters", { n: nFilters })}</button>}

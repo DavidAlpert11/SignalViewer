@@ -91,6 +91,9 @@ interface SweepsState {
   open: (path: string, saved?: SavedStudy) => Promise<void>;
   /** the report dialog is open (the Study menu, Ctrl+K) */
   reportOpen: boolean;
+  /** the steps' side panel is hidden (more room for the plot); remembered */
+  leftHidden: boolean;
+  setLeftHidden: (hidden: boolean) => void;
   /** opening the studies of the last run again (autosave) */
   restoring: boolean;
   /** open the studies the app had open when it last ran; what could not be opened, and why */
@@ -261,6 +264,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
       catch (e) { set({ busy: false, error: (e as Error).message }); }
     },
     reportOpen: false,
+    leftHidden: getPrefValue<boolean>("sv3.swLeftHidden") === true,
+    setLeftHidden: (hidden) => { setPref("sv3.swLeftHidden", hidden); set({ leftHidden: hidden }); },
     restoring: false,
     reopenLast: async () => {
       if (restoreStarted) return [];

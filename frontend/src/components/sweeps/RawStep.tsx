@@ -3,16 +3,17 @@
    added (merged) here. */
 import { useEffect, useMemo, useState } from "react";
 import { pickPath } from "../../store";
-import { useT } from "../../i18n";
+import { useT, type TFn } from "../../i18n";
 import { sweepApi } from "../../sweeps/api";
 import { decodeCol } from "../../sweeps/decode";
 import type { Col, Filter, Scale } from "../../sweeps/model";
 import { keptMask } from "../../sweeps/filters";
 import { fmtValue } from "../../sweeps/scales";
 import type { Study } from "../../sweeps/state";
-import { PRESETS, presetColumns, type ColumnPreset } from "../../sweeps/view";
+import { groupLabel, presetChoices } from "../../sweeps/view";
 import { PRESET_KEY } from "./PlotToolbar";
 import AxisMenu from "./AxisMenu";
+import ColumnPicker from "./ColumnPicker";
 import ParallelPlot from "./ParallelPlot";
 import { MergeBox } from "./Shape";
 import { StepFoot } from "./StepNav";
@@ -52,7 +53,7 @@ const PAGE = 100;
 
 function RawTable({ study }: { study: Study }) {
   const t = useT();
-  const [preset, setPreset] = useState<ColumnPreset>("all");
+  const [picked, setPicked] = useState<string[] | null>(null);          // null: every column
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<{ c: string; desc: boolean } | null>(null);
   const [data, setData] = useState<{ total: number; columns: string[]; rows: (string | number | null)[][] } | null>(null);
@@ -64,9 +65,9 @@ function RawTable({ study }: { study: Study }) {
   const role = new Map(study.columns.map((c) => [c.name, study.question.removed.includes(c.name) ? "ignore" : c.role]));
   if (!data) return <p className="hint">{t("swReading")}</p>;
   const pages = Math.max(1, Math.ceil(data.total / PAGE));
-  // the columns to show: all of them (as read, the removed ones too), or a group by role
-  const show = preset === "all" ? data.columns.map((_, j) => j)
-    : presetColumns(study, preset, data.columns).map((c) => data.columns.indexOf(c));
+  // the columns to show: all of them (as read, the removed ones too), or those picked
+  const shownNames = picked ? picked.filter((c) => data.columns.includes(c)) : data.columns;
+  const show = shownNames.map((c) => data.columns.indexOf(c));
   return (
     <div className="sw-raw">
       <div className="sw-row">
@@ -74,7 +75,8 @@ function RawTable({ study }: { study: Study }) {
         <span className="hint">{t("swRawRows", { a: (page * PAGE + 1).toLocaleString(), b: Math.min(data.total, (page + 1) * PAGE).toLocaleString(), n: data.total.toLocaleString() })}</span>
         <button className="btn outline" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>→</button>
         <span className="hint">{t("swRawSortHint")}</span>
-        <ShowSelect value={preset} onChange={setPreset} raw />
+        <ColumnPicker options={rawOptions(t, study, data.columns)} value={shownNames} onChange={setPicked}
+          presets={presetChoices(t, study, data.columns, PRESET_KEY, ["params-goal"])} />
       </div>
       <div className="sw-table-wrap">
         <table className="sw-table">
@@ -120,7 +122,6 @@ export function RawPlot({ study }: { study: Study }) {
   const shown = useMemo(() => { if (!cols) return 0; const m = keptMask(cols, filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, filters, n]);
   if (!cols) return <p className="hint">{err || t("swReading")}</p>;
   const scaleOf = (a: string) => scales[a] ?? study.columns.find((c) => c.name === a)?.scale ?? "linear";
-  const choices = study.columns.map((c) => c.name).filter((c) => cols.has(c) && !axes.includes(c));
   const exportPlot = async () => {
     const p = await pickPath({ mode: "save", title: t("swExportPlot"), exts: [".html"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_plot.html" });
     if (!p) return;
@@ -133,12 +134,8 @@ export function RawPlot({ study }: { study: Study }) {
   return (
     <>
       <div className="sw-plotbar">
-        <ShowSelect value={null} onChange={(p) => { const c = presetColumns(study, p, [...cols.keys()]); if (c.length) setAxes(c); }} raw />
-        {choices.length > 0 && (
-          <select className="sw-add" aria-label={t("swAddAxis")} value="" onChange={(e) => e.target.value && setAxes([...axes, e.target.value])}>
-            <option value="">{t("swAddAxis")}</option>{choices.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        )}
+        <ColumnPicker options={rawOptions(t, study, [...cols.keys()])} value={axes} onChange={setAxes}
+          presets={presetChoices(t, study, [...cols.keys()], PRESET_KEY, ["params-goal"])} />
         <span className="hint">{colorBy ? `${t("swColourBy")}: ${colorBy}` : t("swRawColourHint")}</span>
         <span className="hint sw-count">{t("swShown", { n: shown.toLocaleString(), of: n.toLocaleString() })}</span>
         {Object.keys(filters).length > 0 && <button className="btn outline" onClick={() => setFilters({})}>{t("swClearFilters", { n: Object.keys(filters).length })}</button>}
@@ -159,15 +156,9 @@ export function RawPlot({ study }: { study: Study }) {
   );
 }
 
-/** "Show: all columns / parameters / scenarios / outputs..." */
-function ShowSelect({ value, onChange, raw }: { value: ColumnPreset | null; onChange: (p: ColumnPreset) => void; raw?: boolean }) {
-  const t = useT();
-  return (
-    <label className="sw-colour">{t("swShowColumns")}
-      <select value={value ?? ""} onChange={(e) => e.target.value && onChange(e.target.value as ColumnPreset)} title={t("swShowColumnsHint")}>
-        {value === null && <option value="">…</option>}
-        {PRESETS.filter((p) => !raw || p !== "params-goal").map((p) => <option key={p} value={p}>{t(PRESET_KEY[p])}</option>)}
-      </select>
-    </label>
-  );
+/** The raw table's columns for the picker, grouped by their role (a column taken out: Not used). */
+function rawOptions(t: TFn, s: Study, names: string[]) {
+  const removed = new Set(s.question.removed);
+  const role = new Map(s.columns.map((c) => [c.name, removed.has(c.name) ? "ignore" as const : c.role]));
+  return names.map((n) => ({ id: n, label: n, group: groupLabel(t, role.get(n) ?? "ignore") }));
 }

@@ -26,8 +26,11 @@ export const prevStep = (s: Step): Step | null => STEPS[STEPS.indexOf(s) - 1] ??
 export default function StepNav({ study }: { study: Study }) {
   const t = useT();
   const cur = study.view.step;
+  const hidden = useSweeps((s) => s.leftHidden);
   return (
     <nav className="sw-steps" aria-label={t("swSteps")}>
+      <button className="iconbtn sw-panel-toggle" aria-pressed={!hidden} onClick={() => useSweeps.getState().setLeftHidden(!hidden)}
+        title={t(hidden ? "swShowPanel" : "swHidePanel")} aria-label={t(hidden ? "swShowPanel" : "swHidePanel")}>{hidden ? "›" : "‹"}</button>
       {STEPS.map((s, i) => (
         <button key={s} className={`sw-step-btn${s === cur ? " on" : ""}${STEPS.indexOf(cur) > i ? " done" : ""}`} aria-current={s === cur ? "step" : undefined}
           onClick={() => useSweeps.getState().setView({ step: s })}>

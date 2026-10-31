@@ -13,7 +13,9 @@
        HealthView   missing, failed, odd runs    CompareView  two studies, same question
      SetDetail                      one set on the right: why it fails, its runs, its recordings
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import PanelResizer from "../PanelResizer";
+import { usePanelWidth } from "../panelWidth";
 import { pickPath, useApp } from "../../store";
 import { translate, useT, type TFn } from "../../i18n";
 import { registerArea } from "../../areaCommands";
@@ -51,6 +53,8 @@ import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
 import "./sweeps.css";
 
+/** the middle (plot, tables) never narrower than this when a panel is dragged wider */
+const MIN_MIDDLE = 380;
 const TABLE_EXTS = [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"];
 const STUDY_EXT = ".svsweep";
 
@@ -278,12 +282,24 @@ function StudyView({ study }: { study: Study }) {
   const side = step === "raw" ? <RawSide study={study} /> : step === "clean" ? <CleanSide study={study} /> : step === "roles" ? <RolesSide study={study} />
     : step === "goals" ? <GoalsSide study={study} /> : step === "results" ? <ResultsSide study={study} /> : <ReportSide study={study} />;
   const noParams = !activeParams(study).length;
+  // the side panels: widths dragged (and remembered) as in Recordings, the steps' panel can be hidden
+  const [leftW, setLeftW] = usePanelWidth("swLeft", 340);
+  const [detailW, setDetailW] = usePanelWidth("swDetail", 380);
+  const leftHidden = useSweeps((s) => s.leftHidden);
+  const detail = step === "results" && study.view.pinned !== null && !!study.answer;
+  const box = useRef<HTMLDivElement>(null);
+  const room = (other: number) => () => (box.current?.clientWidth ?? window.innerWidth) - other - MIN_MIDDLE;
+  const cols = [leftHidden ? "" : `${leftW}px`, "minmax(0, 1fr)", detail ? `${detailW}px` : ""].filter(Boolean).join(" ");
   return (
     <div className="sw-study-wrap">
       <div className="notices sw-notices"><Toasts /></div>
       <StepNav study={study} />
-      <div className={`sw-study${step === "results" && study.view.pinned !== null ? " with-detail" : ""}`}>
-        <aside className="side sw-left" aria-label={t("swSteps")}><div className="sw-left-body">{side}</div></aside>
+      <div className="sw-study" ref={box} style={{ gridTemplateColumns: cols }}>
+        {!leftHidden && <aside className="side sw-left" aria-label={t("swSteps")}><div className="sw-left-body">{side}</div></aside>}
+        {!leftHidden && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: leftW - 3 }} width={leftW} setWidth={setLeftW}
+          grow={+1} def={340} max={room(detail ? detailW : 0)} />}
+        {detail && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: detailW - 3 }} width={detailW} setWidth={setDetailW}
+          grow={-1} def={380} max={room(leftHidden ? 0 : leftW)} />}
         <main className="sw-center">
           {study.changed && (
             <div className="sw-banner" role="status">{t("swFileChanged")}
@@ -306,7 +322,7 @@ function StudyView({ study }: { study: Study }) {
           {step === "results" && <ResultsCenter study={study} />}
           {step === "report" && <ReportCenter study={study} />}
         </main>
-        {step === "results" && study.view.pinned !== null && study.answer && <SetDetail study={study} set={study.view.pinned} />}
+        {detail && <SetDetail study={study} set={study.view.pinned!} />}
       </div>
     </div>
   );
@@ -371,7 +387,7 @@ function ResultsCenter({ study }: { study: Study }) {
           {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
-              filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)}
+              filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
               onPick={(r) => st.setView({ pinned: setOfRow(r) })}
               onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}
               onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />
