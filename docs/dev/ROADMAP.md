@@ -651,7 +651,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 
 ## Milestone 17 — the Sweeps area, the owner's requests (2026-10-31). Spec: TASKS.md S00-S08.
 - [x] S00 Groundwork: Sweeps strings in `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` shared.
-- [ ] S01 Fixes: removed parameters in the map / next runs / report; next runs' marks on the map's axes; a goal's weight; template save / delete errors.
+- [x] S01 Fixes: removed parameters in the map / next runs / report; next runs' marks on the map's axes; a goal's weight; template save / delete errors.
 - [ ] S02 Undo / redo, autosave, messages, Ctrl+K.
 - [ ] S03 Resizable panels, many columns (scroll, ColumnPicker).
 - [ ] S04 Sets table: only holding, columns, export.
