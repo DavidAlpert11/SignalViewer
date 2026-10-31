@@ -19,6 +19,21 @@ export const goalSummary = (t: TFn, g: GoalVariant) => {
   return [conds, opt].filter(Boolean).join(" · ") || t("swGoalEmpty");
 };
 
+/** What the optimization does now, in a sentence: by what the sets that hold are ranked. */
+function optimizeNow(t: TFn, g: GoalVariant, a: Study["answer"]): string {
+  const n = (a?.counts.holding ?? 0).toLocaleString();
+  if (!g.optimize.length) return t("swOptimizeNone");
+  if (g.optimize.length === 1) {
+    const o = g.optimize[0];
+    return t("swOptimizeNow1", { n, c: o.column, dir: t(o.direction === "max" ? "swLargest" : "swSmallest") });
+  }
+  const pareto = a?.sets.find((c) => c.name === "#pareto")?.values;
+  let p = 0;
+  if (pareto) for (let i = 0; i < pareto.length; i++) p += pareto[i] === 1 ? 1 : 0;
+  const list = g.optimize.map((o) => `${o.direction === "max" ? "↑" : "↓"}${o.column} ×${o.weight}`).join(", ");
+  return t("swOptimizeNowN", { n, list, p });
+}
+
 export function GoalsSide({ study }: { study: Study }) {
   const t = useT();
   const st = useSweeps.getState();
@@ -79,6 +94,7 @@ export function GoalsSide({ study }: { study: Study }) {
         ))}
         <button className="btn outline sw-add-btn" disabled={!outputs.length}
           onClick={() => st.updateGoal({ optimize: [...g.optimize, { column: outputs.find((o) => !g.optimize.some((x) => x.column === o)) ?? outputs[0], direction: "max", weight: 1 }] })}>{t("swAddObjective")}</button>
+        <p className="hint sw-optimize-now" aria-live="polite">{optimizeNow(t, g, a)}</p>
         <label className="sw-agg">{t("swOutputsPerSet")}
           <select value={q.outputAgg} onChange={(e) => st.setQuestion({ outputAgg: e.target.value as SetOp })}>{OUTPUT_AGGS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
       </section>
@@ -121,7 +137,7 @@ export function GoalsCenter({ study }: { study: Study }) {
                 <td><b>{goalName(t, g, i)}</b></td>
                 <td className="sw-wrap">{goalSummary(t, g)}</td>
                 <td className="num">{r?.error ? <span className="sw-error">{r.error}</span> : r ? `${r.holding} / ${r.sets}` : "…"}</td>
-                <td className="num">{r?.best ? fmtValue(r.best.value) : "–"}</td>
+                <td className="num">{r?.best ? fmtValue(r.best.value) : "–"}{r?.best?.score != null && <span className="hint"> · {t("swScoreCol")} {fmtValue(r.best.score)}</span>}</td>
                 <td className="hint">{r?.best ? Object.values(r.best.params).join(" · ") : ""}</td>
                 <td className="num">{r?.robust != null ? `${Math.round(r.robust * 100)}%` : "–"}</td>
                 <td className="num">{r?.tolerance != null ? r.tolerance : "–"}</td>

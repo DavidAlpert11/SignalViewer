@@ -431,3 +431,33 @@ def test_export_the_sets_shown(tmp_path):
     c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html), "rows": [7, 3],
                                        "columns": ["#rank", "kp_roll"], "include": {"plot": False, "effects": False, "map": False}})
     assert '"rows": [7, 3]' in open(html, encoding="utf-8").read()
+
+
+def test_optimize_min_max_and_weights():
+    """Optimize: one goal ranks the sets that hold by its worst case over the combinations (the
+    smallest when maximizing, the largest when minimizing); two or more rank them by the weighted
+    score, so moving a weight changes the order."""
+    rows = []
+    for sc in ("a", "b"):
+        for p_ in (1, 2, 3, 4):
+            rows.append({"sc": sc, "p": p_, "up": p_ * 10 + (0 if sc == "a" else -3), "down": (5 - p_) * 10 + (0 if sc == "a" else 2)})
+    df = pd.DataFrame(rows)
+    roles = {"sc": "hold", "p": "param", "up": "output", "down": "output"}
+    base = {"roles": roles, "combine": "and", "holdValues": {}, "conditions": [], "derived": [], "outputAgg": {}, "exclude": []}
+
+    def ranked(q):
+        pr = sweep.prepare(df, {**base, **q})
+        d = sweep.answer(pr, {**base, **q})["data"]
+        return [int(d["p"][i]) for i in np.argsort(d["#rank"])], d
+    order, d = ranked({"goal": {"column": "up", "direction": "max"}, "objectives": []})
+    assert order == [4, 3, 2, 1]
+    assert list(d["#goal"][np.argsort(d["p"])]) == [7, 17, 27, 37]           # worst case of a maximum: the smaller
+    order, d = ranked({"goal": {"column": "up", "direction": "min"}, "objectives": []})
+    assert order == [1, 2, 3, 4] and list(d["#goal"][np.argsort(d["p"])]) == [10, 20, 30, 40]
+    # two objectives pulling apart: the weights decide
+    up = {"column": "up", "direction": "max"}
+    dn = {"column": "down", "direction": "max"}
+    order, d = ranked({"goal": up, "objectives": [{**up, "weight": 5}, {**dn, "weight": 1}]})
+    assert order[0] == 4 and "#score" in d and "#pareto" in d
+    order, _ = ranked({"goal": up, "objectives": [{**up, "weight": 1}, {**dn, "weight": 5}]})
+    assert order[0] == 1
