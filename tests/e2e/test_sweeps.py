@@ -105,6 +105,16 @@ def _bar_menu(pg, button, item):
     pg.locator(".menu.ctx button", has_text=item).first.click()
 
 
+def _report(pg, fmt, name):
+    """Study > Report…: pick the format, make it, save it."""
+    _bar_menu(pg, "Study", "Report")
+    pg.wait_for_selector(".sw-report")
+    pg.locator(".sw-report-format", has_text=fmt).click()
+    pg.locator(".sw-report .dialog-foot .btn.primary").click()
+    save_as(pg, name)
+    pg.wait_for_selector(f".sw-note:has-text('{name}')", timeout=60000)
+
+
 def _center(pg, name):
     pg.locator(".sw-center-tabs button", has_text=name).click()
 
@@ -148,11 +158,9 @@ def test_save_and_reopen_a_study_and_report(pg):
     _bar_menu(pg, "Study", "Save the study")
     save_as(pg, "mine.svsweep")
     pg.wait_for_selector(".sw-note:has-text('Saved')")
-    _bar_menu(pg, "Study", "Report (HTML)")
-    save_as(pg, "mine.html")
-    pg.wait_for_function("document.querySelector('.sw-note').innerText.includes('mine.html')")
+    _report(pg, "Interactive HTML", "mine.html")
     html = open(os.path.join(pg.env["out"], "mine.html"), encoding="utf-8").read()
-    assert "flight_time_s" in html and "<img" in html
+    assert "flight_time_s" in html and "<canvas" in html and "How the answer was reached" in html
     n = pg.locator(".areabar .tab").count()
     _bar_menu(pg, "Open", "Open a saved study")
     goto_folder(pg, pg.env["out"])
@@ -302,3 +310,17 @@ def test_one_place_for_each_control(pg):
     pg.locator(".sw-colour-key").click()
     pg.locator(".menu.ctx button", has_text="holds").first.click()
     assert "holds" in pg.locator(".sw-colour-key").inner_text()
+
+
+
+def test_report_word_and_the_process(pg):
+    _example(pg)
+    b = pg.locator(".pp canvas").bounding_box()
+    pg.mouse.move(b["x"] + 56, b["y"] + 50); pg.mouse.down(); pg.mouse.move(b["x"] + 56, b["y"] + 150, steps=5); pg.mouse.up()
+    pg.locator(".sw-plotbar .btn", has_text="Keep").click()
+    _bar_menu(pg, "Study", "Report")
+    assert "Step 1: kept" in pg.locator(".sw-report-preview").inner_text()      # the process, as it will be written
+    pg.locator(".sw-report .dialog-foot .btn", has_text="Cancel").click()
+    _report(pg, "Word", "process.docx")
+    assert os.path.getsize(os.path.join(pg.env["out"], "process.docx")) > 10000
+    pg.locator(".sw-plotbar .btn", has_text="Restore all").click()

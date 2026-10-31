@@ -62,8 +62,14 @@ templates you already have.
     menu, Columns only says what each column is. The area's bar: *Open* (a table, a folder, a saved
     study), *Study* (save, templates, report), *Export re-run list* (every combination, or only
     what is missing or failed).
+  - **Report** (*Study > Report…*) of the answer and of how it was reached - the question, the
+    process (tables merged, runs left out, each filter, each keep / exclude step, the re-run list),
+    the parallel plot, which parameter matters, the map and the best sets - as **interactive HTML**
+    (one file that opens in any browser, offline: drag on an axis to keep a range, click an axis's
+    name to colour by it, the table follows), **Word**, **PDF**, or the answer table as **CSV**. A
+    title and notes go at the top; the dialog shows the process as it will be written.
   - **Compare** two studies of the same sets (before and after a change), **save / open a study**
-    (`.svsweep`), and a **report** as one HTML file.
+    (`.svsweep`).
   - **CLI**: `signalviewer sweep TABLE --question q.json` - exit 0 when enough sets hold, for CI.
   A million-row table opens in about a second; reopening it reads a compressed copy kept in the
   cache. An example table and the script that makes it (also in a big size) are in `examples/sweeps`.
