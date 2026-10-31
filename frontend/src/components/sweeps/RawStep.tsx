@@ -1,0 +1,152 @@
+/* Step 1 - the results as they came: the table, page by page (sortable), or all of it as a parallel
+   plot to play with (and export alone). Nothing is decided yet. Another table - a second sweep - is
+   added (merged) here. */
+import { useEffect, useMemo, useState } from "react";
+import { pickPath } from "../../store";
+import { useT } from "../../i18n";
+import { sweepApi } from "../../sweeps/api";
+import { decodeCol } from "../../sweeps/decode";
+import type { Col, Filter, Scale } from "../../sweeps/model";
+import { keptMask } from "../../sweeps/filters";
+import { fmtValue } from "../../sweeps/scales";
+import type { Study } from "../../sweeps/state";
+import AxisMenu from "./AxisMenu";
+import ParallelPlot from "./ParallelPlot";
+import { MergeBox } from "./Shape";
+import { StepFoot } from "./StepNav";
+
+export function RawSide({ study }: { study: Study }) {
+  const t = useT();
+  return (
+    <div className="sw-side-step">
+      <p className="sw-step-intro">{t("swRawIntro")}</p>
+      <dl className="sw-facts">
+        <div><dt>{t("swRuns")}</dt><dd>{study.rows.toLocaleString()}</dd></div>
+        <div><dt>{t("swColumnsN")}</dt><dd>{study.columns.length}</dd></div>
+        <div><dt>{t("swReadInShort")}</dt><dd>{study.seconds.toFixed(2)} s</dd></div>
+      </dl>
+      <MergeBox study={study} />
+      <StepFoot study={study} />
+    </div>
+  );
+}
+
+export function RawCenter({ study }: { study: Study }) {
+  const t = useT();
+  const [tab, setTab] = useState<"table" | "plot">("table");
+  return (
+    <>
+      <div className="sw-center-tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "table"} className={tab === "table" ? "on" : ""} onClick={() => setTab("table")}>{t("swRawTable")}</button>
+        <button role="tab" aria-selected={tab === "plot"} className={tab === "plot" ? "on" : ""} onClick={() => setTab("plot")}>{t("swRawPlot")}</button>
+      </div>
+      {tab === "table" ? <RawTable study={study} /> : <RawPlot study={study} />}
+    </>
+  );
+}
+
+const PAGE = 100;
+
+function RawTable({ study }: { study: Study }) {
+  const t = useT();
+  const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<{ c: string; desc: boolean } | null>(null);
+  const [data, setData] = useState<{ total: number; columns: string[]; rows: (string | number | null)[][] } | null>(null);
+  useEffect(() => {
+    let live = true;
+    sweepApi.rows(study.tableId, page * PAGE, PAGE, sort?.c, sort?.desc).then((r) => live && setData(r)).catch(() => {});
+    return () => { live = false; };
+  }, [study.tableId, study.rows, page, sort]);
+  const role = new Map(study.columns.map((c) => [c.name, study.question.removed.includes(c.name) ? "ignore" : c.role]));
+  if (!data) return <p className="hint">{t("swReading")}</p>;
+  const pages = Math.max(1, Math.ceil(data.total / PAGE));
+  return (
+    <div className="sw-raw">
+      <div className="sw-row">
+        <button className="btn outline" disabled={page === 0} onClick={() => setPage(page - 1)}>←</button>
+        <span className="hint">{t("swRawRows", { a: (page * PAGE + 1).toLocaleString(), b: Math.min(data.total, (page + 1) * PAGE).toLocaleString(), n: data.total.toLocaleString() })}</span>
+        <button className="btn outline" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>→</button>
+        <span className="hint">{t("swRawSortHint")}</span>
+      </div>
+      <div className="sw-table-wrap">
+        <table className="sw-table">
+          <thead><tr>{data.columns.map((c) => (
+            <th key={c} className={`sw-th-${role.get(c) ?? "output"}`} onClick={() => setSort(sort?.c === c ? { c, desc: !sort.desc } : { c, desc: false })}>
+              {c}{sort?.c === c ? (sort.desc ? " ▼" : " ▲") : ""}</th>
+          ))}</tr></thead>
+          <tbody>{data.rows.map((r, i) => (
+            <tr key={i}>{r.map((v, j) => <td key={j} className={`${typeof v === "number" ? "num" : ""}${role.get(data.columns[j]) === "ignore" ? " sw-dim" : ""}`}>
+              {v === null ? "–" : typeof v === "number" ? fmtValue(v) : String(v)}</td>)}</tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** Every run as a line - the raw results, before roles or goals - with its own filters and colour;
+ *  "Export the plot" writes it alone as an interactive page. */
+export function RawPlot({ study }: { study: Study }) {
+  const t = useT();
+  const [cols, setCols] = useState<Map<string, Col> | null>(null);
+  const [n, setN] = useState(0);
+  const [axes, setAxes] = useState<string[]>([]);
+  const [filters, setFilters] = useState<Record<string, Filter>>({});
+  const [colorBy, setColorBy] = useState<string | null>(null);
+  const [scales, setScales] = useState<Record<string, Scale>>({});
+  const [reversed, setReversed] = useState<Record<string, boolean>>({});
+  const [menu, setMenu] = useState<{ name: string; at: DOMRect } | null>(null);
+  const [note, setNote] = useState("");
+  useEffect(() => {
+    let live = true;
+    sweepApi.raw(study.tableId).then((r) => {
+      if (!live) return;
+      const m = new Map(r.columns.map((w) => { const c = decodeCol(w, "run"); return [c.name, c] as [string, Col]; }));
+      setCols(m); setN(r.n);
+      const removed = new Set(study.question.removed);
+      const useful = study.columns.filter((c) => !c.constant && !c.empty && c.role !== "id" && !removed.has(c.name)).map((c) => c.name);
+      setAxes(useful.slice(0, 12));
+    }).catch((e) => live && setNote((e as Error).message));
+    return () => { live = false; };
+  }, [study.tableId, study.rows, study.columns, study.question.removed]);
+  const shown = useMemo(() => { if (!cols) return 0; const m = keptMask(cols, filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, filters, n]);
+  if (!cols) return <p className="hint">{note || t("swReading")}</p>;
+  const scaleOf = (a: string) => scales[a] ?? study.columns.find((c) => c.name === a)?.scale ?? "linear";
+  const choices = study.columns.map((c) => c.name).filter((c) => cols.has(c) && !axes.includes(c));
+  const exportPlot = async () => {
+    const p = await pickPath({ mode: "save", title: t("swExportPlot"), exts: [".html"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_plot.html" });
+    if (!p) return;
+    try {
+      const r = await sweepApi.report(study.tableId, { roles: {}, combine: "and", holdValues: {}, goal: null, conditions: [], derived: [], outputAgg: {}, objectives: [], exclude: [] },
+        { format: "plot", raw: true, path: p, axes, title: study.name, labels: { "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"), "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis") } });
+      setNote(t("swSaved", { path: r.path }));
+    } catch (e) { setNote((e as Error).message); }
+  };
+  return (
+    <>
+      <div className="sw-plotbar">
+        {choices.length > 0 && (
+          <select className="sw-add" aria-label={t("swAddAxis")} value="" onChange={(e) => e.target.value && setAxes([...axes, e.target.value])}>
+            <option value="">{t("swAddAxis")}</option>{choices.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
+        <span className="hint">{colorBy ? `${t("swColourBy")}: ${colorBy}` : t("swRawColourHint")}</span>
+        <span className="hint sw-count">{t("swShown", { n: shown.toLocaleString(), of: n.toLocaleString() })}</span>
+        {Object.keys(filters).length > 0 && <button className="btn outline" onClick={() => setFilters({})}>{t("swClearFilters", { n: Object.keys(filters).length })}</button>}
+        <button className="btn outline" onClick={exportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
+      </div>
+      {note && <p className="hint">{note}</p>}
+      <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scaleOf} reversed={reversed} colorBy={colorBy} filters={filters} highlight={null}
+        labelOf={(a) => a} onPick={() => {}} onFilter={(a, f) => { const x = { ...filters }; if (f) x[a] = f; else delete x[a]; setFilters(x); }}
+        onAxisMenu={(name, at) => setMenu({ name, at })}
+        onMoveAxis={(name, to) => { const a = axes.filter((x) => x !== name); a.splice(to, 0, name); setAxes(a); }} height={460} />
+      {menu && cols.get(menu.name) && (
+        <AxisMenu col={cols.get(menu.name)!} label={menu.name} at={menu.at} scale={scaleOf(menu.name)} reversed={!!reversed[menu.name]}
+          filter={filters[menu.name]} colouring={colorBy === menu.name}
+          onScale={(s) => setScales({ ...scales, [menu.name]: s })} onReverse={() => setReversed({ ...reversed, [menu.name]: !reversed[menu.name] })}
+          onColour={() => setColorBy(colorBy === menu.name ? null : menu.name)} onHide={() => { setAxes(axes.filter((a) => a !== menu.name)); setMenu(null); }}
+          onFilter={(f) => { const x = { ...filters }; if (f) x[menu.name] = f; else delete x[menu.name]; setFilters(x); }} onClose={() => setMenu(null)} />
+      )}
+    </>
+  );
+}

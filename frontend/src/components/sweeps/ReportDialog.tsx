@@ -13,6 +13,7 @@ import { sweepApi } from "../../sweeps/api";
 import { wireQuestion, type Study } from "../../sweeps/state";
 import { colLabel, scopeKey, scopeMask, setColumns, shownAxes } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
+import { goalName } from "./GoalsStep";
 
 type Format = "html" | "docx" | "pdf" | "csv";
 const EXT: Record<Format, string> = { html: ".html", docx: ".docx", pdf: ".pdf", csv: ".csv" };
@@ -23,11 +24,14 @@ function questionLines(t: TFn, s: Study): string[] {
   const out = [`${t("swRoleParam")}: ${s.columns.filter((c) => c.role === "param").map((c) => c.name).join(", ")}`];
   for (const h of s.columns.filter((c) => c.role === "hold"))
     out.push(`${t("swRoleHold")} - ${h.name}: ${(q.holdValues[h.name]?.length ? q.holdValues[h.name] : h.values ?? []).join(", ")}`);
-  if (q.goal) out.push(`${t("swGoal")}: ${q.goal.direction === "max" ? t("swMaximize") : t("swMinimize")} ${q.goal.column} (${t("swWorst")})`);
-  for (const c of q.conditions)
-    out.push(`${c.column} ${c.op} ${c.value} - ${c.mode === "all" ? t("swInAll") : c.mode === "atLeast" ? `${t("swAtLeast")} ${c.k}`
-      : `${t("swOnlyIn")} ${Object.entries(c.where ?? {}).map(([k, v]) => `${k} ${v.join(", ")}`).join("; ")}`}`);
-  for (const o of q.objectives) out.push(`${t("swObjective")}: ${o.direction === "max" ? t("swMaximize") : t("swMinimize")} ${o.column} × ${o.weight}`);
+  if (q.removed.length) out.push(t("swRepRemoved", { list: q.removed.join(", ") }));
+  q.goals.forEach((g, i) => {
+    const where = (c: (typeof g.conditions)[number]) => (c.mode === "all" ? t("swInAll") : c.mode === "atLeast" ? `${t("swAtLeast")} ${c.k}`
+      : `${t("swOnlyIn")} ${Object.entries(c.where ?? {}).map(([k, v]) => `${k} ${v.join(", ")}`).join("; ")}`);
+    const conds = g.conditions.map((c) => `${c.column} ${c.op} ${c.value} (${where(c)})`).join(g.combine === "or" ? ` ${t("swOr")} ` : ` ${t("swAnd")} `);
+    const opt = g.optimize.map((o) => `${o.direction === "max" ? t("swMaximize") : t("swMinimize")} ${o.column}`).join(", ");
+    out.push(`${goalName(t, g, i)}${i === q.active ? ` (${t("swRepShownGoal")})` : ""}: ${[conds, opt].filter(Boolean).join(" - ") || t("swGoalEmpty")}`);
+  });
   for (const d of q.derived) out.push(`ƒ ${d.name} = ${d.kind === "row" ? d.expr : `${d.op}(${d.column})`}`);
   out.push(`${t("swOutputsPerSet")} ${q.outputAgg}`);
   return out;
@@ -53,7 +57,8 @@ function processLines(t: TFn, s: Study): string[] {
   return out;
 }
 
-export default function ReportDialog({ study, onClose, onNote }: { study: Study; onClose: () => void; onNote: (msg: string) => void }) {
+/** The report's choices and the button that makes it - in the Report step, and in the dialog. */
+export function ReportForm({ study, onNote, onBefore }: { study: Study; onNote: (msg: string) => void; onBefore?: () => void }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const [format, setFormat] = useState<Format>("html");
@@ -61,10 +66,9 @@ export default function ReportDialog({ study, onClose, onNote }: { study: Study;
   const [notes, setNotes] = useState("");
   const [top, setTop] = useState(25);
   const [inc, setInc] = useState({ question: true, process: true, plot: true, effects: true, map: true, table: true });
-  useEscape(onClose);
   const a = study.answer!;
   const make = async () => {
-    onClose();                         // the file dialog takes its place; the result shows in the area's bar
+    onBefore?.();                      // the dialog closes: the file dialog takes its place
     const p = await pickPath({ mode: "save", title: t("swReport"), exts: [EXT[format]], defaultName: title + EXT[format] });
     if (!p) return;
     const cols = setColumns(study);
@@ -107,35 +111,40 @@ export default function ReportDialog({ study, onClose, onNote }: { study: Study;
     { f: "csv", label: t("swRepCsv"), hint: t("swRepCsvDesc") },
   ];
   return (
+    <div className="sw-report-body">
+      <div className="sw-report-formats" role="radiogroup" aria-label={t("swRepFormat")}>
+        {FORMATS.map(({ f, label, hint }) => (
+          <label key={f} className={`sw-report-format${format === f ? " on" : ""}`}>
+            <input type="radio" name="fmt" checked={format === f} onChange={() => setFormat(f)} />
+            <span><b>{label}</b><br /><span className="hint">{hint}</span></span>
+          </label>
+        ))}
+      </div>
+      <label className="sw-field">{t("swRepTitle")}<input value={title} onChange={(e) => setTitle(e.target.value)} /></label>
+      <label className="sw-field">{t("swRepNotes")}<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("swRepNotesHint")} /></label>
+      <div className="sw-report-inc">
+        {box("question", t("swQuestion"))}{box("process", t("swRepProcess"))}{box("plot", t("swCenterLines"))}
+        {box("effects", t("swCenterEffects"))}{box("map", t("swCenterMap"))}{box("table", t("swBestSets"))}
+        <label className="acheck">{t("swRepTop")}<input type="number" min={1} max={1000} value={top} onChange={(e) => setTop(Math.max(1, Number(e.target.value) || 25))} style={{ width: 64 }} /></label>
+      </div>
+      <div className="sw-report-preview">
+        <b>{t("swRepProcess")}</b>
+        <ul>{processLines(t, study).map((x, i) => <li key={i}>{x}</li>)}</ul>
+      </div>
+      <div className="sw-row"><button className="btn primary" onClick={make}>{t("swRepMake")}</button></div>
+    </div>
+  );
+}
+
+export default function ReportDialog({ study, onClose, onNote }: { study: Study; onClose: () => void; onNote: (msg: string) => void }) {
+  const t = useT();
+  useEscape(onClose);
+  return (
     <div className="scrim" onMouseDown={onClose}>
       <div className="dialog sw-report" role="dialog" aria-label={t("swReport")} onMouseDown={(e) => e.stopPropagation()}>
         <div className="dialog-head"><h2>{t("swReport")}</h2>
           <button className="iconbtn" onClick={onClose} aria-label={t("close")}><Icon.X /></button></div>
-        <div className="dialog-body sw-report-body">
-          <div className="sw-report-formats" role="radiogroup" aria-label={t("swRepFormat")}>
-            {FORMATS.map(({ f, label, hint }) => (
-              <label key={f} className={`sw-report-format${format === f ? " on" : ""}`}>
-                <input type="radio" name="fmt" checked={format === f} onChange={() => setFormat(f)} />
-                <span><b>{label}</b><br /><span className="hint">{hint}</span></span>
-              </label>
-            ))}
-          </div>
-          <label className="sw-field">{t("swRepTitle")}<input value={title} onChange={(e) => setTitle(e.target.value)} /></label>
-          <label className="sw-field">{t("swRepNotes")}<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("swRepNotesHint")} /></label>
-          <div className="sw-report-inc">
-            {box("question", t("swQuestion"))}{box("process", t("swRepProcess"))}{box("plot", t("swCenterLines"))}
-            {box("effects", t("swCenterEffects"))}{box("map", t("swCenterMap"))}{box("table", t("swBestSets"))}
-            <label className="acheck">{t("swRepTop")}<input type="number" min={1} max={1000} value={top} onChange={(e) => setTop(Math.max(1, Number(e.target.value) || 25))} style={{ width: 64 }} /></label>
-          </div>
-          <div className="sw-report-preview">
-            <b>{t("swRepProcess")}</b>
-            <ul>{processLines(t, study).map((x, i) => <li key={i}>{x}</li>)}</ul>
-          </div>
-        </div>
-        <div className="dialog-foot">
-          <button className="btn" onClick={onClose}>{t("cancel")}</button>
-          <button className="btn primary" onClick={make}>{t("swRepMake")}</button>
-        </div>
+        <div className="dialog-body"><ReportForm study={study} onNote={onNote} onBefore={onClose} /></div>
       </div>
     </div>
   );

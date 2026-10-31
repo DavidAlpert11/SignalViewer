@@ -10,8 +10,8 @@ import { useSweeps, type Study } from "../../sweeps/state";
 import { axisChoices, colLabel, modeColumns, scaleOf, scopeKey, shownAxes } from "../../sweeps/view";
 import { openMenu } from "../Overlays";
 
-export default function PlotToolbar({ study, shown, total, onKeep, onExclude, onExport }:
-  { study: Study; shown: number; total: number; onKeep: () => void; onExclude: () => void; onExport: () => void }) {
+export default function PlotToolbar({ study, shown, total, onKeep, onExclude, onExport, onExportPlot }:
+  { study: Study; shown: number; total: number; onKeep: () => void; onExclude: () => void; onExport: () => void; onExportPlot: () => void }) {
   const t = useT();
   const { setView, toggleAxis } = useSweeps.getState();
   const v = study.view;
@@ -42,6 +42,7 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
         <button className="btn outline" onClick={() => useSweeps.getState().restore(true)}>{t("swRestore", { n: scoped })}</button>
       </>}
       <button className="btn outline" disabled={!shown} onClick={onExport} title={t("swExportShownHint")}>{t("swExportShown")}</button>
+      <button className="btn outline" onClick={onExportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
     </div>
   );
 }
