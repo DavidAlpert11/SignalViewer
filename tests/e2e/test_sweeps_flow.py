@@ -331,3 +331,31 @@ def test_follow_the_file_and_templates(pg, tmp_path):
     pg.locator(".sw-banner .btn", has_text="Apply").click()
     _step(pg, "goals")
     assert pg.locator(".sw-goal-part select[aria-label='Goal']").first.input_value() == "out"
+
+
+def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
+    _to_sweeps(pg)
+    while pg.locator(".areabar .tab").count():
+        _bar_menu(pg, "Study", "Close this table")
+    pg.locator(".sw-welcome .btn", has_text="two sweeps, merged").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-hide-box .sw-tag').length === 2")
+    pg.locator(".sw-tag-x").first.click()                                          # the merged table out again
+    pg.wait_for_function("document.querySelectorAll('.sw-hide-box .sw-tag').length === 1")
+    assert "810 runs" in pg.locator(".sw-step-btn").nth(0).inner_text()
+    # the raw table: only the outputs
+    pg.locator(".sw-raw select[title^='Show every column']").select_option("outputs")
+    heads = [h.strip() for h in pg.locator(".sw-raw thead th").all_inner_texts()]
+    assert heads[0].startswith("roll_error_deg") and "kp_roll" not in " ".join(heads)
+    # a goal deleted from its tab
+    _the_goal(pg)
+    pg.locator(".sw-goal-tabs .linklike", has_text="copy this goal").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-tab').length === 2")
+    pg.locator(".sw-goal-tab").nth(1).locator(".sw-tag-x").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-tab').length === 1")
+    # results: parameters and the goal only
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")                          # the answer to this goal is in
+    pg.locator(".sw-plotbar select[aria-label='Show columns']").select_option("params-goal")
+    pg.wait_for_timeout(300)
+    names = [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
+    assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6

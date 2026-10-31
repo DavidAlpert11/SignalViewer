@@ -7,7 +7,11 @@ import { FAILS, HOLDS, rampCss } from "../../sweeps/colors";
 import { hasFilter } from "../../sweeps/filters";
 import { fmtValue, makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, modeColumns, scaleOf, scopeKey, shownAxes } from "../../sweeps/view";
+import { axisChoices, colLabel, modeColumns, PRESETS, presetColumns, scaleOf, scopeKey, shownAxes, type ColumnPreset } from "../../sweeps/view";
+import type { TKey } from "../../i18n";
+
+export const PRESET_KEY: Record<ColumnPreset, TKey> = { all: "swShowAll", "params-outputs": "swShowParamsOutputs", "params-goal": "swShowParamsGoal",
+  params: "swShowParams", scenarios: "swShowScenarios", outputs: "swShowOutputs" };
 import { openMenu } from "../Overlays";
 
 export default function PlotToolbar({ study, shown, total, onKeep, onExclude, onExport, onExportPlot }:
@@ -22,9 +26,14 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
   return (
     <div className="sw-plotbar">
       <div className="sw-seg" role="radiogroup" aria-label={t("swLines")}>
-        <button role="radio" aria-checked={v.mode === "sets"} className={v.mode === "sets" ? "on" : ""} onClick={() => setView({ mode: "sets" })}>{t("swPerSet")}</button>
-        <button role="radio" aria-checked={v.mode === "runs"} className={v.mode === "runs" ? "on" : ""} onClick={() => setView({ mode: "runs" })}>{t("swPerRun")}</button>
+        <button role="radio" aria-checked={v.mode === "sets"} className={v.mode === "sets" ? "on" : ""} onClick={() => setView({ mode: "sets" })} title={t("swPerSetHint")}>{t("swPerSet")}</button>
+        <button role="radio" aria-checked={v.mode === "runs"} className={v.mode === "runs" ? "on" : ""} onClick={() => setView({ mode: "runs" })} title={t("swPerRunHint")}>{t("swPerRun")}</button>
       </div>
+      <select className="sw-add" aria-label={t("swShowColumns")} value="" title={t("swShowColumnsHint")}
+        onChange={(e) => { const cols = presetColumns(study, e.target.value as ColumnPreset, axisChoices(study)); if (cols.length) setView({ axes: cols }); }}>
+        <option value="">{t("swShowColumns")}</option>
+        {PRESETS.filter((p) => p !== "scenarios" || v.mode === "runs").map((p) => <option key={p} value={p}>{t(PRESET_KEY[p])}</option>)}
+      </select>
       {choices.length > 0 && (
         <select className="sw-add" aria-label={t("swAddAxis")} value="" onChange={(e) => e.target.value && toggleAxis(e.target.value, true)}>
           <option value="">{t("swAddAxis")}</option>

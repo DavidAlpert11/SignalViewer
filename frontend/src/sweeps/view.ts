@@ -102,3 +102,23 @@ export function scopedColumns(s: Study): { cols: Map<string, Col>; n: number; in
   for (const [k, c] of cols) { const v = new Float32Array(index.length); for (let j = 0; j < index.length; j++) v[j] = c.values[index[j]]; out.set(k, { ...c, values: v }); }
   return { cols: out, n: index.length, index };
 }
+
+/** Which columns to show, at once: every one, or a group by role. */
+export type ColumnPreset = "all" | "params-outputs" | "params-goal" | "params" | "scenarios" | "outputs";
+export const PRESETS: ColumnPreset[] = ["all", "params-outputs", "params-goal", "params", "scenarios", "outputs"];
+
+/** The columns of a group, in table order, among `available` (what the current view can show). */
+export function presetColumns(s: Study, preset: ColumnPreset, available: string[]): string[] {
+  const removed = new Set(s.question.removed);
+  const role = (r: string) => s.columns.filter((c) => c.role === r && !removed.has(c.name)).map((c) => c.name);
+  const derived = s.question.derived.map((d) => d.name);
+  const goalCols = ["#goal", ...(s.answer?.sets.filter((c) => c.group === "condition" && c.part === "worst").map((c) => c.name) ?? [])];
+  const want = preset === "all" ? [...role("hold"), ...role("param"), ...role("output"), ...derived, "#goal"]
+    : preset === "params-outputs" ? [...role("param"), ...role("output"), ...derived]
+    : preset === "params-goal" ? [...role("param"), ...goalCols]
+    : preset === "params" ? role("param")
+    : preset === "scenarios" ? role("hold")
+    : [...role("output"), ...derived];
+  const ok = new Set(available);
+  return want.filter((c, i) => ok.has(c) && want.indexOf(c) === i);
+}

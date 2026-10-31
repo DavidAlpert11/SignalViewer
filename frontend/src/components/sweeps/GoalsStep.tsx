@@ -32,7 +32,11 @@ export function GoalsSide({ study }: { study: Study }) {
       <p className="sw-step-intro">{t("swGoalsIntro")}</p>
       <div className="sw-goal-tabs" role="tablist">
         {q.goals.map((x, i) => (
-          <button key={i} role="tab" aria-selected={i === q.active} className={i === q.active ? "on" : ""} onClick={() => st.setActiveGoal(i)}>{goalName(t, x, i)}</button>
+          <span key={i} className={`sw-goal-tab${i === q.active ? " on" : ""}`}>
+            <button role="tab" aria-selected={i === q.active} onClick={() => st.setActiveGoal(i)}>{goalName(t, x, i)}</button>
+            <button className="sw-tag-x" aria-label={t("swGoalDeleteN", { n: goalName(t, x, i) })} title={t("swGoalDeleteN", { n: goalName(t, x, i) })}
+              onClick={() => st.removeGoal(i)}>×</button>
+          </span>
         ))}
         <button className="linklike" onClick={() => st.addGoal(true)} title={t("swGoalCopyHint")}>{t("swGoalCopy")}</button>
         <button className="linklike" onClick={() => st.addGoal(false)}>{t("swGoalNew")}</button>
@@ -77,7 +81,7 @@ export function GoalsSide({ study }: { study: Study }) {
         <label className="sw-agg">{t("swOutputsPerSet")}
           <select value={q.outputAgg} onChange={(e) => st.setQuestion({ outputAgg: e.target.value as SetOp })}>{OUTPUT_AGGS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
       </section>
-      {q.goals.length > 1 && <button className="linklike sw-danger" onClick={() => st.removeGoal(q.active)}>{t("swGoalDelete")}</button>}
+      <button className="linklike sw-danger" onClick={() => st.removeGoal(q.active)}>{q.goals.length > 1 ? t("swGoalDelete") : t("swGoalClear")}</button>
       <StepFoot study={study} next={t("swGoalSeeResults")} />
     </div>
   );
@@ -108,7 +112,7 @@ export function GoalsCenter({ study }: { study: Study }) {
       <div className="sw-table-wrap">
         <table className="sw-table sw-variants">
           <thead><tr><th>{t("swGoal")}</th><th>{t("swGoalWhat")}</th><th className="num">{t("swRepHolding")}</th><th className="num">{t("swBestValue")}</th>
-            <th>{t("swBestSet")}</th><th className="num" title={t("swNeighboursHint")}>{t("swRobust")}</th><th className="num" title={t("swToleranceHint")}>{t("swToleranceCol")}</th></tr></thead>
+            <th>{t("swBestSet")}</th><th className="num" title={t("swNeighboursHint")}>{t("swRobust")}</th><th className="num" title={t("swToleranceHint")}>{t("swToleranceCol")}</th><th /></tr></thead>
           <tbody>{q.goals.map((g, i) => {
             const r = res?.[i];
             return (
@@ -120,6 +124,8 @@ export function GoalsCenter({ study }: { study: Study }) {
                 <td className="hint">{r?.best ? Object.values(r.best.params).join(" · ") : ""}</td>
                 <td className="num">{r?.robust != null ? `${Math.round(r.robust * 100)}%` : "–"}</td>
                 <td className="num">{r?.tolerance != null ? r.tolerance : "–"}</td>
+                <td onClick={(e) => e.stopPropagation()}><button className="iconbtn" aria-label={t("swGoalDeleteN", { n: goalName(t, g, i) })}
+                  title={t("swGoalDeleteN", { n: goalName(t, g, i) })} onClick={() => st.removeGoal(i)}>×</button></td>
               </tr>
             );
           })}</tbody>
