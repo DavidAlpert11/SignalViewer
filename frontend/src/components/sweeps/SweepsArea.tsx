@@ -317,6 +317,7 @@ function ResultsCenter({ study }: { study: Study }) {
             onExclude={() => st.narrow("exclude", selection().sets, scopeKey(study))}
             onExport={exportShown}
             onExportPlot={() => exportPlot(t, study, lang).then((m) => m && setNote(m)).catch((e) => setNote((e as Error).message))} />
+          <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}</p>
           {note && <p className="hint">{note}</p>}
           {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
           {axes.length ? (

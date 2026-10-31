@@ -57,6 +57,8 @@ interface SweepsState {
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => Promise<void>;
   saved: () => SavedStudy | null;
   merge: (path: string, prefer: "new" | "old" | "both") => Promise<{ added: number; replaced: number }>;
+  /** take the i-th merged table out again (1: the first one merged in) */
+  unmerge: (i: number) => Promise<void>;
   narrow: (kind: "keep" | "exclude", sets: number[], key: string) => void;
   restore: (all: boolean) => void;
   /** the same table, the study from the start: no goals, nothing removed, the guessed roles */
@@ -218,6 +220,21 @@ export const useSweeps = create<SweepsState>((set, get) => {
       get().evaluate();
       return { added: r.added, replaced: r.replaced };
     },
+    unmerge: async (i) => {
+      const s = get().studies[get().active];
+      const m = s.merged[i - 1];
+      if (!m) return;
+      const r = await sweepApi.unmerge(s.tableId, m.path);
+      const byName = new Map(s.columns.map((c) => [c.name, c]));
+      const columns: StudyColumn[] = r.columns.map((c) => {
+        const old = byName.get(c.name);
+        return { ...c, guessRole: c.role, guessScale: c.scale, role: old?.role ?? c.role, scale: old?.scale ?? c.scale };
+      });
+      patch((x) => (x.tableId !== s.tableId ? x : { ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
+        merged: x.merged.filter((_, j) => j !== i - 1), view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } }));
+      refreshSummary();
+      get().evaluate();
+    },
     narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, pinned: null,
       scope: { key, steps: [...(v.scope.key === key ? v.scope.steps : []), { kind, sets }] } })),
     resetStudy: () => {
@@ -333,7 +350,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       return materialize({ ...q, goals, active: goals.length - 1 });
     }),
     removeGoal: (i) => patchQ((q) => {
-      if (q.goals.length < 2) return q;
+      if (q.goals.length < 2) return materialize({ ...q, goals: [newGoal("1")], active: 0 });
       const goals = q.goals.filter((_, j) => j !== i);
       return materialize({ ...q, goals, active: Math.min(q.active === i ? 0 : q.active > i ? q.active - 1 : q.active, goals.length - 1) });
     }),

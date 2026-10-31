@@ -98,6 +98,7 @@ export const sweepApi = {
   compare: (a: { id: string; question: WireQuestion }, b: { id: string; question: WireQuestion }) => call<CompareResult>("/api/sweep/compare", { a, b }),
   merge: (id: string, path: string, keys: string[], prefer: "new" | "old" | "both") =>
     call<SweepOpened & { added: number; replaced: number; sources: string[] }>("/api/sweep/merge", { id, path, keys, prefer }),
+  unmerge: (id: string, path: string) => call<SweepOpened & { sources: string[] }>("/api/sweep/unmerge", { id, path }),
   exportRows: (id: string, question: WireQuestion, sel: { sets?: number[]; rows?: number[] }, path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/export-rows", { id, question, ...sel, path }),
   reload: (id: string) => call<SweepOpened>("/api/sweep/reload", { path: id }),
