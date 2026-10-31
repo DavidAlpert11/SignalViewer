@@ -17,7 +17,7 @@ import csv
 import io
 import json
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -165,7 +165,7 @@ def figures(p, q: Dict, a: Dict, req: Dict) -> Dict[str, bytes]:
             val = a["data"]["#goal"] if "#goal" in a["data"] else a["data"]["#holds"]
             out["effects"] = _png(fig_effects(sweep.effects(p, val, a["data"]["#holds"]), labels.get("#effects", "")))
         mx, my = req.get("mapX"), req.get("mapY")
-        if inc.get("map", True) and mx in p.params and my in p.params and mx != my:
+        if inc.get("map", True) and isinstance(mx, str) and isinstance(my, str) and mx in p.params and my in p.params and mx != my:
             val = a["data"]["#goal"] if "#goal" in a["data"] else a["data"]["#holds"]
             out["map"] = _png(fig_map(sweep.pair_map(p, mx, my, val, a["data"]["#holds"])))
     except ReportNeedsExtra:
@@ -287,7 +287,7 @@ def _pdf(a: Dict, req: Dict, figs: Dict[str, bytes], path: str):
         pdf.savefig(fig); plt.close(fig)
 
     with PdfPages(path) as pdf:
-        lines = [(18, req.get("title") or "Sweeps"), (9, f"{req.get('subtitle', '')} · {datetime.now().strftime('%Y-%m-%d %H:%M')}")]
+        lines: List[Tuple[float, str]] = [(18, req.get("title") or "Sweeps"), (9, f"{req.get('subtitle', '')} · {datetime.now().strftime('%Y-%m-%d %H:%M')}")]
         lines += [(10, x) for x in (req.get("notes") or "").split("\n") if x.strip()]
         lines += [(13, L.get("#answer", "Answer"))] + [(10, f"{k}: {v}") for k, v in (req.get("summary") or [])]
         for sec in _sections(req):

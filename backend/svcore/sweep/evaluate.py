@@ -20,7 +20,7 @@ Worst case: for a ">=" condition or a goal to maximize, the smallest value over 
 for "<=" or a goal to minimize, the largest. Margin: how far the worst case is inside the limit.
 """
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -47,7 +47,7 @@ class Prepared:
     combo_id: np.ndarray                # per kept row
     n_combos: int
     covered: np.ndarray                 # per set: distinct combinations it ran
-    row_id: np.ndarray = None           # per kept row: its row in the table (to leave runs out by row)
+    row_id: np.ndarray = field(default_factory=lambda: np.zeros(0, np.int64))  # per kept row: its row in the table (to leave runs out by row)
     set_cols: Dict[str, np.ndarray] = field(default_factory=dict)   # per-set new columns
 
 
@@ -82,7 +82,7 @@ def prepare(table: pd.DataFrame, q: Dict) -> Prepared:
     row_id = df.index.to_numpy()
     df = df.reset_index(drop=True)
     derived = q.get("derived") or []
-    new_cols = {}
+    new_cols: Dict[str, Any] = {}
     for d in derived:
         if d.get("kind") == "row":
             name = (d.get("name") or "").strip()
@@ -123,7 +123,7 @@ def _condition(p: Prepared, c: Dict) -> Dict:
     if op not in _OPS:
         raise QuestionError(f"Unknown comparison: {op}")
     try:
-        limit = float(c.get("value"))
+        limit = float(c.get("value"))  # type: ignore[arg-type]   # None -> TypeError -> the message below
     except (TypeError, ValueError):
         raise QuestionError(f"{col}: the limit must be a number") from None
     lower_worse = op in _LOWER_IS_WORSE
