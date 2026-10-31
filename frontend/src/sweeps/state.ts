@@ -42,7 +42,8 @@ export interface Study {
 
 /** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
  *  the view that change what is shown. Not where one is (step, tab, open set, map axes, follow). */
-const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "onlyMissing", "scope"] as const;
+const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "onlyMissing", "scope",
+  "onlyHolding", "tableColumns", "tableSort"] as const;
 type UndoView = Pick<View, (typeof UNDO_VIEW)[number]>;
 export interface Snap { roles: Record<string, { role: Role; scale: Scale }>; question: Question; view: UndoView }
 export interface History { past: Snap[]; future: Snap[]; kind: string; at: number }

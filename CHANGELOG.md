@@ -8,6 +8,14 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: the sets that hold, to take elsewhere**: the table of sets has its own bar -
+  **Only sets that hold (n of m)**, its **Columns** (any column of the answer: outputs per set, new
+  columns, scores...), pages instead of stopping at 300 rows, and **Export**: the sets as shown (a
+  row each, the columns shown, in the table's order, holds as 1 / 0) or all their runs, as CSV. A
+  click on a header sorts by it (again: the other way; *best first* goes back). The report's table
+  (HTML, Word, PDF, CSV) is now the table on screen - its sets, order and columns - and the report's
+  process says when only the sets that hold were shown and how the table was sorted. These choices
+  are kept with the study and undone with Ctrl+Z.
 - **Sweeps with many columns**: each axis of the parallel plot keeps room to be read, and the plot
   scrolls sideways - with the mouse wheel, as there is nothing to scroll up or down - instead of
   squeezing forty axes into the screen; *Fit to width* squeezes them in when wanted. The tooltip

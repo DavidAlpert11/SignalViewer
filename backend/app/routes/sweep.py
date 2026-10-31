@@ -1,6 +1,7 @@
 """Sweeps (the run-envelope area): open a results table, describe its columns, and the shape of
 the study for a set of roles (svcore/sweep.py). Tables stay here; the page gets descriptions,
 counts and - later - what it draws."""
+import csv
 import json
 import os
 import time
@@ -8,7 +9,7 @@ import uuid
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 
-
+import numpy as np
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -459,6 +460,44 @@ def sweep_export_rows(req: ExportRowsReq):
     return {"path": path, "rows": len(rows)}
 
 
+class ExportSetsReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    sets: List[int]                      # in the order of the table on screen
+    columns: List[str]                   # the answer's columns, in order
+    labels: Dict[str, str] = {}          # a column's name on screen
+    path: str
+
+
+@router.post("/api/sweep/export-sets")
+def sweep_export_sets(req: ExportSetsReq):
+    """The table of sets as shown - a row per parameter set, the columns chosen, in its order - to
+    use elsewhere (the sets that hold, as the next step's input). Holds is written as 1 / 0."""
+    from app import sweep_report
+    p, a = _answer(req.id, req.question)
+    n = len(a["data"]["#holds"])
+    cols = [c for c in req.columns if c in a["data"]]
+    bad = [s for s in req.sets if not 0 <= s < n]
+    if bad:
+        fail(400, f"No parameter set {bad[0]} in this answer (it has {n}); the table changed - export again.")
+    path = os.path.abspath(os.path.expanduser(req.path))
+
+    def cell(c: str, i: int):
+        v = sweep_report._value(a, c, i)
+        if c == "#holds":
+            return int(v == 1)
+        return "" if isinstance(v, float) and not np.isfinite(v) else v
+    try:
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.writer(f)
+            w.writerow([req.labels.get(c, c) for c in cols])
+            for i in req.sets:
+                w.writerow([cell(c, i) for c in cols])
+    except OSError as e:
+        fail(400, f"Could not write {path}: {e}")
+    return {"path": path, "rows": len(req.sets)}
+
+
 # ----------------------------------------------------------------------------- the report
 class ReportReq(BaseModel):
     id: str
@@ -475,6 +514,7 @@ class ReportReq(BaseModel):
     columns: List[str] = []              # the table's columns
     axes: List[str] = []                 # the plot's axes
     shown: Optional[List[int]] = None    # the sets on screen after the filters
+    rows: Optional[List[int]] = None     # the table's sets, in its order (S04: only those that hold, sorted)
     top: int = 25
     include: Dict[str, bool] = {}
     mapX: Optional[str] = None
@@ -524,7 +564,6 @@ class VariantsReq(BaseModel):
 def sweep_variants(req: VariantsReq):
     """Several goals asked of the same sets, side by side: how many hold under each, the best goal
     value, and how robust the holding sets are (the share of their neighbours that hold too)."""
-    import numpy as np
     out: List[Dict[str, Any]] = []
     for v in req.variants:
         q = {**req.question, "goal": v.get("goal"), "conditions": v.get("conditions") or [],
@@ -564,7 +603,6 @@ def sweep_rows(id: str, offset: int = 0, limit: int = 100, sort: Optional[str] =
 def sweep_raw(req: QuestionReq):
     """Every column of every run (a sample above 200 000), for a parallel plot of the raw results -
     before any role or goal."""
-    import numpy as np
     df = _get(req.id)["df"]
     idx = np.arange(len(df))
     sampled = len(df) > 200_000

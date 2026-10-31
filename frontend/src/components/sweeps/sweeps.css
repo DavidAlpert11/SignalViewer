@@ -298,6 +298,15 @@
 
 /* the column picker's list (MultiSignalPicker in a popover) */
 .sw-colpick { flex: none; }
-.sw-colpick-pop { position: fixed; z-index: 70; max-height: min(70vh, 560px); overflow: auto; padding: 10px; box-sizing: border-box;
+.sw-colpick-pop { position: fixed; z-index: 70; overflow: auto; padding: 10px; box-sizing: border-box;
   background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); }
 .sw-colpick-pop .msp-list { max-height: 340px; }
+
+/* the table of sets: its bar (only those that hold, columns, pages, export) and the table */
+.sw-sets { flex: 1 1 220px; min-height: 180px; display: flex; flex-direction: column; gap: 6px; }
+.sw-sets > .sw-table-wrap { flex: 1 1 auto; }
+.sw-sets-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sw-sets-bar .sw-count { margin-inline-start: auto; }
+.sw-pages { display: inline-flex; align-items: center; gap: 4px; }
+.sw-table th.sortable { cursor: pointer; user-select: none; }
+.sw-table th.sortable:hover { color: var(--ink-strong); }

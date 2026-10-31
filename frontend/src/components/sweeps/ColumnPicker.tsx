@@ -8,7 +8,7 @@ import { useT } from "../../i18n";
 import MultiSignalPicker, { type MultiOption } from "../MultiSignalPicker";
 import { useEscape } from "../Overlays";
 
-const POP_W = 360;
+const POP_W = 360, POP_MIN_H = 360;
 
 export default function ColumnPicker({ options, value, onChange, presets, label }: {
   options: MultiOption[]; value: string[]; onChange: (ids: string[]) => void;
@@ -16,7 +16,7 @@ export default function ColumnPicker({ options, value, onChange, presets, label 
 }) {
   const t = useT();
   // fixed on screen under the button: the bar it sits in scrolls sideways and would cut it
-  const [open, setOpen] = useState<{ top: number; left: number } | null>(null);
+  const [open, setOpen] = useState<{ top?: number; bottom?: number; left: number; maxHeight: number } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   useEscape(() => setOpen(null), !!open);
   useEffect(() => {
@@ -36,12 +36,16 @@ export default function ColumnPicker({ options, value, onChange, presets, label 
         onClick={(e) => {
           if (open) { setOpen(null); return; }
           const r = e.currentTarget.getBoundingClientRect();
-          setOpen({ top: r.bottom + 4, left: Math.max(8, Math.min(r.left, window.innerWidth - POP_W - 8)) });
+          const left = Math.max(8, Math.min(r.left, window.innerWidth - POP_W - 8));
+          // below the button, or above it when there is more room there (the table's bar is low)
+          const below = window.innerHeight - r.bottom - 12, above = r.top - 12;
+          setOpen(below >= POP_MIN_H || below >= above ? { top: r.bottom + 4, left, maxHeight: Math.min(560, below) }
+            : { bottom: window.innerHeight - r.top + 4, left, maxHeight: Math.min(560, above) });
         }}>
         {label ?? t("swColumnsOf", { n: value.length, of: options.length })} ▾
       </button>
       {open && (
-        <div className="sw-colpick-pop" role="dialog" aria-label={t("swShowColumns")} style={{ top: open.top, left: open.left, width: POP_W }}>
+        <div className="sw-colpick-pop" role="dialog" aria-label={t("swShowColumns")} style={{ top: open.top, bottom: open.bottom, left: open.left, width: POP_W, maxHeight: open.maxHeight }}>
           <MultiSignalPicker options={options} value={value} onChange={change} noun="columns"
             quick={presets?.map((p) => ({ label: p.label, ids: p.ids }))} />
         </div>

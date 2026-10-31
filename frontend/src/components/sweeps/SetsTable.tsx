@@ -1,79 +1,115 @@
-/* The parameter sets, best first: rank, parameters, the goal, each condition's worst case and
-   margin, how many combinations ran. The plot's filters apply; a click opens the set. */
-import { useMemo } from "react";
+/* The parameter sets, best first: rank and holds (kept in view), then the chosen columns -
+   parameters, the goal, each condition's worst case and margin... The plot's filters and the keep
+   / exclude steps apply; *only those that hold* narrows it further. A click on a header sorts by
+   it (again: the other way, a third time: best first); a click on a row opens the set. What the
+   table shows is what Export writes: the sets, a row each, or all their runs. */
+import { useMemo, useState } from "react";
+import { pickPath } from "../../store";
 import { useT } from "../../i18n";
-import { keptMask } from "../../sweeps/filters";
+import { sweepApi } from "../../sweeps/api";
 import { labelOf } from "../../sweeps/scales";
-import { useSweeps, type Study } from "../../sweeps/state";
-import { colLabel, scopeMask, setColumns } from "../../sweeps/view";
+import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
+import { notify, notifyError } from "../../sweeps/notify";
+import { colLabel, setColumns, tableColumns, tableOptions, tableRows, TABLE_FIXED } from "../../sweeps/view";
+import { openMenu } from "../Overlays";
+import ColumnPicker from "./ColumnPicker";
 
-const MAX_ROWS = 300;
+const PAGE = 100;
 
 export default function SetsTable({ study }: { study: Study }) {
   const t = useT();
   const { setView } = useSweeps.getState();
   const cols = useMemo(() => setColumns(study), [study]);
   const a = study.answer!;
-  const n = a.sets[0]?.values.length ?? 0;
   const v = study.view;
-  const show = useMemo(() => {
-    const names: string[] = [...a.sets.filter((c) => c.group === "param").map((c) => c.name)];
-    if (cols.has("#goal")) names.push("#goal");
-    for (const c of a.sets) if (c.group === "condition" && c.part !== "passed") names.push(c.name);
-    for (const extra of ["#score", "#pareto", "#neighbours", "#tolerance"]) if (cols.has(extra)) names.push(extra);
-    names.push("#covered");
-    return names;
-  }, [a, cols]);
-  const order = useMemo(() => {
-    const kept = keptMask(cols, v.filters, n);
-    const scope = scopeMask(study);
-    if (scope) for (let i = 0; i < n; i++) kept[i] &= scope[i];
-    const rank = cols.get("#rank")!.values, holds = cols.get("#holds")!.values, goal = cols.get("#goal")?.values;
-    const dir = study.question.goal?.direction === "min" ? 1 : -1;
-    const rows: number[] = [];
-    for (let i = 0; i < n; i++) if (kept[i]) rows.push(i);
-    rows.sort((x, y) => {
-      const rx = Number.isFinite(rank[x]) ? rank[x] : Infinity, ry = Number.isFinite(rank[y]) ? rank[y] : Infinity;
-      if (rx !== ry) return rx - ry;
-      if (holds[x] !== holds[y]) return holds[y] - holds[x];
-      if (goal) { const gx = goal[x], gy = goal[y]; if (gx !== gy) return Number.isFinite(gx) ? (Number.isFinite(gy) ? dir * (gx - gy) : -1) : 1; }
-      return x - y;
-    });
-    return rows;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cols, v.filters, n, study.question.goal, v.scope]);
-  const rows = order.slice(0, MAX_ROWS);
+  const show = useMemo(() => tableColumns(study), [study]);
+  const order = useMemo(() => tableRows(study), [study]);
+  const [pageWanted, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(order.length / PAGE));
+  const page = Math.min(pageWanted, pages - 1);              // fewer rows now (a filter): the last page
+  const rows = order.slice(page * PAGE, (page + 1) * PAGE);
   const holds = cols.get("#holds")!.values;
+  const holding = useMemo(() => { let k = 0; for (let i = 0; i < holds.length; i++) k += holds[i] === 1 ? 1 : 0; return k; }, [holds]);
+  const sort = v.tableSort && cols.has(v.tableSort.column) ? v.tableSort : null;
+  const sortBy = (c: string) => setView({ tableSort: sort?.column !== c ? { column: c, desc: false } : !sort.desc ? { column: c, desc: true } : null });
+  const arrow = (c: string) => (sort?.column === c ? (sort.desc ? " ▼" : " ▲") : "");
+  const base = study.name.replace(/\.[^.]+$/, "");
+
+  const exportSets = async () => {
+    const p = await pickPath({ mode: "save", title: t("swExportSets"), exts: [".csv"], defaultName: `${base}_sets.csv` });
+    if (!p) return;
+    const names = [...TABLE_FIXED, ...show];
+    const labels = Object.fromEntries(names.map((c) => [c, colLabel(t, study, c)]));
+    try {
+      const r = await sweepApi.exportSets(study.tableId, wireQuestion(study), order, names, labels, p);
+      notify(t("swExportedSets", { n: r.rows, path: r.path }));
+    } catch (e) { notifyError(e); }
+  };
+  const exportRuns = async () => {
+    const p = await pickPath({ mode: "save", title: t("swExportSetRuns"), exts: [".csv"], defaultName: `${base}_runs.csv` });
+    if (!p) return;
+    try {
+      const r = await sweepApi.exportRows(study.tableId, wireQuestion(study), { sets: order }, p);
+      notify(t("swExported", { n: r.rows, path: r.path }));
+    } catch (e) { notifyError(e); }
+  };
+  const exportMenu = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    openMenu({ clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, [
+      { label: t("swExportSetsN", { n: order.length.toLocaleString() }), run: exportSets },
+      { label: t("swExportSetRunsN", { n: (order.length * a.counts.combos).toLocaleString() }), run: exportRuns },
+    ]);
+  };
+
   return (
-    <div className="sw-table-wrap">
-      <table className="sw-table">
-        {/* the re-run box, the rank and holds / fails stay in view while the table scrolls sideways */}
-        <thead><tr>
-          <th className="st st-0" aria-label={t("swRerun")} />
-          <th className="st st-1 num">{colLabel(t, study, "#rank")}</th>
-          <th className="st st-2">{t("swHoldsCol")}</th>
-          {show.map((c) => <th key={c} className={c.startsWith("#c") ? "num cond" : c === "#goal" ? "num goal" : ""}>{colLabel(t, study, c)}</th>)}
-        </tr></thead>
-        <tbody>
-          {rows.map((i) => (
-            <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""}`} onClick={() => setView({ pinned: i })}>
-              <td className="st st-0" onClick={(e) => e.stopPropagation()}>
-                <input type="checkbox" aria-label={t("swRerunThis")} checked={v.rerun.includes(i)}
-                  onChange={(e) => setView({ rerun: e.target.checked ? [...v.rerun, i] : v.rerun.filter((x) => x !== i) })} />
-              </td>
-              <td className="st st-1 num">{labelOf(cols.get("#rank")!, cols.get("#rank")!.values[i])}</td>
-              <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`}>{holds[i] === 1 ? "✓" : "✗"}</td>
-              {show.map((c) => {
-                const col = cols.get(c)!, val = col.values[i];
-                const neg = col.part === "margin" && val < 0;
-                const text = c === "#covered" ? `${val} / ${a.counts.combos}` : c === "#pareto" ? (val === 1 ? "◆" : "") : c === "#neighbours" ? (Number.isFinite(val) ? `${Math.round(val * 100)}%` : "–") : labelOf(col, val);
-                return <td key={c} className={`${col.kind === "num" ? "num" : ""}${neg ? " bad" : ""}`}>{text}</td>;
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {order.length > MAX_ROWS && <p className="hint sw-more">{t("swMoreRows", { n: (order.length - MAX_ROWS).toLocaleString() })}</p>}
+    <div className="sw-sets">
+      <div className="sw-sets-bar">
+        <label className="acheck" title={t("swOnlyHoldingHint")}>
+          <input type="checkbox" checked={!!v.onlyHolding} onChange={(e) => setView({ onlyHolding: e.target.checked })} />
+          {t("swOnlyHolding", { n: holding.toLocaleString(), of: a.counts.sets.toLocaleString() })}
+        </label>
+        <ColumnPicker options={tableOptions(t, study)} value={show} onChange={(ids) => setView({ tableColumns: ids })}
+          label={t("swColumnsOf", { n: show.length, of: tableOptions(t, study).length })} />
+        {sort && <button className="linklike" onClick={() => setView({ tableSort: null })}>{t("swBestFirst")}</button>}
+        <span className="hint sw-count">{t("swSetsInTable", { n: order.length.toLocaleString() })}</span>
+        {pages > 1 && <span className="sw-pages">
+          <button className="iconbtn" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label={t("swPrevPage")}>‹</button>
+          <span className="hint">{t("swPageOf", { a: page + 1, n: pages })}</span>
+          <button className="iconbtn" disabled={page >= pages - 1} onClick={() => setPage(page + 1)} aria-label={t("swNextPage")}>›</button>
+        </span>}
+        <button className="btn outline" disabled={!order.length} onClick={exportMenu} title={t("swExportTableHint")}>{t("swExportTable")} ▾</button>
+      </div>
+      <div className="sw-table-wrap">
+        <table className="sw-table sw-sets-table">
+          {/* the re-run box, the rank and holds / fails stay in view while the table scrolls sideways */}
+          <thead><tr>
+            <th className="st st-0" aria-label={t("swRerun")} />
+            <th className="st st-1 num sortable" onClick={() => sortBy("#rank")}>{colLabel(t, study, "#rank")}{arrow("#rank")}</th>
+            <th className="st st-2 sortable" onClick={() => sortBy("#holds")}>{t("swHoldsCol")}{arrow("#holds")}</th>
+            {show.map((c) => <th key={c} className={`sortable ${c.startsWith("#c") ? "num cond" : c === "#goal" ? "num goal" : cols.get(c)?.kind === "num" ? "num" : ""}`}
+              onClick={() => sortBy(c)}>{colLabel(t, study, c)}{arrow(c)}</th>)}
+          </tr></thead>
+          <tbody>
+            {rows.map((i) => (
+              <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""}`} onClick={() => setView({ pinned: i })}>
+                <td className="st st-0" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" aria-label={t("swRerunThis")} checked={v.rerun.includes(i)}
+                    onChange={(e) => setView({ rerun: e.target.checked ? [...v.rerun, i] : v.rerun.filter((x) => x !== i) })} />
+                </td>
+                <td className="st st-1 num">{labelOf(cols.get("#rank")!, cols.get("#rank")!.values[i])}</td>
+                <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`}>{holds[i] === 1 ? "✓" : "✗"}</td>
+                {show.map((c) => {
+                  const col = cols.get(c)!, val = col.values[i];
+                  const neg = col.part === "margin" && val < 0;
+                  const text = c === "#covered" ? `${val} / ${a.counts.combos}` : c === "#pareto" ? (val === 1 ? "◆" : "") : c === "#neighbours" ? (Number.isFinite(val) ? `${Math.round(val * 100)}%` : "–") : labelOf(col, val);
+                  return <td key={c} className={`${col.kind === "num" ? "num" : ""}${neg ? " bad" : ""}`}>{text}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!order.length && <p className="empty-note">{v.onlyHolding ? t("swNoneHoldShown") : t("swNoSetsShown")}</p>}
+      </div>
     </div>
   );
 }

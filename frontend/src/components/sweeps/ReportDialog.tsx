@@ -11,7 +11,7 @@ import { hasFilter, keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { wireQuestion, type Study } from "../../sweeps/state";
-import { activeColumns, activeParams, colLabel, mapAxes, scopeKey, scopeMask, setColumns, shownAxes } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, mapAxes, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { notify, notifyError } from "../../sweeps/notify";
@@ -54,6 +54,9 @@ function processLines(t: TFn, s: Study): string[] {
       : f.values.map((x) => (c ? labelOf(c, x) : String(x))).join(", ");
     out.push(t("swRepFilter", { c: colLabel(t, s, name), what }));
   }
+  if (v.onlyHolding) out.push(t("swRepOnlyHolding"));
+  if (v.tableSort && setColumns(s).has(v.tableSort.column))
+    out.push(t(v.tableSort.desc ? "swRepSortedDesc" : "swRepSorted", { c: colLabel(t, s, v.tableSort.column) }));
   if (v.rerun.length) out.push(t("swRepRerun", { n: v.rerun.length }));
   if (!out.length) out.push(t("swRepNothing"));
   return out;
@@ -82,9 +85,8 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
     const n = a.sets[0]?.values.length ?? 0, kept = keptMask(cols, study.view.filters, n), scope = scopeMask(study);
     const shown: number[] = [];
     for (let i = 0; i < n; i++) if (kept[i] && (!scope || scope[i])) shown.push(i);
-    const table = ["#rank", ...a.sets.filter((c) => c.group === "param").map((c) => c.name), ...(cols.has("#goal") ? ["#goal"] : []),
-      ...a.sets.filter((c) => c.group === "condition" && c.part === "margin").map((c) => c.name),
-      ...["#score", "#neighbours", "#tolerance"].filter((x) => cols.has(x)), "#holds"];
+    // the table as on screen (S04): its columns, its sets in its order (only those that hold, sorted)
+    const table = ["#rank", ...tableColumns(study), "#holds"];
     const sections = [
       ...(inc.question ? [{ title: t("swQuestion"), items: questionLines(t, study) }] : []),
       ...(inc.process ? [{ title: t("swRepProcess"), items: processLines(t, study) }] : []),
@@ -97,7 +99,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
         summary: [[t("swRuns"), a.counts.rows], [t("swSets"), a.counts.sets], [t("swCombos"), a.counts.combos],
           [t("swRepHolding"), `${a.counts.holding} / ${a.counts.sets}`], [t("swMissing"), a.counts.sets - a.counts.complete],
           [t("swRepShownNow"), shown.length]],
-        columns: table, axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
+        columns: table, rows: tableRows(study), axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
         include: { plot: inc.plot, effects: inc.effects, map: inc.map, table: inc.table },
         mapX: map.x ?? null, mapY: map.y ?? null });
       notify(t("swSaved", { path: r.path }));
