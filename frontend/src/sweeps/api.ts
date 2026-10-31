@@ -96,6 +96,8 @@ export const sweepApi = {
   templates: () => call<{ templates: SweepTemplate[]; folder: string }>("/api/sweep/templates"),
   saveTemplate: (name: string, template: Omit<SweepTemplate, "name">) => call<{ templates: SweepTemplate[] }>("/api/sweep/templates/save", { name, template }),
   deleteTemplate: (name: string) => call<{ templates: SweepTemplate[] }>("/api/sweep/templates/delete", { name }),
+  report: (id: string, question: WireQuestion, body: Record<string, unknown>) =>
+    call<{ path: string; size: number }>("/api/sweep/report", { id, question, ...body }),
   saveText: (path: string, text: string) => call<{ path: string }>("/api/sweep/save-text", { path, text }),
   loadText: (path: string) => call<{ path: string; text: string }>("/api/sweep/load-text", { path }),
   exportRerun: (id: string, question: WireQuestion, sets: number[], onlyMissing: boolean, path: string) =>

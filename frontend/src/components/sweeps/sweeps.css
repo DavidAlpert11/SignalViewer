@@ -214,3 +214,15 @@
 .pp-axis-name.dragging { z-index: 3; border-color: var(--amber); background: var(--panel); cursor: grabbing; }
 .sw-plotbar { flex-wrap: nowrap; overflow-x: auto; }
 .sw-plotbar > * { flex: none; }
+
+/* the report dialog */
+.sw-report { width: min(680px, calc(100vw - 32px)); }
+.sw-report-body { display: flex; flex-direction: column; gap: 12px; }
+.sw-report-formats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sw-report-format { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.sw-report-format.on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); }
+.sw-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.846rem; color: var(--muted); }
+.sw-field input, .sw-field textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 8px; }
+.sw-report-inc { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.sw-report-preview { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 0.846rem; }
+.sw-report-preview ul { margin: 4px 0 0; padding-inline-start: 18px; }
