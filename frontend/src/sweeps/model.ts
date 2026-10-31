@@ -125,6 +125,12 @@ export interface View {
   /** the parallel plot fits the width of the screen (every axis squeezed in) instead of scrolling
    *  sideways when its axes need more room (optional: older studies scroll) */
   fitAxes?: boolean;
+  /** the table of sets: only the sets that hold (the export and the report's table follow it) */
+  onlyHolding?: boolean;
+  /** the table's columns, in order (missing: the parameters, the goal and the conditions) */
+  tableColumns?: string[];
+  /** the table sorted by a column (missing: best first) */
+  tableSort?: { column: string; desc: boolean } | null;
 }
 
 export const emptyView = (): View => ({ mode: "sets", axes: [], colorBy: "#holds", filters: {}, reversed: {}, scales: {},

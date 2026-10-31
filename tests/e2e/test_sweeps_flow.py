@@ -357,7 +357,7 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     # results: parameters and the goal only
     _step(pg, "results")
     pg.wait_for_selector(".sw-table th:has-text('worst')")                          # the answer to this goal is in
-    pg.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-plotbar .sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop .linklike", has_text="Parameters and the goal").click()
     pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
@@ -455,7 +455,7 @@ def test_many_columns_scroll_pick_and_panels(pg, tmp_path):
     _step(pg, "results")
     pg.wait_for_selector(".pp canvas")
     # every column: the plot is wider than the screen and scrolls
-    pg.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-plotbar .sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop .linklike", has_text="All columns").click()
     pg.keyboard.press("Escape")
     sc = pg.locator(".pp-scroll")
@@ -466,7 +466,7 @@ def test_many_columns_scroll_pick_and_panels(pg, tmp_path):
     pg.locator(".sw-plotbar .btn", has_text="Fit to width").click()
     pg.wait_for_function("(() => { const e = document.querySelector('.pp-scroll'); return e.scrollWidth <= e.clientWidth + 1; })()")
     # typed: only the columns whose name matches
-    pg.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-plotbar .sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop input[aria-label='Type part of a name…']").fill("out_0")
     pg.locator(".sw-colpick-pop .btn", has_text="Choose these 10 only").click()
     pg.wait_for_function("document.querySelectorAll('.pp-axis-name').length === 10")
@@ -482,3 +482,53 @@ def test_many_columns_scroll_pick_and_panels(pg, tmp_path):
     assert pg.locator(".sw-left").count() == 0
     pg.locator(".sw-panel-toggle").click()
     pg.wait_for_selector(".sw-left")
+
+
+def test_the_sets_that_hold_sorted_and_exported(pg):
+    """S04: only the sets that hold, sorted by a column, with a column added - and exported as shown
+    (a row per set) and as their runs."""
+    import csv
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")
+    holding = _holding(pg)
+    rows = lambda: pg.locator(".sw-sets-table tbody tr").count()
+    assert rows() == 45
+    pg.locator(".sw-sets-bar label", has_text="Only sets that hold").locator("input").check()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {holding}")
+    assert pg.locator(".sw-sets-table td.st-2.bad").count() == 0
+    # sorted by kp_roll, the largest first (a second click)
+    pg.locator(".sw-sets-table th", has_text="kp_roll").click()
+    pg.locator(".sw-sets-table th", has_text="kp_roll").click()
+    col = pg.locator(".sw-sets-table thead th").all_inner_texts().index(next(h for h in pg.locator(".sw-sets-table thead th").all_inner_texts() if h.startswith("kp_roll")))
+    kp = [float(x) for x in pg.locator(f".sw-sets-table tbody tr td:nth-child({col + 1})").all_inner_texts()]
+    assert kp == sorted(kp, reverse=True)
+    # a column more: the settle time
+    pg.locator(".sw-sets-bar .sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop input[aria-label='Type part of a name…']").fill("settle")
+    pg.locator(".sw-colpick-pop .msp-item", has_text="settle_time_s").locator("input").check()
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".sw-sets-table th:has-text('settle_time_s')")
+    # export: the sets, as shown
+    pg.locator(".sw-sets-bar .btn", has_text="Export").click()
+    pg.locator(".menu.ctx button", has_text="a row each").click()
+    save_as(pg, "holding_sets.csv")
+    pg.wait_for_selector(".toast:has-text('sets written')")
+    with open(os.path.join(pg.env["out"], "holding_sets.csv"), encoding="utf-8-sig") as f:
+        got = list(csv.reader(f))
+    assert len(got) - 1 == holding and any(h.startswith("settle_time_s") for h in got[0])
+    k = next(j for j, h in enumerate(got[0]) if h == "kp_roll")
+    assert [float(r[k]) for r in got[1:]] == kp                                     # the table's order
+    assert {r[1] for r in got[1:]} == {"1"}                                         # every one holds
+    # and their runs
+    pg.locator(".sw-sets-bar .btn", has_text="Export").click()
+    pg.locator(".menu.ctx button", has_text="Their runs").click()
+    save_as(pg, "holding_runs.csv")
+    pg.wait_for_selector(".toast:has-text('runs written')")
+    assert len(open(os.path.join(pg.env["out"], "holding_runs.csv")).read().splitlines()) - 1 == holding * 18
+    # undone in one step each: the column, the sort, the choice
+    pg.locator(".sw-sets-table").click(position={"x": 5, "y": 5})
+    for _ in range(3):
+        pg.keyboard.press("Control+z")
+    pg.wait_for_function("document.querySelectorAll('.sw-sets-table tbody tr').length === 45")
