@@ -8,6 +8,15 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps with many columns**: each axis of the parallel plot keeps room to be read, and the plot
+  scrolls sideways - with the mouse wheel, as there is nothing to scroll up or down - instead of
+  squeezing forty axes into the screen; *Fit to width* squeezes them in when wanted. The tooltip
+  of a line lays its values out in columns. **Columns (n of m)** chooses what is shown, in the plot
+  and the raw table, from one list: type part of a name, take every match in one go, or a group
+  (parameters, outputs...) - it replaced *Show columns* and *+ axis*. In the table of sets the
+  re-run box, the rank and holds / fails stay in view when it scrolls sideways. The steps' panel
+  and the set's panel are dragged wider or narrower (double-click: back to the default) as in
+  Recordings, and the steps' panel can be hidden (‹ at the start of the steps) for more room.
 - **Sweeps: undo / redo, and the studies kept**: every change to a study - the columns' roles, the
   goals and conditions, what is shown (filters, keep / exclude, axes, *Start the study over*) - is
   undone with **Ctrl+Z** or the ↶ button in the area's bar, and redone with **Ctrl+Y** (a drag on an

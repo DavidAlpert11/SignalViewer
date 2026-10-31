@@ -17,7 +17,7 @@ export default function SetsTable({ study }: { study: Study }) {
   const n = a.sets[0]?.values.length ?? 0;
   const v = study.view;
   const show = useMemo(() => {
-    const names: string[] = ["#rank", ...a.sets.filter((c) => c.group === "param").map((c) => c.name)];
+    const names: string[] = [...a.sets.filter((c) => c.group === "param").map((c) => c.name)];
     if (cols.has("#goal")) names.push("#goal");
     for (const c of a.sets) if (c.group === "condition" && c.part !== "passed") names.push(c.name);
     for (const extra of ["#score", "#pareto", "#neighbours", "#tolerance"]) if (cols.has(extra)) names.push(extra);
@@ -47,25 +47,28 @@ export default function SetsTable({ study }: { study: Study }) {
   return (
     <div className="sw-table-wrap">
       <table className="sw-table">
+        {/* the re-run box, the rank and holds / fails stay in view while the table scrolls sideways */}
         <thead><tr>
-          <th aria-label={t("swRerun")} />
+          <th className="st st-0" aria-label={t("swRerun")} />
+          <th className="st st-1 num">{colLabel(t, study, "#rank")}</th>
+          <th className="st st-2">{t("swHoldsCol")}</th>
           {show.map((c) => <th key={c} className={c.startsWith("#c") ? "num cond" : c === "#goal" ? "num goal" : ""}>{colLabel(t, study, c)}</th>)}
-          <th>{t("swHoldsCol")}</th>
         </tr></thead>
         <tbody>
           {rows.map((i) => (
             <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""}`} onClick={() => setView({ pinned: i })}>
-              <td onClick={(e) => e.stopPropagation()}>
+              <td className="st st-0" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" aria-label={t("swRerunThis")} checked={v.rerun.includes(i)}
                   onChange={(e) => setView({ rerun: e.target.checked ? [...v.rerun, i] : v.rerun.filter((x) => x !== i) })} />
               </td>
+              <td className="st st-1 num">{labelOf(cols.get("#rank")!, cols.get("#rank")!.values[i])}</td>
+              <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`}>{holds[i] === 1 ? "✓" : "✗"}</td>
               {show.map((c) => {
                 const col = cols.get(c)!, val = col.values[i];
                 const neg = col.part === "margin" && val < 0;
                 const text = c === "#covered" ? `${val} / ${a.counts.combos}` : c === "#pareto" ? (val === 1 ? "◆" : "") : c === "#neighbours" ? (Number.isFinite(val) ? `${Math.round(val * 100)}%` : "–") : labelOf(col, val);
                 return <td key={c} className={`${col.kind === "num" ? "num" : ""}${neg ? " bad" : ""}`}>{text}</td>;
               })}
-              <td className={holds[i] === 1 ? "ok" : "bad"}>{holds[i] === 1 ? "✓" : "✗"}</td>
             </tr>
           ))}
         </tbody>

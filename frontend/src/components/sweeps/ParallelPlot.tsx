@@ -27,29 +27,48 @@ export interface ParallelPlotProps {
   /** an axis's name dragged to another place */
   onMoveAxis: (from: string, toIndex: number) => void;
   height?: number;
+  /** every axis in the width on screen; otherwise each axis gets MIN_AXIS and the plot scrolls sideways */
+  fit?: boolean;
 }
 
+/** room for an axis's ticks and name: below it the names are cut and the ticks run into each other */
+const MIN_AXIS = 110;
+/** the tooltip: a line per axis, in columns when there are many */
+const TIP_ROW = 18, TIP_COL = 220;
 const PAD_X = 56, PAD_TOP = 40, PAD_BOTTOM = 34, MISSING_GAP = 14, NEAR_AXIS = 12, HOVER_PX = 6;
 
 export default function ParallelPlot(p: ParallelPlotProps) {
-  const wrap = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [width, setWidth] = useState(800);
+  const [viewW, setViewW] = useState(800);
+  const [scrollX, setScrollX] = useState(0);
   const height = p.height ?? 360;
   const [hover, setHover] = useState<{ row: number; x: number; y: number } | null>(null);
   const [brush, setBrush] = useState<{ axis: number; y0: number; y1: number; add: boolean } | null>(null);
   const [dragAxis, setDragAxis] = useState<{ name: string; x0: number; x: number } | null>(null);
 
   useEffect(() => {
-    const el = wrap.current;
+    const el = scroller.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setWidth(Math.max(320, el.clientWidth)));
+    const ro = new ResizeObserver(() => setViewW(Math.max(320, el.clientWidth)));
     ro.observe(el);
-    return () => ro.disconnect();
+    // the wheel moves the plot sideways when it is wider than the screen (it has nothing to scroll
+    // up or down); at either end the page scrolls as usual. Shift + wheel is the browser's own.
+    const wheel = (e: WheelEvent) => {
+      if (e.shiftKey || el.scrollWidth <= el.clientWidth + 1 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const dx = e.deltaY * (e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? el.clientWidth : 1);
+      const max = el.scrollWidth - el.clientWidth;
+      if ((dx < 0 && el.scrollLeft <= 0) || (dx > 0 && el.scrollLeft >= max - 1)) return;
+      e.preventDefault();
+      el.scrollLeft = Math.max(0, Math.min(max, el.scrollLeft + dx));
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => { ro.disconnect(); el.removeEventListener("wheel", wheel); };
   }, []);
 
   const plotH = height - PAD_TOP - PAD_BOTTOM - MISSING_GAP;
   const k = p.axes.length;
+  const width = p.fit ? viewW : Math.max(viewW, 2 * PAD_X + Math.max(0, k - 1) * MIN_AXIS);
   const axisX = (i: number) => (k <= 1 ? width / 2 : PAD_X + (i * (width - 2 * PAD_X)) / (k - 1));
   const missingY = PAD_TOP + plotH + MISSING_GAP;
 
@@ -214,8 +233,18 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     }
   };
 
+  // the tooltip in columns, inside what is on screen of a plot that scrolls
+  const tipRows = Math.max(4, Math.floor((height - 24) / TIP_ROW));
+  const tipCols = Math.max(1, Math.ceil(k / tipRows));
+  const tipW = Math.min(viewW - 16, tipCols * TIP_COL);
+  const tipH = Math.min(k, tipRows) * TIP_ROW + 18;
+  // beside the pointer, on the side with room; never past what is on screen
+  const tipLeft = !hover ? 0 : Math.max(scrollX + 4, Math.min(
+    hover.x + 14 + tipW <= scrollX + viewW - 4 ? hover.x + 14 : hover.x - 14 - tipW, scrollX + viewW - tipW - 4));
+  const tipTop = !hover ? 0 : Math.max(4, Math.min(hover.y - 10, height - tipH - 4));
   return (
-    <div className="pp" ref={wrap} style={{ height }}>
+    <div className="pp-scroll" ref={scroller} onScroll={(e) => setScrollX((e.currentTarget as HTMLDivElement).scrollLeft)}>
+    <div className="pp" style={{ height, width }}>
       <canvas ref={canvas} className={brush ? "brushing" : ""} onPointerMove={onMove} onPointerDown={onDown} onPointerUp={onUp}
         onPointerLeave={() => setHover(null)} role="img" aria-label={p.axes.map(p.labelOf).join(", ")} />
       {p.axes.map((a, i) => {
@@ -243,10 +272,11 @@ export default function ParallelPlot(p: ParallelPlotProps) {
         );
       })}
       {hover && (
-        <div className="pp-tip" style={{ left: Math.min(hover.x + 14, width - 240), top: Math.max(4, hover.y - 10) }}>
+        <div className="pp-tip" style={{ left: tipLeft, top: tipTop, width: tipW, maxHeight: height - 8, gridTemplateColumns: `repeat(${tipCols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${Math.min(k, tipRows)}, auto)` }}>
           {p.axes.map((a) => { const c = p.cols.get(a)!; return <div key={a}><span>{p.labelOf(a)}</span><b>{labelOf(c, c.values[hover.row])}</b></div>; })}
         </div>
       )}
+    </div>
     </div>
   );
 }

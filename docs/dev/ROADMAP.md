@@ -653,7 +653,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S00 Groundwork: Sweeps strings in `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` shared.
 - [x] S01 Fixes: removed parameters in the map / next runs / report; next runs' marks on the map's axes; a goal's weight; template save / delete errors.
 - [x] S02 Undo / redo, autosave, messages, Ctrl+K.
-- [ ] S03 Resizable panels, many columns (scroll, ColumnPicker).
+- [x] S03 Resizable panels, many columns (scroll, ColumnPicker).
 - [ ] S04 Sets table: only holding, columns, export.
 - [ ] S05 Several maps and point plots.
 - [ ] S06 Next runs: parameters to explore, robustness.

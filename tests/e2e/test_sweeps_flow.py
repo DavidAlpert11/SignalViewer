@@ -343,7 +343,9 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     pg.wait_for_function("document.querySelectorAll('.sw-hide-box .sw-tag').length === 1")
     assert "810 runs" in pg.locator(".sw-step-btn").nth(0).inner_text()
     # the raw table: only the outputs
-    pg.locator(".sw-raw select[title^='Show every column']").select_option("outputs")
+    pg.locator(".sw-raw .sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop .linklike", has_text="Outputs only").click()
+    pg.keyboard.press("Escape")
     heads = [h.strip() for h in pg.locator(".sw-raw thead th").all_inner_texts()]
     assert heads[0].startswith("roll_error_deg") and "kp_roll" not in " ".join(heads)
     # a goal deleted from its tab
@@ -355,7 +357,9 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     # results: parameters and the goal only
     _step(pg, "results")
     pg.wait_for_selector(".sw-table th:has-text('worst')")                          # the answer to this goal is in
-    pg.locator(".sw-plotbar select[aria-label='Show columns']").select_option("params-goal")
+    pg.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop .linklike", has_text="Parameters and the goal").click()
+    pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
     names = [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
     assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6
@@ -434,3 +438,47 @@ def test_undo_redo_and_the_studies_open_again(pg):
     assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "4"
     assert pg.locator(".sw-cond").count() == 1
     assert undo.is_disabled()                                        # what was reopened is not a change to undo
+
+
+def test_many_columns_scroll_pick_and_panels(pg, tmp_path):
+    """S03: with many columns the plot keeps room per axis and scrolls sideways (the wheel too), or
+    fits the width; columns are chosen by typing; the side panels are dragged wider and hidden."""
+    f = tmp_path / "wide.csv"
+    outs = [f"out_{i:02d}" for i in range(40)]
+    rows = ["scenario,p,q," + ",".join(outs)]
+    for sc in "ab":
+        for p in (1, 2, 3):
+            for q in (10, 20):
+                rows.append(f"{sc},{p},{q}," + ",".join(str(p * q + i * 0.1 + (sc == 'b')) for i in range(40)))
+    f.write_text("\n".join(rows) + "\n")
+    _open_table(pg, tmp_path, "wide.csv")
+    _step(pg, "results")
+    pg.wait_for_selector(".pp canvas")
+    # every column: the plot is wider than the screen and scrolls
+    pg.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop .linklike", has_text="All columns").click()
+    pg.keyboard.press("Escape")
+    sc = pg.locator(".pp-scroll")
+    pg.wait_for_function("(() => { const e = document.querySelector('.pp-scroll'); return e.scrollWidth > e.clientWidth + 100; })()")
+    sc.hover()
+    pg.mouse.wheel(0, 400)
+    pg.wait_for_function("document.querySelector('.pp-scroll').scrollLeft > 100")
+    pg.locator(".sw-plotbar .btn", has_text="Fit to width").click()
+    pg.wait_for_function("(() => { const e = document.querySelector('.pp-scroll'); return e.scrollWidth <= e.clientWidth + 1; })()")
+    # typed: only the columns whose name matches
+    pg.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop input[aria-label='Type part of a name…']").fill("out_0")
+    pg.locator(".sw-colpick-pop .btn", has_text="Choose these 10 only").click()
+    pg.wait_for_function("document.querySelectorAll('.pp-axis-name').length === 10")
+    pg.keyboard.press("Escape")
+    assert pg.locator(".sw-colpick-pop").count() == 0
+    # the steps' panel: dragged wider, then hidden and shown again
+    left = pg.locator(".sw-left")
+    w0 = left.bounding_box()["width"]
+    r = pg.locator(".sw-study > .resizer").first.bounding_box()
+    pg.mouse.move(r["x"] + 3, r["y"] + 200); pg.mouse.down(); pg.mouse.move(r["x"] + 103, r["y"] + 200, steps=4); pg.mouse.up()
+    assert left.bounding_box()["width"] > w0 + 60
+    pg.locator(".sw-panel-toggle").click()
+    assert pg.locator(".sw-left").count() == 0
+    pg.locator(".sw-panel-toggle").click()
+    pg.wait_for_selector(".sw-left")

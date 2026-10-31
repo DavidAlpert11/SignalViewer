@@ -122,6 +122,9 @@ export interface View {
   /** HiPlot's keep / exclude: steps that narrow what is shown to some parameter sets; Restore
    *  clears them. Valid for the question they were made with (`key`): the sets are its sets. */
   scope: { key: string; steps: { kind: "keep" | "exclude"; sets: number[] }[] };
+  /** the parallel plot fits the width of the screen (every axis squeezed in) instead of scrolling
+   *  sideways when its axes need more room (optional: older studies scroll) */
+  fitAxes?: boolean;
 }
 
 export const emptyView = (): View => ({ mode: "sets", axes: [], colorBy: "#holds", filters: {}, reversed: {}, scales: {},
