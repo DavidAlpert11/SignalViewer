@@ -6,6 +6,7 @@ import { pickPath } from "../../store";
 import { useT, type TKey } from "../../i18n";
 import { sweepApi, type Suggestion, type SuggestKind } from "../../sweeps/api";
 import { wireQuestion, type Study } from "../../sweeps/state";
+import { mapAxes } from "../../sweeps/view";
 import MapView, { MARK } from "./MapView";
 
 const KINDS: { k: SuggestKind; title: TKey; hint: TKey }[] = [
@@ -37,8 +38,7 @@ export default function NextRunsView({ study }: { study: Study }) {
     try { const r = await sweepApi.suggestExport(study.tableId, wireQuestion(study), res.suggestions.map((s) => s.params), p); setNote(t("swExported", { n: r.rows, path: r.path })); }
     catch (e) { setNote((e as Error).message); }
   };
-  const x = study.view.mapX ?? study.columns.find((c) => c.role === "param")?.name;
-  const y = study.view.mapY ?? study.columns.filter((c) => c.role === "param").map((c) => c.name).find((n) => n !== x);
+  const { x, y } = mapAxes(study);                  // the marks on the axes the map draws
   const marks = (res?.suggestions ?? []).filter((s) => x && y && s.params[x] !== undefined && s.params[y] !== undefined)
     .map((s) => ({ x: s.params[x!] as number | string, y: s.params[y!] as number | string, kind: s.kind }));
   return (

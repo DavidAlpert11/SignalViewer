@@ -111,6 +111,10 @@ templates you already have.
   (it used to stay over the plots until its × was clicked).
 
 ### Fixed
+- **Sweeps**: a parameter taken out in *Clean columns* is no longer offered by the map, next runs
+  or the report's map (the map said *Choose two different parameters*); the marks of next runs are
+  drawn on the axes the map shows; a goal's weight shows that goal's number after switching goals;
+  saving or deleting a template says so (and says why when it fails).
 - **Line width** had no effect on most recordings: a line with about a point per pixel or more was
   always drawn 1 pixel wide, whatever the width - in practice every long recording, even zoomed in.
   A width you set is now drawn; only lines at the default width keep the fast thin drawing.
