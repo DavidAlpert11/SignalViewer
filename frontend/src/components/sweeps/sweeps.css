@@ -13,7 +13,6 @@
 .sw-welcome-actions { display: flex; gap: 8px; justify-content: center; margin-top: 18px; }
 .sw-error { color: var(--sw-bad); margin: 8px 0 0; }
 .sw-warn { color: var(--amber); margin: 0; }
-.sw-note { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* layout: question | plot and table | one set */
 .sw-study { position: relative; display: grid; min-height: 0; background: var(--bg); }      /* its columns: StudyView (widths dragged) */
@@ -211,7 +210,9 @@
 .sw-colour-key:hover { border-color: var(--line-strong); }
 .pp-axis-name { touch-action: none; }
 .pp-axis-name.dragging { z-index: 3; border-color: var(--amber); background: var(--panel); cursor: grabbing; }
-.sw-plotbar { flex-wrap: nowrap; overflow-x: auto; }
+/* the plot's bar wraps onto a second line in a narrow window (scrolling sideways, its scrollbar
+   covered the buttons) */
+.sw-plotbar { flex-wrap: wrap; row-gap: 6px; }
 .sw-plotbar > * { flex: none; }
 
 /* the report dialog */
@@ -230,7 +231,7 @@
 .sw-study-wrap { display: flex; flex-direction: column; min-height: 0; background: var(--bg); }
 .sw-study-wrap > .sw-study { flex: 1; min-height: 0; }
 .sw-steps { display: flex; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--panel); overflow-x: auto; }
-.sw-step-btn { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 150px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
+.sw-step-btn { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 96px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--bg); color: var(--ink); font: inherit; text-align: start; cursor: pointer; }
 .sw-step-btn:hover { border-color: var(--line-strong); }
 .sw-step-btn.on { border-color: var(--amber); box-shadow: inset 0 -2px 0 var(--amber); }
@@ -239,11 +240,13 @@
 .sw-step-btn.on .sw-step-n { background: var(--amber); color: var(--amber-ink); }
 .sw-step-btn.done .sw-step-n { background: color-mix(in srgb, var(--amber) 35%, var(--line)); }
 .sw-step-txt { display: flex; flex-direction: column; min-width: 0; }
-.sw-step-txt b { font-size: 0.875rem; white-space: nowrap; }
+.sw-step-txt b { font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sw-step-txt span { font-size: 0.769rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sw-side-step { display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
 .sw-step-intro { margin: 0; color: var(--ink); line-height: 1.45; }
-.sw-step-foot { margin-top: auto; display: flex; gap: 8px; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--line); }
+.sw-step-foot { margin-top: auto; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--line); }
+/* in a narrow panel the two buttons go one under the other instead of over each other */
+.sw-step-foot .btn { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sw-step-foot .btn.primary { margin-inline-start: auto; }
 .sw-facts { margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .sw-facts div { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
@@ -313,7 +316,8 @@
 
 /* several maps (S05) */
 .sw-maps { display: flex; flex-direction: column; gap: 10px; }
-.sw-maps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.sw-maps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); gap: 12px; }
+.sw-maps-grid .sw-map { min-width: 0; overflow-x: auto; }
 .sw-maps-grid .sw-map { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .sw-map-head label { display: inline-flex; align-items: center; gap: 4px; }
 .sw-map-head .iconbtn { margin-inline-start: auto; }
@@ -349,3 +353,10 @@
 .sw-journal h3 { margin: 4px 0; font-size: .85rem; }
 .sw-journal ol, .sw-journal ul { margin: 0; padding-inline-start: 20px; font-size: .78rem; display: flex; flex-direction: column; gap: 3px; }
 .sw-journal li { overflow-wrap: anywhere; }
+
+/* a narrow window (S09): the bar's long labels give way to short ones */
+.sw-narrow { display: none; }
+@media (max-width: 1180px) {
+  .sw-wide { display: none; }
+  .sw-narrow { display: inline; }
+}

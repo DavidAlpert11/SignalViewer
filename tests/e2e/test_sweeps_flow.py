@@ -731,3 +731,19 @@ def test_the_whole_process_in_the_report(pg):
     pg.wait_for_selector(".sw-steps")
     _step(pg, "report")
     pg.wait_for_function("document.querySelector('.sw-journal').innerText.includes('Report made')")
+
+
+def test_a_narrow_window_nothing_overlaps(pg):
+    """S09: at 1024 px the app is no wider than the window, the step's two buttons do not overlap
+    (with the side panel narrow), the plot's bar wraps rather than scrolls."""
+    pg.set_viewport_size({"width": 1024, "height": 700})
+    _fresh(pg)
+    _the_goal(pg)
+    for step in ("roles", "goals", "results"):
+        _step(pg, step)
+        assert pg.evaluate("document.querySelector('.app').scrollWidth") <= 1024
+        a, b = [x.bounding_box() for x in pg.locator(".sw-step-foot .btn").all()][:2]
+        assert a["x"] + a["width"] <= b["x"] + 1 or a["y"] + a["height"] <= b["y"] + 1      # side by side, or one under the other
+    bar = pg.locator(".sw-plotbar")
+    assert bar.evaluate("e => e.scrollWidth <= e.clientWidth + 1")
+    pg.set_viewport_size({"width": 1440, "height": 900})

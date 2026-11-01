@@ -170,6 +170,11 @@ templates you already have.
   (it used to stay over the plots until its × was clicked).
 
 ### Fixed
+- **A narrow window** (1024 px): the app was wider than the window - the top row could not get
+  narrower, so the right edge of every area was cut; it fits now (the search keeps its icon). In
+  Sweeps the step's *← back* and *next →* buttons went over each other in a narrow side panel and
+  the plot's bar scrolled under its own scrollbar: they wrap. The steps, *Follow the file* and the
+  re-run button get shorter in a narrow window; a map fits a narrow column.
 - **Sweeps, the report's map** showed the largest goal of each cell as its best when the goal was to
   minimize; it shows the smallest now, as the map on screen does (one function makes both).
 - **Sweeps, optimize**: with two or more objectives the sets that hold are now ranked by the

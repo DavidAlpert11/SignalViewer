@@ -202,12 +202,14 @@ function SweepsBar() {
       <button className="btn outline" onClick={openMenuAt}><Icon.Open /> {t("swOpen")} ▾</button>
       {study && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}
       {study?.path && <button className="iconbtn" aria-label={t("swRefresh")} title={t("swRefresh")} onClick={() => useSweeps.getState().reload()}><Icon.Reload /></button>}
-      {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow}
-        onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} />{t("swFollow")}</label>}
+      {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow} aria-label={t("swFollow")}
+        onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} /><span className="sw-wide">{t("swFollow")}</span></label>}
       <div className="spacer" />
       {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => useSweeps.setState({ reportOpen: false })} />}
       {templatesOpen && study && <TemplatesDialog study={study} onClose={() => useSweeps.setState({ templatesOpen: false })} />}
-      {study && <button className="btn primary" disabled={!study.view.rerun.length} onClick={rerunMenu}>{t("swExportRerunN", { n: study.view.rerun.length })} ▾</button>}
+      {study && <button className="btn primary" disabled={!study.view.rerun.length} onClick={rerunMenu}
+        title={t("swExportRerunN", { n: study.view.rerun.length })}><span className="sw-wide">{t("swExportRerunN", { n: study.view.rerun.length })}</span>
+        <span className="sw-narrow">{t("swRerunShort", { n: study.view.rerun.length })}</span> ▾</button>}
     </div>
   );
 }
