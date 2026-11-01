@@ -491,3 +491,17 @@
 .sw-sets-table tr.status-virtual td { font-style: italic; color: var(--focus); }
 .sw-chips { white-space: nowrap; }
 .sw-chip { display: inline-block; padding: 0 5px; margin-inline-end: 3px; border-radius: 8px; font-size: 0.85em; color: var(--amber-ink); }
+
+/* Q129 / MF01: typed values */
+.sw-num { background: none; border: 0; border-bottom: 1px dashed var(--line-strong); padding: 0 2px; color: inherit; font: inherit; cursor: text; }
+.sw-num:hover, .sw-num:focus-visible { border-bottom-color: var(--focus); }
+.sw-num.outside { color: var(--amber); }
+.sw-num-field { width: 7em; padding: 0 3px; }
+.sw-num-pair { display: inline-flex; align-items: baseline; gap: 2px; }
+.sw-levels { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.sw-level { white-space: nowrap; }
+.sw-explore-as { margin-bottom: 6px; }
+.sw-problem { overflow-x: auto; }
+.sw-problem-table th[colspan] { text-align: start; padding-top: 10px; }
+.sw-problem-table tr.limited td:first-child { box-shadow: inset 3px 0 0 var(--focus); }
+[dir="rtl"] .sw-problem-table tr.limited td:first-child { box-shadow: inset -3px 0 0 var(--focus); }

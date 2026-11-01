@@ -15,7 +15,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 - **Milestone 23 (Sweeps toward modeFRONTIER): MF00 done** (groups of sets + status per set; its e2e
   `tests/e2e/test_sweeps_groups.py` written but not run here - no browser in the container: run it).
-  Next: **MF01** (the problem as one table, categorical parameters, typed fields - Q129). Owner's
+  **MF01 done** (with Q129; e2e `tests/e2e/test_sweeps_problem.py` not run here either). Next: **MF02**
+  (the chart desktop, all linked; then the three areas). Owner's
   two open choices taken as recommended in the brief (change them here if not): the brush is saved
   as a **live rule** by default (Shift: frozen ids); the five stages become three areas only
   **after MF02**. The groups panel sits in the results side until then.
@@ -415,7 +416,7 @@ three signals set *like* a fourth take its update times exactly; a cycle is refu
 
 ## Owner's notes (2026-11-01, 2): Q127–Q129 - work on a selection; the same formula for [1], [2]; typing values in Explore
 
-**Progress:** none started. Independent of Q124–Q126 and of each other.
+**Progress:** Q129 done 2026-11-01 (with MF01). Q127, Q128 not started. Independent of Q124–Q126 and of each other.
 
 ### Q127 · Operations chosen by the selection — S
 **Now:** the file list's selection (`listSel`) has *Create signal ▸* (createSignalMenu.ts), but its
@@ -2200,3 +2201,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · SWEEPS_MODEFRONTIER.md revised from web sources (findings marked verified / unverified, capability map corrected, licences of open replacements); decision: a group of designs is the central concept, three areas (Problem, Run, Explore) instead of five stages; MF00 and MF11 added; §6 is the brief for the implementing agent.
 - 2026-11-01 · MF00 part 1: groups of parameter sets - set ids from parameter values, live rule (the axes' filters, compared as Float32 like the page) or frozen ids, automatic groups (all / holds / Pareto / fails = complete and not holding / error = an output missing / suggested), ∪ ∩ ∖, status per set, failed conditions per set; `view.groups` + `view.activeGroup` optional in .svsweep, in undo; pytest 904 passed, mypy clean, tsc + build clean (dist not committed). Left for part 2: Explore's groups panel (colour, name, count, eye, active, menu), *Save as group* (Shift: frozen) from the brush, the table's status stripe / failed cell / ≈ virtual / group chips / checkbox *marked* vs pinned, colour by group, i18n (he/en), an e2e that an old .svsweep opens with the automatic groups only. Note: "fails in k of n" needs the condition's `needed` sent with the answer (evaluate.py has it; not in the answer's columns yet).
 - 2026-11-01 · MF00 part 2 (done): groups panel (results side), Save as group (Shift frozen), rename / freeze / ∪ ∩ ∖ with the active group / eye / delete, marked = the table's ticked sets, colour by group (`#group`), hidden groups through scopeMask; table status stripe, ≈ virtual, failing cells, "fails in k of n" (evaluate.py sends `needed` per condition), group chips; i18n en/he; CSS on theme variables (no --warn exists: amber for fails). pytest 905 passed, mypy clean, tsc + build clean. e2e test_sweeps_groups.py written, not run (no Chromium here) - first thing to run. Next: MF01.
+- 2026-11-01 · MF01 + Q129 (done): NumField on every Explore value (typed, outside the results kept and marked, Esc, arrows); Explore *Sliders | Table* (`view.exploreAs`), ProblemTable on the same Draft; categorical parameters - `Draft.levels` → condition `in` (evaluate.py `_condition_in`, set_rows' why, label `p ∈ {…}`); ConditionRow / goal summary show it. pytest 906 passed, mypy clean, tsc + build clean. e2e test_sweeps_problem.py + test_sweeps_groups.py written, not run (no Chromium here) - run both. Next: MF02.

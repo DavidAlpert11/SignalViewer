@@ -5,6 +5,10 @@
 - **Sweeps: groups of parameter sets.** Filter on the axes and *Save as group* (a rule that follows new results; Shift keeps just the sets of now). The groups panel lists the automatic groups (all, hold every condition, Pareto front, fail, error, marked) and yours: colour, count, show / hide in every plot and the table, rename, freeze, union / intersection / difference. Colour the plot by group.
 - **Sweeps: each set's status in the table** - a stripe for the sets that fail (amber) or miss an output (red), the failing condition's cells marked, and a tooltip *fails in k of n*; a column with each set's groups.
 
+- **Sweeps / Explore: type a value, not only slide.** A click on a limit, a threshold or a condition's value makes it a field (Enter keeps it, Esc goes back, the arrows step, Shift ×10). A value outside the results is kept and marked - *what if the limit were 0.5* can be asked even when every result is above it.
+- **Sweeps / Explore: the problem as one table.** *Sliders | Table*: the parameters (type, range, how many values), the objectives (direction, weight, threshold, best set) and the conditions in one table, every value typed, how many sets each line cuts - the same draft as the sliders.
+- **Sweeps: categorical parameters.** A text parameter (a mode, a controller type) gets its levels to tick in Explore; saved in the goal as *one of these*.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row

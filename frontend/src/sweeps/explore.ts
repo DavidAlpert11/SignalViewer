@@ -19,13 +19,17 @@ export interface Draft {
   combine: "and" | "or";
   /** numeric parameters' allowed ranges (missing: the whole range) */
   limits: Record<string, [number, number]>;
+  /** MF01: categorical parameters' allowed levels, by label (missing: every level) */
+  levels?: Record<string, string[]>;
   objectives: DraftObjective[];
 }
 
 export const draftOf = (g: GoalVariant): Draft => ({
-  conditions: g.conditions.filter((c) => c.column).map((c) => ({ ...c })),
+  conditions: g.conditions.filter((c) => c.column && !c.in).map((c) => ({ ...c })),
   combine: g.combine,
   limits: {},
+  // a goal's "one of" conditions become the levels' choice (MF01)
+  levels: Object.fromEntries(g.conditions.filter((c) => c.column && c.in).map((c) => [c.column, c.in!.map(String)])),
   objectives: g.optimize.map((o) => ({ ...o })),
 });
 
@@ -69,7 +73,8 @@ export function explore(a: Answer, d: Draft, robust: boolean): Explored {
   const complete = cols.get("#complete")?.values;
   const robustHolds = robust ? cols.get("#robustHolds")?.values : undefined;
   const conds = d.conditions.map((c, i) => ({ id: `c${i}`, worst: cols.get(`#c${i}.worst`)?.values, c }));
-  const limits = Object.entries(d.limits).map(([p, [lo, hi]]) => ({ id: `p:${p}`, v: cols.get(p)?.values, lo, hi }));
+  const limits: { id: string; v: Float32Array | undefined; lo: number; hi: number; codes?: Set<number> }[] =
+    Object.entries(d.limits).map(([p, [lo, hi]]) => ({ id: `p:${p}`, v: cols.get(p)?.values, lo, hi }));
   const thresholds = d.objectives.map((o, k) => ({ id: `o${k}`, v: cols.get(objectiveCol(k))?.values, o })).filter((x) => x.o.threshold !== undefined && x.v);
   const condPass = (s: number, skip?: string) => {
     if (complete && complete[s] !== 1) return false;
@@ -79,7 +84,14 @@ export function explore(a: Answer, d: Draft, robust: boolean): Explored {
     const ok = (x: (typeof conds)[number]) => Number.isFinite(x.worst![s]) && cmp(x.c.op, x.worst![s], x.c.value);
     return d.combine === "or" ? live.some(ok) : live.every(ok);
   };
-  const limitPass = (s: number, skip?: string) => limits.every((x) => x.id === skip || !x.v || (cmp(">=", x.v[s], x.lo) && cmp("<=", x.v[s], x.hi)));
+  for (const [p, keep] of Object.entries(d.levels ?? {})) {
+    const c = cols.get(p);
+    if (!c?.labels) continue;
+    const ok = new Set(keep);
+    limits.push({ id: `p:${p}`, v: c.values, lo: NaN, hi: NaN, codes: new Set(c.labels.map((l, i) => (ok.has(l) ? i : -1)).filter((i) => i >= 0)) });
+  }
+  const limitPass = (s: number, skip?: string) => limits.every((x) => x.id === skip || !x.v
+    || (x.codes ? x.codes.has(x.v[s]) : cmp(">=", x.v[s], x.lo) && cmp("<=", x.v[s], x.hi)));
   const thresholdPass = (s: number, skip?: string) => thresholds.every((x) => x.id === skip ||
     (Number.isFinite(x.v![s]) && cmp(x.o.direction === "min" ? "<=" : ">=", x.v![s], x.o.threshold!)));
   const funnel: [number, number, number, number] = [n, 0, 0, 0];
@@ -140,6 +152,8 @@ export function goalOfDraft(d: Draft, name: string, ranges: Record<string, [numb
     if (lo > min + 1e-12) extra.push({ column: p, op: ">=", value: lo, mode: "all" });
     if (hi < max - 1e-12) extra.push({ column: p, op: "<=", value: hi, mode: "all" });
   }
+  // a categorical parameter with some levels left out: "one of" the kept ones
+  for (const [p, keep] of Object.entries(d.levels ?? {})) extra.push({ column: p, op: "==", value: 0, mode: "all", in: [...keep] });
   for (const o of d.objectives) if (o.threshold !== undefined)
     extra.push({ column: o.column, op: o.direction === "min" ? "<=" : ">=", value: o.threshold, mode: "all" });
   return { name, combine: d.combine, conditions: [...d.conditions.map((c) => ({ ...c })), ...extra],
@@ -154,7 +168,7 @@ export const needsAnd = (d: Draft, ranges: Record<string, [number, number]>) =>
 export function draftChanges(d: Draft, g: GoalVariant, ranges: Record<string, [number, number]>): number {
   const asGoal = goalOfDraft(d, g.name, ranges);
   let k = 0;
-  const key = (c: Condition) => JSON.stringify([c.column, c.op, c.value, c.mode, c.k, c.where]);
+  const key = (c: Condition) => JSON.stringify(c.in ? [c.column, [...c.in].map(String).sort()] : [c.column, c.op, c.value, c.mode, c.k, c.where]);
   const a = new Set(g.conditions.filter((c) => c.column).map(key)), b = new Set(asGoal.conditions.map(key));
   for (const x of a) if (!b.has(x)) k++;
   for (const x of b) if (!a.has(x)) k++;
@@ -174,6 +188,14 @@ export const isLimited = (lim: [number, number] | undefined, range: [number, num
   !!lim && !!range && ((lim[0] > range[0] && !near(lim[0], range[0])) || (lim[1] < range[1] && !near(lim[1], range[1])));
 
 /** The limits with a parameter's new range: one back at the whole range is no limit any more. */
+/** The levels kept of a categorical parameter: all of them is no choice (dropped). */
+export function withLevels(d: Draft, p: string, keep: string[], all: string[]): Draft {
+  const levels = { ...(d.levels ?? {}) };
+  if (all.every((l) => keep.includes(l))) delete levels[p];
+  else levels[p] = all.filter((l) => keep.includes(l));
+  return { ...d, levels };
+}
+
 export function withLimit(d: Draft, p: string, lim: [number, number], ranges: Record<string, [number, number]>): Draft {
   const limits = { ...d.limits };
   if (isLimited(lim, ranges[p])) limits[p] = lim;
