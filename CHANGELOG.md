@@ -8,6 +8,9 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: the sets shown as an interactive plot**: the table's *Export* also writes its sets -
+  only those that hold, those a rectangle or a filter kept - as an interactive parallel plot (HTML,
+  like HiPlot: drag on an axis to filter, click a line), besides CSV.
 - **Sweeps, many columns**: when the lines are wider than the screen, a **slider** under them says
   which axes are on screen (*axes 5–13 of 42*) and moves along them - dragged, clicked, or with the
   keys (Home / End) - besides the mouse wheel; *Fit to width* puts every axis in and the slider goes.
