@@ -4,6 +4,7 @@ import type { TFn, TKey } from "../i18n";
 import type { Col, MapSpec, Role, Scale } from "./model";
 import { wireQuestion, type Study } from "./state";
 import { keptMask } from "./filters";
+import { FLAG_COLS } from "./colors";
 
 /** The columns the plot draws: one entry per parameter set, or per run. */
 export function modeColumns(s: Study): { cols: Map<string, Col>; n: number } {
@@ -72,6 +73,12 @@ export function colLabel(t: TFn, s: Study, name: string): string {
   if (name === "#neighbours") return t("swNeighboursCol");
   if (name === "#tolerance") return t("swToleranceCol");
   if (name === "#partial") return t("swPartialCol");
+  if (name === "#robustHolds") return t("swRobustHoldsCol");
+  if (name === "#robustSeen") return t("swRobustSeenCol");
+  if (name === "#robustGoal") {
+    const g = s.question.goal;
+    return g ? t("swRobustGoalCol", { c: g.column }) : t("swRobustGoalCol", { c: "" });
+  }
   if (c?.group === "condition" && c.label) return `${c.label} · ${t(c.part === "worst" ? "swWorst" : c.part === "margin" ? "swMargin" : "swPassed")}`;
   if (c?.group === "output" && c.agg && s.view.mode === "sets") return `${name} · ${c.agg}`;
   return name;
@@ -84,7 +91,7 @@ export function scaleOf(s: Study, name: string, col?: Col): Scale {
   if (tc && s.view.mode === "sets" && tc.role === "output" && (tc.scale === "category" || tc.scale === "ordinal")) return "linear";
   if (tc) return tc.scale;
   if (col?.kind === "cat") return "category";
-  if (name === "#holds" || name === "#complete" || name === "#pareto" || name === "#partial") return "category";
+  if (name === "#complete" || FLAG_COLS.has(name)) return "category";
   return "linear";
 }
 
@@ -202,7 +209,7 @@ export function defaultTableColumns(s: Study): string[] {
   const have = new Set(sets.map((c) => c.name));
   return [...sets.filter((c) => c.group === "param").map((c) => c.name), ...(have.has("#goal") ? ["#goal"] : []),
     ...sets.filter((c) => c.group === "condition" && c.part !== "passed").map((c) => c.name),
-    ...["#score", "#pareto", "#neighbours", "#tolerance", "#covered"].filter((x) => have.has(x))];
+    ...["#robustHolds", "#robustGoal", "#robustSeen", "#score", "#pareto", "#neighbours", "#tolerance", "#covered"].filter((x) => have.has(x))];
 }
 
 /** The table's columns now: the chosen ones that this answer has, else the default. */

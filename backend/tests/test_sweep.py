@@ -493,3 +493,49 @@ def test_maps_a_slice_at_the_best_and_several_in_the_report(tmp_path):
     assert r.status_code == 200
     text = open(html, encoding="utf-8").read()
     assert "Map: kp_roll × ki_roll</h2>" in text and "Map: kp_roll × filter_hz (at ki_roll = " in text
+
+
+def test_robust_to_a_parameter_and_next_runs_on_chosen_parameters():
+    """S06: robust to p within a tolerance - a set holds robustly when the sets within it hold too;
+    only those are ranked, by the goal's worst case within the tolerance. Next runs move only the
+    parameters to explore; 'robust' proposes the ends of the tolerance of the best sets."""
+    rows = []
+    for sc in ("a", "b"):
+        for p_ in (1, 2, 3, 4, 5):
+            for k in (10, 20, 30):
+                out = 10 - abs(p_ - 4) * 3 + k / 10 + (0 if sc == "a" else -0.5)      # best at p = 4
+                rows.append({"sc": sc, "p": p_, "k": k, "out": out})
+    df = pd.DataFrame(rows)
+    q = {"roles": {"sc": "hold", "p": "param", "k": "param", "out": "output"}, "combine": "and", "holdValues": {},
+         "goal": {"column": "out", "direction": "max"}, "objectives": [], "derived": [], "outputAgg": {}, "exclude": [],
+         "conditions": [{"column": "out", "op": ">=", "value": 5, "mode": "all"}]}
+    pr = sweep.prepare(df, q)
+    plain = sweep.answer(pr, q)["data"]
+    best_plain = int(np.nanargmin(plain["#rank"]))
+    assert (int(plain["p"][best_plain]), int(plain["k"][best_plain])) == (4, 30)
+    rq = {**q, "robust": {"p": {"mode": "steps", "value": 1}}}
+    d = sweep.answer(sweep.prepare(df, rq), rq)["data"]
+    s = best_plain
+    # p = 4 ± 1 step: p 3 and 5 at k 30 - the worst of them is the robust goal, both hold
+    assert d["#robustSeen"][s] == 2 and d["#robustHolds"][s] == 1
+    assert d["#robustGoal"][s] == min(plain["#goal"][i] for i in range(len(plain["p"])) if plain["k"][i] == 30 and plain["p"][i] in (3, 4, 5))
+    edge = next(i for i in range(len(d["p"])) if d["p"][i] == 5 and d["k"][i] == 10)
+    assert d["#robustSeen"][edge] == 1                                   # at the end of the grid: one side only
+    assert np.isfinite(d["#rank"]).sum() == int((d["#robustHolds"] == 1).sum())
+    # next runs: only k moves
+    pr2 = sweep.prepare(df, rq)
+    a = sweep.answer(pr2, rq)
+    dd = a["data"]
+    out = sweep.suggest(pr2, dd["#holds"], dd["#goal"], True, dd["#partial"], ["edge", "best", "disagree", "gaps", "robust"], 50,
+                        focus=["k"], rank=dd["#rank"], robust=rq["robust"])
+    for sg in out["suggestions"]:
+        base = sg["from"]
+        assert sg["params"]["p"] == sweep.evaluate._py(dd["p"][base]) or sg["kind"] == "gaps"
+    assert all(x["param"] == "k" for x in out["suggestions"] if "param" in x)
+    # 'robust' asks for the ends of a tolerance in %: p = 4 ± 10% is 3.6 and 4.4, not on the grid
+    rq3 = {**q, "robust": {"p": {"mode": "pct", "value": 10}}}
+    pr3 = sweep.prepare(df, rq3)
+    d3 = sweep.answer(pr3, rq3)["data"]
+    assert d3["#robustSeen"][best_plain] == 0                           # nothing measured within 10 %
+    rb = sweep.suggest(pr3, d3["#holds"], d3["#goal"], True, d3["#partial"], ["robust"], 10, rank=d3["#rank"], robust=rq3["robust"])
+    assert {round(x["params"]["p"], 6) for x in rb["suggestions"] if x["from"] == best_plain} == {3.6, 4.4}

@@ -1,7 +1,8 @@
 """The parameter grid: each set's place on every parameter (the index of its value among the
 values that parameter takes), and its neighbours - the sets one step away on one numeric
 parameter, the same on all the others. What "near", "edge" and "stable" mean everywhere else."""
-from typing import Dict, List, Tuple
+import itertools
+from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -28,12 +29,12 @@ class Grid:
         self.idx = idx
         self.at: Dict[Tuple, int] = {tuple(r): i for i, r in enumerate(idx.tolist())}
 
-    def neighbours(self, s: int) -> List[Tuple[int, int, int]]:
-        """(set, parameter, step) one step away on one numeric parameter."""
+    def neighbours(self, s: int, only: Optional[Set[int]] = None) -> List[Tuple[int, int, int]]:
+        """(set, parameter, step) one step away on one numeric parameter (of `only`, when given)."""
         out = []
         base = list(self.idx[s])
         for j, num in enumerate(self.numeric):
-            if not num:
+            if not num or (only is not None and j not in only):
                 continue
             for step in (-1, 1):
                 k = base[j] + step
@@ -80,3 +81,58 @@ def stability(g: Grid, holds: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         if steps:
             tol[s] = float(min(steps))
     return share, tol
+
+
+# ----------------------------------------------------------------------------- robust to a parameter
+def tolerance_levels(g: Grid, j: int, s: int, tol: Dict) -> List[int]:
+    """The levels of numeric parameter j within the tolerance of set s's value: {"mode": "pct" |
+    "abs" | "steps", "value": v}. Its own level always."""
+    k = int(g.idx[s, j])
+    lv = g.levels[j].astype(float)
+    mode, v = tol.get("mode", "pct"), abs(float(tol.get("value", 0) or 0))
+    if mode == "steps":
+        n = int(round(v))
+        return list(range(max(0, k - n), min(len(lv) - 1, k + n) + 1))
+    x = lv[k]
+    d = abs(x) * v / 100 if mode == "pct" else v
+    return [i for i in range(len(lv)) if abs(lv[i] - x) <= d * (1 + 1e-9)]
+
+
+def tolerance_band(g: Grid, j: int, s: int, tol: Dict) -> Tuple[float, float]:
+    """The values at the ends of set s's tolerance on parameter j."""
+    lv = g.levels[j].astype(float)
+    k = int(g.idx[s, j])
+    mode, v = tol.get("mode", "pct"), abs(float(tol.get("value", 0) or 0))
+    if mode == "steps":
+        n = int(round(v))
+        return float(lv[max(0, k - n)]), float(lv[min(len(lv) - 1, k + n)])
+    d = abs(lv[k]) * v / 100 if mode == "pct" else v
+    return float(lv[k] - d), float(lv[k] + d)
+
+
+def robustness(g: Grid, holds: np.ndarray, goal: Optional[np.ndarray], maximize: bool, robust: Dict[str, Dict]):
+    """Per set, over the sets within the tolerance of each robust parameter (the others the same):
+    whether all of them hold, the goal's worst case among them, and how many other sets that is (0:
+    the tolerance falls between the grid's values - nothing measured, run the edges: next runs'
+    'robust'). Only numeric parameters can have a tolerance."""
+    p = g.p
+    js = [p.params.index(c) for c in robust if c in p.params and g.numeric[p.params.index(c)]]
+    n = p.n_sets
+    rh = np.zeros(n); rg = np.full(n, np.nan); seen = np.zeros(n)
+    for s in range(n):
+        base = list(g.idx[s])
+        choices = [tolerance_levels(g, j, s, robust[p.params[j]]) for j in js]
+        ok, worst, count = bool(holds[s]), (goal[s] if goal is not None else np.nan), 0
+        for combo in itertools.product(*choices):
+            cur = base.copy()
+            for j, k in zip(js, combo):
+                cur[j] = k
+            t = g.at.get(tuple(cur))
+            if t is None or t == s:
+                continue
+            count += 1
+            ok = ok and bool(holds[t])
+            if goal is not None and np.isfinite(goal[t]):
+                worst = goal[t] if not np.isfinite(worst) else (min(worst, goal[t]) if maximize else max(worst, goal[t]))
+        rh[s] = float(ok); rg[s] = worst; seen[s] = count
+    return rh, rg, seen
