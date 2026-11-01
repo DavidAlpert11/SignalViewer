@@ -5,6 +5,7 @@
    (must hold across, goal, conditions, new columns), how it is shown (the view) and the answer.
    Every change to the roles or the question asks the server again (debounced); a change to the
    view only redraws. */
+import { upgradeGroups } from "./groups";
 import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type WireQuestion } from "./api";
@@ -48,7 +49,7 @@ export interface Study {
 /** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
  *  the view that change what is shown. Not where one is (step, tab, open set, map axes, follow). */
 const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "onlyMissing", "scope",
-  "onlyHolding", "tableColumns", "tableSort", "maps", "scatters"] as const;
+  "onlyHolding", "tableColumns", "tableSort", "maps", "scatters", "groups"] as const;
 type UndoView = Pick<View, (typeof UNDO_VIEW)[number]>;
 export interface Snap { roles: Record<string, { role: Role; scale: Scale }>; question: Question; view: UndoView }
 export interface History { past: Snap[]; future: Snap[]; kind: string; at: number }
@@ -277,7 +278,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     const study: Study = { tableId: r.id, path: r.path, name: r.name, rows: r.rows, seconds: r.seconds, columns,
       head: r.head, summary: r.summary,
       question: saved ? upgradeQuestion(saved.question) : emptyQuestion(),
-      view: saved ? { ...emptyView(), ...saved.view, pinned: null } : emptyView(),
+      view: saved ? { ...emptyView(), ...saved.view, pinned: null, groups: upgradeGroups(saved.view.groups) } : emptyView(),
       answer: null, evaluating: false, evalError: "", changed: false, offer: null,
       sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [], history: emptyHistory(),
       // a saved study goes on with its journal; a table opened now starts one

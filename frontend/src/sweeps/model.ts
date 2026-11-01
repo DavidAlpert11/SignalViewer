@@ -180,6 +180,10 @@ export interface View {
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */
   axesOff?: string[];
+  /** the user's groups of sets (MF00; optional: an old study has the automatic groups only) */
+  groups?: import("./groups").Group[];
+  /** the group the tools read (an automatic group's name or a user group's id; missing: all) */
+  activeGroup?: string;
 }
 
 /** How the maps, point plots and *Which parameter matters* look (S12), for the study and its report. */
