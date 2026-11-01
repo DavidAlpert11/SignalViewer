@@ -615,3 +615,10 @@
 .sw-decide-plus { color: var(--ok); }
 .sw-decide-minus { color: var(--danger); }
 
+/* MF08 robust design */
+.sw-robust-sheet { display: flex; flex-direction: column; gap: 6px; margin-block: 12px; }
+.sw-robust-opts { flex-wrap: wrap; gap: 12px; }
+.sw-robust-table { border-collapse: collapse; font-size: 12px; }
+.sw-robust-table th, .sw-robust-table td { padding: 2px 8px; text-align: start; border-bottom: 1px solid var(--border, transparent); }
+.sw-robust-plot svg { max-width: 360px; width: 100%; }
+.sw-robust-plot circle.kept { fill: var(--focus); }
