@@ -387,13 +387,59 @@ def sweep_templates():
     return {"templates": out, "folder": TEMPLATES}
 
 
+TEMPLATE_KIND = "signalviewer-sweep-template"
+
+
+def _tpl_write(name: str, tpl: Dict[str, Any]) -> None:
+    os.makedirs(TEMPLATES, exist_ok=True)
+    with open(_tpl_path(name), "w", encoding="utf-8") as f:
+        json.dump({**tpl, "kind": TEMPLATE_KIND, "name": name.strip(), "saved": time.strftime("%Y-%m-%d %H:%M")}, f, indent=1)
+
+
 @router.post("/api/sweep/templates/save")
 def sweep_template_save(req: TemplateReq):
-    os.makedirs(TEMPLATES, exist_ok=True)
-    tpl = {**(req.template or {}), "name": req.name.strip()}
-    with open(_tpl_path(req.name), "w", encoding="utf-8") as f:
-        json.dump(tpl, f, indent=1)
+    _tpl_write(req.name, req.template or {})
     return sweep_templates()
+
+
+class TemplateFileReq(BaseModel):
+    name: Optional[str] = None
+    path: str
+
+
+@router.post("/api/sweep/templates/export")
+def sweep_template_export(req: TemplateFileReq):
+    """A template to a file of its own - to send to a colleague, keep with a project."""
+    src = _tpl_path(req.name or "")
+    if not os.path.isfile(src):
+        fail(404, f"No template named {req.name!r}.")
+    path = os.path.abspath(os.path.expanduser(req.path))
+    try:
+        with open(src, encoding="utf-8") as f, open(path, "w", encoding="utf-8") as g:
+            g.write(f.read())
+    except OSError as e:
+        fail(400, f"Could not write {path}: {e}")
+    return {"path": path}
+
+
+@router.post("/api/sweep/templates/import")
+def sweep_template_import(req: TemplateFileReq):
+    """A template from a file (exported here, by a colleague): kept under its name, or that name
+    with (2), (3)... when one is taken."""
+    path = os.path.abspath(os.path.expanduser(req.path))
+    try:
+        with open(path, encoding="utf-8") as f:
+            tpl = json.load(f)
+    except (OSError, ValueError) as e:
+        fail(400, f"Could not read {path}: {e}")
+    if not isinstance(tpl, dict) or not isinstance(tpl.get("columns"), list) or not isinstance(tpl.get("question"), dict):
+        fail(400, f"{os.path.basename(path)} is not a Sweeps template.")
+    base = (req.name or tpl.get("name") or os.path.splitext(os.path.basename(path))[0]).strip()
+    name, k = base, 2
+    while os.path.isfile(_tpl_path(name)):
+        name, k = f"{base} ({k})", k + 1
+    _tpl_write(name, tpl)
+    return {**sweep_templates(), "name": name}
 
 
 @router.post("/api/sweep/templates/delete")
