@@ -54,6 +54,8 @@ export interface Snap { roles: Record<string, { role: Role; scale: Scale }>; que
 export interface History { past: Snap[]; future: Snap[]; kind: string; at: number }
 const emptyHistory = (): History => ({ past: [], future: [], kind: "", at: 0 });
 const UNDO_DEPTH = 100;
+/** how many axes taken off are offered back (S15) */
+const AXES_OFF_KEPT = 8;
 /** changes of one kind closer than this make one undo step (a drag on an axis, typing a limit) */
 const UNDO_MERGE_MS = 1000;
 /** an action that changes two parts (a goal and its axis, a new column and its axis) is one step */
@@ -158,6 +160,8 @@ interface SweepsState {
   setFilter: (column: string, f: Filter | null) => void;
   moveAxis: (from: number, to: number) => void;
   toggleAxis: (column: string, on: boolean) => void;
+  /** the lines' axes, in order; those taken off are remembered to bring back (S15) */
+  setAxes: (axes: string[]) => void;
   // the answer
   evaluate: () => void;
   exportRerun: (path: string) => Promise<{ path: string; rows: number }>;
@@ -535,7 +539,12 @@ export const useSweeps = create<SweepsState>((set, get) => {
       axes.splice(Math.max(0, Math.min(axes.length, to)), 0, a);
       return { ...v, axes };
     }),
-    toggleAxis: (column, on) => patchV((v) => ({ ...v, axes: on ? (v.axes.includes(column) ? v.axes : [...v.axes, column]) : v.axes.filter((a) => a !== column) })),
+    toggleAxis: (column, on) => get().setAxes(on ? [...(get().studies[get().active]?.view.axes ?? []).filter((a) => a !== column), column]
+      : (get().studies[get().active]?.view.axes ?? []).filter((a) => a !== column)),
+    setAxes: (axes) => patchV((v) => {
+      const off = v.axes.filter((a) => !axes.includes(a));
+      return { ...v, axes, axesOff: [...off, ...(v.axesOff ?? []).filter((a) => !axes.includes(a) && !off.includes(a))].slice(0, AXES_OFF_KEPT) };
+    }),
 
     evaluate: () => {
       const s = get().studies[get().active];

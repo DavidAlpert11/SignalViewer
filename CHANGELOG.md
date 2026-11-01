@@ -8,6 +8,10 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: an axis taken off comes back**: the axes taken off the lines lately - from an axis's
+  menu or the column picker - are listed under the bar (*Taken off: + ki_roll*), one click each to
+  bring one back; the picker's button says it adds as well as removes (*Columns: 8 of 22 (add /
+  remove)*).
 - **Sweeps: the sets shown as an interactive plot**: the table's *Export* also writes its sets -
   only those that hold, those a rectangle or a filter kept - as an interactive parallel plot (HTML,
   like HiPlot: drag on an axis to filter, click a line), besides CSV.
