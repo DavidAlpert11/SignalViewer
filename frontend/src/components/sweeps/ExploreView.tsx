@@ -22,6 +22,7 @@ import { goalName } from "./GoalsStep";
 import ParallelPlot from "./ParallelPlot";
 import SetsTable from "./SetsTable";
 import NumField from "./NumField";
+import DecidePanel from "./DecidePanel";
 
 const BINS = 24;
 /** more parameters than this: a box to find one */
@@ -308,6 +309,8 @@ export default function ExploreView({ study }: { study: Study }) {
             <Best t={t} study={study} cols={cols} ex={ex} draft={shown!} moved={moved} />
             {shown!.objectives.length >= 2 && <Pareto cols={cols} ex={ex} draft={shown!} t={t} />}
           </div>
+          {shown!.objectives.length >= 2 && <DecidePanel t={t} study={study} a={a} cols={cols} ex={ex} draft={shown!}
+            setDraft={(d) => setDraft({ ...draft, decide: d.decide })} />}
           <SetsTable study={dstudy} draft />
         </div>
       </div>

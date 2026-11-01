@@ -1110,7 +1110,7 @@ def test_explore_everything_on_screen_live_in_the_lines_and_the_table(pg):
     _fresh(pg)
     _step(pg, "goals")
     # an empty goal: Explore still shows every parameter's range and a way to add an objective
-    pg.locator(".sw-side-step .btn", has_text="Explore this goal").click()
+    pg.locator(".sw-side-step .btn", has_text="Decide on this goal").click()
     pg.wait_for_selector(".sw-explore[aria-busy='false']")
     assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "5"
     assert pg.locator(".sw-center-tabs button[aria-selected='true']").inner_text() == "Decide"
@@ -1124,7 +1124,7 @@ def test_explore_everything_on_screen_live_in_the_lines_and_the_table(pg):
     _step(pg, "goals")
     _optimize(pg, "energy_wh", "min")
     pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
-    pg.locator(".sw-side-step .btn", has_text="Explore this goal").click()
+    pg.locator(".sw-side-step .btn", has_text="Decide on this goal").click()
     pg.wait_for_selector(".sw-explore[aria-busy='false'] .sw-explore-obj")
     assert "A draft of Goal 1" in pg.locator(".sw-explore-status").inner_text()
     obj = pg.locator(".sw-explore-obj", has_text="energy_wh")
@@ -1183,7 +1183,7 @@ def test_explore_everything_on_screen_live_in_the_lines_and_the_table(pg):
     assert pg.locator(".sw-sets-table tbody tr").count() == 45                   # every set, as the goal's view shows
     assert pg.locator(".sw-center canvas[data-shown='45']").count() == 1
     assert _holding(pg) == n
-    assert pg.locator(".sw-side-step .btn", has_text="Explore this goal").count() == 1   # and the way back in
+    assert pg.locator(".sw-side-step .btn", has_text="Decide on this goal").count() == 1   # and the way back in
 
 
 def test_three_areas_and_a_quiet_run(pg):
@@ -1198,3 +1198,38 @@ def test_three_areas_and_a_quiet_run(pg):
     pg.locator(".sw-area-btn[data-area='explore']").click()
     pg.wait_for_function("document.querySelector('.sw-step-btn.on .sw-step-n').innerText === '5'")
     assert [pg.locator(".sw-step-btn").nth(i).get_attribute("data-step") for i in range(2)] == ["results", "report"]
+
+
+def test_decide_ranking_methods_pairwise_and_a_group(pg):
+    """MF10: Decide ranks the sets left by a chosen method, each row says why it is above the next;
+    weights from pairwise comparisons with a warning when they contradict; the top as a group."""
+    _fresh(pg)
+    _step(pg, "goals")
+    _optimize(pg, "energy_wh", "min")
+    _optimize(pg, "roll_error_deg", "min")
+    _optimize(pg, "settle_time_s", "min")
+    pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
+    pg.locator(".sw-side-step .btn", has_text="Decide on this goal").click()
+    pg.wait_for_selector(".sw-explore[aria-busy='false'] .sw-decide .sw-decide-list li")
+    box = pg.locator(".sw-decide")
+    assert box.locator(".sw-decide-list li").count() == 10
+    assert "Above the next because:" in box.inner_text()
+    for label in ("Weighted sum", "Closest to ideal (TOPSIS)", "Optimism (Hurwicz)", "Least regret (Savage)"):
+        box.locator("button[role='radio']", has_text=label).click()
+        pg.wait_for_timeout(700)
+        assert box.locator(".sw-decide-list li").count() == 10
+    assert box.locator("input[aria-label='Optimism α']").count() == 0                 # only for Hurwicz
+    # pairwise: energy 9x error, error 9x settle, settle 9x energy -> contradicts
+    box.locator("input[type='checkbox']").check()
+    box.locator("select[aria-label='How much more energy_wh matters than roll_error_deg']").select_option("9")
+    box.locator("select[aria-label='How much more roll_error_deg matters than settle_time_s']").select_option("9")
+    box.locator("select[aria-label='How much more energy_wh matters than settle_time_s']").select_option("1/9")
+    pg.wait_for_selector(".sw-decide .sw-warn:has-text('contradict')")
+    # consistent again: 9, 9 -> 81 is beyond the scale, but 1 / 1 / 1 is exactly consistent
+    for a, b in (("energy_wh", "roll_error_deg"), ("roll_error_deg", "settle_time_s"), ("energy_wh", "settle_time_s")):
+        box.locator(f"select[aria-label='How much more {a} matters than {b}']").select_option("1")
+    pg.wait_for_selector(".sw-decide p:has-text('Consistent')")
+    # the top ten as a group
+    box.locator(".btn", has_text="Keep the first 10 as a group").click()
+    pg.wait_for_selector(".sw-groups .sw-group:not(.auto):has-text('Top 10')")
+    assert pg.locator(".sw-group:has-text('Top 10') .sw-group-n").inner_text() == "10"

@@ -109,6 +109,8 @@ export const sweepApi = {
       "/api/sweep/optimise/start", { id, question, specs, method, budget, combos, spec }),
   runLive: (job: string, since: number) => call<RunLive>(`/api/sweep/run/${job}?since=${since}`),
   runStop: (job: string) => call<{ cancelled: boolean }>(`/api/jobs/${job}/cancel`, {}),
+  mcdm: (values: (number | null)[][], directions: string[], weights: number[], method: string, alpha: number, margin: number, pairwise: number[][] | null) =>
+    call<McdmResult>("/api/sweep/mcdm", { values, directions, weights, method, alpha, margin, pairwise }),
   sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
     call<Sensitivity>("/api/sweep/sensitivity", { id, question, column, sets, threshold }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
@@ -179,3 +181,15 @@ export interface RunLive {
   live: { total: number; path: string; next: number; gen: number; best: { params: Record<string, string | number | null>; objectives: number[] }[]; counts: { ok: number; error: number; timeout: number; cached: number; running: number };
     rows: Record<string, string | number | null>[]; failures: { run: number; status: string; message: string; inputs: Record<string, unknown> }[] };
 }
+
+/** MF10: a ranking of a group's sets (rows as sent) - svcore/sweep/mcdm.py rank(). */
+export interface McdmResult {
+  method: string;
+  weights: number[];
+  scores: number[];
+  ranks: number[];
+  order: number[];
+  why: { a: number; b: number; tie: boolean; parts: number[] }[];
+  ahp?: { weights: number[]; lambdaMax: number; ci: number; cr: number; consistent: boolean };
+}
+
