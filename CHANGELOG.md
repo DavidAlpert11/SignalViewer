@@ -8,6 +8,13 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: where the optimization shows**: the answer's panel shows **the best set** - its
+  parameters and its goal (its score with several objectives, its worst case within the tolerance
+  when robust) - and opens it. A map can be coloured by **the best goal** of each cell instead of
+  the share that holds (*Colour*; with only something to optimize every set holds, so this is the
+  default then), the best set has a ★, and each map says what its colour and its numbers are. With
+  conditions but nothing to optimize the cells have no number any more - it was the share, *1*.
+  The report's maps are drawn the same way, with a colour bar.
 - **Sweeps: the whole process in the report**: each study keeps a **journal** - opened, roles
   changed, each goal as it ended up, robustness, columns taken out, keep / exclude, tables merged
   in, templates applied, suggestions made, files written, reports made - with the time of each

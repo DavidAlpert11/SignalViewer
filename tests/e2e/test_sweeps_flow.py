@@ -747,3 +747,31 @@ def test_a_narrow_window_nothing_overlaps(pg):
     bar = pg.locator(".sw-plotbar")
     assert bar.evaluate("e => e.scrollWidth <= e.clientWidth + 1")
     pg.set_viewport_size({"width": 1440, "height": 900})
+
+
+def test_where_the_optimization_shows(pg):
+    """S10: optimizing alone (every set holds) shows on the map - coloured by the best goal, the
+    best set starred - and in the answer's panel; conditions alone give no numbers on the map
+    (they were the share, '1')."""
+    _fresh(pg)
+    _step(pg, "goals")
+    _optimize(pg, "energy_wh", "min")
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-best:has-text('kp_roll = ')")
+    pg.locator(".sw-center-tabs button", has_text="Map").click()
+    pg.wait_for_selector(".sw-map svg rect")
+    assert "colour: the best energy_wh" in pg.locator(".sw-map-key").first.inner_text()
+    fills = pg.locator(".sw-maps-grid .sw-map").first.locator("g.sw-cell rect").evaluate_all("rs => new Set(rs.map(r => r.getAttribute('fill'))).size")
+    assert fills > 3                                                            # not one colour
+    assert pg.locator(".sw-best-star").count() == 1
+    pg.locator(".sw-best .btn", has_text="Open it").click()
+    pg.wait_for_selector(".sw-detail")
+    # conditions only: the share, and no number on the cells
+    _fresh(pg)
+    _step(pg, "goals")
+    _condition(pg, "roll_error_deg", "<=", 5)
+    _step(pg, "results")
+    pg.locator(".sw-center-tabs button", has_text="Map").click()
+    pg.wait_for_selector(".sw-map svg rect")
+    pg.wait_for_function("document.querySelector('.sw-map-key').innerText.includes('the share of sets that hold')")
+    assert pg.locator(".sw-cell-text").count() == 0 and pg.locator(".sw-best").count() == 0

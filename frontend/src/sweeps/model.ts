@@ -168,7 +168,10 @@ export interface View {
   next?: NextRuns;
 }
 
-export interface MapSpec { x: string; y: string; rest?: "all" | "best" }
+export interface MapSpec { x: string; y: string; rest?: "all" | "best";
+  /** the cells' colour: the share of sets that hold, or the best goal (missing: the goal when the
+   *  goal has no conditions, else the share) */
+  color?: "share" | "goal" }
 
 export const emptyView = (): View => ({ mode: "sets", axes: [], colorBy: "#holds", filters: {}, reversed: {}, scales: {},
   hideConstant: true, hideFlat: false, pinned: null, rerun: [], onlyMissing: false,

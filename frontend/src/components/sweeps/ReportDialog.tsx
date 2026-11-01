@@ -90,7 +90,8 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
     const cols = setColumns(study);
     const labels: Record<string, string> = Object.fromEntries([...cols.keys()].map((n) => [n, colLabel(t, study, n)]));
     Object.assign(labels, { "#answer": t("swRepAnswer"), "#best": t("swBestSets"), "#plot": t("swCenterLines"), "#effectsTitle": t("swCenterEffects"),
-      "#mapTitle": t("swCenterMap"), "#mapAt": t("swMapAt"), "#what": "", "#value": "", "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"),
+      "#mapTitle": t("swCenterMap"), "#mapAt": t("swMapAt"),
+      "#mapShareKey": t("swMapByShare"), "#mapGoalKey": study.question.goal ? t("swMapByGoal", { c: study.question.goal.column }) : "", "#what": "", "#value": "", "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"),
       "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis"), "#provenance": t("swRepProvenance"),
       "#itTitle": t("swRepIterations"), "#itHolding": t("swRepItHolding"), "#itBest": t("swRepItBest") });
     // the sets on screen: after the filters and the keep / exclude steps

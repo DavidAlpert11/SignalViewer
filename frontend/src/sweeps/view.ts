@@ -36,7 +36,7 @@ export function mapList(s: Study): MapSpec[] {
   const params = activeParams(s);
   if (params.length < 2) return [];
   const want = s.view.maps?.length ? s.view.maps : [{ x: s.view.mapX ?? "", y: s.view.mapY ?? "", rest: "all" as const }];
-  return want.map((m) => { const p = pairOf(params, m.x, m.y); return { x: p.x!, y: p.y!, rest: m.rest ?? "all" }; });
+  return want.map((m) => { const p = pairOf(params, m.x, m.y); return { x: p.x!, y: p.y!, rest: m.rest ?? "all", ...("color" in m && m.color ? { color: m.color } : {}) }; });
 }
 
 /** The first map's two parameters (and the parameters there are). */

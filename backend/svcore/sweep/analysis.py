@@ -109,8 +109,8 @@ def pair_map(p: Prepared, x: str, y: str, value: np.ndarray, holds: np.ndarray, 
 
 def map_for(p: Prepared, a: Dict, q: Dict, x: str, y: str, rest: str = "all") -> Dict:
     """The map of two parameters for an answer, as the page and the report show it: per cell the
-    share of sets that hold and the best goal (the smallest when minimizing; without a goal, the
-    share). rest "best": a slice through the best set - the other parameters at its values
+    share of sets that hold and the best goal among them (the smallest when minimizing; without a
+    goal, none); `goal` / `direction` say which, `bestAt` the cell of the best set. rest "best": a slice through the best set - the other parameters at its values
     (`fixed`; None when no set holds, and then the map is over every value)."""
     d = a["data"]
     v = d["#goal"] if "#goal" in d else d["#holds"]
@@ -123,9 +123,19 @@ def map_for(p: Prepared, a: Dict, q: Dict, x: str, y: str, rest: str = "all") ->
             only = slice_mask(p, b, [x, y])
             fixed = {c: _py(d[c][b]) for c in p.params if c not in (x, y)}
     m = pair_map(p, x, y, -v if mini else v, d["#holds"], only)       # pair_map keeps the largest
-    if mini:
+    if "#goal" not in d:
+        m["best"] = [[None for _ in r] for r in m["best"]]                 # no goal: no number (it was the share, 1)
+    elif mini:
         m["best"] = [[None if b is None else -b for b in r] for r in m["best"]]
-    return {**m, "rest": rest, "fixed": fixed}
+    # where the best set is (rank 1), for its star on the map
+    at = None
+    b = best_set(d["#rank"], d["#holds"]) if "#goal" in d or np.isfinite(d["#rank"]).any() else None
+    if b is not None:
+        from svcore.sweep.evaluate import _py
+        bx, by = _py(d[x][b]), _py(d[y][b])
+        if bx in m["xs"] and by in m["ys"]:
+            at = [m["xs"].index(bx), m["ys"].index(by)]
+    return {**m, "rest": rest, "fixed": fixed, "goal": "#goal" in d, "direction": "min" if mini else "max", "bestAt": at}
 
 
 # ----------------------------------------------------------------------------- what to run next
