@@ -209,6 +209,34 @@ def sweep_effects(req: MapReq):
     return sweep.effects(p, _value(a, req.question), a["data"]["#holds"])
 
 
+class DoeReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    params: List[Dict[str, Any]]          # specs: {name, kind, lo, hi, levels, value}
+    method: str = "space"
+    n: int = 20
+    seed: int = 0
+    levels: int = 3
+    sets: Optional[List[int]] = None      # fill: the gaps among these sets (a group); missing: all
+
+
+@router.post("/api/sweep/doe")
+def sweep_doe(req: DoeReq):
+    """MF03: new parameter sets to run - space-filling, Sobol, random, factorial, Box-Behnken,
+    central composite, or filling the gaps of the sets already run."""
+    from svcore.sweep import doe
+    existing = None
+    if req.method == "fill":
+        p = _prepared(req.id, req.question)
+        idx = range(p.n_sets) if req.sets is None else [i for i in req.sets if 0 <= i < p.n_sets]
+        rows = p.df[p.params].to_numpy()[p.first_row]
+        existing = [{c: rows[i][k] for k, c in enumerate(p.params)} for i in idx]
+    try:
+        return doe.design(req.params, req.method, req.n, req.seed, req.levels, existing)
+    except (doe.DoeError, TypeError, ValueError) as e:
+        fail(400, str(e))
+
+
 class SensitivityReq(BaseModel):
     id: str
     question: Dict[str, Any]
