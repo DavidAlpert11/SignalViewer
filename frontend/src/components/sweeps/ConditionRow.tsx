@@ -1,7 +1,7 @@
 /* A condition: column, comparison, limit, and where it must be met - in every combination, in at
    least k, or in every combination of some values. */
 import { useT } from "../../i18n";
-import { OPS, type Condition, type Op } from "../../sweeps/model";
+import { OPS, condText, type Condition, type Op } from "../../sweeps/model";
 import { useSweeps, type Study } from "../../sweeps/state";
 import { activeColumns } from "../../sweeps/view";
 
@@ -12,6 +12,15 @@ export default function ConditionRow({ study, i, c, outputs, met }: { study: Stu
   const active = new Set(activeColumns(study, "hold"));
   const holds = study.columns.filter((x) => active.has(x.name));
   const up = (p: Partial<Condition>) => st.updateCondition(i, p);
+  // a categorical parameter's levels (MF01, chosen in Explore or the problem table): shown, removable
+  if (c.in) return (
+    <div className="sw-cond">
+      <div className="sw-cond-line">
+        <span className="mono">{condText(c)}</span>{met !== undefined && <span className="hint">{t("swMetBy", { n: met })}</span>}
+        <button className="iconbtn" aria-label={t("swRemove")} onClick={() => st.removeCondition(i)}>×</button>
+      </div>
+    </div>
+  );
   return (
     <div className="sw-cond">
       <div className="sw-cond-line">

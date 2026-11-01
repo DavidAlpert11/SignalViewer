@@ -121,8 +121,33 @@ def _agg(p: Prepared, col: str, op: str) -> np.ndarray:
     return set_aggregate(p.df[col], p.set_id, p.n_sets, op)
 
 
+def _condition_in(p: Prepared, col: Any, values: Any) -> Dict:
+    """A parameter's value is one of `values` (text compared as text, numbers as numbers): one value
+    per set, met or not. worst = 1 when met, 0 when not; margin the same minus 0.5 (< 0: fails)."""
+    if col not in p.params:
+        raise QuestionError(f"{col}: 'one of' is for a parameter")
+    if not isinstance(values, list):
+        raise QuestionError(f"{col}: 'one of' needs a list of values")
+    v = p.df[col].to_numpy()[p.first_row]
+    want_txt = {str(x) for x in values}
+    nums = []
+    for x in values:
+        try:
+            nums.append(float(x))
+        except (TypeError, ValueError):
+            pass
+    if pd.api.types.is_numeric_dtype(p.df[col]):
+        ok = np.isin(v.astype(float), np.asarray(nums, dtype=float))
+    else:
+        ok = np.array([str(x) in want_txt for x in v], dtype=bool)
+    w = ok.astype(float)
+    return {"ok": ok, "worst": w, "margin": w - 0.5, "passed": w, "needed": np.ones(p.n_sets)}
+
+
 def _condition(p: Prepared, c: Dict) -> Dict:
     col, op = c.get("column"), c.get("op")
+    if c.get("in") is not None:                            # MF01: a parameter among these values (categorical)
+        return _condition_in(p, col, c["in"])
     if op not in _OPS:
         raise QuestionError(f"Unknown comparison: {op}")
     try:
@@ -200,7 +225,8 @@ def answer(p: Prepared, q: Dict) -> Dict:
     for i, c in enumerate(q.get("conditions") or []):
         r = _condition(p, c)
         met = (met | r["ok"]) if any_of else (met & r["ok"])
-        label = f"{c.get('column')} {c.get('op')} {c.get('value')}"
+        label = (f"{c.get('column')} ∈ {{{', '.join(str(x) for x in c['in'])}}}" if c.get("in") is not None
+                 else f"{c.get('column')} {c.get('op')} {c.get('value')}")
         add(f"#c{i}.worst", r["worst"], "condition", condition=i, label=label, part="worst")
         add(f"#c{i}.margin", r["margin"], "condition", condition=i, label=label, part="margin")
         add(f"#c{i}.passed", r["passed"], "condition", condition=i, label=label, part="passed")
@@ -306,6 +332,10 @@ def set_rows(p: Prepared, q: Dict, set_index: int) -> Dict:
     runs = [[_py(v) for v in row] for row in sub[keep].itertuples(index=False, name=None)]
     why = []
     for i, c in enumerate(q.get("conditions") or []):
+        if c.get("in") is not None:                        # a parameter among values: this set's value
+            if not _condition_in(p, c.get("column"), c["in"])["ok"][set_index]:
+                why.append({"condition": i, "column": c.get("column"), "broken": 1, "of": 1, "worst": params.get(c.get("column")), "where": None})
+            continue
         col, op, limit = c.get("column"), c.get("op"), float(c.get("value"))
         if col in p.set_cols:
             v = p.set_cols[col][set_index]

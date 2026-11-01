@@ -652,7 +652,8 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 ## Milestone 23 — Sweeps toward modeFRONTIER. Spec: docs/dev/SWEEPS_MODEFRONTIER.md (findings verified 2026-11-01, MF00-MF11, brief in §6). Order: MF00, MF01, MF02, MF05, MF03, MF04, MF11, MF06, MF07, MF10, MF08, MF09.
 - [x] MF00 Groups of designs (rule or ids, automatic groups, brush → group) and design status (feasible / fails / error / virtual).
   Done 2026-11-01. Model: `svcore/sweep/groups.py` + `frontend/src/sweeps/groups.ts` (set ids from parameter values, live rule / frozen ids, automatic groups, ∪ ∩ ∖); `view.groups` / `view.activeGroup` optional in .svsweep, undoable. UI: `GroupsPanel` in the results side (automatic groups with counts, marked = the ticked sets, Save as group - Shift frozen -, rename by double-click, freeze, ∪ ∩ ∖ with the active group, eye, delete); colour by group (`#group`, in the colour menu); a hidden group leaves plots and table (through `scopeMask`). Table: status stripe (fails amber, error red), ≈ virtual, the failing condition's cells marked, tooltip "fails in k of n" (`needed` now in the answer's conditions), group chips. Tests: tests/test_sweep_groups.py, tests/e2e/test_sweeps_groups.py (e2e NOT run in this container: no browser - CI / the owner).
-- [ ] MF01 The problem as one table (parameters incl. categorical, objectives, conditions).
+- [x] MF01 The problem as one table (parameters incl. categorical, objectives, conditions).
+  Done 2026-11-01 (with Q129). `NumField` (click → field, Enter / blur commits, Esc restores, arrows step, Shift ×10; outside the results kept and marked) on every Explore value; *Sliders | Table* in Explore (`view.exploreAs`), `ProblemTable` = the same `Draft` (parameters: type, from / to, in the results, n values, cuts; objectives: direction, weight, threshold, best; conditions: column, op, value, where, cuts). Categorical parameters: levels chosen as checkboxes (`Draft.levels`), saved as a condition `in: [...]` (new optional field; evaluate.py `_condition_in`, set_rows' why). Tests: test_sweep_groups.py (one-of), tests/e2e/test_sweeps_problem.py (not run here: no browser). Not yet: min / max / step / base / on-off columns - they belong to MF03 (DOE) and are added there.
 - [ ] MF02 More charts, all linked, colour by group. - [ ] MF03 DOE (output = a group). - [ ] MF04 Surrogates (validation table, virtual group, re-run).
 - [ ] MF05 Sensitivity (variance share per term, screening). - [ ] MF06 Runner. - [ ] MF07 Optimisers in the loop.
 - [ ] MF08 Robust design / reliability. - [ ] MF09 Clusters, SOM, PCA, MDS. - [ ] MF10 Decide (weighted, TOPSIS, Hurwicz, Savage, pairwise).
@@ -661,7 +662,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 ## Milestone 22 — work on a selection; typed values in Explore (owner's notes 2026-11-01, 2). Spec: TASKS.md Q127-Q129.
 - [ ] Q127 Operations chosen by the selection (2: difference…, 3+: norm, 2N: difference per pair).
 - [ ] Q128 The same formula for the other indices.
-- [ ] Q129 Explore: type a value, not only slide.
+- [x] Q129 Explore: type a value, not only slide.
 
 ## Milestone 21 — new signals in the investigation; a signal's real updates (owner's notes 2026-11-01). Spec: TASKS.md Q124-Q126.
 - [ ] Q124 A signal made with an operation, in What changed first and the other investigation steps.

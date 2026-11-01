@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { useT, type TFn } from "../../i18n";
 import { sweepApi, type VariantResult } from "../../sweeps/api";
-import { OUTPUT_AGGS, type GoalVariant, type SetOp } from "../../sweeps/model";
+import { OUTPUT_AGGS, condText, type GoalVariant, type SetOp } from "../../sweeps/model";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import ConditionRow from "./ConditionRow";
@@ -17,7 +17,7 @@ import { StepFoot } from "./StepNav";
 export const goalName = (t: TFn, g: GoalVariant, i: number) => (g.name && Number.isNaN(Number(g.name)) ? g.name : t("swGoalN", { n: i + 1 }));
 
 export const goalSummary = (t: TFn, g: GoalVariant) => {
-  const conds = g.conditions.map((c) => `${c.column} ${c.op} ${c.value}`).join(g.combine === "or" ? ` ${t("swOr")} ` : ` ${t("swAnd")} `);
+  const conds = g.conditions.map(condText).join(g.combine === "or" ? ` ${t("swOr")} ` : ` ${t("swAnd")} `);
   const opt = g.optimize.map((o) => `${o.direction === "max" ? "↑" : "↓"} ${o.column}`).join(", ");
   return [conds, opt].filter(Boolean).join(" · ") || t("swGoalEmpty");
 };
