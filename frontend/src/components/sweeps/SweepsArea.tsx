@@ -140,7 +140,7 @@ function SweepsBar() {
     useSweeps.getState().setView({ onlyMissing });
     const p = await pickPath({ mode: "save", title: t("swExportRerun"), exts: [".csv"], defaultName: "rerun.csv" });
     if (!p) return;
-    say(useSweeps.getState().exportRerun(p).then((r) => t("swExported", { n: r.rows, path: r.path })));
+    say(useSweeps.getState().exportRerun(p).then((r) => { useSweeps.getState().journal("export", { path: r.path, n: r.rows }); return t("swExported", { n: r.rows, path: r.path }); }));
   };
   const below = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -368,6 +368,7 @@ function ResultsCenter({ study }: { study: Study }) {
     try {
       const r = await sweepApi.exportRows(study.tableId, wireQuestion(study), v.mode === "runs" ? { rows: sel.rows } : { sets: sel.sets }, p);
       notify(t("swExported", { n: r.rows, path: r.path }));
+      useSweeps.getState().journal("export", { path: r.path, n: r.rows });
     } catch (e) { notifyError(e); }
   };
   const menuCol = menu ? cols.get(menu.name) : undefined;

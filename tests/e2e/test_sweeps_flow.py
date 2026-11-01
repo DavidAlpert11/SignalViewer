@@ -692,3 +692,42 @@ def test_templates_dialog_save_replace_export_import_apply(pg):
         pg.locator(".dialog.small .btn.primary").click()
         pg.wait_for_selector(f".toast:has-text('Template deleted: {n}')")
         pg.keyboard.press("Escape")
+
+
+def test_the_whole_process_in_the_report(pg):
+    """S08: the journal (what was done, in order), the iterations (each table merged in) and where
+    it comes from (the table's SHA-256, the app's version) - on screen and in the report; the
+    journal stays with the study."""
+    import hashlib
+    ex = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "examples", "sweeps"))
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")
+    # a second iteration: the finer sweep merged in
+    _step(pg, "raw")
+    pg.locator(".sw-side-step .btn", has_text="Add a table (merge)").click()
+    goto_folder(pg, ex)
+    pg.locator(".dialog .fs-row", has_text="drone_tuning_refine.csv").click(); pg.click(".dialog-foot .btn.primary")
+    pg.wait_for_selector(".toast:has-text('Merged')")
+    _step(pg, "report")
+    j = pg.locator(".sw-journal")
+    pg.wait_for_function("document.querySelectorAll('.sw-journal ul li').length === 2")      # two iterations
+    text = j.inner_text()
+    assert "Opened" in text and "Merged" in text and "drone_tuning_refine.csv" in text
+    assert "Goal 1: roll_error_deg <= 5 & overshoot_pct <= 15 · ↓energy_wh" in text
+    pg.locator(".sw-report-format", has_text="Interactive HTML").click()
+    pg.locator(".sw-report-page .btn", has_text="Make the report").click()
+    save_as(pg, "process.html")
+    pg.wait_for_selector(".toast:has-text('process.html')", timeout=60000)
+    html = open(os.path.join(pg.env["out"], "process.html"), encoding="utf-8").read()
+    sha = hashlib.sha256(open(os.path.join(ex, "drone_tuning_refine.csv"), "rb").read()).hexdigest()
+    for want in ("The journal: what was done, in order", "Iterations: each table merged in", "Where it comes from", sha, "Signal Viewer "):
+        assert want in html, want
+    # the report itself is in the journal now, and the journal survives a restart
+    pg.wait_for_function("document.querySelector('.sw-journal').innerText.includes('Report made')")
+    pg.wait_for_timeout(1500)
+    pg.reload(); pg.wait_for_selector(".app"); _to_sweeps(pg)
+    pg.wait_for_selector(".sw-steps")
+    _step(pg, "report")
+    pg.wait_for_function("document.querySelector('.sw-journal').innerText.includes('Report made')")

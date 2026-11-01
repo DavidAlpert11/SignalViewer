@@ -43,6 +43,7 @@ export default function SetsTable({ study }: { study: Study }) {
     try {
       const r = await sweepApi.exportSets(study.tableId, wireQuestion(study), order, names, labels, p);
       notify(t("swExportedSets", { n: r.rows, path: r.path }));
+      useSweeps.getState().journal("export", { path: r.path, n: r.rows });
     } catch (e) { notifyError(e); }
   };
   const exportRuns = async () => {
@@ -51,6 +52,7 @@ export default function SetsTable({ study }: { study: Study }) {
     try {
       const r = await sweepApi.exportRows(study.tableId, wireQuestion(study), { sets: order }, p);
       notify(t("swExported", { n: r.rows, path: r.path }));
+      useSweeps.getState().journal("export", { path: r.path, n: r.rows });
     } catch (e) { notifyError(e); }
   };
   const exportMenu = (e: React.MouseEvent) => {

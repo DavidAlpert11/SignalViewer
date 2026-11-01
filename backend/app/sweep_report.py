@@ -140,6 +140,25 @@ def fig_effects(eff: Dict, goal_label: str):
     return fig
 
 
+def fig_iterations(its: List[Dict], labels: Dict[str, str]):
+    """How the study converged (S08): per iteration (each table merged in), the sets that hold and
+    the best goal."""
+    plt = _pyplot()
+    x = list(range(1, len(its) + 1))
+    fig, ax = plt.subplots(figsize=(7, 3.2), dpi=150)
+    ax.plot(x, [i.get("holding") or 0 for i in its], marker="o", color="#2e7d32", label=_bidi(labels.get("#itHolding", "sets that hold")))
+    ax.set_xticks(x, [_bidi(str(i.get("label") or n)) for n, i in zip(x, its)], fontsize=8)
+    ax.set_ylabel(_bidi(labels.get("#itHolding", "sets that hold")))
+    best = [i.get("best") for i in its]
+    if any(b is not None for b in best):
+        ax2 = ax.twinx()
+        ax2.plot(x, [np.nan if b is None else b for b in best], marker="s", color="#e08a00", label=_bidi(labels.get("#itBest", "best goal")))
+        ax2.set_ylabel(_bidi(labels.get("#itBest", "best goal")))
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+    return fig
+
+
 def fig_map(m: Dict):
     plt = _pyplot()
     share = np.array([[np.nan if v is None else v for v in r] for r in m["share"]], dtype=float)
@@ -183,6 +202,9 @@ def figures(p, q: Dict, a: Dict, req: Dict) -> List[Tuple[str, str, bytes]]:
         if inc.get("effects", True):
             val = a["data"]["#goal"] if "#goal" in a["data"] else a["data"]["#holds"]
             out.append(("effects", labels.get("#effectsTitle", ""), _png(fig_effects(sweep.effects(p, val, a["data"]["#holds"]), labels.get("#effects", "")))))
+        its = req.get("iterations") or []
+        if inc.get("iterations", True) and len(its) >= 2:
+            out.append(("iterations", labels.get("#itTitle", ""), _png(fig_iterations(its, labels))))
         if inc.get("map", True):
             for k, mp in enumerate(maps_of(p, req)):
                 m = sweep.map_for(p, a, q, mp["x"], mp["y"], mp.get("rest") or "all")

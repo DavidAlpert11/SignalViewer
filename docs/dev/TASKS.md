@@ -90,7 +90,7 @@ The owner's requests for the Sweeps area (`components/sweeps`, `sweeps/`, `route
 `svcore/sweep`, `app/sweep_report.py`), in the order agreed. Each task is one or a few commits;
 every patch to the owner holds ALL commits since `origin/main` (see the practical notes).
 
-**Progress:** S00–S07 done (and S01b: optimize) · S08 open.
+**Progress:** S00–S08 done (and S01b: optimize).
 
 ### S00 · Groundwork for working on two areas at once — S · **Done**
 - The Sweeps strings live in `frontend/src/sweeps/i18n.ts` (`swEn`, `swHe: typeof swEn`), spread
@@ -146,7 +146,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 - A dialog like `TemplateLibrary`: save (ask before overwriting), update, export / import a file,
   delete; the new fields (maps, table columns, explore / tolerance) included.
 
-### S08 · The whole process in the report — M
+### S08 · The whole process in the report — M · **Done**
 - A journal of the study (optional field in `.svsweep`), consecutive changes of one kind merged;
   each merge an iteration (a convergence plot); the report: the journal, every map, the suggestions,
   provenance (file hash, app version).
@@ -1874,3 +1874,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S05: view.maps [{x, y, rest}] / view.scatters (optional; older studies: mapX / mapY, scatterX / scatterY as the first); `mapList` / `nextMapPair` (view.ts); svcore `map_for` (one map for the page and the report: min goals negated around pair_map - the report's map had the largest as best when minimizing), `best_set`, `slice_mask`, pair_map(only=); /api/sweep/map `rest`; the report's `maps` and figures as an ordered list (key, title, png) in HTML / Word / PDF. MapView = MapsView of MapPanel (pair, the others, ×, the edge where holding begins, a click on a cell = filters on x, y and the slice's parameters + a toast to the lines); marks carry their parameters (each map places them); ScattersView of ScatterPanel. Tests: test_sweep +1 (slice, min, report maps), e2e +1.
 - 2026-11-01 · S06: question.robust {param: {mode pct | abs | steps, value}} (optional, wired only when set); svcore grid `tolerance_levels` / `tolerance_band` / `robustness` -> #robustHolds / #robustGoal / #robustSeen, ranking among robust-holding sets (score with 2+ objectives); suggest(focus, score, rank, robust) + kind `robust` (the band's ends of the top 5); Grid.neighbours(only=). With an old request the answer is byte-identical to before (checked against the previous analysis.py). Frontend: RobustEditor (Goals), NextRunsView rewritten (view.next: focus / kinds / budget / result with its question key -> "the question changed" banner; kept, not undone), sweeps/next.ts (KINDS, MARK), FLAG_COLS, marks off a map's axes, the report's question and process lines. Tests: test_sweep +1, e2e +1.
 - 2026-11-01 · S07: TemplatesDialog (save / replace-asks / apply / double-click / export / import / delete; the fit = this table's share of the template's columns); `/api/sweep/templates/export` and `/import` (a template = columns + question; a taken name gets (2)); saved templates get `kind` and `saved`; saveTemplate leaves out scope and next.result / exported; the Apply / Delete submenus gave way to *Templates…* (and Ctrl+K). The e2e `save_as` helper clicks the save dialog's own button (a dialog behind it took the click). Tests: test_sweep +1, e2e +1, one adapted.
+- 2026-11-01 · S08: sweeps/journal.ts - `changes(a, b)` reads the journal lines off two states of a study in `patch` (tracked changes only, so undo and answers write nothing; `as` = the action's own line: template, reset), `withEntry` merges a run of one kind to one key within 2 min (max 400 lines), `journalLine` renders in the report's language (a goal without a name of its own = "Goal n", as its tab); explicit lines: open, merge / unmerge, suggest, export (every file written), report. Study.log / iterations (saved in .svsweep, optional); `withIteration` on each answer (n = 1 + merged tables). Report: sections journal + iterations, `iterations` -> fig_iterations (2 or more), `provenance(tid)` in the route (each table: size, time, SHA-256; a folder: its table count; the app's version), include journal / provenance. Report step: the journal and iterations on screen. Tests: test_sweep +1, e2e +1.

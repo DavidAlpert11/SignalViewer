@@ -658,7 +658,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S05 Several maps and point plots.
 - [x] S06 Next runs: parameters to explore, robustness.
 - [x] S07 Templates dialog.
-- [ ] S08 The whole process in the report.
+- [x] S08 The whole process in the report.
 
 ## Milestone 16 — 1.16.0: fixes to the investigation; when the file on screen was saved (review of 2026-10-28). Spec: TASKS.md Q122-Q123. Prepared 2026-10-29.
 - [x] The review fixes (Q122). Done 2026-10-28: What changed first reads the usual level inside the data (and says when there is nothing before the span), exponent numbers in conditions and formulas, a state going down shown ↓, Hebrew in What changed first, "1 stretch".

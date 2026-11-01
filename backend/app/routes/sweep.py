@@ -565,6 +565,7 @@ class ReportReq(BaseModel):
     mapX: Optional[str] = None
     mapY: Optional[str] = None
     maps: Optional[List[Dict[str, Any]]] = None   # S05: every map on screen [{x, y, rest}] (else mapX / mapY)
+    iterations: Optional[List[Dict[str, Any]]] = None   # S08: [{n, label, sets, holding, best}] - each merge an iteration
     raw: bool = False                    # plot: the raw table's runs instead of the parameter sets
 
 
@@ -590,13 +591,43 @@ def sweep_report(req: ReportReq):
             fail(400, f"Could not write {path}: {e}")
         return {"path": path, "size": os.path.getsize(path)}
     p, a = _answer(req.id, req.question)
+    body = {**req.model_dump(), "path": path}
+    if (req.include or {}).get("provenance", True):
+        L = req.labels or {}
+        body["sections"] = [*(req.sections or []), {"title": L.get("#provenance", "Where it comes from"), "items": provenance(req.id)}]
     try:
-        sweep_report.build(p, req.question, a, {**req.model_dump(), "path": path})
+        sweep_report.build(p, req.question, a, body)
     except ReportNeedsExtra as e:
         fail(400, str(e))
     except OSError as e:
         fail(400, f"Could not write {path}: {e}")
     return {"path": path, "size": os.path.getsize(path)}
+
+
+def provenance(tid: str) -> List[str]:
+    """Where the answer comes from (S08): each table read - its size, time and SHA-256, so the same
+    file can be found again - and the app's version."""
+    import hashlib
+    from app.version import __version__
+    t = _TABLES.get(tid) or {}
+    paths = [t.get("path")] + [m.get("path") for m in t.get("merged", [])]
+    out = []
+    for path in [x for x in paths if x]:
+        try:
+            if os.path.isdir(path):
+                n = len([f for f in os.listdir(path) if f.lower().endswith(sweep.io.TABLE_EXTS)])
+                out.append(f"{path} - a folder of {n} tables")
+                continue
+            h = hashlib.sha256()
+            with open(path, "rb") as f:
+                for chunk in iter(lambda: f.read(1 << 20), b""):
+                    h.update(chunk)
+            st = os.stat(path)
+            out.append(f"{path} - {st.st_size:,} bytes, {time.strftime('%Y-%m-%d %H:%M', time.localtime(st.st_mtime))}, SHA-256 {h.hexdigest()}")
+        except OSError as e:
+            out.append(f"{path} - could not be read now: {e.strerror or e}")
+    out.append(f"Signal Viewer {__version__}")
+    return out
 
 
 # ----------------------------------------------------------------------------- goals side by side
