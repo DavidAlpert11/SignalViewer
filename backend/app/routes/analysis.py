@@ -447,6 +447,8 @@ class FirstChangeRequest(BaseModel):
     baseB: Optional[float] = None
     k: float = 4.0            # times the usual noise
     persist: int = 3          # samples in a row
+    refs: List[str] = []      # Q130: the reference runs (a change there too is marked, sorted last)
+    event: Optional[str] = None   # Q131: the event's signal (missing: the most unusual in the span)
 
 
 @router.post("/api/firstchange")
@@ -464,7 +466,14 @@ def first_change_route(req: FirstChangeRequest):
     base = list(used.most_common(1)[0][0]) if used else [req.a, req.a]
     # nothing before the span to learn the usual level from: say so (it is not "nothing changed")
     no_room = bool(items) and all(x["status"] == "nodata" for x in items) and base[1] - base[0] <= 0
-    return {"items": items, "base": base, "noRoom": no_room}
+    from svcore.firstchange import WEIGHTS
+    more = store.change_clusters(items, req.a, req.b, [r for r in req.refs if r not in req.runs], max(1.0, req.k),
+                                 max(1, req.persist), req.event)
+    skipped: Dict[str, int] = {}
+    for x in items:
+        if x.get("skip"):
+            skipped[x["skip"]] = skipped.get(x["skip"], 0) + 1
+    return {"items": items, "base": base, "noRoom": no_room, **more, "weights": WEIGHTS, "skipped": skipped}
 
 
 class SuggestConditionRequest(BaseModel):

@@ -650,10 +650,10 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
 ## Milestone 24 — investigating signals: clusters of changes, the likely first, a plot beside each (owner's notes 2026-11-01, 3). Spec: TASKS.md Q130-Q138. After Milestone 23.
-- [ ] Q130 Changes that happen together, as clusters.
-- [ ] Q131 The more likely first (a score with its parts).
-- [ ] Q132 A plot beside each cluster (normalised, the span, the change ticks).
-- [ ] Q133 Less to wade through (counters, clocks, constants left out; groups by message; keyboard).
+- [x] Q130 Changes that happen together, as clusters. Done 2026-11-01: firstchange.clusters (gap > max(3 x the coarser period, 2 % of the search window)); /api/firstchange returns `clusters` (the page does not recompute them); closed to one line (time, n, 3 names), the likeliest open; the reference runs (`refs`: the other open files) mark a member and sort it last.
+- [x] Q131 The more likely first (a score with its parts). Done 2026-11-01: firstchange.WEIGHTS / score_parts (strength, timing, stays, unique, shape - the lag against the event signal for the 30 likeliest, leads); clusters by their best member (By time as an option), the event's own signal last; the parts in the row's tooltip.
+- [x] Q132 A plot beside each cluster (normalised, the span, the change ticks). Done 2026-11-01: ClusterPlot from the 120-point pictures ((y - level) / noise, the span shaded, a tick per change, the pointer = names and real values); Open as a tab (the cursors on the span, in view from the earliest change), Add to the investigation (journal).
+- [x] Q133 Less to wade through (counters, clocks, constants left out; groups by message; keyboard). Done 2026-11-01: firstchange.uninformative (constant; sequence number = the same step; clock = one s / ms / µs / ns per second - an accumulator stays in; heartbeat = toggling at an unchanged period), counted and shown on request; names grouped by message (ATT.*) with the best score, closed; ↑ ↓ → ← Enter.
 - [ ] Q134 Who leads whom - a small chain of lags.
 - [ ] Q135 What is different in this run (against the other runs' envelope).
 - [ ] Q136 The same event elsewhere: a consistent precursor.

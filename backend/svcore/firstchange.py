@@ -65,7 +65,10 @@ def first_change(t, y, a: float, b: float, base: Tuple[float, float], k: float =
     dts = dts[dts > 0]
     rate = float(1.0 / np.median(dts)) if len(dts) else 0.0
     out["rate"] = rate
-    out["spark"] = _spark(t, y, base[0], b)
+    out["spark"] = _spark(t, y, base[0], b, SPARK_N)
+    kind = uninformative(t, y, base[0], b)
+    if kind:
+        out["skip"] = kind
     bm = (t >= base[0]) & (t < base[1]) & np.isfinite(y)
     sm = (t >= min(base[1], a)) & (t <= b) & np.isfinite(y)   # from the end of the baseline: causes come first
     if bm.sum() < 2 or sm.sum() < 1:
@@ -113,8 +116,101 @@ def first_change(t, y, a: float, b: float, base: Tuple[float, float], k: float =
     if not len(hits):
         return out
     i = int(hits[0])
+    # how long it stays changed: the share of the samples from the change to the end of the window
+    # still beyond k (a step stays, a blip does not)
+    stay = float(over[i:].mean()) if len(over[i:]) else 0.0
     out.update(status="changed", t=float(ts[i]), rel=float(ts[i] - a), up=bool(dev[i] > 0),
-               level=level, noise=noise)
+               level=level, noise=noise, stay=stay)
+    return out
+
+
+SPARK_N = 120          # points of each signal's picture: the row's spark and the cluster's plot
+
+
+def uninformative(t: np.ndarray, y: np.ndarray, lo: float, hi: float) -> Optional[str]:
+    """Q133: a signal that cannot tell anything about the event, in [lo, hi]: "constant"; "counter"
+    (monotonic with a constant step - a time stamp, a sequence number); "heartbeat" (periodic toggling
+    with the same period before and in the second half of the window). None: worth looking at."""
+    m = (t >= lo) & (t <= hi) & np.isfinite(y)
+    yy, tt = y[m], t[m]
+    if len(yy) < 3:
+        return None
+    if np.ptp(yy) == 0:
+        return "constant"
+    d = np.diff(yy)
+    if (np.all(d > 0) or np.all(d < 0)):
+        rel = float(np.std(d) / abs(np.mean(d)))
+        dt = np.diff(tt)
+        # a constant step in value - or a value that moves with time itself (a clock: step / dt fixed)
+        rate = d / np.where(dt > 0, dt, np.nan)
+        mr = float(np.nanmean(rate)) if np.isfinite(rate).any() else 0.0
+        rrel = float(np.nanstd(rate) / abs(mr)) if mr else np.inf
+        # a sequence number: the same step every sample; a clock: it moves with time itself, at one
+        # second (or ms, µs, ns) per second - an accumulator (used energy) moves at its own rate and
+        # can change its slope, so it stays in
+        clock = rrel < 0.02 and any(abs(abs(mr) / u - 1) < 0.02 for u in (1.0, 1e3, 1e6, 1e9))
+        if rel < 1e-3 or clock:
+            return "counter"
+    vals = np.unique(yy)
+    if len(vals) <= 3:
+        sw = tt[1:][d != 0]
+        if len(sw) >= 6:
+            iv = np.diff(sw)
+            half = len(iv) // 2
+            a1, a2 = iv[:half], iv[half:]
+            if (len(a1) >= 2 and len(a2) >= 2 and np.std(iv) / np.mean(iv) < 0.15
+                    and abs(np.mean(a1) - np.mean(a2)) / np.mean(iv) < 0.1):
+                return "heartbeat"
+    return None
+
+
+# Q131: how a candidate's parts add up to its score - one place, each part 0..1 (shown in the "why").
+WEIGHTS = {"strength": 1.0, "timing": 1.5, "stays": 1.0, "unique": 1.5, "shape": 1.0, "leads": 0.5}
+
+
+def score_parts(x: Dict, a: float, start: float, in_ref: bool, shape: Optional[float], leads: float,
+                k: float = 4.0) -> Dict[str, float]:
+    """Each part 0..1 (1 = more likely a cause):
+    strength - how far beyond the noise (log scale, 1 at 100x k);
+    timing   - before the event's start, the earlier in the search window the more (a change after
+               the start is a consequence: 0);
+    stays    - the share of the window after it that it stays changed (a step 1, a blip ~0);
+    unique   - not seen in the reference runs (1) / seen there (0);
+    shape    - the lag's correlation with the event signal when it leads it (0 when it follows or no lag);
+    leads    - the share of the other changes that come after it."""
+    k = max(float(k), 1e-9)
+    st = float(x.get("strength", 0.0))
+    strength = float(np.clip(np.log10(max(st / k, 1.0)) / 2.0, 0.0, 1.0))
+    rel = float(x.get("rel", 0.0))
+    win = max(a - start, 1e-9)
+    timing = float(np.clip(-rel / win, 0.0, 1.0)) * 0.7 + (0.3 if rel <= 0 else 0.0)
+    return {"strength": strength, "timing": timing, "stays": float(x.get("stay", 0.0)),
+            "unique": 0.0 if in_ref else 1.0, "shape": float(max(0.0, shape or 0.0)), "leads": float(leads)}
+
+
+def score_of(parts: Dict[str, float]) -> float:
+    return float(sum(WEIGHTS[k] * v for k, v in parts.items()) / sum(WEIGHTS.values()))
+
+
+def clusters(items: List[Dict], a: float, b: float, start: float, frac: float = 0.02) -> List[Dict]:
+    """Q130: the change times in clusters (1-D, by gaps): a new cluster when the gap to the previous
+    change is more than max(3 x the coarser sample period of the two, `frac` of the search window).
+    Each: t0, t1, its members (ids, in time order) and its first."""
+    ch = sorted((x for x in items if x.get("status") == "changed"), key=lambda x: x["t"])
+    span = max(b - start, 1e-9)
+    out: List[Dict] = []
+    prev: Optional[Dict] = None
+    for x in ch:
+        if prev is not None:
+            per = max(1.0 / (prev.get("rate") or 1e9), 1.0 / (x.get("rate") or 1e9))
+            if x["t"] - prev["t"] <= max(3 * per, frac * span):
+                c = out[-1]
+                c["ids"].append(x["id"])
+                c["t1"] = x["t"]
+                prev = x
+                continue
+        out.append({"t0": x["t"], "t1": x["t"], "ids": [x["id"]], "first": x["id"]})
+        prev = x
     return out
 
 

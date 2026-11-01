@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   PCA, MDS, SOM as Charts panes; clusters = groups). Every M23 e2e file has now run in a browser (fixes in
   the log). **Owner's choices 2026-11-01:** scikit-learn is in `requirements.txt` (Kriging everywhere;
   lite keeps the extra `sweeps-opt`); the old Explore tabs (Lines, Map, Points...) go in the next version
-  after 1.17.0. **Next: Milestone 24, Q130-Q137** (investigating signals). Then Sweeps round 4 (S24-S27).
+  after 1.17.0. **Milestone 24: Q130-Q133 done; next Q134** (who leads whom), then Q135-Q137. Then Sweeps round 4 (S24-S27).
 - Fixed 2026-11-01 (owner's report): a refresh of a file still being written followed the writer to the
   end (100 % until the writing stopped). CSV reads are bounded to the size when the read began; the store
   keeps the size from before the read.
@@ -478,7 +478,7 @@ spark per row, the same signal in the other open files under each, a lag between
 What tires: a flight log gives hundreds of rows; changes a few ms apart sit in different places of
 the list; to see them together one builds a plot by hand; "earlier" is the only order.
 
-**Progress:** none started. Order: Q130, Q131, Q132, Q133 (one release together), then Q134-Q138.
+**Progress:** Q130-Q133 done 2026-11-01 (one release together). Next: Q134, then Q135-Q137.
 
 ### Q130 · Changes that happen together, as clusters — M
 **Do:** after `first_change` for every signal, cluster the change times (1-D, gap-based: a new cluster
@@ -2310,3 +2310,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · Owner: scikit-learn into requirements.txt (licences re-read in the wheels, BSD-3); requirements-sweeps-opt.txt removed; ALWAYS_OPTIONAL = desktop only.
 - 2026-11-01 · Refresh of a growing file (owner's report): csv_loader `_Bounded` / `_complete_part` (parsers and the text pass read the size seen at the start; a half-written last line waits while the file grows), store.open_file keeps the stat from before the read. tests/test_growing_file.py (fails on the old code: the read followed the writer, the refresh said unchanged).
 - 2026-11-01 · MF09 (done): svcore/sweep/clusters.py, /api/sweep/clusters, ShapePane (Charts kinds pca / som); pytest +7, e2e +1. Milestone 23 done. Next: Q130.
+- 2026-11-01 · Q130-Q133 (done): svcore/firstchange.py `uninformative`, `WEIGHTS` / `score_parts` / `score_of`, `clusters`; store.change_clusters (the reference runs, the event's signal - the page sends the plotted one most unusual in the span -, the shape by `lag` for the 30 likeliest with room on both sides); /api/firstchange gains `refs`, `event` -> `clusters`, `event`, `weights`, `skipped`; spark 120 points. WhatChanged: clusters (closed, the likeliest open), the order, the score and its parts, ClusterPlot, Open as a tab / Add to the investigation (journal "Changes together..."), names by message, the left-out list, keyboard. Tests: test_change_clusters (+4: two clusters by gaps, a leading step above a bigger blip after and a change the reference has, constant / counter / clock / heartbeat, the route), e2e test_what_changed (10: the old ones read the list By time with every cluster open; +2 new). On the Investigate demo: Wind's cluster first, then Motor3 / Battery_V / Motor1, Vibe_Z, Roll (the event) last.
