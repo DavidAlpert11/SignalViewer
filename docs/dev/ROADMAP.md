@@ -652,7 +652,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 ## Milestone 19 — Sweeps, round 3. Spec: TASKS.md S20-S22.
 - [x] S20 The journal for the report: the final story, hide lines, "the analysis starts here".
 - [ ] S21 Explore: a draft of a goal - conditions, limits and objectives together.
-- [ ] S22 Goals: the best set while editing.
+- [x] S22 Goals: the best set while editing.
 
 ## Milestone 18 — Sweeps, round 2 (the owner's notes after using S00-S08). Spec: TASKS.md S09-S18.
 - [x] S09 Nothing overlaps in a small window.
