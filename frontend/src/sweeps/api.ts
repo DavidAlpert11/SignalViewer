@@ -100,6 +100,12 @@ export const sweepApi = {
     call<SurrogateGrid>("/api/sweep/surrogate/grid", { key, model, base, x, y, steps }),
   surrogateOptimise: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, model: string, direction: "max" | "min", n: number, conditions: boolean) =>
     call<{ sets: VirtualSet[] }>("/api/sweep/surrogate/optimise", { id, question, column, sets, model, direction, n, conditions }),
+  runPreview: (id: string, question: WireQuestion, sets: Record<string, string | number | null>[], combos: boolean, spec: RunStep) =>
+    call<{ args: string[]; runs: number; workdir: string; workdirExists: boolean }>("/api/sweep/run/preview", { id, question, sets, combos, spec }),
+  runStart: (id: string, question: WireQuestion, sets: Record<string, string | number | null>[], combos: boolean, spec: RunStep) =>
+    call<{ id: string }>("/api/sweep/run/start", { id, question, sets, combos, spec }),
+  runLive: (job: string, since: number) => call<RunLive>(`/api/sweep/run/${job}?since=${since}`),
+  runStop: (job: string) => call<{ cancelled: boolean }>(`/api/jobs/${job}/cancel`, {}),
   sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
     call<Sensitivity>("/api/sweep/sensitivity", { id, question, column, sets, threshold }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
@@ -160,3 +166,13 @@ export interface SurrogateReport {
 }
 export interface SurrogateGrid { x: string; y?: string; xs: (number | string)[]; ys?: (number | string)[]; z: (number | null)[] | (number | null)[][] }
 export interface VirtualSet { params: Record<string, string | number>; predicted: number | null; meets: boolean }
+
+/** MF06: how one run is made and read (kept with the study as `view.runStep`). */
+export interface RunStep { template: string; workdir: string; parser: "json" | "csv" | "stdout"; outputs?: string[];
+  parallel: number; timeout: number; results: string }
+/** MF11: a run job's state - the job, counts by status, the finished runs (from `since`), the last failures. */
+export interface RunLive {
+  job: { id: string; state: "running" | "done" | "error" | "cancelled"; progress: number; error: string | null; elapsed: number };
+  live: { total: number; path: string; next: number; counts: { ok: number; error: number; timeout: number; cached: number; running: number };
+    rows: Record<string, string | number | null>[]; failures: { run: number; status: string; message: string; inputs: Record<string, unknown> }[] };
+}

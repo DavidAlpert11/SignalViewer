@@ -198,6 +198,8 @@ export interface View {
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */
   axesOff?: string[];
+  /** how a run is made and read (MF06; missing: no run step - the Run area is quiet) */
+  runStep?: import("./api").RunStep;
   /** the chart desktop (MF02; missing: two panes from the study's columns) */
   desk?: { layout: 1 | 2 | 4; panes: DeskPane[] };
   /** Explore's controls as sliders or as one table of the problem (MF01; missing: sliders) */
