@@ -63,7 +63,11 @@ export interface Question {
 }
 
 /** How far a parameter may move: a percentage of its value, a value either way, or steps of the grid. */
-export interface Tolerance { mode: "pct" | "abs" | "steps"; value: number }
+export interface Tolerance {
+  mode: "pct" | "abs" | "steps"; value: number;
+  /** MF08: how the value spreads inside the band (missing: uniform); normal = the band is ±2σ */
+  dist?: "uniform" | "triangular" | "normal";
+}
 
 export interface Objective { column: string; direction: "max" | "min"; weight: number }
 

@@ -10,6 +10,7 @@ from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+import pandas as pd
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -473,6 +474,78 @@ def sweep_sensitivity(req: SensitivityReq):
         fail(400, f"No column named {req.column!r}")
     value = a["data"][req.column] if req.column is not None else _value(a, req.question)
     return sensitivity.for_sets(p, value, req.sets, threshold=max(0.0, min(1.0, req.threshold)))
+
+
+class RobustReq(BaseModel):
+    id: str
+    question: Dict[str, Any]              # its `robust`: the tolerances, each with an optional `dist`
+    n: int = 200
+    method: str = "lhs"
+    seed: int = 0
+    pct: float = 95.0
+    direction: str = "max"
+    limit: Optional[Dict[str, Any]] = None   # {op, value}: a sample breaking it is a failure
+
+
+def _robust_tols(req: "RobustReq"):
+    from svcore.sweep import robust
+    p = _prepared(req.id, req.question)
+    tols = {c: t for c, t in (req.question.get("robust") or {}).items() if c in p.params}
+    if not tols:
+        fail(400, "Give a tolerance to at least one parameter first (the goal's *Robust to*).")
+    levels = {c: [float(v) for v in pd.to_numeric(p.df[c], errors="coerce").dropna().unique()] for c in tols}
+    return robust, p, tols, levels
+
+
+class RobustSampleReq(RobustReq):
+    centre: Dict[str, Any]
+
+
+@router.post("/api/sweep/robust/sample")
+def sweep_robust_sample(req: RobustSampleReq):
+    """MF08: sets around one set by the tolerances' distributions - to run for real (a group)."""
+    robust, _, tols, levels = _robust_tols(req)
+    try:
+        return {"sets": robust.sample(req.centre, tols, req.n, req.method, req.seed, levels)}
+    except robust.RobustError as e:
+        fail(400, str(e))
+
+
+class RobustModelReq(RobustReq):
+    key: str                              # a trained model (/api/sweep/surrogate/train)
+    model: str
+    centres: List[Dict[str, Any]]
+
+
+@router.post("/api/sweep/robust/model")
+def sweep_robust_model(req: RobustModelReq):
+    """MF08: each centre's mean, sigma, percentile and probability of failure on a model (virtual)."""
+    from svcore.sweep import surrogate
+    robust, _, tols, levels = _robust_tols(req)
+    try:
+        f = surrogate.recall(req.key)
+        rows = robust.on_model(lambda pts: f.predict(req.model, pts), req.centres[:50], tols, req.n, req.method,
+                               req.seed, req.direction, req.pct, req.limit, levels)
+    except (robust.RobustError, surrogate.SurrogateError) as e:
+        fail(400, str(e))
+    return {"rows": rows}
+
+
+class RobustStatsReq(RobustReq):
+    column: Optional[str] = None          # missing: the goal
+    sets: List[int]
+
+
+@router.post("/api/sweep/robust/stats")
+def sweep_robust_stats(req: RobustStatsReq):
+    """MF08: the statistics of a group's sets (the samples run for real, merged back)."""
+    from svcore.sweep import robust
+    p, a = _answer(req.id, req.question)
+    if req.column is not None and req.column not in a["data"]:
+        fail(400, f"No column named {req.column!r}")
+    y = np.asarray(a["data"][req.column] if req.column is not None else _value(a, req.question), dtype=float)
+    idx = [i for i in req.sets if 0 <= i < len(y)]
+    return robust.statistics(y[idx], req.direction, req.pct, req.limit)
 
 
 class McdmReq(BaseModel):

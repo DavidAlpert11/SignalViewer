@@ -44,6 +44,10 @@ export default function RobustEditor({ study }: { study: Study }) {
             <select aria-label={t("swRobustMode", { c })} value={tol.mode} onChange={(e) => st.setRobust(c, { ...tol, mode: e.target.value as Tolerance["mode"] })}>
               <option value="pct">{t("swTolPct")}</option><option value="abs">{t("swTolAbs")}</option><option value="steps">{t("swTolSteps")}</option>
             </select>
+            <select aria-label={t("swRobustDist", { c })} value={tol.dist ?? "uniform"} title={t("swRobustDistHint")}
+              onChange={(e) => st.setRobust(c, { ...tol, dist: e.target.value as NonNullable<Tolerance["dist"]> })}>
+              <option value="uniform">{t("swDist_uniform")}</option><option value="triangular">{t("swDist_triangular")}</option><option value="normal">{t("swDist_normal")}</option>
+            </select>
             <button className="iconbtn" aria-label={t("swRemove")} onClick={() => st.setRobust(c, null)}>×</button>
           </div>
         );
