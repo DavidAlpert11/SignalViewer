@@ -7,6 +7,10 @@
 #   frontend  tsc + vite build (frontend/dist is not committed from here: a release rebuilds it)
 #   e2e       a short Playwright smoke run on the freshly built UI: a new user's first start, the
 #             main workflows, the top bar and Help menu
+#
+# A push to main runs it only when asked (owner's request, 2026-11-01: not every push): the last
+# commit's message holds [ci], or Actions -> ci -> Run workflow (`gh workflow run ci`). Pull
+# requests always run it. Otherwise the jobs show as skipped. Before a release: run it by hand.
 name: ci
 on:
   push:
@@ -23,6 +27,7 @@ concurrency:                   # a new push to the same branch / pull request st
 
 jobs:
   backend:
+    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[ci]')
     strategy:
       fail-fast: false
       matrix:
@@ -50,6 +55,7 @@ jobs:
         run: python cli.py validate
 
   frontend:
+    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[ci]')
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
