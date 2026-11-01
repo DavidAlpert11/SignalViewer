@@ -153,7 +153,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 
 ## Sweeps, round 2 (owner, 2026-11-01, after using S00-S08): S09–S18
 
-**Progress:** S09 done · S10–S18 open.
+**Progress:** S09–S10 done · S11–S18 open.
 
 ### S09 · Nothing overlaps in a small window — S · **Done**
 - The step's foot: *← Scenarios & parameters* and *See the results →* run into each other in a
@@ -161,7 +161,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 - The plot's bar scrolls sideways under its own scrollbar, which covers the buttons: it wraps onto
   a second line instead. Every bar of the area checked at 1024 px and with the side panel wide.
 
-### S10 · Where the optimization shows — M
+### S10 · Where the optimization shows — M · **Done**
 - With only something to optimize (no condition) every set holds: the maps are one colour and the
   table's order is the only trace. The answer's side panel gets **the best set** (its parameters,
   its goal, *open*), and the map can be coloured by **the best goal** instead of the share holding
@@ -1935,3 +1935,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S07: TemplatesDialog (save / replace-asks / apply / double-click / export / import / delete; the fit = this table's share of the template's columns); `/api/sweep/templates/export` and `/import` (a template = columns + question; a taken name gets (2)); saved templates get `kind` and `saved`; saveTemplate leaves out scope and next.result / exported; the Apply / Delete submenus gave way to *Templates…* (and Ctrl+K). The e2e `save_as` helper clicks the save dialog's own button (a dialog behind it took the click). Tests: test_sweep +1, e2e +1, one adapted.
 - 2026-11-01 · S08: sweeps/journal.ts - `changes(a, b)` reads the journal lines off two states of a study in `patch` (tracked changes only, so undo and answers write nothing; `as` = the action's own line: template, reset), `withEntry` merges a run of one kind to one key within 2 min (max 400 lines), `journalLine` renders in the report's language (a goal without a name of its own = "Goal n", as its tab); explicit lines: open, merge / unmerge, suggest, export (every file written), report. Study.log / iterations (saved in .svsweep, optional); `withIteration` on each answer (n = 1 + merged tables). Report: sections journal + iterations, `iterations` -> fig_iterations (2 or more), `provenance(tid)` in the route (each table: size, time, SHA-256; a folder: its table count; the app's version), include journal / provenance. Report step: the journal and iterations on screen. Tests: test_sweep +1, e2e +1.
 - 2026-11-01 · S09: index.css `.app` grid-template-columns minmax(0, 1fr) (the top row's min-content made the app 1047 px wide at 1024 - every area cut), the search trigger icon-only under 1100 px; sweeps.css: the plot's bar wraps (was nowrap + overflow-x), the step foot wraps, step buttons shrink (min 96 px, ellipsis), `.sw-wide` / `.sw-narrow` labels under 1180 px (follow, re-run), the maps' grid columns min(380 px, 100%). e2e +1 (1024 px: app width, the foot's buttons apart, the bar not scrolling).
+- 2026-11-01 · S10: svcore map_for returns goal / direction / bestAt and no cell numbers without a goal; MapSpec.color (share | goal; default goal when the goal has no conditions); MapView: per-map key (MapKey), colour by the best goal (better = bright either direction, grey: none holds), ★ at bestAt; ResultsSide `BestSet` (rank 1: parameters, goal, score / robust goal, *Open it*); fig_map(color, labels) with a colour bar and the star; mapList keeps color. e2e +1.

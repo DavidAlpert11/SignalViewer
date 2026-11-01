@@ -16,7 +16,9 @@ import { MARK } from "../../sweeps/next";
 
 /** a suggestion: where it is, why, and the parameter it moves (when one) */
 export interface Mark { params: Record<string, number | string | null>; kind: string; param?: string }
-type MapAnswer = PairMap & { rest: "all" | "best"; fixed: Record<string, number | string | null> | null };
+type MapAnswer = PairMap & { rest: "all" | "best"; fixed: Record<string, number | string | null> | null;
+  goal: boolean; direction: "max" | "min"; bestAt: [number, number] | null };
+type MapColor = "share" | "goal";
 
 export default function MapsView({ study, marks }: { study: Study; marks?: Mark[] }) {
   const t = useT();
@@ -26,9 +28,8 @@ export default function MapsView({ study, marks }: { study: Study; marks?: Mark[
   const add = () => { const n = nextMapPair(study); if (n) setMaps([...maps, n]); };
   return (
     <div className="sw-maps">
-      <div className="sw-row"><span className="hint">{t("swMapHint")}</span>
-        <span className="sw-legend-ramp" /> <span className="hint">{t("swMapLegend")}</span>
-        <span className="sw-edge-key" /> <span className="hint">{t("swMapEdgeKey")}</span>
+      <div className="sw-row"><span className="sw-edge-key" /> <span className="hint">{t("swMapEdgeKey")}</span>
+        <span className="hint">★ {t("swMapBestSet")}</span>
         <button className="btn outline sw-add-map" onClick={add}>{t("swAddMap")}</button></div>
       <div className="sw-maps-grid">
         {maps.map((m, i) => (
@@ -48,6 +49,10 @@ function MapPanel({ study, spec, marks, onChange, onRemove }: {
   const params = activeParams(study);
   const { x, y } = spec;
   const rest = spec.rest ?? "all";
+  // coloured by the goal when there is one and nothing else to show (no condition: every set holds)
+  const goal = study.question.goal?.column;
+  const conds = study.question.conditions.length > 0;
+  const color: MapColor = goal ? spec.color ?? (conds ? "share" : "goal") : "share";
   const [m, setM] = useState<MapAnswer | null>(null);
   const [err, setErr] = useState("");
   const qk = JSON.stringify(wireQuestion(study));
@@ -66,6 +71,10 @@ function MapPanel({ study, spec, marks, onChange, onRemove }: {
         <label title={t("swMapRestHint")}>{t("swMapRest")} <select value={rest} onChange={(e) => onChange({ rest: e.target.value as MapSpec["rest"] })}>
           <option value="all">{t("swMapRestAll")}</option><option value="best">{t("swMapRestBest")}</option></select></label>
       )}
+      {goal && (
+        <label>{t("swMapColour")} <select value={color} onChange={(e) => onChange({ color: e.target.value as MapColor })}>
+          <option value="share">{t("swMapByShare")}</option><option value="goal">{t("swMapByGoal", { c: goal })}</option></select></label>
+      )}
       {onRemove && <button className="iconbtn" aria-label={t("swRemoveMap")} title={t("swRemoveMap")} onClick={onRemove}>×</button>}
     </div>
   );
@@ -76,7 +85,8 @@ function MapPanel({ study, spec, marks, onChange, onRemove }: {
     <div className="sw-map">
       {head}
       {rest === "best" && <p className="hint sw-map-at">{m.fixed ? t("swMapAtBest", { at }) : t("swMapNoBest")}</p>}
-      <MapSvg t={t} m={m} marks={marks} onCell={(i, j) => keepCell(t, study, m, i, j)} />
+      <MapKey t={t} m={m} color={color} goal={goal} />
+      <MapSvg t={t} m={m} color={color} marks={marks} onCell={(i, j) => keepCell(t, study, m, i, j)} />
     </div>
   );
 }
@@ -109,8 +119,38 @@ function keepCell(t: TFn, study: Study, m: MapAnswer, i: number, j: number) {
     action: { label: t("swShowLines"), run: () => useSweeps.getState().setView({ center: "lines" }) } });
 }
 
-function MapSvg({ t, m, marks, onCell }: { t: TFn; m: MapAnswer; marks?: Mark[]; onCell: (i: number, j: number) => void }) {
+/** The range of the best goal over the cells (for the colour by the goal). */
+function goalRange(m: MapAnswer): [number, number] | null {
+  let lo = Infinity, hi = -Infinity;
+  for (const r of m.best) for (const b of r) if (b !== null) { lo = Math.min(lo, b); hi = Math.max(hi, b); }
+  return Number.isFinite(lo) ? [lo, hi] : null;
+}
+
+/** What the colour and the numbers of a map mean. */
+function MapKey({ t, m, color, goal }: { t: TFn; m: MapAnswer; color: MapColor; goal?: string }) {
+  const r = goalRange(m);
+  const byGoal = color === "goal" && r;
+  return (
+    <p className="hint sw-map-key">
+      <span className="sw-legend-ramp" />{" "}
+      {byGoal ? t("swMapKeyGoal", { c: goal ?? "", worse: fmtValue(m.direction === "min" ? r![1] : r![0]), better: fmtValue(m.direction === "min" ? r![0] : r![1]) })
+        : t("swMapKeyShare")}
+      {m.goal ? ` · ${t("swMapKeyNumber", { c: goal ?? "" })}` : ""}
+    </p>
+  );
+}
+
+function MapSvg({ t, m, color, marks, onCell }: { t: TFn; m: MapAnswer; color: MapColor; marks?: Mark[]; onCell: (i: number, j: number) => void }) {
   const nx = m.xs.length, ny = m.ys.length;
+  const r = color === "goal" ? goalRange(m) : null;
+  // a cell's colour: the share that holds, or its best goal from worse (dark) to better (bright)
+  const fillOf = (s: number | null, b: number | null) => {
+    if (s === null) return "transparent";
+    if (!r) return ramp(s);
+    if (b === null) return "var(--line)";                     // nothing holds here: no goal to show
+    const f = r[1] > r[0] ? (b - r[0]) / (r[1] - r[0]) : 1;
+    return ramp(m.direction === "min" ? 1 - f : f);
+  };
   const L = 64, B = 40, T = 8, R = 8, cw = Math.max(26, Math.min(90, 560 / nx)), ch = Math.max(22, Math.min(60, 360 / ny));
   const W = L + nx * cw + R, H = T + ny * ch + B;
   const cx = (i: number) => L + i * cw, cy = (j: number) => T + (ny - 1 - j) * ch;
@@ -141,7 +181,7 @@ function MapSvg({ t, m, marks, onCell }: { t: TFn; m: MapAnswer; marks?: Mark[];
         return (
           <g key={`${i}-${j}`} className={s === null ? "" : "sw-cell"} onClick={s === null ? undefined : () => onCell(i, j)}>
             <rect x={cx(i) + 1} y={cy(j) + 1} width={cw - 2} height={ch - 2} rx={3}
-              fill={s === null ? "transparent" : ramp(s)} className={s === null ? "sw-cell-empty" : ""}>
+              fill={fillOf(s, b)} className={s === null ? "sw-cell-empty" : ""}>
               <title>{`${m.x} ${m.xs[i]}, ${m.y} ${m.ys[j]}: ${s === null ? "–" : Math.round(s * 100) + "%"}${b !== null ? ` · ${fmtValue(b)}` : ""}${s === null ? "" : ` - ${t("swMapClickCell")}`}`}</title>
             </rect>
             {b !== null && cw >= 40 && <text x={cx(i) + cw / 2} y={cy(j) + ch / 2 + 4} textAnchor="middle" className="sw-cell-text">{fmtValue(b)}</text>}
@@ -151,6 +191,7 @@ function MapSvg({ t, m, marks, onCell }: { t: TFn; m: MapAnswer; marks?: Mark[];
       {/* the edge twice - light under dark - so it shows on the dark and the light cells alike */}
       {edges.map(([x1, y1, x2, y2], k) => <line key={`h${k}`} x1={x1} y1={y1} x2={x2} y2={y2} className="sw-edge-halo" />)}
       {edges.map(([x1, y1, x2, y2], k) => <line key={k} x1={x1} y1={y1} x2={x2} y2={y2} className="sw-edge" />)}
+      {m.bestAt && <text x={cx(m.bestAt[0]) + cw - 5} y={cy(m.bestAt[1]) + 13} textAnchor="end" className="sw-best-star">★<title>{t("swMapBestSet")}</title></text>}
       {m.xs.map((v, i) => <text key={i} x={cx(i) + cw / 2} y={H - B + 16} textAnchor="middle" className="sw-ax">{String(v)}</text>)}
       {m.ys.map((v, j) => <text key={j} x={L - 6} y={cy(j) + ch / 2 + 4} textAnchor="end" className="sw-ax">{String(v)}</text>)}
       <text x={L + (nx * cw) / 2} y={H - 4} textAnchor="middle" className="sw-ax-title">{m.x}</text>
