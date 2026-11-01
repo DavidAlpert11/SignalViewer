@@ -96,8 +96,8 @@ export const sweepApi = {
     call<PairMap & { rest: "all" | "best"; fixed: Record<string, string | number | null> | null; goal: boolean; direction: "max" | "min"; bestAt: [number, number] | null }>("/api/sweep/map", { id, question, x, y, rest }),
   suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number, focus: string[] | null) =>
     call<{ suggestions: Suggestion[]; available: Record<string, number>; taken: Record<string, number>; budget: number }>("/api/sweep/suggest", { id, question, kinds, budget, focus }),
-  suggestExport: (id: string, question: WireQuestion, params: Suggestion["params"][], path: string) =>
-    call<{ path: string; rows: number }>("/api/sweep/suggest/export", { id, question, params, path }),
+  suggestExport: (id: string, question: WireQuestion, params: Suggestion["params"][], path: string, combos = true) =>
+    call<{ path: string; rows: number }>("/api/sweep/suggest/export", { id, question, params, path, combos }),
   suspects: (id: string, question: WireQuestion) => call<{ suspects: Suspect[] }>("/api/sweep/suspects", { id, question }),
   compare: (a: { id: string; question: WireQuestion }, b: { id: string; question: WireQuestion }) => call<CompareResult>("/api/sweep/compare", { a, b }),
   merge: (id: string, path: string, keys: string[], prefer: "new" | "old" | "both") =>

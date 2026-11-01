@@ -6,7 +6,8 @@
    with the study (and go into the report). Nothing runs from here. */
 import { useState } from "react";
 import { pickPath } from "../../store";
-import { useT } from "../../i18n";
+import { useT, type TKey } from "../../i18n";
+import { openMenu } from "../Overlays";
 import { sweepApi, type SuggestKind } from "../../sweeps/api";
 import type { NextRuns } from "../../sweeps/model";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
@@ -17,6 +18,8 @@ import MapsView from "./MapView";
 import { KINDS, MARK, stamp } from "../../sweeps/next";
 
 const DEFAULT_KINDS: SuggestKind[] = ["edge", "best", "disagree", "missing"];
+/** the run list's formats: a file name's ending, its name in the menu */
+const FORMATS: [string, TKey][] = [[".csv", "swFmtCsv"], [".tsv", "swFmtTsv"], [".json", "swFmtJson"], [".m", "swFmtMatlab"], [".py", "swFmtPython"]];
 
 /** What the suggestions answered: the question and the parameters explored. */
 const keyOf = (s: Study, focus: string[] | null) => JSON.stringify([wireQuestion(s), focus]);
@@ -45,17 +48,41 @@ export default function NextRunsView({ study }: { study: Study }) {
     } catch (e) { notifyError(e); }
     setBusy(false);
   };
-  const exportList = async () => {
+  // the run list (every set x every combination) or the sets alone, in the format chosen (S17)
+  const exportList = async (ext: string, combos: boolean) => {
     if (!res) return;
-    const p = await pickPath({ mode: "save", title: t("swNextExport"), exts: [".csv"], defaultName: "next_runs.csv" });
+    const name = `${combos ? "next_runs" : "next_sets"}${ext}`;
+    const p = await pickPath({ mode: "save", title: t("swNextExport"), exts: [ext], defaultName: name });
     if (!p) return;
     try {
-      const r = await sweepApi.suggestExport(study.tableId, wireQuestion(study), res.suggestions.map((s) => s.params), p);
+      const r = await sweepApi.suggestExport(study.tableId, wireQuestion(study), res.suggestions.map((s) => s.params), p, combos);
       setNext({ exported: r.path });
       notify(t("swExported", { n: r.rows, path: r.path }));
       useSweeps.getState().journal("export", { path: r.path, n: r.rows });
     } catch (e) { notifyError(e); }
   };
+  const exportMenu = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const formats = (combos: boolean) => FORMATS.map(([ext, key]) => ({ label: t(key), run: () => { exportList(ext, combos); } }));
+    const n = res?.suggestions.length ?? 0;
+    openMenu({ clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, [
+      { label: t("swNextRunList", { n: (n * combos).toLocaleString() }), run: () => {}, items: formats(true) },
+      { label: t("swNextSetsAlone", { n }), run: () => {}, items: formats(false) },
+      { label: t("swNextCopy"), run: () => copySets() },
+    ]);
+  };
+  // the sets as a table to paste into a spreadsheet (tab-separated)
+  const copySets = () => {
+    if (!res?.suggestions.length) return;
+    const cols = Object.keys(res.suggestions[0].params);
+    const text = [cols.join("\t"), ...res.suggestions.map((s) => cols.map((c) => s.params[c] ?? "").join("\t"))].join("\n");
+    navigator.clipboard.writeText(text).then(() => notify(t("swNextCopied", { n: res.suggestions.length })), notifyError);
+  };
+  // compact (S17): a parameter with one value in every suggestion is said once, above the table
+  const [everyCol, setEveryCol] = useState(false);
+  const allCols = Object.keys(res?.suggestions[0]?.params ?? {});
+  const same = res && res.suggestions.length > 1 ? allCols.filter((c) => res.suggestions.every((s) => s.params[c] === res.suggestions[0].params[c])) : [];
+  const shownCols = everyCol ? allCols : allCols.filter((c) => !same.includes(c));
   const stale = !!res && res.key !== undefined && res.key !== keyOf(study, res.focus);
   const marks = (res?.suggestions ?? []).map((s) => ({ params: s.params, kind: s.kind, param: s.param }));
   return (
@@ -97,13 +124,16 @@ export default function NextRunsView({ study }: { study: Study }) {
               {res.budget !== undefined && res.suggestions.length < res.budget &&
                 <span className="hint sw-fewer">{t("swFewerFound", { n: res.suggestions.length, b: res.budget })}</span>}
               {res.focus && <span className="hint">{t("swExploredOnly", { list: res.focus.join(", ") })}</span>}
-              <button className="btn outline" disabled={!res.suggestions.length} onClick={exportList}>{t("swNextExport")}</button></div>
+              <button className="btn outline" disabled={!res.suggestions.length} onClick={exportMenu}>{t("swNextExport")} ▾</button></div>
+            {same.length > 0 && <p className="hint sw-next-same">
+              {t("swSameInAll", { n: res.suggestions.length })} <b>{same.map((c) => `${c} = ${res.suggestions[0].params[c] ?? "–"}`).join(", ")}</b>
+              {" · "}<button className="linklike" onClick={() => setEveryCol(!everyCol)}>{t(everyCol ? "swNextCompact" : "swNextEveryCol")}</button></p>}
             <div className="sw-table-wrap">
               <table className="sw-table">
-                <thead><tr><th>{t("swWhyCol")}</th>{Object.keys(res.suggestions[0]?.params ?? {}).map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                <thead><tr><th>{t("swWhyCol")}</th>{shownCols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
                 <tbody>{res.suggestions.map((s, i) => (
                   <tr key={i}><td className={`sw-mark-${s.kind}`}>{MARK[s.kind]} {t(KINDS.find((k) => k.k === s.kind)?.title ?? "swNextGaps")}{s.param ? ` · ${s.param}` : ""}</td>
-                    {Object.entries(s.params).map(([c, v]) => <td key={c} className={`${typeof v === "number" ? "num" : ""}${s.param === c ? " sw-moved" : ""}`}>{v === null ? "–" : String(v)}</td>)}</tr>
+                    {shownCols.map((c) => { const v = s.params[c]; return <td key={c} className={`${typeof v === "number" ? "num" : ""}${s.param === c ? " sw-moved" : ""}`}>{v === null || v === undefined ? "–" : String(v)}</td>; })}</tr>
                 ))}</tbody>
               </table>
             </div>

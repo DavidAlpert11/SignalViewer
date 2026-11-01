@@ -242,18 +242,19 @@ class SuggestExportReq(BaseModel):
     id: str
     question: Dict[str, Any]
     params: List[Dict[str, Any]]
-    path: str
+    path: str                            # .csv / .tsv / .json / .m / .py: the format (S17)
+    combos: bool = True                  # every set x every combination; False: the sets alone
 
 
 @router.post("/api/sweep/suggest/export")
 def sweep_suggest_export(req: SuggestExportReq):
     """New parameter sets x every kept combination of the must-hold-across columns, as a run list."""
     p = _prepared(req.id, req.question)
-    combos = p.df[p.holds].drop_duplicates().to_dict("records") if p.holds else [{}]
+    combos = p.df[p.holds].drop_duplicates().to_dict("records") if p.holds and req.combos else [{}]
     rows = [{**ps, **cb} for ps in req.params for cb in combos]
     path = os.path.abspath(os.path.expanduser(req.path))
     try:
-        sweep.write_csv(path, rows, p.params + p.holds)
+        sweep.write_rows(path, rows, p.params + (p.holds if req.combos else []))
     except OSError as e:
         fail(400, f"Could not write {path}: {e}")
     return {"path": path, "rows": len(rows)}
