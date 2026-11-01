@@ -192,12 +192,28 @@ export const fits = (t: SweepTemplate, cols: { name: string }[]) => {
 };
 
 /** The axes a new answer starts with: the parameters, then the outputs - none that tell nothing. */
+/** The optimization's axes (S19): the goal, the rank, the other objectives and the score - drag on
+ *  them in the lines to keep the best and see their parameters. */
+const optAxes = (a: Answer) => a.sets.filter((c) => c.name === "#goal" || c.name === "#score" || /^#obj\d+$/.test(c.name)
+  // the rank is always there, empty with nothing to optimize
+  || (c.name === "#rank" && c.values.some((x) => Number.isFinite(x)))).map((c) => c.name);
+
 function defaultAxes(a: Answer): string[] {
   const keep = a.sets.filter((c) => (c.group === "param" || c.group === "output" || c.group === "derived") && !c.constant);
-  // the parameters, then outputs up to 8 axes in all: more is unreadable (add any with + axis)
+  // the parameters, then outputs up to 8 axes in all: more is unreadable (add any with Columns),
+  // then the optimization's
   const params = keep.filter((c) => c.group === "param").map((c) => c.name);
   const rest = keep.filter((c) => c.group !== "param").map((c) => c.name);
-  return [...params, ...rest].slice(0, Math.max(8, params.length + 2));
+  return [...[...params, ...rest].slice(0, Math.max(8, params.length + 2)), ...optAxes(a)];
+}
+
+/** The axes with the optimization's columns that have just appeared (a goal or an objective just
+ *  set) - not those the user took away while they were there. */
+function withNewOptAxes(axes: string[], prev: Answer | null, a: Answer): string[] {
+  if (!prev) return axes;
+  const had = new Set(optAxes(prev));
+  const add = optAxes(a).filter((n) => !had.has(n) && !axes.includes(n));
+  return add.length ? [...axes, ...add] : axes;
 }
 
 /** A study as a .svsweep document (also what autosave keeps). */
@@ -537,7 +553,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
         if (rank && goalCol) { let r0 = Infinity; for (let i = 0; i < rank.length; i++) if (rank[i] < r0) { r0 = rank[i]; best = goalCol[i]; } }
         patch((x) => (x.tableId !== s.tableId ? x : { ...x, answer, evaluating: false, evalError: "",
           iterations: withIteration(x.iterations, x, answer.counts.holding, answer.counts.sets, best),
-          view: x.view.axes.length ? x.view : { ...x.view, axes: defaultAxes(answer) } }), false);
+          view: x.view.axes.length ? { ...x.view, axes: withNewOptAxes(x.view.axes, x.answer, answer) } : { ...x.view, axes: defaultAxes(answer) } }), false);
       }).catch((e) => {
         if (my !== seq) return;
         patch((x) => ({ ...x, evaluating: false, evalError: (e as Error).message }), false);

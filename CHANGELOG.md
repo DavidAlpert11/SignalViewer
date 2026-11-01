@@ -8,6 +8,13 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: the optimization in the plots, and choosing on a Pareto plot**: when a goal is set the
+  lines get its axes - the goal, the **rank**, each further objective's worst case and the weighted
+  **score** - so dragging on *rank* keeps the best few and the parameters' axes show what they
+  have. In Points, **+ Pareto** plots the first objective against the second with the Pareto
+  front's sets ringed and joined. **A rectangle dragged on any point plot keeps what is in it**: it
+  becomes the filters of its two columns, so the lines, the table of sets, its Export (CSV and
+  the interactive plot) and the report follow; a click on the plot clears it.
 - **Sweeps: how the plots look, and the points in the report**: a **Style ▾** next to the maps, the
   point plots and *Which parameter matters* - the colour map (viridis, plasma, cividis, turbo,
   greys), a point's size and opacity, the grid and its minor lines, the numbers on a map's cells -
