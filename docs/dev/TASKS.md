@@ -320,6 +320,78 @@ queries need Safari 16+): the controls beside the lines at 1024 px, the two-thum
 draggable, the fill between them), Hebrew (the strips mirrored like the sliders), both themes.
 **Done when:** checked, or the differences written here as tasks.
 
+## Owner's notes (2026-11-01): Q124–Q126 - new signals in the investigation; signals slower than their recording; update flags
+
+**Progress:** none started. Q125 and Q126 are one mechanism (a signal's *updates*): do Q125 first.
+Two choices for the owner are marked **owner's choice**.
+
+### Q124 · A signal made with an operation, in the investigation — S/M
+**Now:** a new signal (ƒ, made in Create / with a formula) lives in the shared *derived* run, not in
+the file it came from. *What changed first* asks for every signal of the event's file (scope *the
+event's file*) or of every file (*all files*) - `store.first_changes(..., run_ids)` lists the runs'
+own signals, and WhatChanged.tsx drops the derived run (`files` / `allFiles`: `!== "derived"`). Only
+the scope *the tab* takes one, and only when it is on a time plot. The same filter is in
+InvestigatePanel.tsx (`files = runs.filter(r => r.format !== "derived")`).
+**Do:** a derived signal belongs to the file(s) of its sources - `DerivedDef.sources` (`run/Name`),
+through derived sources recursively, and the `@run:Name` references of a formula. In
+`first_changes` (and the other investigation steps that take "the signals of these files": *Find
+similar* / `suggest_condition`, *What differs inside the stretches*, the overview strip, Runs ×
+conditions - check each caller) a derived signal is counted with a file when all its sources are
+in that file; one made from several files only with *all files* / *the tab*. Its row says ƒ. Under
+it, *the same signal in the other files*: its copy there (Copy work to another file), if any.
+**Done when:** backend: `first_changes` with a file's id lists a derived signal of that file and
+not one of another file; e2e: a formula on the event's file, *What changed first* with its default
+scope lists it (ƒ) in its place by time.
+
+### Q125 · A signal slower than its recording: its real updates — M
+**Now:** a value computed at 5 Hz and logged with everything else at 100 Hz is a staircase: 19
+samples equal, then a step. Every operation reads all of them: the derivative (`np.gradient` in
+svcore/analysis.py op `derivative`; `deriv()` in formulas) is 0 between updates and a spike of about
+20× the real slope at each step; a difference between two such signals jumps the same way; a
+spectrum sees the steps; *What changed first* counts samples (3 in a row) that are copies.
+**Do:**
+1. **See it:** per numeric signal, the typical number of equal samples in a row → *updates at about
+   5 Hz (recorded at 100 Hz)*, where the signal's rate is shown today (the signal list, Inspector).
+   Computed once and cached like `is_discrete`; skipped for states / text (they are steps by nature).
+2. **Set it** (Inspector → the signal → *Updates*): *every sample* (as now) · *when it changes* (the
+   first sample of each step) · *at N Hz* (the detected rate offered). Carried by the existing
+   per-signal edit - `apply_transform` in store.py gets a `rate` part (`{"mode": "changes"|"hz",
+   "hz": 5}`), applied before the formula / scale / offset - so every plot, operation, compare,
+   check, report and investigation reads the updates, the edit is copied to other files with *Copy
+   work* and kept in sessions and templates like any edit. A plot draws the result as steps (hold),
+   as the value was.
+   **Owner's choice:** in place (the signal itself becomes its updates; *every sample* undoes it) as
+   proposed - or a new signal beside it (`Roll @ 5 Hz`), the original kept as recorded.
+3. **Use it:** derivative, integral and the binary differences work on the updates of each signal;
+   a result needed on another signal's time (A − B) is held between updates, not interpolated across
+   a step. With a slower rate detected and *every sample* chosen, the derivative dialog says so
+   (*Roll updates at 5 Hz: its derivative will be spikes - use its updates*).
+**Caveat to keep in the UI:** *when it changes* also drops samples where the true value stayed the
+same (a hover); *at N Hz* does not - offer it first when the rate is regular.
+**Done when:** backend: a 5 Hz ramp sampled at 100 Hz - detected 5 Hz; its derivative over the
+updates equals the true slope (±1%) with no spikes, over every sample unchanged; a session round-trip
+keeps `rate`. e2e: Inspector shows *updates at about 5 Hz*, set it, the derivative plotted is flat.
+A small example file in `tools/make_demo_data.py` (or the test's own), not a new example on the
+welcome screen.
+
+### Q126 · A flag that says "the value is new" — M (after Q125)
+**Now:** some loggers write beside a value a flag (`valid`, `updated`, `new_data`) or a counter that
+moves when the value is fresh; the value is meaningful only there. Nothing can use it: `where(c, a,
+b)` keeps every sample (and `nan` is not a name a formula may use), conditions choose stretches, not
+samples.
+**Do:** the same *Updates* choice as Q125, one more mode: *when <signal> is set* (≠ 0) · *rises*
+(0 → non-zero) · *changes* (a counter) - `rate: {"mode": "flag", "flag": "Name" | "@run:Name",
+"when": "set"|"rises"|"changes"}`. The flag is read with the edit's existing references
+(`transform_refs` / `ref_run`, Q89-Q90: same file or another, its reload recomputes), but taken at
+the value's times by the **previous sample** (not `np.interp`: a 0/1 flag interpolated is 0.5).
+The value's samples at those moments are its updates; everything in Q125 3 follows. A flag found by
+name next to a value (`X_valid`, `X.new`, `XUpd`) is offered first in the list.
+**Owner's choice:** which flags your loggers write (a 0/1 per sample, a bit in a status word, a
+counter) - a bit in a word needs *when bit k of <signal> is set*; a real log with one would settle it.
+**Done when:** backend: a value with a `new_flag` (set at 5 Hz, random gaps) - its updates are
+exactly the flagged samples, the derivative over them equals the truth; the flag from another open
+file works; e2e: Inspector → *Updates: when new_flag is set*, the plot shows the steps at the flags.
+
 ## Queue (in this order)
 
 Sizes: S < 1 day, M 1–3 days, L about a week. Each task lists where to start; read the code and
@@ -2059,3 +2131,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S23: ExploreButton.tsx (Goals side under the goal's name, Results side under the best set); ExploreView: limits for every numeric parameter (`withLimit` / `isLimited`: back at the whole range = no limit), weight + threshold sliders always (`thresholdOf` / `thresholdOffEnd`: the far end is off), conditions editable / added / removed in the draft; `draftStudy` + `exploreAxes` + `limitMarks` in explore.ts; ParallelPlot `keep` + `data-shown`; SetsTable `draft`; Candidates gone (the table has the margins); swExploreMargin / swExploreLimitsPick removed. e2e +1 (the acceptance list), S21's adapted. Checked: the whole e2e suite (34 files, one per process; test_globe3d needs ~2.5 min) green - test_features once had one failure (test_compare_same_segment_across_runs, Recordings) that passed alone and on a rerun of the file in order: a flake, not this change; backend 898 passed, mypy clean, tsc, oxlint 51.
 - 2026-11-01 · S24-S27 queued: what S23 left in Explore (a new condition's start, the table's sort / columns - owner's choice, the axes in Explore's lines, the Windows / macOS check).
 - 2026-11-01 · Release 1.17.0 prepared: version in version.py, build.bat, CITATION.cff (+ date), the installer, version_info.txt, install.md; CHANGELOG 1.17.0 (the highlights now lead with Sweeps - the old line predated it); README review: README (highlights, a Sweeps section with docs/images/23_sweeps_explore.png, `sweep` in the CLI lines, the Hebrew part), GUIDE / GUIDE.he chapter 12 *Sweeps* (the guide is in the app, F1), features.md *Sweeps* (+ `sweep` in the CLI row), command-line.md `sweep` (it was not documented; its output from the example), index.md card, gallery, limitations (Explore's, S24 / S26 included), install.md ~280 browser tests (was ~195), validation regenerated (23 / 23); tools/make_readme_media.py copies the examples' folders (it stopped on examples/investigate/) and makes 23_sweeps_explore (`--only 23`; the other pictures not retaken). Here: backend 898 + 12 skipped, mypy clean, tsc, oxlint 51, build, mkdocs --strict (anchors checked), e2e: the whole suite on S23 (281; one flake in test_features, see S23's line), after the release changes test_file_help_menus, test_fresh_user, test_workflows, test_sweeps_flow; frontend/dist rebuilt.
+- 2026-11-01 · Q124-Q126 queued from the owner's notes: a new signal (ƒ) in the investigation (the derived run is left out of *What changed first* and the others' file scopes); a signal slower than its recording (detect, its updates - by change or N Hz - as a part of the per-signal edit, operations over the updates); an update flag choosing a value's samples (the same mechanism, the flag read by previous sample). Two owner's choices marked.
