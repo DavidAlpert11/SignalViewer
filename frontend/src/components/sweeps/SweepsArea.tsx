@@ -29,6 +29,7 @@ import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
+import TemplatesDialog from "./TemplatesDialog";
 import StepNav from "./StepNav";
 import { RawCenter, RawSide } from "./RawStep";
 import { CleanCenter, CleanSide } from "./CleanStep";
@@ -36,8 +37,7 @@ import { RolesCenter, RolesSide } from "./RolesStep";
 import { GoalsCenter, GoalsSide } from "./GoalsStep";
 import ResultsSide from "./ResultsSide";
 import { ReportCenter, ReportSide, exportPlot } from "./ReportStep";
-import { fits } from "../../sweeps/state";
-import { openMenu, prompt } from "../Overlays";
+import { confirmAsk, openMenu, prompt } from "../Overlays";
 import type { SavedStudy } from "../../sweeps/state";
 import AxisMenu from "./AxisMenu";
 import CenterTabs from "./CenterTabs";
@@ -110,6 +110,7 @@ registerArea("sweeps", {
       ...open,
       { id: "sw-save-study", label: t("swSaveStudy"), group: g, icon: "save" as const, run: () => { saveStudy(t); } },
       { id: "sw-report", label: t("swReportMenu"), group: g, icon: "report" as const, run: () => useSweeps.setState({ reportOpen: true }) },
+      { id: "sw-templates", label: t("swTemplates"), group: g, run: () => useSweeps.setState({ templatesOpen: true }) },
       { id: "sw-start-over", label: t("swStartOver"), group: g, run: st.resetStudy },
       ...STEPS.map((s, i) => ({ id: `sw-step-${s}`, label: `${i + 1} ${stepTitle(t, s)}`, group: t("swSteps"), run: () => st.setView({ step: s }) })),
     ];
@@ -154,7 +155,6 @@ function SweepsBar() {
   // what is kept of the study: the study itself, a template, a report
   const studyMenu = (e: React.MouseEvent) => {
     const st = useSweeps.getState();
-    const fit = st.templates.filter((x) => fits(x, study.columns));
     const SEP = { label: "", sep: true, run: () => {} };
     openMenu(below(e), [
       { label: t("swSaveStudy"), run: () => saveStudy(t) },
@@ -163,10 +163,12 @@ function SweepsBar() {
       SEP,
       { label: t("swSaveTemplate"), run: async () => {
         const name = (await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, "")))?.trim();
-        if (name) say(st.saveTemplate(name).then(() => t("swTemplateSaved", { n: name })));
+        if (!name) return;
+        if (st.templates.some((x) => x.name === name) && !(await confirmAsk(t("swTplReplace"), t("swTplReplaceAsk", { n: name })))) return;
+        say(st.saveTemplate(name).then(() => t("swTemplateSaved", { n: name })));
       } },
-      ...(fit.length ? [{ label: t("swApplyTemplateMenu"), run: () => {}, items: fit.map((x) => ({ label: x.name, run: () => st.applyTemplate(x.name) })) }] : []),
-      ...(st.templates.length ? [{ label: t("swDeleteTemplateMenu"), run: () => {}, items: st.templates.map((x) => ({ label: x.name, danger: true, run: () => say(st.deleteTemplate(x.name).then(() => t("swTemplateDeleted", { n: x.name }))) })) }] : []),
+      { label: t("swTemplatesMenu"), run: () => useSweeps.setState({ templatesOpen: true }) },
+
       SEP,
       { label: t("swReportMenu"), disabled: !study.answer, run: report },
     ]);
@@ -177,6 +179,7 @@ function SweepsBar() {
   ]);
   useEffect(() => { useSweeps.getState().loadTemplates(); }, []);
   const reportOpen = useSweeps((s) => s.reportOpen);
+  const templatesOpen = useSweeps((s) => s.templatesOpen);
   const report = () => useSweeps.setState({ reportOpen: true });
   return (
     <div className="areabar" role="toolbar" aria-label={t("areaSweeps")}>
@@ -203,6 +206,7 @@ function SweepsBar() {
         onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} />{t("swFollow")}</label>}
       <div className="spacer" />
       {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => useSweeps.setState({ reportOpen: false })} />}
+      {templatesOpen && study && <TemplatesDialog study={study} onClose={() => useSweeps.setState({ templatesOpen: false })} />}
       {study && <button className="btn primary" disabled={!study.view.rerun.length} onClick={rerunMenu}>{t("swExportRerunN", { n: study.view.rerun.length })} ▾</button>}
     </div>
   );

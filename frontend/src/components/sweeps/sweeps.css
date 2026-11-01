@@ -334,3 +334,12 @@
 .sw-kind.off { opacity: .55; }
 .sw-mark-off { font-size: 11px; opacity: .75; }
 .sw-table td.sw-moved { font-weight: 600; color: var(--amber); }
+
+/* the templates dialog (S07) */
+.sw-tpl { width: min(620px, 94vw); }
+.sw-tpl-save input { flex: 1; min-width: 160px; }
+.sw-tpl-list { display: flex; flex-direction: column; gap: 4px; max-height: 46vh; overflow: auto; margin-top: 10px; }
+.sw-tpl-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: start; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); cursor: pointer; }
+.sw-tpl-item:hover { border-color: var(--line-strong); }
+.sw-tpl-item.on { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 10%, var(--panel)); }

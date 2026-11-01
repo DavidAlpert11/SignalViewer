@@ -1,5 +1,6 @@
 """Sweeps area (svcore/sweep.py, app/routes/sweep.py): reading, describing and guessing roles of a
 results table - parameters and scenario columns first, outputs last."""
+import json
 import os
 import sys
 
@@ -539,3 +540,25 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_parameters():
     assert d3["#robustSeen"][best_plain] == 0                           # nothing measured within 10 %
     rb = sweep.suggest(pr3, d3["#holds"], d3["#goal"], True, d3["#partial"], ["robust"], 10, rank=d3["#rank"], robust=rq3["robust"])
     assert {round(x["params"]["p"], 6) for x in rb["suggestions"] if x["from"] == best_plain} == {3.6, 4.4}
+
+
+def test_templates_export_and_import(tmp_path):
+    """S07: a template to a file and back - under its name, or with (2) when the name is taken; a
+    file that is not a template is refused."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    tpl = {"columns": [{"name": "kp", "role": "param", "scale": "linear"}], "question": {"goals": []}, "view": {}}
+    names = lambda r: [x["name"] for x in r["templates"]]
+    assert "share me" in names(c.post("/api/sweep/templates/save", json={"name": "share me", "template": tpl}).json())
+    out = tmp_path / "share.json"
+    assert c.post("/api/sweep/templates/export", json={"name": "share me", "path": str(out)}).json()["path"] == str(out)
+    saved = json.loads(out.read_text())
+    assert saved["kind"] == "signalviewer-sweep-template" and saved["saved"]
+    r = c.post("/api/sweep/templates/import", json={"path": str(out)}).json()
+    assert r["name"] == "share me (2)" and "share me (2)" in names(r)
+    bad = tmp_path / "bad.json"
+    bad.write_text('{"hello": 1}')
+    assert c.post("/api/sweep/templates/import", json={"path": str(bad)}).status_code == 400
+    for n in ("share me", "share me (2)"):
+        c.post("/api/sweep/templates/delete", json={"name": n})
