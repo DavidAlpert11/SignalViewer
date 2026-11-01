@@ -15,7 +15,12 @@ export interface Condition {
   mode: "all" | "atLeast" | "only";
   k?: number;
   where?: Record<string, (string | number)[]>;
+  /** MF01: a parameter among these values (a categorical one's levels); op / value are then unused */
+  in?: (string | number)[];
 }
+
+/** A condition in words: `p ∈ {a, b}` or `out <= 5`. */
+export const condText = (c: Condition) => (c.in ? `${c.column} ∈ {${c.in.join(", ")}}` : `${c.column} ${c.op} ${c.value}`);
 
 /** A new column: a formula per run, or an operation over the runs of each parameter set. */
 export type Derived =
@@ -180,6 +185,8 @@ export interface View {
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */
   axesOff?: string[];
+  /** Explore's controls as sliders or as one table of the problem (MF01; missing: sliders) */
+  exploreAs?: "sliders" | "table";
   /** the user's groups of sets (MF00; optional: an old study has the automatic groups only) */
   groups?: import("./groups").Group[];
   /** the group the tools read (an automatic group's name or a user group's id; missing: all) */

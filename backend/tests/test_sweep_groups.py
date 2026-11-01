@@ -86,3 +86,24 @@ def test_answer_sends_how_many_combinations_a_condition_needs():
     assert np.allclose(a["conditions"][0]["needed"] - d["#c0.passed"][p2], 1)
     masks = G.auto_masks(d, len(d["p"]))
     assert masks["fails"].sum() + masks["holds"].sum() == len(d["p"])
+
+
+def test_condition_one_of_for_a_categorical_parameter():
+    """MF01: a parameter among values - text and numbers; set_rows says why a set fails."""
+    import pandas as pd
+    from svcore import sweep
+    rows = [{"mode": m, "p": p, "sc": s, "out": p + (1 if m == "fast" else 0)}
+            for m in ("fast", "safe", "eco") for p in (1.0, 2.0) for s in ("a", "b")]
+    df = pd.DataFrame(rows)
+    roles = {"mode": "param", "p": "param", "sc": "hold", "out": "output"}
+    q = {"roles": roles, "conditions": [{"column": "mode", "op": "==", "value": 0, "in": ["fast", "eco"], "mode": "all"}]}
+    pr = sweep.prepare(df, q)
+    a = sweep.answer(pr, q)
+    assert a["counts"]["holding"] == 4 and a["conditions"][0]["label"] == "mode ∈ {fast, eco}"
+    q2 = {**q, "conditions": [{"column": "p", "op": "==", "value": 0, "in": [2], "mode": "all"}]}
+    assert sweep.answer(sweep.prepare(df, q2), q2)["counts"]["holding"] == 3
+    safe = [i for i in range(pr.n_sets) if df["mode"].iloc[pr.first_row[i]] == "safe"][0]
+    assert sweep.set_rows(pr, q, safe)["why"][0]["worst"] == "safe"
+    with pytest.raises(Exception):
+        bad = {**q, "conditions": [{"column": "out", "op": "==", "value": 0, "in": [1]}]}
+        sweep.answer(sweep.prepare(df, bad), bad)
