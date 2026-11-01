@@ -459,6 +459,7 @@ export const swEn = {
   swLogSuggest: "Next runs: {n} suggested",
   swLogExport: "Written: {path}",
   swLogReport: "Report made: {path}",
+  swRerunShort: "Re-run ({n})",
 };
 
 export const swHe: typeof swEn = {
@@ -919,4 +920,5 @@ export const swHe: typeof swEn = {
   swLogSuggest: "הריצות הבאות: הוצעו {n}",
   swLogExport: "נכתב: {path}",
   swLogReport: "נוצר דוח: {path}",
+  swRerunShort: "להריץ שוב ({n})",
 };
