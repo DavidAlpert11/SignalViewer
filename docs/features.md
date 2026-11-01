@@ -15,6 +15,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - :material-compare-horizontal: [Comparing runs](#compare)
 - :material-airplane: [Flight logs](#flight)
 - :material-map: [Map and 3D](#map)
+- :material-tune-variant: [Sweeps: a run envelope's results](#sweeps)
 - :material-file-chart: [Reports, sessions and templates](#reports)
 - :material-console: [Command line and automation](#cli)
 - :material-cog: [Everything else](#general)
@@ -429,6 +430,36 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 - The Geo plot (longitude × latitude) on real maps: streets (OpenStreetMap, or Esri), light / dark grey (Esri, with labels; *automatic* follows the theme), satellite (Esri World Imagery), topographic (OpenTopoMap). Tiles come through the app and are kept on disk (`~/.signalviewer/tiles`), so places already seen work without internet; without internet the map shows country borders and names (Natural Earth, English / Hebrew). Track with a halo, start (green) / end (red), the cursor's position, scale bar in metres, the provider's attribution. Wheel = zoom at the pointer, drag = pan, double-click = fit
 
+## Sweeps: a run envelope's results { #sweeps }
+
+A second work area (the top row: *Recordings* · *Sweeps*) for a table with a row per run - the
+parameters and scenarios first, the outputs last (CSV, Parquet or Excel, or a folder of them) - and
+the question *which parameters hold in every scenario, and which of them is best?* Try it on the
+example: a drone's roll controller (kp_roll, ki_roll, filter_hz; wind, payload, gusts; roll error,
+overshoot, energy...), with a second, finer sweep to merge. The same answer on the command line:
+[`signalviewer-cli sweep`](command-line.md#a-run-envelopes-results-sweep).
+
+### The steps
+
+- **1 Raw results**: the table page by page and sortable, or every run as a parallel plot; a second sweep merged in (and taken out again with × on its name); each table merged in is an *iteration*.
+- **2 Clean columns**: take out the columns with one value or none; new columns - a formula per run (`range_m / payload_kg`) or one value per parameter set (min, max, mean, median, P10, P90, spread... over all its runs or some scenarios).
+- **3 Scenarios & parameters**: each column's role guessed (*Parameters*, *Must hold across*, *Outputs*, *Run id*, *Not used*) and its scale (linear, log, category, ordinal); changed roles are remembered for the next table with the same columns. The shape of the study: parameter sets, combinations, sets missing one, runs with no result.
+- **4 Goals**: conditions met in every combination, in at least *k*, or in every combination of chosen values - together (*and*) or any one (*or*) - on outputs or parameters; objectives to maximize or minimize, by their worst case, with weights; several goals kept and compared side by side (how many hold, the best, how robust). **Robust to** a parameter (± %, ± a value, ± grid steps): a set holds robustly when every set within the tolerance holds too. The foot of the step shows how many hold and the best set while the goal is edited.
+- **5 Results**: the parallel plot filtered as in HiPlot (drag on an axis, Shift-drag for another range, keep / exclude / restore), the goal's axes (rank, score, each objective), a slider along many axes or *Fit to width*; the sets best first with each condition's worst case and margin, *why it fails* for a set, *Only sets that hold*, columns, sort, Export (the sets as CSV, their runs, an interactive HTML plot); *Which parameter matters*; maps of two parameters (several; every value or a slice at the best set; coloured by the share holding or the best goal); point plots with a rectangle that keeps what is in it and *+ Pareto*; **next runs** (where to run more - *Sharpen the edge*, *Near the best*, *Where scenarios disagree*, *Fill the gaps*, *Finish what's missing*, *Is it robust?* - on the parameters chosen, with how many sets × combinations = runs, exported as CSV, TSV, JSON, MATLAB .m or Python .py); data health; two studies compared.
+- **6 Report**: HTML, Word, PDF or CSV - the table on screen, the maps and point plots, and the process: a journal of the final steps (or everything; lines hidden by hand, *the analysis starts here*), the iterations and how the study converged, and *Where it comes from* (each table's size, time and SHA-256, the app's version).
+
+### Explore
+
+- *Explore this goal →* (Goals step, and beside the answer in the results) opens a **draft** of the active goal; the Explore tab of the results goes back to it. Nothing changes the goal until **Save as a goal** (a new goal or replacing the one it came from); *Back to the goal* drops the draft and shows the goal's own lines.
+- Every control on screen from the start: a two-thumb range for each numeric parameter (the whole range = no limit; *limited: N*; a box to find one when there are many), each objective's direction, weight (it counts from two objectives) and *good enough* threshold (its far end: no threshold), the goal's conditions dragged as *what if* and conditions added in the draft.
+- At every move: a funnel (all → meet the conditions → within the limits → good enough), what each control alone takes out, a strip under each slider of where the sets are; beside the controls *N of M parameter sets left*, the parallel plot (what is left in colour, the rest grey, the best drawn thick; a drag on a parameter's axis sets its limit) and the table of sets in the draft's order, which exports what is left (CSV, their runs, the interactive plot); the best set and, with two objectives, the Pareto plot.
+- Saved as a goal, the limits and thresholds become conditions: the goal holds for exactly the sets Explore left (an *or* goal cannot take them: it says so).
+
+### Studies, templates and undo
+
+- Every change is undone with Ctrl+Z (Ctrl+Y redoes); the open studies are kept and open again where they were; a study is saved as `.svsweep`; *Follow the file* reads a table again when it changes.
+- Templates (*Study ▾ → Templates…*): the roles, goals, maps, table columns, robustness and next runs' choices, applied to another table with the same columns (offered when one fits), exported to a file and imported.
+
 ## Reports, sessions and templates { #reports }
 
 ![The template library](images/13_template_library.png){ .sv-shot loading=lazy }
@@ -462,7 +493,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Command line
 
-- `info`, `export` (.csv / .mat), `report` (one per file from a template), `check` (limits as pass / fail: whole run, time window or a state's stretches; the limits saved in a template; exit code 0 / 1 / 2; JUnit XML), `compare` (each run against a golden run, tolerances per signal, a share of samples allowed outside, alignment by cross-correlation, JUnit XML), `validate` (the numerical validation), `readers`, `templates`
+- `info`, `export` (.csv / .mat), `report` (one per file from a template), `check` (limits as pass / fail: whole run, time window or a state's stretches; the limits saved in a template; exit code 0 / 1 / 2; JUnit XML), `compare` (each run against a golden run, tolerances per signal, a share of samples allowed outside, alignment by cross-correlation, JUnit XML), `sweep` (a run envelope's results table: how many parameter sets hold in every scenario, the best of them; a study saved by the app; exit code 0 / 1 / 2), `validate` (the numerical validation), `readers`, `templates`
 
 ## Everything else { #general }
 

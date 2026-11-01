@@ -55,6 +55,16 @@ and write the report – offline, on your own machine, with every computation va
 
     [:octicons-arrow-right-24: A worked example, start to finish](sim-vs-flight.md)
 
+-   :material-tune-variant:{ .lg } **Tune over a run envelope**
+
+    ---
+
+    A results table with a row per run: which parameter sets hold in every scenario, and which is
+    best - goals, a parallel plot filtered as in HiPlot, maps, robustness, what to run next; Explore
+    tries limits and objectives as sliders, live.
+
+    [:octicons-arrow-right-24: Sweeps in What works](features.md#sweeps)
+
 -   :material-check-decagram:{ .lg } **Pass / fail in CI**
 
     ---

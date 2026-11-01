@@ -194,7 +194,35 @@ the map and in 3D move with each update; move it back to look at a moment, press
 again. To try it without a logger: `python tools/live_demo.py` writes an aircraft and a ship that
 keep moving – open both files, add an object from each, press Live.
 
-## 12. When something goes wrong
+## 12. Sweeps: which parameters hold
+
+**Sweeps** (the top row, next to *Recordings*) is for the results of a run envelope: a table with a
+row per run – the parameters you choose, the scenarios you don't (wind, payload, seed), and the
+outputs. It answers *which parameter sets hold in every scenario, and which of them is best?* Try
+*Try an example* on its first screen: a drone's roll controller swept over wind, payload and gusts.
+
+Six steps, left to right:
+
+1. **Raw results** – the table as it is; a second sweep is merged in here.
+2. **Clean columns** – take out columns that tell nothing, add columns made from others.
+3. **Scenarios & parameters** – check each column's role (the guess is usually right).
+4. **Goals** – conditions every scenario must meet (`roll_error_deg <= 5`, judged by the worst case)
+   and what to optimize (the least `energy_wh`). Keep several goals to compare them; *Robust to* asks
+   that the neighbours of a good set hold too.
+5. **Results** – the parallel plot (drag on an axis to keep a range, as in HiPlot), the sets best
+   first, *Why it fails* for any set, maps of two parameters, and **Next runs**: where to run more.
+6. **Report** – HTML, Word or PDF with the whole process, ready to hand over.
+
+**Explore this goal →** (in Goals and beside the answer) tries a goal before you commit to it: a
+range slider for every parameter, a weight and a *good enough* threshold for every objective, the
+conditions as *what if*. The lines and the table beside the sliders show what is left at every move
+(*8 of 45 parameter sets left*) and export it. Nothing changes until **Save as a goal**; the saved
+goal holds for exactly the sets Explore showed.
+
+Ctrl+Z undoes any step, the study is kept when the app closes, and *Study ▾* saves it or makes a
+template for the next table. In CI: `signalviewer-cli sweep results.csv --question study.svsweep`.
+
+## 13. When something goes wrong
 
 - **Help → Copy error details** copies the version, the system and the end of the log; paste it
   into your report. Nothing is sent automatically.

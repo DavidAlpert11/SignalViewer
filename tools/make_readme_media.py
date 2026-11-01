@@ -42,8 +42,9 @@ class App:
     def __init__(self):
         self.home = tempfile.mkdtemp(prefix="sv-media-home-")
         self.data = tempfile.mkdtemp(prefix="sv-media-data-")
-        for f in os.listdir(os.path.join(ROOT, "examples")):
-            shutil.copy(os.path.join(ROOT, "examples", f), self.data)
+        for f in os.listdir(os.path.join(ROOT, "examples")):          # the examples' folders too (investigate/, sweeps/...)
+            src = os.path.join(ROOT, "examples", f)
+            (shutil.copytree(src, os.path.join(self.data, f)) if os.path.isdir(src) else shutil.copy(src, self.data))
         # a flight log with findings for the health check (vibration, EKF, errors)
         subprocess.run([sys.executable, os.path.join(ROOT, "tools", "make_test_bin.py"), os.path.join(self.data, "flight.bin"),
                         "--seconds", "120"], check=True, capture_output=True)
@@ -387,6 +388,32 @@ def img_17_fft_motor_orders(b, app):
     pg.locator(".plot select[aria-label='Propeller blades']").select_option("2")
     pg.wait_for_timeout(1200)
     shot(pg, "17_fft_motor_orders"); ctx.close()
+
+
+def img_23_sweeps_explore(b, app):
+    """Sweeps: the example's goal (roll error <= 5 and overshoot <= 15 in every scenario, the least
+    energy and settle time), explored with kp_roll limited - the lines and the table follow."""
+    ctx, pg = page(b, app)
+    pg.locator(".areas .area-btn", has_text="Sweeps").click()
+    pg.locator(".sw-welcome .btn", has_text="Try an example").click()
+    pg.wait_for_selector(".sw-steps")
+    pg.locator(".sw-step-btn").nth(3).click()                              # 4 Goals
+    for col, op, v in (("roll_error_deg", "<=", 5), ("overshoot_pct", "<=", 15)):
+        pg.locator(".sw-goal-part .btn", has_text="+ condition").click()
+        row = pg.locator(".sw-cond").last
+        row.locator("select[aria-label='Column']").select_option(col)
+        row.locator("select[aria-label='Comparison']").select_option(op)
+        box = row.locator("input[aria-label='Limit']"); box.fill(str(v)); box.press("Enter")
+    for col in ("energy_wh", "settle_time_s"):
+        pg.locator(".sw-goal-part .btn", has_text="+ objective").click()
+        pg.locator(".sw-goal-part select[aria-label='Objective']").last.select_option(col)
+        pg.locator(".sw-goal-part select[aria-label='Direction']").last.select_option("min")
+    pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
+    pg.locator(".sw-side-step .btn", has_text="Explore this goal").click()
+    pg.wait_for_selector(".sw-explore[aria-busy='false'] .sw-explore-pareto svg")
+    pg.locator(".sw-explore input[aria-label='kp_roll up to']").fill("0.2")
+    pg.wait_for_selector(".sw-explore[aria-busy='false']"); pg.wait_for_timeout(600)
+    shot(pg, "23_sweeps_explore"); ctx.close()
 
 
 def img_18_frames(b, app):
