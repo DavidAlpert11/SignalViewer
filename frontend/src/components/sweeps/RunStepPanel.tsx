@@ -27,6 +27,7 @@ const defaultStep = (study: Study): RunStep => ({
   parallel: 2, timeout: 0, results: study.path.replace(/\.[^.\\/]+$/, "") + "_runs.csv",
 });
 
+export { defaultStep };
 export default function RunStepPanel({ study }: { study: Study }) {
   const t = useT();
   const a = study.answer!;
@@ -106,7 +107,7 @@ export default function RunStepPanel({ study }: { study: Study }) {
 
 const running = new Set<string>();
 
-function Monitor({ study, job }: { study: Study; job: string }) {
+export function Monitor({ study, job, onDone }: { study: Study; job: string; onDone?: (rows: Record<string, string | number | null>[]) => void }) {
   const t = useT();
   const [st, setSt] = useState<RunLive | null>(null);
   const rows = useRef<Record<string, string | number | null>[]>([]);
@@ -136,7 +137,11 @@ function Monitor({ study, job }: { study: Study; job: string }) {
     try { const r = await useSweeps.getState().merge(st.live.path, "new"); setMerged(true); notify(t("swMerged", { added: r.added, replaced: r.replaced })); }
     catch (e) { notifyError(e); }
   };
-  useEffect(() => { if (done && auto && !merged && st && (st.live.counts.ok > 0)) void merge(); }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!done) return;
+    onDone?.(rows.current);
+    if (auto && !merged && st && st.live.counts.ok > 0) void merge();
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!st) return <p className="hint">{t("swReading")}</p>;
   const c = st.live.counts;
   const outputs = study.view.runStep?.outputs?.length ? study.view.runStep.outputs : activeColumns(study, "output");
@@ -150,6 +155,7 @@ function Monitor({ study, job }: { study: Study; job: string }) {
         <span className="sw-count-chip warn">{t("swRunTimeoutN", { n: c.timeout })}</span>
         <span className="sw-count-chip">{t("swRunCached", { n: c.cached })}</span>
         <span className="hint">{t("swRunOf", { n: st.live.total, s: Math.round(st.job.elapsed) })}</span>
+        {st.live.gen > 0 && <span className="sw-count-chip">{t("swOptGen", { n: st.live.gen })}</span>}
         {!done ? <button className="btn outline" onClick={() => sweepApi.runStop(job)}>{t("swRunStop")}</button>
           : <span className="hint">{t(st.job.state === "cancelled" ? "swRunStopped" : st.job.state === "error" ? "swRunFailed" : "swRunDone")}{st.job.error ? `: ${st.job.error}` : ""}</span>}
       </div>
@@ -158,6 +164,8 @@ function Monitor({ study, job }: { study: Study; job: string }) {
           dir={study.question.goal?.column === o ? study.question.goal.direction : study.question.objectives.find((x) => x.column === o)?.direction} />)}
         {objs && <ParetoLive rows={rows.current} a={objs[0]} b={objs[1]} />}
       </div>
+      {st.live.best.length > 0 && <p className="sw-opt-best">{t("swOptBest", { n: st.live.best.length })}{" "}
+        <span className="mono">{st.live.best.slice(0, 3).map((b) => `${JSON.stringify(b.params)} → ${b.objectives.map((x) => fmtValue(x)).join(", ")}`).join(" · ")}</span></p>}
       {st.live.failures.length > 0 && <details className="sw-run-failures" open={c.ok === 0}>
         <summary>{t("swRunFailures", { n: st.live.failures.length })}</summary>
         <ul>{st.live.failures.slice().reverse().map((f) => <li key={f.run}><b>#{f.run + 1} {f.status}</b> <span className="mono">{JSON.stringify(f.inputs)}</span><br /><span className="hint">{f.message}</span></li>)}</ul>
