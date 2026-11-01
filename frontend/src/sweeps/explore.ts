@@ -7,7 +7,8 @@
    which objectives) and every slider is applied here at once. Robustness is the exception (whether
    the neighbours hold depends on the values), so with robustness the values are part of the
    structure and the server is asked again, a moment after a drag. */
-import type { Answer, Col, Condition, GoalVariant, Objective, Op } from "./model";
+import { materialize, type Answer, type Col, type Condition, type Filter, type GoalVariant, type Objective, type Op } from "./model";
+import type { Study } from "./state";
 
 export interface DraftObjective extends Objective {
   /** "good enough": the sets whose worst case is past it are out (missing: none) */
@@ -162,4 +163,65 @@ export function draftChanges(d: Draft, g: GoalVariant, ranges: Record<string, [n
   for (const x of oa) if (!ob.has(x)) k++;
   for (const x of ob) if (!oa.has(x)) k++;
   return k;
+}
+
+/** A parameter's range in the draft: its limit, or the whole range (= no limit). */
+export const limitOf = (d: Draft, p: string, ranges: Record<string, [number, number]>): [number, number] =>
+  d.limits[p] ?? ranges[p];
+
+/** Whether a limit narrows its parameter at all (the slider's two ends at the range's: no limit). */
+export const isLimited = (lim: [number, number] | undefined, range: [number, number] | undefined) =>
+  !!lim && !!range && ((lim[0] > range[0] && !near(lim[0], range[0])) || (lim[1] < range[1] && !near(lim[1], range[1])));
+
+/** The limits with a parameter's new range: one back at the whole range is no limit any more. */
+export function withLimit(d: Draft, p: string, lim: [number, number], ranges: Record<string, [number, number]>): Draft {
+  const limits = { ...d.limits };
+  if (isLimited(lim, ranges[p])) limits[p] = lim;
+  else delete limits[p];
+  return { ...d, limits };
+}
+
+/** S23: an objective's threshold is "off" at the slider's far end - the end that keeps everything
+ *  (the largest value when minimizing, the smallest when maximizing). */
+export const thresholdOffEnd = (direction: "max" | "min", lo: number, hi: number) => (direction === "min" ? hi : lo);
+export const thresholdOf = (direction: "max" | "min", v: number, lo: number, hi: number) =>
+  near(v, thresholdOffEnd(direction, lo, hi)) ? undefined : v;
+
+/** The lines' axes in Explore: the parameters, the objectives, the rank, the conditions' worst cases. */
+export function exploreAxes(a: Answer, d: Draft, params: string[]): string[] {
+  const have = new Set(a.sets.map((c) => c.name));
+  return [...params, ...d.objectives.map((_, k) => objectiveCol(k)), ...(d.objectives.length ? ["#rank"] : []),
+    ...d.conditions.map((_, i) => `#c${i}.worst`)].filter((c) => have.has(c));
+}
+
+/** The draft's limits as the plot's filter marks (drawn only: Explore's own mask decides what is left). */
+export const limitMarks = (d: Draft): Record<string, Filter> =>
+  Object.fromEntries(Object.entries(d.limits).map(([p, r]) => [p, { kind: "ranges", ranges: [r] } as Filter]));
+
+/** S23: the study as Explore's draft makes it - for the existing plot, table and exports to draw
+ *  instead of the goal's view, without a copy of them. The answer is the draft structure's, with
+ *  #holds = the sets left, #rank = their order (and the score and Pareto front of what is left);
+ *  the question is the draft saved as a goal (so an export's own columns say what Explore said);
+ *  the view keeps the table's choices but none of the goal's filters or keep / exclude steps.
+ *  Nothing here is stored: leaving Explore shows the goal's own view again. */
+export function draftStudy(s: Study, d: Draft, a: Answer, ex: Explored, ranges: Record<string, [number, number]>, axes: string[]): Study {
+  const n = ex.n;
+  const holds = new Float32Array(n), rank = new Float32Array(n).fill(NaN);
+  for (const i of ex.survivors) holds[i] = 1;
+  if (d.objectives.length) ex.ranked.forEach((i, r) => { rank[i] = r + 1; });
+  const several = d.objectives.length > 1;
+  const swap = (c: Col): Col => {
+    if (c.name === "#holds") return { ...c, values: holds };
+    if (c.name === "#rank") return { ...c, values: rank };
+    if (several && c.name === "#score") { const v = new Float32Array(n).fill(NaN); for (const i of ex.survivors) v[i] = ex.value.get(i) ?? NaN; return { ...c, values: v }; }
+    if (several && c.name === "#pareto") { const v = new Float32Array(n); for (const i of ex.front) v[i] = 1; return { ...c, values: v }; }
+    return c;
+  };
+  // an "or" goal cannot say limits or thresholds: its export says the conditions only (the rows are still what is left)
+  const saved = needsAnd(d, ranges) ? { ...d, limits: {}, objectives: d.objectives.map(({ column, direction, weight }) => ({ column, direction, weight })) } : d;
+  const goal = goalOfDraft(saved, s.question.goals[s.question.active]?.name ?? "", ranges);
+  return { ...s,
+    answer: { ...a, sets: a.sets.map(swap), counts: { ...a.counts, holding: ex.survivors.length } },
+    question: materialize({ ...s.question, goals: [goal], active: 0 }),
+    view: { ...s.view, mode: "sets", axes, filters: {}, onlyHolding: true, scope: { key: "", steps: [] } } };
 }

@@ -19,6 +19,17 @@ templates you already have.
   the one it came from: the limits and thresholds become conditions, so the saved goal holds for
   exactly the sets Explore left. *Back to the goal* drops the draft. A condition can now be on a
   parameter too.
+- **Sweeps: Explore, live in the lines and the table** - *Explore this goal →* in the Goals step
+  (and beside the answer in the results) opens it with a draft of the goal. Every control is on
+  screen from the start: a two-thumb range for each parameter (the whole range = no limit;
+  *limited: N* says how many are narrowed, a box finds a parameter when there are many), and for each
+  objective its weight (shown with one objective too - it counts from two) and a *good enough*
+  slider whose far end is *no threshold*; conditions can be added in Explore itself. Beside the
+  controls, the parallel plot and the table of sets show the draft at every move - what is left in
+  colour, the rest greyed, the best set drawn thick, the table in the draft's order - with *N of M
+  parameter sets left*. Dragging on a parameter's axis sets its limit. The table's Export writes what
+  is left: the sets (CSV, in the table's order), their runs, or the interactive plot. *Back to the
+  goal* shows the goal's own lines again; nothing changes the goal but *Save as a goal*.
 - **Sweeps: the best set while a goal is edited**: the foot of the Goals step says how many sets
   hold and shows the best set with its goal - a condition, a direction or a weight changed there
   shows its effect at once, without going to the results (*Open it* goes there, with the set open).
