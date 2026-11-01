@@ -468,6 +468,16 @@ export const swEn = {
   swBestSetTitle: "The best set",
   swNoBestSet: "No set holds yet, so none is ranked.",
   swOpenBestSet: "Open it",
+  swStyle: "Style",
+  swCmap: "Colour map",
+  swPointSize: "Point size: {n} px",
+  swOpacity: "Opacity: {n}",
+  swAuto: "automatic",
+  swGrid: "Grid",
+  swMinorGrid: "Minor grid lines",
+  swCellNumbers: "Numbers on the cells",
+  swStyleReset: "Back to the default style",
+  swEffectHolding: "{n}% of the sets with this value hold",
 };
 
 export const swHe: typeof swEn = {
@@ -937,4 +947,14 @@ export const swHe: typeof swEn = {
   swBestSetTitle: "הסט הטוב ביותר",
   swNoBestSet: "עדיין אף סט לא עומד בתנאים, ולכן אף אחד לא מדורג.",
   swOpenBestSet: "פתיחה",
+  swStyle: "עיצוב",
+  swCmap: "מפת צבעים",
+  swPointSize: "גודל נקודה: {n} פיקסלים",
+  swOpacity: "אטימות: {n}",
+  swAuto: "אוטומטית",
+  swGrid: "רשת",
+  swMinorGrid: "קווי רשת משניים",
+  swCellNumbers: "מספרים בתאים",
+  swStyleReset: "חזרה לעיצוב ברירת המחדל",
+  swEffectHolding: "{n}% מהסטים עם הערך הזה עומדים",
 };

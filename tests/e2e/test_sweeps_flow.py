@@ -775,3 +775,42 @@ def test_where_the_optimization_shows(pg):
     pg.wait_for_selector(".sw-map svg rect")
     pg.wait_for_function("document.querySelector('.sw-map-key').innerText.includes('the share of sets that hold')")
     assert pg.locator(".sw-cell-text").count() == 0 and pg.locator(".sw-best").count() == 0
+
+
+def test_plots_style_titles_and_points_in_the_report(pg):
+    """S11 / S12 / S18: a style for the maps, points and Which parameter matters - colour map, point
+    size, grid and minor grid, numbers on the cells; titles on the effects; points in the report."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")
+    # the map: another colour map, no numbers
+    pg.locator(".sw-center-tabs button", has_text="Map").click()
+    pg.wait_for_selector(".sw-map svg rect")
+    before = pg.locator("g.sw-cell rect").first.get_attribute("fill")
+    pg.locator(".sw-maps .sw-style .btn").click()
+    pg.locator(".sw-style-pop select").select_option("plasma")
+    pg.locator(".sw-style-pop label", has_text="Numbers on the cells").locator("input").uncheck()
+    pg.keyboard.press("Escape")
+    pg.wait_for_function(f"document.querySelector('g.sw-cell rect').getAttribute('fill') !== {before!r}")
+    assert pg.locator(".sw-cell-text").count() == 0
+    # which parameter matters: titles, the grid and its minor lines
+    pg.locator(".sw-center-tabs button", has_text="Which parameter matters").click()
+    pg.wait_for_selector(".sw-effect svg")
+    titles = pg.locator(".sw-effect").first.locator(".sw-ax-title").all_text_contents()
+    assert "energy_wh" in titles and len(titles) == 2
+    assert pg.locator(".sw-effect .sw-grid line.minor").count() == 0
+    pg.locator(".sw-effects .sw-style .btn").click()
+    pg.locator(".sw-style-pop label", has_text="Minor grid").locator("input").check()
+    pg.keyboard.press("Escape")
+    assert pg.locator(".sw-effect .sw-grid line.minor").count() > 0
+    # the points in the report
+    pg.locator(".sw-center-tabs button", has_text="Points").click()
+    pg.wait_for_selector(".sw-scatter canvas")
+    _step(pg, "report")
+    pg.locator(".sw-report-format", has_text="Interactive HTML").click()
+    pg.locator(".sw-report-page .btn", has_text="Make the report").click()
+    save_as(pg, "points.html")
+    pg.wait_for_selector(".toast:has-text('points.html')", timeout=60000)
+    html = open(os.path.join(pg.env["out"], "points.html"), encoding="utf-8").read()
+    assert "<h2>Points: " in html

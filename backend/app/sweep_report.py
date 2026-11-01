@@ -116,7 +116,52 @@ def fig_parallel(a: Dict, axes: List[str], labels: Dict[str, str], shown: Option
     return fig
 
 
-def fig_effects(eff: Dict, goal_label: str):
+# the page's colour maps (sweeps/colors.ts) by their matplotlib names; "greys" runs dark to light there
+MPL_CMAP = {"viridis": "viridis", "plasma": "plasma", "cividis": "cividis", "turbo": "turbo", "greys": "gray"}
+
+
+def style_of(req: Dict) -> Dict:
+    """The plots' style from the page (S12), with the page's defaults."""
+    st = req.get("style") or {}
+    return {"cmap": MPL_CMAP.get(st.get("cmap") or "viridis", "viridis"), "size": float(st.get("size") or 4),
+            "opacity": st.get("opacity"), "grid": st.get("grid", True), "minor": bool(st.get("minor")), "numbers": st.get("numbers", True)}
+
+
+def _grid(ax, st: Dict):
+    if st["grid"]:
+        ax.grid(True, which="major", alpha=0.35, lw=0.6)
+        if st["minor"]:
+            ax.minorticks_on()
+            ax.grid(True, which="minor", alpha=0.18, lw=0.4, ls=":")
+        ax.set_axisbelow(True)
+
+
+def fig_scatter(a: Dict, x: str, y: str, labels: Dict[str, str], st: Dict, color_by: Optional[str] = None):
+    """A point plot as on screen (S11): a point per parameter set, holds / the others (or the colour
+    column, with the colour map), its axes' titles, the grid."""
+    plt = _pyplot()
+    d = a["data"]
+    fig, ax = plt.subplots(figsize=(5.6, 3.8), dpi=150)
+    xs, ys = np.asarray(d[x], dtype=float), np.asarray(d[y], dtype=float)
+    size = st["size"] ** 2
+    alpha = st["opacity"] if st["opacity"] is not None else 0.85
+    c = d.get(color_by) if color_by and color_by != "#holds" else None
+    if c is not None and np.issubdtype(np.asarray(c).dtype, np.number):
+        sc = ax.scatter(xs, ys, c=np.asarray(c, dtype=float), cmap=st["cmap"], s=size, alpha=alpha, lw=0)
+        fig.colorbar(sc, ax=ax, fraction=0.05, pad=0.02).set_label(_bidi(labels.get(color_by or "", color_by or "")), fontsize=7)
+    else:
+        h = np.asarray(d["#holds"]) == 1
+        ax.scatter(xs[~h], ys[~h], s=size, alpha=alpha, lw=0, color="#7f8b9a", label=_bidi(labels.get("#others", "the others")))
+        ax.scatter(xs[h], ys[h], s=size, alpha=alpha, lw=0, color="#f2a93b", label=_bidi(labels.get("#holdsKey", "holds")))
+        ax.legend(fontsize=7, frameon=False)
+    ax.set_xlabel(_bidi(labels.get(x, x)), fontsize=8); ax.set_ylabel(_bidi(labels.get(y, y)), fontsize=8)
+    ax.tick_params(labelsize=7)
+    _grid(ax, st)
+    fig.tight_layout()
+    return fig
+
+
+def fig_effects(eff: Dict, goal_label: str, st: Optional[Dict] = None, y_title: str = ""):
     plt = _pyplot()
     ps = sorted(eff["params"], key=lambda x: -x["importance"])[:6]
     n = max(1, len(ps))
@@ -134,7 +179,12 @@ def fig_effects(eff: Dict, goal_label: str):
         ax.plot(xs, mean, color="#2f6fd0", marker="o", ms=3, lw=1.5)
         ax.set_xticks(xs); ax.set_xticklabels([_fmt(l["value"]) for l in p["levels"]], fontsize=6.5)
         ax.set_title(_bidi(f"{p['param']} · {round(p['importance'] * 100)}%"), fontsize=8)
+        ax.set_xlabel(_bidi(p["param"]), fontsize=7)
+        if y_title:
+            ax.set_ylabel(_bidi(y_title), fontsize=7)
         ax.tick_params(labelsize=6.5)
+        if st:
+            _grid(ax, st)
     fig.suptitle(_bidi(goal_label), fontsize=8)
     fig.tight_layout()
     return fig
@@ -159,7 +209,7 @@ def fig_iterations(its: List[Dict], labels: Dict[str, str]):
     return fig
 
 
-def fig_map(m: Dict, color: str = "share", labels: Optional[Dict[str, str]] = None):
+def fig_map(m: Dict, color: str = "share", labels: Optional[Dict[str, str]] = None, st: Optional[Dict] = None):
     """A map as on screen (S10): coloured by the share of sets that hold, or by the best goal of
     each cell (better = the bright end, whether the goal is maximized or minimized); the numbers are
     the best goal; the best set's cell has a star."""
@@ -169,16 +219,17 @@ def fig_map(m: Dict, color: str = "share", labels: Optional[Dict[str, str]] = No
     best = np.array([[np.nan if v is None else v for v in r] for r in m["best"]], dtype=float)
     fig, ax = plt.subplots(figsize=(1.6 + 0.9 * len(m["xs"]), 1.0 + 0.6 * len(m["ys"])), dpi=150)
     by_goal = color == "goal" and m.get("goal") and np.isfinite(best).any()
+    base = (st or {}).get("cmap", "viridis")
     if by_goal:
-        cmap = "viridis_r" if m.get("direction") == "min" else "viridis"
+        cmap = base + "_r" if m.get("direction") == "min" else base
         im = ax.imshow(best, origin="lower", cmap=cmap, aspect="auto")
         fig.colorbar(im, ax=ax, fraction=0.05, pad=0.02).set_label(_bidi(L.get("#mapGoalKey", "best goal")), fontsize=7)
     else:
-        im = ax.imshow(share, origin="lower", cmap="viridis", vmin=0, vmax=1, aspect="auto")
+        im = ax.imshow(share, origin="lower", cmap=base, vmin=0, vmax=1, aspect="auto")
         fig.colorbar(im, ax=ax, fraction=0.05, pad=0.02).set_label(_bidi(L.get("#mapShareKey", "share that holds")), fontsize=7)
     for j, r in enumerate(m["best"]):
         for i, b in enumerate(r):
-            if b is not None:
+            if b is not None and (st or {}).get("numbers", True):
                 ax.text(i, j, _fmt(b), ha="center", va="center", fontsize=6, color="white")
     if m.get("bestAt"):
         bi, bj = m["bestAt"]
@@ -211,12 +262,14 @@ def figures(p, q: Dict, a: Dict, req: Dict) -> List[Tuple[str, str, bytes]]:
     inc = req.get("include") or {}
     out: List[Tuple[str, str, bytes]] = []
     labels = req.get("labels") or {}
+    st = style_of(req)
     try:
         if inc.get("plot", True):
             out.append(("plot", labels.get("#plot", ""), _png(fig_parallel(a, req.get("axes") or [], labels, req.get("shown")))))
         if inc.get("effects", True):
             val = a["data"]["#goal"] if "#goal" in a["data"] else a["data"]["#holds"]
-            out.append(("effects", labels.get("#effectsTitle", ""), _png(fig_effects(sweep.effects(p, val, a["data"]["#holds"]), labels.get("#effects", "")))))
+            out.append(("effects", labels.get("#effectsTitle", ""), _png(fig_effects(sweep.effects(p, val, a["data"]["#holds"]), labels.get("#effects", ""),
+                                                                                  st, labels.get("#effectsY", "")))))
         its = req.get("iterations") or []
         if inc.get("iterations", True) and len(its) >= 2:
             out.append(("iterations", labels.get("#itTitle", ""), _png(fig_iterations(its, labels))))
@@ -226,7 +279,13 @@ def figures(p, q: Dict, a: Dict, req: Dict) -> List[Tuple[str, str, bytes]]:
                 color = mp.get("color") or ("share" if (q.get("conditions") or not m.get("goal")) else "goal")
                 at = ", ".join(f"{c} = {_fmt(v)}" for c, v in (m.get("fixed") or {}).items())
                 title = f"{labels.get('#mapTitle', '')}: {mp['x']} × {mp['y']}" + (f" ({labels.get('#mapAt', 'at')} {at})" if at else "")
-                out.append((f"map{k}", title, _png(fig_map(m, color, labels))))
+                out.append((f"map{k}", title, _png(fig_map(m, color, labels, st))))
+        if inc.get("points", True):
+            for k, sp in enumerate(req.get("scatters") or []):
+                x, y = sp.get("x"), sp.get("y")
+                if x in a["data"] and y in a["data"]:
+                    title = f"{labels.get('#pointsTitle', '')}: {labels.get(y, y)} / {labels.get(x, x)}"
+                    out.append((f"points{k}", title, _png(fig_scatter(a, x, y, labels, st, req.get("colorBy")))))
     except ReportNeedsExtra:
         if req.get("format") in ("docx", "pdf"):
             raise

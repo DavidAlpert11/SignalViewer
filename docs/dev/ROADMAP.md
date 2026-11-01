@@ -652,14 +652,15 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 ## Milestone 18 — Sweeps, round 2 (the owner's notes after using S00-S08). Spec: TASKS.md S09-S18.
 - [x] S09 Nothing overlaps in a small window.
 - [x] S10 Where the optimization shows (best set, maps by the goal, what the numbers are).
-- [ ] S11 Points: axis titles, in the report.
-- [ ] S12 How the plots look (colour map, point size, grid...).
+- [x] S11 Points: axis titles, in the report.
+- [x] S12 How the plots look (colour map, point size, grid...).
 - [ ] S13 Many columns: fit, or a slider to move along them.
 - [ ] S14 The sets that hold as an interactive plot.
 - [ ] S15 An axis taken off the plot comes back.
 - [ ] S16 Next runs: numbers that add up.
 - [ ] S17 Next runs: a compact view, more than CSV.
-- [ ] S18 Which parameter matters: titles, grid, in the report.
+- [x] S18 Which parameter matters: titles, grid, in the report.
+- [ ] S19 The optimization in the plots; choosing on a Pareto plot.
 
 ## Milestone 17 — the Sweeps area, the owner's requests (2026-10-31). Spec: TASKS.md S00-S08.
 - [x] S00 Groundwork: Sweeps strings in `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` shared.

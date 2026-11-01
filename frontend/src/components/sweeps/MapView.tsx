@@ -6,12 +6,13 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../../store";
 import { useT, type TFn } from "../../i18n";
-import { ramp } from "../../sweeps/colors";
+import { rampCssOf, rampOf, type Cmap } from "../../sweeps/colors";
+import StyleMenu from "./StyleMenu";
 import { sweepApi, type PairMap } from "../../sweeps/api";
 import type { Filter, MapSpec } from "../../sweeps/model";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
-import { activeParams, mapList, nextMapPair, setColumns } from "../../sweeps/view";
+import { activeParams, mapList, nextMapPair, setColumns, styleOf } from "../../sweeps/view";
 import { MARK } from "../../sweeps/next";
 
 /** a suggestion: where it is, why, and the parameter it moves (when one) */
@@ -30,7 +31,8 @@ export default function MapsView({ study, marks }: { study: Study; marks?: Mark[
     <div className="sw-maps">
       <div className="sw-row"><span className="sw-edge-key" /> <span className="hint">{t("swMapEdgeKey")}</span>
         <span className="hint">★ {t("swMapBestSet")}</span>
-        <button className="btn outline sw-add-map" onClick={add}>{t("swAddMap")}</button></div>
+        <span className="sw-add-map" /><StyleMenu study={study} parts={["cmap", "numbers"]} />
+        <button className="btn outline" onClick={add}>{t("swAddMap")}</button></div>
       <div className="sw-maps-grid">
         {maps.map((m, i) => (
           <MapPanel key={`${i}:${m.x}:${m.y}:${m.rest}`} study={study} spec={m} marks={marks}
@@ -85,8 +87,8 @@ function MapPanel({ study, spec, marks, onChange, onRemove }: {
     <div className="sw-map">
       {head}
       {rest === "best" && <p className="hint sw-map-at">{m.fixed ? t("swMapAtBest", { at }) : t("swMapNoBest")}</p>}
-      <MapKey t={t} m={m} color={color} goal={goal} />
-      <MapSvg t={t} m={m} color={color} marks={marks} onCell={(i, j) => keepCell(t, study, m, i, j)} />
+      <MapKey t={t} m={m} color={color} goal={goal} cmap={styleOf(study).cmap} />
+      <MapSvg t={t} m={m} color={color} marks={marks} style={styleOf(study)} onCell={(i, j) => keepCell(t, study, m, i, j)} />
     </div>
   );
 }
@@ -127,12 +129,12 @@ function goalRange(m: MapAnswer): [number, number] | null {
 }
 
 /** What the colour and the numbers of a map mean. */
-function MapKey({ t, m, color, goal }: { t: TFn; m: MapAnswer; color: MapColor; goal?: string }) {
+function MapKey({ t, m, color, goal, cmap }: { t: TFn; m: MapAnswer; color: MapColor; goal?: string; cmap: Cmap }) {
   const r = goalRange(m);
   const byGoal = color === "goal" && r;
   return (
     <p className="hint sw-map-key">
-      <span className="sw-legend-ramp" />{" "}
+      <span className="sw-legend-ramp" style={{ background: rampCssOf(cmap) }} />{" "}
       {byGoal ? t("swMapKeyGoal", { c: goal ?? "", worse: fmtValue(m.direction === "min" ? r![1] : r![0]), better: fmtValue(m.direction === "min" ? r![0] : r![1]) })
         : t("swMapKeyShare")}
       {m.goal ? ` · ${t("swMapKeyNumber", { c: goal ?? "" })}` : ""}
@@ -140,9 +142,11 @@ function MapKey({ t, m, color, goal }: { t: TFn; m: MapAnswer; color: MapColor; 
   );
 }
 
-function MapSvg({ t, m, color, marks, onCell }: { t: TFn; m: MapAnswer; color: MapColor; marks?: Mark[]; onCell: (i: number, j: number) => void }) {
+function MapSvg({ t, m, color, marks, style, onCell }: { t: TFn; m: MapAnswer; color: MapColor; marks?: Mark[];
+  style: ReturnType<typeof styleOf>; onCell: (i: number, j: number) => void }) {
   const nx = m.xs.length, ny = m.ys.length;
   const r = color === "goal" ? goalRange(m) : null;
+  const ramp = rampOf(style.cmap);
   // a cell's colour: the share that holds, or its best goal from worse (dark) to better (bright)
   const fillOf = (s: number | null, b: number | null) => {
     if (s === null) return "transparent";
@@ -184,7 +188,7 @@ function MapSvg({ t, m, color, marks, onCell }: { t: TFn; m: MapAnswer; color: M
               fill={fillOf(s, b)} className={s === null ? "sw-cell-empty" : ""}>
               <title>{`${m.x} ${m.xs[i]}, ${m.y} ${m.ys[j]}: ${s === null ? "–" : Math.round(s * 100) + "%"}${b !== null ? ` · ${fmtValue(b)}` : ""}${s === null ? "" : ` - ${t("swMapClickCell")}`}`}</title>
             </rect>
-            {b !== null && cw >= 40 && <text x={cx(i) + cw / 2} y={cy(j) + ch / 2 + 4} textAnchor="middle" className="sw-cell-text">{fmtValue(b)}</text>}
+            {b !== null && style.numbers && cw >= 40 && <text x={cx(i) + cw / 2} y={cy(j) + ch / 2 + 4} textAnchor="middle" className="sw-cell-text">{fmtValue(b)}</text>}
           </g>
         );
       }))}
