@@ -15,6 +15,8 @@
 
 - **Sweeps: how much each parameter matters.** In *Which parameter matters*, a table for the goal (or any result) and the active group: each parameter's share of the variance alone and with others, its Sobol indices, its correlations, the strongest pairs and what nothing explains. Parameters under a threshold are greyed as weak, and one click takes them off the lines.
 
+- **Sweeps: design new sets to run.** In the *Run* area: vary the parameters that matter in their ranges and hold the others, choose space-filling, Sobol, random, full factorial, Box-Behnken, central composite or *fill the gaps*, preview the new sets beside the ones already run, export the run list (CSV, TSV, JSON, MATLAB, Python), and save the design as a group - it fills as their results are merged in.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row

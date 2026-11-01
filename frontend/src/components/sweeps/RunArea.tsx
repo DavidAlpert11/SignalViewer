@@ -3,6 +3,7 @@
    the next runs exported as a list, run in one's own tool, the results table opened or merged back. */
 import { useT } from "../../i18n";
 import { useSweeps, type Study } from "../../sweeps/state";
+import DoeSheet from "./DoeSheet";
 
 export function RunSide() {
   const t = useT();
@@ -18,6 +19,7 @@ export function RunCenter({ study }: { study: Study }) {
   const st = useSweeps.getState();
   return (
     <div className="sw-run-quiet">
+      {study.answer && <DoeSheet study={study} />}
       <h3>{t("swRunNoStep")}</h3>
       <p>{t("swRunToday")}</p>
       <ol>

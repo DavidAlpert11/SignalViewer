@@ -34,6 +34,14 @@ const fmt = (v: number, c: Col): string => {
   return String(Number.isInteger(v) ? v : +v.toPrecision(7));
 };
 
+/** The id of a set from its values (a designed set, not run yet): the same text `setIds` makes once
+ *  the set is in a table - numbers to 7 significant digits, text as it is. */
+export function idOfParams(params: Record<string, string | number | null>, order: string[]): string {
+  const f = (v: string | number | null | undefined) => (v === null || v === undefined ? "" : typeof v === "number"
+    ? (Number.isFinite(v) ? String(Number.isInteger(v) ? v : +v.toPrecision(7)) : "") : String(v));
+  return order.map((p) => `${p}=${f(params[p])}`).join("|");
+}
+
 /** The id of every set in the answer: `p=2|k=0.1`, the parameters in the answer's order. */
 export function setIds(a: Answer): string[] {
   const ps = a.sets.filter((c) => c.group === "param");
