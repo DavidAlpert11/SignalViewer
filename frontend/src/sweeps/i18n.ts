@@ -483,6 +483,7 @@ export const swEn = {
   swPointsDrag: "Drag a rectangle to keep what is in it (the lines and the table follow); a click clears it",
   swPointsKept: "Kept the sets in the rectangle: the lines, the table and its export follow.",
   swAxesOnScreen: "axes {a}–{b} of {n} on screen",
+  swExportSetsPlotN: "The {n} sets as an interactive plot (HTML, like HiPlot)",
 };
 
 export const swHe: typeof swEn = {
@@ -967,4 +968,5 @@ export const swHe: typeof swEn = {
   swPointsDrag: "גררו מלבן כדי להשאיר את מה שבתוכו (הקווים והטבלה עוקבים); לחיצה מנקה",
   swPointsKept: "נשארו הסטים שבמלבן: הקווים, הטבלה והייצוא שלה עוקבים.",
   swAxesOnScreen: "צירים {a}–{b} מתוך {n} על המסך",
+  swExportSetsPlotN: "{n} הסטים כגרף אינטראקטיבי (HTML, כמו HiPlot)",
 };

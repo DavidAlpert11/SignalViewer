@@ -298,6 +298,10 @@ def build(p, q: Dict, a: Dict, req: Dict) -> str:
     if fmt == "csv":
         return _csv(a, req, path)
     if fmt == "plot":                                  # the parallel plot alone, to play with
+        if req.get("only") is not None:                # S14: only these sets (the table's, those that hold...)
+            n = len(a["data"]["#holds"])
+            keep = [int(i) for i in req["only"] if 0 <= int(i) < n]
+            a = {**a, "data": {k: np.asarray(v)[keep] for k, v in a["data"].items()}}
         with open(path, "w", encoding="utf-8") as f:
             f.write(_html(a, {**req, "sections": [], "summary": [], "notes": "", "plotOnly": True}, []))
         return path

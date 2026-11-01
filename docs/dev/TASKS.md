@@ -153,7 +153,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 
 ## Sweeps, round 2 (owner, 2026-11-01, after using S00-S08): S09–S18
 
-**Progress:** S09–S13, S18, S19 done · S14–S17 open.
+**Progress:** S09–S14, S18, S19 done · S15–S17 open.
 
 ### S09 · Nothing overlaps in a small window — S · **Done**
 - The step's foot: *← Scenarios & parameters* and *See the results →* run into each other in a
@@ -185,7 +185,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
   the plot shows where the view is among all axes and moves it (dragged, or clicked), besides the
   wheel. Screenshots in both themes and in Hebrew.
 
-### S14 · The sets that hold as an interactive plot — S
+### S14 · The sets that hold as an interactive plot — S · **Done**
 - The table's *Export* also writes the sets shown as an interactive parallel plot (HTML, like
   HiPlot: filters by dragging, a click on a line), not only as CSV.
 
@@ -1949,3 +1949,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S11 / S12 / S18: PlotStyle (view.style: cmap, size, opacity, grid, minor, numbers) + StyleMenu (maps, points, effects); colors.ts CMAPS / rampOf / rampCssOf; ScatterView: axes' titles, grid + minor, round points of the size and opacity chosen, `scatterList` (view.ts) shared with the report; EffectsView: titles, grid + minor, the share holding under the ticks; report: `style_of`, fig_scatter (points in the report), fig_effects titles + grid, fig_map cmap / numbers; ReportReq scatters / style / colorBy. Tests: test_sweep +1, e2e +1.
 - 2026-11-01 · S19: evaluate adds #obj1.. (each further objective's worst case, group goal); state `optAxes` (goal, rank when not empty, score, objectives) in defaultAxes and `withNewOptAxes` (only those that just appeared - not those the user took off); colLabel #objN; the table's default columns take #objN; ScatterView: + Pareto (#goal x #obj1), the front ringed and joined, a dragged rectangle -> setFilter on its two columns (ranges by the scale's inv; categories by their codes), a click clears them, a toast to the lines. Tests: test_sweep (+#obj1), e2e +1.
 - 2026-11-01 · S13: ParallelPlot's slider (a range under a plot wider than the screen, synced with scrollLeft; `sliderLabel` = axes a-b of n), in the results and the raw step. Checked on 59 columns in Hebrew, dark. e2e: many_columns + the slider (End / Home, the label, gone with Fit).
+- 2026-11-01 · S14: report format plot takes `only` (set indices; out of range dropped) and cuts the answer to them; exportPlot(…, only); SetsTable's Export menu: the sets as an interactive plot. Tests: test_sweep +1, e2e +1.
