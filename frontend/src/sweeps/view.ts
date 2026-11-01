@@ -5,7 +5,7 @@ import type { Col, MapSpec, PlotStyle, Role, Scale } from "./model";
 import { wireQuestion, type Study } from "./state";
 import { keptMask } from "./filters";
 import { FLAG_COLS } from "./colors";
-import { groupColumn, hiddenMask } from "./groups";
+import { groupColumn, hiddenMask, maskOfKey } from "./groups";
 
 /** The columns the plot draws: one entry per parameter set, or per run. */
 export function modeColumns(s: Study): { cols: Map<string, Col>; n: number } {
@@ -294,4 +294,16 @@ export function scatterList(s: Study): { x: string; y: string }[] {
   const want = v.scatters?.length ? v.scatters : [{ x: v.scatterX ?? "", y: v.scatterY ?? "" }];
   const yDefault = s.question.goal && have.has("#goal") ? "#goal" : choices[1] ?? choices[0] ?? "";
   return want.map((p) => ({ x: have.has(p.x) ? p.x : choices[0] ?? "", y: have.has(p.y) ? p.y : yDefault }));
+}
+
+/** MF02: 1 for each row of the scoped columns whose set is in the group `key` (an automatic group,
+ *  "marked" or a user group's id); null: every row (no group, or "all"). */
+export function groupRows(s: Study, key: string | undefined, cols: Map<string, Col>, n: number, index: Int32Array | null): Uint8Array | null {
+  if (!key || key === "all" || !s.answer) return null;
+  const m = maskOfKey(s.answer, s.view.groups ?? [], key, s.view.rerun);
+  if (!m) return null;
+  const setOf = s.view.mode === "runs" ? cols.get("#set")?.values : null;
+  const out = new Uint8Array(n);
+  for (let r = 0; r < n; r++) out[r] = m[setOf ? setOf[r] : index ? index[r] : r] ? 1 : 0;
+  return out;
 }
