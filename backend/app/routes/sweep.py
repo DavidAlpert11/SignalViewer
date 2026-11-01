@@ -375,6 +375,78 @@ def sweep_run_start(req: RunReq):
     return job.to_dict()
 
 
+class OptimiseReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    specs: List[Dict[str, Any]]           # the parameters: continuous / integer / categorical / fixed (doe.py)
+    objectives: Optional[List[Dict[str, Any]]] = None    # [{column, direction}]; missing: the goal's
+    constraints: Optional[List[Dict[str, Any]]] = None   # [{column, op, value}]; missing: the goal's conditions
+    method: str = "auto"
+    budget: int = 100                     # sets to run in all
+    pop: int = 0                          # per generation (0: by the method)
+    seed: int = 0
+    combos: bool = True
+    spec: Dict[str, Any]                  # the run step
+
+
+@router.post("/api/sweep/optimise/start")
+def sweep_optimise_start(req: OptimiseReq):
+    """MF07: an optimiser in the loop - each generation run through the run step, the next chosen
+    from the results. Live at /api/sweep/run/{job} (rows carry their generation)."""
+    from app.jobs import JobCancelled, jobs
+    from svcore.sweep import optimise as opt_mod
+    from svcore.sweep import runner
+    p = _prepared(req.id, req.question)
+    q = req.question
+    objs = req.objectives or (q.get("objectives") if len(q.get("objectives") or []) >= 2 else ([q["goal"]] if q.get("goal") else []))
+    if not objs:
+        fail(400, "The optimiser needs an objective: set the goal (or two objectives).")
+    cons = req.constraints if req.constraints is not None else [
+        {"column": c["column"], "op": c["op"], "value": c["value"]} for c in (q.get("conditions") or [])
+        if c.get("op") in ("<=", ">=", "<", ">") and c.get("in") is None]
+    combos = p.df[p.holds].drop_duplicates().to_dict("records") if p.holds and req.combos else [{}]
+    budget = max(4, min(5000, req.budget))
+    try:
+        free = [s for s in req.specs if s.get("kind") != "fixed"]
+        method = opt_mod.choose(req.method, len(objs), len(free), budget)
+        pop = req.pop or (min(40, max(8, 4 * len(free))) if method != "surrogate" else max(4, len(free) + 2))
+        o = opt_mod.Optimiser(req.specs, len(objs), method, pop, req.seed)
+        runner.fill(str(req.spec.get("template") or ""), {**{s["name"]: 0 for s in req.specs}, **(combos[0] if combos else {}), "out": "x", "run": 0, "workdir": "."})
+    except (opt_mod.OptimiseError, runner.RunError, ValueError) as e:
+        fail(400, str(e))
+    live = runner.Live(budget * len(combos))
+    inputs = list(p.params) + list(combos[0].keys())
+    results_path = os.path.abspath(os.path.expanduser(str(req.spec.get("results") or "sweep_runs.csv")))
+
+    def work(job):
+        def evaluate(sets, gen):
+            live.gen = gen
+            runs = [{**{k: s.get(k) for k in p.params}, **cb} for s in sets for cb in combos]
+            runner.run_all(runs, req.spec, live, lambda f, ph: job.report(min(0.99, len(o.U) / budget), f"generation {gen}"), job.cancelled)
+            done = runner.read_results(results_path, inputs)
+            out = []
+            for s in sets:
+                rows = []
+                for cb in combos:
+                    r = {**{k: s.get(k) for k in p.params}, **cb}
+                    rows.append(done.get(runner.key_of(r, inputs), {**r, "run_status": "error"}))
+                out.append(rows)
+            return out
+
+        def stop():
+            return job.cancelled()
+        res = opt_mod.run_loop(o, evaluate, objs, cons, budget, stop)
+        live.best = res["best"]
+        if job.cancelled():
+            raise JobCancelled()
+        return {**res, "method": method, "path": results_path}
+    job = jobs.start("sweepOptimise", f"Optimising ({method})", work)
+    _RUNS[job.id] = live
+    while len(_RUNS) > 10:
+        _RUNS.popitem(last=False)
+    return {**job.to_dict(), "method": method, "pop": pop, "objectives": objs, "constraints": cons}
+
+
 @router.get("/api/sweep/run/{job_id}")
 def sweep_run_live(job_id: str, since: int = 0):
     from app.jobs import jobs

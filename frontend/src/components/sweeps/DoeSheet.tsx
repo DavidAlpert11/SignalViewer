@@ -17,10 +17,10 @@ import NumField from "./NumField";
 const METHODS: DoeMethod[] = ["space", "sobol", "random", "factorial", "boxbehnken", "ccd", "fill"];
 const METHOD_KEY: Record<DoeMethod, TKey> = { space: "swDoeSpace", sobol: "swDoeSobol", random: "swDoeRandom", factorial: "swDoeFactorial",
   boxbehnken: "swDoeBoxBehnken", ccd: "swDoeCcd", fill: "swDoeFill" };
-type Row = { on: boolean; spec: DoeSpec; fixed: string | number | null };
+export type Row = { on: boolean; spec: DoeSpec; fixed: string | number | null };
 
 /** The parameters as the data has them: range, integer or not, levels; held at the best set's value. */
-function rowsOf(study: Study): Row[] {
+export function rowsOf(study: Study): Row[] {
   const a = study.answer!;
   const rank = a.sets.find((c) => c.name === "#rank")?.values;
   let best = 0;
