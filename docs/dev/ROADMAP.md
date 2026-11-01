@@ -651,6 +651,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 
 ## Milestone 23 — Sweeps toward modeFRONTIER. Spec: docs/dev/SWEEPS_MODEFRONTIER.md (findings verified 2026-11-01, MF00-MF11, brief in §6). Order: MF00, MF01, MF02, MF05, MF03, MF04, MF11, MF06, MF07, MF10, MF08, MF09.
 - [ ] MF00 Groups of designs (rule or ids, automatic groups, brush → group) and design status (feasible / fails / error / virtual).
+  Part 1 done 2026-11-01: the model - `svcore/sweep/groups.py` (set ids, rule / ids masks, automatic groups, ∪ ∩ ∖; tests/test_sweep_groups.py) and its mirror `frontend/src/sweeps/groups.ts`; `view.groups` / `view.activeGroup` saved optionally in .svsweep, undoable, bad saved groups dropped on open. Left: the groups panel, status in the table, marked vs selected, colour by group, the e2e.
 - [ ] MF01 The problem as one table (parameters incl. categorical, objectives, conditions).
 - [ ] MF02 More charts, all linked, colour by group. - [ ] MF03 DOE (output = a group). - [ ] MF04 Surrogates (validation table, virtual group, re-run).
 - [ ] MF05 Sensitivity (variance share per term, screening). - [ ] MF06 Runner. - [ ] MF07 Optimisers in the loop.
