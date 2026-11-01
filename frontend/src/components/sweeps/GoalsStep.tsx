@@ -10,6 +10,7 @@ import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import ConditionRow from "./ConditionRow";
 import RobustEditor from "./RobustEditor";
+import BestSet from "./BestSet";
 import { StepFoot } from "./StepNav";
 
 export const goalName = (t: TFn, g: GoalVariant, i: number) => (g.name && Number.isNaN(Number(g.name)) ? g.name : t("swGoalN", { n: i + 1 }));
@@ -110,6 +111,9 @@ export function GoalsSide({ study }: { study: Study }) {
       </section>
       <RobustEditor study={study} />
       <button className="linklike sw-danger" onClick={() => st.removeGoal(q.active)}>{q.goals.length > 1 ? t("swGoalDelete") : t("swGoalClear")}</button>
+      {/* while editing (S22): how many hold and the best set, without going to the results */}
+      {a && <p className="hint sw-goal-preview">{t("swGoalPreview", { n: a.counts.holding.toLocaleString(), of: a.counts.sets.toLocaleString() })}</p>}
+      {a && <BestSet study={study} />}
       <StepFoot study={study} next={t("swGoalSeeResults")} />
     </div>
   );
