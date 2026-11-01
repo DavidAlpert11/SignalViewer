@@ -220,6 +220,38 @@ parameter sets change in the HiPlot and the CSV")
   columns, so the lines, the table, its Export (CSV, HTML) and the report follow; a click outside
   clears it.
 
+## Sweeps, round 3 (owner, 2026-11-01): S20–S22 - the journal as the report wants it; exploring
+
+**Progress:** S20–S22 open.
+
+### S20 · The journal for the report: the final story — S
+- The report's journal shows **the final steps only** by default: for each thing (a goal, the
+  roles, robustness, columns taken out, keep / exclude...) its last change; changes that were
+  undone or overwritten are not in it. *The whole journal* stays a choice of the report.
+- Opening a file is not a line of the journal (*Where it comes from* names the tables); merging
+  one still is.
+- In the Report step: × on a line hides it from the report (and brings it back); **"The analysis
+  starts here"** on a line hides everything before it. Kept with the study.
+
+### S21 · Explore: a draft of a goal - conditions, limits and objectives together — L
+- A center tab **Explore** (by Lines, Map...). It opens as a copy of the active goal and changes
+  nothing until **Save as a goal** (a new goal, or replacing the active one - asked) or **Back to
+  the goal**. A line says how the draft differs from the goal.
+- One result for all of it, at every move: the sets go through (1) the goal's conditions, dragged
+  as *what if*, robustness included, (2) limits on the parameters (a range each), (3) thresholds
+  on objectives; (4) the objectives - each with its direction, weight and optional threshold,
+  added and removed by typing as everywhere - rank what is left.
+- On screen: a funnel (all → after conditions → after the limits → after the thresholds), each
+  slider's own cut (*alone it removes N*), a histogram strip under each slider with the holding
+  sets coloured, the best set (and a note when a move changes it), the leading candidates, and with
+  two objectives the Pareto plot (the front ringed, the best starred; more objectives: choose two).
+- Save as a goal keeps everything: thresholds and parameter limits become conditions, objectives
+  their directions and weights - the saved goal gives exactly what was explored. One journal line.
+
+### S22 · Goals: the best set while editing — S
+- At the foot of the Goals step: how many sets hold and the best set with its objectives' values,
+  updated while conditions, directions and weights are edited (the Results' card).
+
 ## Queue (in this order)
 
 Sizes: S < 1 day, M 1–3 days, L about a week. Each task lists where to start; read the code and
