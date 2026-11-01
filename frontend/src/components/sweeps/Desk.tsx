@@ -8,16 +8,19 @@ import { useMemo, useState } from "react";
 import { useT, type TFn, type TKey } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS } from "../../sweeps/colors";
 import { hasFilter, keptMask } from "../../sweeps/filters";
-import type { Col, DeskPane, Filter, PaneKind } from "../../sweeps/model";
-import { fmtValue } from "../../sweeps/scales";
+import type { Col, DeskPane, Filter, MapSpec, PaneKind } from "../../sweeps/model";
+import { fmtValue, labelOf } from "../../sweeps/scales";
 import { boxStats, histogram, pearson, spearman } from "../../sweeps/stats";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, scopedColumns } from "../../sweeps/view";
+import { axisChoices, colLabel, groupRows, scaleOf, scopedColumns, shownAxes } from "../../sweeps/view";
+import { MapPanel } from "./MapView";
+import ParallelPlot from "./ParallelPlot";
 import { ScatterPanel } from "./ScatterView";
 
-export const PANE_KINDS: PaneKind[] = ["scatter", "bubble", "histogram", "box", "matrix", "broken"];
-const KIND_KEY: Record<PaneKind, TKey> = { scatter: "swPaneScatter", bubble: "swPaneBubble", histogram: "swPaneHistogram", box: "swPaneBox",
-  matrix: "swPaneMatrix", broken: "swPaneBroken" };
+export const PANE_KINDS: PaneKind[] = ["lines", "scatter", "bubble", "histogram", "box", "matrix", "map", "history", "pareto", "compare", "broken"];
+const KIND_KEY: Record<PaneKind, TKey> = { lines: "swPaneLines", scatter: "swPaneScatter", bubble: "swPaneBubble", histogram: "swPaneHistogram", box: "swPaneBox",
+  matrix: "swPaneMatrix", map: "swPaneMap", history: "swPaneHistory", pareto: "swPaneParetoKind", compare: "swPaneCompare", broken: "swPaneBroken" };
+const AUTO_KEYS: Record<string, TKey> = { all: "swGrpAll", holds: "swGrpHolds", pareto: "swGrpPareto", fails: "swGrpFails", error: "swGrpError", marked: "swGrpMarked" };
 const BINS = 20;
 
 /** The panes on screen: the study's, or a first desk from its columns. */
@@ -78,6 +81,8 @@ export default function Desk({ study }: { study: Study }) {
 function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskPane; onChange: (p: Partial<DeskPane>) => void; big: boolean; onBig: () => void }) {
   const t = useT();
   const choices = axisChoices(study);
+  // a group gone (deleted) is all the sets again
+  const g = pane.group && (pane.group in AUTO_KEYS || study.view.groups?.some((x) => x.id === pane.group)) ? pane.group : undefined;
   const sel = (key: "x" | "y" | "size", label: TKey) => (
     <label>{t(label)} <select value={pane[key] ?? ""} onChange={(e) => onChange({ [key]: e.target.value })}>
       {choices.map((c) => <option key={c} value={c}>{colLabel(t, study, c)}</option>)}
@@ -88,6 +93,7 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
     if ((k === "scatter" || k === "bubble") && !pane.y) p.y = choices[1] ?? choices[0];
     if (k === "bubble" && !pane.size) p.size = choices[2] ?? choices[0];
     if (k === "matrix" && !pane.columns?.length) p.columns = choices.slice(0, 4);
+    if (k === "map") { const ps = study.answer?.sets.filter((c) => c.group === "param").map((c) => c.name) ?? []; p.x = ps[0]; p.y = ps[1]; }
     onChange(p);
   };
   return (
@@ -96,7 +102,11 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
         <select aria-label={t("swPaneKind")} value={pane.kind} onChange={(e) => kind(e.target.value as PaneKind)}>
           {PANE_KINDS.map((k) => <option key={k} value={k}>{t(KIND_KEY[k])}</option>)}
         </select>
-        {(pane.kind === "histogram" || pane.kind === "box") && sel("x", "swPaneColumn")}
+        {(pane.kind === "histogram" || pane.kind === "box" || pane.kind === "history") && sel("x", "swPaneColumn")}
+        <label>{t("swPaneGroup")} <select aria-label={t("swPaneGroup")} value={g ?? "all"} onChange={(e) => onChange({ group: e.target.value === "all" ? undefined : e.target.value })}>
+          {Object.entries(AUTO_KEYS).map(([k, key]) => <option key={k} value={k}>{t(key)}</option>)}
+          {(study.view.groups ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select></label>
         {pane.kind === "matrix" && <>
           <select aria-label={t("swCorr")} value={pane.corr ?? "pearson"} onChange={(e) => onChange({ corr: e.target.value as "pearson" | "spearman" })}>
             <option value="pearson">Pearson</option><option value="spearman">Spearman</option></select>
@@ -105,13 +115,20 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
         <button className="iconbtn sw-pane-big" aria-label={t(big ? "swPaneSmall" : "swPaneBig")} title={t(big ? "swPaneSmall" : "swPaneBig")} onClick={onBig}>{big ? "⤡" : "⤢"}</button>
       </div>
       {(pane.kind === "scatter" || pane.kind === "bubble") && (
-        <ScatterPanel study={study} pair={{ x: pane.x ?? choices[0] ?? "", y: pane.y ?? choices[1] ?? "", size: pane.kind === "bubble" ? pane.size ?? choices[2] ?? "" : undefined }}
+        <ScatterPanel study={study} group={g} pair={{ x: pane.x ?? choices[0] ?? "", y: pane.y ?? choices[1] ?? "", size: pane.kind === "bubble" ? pane.size ?? choices[2] ?? "" : undefined }}
           onChange={(q) => onChange(q)} />
       )}
-      {pane.kind === "histogram" && <Histogram study={study} column={pane.x ?? choices[0]} />}
-      {pane.kind === "box" && <BoxPlot study={study} column={pane.x ?? choices[0]} />}
-      {pane.kind === "matrix" && <Matrix study={study} columns={(pane.columns ?? []).filter((c) => choices.includes(c))} corr={pane.corr ?? "pearson"} />}
-      {pane.kind === "broken" && <Broken study={study} />}
+      {pane.kind === "pareto" && (study.answer?.sets.some((c) => c.name === "#obj1")
+        ? <ScatterPanel study={study} group={g} pair={{ x: "#goal", y: "#obj1" }} onChange={() => {}} />
+        : <p className="empty-note">{t("swParetoNeedsTwo")}</p>)}
+      {pane.kind === "lines" && <LinesPane study={study} group={g} />}
+      {pane.kind === "map" && <MapPanel key={`${pane.x}:${pane.y}`} study={study} spec={mapSpec(study, pane)} onChange={(p) => onChange({ x: p.x ?? pane.x, y: p.y ?? pane.y })} />}
+      {pane.kind === "history" && <History study={study} column={pane.x ?? choices[0]} group={g} />}
+      {pane.kind === "compare" && <CompareSets study={study} group={g} />}
+      {pane.kind === "histogram" && <Histogram study={study} column={pane.x ?? choices[0]} group={g} />}
+      {pane.kind === "box" && <BoxPlot study={study} column={pane.x ?? choices[0]} group={g} />}
+      {pane.kind === "matrix" && <Matrix study={study} columns={(pane.columns ?? []).filter((c) => choices.includes(c))} corr={pane.corr ?? "pearson"} group={g} />}
+      {pane.kind === "broken" && <Broken study={study} group={g} />}
     </section>
   );
 }
@@ -131,10 +148,14 @@ function MatrixColumns({ study, value, onChange }: { study: Study; value: string
 }
 
 /** The sets on screen (scope, hidden groups) and the brush's mask over them. */
-function useRows(study: Study) {
-  const { cols, n } = useMemo(() => scopedColumns(study), [study]);
-  const kept = useMemo(() => keptMask(cols, study.view.filters, n), [cols, study.view.filters, n]);
-  return { cols, n, kept };
+function useRows(study: Study, group?: string) {
+  const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
+  const kept = useMemo(() => {
+    const k = keptMask(cols, study.view.filters, n), g = groupRows(study, group, cols, n, index);
+    if (g) for (let r = 0; r < n; r++) k[r] &= g[r];
+    return k;
+  }, [cols, study, n, group, index]);
+  return { cols, n, kept, index };
 }
 
 const HW = 520, HH = 260, HL = 44, HB = 34, HT = 10, HR = 10;
@@ -145,9 +166,9 @@ function extentOf(c: Col, keep?: Uint8Array): [number, number] {
   return Number.isFinite(lo) ? (lo === hi ? [lo - 0.5, hi + 0.5] : [lo, hi]) : [0, 1];
 }
 
-function Histogram({ study, column }: { study: Study; column: string }) {
+function Histogram({ study, column, group }: { study: Study; column: string; group?: string }) {
   const t = useT();
-  const { cols, n, kept } = useRows(study);
+  const { cols, n, kept } = useRows(study, group);
   const c = cols.get(column);
   const ser = seriesOf(cols, study.view.colorBy, t);
   const [drag, setDrag] = useState<[number, number] | null>(null);
@@ -210,9 +231,9 @@ function Legend({ ser }: { ser: { names: string[]; colours: string[] } }) {
   return <div className="sw-legend">{ser.names.map((nm, i) => <span key={i}><i style={{ background: ser.colours[i] }} />{nm}</span>)}</div>;
 }
 
-function BoxPlot({ study, column }: { study: Study; column: string }) {
+function BoxPlot({ study, column, group }: { study: Study; column: string; group?: string }) {
   const t = useT();
-  const { cols, n, kept } = useRows(study);
+  const { cols, n, kept } = useRows(study, group);
   const c = cols.get(column);
   const ser = seriesOf(cols, study.view.colorBy, t);
   if (!c || c.kind !== "num") return <p className="empty-note">{t("swPaneNeedsNumber")}</p>;
@@ -248,9 +269,9 @@ function BoxPlot({ study, column }: { study: Study; column: string }) {
 /** Correlation as a colour: blue negative, amber positive (the palette's own two). */
 const corrFill = (r: number) => (Number.isFinite(r) ? (r >= 0 ? `rgba(242,169,59,${Math.abs(r) * 0.85})` : `rgba(111,168,255,${Math.abs(r) * 0.85})`) : "transparent");
 
-function Matrix({ study, columns, corr }: { study: Study; columns: string[]; corr: "pearson" | "spearman" }) {
+function Matrix({ study, columns, corr, group }: { study: Study; columns: string[]; corr: "pearson" | "spearman"; group?: string }) {
   const t = useT();
-  const { cols, n, kept } = useRows(study);
+  const { cols, n, kept } = useRows(study, group);
   const ser = seriesOf(cols, study.view.colorBy, t);
   const cs = columns.map((c) => cols.get(c)).filter((c): c is Col => !!c);
   const k = cs.length;
@@ -299,17 +320,19 @@ function Matrix({ study, columns, corr }: { study: Study; columns: string[]; cor
 const short = (s: string) => (s.length > 14 ? `${s.slice(0, 13)}…` : s);
 
 /** Which condition fails how often (among the sets on screen); a bar's click keeps the sets that fail it. */
-function Broken({ study }: { study: Study }) {
+function Broken({ study, group }: { study: Study; group?: string }) {
   const t = useT();
-  const { cols, n } = useRows(study);
+  const { cols, n, kept } = useRows(study, group);
   const a = study.answer!;
   const list = a.conditions.map((c, i) => {
     const m = cols.get(`#c${i}.margin`), p = cols.get(`#c${i}.passed`), need = c.needed ?? 0;
     let k = 0;
-    for (let r = 0; r < n; r++) if (need > 0 && p ? p.values[r] < need : m ? m.values[r] < 0 : false) k++;
+    for (let r = 0; r < n; r++) if (kept[r] && (need > 0 && p ? p.values[r] < need : m ? m.values[r] < 0 : false)) k++;
     return { i, label: c.label, k, margin: m };
   });
   if (!list.length) return <p className="empty-note">{t("swBrokenNone")}</p>;
+  let shown = 0;
+  for (let r = 0; r < n; r++) shown += kept[r];
   const max = Math.max(1, ...list.map((x) => x.k));
   const keepFailing = (x: (typeof list)[number]) => {
     if (!x.margin) return;
@@ -322,10 +345,97 @@ function Broken({ study }: { study: Study }) {
         <button key={x.i} role="listitem" className="sw-broken-row" onClick={() => keepFailing(x)} title={t("swBrokenKeep")}>
           <span className="sw-broken-label mono">{x.label}</span>
           <span className="sw-broken-bar"><i style={{ width: `${(x.k / max) * 100}%` }} /></span>
-          <span className="sw-broken-n">{t("swBrokenN", { k: x.k.toLocaleString(), n: n.toLocaleString() })}</span>
+          <span className="sw-broken-n">{t("swBrokenN", { k: x.k.toLocaleString(), n: shown.toLocaleString() })}</span>
         </button>
       ))}
     </div>
   );
 }
 
+
+/** A map's spec from a pane: its two parameters (the study's first two when not parameters). */
+function mapSpec(s: Study, pane: DeskPane): MapSpec {
+  const ps = s.answer?.sets.filter((c) => c.group === "param").map((c) => c.name) ?? [];
+  const x = pane.x && ps.includes(pane.x) ? pane.x : ps[0];
+  const y = pane.y && ps.includes(pane.y) && pane.y !== x ? pane.y : ps.find((p) => p !== x);
+  return { x: x ?? "", y: y ?? "", rest: "all" };
+}
+
+/** The lines in a pane: the study's axes, the same brush (a range on an axis filters everything). */
+function LinesPane({ study, group }: { study: Study; group?: string }) {
+  const t = useT();
+  const st = useSweeps.getState();
+  const { cols, n, kept, index } = useRows(study, group);
+  const axes = shownAxes(study);
+  const v = study.view;
+  const scale = useMemo(() => (name: string) => scaleOf(study, name, cols.get(name)), [study, cols]);
+  if (!axes.length) return <p className="empty-note">{t("swNoAxes")}</p>;
+  const setOf = (r: number) => (v.mode === "runs" ? cols.get("#set")?.values[r] ?? r : index ? index[r] : r);
+  return (
+    <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
+      filters={v.filters} keep={group ? kept : null} highlight={null} labelOf={(a) => colLabel(t, study, a)} fit height={280}
+      onPick={(r) => st.setView({ pinned: setOf(r) })} onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={() => {}}
+      onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />
+  );
+}
+
+/** A column against the sets' order (their order in the table: the order they were run in), with
+ *  the best so far when the column is the goal. */
+function History({ study, column, group }: { study: Study; column: string; group?: string }) {
+  const t = useT();
+  const { cols, n, kept } = useRows(study, group);
+  const c = cols.get(column);
+  if (!c || c.kind !== "num") return <p className="empty-note">{t("swPaneNeedsNumber")}</p>;
+  const rows: number[] = [];
+  for (let r = 0; r < n; r++) if (kept[r] && Number.isFinite(c.values[r])) rows.push(r);
+  if (!rows.length) return <p className="empty-note">{t("swNoSetsShown")}</p>;
+  const [lo, hi] = extentOf(c, kept);
+  const X = (k: number) => HL + (rows.length > 1 ? k / (rows.length - 1) : 0.5) * (HW - HL - HR);
+  const Y = (v: number) => HH - HB - ((v - lo) / (hi - lo)) * (HH - HB - HT);
+  const dir = column === "#goal" ? study.question.goal?.direction : undefined;
+  let best = NaN;
+  const bestPts = dir ? rows.map((r, k) => { const v = c.values[r]; best = !Number.isFinite(best) || (dir === "max" ? v > best : v < best) ? v : best; return `${X(k)},${Y(best)}`; }) : [];
+  return (
+    <svg viewBox={`0 0 ${HW} ${HH}`} className="sw-chart" role="img" aria-label={t("swPaneHistoryOf", { c: colLabel(t, study, column) })}>
+      <line x1={HL} y1={HH - HB} x2={HW - HR} y2={HH - HB} className="sw-ax-line" />
+      <line x1={HL} y1={HT} x2={HL} y2={HH - HB} className="sw-ax-line" />
+      <text x={HL - 4} y={HT + 8} textAnchor="end" className="sw-ax">{fmtValue(hi)}</text>
+      <text x={HL - 4} y={HH - HB} textAnchor="end" className="sw-ax">{fmtValue(lo)}</text>
+      {rows.map((r, k) => <circle key={r} cx={X(k)} cy={Y(c.values[r])} r={2} fill={FAILS} />)}
+      {bestPts.length > 0 && <polyline points={bestPts.join(" ")} fill="none" stroke={HOLDS} strokeWidth={2} className="sw-history-best" />}
+      <text x={(HL + HW - HR) / 2} y={HH - 4} textAnchor="middle" className="sw-ax">{t("swHistoryX", { c: colLabel(t, study, column) })}</text>
+    </svg>
+  );
+}
+
+/** Up to four sets side by side - the marked ones (the table's ticks), else the best of the group -
+ *  their parameters and results, the values that differ marked. */
+function CompareSets({ study, group }: { study: Study; group?: string }) {
+  const t = useT();
+  const a = study.answer!;
+  const { kept } = useRows(study, group);
+  const v = study.view;
+  const rank = a.sets.find((c) => c.name === "#rank")?.values;
+  let sets = v.rerun.slice(0, 4);
+  if (sets.length < 2 && v.mode === "sets") {
+    const order = [...Array(kept.length).keys()].filter((r) => kept[r]).sort((x, y) => (rank ? (Number.isFinite(rank[x]) ? rank[x] : 1e9) - (Number.isFinite(rank[y]) ? rank[y] : 1e9) : x - y));
+    sets = order.slice(0, 4);
+  }
+  if (sets.length < 2) return <p className="empty-note">{t("swCompareSetsPick")}</p>;
+  const rows = a.sets.filter((c) => c.group === "param" || c.group === "goal" || c.name === "#holds" || (c.group === "condition" && c.part === "worst"));
+  return (
+    <div className="sw-table-wrap">
+      <table className="sw-table sw-compare-sets">
+        <thead><tr><th />{sets.map((s) => <th key={s} className="num">{t("swSetN", { n: s + 1 })}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((c) => {
+            const vals = sets.map((s) => labelOf(c, c.values[s]));
+            const differ = new Set(vals).size > 1;
+            return <tr key={c.name} className={differ ? "differs" : ""}><th>{colLabel(t, study, c.name)}</th>{vals.map((x, i) => <td key={i} className="num">{x}</td>)}</tr>;
+          })}
+        </tbody>
+      </table>
+      {v.rerun.length < 2 && <p className="hint">{t("swCompareSetsHint")}</p>}
+    </div>
+  );
+}

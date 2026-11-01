@@ -55,3 +55,18 @@ def test_histogram_brush_filters_everything(pg):
     pg.locator(".sw-center-tabs button", has_text="Lines").click()
     pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 1 filters')")
     assert 0 < pg.locator(".sw-table-wrap .sw-table tbody tr").count() < total
+
+
+def test_every_pane_kind_and_a_group_per_pane(pg):
+    _charts(pg)
+    pane = pg.locator(".sw-pane").nth(0)
+    for kind in ("lines", "map", "history", "pareto", "compare", "bubble", "histogram", "box", "matrix", "broken", "scatter"):
+        pane.locator("select[aria-label='Chart']").select_option(kind)
+        pg.wait_for_selector(f".sw-pane[data-kind='{kind}']")
+        assert pg.locator(".sw-pane").nth(0).locator("svg, canvas, table, .empty-note, .sw-broken").count() > 0
+    # the histogram of only the holding sets counts fewer than of all
+    pane.locator("select[aria-label='Chart']").select_option("broken")
+    allfail = pg.locator(".sw-broken-n").first.inner_text()
+    pane.locator("select[aria-label='Group']").select_option("holds")
+    pg.wait_for_function("document.querySelector('.sw-broken-n').innerText.startsWith('0 of')")
+    assert allfail != pg.locator(".sw-broken-n").first.inner_text()

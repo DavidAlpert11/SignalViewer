@@ -9,7 +9,7 @@ import StyleMenu from "./StyleMenu";
 import { keptMask } from "../../sweeps/filters";
 import { makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, scaleOf, scatterList, scopedColumns, styleOf } from "../../sweeps/view";
+import { axisChoices, colLabel, groupRows, scaleOf, scatterList, scopedColumns, styleOf } from "../../sweeps/view";
 
 // room for the ticks and the axes' titles (S11)
 const W = 560, H = 380, L = 72, B = 52, T = 12, R = 16;
@@ -40,14 +40,20 @@ export default function ScattersView({ study }: { study: Study }) {
   );
 }
 
-export function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void }) {
+export function ScatterPanel({ study, pair, onChange, onRemove, group }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void;
+  /** MF02: only this group's sets (a desk pane's group) */
+  group?: string }) {
   const t = useT();
   const cv = useRef<HTMLCanvasElement>(null);
-  const { cols, n } = useMemo(() => scopedColumns(study), [study]);
+  const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
   const choices = axisChoices(study);
   const v = study.view;
   const xName = pair.x, yName = pair.y;          // checked by scatterList
-  const kept = useMemo(() => keptMask(cols, v.filters, n), [cols, v.filters, n]);
+  const kept = useMemo(() => {
+    const k = keptMask(cols, v.filters, n), g = groupRows(study, group, cols, n, index);
+    if (g) for (let r = 0; r < n; r++) k[r] &= g[r];
+    return k;
+  }, [cols, v.filters, n, study, group, index]);
   // a rectangle dragged on the plot keeps what is in it (S19): the lines' filters on its two columns
   const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const at = (e: React.PointerEvent) => {

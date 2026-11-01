@@ -15,8 +15,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 - **Milestone 23 (Sweeps toward modeFRONTIER): MF00 done** (groups of sets + status per set; its e2e
   `tests/e2e/test_sweeps_groups.py` written but not run here - no browser in the container: run it).
-  **MF01 done** (with Q129; e2e `tests/e2e/test_sweeps_problem.py` not run here either). **MF02 part 1 done** (the Charts desktop). Next: MF02 part 2 - the
-  remaining pane kinds and the three areas (Problem | Run | Explore). Owner's
+  **MF01 done** (with Q129; e2e `tests/e2e/test_sweeps_problem.py` not run here either). **MF02 done** (the Charts desktop, every pane kind, a group per pane). Next: **the three areas**
+  (Problem | Run | Explore instead of the five steps - decided: after MF02), then MF05. Owner's
   two open choices taken as recommended in the brief (change them here if not): the brush is saved
   as a **live rule** by default (Shift: frozen ids); the five stages become three areas only
   **after MF02**. The groups panel sits in the results side until then.
@@ -2203,3 +2203,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · MF00 part 2 (done): groups panel (results side), Save as group (Shift frozen), rename / freeze / ∪ ∩ ∖ with the active group / eye / delete, marked = the table's ticked sets, colour by group (`#group`), hidden groups through scopeMask; table status stripe, ≈ virtual, failing cells, "fails in k of n" (evaluate.py sends `needed` per condition), group chips; i18n en/he; CSS on theme variables (no --warn exists: amber for fails). pytest 905 passed, mypy clean, tsc + build clean. e2e test_sweeps_groups.py written, not run (no Chromium here) - first thing to run. Next: MF01.
 - 2026-11-01 · MF01 + Q129 (done): NumField on every Explore value (typed, outside the results kept and marked, Esc, arrows); Explore *Sliders | Table* (`view.exploreAs`), ProblemTable on the same Draft; categorical parameters - `Draft.levels` → condition `in` (evaluate.py `_condition_in`, set_rows' why, label `p ∈ {…}`); ConditionRow / goal summary show it. pytest 906 passed, mypy clean, tsc + build clean. e2e test_sweeps_problem.py + test_sweeps_groups.py written, not run (no Chromium here) - run both. Next: MF02.
 - 2026-11-01 · MF02 part 1: Charts tab (Desk.tsx): 1/2/4 panes - points, bubble, histogram (brush), box, scatter matrix (Pearson / Spearman), broken conditions (click = keep the failing sets); `view.desk` optional and undoable; stats.ts checked by hand in node (Pearson ±1, ties in ranks, quartiles). tsc + build clean, pytest unchanged (906). e2e test_sweeps_charts.py written, not run (no Chromium). Left: lines / map / history / Pareto / comparison as pane kinds, a group per pane, the three areas.
+- 2026-11-01 · MF02 part 2 (done): pane kinds lines / map / history / Pareto / compare sets; a group per pane (DeskPane.group, view.ts groupRows; ScatterPanel takes it too). tsc + build clean. e2e test_sweeps_charts.py extended (every kind, a group per pane), not run (no Chromium). Next: the three areas.
