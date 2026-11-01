@@ -161,7 +161,7 @@ def clear_everything(pg):
 
 def save_as(pg, name, folder=None):
     goto_folder(pg, folder or pg.env["out"])
-    pg.fill(".savename input", name); pg.click(".dialog-foot .btn.primary")
+    pg.fill(".savename input", name); pg.click(".dialog:has(.savename) .dialog-foot .btn.primary")   # the save dialog's, even over another one
 
 
 def chips(pg, plot=0):

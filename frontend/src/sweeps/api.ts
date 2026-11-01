@@ -59,6 +59,8 @@ export interface SetDetail {
  *  table with the same columns. */
 export interface SweepTemplate {
   name: string;
+  /** when it was saved (local time, "YYYY-MM-DD HH:MM"; older templates have none) */
+  saved?: string;
   columns: { name: string; role: Role; scale: Scale }[];
   question: unknown;
   view: unknown;
@@ -109,6 +111,8 @@ export const sweepApi = {
   changed: (id: string) => call<{ changed: boolean; missing?: boolean }>(`/api/sweep/changed?id=${encodeURIComponent(id)}`),
   templates: () => call<{ templates: SweepTemplate[]; folder: string }>("/api/sweep/templates"),
   saveTemplate: (name: string, template: Omit<SweepTemplate, "name">) => call<{ templates: SweepTemplate[] }>("/api/sweep/templates/save", { name, template }),
+  exportTemplate: (name: string, path: string) => call<{ path: string }>("/api/sweep/templates/export", { name, path }),
+  importTemplate: (path: string) => call<{ templates: SweepTemplate[]; name: string }>("/api/sweep/templates/import", { path }),
   deleteTemplate: (name: string) => call<{ templates: SweepTemplate[] }>("/api/sweep/templates/delete", { name }),
   report: (id: string, question: WireQuestion, body: Record<string, unknown>) =>
     call<{ path: string; size: number }>("/api/sweep/report", { id, question, ...body }),

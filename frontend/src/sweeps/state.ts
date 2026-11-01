@@ -92,6 +92,8 @@ interface SweepsState {
   open: (path: string, saved?: SavedStudy) => Promise<void>;
   /** the report dialog is open (the Study menu, Ctrl+K) */
   reportOpen: boolean;
+  /** the templates dialog is open */
+  templatesOpen: boolean;
   /** the steps' side panel is hidden (more room for the plot); remembered */
   leftHidden: boolean;
   setLeftHidden: (hidden: boolean) => void;
@@ -117,6 +119,8 @@ interface SweepsState {
   saveTemplate: (name: string) => Promise<void>;
   applyTemplate: (name: string) => void;
   deleteTemplate: (name: string) => Promise<void>;
+  /** a template from a file (exported here or by a colleague); its name as kept */
+  importTemplate: (path: string) => Promise<string>;
   close: (i: number) => void;
   // undo / redo of the active study
   undo: () => void;
@@ -268,6 +272,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       catch (e) { set({ busy: false, error: (e as Error).message }); }
     },
     reportOpen: false,
+    templatesOpen: false,
     leftHidden: getPrefValue<boolean>("sv3.swLeftHidden") === true,
     setLeftHidden: (hidden) => { setPref("sv3.swLeftHidden", hidden); set({ leftHidden: hidden }); },
     restoring: false,
@@ -368,8 +373,11 @@ export const useSweeps = create<SweepsState>((set, get) => {
     saveTemplate: async (name) => {
       const s = get().studies[get().active];
       if (!s) return;
-      const { pinned: _p, filters: _f, rerun: _r, ...view } = s.view;
-      void _p; void _f; void _r;
+      // what belongs to this table's runs stays out: the open set, filters, re-runs, keep / exclude
+      // (by set number), next runs' answer; their choices (what to explore, the kinds) are kept
+      const { pinned: _p, filters: _f, rerun: _r, scope: _s, next, ...rest } = s.view;
+      void _p; void _f; void _r; void _s;
+      const view = { ...rest, ...(next ? { next: { focus: next.focus, kinds: next.kinds, budget: next.budget } } : {}) };
       const r = await sweepApi.saveTemplate(name, { columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
         question: { ...s.question, exclude: [] }, view });
       set({ templates: r.templates });
@@ -397,6 +405,11 @@ export const useSweeps = create<SweepsState>((set, get) => {
       });
       refreshSummary();
       get().evaluate();
+    },
+    importTemplate: async (path) => {
+      const r = await sweepApi.importTemplate(path);
+      set({ templates: r.templates });
+      return r.name;
     },
     deleteTemplate: async (name) => { set({ templates: (await sweepApi.deleteTemplate(name)).templates }); },
 

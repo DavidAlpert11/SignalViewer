@@ -402,9 +402,12 @@ def test_a_goals_weight_is_its_own_and_template_saved_says_so(pg):
     _bar_menu(pg, "Study", "Save as a template")
     pg.fill(".dialog input", "weights check"); pg.keyboard.press("Enter")
     pg.wait_for_selector(".toast:has-text('Template saved: weights check')")
-    _bar_menu(pg, "Study", "Delete a template")
-    pg.locator(".menu.ctx button", has_text="weights check").click()
+    _bar_menu(pg, "Study", "Templates…")
+    pg.locator(".sw-tpl-item", has_text="weights check").click()
+    pg.locator(".sw-tpl .dialog-foot .btn", has_text="Delete").click()
+    pg.locator(".dialog.small .btn.primary").click()                           # yes, delete
     pg.wait_for_selector(".toast:has-text('Template deleted: weights check')")
+    pg.keyboard.press("Escape")
 
 
 def test_undo_redo_and_the_studies_open_again(pg):
@@ -648,3 +651,44 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
     _step(pg, "results")
     pg.locator(".sw-center-tabs button", has_text="Next runs").click()
     pg.wait_for_selector(".sw-banner:has-text('The question changed')")
+
+
+def test_templates_dialog_save_replace_export_import_apply(pg):
+    """S07: the templates dialog - save (asks before replacing), export to a file, import it back
+    under a new name, apply it to another study."""
+    _fresh(pg)
+    _the_goal(pg)
+    _bar_menu(pg, "Study", "Templates…")
+    pg.fill(".sw-tpl-save input", "drone tpl")
+    pg.locator(".sw-tpl-save .btn", has_text="Save this study").click()
+    pg.wait_for_selector(".sw-tpl-item:has-text('drone tpl')")
+    pg.locator(".sw-tpl-save .btn", has_text="Save this study").click()            # the same name: asks
+    pg.wait_for_selector(".dialog.small:has-text('Replace the template?')")
+    pg.locator(".dialog.small .btn.primary").click()
+    assert pg.locator(".sw-tpl-item", has_text="drone tpl").count() == 1
+    assert "this table has 13 of its 13 columns" in pg.locator(".sw-tpl-item", has_text="drone tpl").inner_text()
+    pg.locator(".sw-tpl-item", has_text="drone tpl").click()
+    pg.locator(".sw-tpl .dialog-foot .btn", has_text="Export to a file").click()
+    save_as(pg, "drone_tpl.json")
+    pg.wait_for_selector(".toast:has-text('drone_tpl.json')")
+    pg.locator(".sw-tpl-save .btn", has_text="Import a file").click()
+    goto_folder(pg, pg.env["out"])
+    pg.locator(".scrim-top .dialog .fs-row", has_text="drone_tpl.json").click(); pg.click(".scrim-top .dialog-foot .btn.primary")
+    pg.wait_for_selector(".sw-tpl-item:has-text('drone tpl (2)')")
+    # applied to the study after starting over: the goal comes back
+    pg.keyboard.press("Escape")
+    _bar_menu(pg, "Study", "Start the study over")
+    _step(pg, "goals")
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    _bar_menu(pg, "Study", "Templates…")
+    pg.locator(".sw-tpl-item", has_text="drone tpl (2)").dblclick()
+    pg.wait_for_selector(".toast:has-text('Template applied: drone tpl (2)')")
+    _step(pg, "goals")
+    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 2")
+    for n in ("drone tpl", "drone tpl (2)"):
+        _bar_menu(pg, "Study", "Templates…")
+        pg.locator(".sw-tpl-item b").get_by_text(n, exact=True).click()
+        pg.locator(".sw-tpl .dialog-foot .btn", has_text="Delete").click()
+        pg.locator(".dialog.small .btn.primary").click()
+        pg.wait_for_selector(f".toast:has-text('Template deleted: {n}')")
+        pg.keyboard.press("Escape")

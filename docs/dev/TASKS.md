@@ -90,7 +90,7 @@ The owner's requests for the Sweeps area (`components/sweeps`, `sweeps/`, `route
 `svcore/sweep`, `app/sweep_report.py`), in the order agreed. Each task is one or a few commits;
 every patch to the owner holds ALL commits since `origin/main` (see the practical notes).
 
-**Progress:** S00–S06 done (and S01b: optimize) · S07–S08 open.
+**Progress:** S00–S07 done (and S01b: optimize) · S08 open.
 
 ### S00 · Groundwork for working on two areas at once — S · **Done**
 - The Sweeps strings live in `frontend/src/sweeps/i18n.ts` (`swEn`, `swHe: typeof swEn`), spread
@@ -142,7 +142,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
   differs on a parameter not drawn is marked so); suggestions kept in the study and the report.
 - With the defaults `suggest()` answers as before (test).
 
-### S07 · Templates — S
+### S07 · Templates — S · **Done**
 - A dialog like `TemplateLibrary`: save (ask before overwriting), update, export / import a file,
   delete; the new fields (maps, table columns, explore / tolerance) included.
 
@@ -1873,3 +1873,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S01b (owner: "how does optimize min / max work, does it?"): one objective worked (worst case: min over the combinations when maximizing, max when minimizing); with 2+ the rank still came from the first only - evaluate.answer now ranks the holding sets by #score when there are 2+ objectives; variants return the best's score; GoalsStep: a sentence of what ranks now (`optimizeNow`), objective / goal named apart, the hint says what worst case means. Tests: test_sweep +1 (max / min / weights), e2e +1, `_optimize` helper renamed.
 - 2026-11-01 · S05: view.maps [{x, y, rest}] / view.scatters (optional; older studies: mapX / mapY, scatterX / scatterY as the first); `mapList` / `nextMapPair` (view.ts); svcore `map_for` (one map for the page and the report: min goals negated around pair_map - the report's map had the largest as best when minimizing), `best_set`, `slice_mask`, pair_map(only=); /api/sweep/map `rest`; the report's `maps` and figures as an ordered list (key, title, png) in HTML / Word / PDF. MapView = MapsView of MapPanel (pair, the others, ×, the edge where holding begins, a click on a cell = filters on x, y and the slice's parameters + a toast to the lines); marks carry their parameters (each map places them); ScattersView of ScatterPanel. Tests: test_sweep +1 (slice, min, report maps), e2e +1.
 - 2026-11-01 · S06: question.robust {param: {mode pct | abs | steps, value}} (optional, wired only when set); svcore grid `tolerance_levels` / `tolerance_band` / `robustness` -> #robustHolds / #robustGoal / #robustSeen, ranking among robust-holding sets (score with 2+ objectives); suggest(focus, score, rank, robust) + kind `robust` (the band's ends of the top 5); Grid.neighbours(only=). With an old request the answer is byte-identical to before (checked against the previous analysis.py). Not done on purpose: `gaps` by Latin hypercube - the greedy maximin over candidates already spreads the points, and changing it would change the answers to old requests. Frontend: RobustEditor (Goals), NextRunsView rewritten (view.next: focus / kinds / budget / result with its question key -> "the question changed" banner; kept, not undone), sweeps/next.ts (KINDS, MARK), FLAG_COLS, marks off a map's axes, the report's question and process lines. Tests: test_sweep +1, e2e +1.
+- 2026-11-01 · S07: TemplatesDialog (save / replace-asks / apply / double-click / export / import / delete; the fit = this table's share of the template's columns); `/api/sweep/templates/export` and `/import` (a template = columns + question; a taken name gets (2)); saved templates get `kind` and `saved`; saveTemplate leaves out scope and next.result / exported; the Apply / Delete submenus gave way to *Templates…* (and Ctrl+K). The e2e `save_as` helper clicks the save dialog's own button (a dialog behind it took the click). Tests: test_sweep +1, e2e +1, one adapted.

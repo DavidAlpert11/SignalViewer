@@ -8,6 +8,13 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps templates**: *Study ▾ → Templates…* opens one dialog for them - save the study as a
+  template (it asks before replacing one of the same name), see how many of each template's columns
+  this table has and its goals, apply one (or double-click it), **export one to a file** for a
+  colleague and **import** one (a taken name becomes *name (2)*), delete one. A template now keeps
+  the maps, the table's columns, robustness and next runs' choices too - but not what belongs to one
+  table's runs (keep / exclude steps, next runs' answer). *Save as a template…* stays in the menu,
+  and also asks before replacing.
 - **Sweeps: robust to a parameter, and next runs on the parameters you choose**: in Goals, **Robust
   to** takes the parameters a good set must not be fragile to (typed, as everywhere), each with how
   far it may move - ± a percentage, ± a value or ± grid steps. A set then *holds robustly* when every

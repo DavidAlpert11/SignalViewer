@@ -657,7 +657,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S04 Sets table: only holding, columns, export.
 - [x] S05 Several maps and point plots.
 - [x] S06 Next runs: parameters to explore, robustness.
-- [ ] S07 Templates dialog.
+- [x] S07 Templates dialog.
 - [ ] S08 The whole process in the report.
 
 ## Milestone 16 — 1.16.0: fixes to the investigation; when the file on screen was saved (review of 2026-10-28). Spec: TASKS.md Q122-Q123. Prepared 2026-10-29.
