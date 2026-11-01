@@ -548,6 +548,39 @@ def sweep_robust_stats(req: RobustStatsReq):
     return robust.statistics(y[idx], req.direction, req.pct, req.limit)
 
 
+class ClustersReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    columns: List[str]                    # parameters and / or per-set result columns
+    sets: Optional[List[int]] = None      # a group's sets; missing: all
+    method: str = "kmeans"                # kmeans | hierarchical | som | mds
+    k: int = 3
+    seed: int = 0
+    som: List[int] = [6, 6]
+
+
+@router.post("/api/sweep/clusters")
+def sweep_clusters(req: ClustersReq):
+    """MF09: clusters / PCA / MDS / SOM of a group's sets on the chosen columns (numeric only)."""
+    from svcore.sweep import clusters
+    p, a = _answer(req.id, req.question)
+    idx = np.arange(p.n_sets) if req.sets is None else np.asarray([i for i in req.sets if 0 <= i < p.n_sets], dtype=np.int64)
+    cols: Dict[str, Any] = {}
+    for c in req.columns:
+        if c in p.params:
+            v = pd.to_numeric(pd.Series(p.df[c].to_numpy()[p.first_row]), errors="coerce").to_numpy(dtype=float)
+        elif c in a["data"]:
+            v = np.asarray(a["data"][c], dtype=float)
+        else:
+            fail(400, f"No column named {c!r}")
+        cols[c] = v[idx]
+    try:
+        r = clusters.analyse(cols, req.method, req.k, req.seed, req.som)
+    except clusters.ClusterError as e:
+        fail(400, str(e))
+    return {**r, "sets": idx.tolist()}
+
+
 class McdmReq(BaseModel):
     values: List[List[Optional[float]]]   # the group's sets x objectives (worst cases)
     directions: List[str]

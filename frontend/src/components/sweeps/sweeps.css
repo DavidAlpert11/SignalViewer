@@ -622,3 +622,12 @@
 .sw-robust-table th, .sw-robust-table td { padding: 2px 8px; text-align: start; border-bottom: 1px solid var(--border, transparent); }
 .sw-robust-plot svg { max-width: 360px; width: 100%; }
 .sw-robust-plot circle.kept { fill: var(--focus); }
+
+/* MF09 the sets' shape */
+.sw-shape { display: flex; flex-direction: column; gap: 6px; }
+.sw-shape-bar { flex-wrap: wrap; gap: 8px; }
+.sw-shape-plane svg { width: 100%; max-height: 300px; }
+.sw-som-grid { display: grid; gap: 2px; max-width: 360px; }
+.sw-som-node { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 3px; font-size: 11px; color: inherit;
+  background: color-mix(in srgb, var(--line-strong) calc(var(--u, 0) * 100%), transparent); cursor: pointer; }
+.sw-som-node:disabled { cursor: default; opacity: 0.5; }
