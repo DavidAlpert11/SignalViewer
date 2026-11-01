@@ -42,6 +42,7 @@ network. Open the files, see what is wrong, compare, report; then make the same 
 - **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline.
 - **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA); the same change on many signals at once (`x*8` or `sin(x)` on each one selected); unit conversions (rad → deg, m/s → km/h, m → ft…).
 - **Investigate** – from "something went wrong" to an answer you can show: name the moments that matter (`abs(Roll - DesRoll) > 5`), see which signal left its usual range first and how long after, check it against the other runs, the error per axis in one click, findings and an investigation report. Try it on the built-in example with a known answer.
+- **Sweeps** – a second work area for a run envelope's results table: which parameter sets hold in every scenario and which is best - goals, a parallel plot filtered as in HiPlot, maps, robustness, what to run next; **Explore** tries a goal's limits and objectives as sliders, live in the plot and the table.
 - **Reports** – offline HTML, PDF and Word; one per file from the command line.
 - **CI** – `signalviewer-cli check` (limits) and `compare` (against a golden run) with exit codes and JUnit XML.
 - **Any recording** – CAN with a `.dbc`, raw binary packets from a layout (ICD), or your own format as a short Python reader.
@@ -88,6 +89,15 @@ a serial radio). The link is recorded to a `.tlog` that opens like any file and 
 *Follow* keeps the last seconds in view.
 
 <p align="center"><img src="docs/media/05_live_mavlink.gif" alt="Live MAVLink: attitude and altitude growing as the vehicle sends them" width="100%"></p>
+
+### Which tuning holds in every scenario
+
+**Sweeps** reads a results table with a row per run. Set what must hold in every scenario and what
+to optimize; *Explore this goal* turns every parameter's range and every objective's threshold into
+a slider, and the parallel plot and the table follow each move – here 8 of 45 controller tunings are
+left, the best one drawn thick.
+
+<p align="center"><img src="docs/images/23_sweeps_explore.png" alt="Sweeps, Explore: limits and objectives as sliders, the parallel plot and the table showing the 8 parameter sets left" width="100%"></p>
 
 > Higher-quality MP4 versions of these clips are in [`docs/media/`](docs/media).
 
@@ -144,6 +154,7 @@ signalviewer-cli export flight.bin --signals "ATT.Roll,ATT.Pitch" --out roll.csv
 signalviewer-cli report --template "ArduPilot · Full review" --out reports/ logs/*.bin
 signalviewer-cli check  runs/*.csv --checks checks.json --junit results.xml     # exit 1 on a broken limit
 signalviewer-cli compare golden.csv new/*.csv --tol-pct 2 --allow-outside 0.5   # against a golden run
+signalviewer-cli sweep results.csv --question study.svsweep                     # which parameter sets hold (exit 1: none)
 signalviewer-cli validate                                                       # the numerical validation, here
 ```
 
@@ -197,6 +208,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה. העבודה שנעשתה על קובץ אחד מועתקת לקובץ אחר בצעד אחד (שינויים, סיגנלים חדשים, גרפים - כל אחד מהם), קבצים מקושרים ממשיכים לקבל אותה, ואפשר לנקות עבודה של קובץ אחד בלבד.
 - לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – המרת יחידות (רדיאנים למעלות, ‏m/s ל־km/h ועוד) ופעולות Python משלכם.
 - לחקור: מ"משהו השתבש בטיסה" לתשובה שאפשר להראות – לתת שם לרגעים שחשובים (<code dir="ltr">abs(Roll - DesRoll) > 5</code>), לראות איזה סיגנל יצא מהטווח הרגיל שלו ראשון ובכמה זמן לפני, לבדוק מול הריצות האחרות, שגיאה לכל ציר בקליק אחד, ממצאים ודוח חקירה. אפשר לנסות על דוגמה מובנית שהתשובה שלה ידועה.
+- לכייל על פני מעטפת ריצות: טבלת תוצאות עם שורה לכל ריצה – אילו סטים של פרמטרים עומדים בכל התרחישים ומי מהם הכי טוב: מטרות, גרף קואורדינטות מקבילות, מפות, חסינות והריצות הבאות; **חקירה** מנסה את המגבלות והיעדים של מטרה כמחוונים, והגרף והטבלה מתעדכנים בכל הזזה.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.
 - לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים.

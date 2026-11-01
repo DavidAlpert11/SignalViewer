@@ -1,11 +1,16 @@
 # Changelog
 
-## Unreleased
+## 1.17.0 – 2026-11-01
 
-Highlights: **work areas**, ready for more than recordings, **names on the tool rail**, **a welcome screen that shows what the app does** - the examples as cards, each saying
-what it shows - and **one place for messages**, above the timeline. Fixes: a **line width** you
-choose is drawn, and **limits** show as soon as they are set. Nothing changes in results, sessions or
-templates you already have.
+Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row
+per run, and the question *which parameters hold in every scenario, and which of them is best?*
+answered step by step: the columns' roles, goals with conditions and objectives (several, compared),
+a parallel plot filtered as in HiPlot, maps, robustness, what to run next and a report of the whole
+process; **Explore** tries a goal's limits, ranges and objectives as sliders, live in the lines and
+the table. Also **work areas**, **names on the tool rail**, **a welcome screen that shows what the
+app does** and **one place for messages**. Fixes: a **line width** you choose is drawn, and
+**limits** show as soon as they are set. Nothing changes in results, sessions or templates you
+already have.
 
 ### Added
 - **Sweeps: Explore** - a new tab of the results, a draft of the active goal where everything works

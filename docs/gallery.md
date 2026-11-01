@@ -11,5 +11,6 @@
 | <img src="images/16_live_mavlink.png" alt="Live MAVLink"><br>**Live MAVLink** – UDP / TCP / serial, recorded as it arrives; only listens unless asked | <img src="images/17_fft_motor_orders.png" alt="Motor orders on a spectrum"><br>**Motor orders** – 1×, 2×, 3× the rotation rate and the blade pass, over the spectrum's window |
 | <img src="images/18_frames.png" alt="Coordinate frames with a plot per axis"><br>**Coordinate frames** – LLA → NED and more, previewed in a plot per axis, created as one group | <img src="images/01_overview.png" alt="Four plots, two cursors and statistics"><br>**Every signal at a glance** – its unit, rate and a small picture in the file list |
 | <img src="images/02_dark_theme.png" alt="Dark theme"><br>**Dark theme** | <img src="images/12_hebrew_rtl.png" alt="Hebrew interface"><br>**עברית** – full Hebrew interface, right to left |
+| <img src="images/23_sweeps_explore.png" alt="Sweeps, Explore"><br>**Sweeps** – which parameter sets hold in every scenario; Explore: limits and objectives as sliders, live in the plot and the table | |
 
 ---
