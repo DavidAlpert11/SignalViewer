@@ -5,13 +5,22 @@ import type { Col, MapSpec, PlotStyle, Role, Scale } from "./model";
 import { wireQuestion, type Study } from "./state";
 import { keptMask } from "./filters";
 import { FLAG_COLS } from "./colors";
+import { groupColumn, hiddenMask } from "./groups";
 
 /** The columns the plot draws: one entry per parameter set, or per run. */
 export function modeColumns(s: Study): { cols: Map<string, Col>; n: number } {
   const a = s.answer;
   if (!a) return { cols: new Map(), n: 0 };
   const list = s.view.mode === "runs" && a.runs ? a.runs.columns : a.sets;
-  return { cols: new Map(list.map((c) => [c.name, c])), n: list[0]?.values.length ?? 0 };
+  const cols = new Map(list.map((c) => [c.name, c]));
+  const n = list[0]?.values.length ?? 0;
+  // colour = group (MF00): the sets' group, per run in the runs mode
+  if (s.view.groups?.length) {
+    const g = groupColumn(a, s.view.groups);
+    const setOf = s.view.mode === "runs" && a.runs ? cols.get("#set")?.values : null;
+    cols.set("#group", setOf ? { ...g, values: Float32Array.from(setOf, (k) => g.values[k]) } : g);
+  }
+  return { cols, n };
 }
 
 /** The table's columns of a role that the question uses: a column taken out in *Clean columns* is
@@ -74,6 +83,7 @@ export function colLabel(t: TFn, s: Study, name: string): string {
   if (name === "#complete") return t("swCompleteCol");
   if (name === "#set") return t("swSetCol");
   if (name === "#pareto") return t("swParetoCol");
+  if (name === "#group") return t("swGroupsCol");
   if (name === "#score") return t("swScoreCol");
   if (name === "#neighbours") return t("swNeighboursCol");
   if (name === "#tolerance") return t("swToleranceCol");
@@ -106,7 +116,7 @@ export function axisChoices(s: Study): string[] {
   const { cols } = modeColumns(s);
   const out: string[] = [];
   for (const c of cols.values()) {
-    if (c.name === "#set" || c.name === "#row") continue;
+    if (c.name === "#set" || c.name === "#row" || c.name === "#group") continue;
     const meta = s.answer?.sets.find((x) => x.name === c.name);
     if (s.view.hideConstant && meta?.constant) continue;
     if (s.view.hideFlat && meta?.flat) continue;
@@ -132,8 +142,13 @@ export function scopeKey(s: Study): string {
 export function scopeMask(s: Study): Uint8Array | null {
   const sc = s.view.scope;
   const n = s.answer?.sets[0]?.values.length ?? 0;
-  if (!sc.steps.length || sc.key !== scopeKey(s) || !n) return null;
+  // a hidden group (its eye) leaves every plot and the table, like an exclude step
+  const hid = s.answer && s.view.groups?.length ? hiddenMask(s.answer, s.view.groups) : null;
+  if ((!sc.steps.length || sc.key !== scopeKey(s)) && !hid) return null;
+  if (!n) return null;
   const m = new Uint8Array(n).fill(1);
+  if (hid) for (let i = 0; i < n; i++) if (hid[i]) m[i] = 0;
+  if (!sc.steps.length || sc.key !== scopeKey(s)) return m;
   for (const st of sc.steps) {
     const on = new Set(st.sets);
     for (let i = 0; i < n; i++) if (m[i] && (st.kind === "keep" ? !on.has(i) : on.has(i))) m[i] = 0;

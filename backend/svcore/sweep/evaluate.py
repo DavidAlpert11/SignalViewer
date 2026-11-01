@@ -204,7 +204,10 @@ def answer(p: Prepared, q: Dict) -> Dict:
         add(f"#c{i}.worst", r["worst"], "condition", condition=i, label=label, part="worst")
         add(f"#c{i}.margin", r["margin"], "condition", condition=i, label=label, part="margin")
         add(f"#c{i}.passed", r["passed"], "condition", condition=i, label=label, part="passed")
-        conds.append({"label": label, "column": c.get("column"), "met": int(r["ok"].sum())})
+        need_c = np.asarray(r["needed"], dtype=float)
+        conds.append({"label": label, "column": c.get("column"), "met": int(r["ok"].sum()),
+                      # MF00: "fails in k of n" - the combinations a set must pass (the most any set needs)
+                      "needed": int(np.nanmax(need_c)) if need_c.size and np.isfinite(need_c).any() else 0})
     holds = complete & met
     goal = q.get("goal") or None
     rank = np.full(p.n_sets, np.nan)
