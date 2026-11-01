@@ -13,6 +13,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Milestone 23 (Sweeps toward modeFRONTIER) started: MF00 part 1 of 2** - the group model, backend
+  (`svcore/sweep/groups.py`) and page (`sweeps/groups.ts`), saved as `view.groups` (optional). Owner's
+  two open choices taken as recommended in the brief (change them here if not): the brush is saved
+  as a **live rule** by default (Shift: frozen ids); the five stages become three areas only
+  **after MF02**. Next: MF00 part 2 (below).
 - Branch `main`. **1.17.0 prepared 2026-11-01** (Milestones 17-19 in ROADMAP.md, S00-S23 - the
   Sweeps area, Explore - and the work areas, the tool rail's names, the welcome screen, one place for
   messages). The owner pushes, waits for the green `ci` run, tags `v1.17.0` and pushes the tag
@@ -2192,3 +2197,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · Q124-Q126 queued from the owner's notes: a new signal (ƒ) in the investigation (the derived run is left out of *What changed first* and the others' file scopes); a signal slower than its recording (detect, its updates - by change or N Hz - as a part of the per-signal edit, operations over the updates); an update flag choosing a value's samples (the same mechanism, the flag read by previous sample). Two owner's choices marked.
 - 2026-11-01 · Owner's answers: Q125 in place (+ tag; `phase` / `delay` in the rate mode); Q126 widened to an update clock (+ *like another signal*, set for a selection); the flag kind still open. Q127-Q129 queued (operations by the selection, the same formula for other indices, typed values in Explore). docs/dev/SWEEPS_MODEFRONTIER.md: modeFRONTIER's capabilities against Sweeps, MF01-MF10 and a design.
 - 2026-11-01 · SWEEPS_MODEFRONTIER.md revised from web sources (findings marked verified / unverified, capability map corrected, licences of open replacements); decision: a group of designs is the central concept, three areas (Problem, Run, Explore) instead of five stages; MF00 and MF11 added; §6 is the brief for the implementing agent.
+- 2026-11-01 · MF00 part 1: groups of parameter sets - set ids from parameter values, live rule (the axes' filters, compared as Float32 like the page) or frozen ids, automatic groups (all / holds / Pareto / fails = complete and not holding / error = an output missing / suggested), ∪ ∩ ∖, status per set, failed conditions per set; `view.groups` + `view.activeGroup` optional in .svsweep, in undo; pytest 904 passed, mypy clean, tsc + build clean (dist not committed). Left for part 2: Explore's groups panel (colour, name, count, eye, active, menu), *Save as group* (Shift: frozen) from the brush, the table's status stripe / failed cell / ≈ virtual / group chips / checkbox *marked* vs pinned, colour by group, i18n (he/en), an e2e that an old .svsweep opens with the automatic groups only. Note: "fails in k of n" needs the condition's `needed` sent with the answer (evaluate.py has it; not in the answer's columns yet).
