@@ -4,6 +4,7 @@
 import { useT } from "../../i18n";
 import { useSweeps, type Study } from "../../sweeps/state";
 import DoeSheet from "./DoeSheet";
+import RunStepPanel from "./RunStepPanel";
 
 export function RunSide() {
   const t = useT();
@@ -20,6 +21,7 @@ export function RunCenter({ study }: { study: Study }) {
   return (
     <div className="sw-run-quiet">
       {study.answer && <DoeSheet study={study} />}
+      {study.answer && <RunStepPanel study={study} />}
       <h3>{t("swRunNoStep")}</h3>
       <p>{t("swRunToday")}</p>
       <ol>
