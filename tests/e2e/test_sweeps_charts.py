@@ -71,3 +71,27 @@ def test_every_pane_kind_and_a_group_per_pane(pg):
     pane.locator("select[aria-label='Group']").select_option("holds")
     pg.wait_for_function("document.querySelector('.sw-broken-n').innerText.startsWith('0 of')")
     assert allfail != pg.locator(".sw-broken-n").first.inner_text()
+
+
+def test_principal_components_clusters_as_groups_and_a_som(pg):
+    """MF09: the sets on their first two principal components, k-means clusters kept as groups (one
+    per cluster, together every set); a map by distances; a self-organising map whose node is a group."""
+    _charts(pg)
+    pane = pg.locator(".sw-pane").nth(0)
+    pane.locator("select[aria-label='Chart']").select_option("pca")
+    pg.wait_for_selector(".sw-pane[data-kind='pca'] .sw-shape-plane svg[data-points='45']")
+    assert "PC1 (" in pane.inner_text()
+    pane.locator("input[aria-label='How many clusters']").fill("3")
+    pane.locator(".btn", has_text="Keep the 3 clusters as groups").click()
+    pg.wait_for_selector(".toast:has-text('3 groups saved')")
+    pg.wait_for_function("document.querySelectorAll('.sw-groups .sw-group:not(.auto)').length === 3")
+    n = sum(int(x) for x in pg.locator(".sw-groups .sw-group:not(.auto) .sw-group-n").all_inner_texts())
+    assert n == 45
+    pane.locator("select[aria-label='Clusters by']").select_option("mds")
+    pg.wait_for_selector(".sw-pane[data-kind='pca'] figcaption:has-text('Stress')")
+    pane.locator("select[aria-label='Chart']").select_option("som")
+    pg.wait_for_selector(".sw-pane[data-kind='som'] .sw-som-node")
+    hits = [int(x or 0) for x in pg.locator(".sw-som-node").all_inner_texts()]
+    assert sum(hits) == 45
+    pg.locator(".sw-som-node:not([disabled])").first.click()
+    pg.wait_for_selector(".sw-groups .sw-group:not(.auto):has-text('Map node')")

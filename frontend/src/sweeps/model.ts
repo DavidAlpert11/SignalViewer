@@ -137,8 +137,10 @@ export type Center = "lines" | "explore" | "charts" | "effects" | "model" | "map
 export const CENTERS: Center[] = ["lines", "explore", "charts", "effects", "model", "map", "scatter", "next", "health", "compare"];
 
 /** MF02: a pane of the chart desktop and what it shows. */
-export type PaneKind = "lines" | "scatter" | "bubble" | "histogram" | "box" | "matrix" | "map" | "history" | "pareto" | "compare" | "broken";
+export type PaneKind = "lines" | "scatter" | "bubble" | "histogram" | "box" | "matrix" | "map" | "history" | "pareto" | "compare" | "broken" | "pca" | "som";
 export interface DeskPane { kind: PaneKind; x?: string; y?: string; size?: string; columns?: string[]; corr?: "pearson" | "spearman";
+  /** MF09 (pca): clusters by k-means or hierarchical, or a map by distances; k clusters */
+  method?: "kmeans" | "hierarchical" | "mds"; k?: number;
   /** only this group's sets (an automatic group, "marked" or a user group's id; missing: all) */
   group?: string }
 

@@ -15,11 +15,12 @@ import { useSweeps, type Study } from "../../sweeps/state";
 import { axisChoices, colLabel, groupRows, scaleOf, scopedColumns, shownAxes } from "../../sweeps/view";
 import { MapPanel } from "./MapView";
 import ParallelPlot from "./ParallelPlot";
+import { ShapePane } from "./ShapePane";
 import { ScatterPanel } from "./ScatterView";
 
-export const PANE_KINDS: PaneKind[] = ["lines", "scatter", "bubble", "histogram", "box", "matrix", "map", "history", "pareto", "compare", "broken"];
+export const PANE_KINDS: PaneKind[] = ["lines", "scatter", "bubble", "histogram", "box", "matrix", "map", "history", "pareto", "compare", "broken", "pca", "som"];
 const KIND_KEY: Record<PaneKind, TKey> = { lines: "swPaneLines", scatter: "swPaneScatter", bubble: "swPaneBubble", histogram: "swPaneHistogram", box: "swPaneBox",
-  matrix: "swPaneMatrix", map: "swPaneMap", history: "swPaneHistory", pareto: "swPaneParetoKind", compare: "swPaneCompare", broken: "swPaneBroken" };
+  matrix: "swPaneMatrix", map: "swPaneMap", history: "swPaneHistory", pareto: "swPaneParetoKind", compare: "swPaneCompare", broken: "swPaneBroken", pca: "swPanePca", som: "swPaneSom" };
 const AUTO_KEYS: Record<string, TKey> = { all: "swGrpAll", holds: "swGrpHolds", pareto: "swGrpPareto", fails: "swGrpFails", error: "swGrpError", marked: "swGrpMarked" };
 const BINS = 20;
 
@@ -92,7 +93,7 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
     const p: Partial<DeskPane> = { kind: k };
     if ((k === "scatter" || k === "bubble") && !pane.y) p.y = choices[1] ?? choices[0];
     if (k === "bubble" && !pane.size) p.size = choices[2] ?? choices[0];
-    if (k === "matrix" && !pane.columns?.length) p.columns = choices.slice(0, 4);
+    if ((k === "matrix" || k === "pca" || k === "som") && !pane.columns?.length) p.columns = choices.slice(0, 4);
     if (k === "map") { const ps = study.answer?.sets.filter((c) => c.group === "param").map((c) => c.name) ?? []; p.x = ps[0]; p.y = ps[1]; }
     onChange(p);
   };
@@ -107,6 +108,7 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
           {Object.entries(AUTO_KEYS).map(([k, key]) => <option key={k} value={k}>{t(key)}</option>)}
           {(study.view.groups ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
         </select></label>
+        {(pane.kind === "pca" || pane.kind === "som") && <MatrixColumns study={study} value={pane.columns ?? []} onChange={(columns) => onChange({ columns })} />}
         {pane.kind === "matrix" && <>
           <select aria-label={t("swCorr")} value={pane.corr ?? "pearson"} onChange={(e) => onChange({ corr: e.target.value as "pearson" | "spearman" })}>
             <option value="pearson">Pearson</option><option value="spearman">Spearman</option></select>
@@ -129,6 +131,7 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
       {pane.kind === "box" && <BoxPlot study={study} column={pane.x ?? choices[0]} group={g} />}
       {pane.kind === "matrix" && <Matrix study={study} columns={(pane.columns ?? []).filter((c) => choices.includes(c))} corr={pane.corr ?? "pearson"} group={g} />}
       {pane.kind === "broken" && <Broken study={study} group={g} />}
+      {(pane.kind === "pca" || pane.kind === "som") && <ShapePane study={study} pane={{ ...pane, columns: (pane.columns ?? []).filter((c) => choices.includes(c)) }} group={g} onChange={onChange} />}
     </section>
   );
 }
