@@ -8,6 +8,7 @@ import { fmtValue } from "../../sweeps/scales";
 import { wireQuestion, type Study } from "../../sweeps/state";
 import { styleOf } from "../../sweeps/view";
 import StyleMenu from "./StyleMenu";
+import SensitivityTable from "./SensitivityTable";
 
 export default function EffectsView({ study }: { study: Study }) {
   const t = useT();
@@ -26,6 +27,7 @@ export default function EffectsView({ study }: { study: Study }) {
   const order = [...e.params].sort((a, b) => b.importance - a.importance);
   return (
     <div className="sw-effects">
+      <SensitivityTable study={study} />
       <div className="sw-row"><span className="hint">{what}</span><span className="sw-add-map" />
         <StyleMenu study={study} parts={["grid"]} /></div>
       <div className="sw-effects-grid">

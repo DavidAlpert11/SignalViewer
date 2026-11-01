@@ -92,6 +92,8 @@ export const sweepApi = {
   set: (id: string, question: WireQuestion, set: number) => call<SetDetail>("/api/sweep/set", { id, question, set }),
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => call<SweepOpened>("/api/sweep/open-rows", { name, columns, rows }),
   effects: (id: string, question: WireQuestion) => call<Effects>("/api/sweep/effects", { id, question }),
+  sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
+    call<Sensitivity>("/api/sweep/sensitivity", { id, question, column, sets, threshold }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
     call<PairMap & { rest: "all" | "best"; fixed: Record<string, string | number | null> | null; goal: boolean; direction: "max" | "min"; bestAt: [number, number] | null }>("/api/sweep/map", { id, question, x, y, rest }),
   suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number, focus: string[] | null) =>
@@ -123,3 +125,13 @@ export const sweepApi = {
   exportRerun: (id: string, question: WireQuestion, sets: number[], onlyMissing: boolean, path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/export", { id, question, sets, onlyMissing, path }),
 };
+
+/** MF05: which parameter matters - per parameter its correlations, its main effect and its
+ *  interactions as shares of the variance, its Sobol indices (first, total: null when the data
+ *  cannot tell), weak under the threshold; the strongest pairs; what nothing explains. */
+export interface Sensitivity {
+  n: number; threshold: number; flat?: boolean; rest: number | null;
+  params: { name: string; pearson: number | null; spearman: number | null; main: number; interactions: number;
+    first: number; total: number | null; levels: number; weak: boolean }[];
+  pairs: { a: string; b: string; share: number }[];
+}

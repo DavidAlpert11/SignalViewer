@@ -209,6 +209,25 @@ def sweep_effects(req: MapReq):
     return sweep.effects(p, _value(a, req.question), a["data"]["#holds"])
 
 
+class SensitivityReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    column: Optional[str] = None          # a per-set column of the answer (missing: the goal, else holds)
+    sets: Optional[List[int]] = None      # only these sets (a group); missing: all
+    threshold: float = 0.05               # under this share (main + interactions): weak
+
+
+@router.post("/api/sweep/sensitivity")
+def sweep_sensitivity(req: SensitivityReq):
+    """MF05: which parameter matters - correlations, variance shares, Sobol indices from the sets."""
+    from svcore.sweep import sensitivity
+    p, a = _answer(req.id, req.question)
+    if req.column is not None and req.column not in a["data"]:
+        fail(400, f"No column named {req.column!r}")
+    value = a["data"][req.column] if req.column is not None else _value(a, req.question)
+    return sensitivity.for_sets(p, value, req.sets, threshold=max(0.0, min(1.0, req.threshold)))
+
+
 @router.post("/api/sweep/map")
 def sweep_map(req: MapReq):
     p, a = _answer(req.id, req.question)
