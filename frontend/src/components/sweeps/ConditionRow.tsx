@@ -8,6 +8,7 @@ import { activeColumns } from "../../sweeps/view";
 export default function ConditionRow({ study, i, c, outputs, met }: { study: Study; i: number; c: Condition; outputs: string[]; met?: number }) {
   const t = useT();
   const st = useSweeps.getState();
+  const params = activeColumns(study, "param");
   const active = new Set(activeColumns(study, "hold"));
   const holds = study.columns.filter((x) => active.has(x.name));
   const up = (p: Partial<Condition>) => st.updateCondition(i, p);
@@ -15,7 +16,9 @@ export default function ConditionRow({ study, i, c, outputs, met }: { study: Stu
     <div className="sw-cond">
       <div className="sw-cond-line">
         <select aria-label={t("swCondColumn")} value={c.column} onChange={(e) => up({ column: e.target.value })}>
-          {outputs.map((o) => <option key={o} value={o}>{o}</option>)}
+          {/* a parameter too (a limit saved from Explore is a condition on one, S21) */}
+          <optgroup label={t("swRoleOutput")}>{outputs.map((o) => <option key={o} value={o}>{o}</option>)}</optgroup>
+          {params.length > 0 && <optgroup label={t("swRoleParam")}>{params.map((o) => <option key={o} value={o}>{o}</option>)}</optgroup>}
         </select>
         <select aria-label={t("swCondOp")} value={c.op} onChange={(e) => up({ op: e.target.value as Op })}>
           {OPS.map((o) => <option key={o} value={o}>{o}</option>)}

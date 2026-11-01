@@ -1048,3 +1048,48 @@ def test_the_best_set_while_editing_a_goal(pg):
     pg.locator(".sw-side-step .sw-best .btn", has_text="Open it").click()
     pg.wait_for_selector(".sw-detail")
     assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "5"
+
+
+def test_explore_a_draft_of_the_goal_and_save_it(pg):
+    """S21: Explore - conditions dragged as what if, a limit on a parameter, a second objective and a
+    threshold, all together; the goal does not change until saved; saved as a new goal it holds for
+    exactly the sets Explore left."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")
+    holding = _holding(pg)
+    pg.locator(".sw-center-tabs button", has_text="Explore").click()
+    pg.wait_for_selector(".sw-funnel")
+    funnel = lambda: [int(x.replace(",", "")) for x in pg.locator(".sw-funnel li b").all_inner_texts()]
+    assert funnel()[:2] == [45, holding]
+    # what if roll_error_deg <= 6: more sets, the goal itself unchanged
+    pg.locator(".sw-explore-row", has_text="roll_error_deg <=").locator("input[type='range']").fill("6")
+    pg.wait_for_function(f"+document.querySelectorAll('.sw-funnel li b')[1].innerText > {holding}")
+    assert "differs from Goal 1 in" in pg.locator(".sw-explore-status").inner_text()
+    assert _holding(pg) == holding
+    # a limit on kp_roll, a second objective, a threshold
+    pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="Parameters to limit").click()
+    pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
+    pg.keyboard.press("Escape")
+    pg.locator(".sw-explore-row", has_text="kp_roll").locator("input[aria-label='kp_roll up to']").fill("0.2")
+    pg.wait_for_function("+document.querySelectorAll('.sw-funnel li b')[2].innerText < +document.querySelectorAll('.sw-funnel li b')[1].innerText")
+    pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="Objectives").click()
+    pg.locator(".sw-colpick-pop .msp-item", has_text="settle_time_s").locator("input").check()
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".sw-explore-pareto svg")
+    obj = pg.locator(".sw-explore-obj", has_text="settle_time_s")
+    obj.locator(".sw-dir").click()                                               # ↑ max -> ↓ min
+    obj.locator("label", has_text="good enough at").locator("input[type='checkbox']").check()
+    f = funnel()
+    assert f[3] <= f[2] and pg.locator(".sw-explore .sw-best:has-text('kp_roll = ')").count() == 1
+    left = funnel()[3]
+    # saved as a new goal: the goal holds for exactly what Explore left
+    pg.locator(".sw-explore-status .btn", has_text="Save as a goal").click()
+    pg.locator(".menu.ctx button", has_text="As a new goal").click()
+    pg.wait_for_selector(".toast:has-text('Saved: Goal 2')")
+    pg.wait_for_function(f"document.querySelector('.sw-answer-n') && document.querySelector('.sw-answer-n').innerText.startsWith('{left} ')")
+    _step(pg, "goals")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-tabs button[role=\"tab\"]').length === 2")
+    cols = pg.evaluate("""() => [...document.querySelectorAll('.sw-cond select[aria-label="Column"]')].map(e => e.value)""")
+    assert "kp_roll" in cols and len(cols) >= 3                                  # the limit is a condition on the parameter
