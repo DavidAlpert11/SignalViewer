@@ -251,3 +251,24 @@ def test_a_flight_log_leaves_out_the_clocks_and_constants_and_counts_them(pg):
     pg.click(".wc-skipped")
     pg.wait_for_selector(".wc-skiplist li")
     assert "GPS[0].GMS [s]" in pg.inner_text(".wc-skiplist")
+
+
+def test_who_leads_whom_above_the_clusters(pg):
+    """Q134: on the demo the chain says Motor3 leads Roll (the built delay, 80-180 ms) and Wind leads
+    the others; a click on a node opens its cluster."""
+    open_files(pg, "heavy_payload.csv", "light_payload.csv")
+    pg.locator(".sig").filter(has=pg.get_by_text("Roll", exact=True)).first.click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: true, t1: 38.46, t2: 39.24, active: 1 } })")
+    pg.wait_for_selector(".sel-bar:not([hidden])")
+    pg.click(".sel-bar:not([hidden]) .sel-changed")
+    pg.wait_for_selector(".wc-chain-list li")
+    lines = pg.locator(".wc-chain-list li").all_inner_texts()
+    m3 = next(x for x in lines if x.startswith("Motor3 → Roll"))
+    s = float(m3.split("+")[1].split(" s")[0])
+    assert 0.08 <= s <= 0.18 and "causes" not in " ".join(lines)
+    assert any(x.startswith("Wind → ") for x in lines)
+    before = pg.locator(".wc-cluster.open").count()
+    pg.locator(".wc-chain-node").nth(2).click()                    # Motor3's node: its cluster opens
+    pg.wait_for_function(f"document.querySelectorAll('.wc-cluster.open').length === {before + 1}")
+    assert pg.locator(".wc-cluster.open .wc-chead", has_text="Motor3").count() == 1

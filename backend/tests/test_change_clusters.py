@@ -84,3 +84,21 @@ def test_route_returns_clusters_scores_and_skipped(tmp_path):
         assert 0 < a["score"] <= 1 and set(a["parts"]) == set(r["weights"])
     finally:
         store.remove(rid)
+
+
+def test_a_chain_of_who_leads_whom(tmp_path):
+    """Q134: A steps, B follows it 0.3 s later (shaped like it), the event follows B; N is noise that
+    changes once on its own: edges A -> B and B -> Event (and A -> Event), none to or from N."""
+    a_ = _noise() + 3 * (T >= 2.0)
+    b_ = _noise() + 3 * (T >= 2.3)
+    ev = _noise() + 3 * (T >= 2.6)
+    n_ = RNG.normal(0, 0.05, len(T)) + 4 * ((T >= 1.2) & (T < 1.22))
+    st = Store()
+    rid = st.open_file(_csv(tmp_path / "ch.csv", {"A": a_, "B": b_, "Event": ev, "N": n_})).id
+    items = st.first_changes([], [rid], 2.6, 3.0, (0.2, 1.0))
+    ch = st.change_clusters(items, 2.6, 3.0, [], event=f"{rid}/Event")["chain"]
+    pairs = {(e["a"].split("/")[1], e["b"].split("/")[1]): e for e in ch["edges"]}
+    assert ("A", "B") in pairs and ("B", "Event") in pairs
+    assert pairs[("A", "B")]["lag"] == pytest.approx(0.3, abs=0.03) and pairs[("A", "B")]["r"] > 0.8
+    assert not any("N" in k for k in pairs)
+    assert [n["id"].split("/")[1] for n in ch["nodes"]][-1] == "Event"

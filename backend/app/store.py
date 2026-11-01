@@ -822,7 +822,42 @@ class Store:
             c["ids"].sort(key=lambda i: (i == event, bool(by[i]["inRef"]), -by[i]["score"]))
             c["best"] = max((by[i]["score"] for i in c["ids"] if i != event), default=0.0)
         cl.sort(key=lambda c: -c["best"])
-        return {"clusters": cl, "event": event}
+        return {"clusters": cl, "event": event, "chain": self._chain(cl, by, event, a, b, start)}
+
+    def _chain(self, cl: List[dict], by: Dict[str, dict], event: Optional[str], a: float, b: float, start: float,
+               nodes_max: int = 8) -> dict:
+        """Q134: who leads whom among the clusters' best members (and the event's signal): the lag of
+        each pair, an edge A -> B only when B follows A clearly (a positive lag, no near-equal second
+        peak, a match of 0.5 or more) and A changed first. "Leads", never "causes"."""
+        from svcore.firstchange import lag
+        picks = []
+        for c in cl[:nodes_max]:
+            best = next((i for i in c["ids"] if i != event and not by[i]["inRef"]), None) or next((i for i in c["ids"] if i != event), None)
+            if best:
+                picks.append(best)
+        if event in by and event not in picks:
+            picks.append(event)
+        picks.sort(key=lambda i: by[i]["t"])
+        sig: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        for i in picks:
+            try:
+                sig[i] = self.signal(i)
+            except (KeyError, ValueError):
+                pass
+        L = b - a
+        pad = max(L, a - start)
+        edges = []
+        for j, p in enumerate(picks):
+            for q in picks[j + 1:]:
+                if p not in sig or q not in sig or by[q]["t"] <= by[p]["t"]:
+                    continue
+                r = lag(sig[p][0], sig[p][1], sig[q][0], sig[q][1], start - pad, b + pad, max_lag=pad)
+                lg, rr = r.get("lag"), r.get("r")
+                if (r.get("status") == "ok" and not r.get("weak") and not r.get("ambiguous")
+                        and isinstance(lg, float) and isinstance(rr, float) and lg > 0 and abs(rr) >= 0.5):
+                    edges.append({"a": p, "b": q, "lag": lg, "r": rr})
+        home = {i: c["first"] for c in cl for i in c["ids"]}
+        return {"nodes": [{"id": i, "t": by[i]["t"], "cluster": home.get(i)} for i in picks], "edges": edges}
 
     def suggest_condition(self, sig_ids: List[str], a: float, b: float) -> dict:
         """"Find similar": of these signals, the one most unusual inside the selection [a, b] (its
