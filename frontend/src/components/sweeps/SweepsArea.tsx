@@ -393,7 +393,7 @@ function ResultsCenter({ study }: { study: Study }) {
           <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}</p>
           {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
           {axes.length ? (
-            <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
+            <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
               filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
               onPick={(r) => st.setView({ pinned: setOfRow(r) })}
               onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}

@@ -8,6 +8,9 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps, many columns**: when the lines are wider than the screen, a **slider** under them says
+  which axes are on screen (*axes 5–13 of 42*) and moves along them - dragged, clicked, or with the
+  keys (Home / End) - besides the mouse wheel; *Fit to width* puts every axis in and the slider goes.
 - **Sweeps: the optimization in the plots, and choosing on a Pareto plot**: when a goal is set the
   lines get its axes - the goal, the **rank**, each further objective's worst case and the weighted
   **score** - so dragging on *rank* keeps the best few and the parameters' axes show what they

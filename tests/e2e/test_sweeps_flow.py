@@ -466,8 +466,18 @@ def test_many_columns_scroll_pick_and_panels(pg, tmp_path):
     sc.hover()
     pg.mouse.wheel(0, 400)
     pg.wait_for_function("document.querySelector('.pp-scroll').scrollLeft > 100")
+    # S13: a slider under the plot says where the view is and moves it
+    slider = pg.locator(".pp-slider input[type='range']")
+    assert "axes 1–" not in pg.locator(".pp-slider-at").inner_text()             # the wheel moved it already
+    slider.focus(); pg.keyboard.press("End")
+    pg.wait_for_function("(() => { const e = document.querySelector('.pp-scroll'); return e.scrollLeft >= e.scrollWidth - e.clientWidth - 2; })()")
+    pg.wait_for_function("document.querySelector('.pp-slider-at').innerText.endsWith('–42 of 42 on screen')")
+    slider.focus(); pg.keyboard.press("Home")
+    pg.wait_for_function("document.querySelector('.pp-scroll').scrollLeft === 0")
+    pg.wait_for_function("document.querySelector('.pp-slider-at').innerText.startsWith('axes 1–')")
     pg.locator(".sw-plotbar .btn", has_text="Fit to width").click()
     pg.wait_for_function("(() => { const e = document.querySelector('.pp-scroll'); return e.scrollWidth <= e.clientWidth + 1; })()")
+    assert pg.locator(".pp-slider").count() == 0
     # typed: only the columns whose name matches
     pg.locator(".sw-plotbar .sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop input[aria-label='Type part of a name…']").fill("out_0")

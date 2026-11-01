@@ -142,7 +142,7 @@ export function RawPlot({ study }: { study: Study }) {
         {Object.keys(filters).length > 0 && <button className="btn outline" onClick={() => setFilters({})}>{t("swClearFilters", { n: Object.keys(filters).length })}</button>}
         <button className="btn outline" onClick={exportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
       </div>
-      <ParallelPlot cols={cols} n={n} axes={axes} scaleOf={scaleOf} reversed={reversed} colorBy={colorBy} filters={filters} highlight={null}
+      <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scaleOf} reversed={reversed} colorBy={colorBy} filters={filters} highlight={null}
         labelOf={(a) => a} onPick={() => {}} onFilter={(a, f) => { const x = { ...filters }; if (f) x[a] = f; else delete x[a]; setFilters(x); }}
         onAxisMenu={(name, at) => setMenu({ name, at })}
         onMoveAxis={(name, to) => { const a = axes.filter((x) => x !== name); a.splice(to, 0, name); setAxes(a); }} height={460} />

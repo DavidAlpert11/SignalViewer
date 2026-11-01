@@ -29,6 +29,8 @@ export interface ParallelPlotProps {
   height?: number;
   /** every axis in the width on screen; otherwise each axis gets MIN_AXIS and the plot scrolls sideways */
   fit?: boolean;
+  /** the slider's words: axes a to b of n are on screen */
+  sliderLabel?: (a: number, b: number, n: number) => string;
 }
 
 /** room for an axis's ticks and name: below it the names are cut and the ticks run into each other */
@@ -243,6 +245,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     hover.x + 14 + tipW <= scrollX + viewW - 4 ? hover.x + 14 : hover.x - 14 - tipW, scrollX + viewW - tipW - 4));
   const tipTop = !hover ? 0 : Math.max(4, Math.min(hover.y - 10, height - tipH - 4));
   return (
+    <>
     <div className="pp-scroll" ref={scroller} onScroll={(e) => setScrollX((e.currentTarget as HTMLDivElement).scrollLeft)}>
     <div className="pp" style={{ height, width }}>
       <canvas ref={canvas} className={brush ? "brushing" : ""} onPointerMove={onMove} onPointerDown={onDown} onPointerUp={onUp}
@@ -278,5 +281,20 @@ export default function ParallelPlot(p: ParallelPlotProps) {
       )}
     </div>
     </div>
+    {/* wider than the screen (S13): where the view is among the axes, and a slider that moves it */}
+    {width > viewW + 1 && (() => {
+      const first = Math.max(0, p.axes.findIndex((_, i) => axisX(i) >= scrollX));
+      let last = first;
+      for (let i = 0; i < k; i++) if (axisX(i) <= scrollX + viewW) last = i;
+      const where = p.sliderLabel ? p.sliderLabel(first + 1, last + 1, k) : `${first + 1}–${last + 1} / ${k}`;
+      return (
+        <div className="pp-slider">
+          <input type="range" min={0} max={Math.round(width - viewW)} step={1} value={Math.round(scrollX)} aria-label={where}
+            onChange={(e) => { const el = scroller.current; if (el) el.scrollLeft = Number(e.target.value); }} />
+          <span className="pp-slider-at">{where}</span>
+        </div>
+      );
+    })()}
+    </>
   );
 }
