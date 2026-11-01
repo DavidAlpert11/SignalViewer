@@ -49,7 +49,15 @@ export interface RunInfo {
 /** Investigation step 4: one signal around a moment (svcore/firstchange.py). */
 export interface FirstChange { id: string; name: string; status: "changed" | "same" | "nodata"; t?: number; rel?: number; up?: boolean;
   base?: [number, number];                // the usual level was read here (the default one fits each signal's data)
-  strength?: number; rate?: number; spark?: (number | null)[] }
+  strength?: number; rate?: number; spark?: (number | null)[];
+  /** Q131: the usual level and noise (the cluster's plot puts every signal on one axis by them) */
+  level?: number; noise?: number; stay?: number;
+  /** Q133: a signal that cannot tell anything: left out by default */
+  skip?: "constant" | "counter" | "heartbeat";
+  /** Q131: how likely a cause, 0..1, and its parts (WEIGHTS on the server) */
+  score?: number; parts?: Record<string, number>; inRef?: string[]; isEvent?: boolean; leadsEvent?: number }
+/** Q130: changes close in time, the likeliest first. */
+export interface ChangeCluster { t0: number; t1: number; ids: string[]; first: string; best: number }
 export interface LagResult { status: "ok" | "nooverlap" | "short" | "flat"; lag?: number; r?: number; ambiguous?: boolean; weak?: boolean;
   resolution?: number; curve?: { lags: number[]; r: number[] } }
 /** Investigation step 7: a run's phases and automatic flags (svcore/overview.py). */
@@ -380,8 +388,9 @@ export const api = {
     call<{ items: { sig: string; grid: number[]; curves: (number | null)[][]; mean: (number | null)[]; cut: boolean }[] }>("/api/occurrences/windows", { items, align, pad }),
   occDiffer: (runs: Record<string, [number, number][]>, top = 25) =>
     call<{ items: { name: string; effect: number; meanIn: number; meanOut: number; up: boolean; files: string[] }[] }>("/api/occurrences/differ", { runs, top }),
-  firstChange: (a: number, b: number, sigs: string[], runs: string[]) =>
-    call<{ items: FirstChange[]; base: [number, number]; noRoom?: boolean }>("/api/firstchange", { a, b, sigs, runs }),
+  firstChange: (a: number, b: number, sigs: string[], runs: string[], refs: string[] = [], event: string | null = null) =>
+    call<{ items: FirstChange[]; base: [number, number]; noRoom?: boolean; clusters?: ChangeCluster[]; event?: string | null;
+      weights?: Record<string, number>; skipped?: Record<string, number> }>("/api/firstchange", { a, b, sigs, runs, refs, event }),
   /** "Find similar": the signal most unusual inside [a, b] and a condition like it (id null: none). */
   suggestCondition: (a: number, b: number, sigs: string[]) =>
     call<{ id: string | null; name?: string; text?: string; up?: boolean }>("/api/condition/suggest", { a, b, sigs }),
