@@ -23,6 +23,8 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
   const axes = shownAxes(study);
   const nFilters = Object.values(v.filters).filter(hasFilter).length;
   const scoped = v.scope.key === scopeKey(study) ? v.scope.steps.length : 0;
+  const here = new Set(axisChoices(study));
+  const off = (v.axesOff ?? []).filter((a) => here.has(a) && !v.axes.includes(a));
   return (
     <div className="sw-plotbar">
       <div className="sw-seg" role="radiogroup" aria-label={t("swLines")}>
@@ -32,7 +34,8 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
       {/* the axes: chosen in one list (type to search, groups as one click); dragged on the plot to reorder */}
       <ColumnPicker options={axisOptions(t, study)} value={axes}
         presets={presetChoices(t, study, axisChoices(study), PRESET_KEY, v.mode === "runs" ? [] : ["scenarios"])}
-        onChange={(ids) => { const here = new Set(axisChoices(study)); setView({ axes: [...ids, ...v.axes.filter((a) => !here.has(a))] }); }} />
+        label={t("swColumnsAddRemove", { n: axes.length, of: axisChoices(study).length })}
+        onChange={(ids) => { const here = new Set(axisChoices(study)); useSweeps.getState().setAxes([...ids, ...v.axes.filter((a) => !here.has(a))]); }} />
       <button className={`btn outline${v.fitAxes ? " on" : ""}`} aria-pressed={!!v.fitAxes} onClick={() => setView({ fitAxes: !v.fitAxes })}
         title={t("swFitAxesHint")}>{t("swFitAxes")}</button>
       <ColourKey study={study} />
@@ -47,6 +50,14 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
       </>}
       <button className="btn outline" disabled={!shown} onClick={onExport} title={t("swExportShownHint")}>{t("swExportShown")}</button>
       <button className="btn outline" onClick={onExportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
+      {/* S15: the axes taken off lately, one click each to bring back */}
+      {off.length > 0 && (
+        <div className="sw-axes-off" role="group" aria-label={t("swAxesOff")}>
+          <span className="hint">{t("swAxesOff")}</span>
+          {off.map((a) => <button key={a} className="sw-tag" title={t("swAxisBack")} onClick={() => useSweeps.getState().toggleAxis(a, true)}>+ {colLabel(t, study, a)}</button>)}
+          <button className="iconbtn" aria-label={t("swAxesOffForget")} title={t("swAxesOffForget")} onClick={() => setView({ axesOff: [] })}>×</button>
+        </div>
+      )}
     </div>
   );
 }

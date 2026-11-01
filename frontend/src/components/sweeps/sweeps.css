@@ -388,3 +388,7 @@
 .pp-slider { display: flex; align-items: center; gap: 10px; margin-top: 4px; direction: ltr; }
 .pp-slider input[type="range"] { flex: 1; accent-color: var(--amber); }
 .pp-slider-at { font-size: .78rem; color: var(--muted); white-space: nowrap; unicode-bidi: plaintext; }
+
+/* the axes taken off lately (S15) */
+.sw-axes-off { flex-basis: 100%; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sw-axes-off .sw-tag { cursor: pointer; }

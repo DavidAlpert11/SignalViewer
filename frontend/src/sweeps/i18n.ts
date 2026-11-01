@@ -484,6 +484,10 @@ export const swEn = {
   swPointsKept: "Kept the sets in the rectangle: the lines, the table and its export follow.",
   swAxesOnScreen: "axes {a}–{b} of {n} on screen",
   swExportSetsPlotN: "The {n} sets as an interactive plot (HTML, like HiPlot)",
+  swColumnsAddRemove: "Columns: {n} of {of} (add / remove)",
+  swAxesOff: "Taken off:",
+  swAxisBack: "Put this axis back",
+  swAxesOffForget: "Forget these",
 };
 
 export const swHe: typeof swEn = {
@@ -969,4 +973,8 @@ export const swHe: typeof swEn = {
   swPointsKept: "נשארו הסטים שבמלבן: הקווים, הטבלה והייצוא שלה עוקבים.",
   swAxesOnScreen: "צירים {a}–{b} מתוך {n} על המסך",
   swExportSetsPlotN: "{n} הסטים כגרף אינטראקטיבי (HTML, כמו HiPlot)",
+  swColumnsAddRemove: "עמודות: {n} מתוך {of} (הוספה / הסרה)",
+  swAxesOff: "הוסרו:",
+  swAxisBack: "החזרת הציר",
+  swAxesOffForget: "לשכוח אותם",
 };

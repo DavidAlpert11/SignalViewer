@@ -168,6 +168,8 @@ export interface View {
   next?: NextRuns;
   /** how the plots look (S12) */
   style?: PlotStyle;
+  /** axes taken off the lines lately, newest first (S15: one click brings one back) */
+  axesOff?: string[];
 }
 
 /** How the maps, point plots and *Which parameter matters* look (S12), for the study and its report. */

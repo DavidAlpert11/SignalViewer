@@ -886,3 +886,26 @@ def test_the_sets_that_hold_as_an_interactive_plot(pg):
     pg.wait_for_selector(".toast:has-text('holding_plot.html')")
     html = open(os.path.join(pg.env["out"], "holding_plot.html"), encoding="utf-8").read()
     assert f'"n": {holding}' in html and "<canvas" in html
+
+
+def test_an_axis_taken_off_comes_back(pg):
+    """S15: an axis hidden from its menu, or taken off in the column picker, is offered back under
+    the bar - one click brings it back."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".pp-axis-name")
+    assert "(add / remove)" in pg.locator(".sw-plotbar .sw-colpick-btn").inner_text()
+    pg.locator(".pp-axis-name", has_text="ki_roll").click()
+    pg.locator("button", has_text="Hide this axis").click()
+    pg.wait_for_selector(".sw-axes-off .sw-tag:has-text('ki_roll')")
+    assert pg.locator(".pp-axis-name", has_text="ki_roll").count() == 0
+    pg.locator(".sw-plotbar .sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop .msp-item", has_text="filter_hz").locator("input").uncheck()
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".sw-axes-off .sw-tag:has-text('filter_hz')")
+    pg.locator(".sw-axes-off .sw-tag", has_text="ki_roll").click()
+    pg.wait_for_selector(".pp-axis-name:has-text('ki_roll')")
+    assert pg.locator(".sw-axes-off .sw-tag", has_text="ki_roll").count() == 0
+    pg.locator(".sw-axes-off .iconbtn").click()
+    assert pg.locator(".sw-axes-off").count() == 0
