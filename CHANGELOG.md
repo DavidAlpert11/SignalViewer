@@ -17,6 +17,9 @@
 
 - **Sweeps: design new sets to run.** In the *Run* area: vary the parameters that matter in their ranges and hold the others, choose space-filling, Sobol, random, full factorial, Box-Behnken, central composite or *fill the gaps*, preview the new sets beside the ones already run, export the run list (CSV, TSV, JSON, MATLAB, Python), and save the design as a group - it fills as their results are merged in.
 
+- **Sweeps: a model of a result (response surface).** The *Model* tab trains a quadratic polynomial, radial basis functions, nearest sets and (with `pip install "signalviewer[sweeps-opt]"`) Kriging on the sets, checks each on sets it did not see (errors and R², the best marked), shows predicted against real, explores the model (a surface, its contour bands, two cuts through values you type), and finds the best sets it predicts - saved as a group of virtual sets and exported to be run for real.
+- **CI runs on a push only when asked** (`[ci]` in the last commit's message, or *Run workflow*); pull requests always.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row

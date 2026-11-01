@@ -43,7 +43,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest httpx pypdf "mypy>=1.10"
+          pip install -r requirements.txt -r requirements-sweeps-opt.txt pytest httpx pypdf "mypy>=1.10"
       - name: Backend tests
         run: python -m pytest backend/tests -q
       - name: Type check (mypy, T36)

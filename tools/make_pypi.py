@@ -60,13 +60,15 @@ if __name__ == "__main__":
 # without it the app opens in the browser
 # T59: the optional parts (backend/svcore/extras.py) - package -> its extra; "all" gets every one
 sys.path.insert(0, os.path.join(ROOT, "backend"))
-from svcore.extras import EXTRAS  # noqa: E402
+from svcore.extras import ALWAYS_OPTIONAL, EXTRAS  # noqa: E402
 OPTIONAL = {pkg: extra for extra, pkgs in EXTRAS.items() for pkg in pkgs}
 
 
 def requirements():
     req, extra = [], {}
-    for line in open(os.path.join(ROOT, "requirements.txt"), encoding="utf-8"):
+    files = ["requirements.txt", "requirements-sweeps-opt.txt"]       # the second: extras only (MF04)
+    lines = [ln for f in files for ln in open(os.path.join(ROOT, f), encoding="utf-8")]
+    for line in lines:
         spec = line.split("#")[0].strip()
         if not spec:
             continue
@@ -101,9 +103,9 @@ def flavour_metadata(name, req, extra):
     desktop window (pywebview needs GTK / Qt on Linux) stays an extra. Lite: the core + extras."""
     extra = dict(extra)
     if name == "signalviewer":
-        deps = req + [x for k, xs in extra.items() if k != "desktop" for x in xs]
-        opt = {"desktop": extra.get("desktop", [])}
-        opt["all"] = list(opt["desktop"])               # "[all]" keeps working: it is the default here
+        deps = req + [x for k, xs in extra.items() if k not in ALWAYS_OPTIONAL for x in xs]
+        opt = {k: extra.get(k, []) for k in ALWAYS_OPTIONAL}
+        opt["all"] = sorted({x for xs in opt.values() for x in xs})   # "[all]": everything optional here too
         return deps, opt
     extra["all"] = sorted({x for xs in extra.values() for x in xs})
     return req, extra
