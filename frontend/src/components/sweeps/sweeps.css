@@ -392,3 +392,13 @@
 /* the axes taken off lately (S15) */
 .sw-axes-off { flex-basis: 100%; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sw-axes-off .sw-tag { cursor: pointer; }
+
+/* the journal in the Report step (S20): a line out of the report is greyed, a hidden one struck */
+.sw-journal-lines { margin: 0; padding-inline-start: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: .78rem; }
+.sw-journal-lines li { display: flex; align-items: flex-start; gap: 6px; padding: 2px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.sw-journal-lines li > span:first-child { flex: 1; }
+.sw-journal-lines li.out { color: var(--muted); }
+.sw-journal-lines li.hidden > span:first-child { text-decoration: line-through; }
+.sw-journal-acts { display: flex; gap: 2px; opacity: .35; }
+.sw-journal-lines li:hover .sw-journal-acts, .sw-journal-acts:focus-within { opacity: 1; }
+.sw-journal-acts .iconbtn { width: 22px; height: 22px; font-size: .85rem; }

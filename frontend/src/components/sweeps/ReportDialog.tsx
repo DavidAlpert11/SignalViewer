@@ -15,7 +15,7 @@ import { activeColumns, activeParams, colLabel, mapAxes, mapList, scatterList, s
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { KINDS } from "../../sweeps/next";
-import { journalLine } from "../../sweeps/journal";
+import { journalLine, reportJournal } from "../../sweeps/journal";
 import { notify, notifyError } from "../../sweeps/notify";
 
 type Format = "html" | "docx" | "pdf" | "csv";
@@ -105,12 +105,14 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
     for (let i = 0; i < n; i++) if (kept[i] && (!scope || scope[i])) shown.push(i);
     // the table as on screen (S04): its columns, its sets in its order (only those that hold, sorted)
     const table = ["#rank", ...tableColumns(study), "#holds"];
+    const journal = reportJournal(study.log, !study.view.journalAll, study.view.journalStart);
     const sections = [
       ...(inc.question ? [{ title: t("swQuestion"), items: questionLines(t, study) }] : []),
       ...(inc.process ? [{ title: t("swRepProcess"), items: processLines(t, study) }] : []),
       ...(inc.process && study.iterations.length > 1 ? [{ title: t("swRepIterations"), items: study.iterations.map((it) =>
         t("swRepIteration", { n: it.n, label: it.label, holding: it.holding, sets: it.sets, best: it.best === null ? "–" : fmtValue(it.best) })) }] : []),
-      ...(inc.journal && study.log.length ? [{ title: t("swRepJournal"), items: study.log.map((e) => journalLine(t, e)) }] : []),
+      // the journal as chosen in the Report step: the final story or everything, hidden lines out (S20)
+      ...(inc.journal && journal.length ? [{ title: t("swRepJournal"), items: journal.map((e) => journalLine(t, e)) }] : []),
     ];
     const map = mapAxes(study);
     notify(t("swRepMaking"));
