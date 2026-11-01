@@ -5,7 +5,7 @@
    another range too, click = clear. Elsewhere: hover shows a line's values, click picks it.
    Everything the plot keeps or shows comes in as props - the store owns it (sweeps/state.ts). */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { category, FAILS, HOLDS, ramp } from "../../sweeps/colors";
+import { category, FAILS, FLAG_COLS, HOLDS, ramp } from "../../sweeps/colors";
 import { hasFilter, keptMask } from "../../sweeps/filters";
 import type { Col, Filter, Scale } from "../../sweeps/model";
 import { labelOf, makeScale, type AxisScale } from "../../sweeps/scales";
@@ -94,7 +94,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     const c = p.colorBy ? p.cols.get(p.colorBy) : undefined;
     let colour: (r: number) => string;
     if (!c) colour = () => HOLDS;
-    else if (p.colorBy === "#holds" || p.colorBy === "#pareto" || p.colorBy === "#partial") colour = (r) => (c.values[r] === 1 ? HOLDS : FAILS);
+    else if (FLAG_COLS.has(p.colorBy!)) colour = (r) => (c.values[r] === 1 ? HOLDS : FAILS);
     else if (c.kind === "cat") colour = (r) => category(c.values[r]);
     else {
       const sc: AxisScale = makeScale(c, p.scaleOf(c.name) === "log" ? "log" : "linear");

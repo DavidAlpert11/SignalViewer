@@ -602,3 +602,49 @@ def test_several_maps_a_slice_a_cell_and_the_report(pg):
     for _ in range(4):
         pg.keyboard.press("Control+z")
     pg.wait_for_function("document.querySelectorAll('.sw-maps-grid .sw-map').length === 1")
+
+
+def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
+    """S06: robust to kp_roll (± a grid step) - only the sets that hold robustly are ranked; next
+    runs explore ki_roll only, 'Is it robust?' among the kinds; the suggestions stay with the study."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "goals")
+    sec = pg.locator(".sw-goal-part", has_text="Robust to")
+    sec.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
+    pg.keyboard.press("Escape")
+    row = sec.locator(".sw-robust-row", has_text="kp_roll")
+    assert row.locator("select").input_value() == "steps"
+    pg.wait_for_function("document.querySelector('.sw-optimize-now').innerText.includes('hold robustly')")
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-sets-table th:has-text('holds robustly')")
+    # next runs: only ki_roll moves
+    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    pg.locator(".sw-next-side .sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").uncheck()
+    pg.locator(".sw-colpick-pop .msp-item", has_text="filter_hz").locator("input").uncheck()
+    pg.keyboard.press("Escape")
+    assert "1 of 3 parameters" in pg.locator(".sw-next-side .sw-colpick-btn").inner_text()
+    pg.locator(".sw-kind", has_text="Is it robust?").locator("input").check()
+    pg.locator(".sw-next-side .btn", has_text="Suggest").click()
+    pg.wait_for_selector(".sw-next .sw-table tbody tr")
+    assert "exploring ki_roll" in pg.locator(".sw-next-main").inner_text()
+    heads = pg.locator(".sw-next .sw-table thead th").all_inner_texts()
+    moved = pg.locator(".sw-next .sw-table td.sw-moved")
+    for k in range(moved.count()):                                   # each moved value is in the ki_roll column
+        idx = moved.nth(k).evaluate("td => td.cellIndex")
+        assert heads[idx] == "ki_roll"
+    n = pg.locator(".sw-next .sw-table tbody tr").count()
+    # kept with the study: after a restart they are still there
+    pg.wait_for_timeout(1500)
+    pg.reload(); pg.wait_for_selector(".app"); _to_sweeps(pg)
+    pg.wait_for_selector(".sw-steps")
+    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-next .sw-table tbody tr').length === {n}")
+    # a change to the question: they are out of date
+    _step(pg, "goals")
+    pg.locator(".sw-robust-row button[aria-label='Remove']").click()
+    _step(pg, "results")
+    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    pg.wait_for_selector(".sw-banner:has-text('The question changed')")

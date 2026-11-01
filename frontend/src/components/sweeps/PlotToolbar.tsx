@@ -3,7 +3,7 @@
    reversing, hiding, its ranges - is in that axis's own menu (click its name on the plot); the
    axes are reordered by dragging their names. A control lives in one place (CLAUDE.md). */
 import { useT } from "../../i18n";
-import { FAILS, HOLDS, rampCss } from "../../sweeps/colors";
+import { FAILS, FLAG_COLS, HOLDS, rampCss } from "../../sweeps/colors";
 import { hasFilter } from "../../sweeps/filters";
 import { fmtValue, makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
@@ -60,7 +60,7 @@ function ColourKey({ study }: { study: Study }) {
   const { cols } = modeColumns(study);
   const name = v.colorBy && cols.has(v.colorBy) ? v.colorBy : null;
   const c = name ? cols.get(name)! : null;
-  const flag = name === "#holds" || name === "#pareto" || name === "#partial";
+  const flag = !!name && FLAG_COLS.has(name);
   const menu = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const set = (colorBy: string | null) => useSweeps.getState().setView({ colorBy });
@@ -68,13 +68,14 @@ function ColourKey({ study }: { study: Study }) {
       { label: t("swHoldsCol"), checked: name === "#holds", run: () => set("#holds") },
       ...(cols.has("#pareto") ? [{ label: t("swParetoCol"), checked: name === "#pareto", run: () => set("#pareto") }] : []),
       ...(cols.has("#partial") ? [{ label: t("swPartialCol"), checked: name === "#partial", run: () => set("#partial") }] : []),
+      ...(cols.has("#robustHolds") ? [{ label: t("swRobustHoldsCol"), checked: name === "#robustHolds", run: () => set("#robustHolds") }] : []),
       { label: t("swColourNone"), checked: !name, run: () => set(null) },
       { label: t("swColourByAxisHint"), disabled: true, run: () => {} },
     ]);
   };
   let key: React.ReactNode;
   if (!c) key = <span className="hint">{t("swColourNone")}</span>;
-  else if (flag) key = <><span style={{ color: HOLDS }}>■</span> {name === "#holds" ? t("swHolds") : name === "#pareto" ? t("swParetoCol") : t("swPartialCol")}
+  else if (flag) key = <><span style={{ color: HOLDS }}>■</span> {name === "#holds" ? t("swHolds") : name === "#pareto" ? t("swParetoCol") : name === "#robustHolds" ? t("swRobustHoldsCol") : t("swPartialCol")}
     <span style={{ color: FAILS }}>■</span> {t("swOthers")}</>;
   else if (c.kind === "num") {
     const sc = makeScale(c, scaleOf(study, c.name, c) === "log" ? "log" : "linear");
