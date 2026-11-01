@@ -627,3 +627,24 @@ def test_the_plot_alone_of_some_sets(tmp_path):
                "axes": ["kp_roll", "ki_roll"], "only": [0, 5, 7, 10 ** 6]})
     assert r.status_code == 200, r.text
     assert '"n": 3' in open(out, encoding="utf-8").read()
+
+
+def test_next_runs_numbers_add_up():
+    """S16: what each kind found and took adds up to what is suggested; the budget is shared in turns
+    (a small one: one each for the first kinds); fewer suggested than asked when fewer were found."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    o = c.post("/api/sweep/open", json={"path": c.get("/api/sweep/example").json()["path"]}).json()
+    roles = {x["name"]: x["role"] for x in o["columns"]}
+    q = {"roles": roles, "combine": "and", "holdValues": {}, "goal": {"column": "energy_wh", "direction": "min"},
+         "conditions": [{"column": "roll_error_deg", "op": "<=", "value": 5, "mode": "all"}], "derived": [], "outputAgg": {},
+         "objectives": [], "exclude": []}
+    kinds = ["edge", "best", "disagree", "missing"]
+    big = c.post("/api/sweep/suggest", json={"id": o["id"], "question": q, "kinds": kinds, "budget": 2000}).json()
+    assert sum(big["taken"].values()) == len(big["suggestions"]) == sum(big["available"].values())  # all found, all taken
+    assert big["budget"] == 2000
+    small = c.post("/api/sweep/suggest", json={"id": o["id"], "question": q, "kinds": kinds, "budget": 3}).json()
+    found = [k for k in kinds if big["available"][k] > 0]
+    assert len(small["suggestions"]) == 3 and all(small["taken"][k] <= 1 for k in kinds)
+    assert [k for k in found if small["taken"][k]] == found[:3]                  # one each, in the order asked

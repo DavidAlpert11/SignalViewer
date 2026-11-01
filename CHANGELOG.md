@@ -8,6 +8,12 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps, next runs - numbers that add up**: each kind says what it **found** and what it
+  **took**, and the takes add up to the sets suggested; under the number asked: *up to N sets × M
+  combinations = up to R runs*, and after suggesting, what came out (*N sets × M = R runs*) and,
+  when fewer than asked, that the kinds ticked found only that many. How the number is shared is
+  said: in turns, one of each kind ticked, then a second of each - a small number gives the first
+  kinds one each, and what a kind cannot fill goes to the others.
 - **Sweeps: an axis taken off comes back**: the axes taken off the lines lately - from an axis's
   menu or the column picker - are listed under the bar (*Taken off: + ki_roll*), one click each to
   bring one back; the picker's button says it adds as well as removes (*Columns: 8 of 22 (add /

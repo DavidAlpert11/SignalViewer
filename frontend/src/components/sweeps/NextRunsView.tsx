@@ -70,18 +70,21 @@ export default function NextRunsView({ study }: { study: Study }) {
         </div>
         <label className="sw-row">{t("swBudget")}
           <input type="number" min={1} max={2000} value={budget} onChange={(e) => setNext({ budget: Math.max(1, Number(e.target.value) || 1) })} style={{ width: 70 }} />
-          <span className="hint">{t("swBudgetRuns", { n: (budget * combos).toLocaleString() })}</span></label>
+        </label>
+        <span className="hint">{t("swBudgetUpTo", { n: budget, c: combos.toLocaleString(), r: (budget * combos).toLocaleString() })}</span>
         {KINDS.map(({ k, title, hint }) => {
           const off = k === "robust" && !robustSet;
           return (
             <label key={k} className={`sw-kind${off ? " off" : ""}`}>
               <input type="checkbox" disabled={off} checked={kinds.includes(k)}
                 onChange={(e) => setNext({ kinds: e.target.checked ? [...kinds, k] : kinds.filter((x) => x !== k) })} />
-              <span><b className={`sw-mark-${k}`}>{MARK[k]} {t(title)}</b>{res && <span className="hint"> · {res.available[k] ?? 0}</span>}<br />
+              <span><b className={`sw-mark-${k}`}>{MARK[k]} {t(title)}</b>
+                {res && res.available[k] !== undefined && <span className="hint"> · {t("swFoundTaken", { f: res.available[k], n: res.taken?.[k] ?? 0 })}</span>}<br />
                 <span className="hint">{off ? t("swNextRobustOff") : t(hint)}</span></span>
             </label>
           );
         })}
+        <span className="hint">{t("swBudgetShare")}</span>
         <button className="btn primary" disabled={busy || !kinds.length} onClick={run}>{t("swSuggest")}</button>
       </div>
       <div className="sw-next-main">
@@ -90,6 +93,9 @@ export default function NextRunsView({ study }: { study: Study }) {
         {res && (
           <>
             <div className="sw-row"><b>{t("swSuggested", { n: res.suggestions.length })}</b>
+              <span className="hint">= {t("swRunsOf", { n: res.suggestions.length, c: combos.toLocaleString(), r: (res.suggestions.length * combos).toLocaleString() })}</span>
+              {res.budget !== undefined && res.suggestions.length < res.budget &&
+                <span className="hint sw-fewer">{t("swFewerFound", { n: res.suggestions.length, b: res.budget })}</span>}
               {res.focus && <span className="hint">{t("swExploredOnly", { list: res.focus.join(", ") })}</span>}
               <button className="btn outline" disabled={!res.suggestions.length} onClick={exportList}>{t("swNextExport")}</button></div>
             <div className="sw-table-wrap">
