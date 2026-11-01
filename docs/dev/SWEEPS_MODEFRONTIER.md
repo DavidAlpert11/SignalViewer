@@ -97,7 +97,7 @@ Status: **Have** · **Part** · **Missing**. Changes from the first version in *
 | RSM | k-NN, Kriging, RBF, polynomial, GP, NN; validation table, residual / distance charts, favourite, virtual opt, re-run | maps interpolate | Missing | MF04 |
 | Sensitivity | Pearson matrix, main effects, *SS-ANOVA effect table with screening threshold*, PCE | `effects` | Part | MF05 |
 | Charts | as §1; *filters shared across charts*; *comparison table* | parallel, maps, Pareto, tables | Part | MF02 |
-| Multivariate | clustering, SOM, PCA, *MDS* | - | Missing | MF09 |
+| Multivariate | clustering, SOM, PCA, *MDS* | k-means, Ward, PCA, classical MDS, SOM (written here), clusters as groups | Have | MF09 |
 | MCDM | linear, GA from pairwise, *Hurwicz, Savage regret*, margins | weighted, TOPSIS, Hurwicz, Savage, AHP pairwise weights, indifference margin | Have | MF10 |
 | Robust | robust table, mean vs σ, robustness DOE | tolerance + distribution, MC / LHS on a model or run, mean / σ / percentile / P(fail), mean vs σ | Have (no PCE / FORM) | MF08 |
 | Project / report | project DB, report tool, actions log | `.svsweep`, journal, report | Have | - |

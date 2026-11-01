@@ -116,6 +116,8 @@ export const sweepApi = {
     call<{ rows: RobustStats[] }>("/api/sweep/robust/model", { id, question, key, model, centres, n, method, direction, pct, limit }),
   robustStats: (id: string, question: WireQuestion, sets: number[], direction: string, pct: number, limit: RobustLimit | null) =>
     call<RobustStats>("/api/sweep/robust/stats", { id, question, sets, direction, pct, limit }),
+  clusters: (id: string, question: WireQuestion, columns: string[], sets: number[] | null, method: string, k: number) =>
+    call<ClustersResult>("/api/sweep/clusters", { id, question, columns, sets, method, k }),
   mcdm: (values: (number | null)[][], directions: string[], weights: number[], method: string, alpha: number, margin: number, pairwise: number[][] | null) =>
     call<McdmResult>("/api/sweep/mcdm", { values, directions, weights, method, alpha, margin, pairwise }),
   sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
@@ -205,4 +207,13 @@ export interface RobustLimit { op: "<=" | "<" | ">=" | ">"; value: number }
 export interface RobustStats {
   n: number; valid: number; mean: number | null; std: number | null; pct: number | null; min: number | null; max: number | null;
   pFail?: number | null; nominal?: number; centre?: Record<string, string | number | null>;
+}
+
+/** MF09: the sets' shape (svcore/sweep/clusters.py analyse); rows in the order of `sets`. */
+export interface ClustersResult {
+  columns: string[]; n: number; sets: number[];
+  pca: { coords: number[][]; explained: number[]; explainedAll: number[]; loadings: number[][] };
+  clusters?: { labels: number[]; sizes: number[]; inertia: number };
+  mds?: { coords: number[][]; stress: number };
+  som?: { w: number; h: number; node: number[]; umatrix: number[]; hits: number[]; qerror: number };
 }
