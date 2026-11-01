@@ -13,15 +13,16 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- **Milestone 23 (Sweeps toward modeFRONTIER): MF00 done** (groups of sets + status per set; its e2e
-  `tests/e2e/test_sweeps_groups.py` written but not run here - no browser in the container: run it).
-  **MF01 done** (with Q129; e2e `tests/e2e/test_sweeps_problem.py` not run here either). **MF02 done** (the Charts desktop, every pane kind, a group per pane). Three areas done
-  (Problem | Run | Explore; *Explore* tab renamed *Decide*; the old tabs kept one version). **Changes what
-  is on screen by default: run the WHOLE e2e suite.** **MF05 done** (sensitivity, numpy only). **MF03 done** (DOE in the Run area). **MF04 done** (Model tab; Kriging via the optional extra sweeps-opt). **MF06 + MF11 done** (local runner, live monitor). **MF07 done** (optimisers written here: pymoo's dependency moocore is LGPL). Next: **MF10** (Decide). After Milestone 23: **Q130-Q137**
-  (investigating signals - owner's request 2026-11-01). Owner's
-  two open choices taken as recommended in the brief (change them here if not): the brush is saved
-  as a **live rule** by default (Shift: frozen ids); the five stages become three areas only
-  **after MF02**. The groups panel sits in the results side until then.
+- **Milestone 23 (Sweeps toward modeFRONTIER): done** - MF00-MF11. The last three (2026-11-01): MF10 Decide
+  (TOPSIS, Hurwicz, Savage, AHP weights, margin, each row explained), MF08 Robust (a distribution per
+  tolerance, MC / LHS on a model or as a group to run, mean / σ / percentile / P(fail)), MF09 (clusters,
+  PCA, MDS, SOM as Charts panes; clusters = groups). Every M23 e2e file has now run in a browser (fixes in
+  the log). **Owner's choices 2026-11-01:** scikit-learn is in `requirements.txt` (Kriging everywhere;
+  lite keeps the extra `sweeps-opt`); the old Explore tabs (Lines, Map, Points...) go in the next version
+  after 1.17.0. **Next: Milestone 24, Q130-Q137** (investigating signals). Then Sweeps round 4 (S24-S27).
+- Fixed 2026-11-01 (owner's report): a refresh of a file still being written followed the writer to the
+  end (100 % until the writing stopped). CSV reads are bounded to the size when the read began; the store
+  keeps the size from before the read.
 - Branch `main`. **1.17.0 prepared 2026-11-01** (Milestones 17-19 in ROADMAP.md, S00-S23 - the
   Sweeps area, Explore - and the work areas, the tool rail's names, the welcome screen, one place for
   messages). The owner pushes, waits for the green `ci` run, tags `v1.17.0` and pushes the tag
@@ -91,6 +92,9 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   (`frontend/src/main.tsx`).
 - `frontend/dist` is committed. Patches between developers may leave it out (run.py rebuilds);
   rebuild and commit it before a release tag.
+- **e2e: build first, then do not touch `frontend/src` while the suite runs.** `run.py` rebuilds the UI
+  when the sources are newer than `frontend/dist`; the build takes longer than the fixture's 20 s wait
+  for the server, so every file after an edit fails with *Connection refused* (2026-11-01).
 - Sandbox gotchas seen so far: a background server or test run started inside a tool call may
   die when the call ends - start it with `setsid nohup ... &`. Never `pkill -f <pattern>` in the
   same shell command line that contains the pattern (it kills its own shell).
@@ -2300,3 +2304,9 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · MF06 + MF11 (done): runner.py (template split then filled - no shell; json / csv / stdout parsers; parallel, timeout, Stop kills; results CSV with run_status / run_seconds; resume), /api/sweep/run/{preview,start,<job>} on app/jobs.py, RunStepPanel (step form, preview, which sets, monitor: counts, histories, live Pareto, failures, auto-merge). pytest + mypy clean, tsc + build clean. e2e test_sweeps_run.py not run (no Chromium). Note: the merged results add run_status / run_seconds columns (roles guessed; set them to Not used if wanted). Next: MF07.
 - 2026-11-01 · Q130-Q138 specified (investigating signals: clusters, likely first, plot beside each, less noise, chains, different from the other runs, consistent precursors, report) - Milestone 24, after Milestone 23.
 - 2026-11-01 · MF07 (done): optimise.py (DE, NSGA-II, model-assisted, auto), /api/sweep/optimise/start through runner.run_all (Live: gen, best), OptimiserPanel + the run Monitor (onDone → group). pymoo rejected at the licence gate (moocore LGPL-2.1+). pytest + mypy clean, tsc + build clean. e2e test in test_sweeps_run.py not run (no Chromium). Next: MF10.
+- 2026-11-01 · e2e, first browser run of the M23 files (whole suite, one file per process, on the build of this round): fixed in the tests - Decide is the tab's name (MF02b), 18 scenario combinations in the example (not 36: doe, run), the run template's placeholder is the column's name, wait for a pane's drawing and for a study to finish opening (charts, groups: end states), the robust row's first select. test_features::test_globe_without_webgl_falls_back failed once in the full file and passes alone (order-dependent, Recordings - not this round's change; watch it). Everything else green.
+- 2026-11-01 · MF10 (done): svcore/sweep/mcdm.py, /api/sweep/mcdm, DecidePanel; tests by hand-worked tables + AHP; e2e test_decide_ranking_methods_pairwise_and_a_group. The table / best set still rank by the weighted sum; the panel's ranking is kept as a group.
+- 2026-11-01 · MF08 (done): svcore/sweep/robust.py (extends question.robust with `dist`), /api/sweep/robust/{sample,model,stats}, RobustSheet (Run area); [U] sampling options verified on ESTECO's pages (§1 updated, D-optimal still [U]; polynomial chaos / FORM not done). pytest +7, e2e test_sweeps_robust.
+- 2026-11-01 · Owner: scikit-learn into requirements.txt (licences re-read in the wheels, BSD-3); requirements-sweeps-opt.txt removed; ALWAYS_OPTIONAL = desktop only.
+- 2026-11-01 · Refresh of a growing file (owner's report): csv_loader `_Bounded` / `_complete_part` (parsers and the text pass read the size seen at the start; a half-written last line waits while the file grows), store.open_file keeps the stat from before the read. tests/test_growing_file.py (fails on the old code: the read followed the writer, the refresh said unchanged).
+- 2026-11-01 · MF09 (done): svcore/sweep/clusters.py, /api/sweep/clusters, ShapePane (Charts kinds pca / som); pytest +7, e2e +1. Milestone 23 done. Next: Q130.
