@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   `tests/e2e/test_sweeps_groups.py` written but not run here - no browser in the container: run it).
   **MF01 done** (with Q129; e2e `tests/e2e/test_sweeps_problem.py` not run here either). **MF02 done** (the Charts desktop, every pane kind, a group per pane). Three areas done
   (Problem | Run | Explore; *Explore* tab renamed *Decide*; the old tabs kept one version). **Changes what
-  is on screen by default: run the WHOLE e2e suite.** **MF05 done** (sensitivity, numpy only). Next: **MF03** (DOE). Owner's
+  is on screen by default: run the WHOLE e2e suite.** **MF05 done** (sensitivity, numpy only). **MF03 done** (DOE in the Run area). Next: **MF04** (surrogates - scikit-learn, licence gate, optional extra). Owner's
   two open choices taken as recommended in the brief (change them here if not): the brush is saved
   as a **live rule** by default (Shift: frozen ids); the five stages become three areas only
   **after MF02**. The groups panel sits in the results side until then.
@@ -2207,3 +2207,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · MF02 part 2 (done): pane kinds lines / map / history / Pareto / compare sets; a group per pane (DeskPane.group, view.ts groupRows; ScatterPanel takes it too). tsc + build clean. e2e test_sweeps_charts.py extended (every kind, a group per pane), not run (no Chromium). Next: the three areas.
 - 2026-11-01 · MF02b three areas: StepNav = area bar (Problem | Run | Explore) + the area's steps (data-area / data-step); `Step` gains "run" (RunArea.tsx, quiet; outside Back / Next); `areaOf`, `AREA_STEPS` in model.ts; Explore tab → *Decide*. e2e: `_step` goes through the area; *Decide* in two tests; new test_three_areas_and_a_quiet_run. tsc + build clean. Not run here: e2e (no Chromium) - the default screen changed, so the whole suite. Note: the button *Explore this goal* (Results side) still says Explore; rename it with MF10 (Decide).
 - 2026-11-01 · MF05 (done): sensitivity.py (correlations, ANOVA shares, Sobol first / total from data), /api/sweep/sensitivity, SensitivityTable in *Which parameter matters*; Ishigami test passes on a 12^3 grid. pytest 912 passed, mypy clean, tsc + build clean. e2e test_sweeps_sensitivity.py not run (no Chromium). No new dependency. Next: MF03.
+- 2026-11-01 · MF03 (done): doe.py (scipy.stats.qmc; no new dependency), /api/sweep/doe, DoeSheet in the Run area (vary / hold, method, preview, export run list, group of ids). pytest 920 passed, mypy clean, tsc + build clean. e2e test_sweeps_doe.py not run (no Chromium). ROADMAP: Milestone 23's combined lines split, one task per line. Next: MF04.

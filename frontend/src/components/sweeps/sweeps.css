@@ -557,3 +557,11 @@
 .sw-sens-bar i { display: block; height: 100%; }
 .sw-sens-bar i.main { background: var(--amber); }
 .sw-sens-bar i.inter { background: var(--focus); }
+
+/* MF03: DOE */
+.sw-doe { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.sw-doe-table tr.off td { color: var(--muted); }
+.sw-doe-controls { flex-wrap: wrap; gap: 10px; }
+.sw-doe-controls label { display: inline-flex; align-items: center; gap: 4px; }
+.sw-doe-preview { max-width: 720px; }
+.sw-run-quiet { max-width: 900px; }

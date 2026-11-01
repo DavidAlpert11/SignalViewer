@@ -92,6 +92,8 @@ export const sweepApi = {
   set: (id: string, question: WireQuestion, set: number) => call<SetDetail>("/api/sweep/set", { id, question, set }),
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => call<SweepOpened>("/api/sweep/open-rows", { name, columns, rows }),
   effects: (id: string, question: WireQuestion) => call<Effects>("/api/sweep/effects", { id, question }),
+  doe: (id: string, question: WireQuestion, params: DoeSpec[], method: DoeMethod, n: number, seed: number, levels: number, sets: number[] | null) =>
+    call<DoeResult>("/api/sweep/doe", { id, question, params, method, n, seed, levels, sets }),
   sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
     call<Sensitivity>("/api/sweep/sensitivity", { id, question, column, sets, threshold }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
@@ -135,3 +137,10 @@ export interface Sensitivity {
     first: number; total: number | null; levels: number; weak: boolean }[];
   pairs: { a: string; b: string; share: number }[];
 }
+
+/** MF03: a parameter of a design - varied in a range, by level, or held at one value. */
+export type DoeSpec = { name: string; kind: "continuous" | "integer"; lo: number; hi: number }
+  | { name: string; kind: "categorical"; levels: (string | number)[] }
+  | { name: string; kind: "fixed"; value: string | number | null };
+export type DoeMethod = "space" | "sobol" | "random" | "factorial" | "boxbehnken" | "ccd" | "fill";
+export interface DoeResult { sets: Record<string, string | number | null>[]; method: DoeMethod; n: number; discrepancy: number | null; min_distance: number | null }
