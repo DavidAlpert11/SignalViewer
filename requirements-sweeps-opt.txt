@@ -1,6 +1,0 @@
-# Optional (the extra "sweeps-opt", MF04): Sweeps' Kriging response surface. Without it the app
-# runs and the other models work; the Kriging row says what to install.
-# Licence checked in the released wheel (scikit_learn-1.9.1, dist-info/licenses/COPYING): BSD-3-Clause;
-# its dependencies joblib and threadpoolctl: BSD-3-Clause. Not in requirements.txt, so the installer
-# and the portable packages stay their size (owner's choice to add it there).
-scikit-learn>=1.3

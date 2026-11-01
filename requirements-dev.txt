@@ -7,4 +7,3 @@ pyinstaller>=6
 mypy>=1.10            # type check of the backend (T36): see [tool.mypy] in pyproject.toml
 mkdocs==1.6.1         # the documentation site (mkdocs serve); the same pins as .github/workflows/docs.yml
 mkdocs-material==9.7.7
--r requirements-sweeps-opt.txt   # Sweeps' Kriging model (MF04): its tests run
