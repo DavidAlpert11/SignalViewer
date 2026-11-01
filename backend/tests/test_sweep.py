@@ -648,3 +648,29 @@ def test_next_runs_numbers_add_up():
     found = [k for k in kinds if big["available"][k] > 0]
     assert len(small["suggestions"]) == 3 and all(small["taken"][k] <= 1 for k in kinds)
     assert [k for k in found if small["taken"][k]] == found[:3]                  # one each, in the order asked
+
+
+def test_next_runs_written_as_json_matlab_python(tmp_path):
+    """S17: the run list in the format its name says - JSON, a MATLAB struct array, a Python list -
+    and the sets alone, without the combinations."""
+    import ast
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    o = c.post("/api/sweep/open", json={"path": c.get("/api/sweep/example").json()["path"]}).json()
+    roles = {x["name"]: x["role"] for x in o["columns"]}
+    q = {"roles": roles, "combine": "and", "holdValues": {}, "goal": None, "conditions": [], "derived": [], "outputAgg": {},
+         "objectives": [], "exclude": []}
+    sets = [{"kp_roll": 0.125, "ki_roll": 0.01, "filter_hz": 20}, {"kp_roll": 0.3, "ki_roll": 0.015, "filter_hz": 40}]
+    w = lambda name, combos=True: c.post("/api/sweep/suggest/export", json={"id": o["id"], "question": q, "params": sets,
+                                                                          "path": str(tmp_path / name), "combos": combos}).json()
+    assert w("runs.json")["rows"] == 2 * 18
+    js = json.loads((tmp_path / "runs.json").read_text())
+    assert js[0]["kp_roll"] == 0.125 and "scenario_gusts" in js[0]
+    assert w("sets.py", combos=False)["rows"] == 2
+    tree = ast.parse((tmp_path / "sets.py").read_text())
+    runs = ast.literal_eval(tree.body[0].value)
+    assert runs == sets                                                  # the sets alone, plain values
+    w("runs.m")
+    m = (tmp_path / "runs.m").read_text()
+    assert m.startswith("% 36 runs") and "'kp_roll', {0.125, 0.125," in m and "'scenario_gusts', {'" in m

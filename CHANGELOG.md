@@ -8,6 +8,12 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps, next runs - compact, and more than CSV**: a parameter with one value in every
+  suggestion is said once above the table, which shows only what changes (*show every column*
+  brings the rest back); the value a suggestion moves is in bold. *Export the next runs ▾* writes the
+  run list (each set × each combination) or the sets alone as CSV, TSV, JSON, a MATLAB struct
+  array (.m) or a Python list of dicts (.py) - for a simulation script to read as it is - and
+  *Copy the sets* puts them on the clipboard for a spreadsheet.
 - **Sweeps, next runs - numbers that add up**: each kind says what it **found** and what it
   **took**, and the takes add up to the sets suggested; under the number asked: *up to N sets × M
   combinations = up to R runs*, and after suggesting, what came out (*N sets × M = R runs*) and,

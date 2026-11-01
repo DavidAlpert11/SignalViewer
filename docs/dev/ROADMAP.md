@@ -658,7 +658,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S14 The sets that hold as an interactive plot.
 - [x] S15 An axis taken off the plot comes back.
 - [x] S16 Next runs: numbers that add up.
-- [ ] S17 Next runs: a compact view, more than CSV.
+- [x] S17 Next runs: a compact view, more than CSV.
 - [x] S18 Which parameter matters: titles, grid, in the report.
 - [x] S19 The optimization in the plots; choosing on a Pareto plot.
 

@@ -153,7 +153,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 
 ## Sweeps, round 2 (owner, 2026-11-01, after using S00-S08): S09–S18
 
-**Progress:** S09–S16, S18, S19 done · S17 open.
+**Progress:** S09–S19 done.
 
 ### S09 · Nothing overlaps in a small window — S · **Done**
 - The step's foot: *← Scenarios & parameters* and *See the results →* run into each other in a
@@ -201,7 +201,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
   does not use goes to the others).
 - A small budget still gives every chosen kind a share before any gets a second.
 
-### S17 · Next runs: a compact view, more than CSV — M
+### S17 · Next runs: a compact view, more than CSV — M · **Done**
 - The suggested sets shown compactly: a parameter with one value in all of them is said once above
   the table; each row shows what it changes from its set (bold) and why.
 - Besides CSV: copy as a table (to paste into Excel / a spreadsheet), JSON, and a MATLAB / Python
@@ -1952,3 +1952,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S14: report format plot takes `only` (set indices; out of range dropped) and cuts the answer to them; exportPlot(…, only); SetsTable's Export menu: the sets as an interactive plot. Tests: test_sweep +1, e2e +1.
 - 2026-11-01 · S15: view.axesOff (newest first, 8 kept; not undone); state `setAxes` (remembers what left) used by toggleAxis and the picker; PlotToolbar's *Taken off* row (+ name, × forget); the picker's label *add / remove*. e2e +1.
 - 2026-11-01 · S16: suggest() returns `taken` (per kind, of the suggestions) and `budget`; the round-robin was already a fair share - now said (swBudgetShare); NextRunsView: found / taken per kind, *up to N × M = R runs*, after: *N × M = R*, fewer than asked -> why. Tests: test_sweep +1 (sums, a budget of 3 = one each in order), e2e +1.
+- 2026-11-01 · S17: svcore export `write_rows` (by the file's ending: .csv / .tsv / .json / .m struct array / .py list of dicts; numpy scalars as plain values, NaN -> NaN / None); /api/sweep/suggest/export `combos` (False: the sets alone); NextRunsView: same-in-all line + only the changing columns (toggle), an export menu (run list / sets alone x formats), copy as TSV. Tests: test_sweep +1, e2e +1.
