@@ -909,3 +909,30 @@ def test_an_axis_taken_off_comes_back(pg):
     assert pg.locator(".sw-axes-off .sw-tag", has_text="ki_roll").count() == 0
     pg.locator(".sw-axes-off .iconbtn").click()
     assert pg.locator(".sw-axes-off").count() == 0
+
+
+def test_next_runs_numbers_add_up(pg):
+    """S16: each kind says what it found and took, and the takes add up to what is suggested; the
+    runs are the sets times the combinations; fewer than asked says why; a small budget: one each."""
+    import re
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")
+    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    side = pg.locator(".sw-next-side")
+    side.locator("input[type='number']").fill("80")
+    assert "up to 80 sets × 18 combinations each = up to 1,440 runs" in side.inner_text()
+    side.locator(".btn", has_text="Suggest").click()
+    pg.wait_for_selector(".sw-next .sw-table tbody tr")
+    taken = sum(int(n) for n in re.findall(r"taken (\d+)", side.inner_text()))
+    n = pg.locator(".sw-next .sw-table tbody tr").count()
+    assert taken == n
+    main = pg.locator(".sw-next-main").inner_text()
+    assert f"{n} sets × 18 combinations = {n * 18:,} runs" in main
+    if n < 80:
+        assert f"the kinds ticked found only {n}" in main
+    side.locator("input[type='number']").fill("2")
+    side.locator(".btn", has_text="Suggest").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-next .sw-table tbody tr').length === 2")
+    assert sorted(int(x) for x in re.findall(r"taken (\d+)", side.inner_text()) if x != "0") == [1, 1]

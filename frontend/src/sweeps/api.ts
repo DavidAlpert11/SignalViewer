@@ -95,7 +95,7 @@ export const sweepApi = {
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
     call<PairMap & { rest: "all" | "best"; fixed: Record<string, string | number | null> | null; goal: boolean; direction: "max" | "min"; bestAt: [number, number] | null }>("/api/sweep/map", { id, question, x, y, rest }),
   suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number, focus: string[] | null) =>
-    call<{ suggestions: Suggestion[]; available: Record<string, number> }>("/api/sweep/suggest", { id, question, kinds, budget, focus }),
+    call<{ suggestions: Suggestion[]; available: Record<string, number>; taken: Record<string, number>; budget: number }>("/api/sweep/suggest", { id, question, kinds, budget, focus }),
   suggestExport: (id: string, question: WireQuestion, params: Suggestion["params"][], path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/suggest/export", { id, question, params, path }),
   suspects: (id: string, question: WireQuestion) => call<{ suspects: Suspect[] }>("/api/sweep/suspects", { id, question }),

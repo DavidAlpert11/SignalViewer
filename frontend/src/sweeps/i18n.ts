@@ -177,7 +177,6 @@ export const swEn = {
   swAddObjective: "+ objective",
   swBestSets: "The best parameter sets",
   swBudget: "Sets to suggest",
-  swBudgetRuns: "= {n} runs with every combination",
   swCannotSaveRows: "This table came from Runs × conditions, not a file: save it there as CSV first.",
   swCenterCompare: "Compare",
   swCenterEffects: "Which parameter matters",
@@ -488,6 +487,11 @@ export const swEn = {
   swAxesOff: "Taken off:",
   swAxisBack: "Put this axis back",
   swAxesOffForget: "Forget these",
+  swBudgetUpTo: "up to {n} sets × {c} combinations each = up to {r} runs",
+  swFoundTaken: "found {f}, taken {n}",
+  swBudgetShare: "The sets are shared in turns: one of each kind ticked, then a second of each, and so on; what a kind cannot fill goes to the others. With a small number the first kinds get one each.",
+  swRunsOf: "{n} sets × {c} combinations = {r} runs",
+  swFewerFound: "fewer than the {b} asked: the kinds ticked found only {n}",
 };
 
 export const swHe: typeof swEn = {
@@ -666,7 +670,6 @@ export const swHe: typeof swEn = {
   swAddObjective: "+ יעד למיטוב",
   swBestSets: "סטי הפרמטרים הטובים ביותר",
   swBudget: "כמה סטים להציע",
-  swBudgetRuns: "= {n} ריצות עם כל הצירופים",
   swCannotSaveRows: "הטבלה הגיעה מריצות × תנאים ולא מקובץ: שמרו אותה קודם כ-CSV.",
   swCenterCompare: "השוואה",
   swCenterEffects: "איזה פרמטר משפיע",
@@ -977,4 +980,9 @@ export const swHe: typeof swEn = {
   swAxesOff: "הוסרו:",
   swAxisBack: "החזרת הציר",
   swAxesOffForget: "לשכוח אותם",
+  swBudgetUpTo: "עד {n} סטים × {c} צירופים לכל אחד = עד {r} ריצות",
+  swFoundTaken: "נמצאו {f}, נלקחו {n}",
+  swBudgetShare: "הסטים מתחלקים בתורות: אחד מכל סוג מסומן, אחר כך שני מכל סוג וכן הלאה; מה שסוג לא מצליח למלא עובר לאחרים. עם מספר קטן, הסוגים הראשונים מקבלים אחד כל אחד.",
+  swRunsOf: "{n} סטים × {c} צירופים = {r} ריצות",
+  swFewerFound: "פחות מה-{b} שהתבקשו: הסוגים המסומנים מצאו רק {n}",
 };

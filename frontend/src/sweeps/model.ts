@@ -107,6 +107,8 @@ export interface NextRuns {
   budget?: number;
   result?: { suggestions: { params: Record<string, number | string | null>; kind: string; from: number; param?: string }[];
     available: Record<string, number>; at: string; focus: string[] | null;
+    /** how many of each kind went into the suggestions, and the budget asked (S16) */
+    taken?: Record<string, number>; budget?: number;
     /** the question it answered: when the question changes, it is out of date */
     key?: string };
   /** the run list written last */

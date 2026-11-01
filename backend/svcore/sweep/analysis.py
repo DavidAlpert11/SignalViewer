@@ -256,6 +256,8 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
                 for v in tolerance_band(g, j, s, tol):
                     if abs(v - cur) > 1e-12:
                         add("robust", s, j, float(np.round(v, 10)), {"param": name})
+    # the budget shared in turns: one set of each kind, then a second of each... - a kind that has
+    # no more leaves its turn to the others; with a small budget the first kinds asked get the one
     out: List[Dict] = []
     r = 0
     while len(out) < budget and any(r < len(v) for v in pools.values()):
@@ -263,4 +265,5 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
             if r < len(pools[kind]) and len(out) < budget:
                 out.append(pools[kind][r])
         r += 1
-    return {"suggestions": out, "available": {k: len(v) for k, v in pools.items()}}
+    taken = {k: sum(1 for x in out if x["kind"] == k) for k in pools}
+    return {"suggestions": out, "available": {k: len(v) for k, v in pools.items()}, "taken": taken, "budget": budget}
