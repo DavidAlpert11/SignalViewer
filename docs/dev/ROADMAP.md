@@ -649,6 +649,16 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 24 — investigating signals: clusters of changes, the likely first, a plot beside each (owner's notes 2026-11-01, 3). Spec: TASKS.md Q130-Q138. After Milestone 23.
+- [ ] Q130 Changes that happen together, as clusters.
+- [ ] Q131 The more likely first (a score with its parts).
+- [ ] Q132 A plot beside each cluster (normalised, the span, the change ticks).
+- [ ] Q133 Less to wade through (counters, clocks, constants left out; groups by message; keyboard).
+- [ ] Q134 Who leads whom - a small chain of lags.
+- [ ] Q135 What is different in this run (against the other runs' envelope).
+- [ ] Q136 The same event elsewhere: a consistent precursor.
+- [ ] Q137 The investigation in the report.
+
 ## Milestone 23 — Sweeps toward modeFRONTIER. Spec: docs/dev/SWEEPS_MODEFRONTIER.md (findings verified 2026-11-01, MF00-MF11, brief in §6). Order: MF00, MF01, MF02, MF05, MF03, MF04, MF11, MF06, MF07, MF10, MF08, MF09.
 - [x] MF00 Groups of designs (rule or ids, automatic groups, brush → group) and design status (feasible / fails / error / virtual).
   Done 2026-11-01. Model: `svcore/sweep/groups.py` + `frontend/src/sweeps/groups.ts` (set ids from parameter values, live rule / frozen ids, automatic groups, ∪ ∩ ∖); `view.groups` / `view.activeGroup` optional in .svsweep, undoable. UI: `GroupsPanel` in the results side (automatic groups with counts, marked = the ticked sets, Save as group - Shift frozen -, rename by double-click, freeze, ∪ ∩ ∖ with the active group, eye, delete); colour by group (`#group`, in the colour menu); a hidden group leaves plots and table (through `scopeMask`). Table: status stripe (fails amber, error red), ≈ virtual, the failing condition's cells marked, tooltip "fails in k of n" (`needed` now in the answer's conditions), group chips. Tests: tests/test_sweep_groups.py, tests/e2e/test_sweeps_groups.py (e2e NOT run in this container: no browser - CI / the owner).
