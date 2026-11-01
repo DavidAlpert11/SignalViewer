@@ -153,7 +153,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 
 ## Sweeps, round 2 (owner, 2026-11-01, after using S00-S08): S09–S18
 
-**Progress:** S09–S12, S18 done · S13–S17, S19 open.
+**Progress:** S09–S12, S18, S19 done · S13–S17 open.
 
 ### S09 · Nothing overlaps in a small window — S · **Done**
 - The step's foot: *← Scenarios & parameters* and *See the results →* run into each other in a
@@ -210,7 +210,7 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
 ### S18 · Which parameter matters: in the report, like the screen — S · **Done**
 - The figure on screen and in the report: axis titles, a grid (major and minor), the style of S12.
 
-### S19 · The optimization in the plots, and choosing on a Pareto plot — M
+### S19 · The optimization in the plots, and choosing on a Pareto plot — M · **Done**
 (owner, 2026-11-01: "show the optimization in the HiPlot... a Pareto plot, move on it and see the
 parameter sets change in the HiPlot and the CSV")
 - The lines' default axes take the rank, and the weighted score with several objectives: dragging
@@ -1947,3 +1947,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S09: index.css `.app` grid-template-columns minmax(0, 1fr) (the top row's min-content made the app 1047 px wide at 1024 - every area cut), the search trigger icon-only under 1100 px; sweeps.css: the plot's bar wraps (was nowrap + overflow-x), the step foot wraps, step buttons shrink (min 96 px, ellipsis), `.sw-wide` / `.sw-narrow` labels under 1180 px (follow, re-run), the maps' grid columns min(380 px, 100%). e2e +1 (1024 px: app width, the foot's buttons apart, the bar not scrolling).
 - 2026-11-01 · S10: svcore map_for returns goal / direction / bestAt and no cell numbers without a goal; MapSpec.color (share | goal; default goal when the goal has no conditions); MapView: per-map key (MapKey), colour by the best goal (better = bright either direction, grey: none holds), ★ at bestAt; ResultsSide `BestSet` (rank 1: parameters, goal, score / robust goal, *Open it*); fig_map(color, labels) with a colour bar and the star; mapList keeps color. e2e +1.
 - 2026-11-01 · S11 / S12 / S18: PlotStyle (view.style: cmap, size, opacity, grid, minor, numbers) + StyleMenu (maps, points, effects); colors.ts CMAPS / rampOf / rampCssOf; ScatterView: axes' titles, grid + minor, round points of the size and opacity chosen, `scatterList` (view.ts) shared with the report; EffectsView: titles, grid + minor, the share holding under the ticks; report: `style_of`, fig_scatter (points in the report), fig_effects titles + grid, fig_map cmap / numbers; ReportReq scatters / style / colorBy. Tests: test_sweep +1, e2e +1.
+- 2026-11-01 · S19: evaluate adds #obj1.. (each further objective's worst case, group goal); state `optAxes` (goal, rank when not empty, score, objectives) in defaultAxes and `withNewOptAxes` (only those that just appeared - not those the user took off); colLabel #objN; the table's default columns take #objN; ScatterView: + Pareto (#goal x #obj1), the front ringed and joined, a dragged rectangle -> setFilter on its two columns (ranges by the scale's inv; categories by their codes), a click clears them, a toast to the lines. Tests: test_sweep (+#obj1), e2e +1.

@@ -460,6 +460,8 @@ def test_optimize_min_max_and_weights():
     dn = {"column": "down", "direction": "max"}
     order, d = ranked({"goal": up, "objectives": [{**up, "weight": 5}, {**dn, "weight": 1}]})
     assert order[0] == 4 and "#score" in d and "#pareto" in d
+    # the second objective's worst case, for a Pareto plot (S19): the smaller "down" of the two scenarios
+    assert list(d["#obj1"][np.argsort(d["p"])]) == [40, 30, 20, 10]
     order, _ = ranked({"goal": up, "objectives": [{**up, "weight": 1}, {**dn, "weight": 5}]})
     assert order[0] == 1
 

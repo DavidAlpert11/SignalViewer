@@ -660,7 +660,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [ ] S16 Next runs: numbers that add up.
 - [ ] S17 Next runs: a compact view, more than CSV.
 - [x] S18 Which parameter matters: titles, grid, in the report.
-- [ ] S19 The optimization in the plots; choosing on a Pareto plot.
+- [x] S19 The optimization in the plots; choosing on a Pareto plot.
 
 ## Milestone 17 — the Sweeps area, the owner's requests (2026-10-31). Spec: TASKS.md S00-S08.
 - [x] S00 Groundwork: Sweeps strings in `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` shared.

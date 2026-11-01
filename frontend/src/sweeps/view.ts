@@ -63,6 +63,11 @@ export function colLabel(t: TFn, s: Study, name: string): string {
     const g = s.question.goal;
     return g ? t(g.direction === "max" ? "swGoalLabelMax" : "swGoalLabelMin", { c: g.column }) : t("swGoal");
   }
+  const obj = /^#obj(\d+)$/.exec(name);
+  if (obj) {                                     // a further objective's worst case (S19)
+    const o = s.question.goals[s.question.active]?.optimize[Number(obj[1])];
+    return o ? t(o.direction === "max" ? "swGoalLabelMax" : "swGoalLabelMin", { c: o.column }) : name;
+  }
   if (name === "#holds") return t("swHoldsCol");
   if (name === "#rank") return t("swRankCol");
   if (name === "#covered") return t("swCoveredCol");
@@ -208,6 +213,7 @@ export function defaultTableColumns(s: Study): string[] {
   const sets = s.answer?.sets ?? [];
   const have = new Set(sets.map((c) => c.name));
   return [...sets.filter((c) => c.group === "param").map((c) => c.name), ...(have.has("#goal") ? ["#goal"] : []),
+    ...sets.filter((c) => /^#obj\d+$/.test(c.name)).map((c) => c.name),
     ...sets.filter((c) => c.group === "condition" && c.part !== "passed").map((c) => c.name),
     ...["#robustHolds", "#robustGoal", "#robustSeen", "#score", "#pareto", "#neighbours", "#tolerance", "#covered"].filter((x) => have.has(x))];
 }
