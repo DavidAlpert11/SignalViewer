@@ -360,8 +360,14 @@ spectrum sees the steps; *What changed first* counts samples (3 in a row) that a
    check, report and investigation reads the updates, the edit is copied to other files with *Copy
    work* and kept in sessions and templates like any edit. A plot draws the result as steps (hold),
    as the value was.
-   **Owner's choice:** in place (the signal itself becomes its updates; *every sample* undoes it) as
-   proposed - or a new signal beside it (`Roll @ 5 Hz`), the original kept as recorded.
+   **Owner's choice - decided (2026-11-01): in place.** The signal itself becomes its updates;
+   *every sample* undoes it. The signal list and the Inspector show a small tag (`5 Hz`) on a signal
+   whose updates are set, so a session opened later does not hide why its derivative is smooth.
+   **Rate mode, two more fields:** `{"mode": "hz", "hz": 5, "phase": null, "delay": 0}`.
+   - `phase` - where the N Hz grid sits. `null` (default) = found from the detected steps (the
+     median of the step times modulo the period); a number (ms) overrides it.
+   - `delay` - a shift of the update times (ms, default 0), for a value measured before it was
+     logged. It applies to every mode (changes, hz, flag, clock), not only to hz.
 3. **Use it:** derivative, integral and the binary differences work on the updates of each signal;
    a result needed on another signal's time (A − B) is held between updates, not interpolated across
    a step. With a slower rate detected and *every sample* chosen, the derivative dialog says so
@@ -379,6 +385,13 @@ welcome screen.
 moves when the value is fresh; the value is meaningful only there. Nothing can use it: `where(c, a,
 b)` keeps every sample (and `nan` is not a name a formula may use), conditions choose stretches, not
 samples.
+**Owner's notes (2026-11-01):** the *Updates* choice is one mechanism - **an update clock** - with
+these sources: *every sample* · *when it changes* · *at N Hz* (phase, delay - Q125) · *a flag*
+(below) · **the updates of another signal** (`{"mode": "clock", "of": "Name" | "@run:Name"}`): the
+times another signal's updates were found (by any of the modes above) are this signal's updates.
+That is how one detection serves a group (all of a GPS's fields). With a selection in the file
+list, *Updates ▸ like <signal>* sets it for all of them in one undo step. The clock's source is
+read like the flag: the existing references, previous sample, and a cycle (A by B, B by A) refused.
 **Do:** the same *Updates* choice as Q125, one more mode: *when <signal> is set* (≠ 0) · *rises*
 (0 → non-zero) · *changes* (a counter) - `rate: {"mode": "flag", "flag": "Name" | "@run:Name",
 "when": "set"|"rises"|"changes"}`. The flag is read with the edit's existing references
@@ -386,11 +399,56 @@ samples.
 the value's times by the **previous sample** (not `np.interp`: a 0/1 flag interpolated is 0.5).
 The value's samples at those moments are its updates; everything in Q125 3 follows. A flag found by
 name next to a value (`X_valid`, `X.new`, `XUpd`) is offered first in the list.
-**Owner's choice:** which flags your loggers write (a 0/1 per sample, a bit in a status word, a
-counter) - a bit in a word needs *when bit k of <signal> is set*; a real log with one would settle it.
+**Owner's choice (still open):** which flags your loggers write (a 0/1 per sample, a bit in a status
+word, a counter) - a bit in a word needs *when bit k of <signal> is set* (`"bit": k`); a real log
+with one would settle it. Build 0/1 and counter first; leave room for `bit` in the schema.
 **Done when:** backend: a value with a `new_flag` (set at 5 Hz, random gaps) - its updates are
 exactly the flagged samples, the derivative over them equals the truth; the flag from another open
-file works; e2e: Inspector → *Updates: when new_flag is set*, the plot shows the steps at the flags.
+file works; e2e: Inspector → *Updates: when new_flag is set*, the plot shows the steps at the flags. Clock:
+three signals set *like* a fourth take its update times exactly; a cycle is refused with a message.
+
+## Owner's notes (2026-11-01, 2): Q127–Q129 - work on a selection; the same formula for [1], [2]; typing values in Explore
+
+**Progress:** none started. Independent of Q124–Q126 and of each other.
+
+### Q127 · Operations chosen by the selection — S
+**Now:** the file list's selection (`listSel`) has *Create signal ▸* (createSignalMenu.ts), but its
+quick operations are derivative and integral only, one new signal per source. The backend already
+has `norm`, `mean`, `sum`, `min`, `max` (`MULTI` in svcore/analysis.py) and the binary operations;
+they are reached only through *Other operations…* (Analysis, `analysisSeed`), where the signals are
+chosen again.
+**Do:** *Create signal ▸* offers by the selection's size: 2 signals - *A − B*, *A + B*, *A / B* (and
+*B − A*); 3 or more - *Norm*, *Mean* (one new signal from all). 2N signals that split into two
+groups of N by name (`pos[0..2]` and `nav_pos[0..2]`, `x/y/z` suffixes too) - *Difference per pair*:
+the pairs shown before making them (a small dialog: left / right / result name, a pair can be
+unticked or swapped), paired by the index in the name, never by click order. The results go into one
+group (`pos − nav_pos [0..2]`) and the next menu on them offers *Norm*. Link operations (`linkEdits`)
+applies as for the quick operations now.
+**Done when:** unit: the pairing of `pos[0..2]` / `nav_pos[0..2]`, of `a_x a_y a_z` / `b_x b_y b_z`,
+and a selection that does not split (no pair offered); e2e: select 6, *Difference per pair*, 3 new
+signals, *Norm* on them, one more.
+
+### Q128 · The same formula for the other indices — S/M
+**Now:** a formula made on `pos[0] - nav_pos[0]` must be typed again for `[1]` and `[2]`.
+**Do:** after a formula (or an operation) is made whose sources carry an index (`[k]`, `_k`, a
+trailing `x/y/z`), a toast offers *Also for [1], [2]* - the same definition with every source's
+index replaced, for the indices that exist for **every** source; the names follow. The same item in
+the derived signal's menu (*Make for the other indices…*). Peers / Link operations are not involved.
+**Done when:** unit: the index substitution (several sources, nested derived, a source without an
+index left as is, an index missing in one source - not offered); e2e: the toast makes two more.
+
+### Q129 · Explore: type a value, not only slide — S
+**Now:** ExploreView.tsx has `type="range"` only: a parameter's limits, an objective's threshold, a
+condition's value (and the weight). The value is shown (`fmtValue`) but cannot be edited; a
+condition's slider is bounded by `extent()` of what was measured, so *what if the limit were 0.5*
+cannot be asked when every result is above 0.8.
+**Do:** each shown value becomes an editable number field (click → field, Enter / blur commits,
+Esc cancels, the slider follows; arrows step, Shift + arrows step ×10). A typed value outside the
+data's range is kept (the slider pins at its end and says *outside the results*). The weight stays a
+slider (0–10). Same in Goals where a value has only a slider. This is the small fix; the table view
+of the whole problem is MF01 (docs/dev/SWEEPS_MODEFRONTIER.md).
+**Done when:** e2e: type a condition value below every result - the count of holding sets updates
+and the field keeps the value; Esc restores it.
 
 ## Queue (in this order)
 
@@ -2132,3 +2190,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S24-S27 queued: what S23 left in Explore (a new condition's start, the table's sort / columns - owner's choice, the axes in Explore's lines, the Windows / macOS check).
 - 2026-11-01 · Release 1.17.0 prepared: version in version.py, build.bat, CITATION.cff (+ date), the installer, version_info.txt, install.md; CHANGELOG 1.17.0 (the highlights now lead with Sweeps - the old line predated it); README review: README (highlights, a Sweeps section with docs/images/23_sweeps_explore.png, `sweep` in the CLI lines, the Hebrew part), GUIDE / GUIDE.he chapter 12 *Sweeps* (the guide is in the app, F1), features.md *Sweeps* (+ `sweep` in the CLI row), command-line.md `sweep` (it was not documented; its output from the example), index.md card, gallery, limitations (Explore's, S24 / S26 included), install.md ~280 browser tests (was ~195), validation regenerated (23 / 23); tools/make_readme_media.py copies the examples' folders (it stopped on examples/investigate/) and makes 23_sweeps_explore (`--only 23`; the other pictures not retaken). Here: backend 898 + 12 skipped, mypy clean, tsc, oxlint 51, build, mkdocs --strict (anchors checked), e2e: the whole suite on S23 (281; one flake in test_features, see S23's line), after the release changes test_file_help_menus, test_fresh_user, test_workflows, test_sweeps_flow; frontend/dist rebuilt.
 - 2026-11-01 · Q124-Q126 queued from the owner's notes: a new signal (ƒ) in the investigation (the derived run is left out of *What changed first* and the others' file scopes); a signal slower than its recording (detect, its updates - by change or N Hz - as a part of the per-signal edit, operations over the updates); an update flag choosing a value's samples (the same mechanism, the flag read by previous sample). Two owner's choices marked.
+- 2026-11-01 · Owner's answers: Q125 in place (+ tag; `phase` / `delay` in the rate mode); Q126 widened to an update clock (+ *like another signal*, set for a selection); the flag kind still open. Q127-Q129 queued (operations by the selection, the same formula for other indices, typed values in Explore). docs/dev/SWEEPS_MODEFRONTIER.md: modeFRONTIER's capabilities against Sweeps, MF01-MF10 and a design.
