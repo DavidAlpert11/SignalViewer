@@ -5,7 +5,7 @@
    (must hold across, goal, conditions, new columns), how it is shown (the view) and the answer.
    Every change to the roles or the question asks the server again (debounced); a change to the
    view only redraws. */
-import { upgradeGroups } from "./groups";
+import { freeColor, freeze, fromBrush, groupMask, setIds, upgradeGroups, type Group } from "./groups";
 import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type WireQuestion } from "./api";
@@ -160,6 +160,12 @@ interface SweepsState {
   removeDerived: (i: number) => void;
   // the view
   setView: (patch: Partial<View>) => void;
+  /** MF00: the brush (the axes' filters) as a new group - a live rule, or frozen ids */
+  saveGroup: (frozen: boolean, name: string) => void;
+  /** a group from a mask (∪ ∩ ∖ of two groups, the marked sets): frozen ids */
+  addFrozenGroup: (name: string, mask: Uint8Array, source?: Group["source"]) => void;
+  editGroup: (id: string, patch: Partial<Pick<Group, "name" | "hidden" | "frozen">>) => void;
+  removeGroup: (id: string) => void;
   setFilter: (column: string, f: Filter | null) => void;
   moveAxis: (from: number, to: number) => void;
   toggleAxis: (column: string, on: boolean) => void;
@@ -534,6 +540,34 @@ export const useSweeps = create<SweepsState>((set, get) => {
     removeDerived: (i) => patchQ((q) => ({ ...q, derived: q.derived.filter((_, j) => j !== i) })),
 
     setView: (p) => patchV((v) => ({ ...v, ...p }), p.mode !== undefined),
+    saveGroup: (frozen, name) => {
+      const s = get().studies[get().active];
+      if (!s?.answer) return;
+      const gs = s.view.groups ?? [];
+      const g = fromBrush(s.view.filters, s.answer, name, gs, frozen);
+      // the new group shows at once: colour by group, and the brush it came from is cleared
+      patchV((v) => ({ ...v, groups: [...gs, g], colorBy: "#group", filters: {} }), false);
+    },
+    addFrozenGroup: (name, mask, source = "user") => {
+      const s = get().studies[get().active];
+      if (!s?.answer) return;
+      const gs = s.view.groups ?? [];
+      const g: Group = { id: `g${Date.now().toString(36)}${gs.length}`, name, color: freeColor(gs), source, frozen: true, ids: freeze(mask, setIds(s.answer)) };
+      patchV((v) => ({ ...v, groups: [...gs, g], colorBy: "#group" }), false);
+    },
+    editGroup: (id, p) => {
+      const s = get().studies[get().active];
+      if (!s?.answer) return;
+      const a = s.answer;
+      patchV((v) => ({ ...v, groups: (v.groups ?? []).map((g) => {
+        if (g.id !== id) return g;
+        // freezing a live group keeps the sets it has now
+        if (p.frozen && !g.frozen) return { ...g, ...p, frozen: true, rule: undefined, ids: freeze(groupMask(g, a), setIds(a)) };
+        return { ...g, ...p };
+      }) }), false);
+    },
+    removeGroup: (id) => patchV((v) => ({ ...v, groups: (v.groups ?? []).filter((g) => g.id !== id),
+      activeGroup: v.activeGroup === id ? undefined : v.activeGroup }), false),
     setFilter: (column, f) => patchV((v) => {
       const filters = { ...v.filters };
       if (f) filters[column] = f; else delete filters[column];

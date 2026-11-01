@@ -16,6 +16,8 @@ import { openMenu } from "../Overlays";
 import ColumnPicker from "./ColumnPicker";
 import { exportPlot } from "./ReportStep";
 import { say } from "../../sweeps/notify";
+import { category } from "../../sweeps/colors";
+import { failedConditions, groupMask, setIds, statuses } from "../../sweeps/groups";
 
 const PAGE = 100;
 
@@ -39,6 +41,19 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
   const sortBy = (c: string) => setView({ tableSort: sort?.column !== c ? { column: c, desc: false } : !sort.desc ? { column: c, desc: true } : null });
   const arrow = (c: string) => (sort?.column === c ? (sort.desc ? " ▼" : " ▲") : "");
   const base = study.name.replace(/\.[^.]+$/, "");
+  // MF00: each set's status (stripe), its groups (chips), why it fails (the holds cell's tooltip)
+  const ids = useMemo(() => setIds(a), [a]);
+  const status = useMemo(() => statuses(a, [], ids), [a, ids]);
+  const groups = useMemo(() => v.groups ?? [], [v.groups]);
+  const masks = useMemo(() => groups.map((g) => groupMask(g, a, ids)), [groups, a, ids]);
+  const why = (i: number) => {
+    if (status[i] === "holds") return t("swStatusHolds");
+    if (status[i] === "error") return t("swStatusError");
+    if (status[i] === "virtual") return t("swStatusVirtual");
+    const f = failedConditions(a, i);
+    return t("swStatusFails", { what: f.map((x) => (x.of > 0 ? t("swFailsKofN", { label: x.label, k: x.failed, n: x.of }) : x.label)).join("; ") });
+  };
+  const failing = (i: number) => new Set(failedConditions(a, i).map((x) => x.condition));
 
   const exportSets = async () => {
     const p = await pickPath({ mode: "save", title: t("swExportSets"), exts: [".csv"], defaultName: `${base}_sets.csv` });
@@ -94,21 +109,25 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
             <th className="st st-0" aria-label={t("swRerun")} />
             <th className="st st-1 num sortable" onClick={() => sortBy("#rank")}>{colLabel(t, study, "#rank")}{arrow("#rank")}</th>
             <th className="st st-2 sortable" onClick={() => sortBy("#holds")}>{t("swHoldsCol")}{arrow("#holds")}</th>
+            {groups.length > 0 && <th>{t("swGroupsCol")}</th>}
             {show.map((c) => <th key={c} className={`sortable ${c.startsWith("#c") ? "num cond" : c === "#goal" ? "num goal" : cols.get(c)?.kind === "num" ? "num" : ""}`}
               onClick={() => sortBy(c)}>{colLabel(t, study, c)}{arrow(c)}</th>)}
           </tr></thead>
           <tbody>
             {rows.map((i) => (
-              <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""}`} onClick={() => setView({ pinned: i })}>
+              <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""} status-${status[i]}`} data-status={status[i]} onClick={() => setView({ pinned: i })}>
                 <td className="st st-0" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" aria-label={t("swRerunThis")} checked={v.rerun.includes(i)}
                     onChange={(e) => setView({ rerun: e.target.checked ? [...v.rerun, i] : v.rerun.filter((x) => x !== i) })} />
                 </td>
                 <td className="st st-1 num">{labelOf(cols.get("#rank")!, cols.get("#rank")!.values[i])}</td>
-                <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`}>{holds[i] === 1 ? "✓" : "✗"}</td>
+                <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`} title={why(i)}>{status[i] === "virtual" ? "≈" : holds[i] === 1 ? "✓" : "✗"}</td>
+                {groups.length > 0 && <td className="sw-chips">{groups.map((g, k) => masks[k][i]
+                  ? <span key={g.id} className="sw-chip" style={{ background: category(g.color) }} title={g.name}>{g.name}</span> : null)}</td>}
                 {show.map((c) => {
                   const col = cols.get(c)!, val = col.values[i];
-                  const neg = col.part === "margin" && val < 0;
+                  // the condition this set fails: its cells marked (worst, margin, passed)
+                  const neg = (col.part === "margin" && val < 0) || (col.condition != null && status[i] === "fails" && failing(i).has(col.condition));
                   const text = c === "#covered" ? `${val} / ${a.counts.combos}` : c === "#pareto" ? (val === 1 ? "◆" : "") : c === "#neighbours" ? (Number.isFinite(val) ? `${Math.round(val * 100)}%` : "–") : labelOf(col, val);
                   return <td key={c} className={`${col.kind === "num" ? "num" : ""}${neg ? " bad" : ""}`}>{text}</td>;
                 })}

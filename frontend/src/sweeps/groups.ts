@@ -98,13 +98,15 @@ export function statuses(a: Answer, virtual: string[] = [], ids = setIds(a)): Se
   return ids.map((x, i) => (v.has(x) ? "virtual" : m.error[i] ? "error" : m.fails[i] ? "fails" : "holds"));
 }
 
-/** Which conditions a set fails, and in how many of its combinations: "fails in k of n". */
-export function failedConditions(a: Answer, set: number): { condition: number; label: string; passed: number }[] {
-  const out: { condition: number; label: string; passed: number }[] = [];
+/** Which conditions a set fails, and in how many of its combinations: "fails in k of n" (n: the
+ *  combinations it must pass; older servers do not send it - then the margin tells, without n). */
+export function failedConditions(a: Answer, set: number): { condition: number; label: string; failed: number; of: number }[] {
+  const out: { condition: number; label: string; failed: number; of: number }[] = [];
   for (const c of a.sets) {
     if (c.part !== "passed" || c.condition == null) continue;
-    const met = a.sets.find((x) => x.condition === c.condition && x.part === "margin");
-    if (met && met.values[set] < 0) out.push({ condition: c.condition, label: c.label ?? c.name, passed: c.values[set] });
+    const of = a.conditions[c.condition]?.needed ?? 0, passed = c.values[set];
+    const margin = a.sets.find((x) => x.condition === c.condition && x.part === "margin")?.values[set];
+    if (of > 0 ? passed < of : margin != null && margin < 0) out.push({ condition: c.condition, label: c.label ?? c.name, failed: of > 0 ? of - passed : NaN, of });
   }
   return out;
 }
@@ -114,4 +116,45 @@ export function upgradeGroups(gs: unknown): Group[] {
   if (!Array.isArray(gs)) return [];
   return gs.filter((g): g is Group => !!g && typeof g === "object" && typeof (g as Group).id === "string"
     && (((g as Group).frozen && Array.isArray((g as Group).ids)) || (!(g as Group).frozen && typeof (g as Group).rule === "object")));
+}
+
+/** The per-set column "#group" (MF00, colour = group): each set's first shown user group, as its
+ *  palette slot (labels[slot] = the group's name); a set in none is empty (grey). */
+export function groupColumn(a: Answer, groups: Group[], ids = setIds(a)): Col {
+  const n = ids.length, v = new Float32Array(n).fill(NaN);
+  const labels: string[] = [];
+  for (const g of groups) {
+    if (g.hidden) continue;
+    labels[g.color] = g.name;
+    const m = groupMask(g, a, ids);
+    for (let i = 0; i < n; i++) if (m[i] && Number.isNaN(v[i])) v[i] = g.color;
+  }
+  for (let i = 0; i < labels.length; i++) labels[i] ??= "";
+  return { name: "#group", kind: "cat", values: v, labels, group: "result" };
+}
+
+/** 1 for each set that a hidden group (the eye) takes off every plot and the table; null: none. */
+export function hiddenMask(a: Answer, groups: Group[], ids = setIds(a)): Uint8Array | null {
+  const hid = groups.filter((g) => g.hidden);
+  if (!hid.length) return null;
+  let m: Uint8Array = new Uint8Array(ids.length);
+  for (const g of hid) m = combine("union", m, groupMask(g, a, ids));
+  return m;
+}
+
+/** A group by its key - an automatic group's name, "marked" (the table's ticked sets) or a user
+ *  group's id - as a mask; null when there is no such group. */
+export function maskOfKey(a: Answer, groups: Group[], key: string, marked: number[] = [], suggested: string[] = [], ids = setIds(a)): Uint8Array | null {
+  if (key === "marked") { const m = new Uint8Array(ids.length); for (const i of marked) if (i < m.length) m[i] = 1; return m; }
+  if ((AUTO_GROUPS as string[]).includes(key)) return autoMasks(a, suggested, ids)[key as AutoGroup];
+  const g = groups.find((x) => x.id === key);
+  return g ? groupMask(g, a, ids) : null;
+}
+
+/** The first palette slot no group has. */
+export function freeColor(groups: Group[]): number {
+  const used = new Set(groups.map((g) => g.color));
+  let c = 0;
+  while (used.has(c)) c++;
+  return c;
 }

@@ -225,7 +225,7 @@ export interface Col {
 
 export interface Answer {
   counts: { sets: number; holding: number; complete: number; combos: number; rows: number };
-  conditions: { label: string; column: string; met: number }[];
+  conditions: { label: string; column: string; met: number; needed?: number }[];
   sets: Col[];
   runs?: { columns: Col[]; sampled: boolean; total: number; n: number };
   seconds: number;

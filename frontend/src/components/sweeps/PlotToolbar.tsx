@@ -80,6 +80,7 @@ function ColourKey({ study }: { study: Study }) {
       ...(cols.has("#pareto") ? [{ label: t("swParetoCol"), checked: name === "#pareto", run: () => set("#pareto") }] : []),
       ...(cols.has("#partial") ? [{ label: t("swPartialCol"), checked: name === "#partial", run: () => set("#partial") }] : []),
       ...(cols.has("#robustHolds") ? [{ label: t("swRobustHoldsCol"), checked: name === "#robustHolds", run: () => set("#robustHolds") }] : []),
+      ...(cols.has("#group") ? [{ label: t("swGroupsCol"), checked: name === "#group", run: () => set("#group") }] : []),
       { label: t("swColourNone"), checked: !name, run: () => set(null) },
       { label: t("swColourByAxisHint"), disabled: true, run: () => {} },
     ]);
