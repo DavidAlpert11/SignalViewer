@@ -222,7 +222,7 @@ parameter sets change in the HiPlot and the CSV")
 
 ## Sweeps, round 3 (owner, 2026-11-01): S20–S22 - the journal as the report wants it; exploring
 
-**Progress:** S20, S22 done · S21 open.
+**Progress:** S20–S22 done.
 
 ### S20 · The journal for the report: the final story — S · **Done**
 - The report's journal shows **the final steps only** by default: for each thing (a goal, the
@@ -233,7 +233,7 @@ parameter sets change in the HiPlot and the CSV")
 - In the Report step: × on a line hides it from the report (and brings it back); **"The analysis
   starts here"** on a line hides everything before it. Kept with the study.
 
-### S21 · Explore: a draft of a goal - conditions, limits and objectives together — L
+### S21 · Explore: a draft of a goal - conditions, limits and objectives together — L · **Done**
 - A center tab **Explore** (by Lines, Map...). It opens as a copy of the active goal and changes
   nothing until **Save as a goal** (a new goal, or replacing the active one - asked) or **Back to
   the goal**. A line says how the draft differs from the goal.
@@ -1987,3 +1987,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S17: svcore export `write_rows` (by the file's ending: .csv / .tsv / .json / .m struct array / .py list of dicts; numpy scalars as plain values, NaN -> NaN / None); /api/sweep/suggest/export `combos` (False: the sets alone); NextRunsView: same-in-all line + only the changing columns (toggle), an export menu (run list / sets alone x formats), copy as TSV. Tests: test_sweep +1, e2e +1.
 - 2026-11-01 · S20: journal.ts `reportJournal(log, final, start)` - from the last reset / the start line; final: the last line of each key (found among hidden lines too: hiding the last version leaves the thing out, it does not bring back the one before), roles netted per column, keep / exclude replayed against scopeBack, goalAdd / goalRemove and a removed goal's lines out, things that ended as nothing out; opening a file writes no line; LogEntry.hidden + hideJournalLine; view.journalAll / journalStart; Report step `Journal` (final / everything, × ↺ ⤒), the iterations box apart (.sw-iterations); ReportDialog uses reportJournal. e2e +1, the S08 test adapted.
 - 2026-11-01 · S22: BestSet.tsx (out of ResultsSide - GoalsStep imports it; ResultsSide imports GoalsStep, so no cycle); the Goals step's foot: how many hold + BestSet; *Open it* goes to the results with the set pinned. e2e +1.
+- 2026-11-01 · S21: sweeps/explore.ts (Draft, draftOf, structureKey - the server answers once per structure, sliders applied here; with robustness the values too, 250 ms after a move; `explore` = funnel, each control's own cut, ranking (one objective by its worst case; several by a weighted score of each one's place among the survivors), the Pareto front on the first two; `goalOfDraft` - limits and thresholds as conditions; an "or" goal cannot take them: refused with a message); comparisons tolerant to Float32 (0.2 is 0.20000000298: a limit <= 0.2 had left out the sets at 0.2 the server keeps - found by the e2e checking that the saved goal holds for what Explore showed); ExploreView (funnel, sliders with a histogram strip, two-thumb limits, objectives with direction / weight / threshold, the best set, Pareto scaled to the sets left, candidates with margins), view.explore keeps the draft (not undone, not journalled: the save is the step); Center `explore`; ConditionRow offers parameters too. e2e +1.

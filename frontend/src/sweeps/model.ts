@@ -117,8 +117,8 @@ export interface NextRuns {
   exported?: string;
 }
 
-export type Center = "lines" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
-export const CENTERS: Center[] = ["lines", "effects", "map", "scatter", "next", "health", "compare"];
+export type Center = "lines" | "explore" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
+export const CENTERS: Center[] = ["lines", "explore", "effects", "map", "scatter", "next", "health", "compare"];
 
 /** A range filter on an axis keeps a value inside any of its ranges; a category filter keeps the
  *  listed values (codes into the column's labels). */
@@ -174,6 +174,8 @@ export interface View {
   journalAll?: boolean;
   /** the journal line where the analysis starts (its time); before it is out of the report */
   journalStart?: string;
+  /** Explore's draft of a goal and the goal it started from (S21): not the goal until saved */
+  explore?: { draft: import("./explore").Draft; from: number };
   /** how the plots look (S12) */
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */

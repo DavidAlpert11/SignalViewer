@@ -8,6 +8,17 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: Explore** - a new tab of the results, a draft of the active goal where everything works
+  together: the goal's conditions dragged as *what if*, limits on the parameters (a range each),
+  and the objectives - added and removed by typing, each with its direction, weight and an optional
+  *good enough* threshold. At every move: a funnel (all sets → meet the conditions → within the
+  limits → good enough), what each slider alone takes out, a strip under each slider of where the
+  sets are (those left in green), the best set (and a note when a move changed it), the leading
+  candidates with their margins, and with two objectives the Pareto plot (the front ringed, the best
+  by the weights starred). Nothing is the goal until **Save as a goal** - a new goal or replacing
+  the one it came from: the limits and thresholds become conditions, so the saved goal holds for
+  exactly the sets Explore left. *Back to the goal* drops the draft. A condition can now be on a
+  parameter too.
 - **Sweeps: the best set while a goal is edited**: the foot of the Goals step says how many sets
   hold and shows the best set with its goal - a condition, a direction or a weight changed there
   shows its effect at once, without going to the results (*Open it* goes there, with the set open).
