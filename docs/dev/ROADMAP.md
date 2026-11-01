@@ -654,7 +654,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S10 Where the optimization shows (best set, maps by the goal, what the numbers are).
 - [x] S11 Points: axis titles, in the report.
 - [x] S12 How the plots look (colour map, point size, grid...).
-- [ ] S13 Many columns: fit, or a slider to move along them.
+- [x] S13 Many columns: fit, or a slider to move along them.
 - [ ] S14 The sets that hold as an interactive plot.
 - [ ] S15 An axis taken off the plot comes back.
 - [ ] S16 Next runs: numbers that add up.
