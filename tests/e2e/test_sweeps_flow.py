@@ -814,3 +814,48 @@ def test_plots_style_titles_and_points_in_the_report(pg):
     pg.wait_for_selector(".toast:has-text('points.html')", timeout=60000)
     html = open(os.path.join(pg.env["out"], "points.html"), encoding="utf-8").read()
     assert "<h2>Points: " in html
+
+
+def test_the_optimization_in_the_plots_and_a_pareto_choice(pg):
+    """S19: the lines get the rank and the score; + Pareto plots the two objectives with the front;
+    a rectangle dragged on it keeps those sets in the lines, the table and its export; a click clears."""
+    import csv
+    _fresh(pg)
+    _step(pg, "goals")
+    _condition(pg, "roll_error_deg", "<=", 5)
+    _optimize(pg, "energy_wh", "min")
+    _optimize(pg, "settle_time_s", "min")
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-sets-table tbody tr")
+    pg.wait_for_function("[...document.querySelectorAll('.pp-axis-name')].some(e => e.innerText.startsWith('score'))")
+    names = pg.locator(".pp-axis-name").all_inner_texts()
+    assert any(n.startswith("rank") for n in names), names
+    assert any(n.startswith("score") for n in names), names
+    pg.locator(".sw-center-tabs button", has_text="Points").click()
+    pg.locator(".sw-maps .btn", has_text="+ Pareto").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-scatter canvas').length === 2")
+    _step(pg, "results")
+    pg.locator(".sw-center-tabs button", has_text="Lines").click()
+    all_rows = pg.locator(".sw-sets-table tbody tr").count()
+    pg.locator(".sw-center-tabs button", has_text="Points").click()
+    b = pg.locator(".sw-scatter-box").nth(1).bounding_box()
+    # the lower-left quarter of the plot area: the low energy and the low settle time
+    pg.mouse.move(b["x"] + b["width"] * 0.12, b["y"] + b["height"] * 0.45); pg.mouse.down()
+    pg.mouse.move(b["x"] + b["width"] * 0.6, b["y"] + b["height"] * 0.88, steps=5); pg.mouse.up()
+    pg.wait_for_selector(".toast:has-text('Kept the sets in the rectangle')")
+    pg.locator(".sw-center-tabs button", has_text="Lines").click()
+    pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 2 filters')")
+    some = pg.locator(".sw-sets-table tbody tr").count()
+    assert 0 < some < all_rows
+    pg.locator(".sw-sets-bar .btn", has_text="Export").click()
+    pg.locator(".menu.ctx button", has_text="a row each").click()
+    save_as(pg, "pareto_pick.csv")
+    pg.wait_for_selector(".toast:has-text('sets written')")
+    with open(os.path.join(pg.env["out"], "pareto_pick.csv"), encoding="utf-8-sig") as f:
+        assert len(list(csv.reader(f))) - 1 == some
+    # a click on the plot clears the rectangle
+    pg.locator(".sw-center-tabs button", has_text="Points").click()
+    b = pg.locator(".sw-scatter-box").nth(1).bounding_box()
+    pg.mouse.click(b["x"] + b["width"] * 0.5, b["y"] + b["height"] * 0.5)
+    pg.locator(".sw-center-tabs button", has_text="Lines").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {all_rows}")

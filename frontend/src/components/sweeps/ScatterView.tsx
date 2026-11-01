@@ -1,6 +1,8 @@
 /* Any two columns as points (a point per set, or per run), coloured like the lines and with the
    same filters - as many plots as wanted (S05). */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useApp } from "../../store";
+import type { Filter } from "../../sweeps/model";
 import { useT } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS, rampOf } from "../../sweeps/colors";
 import StyleMenu from "./StyleMenu";
@@ -23,7 +25,11 @@ export default function ScattersView({ study }: { study: Study }) {
   return (
     <div className="sw-maps">
       <div className="sw-row"><span className="hint">{t("swScatterHint")}</span>
-        <span className="sw-add-map" /><StyleMenu study={study} parts={["cmap", "points", "grid"]} />
+        <span className="sw-add-map" />
+        {study.answer?.sets.some((c) => c.name === "#obj1") && (
+          <button className="btn outline" title={t("swParetoHint")} onClick={() => set([...list, { x: "#goal", y: "#obj1" }])}>{t("swParetoPlot")}</button>
+        )}
+        <StyleMenu study={study} parts={["cmap", "points", "grid"]} />
         <button className="btn outline" onClick={add}>{t("swAddScatter")}</button></div>
       <div className="sw-maps-grid">
         {list.map((p, i) => <ScatterPanel key={i} study={study} pair={p} onChange={(q) => set(list.map((x, j) => (j === i ? { ...x, ...q } : x)))}
@@ -41,6 +47,40 @@ function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair:
   const v = study.view;
   const xName = pair.x, yName = pair.y;          // checked by scatterList
   const kept = useMemo(() => keptMask(cols, v.filters, n), [cols, v.filters, n]);
+  // a rectangle dragged on the plot keeps what is in it (S19): the lines' filters on its two columns
+  const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const at = (e: React.PointerEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), k = W / r.width;
+    return { x: (e.clientX - r.left) * k, y: (e.clientY - r.top) * k };
+  };
+  const finish = () => {
+    if (!drag) return;
+    setDrag(null);
+    const xc = cols.get(xName), yc = cols.get(yName);
+    if (!xc || !yc) return;
+    const w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0);
+    const st = useSweeps.getState();
+    if (w < 4 && h < 4) {                                  // a click: the rectangle's filters go
+      if (v.filters[xName] || v.filters[yName]) { st.setFilter(xName, null); st.setFilter(yName, null); }
+      return;
+    }
+    const tx = (X: number) => (X - L) / (W - L - R), ty = (Y: number) => (H - B - Y) / (H - B - T);
+    const range = (c: typeof xc, a: number, b: number): Filter | null => {
+      const s = makeScale(c, scaleOf(study, c.name, c));
+      const lo = Math.max(0, Math.min(a, b)), hi = Math.min(1, Math.max(a, b));
+      if (c.kind === "cat") {
+        const codes = (c.labels ?? []).map((_, i) => i).filter((i) => { const f = s.norm(i); return f >= lo && f <= hi; });
+        return codes.length ? { kind: "values", values: codes } : null;
+      }
+      const u = s.inv(lo), w2 = s.inv(hi);
+      return { kind: "ranges", ranges: [[Math.min(u, w2), Math.max(u, w2)]] };
+    };
+    const fx = range(xc, tx(drag.x0), tx(drag.x1)), fy = range(yc, ty(drag.y0), ty(drag.y1));
+    if (fx) st.setFilter(xName, fx);
+    if (fy) st.setFilter(yName, fy);
+    useApp.getState().toast({ kind: "info", text: t("swPointsKept"), ms: 7000,
+      action: { label: t("swShowLines"), run: () => useSweeps.getState().setView({ center: "lines" }) } });
+  };
   useEffect(() => {
     const c = cv.current, xc = cols.get(xName ?? ""), yc = cols.get(yName ?? "");
     if (!c || !xc || !yc) return;
@@ -95,6 +135,19 @@ function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair:
       ctx.fillStyle = colour(r); ctx.beginPath(); ctx.arc(X, Y, sz / 2, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
+    // two objectives against each other: the Pareto front's sets ringed and joined (S19)
+    const front = cols.get("#pareto");
+    const isObj = (name: string) => name === "#goal" || /^#obj\d+$/.test(name);
+    if (front && isObj(xc.name) && isObj(yc.name)) {
+      const pts: [number, number][] = [];
+      for (let r = 0; r < n; r++) if (front.values[r] === 1 && kept[r]) pts.push([px(xc.values[r]), py(yc.values[r])]);
+      pts.sort((a, b) => a[0] - b[0]);
+      ctx.strokeStyle = HOLDS; ctx.lineWidth = 1.5; ctx.beginPath();
+      pts.forEach(([X, Y], k) => (k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y)));
+      ctx.stroke();
+      for (const [X, Y] of pts) { ctx.beginPath(); ctx.arc(X, Y, sz / 2 + 3, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.lineWidth = 1;
+    }
   }, [cols, n, kept, xName, yName, v.colorBy, study, t]);
   const sel = (key: "x" | "y", val: string | undefined) => (
     <select value={val ?? ""} onChange={(e) => onChange({ [key]: e.target.value })}>
@@ -105,7 +158,14 @@ function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair:
     <div className="sw-scatter sw-map">
       <div className="sw-row sw-map-head"><label>{t("swMapX")} {sel("x", xName)}</label><label>{t("swMapY")} {sel("y", yName)}</label>
         {onRemove && <button className="iconbtn" aria-label={t("swRemoveScatter")} title={t("swRemoveScatter")} onClick={onRemove}>×</button>}</div>
-      <canvas ref={cv} style={{ width: "100%", maxWidth: W, aspectRatio: `${W} / ${H}` }} role="img" aria-label={`${xName} / ${yName}`} />
+      <div className="sw-scatter-box" style={{ maxWidth: W }}
+        onPointerDown={(e) => { const p = at(e); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); setDrag({ x0: p.x, y0: p.y, x1: p.x, y1: p.y }); }}
+        onPointerMove={(e) => { if (drag) { const p = at(e); setDrag({ ...drag, x1: p.x, y1: p.y }); } }}
+        onPointerUp={finish} title={t("swPointsDrag")}>
+        <canvas ref={cv} style={{ width: "100%", aspectRatio: `${W} / ${H}`, display: "block" }} role="img" aria-label={`${xName} / ${yName}`} />
+        {drag && <div className="sw-brush" style={{ left: `${(Math.min(drag.x0, drag.x1) / W) * 100}%`, top: `${(Math.min(drag.y0, drag.y1) / H) * 100}%`,
+          width: `${(Math.abs(drag.x1 - drag.x0) / W) * 100}%`, height: `${(Math.abs(drag.y1 - drag.y0) / H) * 100}%` }} />}
+      </div>
     </div>
   );
 }

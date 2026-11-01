@@ -245,6 +245,11 @@ def answer(p: Prepared, q: Dict) -> Dict:
     if front is not None:
         add("#pareto", front, "result")
         add("#score", score, "result")
+        # each further objective's worst case (the first is #goal): the axes of a Pareto plot (S19)
+        for i, o in enumerate(objs[1:], 1):
+            if o.get("column") in p.df.columns or o.get("column") in p.set_cols:
+                mx = o.get("direction", "max") != "min"
+                add(f"#obj{i}", _agg(p, o["column"], "min" if mx else "max"), "goal", column=o["column"], direction="max" if mx else "min")
     if score is not None and len(objs) >= 2:
         # several things to optimize: the sets that hold are ranked by the weighted score (1 = best
         # on every one), so the weights decide the order - the first alone used to rank them
