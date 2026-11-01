@@ -656,7 +656,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S12 How the plots look (colour map, point size, grid...).
 - [x] S13 Many columns: fit, or a slider to move along them.
 - [x] S14 The sets that hold as an interactive plot.
-- [ ] S15 An axis taken off the plot comes back.
+- [x] S15 An axis taken off the plot comes back.
 - [ ] S16 Next runs: numbers that add up.
 - [ ] S17 Next runs: a compact view, more than CSV.
 - [x] S18 Which parameter matters: titles, grid, in the report.
