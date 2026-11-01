@@ -18,6 +18,9 @@ export interface ParallelPlotProps {
   reversed: Record<string, boolean>;
   colorBy: string | null;
   filters: Record<string, Filter>;
+  /** the rows left, when something else decides it (Explore's draft, S23): the filters are then
+   *  only drawn; missing: the rows the filters keep */
+  keep?: Uint8Array | null;
   /** rows drawn on top, thick (the set open on the right; in runs mode all its runs) */
   highlight: Uint8Array | null;
   labelOf: (name: string) => string;
@@ -87,7 +90,8 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     }
     return out;
   }), [p.axes, p.cols, scales, p.n, plotH, missingY]);
-  const kept = useMemo(() => keptMask(p.cols, p.filters, p.n), [p.cols, p.filters, p.n]);
+  const kept = useMemo(() => p.keep ?? keptMask(p.cols, p.filters, p.n), [p.keep, p.cols, p.filters, p.n]);
+  const keptCount = useMemo(() => kept.reduce((a, b) => a + b, 0), [kept]);
 
   // a colour per row, as buckets of rows (one stroke per colour)
   const buckets = useMemo(() => {
@@ -122,7 +126,6 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     const line = css.getPropertyValue("--line-strong").trim() || "#444";
     const xs = p.axes.map((_, i) => axisX(i));
     const path = (r: number) => { ctx.moveTo(xs[0], ys[0][r]); for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i][r]); };
-    const keptCount = kept.reduce((a, b) => a + b, 0);
     // the lines left out: faint, under the rest (skipped when there are very many)
     if (xs.length > 1 && p.n - keptCount > 0 && p.n <= 60000) {
       ctx.strokeStyle = line; ctx.globalAlpha = 0.18; ctx.lineWidth = 1; ctx.beginPath();
@@ -180,7 +183,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, ys, buckets, kept, p.highlight, hover, brush, p.filters, scales]);
+  }, [width, height, ys, buckets, kept, keptCount, p.highlight, hover, brush, p.filters, scales]);
 
   // ------------------------------------------------------------------- pointer
   const local = (e: React.PointerEvent) => { const r = canvas.current!.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
@@ -249,7 +252,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     <div className="pp-scroll" ref={scroller} onScroll={(e) => setScrollX((e.currentTarget as HTMLDivElement).scrollLeft)}>
     <div className="pp" style={{ height, width }}>
       <canvas ref={canvas} className={brush ? "brushing" : ""} onPointerMove={onMove} onPointerDown={onDown} onPointerUp={onUp}
-        onPointerLeave={() => setHover(null)} role="img" aria-label={p.axes.map(p.labelOf).join(", ")} />
+        onPointerLeave={() => setHover(null)} role="img" data-shown={keptCount} aria-label={p.axes.map(p.labelOf).join(", ")} />
       {p.axes.map((a, i) => {
         const dragging = dragAxis?.name === a;
         const moved = dragging && Math.abs(dragAxis!.x - dragAxis!.x0) > 4;

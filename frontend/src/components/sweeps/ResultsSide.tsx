@@ -7,6 +7,7 @@ import { colLabel, scopeKey } from "../../sweeps/view";
 import { goalName, goalSummary } from "./GoalsStep";
 import { StepFoot } from "./StepNav";
 import BestSet from "./BestSet";
+import ExploreButton from "./ExploreButton";
 
 export default function ResultsSide({ study }: { study: Study }) {
   const t = useT();
@@ -33,6 +34,7 @@ export default function ResultsSide({ study }: { study: Study }) {
         ) : <p className="hint">{t("swReading")}</p>}
       </div>
       {a && <BestSet study={study} />}
+      {a && v.center !== "explore" && <ExploreButton study={study} />}
       <div className="sw-hide-box">
         <b>{t("swNowShown")}</b>
         {filters.length === 0 && steps.length === 0 && <span className="hint">{t("swRepNothing")}</span>}

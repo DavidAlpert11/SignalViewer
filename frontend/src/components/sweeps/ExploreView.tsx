@@ -1,23 +1,30 @@
-/* Explore (S21): a draft of the active goal - its conditions dragged as "what if", limits on the
-   parameters, the objectives with direction, weight and an optional threshold - applied together to
-   the parameter sets at every move: a funnel of what is left, each control's own cut, the best set,
-   the leading candidates and (two objectives) the Pareto front. Nothing here is the goal until
-   "Save as a goal"; "Back to the goal" drops the draft. The logic: sweeps/explore.ts. */
+/* Explore (S21, S23): a draft of the active goal - its conditions dragged as "what if" (and more
+   added here), a limit on every parameter, the objectives with direction, weight and a threshold -
+   applied together to the parameter sets at every move. Every control is on screen from the start
+   (S23). Beside them the lines and the table of sets - the same components as the goal's view - show
+   what the draft leaves, in its order, and export it (explore.ts draftStudy). Nothing here is the
+   goal until "Save as a goal"; "Back to the goal" drops the draft and shows the goal's lines again.
+   The logic: sweeps/explore.ts. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT, type TFn } from "../../i18n";
 import { sweepApi } from "../../sweeps/api";
 import { decodeCol } from "../../sweeps/decode";
-import { draftChanges, draftOf, explore, goalOfDraft, needsAnd, objectiveCol, structureKey, type Draft, type DraftObjective, type Explored } from "../../sweeps/explore";
-import type { Answer, Col } from "../../sweeps/model";
+import { draftChanges, draftOf, draftStudy, explore, exploreAxes, goalOfDraft, isLimited, limitMarks, limitOf, needsAnd, objectiveCol, structureKey,
+  thresholdOf, thresholdOffEnd, withLimit, type Draft, type DraftObjective, type Explored } from "../../sweeps/explore";
+import { OPS, type Answer, type Col, type Condition, type Filter, type Op } from "../../sweeps/model";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { notify } from "../../sweeps/notify";
-import { activeColumns, activeParams } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, scaleOf } from "../../sweeps/view";
 import { confirmAsk, openMenu } from "../Overlays";
 import ColumnPicker from "./ColumnPicker";
 import { goalName } from "./GoalsStep";
+import ParallelPlot from "./ParallelPlot";
+import SetsTable from "./SetsTable";
 
 const BINS = 24;
+/** more parameters than this: a box to find one */
+const FIND_FROM = 6;
 
 export default function ExploreView({ study }: { study: Study }) {
   const t = useT();
@@ -31,21 +38,23 @@ export default function ExploreView({ study }: { study: Study }) {
   const robust = Object.keys(q.robust ?? {}).length > 0;
 
   // the answer to the draft's structure (values applied here; with robustness, a moment after a move)
-  const [ans, setAns] = useState<{ key: string; a: Answer } | null>(null);
+  const [ans, setAns] = useState<{ key: string; shape: string; draft: Draft; a: Answer } | null>(null);
   const [err, setErr] = useState("");
-  const key = structureKey(draft, robust) + JSON.stringify(wireQuestion(study));
+  const base = JSON.stringify(wireQuestion(study));
+  const key = structureKey(draft, robust) + base;
+  const shape = structureKey(draft, false) + base;
   const live = useRef(0);
   useEffect(() => {
     const id = ++live.current;
+    const asked = draft;
     const timer = window.setTimeout(() => {
-      const base = wireQuestion(study);
-      const objs = draft.objectives;
-      const wq = { ...base, conditions: draft.conditions, combine: draft.combine,
+      const objs = asked.objectives;
+      const wq = { ...wireQuestion(study), conditions: asked.conditions, combine: asked.combine,
         goal: objs[0] ? { column: objs[0].column, direction: objs[0].direction } : null,
         objectives: objs.length > 1 ? objs.map(({ column, direction, weight }) => ({ column, direction, weight })) : [] };
       sweepApi.evaluate(study.tableId, wq, false).then((w) => {
         if (id !== live.current) return;
-        setAns({ key, a: { counts: w.counts, conditions: w.conditions, seconds: w.seconds, sets: w.sets.map((c) => decodeCol(c)) } });
+        setAns({ key, shape, draft: asked, a: { counts: w.counts, conditions: w.conditions, seconds: w.seconds, sets: w.sets.map((c) => decodeCol(c)) } });
         setErr("");
       }).catch((e) => id === live.current && setErr((e as Error).message));
     }, robust ? 250 : 0);
@@ -54,12 +63,19 @@ export default function ExploreView({ study }: { study: Study }) {
   }, [key, study.tableId]);
 
   const a = ans?.a;
-  const ex = useMemo(() => (a ? explore(a, draft, robust) : null), [a, draft, robust]);
+  // while the server answers a new structure (a condition or an objective added...), the last answer
+  // stays on screen with the draft it was asked for: its columns are that draft's
+  const shown = ans && ans.shape === shape ? draft : ans?.draft;
+  const busy = !ans || ans.key !== key;
+  const ex = useMemo(() => (a && shown ? explore(a, shown, robust) : null), [a, shown, robust]);
   const cols = useMemo(() => new Map<string, Col>((a?.sets ?? []).map((c) => [c.name, c])), [a]);
-  // the numeric parameters' ranges (for limits) and every output that can be an objective
+  const paramsKey = activeParams(study).join("\n");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const params = useMemo(() => activeParams(study), [paramsKey]);
+  // the numeric parameters' ranges (a limit each)
   const ranges = useMemo(() => {
     const out: Record<string, [number, number]> = {};
-    for (const p of activeParams(study)) {
+    for (const p of params) {
       const c = cols.get(p);
       if (!c || c.kind !== "num") continue;
       let lo = Infinity, hi = -Infinity;
@@ -67,10 +83,18 @@ export default function ExploreView({ study }: { study: Study }) {
       if (lo < hi) out[p] = [lo, hi];
     }
     return out;
-  }, [cols, study]);
+  }, [cols, params]);
   const outputs = [...activeColumns(study, "output"), ...q.derived.map((d) => d.name)];
   const changes = draftChanges(draft, goal, ranges);
   const blocked = needsAnd(draft, ranges);
+  // the lines and the table: the study as the draft makes it (nothing stored)
+  const axes = useMemo(() => (a && shown ? exploreAxes(a, shown, params) : []), [a, shown, params]);
+  const dstudy = useMemo(() => (a && shown && ex ? draftStudy(study, shown, a, ex, ranges, axes) : null), [study, shown, a, ex, ranges, axes]);
+  const dcols = useMemo(() => new Map<string, Col>((dstudy?.answer?.sets ?? []).map((c) => [c.name, c])), [dstudy]);
+  const keep = useMemo(() => { if (!ex) return null; const m = new Uint8Array(ex.n); for (const s of ex.survivors) m[s] = 1; return m; }, [ex]);
+  const bestMask = useMemo(() => { if (!ex || ex.ranked[0] === undefined) return null; const m = new Uint8Array(ex.n); m[ex.ranked[0]] = 1; return m; }, [ex]);
+  const scale = useMemo(() => (name: string) => (dstudy ? scaleOf(dstudy, name, dcols.get(name)) : "linear" as const), [dstudy, dcols]);
+  const [find, setFind] = useState("");
 
   // the best set and the note when a move changed it
   const best = ex?.ranked[0];
@@ -104,94 +128,147 @@ export default function ExploreView({ study }: { study: Study }) {
       } },
     ]);
   };
+  // back to the goal: the draft dropped, the goal's own lines and table
+  const back = () => useSweeps.getState().setView({ explore: { draft: draftOf(goal), from: q.active }, center: "lines" });
 
   if (err) return <p className="sw-error">{err}</p>;
-  if (!a || !ex) return <p className="hint">{t("swReading")}</p>;
-  const setCond = (i: number, value: number) => setDraft({ ...draft, conditions: draft.conditions.map((c, j) => (j === i ? { ...c, value } : c)) });
+  if (!a || !ex || !dstudy) return <p className="hint">{t("swReading")}</p>;
+  const setCond = (i: number, p: Partial<Condition>) => setDraft({ ...draft, conditions: draft.conditions.map((c, j) => (j === i ? { ...c, ...p } : c)) });
   const setObj = (k: number, p: Partial<DraftObjective>) => setDraft({ ...draft, objectives: draft.objectives.map((o, j) => (j === k ? { ...o, ...p } : o)) });
+  // a value that keeps every set: the far end of the column's values for that comparison
+  const openValue = (column: string, op: Op) => { const [lo, hi] = extent(cols.get(column)); return op.startsWith("<") ? hi : lo; };
   const holdingMask = new Set(ex.survivors);
+  const fresh = (i: number) => !busy || i < (ans?.draft.conditions.length ?? 0);
+  const goalConds = goal.conditions.filter((x) => x.column);
+  const limited = Object.keys(ranges).filter((p) => isLimited(draft.limits[p], ranges[p])).length;
+  const limitList = Object.keys(ranges).filter((p) => !find || p.toLowerCase().includes(find.toLowerCase()));
+  const brushed = (name: string, f: Filter | null) => {
+    const r = ranges[name];
+    if (!r) return;                                                 // only a parameter has a limit to drag
+    if (!f) { setDraft(withLimit(draft, name, r, ranges)); return; }
+    const vs = f.kind === "ranges" ? f.ranges.flat() : f.values;
+    if (vs.length) setDraft(withLimit(draft, name, [Math.max(r[0], Math.min(...vs)), Math.min(r[1], Math.max(...vs))], ranges));
+  };
   return (
-    <div className="sw-explore">
+    <div className="sw-explore" aria-busy={busy}>
       <div className="sw-explore-head">
         <Funnel t={t} f={ex.funnel} />
         <span className="sw-explore-status">
           {changes ? t("swExploreDiffers", { n: changes, g: goalName(t, goal, from) }) : t("swExploreSame", { g: goalName(t, goal, from) })}
           {changes > 0 && <>
             <button className="btn primary" onClick={save}>{t("swExploreSave")} ▾</button>
-            <button className="btn outline" onClick={() => setDraft(draftOf(goal))}>{t("swExploreBack")}</button>
+            <button className="btn outline" onClick={back}>{t("swExploreBack")}</button>
           </>}
         </span>
       </div>
       {blocked && <p className="sw-warn">{t("swExploreOrGoal")}</p>}
       <div className="sw-explore-body">
         <div className="sw-explore-controls">
-          <h3>{t("swExploreConds")}</h3>
-          {draft.conditions.length === 0 && <p className="hint">{t("swExploreNoConds")}</p>}
-          {draft.conditions.map((c, i) => {
-            const w = cols.get(`#c${i}.worst`);
-            const [lo, hi] = extent(w, c.value);
+          <h3>{t("swExploreLimits")}{limited > 0 && <span className="sw-limited">{t("swExploreLimited", { n: limited })}</span>}</h3>
+          {Object.keys(ranges).length > FIND_FROM && (
+            <input type="search" className="sw-explore-find" value={find} placeholder={t("swExploreFind")} aria-label={t("swExploreFind")} onChange={(e) => setFind(e.target.value)} />
+          )}
+          {limitList.map((p) => {
+            const [min, max] = ranges[p];
+            const [lo, hi] = limitOf(draft, p, ranges);
+            const on = isLimited(draft.limits[p], ranges[p]);
+            const pct = (v: number) => ((v - min) / (max - min)) * 100;
             return (
-              <Slider key={i} t={t} label={`${c.column} ${c.op}`} value={c.value} lo={lo} hi={hi} col={w} keep={holdingMask}
-                alone={ex.alone[`c${i}`]} changed={c.value !== goal.conditions.filter((x) => x.column)[i]?.value} onChange={(v) => setCond(i, v)} />
-            );
-          })}
-          <h3>{t("swExploreLimits")}</h3>
-          <ColumnPicker options={Object.keys(ranges).map((p) => ({ id: p, label: p, group: t("swRoleParam") }))} value={Object.keys(draft.limits)}
-            label={t("swExploreLimitsPick", { n: Object.keys(draft.limits).length })}
-            onChange={(ids) => setDraft({ ...draft, limits: Object.fromEntries(ids.map((p) => [p, draft.limits[p] ?? ranges[p]])) })} />
-          {Object.entries(draft.limits).map(([p, [lo, hi]]) => {
-            const [min, max] = ranges[p] ?? [lo, hi];
-            return (
-              <div key={p} className="sw-explore-row">
+              <div key={p} className={`sw-explore-row${on ? " limited" : ""}`}>
                 <div className="sw-explore-label"><span className="mono">{p}</span>
                   <span className="hint">{fmtValue(lo)} – {fmtValue(hi)}</span>
                   <Cut t={t} n={ex.alone[`p:${p}`]} /></div>
                 <Strip col={cols.get(p)} keep={holdingMask} lo={min} hi={max} />
                 <div className="sw-range2">
+                  <span className="sw-range2-fill" style={{ insetInlineStart: `${pct(lo)}%`, insetInlineEnd: `${100 - pct(hi)}%` }} />
                   <input type="range" min={min} max={max} step="any" value={lo} aria-label={t("swExploreFrom", { c: p })}
-                    onChange={(e) => setDraft({ ...draft, limits: { ...draft.limits, [p]: [Math.min(Number(e.target.value), hi), hi] } })} />
+                    onChange={(e) => setDraft(withLimit(draft, p, [Math.min(Number(e.target.value), hi), hi], ranges))} />
                   <input type="range" min={min} max={max} step="any" value={hi} aria-label={t("swExploreTo", { c: p })}
-                    onChange={(e) => setDraft({ ...draft, limits: { ...draft.limits, [p]: [lo, Math.max(Number(e.target.value), lo)] } })} />
+                    onChange={(e) => setDraft(withLimit(draft, p, [lo, Math.max(Number(e.target.value), lo)], ranges))} />
                 </div>
               </div>
             );
           })}
+          {!Object.keys(ranges).length && <p className="hint">{t("swExploreNoLimits")}</p>}
+
           <h3>{t("swExploreObjs")}</h3>
-          <ColumnPicker options={outputs.map((o) => ({ id: o, label: o, group: t("swRoleOutput") }))} value={draft.objectives.map((o) => o.column)}
-            label={t("swExploreObjsPick", { n: draft.objectives.length })}
-            onChange={(ids) => setDraft({ ...draft, objectives: ids.map((c) => draft.objectives.find((o) => o.column === c) ?? { column: c, direction: "max", weight: 1 }) })} />
+          {draft.objectives.length === 0 && <p className="hint">{t("swExploreNoObjs")}</p>}
           {draft.objectives.map((o, k) => {
-            const v = cols.get(objectiveCol(k));
+            const v = !busy || k < (ans?.draft.objectives.length ?? 0) ? cols.get(objectiveCol(k)) : undefined;
             const [lo, hi] = extent(v);
+            const value = o.threshold ?? thresholdOffEnd(o.direction, lo, hi);
             return (
               <div key={o.column} className="sw-explore-row sw-explore-obj">
                 <div className="sw-explore-label"><span className="mono">{o.column}</span>
                   <button className="btn outline sw-dir" onClick={() => setObj(k, { direction: o.direction === "max" ? "min" : "max", threshold: undefined })}>
-                    {o.direction === "max" ? `↑ ${t("swMax")}` : `↓ ${t("swMin")}`}</button></div>
-                {draft.objectives.length > 1 && (
-                  <label className="sw-explore-line">{t("swWeight")}
-                    <input type="range" min={0} max={10} step={1} value={o.weight} onChange={(e) => setObj(k, { weight: Number(e.target.value) })} />
-                    <span className="mono">{o.weight}</span></label>
-                )}
-                <label className="sw-explore-line">
-                  <input type="checkbox" checked={o.threshold !== undefined}
-                    onChange={(e) => setObj(k, { threshold: e.target.checked ? (o.direction === "min" ? hi : lo) : undefined })} />
-                  {t("swExploreThreshold")}
-                  {o.threshold !== undefined && <>
-                    <input type="range" min={lo} max={hi} step="any" value={o.threshold} onChange={(e) => setObj(k, { threshold: Number(e.target.value) })} />
-                    <span className="mono">{o.direction === "min" ? "≤" : "≥"} {fmtValue(o.threshold)}</span>
-                    <Cut t={t} n={ex.alone[`o${k}`]} />
-                  </>}
+                    {o.direction === "max" ? `↑ ${t("swMax")}` : `↓ ${t("swMin")}`}</button>
+                  <button className="iconbtn" aria-label={t("swRemove")} title={t("swRemove")}
+                    onClick={() => setDraft({ ...draft, objectives: draft.objectives.filter((_, j) => j !== k) })}>×</button></div>
+                <label className="sw-explore-line">{t("swWeight")}
+                  <input type="range" min={0} max={10} step={1} value={o.weight} aria-label={t("swWeight")} disabled={draft.objectives.length < 2}
+                    onChange={(e) => setObj(k, { weight: Number(e.target.value) })} />
+                  <span className="mono">{o.weight}</span></label>
+                {draft.objectives.length < 2 && <p className="hint sw-explore-note">{t("swExploreWeightOne")}</p>}
+                <label className="sw-explore-line">{t("swExploreThreshold")}
+                  <input type="range" min={lo} max={hi} step="any" value={value} aria-label={t("swExploreThresholdOf", { c: o.column })}
+                    onChange={(e) => setObj(k, { threshold: thresholdOf(o.direction, Number(e.target.value), lo, hi) })} />
+                  <span className="mono sw-explore-th">{o.threshold === undefined ? t("swExploreNoThreshold") : `${o.direction === "min" ? "≤" : "≥"} ${fmtValue(o.threshold)}`}</span>
                 </label>
-                {o.threshold !== undefined && <Strip col={v} keep={holdingMask} lo={lo} hi={hi} mark={o.threshold} />}
+                <div className="sw-explore-label"><Cut t={t} n={ex.alone[`o${k}`]} /></div>
+                <Strip col={v} keep={holdingMask} lo={lo} hi={hi} mark={o.threshold} />
               </div>
             );
           })}
+          <ColumnPicker options={outputs.map((o) => ({ id: o, label: o, group: t("swRoleOutput") }))} value={draft.objectives.map((o) => o.column)}
+            label={t("swExploreObjsPick", { n: draft.objectives.length })}
+            onChange={(ids) => setDraft({ ...draft, objectives: ids.map((c) => draft.objectives.find((o) => o.column === c) ?? { column: c, direction: "max", weight: 1 }) })} />
+
+          <h3>{t("swExploreConds")}</h3>
+          {draft.conditions.length === 0 && <p className="hint">{t("swExploreNoConds")}</p>}
+          {draft.conditions.map((c, i) => {
+            const w = fresh(i) ? cols.get(`#c${i}.worst`) : undefined;
+            const [lo, hi] = extent(w ?? cols.get(c.column), c.value);
+            const g = goalConds[i];
+            const changed = !g || g.column !== c.column || g.op !== c.op || g.value !== c.value;
+            return (
+              <div key={i} className="sw-explore-row sw-explore-cond">
+                <div className="sw-explore-label">
+                  <select aria-label={t("swCondColumn")} value={c.column} onChange={(e) => setCond(i, { column: e.target.value, value: openValue(e.target.value, c.op) })}>
+                    <optgroup label={t("swRoleOutput")}>{outputs.map((o) => <option key={o} value={o}>{o}</option>)}</optgroup>
+                    {params.length > 0 && <optgroup label={t("swRoleParam")}>{params.map((o) => <option key={o} value={o}>{o}</option>)}</optgroup>}
+                  </select>
+                  <select aria-label={t("swCondOp")} value={c.op} onChange={(e) => setCond(i, { op: e.target.value as Op })}>
+                    {OPS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <span className={`mono${changed ? " sw-whatif" : ""}`} title={changed ? t("swExploreWhatIf") : undefined}>{fmtValue(c.value)}</span>
+                  <Cut t={t} n={ex.alone[`c${i}`]} />
+                  <button className="iconbtn" aria-label={t("swRemove")} title={t("swRemove")}
+                    onClick={() => setDraft({ ...draft, conditions: draft.conditions.filter((_, j) => j !== i) })}>×</button>
+                </div>
+                <Strip col={w} keep={holdingMask} lo={lo} hi={hi} mark={c.value} />
+                <input type="range" min={lo} max={hi} step="any" value={c.value} aria-label={`${c.column} ${c.op}`} onChange={(e) => setCond(i, { value: Number(e.target.value) })} />
+              </div>
+            );
+          })}
+          <button className="btn outline sw-add-btn" disabled={!outputs.length && !params.length}
+            onClick={() => { const column = outputs[0] ?? params[0]; setDraft({ ...draft, conditions: [...draft.conditions, { column, op: "<=", value: openValue(column, "<="), mode: "all" }] }); }}>
+            {t("swAddCondition")}</button>
         </div>
+
         <div className="sw-explore-result">
-          <Best t={t} study={study} cols={cols} ex={ex} draft={draft} moved={moved} />
-          {draft.objectives.length >= 2 && <Pareto cols={cols} ex={ex} draft={draft} t={t} />}
-          <Candidates t={t} study={study} cols={cols} ex={ex} draft={draft} />
+          <p className="sw-explore-left" aria-live="polite">{t("swExploreLeft", { n: ex.survivors.length.toLocaleString(), of: ex.n.toLocaleString() })}</p>
+          <p className="hint">{t("swExploreLinesHint")}</p>
+          {axes.length > 1 ? (
+            <ParallelPlot sliderLabel={(x, y, n) => t("swAxesOnScreen", { a: x, b: y, n })} cols={dcols} n={ex.n} axes={axes} scaleOf={scale}
+              reversed={study.view.reversed} colorBy={study.view.colorBy && dcols.has(study.view.colorBy) ? study.view.colorBy : null}
+              filters={limitMarks(shown!)} keep={keep} highlight={bestMask} labelOf={(x) => colLabel(t, dstudy, x)} fit={!!study.view.fitAxes} height={300}
+              onPick={(r) => useSweeps.getState().setView({ pinned: r })} onFilter={brushed} onAxisMenu={() => {}} onMoveAxis={() => {}} />
+          ) : <p className="empty-note">{t("swNoAxes")}</p>}
+          <div className="sw-explore-extras">
+            <Best t={t} study={study} cols={cols} ex={ex} draft={shown!} moved={moved} />
+            {shown!.objectives.length >= 2 && <Pareto cols={cols} ex={ex} draft={shown!} t={t} />}
+          </div>
+          <SetsTable study={dstudy} draft />
         </div>
       </div>
     </div>
@@ -217,20 +294,6 @@ function Funnel({ t, f }: { t: TFn; f: [number, number, number, number] }) {
 
 const Cut = ({ t, n }: { t: TFn; n: number | undefined }) =>
   n ? <span className="sw-cut" title={t("swExploreAloneHint")}>{t("swExploreAlone", { n })}</span> : null;
-
-function Slider({ t, label, value, lo, hi, col, keep, alone, changed, onChange }: {
-  t: TFn; label: string; value: number; lo: number; hi: number; col?: Col; keep: Set<number>; alone: number | undefined; changed: boolean; onChange: (v: number) => void;
-}) {
-  return (
-    <div className="sw-explore-row">
-      <div className="sw-explore-label"><span className="mono">{label}</span>
-        <span className={`mono${changed ? " sw-whatif" : ""}`} title={changed ? t("swExploreWhatIf") : undefined}>{fmtValue(value)}</span>
-        <Cut t={t} n={alone} /></div>
-      <Strip col={col} keep={keep} lo={lo} hi={hi} mark={value} />
-      <input type="range" min={lo} max={hi} step="any" value={value} aria-label={label} onChange={(e) => onChange(Number(e.target.value))} />
-    </div>
-  );
-}
 
 /** Where the sets are along a slider: a bar per bin, the part still standing coloured. */
 function Strip({ col, keep, lo, hi, mark }: { col?: Col; keep: Set<number>; lo: number; hi: number; mark?: number }) {
@@ -299,32 +362,5 @@ function Pareto({ t, cols, ex, draft }: { t: TFn; cols: Map<string, Col>; ex: Ex
       </svg>
       <figcaption className="hint">{t("swExploreParetoKey", { n: ex.front.size })}</figcaption>
     </figure>
-  );
-}
-
-function Candidates({ t, study, cols, ex, draft }: { t: TFn; study: Study; cols: Map<string, Col>; ex: Explored; draft: Draft }) {
-  const params = activeParams(study);
-  const rows = ex.ranked.slice(0, 10);
-  if (!rows.length) return null;
-  const v = (c: string, s: number) => { const col = cols.get(c); return col ? labelOf(col, col.values[s]) : "–"; };
-  return (
-    <div className="sw-table-wrap">
-      <table className="sw-table">
-        <thead><tr><th>#</th>{params.map((p) => <th key={p}>{p}</th>)}
-          {draft.objectives.map((o, k) => <th key={k} className="num">{o.direction === "max" ? "↑" : "↓"} {o.column}</th>)}
-          {draft.conditions.map((c, i) => <th key={`m${i}`} className="num">{t("swExploreMargin", { c: c.column })}</th>)}</tr></thead>
-        <tbody>{rows.map((s, r) => (
-          <tr key={s} className={ex.front.has(s) ? "sw-on-front" : ""} onClick={() => useSweeps.getState().setView({ pinned: s, step: "results", center: "lines" })}>
-            <td className="num">{r + 1}</td>{params.map((p) => <td key={p}>{v(p, s)}</td>)}
-            {draft.objectives.map((_, k) => <td key={k} className="num">{v(objectiveCol(k), s)}</td>)}
-            {draft.conditions.map((c, i) => {
-              const w = cols.get(`#c${i}.worst`)?.values[s];
-              const m = w === undefined || !Number.isFinite(w) ? NaN : c.op.startsWith("<") ? c.value - w : w - c.value;
-              return <td key={`m${i}`} className="num">{Number.isFinite(m) ? fmtValue(m) : "–"}</td>;
-            })}
-          </tr>
-        ))}</tbody>
-      </table>
-    </div>
   );
 }

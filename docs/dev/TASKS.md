@@ -220,9 +220,9 @@ parameter sets change in the HiPlot and the CSV")
   columns, so the lines, the table, its Export (CSV, HTML) and the report follow; a click outside
   clears it.
 
-## Sweeps, round 3 (owner, 2026-11-01): S20–S22 - the journal as the report wants it; exploring
+## Sweeps, round 3 (owner, 2026-11-01): S20–S23 - the journal as the report wants it; exploring
 
-**Progress:** S20–S22 done.
+**Progress:** S20–S23 done.
 
 ### S20 · The journal for the report: the final story — S · **Done**
 - The report's journal shows **the final steps only** by default: for each thing (a goal, the
@@ -251,6 +251,38 @@ parameter sets change in the HiPlot and the CSV")
 ### S22 · Goals: the best set while editing — S · **Done**
 - At the foot of the Goals step: how many sets hold and the best set with its objectives' values,
   updated while conditions, directions and weights are edited (the Results' card).
+
+### S23 · Explore: visible, reachable and live in the plot and the table — M · **Done**
+Owner's notes after S21: Explore was hard to find (a tab of the results, while the goal is edited in
+Goals), most of its sliders hid behind an action (a picker for limits, weights only from two
+objectives, a checkbox for thresholds), with one objective and no condition it looked empty, and the
+optimization did not show in the parallel plot ("HiPlot") and the table.
+- **Way in:** *Explore this goal →* in the Goals step's panel and in the Results' answer panel (not
+  while Explore is on screen): a fresh draft of the active goal. The Explore tab goes back to a draft
+  already there. Still a draft: the goal changes only on Save.
+- **Everything on screen:** a two-thumb range per numeric parameter (the whole range = no limit;
+  *limited: N*; a search box from 7 parameters); every objective's weight (disabled with one, with a
+  line saying weights count from two) and threshold (its far end = *no threshold*); *+ condition* in
+  Explore (column - outputs and parameters -, comparison, the value as a slider; × removes); an empty
+  goal shows every parameter and *+ objective*.
+- **Live:** controls on one side; on the other *N of M parameter sets left*, the existing
+  ParallelPlot and SetsTable driven by the draft, the best set and (two objectives) the Pareto plot.
+  How (no fork): `explore.ts draftStudy` - the study as the draft makes it: the draft structure's
+  answer with #holds = the sets left, #rank = the draft's order (#score / #pareto of what is left),
+  the question = the draft saved as a goal (an export's own columns say what Explore said; an "or"
+  goal: its conditions only), the view without the goal's filters / keep-exclude steps and with
+  onlyHolding. ParallelPlot takes `keep` (the rows left; the limits are drawn as filter marks only)
+  and says its count in `data-shown`; dragging on a parameter's axis sets its limit. SetsTable takes
+  `draft` (no *only those that hold*). Exports of what is left: the table's menu (CSV in rank order,
+  their runs, the interactive plot).
+- *Back to the goal* drops the draft and shows the Lines (the goal's own view: nothing of the draft
+  was stored in it).
+- Notes: `aria-busy` on `.sw-explore` while a new structure is asked (the last answer stays on screen
+  with the draft it was asked for - its columns are that draft's, a condition added does not read
+  another's worst case). Layout by a container query on Explore's own width (side by side down to
+  600 px: at 1024 px with the side panel open they still fit). The strips under the sliders are
+  mirrored in Hebrew, as the range inputs are. The S21 e2e follows the new controls (no picker, the
+  threshold a slider); its equality check is unchanged.
 
 ## Queue (in this order)
 
@@ -1988,3 +2020,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S20: journal.ts `reportJournal(log, final, start)` - from the last reset / the start line; final: the last line of each key (found among hidden lines too: hiding the last version leaves the thing out, it does not bring back the one before), roles netted per column, keep / exclude replayed against scopeBack, goalAdd / goalRemove and a removed goal's lines out, things that ended as nothing out; opening a file writes no line; LogEntry.hidden + hideJournalLine; view.journalAll / journalStart; Report step `Journal` (final / everything, × ↺ ⤒), the iterations box apart (.sw-iterations); ReportDialog uses reportJournal. e2e +1, the S08 test adapted.
 - 2026-11-01 · S22: BestSet.tsx (out of ResultsSide - GoalsStep imports it; ResultsSide imports GoalsStep, so no cycle); the Goals step's foot: how many hold + BestSet; *Open it* goes to the results with the set pinned. e2e +1.
 - 2026-11-01 · S21: sweeps/explore.ts (Draft, draftOf, structureKey - the server answers once per structure, sliders applied here; with robustness the values too, 250 ms after a move; `explore` = funnel, each control's own cut, ranking (one objective by its worst case; several by a weighted score of each one's place among the survivors), the Pareto front on the first two; `goalOfDraft` - limits and thresholds as conditions; an "or" goal cannot take them: refused with a message); comparisons tolerant to Float32 (0.2 is 0.20000000298: a limit <= 0.2 had left out the sets at 0.2 the server keeps - found by the e2e checking that the saved goal holds for what Explore showed); ExploreView (funnel, sliders with a histogram strip, two-thumb limits, objectives with direction / weight / threshold, the best set, Pareto scaled to the sets left, candidates with margins), view.explore keeps the draft (not undone, not journalled: the save is the step); Center `explore`; ConditionRow offers parameters too. e2e +1.
+- 2026-11-01 · S23: ExploreButton.tsx (Goals side under the goal's name, Results side under the best set); ExploreView: limits for every numeric parameter (`withLimit` / `isLimited`: back at the whole range = no limit), weight + threshold sliders always (`thresholdOf` / `thresholdOffEnd`: the far end is off), conditions editable / added / removed in the draft; `draftStudy` + `exploreAxes` + `limitMarks` in explore.ts; ParallelPlot `keep` + `data-shown`; SetsTable `draft`; Candidates gone (the table has the margins); swExploreMargin / swExploreLimitsPick removed. e2e +1 (the acceptance list), S21's adapted. Checked: the whole e2e suite (34 files, one per process; test_globe3d needs ~2.5 min) green - test_features once had one failure (test_compare_same_segment_across_runs, Recordings) that passed alone and on a rerun of the file in order: a flake, not this change; backend 898 passed, mypy clean, tsc, oxlint 51.
