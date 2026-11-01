@@ -16,11 +16,11 @@ def test_run_step_preview(pg):
     pg.locator(".sw-area-btn[data-area='run']").click()
     pg.wait_for_selector(".sw-runstep")
     box = pg.locator(".sw-runstep input[aria-label='The command of one run']")
-    box.fill("python sim.py --kp {kp_roll} --wind {wind} --out {out}")
+    box.fill("python sim.py --kp {kp_roll} --wind {scenario_wind_mps} --out {out}")
     pg.wait_for_selector(".sw-run-preview code")
     code = pg.locator(".sw-run-preview code").inner_text()
     assert code.startswith("python sim.py --kp ") and "--out " in code and "{" not in code
-    assert "36 runs" in pg.locator(".sw-run-preview").inner_text()                         # 1 set x 36 scenarios
+    assert "18 runs" in pg.locator(".sw-run-preview").inner_text()                         # 1 set x 18 scenarios
     box.fill("python sim.py {nope}")
     pg.wait_for_selector(".sw-runstep .sw-error:has-text('nope')")
 

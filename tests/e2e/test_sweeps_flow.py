@@ -633,7 +633,7 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
     pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
     pg.keyboard.press("Escape")
     row = sec.locator(".sw-robust-row", has_text="kp_roll")
-    assert row.locator("select").input_value() == "steps"
+    assert row.locator("select").first.input_value() == "steps"          # the mode (then the distribution, MF08)
     pg.wait_for_function("document.querySelector('.sw-optimize-now').innerText.includes('hold robustly')")
     _step(pg, "results")
     pg.wait_for_selector(".sw-sets-table th:has-text('holds robustly')")

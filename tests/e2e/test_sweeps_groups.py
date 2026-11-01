@@ -28,6 +28,13 @@ def test_old_study_opens_with_automatic_groups_only(pg):
     _bar_menu(pg, "Open", "Open a saved study")
     goto_folder(pg, pg.env["out"])
     pg.locator(".dialog .fs-row", has_text="nogroups.svsweep").click(); pg.click(".dialog-foot .btn.primary")
+    # the study opens a moment later and shows its saved step: a click before that is undone by it,
+    # so go to the results until they stay (the end state), not once
+    for _ in range(20):
+        pg.locator(".sw-area-btn[data-area='explore']").click()
+        if pg.locator(".sw-step-btn[data-step='results']").count():
+            break
+        pg.wait_for_timeout(500)
     _step(pg, "results")
     pg.wait_for_selector(".sw-groups .sw-group[data-group='all']")
     assert pg.locator(".sw-groups .sw-group:not(.auto)").count() == 0

@@ -63,7 +63,8 @@ def test_every_pane_kind_and_a_group_per_pane(pg):
     for kind in ("lines", "map", "history", "pareto", "compare", "bubble", "histogram", "box", "matrix", "broken", "scatter"):
         pane.locator("select[aria-label='Chart']").select_option(kind)
         pg.wait_for_selector(f".sw-pane[data-kind='{kind}']")
-        assert pg.locator(".sw-pane").nth(0).locator("svg, canvas, table, .empty-note, .sw-broken").count() > 0
+        # some kinds ask the server first (map, history): wait for the drawing, not for the pane
+        pg.wait_for_function("document.querySelector('.sw-pane').querySelector('svg, canvas, table, .empty-note, .sw-broken') !== null")
     # the histogram of only the holding sets counts fewer than of all
     pane.locator("select[aria-label='Chart']").select_option("broken")
     allfail = pg.locator(".sw-broken-n").first.inner_text()
