@@ -104,6 +104,9 @@ export const sweepApi = {
     call<{ args: string[]; runs: number; workdir: string; workdirExists: boolean }>("/api/sweep/run/preview", { id, question, sets, combos, spec }),
   runStart: (id: string, question: WireQuestion, sets: Record<string, string | number | null>[], combos: boolean, spec: RunStep) =>
     call<{ id: string }>("/api/sweep/run/start", { id, question, sets, combos, spec }),
+  optimiseStart: (id: string, question: WireQuestion, specs: DoeSpec[], method: string, budget: number, combos: boolean, spec: RunStep) =>
+    call<{ id: string; method: string; pop: number; objectives: { column: string; direction: string }[]; constraints: unknown[] }>(
+      "/api/sweep/optimise/start", { id, question, specs, method, budget, combos, spec }),
   runLive: (job: string, since: number) => call<RunLive>(`/api/sweep/run/${job}?since=${since}`),
   runStop: (job: string) => call<{ cancelled: boolean }>(`/api/jobs/${job}/cancel`, {}),
   sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
@@ -173,6 +176,6 @@ export interface RunStep { template: string; workdir: string; parser: "json" | "
 /** MF11: a run job's state - the job, counts by status, the finished runs (from `since`), the last failures. */
 export interface RunLive {
   job: { id: string; state: "running" | "done" | "error" | "cancelled"; progress: number; error: string | null; elapsed: number };
-  live: { total: number; path: string; next: number; counts: { ok: number; error: number; timeout: number; cached: number; running: number };
+  live: { total: number; path: string; next: number; gen: number; best: { params: Record<string, string | number | null>; objectives: number[] }[]; counts: { ok: number; error: number; timeout: number; cached: number; running: number };
     rows: Record<string, string | number | null>[]; failures: { run: number; status: string; message: string; inputs: Record<string, unknown> }[] };
 }

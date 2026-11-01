@@ -23,3 +23,15 @@ def test_run_step_preview(pg):
     assert "36 runs" in pg.locator(".sw-run-preview").inner_text()                         # 1 set x 36 scenarios
     box.fill("python sim.py {nope}")
     pg.wait_for_selector(".sw-runstep .sw-error:has-text('nope')")
+
+
+def test_optimiser_needs_the_run_step_then_is_ready(pg):
+    _fresh(pg)
+    _the_goal(pg)
+    pg.locator(".sw-area-btn[data-area='run']").click()
+    pg.wait_for_selector(".sw-optimiser")
+    start = pg.locator(".sw-optimiser .btn", has_text="Start optimising")
+    assert start.is_disabled()                                         # no run step yet
+    assert "energy_wh" in pg.locator(".sw-optimiser").inner_text()     # the goal's objective
+    pg.locator(".sw-runstep input[aria-label='The command of one run']").fill("python sim.py --kp {kp_roll} --out {out}")
+    pg.wait_for_function("!document.querySelector('.sw-optimiser .btn.primary').disabled")

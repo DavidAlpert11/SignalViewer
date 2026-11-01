@@ -118,10 +118,12 @@ class Live:
         self.rows: List[Dict[str, Any]] = []          # finished runs, in order: inputs, outputs, status
         self.failures: List[Dict[str, Any]] = []      # the last 20: run, status, message tail
         self.path = ""
+        self.gen = 0                                   # MF07: the optimiser's generation (0: not an optimiser)
+        self.best: List[Dict[str, Any]] = []           # MF07: the best so far
 
     def to_dict(self, since: int = 0) -> Dict[str, Any]:
         with self.lock:
-            return {"total": self.total, "counts": dict(self.counts), "path": self.path,
+            return {"total": self.total, "counts": dict(self.counts), "path": self.path, "gen": self.gen, "best": list(self.best),
                     "rows": self.rows[since:since + 2000], "next": min(len(self.rows), since + 2000),
                     "failures": list(self.failures)}
 
@@ -239,7 +241,7 @@ def run_all(runs: List[Dict[str, Any]], spec: Dict[str, Any], live: Live,
                     if st in live.counts:
                         live.counts[st] += 1
                     live.counts["running"] = len(pending)
-                    live.rows.append({**row, "run": i})
+                    live.rows.append({**row, "run": i, "gen": live.gen})
                     if st not in ("ok", "cancelled"):
                         live.failures = (live.failures + [{"run": i, "status": st, "message": msg[-400:],
                                                           "inputs": {k: row.get(k) for k in inputs}}])[-20:]
@@ -250,3 +252,15 @@ def run_all(runs: List[Dict[str, Any]], spec: Dict[str, Any], live: Live,
     with live.lock:
         live.counts["running"] = 0
     return {"path": results, **live.to_dict(0)["counts"], "total": len(runs)}
+
+
+def read_results(path: str, inputs: Sequence[str]) -> Dict[str, Dict[str, Any]]:
+    """The results file's ok rows by run key (the last one of each)."""
+    out: Dict[str, Dict[str, Any]] = {}
+    if not os.path.isfile(path):
+        return out
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row.get(STATUS_COL) == "ok":
+                out[key_of(row, inputs)] = {k: _number(v) for k, v in row.items()}
+    return out

@@ -22,6 +22,8 @@
 
 - **Sweeps: run the sets from the app.** In the *Run* area, write the command of one run with placeholders (`{kp} {wind} {out}`), say where its results are (a JSON or CSV file, or printed `name = value` lines), how many at once and a time limit; the first command is shown before anything runs. Then run a design, the virtual sets or the marked ones - each in every scenario - and watch it live: counts by status, each result's history with the best so far, the Pareto front growing, the failures with their messages, Stop. Runs already done are not run again; the results are merged into the study when the runs end.
 
+- **Sweeps: optimise by running.** In the *Run* area, an optimiser runs generations of sets with your run step and chooses the next ones from the results - NSGA-II for several objectives (the Pareto front), differential evolution for one, a model-assisted search when runs are few and costly - meeting the goal's conditions in every scenario. Watched live (generation, best so far); the sets it ran become a group and the results join the study.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row
