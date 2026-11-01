@@ -17,7 +17,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   `tests/e2e/test_sweeps_groups.py` written but not run here - no browser in the container: run it).
   **MF01 done** (with Q129; e2e `tests/e2e/test_sweeps_problem.py` not run here either). **MF02 done** (the Charts desktop, every pane kind, a group per pane). Three areas done
   (Problem | Run | Explore; *Explore* tab renamed *Decide*; the old tabs kept one version). **Changes what
-  is on screen by default: run the WHOLE e2e suite.** **MF05 done** (sensitivity, numpy only). **MF03 done** (DOE in the Run area). **MF04 done** (Model tab; Kriging via the optional extra sweeps-opt). **MF06 + MF11 done** (local runner, live monitor). Next: **MF07** (optimisers in the loop: pymoo licence gate). Owner's
+  is on screen by default: run the WHOLE e2e suite.** **MF05 done** (sensitivity, numpy only). **MF03 done** (DOE in the Run area). **MF04 done** (Model tab; Kriging via the optional extra sweeps-opt). **MF06 + MF11 done** (local runner, live monitor). Next: **MF07** (optimisers in the loop: pymoo licence gate). After Milestone 23: **Q130-Q137**
+  (investigating signals - owner's request 2026-11-01). Owner's
   two open choices taken as recommended in the brief (change them here if not): the brush is saved
   as a **live rule** by default (Shift: frozen ids); the five stages become three areas only
   **after MF02**. The groups panel sits in the results side until then.
@@ -459,6 +460,90 @@ slider (0–10). Same in Goals where a value has only a slider. This is the smal
 of the whole problem is MF01 (docs/dev/SWEEPS_MODEFRONTIER.md).
 **Done when:** e2e: type a condition value below every result - the count of holding sets updates
 and the field keeps the value; Esc restores it.
+
+## Owner's notes (2026-11-01, 3): Q130–Q138 - investigating ordinary signals (what changed first, and more)
+
+**Owner:** "I used *What changed first* today and it was tiring. Show the signals near each other that
+change at about the same time; a plot of each group right beside it; the more likely ones first. Any
+more ideas for investigating? Specify and queue them - after the current Sweeps tasks."
+
+**Now (read before starting):** `svcore/firstchange.py` - per signal its first change (k × the
+baseline's noise, `persist` samples) and `lag` (cross-correlation) between two; `WhatChanged.tsx` - a
+ranked list in time order, groups only when the sample rates cannot tell signals apart, a small
+spark per row, the same signal in the other open files under each, a lag between two picked rows.
+What tires: a flight log gives hundreds of rows; changes a few ms apart sit in different places of
+the list; to see them together one builds a plot by hand; "earlier" is the only order.
+
+**Progress:** none started. Order: Q130, Q131, Q132, Q133 (one release together), then Q134-Q138.
+
+### Q130 · Changes that happen together, as clusters — M
+**Do:** after `first_change` for every signal, cluster the change times (1-D, gap-based: a new cluster
+when the gap to the previous change is more than max(3 × the coarser sample period, a fraction of the
+span); each cluster: its time range, its signals, its first signal). The list shows clusters in time
+order, closed to one line each (time, n signals, the 3 most likely names), opened on click. A signal
+that changes in the reference runs too (the other open files, already computed) is kept but marked
+and sorted last in its cluster. The backend returns clusters (`/api/firstchange` gains `clusters`),
+the page does not recompute them.
+**Done when:** pytest: synthetic signals with changes at 1.00/1.01/1.02 s and 2.5 s → two clusters;
+e2e: a flight example's event → clusters, each opens with its signals.
+
+### Q131 · The more likely first — M
+**Do:** a score per candidate, shown with its parts (no black box): how strong the change is (×
+noise), how long before the event it starts (earlier in the window = more likely a cause, but a
+change after the event's start is a consequence), how long it stays changed (a blip vs a step), not
+seen in the reference runs, how well its shape matches the event signal (`lag`'s correlation and a
+positive lead), and whether other signals in later clusters follow it (it leads a chain). Clusters
+ordered by their best member's score (option: by time); within a cluster by score. A "why" tooltip
+lists the parts. Weights in one place (`firstchange.py`), tested on cases where the answer is known.
+**Done when:** pytest: a step that leads the event signal by 0.5 s scores above a larger blip after the
+event and above a change the reference run also has.
+
+### Q132 · A plot beside each cluster — S/M
+**Do:** each opened cluster has a compact plot right there (not a new tab): its signals normalised
+(each to its baseline: (y - mean) / noise, so different units share one axis), the event span shaded,
+a tick at each signal's change time, hover = name and value. *Open as a tab* makes the full plot
+(today's way); *Add to the investigation* records it in the journal. Rows' sparks stay.
+**Done when:** e2e: open a cluster → a plot with as many lines as its signals; *Open as a tab* → a tab
+with those signals and the span.
+
+### Q133 · Less to wade through — S
+**Do:** signals that cannot tell anything are left out by default, with a count and *show them*:
+constant in the window, a counter or a clock (monotonic with a constant step: time-stamps, sequence
+numbers), a heartbeat (periodic with no change of period). Names grouped by their message / prefix
+(ATT.*, RCOU.*) with the group's best score, closed. Keyboard: ↑ ↓ through clusters, → opens, Enter
+plots. The scope and baseline defaults stay (the file of the event).
+**Done when:** pytest: counter / time-stamp / constant detection; e2e: a .bin event hides the time
+columns and counts them.
+
+### Q134 · Who leads whom - a small chain — M
+**Do:** among the clusters' best members, the lag of each pair (existing `lag`, bounded) → a small
+directed graph in time order: A → B (+0.30 s, correlation 0.8); an edge only when the lag is clear
+(no near-equal second peak) and positive. Shown above the clusters, a click on a node opens its
+cluster. Words: "leads", never "causes".
+
+### Q135 · What is different in this run — M
+**Do:** with several runs of the same kind open (or a Runs folder / fleet), for the event's span (aligned
+by a condition or by phase), each signal's distance from the other runs' envelope (svcore/envelope.py:
+median and the 5-95 % band) → a ranking "most unlike the others here". Complements Q131: a signal can
+change first and still be normal for this manoeuvre.
+
+### Q136 · The same event elsewhere: a consistent precursor — M
+**Do:** when the event is a condition with several occurrences (in this file or across files), run Q130
+/ Q131 on each occurrence and rank signals by how OFTEN they change before it, and with what lead
+(median, spread). "Changes first in 7 of 8 occurrences, 0.4 s before (0.2-0.6)" is strong evidence; a
+signal that does it once is not.
+
+### Q137 · The investigation in the report — S
+**Do:** the chosen clusters, their plots, the chain (Q134) and the consistency (Q136) into the
+investigation report with the window, baseline, k and the files - reproducible from the journal.
+
+### Q138 · Ideas to weigh later (not queued)
+- Change-point detection per signal (PELT / binary segmentation on mean and variance) instead of one
+  threshold - finds a slow drift's start; heavier, needs a licence check if not written here.
+- Frequency changes: a signal whose spectrum changes (vibration, an oscillation starting) while its
+  level does not - a short-time spectrum before / in the span.
+- A "normal" model per signal from the healthy runs (MF04's surrogates over time) and the residual as
+  the anomaly - ties Sweeps' models to Recordings.
 
 ## Queue (in this order)
 
