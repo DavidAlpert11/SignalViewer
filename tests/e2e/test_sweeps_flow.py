@@ -936,3 +936,49 @@ def test_next_runs_numbers_add_up(pg):
     side.locator(".btn", has_text="Suggest").click()
     pg.wait_for_function("document.querySelectorAll('.sw-next .sw-table tbody tr').length === 2")
     assert sorted(int(x) for x in re.findall(r"taken (\d+)", side.inner_text()) if x != "0") == [1, 1]
+
+
+def test_next_runs_compact_and_formats(pg):
+    """S17: a parameter the same in every suggestion is said once and left out of the table (back
+    with 'show every column'); the sets alone as JSON, the run list as MATLAB."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")
+    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    side = pg.locator(".sw-next-side")
+    side.locator(".sw-colpick-btn").click()                                     # explore ki_roll only
+    for p in ("kp_roll", "filter_hz"):
+        pg.locator(".sw-colpick-pop .msp-item", has_text=p).locator("input").uncheck()
+    pg.keyboard.press("Escape")
+    for k in ("Sharpen the edge", "Where scenarios disagree", "Finish what's missing"):
+        side.locator(".sw-kind", has_text=k).locator("input").uncheck()
+    side.locator("input[type='number']").fill("1")                              # one set: everything is the same
+    side.locator(".btn", has_text="Suggest").click()
+    pg.wait_for_selector(".sw-next .sw-table tbody tr")
+    heads = lambda: [h for h in pg.locator(".sw-next .sw-table thead th").all_inner_texts() if h != "Why"]
+    side.locator("input[type='number']").fill("5")
+    side.locator(".btn", has_text="Suggest").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-next .sw-table tbody tr').length >= 2")
+    if pg.locator(".sw-next-same").count():
+        n_same = pg.locator(".sw-next-same b").inner_text().count(" = ")
+        assert len(heads()) == 3 - n_same
+        pg.locator(".sw-next-same .linklike").click()
+        assert len(heads()) == 3
+    n = pg.locator(".sw-next .sw-table tbody tr").count()
+    # the sets alone, as JSON
+    pg.locator(".sw-next-main .btn", has_text="Export the next runs").click()
+    pg.locator(".menu.ctx button", has_text="sets alone").hover()
+    pg.locator(".menu.ctx button", has_text="JSON").click()
+    save_as(pg, "next_sets.json")
+    pg.wait_for_selector(".toast:has-text('next_sets.json')")
+    import json as _json
+    sets = _json.load(open(os.path.join(pg.env["out"], "next_sets.json")))
+    assert len(sets) == n and set(sets[0]) == {"kp_roll", "ki_roll", "filter_hz"}
+    # the run list, as MATLAB
+    pg.locator(".sw-next-main .btn", has_text="Export the next runs").click()
+    pg.locator(".menu.ctx button", has_text="The run list").hover()
+    pg.locator(".menu.ctx button", has_text="MATLAB").click()
+    save_as(pg, "next_runs.m")
+    pg.wait_for_selector(".toast:has-text('next_runs.m')")
+    assert open(os.path.join(pg.env["out"], "next_runs.m")).read().startswith(f"% {n * 18} runs")
