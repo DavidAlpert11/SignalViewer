@@ -1026,3 +1026,25 @@ def test_the_journal_tells_the_final_story(pg):
     story = html.split("The journal: what was done, in order")[1]
     assert "settle_time_s &lt;= 3" in story or "settle_time_s <= 3" in story
     assert "Robust to" not in story and "Opened" not in story
+
+
+def test_the_best_set_while_editing_a_goal(pg):
+    """S22: the Goals step shows how many hold and the best set while it is edited - a weight moved
+    there changes it, without going to the results; Open it goes to the results with the set open."""
+    _fresh(pg)
+    _step(pg, "goals")
+    _condition(pg, "roll_error_deg", "<=", 5)
+    _optimize(pg, "energy_wh", "min")
+    pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
+    assert "parameter sets hold" in pg.locator(".sw-goal-preview").inner_text()
+    _optimize(pg, "roll_error_deg", "min")
+    w = lambda i, v: (pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).fill(v),
+                      pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).press("Tab"))
+    w(0, "10"); w(1, "0")
+    pg.wait_for_timeout(800)
+    a = pg.locator(".sw-side-step .sw-best-params").inner_text()
+    w(0, "0"); w(1, "10")
+    pg.wait_for_function(f"document.querySelector('.sw-side-step .sw-best-params').innerText !== {a!r}")
+    pg.locator(".sw-side-step .sw-best .btn", has_text="Open it").click()
+    pg.wait_for_selector(".sw-detail")
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "5"

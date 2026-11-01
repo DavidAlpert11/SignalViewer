@@ -8,6 +8,9 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: the best set while a goal is edited**: the foot of the Goals step says how many sets
+  hold and shows the best set with its goal - a condition, a direction or a weight changed there
+  shows its effect at once, without going to the results (*Open it* goes there, with the set open).
 - **Sweeps: the journal tells the final story**: the report's journal shows, by default, what the
   study ended up as - each goal's last version, the roles as their net change, the keep / exclude
   steps still standing; trials that were undone or overwritten (a tolerance added and taken away,

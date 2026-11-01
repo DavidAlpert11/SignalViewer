@@ -222,7 +222,7 @@ parameter sets change in the HiPlot and the CSV")
 
 ## Sweeps, round 3 (owner, 2026-11-01): S20–S22 - the journal as the report wants it; exploring
 
-**Progress:** S20 done · S21–S22 open.
+**Progress:** S20, S22 done · S21 open.
 
 ### S20 · The journal for the report: the final story — S · **Done**
 - The report's journal shows **the final steps only** by default: for each thing (a goal, the
@@ -248,7 +248,7 @@ parameter sets change in the HiPlot and the CSV")
 - Save as a goal keeps everything: thresholds and parameter limits become conditions, objectives
   their directions and weights - the saved goal gives exactly what was explored. One journal line.
 
-### S22 · Goals: the best set while editing — S
+### S22 · Goals: the best set while editing — S · **Done**
 - At the foot of the Goals step: how many sets hold and the best set with its objectives' values,
   updated while conditions, directions and weights are edited (the Results' card).
 
@@ -1986,3 +1986,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S16: suggest() returns `taken` (per kind, of the suggestions) and `budget`; the round-robin was already a fair share - now said (swBudgetShare); NextRunsView: found / taken per kind, *up to N × M = R runs*, after: *N × M = R*, fewer than asked -> why. Tests: test_sweep +1 (sums, a budget of 3 = one each in order), e2e +1.
 - 2026-11-01 · S17: svcore export `write_rows` (by the file's ending: .csv / .tsv / .json / .m struct array / .py list of dicts; numpy scalars as plain values, NaN -> NaN / None); /api/sweep/suggest/export `combos` (False: the sets alone); NextRunsView: same-in-all line + only the changing columns (toggle), an export menu (run list / sets alone x formats), copy as TSV. Tests: test_sweep +1, e2e +1.
 - 2026-11-01 · S20: journal.ts `reportJournal(log, final, start)` - from the last reset / the start line; final: the last line of each key (found among hidden lines too: hiding the last version leaves the thing out, it does not bring back the one before), roles netted per column, keep / exclude replayed against scopeBack, goalAdd / goalRemove and a removed goal's lines out, things that ended as nothing out; opening a file writes no line; LogEntry.hidden + hideJournalLine; view.journalAll / journalStart; Report step `Journal` (final / everything, × ↺ ⤒), the iterations box apart (.sw-iterations); ReportDialog uses reportJournal. e2e +1, the S08 test adapted.
+- 2026-11-01 · S22: BestSet.tsx (out of ResultsSide - GoalsStep imports it; ResultsSide imports GoalsStep, so no cycle); the Goals step's foot: how many hold + BestSet; *Open it* goes to the results with the set pinned. e2e +1.

@@ -513,6 +513,7 @@ export const swEn = {
   swJournalStartHere: "The analysis starts here: what came before stays out of the report",
   swJournalHide: "Leave this line out of the report",
   swJournalShow: "Put this line back in the report",
+  swGoalPreview: "Now: {n} of {of} parameter sets hold",
 };
 
 export const swHe: typeof swEn = {
@@ -1027,4 +1028,5 @@ export const swHe: typeof swEn = {
   swJournalStartHere: "הניתוח מתחיל כאן: מה שקדם לזה לא נכנס לדוח",
   swJournalHide: "להשאיר את השורה מחוץ לדוח",
   swJournalShow: "להחזיר את השורה לדוח",
+  swGoalPreview: "כרגע: {n} מתוך {of} סטי פרמטרים עומדים",
 };
