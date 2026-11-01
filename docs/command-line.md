@@ -80,6 +80,35 @@ cross-correlation (`--align-on NAME` to choose the signal, `--align SECONDS` to 
 names match with or without their unit, and `{"as": "name in the run"}` in the tolerances pairs
 signals named differently. A worked example: [Simulation against flight](sim-vs-flight.md).
 
+## A run envelope's results: `sweep`
+
+```bash
+signalviewer-cli sweep results.csv --question question.json         # how many sets hold, the best five
+signalviewer-cli sweep results/ --question study.svsweep --top 10   # a folder of tables; a study saved by the app
+signalviewer-cli sweep results.csv --question q.json --min-holding 3 --json
+```
+
+```json
+{"conditions": [{"column": "roll_error_deg", "op": "<=", "value": 5, "mode": "all"},
+                {"column": "overshoot_pct", "op": "<=", "value": 15, "mode": "all"}],
+ "combine": "and", "goal": {"column": "energy_wh", "direction": "min"}}
+```
+
+The table has a row per run (CSV, Parquet or Excel, or a folder of them); the columns' roles are
+guessed as in the app's *Sweeps* area, and a study saved there (`.svsweep`) brings its own roles and
+goal. The answer is the app's: how many parameter sets meet every condition in every must-hold-across
+combination, and the best of them. On the bundled example (`examples/sweeps/drone_tuning.csv`):
+
+```
+12 of 45 parameter sets hold in all 18 combinations (0 miss a combination)
+  roll_error_deg <= 5: met by 27
+  overshoot_pct <= 15: met by 28
+  1. kp_roll=0.2, ki_roll=0.02, filter_hz=10, goal=47.86
+```
+
+Exit code 0 = at least `--min-holding` sets hold (default 1), 1 = fewer, 2 = the table or the
+question cannot be read - so a CI job fails when a change leaves no tuning that works everywhere.
+
 ## Numerical validation: `validate`
 
 ```bash

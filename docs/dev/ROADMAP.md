@@ -655,13 +655,13 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [ ] S26 The axes in Explore's lines: the axis menu; a drag sets a threshold or a condition's value.
 - [ ] S27 Explore on Windows and macOS (owner's check).
 
-## Milestone 19 — Sweeps, round 3. Spec: TASKS.md S20-S23.
+## Milestone 19 — 1.17.0: Sweeps, round 3. Spec: TASKS.md S20-S23. Prepared 2026-11-01.
 - [x] S20 The journal for the report: the final story, hide lines, "the analysis starts here".
 - [x] S21 Explore: a draft of a goal - conditions, limits and objectives together.
 - [x] S22 Goals: the best set while editing.
 - [x] S23 Explore visible, reachable and live in the plot and the table. Done 2026-11-01: ExploreButton (Goals side, Results side), every parameter's range / every objective's weight and threshold on screen, conditions added in Explore, `draftStudy` (explore.ts) feeds the existing ParallelPlot (`keep`) and SetsTable (`draft`), exports of what is left through the table's menu.
 
-## Milestone 18 — Sweeps, round 2 (the owner's notes after using S00-S08). Spec: TASKS.md S09-S18.
+## Milestone 18 — 1.17.0: Sweeps, round 2 (the owner's notes after using S00-S08). Spec: TASKS.md S09-S18.
 - [x] S09 Nothing overlaps in a small window.
 - [x] S10 Where the optimization shows (best set, maps by the goal, what the numbers are).
 - [x] S11 Points: axis titles, in the report.
@@ -674,7 +674,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S18 Which parameter matters: titles, grid, in the report.
 - [x] S19 The optimization in the plots; choosing on a Pareto plot.
 
-## Milestone 17 — the Sweeps area, the owner's requests (2026-10-31). Spec: TASKS.md S00-S08.
+## Milestone 17 — 1.17.0: the Sweeps area, the owner's requests (2026-10-31). Spec: TASKS.md S00-S08.
 - [x] S00 Groundwork: Sweeps strings in `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` shared.
 - [x] S01 Fixes: removed parameters in the map / next runs / report; next runs' marks on the map's axes; a goal's weight; template save / delete errors.
 - [x] S02 Undo / redo, autosave, messages, Ctrl+K.

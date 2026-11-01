@@ -13,14 +13,14 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- Branch `main`. **1.16.0 prepared 2026-10-29** (Milestone 16 in ROADMAP.md, Q122-Q123 - fixes to
-  the investigation and when the file on screen was saved). 1.15.0 was tagged on a commit that never
-  reached `main`; 1.16.0 brings its version, CHANGELOG and docs back. The owner pushes, waits for the
-  green `ci` run, tags `v1.16.0` and pushes the tag (build.yml: packages, PyPI, draft release), then
-  publishes the draft. Released before: up to 1.15.0.
-- Checked here for 1.16.0 (Linux): see the log line of 2026-10-29. Not run here: Windows / macOS (CI
-  and the owner) - in particular the newer-on-disk check on a network drive -, the Windows installer.
-  Open: Q120, Q121.
+- Branch `main`. **1.17.0 prepared 2026-11-01** (Milestones 17-19 in ROADMAP.md, S00-S23 - the
+  Sweeps area, Explore - and the work areas, the tool rail's names, the welcome screen, one place for
+  messages). The owner pushes, waits for the green `ci` run, tags `v1.17.0` and pushes the tag
+  (build.yml: packages, PyPI, draft release), then publishes the draft. Prepared before: 1.16.0
+  (2026-10-29) - if its tag was never pushed, 1.17.0 carries it too (its CHANGELOG section stays).
+- Checked here for 1.17.0 (Linux): see the log line of 2026-11-01. Not run here: Windows / macOS (CI
+  and the owner) - in particular Sweeps / Explore in WebView2 and WKWebView (S27) -, the Windows
+  installer. Open: Q120, Q121; Sweeps round 4 (S24-S27).
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
@@ -2058,3 +2058,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S21: sweeps/explore.ts (Draft, draftOf, structureKey - the server answers once per structure, sliders applied here; with robustness the values too, 250 ms after a move; `explore` = funnel, each control's own cut, ranking (one objective by its worst case; several by a weighted score of each one's place among the survivors), the Pareto front on the first two; `goalOfDraft` - limits and thresholds as conditions; an "or" goal cannot take them: refused with a message); comparisons tolerant to Float32 (0.2 is 0.20000000298: a limit <= 0.2 had left out the sets at 0.2 the server keeps - found by the e2e checking that the saved goal holds for what Explore showed); ExploreView (funnel, sliders with a histogram strip, two-thumb limits, objectives with direction / weight / threshold, the best set, Pareto scaled to the sets left, candidates with margins), view.explore keeps the draft (not undone, not journalled: the save is the step); Center `explore`; ConditionRow offers parameters too. e2e +1.
 - 2026-11-01 · S23: ExploreButton.tsx (Goals side under the goal's name, Results side under the best set); ExploreView: limits for every numeric parameter (`withLimit` / `isLimited`: back at the whole range = no limit), weight + threshold sliders always (`thresholdOf` / `thresholdOffEnd`: the far end is off), conditions editable / added / removed in the draft; `draftStudy` + `exploreAxes` + `limitMarks` in explore.ts; ParallelPlot `keep` + `data-shown`; SetsTable `draft`; Candidates gone (the table has the margins); swExploreMargin / swExploreLimitsPick removed. e2e +1 (the acceptance list), S21's adapted. Checked: the whole e2e suite (34 files, one per process; test_globe3d needs ~2.5 min) green - test_features once had one failure (test_compare_same_segment_across_runs, Recordings) that passed alone and on a rerun of the file in order: a flake, not this change; backend 898 passed, mypy clean, tsc, oxlint 51.
 - 2026-11-01 · S24-S27 queued: what S23 left in Explore (a new condition's start, the table's sort / columns - owner's choice, the axes in Explore's lines, the Windows / macOS check).
+- 2026-11-01 · Release 1.17.0 prepared: version in version.py, build.bat, CITATION.cff (+ date), the installer, version_info.txt, install.md; CHANGELOG 1.17.0 (the highlights now lead with Sweeps - the old line predated it); README review: README (highlights, a Sweeps section with docs/images/23_sweeps_explore.png, `sweep` in the CLI lines, the Hebrew part), GUIDE / GUIDE.he chapter 12 *Sweeps* (the guide is in the app, F1), features.md *Sweeps* (+ `sweep` in the CLI row), command-line.md `sweep` (it was not documented; its output from the example), index.md card, gallery, limitations (Explore's, S24 / S26 included), install.md ~280 browser tests (was ~195), validation regenerated (23 / 23); tools/make_readme_media.py copies the examples' folders (it stopped on examples/investigate/) and makes 23_sweeps_explore (`--only 23`; the other pictures not retaken). Here: backend 898 + 12 skipped, mypy clean, tsc, oxlint 51, build, mkdocs --strict (anchors checked), e2e: the whole suite on S23 (281; one flake in test_features, see S23's line), after the release changes test_file_help_menus, test_fresh_user, test_workflows, test_sweeps_flow; frontend/dist rebuilt.
