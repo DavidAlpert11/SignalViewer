@@ -378,6 +378,10 @@ class Store:
         if not os.path.isfile(path):
             raise LoadError(f"File not found: {path}", "notFound")
         check_file(path, settings)
+        # the file as it was when the read began: a file still growing while it is read is "newer on
+        # the disk" afterwards, so the next refresh reads the rest (taken after the read, it looked
+        # unchanged and a refresh read nothing new until the writing stopped)
+        before = _stat(path)
         ext = os.path.splitext(path)[1].lower()
         all_paths = [r.run.file_path for r in self.runs.values()] + [path]
         name = _display_names(all_paths)[path]
@@ -472,7 +476,7 @@ class Store:
                     run.import_settings[k] = v
         report.update(getattr(run, "load_report", None) or {})
         lr = LoadedRun(id=uuid.uuid4().hex[:8], run=run, name=name, load_report=report)
-        lr.stat = _stat(path)
+        lr.stat = before
         lr.read_at = time.time()
         with self._lock:
             self.runs[lr.id] = lr
