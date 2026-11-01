@@ -73,3 +73,16 @@ def test_check_rejects_bad_groups():
         with pytest.raises(G.GroupError):
             G.check(bad)
     G.check({"source": "doe", "frozen": True, "ids": []})
+
+
+def test_answer_sends_how_many_combinations_a_condition_needs():
+    """MF00's "fails in k of n": n per condition, k = n - passed per set."""
+    import test_sweep as T
+    _, a = T._ans(T._grid(), conditions=[{"column": "risk", "op": "<=", "value": 2.5},
+                                         {"column": "risk", "op": "<=", "value": 2.5, "mode": "atLeast", "k": 2}])
+    assert a["conditions"][0]["needed"] == 3 and a["conditions"][1]["needed"] == 2
+    d = a["data"]
+    p2 = d["p"] == 2.0                                   # passes in a and c, fails in b
+    assert np.allclose(a["conditions"][0]["needed"] - d["#c0.passed"][p2], 1)
+    masks = G.auto_masks(d, len(d["p"]))
+    assert masks["fails"].sum() + masks["holds"].sum() == len(d["p"])

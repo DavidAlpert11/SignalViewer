@@ -7,6 +7,7 @@ import { colLabel, scopeKey } from "../../sweeps/view";
 import { goalName, goalSummary } from "./GoalsStep";
 import { StepFoot } from "./StepNav";
 import BestSet from "./BestSet";
+import GroupsPanel from "./GroupsPanel";
 import ExploreButton from "./ExploreButton";
 
 export default function ResultsSide({ study }: { study: Study }) {
@@ -33,6 +34,7 @@ export default function ResultsSide({ study }: { study: Study }) {
           </>
         ) : <p className="hint">{t("swReading")}</p>}
       </div>
+      {a && <GroupsPanel study={study} />}
       {a && <BestSet study={study} />}
       {a && v.center !== "explore" && <ExploreButton study={study} />}
       <div className="sw-hide-box">

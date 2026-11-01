@@ -469,3 +469,25 @@
 .sw-explore-pareto circle.front { fill: #1D9E75; stroke: var(--ink-strong); stroke-width: 1.2; }
 .sw-moved-note { font-weight: 400; color: var(--amber); font-size: .8rem; }
 .sw-table tr.sw-on-front td:first-child { box-shadow: inset 3px 0 0 #1D9E75; }
+
+/* MF00: groups of sets */
+.sw-groups { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.sw-groups-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.sw-groups-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.sw-group { display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+.sw-group:hover { background: var(--panel-2); }
+.sw-group.active { outline: 1px solid var(--focus); background: var(--panel-2); }
+.sw-group.hidden .sw-group-name, .sw-group.hidden .sw-group-n { opacity: 0.5; }
+.sw-group-sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.sw-group-sw.auto { border: 1px solid var(--muted); }
+.sw-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-group-n { font-variant-numeric: tabular-nums; color: var(--muted); }
+.sw-group-edit { flex: 1; min-width: 0; }
+/* the status stripe on the row's start edge (RTL follows) */
+.sw-sets-table tr.status-fails td.st-0 { box-shadow: inset 3px 0 0 var(--amber); }
+.sw-sets-table tr.status-error td.st-0 { box-shadow: inset 3px 0 0 var(--danger); }
+[dir="rtl"] .sw-sets-table tr.status-fails td.st-0 { box-shadow: inset -3px 0 0 var(--amber); }
+[dir="rtl"] .sw-sets-table tr.status-error td.st-0 { box-shadow: inset -3px 0 0 var(--danger); }
+.sw-sets-table tr.status-virtual td { font-style: italic; color: var(--focus); }
+.sw-chips { white-space: nowrap; }
+.sw-chip { display: inline-block; padding: 0 5px; margin-inline-end: 3px; border-radius: 8px; font-size: 0.85em; color: var(--amber-ink); }
