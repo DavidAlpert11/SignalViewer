@@ -475,6 +475,30 @@ def sweep_sensitivity(req: SensitivityReq):
     return sensitivity.for_sets(p, value, req.sets, threshold=max(0.0, min(1.0, req.threshold)))
 
 
+class McdmReq(BaseModel):
+    values: List[List[Optional[float]]]   # the group's sets x objectives (worst cases)
+    directions: List[str]
+    weights: List[float] = []
+    method: str = "weighted"
+    alpha: float = 0.5                    # Hurwicz: optimism
+    margin: float = 0.0                   # indifference: a share of the score's range
+    pairwise: Optional[List[List[float]]] = None
+    explain: int = 20
+
+
+@router.post("/api/sweep/mcdm")
+def sweep_mcdm(req: McdmReq):
+    """MF10 Decide: rank a group of sets on several objectives, each step explained."""
+    from svcore.sweep import mcdm
+    vals = [[float("nan") if v is None else v for v in row] for row in req.values]
+    try:
+        r = mcdm.rank(vals, req.directions, req.weights, req.method, req.alpha, req.margin, req.pairwise, req.explain)
+    except ValueError as e:
+        fail(400, str(e))
+    # JSON has no NaN: a utility of a missing value is 0 already; scores are finite
+    return r
+
+
 @router.post("/api/sweep/map")
 def sweep_map(req: MapReq):
     p, a = _answer(req.id, req.question)

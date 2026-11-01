@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Sweeps / Decide: rank by more than a weighted sum.** Choose closest-to-ideal (TOPSIS), optimism (Hurwicz, with α) or least regret (Savage); take the weights from pairwise comparisons (*energy matters 3× more than error*), with a warning when the comparisons contradict each other; set a margin under which two sets count as tied. Each of the first ten says why it is above the next - each objective's part - and they can be kept as a group. The button into it is now *Decide on this goal*.
+
 - **Sweeps: groups of parameter sets.** Filter on the axes and *Save as group* (a rule that follows new results; Shift keeps just the sets of now). The groups panel lists the automatic groups (all, hold every condition, Pareto front, fail, error, marked) and yours: colour, count, show / hide in every plot and the table, rename, freeze, union / intersection / difference. Colour the plot by group.
 - **Sweeps: each set's status in the table** - a stripe for the sets that fail (amber) or miss an output (red), the failing condition's cells marked, and a tooltip *fails in k of n*; a column with each set's groups.
 
