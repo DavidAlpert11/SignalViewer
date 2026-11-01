@@ -383,3 +383,8 @@
 /* a rectangle dragged on a point plot (S19) */
 .sw-scatter-box { position: relative; width: 100%; cursor: crosshair; touch-action: none; user-select: none; }
 .sw-brush { position: absolute; border: 1.5px dashed var(--amber); background: color-mix(in srgb, var(--amber) 12%, transparent); pointer-events: none; }
+
+/* under a plot wider than the screen (S13): where the view is, and a slider that moves it */
+.pp-slider { display: flex; align-items: center; gap: 10px; margin-top: 4px; direction: ltr; }
+.pp-slider input[type="range"] { flex: 1; accent-color: var(--amber); }
+.pp-slider-at { font-size: .78rem; color: var(--muted); white-space: nowrap; unicode-bidi: plaintext; }

@@ -482,6 +482,7 @@ export const swEn = {
   swParetoHint: "The first objective against the second, the Pareto front joined: drag a rectangle on it to keep those sets",
   swPointsDrag: "Drag a rectangle to keep what is in it (the lines and the table follow); a click clears it",
   swPointsKept: "Kept the sets in the rectangle: the lines, the table and its export follow.",
+  swAxesOnScreen: "axes {a}–{b} of {n} on screen",
 };
 
 export const swHe: typeof swEn = {
@@ -965,4 +966,5 @@ export const swHe: typeof swEn = {
   swParetoHint: "היעד הראשון מול השני, חזית פארטו מחוברת: גררו מלבן כדי להשאיר את הסטים האלה",
   swPointsDrag: "גררו מלבן כדי להשאיר את מה שבתוכו (הקווים והטבלה עוקבים); לחיצה מנקה",
   swPointsKept: "נשארו הסטים שבמלבן: הקווים, הטבלה והייצוא שלה עוקבים.",
+  swAxesOnScreen: "צירים {a}–{b} מתוך {n} על המסך",
 };
