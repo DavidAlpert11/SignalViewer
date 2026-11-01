@@ -547,3 +547,13 @@
 .sw-area-btn.quiet:not(.on) { opacity: 0.7; font-weight: 500; }
 .sw-run-quiet { max-width: 640px; padding: 16px; }
 .sw-run-quiet ol { padding-inline-start: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+/* MF05: sensitivity */
+.sw-sens { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+.sw-sens-head { flex-wrap: wrap; gap: 8px; }
+.sw-sens-head label { display: inline-flex; align-items: center; gap: 4px; }
+.sw-sens-table tr.weak td { color: var(--muted); }
+.sw-sens-bar { display: flex; width: 160px; height: 10px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.sw-sens-bar i { display: block; height: 100%; }
+.sw-sens-bar i.main { background: var(--amber); }
+.sw-sens-bar i.inter { background: var(--focus); }
