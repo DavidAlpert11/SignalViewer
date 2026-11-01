@@ -15,10 +15,10 @@ EXTRAS = {
     "ros": ["mcap", "mcap-ros2-support", "lz4", "zstandard"],  # .mcap
     "reports": ["matplotlib", "python-docx", "python-bidi"],  # PDF / Word reports, images
     "desktop": ["pywebview"],                                 # its own window instead of the browser
-    "sweeps-opt": ["scikit-learn"],                           # Sweeps' Kriging model (requirements-sweeps-opt.txt)
+    "sweeps-opt": ["scikit-learn"],                           # Sweeps' Kriging model (MF04)
 }
 # extras that stay optional in the full package too (heavy, or need system parts)
-ALWAYS_OPTIONAL = ("desktop", "sweeps-opt")
+ALWAYS_OPTIONAL = ("desktop",)
 
 
 def _lite() -> bool:

@@ -66,7 +66,7 @@ OPTIONAL = {pkg: extra for extra, pkgs in EXTRAS.items() for pkg in pkgs}
 
 def requirements():
     req, extra = [], {}
-    files = ["requirements.txt", "requirements-sweeps-opt.txt"]       # the second: extras only (MF04)
+    files = ["requirements.txt"]
     lines = [ln for f in files for ln in open(os.path.join(ROOT, f), encoding="utf-8")]
     for line in lines:
         spec = line.split("#")[0].strip()

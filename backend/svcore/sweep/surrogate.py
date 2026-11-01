@@ -7,8 +7,9 @@ Models (named by what they are; no proprietary algorithm):
 * ``poly``     quadratic polynomial, least squares with a small ridge (numpy);
 * ``rbf``      radial basis functions, thin-plate spline, lightly smoothed (scipy);
 * ``knn``      the k nearest sets, weighted by inverse distance (numpy);
-* ``kriging``  a Gaussian process, one length scale per parameter (scikit-learn, BSD-3 - the optional
-  extra ``sweeps-opt``; without it this model says what to install and the others work).
+* ``kriging``  a Gaussian process, one length scale per parameter (scikit-learn, BSD-3 - in every full
+  install since 2026-11-01; only ``signalviewer-lite`` lacks it without the extra ``sweeps-opt``, and then
+  this model says what to install and the others work).
 
 Validation: k-fold cross-validation (leave-one-out under 20 sets) - each set predicted by a model
 that did not see it. Per model: mean absolute error, relative (to the mean |value|), normalised (to
@@ -209,7 +210,7 @@ def train(X: Dict[str, np.ndarray], y: np.ndarray, models: Sequence[str] = MODEL
     for m in models:
         row: Dict[str, Any] = {"model": m, "available": True}
         if m == "kriging" and not have_sklearn():
-            row.update({"available": False, "error": "needs scikit-learn - install it with: pip install \"signalviewer[sweeps-opt]\" (from the source folder: pip install -r requirements-sweeps-opt.txt)"})
+            row.update({"available": False, "error": "needs scikit-learn - install it with: pip install scikit-learn (or pip install \"signalviewer-lite[sweeps-opt]\")"})
             table.append(row)
             continue
         try:
