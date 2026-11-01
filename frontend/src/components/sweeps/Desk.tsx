@@ -1,0 +1,331 @@
+/* The chart desktop (MF02): 1, 2 or 4 panes, each a chart kind with its columns - points, bubble,
+   histogram, box, scatter matrix (Pearson / Spearman), broken conditions. Every pane reads the same
+   sets (the keep / exclude steps, hidden groups), colours them as the lines do (`colorBy`: a group,
+   holds, a column) and filters with the ONE brush (`view.filters`): a range dragged on a histogram,
+   a rectangle on the points, a bar of the broken conditions - the lines, the table and every other
+   pane follow. */
+import { useMemo, useState } from "react";
+import { useT, type TFn, type TKey } from "../../i18n";
+import { category, FAILS, FLAG_COLS, HOLDS } from "../../sweeps/colors";
+import { hasFilter, keptMask } from "../../sweeps/filters";
+import type { Col, DeskPane, Filter, PaneKind } from "../../sweeps/model";
+import { fmtValue } from "../../sweeps/scales";
+import { boxStats, histogram, pearson, spearman } from "../../sweeps/stats";
+import { useSweeps, type Study } from "../../sweeps/state";
+import { axisChoices, colLabel, scopedColumns } from "../../sweeps/view";
+import { ScatterPanel } from "./ScatterView";
+
+export const PANE_KINDS: PaneKind[] = ["scatter", "bubble", "histogram", "box", "matrix", "broken"];
+const KIND_KEY: Record<PaneKind, TKey> = { scatter: "swPaneScatter", bubble: "swPaneBubble", histogram: "swPaneHistogram", box: "swPaneBox",
+  matrix: "swPaneMatrix", broken: "swPaneBroken" };
+const BINS = 20;
+
+/** The panes on screen: the study's, or a first desk from its columns. */
+export function deskOf(s: Study): { layout: 1 | 2 | 4; panes: DeskPane[] } {
+  const d = s.view.desk;
+  const ch = axisChoices(s);
+  const params = s.answer?.sets.filter((c) => c.group === "param").map((c) => c.name).filter((c) => ch.includes(c)) ?? [];
+  const goal = ch.includes("#goal") ? "#goal" : s.answer?.sets.find((c) => c.group === "output")?.name ?? ch[0] ?? "";
+  const first: DeskPane[] = [
+    { kind: "scatter", x: params[0] ?? ch[0] ?? "", y: goal },
+    { kind: "histogram", x: goal },
+    { kind: "box", x: goal },
+    { kind: "matrix", columns: [...params.slice(0, 4), goal].filter(Boolean), corr: "pearson" },
+  ];
+  const panes = first.map((p, i) => d?.panes[i] ?? p);
+  return { layout: d?.layout ?? 2, panes };
+}
+
+/** Rows in series by the colouring: a group / category per code, holds and the others, or one. */
+function seriesOf(cols: Map<string, Col>, colorBy: string | null, t: TFn): { code: (r: number) => number; names: string[]; colours: string[] } {
+  const c = colorBy ? cols.get(colorBy) : undefined;
+  if (c && FLAG_COLS.has(colorBy!)) return { code: (r) => (c.values[r] === 1 ? 1 : 0), names: [t("swOthers"), t("swHolds")], colours: [FAILS, HOLDS] };
+  if (c && c.kind === "cat") {
+    const labels = c.labels ?? [];
+    // the sets in no group (#group: NaN) are a last, grey series
+    return { code: (r) => (Number.isFinite(c.values[r]) ? c.values[r] : labels.length), names: [...labels, t("swNoGroup")],
+      colours: [...labels.map((_, i) => category(i)), FAILS] };
+  }
+  return { code: () => 0, names: [""], colours: [HOLDS] };
+}
+
+export default function Desk({ study }: { study: Study }) {
+  const t = useT();
+  const desk = deskOf(study);
+  const set = (p: Partial<typeof desk>) => useSweeps.getState().setView({ desk: { ...desk, ...p } });
+  const setPane = (i: number, p: Partial<DeskPane>) => set({ panes: desk.panes.map((x, j) => (j === i ? { ...x, ...p } : x)) });
+  const [big, setBig] = useState<number | null>(null);
+  const shown = big !== null ? [big] : desk.panes.slice(0, desk.layout).map((_, i) => i);
+  return (
+    <div className="sw-desk">
+      <div className="sw-row sw-desk-bar">
+        <span className="hint">{t("swDeskHint")}</span>
+        <div className="sw-seg" role="radiogroup" aria-label={t("swDeskLayout")}>
+          {([1, 2, 4] as const).map((n) => <button key={n} role="radio" aria-checked={desk.layout === n} className={desk.layout === n ? "on" : ""}
+            onClick={() => { setBig(null); set({ layout: n }); }}>{t("swDeskPanes", { n })}</button>)}
+        </div>
+      </div>
+      <div className={`sw-desk-grid n${shown.length}`}>
+        {shown.map((i) => (
+          <Pane key={i} study={study} pane={desk.panes[i]} onChange={(p) => setPane(i, p)} big={big === i}
+            onBig={() => setBig(big === i ? null : i)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskPane; onChange: (p: Partial<DeskPane>) => void; big: boolean; onBig: () => void }) {
+  const t = useT();
+  const choices = axisChoices(study);
+  const sel = (key: "x" | "y" | "size", label: TKey) => (
+    <label>{t(label)} <select value={pane[key] ?? ""} onChange={(e) => onChange({ [key]: e.target.value })}>
+      {choices.map((c) => <option key={c} value={c}>{colLabel(t, study, c)}</option>)}
+    </select></label>
+  );
+  const kind = (k: PaneKind) => {
+    const p: Partial<DeskPane> = { kind: k };
+    if ((k === "scatter" || k === "bubble") && !pane.y) p.y = choices[1] ?? choices[0];
+    if (k === "bubble" && !pane.size) p.size = choices[2] ?? choices[0];
+    if (k === "matrix" && !pane.columns?.length) p.columns = choices.slice(0, 4);
+    onChange(p);
+  };
+  return (
+    <section className="sw-pane" data-kind={pane.kind} aria-label={t(KIND_KEY[pane.kind])}>
+      <div className="sw-row sw-pane-head">
+        <select aria-label={t("swPaneKind")} value={pane.kind} onChange={(e) => kind(e.target.value as PaneKind)}>
+          {PANE_KINDS.map((k) => <option key={k} value={k}>{t(KIND_KEY[k])}</option>)}
+        </select>
+        {(pane.kind === "histogram" || pane.kind === "box") && sel("x", "swPaneColumn")}
+        {pane.kind === "matrix" && <>
+          <select aria-label={t("swCorr")} value={pane.corr ?? "pearson"} onChange={(e) => onChange({ corr: e.target.value as "pearson" | "spearman" })}>
+            <option value="pearson">Pearson</option><option value="spearman">Spearman</option></select>
+          <MatrixColumns study={study} value={pane.columns ?? []} onChange={(columns) => onChange({ columns })} />
+        </>}
+        <button className="iconbtn sw-pane-big" aria-label={t(big ? "swPaneSmall" : "swPaneBig")} title={t(big ? "swPaneSmall" : "swPaneBig")} onClick={onBig}>{big ? "⤡" : "⤢"}</button>
+      </div>
+      {(pane.kind === "scatter" || pane.kind === "bubble") && (
+        <ScatterPanel study={study} pair={{ x: pane.x ?? choices[0] ?? "", y: pane.y ?? choices[1] ?? "", size: pane.kind === "bubble" ? pane.size ?? choices[2] ?? "" : undefined }}
+          onChange={(q) => onChange(q)} />
+      )}
+      {pane.kind === "histogram" && <Histogram study={study} column={pane.x ?? choices[0]} />}
+      {pane.kind === "box" && <BoxPlot study={study} column={pane.x ?? choices[0]} />}
+      {pane.kind === "matrix" && <Matrix study={study} columns={(pane.columns ?? []).filter((c) => choices.includes(c))} corr={pane.corr ?? "pearson"} />}
+      {pane.kind === "broken" && <Broken study={study} />}
+    </section>
+  );
+}
+
+function MatrixColumns({ study, value, onChange }: { study: Study; value: string[]; onChange: (v: string[]) => void }) {
+  const t = useT();
+  const choices = axisChoices(study);
+  return (
+    <details className="sw-matrix-cols">
+      <summary>{t("swColumnsOf", { n: value.length, of: choices.length })}</summary>
+      <div className="sw-matrix-cols-list">
+        {choices.map((c) => <label key={c} className="acheck"><input type="checkbox" checked={value.includes(c)}
+          onChange={(e) => onChange(e.target.checked ? [...value, c].slice(-8) : value.filter((x) => x !== c))} />{colLabel(t, study, c)}</label>)}
+      </div>
+    </details>
+  );
+}
+
+/** The sets on screen (scope, hidden groups) and the brush's mask over them. */
+function useRows(study: Study) {
+  const { cols, n } = useMemo(() => scopedColumns(study), [study]);
+  const kept = useMemo(() => keptMask(cols, study.view.filters, n), [cols, study.view.filters, n]);
+  return { cols, n, kept };
+}
+
+const HW = 520, HH = 260, HL = 44, HB = 34, HT = 10, HR = 10;
+
+function extentOf(c: Col, keep?: Uint8Array): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < c.values.length; i++) if ((!keep || keep[i]) && Number.isFinite(c.values[i])) { lo = Math.min(lo, c.values[i]); hi = Math.max(hi, c.values[i]); }
+  return Number.isFinite(lo) ? (lo === hi ? [lo - 0.5, hi + 0.5] : [lo, hi]) : [0, 1];
+}
+
+function Histogram({ study, column }: { study: Study; column: string }) {
+  const t = useT();
+  const { cols, n, kept } = useRows(study);
+  const c = cols.get(column);
+  const ser = seriesOf(cols, study.view.colorBy, t);
+  const [drag, setDrag] = useState<[number, number] | null>(null);
+  if (!c) return <p className="empty-note">{t("swNoAxes")}</p>;
+  const cat = c.kind === "cat";
+  const [lo, hi] = cat ? [-0.5, (c.labels?.length ?? 1) - 0.5] : extentOf(c);
+  const bins = cat ? c.labels?.length ?? 1 : BINS;
+  const codes = Float32Array.from({ length: n }, (_, r) => ser.code(r));
+  const h = histogram(c.values, lo, hi, bins, kept, codes, ser.names.length);
+  const tot = h[0].map((_, b) => h.reduce((s, row) => s + row[b], 0));
+  const max = Math.max(1, ...tot);
+  const bw = (HW - HL - HR) / bins;
+  const X = (v: number) => HL + ((v - lo) / (hi - lo)) * (HW - HL - HR);
+  const val = (px: number) => lo + ((px - HL) / (HW - HL - HR)) * (hi - lo);
+  const filtered = hasFilter(study.view.filters[column]);
+  const at = (e: React.PointerEvent) => { const r = (e.currentTarget as SVGElement).getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * HW; };
+  const finish = () => {
+    if (!drag) return;
+    const [a, b] = drag; setDrag(null);
+    const st = useSweeps.getState();
+    if (Math.abs(b - a) < 4) { if (filtered) st.setFilter(column, null); return; }
+    const u = val(Math.min(a, b)), w = val(Math.max(a, b));
+    const f: Filter = cat ? { kind: "values", values: (c.labels ?? []).map((_, i) => i).filter((i) => i >= u && i <= w) }
+      : { kind: "ranges", ranges: [[u, w]] };
+    st.setFilter(column, f);
+  };
+  return (
+    <div className="sw-hist">
+      <svg viewBox={`0 0 ${HW} ${HH}`} className="sw-chart" role="img" aria-label={t("swPaneHistogramOf", { c: colLabel(t, study, column) })}
+        onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture(e.pointerId); const x = at(e); setDrag([x, x]); }}
+        onPointerMove={(e) => drag && setDrag([drag[0], at(e)])} onPointerUp={finish}>
+        <line x1={HL} y1={HH - HB} x2={HW - HR} y2={HH - HB} className="sw-ax-line" />
+        <line x1={HL} y1={HT} x2={HL} y2={HH - HB} className="sw-ax-line" />
+        <text x={HL - 4} y={HT + 8} textAnchor="end" className="sw-ax">{max}</text>
+        <text x={HL - 4} y={HH - HB} textAnchor="end" className="sw-ax">0</text>
+        {tot.map((_, b) => {
+          let y = HH - HB;
+          return h.map((row, s) => {
+            const hgt = (row[b] / max) * (HH - HB - HT);
+            y -= hgt;
+            return row[b] ? <rect key={`${b}:${s}`} x={HL + b * bw + 1} y={y} width={Math.max(1, bw - 2)} height={hgt} fill={ser.colours[s]}><title>{`${ser.names[s]} ${row[b]}`}</title></rect> : null;
+          });
+        })}
+        {cat ? (c.labels ?? []).map((l, i) => <text key={i} x={HL + (i + 0.5) * bw} y={HH - HB + 14} textAnchor="middle" className="sw-ax">{l}</text>)
+          : <><text x={HL} y={HH - HB + 14} textAnchor="start" className="sw-ax">{fmtValue(lo)}</text>
+            <text x={HW - HR} y={HH - HB + 14} textAnchor="end" className="sw-ax">{fmtValue(hi)}</text></>}
+        <text x={(HL + HW - HR) / 2} y={HH - 4} textAnchor="middle" className="sw-ax">{colLabel(t, study, column)}</text>
+        {!cat && filtered && study.view.filters[column]!.kind === "ranges" && (study.view.filters[column] as { ranges: [number, number][] }).ranges.map(([a, b], k) => (
+          <rect key={k} className="sw-brush-mark" x={X(Math.max(lo, Math.min(a, b)))} y={HT} width={Math.max(1, X(Math.min(hi, Math.max(a, b))) - X(Math.max(lo, Math.min(a, b))))} height={HH - HB - HT} />
+        ))}
+        {drag && <rect className="sw-brush-mark" x={Math.min(...drag)} y={HT} width={Math.abs(drag[1] - drag[0])} height={HH - HB - HT} />}
+      </svg>
+      <Legend ser={ser} />
+    </div>
+  );
+}
+
+function Legend({ ser }: { ser: { names: string[]; colours: string[] } }) {
+  if (ser.names.length < 2) return null;
+  return <div className="sw-legend">{ser.names.map((nm, i) => <span key={i}><i style={{ background: ser.colours[i] }} />{nm}</span>)}</div>;
+}
+
+function BoxPlot({ study, column }: { study: Study; column: string }) {
+  const t = useT();
+  const { cols, n, kept } = useRows(study);
+  const c = cols.get(column);
+  const ser = seriesOf(cols, study.view.colorBy, t);
+  if (!c || c.kind !== "num") return <p className="empty-note">{t("swPaneNeedsNumber")}</p>;
+  const groups: number[][] = ser.names.map(() => []);
+  for (let r = 0; r < n; r++) if (kept[r]) { const s = ser.code(r); if (groups[s]) groups[s].push(c.values[r]); }
+  const boxes = groups.map((g, i) => ({ i, b: boxStats(g) })).filter((x) => x.b);
+  const [lo, hi] = extentOf(c, kept);
+  const Y = (v: number) => HH - HB - ((v - lo) / (hi - lo)) * (HH - HB - HT);
+  const bw = (HW - HL - HR) / Math.max(1, boxes.length);
+  return (
+    <svg viewBox={`0 0 ${HW} ${HH}`} className="sw-chart" role="img" aria-label={t("swPaneBoxOf", { c: colLabel(t, study, column) })}>
+      <line x1={HL} y1={HT} x2={HL} y2={HH - HB} className="sw-ax-line" />
+      <text x={HL - 4} y={HT + 8} textAnchor="end" className="sw-ax">{fmtValue(hi)}</text>
+      <text x={HL - 4} y={HH - HB} textAnchor="end" className="sw-ax">{fmtValue(lo)}</text>
+      {boxes.map(({ i, b }, k) => {
+        const cx = HL + (k + 0.5) * bw, w = Math.min(60, bw * 0.5);
+        return (
+          <g key={i} data-series={ser.names[i]}>
+            <title>{`${ser.names[i] || colLabel(t, study, column)} · n ${b!.n} · ${fmtValue(b!.q1)} / ${fmtValue(b!.med)} / ${fmtValue(b!.q3)}`}</title>
+            <line x1={cx} x2={cx} y1={Y(b!.lo)} y2={Y(b!.hi)} className="sw-ax-line" />
+            <rect x={cx - w / 2} y={Y(b!.q3)} width={w} height={Math.max(1, Y(b!.q1) - Y(b!.q3))} fill={ser.colours[i]} fillOpacity={0.55} stroke={ser.colours[i]} />
+            <line x1={cx - w / 2} x2={cx + w / 2} y1={Y(b!.med)} y2={Y(b!.med)} stroke={ser.colours[i]} strokeWidth={2} />
+            {b!.out.slice(0, 200).map((v, j) => <circle key={j} cx={cx} cy={Y(v)} r={2} fill={ser.colours[i]} />)}
+            <text x={cx} y={HH - HB + 14} textAnchor="middle" className="sw-ax">{ser.names[i]}</text>
+          </g>
+        );
+      })}
+      <text x={(HL + HW - HR) / 2} y={HH - 4} textAnchor="middle" className="sw-ax">{colLabel(t, study, column)}</text>
+    </svg>
+  );
+}
+
+/** Correlation as a colour: blue negative, amber positive (the palette's own two). */
+const corrFill = (r: number) => (Number.isFinite(r) ? (r >= 0 ? `rgba(242,169,59,${Math.abs(r) * 0.85})` : `rgba(111,168,255,${Math.abs(r) * 0.85})`) : "transparent");
+
+function Matrix({ study, columns, corr }: { study: Study; columns: string[]; corr: "pearson" | "spearman" }) {
+  const t = useT();
+  const { cols, n, kept } = useRows(study);
+  const ser = seriesOf(cols, study.view.colorBy, t);
+  const cs = columns.map((c) => cols.get(c)).filter((c): c is Col => !!c);
+  const k = cs.length;
+  const coef = useMemo(() => cs.map((a) => cs.map((b) => (corr === "spearman" ? spearman(a.values, b.values, kept) : pearson(a.values, b.values, kept)))),
+    [cs.map((c) => c.name).join("|"), corr, kept, cols]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (k < 2) return <p className="empty-note">{t("swMatrixPick")}</p>;
+  const S = 100, PAD = 4;
+  // at most 1500 points a cell: every m-th kept row
+  const rows: number[] = [];
+  for (let r = 0; r < n; r++) if (kept[r]) rows.push(r);
+  const step = Math.max(1, Math.ceil(rows.length / 1500));
+  const sample = rows.filter((_, i) => i % step === 0);
+  const ext = cs.map((c) => extentOf(c, kept));
+  const nx = (j: number, v: number) => PAD + ((v - ext[j][0]) / (ext[j][1] - ext[j][0])) * (S - 2 * PAD);
+  const ny = (i: number, v: number) => S - PAD - ((v - ext[i][0]) / (ext[i][1] - ext[i][0])) * (S - 2 * PAD);
+  return (
+    <div className="sw-matrix-wrap">
+      <svg viewBox={`0 0 ${k * S + 60} ${k * S + 60}`} className="sw-chart sw-matrix" role="img" aria-label={t("swPaneMatrix")}>
+        {cs.map((a, i) => cs.map((b, j) => {
+          const x0 = 60 + j * S, y0 = i * S;
+          if (i === j) {
+            const [lo, hi] = ext[i];
+            const h = histogram(a.values, lo, hi, 12, kept)[0], mx = Math.max(1, ...h), w = (S - 2 * PAD) / 12;
+            return <g key={`${i}${j}`} transform={`translate(${x0},${y0})`}><rect width={S} height={S} className="sw-matrix-cell" />
+              {h.map((v, q) => <rect key={q} x={PAD + q * w} y={S - PAD - (v / mx) * (S - 2 * PAD)} width={w - 1} height={(v / mx) * (S - 2 * PAD)} fill={HOLDS} />)}</g>;
+          }
+          if (i > j) return (
+            <g key={`${i}${j}`} transform={`translate(${x0},${y0})`} data-coef={coef[i][j]}>
+              <rect width={S} height={S} className="sw-matrix-cell" fill={corrFill(coef[i][j])} />
+              <text x={S / 2} y={S / 2 + 5} textAnchor="middle" className="sw-matrix-r">{Number.isFinite(coef[i][j]) ? coef[i][j].toFixed(2) : "–"}</text>
+              <title>{`${corr === "spearman" ? "ρ" : "r"}(${colLabel(t, study, a.name)}, ${colLabel(t, study, b.name)}) = ${Number.isFinite(coef[i][j]) ? coef[i][j].toFixed(3) : "–"}`}</title>
+            </g>
+          );
+          return (
+            <g key={`${i}${j}`} transform={`translate(${x0},${y0})`}><rect width={S} height={S} className="sw-matrix-cell" />
+              {sample.map((r) => { const X = nx(j, b.values[r]), Y = ny(i, a.values[r]);
+                return Number.isFinite(X) && Number.isFinite(Y) ? <circle key={r} cx={X} cy={Y} r={1.4} fill={ser.colours[ser.code(r)] ?? HOLDS} /> : null; })}</g>
+          );
+        }))}
+        {cs.map((c, i) => <text key={`l${i}`} x={56} y={i * S + S / 2} textAnchor="end" className="sw-ax">{short(colLabel(t, study, c.name))}</text>)}
+        {cs.map((c, j) => <text key={`b${j}`} x={60 + j * S + S / 2} y={k * S + 14} textAnchor="middle" className="sw-ax">{short(colLabel(t, study, c.name))}</text>)}
+      </svg>
+    </div>
+  );
+}
+const short = (s: string) => (s.length > 14 ? `${s.slice(0, 13)}…` : s);
+
+/** Which condition fails how often (among the sets on screen); a bar's click keeps the sets that fail it. */
+function Broken({ study }: { study: Study }) {
+  const t = useT();
+  const { cols, n } = useRows(study);
+  const a = study.answer!;
+  const list = a.conditions.map((c, i) => {
+    const m = cols.get(`#c${i}.margin`), p = cols.get(`#c${i}.passed`), need = c.needed ?? 0;
+    let k = 0;
+    for (let r = 0; r < n; r++) if (need > 0 && p ? p.values[r] < need : m ? m.values[r] < 0 : false) k++;
+    return { i, label: c.label, k, margin: m };
+  });
+  if (!list.length) return <p className="empty-note">{t("swBrokenNone")}</p>;
+  const max = Math.max(1, ...list.map((x) => x.k));
+  const keepFailing = (x: (typeof list)[number]) => {
+    if (!x.margin) return;
+    const [lo] = extentOf(x.margin);
+    useSweeps.getState().setFilter(x.margin.name, { kind: "ranges", ranges: [[Math.min(lo, -1e-9), -1e-9]] });
+  };
+  return (
+    <div className="sw-broken" role="list">
+      {list.map((x) => (
+        <button key={x.i} role="listitem" className="sw-broken-row" onClick={() => keepFailing(x)} title={t("swBrokenKeep")}>
+          <span className="sw-broken-label mono">{x.label}</span>
+          <span className="sw-broken-bar"><i style={{ width: `${(x.k / max) * 100}%` }} /></span>
+          <span className="sw-broken-n">{t("swBrokenN", { k: x.k.toLocaleString(), n: n.toLocaleString() })}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+

@@ -9,6 +9,8 @@
 - **Sweeps / Explore: the problem as one table.** *Sliders | Table*: the parameters (type, range, how many values), the objectives (direction, weight, threshold, best set) and the conditions in one table, every value typed, how many sets each line cuts - the same draft as the sliders.
 - **Sweeps: categorical parameters.** A text parameter (a mode, a controller type) gets its levels to tick in Explore; saved in the goal as *one of these*.
 
+- **Sweeps: Charts.** A desktop of 1, 2 or 4 linked charts - points, bubble, histogram, box, scatter matrix with Pearson or Spearman correlations, and which conditions fail how often. All show the same sets in the same colours; a range dragged on a histogram (or a rectangle on the points, a click on a broken condition) filters every chart, the lines and the table.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row
