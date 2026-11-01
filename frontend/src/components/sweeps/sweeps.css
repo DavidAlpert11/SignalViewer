@@ -565,3 +565,17 @@
 .sw-doe-controls label { display: inline-flex; align-items: center; gap: 4px; }
 .sw-doe-preview { max-width: 720px; }
 .sw-run-quiet { max-width: 900px; }
+
+/* MF04: response surfaces */
+.sw-model { display: flex; flex-direction: column; gap: 10px; }
+.sw-model-head, .sw-model-base { flex-wrap: wrap; gap: 8px; }
+.sw-model-head label, .sw-model-base label { display: inline-flex; align-items: center; gap: 4px; }
+.sw-model-table tr.best td { font-weight: 600; }
+.sw-model-table tr.off td { color: var(--muted); }
+.sw-best-tag { color: var(--amber); font-size: 0.85em; }
+.sw-model-grid { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 900px) { .sw-model-grid { grid-template-columns: 1fr; } }
+.sw-model-2x2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.sw-model-fig { margin: 0; }
+.sw-virtual { display: flex; flex-direction: column; gap: 8px; }
+.sw-virtual-table tr.status-virtual td { font-style: italic; color: var(--focus); }

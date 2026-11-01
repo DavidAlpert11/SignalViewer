@@ -237,6 +237,86 @@ def sweep_doe(req: DoeReq):
         fail(400, str(e))
 
 
+class SurrogateReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    column: Optional[str] = None          # a per-set column (missing: the goal, else holds)
+    sets: Optional[List[int]] = None      # train on this group's sets; missing: all
+    models: Optional[List[str]] = None
+
+
+def _surrogate_data(req: "SurrogateReq"):
+    p, a = _answer(req.id, req.question)
+    if req.column is not None and req.column not in a["data"]:
+        fail(400, f"No column named {req.column!r}")
+    idx = np.arange(p.n_sets) if req.sets is None else np.asarray([i for i in req.sets if 0 <= i < p.n_sets], dtype=np.int64)
+    X = {c: p.df[c].to_numpy()[p.first_row][idx] for c in p.params}
+    y = (a["data"][req.column] if req.column is not None else _value(a, req.question))
+    return p, a, idx, X, np.asarray(y, dtype=float)[idx]
+
+
+def _surrogate_key(req: "SurrogateReq") -> str:
+    return json.dumps([req.id, req.question, req.column, req.sets], sort_keys=True, default=str)
+
+
+@router.post("/api/sweep/surrogate/train")
+def sweep_surrogate_train(req: SurrogateReq):
+    """MF04: models of one result on the sets - validated (k-fold), the best marked, kept for exploring."""
+    from svcore.sweep import surrogate
+    _, _, _, X, y = _surrogate_data(req)
+    models = [m for m in (req.models or surrogate.MODELS) if m in surrogate.MODELS]
+    try:
+        fitted, report = surrogate.train(X, y, models)
+    except surrogate.SurrogateError as e:
+        fail(400, str(e))
+    key = _surrogate_key(req)
+    surrogate.remember(key, fitted)
+    return {**report, "key": key, "sklearn": surrogate.have_sklearn()}
+
+
+class SurrogateGridReq(BaseModel):
+    key: str
+    model: str
+    base: Dict[str, Any]
+    x: str
+    y: Optional[str] = None
+    steps: int = 40
+
+
+@router.post("/api/sweep/surrogate/grid")
+def sweep_surrogate_grid(req: SurrogateGridReq):
+    from svcore.sweep import surrogate
+    try:
+        return surrogate.grid(surrogate.recall(req.key), req.model, req.base, req.x, req.y, max(3, min(80, req.steps)))
+    except surrogate.SurrogateError as e:
+        fail(400, str(e))
+
+
+class SurrogateOptReq(SurrogateReq):
+    model: str
+    direction: str = "max"
+    n: int = 10
+    conditions: bool = True               # also meet the goal's conditions (each its own model)
+
+
+@router.post("/api/sweep/surrogate/optimise")
+def sweep_surrogate_optimise(req: SurrogateOptReq):
+    """MF04: the best sets the model predicts - virtual, to be run for real."""
+    from svcore.sweep import surrogate
+    try:
+        fitted = surrogate.recall(_surrogate_key(req))
+        cons = []
+        if req.conditions:
+            _, a, idx, X, _ = _surrogate_data(req)
+            for i, c in enumerate(req.question.get("conditions") or []):
+                if c.get("op") in (">=", "<=", ">", "<") and c.get("in") is None and f"#c{i}.worst" in a["data"]:
+                    cf, _ = surrogate.train(X, np.asarray(a["data"][f"#c{i}.worst"], dtype=float)[idx], [req.model if req.model != "kriging" else "rbf"])
+                    cons.append((cf, c["op"], float(c["value"])))
+        return {"sets": surrogate.optimise(fitted, req.model, "min" if req.direction == "min" else "max", max(1, min(50, req.n)), constraints=cons)}
+    except surrogate.SurrogateError as e:
+        fail(400, str(e))
+
+
 class SensitivityReq(BaseModel):
     id: str
     question: Dict[str, Any]

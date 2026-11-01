@@ -129,8 +129,8 @@ export interface NextRuns {
   exported?: string;
 }
 
-export type Center = "lines" | "explore" | "charts" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
-export const CENTERS: Center[] = ["lines", "explore", "charts", "effects", "map", "scatter", "next", "health", "compare"];
+export type Center = "lines" | "explore" | "charts" | "effects" | "model" | "map" | "scatter" | "next" | "health" | "compare";
+export const CENTERS: Center[] = ["lines", "explore", "charts", "effects", "model", "map", "scatter", "next", "health", "compare"];
 
 /** MF02: a pane of the chart desktop and what it shows. */
 export type PaneKind = "lines" | "scatter" | "bubble" | "histogram" | "box" | "matrix" | "map" | "history" | "pareto" | "compare" | "broken";

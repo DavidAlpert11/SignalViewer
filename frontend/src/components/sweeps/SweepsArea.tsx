@@ -46,6 +46,7 @@ import EffectsView from "./EffectsView";
 import HealthView from "./HealthView";
 import MapsView from "./MapView";
 import Desk from "./Desk";
+import SurrogateView from "./SurrogateView";
 import { RunCenter, RunSide } from "./RunArea";
 import ExploreView from "./ExploreView";
 import NextRunsView from "./NextRunsView";
@@ -383,6 +384,7 @@ function ResultsCenter({ study }: { study: Study }) {
       <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
       {study.answer && v.center === "charts" && <Desk study={study} />}
       {study.answer && v.center === "effects" && <EffectsView study={study} />}
+      {study.answer && v.center === "model" && <SurrogateView study={study} />}
       {study.answer && v.center === "map" && <MapsView study={study} />}
       {study.answer && v.center === "explore" && <ExploreView study={study} />}
       {study.answer && v.center === "scatter" && <ScattersView study={study} />}

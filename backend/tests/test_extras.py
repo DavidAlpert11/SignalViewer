@@ -78,9 +78,25 @@ def test_reports_name_their_extra(tmp_path, monkeypatch):
 
 
 def test_extras_cover_requirements():
-    """Every package extras.py names is in requirements.txt (the full install keeps everything)."""
+    """Every package extras.py names is in requirements.txt (the full install keeps everything) - or,
+    for an extra that stays optional everywhere (MF04's sweeps-opt), in its own requirements file."""
     from svcore.extras import EXTRAS
     import re
-    req = open(os.path.join(os.path.dirname(__file__), "..", "..", "requirements.txt"), encoding="utf-8").read()
+    root = os.path.join(os.path.dirname(__file__), "..", "..")
+    req = "".join(open(os.path.join(root, f), encoding="utf-8").read() for f in ("requirements.txt", "requirements-sweeps-opt.txt"))
     names = {re.split(r"[<>=!~ ]", line.split("#")[0].strip())[0] for line in req.splitlines() if line.split("#")[0].strip()}
     assert {p for ps in EXTRAS.values() for p in ps} <= names
+
+
+def test_sweeps_opt_stays_optional_in_both_packages():
+    import importlib.util
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "tools", "make_pypi.py")
+    spec = importlib.util.spec_from_file_location("make_pypi", path)
+    mp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mp)
+    req, extra = mp.requirements()
+    assert not any(r.startswith("scikit-learn") for r in req) and extra["sweeps-opt"][0].startswith("scikit-learn")
+    deps, opt = mp.flavour_metadata("signalviewer", req, extra)
+    assert not any(d.startswith("scikit-learn") for d in deps) and "scikit-learn>=1.3" in opt["all"]
+    deps, opt = mp.flavour_metadata("signalviewer-lite", req, extra)
+    assert "scikit-learn>=1.3" in opt["sweeps-opt"]
