@@ -504,6 +504,15 @@ export const swEn = {
   swSameInAll: "The same in all {n}:",
   swNextEveryCol: "show every column",
   swNextCompact: "only what changes",
+  swJournalInReport: "{n} lines in the report",
+  swJournalFinal: "The final story",
+  swJournalAll: "Everything",
+  swJournalStartsAt: "The analysis starts at {at}.",
+  swJournalFromFirst: "From the first line",
+  swJournalEmpty: "Nothing to tell yet.",
+  swJournalStartHere: "The analysis starts here: what came before stays out of the report",
+  swJournalHide: "Leave this line out of the report",
+  swJournalShow: "Put this line back in the report",
 };
 
 export const swHe: typeof swEn = {
@@ -1009,4 +1018,13 @@ export const swHe: typeof swEn = {
   swSameInAll: "זהה בכל ה-{n}:",
   swNextEveryCol: "הצגת כל העמודות",
   swNextCompact: "רק מה שמשתנה",
+  swJournalInReport: "{n} שורות בדוח",
+  swJournalFinal: "הסיפור הסופי",
+  swJournalAll: "הכל",
+  swJournalStartsAt: "הניתוח מתחיל ב-{at}.",
+  swJournalFromFirst: "מהשורה הראשונה",
+  swJournalEmpty: "עדיין אין מה לספר.",
+  swJournalStartHere: "הניתוח מתחיל כאן: מה שקדם לזה לא נכנס לדוח",
+  swJournalHide: "להשאיר את השורה מחוץ לדוח",
+  swJournalShow: "להחזיר את השורה לדוח",
 };

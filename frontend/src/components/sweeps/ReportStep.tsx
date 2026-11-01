@@ -6,7 +6,7 @@ import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { colLabel, setColumns, shownAxes } from "../../sweeps/view";
 import { ReportForm } from "./ReportDialog";
 import { say } from "../../sweeps/notify";
-import { journalLine } from "../../sweeps/journal";
+import { journalLine, reportJournal } from "../../sweeps/journal";
 import { fmtValue } from "../../sweeps/scales";
 import { StepFoot } from "./StepNav";
 
@@ -28,14 +28,11 @@ export function ReportSide({ study }: { study: Study }) {
     <div className="sw-side-step">
       <p className="sw-step-intro">{t("swReportIntro")}</p>
       {/* the journal so far (S08): what the report's process will tell, newest first */}
-      <div className="sw-hide-box sw-journal">
-        <h3>{t("swRepJournal")} <span className="hint">({study.log.length})</span></h3>
-        <ol reversed>{[...study.log].reverse().slice(0, 60).map((e, i) => <li key={i}>{journalLine(t, e)}</li>)}</ol>
-        {study.iterations.length > 1 && <>
-          <h3>{t("swRepIterations")}</h3>
-          <ul>{study.iterations.map((it) => <li key={it.n}>{t("swRepIteration", { n: it.n, label: it.label, holding: it.holding, sets: it.sets, best: it.best === null ? "–" : fmtValue(it.best) })}</li>)}</ul>
-        </>}
-      </div>
+      <Journal study={study} />
+      {study.iterations.length > 1 && <div className="sw-hide-box sw-journal sw-iterations">
+        <h3>{t("swRepIterations")}</h3>
+        <ul>{study.iterations.map((it) => <li key={it.n}>{t("swRepIteration", { n: it.n, label: it.label, holding: it.holding, sets: it.sets, best: it.best === null ? "–" : fmtValue(it.best) })}</li>)}</ul>
+      </div>}
       <StepFoot study={study} />
     </div>
   );
@@ -54,6 +51,47 @@ export function ReportCenter({ study }: { study: Study }) {
         <span className="hint">{t("swExportPlotHint")}</span>
         <div className="sw-row"><button className="btn outline" onClick={() => say(exportPlot(t, study, lang))}>{t("swExportPlot")}</button></div>
       </div>
+    </div>
+  );
+}
+
+/** The journal as the report will tell it (S20): the final story or everything; a line hidden by
+ *  hand (× / ↺), and the line where the analysis starts (⤒) - before it nothing goes in. */
+function Journal({ study }: { study: Study }) {
+  const t = useT();
+  const st = useSweeps.getState();
+  const all = !!study.view.journalAll, start = study.view.journalStart;
+  const shown = reportJournal(study.log, !all, start);
+  const lines = all ? study.log.filter((e) => e.kind !== "open") : shown;
+  const inReport = new Set(shown);
+  const startIdx = start ? study.log.findIndex((e) => e.at === start) : -1;
+  return (
+    <div className="sw-hide-box sw-journal">
+      <h3>{t("swRepJournal")} <span className="hint">({t("swJournalInReport", { n: shown.length })})</span></h3>
+      <div className="sw-seg" role="radiogroup" aria-label={t("swRepJournal")}>
+        <button role="radio" aria-checked={!all} className={!all ? "on" : ""} onClick={() => st.setView({ journalAll: false })}>{t("swJournalFinal")}</button>
+        <button role="radio" aria-checked={all} className={all ? "on" : ""} onClick={() => st.setView({ journalAll: true })}>{t("swJournalAll")}</button>
+      </div>
+      {start && <p className="hint">{t("swJournalStartsAt", { at: journalLine(t, study.log[startIdx] ?? study.log[0]).split(" · ")[0] })}{" "}
+        <button className="linklike" onClick={() => st.setView({ journalStart: undefined })}>{t("swJournalFromFirst")}</button></p>}
+      {lines.length === 0 ? <p className="hint">{t("swJournalEmpty")}</p> : (
+        <ol className="sw-journal-lines">
+          {[...lines].reverse().slice(0, 120).map((e) => {
+            const before = startIdx >= 0 && study.log.indexOf(e) < startIdx;
+            const out = e.hidden || before || (all && !inReport.has(e));
+            return (
+              <li key={e.at + e.kind} className={`${e.hidden ? "hidden" : ""}${out ? " out" : ""}`}>
+                <span>{journalLine(t, e)}</span>
+                <span className="sw-journal-acts">
+                  <button className="iconbtn" title={t("swJournalStartHere")} aria-label={t("swJournalStartHere")} onClick={() => st.setView({ journalStart: e.at })}>⤒</button>
+                  <button className="iconbtn" title={t(e.hidden ? "swJournalShow" : "swJournalHide")} aria-label={t(e.hidden ? "swJournalShow" : "swJournalHide")}
+                    onClick={() => st.hideJournalLine(e.at, !e.hidden)}>{e.hidden ? "↺" : "×"}</button>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }
