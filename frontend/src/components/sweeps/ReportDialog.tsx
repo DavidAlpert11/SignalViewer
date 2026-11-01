@@ -11,7 +11,7 @@ import { hasFilter, keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
-import { activeColumns, activeParams, colLabel, mapAxes, mapList, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, mapAxes, mapList, scatterList, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { KINDS } from "../../sweeps/next";
@@ -81,7 +81,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
   const [title, setTitle] = useState(study.name.replace(/\.[^.]+$/, ""));
   const [notes, setNotes] = useState("");
   const [top, setTop] = useState(25);
-  const [inc, setInc] = useState({ question: true, process: true, journal: true, plot: true, effects: true, map: true, table: true, provenance: true });
+  const [inc, setInc] = useState({ question: true, process: true, journal: true, plot: true, effects: true, map: true, points: true, table: true, provenance: true });
   const a = study.answer!;
   const make = async () => {
     onBefore?.();                      // the dialog closes: the file dialog takes its place
@@ -93,7 +93,12 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
       "#mapTitle": t("swCenterMap"), "#mapAt": t("swMapAt"),
       "#mapShareKey": t("swMapByShare"), "#mapGoalKey": study.question.goal ? t("swMapByGoal", { c: study.question.goal.column }) : "", "#what": "", "#value": "", "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"),
       "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis"), "#provenance": t("swRepProvenance"),
-      "#itTitle": t("swRepIterations"), "#itHolding": t("swRepItHolding"), "#itBest": t("swRepItBest") });
+      "#itTitle": t("swRepIterations"), "#itHolding": t("swRepItHolding"), "#itBest": t("swRepItBest"),
+      "#pointsTitle": t("swCenterScatter"), "#holdsKey": t("swHolds"), "#others": t("swOthers"),
+      "#effectsY": study.question.goal ? study.question.goal.column : t("swRepItHolding") });
+    // the point plots on screen, a point per set (as the report's other figures)
+    const setCols = new Set(a.sets.map((c) => c.name));
+    const scatters = scatterList(study).filter((s) => setCols.has(s.x) && setCols.has(s.y));
     // the sets on screen: after the filters and the keep / exclude steps
     const n = a.sets[0]?.values.length ?? 0, kept = keptMask(cols, study.view.filters, n), scope = scopeMask(study);
     const shown: number[] = [];
@@ -116,7 +121,8 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
           [t("swRepHolding"), `${a.counts.holding} / ${a.counts.sets}`], [t("swMissing"), a.counts.sets - a.counts.complete],
           [t("swRepShownNow"), shown.length]],
         columns: table, rows: tableRows(study), axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
-        include: { plot: inc.plot, effects: inc.effects, map: inc.map, table: inc.table, provenance: inc.provenance, iterations: inc.process },
+        include: { plot: inc.plot, effects: inc.effects, map: inc.map, points: inc.points, table: inc.table, provenance: inc.provenance, iterations: inc.process },
+        scatters, style: study.view.style ?? null, colorBy: study.view.colorBy && setCols.has(study.view.colorBy) ? study.view.colorBy : null,
         iterations: study.iterations.length > 1 ? study.iterations : null,
         mapX: map.x ?? null, mapY: map.y ?? null, maps: mapList(study) });
       notify(t("swSaved", { path: r.path }));
@@ -146,7 +152,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
       <label className="sw-field">{t("swRepNotes")}<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("swRepNotesHint")} /></label>
       <div className="sw-report-inc">
         {box("question", t("swQuestion"))}{box("process", t("swRepProcess"))}{box("journal", t("swRepJournal"))}{box("plot", t("swCenterLines"))}
-        {box("effects", t("swCenterEffects"))}{box("map", t("swCenterMap"))}{box("table", t("swBestSets"))}{box("provenance", t("swRepProvenance"))}
+        {box("effects", t("swCenterEffects"))}{box("map", t("swCenterMap"))}{box("points", t("swCenterScatter"))}{box("table", t("swBestSets"))}{box("provenance", t("swRepProvenance"))}
         <label className="acheck">{t("swRepTop")}<input type="number" min={1} max={1000} value={top} onChange={(e) => setTop(Math.max(1, Number(e.target.value) || 25))} style={{ width: 64 }} /></label>
       </div>
       <div className="sw-report-preview">

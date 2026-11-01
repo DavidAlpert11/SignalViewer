@@ -585,3 +585,27 @@ def test_report_provenance_and_iterations(tmp_path):
     sha = hashlib.sha256(open(ex["path"], "rb").read()).hexdigest()
     assert "Where it comes from" in text and sha in text and "Signal Viewer " in text
     assert "<h2>Iterations</h2>" in text
+
+
+def test_report_points_and_style(tmp_path):
+    """S11 / S12 / S18: the point plots on screen go into the report with their axes' titles; the
+    plots' style (colour map, grid, numbers) is the page's; Which parameter matters has titles."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app import sweep_report
+    c = TestClient(app)
+    o = c.post("/api/sweep/open", json={"path": c.get("/api/sweep/example").json()["path"]}).json()
+    roles = {x["name"]: x["role"] for x in o["columns"]}
+    q = {"roles": roles, "combine": "and", "holdValues": {}, "goal": {"column": "energy_wh", "direction": "min"},
+         "conditions": [{"column": "roll_error_deg", "op": "<=", "value": 5, "mode": "all"}], "derived": [], "outputAgg": {},
+         "objectives": [], "exclude": []}
+    html = tmp_path / "pts.html"
+    r = c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html),
+               "labels": {"#pointsTitle": "Points", "#goal": "energy (worst)"}, "include": {"plot": False, "map": False},
+               "scatters": [{"x": "kp_roll", "y": "#goal"}, {"x": "nope", "y": "#goal"}],
+               "style": {"cmap": "plasma", "grid": True, "minor": True, "numbers": False, "size": 6}})
+    assert r.status_code == 200, r.text
+    text = open(html, encoding="utf-8").read()
+    assert text.count("<h2>Points: ") == 1 and "Points: energy (worst) / kp_roll" in text    # an unknown column: no figure
+    st = sweep_report.style_of({"style": {"cmap": "greys"}})
+    assert st["cmap"] == "gray" and st["grid"] is True and st["numbers"] is True

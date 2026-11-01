@@ -166,6 +166,21 @@ export interface View {
   scatters?: { x: string; y: string }[];
   /** next runs' choices and answer */
   next?: NextRuns;
+  /** how the plots look (S12) */
+  style?: PlotStyle;
+}
+
+/** How the maps, point plots and *Which parameter matters* look (S12), for the study and its report. */
+export interface PlotStyle {
+  cmap?: "viridis" | "plasma" | "cividis" | "turbo" | "greys";
+  /** a point's size, px */
+  size?: number;
+  /** a point's opacity, 0.1..1 (missing: less when there are many) */
+  opacity?: number;
+  grid?: boolean;
+  minor?: boolean;
+  /** the best goal written on a map's cells */
+  numbers?: boolean;
 }
 
 export interface MapSpec { x: string; y: string; rest?: "all" | "best";
