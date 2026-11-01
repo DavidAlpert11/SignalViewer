@@ -1113,7 +1113,7 @@ def test_explore_everything_on_screen_live_in_the_lines_and_the_table(pg):
     pg.locator(".sw-side-step .btn", has_text="Explore this goal").click()
     pg.wait_for_selector(".sw-explore[aria-busy='false']")
     assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "5"
-    assert pg.locator(".sw-center-tabs button[aria-selected='true']").inner_text() == "Explore"
+    assert pg.locator(".sw-center-tabs button[aria-selected='true']").inner_text() == "Decide"
     for p in ("kp_roll", "ki_roll", "filter_hz"):
         assert pg.locator(f".sw-explore input[aria-label='{p} from']").count() == 1
         assert pg.locator(f".sw-explore input[aria-label='{p} up to']").count() == 1
