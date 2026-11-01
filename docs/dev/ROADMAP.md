@@ -649,10 +649,21 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 23 — Sweeps toward modeFRONTIER. Spec: docs/dev/SWEEPS_MODEFRONTIER.md MF01-MF10 (order there; MF01 first).
+- [ ] MF01 The problem as one table (parameters, objectives, conditions).
+- [ ] MF02 More charts, all linked. - [ ] MF03 DOE. - [ ] MF04 Surrogates. - [ ] MF05 Sensitivity.
+- [ ] MF06 Runner. - [ ] MF07 Optimizers in the loop. - [ ] MF08 Robust design / reliability.
+- [ ] MF09 Clusters, SOM, PCA. - [ ] MF10 Decision making.
+
+## Milestone 22 — work on a selection; typed values in Explore (owner's notes 2026-11-01, 2). Spec: TASKS.md Q127-Q129.
+- [ ] Q127 Operations chosen by the selection (2: difference…, 3+: norm, 2N: difference per pair).
+- [ ] Q128 The same formula for the other indices.
+- [ ] Q129 Explore: type a value, not only slide.
+
 ## Milestone 21 — new signals in the investigation; a signal's real updates (owner's notes 2026-11-01). Spec: TASKS.md Q124-Q126.
 - [ ] Q124 A signal made with an operation, in What changed first and the other investigation steps.
 - [ ] Q125 A signal slower than its recording: detected, its updates (when it changes / N Hz), operations over them.
-- [ ] Q126 A flag that says the value is new: the updates chosen by another signal (set / rises / changes).
+- [ ] Q126 An update clock: a flag (set / rises / changes) or the updates of another signal; set for a selection.
 
 ## Milestone 20 — Sweeps, round 4: Explore, what S23 left. Spec: TASKS.md S24-S27.
 - [ ] S24 A condition added in Explore starts where it keeps every set.
