@@ -46,6 +46,7 @@ import EffectsView from "./EffectsView";
 import HealthView from "./HealthView";
 import MapsView from "./MapView";
 import Desk from "./Desk";
+import { RunCenter, RunSide } from "./RunArea";
 import ExploreView from "./ExploreView";
 import NextRunsView from "./NextRunsView";
 import ScattersView from "./ScatterView";
@@ -288,7 +289,7 @@ function StudyView({ study }: { study: Study }) {
     return () => window.clearInterval(h);
   }, [study.tableId, study.path]);
   const side = step === "raw" ? <RawSide study={study} /> : step === "clean" ? <CleanSide study={study} /> : step === "roles" ? <RolesSide study={study} />
-    : step === "goals" ? <GoalsSide study={study} /> : step === "results" ? <ResultsSide study={study} /> : <ReportSide study={study} />;
+    : step === "goals" ? <GoalsSide study={study} /> : step === "results" ? <ResultsSide study={study} /> : step === "run" ? <RunSide /> : <ReportSide study={study} />;
   const noParams = !activeParams(study).length;
   // the side panels: widths dragged (and remembered) as in Recordings, the steps' panel can be hidden
   const [leftW, setLeftW] = usePanelWidth("swLeft", 340);
@@ -329,6 +330,7 @@ function StudyView({ study }: { study: Study }) {
           {step === "goals" && <GoalsCenter study={study} />}
           {step === "results" && <ResultsCenter study={study} />}
           {step === "report" && <ReportCenter study={study} />}
+          {step === "run" && <RunCenter study={study} />}
         </main>
         {detail && <SetDetail study={study} set={study.view.pinned!} />}
       </div>

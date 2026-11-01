@@ -538,3 +538,12 @@
 .sw-broken-n { color: var(--muted); font-variant-numeric: tabular-nums; }
 .sw-compare-sets tr.differs td { color: var(--amber); font-weight: 600; }
 .sw-compare-sets th { text-align: start; }
+
+/* M23: three areas, the steps of the area under them */
+.sw-areas-bar { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; margin-inline-end: 8px; flex: none; align-self: center; }
+.sw-area-btn { padding: 6px 14px; border: 0; border-radius: 6px; background: none; color: var(--muted); font-weight: 600; cursor: pointer; }
+.sw-area-btn:hover { color: var(--ink); }
+.sw-area-btn.on { background: var(--amber-soft); color: var(--ink-strong); box-shadow: inset 0 -2px 0 var(--amber); }
+.sw-area-btn.quiet:not(.on) { opacity: 0.7; font-weight: 500; }
+.sw-run-quiet { max-width: 640px; padding: 16px; }
+.sw-run-quiet ol { padding-inline-start: 20px; display: flex; flex-direction: column; gap: 6px; }

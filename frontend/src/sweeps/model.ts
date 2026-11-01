@@ -92,8 +92,15 @@ export function upgradeQuestion(q: Partial<Question>): Question {
 }
 
 /** The steps of the work, in order. */
-export type Step = "raw" | "clean" | "roles" | "goals" | "results" | "report";
+export type Step = "raw" | "clean" | "roles" | "goals" | "results" | "report" | "run";
 export const STEPS: Step[] = ["raw", "clean", "roles", "goals", "results", "report"];
+
+/** The three areas (M23 §4): the problem (the table, its columns, the goal), running it (MF06 /
+ *  MF11 - quiet until a run step exists), and exploring the results. The steps live in an area. */
+export type Area = "problem" | "run" | "explore";
+export const AREAS: Area[] = ["problem", "run", "explore"];
+export const areaOf = (s: Step): Area => (s === "run" ? "run" : s === "results" || s === "report" ? "explore" : "problem");
+export const AREA_STEPS: Record<Area, Step[]> = { problem: ["raw", "clean", "roles", "goals"], run: ["run"], explore: ["results", "report"] };
 
 /** What the middle of the area shows. */
 /** A line of the study's journal (S08): when, what kind of step, its details (rendered in the
