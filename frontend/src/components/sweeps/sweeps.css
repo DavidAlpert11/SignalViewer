@@ -579,3 +579,21 @@
 .sw-model-fig { margin: 0; }
 .sw-virtual { display: flex; flex-direction: column; gap: 8px; }
 .sw-virtual-table tr.status-virtual td { font-style: italic; color: var(--focus); }
+
+/* MF06 / MF11: run step and monitor */
+.sw-runstep { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.sw-runstep .sw-field input { width: 100%; }
+.sw-runstep-grid { flex-wrap: wrap; gap: 10px 16px; }
+.sw-runstep-grid label, .sw-runstep .sw-row label { display: inline-flex; align-items: center; gap: 4px; }
+.sw-path { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; }
+.sw-run-preview { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+.sw-run-preview code { white-space: pre-wrap; word-break: break-all; direction: ltr; text-align: start; }
+.sw-monitor { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.sw-monitor-head { flex-wrap: wrap; gap: 8px; }
+.sw-monitor-head progress { width: 160px; }
+.sw-count-chip { padding: 1px 8px; border-radius: 10px; background: var(--panel-2); font-variant-numeric: tabular-nums; }
+.sw-count-chip.ok { color: var(--ok); }
+.sw-count-chip.bad { color: var(--danger); }
+.sw-count-chip.warn { color: var(--amber); }
+.sw-monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.sw-run-failures ul { margin: 4px 0; padding-inline-start: 18px; display: flex; flex-direction: column; gap: 4px; }

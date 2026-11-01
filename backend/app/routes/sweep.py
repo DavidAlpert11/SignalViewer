@@ -317,6 +317,73 @@ def sweep_surrogate_optimise(req: SurrogateOptReq):
         fail(400, str(e))
 
 
+class RunReq(BaseModel):
+    id: str
+    question: Dict[str, Any]
+    sets: List[Dict[str, Any]]            # the parameter sets to run ({param: value})
+    combos: bool = True                   # each in every kept scenario combination
+    spec: Dict[str, Any]                  # the run step: template, workdir, parser, outputs, parallel, timeout, results
+
+
+_RUNS: "OrderedDict[str, Any]" = OrderedDict()
+
+
+def _run_list(req: "RunReq") -> List[Dict[str, Any]]:
+    p = _prepared(req.id, req.question)
+    combos = p.df[p.holds].drop_duplicates().to_dict("records") if p.holds and req.combos else [{}]
+    return [{**{k: s.get(k) for k in p.params}, **cb} for s in req.sets for cb in combos]
+
+
+@router.post("/api/sweep/run/preview")
+def sweep_run_preview(req: RunReq):
+    """The first run's command as it will start (shown before anything runs), and how many runs."""
+    from svcore.sweep import runner
+    runs = _run_list(req)
+    if not runs:
+        fail(400, "Nothing to run: choose sets.")
+    wd = os.path.abspath(os.path.expanduser(str(req.spec.get("workdir") or ".")))
+    try:
+        args = runner.fill(str(req.spec.get("template") or ""), {**runs[0], "out": os.path.join(wd, ".signalviewer_runs", "run_0.json"), "run": 0, "workdir": wd})
+    except runner.RunError as e:
+        fail(400, str(e))
+    return {"args": args, "runs": len(runs), "workdir": wd, "workdirExists": os.path.isdir(wd)}
+
+
+@router.post("/api/sweep/run/start")
+def sweep_run_start(req: RunReq):
+    """MF06: run the sets - a job (progress, stop); its live state at /api/sweep/run/{job}."""
+    from app.jobs import JobCancelled, jobs
+    from svcore.sweep import runner
+    runs = _run_list(req)
+    if not runs:
+        fail(400, "Nothing to run: choose sets.")
+    try:
+        runner.fill(str(req.spec.get("template") or ""), {**runs[0], "out": "x", "run": 0, "workdir": "."})
+    except runner.RunError as e:
+        fail(400, str(e))
+    live = runner.Live(len(runs))
+
+    def work(job):
+        res = runner.run_all(runs, req.spec, live, lambda f, ph: job.report(f, ph), job.cancelled)
+        if job.cancelled():
+            raise JobCancelled()
+        return res
+    job = jobs.start("sweepRun", f"Running {len(runs)} runs", work)
+    _RUNS[job.id] = live
+    while len(_RUNS) > 10:
+        _RUNS.popitem(last=False)
+    return job.to_dict()
+
+
+@router.get("/api/sweep/run/{job_id}")
+def sweep_run_live(job_id: str, since: int = 0):
+    from app.jobs import jobs
+    job, live = jobs.get(job_id), _RUNS.get(job_id)
+    if not job or not live:
+        fail(404, "Unknown run.")
+    return {"job": job.to_dict(), "live": live.to_dict(max(0, since))}
+
+
 class SensitivityReq(BaseModel):
     id: str
     question: Dict[str, Any]

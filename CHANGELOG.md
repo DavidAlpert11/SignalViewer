@@ -20,6 +20,8 @@
 - **Sweeps: a model of a result (response surface).** The *Model* tab trains a quadratic polynomial, radial basis functions, nearest sets and (with `pip install "signalviewer[sweeps-opt]"`) Kriging on the sets, checks each on sets it did not see (errors and R², the best marked), shows predicted against real, explores the model (a surface, its contour bands, two cuts through values you type), and finds the best sets it predicts - saved as a group of virtual sets and exported to be run for real.
 - **CI runs on a push only when asked** (`[ci]` in the last commit's message, or *Run workflow*); pull requests always.
 
+- **Sweeps: run the sets from the app.** In the *Run* area, write the command of one run with placeholders (`{kp} {wind} {out}`), say where its results are (a JSON or CSV file, or printed `name = value` lines), how many at once and a time limit; the first command is shown before anything runs. Then run a design, the virtual sets or the marked ones - each in every scenario - and watch it live: counts by status, each result's history with the best so far, the Pareto front growing, the failures with their messages, Stop. Runs already done are not run again; the results are merged into the study when the runs end.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row

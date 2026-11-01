@@ -166,3 +166,17 @@ export function freeColor(groups: Group[]): number {
   while (used.has(c)) c++;
   return c;
 }
+
+/** A set id back to its values (a designed or virtual set, to run it): numbers where the answer's
+ *  column is a number. Inverse of `idOfParams` (a text value holding "|" or "=" is not supported). */
+export function paramsOfId(id: string, a: Answer): Record<string, string | number | null> {
+  const num = new Set(a.sets.filter((c) => c.group === "param" && c.kind === "num").map((c) => c.name));
+  const out: Record<string, string | number | null> = {};
+  for (const part of id.split("|")) {
+    const i = part.indexOf("=");
+    if (i < 0) continue;
+    const k = part.slice(0, i), v = part.slice(i + 1);
+    out[k] = v === "" ? null : num.has(k) && Number.isFinite(Number(v)) ? Number(v) : v;
+  }
+  return out;
+}
