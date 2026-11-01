@@ -4,7 +4,7 @@
    it (again: the other way, a third time: best first); a click on a row opens the set. What the
    table shows is what Export writes: the sets, a row each, or all their runs. */
 import { useMemo, useState } from "react";
-import { pickPath } from "../../store";
+import { pickPath, useApp } from "../../store";
 import { useT } from "../../i18n";
 import { sweepApi } from "../../sweeps/api";
 import { labelOf } from "../../sweeps/scales";
@@ -13,11 +13,14 @@ import { notify, notifyError } from "../../sweeps/notify";
 import { colLabel, setColumns, tableColumns, tableOptions, tableRows, TABLE_FIXED } from "../../sweeps/view";
 import { openMenu } from "../Overlays";
 import ColumnPicker from "./ColumnPicker";
+import { exportPlot } from "./ReportStep";
+import { say } from "../../sweeps/notify";
 
 const PAGE = 100;
 
 export default function SetsTable({ study }: { study: Study }) {
   const t = useT();
+  const lang = useApp((s) => s.lang);
   const { setView } = useSweeps.getState();
   const cols = useMemo(() => setColumns(study), [study]);
   const a = study.answer!;
@@ -60,6 +63,7 @@ export default function SetsTable({ study }: { study: Study }) {
     openMenu({ clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, [
       { label: t("swExportSetsN", { n: order.length.toLocaleString() }), run: exportSets },
       { label: t("swExportSetRunsN", { n: (order.length * a.counts.combos).toLocaleString() }), run: exportRuns },
+      { label: t("swExportSetsPlotN", { n: order.length.toLocaleString() }), run: () => say(exportPlot(t, study, lang, order)) },
     ]);
   };
 

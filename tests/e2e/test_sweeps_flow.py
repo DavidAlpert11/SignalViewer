@@ -869,3 +869,20 @@ def test_the_optimization_in_the_plots_and_a_pareto_choice(pg):
     pg.mouse.click(b["x"] + b["width"] * 0.5, b["y"] + b["height"] * 0.5)
     pg.locator(".sw-center-tabs button", has_text="Lines").click()
     pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {all_rows}")
+
+
+def test_the_sets_that_hold_as_an_interactive_plot(pg):
+    """S14: the table's Export writes the sets shown (only those that hold) as an interactive plot."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    pg.wait_for_selector(".sw-table th:has-text('worst')")
+    holding = _holding(pg)
+    pg.locator(".sw-sets-bar label", has_text="Only sets that hold").locator("input").check()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {holding}")
+    pg.locator(".sw-sets-bar .btn", has_text="Export").click()
+    pg.locator(".menu.ctx button", has_text="interactive plot").click()
+    save_as(pg, "holding_plot.html")
+    pg.wait_for_selector(".toast:has-text('holding_plot.html')")
+    html = open(os.path.join(pg.env["out"], "holding_plot.html"), encoding="utf-8").read()
+    assert f'"n": {holding}' in html and "<canvas" in html

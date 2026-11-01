@@ -611,3 +611,19 @@ def test_report_points_and_style(tmp_path):
     assert text.count("<h2>Points: ") == 1 and "Points: energy (worst) / kp_roll" in text    # an unknown column: no figure
     st = sweep_report.style_of({"style": {"cmap": "greys"}})
     assert st["cmap"] == "gray" and st["grid"] is True and st["numbers"] is True
+
+
+def test_the_plot_alone_of_some_sets(tmp_path):
+    """S14: the interactive plot alone of only the sets given (the table's: those that hold...)."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    o = c.post("/api/sweep/open", json={"path": c.get("/api/sweep/example").json()["path"]}).json()
+    roles = {x["name"]: x["role"] for x in o["columns"]}
+    q = {"roles": roles, "combine": "and", "holdValues": {}, "goal": None, "conditions": [], "derived": [], "outputAgg": {},
+         "objectives": [], "exclude": []}
+    out = tmp_path / "some.html"
+    r = c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "plot", "path": str(out),
+               "axes": ["kp_roll", "ki_roll"], "only": [0, 5, 7, 10 ** 6]})
+    assert r.status_code == 200, r.text
+    assert '"n": 3' in open(out, encoding="utf-8").read()

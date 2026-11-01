@@ -10,13 +10,14 @@ import { journalLine } from "../../sweeps/journal";
 import { fmtValue } from "../../sweeps/scales";
 import { StepFoot } from "./StepNav";
 
-export async function exportPlot(t: ReturnType<typeof useT>, study: Study, lang: string): Promise<string> {
-  const p = await pickPath({ mode: "save", title: t("swExportPlot"), exts: [".html"], defaultName: study.name.replace(/\.[^.]+$/, "") + "_plot.html" });
+/** The parallel plot alone, interactive (HTML): of every set, or `only` those (the table's, S14). */
+export async function exportPlot(t: ReturnType<typeof useT>, study: Study, lang: string, only?: number[]): Promise<string> {
+  const p = await pickPath({ mode: "save", title: t("swExportPlot"), exts: [".html"], defaultName: study.name.replace(/\.[^.]+$/, "") + (only ? "_sets_plot.html" : "_plot.html") });
   if (!p) return "";
   const cols = setColumns(study);
   const labels: Record<string, string> = Object.fromEntries([...cols.keys()].map((n) => [n, colLabel(t, study, n)]));
   Object.assign(labels, { "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"), "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis") });
-  const r = await sweepApi.report(study.tableId, wireQuestion(study), { format: "plot", path: p, title: study.name, lang, labels, axes: shownAxes(study) });
+  const r = await sweepApi.report(study.tableId, wireQuestion(study), { format: "plot", path: p, title: study.name, lang, labels, axes: shownAxes(study), ...(only ? { only } : {}) });
   useSweeps.getState().journal("export", { path: r.path });
   return t("swSaved", { path: r.path });
 }
