@@ -94,6 +94,12 @@ export const sweepApi = {
   effects: (id: string, question: WireQuestion) => call<Effects>("/api/sweep/effects", { id, question }),
   doe: (id: string, question: WireQuestion, params: DoeSpec[], method: DoeMethod, n: number, seed: number, levels: number, sets: number[] | null) =>
     call<DoeResult>("/api/sweep/doe", { id, question, params, method, n, seed, levels, sets }),
+  surrogateTrain: (id: string, question: WireQuestion, column: string | null, sets: number[] | null) =>
+    call<SurrogateReport>("/api/sweep/surrogate/train", { id, question, column, sets }),
+  surrogateGrid: (key: string, model: string, base: Record<string, string | number>, x: string, y: string | null, steps = 30) =>
+    call<SurrogateGrid>("/api/sweep/surrogate/grid", { key, model, base, x, y, steps }),
+  surrogateOptimise: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, model: string, direction: "max" | "min", n: number, conditions: boolean) =>
+    call<{ sets: VirtualSet[] }>("/api/sweep/surrogate/optimise", { id, question, column, sets, model, direction, n, conditions }),
   sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
     call<Sensitivity>("/api/sweep/sensitivity", { id, question, column, sets, threshold }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
@@ -144,3 +150,13 @@ export type DoeSpec = { name: string; kind: "continuous" | "integer"; lo: number
   | { name: string; kind: "fixed"; value: string | number | null };
 export type DoeMethod = "space" | "sobol" | "random" | "factorial" | "boxbehnken" | "ccd" | "fill";
 export interface DoeResult { sets: Record<string, string | number | null>[]; method: DoeMethod; n: number; discrepancy: number | null; min_distance: number | null }
+
+/** MF04: models of one result - each model's cross-validated errors, the best, its predictions. */
+export interface SurrogateReport {
+  key: string; n: number; folds: number; best: string | null; sklearn: boolean;
+  table: { model: string; available: boolean; error?: string; mae?: number | null; rel?: number | null; norm?: number | null; r2?: number | null }[];
+  predicted: Record<string, [number, number][]>;
+  params: ({ name: string; kind: "number"; lo: number; hi: number } | { name: string; kind: "categorical"; levels: string[] })[];
+}
+export interface SurrogateGrid { x: string; y?: string; xs: (number | string)[]; ys?: (number | string)[]; z: (number | null)[] | (number | null)[][] }
+export interface VirtualSet { params: Record<string, string | number>; predicted: number | null; meets: boolean }
