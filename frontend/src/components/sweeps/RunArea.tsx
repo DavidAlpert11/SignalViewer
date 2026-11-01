@@ -6,6 +6,7 @@ import { useSweeps, type Study } from "../../sweeps/state";
 import DoeSheet from "./DoeSheet";
 import RunStepPanel from "./RunStepPanel";
 import OptimiserPanel from "./OptimiserPanel";
+import RobustSheet from "./RobustSheet";
 
 export function RunSide() {
   const t = useT();
@@ -24,6 +25,7 @@ export function RunCenter({ study }: { study: Study }) {
       {study.answer && <DoeSheet study={study} />}
       {study.answer && <RunStepPanel study={study} />}
       {study.answer && <OptimiserPanel study={study} />}
+      {study.answer && <RobustSheet study={study} />}
       <h3>{t("swRunNoStep")}</h3>
       <p>{t("swRunToday")}</p>
       <ol>

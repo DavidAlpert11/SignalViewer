@@ -109,6 +109,13 @@ export const sweepApi = {
       "/api/sweep/optimise/start", { id, question, specs, method, budget, combos, spec }),
   runLive: (job: string, since: number) => call<RunLive>(`/api/sweep/run/${job}?since=${since}`),
   runStop: (job: string) => call<{ cancelled: boolean }>(`/api/jobs/${job}/cancel`, {}),
+  robustSample: (id: string, question: WireQuestion, centre: Record<string, string | number | null>, n: number, method: string, seed: number) =>
+    call<{ sets: Record<string, string | number | null>[] }>("/api/sweep/robust/sample", { id, question, centre, n, method, seed }),
+  robustModel: (id: string, question: WireQuestion, key: string, model: string, centres: Record<string, string | number | null>[], n: number, method: string,
+    direction: string, pct: number, limit: RobustLimit | null) =>
+    call<{ rows: RobustStats[] }>("/api/sweep/robust/model", { id, question, key, model, centres, n, method, direction, pct, limit }),
+  robustStats: (id: string, question: WireQuestion, sets: number[], direction: string, pct: number, limit: RobustLimit | null) =>
+    call<RobustStats>("/api/sweep/robust/stats", { id, question, sets, direction, pct, limit }),
   mcdm: (values: (number | null)[][], directions: string[], weights: number[], method: string, alpha: number, margin: number, pairwise: number[][] | null) =>
     call<McdmResult>("/api/sweep/mcdm", { values, directions, weights, method, alpha, margin, pairwise }),
   sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
@@ -193,3 +200,9 @@ export interface McdmResult {
   ahp?: { weights: number[]; lambdaMax: number; ci: number; cr: number; consistent: boolean };
 }
 
+/** MF08: a limit on the result ({op, value}) and the statistics of samples around a set. */
+export interface RobustLimit { op: "<=" | "<" | ">=" | ">"; value: number }
+export interface RobustStats {
+  n: number; valid: number; mean: number | null; std: number | null; pct: number | null; min: number | null; max: number | null;
+  pFail?: number | null; nominal?: number; centre?: Record<string, string | number | null>;
+}

@@ -45,8 +45,10 @@ the Python console (pyCONSOLE) for flexibility - a gap worth not copying.
 factorial, Latin square, uniform Latin hypercube (low correlation, max distance), random / Sobol,
 *incremental space filler* (adds points maximising min distance from existing ones, rejects
 unfeasible). Guidance: statistics → factorial; surrogate training → uniform space filling;
-optimisers → ULH / random / Sobol; rule of thumb size `2 × inputs × objectives`. [U] Box-Behnken,
-central composite, D-optimal, Taguchi (likely present, not seen in sources read).
+optimisers → ULH / random / Sobol; rule of thumb size `2 × inputs × objectives`. [V] Box-Behnken,
+central composite, full / reduced factorial, Plackett-Burman, Taguchi orthogonal arrays, Latin
+hypercube - Monte Carlo for robustness (academy.esteco.com, *Design of experiments*, read 2026-11-01).
+[U] D-optimal.
 
 **Optimisers.** [V] Local / global × single / multi: BFGS, NLPQLP, SQP variants,
 Levenberg-Marquardt, Powell, simplex; MOGA-II, NSGA-II, ARMOGA, MOPSO, ES, MOSA, MOGT, hybrid,
@@ -73,7 +75,11 @@ weights, preference and indifference margins by sliders → ranking. Algorithms:
 GA-based MCDM (from pairwise preferences), Hurwicz, Savage minimax regret; MCDM utility.
 
 **Robust design (RDO / MORDO).** [V] Robust designs table, mean vs standard deviation chart,
-DOE families for robustness and reliability. [U] the exact sampling options.
+DOE families for robustness and reliability. [V] sampling: Monte Carlo, Latin hypercube, polynomial
+chaos; uncertain inputs as distributions (normal, uniform...); reliability by Monte Carlo or FORM
+(engineering.esteco.com, *Robust design and reliability*; ESTECO UM23 India, technology overview;
+read 2026-11-01). Implemented here (MF08): Monte Carlo and Latin hypercube; polynomial chaos and
+FORM not done.
 
 ## 2. Capability map (corrected)
 
@@ -92,8 +98,8 @@ Status: **Have** · **Part** · **Missing**. Changes from the first version in *
 | Sensitivity | Pearson matrix, main effects, *SS-ANOVA effect table with screening threshold*, PCE | `effects` | Part | MF05 |
 | Charts | as §1; *filters shared across charts*; *comparison table* | parallel, maps, Pareto, tables | Part | MF02 |
 | Multivariate | clustering, SOM, PCA, *MDS* | - | Missing | MF09 |
-| MCDM | linear, GA from pairwise, *Hurwicz, Savage regret*, margins | weights, thresholds | Part | MF10 |
-| Robust | robust table, mean vs σ, robustness DOE | grid tolerance, worst case | Part | MF08 |
+| MCDM | linear, GA from pairwise, *Hurwicz, Savage regret*, margins | weighted, TOPSIS, Hurwicz, Savage, AHP pairwise weights, indifference margin | Have | MF10 |
+| Robust | robust table, mean vs σ, robustness DOE | tolerance + distribution, MC / LHS on a model or run, mean / σ / percentile / P(fail), mean vs σ | Have (no PCE / FORM) | MF08 |
 | Project / report | project DB, report tool, actions log | `.svsweep`, journal, report | Have | - |
 
 ## 3. Open replacements and licences
@@ -222,5 +228,6 @@ Read `CLAUDE.md`, `docs/dev/TASKS.md`, this file. Then, per task:
 - Ricco, Rigoni, Turco (2013), *Smoothing Spline ANOVA for Variable Screening*, DRNA 6.
 - Park (2012), modeFRONTIER CAE examples (MCDM: linear, GA, Hurwicz).
 - Brochure mF2016 (profiles: MVA = clustering + SOM, RSM, DOE, sensitivity).
+- engineering.esteco.com *Robust design and reliability*; academy.esteco.com *Design of experiments*; um23.esteco.com India proceedings, technology overview (read 2026-11-01, MF08).
 Not found / not seen: current online help (behind a login), videos (not viewed). Images seen only as
 descriptions in the PDFs.
