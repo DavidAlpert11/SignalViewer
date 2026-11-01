@@ -159,15 +159,30 @@ def fig_iterations(its: List[Dict], labels: Dict[str, str]):
     return fig
 
 
-def fig_map(m: Dict):
+def fig_map(m: Dict, color: str = "share", labels: Optional[Dict[str, str]] = None):
+    """A map as on screen (S10): coloured by the share of sets that hold, or by the best goal of
+    each cell (better = the bright end, whether the goal is maximized or minimized); the numbers are
+    the best goal; the best set's cell has a star."""
     plt = _pyplot()
+    L = labels or {}
     share = np.array([[np.nan if v is None else v for v in r] for r in m["share"]], dtype=float)
-    fig, ax = plt.subplots(figsize=(1.2 + 0.9 * len(m["xs"]), 1.0 + 0.6 * len(m["ys"])), dpi=150)
-    ax.imshow(share, origin="lower", cmap="viridis", vmin=0, vmax=1, aspect="auto")
+    best = np.array([[np.nan if v is None else v for v in r] for r in m["best"]], dtype=float)
+    fig, ax = plt.subplots(figsize=(1.6 + 0.9 * len(m["xs"]), 1.0 + 0.6 * len(m["ys"])), dpi=150)
+    by_goal = color == "goal" and m.get("goal") and np.isfinite(best).any()
+    if by_goal:
+        cmap = "viridis_r" if m.get("direction") == "min" else "viridis"
+        im = ax.imshow(best, origin="lower", cmap=cmap, aspect="auto")
+        fig.colorbar(im, ax=ax, fraction=0.05, pad=0.02).set_label(_bidi(L.get("#mapGoalKey", "best goal")), fontsize=7)
+    else:
+        im = ax.imshow(share, origin="lower", cmap="viridis", vmin=0, vmax=1, aspect="auto")
+        fig.colorbar(im, ax=ax, fraction=0.05, pad=0.02).set_label(_bidi(L.get("#mapShareKey", "share that holds")), fontsize=7)
     for j, r in enumerate(m["best"]):
         for i, b in enumerate(r):
             if b is not None:
                 ax.text(i, j, _fmt(b), ha="center", va="center", fontsize=6, color="white")
+    if m.get("bestAt"):
+        bi, bj = m["bestAt"]
+        ax.text(bi + 0.42, bj + 0.38, "★", ha="right", va="top", fontsize=9, color="#ffb000")
     ax.set_xticks(range(len(m["xs"]))); ax.set_xticklabels([_fmt(x) for x in m["xs"]], fontsize=7)
     ax.set_yticks(range(len(m["ys"]))); ax.set_yticklabels([_fmt(y) for y in m["ys"]], fontsize=7)
     ax.set_xlabel(_bidi(m["x"]), fontsize=8); ax.set_ylabel(_bidi(m["y"]), fontsize=8)
@@ -208,9 +223,10 @@ def figures(p, q: Dict, a: Dict, req: Dict) -> List[Tuple[str, str, bytes]]:
         if inc.get("map", True):
             for k, mp in enumerate(maps_of(p, req)):
                 m = sweep.map_for(p, a, q, mp["x"], mp["y"], mp.get("rest") or "all")
+                color = mp.get("color") or ("share" if (q.get("conditions") or not m.get("goal")) else "goal")
                 at = ", ".join(f"{c} = {_fmt(v)}" for c, v in (m.get("fixed") or {}).items())
                 title = f"{labels.get('#mapTitle', '')}: {mp['x']} × {mp['y']}" + (f" ({labels.get('#mapAt', 'at')} {at})" if at else "")
-                out.append((f"map{k}", title, _png(fig_map(m))))
+                out.append((f"map{k}", title, _png(fig_map(m, color, labels))))
     except ReportNeedsExtra:
         if req.get("format") in ("docx", "pdf"):
             raise

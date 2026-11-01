@@ -360,3 +360,12 @@
   .sw-wide { display: none; }
   .sw-narrow { display: inline; }
 }
+.sw-map-key { margin: 2px 0 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* fixed colour on purpose: a star that shows on every cell colour */
+.sw-best-star { fill: #ffb000; font-size: 14px; paint-order: stroke; stroke: #111; stroke-width: 2px; pointer-events: none; }
+
+/* the best set (S10) */
+.sw-best .sw-best-goal { display: flex; justify-content: space-between; gap: 8px; font-size: .85rem; }
+.sw-best .sw-best-goal span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-best-params { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .82rem; }
+.sw-best .btn { align-self: flex-start; }

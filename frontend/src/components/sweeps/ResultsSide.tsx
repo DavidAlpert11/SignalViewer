@@ -3,7 +3,8 @@
 import { useT } from "../../i18n";
 import { hasFilter } from "../../sweeps/filters";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { colLabel, scopeKey } from "../../sweeps/view";
+import { colLabel, scopeKey, setColumns } from "../../sweeps/view";
+import { labelOf } from "../../sweeps/scales";
 import { goalName, goalSummary } from "./GoalsStep";
 import { StepFoot } from "./StepNav";
 
@@ -31,6 +32,7 @@ export default function ResultsSide({ study }: { study: Study }) {
           </>
         ) : <p className="hint">{t("swReading")}</p>}
       </div>
+      {a && <BestSet study={study} />}
       <div className="sw-hide-box">
         <b>{t("swNowShown")}</b>
         {filters.length === 0 && steps.length === 0 && <span className="hint">{t("swRepNothing")}</span>}
@@ -43,6 +45,30 @@ export default function ResultsSide({ study }: { study: Study }) {
       </div>
       <p className="hint">{t("swResultsNextHint")}</p>
       <StepFoot study={study} />
+    </div>
+  );
+}
+
+/** The best set (S10): where the optimization shows - the set ranked first, its parameters and its
+ *  goal (its score with several objectives, its worst case within the tolerance when robust). */
+function BestSet({ study }: { study: Study }) {
+  const t = useT();
+  const cols = setColumns(study);
+  const rank = cols.get("#rank")?.values;
+  if (!rank || !study.question.goal) return null;
+  let best = -1;
+  for (let i = 0; i < rank.length; i++) if (Number.isFinite(rank[i]) && (best < 0 || rank[i] < rank[best])) best = i;
+  if (best < 0) return <div className="sw-hide-box sw-best"><b>★ {t("swBestSetTitle")}</b><span className="hint">{t("swNoBestSet")}</span></div>;
+  const show = (name: string) => { const c = cols.get(name); return c ? labelOf(c, c.values[best]) : "–"; };
+  const params = study.answer!.sets.filter((c) => c.group === "param").map((c) => c.name);
+  const extra = ["#robustGoal", "#score"].filter((n) => cols.has(n));
+  return (
+    <div className="sw-hide-box sw-best">
+      <b>★ {t("swBestSetTitle")}</b>
+      <div className="sw-best-goal"><span>{colLabel(t, study, "#goal")}</span><b>{show("#goal")}</b></div>
+      {extra.map((n) => <div key={n} className="sw-best-goal"><span>{colLabel(t, study, n)}</span><b>{show(n)}</b></div>)}
+      <div className="sw-best-params">{params.map((p) => <span key={p}>{p} = <b>{show(p)}</b></span>)}</div>
+      <button className="btn outline" onClick={() => useSweeps.getState().setView({ pinned: best })}>{t("swOpenBestSet")}</button>
     </div>
   );
 }
