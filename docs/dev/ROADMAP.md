@@ -654,7 +654,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] Q131 The more likely first (a score with its parts). Done 2026-11-01: firstchange.WEIGHTS / score_parts (strength, timing, stays, unique, shape - the lag against the event signal for the 30 likeliest, leads); clusters by their best member (By time as an option), the event's own signal last; the parts in the row's tooltip.
 - [x] Q132 A plot beside each cluster (normalised, the span, the change ticks). Done 2026-11-01: ClusterPlot from the 120-point pictures ((y - level) / noise, the span shaded, a tick per change, the pointer = names and real values); Open as a tab (the cursors on the span, in view from the earliest change), Add to the investigation (journal).
 - [x] Q133 Less to wade through (counters, clocks, constants left out; groups by message; keyboard). Done 2026-11-01: firstchange.uninformative (constant; sequence number = the same step; clock = one s / ms / µs / ns per second - an accumulator stays in; heartbeat = toggling at an unchanged period), counted and shown on request; names grouped by message (ATT.*) with the best score, closed; ↑ ↓ → ← Enter.
-- [ ] Q134 Who leads whom - a small chain of lags.
+- [x] Q134 Who leads whom - a small chain of lags. Done 2026-11-01: store._chain (the clusters' best members and the event's signal, a lag per pair bounded to the window, an edge only when positive, clear and a match >= 0.5, in time order); Chain above the clusters (a click opens the cluster); "leads", never "causes". Demo: Motor3 -> Roll +0.12 s.
 - [ ] Q135 What is different in this run (against the other runs' envelope).
 - [ ] Q136 The same event elsewhere: a consistent precursor.
 - [ ] Q137 The investigation in the report.

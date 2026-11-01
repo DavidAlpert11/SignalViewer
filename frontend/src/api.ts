@@ -58,6 +58,8 @@ export interface FirstChange { id: string; name: string; status: "changed" | "sa
   score?: number; parts?: Record<string, number>; inRef?: string[]; isEvent?: boolean; leadsEvent?: number }
 /** Q130: changes close in time, the likeliest first. */
 export interface ChangeCluster { t0: number; t1: number; ids: string[]; first: string; best: number }
+/** Q134: who leads whom - nodes in time order, an edge when B clearly follows A. */
+export interface ChangeChain { nodes: { id: string; t: number; cluster: string | null }[]; edges: { a: string; b: string; lag: number; r: number }[] }
 export interface LagResult { status: "ok" | "nooverlap" | "short" | "flat"; lag?: number; r?: number; ambiguous?: boolean; weak?: boolean;
   resolution?: number; curve?: { lags: number[]; r: number[] } }
 /** Investigation step 7: a run's phases and automatic flags (svcore/overview.py). */
@@ -389,7 +391,7 @@ export const api = {
   occDiffer: (runs: Record<string, [number, number][]>, top = 25) =>
     call<{ items: { name: string; effect: number; meanIn: number; meanOut: number; up: boolean; files: string[] }[] }>("/api/occurrences/differ", { runs, top }),
   firstChange: (a: number, b: number, sigs: string[], runs: string[], refs: string[] = [], event: string | null = null) =>
-    call<{ items: FirstChange[]; base: [number, number]; noRoom?: boolean; clusters?: ChangeCluster[]; event?: string | null;
+    call<{ items: FirstChange[]; base: [number, number]; noRoom?: boolean; clusters?: ChangeCluster[]; event?: string | null; chain?: ChangeChain;
       weights?: Record<string, number>; skipped?: Record<string, number> }>("/api/firstchange", { a, b, sigs, runs, refs, event }),
   /** "Find similar": the signal most unusual inside [a, b] and a condition like it (id null: none). */
   suggestCondition: (a: number, b: number, sigs: string[]) =>
