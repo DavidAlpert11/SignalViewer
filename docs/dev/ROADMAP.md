@@ -649,6 +649,12 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 20 — Sweeps, round 4: Explore, what S23 left. Spec: TASKS.md S24-S27.
+- [ ] S24 A condition added in Explore starts where it keeps every set.
+- [ ] S25 Explore's table: its own sort and columns? (owner's choice first)
+- [ ] S26 The axes in Explore's lines: the axis menu; a drag sets a threshold or a condition's value.
+- [ ] S27 Explore on Windows and macOS (owner's check).
+
 ## Milestone 19 — Sweeps, round 3. Spec: TASKS.md S20-S23.
 - [x] S20 The journal for the report: the final story, hide lines, "the analysis starts here".
 - [x] S21 Explore: a draft of a goal - conditions, limits and objectives together.

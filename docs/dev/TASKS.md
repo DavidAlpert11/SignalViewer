@@ -284,6 +284,42 @@ optimization did not show in the parallel plot ("HiPlot") and the table.
   mirrored in Hebrew, as the range inputs are. The S21 e2e follows the new controls (no picker, the
   threshold a slider); its equality check is unchanged.
 
+## Sweeps, round 4 (2026-11-01): S24–S27 - Explore, what S23 left
+
+**Progress:** none started. Found while doing S23; S25 needs the owner's choice first.
+
+### S24 · A condition added in Explore starts where it keeps every set — S
+**Now:** *+ condition* (and a new column chosen on a row) starts at the far end of the column's
+per-set value (`openValue` in ExploreView: the output's aggregate, the mean by default). The
+condition is checked on the worst case over the combinations, which is often past the mean, so a
+condition just added already takes sets out - the funnel moves before the user touched anything.
+**Do:** start at the far end of the worst case: ask the server first (the new structure's
+`#c<i>.worst`, then set the value), or take the column's largest / smallest value over all runs (the
+table summary has it). **Done when:** adding a condition leaves the funnel's numbers as they were
+(e2e: add one, compare the funnel).
+
+### S25 · Explore's table: its own sort and columns? — S · **owner's choice first**
+**Now:** the table in Explore is the goal's SetsTable on the draft's study; a sort or a column chosen
+there is the goal's table's too (the same `view.tableSort` / `tableColumns`), and is undone with
+Ctrl+Z like any table change. Consistent, but a sort tried in a draft stays after *Back to the goal*.
+**Choice:** (a) keep it shared (and say so in the GUIDE), or (b) the draft's own sort / columns, kept
+in `view.explore` beside the draft (not undone, like the draft). With (b): SetsTable takes them as props.
+
+### S26 · The axes in Explore's lines — S/M
+**Now:** in Explore a click on an axis's name does nothing (`onAxisMenu` / `onMoveAxis` are no-ops),
+and a drag on an axis sets a limit on a parameter's axis only.
+**Do:** the axis menu as in Lines (scale, reverse, colour by - stored in the study's view, as Lines
+does); a drag on an objective's axis sets its threshold (the end of the range on the good side), on a
+condition's worst case its value; axes reordered by dragging their names, kept for Explore.
+**Done when:** each kind of axis does what its slider does (e2e: drag on the objective's axis - the
+threshold slider moves and the funnel follows).
+
+### S27 · Explore on Windows and macOS — S · **owner's check**
+Not run here (Linux Chromium only): the window on Windows (WebView2) and macOS (WKWebView - container
+queries need Safari 16+): the controls beside the lines at 1024 px, the two-thumb slider (both thumbs
+draggable, the fill between them), Hebrew (the strips mirrored like the sliders), both themes.
+**Done when:** checked, or the differences written here as tasks.
+
 ## Queue (in this order)
 
 Sizes: S < 1 day, M 1–3 days, L about a week. Each task lists where to start; read the code and
@@ -2021,3 +2057,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · S22: BestSet.tsx (out of ResultsSide - GoalsStep imports it; ResultsSide imports GoalsStep, so no cycle); the Goals step's foot: how many hold + BestSet; *Open it* goes to the results with the set pinned. e2e +1.
 - 2026-11-01 · S21: sweeps/explore.ts (Draft, draftOf, structureKey - the server answers once per structure, sliders applied here; with robustness the values too, 250 ms after a move; `explore` = funnel, each control's own cut, ranking (one objective by its worst case; several by a weighted score of each one's place among the survivors), the Pareto front on the first two; `goalOfDraft` - limits and thresholds as conditions; an "or" goal cannot take them: refused with a message); comparisons tolerant to Float32 (0.2 is 0.20000000298: a limit <= 0.2 had left out the sets at 0.2 the server keeps - found by the e2e checking that the saved goal holds for what Explore showed); ExploreView (funnel, sliders with a histogram strip, two-thumb limits, objectives with direction / weight / threshold, the best set, Pareto scaled to the sets left, candidates with margins), view.explore keeps the draft (not undone, not journalled: the save is the step); Center `explore`; ConditionRow offers parameters too. e2e +1.
 - 2026-11-01 · S23: ExploreButton.tsx (Goals side under the goal's name, Results side under the best set); ExploreView: limits for every numeric parameter (`withLimit` / `isLimited`: back at the whole range = no limit), weight + threshold sliders always (`thresholdOf` / `thresholdOffEnd`: the far end is off), conditions editable / added / removed in the draft; `draftStudy` + `exploreAxes` + `limitMarks` in explore.ts; ParallelPlot `keep` + `data-shown`; SetsTable `draft`; Candidates gone (the table has the margins); swExploreMargin / swExploreLimitsPick removed. e2e +1 (the acceptance list), S21's adapted. Checked: the whole e2e suite (34 files, one per process; test_globe3d needs ~2.5 min) green - test_features once had one failure (test_compare_same_segment_across_runs, Recordings) that passed alone and on a rerun of the file in order: a flake, not this change; backend 898 passed, mypy clean, tsc, oxlint 51.
+- 2026-11-01 · S24-S27 queued: what S23 left in Explore (a new condition's start, the table's sort / columns - owner's choice, the axes in Explore's lines, the Windows / macOS check).
