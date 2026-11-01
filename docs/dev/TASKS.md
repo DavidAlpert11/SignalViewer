@@ -39,6 +39,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Releasing
 
+0. Run **ci** by hand first (Actions -> ci -> Run workflow, or `gh workflow run ci`; or put `[ci]` in
+   the last commit's message): since 2026-11-01 a push to main runs it only when asked.
 1. `python tools/make_readme_media.py` (needs Playwright + ffmpeg) refreshes `docs/images` and
    `docs/media` from the app itself; it does not make `06_3d_terrain.png` and the
    `02_flight_map_3d` clip (headless, the 3D view runs on software WebGL) - keep or retake those
@@ -76,7 +78,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   `for f in tests/e2e/test_*.py; do python -m pytest -q "$f"; done`. A custom Chromium can be
   given with `SV_CHROMIUM=/path/to/chrome`. The full set takes several minutes; when time is
   short run the files / `-k` filters that touch what you changed, and say so in the log.
-- CI: `.github/workflows/ci.yml` (T64) on every push to main and every pull request - backend tests on
+- CI: `.github/workflows/ci.yml` (T64) on every pull request, and on a push to main only when asked (`[ci]` in the last commit message, or Run workflow) - backend tests on
   Python 3.9 and 3.12, mypy, `validate`, tsc + build, and an e2e smoke run (test_fresh_user,
   test_workflows, test_file_help_menus) on the UI built from that commit; a few minutes. `build.yml`
   (tag / by hand) runs the backend tests on Linux, macOS and Windows: compare

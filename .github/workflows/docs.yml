@@ -6,7 +6,8 @@ name: docs
 on:
   push:
     branches: [main]
-    paths: ["docs/**", "mkdocs.yml", ".github/workflows/docs.yml"]
+    # docs/dev is not on the site (mkdocs.yml exclude_docs): the work queue's updates publish nothing
+    paths: ["docs/**", "!docs/dev/**", "mkdocs.yml", ".github/workflows/docs.yml"]
   workflow_dispatch:
 permissions:
   contents: read
