@@ -566,6 +566,9 @@ class ReportReq(BaseModel):
     mapY: Optional[str] = None
     maps: Optional[List[Dict[str, Any]]] = None   # S05: every map on screen [{x, y, rest}] (else mapX / mapY)
     iterations: Optional[List[Dict[str, Any]]] = None   # S08: [{n, label, sets, holding, best}] - each merge an iteration
+    scatters: Optional[List[Dict[str, Any]]] = None     # S11: every point plot on screen [{x, y}]
+    style: Optional[Dict[str, Any]] = None              # S12: the plots' style (colour map, point size, grid...)
+    colorBy: Optional[str] = None                        # the colour column of the plots
     raw: bool = False                    # plot: the raw table's runs instead of the parameter sets
 
 

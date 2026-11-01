@@ -8,6 +8,12 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: how the plots look, and the points in the report**: a **Style ▾** next to the maps, the
+  point plots and *Which parameter matters* - the colour map (viridis, plasma, cividis, turbo,
+  greys), a point's size and opacity, the grid and its minor lines, the numbers on a map's cells -
+  kept with the study and used by the report. The point plots have their axes' titles and a grid,
+  and go into the report; *Which parameter matters* has its axes' titles (the parameter, the goal)
+  and a grid, on screen and in the report.
 - **Sweeps: where the optimization shows**: the answer's panel shows **the best set** - its
   parameters and its goal (its score with several objectives, its worst case within the tolerance
   when robust) - and opens it. A map can be coloured by **the best goal** of each cell instead of

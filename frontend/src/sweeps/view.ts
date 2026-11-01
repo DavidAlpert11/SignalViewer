@@ -1,7 +1,7 @@
 /* What the plot and the table show for a study: the columns of the current mode, their names on
    screen, their scales, and which axes can be added. Pure functions of the study. */
 import type { TFn, TKey } from "../i18n";
-import type { Col, MapSpec, Role, Scale } from "./model";
+import type { Col, MapSpec, PlotStyle, Role, Scale } from "./model";
 import { wireQuestion, type Study } from "./state";
 import { keptMask } from "./filters";
 import { FLAG_COLS } from "./colors";
@@ -258,4 +258,19 @@ export function tableRows(s: Study): number[] {
     if (goal) { const gx = goal[x], gy = goal[y]; if (gx !== gy) return Number.isFinite(gx) ? (Number.isFinite(gy) ? g * (gx - gy) : -1) : 1; }
     return x - y;
   });
+}
+
+/** The plots' style with its defaults filled in. */
+export function styleOf(s: Study): Required<Omit<PlotStyle, "opacity">> & { opacity?: number } {
+  const st = s.view.style ?? {};
+  return { cmap: st.cmap ?? "viridis", size: st.size ?? 4, opacity: st.opacity, grid: st.grid ?? true, minor: st.minor ?? false, numbers: st.numbers ?? true };
+}
+
+/** The point plots on screen, each pair checked: the chosen columns while there are such columns,
+ *  else the first column and the goal (S11: the screen and the report draw the same ones). */
+export function scatterList(s: Study): { x: string; y: string }[] {
+  const v = s.view, choices = axisChoices(s), have = new Set(choices);
+  const want = v.scatters?.length ? v.scatters : [{ x: v.scatterX ?? "", y: v.scatterY ?? "" }];
+  const yDefault = s.question.goal && have.has("#goal") ? "#goal" : choices[1] ?? choices[0] ?? "";
+  return want.map((p) => ({ x: have.has(p.x) ? p.x : choices[0] ?? "", y: have.has(p.y) ? p.y : yDefault }));
 }
