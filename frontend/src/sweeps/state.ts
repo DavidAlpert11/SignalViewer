@@ -121,6 +121,8 @@ interface SweepsState {
   resetStudy: () => void;
   /** a step that leaves the study - a file written, a report, suggestions - into its journal */
   journal: (kind: LogKind, args?: Record<string, string | number>) => void;
+  /** a journal line (by its time) out of the report, or back in */
+  hideJournalLine: (at: string, hidden: boolean) => void;
   // the file
   reload: () => Promise<void>;
   checkChanged: () => Promise<void>;
@@ -279,7 +281,9 @@ export const useSweeps = create<SweepsState>((set, get) => {
       answer: null, evaluating: false, evalError: "", changed: false, offer: null,
       sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [], history: emptyHistory(),
       // a saved study goes on with its journal; a table opened now starts one
-      log: saved?.log ?? [entry("open", { name: r.path || r.name })], iterations: saved?.iterations ?? [] };
+      // a saved study goes on with its journal; a table opened now starts an empty one (opening it
+      // is not a step of the analysis: Where it comes from names the tables)
+      log: saved?.log ?? [], iterations: saved?.iterations ?? [] };
     // the table always opens; with no parameter column yet, the columns come first - say which they are
     if (!columns.some((c) => c.role === "param")) study.view = { ...study.view, left: "columns" };
     if (!saved) study.offer = get().templates.find((t) => fits(t, columns))?.name ?? null;
@@ -372,6 +376,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, pinned: null,
       scope: { key, steps: [...(v.scope.key === key ? v.scope.steps : []), { kind, sets }] } })),
     journal: (kind, args) => patch((x) => ({ ...x, log: withEntry(x.log, entry(kind, args)) }), false),
+    hideJournalLine: (at, hidden) => patch((x) => ({ ...x, log: x.log.map((e) => (e.at === at ? { ...e, hidden } : e)) }), false),
     resetStudy: () => {
       patch((s) => ({ ...s, question: emptyQuestion(), view: emptyView(), columns: s.columns.map((c) => ({ ...c, role: c.guessRole, scale: c.guessScale })) }), true, entry("reset"));
       refreshSummary();

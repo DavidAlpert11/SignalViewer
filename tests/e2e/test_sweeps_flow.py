@@ -721,10 +721,10 @@ def test_the_whole_process_in_the_report(pg):
     pg.locator(".dialog .fs-row", has_text="drone_tuning_refine.csv").click(); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_selector(".toast:has-text('Merged')")
     _step(pg, "report")
-    j = pg.locator(".sw-journal")
-    pg.wait_for_function("document.querySelectorAll('.sw-journal ul li').length === 2")      # two iterations
+    j = pg.locator(".sw-journal").first
+    pg.wait_for_function("document.querySelectorAll('.sw-iterations li').length === 2")      # two iterations
     text = j.inner_text()
-    assert "Opened" in text and "Merged" in text and "drone_tuning_refine.csv" in text
+    assert "Opened" not in text and "Merged" in text and "drone_tuning_refine.csv" in text      # S20: opening is not a step
     assert "Goal 1: roll_error_deg <= 5 & overshoot_pct <= 15 · ↓energy_wh" in text
     pg.locator(".sw-report-format", has_text="Interactive HTML").click()
     pg.locator(".sw-report-page .btn", has_text="Make the report").click()
@@ -982,3 +982,47 @@ def test_next_runs_compact_and_formats(pg):
     save_as(pg, "next_runs.m")
     pg.wait_for_selector(".toast:has-text('next_runs.m')")
     assert open(os.path.join(pg.env["out"], "next_runs.m")).read().startswith(f"% {n * 18} runs")
+
+
+def test_the_journal_tells_the_final_story(pg):
+    """S20: the report's journal is the final story by default - each goal's last version, a
+    tolerance added and taken away is no step, files opened are not lines; a line can be hidden,
+    and 'the analysis starts here' leaves out what came before; the report follows."""
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "goals")
+    sec = pg.locator(".sw-goal-part", has_text="Robust to")                      # a trial: on, then off
+    sec.locator(".sw-colpick-btn").click()
+    pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
+    pg.keyboard.press("Escape")
+    pg.locator(".sw-robust-row button[aria-label='Remove']").click()
+    _condition(pg, "settle_time_s", "<=", 3)                                     # the goal again, after it
+    _step(pg, "report")
+    lines = lambda: pg.locator(".sw-journal-lines li").all_inner_texts()
+    final = lines()
+    assert not any("Robust to" in x for x in final) and not any("Opened" in x for x in final)
+    assert sum("Goal 1:" in x for x in final) == 1 and "settle_time_s <= 3" in next(x for x in final if "Goal 1:" in x)
+    pg.locator(".sw-seg button", has_text="Everything").click()
+    everything = lines()
+    assert len(everything) > len(final) and any("Robust to" in x for x in everything)
+    # the analysis starts at the trial with the tolerance: the goal's first version is out
+    pg.locator(".sw-journal-lines li", has_text="Robust to").locator("button[aria-label^='The analysis starts here']").click()
+    pg.locator(".sw-seg button", has_text="The final story").click()
+    pg.wait_for_function("document.querySelector('.sw-journal h3').innerText.includes('(1 lines in the report)')")
+    assert "settle_time_s <= 3" in lines()[0]
+    # and that line hidden by hand: nothing is left - its older version does not come back
+    pg.locator(".sw-journal-lines li", has_text="Goal 1:").locator("button[aria-label='Leave this line out of the report']").click()
+    pg.wait_for_function("document.querySelector('.sw-journal h3').innerText.includes('(0 lines in the report)')")
+    pg.locator(".sw-seg button", has_text="Everything").click()
+    pg.locator(".sw-journal-lines li.hidden").locator("button[aria-label='Put this line back in the report']").click()
+    pg.locator(".sw-seg button", has_text="The final story").click()
+    pg.wait_for_function("document.querySelector('.sw-journal h3').innerText.includes('(1 lines in the report)')")
+    # the report tells the same
+    pg.locator(".sw-report-format", has_text="Interactive HTML").click()
+    pg.locator(".sw-report-page .btn", has_text="Make the report").click()
+    save_as(pg, "story.html")
+    pg.wait_for_selector(".toast:has-text('story.html')", timeout=60000)
+    html = open(os.path.join(pg.env["out"], "story.html"), encoding="utf-8").read()
+    story = html.split("The journal: what was done, in order")[1]
+    assert "settle_time_s &lt;= 3" in story or "settle_time_s <= 3" in story
+    assert "Robust to" not in story and "Opened" not in story

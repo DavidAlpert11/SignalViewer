@@ -96,3 +96,63 @@ export function journalLine(t: TFn, e: LogEntry): string {
   }
   return `${when} · ${t(KEY[e.kind], args)}`;
 }
+
+/* ------------------------------------------------------------------ the report's journal (S20)
+   The final story: what the study ended up as, in the order it was done - each thing's last
+   change (most lines hold the whole state then: a goal's text, the columns out, the tolerances),
+   the roles as their net change, keep / exclude as the steps still standing, nothing before the
+   last "start over" or the line marked "the analysis starts here". Files opened are not lines
+   (Where it comes from names them). Lines hidden by hand are out in both views. */
+
+/** The journal from where the analysis starts: after `start` (an entry's time), and after the
+ *  last start over. */
+function fromStart(log: LogEntry[], start?: string): LogEntry[] {
+  let i = 0;
+  log.forEach((e, k) => { if (e.kind === "reset") i = k; });
+  if (start) { const k = log.findIndex((e) => e.at === start); if (k > i) i = k; }
+  return log.slice(i);
+}
+
+/** The lines the report shows: everything (but what was hidden and the files opened), or the
+ *  final story. */
+export function reportJournal(log: LogEntry[], final: boolean, start?: string): LogEntry[] {
+  const kept = fromStart(log, start).filter((e) => e.kind !== "open");
+  if (!final) return kept.filter((e) => !e.hidden);
+  // the last of each thing is found among every line - a hidden one too: hiding the last version of
+  // a goal leaves the goal out, it does not bring back its version before
+  // keep / exclude: the steps still standing after the ones undone
+  const steps: LogEntry[] = [];
+  for (const e of kept) {
+    if (e.kind === "keep" || e.kind === "exclude") steps.push(e);
+    else if (e.kind === "scopeBack") steps.length = Math.min(steps.length, Number(e.args.n) || 0);
+  }
+  // roles: each column's net change (a column set back to its role is no change)
+  const roles = new Map<string, [string, string]>();
+  let rolesAt: LogEntry | undefined;
+  for (const e of kept.filter((x) => x.kind === "roles")) {
+    rolesAt = e;
+    for (const part of String(e.args.list).split(", ")) {
+      const m = part.match(/^(.*): (\S+) → (\S+)$/);
+      if (!m) continue;
+      const was = roles.get(m[1]);
+      roles.set(m[1], [was ? was[0] : m[2], m[3]]);
+    }
+  }
+  const netRoles = [...roles].filter(([, [a, b]]) => a !== b).map(([c, [a, b]]) => `${c}: ${a} → ${b}`);
+  // a goal deleted later: its lines go too
+  const gone = new Set(kept.filter((e) => e.kind === "goalRemove").map((e) => String(e.args.name || e.args.goal)));
+  const lastOf = new Map<string, LogEntry>();
+  for (const e of kept) if (e.args.key !== undefined) lastOf.set(String(e.args.key), e);
+  const out: LogEntry[] = [];
+  for (const e of kept) {
+    if (e.kind === "keep" || e.kind === "exclude") { if (steps.includes(e)) out.push(e); continue; }
+    if (e.kind === "scopeBack" || e.kind === "goalAdd" || e.kind === "goalRemove") continue;
+    if (e.kind === "roles") { if (e === rolesAt && netRoles.length) out.push({ ...e, args: { ...e.args, list: netRoles.join(", ") } }); continue; }
+    if (e.kind === "goal" && gone.has(String(e.args.name || e.args.goal))) continue;
+    if (e.args.key !== undefined && lastOf.get(String(e.args.key)) !== e) continue;
+    // a thing that ended up as nothing (no tolerance, no column out, no run left out) is no step
+    if (e.args.list === "-" || ((e.kind === "clean" || e.kind === "excludeRuns") && Number(e.args.n) === 0)) continue;
+    out.push(e);
+  }
+  return out.filter((e) => !e.hidden);
+}

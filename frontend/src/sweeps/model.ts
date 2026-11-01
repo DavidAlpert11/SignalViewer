@@ -95,7 +95,9 @@ export const STEPS: Step[] = ["raw", "clean", "roles", "goals", "results", "repo
  *  report's language). */
 export type LogKind = "open" | "merge" | "unmerge" | "template" | "reset" | "roles" | "clean" | "scenarios" | "derived"
   | "goalAdd" | "goalRemove" | "goal" | "robust" | "excludeRuns" | "keep" | "exclude" | "scopeBack" | "suggest" | "export" | "report";
-export interface LogEntry { at: string; kind: LogKind; args: Record<string, string | number> }
+export interface LogEntry { at: string; kind: LogKind; args: Record<string, string | number>;
+  /** left out of the report by hand (S20) */
+  hidden?: boolean }
 /** An iteration: the study after each table merged in (1: the first table) - its latest answer. */
 export interface Iteration { n: number; label: string; at: string; sets: number; holding: number; best: number | null }
 
@@ -168,6 +170,10 @@ export interface View {
   scatters?: { x: string; y: string }[];
   /** next runs' choices and answer */
   next?: NextRuns;
+  /** the report's journal: the final story (default) or everything (S20) */
+  journalAll?: boolean;
+  /** the journal line where the analysis starts (its time); before it is out of the report */
+  journalStart?: string;
   /** how the plots look (S12) */
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */

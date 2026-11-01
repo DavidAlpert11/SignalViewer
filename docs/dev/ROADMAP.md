@@ -650,7 +650,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
 ## Milestone 19 — Sweeps, round 3. Spec: TASKS.md S20-S22.
-- [ ] S20 The journal for the report: the final story, hide lines, "the analysis starts here".
+- [x] S20 The journal for the report: the final story, hide lines, "the analysis starts here".
 - [ ] S21 Explore: a draft of a goal - conditions, limits and objectives together.
 - [ ] S22 Goals: the best set while editing.
 

@@ -8,6 +8,13 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: the journal tells the final story**: the report's journal shows, by default, what the
+  study ended up as - each goal's last version, the roles as their net change, the keep / exclude
+  steps still standing; trials that were undone or overwritten (a tolerance added and taken away,
+  a limit tried three ways) are not in it, nor is opening a file (*Where it comes from* names the
+  tables). *Everything* shows the whole journal. In the Report step × leaves a line out of the
+  report (↺ brings it back), and ⤒ on a line says *the analysis starts here*: what came before stays
+  out. The report follows what the Report step shows.
 - **Sweeps, next runs - compact, and more than CSV**: a parameter with one value in every
   suggestion is said once above the table, which shows only what changes (*show every column*
   brings the rest back); the value a suggestion moves is in bold. *Export the next runs ▾* writes the
