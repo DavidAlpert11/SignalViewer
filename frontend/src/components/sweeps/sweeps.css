@@ -600,3 +600,18 @@
 .sw-optimiser { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 .sw-optimiser details label { display: flex; }
 .sw-opt-best { margin: 0; }
+
+/* MF10 Decide: ranking methods */
+.sw-decide { display: flex; flex-direction: column; gap: 6px; margin-block: 8px; }
+.sw-decide .sw-seg { flex-wrap: wrap; }
+.sw-decide-pairs { overflow-x: auto; }
+.sw-decide-pairs table { border-collapse: collapse; font-size: 12px; }
+.sw-decide-pairs th, .sw-decide-pairs td { padding: 2px 6px; text-align: center; }
+.sw-decide-list { margin: 0; padding-inline-start: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.sw-decide-row { display: flex; gap: 8px; align-items: baseline; }
+.sw-decide-row .linklike { flex: 1; min-width: 0; text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-decide-rank { font-weight: 600; min-width: 2ch; }
+.sw-decide-why { display: flex; flex-wrap: wrap; gap: 6px; padding-inline-start: 2ch; }
+.sw-decide-plus { color: var(--ok); }
+.sw-decide-minus { color: var(--danger); }
+

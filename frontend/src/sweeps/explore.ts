@@ -22,6 +22,18 @@ export interface Draft {
   /** MF01: categorical parameters' allowed levels, by label (missing: every level) */
   levels?: Record<string, string[]>;
   objectives: DraftObjective[];
+  /** MF10: how the sets left are ranked in Decide (missing: weighted sum, as before) */
+  decide?: DecideSpec;
+}
+/** MF10: a ranking method on the objectives, its parameters, and weights from pairwise comparisons. */
+export interface DecideSpec {
+  method: "weighted" | "topsis" | "hurwicz" | "savage";
+  /** Hurwicz: optimism, 0 = only the worst objective counts, 1 = only the best */
+  alpha: number;
+  /** a share of the score's range under which two sets are tied */
+  margin: number;
+  /** i over j on Saaty's 1/9..9 scale (missing: the weight sliders) */
+  pairwise?: number[][];
 }
 
 export const draftOf = (g: GoalVariant): Draft => ({
