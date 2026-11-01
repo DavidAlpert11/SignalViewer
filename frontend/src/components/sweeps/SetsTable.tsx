@@ -2,7 +2,8 @@
    parameters, the goal, each condition's worst case and margin... The plot's filters and the keep
    / exclude steps apply; *only those that hold* narrows it further. A click on a header sorts by
    it (again: the other way, a third time: best first); a click on a row opens the set. What the
-   table shows is what Export writes: the sets, a row each, or all their runs. */
+   table shows is what Export writes: the sets, a row each, or all their runs. In Explore (S23) it is
+   given the draft's study (explore.ts draftStudy): the sets left, in the draft's order. */
 import { useMemo, useState } from "react";
 import { pickPath, useApp } from "../../store";
 import { useT } from "../../i18n";
@@ -18,7 +19,8 @@ import { say } from "../../sweeps/notify";
 
 const PAGE = 100;
 
-export default function SetsTable({ study }: { study: Study }) {
+/** `draft`: the study is Explore's draft - the table is what is left, nothing to narrow it by hand */
+export default function SetsTable({ study, draft = false }: { study: Study; draft?: boolean }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const { setView } = useSweeps.getState();
@@ -70,10 +72,10 @@ export default function SetsTable({ study }: { study: Study }) {
   return (
     <div className="sw-sets">
       <div className="sw-sets-bar">
-        <label className="acheck" title={t("swOnlyHoldingHint")}>
+        {!draft && <label className="acheck" title={t("swOnlyHoldingHint")}>
           <input type="checkbox" checked={!!v.onlyHolding} onChange={(e) => setView({ onlyHolding: e.target.checked })} />
           {t("swOnlyHolding", { n: holding.toLocaleString(), of: a.counts.sets.toLocaleString() })}
-        </label>
+        </label>}
         <ColumnPicker options={tableOptions(t, study)} value={show} onChange={(ids) => setView({ tableColumns: ids })}
           label={t("swColumnsOf", { n: show.length, of: tableOptions(t, study).length })} />
         {sort && <button className="linklike" onClick={() => setView({ tableSort: null })}>{t("swBestFirst")}</button>}
@@ -114,7 +116,7 @@ export default function SetsTable({ study }: { study: Study }) {
             ))}
           </tbody>
         </table>
-        {!order.length && <p className="empty-note">{v.onlyHolding ? t("swNoneHoldShown") : t("swNoSetsShown")}</p>}
+        {!order.length && <p className="empty-note">{draft ? t("swExploreNone") : v.onlyHolding ? t("swNoneHoldShown") : t("swNoSetsShown")}</p>}
       </div>
     </div>
   );

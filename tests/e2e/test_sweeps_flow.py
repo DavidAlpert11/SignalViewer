@@ -1064,23 +1064,23 @@ def test_explore_a_draft_of_the_goal_and_save_it(pg):
     funnel = lambda: [int(x.replace(",", "")) for x in pg.locator(".sw-funnel li b").all_inner_texts()]
     assert funnel()[:2] == [45, holding]
     # what if roll_error_deg <= 6: more sets, the goal itself unchanged
-    pg.locator(".sw-explore-row", has_text="roll_error_deg <=").locator("input[type='range']").fill("6")
+    pg.locator(".sw-explore input[aria-label='roll_error_deg <=']").fill("6")
     pg.wait_for_function(f"+document.querySelectorAll('.sw-funnel li b')[1].innerText > {holding}")
     assert "differs from Goal 1 in" in pg.locator(".sw-explore-status").inner_text()
     assert _holding(pg) == holding
-    # a limit on kp_roll, a second objective, a threshold
-    pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="Parameters to limit").click()
-    pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
-    pg.keyboard.press("Escape")
-    pg.locator(".sw-explore-row", has_text="kp_roll").locator("input[aria-label='kp_roll up to']").fill("0.2")
+    # a limit on kp_roll (S23: every parameter has its range on screen), a second objective, a threshold
+    pg.locator(".sw-explore input[aria-label='kp_roll up to']").fill("0.2")
     pg.wait_for_function("+document.querySelectorAll('.sw-funnel li b')[2].innerText < +document.querySelectorAll('.sw-funnel li b')[1].innerText")
-    pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="Objectives").click()
+    pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="+ objective").click()
     pg.locator(".sw-colpick-pop .msp-item", has_text="settle_time_s").locator("input").check()
     pg.keyboard.press("Escape")
     pg.wait_for_selector(".sw-explore-pareto svg")
     obj = pg.locator(".sw-explore-obj", has_text="settle_time_s")
     obj.locator(".sw-dir").click()                                               # ↑ max -> ↓ min
-    obj.locator("label", has_text="good enough at").locator("input[type='checkbox']").check()
+    th = obj.locator("input[aria-label='settle_time_s good enough at']")         # S23: a slider, off at its far end
+    lo, hi = float(th.get_attribute("min")), float(th.get_attribute("max"))
+    th.fill(str(round(lo + (hi - lo) * 0.8, 3)))
+    pg.wait_for_selector(".sw-explore[aria-busy='false']")
     f = funnel()
     assert f[3] <= f[2] and pg.locator(".sw-explore .sw-best:has-text('kp_roll = ')").count() == 1
     left = funnel()[3]
@@ -1093,3 +1093,89 @@ def test_explore_a_draft_of_the_goal_and_save_it(pg):
     pg.wait_for_function("document.querySelectorAll('.sw-goal-tabs button[role=\"tab\"]').length === 2")
     cols = pg.evaluate("""() => [...document.querySelectorAll('.sw-cond select[aria-label="Column"]')].map(e => e.value)""")
     assert "kp_roll" in cols and len(cols) >= 3                                  # the limit is a condition on the parameter
+
+
+def test_explore_everything_on_screen_live_in_the_lines_and_the_table(pg):
+    """S23: Explore opens from the Goals step with a draft of the active goal; every parameter has a
+    range slider and every objective a weight and a threshold slider from the start (an empty goal
+    included); a move shows at once in the lines and the table - the same number of sets as the
+    funnel's last step, which the table exports in its order and a goal saved from it holds for;
+    Back to the goal shows the goal's own lines again."""
+    import csv
+    _fresh(pg)
+    _step(pg, "goals")
+    # an empty goal: Explore still shows every parameter's range and a way to add an objective
+    pg.locator(".sw-side-step .btn", has_text="Explore this goal").click()
+    pg.wait_for_selector(".sw-explore[aria-busy='false']")
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "5"
+    assert pg.locator(".sw-center-tabs button[aria-selected='true']").inner_text() == "Explore"
+    for p in ("kp_roll", "ki_roll", "filter_hz"):
+        assert pg.locator(f".sw-explore input[aria-label='{p} from']").count() == 1
+        assert pg.locator(f".sw-explore input[aria-label='{p} up to']").count() == 1
+    assert pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="+ objective").count() == 1
+    assert "No objective yet" in pg.locator(".sw-explore-controls").inner_text()
+    assert pg.locator(".sw-explore canvas[data-shown='45']").count() == 1           # every set, in the lines too
+    # one objective, no condition: the button opens a draft of it
+    _step(pg, "goals")
+    _optimize(pg, "energy_wh", "min")
+    pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
+    pg.locator(".sw-side-step .btn", has_text="Explore this goal").click()
+    pg.wait_for_selector(".sw-explore[aria-busy='false'] .sw-explore-obj")
+    assert "A draft of Goal 1" in pg.locator(".sw-explore-status").inner_text()
+    obj = pg.locator(".sw-explore-obj", has_text="energy_wh")
+    assert obj.locator("input[aria-label='Weight']").is_disabled()               # weights matter from two objectives
+    assert "Weights matter from two objectives" in obj.inner_text()
+    assert "no threshold" in obj.inner_text()
+    # a parameter's range and the objective's threshold moved
+    kp = pg.locator(".sw-explore input[aria-label='kp_roll up to']")
+    lo, hi = float(kp.get_attribute("min")), float(kp.get_attribute("max"))
+    kp.fill(str(round(lo + (hi - lo) * 0.6, 3)))
+    th = obj.locator("input[aria-label='energy_wh good enough at']")
+    lo, hi = float(th.get_attribute("min")), float(th.get_attribute("max"))
+    th.fill(str(round(lo + (hi - lo) * 0.7, 3)))
+    assert "no threshold" not in obj.inner_text() and "limited: 1" in pg.locator(".sw-explore-controls").inner_text()
+    # the funnel's last number = the lines in colour = the table's rows = "N of M left"
+    pg.wait_for_function("""() => {
+      const e = document.querySelector('.sw-explore'); if (!e || e.getAttribute('aria-busy') !== 'false') return false;
+      const f = [...document.querySelectorAll('.sw-funnel li b')].map(b => +b.innerText.replace(/,/g, ''));
+      const n = f[3], shown = +document.querySelector('.sw-explore canvas').dataset.shown;
+      const rows = document.querySelectorAll('.sw-explore .sw-sets-table tbody tr').length;
+      const left = +document.querySelector('.sw-explore-left').innerText.split(' ')[0].replace(/,/g, '');
+      return n > 0 && n < 45 && n === shown && n === rows && n === left;
+    }""")
+    n = int(pg.locator(".sw-explore-left").inner_text().split()[0])
+    assert pg.locator(".sw-explore-left").inner_text() == f"{n} of 45 parameter sets left"
+    f = [int(x) for x in pg.locator(".sw-funnel li b").all_inner_texts()]
+    assert f[2] < f[1] == 45 and f[3] <= f[2]                                    # the limit cut, then the threshold
+    # the table's order: the draft's ranking (least energy first)
+    heads = pg.locator(".sw-explore .sw-sets-table thead th").all_inner_texts()
+    kcol, gcol = heads.index("kp_roll") + 1, next(i for i, h in enumerate(heads) if "energy_wh" in h) + 1
+    energy = [float(x) for x in pg.locator(f".sw-explore .sw-sets-table tbody td:nth-child({gcol})").all_inner_texts()]
+    assert energy == sorted(energy)
+    kps = [float(x) for x in pg.locator(f".sw-explore .sw-sets-table tbody td:nth-child({kcol})").all_inner_texts()]
+    # what is left exported: N rows, in the table's order
+    pg.locator(".sw-explore .sw-sets-bar .btn", has_text="Export").click()
+    pg.locator(".menu.ctx button", has_text="a row each").click()
+    save_as(pg, "explore_left.csv")
+    pg.wait_for_selector(".toast:has-text('sets written')")
+    with open(os.path.join(pg.env["out"], "explore_left.csv"), encoding="utf-8-sig") as fh:
+        got = list(csv.reader(fh))
+    assert len(got) - 1 == n
+    k = got[0].index("kp_roll")
+    assert [round(float(r[k]), 6) for r in got[1:]] == [round(x, 6) for x in kps]
+    assert {r[1] for r in got[1:]} == {"1"}                                         # each one left by the draft
+    # saved as a goal, it holds for exactly those
+    pg.locator(".sw-explore-status .btn", has_text="Save as a goal").click()
+    pg.locator(".menu.ctx button", has_text="As a new goal").click()
+    pg.wait_for_selector(".toast:has-text('Saved: Goal 2')")
+    pg.wait_for_function(f"document.querySelector('.sw-answer-n') && document.querySelector('.sw-answer-n').innerText.startsWith('{n} ')")
+    # one move more, then Back to the goal: the goal's own lines and table again
+    kp = pg.locator(".sw-explore input[aria-label='kp_roll from']")
+    kp.fill(str(round(float(kp.get_attribute("max")), 3)))
+    pg.locator(".sw-explore-status .btn", has_text="Back to the goal").click()
+    pg.wait_for_selector(".sw-center-tabs button[aria-selected='true']:has-text('Lines')")
+    pg.wait_for_selector(".sw-sets-table tbody tr")
+    assert pg.locator(".sw-sets-table tbody tr").count() == 45                   # every set, as the goal's view shows
+    assert pg.locator(".sw-center canvas[data-shown='45']").count() == 1
+    assert _holding(pg) == n
+    assert pg.locator(".sw-side-step .btn", has_text="Explore this goal").count() == 1   # and the way back in

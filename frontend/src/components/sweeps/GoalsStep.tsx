@@ -11,6 +11,7 @@ import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import ConditionRow from "./ConditionRow";
 import RobustEditor from "./RobustEditor";
 import BestSet from "./BestSet";
+import ExploreButton from "./ExploreButton";
 import { StepFoot } from "./StepNav";
 
 export const goalName = (t: TFn, g: GoalVariant, i: number) => (g.name && Number.isNaN(Number(g.name)) ? g.name : t("swGoalN", { n: i + 1 }));
@@ -70,6 +71,8 @@ export function GoalsSide({ study }: { study: Study }) {
       <label className="sw-field">{t("swGoalName")}
         <input value={g.name && Number.isNaN(Number(g.name)) ? g.name : ""} placeholder={goalName(t, g, q.active)} onChange={(e) => st.updateGoal({ name: e.target.value })} />
       </label>
+      {/* S23: the way to try the goal's limits, ranges and objectives all at once, on the plot */}
+      <ExploreButton study={study} />
       <section className="sw-goal-part">
         <h3>{t("swGoalMust")}</h3>
         {g.conditions.map((c, i) => (
