@@ -151,6 +151,65 @@ every patch to the owner holds ALL commits since `origin/main` (see the practica
   each merge an iteration (a convergence plot); the report: the journal, every map, the suggestions,
   provenance (file hash, app version).
 
+## Sweeps, round 2 (owner, 2026-11-01, after using S00-S08): S09–S18
+
+**Progress:** S09–S18 open.
+
+### S09 · Nothing overlaps in a small window — S
+- The step's foot: *← Scenarios & parameters* and *See the results →* run into each other in a
+  narrow side panel: they wrap (or shorten) instead.
+- The plot's bar scrolls sideways under its own scrollbar, which covers the buttons: it wraps onto
+  a second line instead. Every bar of the area checked at 1024 px and with the side panel wide.
+
+### S10 · Where the optimization shows — M
+- With only something to optimize (no condition) every set holds: the maps are one colour and the
+  table's order is the only trace. The answer's side panel gets **the best set** (its parameters,
+  its goal, *open*), and the map can be coloured by **the best goal** instead of the share holding
+  (a choice of the map; the default: the goal when there is one).
+- The map's numbers: the best goal of the cell; with no goal there is none to show (not "1", which
+  was the share). A key says what colour and number mean.
+- The best set marked on the maps (★).
+
+### S11 · Points: axis titles, in the report — S
+- The point plots get their axis titles (and ticks that read); every point plot on screen goes
+  into the report (HTML, Word, PDF), as the maps do.
+
+### S12 · How the plots look — M
+- Maps, point plots and *Which parameter matters*: a few choices each, kept with the study and used
+  by the report - colour map (viridis, plasma, cividis, turbo, greys), the point's size and
+  opacity, grid on / off and a minor grid, the numbers on the cells on / off.
+- *Which parameter matters*: axis titles (the parameter, the goal), a grid with minor lines.
+
+### S13 · Many columns: see all, or move along them — S
+- Checked on a table of 60 columns: *Fit to width* puts every axis in; otherwise a **slider** under
+  the plot shows where the view is among all axes and moves it (dragged, or clicked), besides the
+  wheel. Screenshots in both themes and in Hebrew.
+
+### S14 · The sets that hold as an interactive plot — S
+- The table's *Export* also writes the sets shown as an interactive parallel plot (HTML, like
+  HiPlot: filters by dragging, a click on a line), not only as CSV.
+
+### S15 · An axis taken off the plot comes back — S
+- An axis removed from the plot (its menu, or the column picker) is easy to bring back: the
+  removed ones stay listed under the bar (*+ name*), and the picker's button says it adds as well.
+
+### S16 · Next runs: numbers that add up — M
+- *Sets to suggest* is what you get: each kind says **found** (how many it could suggest) and
+  **taken** (how many of the budget went to it); the line under the budget says *N sets × M
+  combinations = R runs* for what will really be suggested, and why fewer when fewer were found.
+  How the budget is shared between the kinds is said (in turns, a fair share each, what one kind
+  does not use goes to the others).
+- A small budget still gives every chosen kind a share before any gets a second.
+
+### S17 · Next runs: a compact view, more than CSV — M
+- The suggested sets shown compactly: a parameter with one value in all of them is said once above
+  the table; each row shows what it changes from its set (bold) and why.
+- Besides CSV: copy as a table (to paste into Excel / a spreadsheet), JSON, and a MATLAB / Python
+  snippet (a struct array / a list of dicts) for a simulation script.
+
+### S18 · Which parameter matters: in the report, like the screen — S
+- The figure on screen and in the report: axis titles, a grid (major and minor), the style of S12.
+
 ## Queue (in this order)
 
 Sizes: S < 1 day, M 1–3 days, L about a week. Each task lists where to start; read the code and
