@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type ChangeCluster, type FirstChange, type LagResult } from "../api";
+import { api, type ChangeChain, type ChangeCluster, type FirstChange, type LagResult } from "../api";
 import { actions, activeTab, fileLabel, rangeKey, signalName, uid, useApp, type Plot, type Tab } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
@@ -34,6 +34,7 @@ export default function WhatChanged() {
   const [lag, setLag] = useState<(LagResult & { a: string; b: string }) | null>(null);
   // Q130-Q133: clusters of changes, the likeliest first, what cannot tell anything left out
   const [clusters, setClusters] = useState<ChangeCluster[]>([]);
+  const [chain, setChain] = useState<ChangeChain | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<Record<string, number>>({});
   const [showSkipped, setShowSkipped] = useState(false);
@@ -92,7 +93,7 @@ export default function WhatChanged() {
       .then((r) => {
         if (gone) return;
         setItems(r.items); setBase(r.base); setNoRoom(!!r.noRoom);
-        setClusters(r.clusters ?? []); setSkipped(r.skipped ?? {});
+        setClusters(r.clusters ?? []); setSkipped(r.skipped ?? {}); setChain(r.chain ?? null);
         setOpenC((r.clusters ?? []).slice(0, 1).map((c) => c.first));     // the likeliest cluster open
         const top = r.items.filter((x) => x.status === "changed").slice(0, 4).map((x) => `${x.name} (${(x.rel! >= 0 ? "+" : "") + x.rel!.toFixed(2)} s)`);
         record(translate(useApp.getState().lang, "jChanged", { a: span.a.toPrecision(6), b: span.b.toPrecision(6), list: top.join(", ") || "–" }), true, "changed");
@@ -251,6 +252,8 @@ export default function WhatChanged() {
             </div>
           )}
           {hidden.length > 0 && <button className="linklike wc-unhide" onClick={() => setHidden([])}>{t("wcHidden", { n: hidden.length })}</button>}
+          {chain && chain.edges.length > 0 && <Chain t={t} lang={lang} chain={chain} byId={byId} span={span}
+            onNode={(c) => { toggleC(c, true); window.setTimeout(() => listRef.current?.querySelector<HTMLElement>(`[data-first="${CSS.escape(c)}"] .wc-chead`)?.focus(), 0); }} />}
           <ol className="wc-list wc-clusters" ref={listRef} onKeyDown={onListKey}>
             {shownClusters.map((c) => {
               const k = c.first, open = openC.includes(k);
@@ -270,7 +273,7 @@ export default function WhatChanged() {
               }
               const rows = opened.includes(k) ? parts : parts.slice(0, LIMIT);
               return (
-              <li key={k} className={`wc-cluster${open ? " open" : ""}${k === "skipped" ? " skipped" : ""}`} data-n={xs.length}>
+              <li key={k} className={`wc-cluster${open ? " open" : ""}${k === "skipped" ? " skipped" : ""}`} data-n={xs.length} data-first={k}>
                 <div className="wc-ghead">
                   <button className="linklike wc-chead" aria-expanded={open} onClick={() => toggleC(k)}
                     title={c.t1 > c.t0 ? t("wcClusterSpan", { a: rel(c.t0), b: rel(c.t1) }) : undefined}>
@@ -338,6 +341,41 @@ function Why({ t, x, lang }: { t: ReturnType<typeof useT>; x: FirstChange; lang:
   if (x.isEvent) lines.push(t("wcIsEvent"));
   return <span className={`wc-why${x.inRef?.length ? " inref" : ""}`} title={lines.join("\n")} aria-label={lines.join("; ")}>
     {x.isEvent ? "◆" : x.inRef?.length ? "≈" : ""}{Math.round(x.score * 100)}</span>;
+}
+
+/** Q134: the chain - the clusters' best members in time order, an arrow where one clearly leads the
+ *  next (lag, match); a click opens that member's cluster. Leads, never causes. */
+function Chain({ t, lang, chain, byId, span, onNode }: { t: ReturnType<typeof useT>; lang: Lang; chain: ChangeChain;
+  byId: Map<string, FirstChange>; span: { a: number; b: number }; onNode: (cluster: string) => void }) {
+  const n = chain.nodes.length;
+  const W = 300, H = 34 + 14 * Math.min(chain.edges.length, 6), R = 5;
+  const X = (i: number) => 14 + (i / Math.max(1, n - 1)) * (W - 28);
+  const at = new Map(chain.nodes.map((x, i) => [x.id, i]));
+  const name = (id: string) => byId.get(id)?.name ?? id.slice(id.indexOf("/") + 1);
+  return (
+    <figure className="wc-chain" aria-label={t("wcChain")}>
+      <figcaption className="hint">{t("wcChainHint")}</figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t("wcChain")}>
+        <defs><marker id="wcArrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6 z" className="wc-chain-head" /></marker></defs>
+        {chain.edges.map((e, k) => {
+          const x1 = X(at.get(e.a)!), x2 = X(at.get(e.b)!), y = 22, h = 8 + 10 * (k % 4);
+          return <path key={k} d={`M${x1},${y - R} C${x1},${y - R - h} ${x2},${y - R - h} ${x2 - 1},${y - R}`} className="wc-chain-edge" markerEnd="url(#wcArrow)" fill="none" />;
+        })}
+        {chain.nodes.map((x, i) => (
+          <g key={x.id} className="wc-chain-node" role="button" tabIndex={0} onClick={() => x.cluster && onNode(x.cluster)}
+            onKeyDown={(e) => { if (e.key === "Enter" && x.cluster) onNode(x.cluster); }}>
+            <circle cx={X(i)} cy={22} r={R} className={byId.get(x.id)?.isEvent ? "event" : ""} />
+            <title>{`${name(x.id)} · ${(x.t - span.a >= 0 ? "+" : "") + fmtNum(x.t - span.a, lang, 3)} s`}</title>
+          </g>
+        ))}
+      </svg>
+      <ul className="wc-chain-list">
+        {chain.edges.slice(0, 6).map((e, k) => (
+          <li key={k}><bdi dir="ltr">{name(e.a)}</bdi> → <bdi dir="ltr">{name(e.b)}</bdi> {t("wcChainEdge", { s: fmtNum(e.lag, lang, 3), r: fmtNum(e.r, lang, 2) })}</li>
+        ))}
+      </ul>
+    </figure>
+  );
 }
 
 const LINE_COLORS = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678", "#E64980", "#5C7CFA"];
