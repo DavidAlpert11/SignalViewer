@@ -649,6 +649,18 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 18 — Sweeps, round 2 (the owner's notes after using S00-S08). Spec: TASKS.md S09-S18.
+- [ ] S09 Nothing overlaps in a small window.
+- [ ] S10 Where the optimization shows (best set, maps by the goal, what the numbers are).
+- [ ] S11 Points: axis titles, in the report.
+- [ ] S12 How the plots look (colour map, point size, grid...).
+- [ ] S13 Many columns: fit, or a slider to move along them.
+- [ ] S14 The sets that hold as an interactive plot.
+- [ ] S15 An axis taken off the plot comes back.
+- [ ] S16 Next runs: numbers that add up.
+- [ ] S17 Next runs: a compact view, more than CSV.
+- [ ] S18 Which parameter matters: titles, grid, in the report.
+
 ## Milestone 17 — the Sweeps area, the owner's requests (2026-10-31). Spec: TASKS.md S00-S08.
 - [x] S00 Groundwork: Sweeps strings in `sweeps/i18n.ts`; `PanelResizer` / `usePanelWidth` shared.
 - [x] S01 Fixes: removed parameters in the map / next runs / report; next runs' marks on the map's axes; a goal's weight; template save / delete errors.
