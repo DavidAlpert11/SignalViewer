@@ -562,3 +562,26 @@ def test_templates_export_and_import(tmp_path):
     assert c.post("/api/sweep/templates/import", json={"path": str(bad)}).status_code == 400
     for n in ("share me", "share me (2)"):
         c.post("/api/sweep/templates/delete", json={"name": n})
+
+
+def test_report_provenance_and_iterations(tmp_path):
+    """S08: the report says where the answer comes from (each table: size, time, SHA-256; the app's
+    version) and, with two iterations or more, how the study converged."""
+    import hashlib
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    ex = c.get("/api/sweep/example").json()
+    o = c.post("/api/sweep/open", json={"path": ex["path"]}).json()
+    roles = {x["name"]: x["role"] for x in o["columns"]}
+    q = {"roles": roles, "combine": "and", "holdValues": {}, "goal": {"column": "energy_wh", "direction": "min"},
+         "conditions": [], "derived": [], "outputAgg": {}, "objectives": [], "exclude": []}
+    html = tmp_path / "p.html"
+    r = c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html),
+               "labels": {"#provenance": "Where it comes from", "#itTitle": "Iterations"}, "include": {"plot": False, "effects": False, "map": False},
+               "iterations": [{"label": "1", "sets": 40, "holding": 3, "best": 50.2}, {"label": "2", "sets": 45, "holding": 6, "best": 47.9}]})
+    assert r.status_code == 200, r.text
+    text = open(html, encoding="utf-8").read()
+    sha = hashlib.sha256(open(ex["path"], "rb").read()).hexdigest()
+    assert "Where it comes from" in text and sha in text and "Signal Viewer " in text
+    assert "<h2>Iterations</h2>" in text

@@ -9,7 +9,8 @@ import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
-import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Question, type Tolerance, type View } from "./model";
+import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Iteration, type LogEntry, type LogKind, type Question, type Tolerance, type View } from "./model";
+import { changes, entry, withEntry, withIteration } from "./journal";
 
 export interface StudyColumn extends SweepColumn {
   guessRole: Role;
@@ -38,6 +39,10 @@ export interface Study {
   merged: { path: string; prefer: "new" | "old" | "both" }[];
   /** undo / redo of this study (never saved) */
   history: History;
+  /** what was done, in order (S08): the report's process */
+  log: LogEntry[];
+  /** the study after each table merged in: sets, holding, best (S08) */
+  iterations: Iteration[];
 }
 
 /** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
@@ -82,6 +87,8 @@ export interface SavedStudy {
   question: Question;
   view: Omit<View, "pinned">;
   merged?: { path: string; prefer: "new" | "old" | "both" }[];
+  log?: LogEntry[];
+  iterations?: Iteration[];
 }
 
 interface SweepsState {
@@ -110,6 +117,8 @@ interface SweepsState {
   restore: (all: boolean) => void;
   /** the same table, the study from the start: no goals, nothing removed, the guessed roles */
   resetStudy: () => void;
+  /** a step that leaves the study - a file written, a report, suggestions - into its journal */
+  journal: (kind: LogKind, args?: Record<string, string | number>) => void;
   // the file
   reload: () => Promise<void>;
   checkChanged: () => Promise<void>;
@@ -196,7 +205,7 @@ export function savedOf(s: Study): SavedStudy {
   const { pinned: _p, ...view } = s.view;
   void _p;
   return { kind: "signalviewer-sweep", version: 1, path: s.path, columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
-    question: s.question, view, merged: s.merged };
+    question: s.question, view, merged: s.merged, log: s.log, iterations: s.iterations };
 }
 
 let timer = 0;
@@ -204,14 +213,17 @@ let seq = 0;
 
 export const useSweeps = create<SweepsState>((set, get) => {
   /** Change the active study. A change to its roles, question or what is shown is one undo step
-   *  (consecutive changes of the same kind within UNDO_MERGE_MS are one); `track: false` is for what
-   *  the app does by itself (answers, summaries, a re-read file). */
-  const patch = (f: (s: Study) => Study, track = true) => set((st) => ({ studies: st.studies.map((s, i) => {
+   *  (consecutive changes of the same kind within UNDO_MERGE_MS are one) and goes into the journal
+   *  (`as`: the action's own line instead of what changed); `track: false` is for what the app does
+   *  by itself (answers, summaries, a re-read file). */
+  const patch = (f: (s: Study) => Study, track = true, as?: LogEntry) => set((st) => ({ studies: st.studies.map((s, i) => {
     if (i !== st.active) return s;
-    const n = f(s);
+    let n = f(s);
     if (!track || n === s) return n;
     const kind = changedKind(s, n);
     if (!kind) return n;
+    // the journal: this action as one line (`as`), or what changed
+    n = { ...n, log: (as ? [as] : changes(s, n)).reduce(withEntry, n.log) };
     const h = s.history, now = Date.now();
     // one step: the same kind of change again soon, or a second change made by the same action
     const same = h.past.length > 0 && ((kind === h.kind && now - h.at < UNDO_MERGE_MS) || now - h.at < UNDO_SAME_ACTION_MS);
@@ -245,7 +257,9 @@ export const useSweeps = create<SweepsState>((set, get) => {
       question: saved ? upgradeQuestion(saved.question) : emptyQuestion(),
       view: saved ? { ...emptyView(), ...saved.view, pinned: null } : emptyView(),
       answer: null, evaluating: false, evalError: "", changed: false, offer: null,
-      sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [], history: emptyHistory() };
+      sources: r.path ? [r.path.split(/[\\/]/).pop()!] : [r.name], merged: [], history: emptyHistory(),
+      // a saved study goes on with its journal; a table opened now starts one
+      log: saved?.log ?? [entry("open", { name: r.path || r.name })], iterations: saved?.iterations ?? [] };
     // the table always opens; with no parameter column yet, the columns come first - say which they are
     if (!columns.some((c) => c.role === "param")) study.view = { ...study.view, left: "columns" };
     if (!saved) study.offer = get().templates.find((t) => fits(t, columns))?.name ?? null;
@@ -313,7 +327,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
       });
       // the sets are numbered anew: what undo kept points at other sets
       patch((x) => (x.tableId !== s.tableId ? x : forget({ ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
-        merged: [...x.merged, { path, prefer }], view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } })), false);
+        merged: [...x.merged, { path, prefer }], view: { ...x.view, scope: { key: "", steps: [] }, pinned: null },
+        log: withEntry(x.log, entry("merge", { name: path, added: r.added, replaced: r.replaced })) })), false);
       refreshSummary();
       get().evaluate();
       return { added: r.added, replaced: r.replaced };
@@ -329,14 +344,16 @@ export const useSweeps = create<SweepsState>((set, get) => {
         return { ...c, guessRole: c.role, guessScale: c.scale, role: old?.role ?? c.role, scale: old?.scale ?? c.scale };
       });
       patch((x) => (x.tableId !== s.tableId ? x : forget({ ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
-        merged: x.merged.filter((_, j) => j !== i - 1), view: { ...x.view, scope: { key: "", steps: [] }, pinned: null } })), false);
+        merged: x.merged.filter((_, j) => j !== i - 1), view: { ...x.view, scope: { key: "", steps: [] }, pinned: null },
+        log: withEntry(x.log, entry("unmerge", { name: m.path })), iterations: x.iterations.filter((it) => it.n <= x.merged.length) })), false);
       refreshSummary();
       get().evaluate();
     },
     narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, pinned: null,
       scope: { key, steps: [...(v.scope.key === key ? v.scope.steps : []), { kind, sets }] } })),
+    journal: (kind, args) => patch((x) => ({ ...x, log: withEntry(x.log, entry(kind, args)) }), false),
     resetStudy: () => {
-      patch((s) => ({ ...s, question: emptyQuestion(), view: emptyView(), columns: s.columns.map((c) => ({ ...c, role: c.guessRole, scale: c.guessScale })) }));
+      patch((s) => ({ ...s, question: emptyQuestion(), view: emptyView(), columns: s.columns.map((c) => ({ ...c, role: c.guessRole, scale: c.guessScale })) }), true, entry("reset"));
       refreshSummary();
       get().evaluate();
     },
@@ -402,7 +419,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
         const n = { ...s, columns, question, view: { ...emptyView(), ...(t.view as Partial<View>), pinned: null, filters: {}, rerun: [] }, offer: null };
         remember(n);
         return n;
-      });
+      }, true, entry("template", { name }));
       refreshSummary();
       get().evaluate();
     },
@@ -514,7 +531,12 @@ export const useSweeps = create<SweepsState>((set, get) => {
         const answer: Answer = { counts: w.counts, conditions: w.conditions, seconds: w.seconds,
           sets: w.sets.map((c) => decodeCol(c)),
           runs: w.runs && { ...w.runs, columns: w.runs.columns.map((c) => decodeCol(c, "run")) } };
+        // the iteration (the tables merged so far) with this answer: how many hold, the best goal
+        const rank = answer.sets.find((c) => c.name === "#rank")?.values, goalCol = answer.sets.find((c) => c.name === "#goal")?.values;
+        let best: number | null = null;
+        if (rank && goalCol) { let r0 = Infinity; for (let i = 0; i < rank.length; i++) if (rank[i] < r0) { r0 = rank[i]; best = goalCol[i]; } }
         patch((x) => (x.tableId !== s.tableId ? x : { ...x, answer, evaluating: false, evalError: "",
+          iterations: withIteration(x.iterations, x, answer.counts.holding, answer.counts.sets, best),
           view: x.view.axes.length ? x.view : { ...x.view, axes: defaultAxes(answer) } }), false);
       }).catch((e) => {
         if (my !== seq) return;

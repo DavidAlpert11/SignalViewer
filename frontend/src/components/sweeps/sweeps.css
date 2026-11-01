@@ -343,3 +343,9 @@
   border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); cursor: pointer; }
 .sw-tpl-item:hover { border-color: var(--line-strong); }
 .sw-tpl-item.on { border-color: var(--focus); background: color-mix(in srgb, var(--focus) 10%, var(--panel)); }
+
+/* the journal in the report step (S08) */
+.sw-journal { max-height: 46vh; overflow: auto; }
+.sw-journal h3 { margin: 4px 0; font-size: .85rem; }
+.sw-journal ol, .sw-journal ul { margin: 0; padding-inline-start: 20px; font-size: .78rem; display: flex; flex-direction: column; gap: 3px; }
+.sw-journal li { overflow-wrap: anywhere; }

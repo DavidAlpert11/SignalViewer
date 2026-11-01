@@ -91,6 +91,14 @@ export type Step = "raw" | "clean" | "roles" | "goals" | "results" | "report";
 export const STEPS: Step[] = ["raw", "clean", "roles", "goals", "results", "report"];
 
 /** What the middle of the area shows. */
+/** A line of the study's journal (S08): when, what kind of step, its details (rendered in the
+ *  report's language). */
+export type LogKind = "open" | "merge" | "unmerge" | "template" | "reset" | "roles" | "clean" | "scenarios" | "derived"
+  | "goalAdd" | "goalRemove" | "goal" | "robust" | "excludeRuns" | "keep" | "exclude" | "scopeBack" | "suggest" | "export" | "report";
+export interface LogEntry { at: string; kind: LogKind; args: Record<string, string | number> }
+/** An iteration: the study after each table merged in (1: the first table) - its latest answer. */
+export interface Iteration { n: number; label: string; at: string; sets: number; holding: number; best: number | null }
+
 /** Next runs' choices and their last answer (S06), kept with the study and in the report. */
 export interface NextRuns {
   /** the parameters to explore (missing: all) */
