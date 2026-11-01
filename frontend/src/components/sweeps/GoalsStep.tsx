@@ -9,6 +9,7 @@ import { OUTPUT_AGGS, type GoalVariant, type SetOp } from "../../sweeps/model";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import ConditionRow from "./ConditionRow";
+import RobustEditor from "./RobustEditor";
 import { StepFoot } from "./StepNav";
 
 export const goalName = (t: TFn, g: GoalVariant, i: number) => (g.name && Number.isNaN(Number(g.name)) ? g.name : t("swGoalN", { n: i + 1 }));
@@ -22,6 +23,15 @@ export const goalSummary = (t: TFn, g: GoalVariant) => {
 /** What the optimization does now, in a sentence: by what the sets that hold are ranked. */
 function optimizeNow(t: TFn, g: GoalVariant, a: Study["answer"]): string {
   const n = (a?.counts.holding ?? 0).toLocaleString();
+  // robust to some parameters: only the sets that hold robustly are ranked
+  const rh = a?.sets.find((c) => c.name === "#robustHolds")?.values;
+  let r = 0;
+  if (rh) for (let i = 0; i < rh.length; i++) r += rh[i] === 1 ? 1 : 0;
+  const robust = rh ? ` ${t("swOptimizeRobust", { n: r.toLocaleString() })}` : "";
+  return optimizeLine(t, g, a, n) + (g.optimize.length ? robust : "");
+}
+
+function optimizeLine(t: TFn, g: GoalVariant, a: Study["answer"], n: string): string {
   if (!g.optimize.length) return t("swOptimizeNone");
   if (g.optimize.length === 1) {
     const o = g.optimize[0];
@@ -98,6 +108,7 @@ export function GoalsSide({ study }: { study: Study }) {
         <label className="sw-agg">{t("swOutputsPerSet")}
           <select value={q.outputAgg} onChange={(e) => st.setQuestion({ outputAgg: e.target.value as SetOp })}>{OUTPUT_AGGS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
       </section>
+      <RobustEditor study={study} />
       <button className="linklike sw-danger" onClick={() => st.removeGoal(q.active)}>{q.goals.length > 1 ? t("swGoalDelete") : t("swGoalClear")}</button>
       <StepFoot study={study} next={t("swGoalSeeResults")} />
     </div>

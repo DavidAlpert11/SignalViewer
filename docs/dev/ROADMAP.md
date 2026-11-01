@@ -656,7 +656,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] S03 Resizable panels, many columns (scroll, ColumnPicker).
 - [x] S04 Sets table: only holding, columns, export.
 - [x] S05 Several maps and point plots.
-- [ ] S06 Next runs: parameters to explore, robustness.
+- [x] S06 Next runs: parameters to explore, robustness.
 - [ ] S07 Templates dialog.
 - [ ] S08 The whole process in the report.
 

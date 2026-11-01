@@ -2,7 +2,7 @@
    same filters - as many plots as wanted (S05). */
 import { useEffect, useMemo, useRef } from "react";
 import { useT } from "../../i18n";
-import { category, FAILS, HOLDS, ramp } from "../../sweeps/colors";
+import { category, FAILS, FLAG_COLS, HOLDS, ramp } from "../../sweeps/colors";
 import { keptMask } from "../../sweeps/filters";
 import { makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
@@ -58,7 +58,7 @@ function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair:
     for (const tk of sy.ticks) ctx.fillText(tk.label, L - 5, H - B - tk.t * (H - B - T) + 4);
     const cc = v.colorBy ? cols.get(v.colorBy) : undefined;
     const cs = cc && cc.kind === "num" ? makeScale(cc, "linear") : null;
-    const colour = (r: number) => !cc ? HOLDS : (v.colorBy === "#holds" || v.colorBy === "#pareto" || v.colorBy === "#partial") ? (cc.values[r] === 1 ? HOLDS : FAILS)
+    const colour = (r: number) => !cc ? HOLDS : FLAG_COLS.has(v.colorBy ?? "") ? (cc.values[r] === 1 ? HOLDS : FAILS)
       : cc.kind === "cat" ? category(cc.values[r]) : ramp(cs!.norm(cc.values[r]));
     const jitter = (s: typeof sx) => (s.places ? (Math.random() - 0.5) * 6 : 0);
     ctx.globalAlpha = n > 20000 ? 0.25 : n > 2000 ? 0.5 : 0.85;

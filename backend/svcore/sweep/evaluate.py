@@ -11,6 +11,8 @@ A question (JSON from the page):
     outputAgg    {output column: mean | min | max | median | p10 | p90 | std | spread}   - default mean
     objectives   [{column, direction, weight}] - two or more: the Pareto front and a weighted score,
                  and the sets that hold are ranked by the score
+    robust       {param: {mode: "pct" | "abs" | "steps", value}} - optional (S06): the sets within
+                 the tolerance must hold too; only sets that hold robustly are ranked
     exclude      [table row]                  - runs left out (e.g. suspicious ones)
 
 A parameter set holds when it ran every combination of the kept must-hold-across values and every
@@ -206,6 +208,8 @@ def answer(p: Prepared, q: Dict) -> Dict:
     holds = complete & met
     goal = q.get("goal") or None
     rank = np.full(p.n_sets, np.nan)
+    g: Optional[np.ndarray] = None
+    maximize = True
     if goal and goal.get("column"):
         gcol, maximize = goal["column"], goal.get("direction", "max") != "min"
         if gcol not in p.df.columns and gcol not in p.set_cols:
@@ -235,7 +239,7 @@ def answer(p: Prepared, q: Dict) -> Dict:
             ps, need = cols[m["name"]], p.n_combos
             partial = np.maximum(partial, ((ps > 0) & (ps < need)).astype(float))
     from svcore.sweep.analysis import objectives as _objectives
-    from svcore.sweep.grid import Grid, stability
+    from svcore.sweep.grid import Grid, robustness, stability
     objs = q.get("objectives") or []
     front, score = _objectives(p, objs, holds)
     if front is not None:
@@ -248,7 +252,28 @@ def answer(p: Prepared, q: Dict) -> Dict:
         order = idx[np.argsort(-score[idx], kind="stable")]
         rank = np.full(p.n_sets, np.nan)
         rank[order] = np.arange(1, len(order) + 1)
-    share, tol = stability(Grid(p), holds.astype(float))
+    grid = Grid(p)
+    robust = {c: t for c, t in (q.get("robust") or {}).items() if c in p.params}
+    if robust:
+        # robust to some parameters (S06): a set holds robustly when every set within their
+        # tolerance holds too; then only those are ranked - by the goal's worst case within the
+        # tolerance, or by the score when there are several objectives
+        rh, rg, seen = robustness(grid, holds.astype(float), g, maximize, robust)
+        add("#robustHolds", rh, "result")
+        add("#robustSeen", seen, "result")
+        if g is not None:
+            add("#robustGoal", rg, "result", column=goal["column"] if goal else None, direction="max" if maximize else "min")
+        key: Optional[np.ndarray] = None                     # bigger is better
+        if score is not None and len(objs) >= 2:
+            key = score
+        elif g is not None:
+            key = rg if maximize else -rg
+        rank = np.full(p.n_sets, np.nan)
+        if key is not None:
+            idx = np.where((rh == 1) & np.isfinite(key))[0]
+            order = idx[np.argsort(-key[idx], kind="stable")]
+            rank[order] = np.arange(1, len(order) + 1)
+    share, tol = stability(grid, holds.astype(float))
     add("#neighbours", share, "result")
     add("#tolerance", tol, "result")
     add("#partial", partial, "result")

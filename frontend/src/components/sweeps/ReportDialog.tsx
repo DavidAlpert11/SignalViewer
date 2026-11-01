@@ -14,6 +14,7 @@ import { wireQuestion, type Study } from "../../sweeps/state";
 import { activeColumns, activeParams, colLabel, mapAxes, mapList, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
+import { KINDS } from "../../sweeps/next";
 import { notify, notifyError } from "../../sweeps/notify";
 
 type Format = "html" | "docx" | "pdf" | "csv";
@@ -34,6 +35,8 @@ function questionLines(t: TFn, s: Study): string[] {
     const opt = g.optimize.map((o) => `${o.direction === "max" ? t("swMaximize") : t("swMinimize")} ${o.column}`).join(", ");
     out.push(`${goalName(t, g, i)}${i === q.active ? ` (${t("swRepShownGoal")})` : ""}: ${[conds, opt].filter(Boolean).join(" - ") || t("swGoalEmpty")}`);
   });
+  const robust = Object.entries(q.robust ?? {});
+  if (robust.length) out.push(t("swRepRobust", { list: robust.map(([c, tol]) => `${c} ± ${tol.value}${tol.mode === "pct" ? "%" : tol.mode === "steps" ? ` ${t("swTolSteps")}` : ""}`).join(", ") }));
   for (const d of q.derived) out.push(`ƒ ${d.name} = ${d.kind === "row" ? d.expr : `${d.op}(${d.column})`}`);
   out.push(`${t("swOutputsPerSet")} ${q.outputAgg}`);
   return out;
@@ -58,6 +61,13 @@ function processLines(t: TFn, s: Study): string[] {
   if (v.tableSort && setColumns(s).has(v.tableSort.column))
     out.push(t(v.tableSort.desc ? "swRepSortedDesc" : "swRepSorted", { c: colLabel(t, s, v.tableSort.column) }));
   if (v.rerun.length) out.push(t("swRepRerun", { n: v.rerun.length }));
+  const nx = v.next?.result;
+  if (nx) {
+    const by = Object.entries(nx.suggestions.reduce<Record<string, number>>((m, x) => ({ ...m, [x.kind]: (m[x.kind] ?? 0) + 1 }), {}))
+      .map(([k, n]) => `${t(KINDS.find((x) => x.k === k)?.title ?? "swNextGaps")} ${n}`).join(", ");
+    out.push(t("swRepNext", { n: nx.suggestions.length, by }) + (nx.focus ? ` - ${t("swExploredOnly", { list: nx.focus.join(", ") })}` : ""));
+  }
+  if (v.next?.exported) out.push(t("swRepNextExported", { path: v.next.exported }));
   if (!out.length) out.push(t("swRepNothing"));
   return out;
 }

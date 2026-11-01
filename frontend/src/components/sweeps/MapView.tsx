@@ -12,8 +12,10 @@ import type { Filter, MapSpec } from "../../sweeps/model";
 import { fmtValue } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { activeParams, mapList, nextMapPair, setColumns } from "../../sweeps/view";
+import { MARK } from "../../sweeps/next";
 
-export interface Mark { params: Record<string, number | string | null>; kind: string }
+/** a suggestion: where it is, why, and the parameter it moves (when one) */
+export interface Mark { params: Record<string, number | string | null>; kind: string; param?: string }
 type MapAnswer = PairMap & { rest: "all" | "best"; fixed: Record<string, number | string | null> | null };
 
 export default function MapsView({ study, marks }: { study: Study; marks?: Mark[] }) {
@@ -156,10 +158,11 @@ function MapSvg({ t, m, marks, onCell }: { t: TFn; m: MapAnswer; marks?: Mark[];
       {(marks ?? []).map((mk, k) => {
         const i = pos(m.xs, mk.params[m.x]), j = pos(m.ys, mk.params[m.y]);
         if (i < -1 || j < -1) return null;
-        return <text key={k} x={cx(i) + cw / 2} y={cy(j) + ch / 2 + 5} textAnchor="middle" className={`sw-mark sw-mark-${mk.kind}`}>{MARK[mk.kind] ?? "•"}</text>;
+        // a suggestion that moves a parameter this map does not draw sits on a cell already run: say so
+        const off = !!mk.param && mk.param !== m.x && mk.param !== m.y;
+        return <text key={k} x={cx(i) + cw / 2 + (off ? 9 : 0)} y={cy(j) + ch / 2 + 5 - (off ? 9 : 0)} textAnchor="middle"
+          className={`sw-mark sw-mark-${mk.kind}${off ? " sw-mark-off" : ""}`}>{MARK[mk.kind] ?? "•"}{off && <title>{t("swMarkOther", { p: mk.param! })}</title>}</text>;
       })}
     </svg>
   );
 }
-
-export const MARK: Record<string, string> = { edge: "◆", best: "★", disagree: "▲", gaps: "○", missing: "↻", robust: "◇" };

@@ -327,3 +327,10 @@
 .sw-edge-key { display: inline-block; width: 18px; height: 2.5px; background: #111; outline: 1.5px solid #fff; }
 .sw-mark { pointer-events: none; }
 .sw-mark-robust { fill: #4fc3a1; color: #4fc3a1; }
+
+/* robust to (S06) */
+.sw-robust-row { flex-wrap: wrap; }
+.sw-robust-name { flex: 1; min-width: 80px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-kind.off { opacity: .55; }
+.sw-mark-off { font-size: 11px; opacity: .75; }
+.sw-table td.sw-moved { font-weight: 600; color: var(--amber); }

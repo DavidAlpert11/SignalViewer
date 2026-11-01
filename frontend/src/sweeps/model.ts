@@ -52,7 +52,13 @@ export interface Question {
   combine: "and" | "or";
   /** columns taken out in the cleaning step (constant, empty, or not wanted) */
   removed: string[];
+  /** robust to these parameters (S06, optional): the sets within each one's tolerance must hold
+   *  too, and the goal is their worst case - for every goal of the study */
+  robust?: Record<string, Tolerance>;
 }
+
+/** How far a parameter may move: a percentage of its value, a value either way, or steps of the grid. */
+export interface Tolerance { mode: "pct" | "abs" | "steps"; value: number }
 
 export interface Objective { column: string; direction: "max" | "min"; weight: number }
 
@@ -85,6 +91,20 @@ export type Step = "raw" | "clean" | "roles" | "goals" | "results" | "report";
 export const STEPS: Step[] = ["raw", "clean", "roles", "goals", "results", "report"];
 
 /** What the middle of the area shows. */
+/** Next runs' choices and their last answer (S06), kept with the study and in the report. */
+export interface NextRuns {
+  /** the parameters to explore (missing: all) */
+  focus?: string[];
+  kinds?: string[];
+  budget?: number;
+  result?: { suggestions: { params: Record<string, number | string | null>; kind: string; from: number; param?: string }[];
+    available: Record<string, number>; at: string; focus: string[] | null;
+    /** the question it answered: when the question changes, it is out of date */
+    key?: string };
+  /** the run list written last */
+  exported?: string;
+}
+
 export type Center = "lines" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
 export const CENTERS: Center[] = ["lines", "effects", "map", "scatter", "next", "health", "compare"];
 
@@ -136,6 +156,8 @@ export interface View {
   maps?: MapSpec[];
   /** the point plots on screen (missing: one, of scatterX / scatterY) */
   scatters?: { x: string; y: string }[];
+  /** next runs' choices and answer */
+  next?: NextRuns;
 }
 
 export interface MapSpec { x: string; y: string; rest?: "all" | "best" }

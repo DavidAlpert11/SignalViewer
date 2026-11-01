@@ -21,7 +21,7 @@ export interface SweepOpened {
 }
 
 import type { WireCol } from "./decode";
-import type { Condition, Derived, Objective, SetOp } from "./model";
+import type { Condition, Derived, Objective, SetOp, Tolerance } from "./model";
 
 /** What the server is asked: the roles of the columns and the question. */
 export interface WireQuestion {
@@ -34,6 +34,7 @@ export interface WireQuestion {
   outputAgg: Record<string, SetOp>;
   objectives: Objective[];
   exclude: number[];
+  robust?: Record<string, Tolerance>;
 }
 export interface WireAnswer {
   counts: { sets: number; holding: number; complete: number; combos: number; rows: number };
@@ -67,7 +68,7 @@ export interface VariantResult { holding?: number; sets?: number; error?: string
 export interface Effects { params: { param: string; numeric: boolean; importance: number;
   levels: { value: number | string; mean: number | null; min: number | null; max: number | null; holding: number | null; sets: number }[] }[] }
 export interface PairMap { x: string; y: string; xs: (number | string)[]; ys: (number | string)[]; share: (number | null)[][]; best: (number | null)[][]; count: number[][] }
-export type SuggestKind = "edge" | "best" | "disagree" | "gaps" | "missing";
+export type SuggestKind = "edge" | "best" | "disagree" | "gaps" | "missing" | "robust";
 export interface Suggestion { params: Record<string, number | string | null>; kind: SuggestKind; from: number; param?: string; distance?: number; set?: number }
 export interface Suspect { row: number; set: number; column: string; value: number | null; expected: number | null; z: number;
   where: Record<string, string | number | null>; params: Record<string, string | number | null> }
@@ -91,8 +92,8 @@ export const sweepApi = {
   effects: (id: string, question: WireQuestion) => call<Effects>("/api/sweep/effects", { id, question }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
     call<PairMap & { rest: "all" | "best"; fixed: Record<string, string | number | null> | null }>("/api/sweep/map", { id, question, x, y, rest }),
-  suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number) =>
-    call<{ suggestions: Suggestion[]; available: Record<string, number> }>("/api/sweep/suggest", { id, question, kinds, budget }),
+  suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number, focus: string[] | null) =>
+    call<{ suggestions: Suggestion[]; available: Record<string, number> }>("/api/sweep/suggest", { id, question, kinds, budget, focus }),
   suggestExport: (id: string, question: WireQuestion, params: Suggestion["params"][], path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/suggest/export", { id, question, params, path }),
   suspects: (id: string, question: WireQuestion) => call<{ suspects: Suspect[] }>("/api/sweep/suspects", { id, question }),

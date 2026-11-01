@@ -129,7 +129,7 @@ def map_for(p: Prepared, a: Dict, q: Dict, x: str, y: str, rest: str = "all") ->
 
 
 # ----------------------------------------------------------------------------- what to run next
-KINDS = ("edge", "best", "disagree", "gaps", "missing")
+KINDS = ("edge", "best", "disagree", "gaps", "missing", "robust")
 
 
 def _mid(g: Grid, j: int, a: int, b: int) -> Optional[float]:
@@ -144,15 +144,22 @@ def _mid(g: Grid, j: int, a: int, b: int) -> Optional[float]:
 
 
 def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize: bool, partial: np.ndarray,
-            kinds: List[str], budget: int = 40, seed: int = 0) -> Dict:
+            kinds: List[str], budget: int = 40, seed: int = 0, focus: Optional[List[str]] = None,
+            score: Optional[np.ndarray] = None, rank: Optional[np.ndarray] = None,
+            robust: Optional[Dict[str, Dict]] = None) -> Dict:
     """New parameter sets to run, each with why:
     edge     - between a set that holds and a neighbour that does not: where the limit really is
     best     - between the best holding sets and their neighbours: a better one in between?
     disagree - around sets that hold in some combinations but not all
     gaps     - far from every set run so far (the emptiest corners of the space)
     missing  - sets that miss a combination or have a run with no result: run those again
-    Returned round-robin over the kinds asked for, up to `budget`, without repeats."""
+    robust   - the ends of the tolerance of the best sets on each robust parameter: is it robust?
+    Returned round-robin over the kinds asked for, up to `budget`, without repeats.
+    focus: the parameters to explore (S06) - only they move, the others stay at the set's values
+    (gaps: at the best set's); None: all of them. score (two objectives or more) picks the best
+    sets instead of the goal. With none of focus / score / rank / robust the answer is as before."""
     g = Grid(p)
+    only = None if focus is None else {p.params.index(c) for c in focus if c in p.params}
     seen = set()
     for s in range(p.n_sets):
         seen.add(tuple(g.values.iloc[s].tolist()))
@@ -171,28 +178,33 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
         for s in range(p.n_sets):
             if not holds[s]:
                 continue
-            for t, j, step in g.neighbours(s):
+            for t, j, step in g.neighbours(s, only):
                 if not holds[t]:
                     m = _mid(g, j, g.idx[s, j], g.idx[t, j])
                     if m is not None:
                         add("edge", s, j, m, {"param": p.params[j]})
-    if "best" in pools and goal is not None:
-        order = np.argsort(-goal if maximize else goal)
-        top = [s for s in order if holds[s] and np.isfinite(goal[s])][:5]
+    if "best" in pools and (goal is not None or score is not None):
+        if score is not None:                                   # several objectives: the weighted score
+            order, val = np.argsort(-np.nan_to_num(score, nan=-np.inf)), score
+        else:
+            assert goal is not None
+            order, val = np.argsort(-goal if maximize else goal), goal
+        top = [s for s in order if holds[s] and np.isfinite(val[s])][:5]
         for s in top:
-            for t, j, step in g.neighbours(s):
+            for t, j, step in g.neighbours(s, only):
                 m = _mid(g, j, g.idx[s, j], g.idx[t, j])
                 if m is not None:
                     add("best", s, j, m, {"param": p.params[j]})
     if "disagree" in pools:
         for s in np.where(partial == 1)[0]:
-            for t, j, step in g.neighbours(int(s)):
+            for t, j, step in g.neighbours(int(s), only):
                 m = _mid(g, j, g.idx[s, j], g.idx[t, j])
                 if m is not None:
                     add("disagree", int(s), j, m, {"param": p.params[j]})
     if "gaps" in pools:
         rng = np.random.default_rng(seed)
-        num = [j for j, n in enumerate(g.numeric) if n and len(g.levels[j]) > 1]
+        num = [j for j, n in enumerate(g.numeric) if n and len(g.levels[j]) > 1 and (only is None or j in only)]
+        anchor = None if only is None or rank is None else best_set(rank, holds)
         if num:
             lo = np.array([float(g.levels[j][0]) for j in num]); hi = np.array([float(g.levels[j][-1]) for j in num])
             have = np.vstack([(g.values[p.params[j]].to_numpy(dtype=float) - lo[k]) / (hi[k] - lo[k]) for k, j in enumerate(num)]).T
@@ -203,7 +215,7 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
                 i = int(np.argmax(d))
                 picked.append(cand[i:i + 1])
                 vals = lo + cand[i] * (hi - lo)
-                base = int(rng.integers(p.n_sets))
+                base = anchor if anchor is not None else int(rng.integers(p.n_sets))
                 params = g.params_of(base)
                 for k, j in enumerate(num):
                     params[p.params[j]] = float(np.round(vals[k], 6))
@@ -219,6 +231,21 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
             failed[np.unique(p.set_id[bad])] = True
         for s in sorted(set(incomplete.tolist()) | set(np.where(failed)[0].tolist())):
             pools["missing"].append({"params": g.params_of(int(s)), "kind": "missing", "from": int(s), "set": int(s)})
+    if "robust" in pools and robust:
+        from svcore.sweep.grid import tolerance_band
+        ranked = [int(s) for s in np.argsort(rank) if np.isfinite(rank[s])] if rank is not None else []
+        top = (ranked or [int(s) for s in np.where(holds == 1)[0]])[:5]
+        for s in top:
+            for name, tol in robust.items():
+                if name not in p.params:
+                    continue
+                j = p.params.index(name)
+                if not g.numeric[j] or (only is not None and j not in only):
+                    continue
+                cur = float(g.levels[j][g.idx[s, j]])
+                for v in tolerance_band(g, j, s, tol):
+                    if abs(v - cur) > 1e-12:
+                        add("robust", s, j, float(np.round(v, 10)), {"param": name})
     out: List[Dict] = []
     r = 0
     while len(out) < budget and any(r < len(v) for v in pools.values()):

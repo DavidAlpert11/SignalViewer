@@ -9,7 +9,7 @@ import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
 import { sweepApi, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
-import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Question, type View } from "./model";
+import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Question, type Tolerance, type View } from "./model";
 
 export interface StudyColumn extends SweepColumn {
   guessRole: Role;
@@ -134,6 +134,8 @@ interface SweepsState {
   removeGoal: (i: number) => void;
   setActiveGoal: (i: number) => void;
   setRemoved: (columns: string[]) => void;
+  /** a parameter's tolerance (null: not robust to it) */
+  setRobust: (column: string, tol: Tolerance | null) => void;
   updateCondition: (i: number, patch: Partial<Condition>) => void;
   removeCondition: (i: number) => void;
   addDerived: (d: Derived) => void;
@@ -165,7 +167,8 @@ export function wireQuestion(s: Study): WireQuestion {
     .concat(s.question.derived.filter((d) => d.kind === "row").map((d) => d.name));
   const q = s.question;
   return { roles, combine: q.combine, holdValues: q.holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
-    outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])), objectives: q.objectives, exclude: q.exclude };
+    outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])), objectives: q.objectives, exclude: q.exclude,
+    ...(q.robust && Object.keys(q.robust).length ? { robust: q.robust } : {}) };
 }
 
 /** A template fits a table that has every column it gives a role to (other columns may be there too). */
@@ -386,7 +389,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
         const question: Question = materialize({ ...q,
           goals: q.goals.map((g) => ({ ...g, conditions: g.conditions.filter((c) => ok(c.column)), optimize: g.optimize.filter((o) => ok(o.column)) })),
           removed: q.removed.filter((c) => have.has(c)),
-          holdValues: Object.fromEntries(Object.entries(q.holdValues).filter(([k]) => have.has(k))) });
+          holdValues: Object.fromEntries(Object.entries(q.holdValues).filter(([k]) => have.has(k))),
+          robust: q.robust && Object.fromEntries(Object.entries(q.robust).filter(([k]) => have.has(k))) });
         const n = { ...s, columns, question, view: { ...emptyView(), ...(t.view as Partial<View>), pinned: null, filters: {}, rerun: [] }, offer: null };
         remember(n);
         return n;
@@ -465,6 +469,11 @@ export const useSweeps = create<SweepsState>((set, get) => {
     }),
     setActiveGoal: (i) => patchQ((q) => materialize({ ...q, active: i })),
     setRemoved: (columns) => patchQ((q) => ({ ...q, removed: columns })),
+    setRobust: (column, tol) => patchQ((q) => {
+      const robust = { ...(q.robust ?? {}) };
+      if (tol) robust[column] = tol; else delete robust[column];
+      return { ...q, robust };
+    }),
     addDerived: (d) => { patchQ((q) => ({ ...q, derived: [...q.derived, d] })); patchV((v) => ({ ...v, axes: [...v.axes, d.name] })); },
     removeDerived: (i) => patchQ((q) => ({ ...q, derived: q.derived.filter((_, j) => j !== i) })),
 

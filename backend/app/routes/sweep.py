@@ -222,6 +222,7 @@ class SuggestReq(BaseModel):
     question: Dict[str, Any]
     kinds: List[str]
     budget: int = 40
+    focus: Optional[List[str]] = None    # S06: the parameters to explore (None: all)
 
 
 @router.post("/api/sweep/suggest")
@@ -229,8 +230,12 @@ def sweep_suggest(req: SuggestReq):
     p, a = _answer(req.id, req.question)
     kinds = [k for k in req.kinds if k in sweep.KINDS]
     goal = req.question.get("goal") or {}
-    return sweep.suggest(p, a["data"]["#holds"], a["data"].get("#goal"), goal.get("direction", "max") != "min",
-                         a["data"]["#partial"], kinds, max(1, min(2000, req.budget)))
+    d = a["data"]
+    several = len(req.question.get("objectives") or []) >= 2
+    return sweep.suggest(p, d["#holds"], d.get("#goal"), goal.get("direction", "max") != "min",
+                         d["#partial"], kinds, max(1, min(2000, req.budget)), focus=req.focus,
+                         score=d.get("#score") if several else None, rank=d["#rank"],
+                         robust=req.question.get("robust") or None)
 
 
 class SuggestExportReq(BaseModel):

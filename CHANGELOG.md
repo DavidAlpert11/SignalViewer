@@ -8,6 +8,18 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: robust to a parameter, and next runs on the parameters you choose**: in Goals, **Robust
+  to** takes the parameters a good set must not be fragile to (typed, as everywhere), each with how
+  far it may move - ± a percentage, ± a value or ± grid steps. A set then *holds robustly* when every
+  set within the tolerance holds too; the table gets *holds robustly*, the goal's worst case within
+  the tolerance and how many sets that was, and only the sets that hold robustly are ranked. When
+  the grid is coarser than the tolerance, the step says so. **Next runs** explores the parameters
+  you choose - all, those on the maps, or typed - and the others stay at the values of the set each
+  suggestion starts from; **Is it robust?** proposes the runs at the ends of the tolerance of the
+  best sets. With several objectives *near the best* follows the weighted score. A suggestion that
+  moves a parameter a map does not draw is marked apart on it; the suggestions and their choices
+  stay with the study (after a restart too), say when the question has changed since, and go into
+  the report's process with the run list written.
 - **Sweeps: several maps and point plots**: **+ map** adds a map of two other parameters (each map
   has its own pair, × takes it away); with three parameters or more, *The others* chooses between
   every value (the colour is the share holding over all of them) and **a slice at the best set**
