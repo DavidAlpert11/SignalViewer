@@ -122,8 +122,12 @@ export interface NextRuns {
   exported?: string;
 }
 
-export type Center = "lines" | "explore" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
-export const CENTERS: Center[] = ["lines", "explore", "effects", "map", "scatter", "next", "health", "compare"];
+export type Center = "lines" | "explore" | "charts" | "effects" | "map" | "scatter" | "next" | "health" | "compare";
+export const CENTERS: Center[] = ["lines", "explore", "charts", "effects", "map", "scatter", "next", "health", "compare"];
+
+/** MF02: a pane of the chart desktop and what it shows. */
+export type PaneKind = "scatter" | "bubble" | "histogram" | "box" | "matrix" | "broken";
+export interface DeskPane { kind: PaneKind; x?: string; y?: string; size?: string; columns?: string[]; corr?: "pearson" | "spearman" }
 
 /** A range filter on an axis keeps a value inside any of its ranges; a category filter keeps the
  *  listed values (codes into the column's labels). */
@@ -185,6 +189,8 @@ export interface View {
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */
   axesOff?: string[];
+  /** the chart desktop (MF02; missing: two panes from the study's columns) */
+  desk?: { layout: 1 | 2 | 4; panes: DeskPane[] };
   /** Explore's controls as sliders or as one table of the problem (MF01; missing: sliders) */
   exploreAs?: "sliders" | "table";
   /** the user's groups of sets (MF00; optional: an old study has the automatic groups only) */

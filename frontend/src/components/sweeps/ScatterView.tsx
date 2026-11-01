@@ -13,7 +13,8 @@ import { axisChoices, colLabel, scaleOf, scatterList, scopedColumns, styleOf } f
 
 // room for the ticks and the axes' titles (S11)
 const W = 560, H = 380, L = 72, B = 52, T = 12, R = 16;
-type Pair = { x: string; y: string };
+/** two columns; `size`: a third as the points' size (a bubble chart, MF02) */
+type Pair = { x: string; y: string; size?: string };
 
 export default function ScattersView({ study }: { study: Study }) {
   const t = useT();
@@ -39,7 +40,7 @@ export default function ScattersView({ study }: { study: Study }) {
   );
 }
 
-function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void }) {
+export function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void }) {
   const t = useT();
   const cv = useRef<HTMLCanvasElement>(null);
   const { cols, n } = useMemo(() => scopedColumns(study), [study]);
@@ -126,13 +127,17 @@ function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair:
     const colour = (r: number) => !cc ? HOLDS : FLAG_COLS.has(v.colorBy ?? "") ? (cc.values[r] === 1 ? HOLDS : FAILS)
       : cc.kind === "cat" ? category(cc.values[r]) : ramp(cs!.norm(cc.values[r]));
     const sz = style.size;
+    // bubble (MF02): the size column, its range to 1..4 x the point size (by area)
+    const zc = pair.size ? cols.get(pair.size) : undefined;
+    const zs = zc && zc.kind === "num" ? makeScale(zc, "linear") : null;
+    const radius = (r: number) => (zs ? (sz / 2) * Math.sqrt(1 + 15 * Math.max(0, Math.min(1, zs.norm(zc!.values[r]) || 0))) : sz / 2);
     const jitter = (s: typeof sx) => (s.places ? (Math.random() - 0.5) * 6 : 0);
     ctx.globalAlpha = style.opacity ?? (n > 20000 ? 0.25 : n > 2000 ? 0.5 : 0.85);
     for (let r = 0; r < n; r++) {
       if (!kept[r]) continue;
       const X = px(xc.values[r]) + jitter(sx), Y = py(yc.values[r]) + jitter(sy);
       if (!Number.isFinite(X) || !Number.isFinite(Y)) continue;
-      ctx.fillStyle = colour(r); ctx.beginPath(); ctx.arc(X, Y, sz / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = colour(r); ctx.beginPath(); ctx.arc(X, Y, radius(r), 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
     // two objectives against each other: the Pareto front's sets ringed and joined (S19)
@@ -148,8 +153,8 @@ function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair:
       for (const [X, Y] of pts) { ctx.beginPath(); ctx.arc(X, Y, sz / 2 + 3, 0, Math.PI * 2); ctx.stroke(); }
       ctx.lineWidth = 1;
     }
-  }, [cols, n, kept, xName, yName, v.colorBy, study, t]);
-  const sel = (key: "x" | "y", val: string | undefined) => (
+  }, [cols, n, kept, xName, yName, pair.size, v.colorBy, study, t]);
+  const sel = (key: "x" | "y" | "size", val: string | undefined) => (
     <select value={val ?? ""} onChange={(e) => onChange({ [key]: e.target.value })}>
       {choices.map((c) => <option key={c} value={c}>{colLabel(t, study, c)}</option>)}
     </select>
@@ -157,6 +162,7 @@ function ScatterPanel({ study, pair, onChange, onRemove }: { study: Study; pair:
   return (
     <div className="sw-scatter sw-map">
       <div className="sw-row sw-map-head"><label>{t("swMapX")} {sel("x", xName)}</label><label>{t("swMapY")} {sel("y", yName)}</label>
+        {pair.size !== undefined && <label>{t("swBubbleSize")} {sel("size", pair.size)}</label>}
         {onRemove && <button className="iconbtn" aria-label={t("swRemoveScatter")} title={t("swRemoveScatter")} onClick={onRemove}>×</button>}</div>
       <div className="sw-scatter-box" style={{ maxWidth: W }}
         onPointerDown={(e) => { const p = at(e); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); setDrag({ x0: p.x, y0: p.y, x1: p.x, y1: p.y }); }}

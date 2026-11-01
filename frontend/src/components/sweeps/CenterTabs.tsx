@@ -4,7 +4,7 @@ import { useT, type TKey } from "../../i18n";
 import { CENTERS, type Center } from "../../sweeps/model";
 import { useSweeps, type Study } from "../../sweeps/state";
 
-const KEY: Record<Center, TKey> = { lines: "swCenterLines", explore: "swCenterExplore", effects: "swCenterEffects", map: "swCenterMap", scatter: "swCenterScatter",
+const KEY: Record<Center, TKey> = { lines: "swCenterLines", explore: "swCenterExplore", charts: "swCenterCharts", effects: "swCenterEffects", map: "swCenterMap", scatter: "swCenterScatter",
   next: "swCenterNext", health: "swCenterHealth", compare: "swCenterCompare" };
 
 export default function CenterTabs({ study, studies }: { study: Study; studies: number }) {

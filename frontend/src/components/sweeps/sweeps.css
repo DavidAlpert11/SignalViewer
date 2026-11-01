@@ -505,3 +505,34 @@
 .sw-problem-table th[colspan] { text-align: start; padding-top: 10px; }
 .sw-problem-table tr.limited td:first-child { box-shadow: inset 3px 0 0 var(--focus); }
 [dir="rtl"] .sw-problem-table tr.limited td:first-child { box-shadow: inset -3px 0 0 var(--focus); }
+
+/* MF02: the chart desktop */
+.sw-desk { display: flex; flex-direction: column; gap: 8px; }
+.sw-desk-bar { justify-content: space-between; }
+.sw-desk-grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+.sw-desk-grid.n2 { grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); }
+.sw-desk-grid.n4 { grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); }
+.sw-pane { min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
+.sw-pane-head { flex-wrap: wrap; gap: 6px; }
+.sw-pane-head label { display: inline-flex; align-items: center; gap: 4px; }
+.sw-pane-big { margin-inline-start: auto; }
+.sw-pane .sw-map { border: 0; padding: 0; background: none; }
+.sw-chart { width: 100%; display: block; touch-action: none; }
+.sw-chart .sw-ax { fill: var(--muted); font-size: 11px; }
+.sw-chart .sw-ax-line { stroke: var(--muted); }
+.sw-chart .sw-brush-mark { fill: var(--focus); fill-opacity: 0.15; stroke: var(--focus); }
+.sw-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.sw-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-inline-end: 4px; }
+.sw-matrix-wrap { overflow: auto; }
+.sw-matrix .sw-matrix-cell { stroke: var(--line); fill-opacity: 1; }
+.sw-matrix rect.sw-matrix-cell:not([fill]) { fill: none; }
+.sw-matrix .sw-matrix-r { fill: var(--ink); font-size: 14px; }
+.sw-matrix-cols { position: relative; }
+.sw-matrix-cols-list { position: absolute; z-index: 5; max-height: 260px; overflow: auto; background: var(--panel-2); border: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; }
+.sw-broken { display: flex; flex-direction: column; gap: 4px; }
+.sw-broken-row { display: grid; grid-template-columns: minmax(0, 2fr) 3fr auto; gap: 8px; align-items: center; background: none; border: 0; color: inherit; text-align: start; cursor: pointer; padding: 3px 4px; border-radius: 4px; }
+.sw-broken-row:hover { background: var(--panel-2); }
+.sw-broken-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-broken-bar { height: 10px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.sw-broken-bar i { display: block; height: 100%; background: var(--danger); }
+.sw-broken-n { color: var(--muted); font-variant-numeric: tabular-nums; }
