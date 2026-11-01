@@ -27,7 +27,7 @@ def test_design_export_and_group(pg):
     save_as(pg, "doe.csv")
     pg.wait_for_selector(".toast:has-text('doe.csv')")
     lines = open(os.path.join(pg.env["out"], "doe.csv")).read().strip().splitlines()
-    assert lines[0].startswith("kp_roll,ki_roll,filter_hz") and len(lines) - 1 == 12 * 36
+    assert lines[0].startswith("kp_roll,ki_roll,filter_hz") and len(lines) - 1 == 12 * 18      # the table has 18 scenario combinations
     pg.locator(".sw-doe .btn", has_text="Save as a group").click()
     pg.locator(".sw-area-btn[data-area='explore']").click()
     pg.wait_for_selector(".sw-groups .sw-group:not(.auto):has-text('DOE 1')")
