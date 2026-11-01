@@ -649,6 +649,11 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Milestone 19 — Sweeps, round 3. Spec: TASKS.md S20-S22.
+- [ ] S20 The journal for the report: the final story, hide lines, "the analysis starts here".
+- [ ] S21 Explore: a draft of a goal - conditions, limits and objectives together.
+- [ ] S22 Goals: the best set while editing.
+
 ## Milestone 18 — Sweeps, round 2 (the owner's notes after using S00-S08). Spec: TASKS.md S09-S18.
 - [x] S09 Nothing overlaps in a small window.
 - [x] S10 Where the optimization shows (best set, maps by the goal, what the numbers are).
