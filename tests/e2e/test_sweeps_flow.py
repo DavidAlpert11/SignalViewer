@@ -33,8 +33,13 @@ def _fresh(pg):
     pg.wait_for_function("document.querySelector('.sw-step-btn.on .sw-step-n').innerText === '1'")
 
 
+AREA = {"raw": "problem", "clean": "problem", "roles": "problem", "goals": "problem", "results": "explore", "report": "explore"}
+
+
 def _step(pg, name):
-    pg.locator(".sw-step-btn").nth(STEP[name]).click()
+    """A step, through its area (M23: Problem | Run | Explore, the area's steps under it)."""
+    pg.locator(f".sw-area-btn[data-area='{AREA[name]}']").click()
+    pg.locator(f".sw-step-btn[data-step='{name}']").click()
     pg.wait_for_function(f"document.querySelector('.sw-step-btn.on .sw-step-n').innerText === '{STEP[name] + 1}'")
 
 
@@ -1059,7 +1064,7 @@ def test_explore_a_draft_of_the_goal_and_save_it(pg):
     _step(pg, "results")
     pg.wait_for_selector(".sw-table th:has-text('worst')")
     holding = _holding(pg)
-    pg.locator(".sw-center-tabs button", has_text="Explore").click()
+    pg.locator(".sw-center-tabs button", has_text="Decide").click()
     pg.wait_for_selector(".sw-funnel")
     funnel = lambda: [int(x.replace(",", "")) for x in pg.locator(".sw-funnel li b").all_inner_texts()]
     assert funnel()[:2] == [45, holding]
@@ -1179,3 +1184,17 @@ def test_explore_everything_on_screen_live_in_the_lines_and_the_table(pg):
     assert pg.locator(".sw-center canvas[data-shown='45']").count() == 1
     assert _holding(pg) == n
     assert pg.locator(".sw-side-step .btn", has_text="Explore this goal").count() == 1   # and the way back in
+
+
+def test_three_areas_and_a_quiet_run(pg):
+    """M23 §4: Problem (raw, clean, roles, goals), Run (quiet: no run step yet), Explore (results,
+    report); a study opened at its results is in Explore."""
+    _fresh(pg)
+    assert pg.locator(".sw-area-btn.on").get_attribute("data-area") == "problem"
+    assert pg.locator(".sw-step-btn").count() == 4
+    pg.locator(".sw-area-btn[data-area='run']").click()
+    pg.wait_for_selector(".sw-run-quiet")
+    assert pg.locator(".sw-step-btn").count() == 0
+    pg.locator(".sw-area-btn[data-area='explore']").click()
+    pg.wait_for_function("document.querySelector('.sw-step-btn.on .sw-step-n').innerText === '5'")
+    assert [pg.locator(".sw-step-btn").nth(i).get_attribute("data-step") for i in range(2)] == ["results", "report"]

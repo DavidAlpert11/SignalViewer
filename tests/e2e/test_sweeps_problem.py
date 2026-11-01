@@ -13,7 +13,7 @@ def _explore(pg):
     _step(pg, "results")
     pg.wait_for_selector(".sw-table th:has-text('worst')")
     holding = _holding(pg)
-    pg.locator(".sw-center-tabs button", has_text="Explore").click()
+    pg.locator(".sw-center-tabs button", has_text="Decide").click()
     pg.wait_for_selector(".sw-funnel")
     return holding
 

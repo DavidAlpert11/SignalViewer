@@ -11,6 +11,8 @@
 
 - **Sweeps: Charts.** A desktop of 1, 2 or 4 linked charts - points, bubble, histogram, box, scatter matrix with Pearson or Spearman correlations, history, Pareto, the lines, a map, a comparison of the marked sets, and which conditions fail how often - each for all the sets or one group. All show the same sets in the same colours; a range dragged on a histogram (or a rectangle on the points, a click on a broken condition) filters every chart, the lines and the table.
 
+- **Sweeps: three areas - Problem, Run, Explore.** The six steps are now grouped: *Problem* (the raw results, cleaning, scenarios and parameters, the goal), *Run* (quiet for now: how to run the next sets and bring their results back), *Explore* (the results and the report). The *Explore* tab inside the results is now called *Decide*.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row
