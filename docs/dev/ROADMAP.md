@@ -649,11 +649,13 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
-## Milestone 23 — Sweeps toward modeFRONTIER. Spec: docs/dev/SWEEPS_MODEFRONTIER.md MF01-MF10 (order there; MF01 first).
-- [ ] MF01 The problem as one table (parameters, objectives, conditions).
-- [ ] MF02 More charts, all linked. - [ ] MF03 DOE. - [ ] MF04 Surrogates. - [ ] MF05 Sensitivity.
-- [ ] MF06 Runner. - [ ] MF07 Optimizers in the loop. - [ ] MF08 Robust design / reliability.
-- [ ] MF09 Clusters, SOM, PCA. - [ ] MF10 Decision making.
+## Milestone 23 — Sweeps toward modeFRONTIER. Spec: docs/dev/SWEEPS_MODEFRONTIER.md (findings verified 2026-11-01, MF00-MF11, brief in §6). Order: MF00, MF01, MF02, MF05, MF03, MF04, MF11, MF06, MF07, MF10, MF08, MF09.
+- [ ] MF00 Groups of designs (rule or ids, automatic groups, brush → group) and design status (feasible / fails / error / virtual).
+- [ ] MF01 The problem as one table (parameters incl. categorical, objectives, conditions).
+- [ ] MF02 More charts, all linked, colour by group. - [ ] MF03 DOE (output = a group). - [ ] MF04 Surrogates (validation table, virtual group, re-run).
+- [ ] MF05 Sensitivity (variance share per term, screening). - [ ] MF06 Runner. - [ ] MF07 Optimisers in the loop.
+- [ ] MF08 Robust design / reliability. - [ ] MF09 Clusters, SOM, PCA, MDS. - [ ] MF10 Decide (weighted, TOPSIS, Hurwicz, Savage, pairwise).
+- [ ] MF11 Run monitor (live history, Pareto, status counts, stop).
 
 ## Milestone 22 — work on a selection; typed values in Explore (owner's notes 2026-11-01, 2). Spec: TASKS.md Q127-Q129.
 - [ ] Q127 Operations chosen by the selection (2: difference…, 3+: norm, 2N: difference per pair).
