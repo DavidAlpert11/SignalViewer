@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Fixed: refreshing a file that is still being written.** The read used to follow the writer to the end of the file - the progress stood at 100 % until the writing stopped - and the refresh after it could report the file as unchanged. Now a refresh reads the file as it was when the refresh began (a row still being written waits for the next read), the next refresh or live mode reads the rest once, and a file's text columns are no longer lost when it grew in between.
+
 - **Sweeps / Decide: rank by more than a weighted sum.** Choose closest-to-ideal (TOPSIS), optimism (Hurwicz, with α) or least regret (Savage); take the weights from pairwise comparisons (*energy matters 3× more than error*), with a warning when the comparisons contradict each other; set a margin under which two sets count as tied. Each of the first ten says why it is above the next - each objective's part - and they can be kept as a group. The button into it is now *Decide on this goal*.
 - **Sweeps: robust design.** In *Robust to*, each tolerance gets a distribution (uniform, triangular, normal). In the *Run* area, the best sets' parameters are moved that way hundreds of times on a model of the goal: each set's mean, spread (σ), a percentile on the bad side and the probability of breaking a limit, and a plot of mean against σ. *Run for real* saves the samples around a set as a group to run; once merged, any group's statistics are one click.
 

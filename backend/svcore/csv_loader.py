@@ -237,12 +237,62 @@ def encode_text(values, labels: Optional[Dict[int, str]] = None) -> Tuple[np.nda
     return remap[codes], labels
 
 
-def _read_text_columns(filepath, columns, names, skip_lines, delimiter, encoding, arrow: bool):
+class _Bounded(io.RawIOBase):
+    """A file read only up to `limit` bytes: a file that keeps growing while it is read (a logger
+    writing to it) is read as it was when the read began. Unbounded, the parser followed the writer
+    to its end - the progress stood at 100 % until the writing stopped - and the passes over the
+    file (numbers, text columns) saw different row counts. Live mode reads the rest from there."""
+
+    def __init__(self, path: str, limit: int):
+        self._f = open(path, "rb")
+        self._left = max(0, int(limit))
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, b) -> int:
+        if self._left <= 0:
+            return 0
+        n = self._f.readinto(memoryview(b)[: min(len(b), self._left)])
+        self._left -= n or 0
+        return n or 0
+
+    def tell(self) -> int:
+        return self._f.tell()
+
+    def close(self) -> None:
+        self._f.close()
+        super().close()
+
+
+def _complete_part(path: str, size: int) -> int:
+    """The bytes to read of a file seen at `size`: all of it - unless the file is still growing and
+    its last line is not finished, then up to that line's start (the writer may be in the middle of a
+    number). A file that stopped without a final line break keeps its last row."""
+    if size <= 0:
+        return size
+    try:
+        with open(path, "rb") as f:
+            f.seek(max(0, size - 65536))
+            tail = f.read(size - max(0, size - 65536))
+        if tail.endswith(b"\n") or os.path.getsize(path) <= size:
+            return size
+        nl = tail.rfind(b"\n")
+        return size - len(tail) + nl + 1 if nl >= 0 else size
+    except OSError:
+        return size
+
+
+def _open_bounded(path: str, limit: Optional[int]):
+    return open(path, "rb") if limit is None else io.BufferedReader(_Bounded(path, limit), 1 << 20)
+
+
+def _read_text_columns(filepath, columns, names, skip_lines, delimiter, encoding, arrow: bool, limit: Optional[int] = None):
     """Second, narrow pass over the file for the columns that turned out to hold text: returns
     (row count, {name: object array}). Uses the same parser as the numeric pass, so the rows match."""
     if arrow and HAS_PYARROW and len(delimiter) == 1:
         enc = "utf8" if str(encoding).lower().replace("-", "").startswith("utf8") else encoding
-        with open(filepath, "rb") as fh:
+        with _open_bounded(filepath, limit) as fh:
             data = fh.read()
         if data.startswith(b"\xef\xbb\xbf"):
             data = data[3:]
@@ -255,9 +305,10 @@ def _read_text_columns(filepath, columns, names, skip_lines, delimiter, encoding
                                                   strings_can_be_null=True))
         return table.num_rows, {n: table.column(n).to_numpy(zero_copy_only=False) for n in names}
     engine = "python" if delimiter == r"\s+" else "c"
-    df = pd.read_csv(filepath, sep=delimiter, header=None, names=columns, skiprows=skip_lines, usecols=list(names),
-                     encoding=encoding, on_bad_lines="skip", engine=engine, index_col=False, dtype=str,
-                     keep_default_na=False)
+    with _open_bounded(filepath, limit) as fh:
+        df = pd.read_csv(fh, sep=delimiter, header=None, names=columns, skiprows=skip_lines, usecols=list(names),
+                         encoding=encoding, on_bad_lines="skip", engine=engine, index_col=False, dtype=str,
+                         keep_default_na=False)
     return len(df), {n: df[n].to_numpy(dtype=object) for n in names}
 
 
@@ -296,7 +347,8 @@ def _header_info(filepath: str, settings: CSVImportSettings, delimiter: str) -> 
 PART_BYTES = 64 * 1024 * 1024
 
 
-def _parse_pyarrow(filepath, columns, skip_lines, delimiter, encoding, stats: Optional[Dict] = None) -> Dict[str, np.ndarray]:
+def _parse_pyarrow(filepath, columns, skip_lines, delimiter, encoding, stats: Optional[Dict] = None,
+                   limit: Optional[int] = None) -> Dict[str, np.ndarray]:
     """
     Arrow's multi-threaded parser, run on ~64 MB parts of the file cut at line breaks.
     Between parts we report progress and honour cancel, without losing Arrow's speed
@@ -307,12 +359,12 @@ def _parse_pyarrow(filepath, columns, skip_lines, delimiter, encoding, stats: Op
         raise ValueError("needs a single-character delimiter")
     enc = "utf8" if str(encoding).lower().replace("-", "").startswith("utf8") else encoding
     parse_opts = pa_csv.ParseOptions(delimiter=delimiter, invalid_row_handler=lambda row: "skip")
-    total = max(1, os.path.getsize(filepath))
+    total = max(1, os.path.getsize(filepath) if limit is None else limit)
     parts: Dict[str, List[np.ndarray]] = {c: [] for c in columns}
     float_types = {c: pa.float64() for c in columns}
     first = True
     carry = b""
-    with open(filepath, "rb") as fh:
+    with _open_bounded(filepath, limit) as fh:
         while True:
             block = fh.read(PART_BYTES)
             if not block and not carry:
@@ -380,15 +432,15 @@ def _repair_text_bytes(data: bytes, encoding: str) -> bytes:
     return data
 
 
-def _parse_pandas_chunked(filepath, columns, skip_lines, delimiter, encoding) -> Dict[str, np.ndarray]:
+def _parse_pandas_chunked(filepath, columns, skip_lines, delimiter, encoding, limit: Optional[int] = None) -> Dict[str, np.ndarray]:
     """Chunked pandas parse: memory stays bounded by one chunk of Python objects."""
     parts: Dict[str, List[np.ndarray]] = {c: [] for c in columns}
     engine = "python" if delimiter == r"\s+" else "c"
     kwargs = dict(sep=delimiter, header=None, names=columns, skiprows=skip_lines,
                   encoding=encoding, encoding_errors="replace", on_bad_lines="skip", chunksize=CHUNK_ROWS,
                   engine=engine, index_col=False)
-    total = max(1, os.path.getsize(filepath))
-    with open(filepath, "rb") as fh:
+    total = max(1, os.path.getsize(filepath) if limit is None else limit)
+    with _open_bounded(filepath, limit) as fh:
         for chunk in pd.read_csv(fh, **kwargs):
             for c in columns:
                 parts[c].append(_to_numeric_array(chunk[c], np.float64))
@@ -607,6 +659,7 @@ def load_csv(
     try:
         st = os.stat(filepath)
         file_size, file_mtime = st.st_size, st.st_mtime  # read BEFORE parsing (append safety)
+        file_size = _complete_part(filepath, file_size)   # a row being written now: live mode reads it
         delimiter = settings.delimiter or detect_delimiter(filepath, skip_rows=settings.skip_rows or 0)
         columns, skip_lines = _header_info(filepath, settings, delimiter)
         if not columns:
@@ -640,14 +693,15 @@ def load_csv(
             if HAS_PYARROW:
                 try:
                     arrays = _parse_pyarrow(filepath, source_columns, skip_lines, delimiter, settings.encoding,
-                                            parse_stats)
+                                            parse_stats, limit=file_size)
                     used_arrow = True
                 except LoadCancelled:
                     raise
                 except Exception as e:
                     print(f"[LOAD] Arrow parser not usable for this file ({e}); using pandas", flush=True)
             if arrays is None:
-                arrays = _parse_pandas_chunked(filepath, source_columns, skip_lines, delimiter, settings.encoding)
+                arrays = _parse_pandas_chunked(filepath, source_columns, skip_lines, delimiter, settings.encoding,
+                                               limit=file_size)
 
             time_array = np.asarray(arrays.pop("Time"), dtype=np.float64)
             # columns where no value is a number: text (states such as "IDLE" / "ARMED")
@@ -657,7 +711,7 @@ def load_csv(
             if text_cols:
                 try:
                     nrows, texts = _read_text_columns(filepath, source_columns, text_cols, skip_lines, delimiter,
-                                                      settings.encoding, used_arrow)
+                                                      settings.encoding, used_arrow, limit=file_size)
                     if nrows != len(time_array):
                         raise ValueError("row count differs between passes")
                     for n in text_cols:
