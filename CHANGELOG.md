@@ -13,6 +13,8 @@
 
 - **Sweeps: three areas - Problem, Run, Explore.** The six steps are now grouped: *Problem* (the raw results, cleaning, scenarios and parameters, the goal), *Run* (quiet for now: how to run the next sets and bring their results back), *Explore* (the results and the report). The *Explore* tab inside the results is now called *Decide*.
 
+- **Sweeps: how much each parameter matters.** In *Which parameter matters*, a table for the goal (or any result) and the active group: each parameter's share of the variance alone and with others, its Sobol indices, its correlations, the strongest pairs and what nothing explains. Parameters under a threshold are greyed as weak, and one click takes them off the lines.
+
 ## 1.17.0 – 2026-11-01
 
 Highlights: **Sweeps**, a second work area for the results of a run envelope - a table with a row
