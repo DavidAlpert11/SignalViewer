@@ -9,7 +9,7 @@ import { decodeCol } from "../../sweeps/decode";
 import type { Col, Filter, Scale } from "../../sweeps/model";
 import { keptMask } from "../../sweeps/filters";
 import { fmtValue } from "../../sweeps/scales";
-import type { Study } from "../../sweeps/state";
+import { useSweeps, type Study } from "../../sweeps/state";
 import { groupLabel, presetChoices } from "../../sweeps/view";
 import { PRESET_KEY } from "./PlotToolbar";
 import AxisMenu from "./AxisMenu";
@@ -129,6 +129,7 @@ export function RawPlot({ study }: { study: Study }) {
       const r = await sweepApi.report(study.tableId, { roles: {}, combine: "and", holdValues: {}, goal: null, conditions: [], derived: [], outputAgg: {}, objectives: [], exclude: [] },
         { format: "plot", raw: true, path: p, axes, title: study.name, labels: { "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"), "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis") } });
       notify(t("swSaved", { path: r.path }));
+      useSweeps.getState().journal("export", { path: r.path });
     } catch (e) { notifyError(e); }
   };
   return (

@@ -8,6 +8,14 @@ choose is drawn, and **limits** show as soon as they are set. Nothing changes in
 templates you already have.
 
 ### Added
+- **Sweeps: the whole process in the report**: each study keeps a **journal** - opened, roles
+  changed, each goal as it ended up, robustness, columns taken out, keep / exclude, tables merged
+  in, templates applied, suggestions made, files written, reports made - with the time of each
+  (a run of edits to one thing is one line; undo is not a step of its own). Each table merged in
+  starts an **iteration**: how many sets hold and the best goal after each, as a table and a plot
+  of how the study converged. The report has both, and **Where it comes from**: each table read,
+  its size, time and SHA-256 (to find the very same file again), and the app's version. The Report
+  step shows the journal and the iterations on screen; they are saved with the study.
 - **Sweeps templates**: *Study ▾ → Templates…* opens one dialog for them - save the study as a
   template (it asks before replacing one of the same name), see how many of each template's columns
   this table has and its goals, apply one (or double-click it), **export one to a file** for a

@@ -10,11 +10,12 @@ import { Icon } from "../../icons";
 import { hasFilter, keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
-import { wireQuestion, type Study } from "../../sweeps/state";
+import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { activeColumns, activeParams, colLabel, mapAxes, mapList, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { KINDS } from "../../sweeps/next";
+import { journalLine } from "../../sweeps/journal";
 import { notify, notifyError } from "../../sweeps/notify";
 
 type Format = "html" | "docx" | "pdf" | "csv";
@@ -80,7 +81,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
   const [title, setTitle] = useState(study.name.replace(/\.[^.]+$/, ""));
   const [notes, setNotes] = useState("");
   const [top, setTop] = useState(25);
-  const [inc, setInc] = useState({ question: true, process: true, plot: true, effects: true, map: true, table: true });
+  const [inc, setInc] = useState({ question: true, process: true, journal: true, plot: true, effects: true, map: true, table: true, provenance: true });
   const a = study.answer!;
   const make = async () => {
     onBefore?.();                      // the dialog closes: the file dialog takes its place
@@ -90,7 +91,8 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
     const labels: Record<string, string> = Object.fromEntries([...cols.keys()].map((n) => [n, colLabel(t, study, n)]));
     Object.assign(labels, { "#answer": t("swRepAnswer"), "#best": t("swBestSets"), "#plot": t("swCenterLines"), "#effectsTitle": t("swCenterEffects"),
       "#mapTitle": t("swCenterMap"), "#mapAt": t("swMapAt"), "#what": "", "#value": "", "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"),
-      "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis") });
+      "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis"), "#provenance": t("swRepProvenance"),
+      "#itTitle": t("swRepIterations"), "#itHolding": t("swRepItHolding"), "#itBest": t("swRepItBest") });
     // the sets on screen: after the filters and the keep / exclude steps
     const n = a.sets[0]?.values.length ?? 0, kept = keptMask(cols, study.view.filters, n), scope = scopeMask(study);
     const shown: number[] = [];
@@ -100,6 +102,9 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
     const sections = [
       ...(inc.question ? [{ title: t("swQuestion"), items: questionLines(t, study) }] : []),
       ...(inc.process ? [{ title: t("swRepProcess"), items: processLines(t, study) }] : []),
+      ...(inc.process && study.iterations.length > 1 ? [{ title: t("swRepIterations"), items: study.iterations.map((it) =>
+        t("swRepIteration", { n: it.n, label: it.label, holding: it.holding, sets: it.sets, best: it.best === null ? "–" : fmtValue(it.best) })) }] : []),
+      ...(inc.journal && study.log.length ? [{ title: t("swRepJournal"), items: study.log.map((e) => journalLine(t, e)) }] : []),
     ];
     const map = mapAxes(study);
     notify(t("swRepMaking"));
@@ -110,9 +115,11 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
           [t("swRepHolding"), `${a.counts.holding} / ${a.counts.sets}`], [t("swMissing"), a.counts.sets - a.counts.complete],
           [t("swRepShownNow"), shown.length]],
         columns: table, rows: tableRows(study), axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
-        include: { plot: inc.plot, effects: inc.effects, map: inc.map, table: inc.table },
+        include: { plot: inc.plot, effects: inc.effects, map: inc.map, table: inc.table, provenance: inc.provenance, iterations: inc.process },
+        iterations: study.iterations.length > 1 ? study.iterations : null,
         mapX: map.x ?? null, mapY: map.y ?? null, maps: mapList(study) });
       notify(t("swSaved", { path: r.path }));
+      useSweeps.getState().journal("report", { path: r.path });
     } catch (e) { notifyError(e); }
   };
   const box = (k: keyof typeof inc, label: string) => (
@@ -137,8 +144,8 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
       <label className="sw-field">{t("swRepTitle")}<input value={title} onChange={(e) => setTitle(e.target.value)} /></label>
       <label className="sw-field">{t("swRepNotes")}<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("swRepNotesHint")} /></label>
       <div className="sw-report-inc">
-        {box("question", t("swQuestion"))}{box("process", t("swRepProcess"))}{box("plot", t("swCenterLines"))}
-        {box("effects", t("swCenterEffects"))}{box("map", t("swCenterMap"))}{box("table", t("swBestSets"))}
+        {box("question", t("swQuestion"))}{box("process", t("swRepProcess"))}{box("journal", t("swRepJournal"))}{box("plot", t("swCenterLines"))}
+        {box("effects", t("swCenterEffects"))}{box("map", t("swCenterMap"))}{box("table", t("swBestSets"))}{box("provenance", t("swRepProvenance"))}
         <label className="acheck">{t("swRepTop")}<input type="number" min={1} max={1000} value={top} onChange={(e) => setTop(Math.max(1, Number(e.target.value) || 25))} style={{ width: 64 }} /></label>
       </div>
       <div className="sw-report-preview">

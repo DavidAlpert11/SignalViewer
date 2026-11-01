@@ -41,6 +41,7 @@ export default function NextRunsView({ study }: { study: Study }) {
     try {
       const r = await sweepApi.suggest(study.tableId, wireQuestion(study), kinds, budget, f);
       setNext({ result: { ...r, at: stamp(), focus: f, key: keyOf(study, f) } });
+      useSweeps.getState().journal("suggest", { n: r.suggestions.length });
     } catch (e) { notifyError(e); }
     setBusy(false);
   };
@@ -52,6 +53,7 @@ export default function NextRunsView({ study }: { study: Study }) {
       const r = await sweepApi.suggestExport(study.tableId, wireQuestion(study), res.suggestions.map((s) => s.params), p);
       setNext({ exported: r.path });
       notify(t("swExported", { n: r.rows, path: r.path }));
+      useSweeps.getState().journal("export", { path: r.path, n: r.rows });
     } catch (e) { notifyError(e); }
   };
   const stale = !!res && res.key !== undefined && res.key !== keyOf(study, res.focus);
