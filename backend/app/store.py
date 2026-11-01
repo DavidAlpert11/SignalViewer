@@ -761,6 +761,69 @@ class Store:
         changed = sorted([x for x in out if x["status"] == "changed"], key=lambda x: x["t"])
         return changed + [x for x in out if x["status"] != "changed"]
 
+    def change_clusters(self, items: List[dict], a: float, b: float, refs: List[str], k: float = 4.0,
+                        persist: int = 3, event: Optional[str] = None, shape_top: int = 30) -> dict:
+        """Q130 / Q131 on `first_changes`' items: each changed one scored (its parts kept - no black box),
+        the changes in clusters, the clusters by their best member. `refs`: the reference runs (the
+        other open files) - a signal of the same name changing there too is marked and comes last in its
+        cluster. `event`: the signal the event is in (default: the most unusual inside the span)."""
+        from svcore.firstchange import clusters, lag, score_of, score_parts
+        live = [x for x in items if x["status"] == "changed" and not x.get("skip")]
+        names = {x["name"] for x in live}
+        in_ref: Dict[str, List[str]] = {}
+        for rid in refs:
+            if rid not in self.runs:
+                continue
+            sigs = [f"{rid}/{n}" for n in self.runs[rid].run.signals if n in names]
+            for r in self.first_changes(sigs, [], a, b, None, k, persist):
+                if r["status"] == "changed":
+                    in_ref.setdefault(r["name"], []).append(rid)
+        start = min((x["base"][1] for x in live), default=a)
+        if event is None and live:
+            pick = self.suggest_condition([x["id"] for x in items if x.get("status") != "nodata"], a, b)
+            event = pick.get("id")
+        n = max(1, len(live) - 1)
+        for x in live:
+            later = sum(1 for o in live if o is not x and o["t"] > x["t"])
+            x["parts"] = score_parts(x, a, start, x["name"] in in_ref, None, later / n, k)
+            x["inRef"] = in_ref.get(x["name"], [])
+        # the shape against the event signal: only for the likeliest (a lag each is not free)
+        ev = None
+        if event:
+            try:
+                ev = self.signal(event)
+            except (KeyError, ValueError):
+                ev = None
+        if ev is not None:
+            L = b - a
+            for x in sorted(live, key=lambda x: -score_of(x["parts"]))[:shape_top]:
+                if x["id"] == event:
+                    continue
+                try:
+                    tx, yx = self.signal(x["id"])
+                except (KeyError, ValueError):
+                    continue
+                # room on both sides of the two changes (a window ending at the event's step made the
+                # largest shift, with almost no overlap, look best)
+                pad = max(L, a - start)
+                r = lag(tx, yx, ev[0], ev[1], start - pad, b + pad, max_lag=pad)
+                lg, rr = r.get("lag"), r.get("r")
+                if (r.get("status") == "ok" and not r.get("weak") and not r.get("ambiguous")
+                        and isinstance(lg, float) and isinstance(rr, float) and lg > 0):
+                    x["parts"]["shape"] = abs(rr)
+                    x["leadsEvent"] = lg
+        for x in live:
+            x["score"] = score_of(x["parts"])
+        cl = clusters(live, a, b, start)
+        by = {x["id"]: x for x in live}
+        if event in by:
+            by[event]["isEvent"] = True             # the event's own signal: shown, never "the likely first"
+        for c in cl:
+            c["ids"].sort(key=lambda i: (i == event, bool(by[i]["inRef"]), -by[i]["score"]))
+            c["best"] = max((by[i]["score"] for i in c["ids"] if i != event), default=0.0)
+        cl.sort(key=lambda c: -c["best"])
+        return {"clusters": cl, "event": event}
+
     def suggest_condition(self, sig_ids: List[str], a: float, b: float) -> dict:
         """"Find similar": of these signals, the one most unusual inside the selection [a, b] (its
         usual level read before it, as for "what changed first"), and a condition that finds

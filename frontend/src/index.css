@@ -1423,3 +1423,26 @@ input.fx-input { width: 100%; }
 .ov-selbar { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; padding-inline-start: 128px; }
 .ov-seltext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-show { font-size: 0.8rem; padding: 2px 12px; align-self: flex-start; }
+
+/* Q130-Q133: clusters of changes */
+.wc-clusters { gap: 4px; }
+.wc-cluster { border-inline-start: 2px solid var(--line); padding-inline-start: 4px; }
+.wc-cluster.open { border-inline-start-color: var(--amber); }
+.wc-cluster.skipped { opacity: 0.8; }
+.wc-chead { text-align: start; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-ctop { opacity: 0.75; }
+.wc-score, .wc-why { font-size: 0.75rem; font-variant-numeric: tabular-nums; padding: 0 4px; border-radius: 3px; background: var(--amber-soft); white-space: nowrap; }
+.wc-why.inref { background: transparent; border: 1px solid var(--line); }
+.wc-row > .wc-why { grid-column: 6; grid-row: 2; }
+.wc-row.inref .wc-name { opacity: 0.75; }
+.wc-cplot { margin: 2px 0; }
+.wc-cplot svg { width: 100%; height: auto; max-height: 140px; display: block; }
+.wc-cplot figcaption { font-size: 0.75rem; min-height: 1.2em; }
+.wc-cspan { fill: var(--amber-soft); }
+.wc-czero { stroke: var(--line); stroke-dasharray: 2 2; }
+.wc-chover { stroke: var(--ink); stroke-width: 0.5; }
+.wc-cactions { display: flex; gap: 6px; flex-wrap: wrap; }
+.wc-prefix { padding-inline-start: 6px; }
+.wc-ptoggle { text-align: start; font-size: 0.8rem; display: flex; gap: 6px; align-items: center; }
+.wc-skipped, .wc-order { font-size: 0.8rem; align-self: flex-start; }
+.wc-skiplist { margin: 0; padding-inline-start: 16px; font-size: 0.8rem; }
