@@ -2,6 +2,18 @@
    Recordings does not meet in i18n.ts. Merged into the dictionaries there (the same TKey, tsc still
    checks that Hebrew has every English key). */
 export const swEn = {
+  swPaneLines: "Lines",
+  swPaneMap: "Map",
+  swPaneHistory: "History",
+  swPaneParetoKind: "Pareto",
+  swPaneCompare: "Compare sets",
+  swPaneGroup: "Group",
+  swParetoNeedsTwo: "Pareto needs two objectives in the goal.",
+  swPaneHistoryOf: "{c} by the sets' order",
+  swHistoryX: "{c} - the sets in their order; the line: the best so far",
+  swCompareSetsPick: "Tick two sets or more in the table to compare them.",
+  swCompareSetsHint: "The best sets of the group; tick sets in the table to compare those.",
+  swSetN: "Set {n}",
   swCenterCharts: "Charts",
   swDeskHint: "Every chart shows the same sets, coloured as the lines; a range dragged on any of them filters all - the lines and the table too.",
   swDeskLayout: "Panes",
@@ -634,6 +646,18 @@ export const swEn = {
 };
 
 export const swHe: typeof swEn = {
+  swPaneLines: "קווים",
+  swPaneMap: "מפה",
+  swPaneHistory: "היסטוריה",
+  swPaneParetoKind: "פארטו",
+  swPaneCompare: "השוואת סטים",
+  swPaneGroup: "קבוצה",
+  swParetoNeedsTwo: "פארטו צריך שתי מטרות ביעד.",
+  swPaneHistoryOf: "{c} לפי סדר הסטים",
+  swHistoryX: "{c} - הסטים לפי הסדר; הקו: הטוב ביותר עד כה",
+  swCompareSetsPick: "סמן שני סטים או יותר בטבלה כדי להשוות ביניהם.",
+  swCompareSetsHint: "הסטים הטובים בקבוצה; סמן סטים בטבלה כדי להשוות אותם.",
+  swSetN: "סט {n}",
   swCenterCharts: "גרפים",
   swDeskHint: "כל הגרפים מציגים את אותם סטים, בצבעים של הקווים; טווח שנגרר על אחד מהם מסנן את כולם - גם את הקווים ואת הטבלה.",
   swDeskLayout: "חלונות",

@@ -126,8 +126,10 @@ export type Center = "lines" | "explore" | "charts" | "effects" | "map" | "scatt
 export const CENTERS: Center[] = ["lines", "explore", "charts", "effects", "map", "scatter", "next", "health", "compare"];
 
 /** MF02: a pane of the chart desktop and what it shows. */
-export type PaneKind = "scatter" | "bubble" | "histogram" | "box" | "matrix" | "broken";
-export interface DeskPane { kind: PaneKind; x?: string; y?: string; size?: string; columns?: string[]; corr?: "pearson" | "spearman" }
+export type PaneKind = "lines" | "scatter" | "bubble" | "histogram" | "box" | "matrix" | "map" | "history" | "pareto" | "compare" | "broken";
+export interface DeskPane { kind: PaneKind; x?: string; y?: string; size?: string; columns?: string[]; corr?: "pearson" | "spearman";
+  /** only this group's sets (an automatic group, "marked" or a user group's id; missing: all) */
+  group?: string }
 
 /** A range filter on an axis keeps a value inside any of its ranges; a category filter keeps the
  *  listed values (codes into the column's labels). */

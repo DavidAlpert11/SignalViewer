@@ -44,7 +44,7 @@ export default function MapsView({ study, marks }: { study: Study; marks?: Mark[
   );
 }
 
-function MapPanel({ study, spec, marks, onChange, onRemove }: {
+export function MapPanel({ study, spec, marks, onChange, onRemove }: {
   study: Study; spec: MapSpec; marks?: Mark[]; onChange: (p: Partial<MapSpec>) => void; onRemove?: () => void;
 }) {
   const t = useT();
