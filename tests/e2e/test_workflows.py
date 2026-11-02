@@ -152,7 +152,7 @@ def test_live_mode(page, server):
     with open(p, "w") as f:
         f.write("Time,V\n" + "".join(f"{i * 0.1:.1f},{i}\n" for i in range(50)))
     _open(page, server["data"], ["live.csv"])
-    page.click(".topbar .btn:has-text('Live')")
+    page.click(".areabar .btn:has-text('Live')")
     with open(p, "a") as f:
         f.write("".join(f"{i * 0.1:.1f},{i}\n" for i in range(50, 80)))
     page.wait_for_function("document.querySelector('.status').innerText.includes('80 samples')", timeout=8000)

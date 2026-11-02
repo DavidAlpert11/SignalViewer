@@ -26,8 +26,10 @@ def test_file_and_help_menus(pg):
     # T-areas: the top row holds what every work area shares; session and Clear are the Recordings area's bar
     for label in ("Settings", "Theme"):
         assert pg.locator(f".topbar [aria-label='{label}']").count() == 1, label
-    for label in ("Open session", "Save session", "Clear"):
+    for label in ("Open session", "Save session", "Clear", "Live mode settings"):
         assert pg.locator(f".areabar [aria-label='{label}']").count() == 1, label
+    # Live follows the open files: it is the Recordings area's, not in the top row (owner, 2026-11-02)
+    assert pg.locator(".topbar .live-btn").count() == 0 and pg.locator(".areabar .live-btn").count() == 1
     pg.click(".areabar [aria-label='Clear']")
     items = [x.strip() for x in pg.locator(".menu.ctx button").all_inner_texts()]
     for want in ("This tab's plots", "The other tabs", "All tabs", "Clear everything"):
