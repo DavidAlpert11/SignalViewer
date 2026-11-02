@@ -1,7 +1,8 @@
 /* The Sweeps templates (S07): roles, scales, goals, robustness, what is shown (maps, table columns,
    next runs' choices) - without the table's runs - for the next table with the same columns. Save
    the study as one (asks before replacing one of the same name), apply one, export one to a file
-   for a colleague, import one, delete one. Like the Recordings templates' library. */
+   for a colleague, import
+import one, delete one. Like the Recordings templates' library. */
 import { useEffect, useState } from "react";
 import { pickPath } from "../../store";
 import { useT } from "../../i18n";
@@ -9,6 +10,7 @@ import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, type Study } from "../../sweeps/state";
 import { notify, notifyError } from "../../sweeps/notify";
+import { templateSummary } from "../../sweeps/templates";
 import { confirmAsk, useEscape } from "../Overlays";
 
 export default function TemplatesDialog({ study, onClose }: { study: Study; onClose: () => void }) {
@@ -29,7 +31,7 @@ export default function TemplatesDialog({ study, onClose }: { study: Study; onCl
     if (templates.some((x) => x.name === n) && !(await confirmAsk(t("swTplReplace"), t("swTplReplaceAsk", { n })))) return;
     try { await st.saveTemplate(n); setSel(n); notify(t("swTemplateSaved", { n })); } catch (e) { notifyError(e); }
   };
-  const apply = (n: string) => { st.applyTemplate(n); notify(t("swTplApplied", { n })); onClose(); };
+  const apply = (n: string) => { const r = st.applyTemplate(n); notify(r ? templateSummary(t, r) : t("swTplApplied", { n }), "info", 12000); onClose(); };
   const exportTo = async () => {
     if (!cur) return;
     const p = await pickPath({ mode: "save", title: t("swTplExport"), exts: [".json"], defaultName: `${cur.name}.json` });

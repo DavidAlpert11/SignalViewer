@@ -1,10 +1,7 @@
 /* Small pieces several steps share: the shape of the study (runs, sets, combinations, what is
-   missing) and adding another table (merge). */
-import { useState } from "react";
-import { pickPath } from "../../store";
+   missing). */
 import { useT } from "../../i18n";
-import { notify, notifyError } from "../../sweeps/notify";
-import { useSweeps, type Study } from "../../sweeps/state";
+import type { Study } from "../../sweeps/state";
 
 export function Stat({ label, value, warn }: { label: string; value: number | string; warn?: boolean }) {
   return (
@@ -26,37 +23,6 @@ export function ShapeStats({ study }: { study: Study }) {
       <Stat label={t("swCombos")} value={sm.combos} />
       <Stat label={t("swMissing")} value={sm.missing} warn={sm.missing > 0} />
       <Stat label={t("swFailed")} value={sm.failedRuns} warn={sm.failedRuns > 0} />
-    </div>
-  );
-}
-
-/** The tables in this study, and adding another - a second sweep, finer somewhere - as rows of it. */
-export function MergeBox({ study }: { study: Study }) {
-  const t = useT();
-  const [prefer, setPrefer] = useState<"new" | "old" | "both">("new");
-  const add = async () => {
-    const p = await pickPath({ mode: "open", title: t("swMergeTable"), exts: [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"] });
-    if (!p) return;
-    try { const r = await useSweeps.getState().merge(p, prefer); notify(t("swMerged", { added: r.added, replaced: r.replaced })); }
-    catch (e) { notifyError(e); }
-  };
-  return (
-    <div className="sw-hide-box">
-      <b>{t("swTables")}</b>
-      <div className="sw-tags">{study.sources.map((s, i) => (
-        <span key={i} className="sw-tag">{s}
-          {/* the first is the study's own table (close it with the button below); the others were merged in */}
-          {i > 0 && <button className="sw-tag-x" aria-label={t("swUnmerge", { n: s })} title={t("swUnmerge", { n: s })}
-            onClick={() => useSweeps.getState().unmerge(i).then(() => notify(t("swUnmerged", { n: s }))).catch(notifyError)}>×</button>}
-        </span>
-      ))}</div>
-      <div className="sw-row">
-        <button className="btn outline" onClick={add}>{t("swMergeTable")}</button>
-        <select aria-label={t("swWhenBoth")} title={t("swWhenBoth")} value={prefer} onChange={(e) => setPrefer(e.target.value as "new" | "old" | "both")}>
-          <option value="new">{t("swPreferNew")}</option><option value="old">{t("swPreferOld")}</option><option value="both">{t("swPreferBoth")}</option>
-        </select>
-      </div>
-      <button className="btn sw-close-table" onClick={() => { const st = useSweeps.getState(); st.close(st.active); }}>{t("swCloseTable")}</button>
     </div>
   );
 }

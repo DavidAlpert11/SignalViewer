@@ -20,6 +20,7 @@ import { registerArea } from "../../areaCommands";
 import Toasts from "../Toasts";
 import { normCenter, normStep, STEPS } from "../../sweeps/model";
 import { stepTitle } from "./StepNav";
+import { useLeftHidden } from "../../sweeps/narrow";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
@@ -29,8 +30,10 @@ import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
 import TemplatesDialog from "./TemplatesDialog";
 import StepNav from "./StepNav";
-import { RawCenter, RawSide } from "./RawStep";
+import { RawCenter, RawSide, ZoomButtons } from "./RawStep";
+import { NO_ZOOM } from "../../sweeps/zoom";
 import { RolesCenter, RolesSide } from "./RolesStep";
+import { templateSummary } from "../../sweeps/templates";
 import { GoalsCenter, GoalsSide } from "./GoalsStep";
 import ResultsSide from "./ResultsSide";
 import { ReportCenter, ReportSide, exportPlot } from "./ReportStep";
@@ -48,6 +51,7 @@ import "./sweeps.css";
 
 /** the middle (plot, tables) never narrower than this when a panel is dragged wider */
 const MIN_MIDDLE = 380;
+const LEFT_MIN = 220, LEFT_MAX = 320;
 const TABLE_EXTS = [".csv", ".tsv", ".txt", ".parquet", ".pq", ".xlsx", ".xls"];
 const STUDY_EXT = ".svsweep";
 
@@ -65,6 +69,7 @@ async function openStudy(title: string): Promise<string> {
   try {
     const doc = JSON.parse((await sweepApi.loadText(p)).text) as SavedStudy;
     if (doc.kind !== "signalviewer-sweep") return "not a study";
+    // a study saved with its tables needs no `path` (its first table may be a merged one)
     await useSweeps.getState().open(doc.path, doc);
     return "";
   } catch (e) { return (e as Error).message; }
@@ -73,7 +78,7 @@ async function openStudy(title: string): Promise<string> {
 async function saveStudy(t: TFn) {
   const st = useSweeps.getState(), study = st.studies[st.active], doc = st.saved();
   if (!study || !doc) return;
-  if (!doc.path) { notify(t("swCannotSaveRows"), "error"); return; }
+  if (!doc.path && !doc.tables?.length) { notify(t("swCannotSaveRows"), "error"); return; }
   const p = await pickPath({ mode: "save", title: t("swSaveStudy"), exts: [STUDY_EXT], defaultName: study.name.replace(/\.[^.]+$/, "") + STUDY_EXT });
   if (p) say(sweepApi.saveText(p, JSON.stringify(doc, null, 1)).then((r) => t("swSaved", { path: r.path })));
 }
@@ -152,7 +157,6 @@ function SweepsBar() {
     openMenu(below(e), [
       { label: t("swSaveStudy"), run: () => saveStudy(t) },
       { label: t("swStartOver"), run: () => st.resetStudy() },
-      { label: t("swCloseTable"), run: () => st.close(st.active) },
       SEP,
       { label: t("swSaveTemplate"), run: async () => {
         const name = (await prompt(t("swSaveTemplate"), t("swTemplateName"), study.name.replace(/\.[^.]+$/, "")))?.trim();
@@ -225,12 +229,17 @@ function SweepsWelcome() {
   const error = useSweeps((s) => s.error);
   const restoring = useSweeps((s) => s.restoring);
   const example = async () => { const { path } = await sweepApi.example(); await useSweeps.getState().open(path); };
-  // the example's second sweep - finer where the first looked good - merged into it
+  // the example's second sweep - finer where the first looked good - as a second table, both
+  // merged into a third one, and the steps after Data on it
   const merged = async () => {
     const { path, refine } = await sweepApi.example();
     await useSweeps.getState().open(path);
-    const r = await useSweeps.getState().merge(refine, "new");
-    notify(t("swMerged", { added: r.added, replaced: r.replaced }));
+    const st = useSweeps.getState();
+    await st.addTable(refine);
+    const s = useSweeps.getState().studies[useSweeps.getState().active];
+    await st.mergeTables(s.tables.map((x) => x.id), { names: s.tables.map((x) => x.name), how: "concat", keys: [], source: "_source", dedupe: false });
+    st.useTable(useSweeps.getState().studies[useSweeps.getState().active].tables.length - 1);
+    notify(t("swMergedNew", { n: 2 }));
   };
   return (
     <div className="sw-welcome">
@@ -288,9 +297,11 @@ function StudyView({ study }: { study: Study }) {
     : step === "goals" ? <GoalsSide study={study} /> : <ResultsSide study={study} />;
   const noParams = !activeParams(study).length;
   // the side panels: widths dragged (and remembered) as in Recordings, the steps' panel can be hidden
-  const [leftW, setLeftW] = usePanelWidth("swLeft", 340);
+  // the steps' panel: about 220 to 320 px (owner, 2026-11-02)
+  const [leftW0, setLeftW] = usePanelWidth("swLeft", 280);
+  const leftW = Math.max(LEFT_MIN, Math.min(LEFT_MAX, leftW0));
   const [detailW, setDetailW] = usePanelWidth("swDetail", 380);
-  const leftHidden = useSweeps((s) => s.leftHidden);
+  const leftHidden = useLeftHidden();
   const detail = step === "results" && study.view.pinned !== null && !!study.answer;
   const box = useRef<HTMLDivElement>(null);
   const room = (other: number) => () => (box.current?.clientWidth ?? window.innerWidth) - other - MIN_MIDDLE;
@@ -302,7 +313,7 @@ function StudyView({ study }: { study: Study }) {
       <div className="sw-study" ref={box} style={{ gridTemplateColumns: cols }}>
         {!leftHidden && <aside className="side sw-left" aria-label={t("swSteps")}><div className="sw-left-body">{side}</div></aside>}
         {!leftHidden && <PanelResizer label={t("resizePanel")} style={{ insetInlineStart: leftW - 3 }} width={leftW} setWidth={setLeftW}
-          grow={+1} def={340} max={room(detail ? detailW : 0)} />}
+          grow={+1} def={280} max={() => Math.min(LEFT_MAX, room(detail ? detailW : 0)())} />}
         {detail && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: detailW - 3 }} width={detailW} setWidth={setDetailW}
           grow={-1} def={380} max={room(leftHidden ? 0 : leftW)} />}
         <main className="sw-center">
@@ -313,7 +324,7 @@ function StudyView({ study }: { study: Study }) {
           )}
           {study.offer && (
             <div className="sw-banner" role="status">{t("swTemplateFits", { n: study.offer })}
-              <button className="btn primary" onClick={() => st.applyTemplate(study.offer!)}>{t("swApply")}</button>
+              <button className="btn primary" onClick={() => { const r = st.applyTemplate(study.offer!); if (r) notify(templateSummary(t, r), "info", 12000); }}>{t("swApply")}</button>
               <button className="iconbtn" aria-label={t("swDismiss")} onClick={() => useSweeps.setState((x) => ({ studies: x.studies.map((y) => (y.tableId === study.tableId ? { ...y, offer: null } : y)) }))}>×</button></div>
           )}
           {noParams && (step === "goals" || step === "results") && (
@@ -371,6 +382,8 @@ function ResultsCenter({ study }: { study: Study }) {
     } catch (e) { notifyError(e); }
   };
   const menuCol = menu ? cols.get(menu.name) : undefined;
+  const zoomKey = `res:${study.tableId}`;
+  const zoom = useSweeps((s) => s.zooms[zoomKey]) ?? NO_ZOOM;
   return (
     <>
       <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
@@ -384,11 +397,13 @@ function ResultsCenter({ study }: { study: Study }) {
             onExclude={() => st.narrow("exclude", selection().sets, scopeKey(study))}
             onExport={exportShown}
             onExportPlot={() => say(exportPlot(t, study, lang))} />
-          <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}</p>
+          <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}
+            <ZoomButtons zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)} /></p>
           {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
               filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
+              zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)}
               onPick={(r) => st.setView({ pinned: setOfRow(r) })}
               onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}
               onMoveAxis={(name, to) => { const from = v.axes.indexOf(name); const target = v.axes.indexOf(axes[to]); if (from >= 0 && target >= 0) st.moveAxis(from, target); }} />

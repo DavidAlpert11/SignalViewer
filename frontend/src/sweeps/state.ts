@@ -8,7 +8,7 @@
 import { freeColor, freeze, fromBrush, groupMask, setIds, upgradeGroups, type Group } from "./groups";
 import { create } from "zustand";
 import { getPrefValue, setPref } from "../prefs";
-import { sweepApi, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type WireQuestion } from "./api";
+import { sweepApi, type MergeSpec, type Role, type Scale, type SweepColumn, type SweepOpened, type SweepSummary, type SweepTemplate, type TableRecipe, type WireQuestion } from "./api";
 import { decodeCol } from "./decode";
 import { emptyQuestion, emptyView, materialize, newGoal, upgradeQuestion, type Answer, type Condition, type Derived, type Filter, type GoalVariant, type Iteration, type LogEntry, type LogKind, type Question, type Tolerance, type View } from "./model";
 import { changes, entry, withEntry, withIteration } from "./journal";
@@ -17,6 +17,24 @@ export interface StudyColumn extends SweepColumn {
   guessRole: Role;
   guessScale: Scale;
 }
+
+/** A table of the study (the Data step, owner 2026-11-02): read from a file, or tables merged into
+ *  a new one. Each stays apart; the steps after Data work on one of them (`Study.use`). */
+export interface StudyTable {
+  id: string;
+  name: string;
+  /** how it was made, to make it again when a saved study opens ({} for rows handed over) */
+  recipe: TableRecipe | Record<string, never>;
+  /** what the server said when it opened: the columns, the first rows, the shape */
+  opened: SweepOpened;
+  /** made by merging tables of the study */
+  merged: boolean;
+}
+
+/** The files a table is read from (a merged table: its parts'), in order. */
+export const recipeFiles = (r: StudyTable["recipe"]): string[] =>
+  "merge" in r ? r.merge.parts.flatMap(recipeFiles) : "path" in r && r.path ? [r.path, ...(r.merged ?? []).map((m) => m.path)] : [];
+const baseName = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? p;
 
 export interface Study {
   /** the table on the server (it may have been dropped: open the path again) */
@@ -44,6 +62,35 @@ export interface Study {
   log: LogEntry[];
   /** the study after each table merged in: sets, holding, best (S08) */
   iterations: Iteration[];
+  /** the tables of the study, each apart (the Data step); `tableId` above is tables[use]'s */
+  tables: StudyTable[];
+  use: number;
+  /** the table in the Data step's middle, and those ticked to merge (ids) - not undone, not saved */
+  shown: number;
+  picked: string[];
+  /** columns to check after a template was applied (new to it: their role is a guess) - UI only */
+  toCheck?: string[];
+}
+
+/** What applying a template did (its summary to the user). */
+export interface TemplateResult {
+  matched: number; of: number; newColumns: string[];
+  /** new columns of the template not made, and the column each one misses */
+  skippedFormulas: { name: string; missing: string }[];
+  /** goal limits / objectives on columns this table lacks */
+  skippedLimits: number;
+}
+
+const FORMULA_WORDS = new Set(["abs", "sqrt", "exp", "log", "log10", "sin", "cos", "tan", "atan2", "sign", "floor", "ceil", "round",
+  "min", "max", "clip", "where", "isnan", "col", "pi", "e", "nan", "inf", "and", "or", "not"]);
+/** The columns a formula reads (names and col("...")), as far as a quick look can tell. */
+export function formulaColumns(expr: string): string[] {
+  const out = new Set<string>();
+  for (const m of expr.matchAll(/col\(\s*"([^"]*)"\s*\)|col\(\s*'([^']*)'\s*\)|"[^"]*"|'[^']*'|([A-Za-z_][A-Za-z0-9_]*)/g)) {
+    const name = m[1] ?? m[2] ?? m[3];
+    if (name !== undefined && !(m[3] !== undefined && FORMULA_WORDS.has(name))) out.add(name);
+  }
+  return [...out];
 }
 
 /** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
@@ -92,6 +139,10 @@ export interface SavedStudy {
   merged?: { path: string; prefer: "new" | "old" | "both" }[];
   log?: LogEntry[];
   iterations?: Iteration[];
+  /** every table of the study (2026-11-02; older studies: `path` and `merged`), and the one the
+   *  steps after Data work on */
+  tables?: { name: string; recipe: TableRecipe }[];
+  use?: number;
 }
 
 interface SweepsState {
@@ -109,6 +160,8 @@ interface SweepsState {
   /** the goal's "More options" open (for this session) */
   goalMore: boolean;
   setLeftHidden: (hidden: boolean) => void;
+  /** a narrow window: the side panel opened over the middle (it starts folded) */
+  narrowOpen: boolean;
   /** opening the studies of the last run again (autosave) */
   restoring: boolean;
   /** open the studies the app had open when it last ran; what could not be opened, and why */
@@ -116,6 +169,24 @@ interface SweepsState {
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => Promise<void>;
   saved: () => SavedStudy | null;
   merge: (path: string, prefer: "new" | "old" | "both") => Promise<{ added: number; replaced: number }>;
+  /** the Data step: another table into the study, apart (not merged) */
+  addTable: (path: string) => Promise<void>;
+  /** the ticked tables merged into a new one (the tables merged stay) */
+  mergeTables: (ids: string[], spec: MergeSpec) => Promise<void>;
+  /** a table out of the study (the last one closes the study) */
+  closeTable: (i: number) => void;
+  /** the table the steps after Data work on */
+  useTable: (i: number) => void;
+  setShown: (i: number) => void;
+  setPicked: (ids: string[]) => void;
+  /** the Data step: Table or Parallel plot - the same for every table (UI only) */
+  dataTab: "table" | "plot";
+  /** each table's parallel plot as it was left (axes, filters, colour, zoom): kept across the tabs */
+  rawViews: Record<string, RawView>;
+  setRawView: (id: string, v: RawView) => void;
+  /** each parallel plot's zoom (a Data table's by its id, the results' as "res:" + id): UI only */
+  zooms: Record<string, { k: number; x: number; y: number }>;
+  setZoom: (key: string, z: { k: number; x: number; y: number }) => void;
   /** take the i-th merged table out again (1: the first one merged in) */
   unmerge: (i: number) => Promise<void>;
   narrow: (kind: "keep" | "exclude", sets: number[], key: string) => void;
@@ -133,7 +204,7 @@ interface SweepsState {
   templates: SweepTemplate[];
   loadTemplates: () => Promise<void>;
   saveTemplate: (name: string) => Promise<void>;
-  applyTemplate: (name: string) => void;
+  applyTemplate: (name: string) => TemplateResult | null;
   deleteTemplate: (name: string) => Promise<void>;
   /** a template from a file (exported here or by a colleague); its name as kept */
   importTemplate: (path: string) => Promise<string>;
@@ -160,6 +231,8 @@ interface SweepsState {
   removeCondition: (i: number) => void;
   addDerived: (d: Derived) => void;
   removeDerived: (i: number) => void;
+  /** a new column changed (its name, formula or operation) */
+  replaceDerived: (i: number, d: Derived) => void;
   // the view
   setView: (patch: Partial<View>) => void;
   /** MF00: the brush (the axes' filters) as a new group - a live rule, or frozen ids */
@@ -176,6 +249,14 @@ interface SweepsState {
   // the answer
   evaluate: () => void;
   exportRerun: (path: string) => Promise<{ path: string; rows: number }>;
+}
+
+/** A table's parallel plot in the Data step, as the user left it. */
+export interface RawView {
+  axes: string[]; filters: Record<string, Filter>; colorBy: string | null;
+  scales: Record<string, Scale>; reversed: Record<string, boolean>;
+  /** the run picked (a line clicked): marked in the Table too */
+  picked?: number | null;
 }
 
 /** The roles and scales the user gave a table with these column names, remembered for the next one. */
@@ -235,8 +316,26 @@ function withNewOptAxes(axes: string[], prev: Answer | null, a: Answer): string[
 export function savedOf(s: Study): SavedStudy {
   const { pinned: _p, ...view } = s.view;
   void _p;
+  // the tables that can be made again (rows handed over cannot)
+  const kept = s.tables.filter((x) => recipeFiles(x.recipe).length);
+  const use = Math.max(0, kept.indexOf(s.tables[s.use]));
   return { kind: "signalviewer-sweep", version: 1, path: s.path, columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
-    question: s.question, view, merged: s.merged, log: s.log, iterations: s.iterations };
+    question: s.question, view, merged: s.merged, log: s.log, iterations: s.iterations,
+    tables: kept.map((x) => ({ name: x.name, recipe: x.recipe as TableRecipe })), use };
+}
+
+/** A study working on another of its tables: the same question; the roles of columns it had kept
+ *  (by name - `from`, else the study's), the others guessed; the sets are numbered anew. */
+function onTable(s: Study, i: number, from?: Record<string, { role: Role; scale: Scale }>): Study {
+  const tb = s.tables[i], r = tb.opened;
+  const by = from ?? Object.fromEntries(s.columns.map((c) => [c.name, { role: c.role, scale: c.scale }]));
+  const mem = getPrefValue<Record<string, { role: Role; scale: Scale }>>(memoryKey(r.columns)) ?? {};
+  const columns: StudyColumn[] = r.columns.map((c) => ({ ...c, guessRole: c.role, guessScale: c.scale,
+    role: by[c.name]?.role ?? mem[c.name]?.role ?? c.role, scale: by[c.name]?.scale ?? mem[c.name]?.scale ?? c.scale }));
+  const files = recipeFiles(tb.recipe).map(baseName);
+  return { ...s, tableId: tb.id, use: i, rows: r.rows, head: r.head, summary: r.summary, seconds: r.seconds, columns,
+    sources: files.length ? files : [tb.name], answer: null, changed: false,
+    view: { ...s.view, scope: { key: "", steps: [] }, pinned: null }, history: emptyHistory() };
 }
 
 let timer = 0;
@@ -273,7 +372,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
   const refreshSummary = () => {
     const s = get().studies[get().active];
     if (!s) return;
-    sweepApi.summary(s.tableId, wireQuestion(s).roles)
+    sweepApi.summary(s.tableId, wireQuestion(s).roles, s.question.holdValues)
       .then((summary) => patch((x) => (x.tableId === s.tableId ? { ...x, summary } : x), false))
       .catch((e) => set({ error: (e as Error).message }));
   };
@@ -292,7 +391,9 @@ export const useSweeps = create<SweepsState>((set, get) => {
       // a saved study goes on with its journal; a table opened now starts one
       // a saved study goes on with its journal; a table opened now starts an empty one (opening it
       // is not a step of the analysis: Where it comes from names the tables)
-      log: saved?.log ?? [], iterations: saved?.iterations ?? [] };
+      log: saved?.log ?? [], iterations: saved?.iterations ?? [],
+      tables: [{ id: r.id, name: r.name, recipe: r.recipe ?? (r.path ? { path: r.path } : {}), opened: r, merged: !!r.recipe && "merge" in r.recipe }],
+      use: 0, shown: 0, picked: [] };
     // the table always opens; with no parameter column yet, the columns come first - say which they are
     if (!columns.some((c) => c.role === "param")) study.view = { ...study.view, left: "columns" };
     if (!saved) study.offer = get().templates.find((t) => fits(t, columns))?.name ?? null;
@@ -303,6 +404,22 @@ export const useSweeps = create<SweepsState>((set, get) => {
   /** open a table as a new study (and merge what a saved study merged); throws what went wrong */
   const openOne = async (path: string, saved?: SavedStudy) => {
     if (!get().templates.length) await get().loadTemplates();
+    if (saved?.tables?.length) {
+      // a study saved with its tables (2026-11-02): each made again from its recipe, the one in use last
+      const [first, ...rest] = saved.tables;
+      add(await sweepApi.build(first.recipe, first.name), saved);
+      for (const x of rest) {
+        const r = await sweepApi.build(x.recipe, x.name);
+        patch((s) => ({ ...s, tables: [...s.tables, { id: r.id, name: x.name, recipe: x.recipe, opened: r, merged: "merge" in x.recipe }] }), false);
+      }
+      const use = Math.max(0, Math.min((saved.use ?? 0), saved.tables.length - 1));
+      if (use) {
+        patch((s) => onTable({ ...s, shown: use }, use, Object.fromEntries(saved.columns.map((c) => [c.name, c]))), false);
+        refreshSummary();
+        get().evaluate();
+      }
+      return;
+    }
     const r = await sweepApi.open(path);
     add(r, saved);
     for (const m of saved?.merged ?? []) await get().merge(m.path, m.prefer);
@@ -322,6 +439,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     templatesOpen: false,
     leftHidden: getPrefValue<boolean>("sv3.swLeftHidden") === true,
     goalMore: false,
+    narrowOpen: false,
     setLeftHidden: (hidden) => { setPref("sv3.swLeftHidden", hidden); set({ leftHidden: hidden }); },
     restoring: false,
     reopenLast: async () => {
@@ -362,6 +480,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
       // the sets are numbered anew: what undo kept points at other sets
       patch((x) => (x.tableId !== s.tableId ? x : forget({ ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
         merged: [...x.merged, { path, prefer }], view: { ...x.view, scope: { key: "", steps: [] }, pinned: null },
+        tables: x.tables.map((tb, j) => (j !== x.use || !("path" in tb.recipe) ? tb
+          : { ...tb, opened: { ...tb.opened, ...r }, recipe: { path: tb.recipe.path, merged: [...(tb.recipe.merged ?? []), { path, keys, prefer }] } })),
         log: withEntry(x.log, entry("merge", { name: path, added: r.added, replaced: r.replaced })) })), false);
       refreshSummary();
       get().evaluate();
@@ -379,10 +499,57 @@ export const useSweeps = create<SweepsState>((set, get) => {
       });
       patch((x) => (x.tableId !== s.tableId ? x : forget({ ...x, columns, rows: r.rows, head: r.head, sources: r.sources,
         merged: x.merged.filter((_, j) => j !== i - 1), view: { ...x.view, scope: { key: "", steps: [] }, pinned: null },
+        tables: x.tables.map((tb, j) => (j !== x.use || !("path" in tb.recipe) ? tb
+          : { ...tb, opened: { ...tb.opened, ...r }, recipe: { path: tb.recipe.path, merged: (tb.recipe.merged ?? []).filter((mm) => mm.path !== m.path) } })),
         log: withEntry(x.log, entry("unmerge", { name: m.path })), iterations: x.iterations.filter((it) => it.n <= x.merged.length) })), false);
       refreshSummary();
       get().evaluate();
     },
+    addTable: async (path) => {
+      const r = await sweepApi.open(path);
+      patch((s) => ({ ...s, shown: s.tables.length,
+        tables: [...s.tables, { id: r.id, name: r.name, recipe: r.recipe ?? { path: r.path }, opened: r, merged: false }],
+      }), false);
+    },
+    mergeTables: async (ids, spec) => {
+      const s = get().studies[get().active];
+      const n = s.tables.filter((x) => x.merged).length;
+      const name = `merged (${ids.length} tables)${n ? ` ${n + 1}` : ""}`;
+      const r = await sweepApi.combine(ids, spec, name);
+      patch((x) => (x.tableId !== s.tableId ? x : { ...x, shown: x.tables.length, picked: [],
+        tables: [...x.tables, { id: r.id, name: r.name, recipe: r.recipe ?? {}, opened: r, merged: true }],
+        log: withEntry(x.log, entry("merge", { name: spec.names.join(" + "), added: r.rows, replaced: 0 })) }), false);
+    },
+    closeTable: (i) => {
+      const s = get().studies[get().active];
+      const tb = s?.tables[i];
+      if (!tb) return;
+      if (s.tables.length === 1) { get().close(get().active); return; }
+      sweepApi.drop(tb.id).catch(() => { /* already gone */ });
+      const left = { ...s, tables: s.tables.filter((_, j) => j !== i), picked: s.picked.filter((x) => x !== tb.id) };
+      const fix = (k: number) => (k > i ? k - 1 : k === i ? 0 : k);
+      const firstFile = left.tables.find((x) => "path" in x.recipe && x.recipe.path);
+      const next: Study = { ...left, shown: fix(s.shown), use: fix(s.use),
+        // the study's own file is the first one still in it (the follow / save checks)
+        path: i === 0 ? (firstFile && "path" in firstFile.recipe ? firstFile.recipe.path : "") : s.path,
+        merged: i === 0 ? [] : s.merged };
+      patch(() => (i === s.use ? onTable(next, next.use) : next), false);
+      if (i === s.use) { refreshSummary(); get().evaluate(); }
+    },
+    useTable: (i) => {
+      const s = get().studies[get().active];
+      if (!s || i === s.use || !s.tables[i]) return;
+      patch((x) => onTable(x, i), false);
+      refreshSummary();
+      get().evaluate();
+    },
+    setShown: (i) => patch((x) => ({ ...x, shown: i }), false),
+    setPicked: (ids) => patch((x) => ({ ...x, picked: ids }), false),
+    dataTab: "table",
+    rawViews: {},
+    setRawView: (id, v) => set((st) => ({ rawViews: { ...st.rawViews, [id]: v } })),
+    zooms: {},
+    setZoom: (key, z) => set((st) => ({ zooms: { ...st.zooms, [key]: z } })),
     narrow: (kind, sets, key) => patchV((v) => ({ ...v, filters: {}, pinned: null,
       scope: { key, steps: [...(v.scope.key === key ? v.scope.steps : []), { kind, sets }] } })),
     journal: (kind, args) => patch((x) => ({ ...x, log: withEntry(x.log, entry(kind, args)) }), false),
@@ -430,33 +597,61 @@ export const useSweeps = create<SweepsState>((set, get) => {
       const { pinned: _p, filters: _f, rerun: _r, scope: _s, next, ...rest } = s.view;
       void _p; void _f; void _r; void _s;
       const view = { ...rest, ...(next ? { next: { focus: next.focus, kinds: next.kinds, budget: next.budget } } : {}) };
+      // every value of each condition, as known now: a value new to the template is then kept (not dropped)
+      const holdAll = Object.fromEntries(s.columns.filter((c) => c.role === "hold" && c.values).map((c) => [c.name, c.values!]));
       const r = await sweepApi.saveTemplate(name, { columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
-        question: { ...s.question, exclude: [] }, view });
+        question: { ...s.question, exclude: [], holdAll }, view });
       set({ templates: r.templates });
       patch((x) => ({ ...x, offer: null }), false);
     },
     applyTemplate: (name) => {
       const t = get().templates.find((x) => x.name === name);
-      if (!t) return;
+      if (!t) return null;
       const roles = new Map(t.columns.map((c) => [c.name, c]));
+      let res: TemplateResult | null = null;
       patch((s) => {
         const columns = s.columns.map((c) => { const r = roles.get(c.name); return r ? { ...c, role: r.role, scale: r.scale } : c; });
         const have = new Set(columns.map((c) => c.name));
-        const q = { ...upgradeQuestion(t.question as Partial<Question>), exclude: [] };
-        // keep only what this table can answer: conditions and goals on columns it has (or new columns)
-        const derived = new Set(q.derived.map((d) => d.name));
-        const ok = (c: string) => have.has(c) || derived.has(c);
-        const question: Question = materialize({ ...q,
-          goals: q.goals.map((g) => ({ ...g, conditions: g.conditions.filter((c) => ok(c.column)), optimize: g.optimize.filter((o) => ok(o.column)) })),
-          removed: q.removed.filter((c) => have.has(c)),
-          holdValues: Object.fromEntries(Object.entries(q.holdValues).filter(([k]) => have.has(k))),
+        const raw = t.question as Partial<Question> & { holdAll?: Record<string, (string | number)[]> };
+        const q = { ...upgradeQuestion(raw), exclude: [] };
+        // new columns whose formula reads a column this table lacks are not made (and said)
+        const skippedFormulas: TemplateResult["skippedFormulas"] = [];
+        const madeNames = new Set<string>();
+        const derived = q.derived.filter((d) => {
+          const reads = d.kind === "row" ? formulaColumns(d.expr) : [d.column];
+          const missing = reads.find((c) => !have.has(c) && !madeNames.has(c));
+          if (missing) { skippedFormulas.push({ name: d.name, missing }); return false; }
+          madeNames.add(d.name);
+          return true;
+        });
+        const ok = (c: string) => have.has(c) || madeNames.has(c);
+        let skippedLimits = 0;
+        const goals = q.goals.map((g) => {
+          const conditions = g.conditions.filter((c) => ok(c.column)), optimize = g.optimize.filter((o) => ok(o.column));
+          skippedLimits += g.conditions.length - conditions.length + g.optimize.length - optimize.length;
+          return { ...g, conditions, optimize };
+        });
+        // a condition's kept values: those saved that are here, and the values new to the template
+        const holdValues: Question["holdValues"] = {};
+        for (const [k, kept] of Object.entries(q.holdValues)) {
+          const col = columns.find((c) => c.name === k);
+          if (!col || !kept.length) continue;
+          const now = col.values ?? [], known = new Set((raw.holdAll?.[k] ?? kept).map(String)), keep = new Set(kept.map(String));
+          const next = now.filter((v) => keep.has(String(v)) || !known.has(String(v)));
+          holdValues[k] = next.length === now.length ? [] : next;
+        }
+        const question: Question = materialize({ ...q, derived, goals,
+          removed: q.removed.filter((c) => have.has(c)), holdValues,
           robust: q.robust && Object.fromEntries(Object.entries(q.robust).filter(([k]) => have.has(k))) });
-        const n = { ...s, columns, question, view: { ...emptyView(), ...(t.view as Partial<View>), pinned: null, filters: {}, rerun: [] }, offer: null };
+        const newColumns = columns.filter((c) => !roles.has(c.name)).map((c) => c.name);
+        res = { matched: columns.length - newColumns.length, of: columns.length, newColumns, skippedFormulas, skippedLimits };
+        const n = { ...s, columns, question, view: { ...emptyView(), ...(t.view as Partial<View>), pinned: null, filters: {}, rerun: [] }, offer: null, toCheck: newColumns };
         remember(n);
         return n;
       }, true, entry("template", { name }));
       refreshSummary();
       get().evaluate();
+      return res;
     },
     importTemplate: async (path) => {
       const r = await sweepApi.importTemplate(path);
@@ -484,10 +679,14 @@ export const useSweeps = create<SweepsState>((set, get) => {
       get().evaluate();
     },
 
-    close: (i) => set((st) => ({ studies: st.studies.filter((_, j) => j !== i), active: Math.max(0, Math.min(st.active, st.studies.length - 2)) })),
+    close: (i) => {
+      for (const tb of get().studies[i]?.tables ?? []) sweepApi.drop(tb.id).catch(() => { /* already gone */ });
+      set((st) => ({ studies: st.studies.filter((_, j) => j !== i), active: Math.max(0, Math.min(st.active, st.studies.length - 2)) }));
+    },
 
     setRole: (column, role) => {
-      patch((s) => { const n = { ...s, columns: s.columns.map((c) => (c.name === column ? { ...c, role } : c)) }; remember(n); return n; });
+      patch((s) => { const n = { ...s, columns: s.columns.map((c) => (c.name === column ? { ...c, role } : c)),
+        toCheck: s.toCheck?.filter((x) => x !== column) }; remember(n); return n; });
       refreshSummary();
       ask();
     },
@@ -517,7 +716,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
       });
       if (p.goal) patchV((v) => (v.axes.includes("#goal") ? v : { ...v, axes: [...v.axes, "#goal"], colorBy: v.colorBy ?? "#holds" }));
     },
-    setHoldValues: (column, values) => patchQ((q) => ({ ...q, holdValues: { ...q.holdValues, [column]: values } })),
+    setHoldValues: (column, values) => { patchQ((q) => ({ ...q, holdValues: { ...q.holdValues, [column]: values } })); refreshSummary(); },
     addCondition: (c) => patchG((g) => ({ ...g, conditions: [...g.conditions, c] })),
     updateCondition: (i, p) => patchG((g) => ({ ...g, conditions: g.conditions.map((c, j) => (j === i ? { ...c, ...p } : c)) })),
     removeCondition: (i) => patchG((g) => ({ ...g, conditions: g.conditions.filter((_, j) => j !== i) })),
@@ -541,6 +740,12 @@ export const useSweeps = create<SweepsState>((set, get) => {
     }),
     addDerived: (d) => { patchQ((q) => ({ ...q, derived: [...q.derived, d] })); patchV((v) => ({ ...v, axes: [...v.axes, d.name] })); },
     removeDerived: (i) => patchQ((q) => ({ ...q, derived: q.derived.filter((_, j) => j !== i) })),
+    replaceDerived: (i, d) => {
+      const old = get().studies[get().active]?.question.derived[i];
+      patchQ((q) => ({ ...q, derived: q.derived.map((x, j) => (j === i ? d : x)) }));
+      // a renamed column keeps its axis
+      if (old && old.name !== d.name) patchV((v) => ({ ...v, axes: v.axes.map((a) => (a === old.name ? d.name : a)) }));
+    },
 
     setView: (p) => patchV((v) => ({ ...v, ...p }), p.mode !== undefined),
     saveGroup: (frozen, name) => {
@@ -632,7 +837,7 @@ useSweeps.subscribe((st, prev) => {
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     const now = useSweeps.getState();
-    const kept = now.studies.filter((s) => s.path);
+    const kept = now.studies.filter((s) => s.path || s.tables.some((x) => recipeFiles(x.recipe).length));
     const doc: AutosaveDoc = { version: 1, active: Math.max(0, kept.indexOf(now.studies[now.active])), studies: kept.map(savedOf) };
     const text = JSON.stringify(doc);
     if (text === lastSaved) return;

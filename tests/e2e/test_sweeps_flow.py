@@ -24,6 +24,25 @@ def _bar_menu(pg, button, item):
     pg.locator(".menu.ctx button", has_text=item).first.click()
 
 
+def _close_studies(pg):
+    """Every study closed (its tab's ×): the welcome page."""
+    while pg.locator(".areabar .tab").count():
+        n = pg.locator(".areabar .tab").count()
+        pg.locator(".areabar .tab .x").first.click()
+        pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n - 1}")
+    pg.wait_for_selector(".sw-welcome")
+
+
+def _merged_example(pg):
+    """The example's two sweeps, each a table, merged into a third one the next steps work on."""
+    _to_sweeps(pg)
+    _close_studies(pg)
+    pg.locator(".sw-welcome .btn", has_text="two sweeps, merged").click()
+    pg.wait_for_selector(".sw-steps")
+    pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 3")
+    pg.wait_for_function("document.querySelector('.sw-continue select').value === '2'")
+
+
 def _fresh(pg):
     """The example, from the start: its first step, no goals, the guessed roles."""
     _to_sweeps(pg)
@@ -115,12 +134,30 @@ def test_raw_results_table_and_plot(pg, tmp_path):
     pg.locator(".sw-center-tabs button", has_text="Parallel plot").click()
     pg.wait_for_selector(".pp canvas")
     assert "810 of 810" in pg.locator(".sw-plotbar .sw-count").inner_text()
-    # the plot alone, to play with
-    pg.locator(".sw-plotbar .btn", has_text="Export the plot").click()
+    # zoom: the buttons (and the wheel); kept when the tab changes
+    pg.locator(".sw-zoom button[aria-label^='Zoom in']").click()
+    pg.wait_for_function("document.querySelector('.pp canvas')?.dataset.zoom === '1.25'")
+    pg.locator(".sw-center-tabs button", has_text="Table").click()
+    pg.locator(".sw-center-tabs button", has_text="Parallel plot").click()
+    pg.wait_for_function("document.querySelector('.pp canvas')?.dataset.zoom === '1.25'")
+    # a click on a column's name colours by it
+    pg.locator(".pp-axis-name", has_text="energy_wh").click()
+    pg.wait_for_selector(".sw-plotbar .hint:has-text('energy_wh')")
+    # the table to a file: the save dialog at once, HTML first on the plot's tab - the plot as it was
+    pg.locator(".sw-table-item button[aria-label^='Export as CSV or HTML']").click()
+    assert pg.locator(".savename select").input_value() == "1"
     save_as(pg, "raw_plot.html")
     pg.wait_for_selector(".toast:has-text('raw_plot.html')")
     html = open(os.path.join(pg.env["out"], "raw_plot.html"), encoding="utf-8").read()
-    assert "<canvas" in html and "kp_roll" in html
+    assert "<canvas" in html and "kp_roll" in html and '"colorBy": "energy_wh"' in html and '"k": 1.25' in html
+    pg.locator(".sw-zoom .btn", has_text="Reset zoom").click()
+    pg.wait_for_function("document.querySelector('.pp canvas')?.dataset.zoom === '1.00'")
+    pg.locator(".sw-center-tabs button", has_text="Table").click()
+    pg.locator(".sw-table-item button[aria-label^='Export as CSV or HTML']").click()
+    assert pg.locator(".savename select").input_value() == "0"
+    save_as(pg, "raw.csv")
+    pg.wait_for_selector(".toast:has-text('raw.csv')")
+    assert len(open(os.path.join(pg.env["out"], "raw.csv")).read().splitlines()) == 811
 
 
 def test_clean_scenarios_and_parameters(pg):
@@ -139,7 +176,7 @@ def test_clean_scenarios_and_parameters(pg):
     radio("ki_roll", "hold").check()                                                 # what if ki were a scenario
     pg.wait_for_function("[...document.querySelectorAll('.sw-shape .sw-stat')].some(e => e.innerText.includes('Combinations') && e.innerText.includes('54'))")
     assert stat("Parameter sets") == "15"
-    pg.locator(".sw-side-step .linklike", has_text="Back to the guessed roles").click()
+    pg.locator(".sw-toolrow .btn", has_text="Reset to guessed roles").click()
     pg.wait_for_function("[...document.querySelectorAll('.sw-shape .sw-stat')].some(e => e.innerText.includes('Combinations') && e.innerText.includes('18'))")
 
 
@@ -197,7 +234,8 @@ def test_results_filter_keep_exclude_export_and_why(pg):
 def test_new_column_in_the_cleaning_step(pg):
     _fresh(pg)
     _step(pg, "roles")
-    pg.locator(".sw-side-step .btn", has_text="per parameter set").click()
+    pg.locator(".sw-fold .btn", has_text="Add").click()                            # the form opens only on + Add
+    pg.locator(".sw-seg button", has_text="per parameter set").click()
     pg.locator(".sw-derived-editor input").first.fill("energy_strong_max")
     pg.select_option(".sw-derived-editor select[aria-label='Operation']", "max")
     pg.select_option(".sw-derived-editor select[aria-label='Of the column']", "energy_wh")
@@ -247,18 +285,12 @@ def test_save_reopen_and_close(pg):
     pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n + 1}")
     assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "3"              # where it was saved: the goal
     pg.wait_for_function("document.querySelectorAll('.sw-limit-met').length === 2")
-    _bar_menu(pg, "Study", "Close this table")
+    pg.locator(".areabar .tab.active .x").click()
     pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n}")
 
 
 def test_two_sweeps_merged(pg):
-    _to_sweeps(pg)
-    while pg.locator(".areabar .tab").count():
-        _bar_menu(pg, "Study", "Close this table")
-    pg.wait_for_selector(".sw-welcome")
-    pg.locator(".sw-welcome .btn", has_text="two sweeps, merged").click()
-    pg.wait_for_selector(".sw-steps")
-    pg.wait_for_function("document.querySelectorAll('.sw-hide-box .sw-tag').length === 2")
+    _merged_example(pg)
     _step(pg, "roles")
     pg.wait_for_function("+[...document.querySelectorAll('.sw-shape .sw-stat')].find(e => e.innerText.includes('Parameter sets')).querySelector('.sw-stat-value').innerText > 45")
 
@@ -314,7 +346,8 @@ def test_a_sets_recordings_open_in_recordings(pg, tmp_path):
     (tmp_path / "with_recordings.csv").write_text("\n".join(rows) + "\n")
     _open_table(pg, tmp_path, "with_recordings.csv")
     _step(pg, "roles")
-    assert pg.locator("input[aria-label='recording: recording']").is_checked()
+    assert pg.locator("input[aria-label='recording: ident']").is_checked()
+    assert pg.locator(".sw-ident-kind").input_value() == "recording"
     pg.locator("input[aria-label='scenario: hold']").check()
     _step(pg, "results")
     pg.locator(".sw-table tbody tr").first.click()
@@ -347,14 +380,11 @@ def test_follow_the_file_and_templates(pg, tmp_path):
 
 
 def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
-    _to_sweeps(pg)
-    while pg.locator(".areabar .tab").count():
-        _bar_menu(pg, "Study", "Close this table")
-    pg.locator(".sw-welcome .btn", has_text="two sweeps, merged").click()
-    pg.wait_for_function("document.querySelectorAll('.sw-hide-box .sw-tag').length === 2")
-    pg.locator(".sw-tag-x").first.click()                                          # the merged table out again
-    pg.wait_for_function("document.querySelectorAll('.sw-hide-box .sw-tag').length === 1")
-    assert "810 runs" in pg.locator(".sw-step-btn").nth(0).inner_text()
+    _merged_example(pg)
+    pg.locator(".sw-table-item").nth(2).locator("button[aria-label^='Close']").click()   # the merged table out again
+    pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 2")
+    pg.wait_for_function("document.querySelector('.sw-step-btn').innerText.includes('810 runs')")   # back on the first table
+    pg.locator(".sw-table-item .sw-table-name").first.click()
     # the raw table: only the outputs
     pg.locator(".sw-raw .sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop .linklike", has_text="Outputs only").click()
@@ -375,7 +405,7 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
     names = [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
-    assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6
+    assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6, names
 
 
 def test_a_goals_weight_is_its_own_and_template_saved_says_so(pg):
@@ -671,10 +701,15 @@ def test_the_whole_process_in_the_report(pg):
     pg.wait_for_selector(".sw-table th:has-text('worst')")
     # a second iteration: the finer sweep merged in
     _step(pg, "raw")
-    pg.locator(".sw-side-step .btn", has_text="Add a table (merge)").click()
+    pg.locator(".sw-tables .btn", has_text="Add table").click()
     goto_folder(pg, ex)
     pg.locator(".dialog .fs-row", has_text="drone_tuning_refine.csv").click(); pg.click(".dialog-foot .btn.primary")
-    pg.wait_for_selector(".toast:has-text('Merged')")
+    pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 2")
+    for box in pg.locator(".sw-table-item input[type=checkbox]").all():
+        box.check()
+    pg.locator(".sw-merge .btn", has_text="Create merged table").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 3")
+    pg.locator(".sw-continue select").select_option("2")
     _step(pg, "report")
     j = pg.locator(".sw-journal").first
     pg.wait_for_function("document.querySelectorAll('.sw-iterations li').length === 2")      # two iterations

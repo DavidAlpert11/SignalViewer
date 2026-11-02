@@ -49,6 +49,7 @@ export default function FileBrowser() {
   const [picked, setPicked] = useState<string[]>([]);
   const [withOptions, setWithOptions] = useState(false);
   const [name, setName] = useState("");
+  const [typeAt, setTypeAt] = useState(0);              // save: the "Save as type" chosen
   const [error, setError] = useState("");
   const [hidden, setHidden] = useState(0);              // files of other types in this folder
   const [places, setPlaces] = useState<FsPlaces | null>(null);
@@ -110,6 +111,7 @@ export default function FileBrowser() {
       setPath(""); setTyped(""); setEntries([]); setSugg([]); setFilter("");   // not the previous open's folder, even for a moment
       api.places().then(setPlaces).catch(() => setPlaces(null));        // T24: the side column
       navigated.current = false; userTyped.current = false; listed.current = null; setWithOptions(false); go(startFolder(picker), true); setName(picker?.defaultName ?? "");
+      setTypeAt(Math.max(0, Math.min((picker?.types?.length ?? 1) - 1, picker?.type ?? 0)));
       if (!picker) refreshRecent();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,7 +147,7 @@ export default function FileBrowser() {
         const n = nameNow.trim();
         if (!n) return;
         let full = /^([a-zA-Z]:)?[\\/]/.test(n) ? n : `${path.replace(/[\\/]$/, "")}${sep}${n}`;
-        const ext = picker.exts?.[0];
+        const ext = picker.types?.[typeAt]?.ext ?? picker.exts?.[0];
         if (ext && !full.toLowerCase().endsWith(ext)) full += ext;
         close(full);
       } else if (paths[0]) close(paths[0]);
@@ -374,6 +376,15 @@ export default function FileBrowser() {
           {saving ? (
             <label className="savename"><span>{t("fileName")}</span>
               <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") confirm(picked, (e.target as HTMLInputElement).value); }} />
+              {picker?.types && picker.types.length > 1 && <>
+                <span>{t("saveAsType")}</span>
+                <select aria-label={t("saveAsType")} value={typeAt} onChange={(e) => {
+                  const i = Number(e.target.value), types = picker.types!;
+                  // the name follows the type: its extension is swapped for the new one
+                  const old = types.find((x) => name.toLowerCase().endsWith(x.ext));
+                  setTypeAt(i); setName(old ? name.slice(0, -old.ext.length) + types[i].ext : name);
+                }}>{picker.types.map((x, i) => <option key={x.ext} value={i}>{x.label}</option>)}</select>
+              </>}
             </label>
           ) : !picker ? (
             <label style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--muted)" }}>

@@ -414,6 +414,29 @@ def _col_json(a: Dict, name: str) -> Dict:
     return {"kind": "cat", "labels": labels, "v": [at[str(x)] for x in v]}
 
 
+def init_view(a: Dict, view: Dict) -> Dict:
+    """The plot as it was on screen, for the page to start from: the colour column, the filters (a
+    category's values as its labels' places) and the zoom."""
+    view = view or {}
+    filters: Dict[str, List[List[float]]] = {}
+    for name, f in (view.get("filters") or {}).items():
+        if name not in a["data"] or not isinstance(f, dict):
+            continue
+        c = _col_json(a, name)
+        if f.get("kind") == "ranges":
+            filters[name] = [[float(lo), float(hi)] for lo, hi in f.get("ranges") or []]
+        elif f.get("kind") == "values":
+            if c["kind"] == "cat":
+                at = {x: i for i, x in enumerate(c["labels"])}
+                filters[name] = [[at[str(v)], at[str(v)]] for v in f.get("values") or [] if str(v) in at]
+            else:
+                filters[name] = [[float(v), float(v)] for v in f.get("values") or [] if isinstance(v, (int, float))]
+    color = view.get("colorBy")
+    z = view.get("zoom") or {}
+    return {"filters": filters, "colorBy": color if color in a["data"] else None,
+            "zoom": {"k": float(z.get("k", 1)), "x": float(z.get("x", 0)), "y": float(z.get("y", 0))}}
+
+
 def _esc(s: str) -> str:
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
@@ -435,7 +458,8 @@ def _html(a: Dict, req: Dict, figs: List[Tuple[str, str, bytes]]) -> str:
             "axes": [x for x in (req.get("axes") or []) if x in a["data"]],
             "table": [c for c in (req.get("columns") or []) if c in a["data"]],
             "rows": rows_of(a, req) if req.get("rows") is not None else None,
-            "n": int(len(a["data"]["#holds"])), "ui": {k: L.get(k, k) for k in ("#shown", "#clear", "#hint", "#best", "#colour", "#holdsKey")}}
+            "n": int(len(a["data"]["#holds"])), "ui": {k: L.get(k, k) for k in ("#shown", "#clear", "#hint", "#best", "#colour", "#holdsKey", "#resetZoom")},
+            "init": req.get("init") or {}}
     sec = "".join(f"<h2>{_esc(s.get('title', ''))}</h2><ul>{''.join(f'<li>{_esc(x)}</li>' for x in s.get('items') or [])}</ul>"
                   for s in _sections(req))
     summary = "".join(f"<tr><td>{_esc(k)}</td><td>{_esc(v)}</td></tr>" for k, v in (req.get("summary") or []))
@@ -474,16 +498,22 @@ button.b{border:1px solid #ccd;background:#fff;border-radius:6px;padding:4px 10p
 <h2>{{answer}}</h2><table>{{summary}}</table>
 {{sections}}
 <h2>{{plotTitle}}</h2>
-<div class="bar"><span id="count" class="muted"></span><button class="b" id="clear"></button><span class="muted" id="hint"></span><span id="key"></span></div>
+<div class="bar"><span id="count" class="muted"></span><button class="b" id="clear"></button><span class="muted" id="hint"></span><span id="key"></span>
+<span style="flex:1"></span><button class="b" id="zin" aria-label="+">+</button><button class="b" id="zout" aria-label="-">&minus;</button><button class="b" id="zreset"></button></div>
 <div id="wrap"><canvas id="cv" height="420"></canvas></div>
 <h2>{{best}}</h2><div id="tw"><table id="tb"></table></div>
 {{images}}
 <script>
 const D={{data}};
 const cv=document.getElementById('cv'),wrap=document.getElementById('wrap'),ctx=cv.getContext('2d');
-const T=40,B=34,PX=60,H=420,N=D.n;let W=900,filters={},colorBy='#holds',brush=null;
+const T=40,B=34,PX=60,H=420,N=D.n;let W=900,filters={},colorBy='#holds',brush=null,pan=null;
+const I=D.init||{};if(I.filters)filters=JSON.parse(JSON.stringify(I.filters));if('colorBy' in I&&I.colorBy)colorBy=I.colorBy;
+let Z=Object.assign({k:1,x:0,y:0},I.zoom||{});
 const rtl=document.dir==='rtl';
 document.getElementById('clear').textContent=D.ui['#clear'];document.getElementById('hint').textContent=D.ui['#hint'];
+document.getElementById('zreset').textContent=D.ui['#resetZoom']||'Reset zoom';
+function toPlot(x,y){return[(x-Z.x)/Z.k,(y-Z.y)/Z.k]}
+function zoomAt(f,x,y){const k=Math.max(1,Math.min(40,Z.k*f));Z.x=x-(x-Z.x)*k/Z.k;Z.y=y-(y-Z.y)*k/Z.k;Z.k=k;if(k===1){Z.x=0;Z.y=0}draw()}
 function col(n){return D.cols[n]}
 function scale(n){const c=col(n);if(c.kind==='cat'){const k=c.labels.length;return v=>v==null?NaN:(v+.5)/k}
  let lo=Infinity,hi=-Infinity;for(const v of c.v)if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v)}if(!(hi>lo)){lo-=1;hi+=1}return v=>v==null?NaN:(v-lo)/(hi-lo)}
@@ -495,6 +525,7 @@ const PAL=['#2f6fd0','#e8961e','#8e5cd9','#1a9e6a','#d64550','#2bb0b8','#b08a2e'
 function colour(i){if(!colorBy)return'#e8961e';const c=col(colorBy),v=c.v[i];if(colorBy==='#holds'||colorBy==='#pareto')return v===1?'#e8961e':'#8a96a6';
  if(c.kind==='cat')return v==null?'#999':PAL[v%PAL.length];return ramp(scale(colorBy)(v))}
 function draw(){W=wrap.clientWidth;const dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+ ctx.setTransform(dpr*Z.k,0,0,dpr*Z.k,dpr*Z.x,dpr*Z.y);
  const h=H-T-B,sc=D.axes.map(scale);const y=(k,i)=>{const t=sc[k](col(D.axes[k]).v[i]);return isFinite(t)?T+(1-t)*h:H-10};
  let shown=0;const keep=new Uint8Array(N);for(let i=0;i<N;i++)if(keeps(i)){keep[i]=1;shown++}
  ctx.globalAlpha=.15;ctx.strokeStyle='#ccd';ctx.beginPath();for(let i=0;i<N;i++)if(!keep[i]){ctx.moveTo(ax(0),y(0,i));for(let k=1;k<D.axes.length;k++)ctx.lineTo(ax(k),y(k,i))}ctx.stroke();
@@ -508,17 +539,21 @@ function draw(){W=wrap.clientWidth;const dpr=window.devicePixelRatio||1;cv.width
  names();rows(keep)}
 function fmt(v){if(v==null||!isFinite(v))return'–';const a=Math.abs(v);return a&&(a>=1e6||a<1e-3)?v.toExponential(2):String(+v.toPrecision(4))}
 function names(){wrap.querySelectorAll('.ax').forEach(e=>e.remove());D.axes.forEach((n,k)=>{const b=document.createElement('button');b.className='ax'+(colorBy===n?' on':'');b.textContent=col(n).label;b.title=D.ui['#colour'];
- b.style.left=ax(k)+'px';b.onclick=()=>{colorBy=colorBy===n?'#holds':n;draw()};wrap.appendChild(b)})}
+ b.style.left=(Z.x+ax(k)*Z.k)+'px';b.onclick=()=>{colorBy=colorBy===n?'#holds':n;draw()};wrap.appendChild(b)})}
 function cell(n,i){const c=col(n),v=c.v[i];if(n==='#holds')return v===1?'<td class="ok">✓</td>':'<td class="bad">✗</td>';if(c.kind==='cat')return'<td>'+(v==null?'–':c.labels[v])+'</td>';return'<td class="n">'+fmt(v)+'</td>'}
 function rows(keep){const r=D.cols['#rank'].v;let idx=[];
  if(D.rows)idx=D.rows.filter(i=>keep[i]);else{for(let i=0;i<N;i++)if(keep[i])idx.push(i);
  idx.sort((a,b)=>(r[a]??1e18)-(r[b]??1e18)||D.cols['#holds'].v[b]-D.cols['#holds'].v[a])}
  const cols=D.table.includes('#holds')?D.table:[...D.table,'#holds'];document.getElementById('tb').innerHTML='<tr>'+cols.map(n=>'<th>'+col(n).label+'</th>').join('')+'</tr>'+idx.slice(0,300).map(i=>'<tr>'+cols.map(n=>cell(n,i)).join('')+'</tr>').join('')}
-cv.onpointerdown=e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;for(let k=0;k<D.axes.length;k++)if(Math.abs(x-ax(k))<12){brush={k,y0:y,y1:y,add:e.shiftKey};cv.setPointerCapture(e.pointerId);return}};
-cv.onpointermove=e=>{if(!brush)return;const r=cv.getBoundingClientRect();brush.y1=Math.max(T,Math.min(H-B,e.clientY-r.top));draw()};
-cv.onpointerup=()=>{if(!brush)return;const b=brush;brush=null;const n=D.axes[b.k],h=H-T-B;if(Math.abs(b.y1-b.y0)<3){delete filters[n];draw();return}
+cv.onpointerdown=e=>{const r=cv.getBoundingClientRect(),[x,y]=toPlot(e.clientX-r.left,e.clientY-r.top);for(let k=0;k<D.axes.length;k++)if(Math.abs(x-ax(k))<12/Z.k){brush={k,y0:y,y1:y,add:e.shiftKey};cv.setPointerCapture(e.pointerId);return}
+ if(Z.k>1){pan={x0:e.clientX,y0:e.clientY,zx:Z.x,zy:Z.y};cv.setPointerCapture(e.pointerId)}};
+cv.onpointermove=e=>{if(pan){Z.x=pan.zx+e.clientX-pan.x0;Z.y=pan.zy+e.clientY-pan.y0;draw();return}if(!brush)return;const r=cv.getBoundingClientRect();brush.y1=Math.max(T,Math.min(H-B,toPlot(0,e.clientY-r.top)[1]));draw()};
+cv.onpointerup=()=>{if(pan){pan=null;return}if(!brush)return;const b=brush;brush=null;const n=D.axes[b.k],h=H-T-B;if(Math.abs(b.y1-b.y0)<3){delete filters[n];draw();return}
  const t0=1-(Math.min(b.y0,b.y1)-T)/h,t1=1-(Math.max(b.y0,b.y1)-T)/h,c=col(n);let rg;
  if(c.kind==='cat'){const k=c.labels.length;const lo=Math.ceil(t1*k-.5),hi=Math.floor(t0*k-.5);rg=[lo,hi]}else rg=[inv(n,t1),inv(n,t0)];
  filters[n]=b.add&&filters[n]?[...filters[n],rg]:[rg];draw()};
-document.getElementById('clear').onclick=()=>{filters={};draw()};window.onresize=draw;draw();
+document.getElementById('clear').onclick=()=>{filters={};draw()};window.onresize=draw;
+cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect();zoomAt(e.deltaY<0?1.2:1/1.2,e.clientX-r.left,e.clientY-r.top)},{passive:false});
+document.getElementById('zin').onclick=()=>zoomAt(1.25,W/2,H/2);document.getElementById('zout').onclick=()=>zoomAt(0.8,W/2,H/2);
+document.getElementById('zreset').onclick=()=>{Z={k:1,x:0,y:0};draw()};draw();
 </script></body></html>"""
