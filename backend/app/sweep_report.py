@@ -161,35 +161,6 @@ def fig_scatter(a: Dict, x: str, y: str, labels: Dict[str, str], st: Dict, color
     return fig
 
 
-def fig_effects(eff: Dict, goal_label: str, st: Optional[Dict] = None, y_title: str = ""):
-    plt = _pyplot()
-    ps = sorted(eff["params"], key=lambda x: -x["importance"])[:6]
-    n = max(1, len(ps))
-    cols = min(3, n); rows = (n + cols - 1) // cols
-    fig, axs = plt.subplots(rows, cols, figsize=(3.4 * cols, 2.4 * rows), dpi=150, squeeze=False)
-    for k, ax in enumerate(axs.flat):
-        if k >= n:
-            ax.axis("off"); continue
-        p = ps[k]
-        xs = np.arange(len(p["levels"]))
-        mean = [l["mean"] if l["mean"] is not None else np.nan for l in p["levels"]]
-        lo = [l["min"] if l["min"] is not None else np.nan for l in p["levels"]]
-        hi = [l["max"] if l["max"] is not None else np.nan for l in p["levels"]]
-        ax.fill_between(xs, lo, hi, color="#9cc0f5", alpha=0.35, lw=0)
-        ax.plot(xs, mean, color="#2f6fd0", marker="o", ms=3, lw=1.5)
-        ax.set_xticks(xs); ax.set_xticklabels([_fmt(l["value"]) for l in p["levels"]], fontsize=6.5)
-        ax.set_title(_bidi(f"{p['param']} · {round(p['importance'] * 100)}%"), fontsize=8)
-        ax.set_xlabel(_bidi(p["param"]), fontsize=7)
-        if y_title:
-            ax.set_ylabel(_bidi(y_title), fontsize=7)
-        ax.tick_params(labelsize=6.5)
-        if st:
-            _grid(ax, st)
-    fig.suptitle(_bidi(goal_label), fontsize=8)
-    fig.tight_layout()
-    return fig
-
-
 def fig_iterations(its: List[Dict], labels: Dict[str, str]):
     """How the study converged (S08): per iteration (each table merged in), the sets that hold and
     the best goal."""
@@ -266,10 +237,6 @@ def figures(p, q: Dict, a: Dict, req: Dict) -> List[Tuple[str, str, bytes]]:
     try:
         if inc.get("plot", True):
             out.append(("plot", labels.get("#plot", ""), _png(fig_parallel(a, req.get("axes") or [], labels, req.get("shown")))))
-        if inc.get("effects", True):
-            val = a["data"]["#goal"] if "#goal" in a["data"] else a["data"]["#holds"]
-            out.append(("effects", labels.get("#effectsTitle", ""), _png(fig_effects(sweep.effects(p, val, a["data"]["#holds"]), labels.get("#effects", ""),
-                                                                                  st, labels.get("#effectsY", "")))))
         its = req.get("iterations") or []
         if inc.get("iterations", True) and len(its) >= 2:
             out.append(("iterations", labels.get("#itTitle", ""), _png(fig_iterations(its, labels))))

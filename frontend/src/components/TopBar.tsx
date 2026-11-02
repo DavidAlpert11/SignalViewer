@@ -23,20 +23,12 @@ function menuAt(e: React.MouseEvent, w = 240) {
   return { clientX: rtl ? Math.max(8, r.right - w) : r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
 }
 
-/** The app's top row: what is the same in every work area - the name, the areas, search, live,
- *  settings, theme, language, help. What belongs to one area (the Recordings area's session, plot
- *  tabs, undo, Clear, Inspector) is in that area's own bar under it (areas.ts). */
+/** The app's top row: what is the same in every work area - the name, the areas, search, settings,
+ *  theme, language, help. What belongs to one area (the Recordings area's session, plot tabs, live,
+ *  undo, Clear, Inspector) is in that area's own bar under it (areas.ts). */
 export default function TopBar() {
   const t = useT();
-  const streaming = useApp((s) => s.streaming);
-  const liveStarting = useApp((s) => s.liveStarting);
-  const liveMenu = useApp((s) => s.liveMenuOpen);
-  const setLiveMenu = (v: boolean) => useApp.setState({ liveMenuOpen: v });
-  const mav = useApp((s) => s.mavlink);
-  const lang = useApp((s) => s.lang);
   const theme = useApp((s) => s.theme);
-  const mavOn = !!mav?.running;
-  const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
   const at = menuAt;
 
   // F35 (owner, 2026-10-20): no File menu - its few entries are buttons again (opening files is
@@ -76,24 +68,6 @@ export default function TopBar() {
       <button className="search-trigger" onClick={() => useApp.setState({ paletteOpen: true, paletteMode: "all" })}>
         <Icon.Search width={14} height={14} /> <span>{t("commands")}</span><span className="kbd">Ctrl K</span>
       </button>
-      <span className="sep" />
-      <span className="live-group">
-        <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
-          title={streaming ? t("liveStopHint") : t("liveStartHint")}>
-          <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
-        </button>
-        <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
-          onClick={() => setLiveMenu(!liveMenu)}>
-          <Icon.Chevron width={12} height={12} />
-        </button>
-        {mavOn && (
-          <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
-            title={mavQuiet ? t("mavNoData", { conn: mav!.conn ?? "" }) : t("mavReceiving", { conn: mav!.conn ?? "" })}>
-            <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
-          </button>
-        )}
-        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
-      </span>
       <button className="iconbtn" onClick={() => useApp.setState({ settingsOpen: true })} title={`${t("settings")} (Ctrl+,)`} aria-label={t("settings")}>
         <Icon.Settings />
       </button>
@@ -126,9 +100,18 @@ function AreaSwitcher() {
   );
 }
 
-/** The Recordings area's bar: its session, its plot tabs, templates, undo / redo, Clear and the Inspector. */
+/** The Recordings area's bar: its session, its plot tabs, templates, live, undo / redo, Clear and the
+ *  Inspector. Live follows the open files (and MAVLink): it is the Recordings area's, not the app's. */
 export function RecordingsBar() {
   const t = useT();
+  const streaming = useApp((s) => s.streaming);
+  const liveStarting = useApp((s) => s.liveStarting);
+  const liveMenu = useApp((s) => s.liveMenuOpen);
+  const setLiveMenu = (v: boolean) => useApp.setState({ liveMenuOpen: v });
+  const mav = useApp((s) => s.mavlink);
+  const lang = useApp((s) => s.lang);
+  const mavOn = !!mav?.running;
+  const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
   const ws = useApp((s) => s.ws);
   const past = useApp((s) => s.past.length);
   const future = useApp((s) => s.future.length);
@@ -219,6 +202,24 @@ export function RecordingsBar() {
         <Icon.Layout /> {t("tplMenu")} <Icon.Chevron width={12} height={12} />
       </button>
       <div className="spacer" />
+      <span className="live-group">
+        <button className={`btn live-btn${streaming ? " on" : ""}`} aria-pressed={streaming} disabled={liveStarting} onClick={toggleLive}
+          title={streaming ? t("liveStopHint") : t("liveStartHint")}>
+          <Icon.Live /> {liveStarting ? t("liveStarting") : t("stream")}
+        </button>
+        <button className="iconbtn live-more" aria-expanded={liveMenu} aria-label={t("liveSettings")} title={t("liveSettings")}
+          onClick={() => setLiveMenu(!liveMenu)}>
+          <Icon.Chevron width={12} height={12} />
+        </button>
+        {mavOn && (
+          <button className={`btn mav-pill${mavQuiet ? " quiet" : ""}`} onClick={() => setLiveMenu(true)}
+            title={mavQuiet ? t("mavNoData", { conn: mav!.conn ?? "" }) : t("mavReceiving", { conn: mav!.conn ?? "" })}>
+            <span className="live-dot on" />MAVLink {mavQuiet ? "" : `${fmtNum(mav!.rate ?? 0, lang, 3)}/s`}
+          </button>
+        )}
+        {liveMenu && <LiveSettings onClose={() => setLiveMenu(false)} />}
+      </span>
+      <span className="sep" />
       <button className="iconbtn" disabled={!past} onClick={useApp.getState().undo} title={`${t("undo")} (Ctrl+Z)`} aria-label={t("undo")}><Icon.Undo /></button>
       <button className="iconbtn" disabled={!future} onClick={useApp.getState().redo} title={`${t("redo")} (Ctrl+Y)`} aria-label={t("redo")}><Icon.Redo /></button>
       {/* T63 / F35: one Clear button, what to clear in its menu (this tab ... everything) */}

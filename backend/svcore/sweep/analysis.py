@@ -1,5 +1,5 @@
-"""Beyond holding or not: several goals at once (Pareto front, a weighted score), which parameter
-matters (main effects, importance), two parameters together (a map), and what to run next."""
+"""Beyond holding or not: several goals at once (Pareto front, a weighted score), two parameters
+together (a map), and what to run next."""
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -38,33 +38,6 @@ def objectives(p: Prepared, objs: List[Dict], holds: np.ndarray, only_holding: b
         w = w / w.sum() if w.sum() > 0 else np.full(len(objs), 1 / len(objs))
         score[pool] = ((sub - lo) / span) @ w
     return front, score
-
-
-# ----------------------------------------------------------------------------- which parameter matters
-def effects(p: Prepared, value: np.ndarray, holds: np.ndarray) -> Dict:
-    """Per parameter and value: the mean, min and max of `value` (one per set) and the share of sets
-    that hold; and each parameter's importance - the share of the spread of `value` its values
-    explain (between-groups sum of squares over the total)."""
-    g = Grid(p)
-    out = []
-    ok = np.isfinite(value)
-    total = float(np.nansum((value[ok] - np.nanmean(value[ok])) ** 2)) if ok.any() else 0.0
-    for j, c in enumerate(p.params):
-        rows = []
-        between = 0.0
-        mu = np.nanmean(value[ok]) if ok.any() else np.nan
-        for k, lv in enumerate(g.levels[j]):
-            m = g.idx[:, j] == k
-            v = value[m & ok]
-            rows.append({"value": lv.item() if hasattr(lv, "item") else lv,
-                         "mean": float(np.mean(v)) if len(v) else None, "min": float(np.min(v)) if len(v) else None,
-                         "max": float(np.max(v)) if len(v) else None, "holding": float(np.mean(holds[m])) if m.any() else None,
-                         "sets": int(m.sum())})
-            if len(v):
-                between += len(v) * (float(np.mean(v)) - mu) ** 2
-        out.append({"param": c, "numeric": g.numeric[j], "levels": rows,
-                    "importance": between / total if total > 0 else 0.0})
-    return {"params": out}
 
 
 def best_set(rank: np.ndarray, holds: np.ndarray) -> Optional[int]:

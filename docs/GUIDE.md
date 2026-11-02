@@ -167,12 +167,12 @@ shown change together – on the axis, in the list, in the legend – and it can
 
 - **Save session** (the disk icon at the top left, Ctrl+S; opening one: the folder icon next to it, Ctrl+Shift+O) keeps everything – files, tabs, plots, zoom, notes. The app also
   restores your last work by itself when it starts.
-- **Templates** (top bar): save a tab or a whole set of tabs as a template, and open it later on
+- **Templates** (the Recordings bar, under the top row): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.
 - **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
   interactive HTML, PDF or Word.
 - A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), copy the image.
-- **Clear ▾** (the top bar): this tab's plots, the other tabs, all
+- **Clear ▾** (the Recordings bar): this tab's plots, the other tabs, all
   tabs, or all the work on the data - tabs, notes, derived signals and edits - while the files stay
   open. Each is undone with **Undo** in the message or Ctrl+Z. *Everything* also closes the files
   (it asks first).
@@ -185,7 +185,7 @@ the flight modes as coloured lanes) and a **health check** that points at what i
 
 ## 11. Live data
 
-**Live** (top bar) follows files that are still being written – a CSV growing, a MATLAB file saved
+**Live** (the Recordings bar, beside undo) follows files that are still being written – a CSV growing, a MATLAB file saved
 again and again – and can connect to a MAVLink stream. From Python, `signalviewer_push.show(...)`
 sends arrays straight into the running app.
 

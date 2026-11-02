@@ -42,6 +42,6 @@ from svcore.sweep.derived import SET_OPS, DerivedError  # noqa: F401,E402
 from svcore.sweep.encode import encode  # noqa: F401,E402
 from svcore.sweep.evaluate import QuestionError, answer, prepare, run_rows, set_rows  # noqa: F401,E402
 from svcore.sweep.export import rerun_rows, write_csv, write_rows  # noqa: F401,E402
-from svcore.sweep.analysis import KINDS, best_set, effects, map_for, objectives, pair_map, slice_mask, suggest  # noqa: F401,E402
+from svcore.sweep.analysis import KINDS, best_set, map_for, objectives, pair_map, slice_mask, suggest  # noqa: F401,E402
 from svcore.sweep.grid import Grid, stability  # noqa: F401,E402
 from svcore.sweep.io import from_rows, merge, read_any, read_folder  # noqa: F401,E402

@@ -254,7 +254,7 @@ def test_D09_D10_live_mode_and_follow(pg):
     with open(p, "w") as f:
         f.write("Time,V\n" + "".join(f"{i * 0.1:.1f},{i}\n" for i in range(50)))
     open_files(pg, "live.csv")
-    pg.click(".topbar .btn:has-text('Live')")
+    pg.click(".areabar .btn:has-text('Live')")
     pg.locator(".stage-bar select[aria-label='Follow']").select_option("10")
     with open(p, "a") as f:
         f.write("".join(f"{i * 0.1:.1f},{i}\n" for i in range(50, 300)))
@@ -1519,7 +1519,7 @@ def test_refresh_and_live_follow_the_file(pg):
     pg.locator(".run-head").first.hover(); pg.locator(".run-head [aria-label='Reload from disk']").click()
     pg.wait_for_selector(".toast:has-text('reloaded')")
     assert stat_max() == 5.0
-    pg.click(".topbar .btn:has-text('Live')")
+    pg.click(".areabar .btn:has-text('Live')")
     with open(p, "a", newline="") as f:
         f.write("".join(f"{5 + i * 0.01:.2f},9.0\r\n" for i in range(30)))
     pg.wait_for_function("window.__sv.state().runs[0].samples === 430", timeout=8000)
@@ -1539,7 +1539,7 @@ def test_live_keeps_the_time_at_the_newest_data(pg):
     open_files(pg, "growing.csv")
     sig(pg, "A").click()
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 1.0 } })")                 # somewhere in the middle
-    pg.click(".topbar .btn:has-text('Live')")
+    pg.click(".areabar .btn:has-text('Live')")
     pg.wait_for_function("window.__sv.state().streaming && Math.abs(window.__sv.state().cursor.t1 - 2.99) < 1e-6", timeout=8000)
     with open(p, "a", newline="") as f:
         f.write("".join(f"{3 + i * 0.01:.2f},2.0\r\n" for i in range(100)))

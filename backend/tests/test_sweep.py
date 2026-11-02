@@ -193,7 +193,7 @@ def test_recording_column_and_folder_of_files(tmp_path):
     assert len(d) == 18 and set(d["_file"]) == {"stats_0.csv", "stats_1.csv", "stats_2.csv"}
 
 
-def test_pareto_score_effects_and_map():
+def test_pareto_score_and_map():
     q = {"roles": ROLES, "objectives": [{"column": "out", "direction": "max"}, {"column": "risk", "direction": "min"}]}
     p = sweep.prepare(_grid(), q)
     a = sweep.answer(p, q)
@@ -201,9 +201,6 @@ def test_pareto_score_effects_and_map():
     # out grows with p, risk grows with p: every p is a trade-off; k=0.2 beats k=0.1 on out, ties on risk
     assert set(d["k"][d["#pareto"] == 1]) == {0.2}
     assert np.nanmax(d["#score"]) <= 1 and np.nanmin(d["#score"]) >= 0
-    e = sweep.effects(p, d["out"], d["#holds"])
-    imp = {x["param"]: x["importance"] for x in e["params"]}
-    assert imp["p"] > 0.9 and imp["k"] < 0.1
     m = sweep.pair_map(p, "p", "k", d["out"], d["#holds"])
     assert len(m["xs"]) == 3 and len(m["ys"]) == 2 and m["share"][0][0] == 1.0
 
@@ -414,7 +411,7 @@ def test_export_the_sets_shown(tmp_path):
     assert len(body) == 3
     html = tmp_path / "r.html"
     c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html), "rows": [7, 3],
-                                       "columns": ["#rank", "kp_roll"], "include": {"plot": False, "effects": False, "map": False}})
+                                       "columns": ["#rank", "kp_roll"], "include": {"plot": False, "map": False}})
     assert '"rows": [7, 3]' in open(html, encoding="utf-8").read()
 
 
@@ -475,11 +472,13 @@ def test_maps_a_slice_at_the_best_and_several_in_the_report(tmp_path):
     assert min(best) == min(worst)
     html = tmp_path / "maps.html"
     r = c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html),
-               "labels": {"#mapTitle": "Map", "#mapAt": "at"}, "include": {"plot": False, "effects": False},
+               "labels": {"#mapTitle": "Map", "#mapAt": "at", "#effectsTitle": "Which parameter matters"},
+               "include": {"plot": False, "effects": True},       # an older page still asks for it: not drawn any more
                "maps": [{"x": "kp_roll", "y": "ki_roll", "rest": "all"}, {"x": "kp_roll", "y": "filter_hz", "rest": "best"}]})
     assert r.status_code == 200
     text = open(html, encoding="utf-8").read()
     assert "Map: kp_roll × ki_roll</h2>" in text and "Map: kp_roll × filter_hz (at ki_roll = " in text
+    assert "Which parameter matters" not in text
 
 
 def test_robust_to_a_parameter_and_next_runs_on_chosen_parameters():
@@ -564,7 +563,7 @@ def test_report_provenance_and_iterations(tmp_path):
          "conditions": [], "derived": [], "outputAgg": {}, "objectives": [], "exclude": []}
     html = tmp_path / "p.html"
     r = c.post("/api/sweep/report", json={"id": o["id"], "question": q, "format": "html", "path": str(html),
-               "labels": {"#provenance": "Where it comes from", "#itTitle": "Iterations"}, "include": {"plot": False, "effects": False, "map": False},
+               "labels": {"#provenance": "Where it comes from", "#itTitle": "Iterations"}, "include": {"plot": False, "map": False},
                "iterations": [{"label": "1", "sets": 40, "holding": 3, "best": 50.2}, {"label": "2", "sets": 45, "holding": 6, "best": 47.9}]})
     assert r.status_code == 200, r.text
     text = open(html, encoding="utf-8").read()

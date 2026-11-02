@@ -11,12 +11,14 @@ import { hasFilter, keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
-import { activeColumns, activeParams, colLabel, mapAxes, mapList, scatterList, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, mapAxes, mapList, mapSpec, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { KINDS } from "../../sweeps/next";
 import { journalLine, reportJournal } from "../../sweeps/journal";
 import { notify, notifyError } from "../../sweeps/notify";
+import type { MapSpec } from "../../sweeps/model";
+import { deskOf } from "./Desk";
 
 type Format = "html" | "docx" | "pdf" | "csv";
 const EXT: Record<Format, string> = { html: ".html", docx: ".docx", pdf: ".pdf", csv: ".csv" };
@@ -73,6 +75,21 @@ function processLines(t: TFn, s: Study): string[] {
   return out;
 }
 
+/** The maps and point plots of the report: those on screen - the Charts' panes (a points or bubble
+ *  pane is a point plot), then next runs' maps; the same pair once. */
+function reportFigures(study: Study): { maps: MapSpec[]; scatters: { x: string; y: string }[] } {
+  const setCols = new Set(study.answer?.sets.map((c) => c.name) ?? []);
+  const desk = deskOf(study), panes = desk.panes.slice(0, desk.layout);
+  const scatters = panes.filter((p) => (p.kind === "scatter" || p.kind === "bubble") && setCols.has(p.x ?? "") && setCols.has(p.y ?? ""))
+    .map((p) => ({ x: p.x!, y: p.y! }));
+  const seen = new Set<string>(), maps: MapSpec[] = [];
+  for (const m of [...panes.filter((p) => p.kind === "map").map((p) => mapSpec(study, p)), ...mapList(study)]) {
+    const k = [m.x, m.y].sort().join("|");
+    if (m.x && m.y && !seen.has(k)) { seen.add(k); maps.push(m); }
+  }
+  return { maps, scatters };
+}
+
 /** The report's choices and the button that makes it - in the Report step, and in the dialog. */
 export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () => void }) {
   const t = useT();
@@ -81,24 +98,22 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
   const [title, setTitle] = useState(study.name.replace(/\.[^.]+$/, ""));
   const [notes, setNotes] = useState("");
   const [top, setTop] = useState(25);
-  const [inc, setInc] = useState({ question: true, process: true, journal: true, plot: true, effects: true, map: true, points: true, table: true, provenance: true });
+  const [inc, setInc] = useState({ question: true, process: true, journal: true, plot: true, map: true, points: true, table: true, provenance: true });
   const a = study.answer!;
+  const figs = reportFigures(study);
   const make = async () => {
     onBefore?.();                      // the dialog closes: the file dialog takes its place
     const p = await pickPath({ mode: "save", title: t("swReport"), exts: [EXT[format]], defaultName: title + EXT[format] });
     if (!p) return;
     const cols = setColumns(study);
     const labels: Record<string, string> = Object.fromEntries([...cols.keys()].map((n) => [n, colLabel(t, study, n)]));
-    Object.assign(labels, { "#answer": t("swRepAnswer"), "#best": t("swBestSets"), "#plot": t("swCenterLines"), "#effectsTitle": t("swCenterEffects"),
+    Object.assign(labels, { "#answer": t("swRepAnswer"), "#best": t("swBestSets"), "#plot": t("swCenterLines"),
       "#mapTitle": t("swCenterMap"), "#mapAt": t("swMapAt"),
       "#mapShareKey": t("swMapByShare"), "#mapGoalKey": study.question.goal ? t("swMapByGoal", { c: study.question.goal.column }) : "", "#what": "", "#value": "", "#shown": t("swShown", { n: "{n}", of: "{of}" }), "#clear": t("swRepClear"),
       "#hint": t("swRepHtmlHint"), "#colour": t("swColourByThis"), "#provenance": t("swRepProvenance"),
       "#itTitle": t("swRepIterations"), "#itHolding": t("swRepItHolding"), "#itBest": t("swRepItBest"),
-      "#pointsTitle": t("swCenterScatter"), "#holdsKey": t("swHolds"), "#others": t("swOthers"),
-      "#effectsY": study.question.goal ? study.question.goal.column : t("swRepItHolding") });
-    // the point plots on screen, a point per set (as the report's other figures)
+      "#pointsTitle": t("swCenterScatter"), "#holdsKey": t("swHolds"), "#others": t("swOthers") });
     const setCols = new Set(a.sets.map((c) => c.name));
-    const scatters = scatterList(study).filter((s) => setCols.has(s.x) && setCols.has(s.y));
     // the sets on screen: after the filters and the keep / exclude steps
     const n = a.sets[0]?.values.length ?? 0, kept = keptMask(cols, study.view.filters, n), scope = scopeMask(study);
     const shown: number[] = [];
@@ -123,16 +138,18 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
           [t("swRepHolding"), `${a.counts.holding} / ${a.counts.sets}`], [t("swMissing"), a.counts.sets - a.counts.complete],
           [t("swRepShownNow"), shown.length]],
         columns: table, rows: tableRows(study), axes: shownAxes(study), shown: shown.length < n ? shown : null, top,
-        include: { plot: inc.plot, effects: inc.effects, map: inc.map, points: inc.points, table: inc.table, provenance: inc.provenance, iterations: inc.process },
-        scatters, style: study.view.style ?? null, colorBy: study.view.colorBy && setCols.has(study.view.colorBy) ? study.view.colorBy : null,
+        include: { plot: inc.plot, map: inc.map && figs.maps.length > 0, points: inc.points && figs.scatters.length > 0, table: inc.table, provenance: inc.provenance, iterations: inc.process },
+        scatters: figs.scatters, style: study.view.style ?? null, colorBy: study.view.colorBy && setCols.has(study.view.colorBy) ? study.view.colorBy : null,
         iterations: study.iterations.length > 1 ? study.iterations : null,
-        mapX: map.x ?? null, mapY: map.y ?? null, maps: mapList(study) });
+        mapX: map.x ?? null, mapY: map.y ?? null, maps: figs.maps });
       notify(t("swSaved", { path: r.path }));
       useSweeps.getState().journal("report", { path: r.path });
     } catch (e) { notifyError(e); }
   };
-  const box = (k: keyof typeof inc, label: string) => (
-    <label className="acheck"><input type="checkbox" checked={inc[k]} disabled={format === "csv"} onChange={(e) => setInc({ ...inc, [k]: e.target.checked })} />{label}</label>
+  // a map / point plot box counts what is on screen; none there: nothing to include
+  const box = (k: keyof typeof inc, label: string, n?: number) => (
+    <label className="acheck"><input type="checkbox" checked={inc[k] && n !== 0} disabled={format === "csv" || n === 0}
+      onChange={(e) => setInc({ ...inc, [k]: e.target.checked })} />{n === undefined ? label : `${label} (${n})`}</label>
   );
   const FORMATS: { f: Format; label: string; hint: string }[] = [
     { f: "html", label: t("swRepHtml"), hint: t("swRepHtmlDesc") },
@@ -154,7 +171,7 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
       <label className="sw-field">{t("swRepNotes")}<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("swRepNotesHint")} /></label>
       <div className="sw-report-inc">
         {box("question", t("swQuestion"))}{box("process", t("swRepProcess"))}{box("journal", t("swRepJournal"))}{box("plot", t("swCenterLines"))}
-        {box("effects", t("swCenterEffects"))}{box("map", t("swCenterMap"))}{box("points", t("swCenterScatter"))}{box("table", t("swBestSets"))}{box("provenance", t("swRepProvenance"))}
+        {box("map", t("swCenterMap"), figs.maps.length)}{box("points", t("swCenterScatter"), figs.scatters.length)}{box("table", t("swBestSets"))}{box("provenance", t("swRepProvenance"))}
         <label className="acheck">{t("swRepTop")}<input type="number" min={1} max={1000} value={top} onChange={(e) => setTop(Math.max(1, Number(e.target.value) || 25))} style={{ width: 64 }} /></label>
       </div>
       <div className="sw-report-preview">
