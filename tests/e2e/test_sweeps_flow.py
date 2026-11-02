@@ -677,7 +677,7 @@ def test_templates_dialog_save_replace_export_import_apply(pg):
     pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 0")
     _bar_menu(pg, "Study", "Templates…")
     pg.locator(".sw-tpl-item", has_text="drone tpl (2)").dblclick()
-    pg.wait_for_selector(".toast:has-text('Template applied: drone tpl (2)')")
+    pg.wait_for_selector(".toast:has-text('Template applied:'):has-text('columns matched')")
     _step(pg, "goals")
     pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length >= 2")
     for n in ("drone tpl", "drone tpl (2)"):
