@@ -8,14 +8,26 @@ export interface SweepColumn {
   name: string; kind: "number" | "text"; distinct: number; missing: number;
   constant: boolean; empty: boolean; min?: number; max?: number; integer?: boolean;
   values?: (number | string)[]; role: Role; scale: Scale;
+  /** a text column whose values are file names or paths (a recording) */
+  paths?: boolean;
 }
 export interface SweepSummary {
   rows: number; params: string[]; holds: string[]; outputs: string[];
   combos: number; sets: number; complete: number; missing: number; duplicates: number; failedRuns: number;
+  /** every run of the table, when the conditions' values keep only some (`rows` is then those) */
+  rowsAll?: number;
 }
+/** How a table was made, to make it again (a saved study): a file (with what was merged into it in
+ *  place, before 2026-11-02), or tables merged into a new one. */
+export type TableRecipe =
+  | { path: string; merged?: { path: string; keys?: string[]; prefer?: string }[] }
+  | { merge: MergeSpec & { parts: TableRecipe[] } };
+/** A merge of the Data step: rows added (concat) or side by side on key columns (join). */
+export interface MergeSpec { names: string[]; how: "concat" | "join"; keys: string[]; source: string; dedupe: boolean }
 export interface SweepOpened {
   id: string; path: string; name: string; rows: number; columns: SweepColumn[];
   head: (number | string | null)[][]; summary: SweepSummary; seconds: number;
+  recipe?: TableRecipe;
 }
 
 import type { WireCol } from "./decode";
@@ -71,7 +83,18 @@ export interface Suggestion { params: Record<string, number | string | null>; ki
 
 export const sweepApi = {
   open: (path: string) => call<SweepOpened>("/api/sweep/open", { path }),
-  summary: (id: string, roles: Record<string, Role>) => call<SweepSummary>("/api/sweep/summary", { id, roles }),
+  summary: (id: string, roles: Record<string, Role>, holdValues?: Record<string, (string | number)[]>) =>
+    call<SweepSummary>("/api/sweep/summary", { id, roles, ...(holdValues ? { holdValues } : {}) }),
+  combine: (ids: string[], spec: MergeSpec, name: string) => call<SweepOpened>("/api/sweep/combine", { ids, ...spec, name }),
+  combinePreview: (ids: string[], spec: MergeSpec) =>
+    call<{ rows: number; partial: string[]; common: string[]; error: string }>("/api/sweep/combine", { ids, ...spec, preview: true }),
+  build: (recipe: TableRecipe, name: string) => call<SweepOpened>("/api/sweep/build", { recipe, name }),
+  drop: (id: string) => call<{ ok: boolean }>("/api/sweep/drop", { path: id }),
+  values: (id: string, column: string) => call<{ values: [string | number, number][]; total: number; numeric: boolean }>("/api/sweep/values", { id, column }),
+  formulaPreview: (id: string, expr: string, derived: unknown[]) =>
+    call<{ ok: boolean; value?: number | null; error?: string }>("/api/sweep/formula-preview", { id, expr, derived }),
+  exportTable: (id: string, path: string, format: "csv" | "html", body: { title?: string; axes?: string[]; labels?: Record<string, string>; view?: unknown } = {}) =>
+    call<{ path: string; rows: number }>("/api/sweep/export-table", { id, path, format, ...body }),
   example: () => call<{ path: string; refine: string }>("/api/sweep/example"),
   variants: (id: string, question: WireQuestion, variants: { goal: unknown; conditions: unknown; combine: string; objectives: unknown }[]) =>
     call<{ variants: VariantResult[] }>("/api/sweep/variants", { id, question, variants }),

@@ -64,7 +64,7 @@
 .sw-ramp { width: 70px; height: 8px; border-radius: 4px; }
 .sw-count { margin-inline-start: auto; white-space: nowrap; }
 .pp-scroll { flex: none; overflow-x: auto; overflow-y: hidden; direction: ltr; background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
-.pp { position: relative; flex: none; }
+.pp { position: relative; flex: none; overflow: hidden; }
 .pp canvas { display: block; cursor: crosshair; touch-action: none; }
 .pp canvas.brushing { cursor: ns-resize; }
 .pp-axis-name { unicode-bidi: plaintext; position: absolute; top: 8px; transform: translateX(-50%); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -455,3 +455,90 @@
 .sw-mark-gaps { fill: var(--ink); color: var(--ink); } .sw-mark-missing { fill: var(--muted); color: var(--muted); }
 .sw-th-id, .sw-th-recording { color: var(--muted); }
 .sw-mark-robust { fill: #4fc3a1; color: #4fc3a1; }
+
+/* ---------------------------------------------------------------- owner's spec 2026-11-02
+   Readable in a small window and a big one: long names cut with … (the whole in a tooltip), wide
+   tables scroll inside themselves with the name column fixed, rows of numbers wrap, the step's
+   button stays at the foot of the side panel, and below 900 px the side panel folds into a panel
+   opened with its button (StepNav's ‹ ›). */
+.sw-ellipsis { display: inline-block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; unicode-bidi: plaintext; }
+.sw-sticky-first th:first-child, .sw-sticky-first td:first-child { position: sticky; inset-inline-start: 0; z-index: 1; background: var(--panel); max-width: 240px; }
+.sw-sticky-first th:first-child { z-index: 2; background: var(--panel-2); }
+.sw-sticky-first td:first-child { box-shadow: inset -1px 0 0 var(--line); }
+.sw-left-body > .sw-side-step > .sw-step-foot { position: sticky; bottom: -12px; background: var(--bg); padding-bottom: 12px; z-index: 2; }
+.pp canvas.zoomed { cursor: grab; } .pp canvas.panning { cursor: grabbing; }
+
+/* the Data step's side panel: the tables, the merge, Continue with */
+.sw-table-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.sw-table-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 4px; padding: 3px 6px;
+  border: 1px solid transparent; border-radius: 6px; }
+.sw-table-item.on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); }
+.sw-table-item.used .sw-table-name { font-weight: 600; }
+.sw-table-name { display: flex; align-items: center; gap: 4px; min-width: 0; border: 0; background: none; padding: 2px 0; color: var(--ink-strong); font: inherit; cursor: pointer; text-align: start; }
+.sw-table-name svg { flex: none; color: var(--muted); }
+.sw-table-rows { font-variant-numeric: tabular-nums; }
+.sw-merge .sw-row { flex-wrap: wrap; }
+.sw-source-name { width: 9em; margin-inline-start: 6px; }
+.sw-merge-preview { margin: 0; }
+.sw-continue { align-items: flex-end; }
+.sw-continue-pick { display: flex; flex-direction: column; gap: 3px; flex: 1 1 140px; min-width: 0; font-size: 0.846rem; color: var(--muted); }
+.sw-continue-pick select { width: 100%; }
+.sw-tabs-name { margin-inline-start: auto; align-self: center; max-width: 45%; color: var(--muted); padding-inline: 8px; }
+.sw-table tr.sw-picked-row { background: color-mix(in srgb, var(--focus) 18%, transparent); outline: 1px solid var(--focus); }
+.sw-run-values { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 8px 10px; border: 1px solid var(--focus); border-radius: 8px; background: var(--panel); }
+.sw-run-values dl { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; flex-basis: 100%; }
+.sw-run-values dl div { display: flex; gap: 6px; min-width: 0; }
+.sw-run-values dt { color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-run-values dd { margin: 0; font-variant-numeric: tabular-nums; }
+.sw-zoom { display: inline-flex; gap: 3px; align-items: center; margin-inline-start: auto; }
+.sw-what-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* the Columns step */
+.sw-toolrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sw-toolrow .spacer { flex: 1; }
+.sw-menu-wrap { position: relative; }
+.sw-menu { position: absolute; inset-inline-end: 0; top: calc(100% + 2px); z-index: 20; display: flex; flex-direction: column; min-width: 140px;
+  background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px; padding: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.sw-menu button { border: 0; background: none; color: var(--ink); text-align: start; padding: 6px 10px; border-radius: 5px; font: inherit; cursor: pointer; }
+.sw-menu button:hover { background: var(--panel-2); }
+.sw-shape-bar { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.sw-roles tr.sw-unused td { color: var(--muted); opacity: 0.6; }
+.sw-roles tr.sw-to-check td:first-child { box-shadow: inset 3px 0 0 var(--amber), inset -1px 0 0 var(--line); }
+.sw-roles tr.sw-to-check { background: color-mix(in srgb, var(--amber) 9%, transparent); }
+.sw-ident-kind { margin-inline-start: 4px; font-size: 0.8rem; }
+.sw-fold { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
+.sw-fold > summary { cursor: pointer; padding: 2px 0; }
+.sw-fold[open] > summary { margin-bottom: 6px; }
+.sw-cond-card { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; margin-bottom: 6px; }
+.sw-cond-card > summary { display: flex; gap: 8px; align-items: center; justify-content: space-between; cursor: pointer; min-width: 0; }
+.sw-cond-card[open] > summary { margin-bottom: 6px; }
+.sw-cond-card .sw-row { flex-wrap: wrap; }
+.sw-search { flex: 1 1 120px; min-width: 0; }
+.sw-pill.sw-more { border-style: dashed; }
+.sw-value-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow: auto; padding: 4px; border: 1px solid var(--line); border-radius: 6px; }
+.sw-value-list .acheck { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.sw-range input { width: 6em; }
+.sw-derived { grid-template-columns: minmax(0, 1fr) auto auto; }
+.sw-derived .iconbtn { grid-row: 1 / span 2; grid-column: auto; }
+.sw-derived .hint { grid-column: 1; }
+.sw-seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; align-self: flex-start; }
+.sw-seg button { border: 0; background: none; padding: 4px 10px; color: var(--muted); font: inherit; cursor: pointer; }
+.sw-seg button.on { background: var(--panel-2); color: var(--ink-strong); font-weight: 600; }
+.sw-complete { position: relative; display: block; }
+.sw-complete input { width: 100%; box-sizing: border-box; }
+.sw-complete-list { position: absolute; z-index: 30; inset-inline: 0; top: calc(100% + 2px); margin: 0; padding: 3px; list-style: none; max-height: 240px; overflow: auto;
+  background: var(--raised); border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.sw-complete-list li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; color: var(--ink); }
+.sw-complete-list li .hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-complete-list li.on { background: color-mix(in srgb, var(--focus) 20%, transparent); }
+.sw-complete-list .sw-fn { font-family: ui-monospace, monospace; }
+.sw-formula-ok { color: var(--sw-ok); margin: 0; }
+
+/* a narrow window: the side panel folds into a panel over the middle, opened with its button */
+@media (max-width: 899px) {
+  .sw-study { grid-template-columns: minmax(0, 1fr) !important; }
+  .sw-study > .sw-left { position: absolute; z-index: 15; inset-block: 0; inset-inline-start: 0; width: min(320px, 88vw);
+    background: var(--bg); box-shadow: 0 0 24px rgba(0,0,0,.25); }
+  .sw-study > .resizer { display: none; }
+  .sw-study > .sw-detail { position: absolute; z-index: 14; inset-block: 0; inset-inline-end: 0; width: min(380px, 92vw); box-shadow: 0 0 24px rgba(0,0,0,.25); }
+}

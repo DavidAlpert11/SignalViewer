@@ -5,6 +5,7 @@
 import { useT, type TFn, type TKey } from "../../i18n";
 import { normStep, STEPS, type Step } from "../../sweeps/model";
 import { useSweeps, type Study } from "../../sweeps/state";
+import { useLeftHidden, useNarrow } from "../../sweeps/narrow";
 
 const TITLE: Record<Step, TKey> = { raw: "swStepData", clean: "swStepColumns", roles: "swStepColumns", goals: "swStepGoal", results: "swStepResults", report: "swStepResults", run: "swStepResults" };
 
@@ -26,14 +27,16 @@ export const prevStep = (s: Step): Step | null => STEPS[STEPS.indexOf(normStep(s
 export default function StepNav({ study }: { study: Study }) {
   const t = useT();
   const cur = normStep(study.view.step);
-  const hidden = useSweeps((s) => s.leftHidden);
+  const narrow = useNarrow();
+  const hidden = useLeftHidden();
+  const toggle = () => (narrow ? useSweeps.setState({ narrowOpen: hidden }) : useSweeps.getState().setLeftHidden(!hidden));
   return (
     <nav className="sw-steps" aria-label={t("swSteps")}>
-      <button className="iconbtn sw-panel-toggle" aria-pressed={!hidden} onClick={() => useSweeps.getState().setLeftHidden(!hidden)}
+      <button className="iconbtn sw-panel-toggle" aria-pressed={!hidden} onClick={toggle}
         title={t(hidden ? "swShowPanel" : "swHidePanel")} aria-label={t(hidden ? "swShowPanel" : "swHidePanel")}>{hidden ? "›" : "‹"}</button>
       {STEPS.map((s, i) => (
         <button key={s} data-step={s} className={`sw-step-btn${s === cur ? " on" : ""}${STEPS.indexOf(cur) > i ? " done" : ""}`} aria-current={s === cur ? "step" : undefined}
-          onClick={() => useSweeps.getState().setView({ step: s })}>
+          onClick={() => { useSweeps.getState().setView({ step: s }); useSweeps.setState({ narrowOpen: false }); }}>
           <span className="sw-step-n">{i + 1}</span>
           <span className="sw-step-txt"><b>{t(TITLE[s])}</b><span>{status(t, study, s)}</span></span>
         </button>

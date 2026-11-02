@@ -133,3 +133,90 @@ def merge(base: pd.DataFrame, more: pd.DataFrame, keys, prefer: str = "new", bas
             b = b[~dup]
     out = pd.concat([a, b], ignore_index=True, sort=False)
     return out, int(len(out) - len(base)), replaced
+
+
+def combine(parts, names, how: str = "concat", keys=None, source: str = "", dedupe: bool = False) -> pd.DataFrame:
+    """Several result tables as ONE new table (the owner's Data step, 2026-11-02): the parts stay as
+    they are. `how`:
+      concat - the rows of every part; a column missing in a part is empty (NaN) there.
+      join   - one row per value of `keys` (an outer join): the parts' other columns side by side; a
+               column in two parts gets the part's name after it (`roll [b.csv]`).
+    `source`: a column with the part's name on each row (concat only; "" = none). `dedupe`: rows that
+    are the same in every column are kept once."""
+    if len(parts) < 2:
+        raise SweepError("Choose at least two tables to merge.")
+    names = [str(n) for n in names]
+    if how == "join":
+        keys = [k for k in (keys or [])]
+        if not keys:
+            raise SweepError("Choose the key columns to join on.")
+        for p, n in zip(parts, names):
+            missing = [k for k in keys if k not in p.columns]
+            if missing:
+                raise SweepError(f"{n} has no column {missing[0]!r} - join on columns every table has.")
+        others: dict = {}
+        for p in parts:
+            for c in p.columns:
+                if c not in keys:
+                    others[c] = others.get(c, 0) + 1
+        out = None
+        for p, n in zip(parts, names):
+            q = p.drop_duplicates(subset=keys, keep="last") if p.duplicated(subset=keys).any() else p
+            q = q.rename(columns={c: f"{c} [{n}]" for c in q.columns if c not in keys and others.get(c, 0) > 1})
+            out = q if out is None else out.merge(q, on=keys, how="outer", sort=False)
+        assert out is not None
+        out = out.reset_index(drop=True)
+    else:
+        frames = []
+        for p, n in zip(parts, names):
+            q = p.copy()
+            if source:
+                q[source] = n
+            frames.append(q)
+        out = pd.concat(frames, ignore_index=True, sort=False)
+    if dedupe:
+        out = out.drop_duplicates(ignore_index=True)
+    if out.empty:
+        raise SweepError("The merged table is empty.")
+    return out
+
+
+def combine_preview(parts, names, how: str = "concat", keys=None, source: str = "", dedupe: bool = False):
+    """What a merge would give, before it is made: its rows and the columns some parts lack."""
+    cols = [list(p.columns) for p in parts]
+    every = set(cols[0]).intersection(*cols[1:]) if cols else set()
+    seen = []
+    for cs in cols:
+        seen += [c for c in cs if c not in seen]
+    partial = [c for c in seen if c not in every]
+    try:
+        rows = int(len(combine(parts, names, how, keys, source, dedupe)))
+        err = ""
+    except SweepError as e:
+        rows, err = 0, str(e)
+    return {"rows": rows, "partial": partial, "common": [c for c in seen if c in every], "error": err}
+
+
+def build(recipe) -> pd.DataFrame:
+    """A table from its recipe - how it was made - to read it again: {"path"} (with the old in-place
+    merges, {"merged": [...]}) or {"merge": {"parts": [recipe...], "names", "how", "keys", "source",
+    "dedupe"}}."""
+    if "merge" in recipe:
+        m = recipe["merge"]
+        parts = [build(p) for p in m["parts"]]
+        return combine(parts, m.get("names") or [str(i + 1) for i in range(len(parts))], m.get("how", "concat"),
+                       m.get("keys"), m.get("source", ""), bool(m.get("dedupe")))
+    if not recipe.get("path"):
+        raise SweepError("This table did not come from a file.")
+    df = read_any(recipe["path"])
+    for x in recipe.get("merged") or []:
+        df, _, _ = merge(df, read_any(x["path"]), x.get("keys") or [], x.get("prefer", "new"),
+                         os.path.basename(recipe["path"]), os.path.basename(x["path"]))
+    return df
+
+
+def recipe_files(recipe):
+    """Every file a table is read from, in order."""
+    if "merge" in recipe:
+        return [f for p in recipe["merge"]["parts"] for f in recipe_files(p)]
+    return [f for f in [recipe.get("path")] + [x.get("path") for x in recipe.get("merged") or []] if f]

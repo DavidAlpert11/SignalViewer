@@ -3,12 +3,15 @@
    Drawing is one canvas (thousands of lines); the axis names are buttons over it (their menu:
    scale, colour, reverse, hide, ranges). On an axis: drag = keep that range, Shift-drag = keep
    another range too, click = clear. Elsewhere: hover shows a line's values, click picks it.
+   Zoom (owner, 2026-11-02 - to pick one line where they are dense): the wheel and the + / − / Reset
+   buttons of the page around it (`zoom`, `onZoom`); dragging the empty plot pans while zoomed.
    Everything the plot keeps or shows comes in as props - the store owns it (sweeps/state.ts). */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { category, FAILS, FLAG_COLS, HOLDS, ramp } from "../../sweeps/colors";
 import { hasFilter, keptMask } from "../../sweeps/filters";
 import type { Col, Filter, Scale } from "../../sweeps/model";
 import { labelOf, makeScale, type AxisScale } from "../../sweeps/scales";
+import { NO_ZOOM, zoomAt, type Zoom } from "../../sweeps/zoom";
 
 export interface ParallelPlotProps {
   cols: Map<string, Col>;
@@ -34,7 +37,13 @@ export interface ParallelPlotProps {
   fit?: boolean;
   /** the slider's words: axes a to b of n are on screen */
   sliderLabel?: (a: number, b: number, n: number) => string;
+  /** a click on an axis's name (the Data step: colour by it); its menu is then on right-click */
+  onAxisClick?: (name: string) => void;
+  /** zoomed in: k times, moved by x, y pixels; with onZoom the wheel zooms and a drag pans */
+  zoom?: Zoom;
+  onZoom?: (z: Zoom) => void;
 }
+
 
 /** room for an axis's ticks and name: below it the names are cut and the ticks run into each other */
 const MIN_AXIS = 110;
@@ -51,6 +60,10 @@ export default function ParallelPlot(p: ParallelPlotProps) {
   const [hover, setHover] = useState<{ row: number; x: number; y: number } | null>(null);
   const [brush, setBrush] = useState<{ axis: number; y0: number; y1: number; add: boolean } | null>(null);
   const [dragAxis, setDragAxis] = useState<{ name: string; x0: number; x: number } | null>(null);
+  const z = p.zoom ?? NO_ZOOM;
+  const [pan, setPan] = useState<{ x0: number; y0: number; z: Zoom; moved: boolean } | null>(null);
+  const zoomRef = useRef({ z, on: p.onZoom });
+  zoomRef.current = { z, on: p.onZoom };
 
   useEffect(() => {
     const el = scroller.current;
@@ -60,6 +73,15 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     // the wheel moves the plot sideways when it is wider than the screen (it has nothing to scroll
     // up or down); at either end the page scrolls as usual. Shift + wheel is the browser's own.
     const wheel = (e: WheelEvent) => {
+      const zr = zoomRef.current;
+      if (zr.on && !e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {          // zoom around the pointer
+        const cv = canvas.current;
+        if (!cv) return;
+        e.preventDefault();
+        const r = cv.getBoundingClientRect();
+        zr.on(zoomAt(zr.z, e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX - r.left, e.clientY - r.top));
+        return;
+      }
       if (e.shiftKey || el.scrollWidth <= el.clientWidth + 1 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
       const dx = e.deltaY * (e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? el.clientWidth : 1);
       const max = el.scrollWidth - el.clientWidth;
@@ -120,6 +142,7 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     const ctx = cv.getContext("2d")!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
+    ctx.setTransform(dpr * z.k, 0, 0, dpr * z.k, dpr * z.x, dpr * z.y);
     const css = getComputedStyle(cv);
     const ink = css.getPropertyValue("--ink").trim() || "#ccc";
     const muted = css.getPropertyValue("--muted").trim() || "#888";
@@ -183,18 +206,19 @@ export default function ParallelPlot(p: ParallelPlotProps) {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, ys, buckets, kept, keptCount, p.highlight, hover, brush, p.filters, scales]);
+  }, [width, height, ys, buckets, kept, keptCount, p.highlight, hover, brush, p.filters, scales, z.k, z.x, z.y]);
 
   // ------------------------------------------------------------------- pointer
-  const local = (e: React.PointerEvent) => { const r = canvas.current!.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-  const axisAt = (x: number) => { for (let i = 0; i < k; i++) if (Math.abs(x - axisX(i)) < NEAR_AXIS) return i; return -1; };
+  // the pointer in the plot's own coordinates (before the zoom)
+  const local = (e: React.PointerEvent) => { const r = canvas.current!.getBoundingClientRect(); return { x: (e.clientX - r.left - z.x) / z.k, y: (e.clientY - r.top - z.y) / z.k }; };
+  const axisAt = (x: number) => { for (let i = 0; i < k; i++) if (Math.abs(x - axisX(i)) < NEAR_AXIS / z.k) return i; return -1; };
   const nearest = (x: number, y: number): number => {
     if (k < 2) return -1;
     let i = 0;
     while (i < k - 2 && x > axisX(i + 1)) i++;
     const f = Math.max(0, Math.min(1, (x - axisX(i)) / (axisX(i + 1) - axisX(i))));
     const a = ys[i], b = ys[i + 1];
-    let best = -1, bd = HOVER_PX;
+    let best = -1, bd = HOVER_PX / z.k;
     for (let r = 0; r < p.n; r++) {
       if (!kept[r]) continue;
       const d = Math.abs(a[r] + (b[r] - a[r]) * f - y);
@@ -204,12 +228,17 @@ export default function ParallelPlot(p: ParallelPlotProps) {
   };
   const raf = useRef(0);
   const onMove = (e: React.PointerEvent) => {
+    if (pan) {
+      const dx = e.clientX - pan.x0, dy = e.clientY - pan.y0;
+      if (pan.moved || Math.abs(dx) + Math.abs(dy) > 3) { setPan({ ...pan, moved: true }); p.onZoom?.({ k: pan.z.k, x: pan.z.x + dx, y: pan.z.y + dy }); }
+      return;
+    }
     const { x, y } = local(e);
     if (brush) { setBrush({ ...brush, y1: Math.max(PAD_TOP, Math.min(PAD_TOP + plotH, y)) }); return; }
     cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(() => {
       const r = axisAt(x) >= 0 ? -1 : nearest(x, y);
-      setHover(r >= 0 ? { row: r, x, y } : null);
+      setHover(r >= 0 ? { row: r, x: z.x + x * z.k, y: z.y + y * z.k } : null);
     });
   };
   const onDown = (e: React.PointerEvent) => {
@@ -218,9 +247,13 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     if (i >= 0 && y >= PAD_TOP - 4 && y <= PAD_TOP + plotH + 4) {
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       setBrush({ axis: i, y0: y, y1: y, add: e.shiftKey });
+    } else if (z.k > 1 && p.onZoom) {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      setPan({ x0: e.clientX, y0: e.clientY, z, moved: false });
     }
   };
   const onUp = () => {
+    if (pan) { const moved = pan.moved; setPan(null); if (moved) return; }
     if (!brush) { if (hover) p.onPick(hover.row); return; }
     const b = brush;
     setBrush(null);
@@ -251,24 +284,28 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     <>
     <div className="pp-scroll" ref={scroller} onScroll={(e) => setScrollX((e.currentTarget as HTMLDivElement).scrollLeft)}>
     <div className="pp" style={{ height, width }}>
-      <canvas ref={canvas} className={brush ? "brushing" : ""} onPointerMove={onMove} onPointerDown={onDown} onPointerUp={onUp}
-        onPointerLeave={() => setHover(null)} role="img" data-shown={keptCount} aria-label={p.axes.map(p.labelOf).join(", ")} />
+      <canvas ref={canvas} className={brush ? "brushing" : pan?.moved ? "panning" : z.k > 1 ? "zoomed" : ""} onPointerMove={onMove} onPointerDown={onDown} onPointerUp={onUp}
+        onPointerLeave={() => setHover(null)} role="img" data-shown={keptCount} data-zoom={z.k.toFixed(2)} aria-label={p.axes.map(p.labelOf).join(", ")} />
       {p.axes.map((a, i) => {
         const dragging = dragAxis?.name === a;
         const moved = dragging && Math.abs(dragAxis!.x - dragAxis!.x0) > 4;
         return (
           <button key={a} className={`pp-axis-name${hasFilter(p.filters[a]) ? " filtered" : ""}${moved ? " dragging" : ""}`}
-            style={{ left: axisX(i) + (moved ? dragAxis!.x - dragAxis!.x0 : 0),
+            style={{ left: z.x + axisX(i) * z.k + (moved ? dragAxis!.x - dragAxis!.x0 : 0),
               maxWidth: k > 1 ? Math.max(40, Math.min(160, (width - 2 * PAD_X) / (k - 1) - 8)) : 160 }}
             title={p.labelOf(a)}
             // click: the axis's menu; drag sideways: move the axis (HiPlot's way)
             onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); setDragAxis({ name: a, x0: e.clientX, x: e.clientX }); }}
             onPointerMove={(e) => { if (dragAxis?.name === a) setDragAxis({ ...dragAxis, x: e.clientX }); }}
+            onContextMenu={(e) => { if (!p.onAxisClick) return; e.preventDefault(); setDragAxis(null); p.onAxisMenu(a, (e.currentTarget as HTMLElement).getBoundingClientRect()); }}
             onPointerUp={(e) => {
               const d = dragAxis; setDragAxis(null);
               if (!d || d.name !== a) return;
-              if (Math.abs(d.x - d.x0) <= 4) { p.onAxisMenu(a, (e.currentTarget as HTMLElement).getBoundingClientRect()); return; }
-              const x = axisX(i) + (d.x - d.x0);
+              if (Math.abs(d.x - d.x0) <= 4) {
+                if (p.onAxisClick) p.onAxisClick(a); else p.onAxisMenu(a, (e.currentTarget as HTMLElement).getBoundingClientRect());
+                return;
+              }
+              const x = axisX(i) + (d.x - d.x0) / z.k;
               let to = 0, best = Infinity;
               for (let j = 0; j < k; j++) { const dd = Math.abs(axisX(j) - x); if (dd < best) { best = dd; to = j; } }
               if (to !== i) p.onMoveAxis(a, to);
