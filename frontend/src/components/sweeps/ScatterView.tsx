@@ -1,44 +1,19 @@
 /* Any two columns as points (a point per set, or per run), coloured like the lines and with the
-   same filters - as many plots as wanted (S05). */
+   same filters: a chart kind of the Charts tab (S05, MF02). */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../../store";
 import type { Filter } from "../../sweeps/model";
 import { useT } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS, rampOf } from "../../sweeps/colors";
-import StyleMenu from "./StyleMenu";
 import { keptMask } from "../../sweeps/filters";
 import { makeScale } from "../../sweeps/scales";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, groupRows, scaleOf, scatterList, scopedColumns, styleOf } from "../../sweeps/view";
+import { axisChoices, colLabel, groupRows, scaleOf, scopedColumns, styleOf } from "../../sweeps/view";
 
 // room for the ticks and the axes' titles (S11)
 const W = 560, H = 380, L = 72, B = 52, T = 12, R = 16;
 /** two columns; `size`: a third as the points' size (a bubble chart, MF02) */
 type Pair = { x: string; y: string; size?: string };
-
-export default function ScattersView({ study }: { study: Study }) {
-  const t = useT();
-  // the study's list, or the one plot older studies had
-  const list: Pair[] = scatterList(study);
-  const set = (l: Pair[]) => useSweeps.getState().setView({ scatters: l });
-  const choices = axisChoices(study);
-  const add = () => set([...list, { x: choices[list.length % Math.max(1, choices.length)] ?? "", y: study.question.goal ? "#goal" : choices[1] ?? "" }]);
-  return (
-    <div className="sw-maps">
-      <div className="sw-row"><span className="hint">{t("swScatterHint")}</span>
-        <span className="sw-add-map" />
-        {study.answer?.sets.some((c) => c.name === "#obj1") && (
-          <button className="btn outline" title={t("swParetoHint")} onClick={() => set([...list, { x: "#goal", y: "#obj1" }])}>{t("swParetoPlot")}</button>
-        )}
-        <StyleMenu study={study} parts={["cmap", "points", "grid"]} />
-        <button className="btn outline" onClick={add}>{t("swAddScatter")}</button></div>
-      <div className="sw-maps-grid">
-        {list.map((p, i) => <ScatterPanel key={i} study={study} pair={p} onChange={(q) => set(list.map((x, j) => (j === i ? { ...x, ...q } : x)))}
-          onRemove={list.length > 1 ? () => set(list.filter((_, j) => j !== i)) : undefined} />)}
-      </div>
-    </div>
-  );
-}
 
 export function ScatterPanel({ study, pair, onChange, onRemove, group }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void;
   /** MF02: only this group's sets (a desk pane's group) */

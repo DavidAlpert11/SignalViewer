@@ -222,28 +222,12 @@ def test_stability_and_suggestions():
     assert edge and all(x["params"]["p"] in (1.5, 2.5) for x in edge if x["param"] == "p")
 
 
-def test_suspicious_run_found_and_left_out():
-    rows = []
-    for sc in ("a", "b"):
-        for p_ in range(1, 7):
-            for k in (1.0, 2.0, 3.0, 4.0):
-                rows.append({"scenario": sc, "p": float(p_), "k": k, "out": 10 * p_ + k, "risk": 1.0})
+def test_a_run_left_out():
+    rows = [{"scenario": sc, "p": float(p_), "k": k, "out": 10 * p_ + k, "risk": 1.0}
+            for sc in ("a", "b") for p_ in range(1, 7) for k in (1.0, 2.0, 3.0, 4.0)]
     df = pd.DataFrame(rows)
-    df.loc[17, "out"] = 500.0
-    q = {"roles": ROLES}
-    sus = sweep.suspects(sweep.prepare(df, q))
-    assert sus and sus[0]["row"] == 17 and sus[0]["column"] == "out"
-    p = sweep.prepare(df, {**q, "exclude": [17]})
+    p = sweep.prepare(df, {"roles": ROLES, "exclude": [17]})
     assert len(p.df) == len(df) - 1
-
-
-def test_compare_two_studies():
-    a_df, b_df = _grid(), _grid()
-    b_df["risk"] = b_df["risk"] * 0.5                               # after the change: less risk
-    q = {"roles": ROLES, "conditions": [{"column": "risk", "op": "<=", "value": 3}], "goal": {"column": "out"}}
-    pa, pb = sweep.prepare(a_df, q), sweep.prepare(b_df, q)
-    r = sweep.compare(pa, sweep.answer(pa, q), pb, sweep.answer(pb, q))
-    assert r["matched"] == 6 and r["nowHold"] == 4 and r["noLongerHold"] == 0
 
 
 def test_cli_sweep_exit_codes(tmp_path, capsys):

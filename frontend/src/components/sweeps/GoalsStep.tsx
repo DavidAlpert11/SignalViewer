@@ -1,8 +1,13 @@
-/* Step 4 - the goal: conditions the outputs must meet in every scenario (all of them, or any one),
+/* Step 3 - the goal (2026-11-01, the owner's redesign): one table, a row per column - a limit on a
+   column is a filter on it (at least / at most; an output in every scenario), and what to optimize.
+   The rest (conditions in some scenarios, expressions, how an output shows per set, robustness,
+   several goals) is under "More options".
+   Before: conditions the outputs must meet in every scenario (all of them, or any one),
    and what to optimize. A study keeps several goals - Goal 1, Goal 2... - to try what happens when
    a limit moves: the table in the middle sets them side by side (how many sets hold, the best,
    how robust), and a click makes one the goal the results show. */
 import { useEffect, useState } from "react";
+import type { Condition } from "../../sweeps/model";
 import { useT, type TFn } from "../../i18n";
 import { sweepApi, type VariantResult } from "../../sweeps/api";
 import { OUTPUT_AGGS, condText, type GoalVariant, type SetOp } from "../../sweeps/model";
@@ -11,7 +16,6 @@ import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import ConditionRow from "./ConditionRow";
 import RobustEditor from "./RobustEditor";
 import BestSet from "./BestSet";
-import ExploreButton from "./ExploreButton";
 import { StepFoot } from "./StepNav";
 
 export const goalName = (t: TFn, g: GoalVariant, i: number) => (g.name && Number.isNaN(Number(g.name)) ? g.name : t("swGoalN", { n: i + 1 }));
@@ -54,9 +58,11 @@ export function GoalsSide({ study }: { study: Study }) {
   const removed = new Set(q.removed);
   const outputs = [...study.columns.filter((c) => c.role === "output" && !removed.has(c.name)).map((c) => c.name), ...q.derived.map((d) => d.name)];
   const a = study.answer;
+  const more = useSweeps((x) => x.goalMore);
+  const setMore = (v: boolean) => useSweeps.setState({ goalMore: v });
   return (
     <div className="sw-side-step">
-      <p className="sw-step-intro">{t("swGoalsIntro")}</p>
+      <p className="sw-step-intro">{t("swGoalIntro2")}</p>
       <div className="sw-goal-tabs" role="tablist">
         {q.goals.map((x, i) => (
           <span key={i} className={`sw-goal-tab${i === q.active ? " on" : ""}`}>
@@ -68,11 +74,13 @@ export function GoalsSide({ study }: { study: Study }) {
         <button className="linklike" onClick={() => st.addGoal(true)} title={t("swGoalCopyHint")}>{t("swGoalCopy")}</button>
         <button className="linklike" onClick={() => st.addGoal(false)}>{t("swGoalNew")}</button>
       </div>
+      {a && <div className="sw-answer sw-goal-count" aria-live="polite"><div className="sw-answer-n">{a.counts.holding.toLocaleString()} <span>{t("swOfSetsHold", { n: a.counts.sets.toLocaleString() })}</span></div></div>}
+      {a && <BestSet study={study} />}
+      <details className="sw-more" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
+      <summary>{t("swGoalMore")}</summary>
       <label className="sw-field">{t("swGoalName")}
         <input value={g.name && Number.isNaN(Number(g.name)) ? g.name : ""} placeholder={goalName(t, g, q.active)} onChange={(e) => st.updateGoal({ name: e.target.value })} />
       </label>
-      {/* S23: the way to try the goal's limits, ranges and objectives all at once, on the plot */}
-      <ExploreButton study={study} />
       <section className="sw-goal-part">
         <h3>{t("swGoalMust")}</h3>
         {g.conditions.map((c, i) => (
@@ -90,40 +98,116 @@ export function GoalsSide({ study }: { study: Study }) {
           onClick={() => st.addCondition({ column: outputs[0], op: "<=", value: 0, mode: "all" })}>{t("swAddCondition")}</button>
       </section>
       <section className="sw-goal-part">
-        <h3>{t("swGoalOptimize")}</h3>
-        <span className="hint">{t("swGoalOptimizeHint")}</span>
-        {g.optimize.map((o, i) => (
-          <div key={i} className="sw-cond-line">
-            <select aria-label={t("swObjective")} value={o.column} onChange={(e) => st.updateGoal({ optimize: g.optimize.map((x, j) => (j === i ? { ...x, column: e.target.value } : x)) })}>
-              {outputs.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select aria-label={t("swDirection")} value={o.direction} onChange={(e) => st.updateGoal({ optimize: g.optimize.map((x, j) => (j === i ? { ...x, direction: e.target.value as "max" | "min" } : x)) })}>
-              <option value="max">{t("swMaximize")}</option><option value="min">{t("swMinimize")}</option>
-            </select>
-            {g.optimize.length > 1 && <input type="number" min={0} step={0.5} aria-label={t("swWeight")} title={t("swWeight")} defaultValue={o.weight} style={{ width: 56 }}
-              key={`w${q.active}:${i}:${o.weight}`}
-              onBlur={(e) => st.updateGoal({ optimize: g.optimize.map((x, j) => (j === i ? { ...x, weight: Math.max(0, Number(e.target.value) || 0) } : x)) })} />}
-            <button className="iconbtn" aria-label={t("swRemove")} onClick={() => st.updateGoal({ optimize: g.optimize.filter((_, j) => j !== i) })}>×</button>
-          </div>
-        ))}
-        <button className="btn outline sw-add-btn" disabled={!outputs.length}
-          onClick={() => st.updateGoal({ optimize: [...g.optimize, { column: outputs.find((o) => !g.optimize.some((x) => x.column === o)) ?? outputs[0], direction: "max", weight: 1 }] })}>{t("swAddObjective")}</button>
-        <p className="hint sw-optimize-now" aria-live="polite">{optimizeNow(t, g, a)}</p>
         <label className="sw-agg">{t("swOutputsPerSet")}
           <select value={q.outputAgg} onChange={(e) => st.setQuestion({ outputAgg: e.target.value as SetOp })}>{OUTPUT_AGGS.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>
       </section>
       <RobustEditor study={study} />
       <button className="linklike sw-danger" onClick={() => st.removeGoal(q.active)}>{q.goals.length > 1 ? t("swGoalDelete") : t("swGoalClear")}</button>
-      {/* while editing (S22): how many hold and the best set, without going to the results */}
-      {a && <p className="hint sw-goal-preview">{t("swGoalPreview", { n: a.counts.holding.toLocaleString(), of: a.counts.sets.toLocaleString() })}</p>}
-      {a && <BestSet study={study} />}
+      </details>
       <StepFoot study={study} next={t("swGoalSeeResults")} />
     </div>
   );
 }
 
-/** The goals side by side. */
+/** The goal as one table: a row per parameter and output - at least / at most (a filter on that
+ *  column; an output in every scenario) and what to optimize. Conditions of other forms are kept
+ *  and edited under "More options". With two goals or more, they are compared below. */
 export function GoalsCenter({ study }: { study: Study }) {
+  const t = useT();
+  const q = study.question;
+  return (
+    <div className="sw-goals-center">
+      <GoalTable study={study} />
+      {q.goals.length > 1 && <><h3 className="sw-sub">{t("swGoalsCompare")}</h3><GoalsCompare study={study} /></>}
+    </div>
+  );
+}
+
+/** a condition the table shows: at least / at most, in every scenario, nothing else */
+const simple = (c: Condition) => c.mode === "all" && !c.where && !c.in && (c.op === ">=" || c.op === "<=");
+
+function GoalTable({ study }: { study: Study }) {
+  const t = useT();
+  const st = useSweeps.getState();
+  const q = study.question;
+  const g = q.goals[q.active];
+  const a = study.answer;
+  const removed = new Set(q.removed);
+  const params = study.columns.filter((c) => c.role === "param" && c.kind === "number" && !removed.has(c.name));
+  const outputs = [...study.columns.filter((c) => c.role === "output" && c.kind === "number" && !removed.has(c.name)),
+    ...q.derived.map((d) => ({ name: d.name, min: undefined as number | undefined, max: undefined as number | undefined }))];
+  const others = g.conditions.filter((c) => !simple(c)).length;
+  const idx = (col: string, op: ">=" | "<=") => g.conditions.findIndex((c) => simple(c) && c.column === col && c.op === op);
+  const setLimit = (col: string, op: ">=" | "<=", text: string) => {
+    const i = idx(col, op);
+    const v = Number(text.trim().replace(/,/g, ""));
+    if (!text.trim()) { if (i >= 0) st.removeCondition(i); return; }
+    if (!Number.isFinite(v)) return;
+    if (i >= 0) st.updateCondition(i, { value: v }); else st.addCondition({ column: col, op, value: v, mode: "all" });
+  };
+  const opt = (col: string) => g.optimize.find((o) => o.column === col);
+  const setOpt = (col: string, dir: "" | "min" | "max") => {
+    const rest = g.optimize.filter((o) => o.column !== col);
+    st.updateGoal({ optimize: dir ? [...g.optimize.map((o) => (o.column === col ? { ...o, direction: dir } : o)), ...(opt(col) ? [] : [{ column: col, direction: dir, weight: 1 }])] : rest });
+  };
+  const met = (col: string, op: ">=" | "<=") => { const i = idx(col, op); return i >= 0 ? a?.conditions[i]?.met : undefined; };
+  const Limit = ({ col, op }: { col: string; op: ">=" | "<=" }) => {
+    const i = idx(col, op);
+    const m = met(col, op);
+    return (
+      <span className="sw-limit">
+        <input key={`${col}${op}${i >= 0 ? g.conditions[i].value : ""}`} className="sw-limit-in mono" inputMode="decimal"
+          aria-label={t(op === ">=" ? "swAtLeastOf" : "swAtMostOf", { c: col })} placeholder="–"
+          defaultValue={i >= 0 ? String(g.conditions[i].value) : ""}
+          onBlur={(e) => setLimit(col, op, e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { (e.target as HTMLInputElement).value = i >= 0 ? String(g.conditions[i].value) : ""; (e.target as HTMLInputElement).blur(); } }} />
+        {m !== undefined && <span className="hint sw-limit-met" title={t("swLimitMetHint")}>{t("swLimitMet", { n: m })}</span>}
+      </span>
+    );
+  };
+  const row = (c: { name: string; min?: number; max?: number }, out: boolean) => {
+    const o = opt(c.name);
+    return (
+      <tr key={c.name} data-col={c.name} className={(idx(c.name, ">=") >= 0 || idx(c.name, "<=") >= 0 || o) ? "sw-goal-on" : ""}>
+        <td className="sw-col-name">{c.name}</td>
+        <td className="hint">{c.min !== undefined && c.max !== undefined ? `${fmtValue(c.min)} – ${fmtValue(c.max)}` : ""}</td>
+        <td><Limit col={c.name} op=">=" /></td>
+        <td><Limit col={c.name} op="<=" /></td>
+        <td>{out && (
+          <select aria-label={t("swOptimizeOf", { c: c.name })} value={o?.direction ?? ""} onChange={(e) => setOpt(c.name, e.target.value as "" | "min" | "max")}>
+            <option value="">–</option><option value="min">{t("swMinimize")}</option><option value="max">{t("swMaximize")}</option>
+          </select>)}</td>
+        <td>{out && o && g.optimize.length > 1 && (
+          <input type="number" min={0} step={0.5} aria-label={t("swWeightOf", { c: c.name })} defaultValue={o.weight} key={`w${q.active}:${c.name}:${o.weight}`} style={{ width: 56 }}
+            onBlur={(e) => st.updateGoal({ optimize: g.optimize.map((x) => (x.column === c.name ? { ...x, weight: Math.max(0, Number(e.target.value) || 0) } : x)) })} />)}</td>
+      </tr>
+    );
+  };
+  return (
+    <>
+      <p className="hint">{t("swGoalTableHint")}</p>
+      <div className="sw-table-wrap">
+        <table className="sw-table sw-goal-table">
+          <thead><tr><th>{t("swColumn")}</th><th>{t("swRange")}</th><th>{t("swLimitMin")}</th><th>{t("swLimitMax")}</th><th>{t("swGoalOptimize")}</th><th>{g.optimize.length > 1 ? t("swWeight") : ""}</th></tr></thead>
+          <tbody>
+            {outputs.length > 0 && <tr className="sw-goal-group"><td colSpan={6}>{t("swGoalOutputs")}</td></tr>}
+            {outputs.map((c) => row(c, true))}
+            {params.length > 0 && <tr className="sw-goal-group"><td colSpan={6}>{t("swGoalParams")}</td></tr>}
+            {params.map((c) => row(c, false))}
+          </tbody>
+        </table>
+      </div>
+      {others > 0 && <p className="hint">{t("swGoalOthers", { n: others })}</p>}
+      <p className="hint sw-optimize-now" aria-live="polite">{optimizeNow(t, g, a)}</p>
+      <div className="sw-row">
+        <button className="btn primary" onClick={() => st.setView({ step: "results" })}>{t("swGoalSeeResults")} →</button>
+      </div>
+    </>
+  );
+}
+
+/** The goals side by side. */
+function GoalsCompare({ study }: { study: Study }) {
   const t = useT();
   const st = useSweeps.getState();
   const q = study.question;
@@ -165,10 +249,6 @@ export function GoalsCenter({ study }: { study: Study }) {
             );
           })}</tbody>
         </table>
-      </div>
-      <div className="sw-row">
-        <button className="btn outline" onClick={() => st.addGoal(true)}>{t("swGoalCopy")}</button>
-        <button className="btn primary" onClick={() => st.setView({ step: "results" })}>{t("swGoalSeeResults")} →</button>
       </div>
     </div>
   );

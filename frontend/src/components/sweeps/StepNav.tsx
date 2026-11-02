@@ -1,59 +1,43 @@
-/* The way through a study, one step after the other - the results as they came, clean the
-   columns, say which are the scenarios and which the parameters, set the goal(s), look at the
-   results, report. Each step says where it stands; any step can be opened at any time. */
+/* The way through a study (2026-11-01, the owner's redesign): four steps, one after the other -
+   the data (load, merge, see it as a table and as lines), the columns (what each one is), the goal
+   (limits on columns, what to optimize), the results. Each says where it stands; any can be opened at
+   any time. Running sets, the report and the other tools are in the results' Tools menu. */
 import { useT, type TFn, type TKey } from "../../i18n";
-import { AREA_STEPS, AREAS, areaOf, STEPS, type Area, type Step } from "../../sweeps/model";
+import { normStep, STEPS, type Step } from "../../sweeps/model";
 import { useSweeps, type Study } from "../../sweeps/state";
 
-const TITLE: Record<Step, TKey> = { raw: "swStepRaw", clean: "swStepClean", roles: "swStepRoles", goals: "swStepGoals", results: "swStepResults", report: "swStepReport", run: "swStepRun" };
-const AREA_TITLE: Record<Area, TKey> = { problem: "swAreaProblem", run: "swAreaRun", explore: "swAreaExplore" };
-/** where an area opens: the step that is the area's point */
-const AREA_START: Record<Area, Step> = { problem: "goals", run: "run", explore: "results" };
+const TITLE: Record<Step, TKey> = { raw: "swStepData", clean: "swStepColumns", roles: "swStepColumns", goals: "swStepGoal", results: "swStepResults", report: "swStepResults", run: "swStepResults" };
 
 /** One line under each step's name: what it holds now. */
 function status(t: TFn, s: Study, step: Step): string {
   const sm = s.summary, a = s.answer, q = s.question;
   switch (step) {
     case "raw": return t("swStRaw", { rows: s.rows.toLocaleString(), cols: s.columns.length });
-    case "clean": return t("swStClean", { n: q.removed.length });
     case "roles": return t("swStRoles", { p: sm.params.length, h: sm.holds.length, o: sm.outputs.length });
-    case "goals": return t("swStGoals", { n: q.goals.length, c: q.conditions.length });
-    case "results": return a ? t("swStResults", { n: a.counts.holding, of: a.counts.sets }) : "…";
-    case "run": return t("swStRun");
-    default: return t("swStReport");
+    case "goals": return t("swStGoal", { c: q.conditions.length, o: (q.goals[q.active]?.optimize ?? []).length });
+    default: return a ? t("swStResults", { n: a.counts.holding, of: a.counts.sets }) : "…";
   }
 }
 
-// Back / Next go through the steps in order; the run area is beside them (none from or to it)
-export const nextStep = (s: Step): Step | null => (s === "run" ? null : STEPS[STEPS.indexOf(s) + 1] ?? null);
-export const prevStep = (s: Step): Step | null => (s === "run" ? null : STEPS[STEPS.indexOf(s) - 1] ?? null);
+// Back / Next go through the steps in order
+export const nextStep = (s: Step): Step | null => STEPS[STEPS.indexOf(normStep(s)) + 1] ?? null;
+export const prevStep = (s: Step): Step | null => STEPS[STEPS.indexOf(normStep(s)) - 1] ?? null;
 
 export default function StepNav({ study }: { study: Study }) {
   const t = useT();
-  const cur = study.view.step;
-  const area = areaOf(cur);
+  const cur = normStep(study.view.step);
   const hidden = useSweeps((s) => s.leftHidden);
   return (
     <nav className="sw-steps" aria-label={t("swSteps")}>
       <button className="iconbtn sw-panel-toggle" aria-pressed={!hidden} onClick={() => useSweeps.getState().setLeftHidden(!hidden)}
         title={t(hidden ? "swShowPanel" : "swHidePanel")} aria-label={t(hidden ? "swShowPanel" : "swHidePanel")}>{hidden ? "›" : "‹"}</button>
-      <div className="sw-areas-bar" role="tablist" aria-label={t("swAreas")}>
-        {AREAS.map((ar) => (
-          <button key={ar} role="tab" data-area={ar} aria-selected={area === ar}
-            className={`sw-area-btn${area === ar ? " on" : ""}${ar === "run" ? " quiet" : ""}`}
-            onClick={() => area !== ar && useSweeps.getState().setView({ step: AREA_START[ar] })}>{t(AREA_TITLE[ar])}</button>
-        ))}
-      </div>
-      {AREA_STEPS[area].length > 1 && AREA_STEPS[area].map((s) => {
-        const i = STEPS.indexOf(s);
-        return (
-          <button key={s} data-step={s} className={`sw-step-btn${s === cur ? " on" : ""}${STEPS.indexOf(cur) > i ? " done" : ""}`} aria-current={s === cur ? "step" : undefined}
-            onClick={() => useSweeps.getState().setView({ step: s })}>
-            <span className="sw-step-n">{i + 1}</span>
-            <span className="sw-step-txt"><b>{t(TITLE[s])}</b><span>{status(t, study, s)}</span></span>
-          </button>
-        );
-      })}
+      {STEPS.map((s, i) => (
+        <button key={s} data-step={s} className={`sw-step-btn${s === cur ? " on" : ""}${STEPS.indexOf(cur) > i ? " done" : ""}`} aria-current={s === cur ? "step" : undefined}
+          onClick={() => useSweeps.getState().setView({ step: s })}>
+          <span className="sw-step-n">{i + 1}</span>
+          <span className="sw-step-txt"><b>{t(TITLE[s])}</b><span>{status(t, study, s)}</span></span>
+        </button>
+      ))}
     </nav>
   );
 }

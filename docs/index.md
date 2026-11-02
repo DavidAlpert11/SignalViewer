@@ -60,8 +60,8 @@ and write the report – offline, on your own machine, with every computation va
     ---
 
     A results table with a row per run: which parameter sets hold in every scenario, and which is
-    best - goals, a parallel plot filtered as in HiPlot, maps, robustness, what to run next; Explore
-    tries limits and objectives as sliders, live.
+    best - in four steps: the data, the columns, the goal as one table, the results (the sets and
+    every run as lines filtered as in HiPlot, charts, what to run next, the report).
 
     [:octicons-arrow-right-24: Sweeps in What works](features.md#sweeps)
 

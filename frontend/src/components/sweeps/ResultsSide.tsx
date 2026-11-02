@@ -8,7 +8,6 @@ import { goalName, goalSummary } from "./GoalsStep";
 import { StepFoot } from "./StepNav";
 import BestSet from "./BestSet";
 import GroupsPanel from "./GroupsPanel";
-import ExploreButton from "./ExploreButton";
 
 export default function ResultsSide({ study }: { study: Study }) {
   const t = useT();
@@ -36,7 +35,6 @@ export default function ResultsSide({ study }: { study: Study }) {
       </div>
       {a && <GroupsPanel study={study} />}
       {a && <BestSet study={study} />}
-      {a && v.center !== "explore" && <ExploreButton study={study} />}
       <div className="sw-hide-box">
         <b>{t("swNowShown")}</b>
         {filters.length === 0 && steps.length === 0 && <span className="hint">{t("swRepNothing")}</span>}
