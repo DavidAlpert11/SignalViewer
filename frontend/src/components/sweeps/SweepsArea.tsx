@@ -2,15 +2,13 @@
    first, outputs last - and the question asked of it.
 
    This file is layout only. The pieces, each its own file:
-     StepNav                        the steps, in order: raw results, clean, scenarios and
-                                    parameters, goals, results, report - each with its side panel
-                                    and its middle (RawStep, CleanStep, RolesStep, GoalsStep,
-                                    ResultsSide + ResultsCenter below, ReportStep)
+     StepNav                        the four steps (2026-11-01 redesign): data, columns, goal,
+                                    results - each with its side panel and its middle (RawStep,
+                                    RolesStep, GoalsStep, ResultsSide + ResultsCenter below)
      CenterTabs                     the results' views:
-       PlotToolbar + ParallelPlot + SetsTable   the lines (+ AxisMenu) and the sets, best first
-       EffectsView  which parameter matters      MapView      two parameters as a map
-       ScatterView  any two columns as points    NextRunsView what to run next
-       HealthView   missing, failed, odd runs    CompareView  two studies, same question
+       PlotToolbar + ParallelPlot + SetsTable   the parameter sets / all runs as lines (+ AxisMenu)
+       Desk         charts made from the columns   NextRunsView what to run next
+       ReportStep   the report
      SetDetail                      one set on the right: why it fails, its runs, its recordings
    State: sweeps/state.ts. Styles: ./sweeps.css (its own file, to restyle the area alone). */
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +18,7 @@ import { pickPath, useApp } from "../../store";
 import { translate, useT, type TFn } from "../../i18n";
 import { registerArea } from "../../areaCommands";
 import Toasts from "../Toasts";
-import { STEPS } from "../../sweeps/model";
+import { normCenter, normStep, STEPS } from "../../sweeps/model";
 import { stepTitle } from "./StepNav";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
@@ -32,7 +30,6 @@ import ReportDialog from "./ReportDialog";
 import TemplatesDialog from "./TemplatesDialog";
 import StepNav from "./StepNav";
 import { RawCenter, RawSide } from "./RawStep";
-import { CleanCenter, CleanSide } from "./CleanStep";
 import { RolesCenter, RolesSide } from "./RolesStep";
 import { GoalsCenter, GoalsSide } from "./GoalsStep";
 import ResultsSide from "./ResultsSide";
@@ -41,16 +38,8 @@ import { confirmAsk, openMenu, prompt } from "../Overlays";
 import type { SavedStudy } from "../../sweeps/state";
 import AxisMenu from "./AxisMenu";
 import CenterTabs from "./CenterTabs";
-import CompareView from "./CompareView";
-import EffectsView from "./EffectsView";
-import HealthView from "./HealthView";
-import MapsView from "./MapView";
 import Desk from "./Desk";
-import SurrogateView from "./SurrogateView";
-import { RunCenter, RunSide } from "./RunArea";
-import ExploreView from "./ExploreView";
 import NextRunsView from "./NextRunsView";
-import ScattersView from "./ScatterView";
 import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
@@ -282,15 +271,21 @@ function SweepsWelcome() {
 function StudyView({ study }: { study: Study }) {
   const t = useT();
   const st = useSweeps.getState();
-  const step = study.view.step;
+  const step = normStep(study.view.step);
+  // a study saved on an older step (clean, report, run) opens on its place in the four steps
+  useEffect(() => {
+    const old = study.view.step, center = normCenter(study.view.center);
+    if (old === step && center === study.view.center) return;
+    useSweeps.getState().setView({ step, center: old === "report" ? "report" : center });
+  }, [study.view.step, study.view.center, step]);
   // follow the file: is it newer than what is on screen? (every few seconds, only this study)
   useEffect(() => {
     if (!study.path) return;
     const h = window.setInterval(() => useSweeps.getState().checkChanged(), 3000);
     return () => window.clearInterval(h);
   }, [study.tableId, study.path]);
-  const side = step === "raw" ? <RawSide study={study} /> : step === "clean" ? <CleanSide study={study} /> : step === "roles" ? <RolesSide study={study} />
-    : step === "goals" ? <GoalsSide study={study} /> : step === "results" ? <ResultsSide study={study} /> : step === "run" ? <RunSide /> : <ReportSide study={study} />;
+  const side = step === "raw" ? <RawSide study={study} /> : step === "roles" ? <RolesSide study={study} />
+    : step === "goals" ? <GoalsSide study={study} /> : <ResultsSide study={study} />;
   const noParams = !activeParams(study).length;
   // the side panels: widths dragged (and remembered) as in Recordings, the steps' panel can be hidden
   const [leftW, setLeftW] = usePanelWidth("swLeft", 340);
@@ -321,17 +316,14 @@ function StudyView({ study }: { study: Study }) {
               <button className="btn primary" onClick={() => st.applyTemplate(study.offer!)}>{t("swApply")}</button>
               <button className="iconbtn" aria-label={t("swDismiss")} onClick={() => useSweeps.setState((x) => ({ studies: x.studies.map((y) => (y.tableId === study.tableId ? { ...y, offer: null } : y)) }))}>×</button></div>
           )}
-          {noParams && (step === "goals" || step === "results" || step === "report") && (
+          {noParams && (step === "goals" || step === "results") && (
             <div className="sw-banner" role="status">{t("swChooseParams")}
-              <button className="btn primary" onClick={() => st.setView({ step: "roles" })}>{t("swStepRoles")}</button></div>
+              <button className="btn primary" onClick={() => st.setView({ step: "roles" })}>{t("swStepColumns")}</button></div>
           )}
           {step === "raw" && <RawCenter study={study} />}
-          {step === "clean" && <CleanCenter study={study} />}
           {step === "roles" && <RolesCenter study={study} />}
           {step === "goals" && <GoalsCenter study={study} />}
           {step === "results" && <ResultsCenter study={study} />}
-          {step === "report" && <ReportCenter study={study} />}
-          {step === "run" && <RunCenter study={study} />}
         </main>
         {detail && <SetDetail study={study} set={study.view.pinned!} />}
       </div>
@@ -383,14 +375,8 @@ function ResultsCenter({ study }: { study: Study }) {
     <>
       <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
       {study.answer && v.center === "charts" && <Desk study={study} />}
-      {study.answer && v.center === "effects" && <EffectsView study={study} />}
-      {study.answer && v.center === "model" && <SurrogateView study={study} />}
-      {study.answer && v.center === "map" && <MapsView study={study} />}
-      {study.answer && v.center === "explore" && <ExploreView study={study} />}
-      {study.answer && v.center === "scatter" && <ScattersView study={study} />}
       {study.answer && v.center === "next" && <NextRunsView study={study} />}
-      {v.center === "health" && <HealthView study={study} />}
-      {study.answer && v.center === "compare" && <CompareView study={study} />}
+      {v.center === "report" && <div className="sw-report-tab"><ReportCenter study={study} /><ReportSide study={study} /></div>}
       {v.center === "lines" && (study.answer ? (
         <>
           <PlotToolbar study={study} shown={shown} total={n}
@@ -410,7 +396,7 @@ function ResultsCenter({ study }: { study: Study }) {
           <SetsTable study={study} />
         </>
       ) : <p className="empty-note">{study.evalError || t("swReading")}</p>)}
-      {!study.answer && v.center !== "lines" && v.center !== "health" && <p className="empty-note">{study.evalError || t("swReading")}</p>}
+      {!study.answer && v.center !== "lines" && <p className="empty-note">{study.evalError || t("swReading")}</p>}
       {menu && menuCol && (
         <AxisMenu col={menuCol} label={colLabel(t, study, menu.name)} at={menu.at} scale={scale(menu.name)} reversed={!!v.reversed[menu.name]}
           filter={v.filters[menu.name]} colouring={v.colorBy === menu.name}

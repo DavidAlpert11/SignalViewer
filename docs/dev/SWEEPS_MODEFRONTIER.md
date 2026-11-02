@@ -1,3 +1,8 @@
+> **2026-11-01: history.** After Milestone 23 the owner had the Sweeps area redone simply and the old
+> tools deleted (ROADMAP "Sweeps redesign"): of MF00-MF11 only the groups (MF00), the charts desk (MF02,
+> with MF09's clusters / PCA / SOM as chart kinds) and next runs remain. The rest of this file is the
+> research and plan as it was - read it as background, not as what the app has.
+
 # Sweeps toward modeFRONTIER — how it explores results, what we copy, and the brief for the agent
 
 Owner's request (2026-11-01): every capability of modeFRONTIER (ESTECO) should be possible in

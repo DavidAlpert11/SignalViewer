@@ -201,23 +201,17 @@ row per run – the parameters you choose, the scenarios you don't (wind, payloa
 outputs. It answers *which parameter sets hold in every scenario, and which of them is best?* Try
 *Try an example* on its first screen: a drone's roll controller swept over wind, payload and gusts.
 
-Six steps, left to right:
+Four steps, left to right:
 
-1. **Raw results** – the table as it is; a second sweep is merged in here.
-2. **Clean columns** – take out columns that tell nothing, add columns made from others.
-3. **Scenarios & parameters** – check each column's role (the guess is usually right).
-4. **Goals** – conditions every scenario must meet (`roll_error_deg <= 5`, judged by the worst case)
-   and what to optimize (the least `energy_wh`). Keep several goals to compare them; *Robust to* asks
-   that the neighbours of a good set hold too.
-5. **Results** – the parallel plot (drag on an axis to keep a range, as in HiPlot), the sets best
-   first, *Why it fails* for any set, maps of two parameters, and **Next runs**: where to run more.
-6. **Report** – HTML, Word or PDF with the whole process, ready to hand over.
-
-**Explore this goal →** (in Goals and beside the answer) tries a goal before you commit to it: a
-range slider for every parameter, a weight and a *good enough* threshold for every objective, the
-conditions as *what if*. The lines and the table beside the sliders show what is left at every move
-(*8 of 45 parameter sets left*) and export it. Nothing changes until **Save as a goal**; the saved
-goal holds for exactly the sets Explore showed.
+1. **Data** – the table as it is, as rows or as lines; a second sweep is merged in here.
+2. **Columns** – check each column's role: parameter, output, scenario, run id, not used (the guess
+   is usually right); add columns made from others.
+3. **Goal** – one table: *at least* / *at most* on any column (`roll_error_deg` at most 5 - an output
+   in every scenario, judged by the worst case) and what to optimize (the least `energy_wh`). The
+   count and the best set follow each change.
+4. **Results** – the parameter sets and every run as lines (drag on an axis to keep a range, as in
+   HiPlot; Keep, Exclude, undo), the sets best first, *Why it fails* for any set, charts, **Next runs**
+   (where to run more) and the **Report** (HTML, Word or PDF with the whole process).
 
 Ctrl+Z undoes any step, the study is kept when the app closes, and *Study ▾* saves it or makes a
 template for the next table. In CI: `signalviewer-cli sweep results.csv --question study.svsweep`.

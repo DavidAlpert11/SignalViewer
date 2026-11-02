@@ -1,21 +1,24 @@
-/* The middle of the area: the lines (plot and table), which parameter matters, two parameters as a
-   map, any two columns as points, what to run next, the data's health, and two studies compared. */
-import { useT, type TKey } from "../../i18n";
-import { CENTERS, type Center } from "../../sweeps/model";
+/* The results' views (2026-11-01, the owner's redesign - a clean set, nothing else): the parameter
+   sets as lines, every run as lines, charts made from the columns, what to run next, the report. */
+import { useT } from "../../i18n";
+import { normCenter } from "../../sweeps/model";
 import { useSweeps, type Study } from "../../sweeps/state";
 
-const KEY: Record<Center, TKey> = { lines: "swCenterLines", explore: "swCenterExplore", charts: "swCenterCharts", effects: "swCenterEffects", model: "swCenterModel", map: "swCenterMap", scatter: "swCenterScatter",
-  next: "swCenterNext", health: "swCenterHealth", compare: "swCenterCompare" };
-
-export default function CenterTabs({ study, studies }: { study: Study; studies: number }) {
+export default function CenterTabs({ study }: { study: Study; studies?: number }) {
   const t = useT();
-  const shown = CENTERS.filter((c) => c !== "compare" || studies > 1);
+  const v = study.view;
+  const st = useSweeps.getState();
+  const c = normCenter(v.center);
+  const tab = (key: string, on: boolean, label: string, go: () => void) => (
+    <button key={key} role="tab" data-tab={key} aria-selected={on} className={on ? "on" : ""} onClick={go}>{label}</button>
+  );
   return (
     <div className="sw-center-tabs" role="tablist">
-      {shown.map((c) => (
-        <button key={c} role="tab" aria-selected={study.view.center === c} className={study.view.center === c ? "on" : ""}
-          onClick={() => useSweeps.getState().setView({ center: c })}>{t(KEY[c])}</button>
-      ))}
+      {tab("sets", c === "lines" && v.mode === "sets", t("swTabSets"), () => st.setView({ center: "lines", mode: "sets" }))}
+      {tab("runs", c === "lines" && v.mode === "runs", t("swTabRuns"), () => st.setView({ center: "lines", mode: "runs" }))}
+      {tab("charts", c === "charts", t("swCenterCharts"), () => st.setView({ center: "charts" }))}
+      {tab("next", c === "next", t("swCenterNext"), () => st.setView({ center: "next" }))}
+      {tab("report", c === "report", t("swToolReport"), () => st.setView({ center: "report" }))}
     </div>
   );
 }

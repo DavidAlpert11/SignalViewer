@@ -9,7 +9,9 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from test_features import env, goto_folder, pg, save_as  # noqa: E402,F401
 
-STEP = {"raw": 0, "clean": 1, "roles": 2, "goals": 3, "results": 4, "report": 5}
+# the four steps (2026-11-01 redesign); "clean" is part of the columns, "report" and "run" are tools
+STEP = {"raw": 0, "clean": 1, "roles": 1, "goals": 2, "results": 3, "report": 3}
+NAV = {"raw": "raw", "clean": "roles", "roles": "roles", "goals": "goals", "results": "results", "report": "results"}
 
 
 def _to_sweeps(pg):
@@ -33,17 +35,37 @@ def _fresh(pg):
     pg.wait_for_function("document.querySelector('.sw-step-btn.on .sw-step-n').innerText === '1'")
 
 
-AREA = {"raw": "problem", "clean": "problem", "roles": "problem", "goals": "problem", "results": "explore", "report": "explore"}
 
 
 def _step(pg, name):
-    """A step, through its area (M23: Problem | Run | Explore, the area's steps under it)."""
-    pg.locator(f".sw-area-btn[data-area='{AREA[name]}']").click()
-    pg.locator(f".sw-step-btn[data-step='{name}']").click()
+    """A step (the four of the 2026-11-01 redesign); the report and running sets are tools of the results."""
+    pg.locator(f".sw-step-btn[data-step='{NAV[name]}']").click()
     pg.wait_for_function(f"document.querySelector('.sw-step-btn.on .sw-step-n').innerText === '{STEP[name] + 1}'")
+    if name == "report":
+        _tab(pg, "report")
+
+
+def _tab(pg, name):
+    """A results tab: sets, runs, charts, next, report."""
+    pg.locator(f".sw-center-tabs button[data-tab='{name}']").click()
+
+
+def _more(pg):
+    """The goal's More options (the full condition editor, robustness, several goals)."""
+    d = pg.locator("details.sw-more")
+    if d.count() and not d.evaluate("e => e.open"):
+        d.locator("summary").click()
 
 
 def _condition(pg, column, op, value):
+    """At least / at most in the goal's table; other comparisons through More options."""
+    if op in ("<=", ">="):
+        box = pg.locator(f"input[aria-label='{column} {'at most' if op == '<=' else 'at least'}']")
+        box.fill(str(value)); box.press("Enter")
+        # the end state: the answer has this limit (its count beside it)
+        pg.locator(f".sw-goal-table tr[data-col='{column}'] .sw-limit-met").first.wait_for()
+        return
+    _more(pg)
     pg.locator(".sw-goal-part .btn", has_text="+ condition").click()
     row = pg.locator(".sw-cond").last
     row.locator("select[aria-label='Column']").select_option(column)
@@ -53,9 +75,7 @@ def _condition(pg, column, op, value):
 
 
 def _optimize(pg, column, direction):
-    pg.locator(".sw-goal-part .btn", has_text="+ objective").click()
-    pg.locator(".sw-goal-part select[aria-label='Objective']").last.select_option(column)
-    pg.locator(".sw-goal-part select[aria-label='Direction']").last.select_option(direction)
+    pg.locator(f"select[aria-label='Optimize {column}']").select_option(direction)
 
 
 def _the_goal(pg):
@@ -72,6 +92,8 @@ def _holding(pg):
 
 
 def _variant_holding(pg, i):
+    if not pg.locator(".sw-variants").count():          # one goal: no comparison table, the count
+        return _holding(pg)
     cell = pg.locator(".sw-variants tbody tr").nth(i).locator("td").nth(2)
     pg.wait_for_function("el => !el.innerText.includes('…')", arg=cell.element_handle())
     return int(cell.inner_text().split("/")[0])
@@ -103,12 +125,11 @@ def test_raw_results_table_and_plot(pg, tmp_path):
 
 def test_clean_scenarios_and_parameters(pg):
     _fresh(pg)
-    _step(pg, "clean")
-    pg.locator(".sw-side-step .btn", has_text="Take out these").click()
-    pg.wait_for_selector(".sw-clean tr.sw-out")
-    assert "sim_version" in pg.locator(".sw-clean tr.sw-out").first.inner_text()
     _step(pg, "roles")
     radio = lambda col, role: pg.locator(f"input[aria-label='{col}: {role}']")
+    if not radio("sim_version", "ignore").is_checked():                              # the constant one: not used
+        pg.locator(".sw-side-step .btn", has_text="as not used").click()
+    pg.wait_for_function("document.querySelector(\"input[aria-label='sim_version: ignore']\").checked")
     for c in ("scenario_wind_mps", "scenario_payload_kg", "scenario_gusts"):
         assert radio(c, "hold").is_checked()
     for c in ("kp_roll", "ki_roll", "filter_hz"):
@@ -129,11 +150,11 @@ def test_goals_compared_and_or(pg):
     assert 5 <= first <= 20
     pg.locator(".sw-goal-tabs .linklike", has_text="copy this goal").click()        # goal 2: a tighter roll limit
     pg.wait_for_selector(".sw-variants tbody tr:nth-child(2)")
-    box = pg.locator(".sw-cond input[aria-label='Limit']").first
-    box.fill("4"); box.press("Enter")
+    _condition(pg, "roll_error_deg", "<=", 4)
     pg.wait_for_function(f"(() => {{ const c = document.querySelectorAll('.sw-variants tbody tr')[1].querySelectorAll('td')[2].innerText; return !c.includes('…') && +c.split('/')[0] < {first}; }})()")
-    # or: either condition is enough - more sets
-    pg.locator(".sw-andor button", has_text="or").click()
+    # or: either condition is enough - more sets (More options)
+    _more(pg)
+    pg.locator(".sw-andor button", has_text="or").first.click()
     pg.wait_for_function(f"(() => {{ const c = document.querySelectorAll('.sw-variants tbody tr')[1].querySelectorAll('td')[2].innerText; return !c.includes('…') && +c.split('/')[0] > {first}; }})()")
     pg.locator(".sw-variants tbody tr").first.click()                               # goal 1 is the one shown
     _step(pg, "results")
@@ -175,7 +196,7 @@ def test_results_filter_keep_exclude_export_and_why(pg):
 
 def test_new_column_in_the_cleaning_step(pg):
     _fresh(pg)
-    _step(pg, "clean")
+    _step(pg, "roles")
     pg.locator(".sw-side-step .btn", has_text="per parameter set").click()
     pg.locator(".sw-derived-editor input").first.fill("energy_strong_max")
     pg.select_option(".sw-derived-editor select[aria-label='Operation']", "max")
@@ -188,27 +209,9 @@ def test_new_column_in_the_cleaning_step(pg):
     assert _variant_holding(pg, 0) > 0
 
 
-def test_effects_map_next_runs_and_health(pg):
-    _fresh(pg)
-    _the_goal(pg)
-    _step(pg, "results")
-    pg.locator(".sw-center-tabs button", has_text="Which parameter matters").click()
-    pg.wait_for_selector(".sw-effect")
-    pg.locator(".sw-center-tabs button", has_text="Map").click()
-    pg.wait_for_selector(".sw-map svg rect")
-    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
-    pg.locator(".sw-next .btn", has_text="Suggest").click()
-    pg.wait_for_selector(".sw-next .sw-table tbody tr")
-    pg.locator(".sw-center-tabs button", has_text="Data health").click()
-    pg.wait_for_selector(".sw-health .sw-table tbody tr")
-    assert pg.locator(".sw-health .sw-table tbody tr").count() == 2                  # the example's two odd runs
-    pg.locator(".sw-center-tabs button", has_text="Lines").click()
-
-
 def test_report_of_the_process(pg):
     _fresh(pg)
-    _step(pg, "clean")
-    pg.locator(".sw-side-step .btn", has_text="Take out these").click()
+    _step(pg, "roles")
     _the_goal(pg)
     pg.locator(".sw-goal-tabs .linklike", has_text="copy this goal").click()
     _step(pg, "report")
@@ -218,7 +221,7 @@ def test_report_of_the_process(pg):
     save_as(pg, "process.html")
     pg.wait_for_selector(".toast:has-text('process.html')", timeout=60000)
     html = open(os.path.join(pg.env["out"], "process.html"), encoding="utf-8").read()
-    assert "Columns taken out" in html and "Goal 2" in html and "<canvas" in html
+    assert "Goal 2" in html and "<canvas" in html
     assert "filters" in preview.lower() or "every parameter set" in preview.lower()
     pg.locator(".sw-report-format", has_text="Word").click()
     pg.locator(".sw-report-page .btn", has_text="Make the report").click()
@@ -237,8 +240,8 @@ def test_save_reopen_and_close(pg):
     goto_folder(pg, pg.env["out"])
     pg.locator(".dialog .fs-row", has_text="drone.svsweep").click(); pg.click(".dialog-foot .btn.primary")
     pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n + 1}")
-    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "4"              # where it was saved
-    assert pg.locator(".sw-cond").count() == 2
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "3"              # where it was saved: the goal
+    pg.wait_for_function("document.querySelectorAll('.sw-limit-met').length === 2")
     _bar_menu(pg, "Study", "Close this table")
     pg.wait_for_function(f"document.querySelectorAll('.areabar .tab').length === {n}")
 
@@ -264,7 +267,7 @@ def test_a_table_with_no_parameter_still_opens(pg, tmp_path):
     pg.wait_for_selector(".sw-raw .sw-table")                                        # the raw results first, always
     _step(pg, "goals")
     pg.wait_for_selector(".sw-banner:has-text('No column is a parameter')")
-    pg.locator(".sw-banner .btn", has_text="Scenarios").click()
+    pg.locator(".sw-banner .btn", has_text="Columns").click()
     pg.locator("input[aria-label='a: param']").check()
     pg.wait_for_function("+[...document.querySelectorAll('.sw-shape .sw-stat')].find(e => e.innerText.includes('Parameter sets')).querySelector('.sw-stat-value').innerText === 4")
 
@@ -335,7 +338,7 @@ def test_follow_the_file_and_templates(pg, tmp_path):
     pg.wait_for_selector(".sw-banner:has-text('grow check')")
     pg.locator(".sw-banner .btn", has_text="Apply").click()
     _step(pg, "goals")
-    assert pg.locator(".sw-goal-part select[aria-label='Objective']").first.input_value() == "out"
+    assert pg.locator("select[aria-label='Optimize out']").input_value() in ("min", "max")
 
 
 def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
@@ -370,40 +373,20 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6
 
 
-def test_a_parameter_taken_out_leaves_the_map_and_next_runs(pg):
-    """S01: a parameter taken out in Clean columns is not offered by the map (the server refused it)."""
-    _fresh(pg)
-    _the_goal(pg)
-    _step(pg, "clean")
-    pg.locator("input[aria-label='Keep kp_roll']").uncheck()
-    _step(pg, "results")
-    pg.locator(".sw-center-tabs button", has_text="Map").click()
-    pg.wait_for_selector(".sw-map svg rect")
-    assert pg.locator(".sw-map .sw-error").count() == 0
-    options = pg.locator(".sw-map select").first.locator("option").all_inner_texts()
-    assert "kp_roll" not in options and "ki_roll" in options
-    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
-    pg.locator(".sw-next .btn", has_text="Suggest").click()
-    pg.wait_for_selector(".sw-next-main b:has-text('Suggested')")        # an answer (maybe none), not an error
-    assert pg.locator(".sw-next .sw-error").count() == 0
-    _step(pg, "clean")
-    pg.locator("input[aria-label='Keep kp_roll']").check()
-
-
 def test_a_goals_weight_is_its_own_and_template_saved_says_so(pg):
     """S01: switching goals shows each goal's own weight; saving a template says it was saved."""
     _fresh(pg)
     _step(pg, "goals")
     _optimize(pg, "energy_wh", "min")
     _optimize(pg, "roll_error_deg", "min")
-    w = pg.locator(".sw-goal-part input[aria-label='Weight']").last
+    w = pg.locator(".sw-goal-table input[aria-label^='Weight of']").last
     w.fill("3"); w.press("Tab")
     pg.locator(".sw-goal-tabs .linklike", has_text="+ empty goal").click()
     _optimize(pg, "energy_wh", "min")
     _optimize(pg, "roll_error_deg", "min")
-    assert pg.locator(".sw-goal-part input[aria-label='Weight']").last.input_value() == "1"
+    assert pg.locator(".sw-goal-table input[aria-label^='Weight of']").last.input_value() == "1"
     pg.locator(".sw-goal-tabs button[role='tab']").first.click()
-    assert pg.locator(".sw-goal-part input[aria-label='Weight']").last.input_value() == "3"
+    assert pg.locator(".sw-goal-table input[aria-label^='Weight of']").last.input_value() == "3"
     _bar_menu(pg, "Study", "Save as a template")
     pg.fill(".dialog input", "weights check"); pg.keyboard.press("Enter")
     pg.wait_for_selector(".toast:has-text('Template saved: weights check')")
@@ -424,27 +407,27 @@ def test_undo_redo_and_the_studies_open_again(pg):
     redo = pg.locator(".areabar button[aria-label='Redo']")
     assert undo.is_disabled()                                         # opening a table is not a change
     _condition(pg, "roll_error_deg", "<=", 5)
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 1")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 1")
     undo.click()
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 0")
     redo.click()
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 1")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 1")
     pg.locator(".sw-side-step").click(position={"x": 5, "y": 5})     # out of any input
     pg.keyboard.press("Control+z")
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 0")
     pg.keyboard.press("Control+y")
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 1")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 1")
     pg.keyboard.press("Control+k")
     pg.fill(".palette-input", "Undo"); pg.keyboard.press("Enter")
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 0")
     _condition(pg, "overshoot_pct", "<=", 15)
     pg.wait_for_timeout(1500)                                        # the autosave, a moment after the change
     pg.reload()
     pg.wait_for_selector(".app")
     _to_sweeps(pg)
     pg.wait_for_selector(".sw-steps")
-    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "4"
-    assert pg.locator(".sw-cond").count() == 1
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "3"
+    assert pg.locator(".sw-goal-table tr.sw-goal-on").count() == 1
     assert undo.is_disabled()                                        # what was reopened is not a change to undo
 
 
@@ -573,53 +556,13 @@ def test_optimize_says_how_it_ranks_and_weights_count(pg):
         heads = pg.locator(".sw-sets-table thead th").all_inner_texts()
         cells = pg.locator(".sw-sets-table tbody tr").first.locator("td").all_inner_texts()
         return tuple(cells[heads.index(h)] for h in heads if h.strip() in ("kp_roll", "ki_roll", "filter_hz"))
-    w = lambda i, v: (pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).fill(v),
-                      pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).press("Tab"))
+    w = lambda i, v: (pg.locator(".sw-goal-table input[aria-label^='Weight of']").nth(i).fill(v),
+                      pg.locator(".sw-goal-table input[aria-label^='Weight of']").nth(i).press("Tab"))
     _step(pg, "goals"); w(0, "10"); w(1, "0")
     by_energy = best()
     _step(pg, "goals"); w(0, "0"); w(1, "10")
     by_error = best()
     assert by_energy != by_error
-
-
-def test_several_maps_a_slice_a_cell_and_the_report(pg):
-    """S05: + map, a slice at the best set, a click on a cell keeps its sets on the lines; several
-    point plots; every map in the report."""
-    _fresh(pg)
-    _the_goal(pg)
-    _step(pg, "results")
-    pg.locator(".sw-center-tabs button", has_text="Map").click()
-    pg.wait_for_selector(".sw-map svg rect")
-    pg.locator(".sw-maps .btn", has_text="+ map").click()
-    pg.wait_for_function("document.querySelectorAll('.sw-maps-grid .sw-map svg').length === 2")
-    second = pg.locator(".sw-maps-grid .sw-map").nth(1)
-    second.locator("select").nth(2).select_option("best")
-    pg.wait_for_selector(".sw-map-at:has-text('A slice at the best set')")
-    assert pg.locator(".sw-edge").count() > 0                                   # where holding begins
-    # a cell: its sets kept on the lines' axes
-    pg.locator(".sw-maps-grid .sw-map").first.locator("g.sw-cell").first.click()
-    pg.wait_for_selector(".toast:has-text('Kept on the lines')")
-    pg.locator(".toast .btn", has_text="Show the lines").click()
-    pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 2 filters')")
-    # points: two plots
-    pg.locator(".sw-center-tabs button", has_text="Points").click()
-    pg.locator(".sw-maps .btn", has_text="+ points").click()
-    pg.wait_for_function("document.querySelectorAll('.sw-scatter canvas').length === 2")
-    # the report has both maps
-    _step(pg, "report")
-    pg.locator(".sw-report-format", has_text="Interactive HTML").click()
-    pg.locator(".sw-report-page .btn", has_text="Make the report").click()
-    save_as(pg, "maps.html")
-    pg.wait_for_selector(".toast:has-text('maps.html')", timeout=60000)
-    html = open(os.path.join(pg.env["out"], "maps.html"), encoding="utf-8").read()
-    assert html.count("<h2>Map: ") == 2 and "(at " in html
-    # one step back: the second map goes
-    _step(pg, "results")
-    pg.locator(".sw-center-tabs button", has_text="Map").click()
-    pg.wait_for_selector(".sw-maps-grid .sw-map svg"); pg.locator(".sw-maps .sw-row .hint").first.click()
-    for _ in range(4):
-        pg.keyboard.press("Control+z")
-    pg.wait_for_function("document.querySelectorAll('.sw-maps-grid .sw-map').length === 1")
 
 
 def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
@@ -628,6 +571,7 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
     _fresh(pg)
     _the_goal(pg)
     _step(pg, "goals")
+    _more(pg)
     sec = pg.locator(".sw-goal-part", has_text="Robust to")
     sec.locator(".sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
@@ -638,7 +582,7 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
     _step(pg, "results")
     pg.wait_for_selector(".sw-sets-table th:has-text('holds robustly')")
     # next runs: only ki_roll moves
-    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    _tab(pg, "next")
     pg.locator(".sw-next-side .sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").uncheck()
     pg.locator(".sw-colpick-pop .msp-item", has_text="filter_hz").locator("input").uncheck()
@@ -658,13 +602,14 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
     pg.wait_for_timeout(1500)
     pg.reload(); pg.wait_for_selector(".app"); _to_sweeps(pg)
     pg.wait_for_selector(".sw-steps")
-    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    _tab(pg, "next")
     pg.wait_for_function(f"document.querySelectorAll('.sw-next .sw-table tbody tr').length === {n}")
     # a change to the question: they are out of date
     _step(pg, "goals")
+    _more(pg)
     pg.locator(".sw-robust-row button[aria-label='Remove']").click()
     _step(pg, "results")
-    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    _tab(pg, "next")
     pg.wait_for_selector(".sw-banner:has-text('The question changed')")
 
 
@@ -694,12 +639,12 @@ def test_templates_dialog_save_replace_export_import_apply(pg):
     pg.keyboard.press("Escape")
     _bar_menu(pg, "Study", "Start the study over")
     _step(pg, "goals")
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 0")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 0")
     _bar_menu(pg, "Study", "Templates…")
     pg.locator(".sw-tpl-item", has_text="drone tpl (2)").dblclick()
     pg.wait_for_selector(".toast:has-text('Template applied: drone tpl (2)')")
     _step(pg, "goals")
-    pg.wait_for_function("document.querySelectorAll('.sw-cond').length === 2")
+    pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length >= 2")
     for n in ("drone tpl", "drone tpl (2)"):
         _bar_menu(pg, "Study", "Templates…")
         pg.locator(".sw-tpl-item b").get_by_text(n, exact=True).click()
@@ -757,84 +702,18 @@ def test_a_narrow_window_nothing_overlaps(pg):
     for step in ("roles", "goals", "results"):
         _step(pg, step)
         assert pg.evaluate("document.querySelector('.app').scrollWidth") <= 1024
-        a, b = [x.bounding_box() for x in pg.locator(".sw-step-foot .btn").all()][:2]
+        boxes = [x.bounding_box() for x in pg.locator(".sw-step-foot .btn").all()]
+        if len(boxes) < 2:
+            continue                                                        # the last step: Back only
+        a, b = boxes[:2]
         assert a["x"] + a["width"] <= b["x"] + 1 or a["y"] + a["height"] <= b["y"] + 1      # side by side, or one under the other
     bar = pg.locator(".sw-plotbar")
     assert bar.evaluate("e => e.scrollWidth <= e.clientWidth + 1")
     pg.set_viewport_size({"width": 1440, "height": 900})
 
 
-def test_where_the_optimization_shows(pg):
-    """S10: optimizing alone (every set holds) shows on the map - coloured by the best goal, the
-    best set starred - and in the answer's panel; conditions alone give no numbers on the map
-    (they were the share, '1')."""
-    _fresh(pg)
-    _step(pg, "goals")
-    _optimize(pg, "energy_wh", "min")
-    _step(pg, "results")
-    pg.wait_for_selector(".sw-best:has-text('kp_roll = ')")
-    pg.locator(".sw-center-tabs button", has_text="Map").click()
-    pg.wait_for_selector(".sw-map svg rect")
-    assert "colour: the best energy_wh" in pg.locator(".sw-map-key").first.inner_text()
-    fills = pg.locator(".sw-maps-grid .sw-map").first.locator("g.sw-cell rect").evaluate_all("rs => new Set(rs.map(r => r.getAttribute('fill'))).size")
-    assert fills > 3                                                            # not one colour
-    assert pg.locator(".sw-best-star").count() == 1
-    pg.locator(".sw-best .btn", has_text="Open it").click()
-    pg.wait_for_selector(".sw-detail")
-    # conditions only: the share, and no number on the cells
-    _fresh(pg)
-    _step(pg, "goals")
-    _condition(pg, "roll_error_deg", "<=", 5)
-    _step(pg, "results")
-    pg.locator(".sw-center-tabs button", has_text="Map").click()
-    pg.wait_for_selector(".sw-map svg rect")
-    pg.wait_for_function("document.querySelector('.sw-map-key').innerText.includes('the share of sets that hold')")
-    assert pg.locator(".sw-cell-text").count() == 0 and pg.locator(".sw-best").count() == 0
-
-
-def test_plots_style_titles_and_points_in_the_report(pg):
-    """S11 / S12 / S18: a style for the maps, points and Which parameter matters - colour map, point
-    size, grid and minor grid, numbers on the cells; titles on the effects; points in the report."""
-    _fresh(pg)
-    _the_goal(pg)
-    _step(pg, "results")
-    pg.wait_for_selector(".sw-table th:has-text('worst')")
-    # the map: another colour map, no numbers
-    pg.locator(".sw-center-tabs button", has_text="Map").click()
-    pg.wait_for_selector(".sw-map svg rect")
-    before = pg.locator("g.sw-cell rect").first.get_attribute("fill")
-    pg.locator(".sw-maps .sw-style .btn").click()
-    pg.locator(".sw-style-pop select").select_option("plasma")
-    pg.locator(".sw-style-pop label", has_text="Numbers on the cells").locator("input").uncheck()
-    pg.keyboard.press("Escape")
-    pg.wait_for_function(f"document.querySelector('g.sw-cell rect').getAttribute('fill') !== {before!r}")
-    assert pg.locator(".sw-cell-text").count() == 0
-    # which parameter matters: titles, the grid and its minor lines
-    pg.locator(".sw-center-tabs button", has_text="Which parameter matters").click()
-    pg.wait_for_selector(".sw-effect svg")
-    titles = pg.locator(".sw-effect").first.locator(".sw-ax-title").all_text_contents()
-    assert "energy_wh" in titles and len(titles) == 2
-    assert pg.locator(".sw-effect .sw-grid line.minor").count() == 0
-    pg.locator(".sw-effects .sw-style .btn").click()
-    pg.locator(".sw-style-pop label", has_text="Minor grid").locator("input").check()
-    pg.keyboard.press("Escape")
-    assert pg.locator(".sw-effect .sw-grid line.minor").count() > 0
-    # the points in the report
-    pg.locator(".sw-center-tabs button", has_text="Points").click()
-    pg.wait_for_selector(".sw-scatter canvas")
-    _step(pg, "report")
-    pg.locator(".sw-report-format", has_text="Interactive HTML").click()
-    pg.locator(".sw-report-page .btn", has_text="Make the report").click()
-    save_as(pg, "points.html")
-    pg.wait_for_selector(".toast:has-text('points.html')", timeout=60000)
-    html = open(os.path.join(pg.env["out"], "points.html"), encoding="utf-8").read()
-    assert "<h2>Points: " in html
-
-
-def test_the_optimization_in_the_plots_and_a_pareto_choice(pg):
-    """S19: the lines get the rank and the score; + Pareto plots the two objectives with the front;
-    a rectangle dragged on it keeps those sets in the lines, the table and its export; a click clears."""
-    import csv
+def test_the_optimization_in_the_plots(pg):
+    """S19: the lines get the rank and the score when two objectives rank the sets."""
     _fresh(pg)
     _step(pg, "goals")
     _condition(pg, "roll_error_deg", "<=", 5)
@@ -846,34 +725,6 @@ def test_the_optimization_in_the_plots_and_a_pareto_choice(pg):
     names = pg.locator(".pp-axis-name").all_inner_texts()
     assert any(n.startswith("rank") for n in names), names
     assert any(n.startswith("score") for n in names), names
-    pg.locator(".sw-center-tabs button", has_text="Points").click()
-    pg.locator(".sw-maps .btn", has_text="+ Pareto").click()
-    pg.wait_for_function("document.querySelectorAll('.sw-scatter canvas').length === 2")
-    _step(pg, "results")
-    pg.locator(".sw-center-tabs button", has_text="Lines").click()
-    all_rows = pg.locator(".sw-sets-table tbody tr").count()
-    pg.locator(".sw-center-tabs button", has_text="Points").click()
-    b = pg.locator(".sw-scatter-box").nth(1).bounding_box()
-    # the lower-left quarter of the plot area: the low energy and the low settle time
-    pg.mouse.move(b["x"] + b["width"] * 0.12, b["y"] + b["height"] * 0.45); pg.mouse.down()
-    pg.mouse.move(b["x"] + b["width"] * 0.6, b["y"] + b["height"] * 0.88, steps=5); pg.mouse.up()
-    pg.wait_for_selector(".toast:has-text('Kept the sets in the rectangle')")
-    pg.locator(".sw-center-tabs button", has_text="Lines").click()
-    pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 2 filters')")
-    some = pg.locator(".sw-sets-table tbody tr").count()
-    assert 0 < some < all_rows
-    pg.locator(".sw-sets-bar .btn", has_text="Export").click()
-    pg.locator(".menu.ctx button", has_text="a row each").click()
-    save_as(pg, "pareto_pick.csv")
-    pg.wait_for_selector(".toast:has-text('sets written')")
-    with open(os.path.join(pg.env["out"], "pareto_pick.csv"), encoding="utf-8-sig") as f:
-        assert len(list(csv.reader(f))) - 1 == some
-    # a click on the plot clears the rectangle
-    pg.locator(".sw-center-tabs button", has_text="Points").click()
-    b = pg.locator(".sw-scatter-box").nth(1).bounding_box()
-    pg.mouse.click(b["x"] + b["width"] * 0.5, b["y"] + b["height"] * 0.5)
-    pg.locator(".sw-center-tabs button", has_text="Lines").click()
-    pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {all_rows}")
 
 
 def test_the_sets_that_hold_as_an_interactive_plot(pg):
@@ -924,7 +775,7 @@ def test_next_runs_numbers_add_up(pg):
     _the_goal(pg)
     _step(pg, "results")
     pg.wait_for_selector(".sw-table th:has-text('worst')")
-    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    _tab(pg, "next")
     side = pg.locator(".sw-next-side")
     side.locator("input[type='number']").fill("80")
     assert "up to 80 sets × 18 combinations each = up to 1,440 runs" in side.inner_text()
@@ -950,7 +801,7 @@ def test_next_runs_compact_and_formats(pg):
     _the_goal(pg)
     _step(pg, "results")
     pg.wait_for_selector(".sw-table th:has-text('worst')")
-    pg.locator(".sw-center-tabs button", has_text="Next runs").click()
+    _tab(pg, "next")
     side = pg.locator(".sw-next-side")
     side.locator(".sw-colpick-btn").click()                                     # explore ki_roll only
     for p in ("kp_roll", "filter_hz"):
@@ -996,6 +847,7 @@ def test_the_journal_tells_the_final_story(pg):
     _fresh(pg)
     _the_goal(pg)
     _step(pg, "goals")
+    _more(pg)
     sec = pg.locator(".sw-goal-part", has_text="Robust to")                      # a trial: on, then off
     sec.locator(".sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
@@ -1041,10 +893,10 @@ def test_the_best_set_while_editing_a_goal(pg):
     _condition(pg, "roll_error_deg", "<=", 5)
     _optimize(pg, "energy_wh", "min")
     pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
-    assert "parameter sets hold" in pg.locator(".sw-goal-preview").inner_text()
+    assert "parameter sets hold" in pg.locator(".sw-goal-count").inner_text()
     _optimize(pg, "roll_error_deg", "min")
-    w = lambda i, v: (pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).fill(v),
-                      pg.locator(".sw-goal-part input[aria-label='Weight']").nth(i).press("Tab"))
+    w = lambda i, v: (pg.locator(".sw-goal-table input[aria-label^='Weight of']").nth(i).fill(v),
+                      pg.locator(".sw-goal-table input[aria-label^='Weight of']").nth(i).press("Tab"))
     w(0, "10"); w(1, "0")
     pg.wait_for_timeout(800)
     a = pg.locator(".sw-side-step .sw-best-params").inner_text()
@@ -1052,184 +904,38 @@ def test_the_best_set_while_editing_a_goal(pg):
     pg.wait_for_function(f"document.querySelector('.sw-side-step .sw-best-params').innerText !== {a!r}")
     pg.locator(".sw-side-step .sw-best .btn", has_text="Open it").click()
     pg.wait_for_selector(".sw-detail")
-    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "5"
+    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "4"
 
 
-def test_explore_a_draft_of_the_goal_and_save_it(pg):
-    """S21: Explore - conditions dragged as what if, a limit on a parameter, a second objective and a
-    threshold, all together; the goal does not change until saved; saved as a new goal it holds for
-    exactly the sets Explore left."""
+def test_four_steps_five_tabs_and_the_goal_as_one_table(pg):
+    """2026-11-01 redesign: data, columns, goal, results; the goal is one table - a limit on a column is
+    a filter on it (an output in every scenario, a parameter too), emptied it is gone; what to optimize
+    beside it; the results: parameter sets, all runs, charts, next runs, report; undo beside Keep."""
     _fresh(pg)
-    _the_goal(pg)
+    assert pg.locator(".sw-step-btn").all_inner_texts()[0].startswith("1\nData")
+    assert pg.locator(".sw-step-btn").count() == 4 and pg.locator(".sw-area-btn").count() == 0
+    _step(pg, "goals")
+    assert _holding(pg) == 45
+    _condition(pg, "kp_roll", "<=", 0.2)                          # a parameter: 3 of its 5 values
+    pg.wait_for_function("document.querySelector('.sw-answer-n').innerText.startsWith('27 ')")
+    _condition(pg, "roll_error_deg", "<=", 4)
+    row = pg.locator(".sw-goal-table tr[data-col='roll_error_deg']")
+    pg.wait_for_selector(".sw-goal-table tr[data-col='roll_error_deg'] .sw-limit-met")
+    assert "sets meet it" in row.inner_text()
+    n = _holding(pg)
+    assert 0 < n < 27
+    box = pg.locator("input[aria-label='kp_roll at most']")
+    box.fill(""); box.press("Enter")                              # emptied: no limit
+    pg.wait_for_function(f"+document.querySelector('.sw-answer-n').innerText.split(' ')[0] > {n}")
+    _optimize(pg, "energy_wh", "min")
+    pg.wait_for_selector(".sw-best:has-text('kp_roll = ')")
     _step(pg, "results")
-    pg.wait_for_selector(".sw-table th:has-text('worst')")
-    holding = _holding(pg)
-    pg.locator(".sw-center-tabs button", has_text="Decide").click()
-    pg.wait_for_selector(".sw-funnel")
-    funnel = lambda: [int(x.replace(",", "")) for x in pg.locator(".sw-funnel li b").all_inner_texts()]
-    assert funnel()[:2] == [45, holding]
-    # what if roll_error_deg <= 6: more sets, the goal itself unchanged
-    pg.locator(".sw-explore input[aria-label='roll_error_deg <=']").fill("6")
-    pg.wait_for_function(f"+document.querySelectorAll('.sw-funnel li b')[1].innerText > {holding}")
-    assert "differs from Goal 1 in" in pg.locator(".sw-explore-status").inner_text()
-    assert _holding(pg) == holding
-    # a limit on kp_roll (S23: every parameter has its range on screen), a second objective, a threshold
-    pg.locator(".sw-explore input[aria-label='kp_roll up to']").fill("0.2")
-    pg.wait_for_function("+document.querySelectorAll('.sw-funnel li b')[2].innerText < +document.querySelectorAll('.sw-funnel li b')[1].innerText")
-    pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="+ objective").click()
-    pg.locator(".sw-colpick-pop .msp-item", has_text="settle_time_s").locator("input").check()
-    pg.keyboard.press("Escape")
-    pg.wait_for_selector(".sw-explore-pareto svg")
-    obj = pg.locator(".sw-explore-obj", has_text="settle_time_s")
-    obj.locator(".sw-dir").click()                                               # ↑ max -> ↓ min
-    th = obj.locator("input[aria-label='settle_time_s good enough at']")         # S23: a slider, off at its far end
-    lo, hi = float(th.get_attribute("min")), float(th.get_attribute("max"))
-    th.fill(str(round(lo + (hi - lo) * 0.8, 3)))
-    pg.wait_for_selector(".sw-explore[aria-busy='false']")
-    f = funnel()
-    assert f[3] <= f[2] and pg.locator(".sw-explore .sw-best:has-text('kp_roll = ')").count() == 1
-    left = funnel()[3]
-    # saved as a new goal: the goal holds for exactly what Explore left
-    pg.locator(".sw-explore-status .btn", has_text="Save as a goal").click()
-    pg.locator(".menu.ctx button", has_text="As a new goal").click()
-    pg.wait_for_selector(".toast:has-text('Saved: Goal 2')")
-    pg.wait_for_function(f"document.querySelector('.sw-answer-n') && document.querySelector('.sw-answer-n').innerText.startsWith('{left} ')")
-    _step(pg, "goals")
-    pg.wait_for_function("document.querySelectorAll('.sw-goal-tabs button[role=\"tab\"]').length === 2")
-    cols = pg.evaluate("""() => [...document.querySelectorAll('.sw-cond select[aria-label="Column"]')].map(e => e.value)""")
-    assert "kp_roll" in cols and len(cols) >= 3                                  # the limit is a condition on the parameter
-
-
-def test_explore_everything_on_screen_live_in_the_lines_and_the_table(pg):
-    """S23: Explore opens from the Goals step with a draft of the active goal; every parameter has a
-    range slider and every objective a weight and a threshold slider from the start (an empty goal
-    included); a move shows at once in the lines and the table - the same number of sets as the
-    funnel's last step, which the table exports in its order and a goal saved from it holds for;
-    Back to the goal shows the goal's own lines again."""
-    import csv
-    _fresh(pg)
-    _step(pg, "goals")
-    # an empty goal: Explore still shows every parameter's range and a way to add an objective
-    pg.locator(".sw-side-step .btn", has_text="Decide on this goal").click()
-    pg.wait_for_selector(".sw-explore[aria-busy='false']")
-    assert pg.locator(".sw-step-btn.on .sw-step-n").inner_text() == "5"
-    assert pg.locator(".sw-center-tabs button[aria-selected='true']").inner_text() == "Decide"
-    for p in ("kp_roll", "ki_roll", "filter_hz"):
-        assert pg.locator(f".sw-explore input[aria-label='{p} from']").count() == 1
-        assert pg.locator(f".sw-explore input[aria-label='{p} up to']").count() == 1
-    assert pg.locator(".sw-explore-controls .sw-colpick-btn", has_text="+ objective").count() == 1
-    assert "No objective yet" in pg.locator(".sw-explore-controls").inner_text()
-    assert pg.locator(".sw-explore canvas[data-shown='45']").count() == 1           # every set, in the lines too
-    # one objective, no condition: the button opens a draft of it
-    _step(pg, "goals")
-    _optimize(pg, "energy_wh", "min")
-    pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
-    pg.locator(".sw-side-step .btn", has_text="Decide on this goal").click()
-    pg.wait_for_selector(".sw-explore[aria-busy='false'] .sw-explore-obj")
-    assert "A draft of Goal 1" in pg.locator(".sw-explore-status").inner_text()
-    obj = pg.locator(".sw-explore-obj", has_text="energy_wh")
-    assert obj.locator("input[aria-label='Weight']").is_disabled()               # weights matter from two objectives
-    assert "Weights matter from two objectives" in obj.inner_text()
-    assert "no threshold" in obj.inner_text()
-    # a parameter's range and the objective's threshold moved
-    kp = pg.locator(".sw-explore input[aria-label='kp_roll up to']")
-    lo, hi = float(kp.get_attribute("min")), float(kp.get_attribute("max"))
-    kp.fill(str(round(lo + (hi - lo) * 0.6, 3)))
-    th = obj.locator("input[aria-label='energy_wh good enough at']")
-    lo, hi = float(th.get_attribute("min")), float(th.get_attribute("max"))
-    th.fill(str(round(lo + (hi - lo) * 0.7, 3)))
-    assert "no threshold" not in obj.inner_text() and "limited: 1" in pg.locator(".sw-explore-controls").inner_text()
-    # the funnel's last number = the lines in colour = the table's rows = "N of M left"
-    pg.wait_for_function("""() => {
-      const e = document.querySelector('.sw-explore'); if (!e || e.getAttribute('aria-busy') !== 'false') return false;
-      const f = [...document.querySelectorAll('.sw-funnel li b')].map(b => +b.innerText.replace(/,/g, ''));
-      const n = f[3], shown = +document.querySelector('.sw-explore canvas').dataset.shown;
-      const rows = document.querySelectorAll('.sw-explore .sw-sets-table tbody tr').length;
-      const left = +document.querySelector('.sw-explore-left').innerText.split(' ')[0].replace(/,/g, '');
-      return n > 0 && n < 45 && n === shown && n === rows && n === left;
-    }""")
-    n = int(pg.locator(".sw-explore-left").inner_text().split()[0])
-    assert pg.locator(".sw-explore-left").inner_text() == f"{n} of 45 parameter sets left"
-    f = [int(x) for x in pg.locator(".sw-funnel li b").all_inner_texts()]
-    assert f[2] < f[1] == 45 and f[3] <= f[2]                                    # the limit cut, then the threshold
-    # the table's order: the draft's ranking (least energy first)
-    heads = pg.locator(".sw-explore .sw-sets-table thead th").all_inner_texts()
-    kcol, gcol = heads.index("kp_roll") + 1, next(i for i, h in enumerate(heads) if "energy_wh" in h) + 1
-    energy = [float(x) for x in pg.locator(f".sw-explore .sw-sets-table tbody td:nth-child({gcol})").all_inner_texts()]
-    assert energy == sorted(energy)
-    kps = [float(x) for x in pg.locator(f".sw-explore .sw-sets-table tbody td:nth-child({kcol})").all_inner_texts()]
-    # what is left exported: N rows, in the table's order
-    pg.locator(".sw-explore .sw-sets-bar .btn", has_text="Export").click()
-    pg.locator(".menu.ctx button", has_text="a row each").click()
-    save_as(pg, "explore_left.csv")
-    pg.wait_for_selector(".toast:has-text('sets written')")
-    with open(os.path.join(pg.env["out"], "explore_left.csv"), encoding="utf-8-sig") as fh:
-        got = list(csv.reader(fh))
-    assert len(got) - 1 == n
-    k = got[0].index("kp_roll")
-    assert [round(float(r[k]), 6) for r in got[1:]] == [round(x, 6) for x in kps]
-    assert {r[1] for r in got[1:]} == {"1"}                                         # each one left by the draft
-    # saved as a goal, it holds for exactly those
-    pg.locator(".sw-explore-status .btn", has_text="Save as a goal").click()
-    pg.locator(".menu.ctx button", has_text="As a new goal").click()
-    pg.wait_for_selector(".toast:has-text('Saved: Goal 2')")
-    pg.wait_for_function(f"document.querySelector('.sw-answer-n') && document.querySelector('.sw-answer-n').innerText.startsWith('{n} ')")
-    # one move more, then Back to the goal: the goal's own lines and table again
-    kp = pg.locator(".sw-explore input[aria-label='kp_roll from']")
-    kp.fill(str(round(float(kp.get_attribute("max")), 3)))
-    pg.locator(".sw-explore-status .btn", has_text="Back to the goal").click()
-    pg.wait_for_selector(".sw-center-tabs button[aria-selected='true']:has-text('Lines')")
-    pg.wait_for_selector(".sw-sets-table tbody tr")
-    assert pg.locator(".sw-sets-table tbody tr").count() == 45                   # every set, as the goal's view shows
-    assert pg.locator(".sw-center canvas[data-shown='45']").count() == 1
-    assert _holding(pg) == n
-    assert pg.locator(".sw-side-step .btn", has_text="Decide on this goal").count() == 1   # and the way back in
-
-
-def test_three_areas_and_a_quiet_run(pg):
-    """M23 §4: Problem (raw, clean, roles, goals), Run (quiet: no run step yet), Explore (results,
-    report); a study opened at its results is in Explore."""
-    _fresh(pg)
-    assert pg.locator(".sw-area-btn.on").get_attribute("data-area") == "problem"
-    assert pg.locator(".sw-step-btn").count() == 4
-    pg.locator(".sw-area-btn[data-area='run']").click()
-    pg.wait_for_selector(".sw-run-quiet")
-    assert pg.locator(".sw-step-btn").count() == 0
-    pg.locator(".sw-area-btn[data-area='explore']").click()
-    pg.wait_for_function("document.querySelector('.sw-step-btn.on .sw-step-n').innerText === '5'")
-    assert [pg.locator(".sw-step-btn").nth(i).get_attribute("data-step") for i in range(2)] == ["results", "report"]
-
-
-def test_decide_ranking_methods_pairwise_and_a_group(pg):
-    """MF10: Decide ranks the sets left by a chosen method, each row says why it is above the next;
-    weights from pairwise comparisons with a warning when they contradict; the top as a group."""
-    _fresh(pg)
-    _step(pg, "goals")
-    _optimize(pg, "energy_wh", "min")
-    _optimize(pg, "roll_error_deg", "min")
-    _optimize(pg, "settle_time_s", "min")
-    pg.wait_for_selector(".sw-side-step .sw-best:has-text('kp_roll = ')")
-    pg.locator(".sw-side-step .btn", has_text="Decide on this goal").click()
-    pg.wait_for_selector(".sw-explore[aria-busy='false'] .sw-decide .sw-decide-list li")
-    box = pg.locator(".sw-decide")
-    assert box.locator(".sw-decide-list li").count() == 10
-    assert "Above the next because:" in box.inner_text()
-    for label in ("Weighted sum", "Closest to ideal (TOPSIS)", "Optimism (Hurwicz)", "Least regret (Savage)"):
-        box.locator("button[role='radio']", has_text=label).click()
-        pg.wait_for_timeout(700)
-        assert box.locator(".sw-decide-list li").count() == 10
-    assert box.locator("input[aria-label='Optimism α']").count() == 0                 # only for Hurwicz
-    # pairwise: energy 9x error, error 9x settle, settle 9x energy -> contradicts
-    box.locator("input[type='checkbox']").check()
-    box.locator("select[aria-label='How much more energy_wh matters than roll_error_deg']").select_option("9")
-    box.locator("select[aria-label='How much more roll_error_deg matters than settle_time_s']").select_option("9")
-    box.locator("select[aria-label='How much more energy_wh matters than settle_time_s']").select_option("1/9")
-    pg.wait_for_selector(".sw-decide .sw-warn:has-text('contradict')")
-    # consistent again: 9, 9 -> 81 is beyond the scale, but 1 / 1 / 1 is exactly consistent
-    for a, b in (("energy_wh", "roll_error_deg"), ("roll_error_deg", "settle_time_s"), ("energy_wh", "settle_time_s")):
-        box.locator(f"select[aria-label='How much more {a} matters than {b}']").select_option("1")
-    pg.wait_for_selector(".sw-decide p:has-text('Consistent')")
-    # the top ten as a group
-    box.locator(".btn", has_text="Keep the first 10 as a group").click()
-    pg.wait_for_selector(".sw-groups .sw-group:not(.auto):has-text('Top 10')")
-    assert pg.locator(".sw-group:has-text('Top 10') .sw-group-n").inner_text() == "10"
+    tabs = pg.locator(".sw-center-tabs button").all_inner_texts()
+    assert tabs == ["Parameter sets", "All runs", "Charts", "Next runs", "Report"]
+    assert pg.locator(".sw-plotbar .sw-undo").is_enabled()
+    pg.locator(".sw-plotbar .sw-undo").click()                   # the last change undone (the optimize choice with it)
+    pg.wait_for_function("!document.querySelector('.sw-best')")
+    pg.locator(".sw-plotbar .sw-redo").click()
+    pg.wait_for_selector(".sw-best:has-text('kp_roll = ')")
+    _tab(pg, "runs")
+    pg.wait_for_selector(".sw-what-line:has-text('A line per run')")

@@ -649,6 +649,24 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Sweeps redesign (owner, 2026-11-01): a clean, simple area - not more and more
+The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the old things taken out:
+- [x] Four steps, no areas: **Data** (load, merge, the table as CSV and as lines), **Columns** (parameter /
+  output / scenario / run id / recording / not used - the old "clean columns" step is "not used"; constant
+  columns marked in one click; new columns), **Goal** (one table: at least / at most on any column - a filter
+  on it, an output in every scenario - and what to optimize; the rest under "More options"), **Results**
+  (Parameter sets, All runs - both as lines with Keep / Exclude / undo / redo / export CSV -, Charts, Next
+  runs, Report).
+- [x] Taken out of the UI (owner: "remove the old things, only a clean new design"): Explore / Decide and its
+  ranking methods (MF10), Which parameter matters (MF05), Model (MF04), the Map and Points tabs (still chart
+  kinds in Charts), Data health, the Run area (MF06 / MF11 run step, MF03 DOE, MF07 optimisers, MF08 robust
+  sheet), Compare studies. Then (owner: "delete everything old that is not used, clean the code") their
+  code too: svcore/sweep/{doe,surrogate,sensitivity,runner,optimise,robust,mcdm,compare,quality}.py, their
+  endpoints and tests, scikit-learn (requirements.txt and the extra sweeps-opt - only Kriging used it), the
+  page's unused API calls, types, view fields (runStep, exploreAs, explore), strings (307) and styles.
+  Kept because the new design uses them: the map and points as chart kinds, clusters / PCA / SOM (Charts),
+  next runs, the report. Saved studies on an old step / tab open on its place in the four steps.
+
 ## Milestone 24 — investigating signals: clusters of changes, the likely first, a plot beside each (owner's notes 2026-11-01, 3). Spec: TASKS.md Q130-Q138. After Milestone 23.
 - [x] Q130 Changes that happen together, as clusters. Done 2026-11-01: firstchange.clusters (gap > max(3 x the coarser period, 2 % of the search window)); /api/firstchange returns `clusters` (the page does not recompute them); closed to one line (time, n, 3 names), the likeliest open; the reference runs (`refs`: the other open files) mark a member and sort it last.
 - [x] Q131 The more likely first (a score with its parts). Done 2026-11-01: firstchange.WEIGHTS / score_parts (strength, timing, stays, unique, shape - the lag against the event signal for the 30 likeliest, leads); clusters by their best member (By time as an option), the event's own signal last; the parts in the row's tooltip.

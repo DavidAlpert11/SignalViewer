@@ -34,13 +34,6 @@ const fmt = (v: number, c: Col): string => {
   return String(Number.isInteger(v) ? v : +v.toPrecision(7));
 };
 
-/** The id of a set from its values (a designed set, not run yet): the same text `setIds` makes once
- *  the set is in a table - numbers to 7 significant digits, text as it is. */
-export function idOfParams(params: Record<string, string | number | null>, order: string[]): string {
-  const f = (v: string | number | null | undefined) => (v === null || v === undefined ? "" : typeof v === "number"
-    ? (Number.isFinite(v) ? String(Number.isInteger(v) ? v : +v.toPrecision(7)) : "") : String(v));
-  return order.map((p) => `${p}=${f(params[p])}`).join("|");
-}
 
 /** The id of every set in the answer: `p=2|k=0.1`, the parameters in the answer's order. */
 export function setIds(a: Answer): string[] {
@@ -167,16 +160,3 @@ export function freeColor(groups: Group[]): number {
   return c;
 }
 
-/** A set id back to its values (a designed or virtual set, to run it): numbers where the answer's
- *  column is a number. Inverse of `idOfParams` (a text value holding "|" or "=" is not supported). */
-export function paramsOfId(id: string, a: Answer): Record<string, string | number | null> {
-  const num = new Set(a.sets.filter((c) => c.group === "param" && c.kind === "num").map((c) => c.name));
-  const out: Record<string, string | number | null> = {};
-  for (const part of id.split("|")) {
-    const i = part.indexOf("=");
-    if (i < 0) continue;
-    const k = part.slice(0, i), v = part.slice(i + 1);
-    out[k] = v === "" ? null : num.has(k) && Number.isFinite(Number(v)) ? Number(v) : v;
-  }
-  return out;
-}

@@ -3,8 +3,6 @@ import { call } from "../api";
 
 export type Role = "param" | "hold" | "output" | "id" | "recording" | "ignore";
 export type Scale = "linear" | "log" | "category" | "ordinal";
-export const ROLES: Role[] = ["param", "hold", "output", "id", "recording", "ignore"];
-export const SCALES: Scale[] = ["linear", "log", "category", "ordinal"];
 
 export interface SweepColumn {
   name: string; kind: "number" | "text"; distinct: number; missing: number;
@@ -67,15 +65,9 @@ export interface SweepTemplate {
 }
 export interface VariantResult { holding?: number; sets?: number; error?: string; robust?: number | null; tolerance?: number | null;
   best?: { value: number; params: Record<string, string | number | null>; score?: number | null } | null; conditions?: { label: string; met: number }[] }
-export interface Effects { params: { param: string; numeric: boolean; importance: number;
-  levels: { value: number | string; mean: number | null; min: number | null; max: number | null; holding: number | null; sets: number }[] }[] }
 export interface PairMap { x: string; y: string; xs: (number | string)[]; ys: (number | string)[]; share: (number | null)[][]; best: (number | null)[][]; count: number[][] }
 export type SuggestKind = "edge" | "best" | "disagree" | "gaps" | "missing" | "robust";
 export interface Suggestion { params: Record<string, number | string | null>; kind: SuggestKind; from: number; param?: string; distance?: number; set?: number }
-export interface Suspect { row: number; set: number; column: string; value: number | null; expected: number | null; z: number;
-  where: Record<string, string | number | null>; params: Record<string, string | number | null> }
-export interface CompareResult { matched: number; onlyA: number; onlyB: number; nowHold: number; noLongerHold: number;
-  rows: { params: Record<string, string | number | null>; holdsA: boolean; holdsB: boolean; goalA?: number | null; goalB?: number | null; delta?: number | null }[] }
 
 export const sweepApi = {
   open: (path: string) => call<SweepOpened>("/api/sweep/open", { path }),
@@ -91,45 +83,14 @@ export const sweepApi = {
     call<WireAnswer>("/api/sweep/evaluate", { id, question, runs }),
   set: (id: string, question: WireQuestion, set: number) => call<SetDetail>("/api/sweep/set", { id, question, set }),
   openRows: (name: string, columns: string[], rows: (string | number | null)[][]) => call<SweepOpened>("/api/sweep/open-rows", { name, columns, rows }),
-  effects: (id: string, question: WireQuestion) => call<Effects>("/api/sweep/effects", { id, question }),
-  doe: (id: string, question: WireQuestion, params: DoeSpec[], method: DoeMethod, n: number, seed: number, levels: number, sets: number[] | null) =>
-    call<DoeResult>("/api/sweep/doe", { id, question, params, method, n, seed, levels, sets }),
-  surrogateTrain: (id: string, question: WireQuestion, column: string | null, sets: number[] | null) =>
-    call<SurrogateReport>("/api/sweep/surrogate/train", { id, question, column, sets }),
-  surrogateGrid: (key: string, model: string, base: Record<string, string | number>, x: string, y: string | null, steps = 30) =>
-    call<SurrogateGrid>("/api/sweep/surrogate/grid", { key, model, base, x, y, steps }),
-  surrogateOptimise: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, model: string, direction: "max" | "min", n: number, conditions: boolean) =>
-    call<{ sets: VirtualSet[] }>("/api/sweep/surrogate/optimise", { id, question, column, sets, model, direction, n, conditions }),
-  runPreview: (id: string, question: WireQuestion, sets: Record<string, string | number | null>[], combos: boolean, spec: RunStep) =>
-    call<{ args: string[]; runs: number; workdir: string; workdirExists: boolean }>("/api/sweep/run/preview", { id, question, sets, combos, spec }),
-  runStart: (id: string, question: WireQuestion, sets: Record<string, string | number | null>[], combos: boolean, spec: RunStep) =>
-    call<{ id: string }>("/api/sweep/run/start", { id, question, sets, combos, spec }),
-  optimiseStart: (id: string, question: WireQuestion, specs: DoeSpec[], method: string, budget: number, combos: boolean, spec: RunStep) =>
-    call<{ id: string; method: string; pop: number; objectives: { column: string; direction: string }[]; constraints: unknown[] }>(
-      "/api/sweep/optimise/start", { id, question, specs, method, budget, combos, spec }),
-  runLive: (job: string, since: number) => call<RunLive>(`/api/sweep/run/${job}?since=${since}`),
-  runStop: (job: string) => call<{ cancelled: boolean }>(`/api/jobs/${job}/cancel`, {}),
-  robustSample: (id: string, question: WireQuestion, centre: Record<string, string | number | null>, n: number, method: string, seed: number) =>
-    call<{ sets: Record<string, string | number | null>[] }>("/api/sweep/robust/sample", { id, question, centre, n, method, seed }),
-  robustModel: (id: string, question: WireQuestion, key: string, model: string, centres: Record<string, string | number | null>[], n: number, method: string,
-    direction: string, pct: number, limit: RobustLimit | null) =>
-    call<{ rows: RobustStats[] }>("/api/sweep/robust/model", { id, question, key, model, centres, n, method, direction, pct, limit }),
-  robustStats: (id: string, question: WireQuestion, sets: number[], direction: string, pct: number, limit: RobustLimit | null) =>
-    call<RobustStats>("/api/sweep/robust/stats", { id, question, sets, direction, pct, limit }),
   clusters: (id: string, question: WireQuestion, columns: string[], sets: number[] | null, method: string, k: number) =>
     call<ClustersResult>("/api/sweep/clusters", { id, question, columns, sets, method, k }),
-  mcdm: (values: (number | null)[][], directions: string[], weights: number[], method: string, alpha: number, margin: number, pairwise: number[][] | null) =>
-    call<McdmResult>("/api/sweep/mcdm", { values, directions, weights, method, alpha, margin, pairwise }),
-  sensitivity: (id: string, question: WireQuestion, column: string | null, sets: number[] | null, threshold: number) =>
-    call<Sensitivity>("/api/sweep/sensitivity", { id, question, column, sets, threshold }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
     call<PairMap & { rest: "all" | "best"; fixed: Record<string, string | number | null> | null; goal: boolean; direction: "max" | "min"; bestAt: [number, number] | null }>("/api/sweep/map", { id, question, x, y, rest }),
   suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number, focus: string[] | null) =>
     call<{ suggestions: Suggestion[]; available: Record<string, number>; taken: Record<string, number>; budget: number }>("/api/sweep/suggest", { id, question, kinds, budget, focus }),
   suggestExport: (id: string, question: WireQuestion, params: Suggestion["params"][], path: string, combos = true) =>
     call<{ path: string; rows: number }>("/api/sweep/suggest/export", { id, question, params, path, combos }),
-  suspects: (id: string, question: WireQuestion) => call<{ suspects: Suspect[] }>("/api/sweep/suspects", { id, question }),
-  compare: (a: { id: string; question: WireQuestion }, b: { id: string; question: WireQuestion }) => call<CompareResult>("/api/sweep/compare", { a, b }),
   merge: (id: string, path: string, keys: string[], prefer: "new" | "old" | "both") =>
     call<SweepOpened & { added: number; replaced: number; sources: string[] }>("/api/sweep/merge", { id, path, keys, prefer }),
   unmerge: (id: string, path: string) => call<SweepOpened & { sources: string[] }>("/api/sweep/unmerge", { id, path }),
@@ -153,61 +114,6 @@ export const sweepApi = {
   exportRerun: (id: string, question: WireQuestion, sets: number[], onlyMissing: boolean, path: string) =>
     call<{ path: string; rows: number }>("/api/sweep/export", { id, question, sets, onlyMissing, path }),
 };
-
-/** MF05: which parameter matters - per parameter its correlations, its main effect and its
- *  interactions as shares of the variance, its Sobol indices (first, total: null when the data
- *  cannot tell), weak under the threshold; the strongest pairs; what nothing explains. */
-export interface Sensitivity {
-  n: number; threshold: number; flat?: boolean; rest: number | null;
-  params: { name: string; pearson: number | null; spearman: number | null; main: number; interactions: number;
-    first: number; total: number | null; levels: number; weak: boolean }[];
-  pairs: { a: string; b: string; share: number }[];
-}
-
-/** MF03: a parameter of a design - varied in a range, by level, or held at one value. */
-export type DoeSpec = { name: string; kind: "continuous" | "integer"; lo: number; hi: number }
-  | { name: string; kind: "categorical"; levels: (string | number)[] }
-  | { name: string; kind: "fixed"; value: string | number | null };
-export type DoeMethod = "space" | "sobol" | "random" | "factorial" | "boxbehnken" | "ccd" | "fill";
-export interface DoeResult { sets: Record<string, string | number | null>[]; method: DoeMethod; n: number; discrepancy: number | null; min_distance: number | null }
-
-/** MF04: models of one result - each model's cross-validated errors, the best, its predictions. */
-export interface SurrogateReport {
-  key: string; n: number; folds: number; best: string | null; sklearn: boolean;
-  table: { model: string; available: boolean; error?: string; mae?: number | null; rel?: number | null; norm?: number | null; r2?: number | null }[];
-  predicted: Record<string, [number, number][]>;
-  params: ({ name: string; kind: "number"; lo: number; hi: number } | { name: string; kind: "categorical"; levels: string[] })[];
-}
-export interface SurrogateGrid { x: string; y?: string; xs: (number | string)[]; ys?: (number | string)[]; z: (number | null)[] | (number | null)[][] }
-export interface VirtualSet { params: Record<string, string | number>; predicted: number | null; meets: boolean }
-
-/** MF06: how one run is made and read (kept with the study as `view.runStep`). */
-export interface RunStep { template: string; workdir: string; parser: "json" | "csv" | "stdout"; outputs?: string[];
-  parallel: number; timeout: number; results: string }
-/** MF11: a run job's state - the job, counts by status, the finished runs (from `since`), the last failures. */
-export interface RunLive {
-  job: { id: string; state: "running" | "done" | "error" | "cancelled"; progress: number; error: string | null; elapsed: number };
-  live: { total: number; path: string; next: number; gen: number; best: { params: Record<string, string | number | null>; objectives: number[] }[]; counts: { ok: number; error: number; timeout: number; cached: number; running: number };
-    rows: Record<string, string | number | null>[]; failures: { run: number; status: string; message: string; inputs: Record<string, unknown> }[] };
-}
-
-/** MF10: a ranking of a group's sets (rows as sent) - svcore/sweep/mcdm.py rank(). */
-export interface McdmResult {
-  method: string;
-  weights: number[];
-  scores: number[];
-  ranks: number[];
-  order: number[];
-  why: { a: number; b: number; tie: boolean; parts: number[] }[];
-  ahp?: { weights: number[]; lambdaMax: number; ci: number; cr: number; consistent: boolean };
-}
-
-/** MF08: a limit on the result ({op, value}) and the statistics of samples around a set. */
-export interface RobustLimit { op: "<=" | "<" | ">=" | ">"; value: number }
-export interface RobustStats {
-  n: number; valid: number; mean: number | null; std: number | null; pct: number | null; min: number | null; max: number | null;
-  pFail?: number | null; nominal?: number; centre?: Record<string, string | number | null>;
-}
 
 /** MF09: the sets' shape (svcore/sweep/clusters.py analyse); rows in the order of `sets`. */
 export interface ClustersResult {

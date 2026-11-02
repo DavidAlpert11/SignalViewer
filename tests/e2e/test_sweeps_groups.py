@@ -5,7 +5,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 from test_features import env, goto_folder, pg, save_as  # noqa: E402,F401
-from test_sweeps_flow import _bar_menu, _fresh, _step, _the_goal  # noqa: E402
+from test_sweeps_flow import _bar_menu, _fresh, _step, _the_goal, _tab  # noqa: E402
 
 
 def _rows(pg):
@@ -31,10 +31,10 @@ def test_old_study_opens_with_automatic_groups_only(pg):
     # the study opens a moment later and shows its saved step: a click before that is undone by it,
     # so go to the results until they stay (the end state), not once
     for _ in range(20):
-        pg.locator(".sw-area-btn[data-area='explore']").click()
-        if pg.locator(".sw-step-btn[data-step='results']").count():
-            break
+        pg.locator(".sw-step-btn[data-step='results']").click()
         pg.wait_for_timeout(500)
+        if pg.locator(".sw-step-btn.on").get_attribute("data-step") == "results":
+            break
     _step(pg, "results")
     pg.wait_for_selector(".sw-groups .sw-group[data-group='all']")
     assert pg.locator(".sw-groups .sw-group:not(.auto)").count() == 0
