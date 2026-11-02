@@ -216,12 +216,17 @@ def test_report_of_the_process(pg):
     pg.locator(".sw-goal-tabs .linklike", has_text="copy this goal").click()
     _step(pg, "report")
     preview = pg.locator(".sw-report-preview").inner_text()
+    # the map and the point plots are those on screen (Charts' first pane: points; next runs' map);
+    # "which parameter matters" is not part of a sweep's report any more (owner, 2026-11-02)
+    boxes = pg.locator(".sw-report-inc").inner_text()
+    assert "Which parameter matters" not in boxes and "Map (1)" in boxes and "Points (1)" in boxes, boxes
     pg.locator(".sw-report-format", has_text="Interactive HTML").click()
     pg.locator(".sw-report-page .btn", has_text="Make the report").click()
     save_as(pg, "process.html")
     pg.wait_for_selector(".toast:has-text('process.html')", timeout=60000)
     html = open(os.path.join(pg.env["out"], "process.html"), encoding="utf-8").read()
     assert "Goal 2" in html and "<canvas" in html
+    assert "<h2>Map: " in html and "<h2>Points: " in html
     assert "filters" in preview.lower() or "every parameter set" in preview.lower()
     pg.locator(".sw-report-format", has_text="Word").click()
     pg.locator(".sw-report-page .btn", has_text="Make the report").click()

@@ -8,11 +8,11 @@ import { useMemo, useState } from "react";
 import { useT, type TFn, type TKey } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS } from "../../sweeps/colors";
 import { hasFilter, keptMask } from "../../sweeps/filters";
-import type { Col, DeskPane, Filter, MapSpec, PaneKind } from "../../sweeps/model";
+import type { Col, DeskPane, Filter, PaneKind } from "../../sweeps/model";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { boxStats, histogram, pearson, spearman } from "../../sweeps/stats";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { axisChoices, colLabel, groupRows, scaleOf, scopedColumns, shownAxes } from "../../sweeps/view";
+import { axisChoices, colLabel, groupRows, mapSpec, scaleOf, scopedColumns, shownAxes } from "../../sweeps/view";
 import { MapPanel } from "./MapView";
 import ParallelPlot from "./ParallelPlot";
 import { ShapePane } from "./ShapePane";
@@ -355,14 +355,6 @@ function Broken({ study, group }: { study: Study; group?: string }) {
   );
 }
 
-
-/** A map's spec from a pane: its two parameters (the study's first two when not parameters). */
-function mapSpec(s: Study, pane: DeskPane): MapSpec {
-  const ps = s.answer?.sets.filter((c) => c.group === "param").map((c) => c.name) ?? [];
-  const x = pane.x && ps.includes(pane.x) ? pane.x : ps[0];
-  const y = pane.y && ps.includes(pane.y) && pane.y !== x ? pane.y : ps.find((p) => p !== x);
-  return { x: x ?? "", y: y ?? "", rest: "all" };
-}
 
 /** The lines in a pane: the study's axes, the same brush (a range on an axis filters everything). */
 function LinesPane({ study, group }: { study: Study; group?: string }) {

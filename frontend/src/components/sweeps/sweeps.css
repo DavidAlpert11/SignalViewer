@@ -155,7 +155,7 @@
 .sw-next-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 
 /* health, compare, scatter */
-.sw-health, .sw-compare, .sw-scatter, .sw-effects { display: flex; flex-direction: column; gap: 10px; }
+.sw-health, .sw-compare, .sw-scatter { display: flex; flex-direction: column; gap: 10px; }
 .sw-scatter canvas { background: var(--plot-bg); border: 1px solid var(--line); border-radius: 8px; }
 
 /* banners over the middle: the file changed, a template fits, nothing to ask yet */
