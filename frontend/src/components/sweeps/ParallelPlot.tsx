@@ -74,7 +74,10 @@ export default function ParallelPlot(p: ParallelPlotProps) {
     // up or down); at either end the page scrolls as usual. Shift + wheel is the browser's own.
     const wheel = (e: WheelEvent) => {
       const zr = zoomRef.current;
-      if (zr.on && !e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {          // zoom around the pointer
+      // zoom around the pointer - when the plot is wider than the screen the wheel still moves it
+      // sideways (S13) and Ctrl + wheel zooms
+      const wide = el.scrollWidth > el.clientWidth + 1;
+      if (zr.on && !e.shiftKey && (!wide || e.ctrlKey) && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
         const cv = canvas.current;
         if (!cv) return;
         e.preventDefault();
