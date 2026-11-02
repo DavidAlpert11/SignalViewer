@@ -46,12 +46,16 @@ def test_the_read_stops_where_the_file_was(growing):
     assert len(n) == state["next"] and np.array_equal(n, np.arange(state["next"]))
 
 
-def test_a_half_written_last_line_waits_while_the_file_grows(tmp_path, monkeypatch):
+@pytest.mark.parametrize("eol", ["\n", "\r\n"])
+def test_a_half_written_last_line_waits_while_the_file_grows(tmp_path, monkeypatch, eol):
+    # bytes, not write_text: on Windows write_text turns "\n" into "\r\n" and the lengths below are
+    # bytes (the release build of 1.18.0 failed on that); both line ends are tested on every platform
     p = tmp_path / "h.csv"
-    p.write_text("Time,n\n0.0,0\n0.1,1\n0.2,2")                   # the writer is in the middle of a row
+    done = f"Time,n{eol}0.0,0{eol}0.1,1{eol}"
+    p.write_bytes((done + "0.2,2").encode())                       # the writer is in the middle of a row
     real = csv_loader.os.path.getsize
     monkeypatch.setattr(csv_loader.os.path, "getsize", lambda x: real(x) + (10 if str(x) == str(p) else 0))
-    assert csv_loader._complete_part(str(p), real(p)) == len("Time,n\n0.0,0\n0.1,1\n")
+    assert csv_loader._complete_part(str(p), real(p)) == len(done.encode())
     monkeypatch.setattr(csv_loader.os.path, "getsize", real)
     # stopped without a final line break: its last row counts
     assert csv_loader._complete_part(str(p), real(p)) == real(p)
