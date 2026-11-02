@@ -649,7 +649,7 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
-## Sweeps redesign (owner, 2026-11-01): a clean, simple area - not more and more
+## Sweeps redesign (owner, 2026-11-01) — 1.18.0: a clean, simple area - not more and more
 The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the old things taken out:
 - [x] Four steps, no areas: **Data** (load, merge, the table as CSV and as lines), **Columns** (parameter /
   output / scenario / run id / recording / not used - the old "clean columns" step is "not used"; constant
@@ -666,8 +666,11 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
   page's unused API calls, types, view fields (runStep, exploreAs, explore), strings (307) and styles.
   Kept because the new design uses them: the map and points as chart kinds, clusters / PCA / SOM (Charts),
   next runs, the report. Saved studies on an old step / tab open on its place in the four steps.
+- [x] The report (owner, 2026-11-02): *Which parameter matters* out (not about a sweep's question);
+  Map and Points kept - they draw the Charts' map / points / bubble panes on screen and next runs' maps.
+- [x] Live in the Recordings bar (owner, 2026-11-02): it follows the open files and MAVLink.
 
-## Milestone 24 — investigating signals: clusters of changes, the likely first, a plot beside each (owner's notes 2026-11-01, 3). Spec: TASKS.md Q130-Q138. After Milestone 23.
+## Milestone 24 — 1.18.0 (Q130-Q134): investigating signals: clusters of changes, the likely first, a plot beside each (owner's notes 2026-11-01, 3). Spec: TASKS.md Q130-Q138. After Milestone 23.
 - [x] Q130 Changes that happen together, as clusters. Done 2026-11-01: firstchange.clusters (gap > max(3 x the coarser period, 2 % of the search window)); /api/firstchange returns `clusters` (the page does not recompute them); closed to one line (time, n, 3 names), the likeliest open; the reference runs (`refs`: the other open files) mark a member and sort it last.
 - [x] Q131 The more likely first (a score with its parts). Done 2026-11-01: firstchange.WEIGHTS / score_parts (strength, timing, stays, unique, shape - the lag against the event signal for the 30 likeliest, leads); clusters by their best member (By time as an option), the event's own signal last; the parts in the row's tooltip.
 - [x] Q132 A plot beside each cluster (normalised, the span, the change ticks). Done 2026-11-01: ClusterPlot from the 120-point pictures ((y - level) / noise, the span shaded, a tick per change, the pointer = names and real values); Open as a tab (the cursors on the span, in view from the earliest change), Add to the investigation (journal).
@@ -711,11 +714,11 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [ ] Q125 A signal slower than its recording: detected, its updates (when it changes / N Hz), operations over them.
 - [ ] Q126 An update clock: a flag (set / rises / changes) or the updates of another signal; set for a selection.
 
-## Milestone 20 — Sweeps, round 4: Explore, what S23 left. Spec: TASKS.md S24-S27.
-- [ ] S24 A condition added in Explore starts where it keeps every set.
-- [ ] S25 Explore's table: its own sort and columns? (owner's choice first)
-- [ ] S26 The axes in Explore's lines: the axis menu; a drag sets a threshold or a condition's value.
-- [ ] S27 Explore on Windows and macOS (owner's check).
+## Milestone 20 — Sweeps, round 4: Explore, what S23 left. Spec: TASKS.md S24-S27. Closed 2026-11-02 (owner): Explore left with the Sweeps redesign.
+- [x] S24 A condition added in Explore starts where it keeps every set. Closed, not done: no Explore any more.
+- [x] S25 Explore's table: its own sort and columns? Closed, not done: no Explore any more.
+- [x] S26 The axes in Explore's lines. Closed, not done: no Explore any more.
+- [x] S27 Explore on Windows and macOS. Closed, not done: no Explore any more (the four steps on Windows / macOS: CI and the owner, as every release).
 
 ## Milestone 19 — 1.17.0: Sweeps, round 3. Spec: TASKS.md S20-S23. Prepared 2026-11-01.
 - [x] S20 The journal for the report: the final story, hide lines, "the analysis starts here".
