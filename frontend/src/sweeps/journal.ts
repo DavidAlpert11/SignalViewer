@@ -70,7 +70,7 @@ export function changes(a: Study, b: Study): LogEntry[] {
 
 /** The iterations with the latest answer in: each table merged in starts one (1: the first table). */
 export function withIteration(its: Iteration[], s: Study, holding: number, sets: number, best: number | null): Iteration[] {
-  const n = 1 + s.merged.length;
+  const n = Math.max(1, s.sources.length);
   const label = s.sources[n - 1] ?? s.sources[s.sources.length - 1] ?? String(n);
   const cur: Iteration = { n, label, at: new Date().toISOString(), sets, holding, best };
   const kept = its.filter((x) => x.n < n);

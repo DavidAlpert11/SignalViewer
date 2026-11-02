@@ -6,7 +6,7 @@ view in Recordings). Here a run is a row of numbers, not a recording.
 
 Modules
 -------
-io.py        reading, the Parquet cache
+io.py        reading, the Parquet cache; merging tables into a new one (concat / join)
 columns.py   describing columns, guessing roles and scales
 shape.py     sets, combinations, what is missing
 derived.py   new columns: a formula per run, an aggregate per parameter set
@@ -44,4 +44,4 @@ from svcore.sweep.evaluate import QuestionError, answer, prepare, run_rows, set_
 from svcore.sweep.export import rerun_rows, write_csv, write_rows  # noqa: F401,E402
 from svcore.sweep.analysis import KINDS, best_set, map_for, objectives, pair_map, slice_mask, suggest  # noqa: F401,E402
 from svcore.sweep.grid import Grid, stability  # noqa: F401,E402
-from svcore.sweep.io import from_rows, merge, read_any, read_folder  # noqa: F401,E402
+from svcore.sweep.io import build, combine, combine_preview, from_rows, merge, read_any, read_folder, recipe_files  # noqa: F401,E402

@@ -20,9 +20,11 @@ from svcore import sweep
 
 router = APIRouter()
 
-# open tables, the newest last; a few at most (a big table is hundreds of MB in memory)
+# open tables, the newest last; a few at most (a big table is hundreds of MB in memory). Since the
+# Data step keeps each table of a study apart (2026-11-02) a study holds several; the page drops the
+# ones it closes (/api/sweep/drop), and the least recently used go first when there are too many.
 _TABLES: "OrderedDict[str, Dict]" = OrderedDict()
-MAX_TABLES = 3
+MAX_TABLES = 12
 
 
 class OpenReq(BaseModel):
@@ -32,6 +34,7 @@ class OpenReq(BaseModel):
 class SummaryReq(BaseModel):
     id: str
     roles: Dict[str, str]
+    holdValues: Optional[Dict[str, List[Any]]] = None   # only the runs of these condition values
 
 
 class QuestionReq(BaseModel):
@@ -76,15 +79,25 @@ def sweep_open(req: OpenReq):
     return _register(df, path, os.path.basename(path.rstrip("/\\")), t0)
 
 
-def _register(df, path: str, name: str, t0: float):
+def _register(df, path: str, name: str, t0: float, recipe: Optional[Dict] = None):
     cols = sweep.describe(df)
     tid = uuid.uuid4().hex[:12]
-    _TABLES[tid] = {"df": df, "path": path, "stat": _stat(path) if path else None}
+    recipe = recipe if recipe is not None else ({"path": path} if path else {})
+    _TABLES[tid] = {"df": df, "path": path, "stat": _stat(path) if path else None, "recipe": recipe,
+                    "stats": {f: _stat(f) for f in sweep.recipe_files(recipe)}}
     while len(_TABLES) > MAX_TABLES:
         _TABLES.popitem(last=False)
     roles = {c["name"]: c["role"] for c in cols}
-    return {"id": tid, "path": path, "name": name, "rows": int(len(df)), "columns": cols,
+    return {"id": tid, "path": path, "name": name, "rows": int(len(df)), "columns": cols, "recipe": recipe,
             "head": sweep.head(df), "summary": sweep.summary(df, roles), "seconds": round(time.perf_counter() - t0, 3)}
+
+
+def _recipe(t: Dict) -> Dict:
+    """How a table was made: a merged table's recipe, or its file with what was merged into it in place."""
+    r = t.get("recipe") or {}
+    if "merge" in r:
+        return r
+    return {"path": t.get("path") or "", "merged": [{"path": m["path"], "keys": m["keys"], "prefer": m["prefer"]} for m in t.get("merged", [])]}
 
 
 @router.post("/api/sweep/summary")
@@ -92,7 +105,15 @@ def sweep_summary(req: SummaryReq):
     bad = [r for r in req.roles.values() if r not in sweep.ROLES]
     if bad:
         fail(400, f"Unknown role: {bad[0]}")
-    return sweep.summary(_get(req.id)["df"], req.roles)
+    df = _get(req.id)["df"]
+    total = int(len(df))
+    holds = {c: v for c, v in (req.holdValues or {}).items() if v and req.roles.get(c) == "hold" and c in df.columns}
+    if holds:                                            # the runs the conditions' values keep ("640 of 1,922")
+        from svcore.sweep.derived import hold_mask
+        keep = hold_mask(df, holds)
+        if keep is not None:
+            df = df[keep]
+    return {**sweep.summary(df, req.roles), "rowsAll": total}
 
 
 @router.get("/api/sweep/example")
@@ -321,22 +342,22 @@ def sweep_reload(req: OpenReq):
     """Read the table of an open study again (the file changed): the same id, so the study's question
     and view stay; the page asks its question again."""
     t = _get(req.path)                                     # here `path` carries the table id
-    if not t.get("path"):
+    recipe = _recipe(t)
+    if not sweep.recipe_files(recipe):
         fail(400, "This table did not come from a file.")
     t0 = time.perf_counter()
     try:
-        df = sweep.read_any(t["path"])
-        for m in t.get("merged", []):                      # the tables merged into it, again, the same way
-            df, _, _ = sweep.merge(df, sweep.read_any(m["path"]), m["keys"], m["prefer"],
-                                   os.path.basename(t["path"]), os.path.basename(m["path"]))
+        df = sweep.build(recipe)                           # the tables merged into it, again, the same way
     except Exception as e:
         fail(400, f"Could not read the table again: {e}")
     t["df"], t["prepKey"], t["prep"] = df, None, None
-    t["stat"] = _stat(t["path"])
+    t["stats"] = {f: _stat(f) for f in sweep.recipe_files(recipe)}
+    if t.get("path"):
+        t["stat"] = _stat(t["path"])
     for m in t.get("merged", []):
         m["stat"] = _stat(m["path"])
     cols = sweep.describe(df)
-    return {"id": req.path, "path": t["path"], "name": os.path.basename(t["path"].rstrip("/\\\\")), "rows": int(len(df)),
+    return {"id": req.path, "path": t.get("path", ""), "name": os.path.basename((t.get("path") or "").rstrip("/\\\\")), "rows": int(len(df)),
             "columns": cols, "head": sweep.head(df), "summary": sweep.summary(df, {c["name"]: c["role"] for c in cols}),
             "seconds": round(time.perf_counter() - t0, 3)}
 
@@ -356,15 +377,18 @@ def _stat(path: str):
 @router.get("/api/sweep/changed")
 def sweep_changed(id: str):
     t = _get(id)
-    if not t.get("path"):
+    files = sweep.recipe_files(_recipe(t))
+    if not files:
         return {"changed": False}
-    now = _stat(t["path"])
-    if "stat" not in t:
-        t["stat"] = now
-    changed = now is not None and now != t["stat"]
-    for m in t.get("merged", []):
-        changed = changed or _stat(m["path"]) != m.get("stat")
-    return {"changed": changed, "missing": now is None}
+    stats = t.setdefault("stats", {})
+    changed, missing = False, False
+    for f in files:
+        now = _stat(f)
+        if f not in stats:
+            stats[f] = now
+        missing = missing or now is None
+        changed = changed or (now is not None and now != stats[f])
+    return {"changed": changed, "missing": missing}
 
 
 # ----------------------------------------------------------------------------- templates
@@ -622,7 +646,7 @@ def provenance(tid: str) -> List[str]:
     import hashlib
     from app.version import __version__
     t = _TABLES.get(tid) or {}
-    paths = [t.get("path")] + [m.get("path") for m in t.get("merged", [])]
+    paths = sweep.recipe_files(_recipe(t)) if t else []
     out = []
     for path in [x for x in paths if x]:
         try:
@@ -742,3 +766,140 @@ def sweep_autosave_get():
 @router.post("/api/sweep/autosave")
 def sweep_autosave_put(state: Dict[str, Any]):
     return write_autosave(SWEEP_AUTOSAVE, state)
+
+
+# ----------------------------------------------------------------------------- the Data step's tables
+class CombineReq(BaseModel):
+    ids: List[str]
+    names: List[str]
+    how: str = "concat"                  # concat (rows added) | join (on key columns)
+    keys: List[str] = []
+    source: str = ""                     # a column with each row's table name ("" = none)
+    dedupe: bool = False
+    name: str = ""
+    preview: bool = False                # only what it would give: rows, columns some tables lack
+
+
+@router.post("/api/sweep/combine")
+def sweep_combine(req: CombineReq):
+    """Tables of a study merged into a NEW table (the owner's Data step, 2026-11-02); the tables
+    merged stay as they were."""
+    if req.how not in ("concat", "join"):
+        fail(400, "Unknown kind of merge.")
+    ts = [_get(i) for i in req.ids]
+    parts = [t["df"] for t in ts]
+    if req.preview:
+        return sweep.combine_preview(parts, req.names, req.how, req.keys, req.source, req.dedupe)
+    t0 = time.perf_counter()
+    try:
+        df = sweep.combine(parts, req.names, req.how, req.keys, req.source, req.dedupe)
+    except sweep.SweepError as e:
+        fail(400, str(e))
+    recipe = {"merge": {"parts": [_recipe(t) for t in ts], "names": req.names, "how": req.how, "keys": req.keys,
+                        "source": req.source, "dedupe": req.dedupe}}
+    return _register(df, "", req.name or f"merged ({len(ts)} tables)", t0, recipe)
+
+
+class BuildReq(BaseModel):
+    recipe: Dict[str, Any]
+    name: str = ""
+
+
+@router.post("/api/sweep/build")
+def sweep_build(req: BuildReq):
+    """A table made again from its recipe (a saved study's merged table)."""
+    t0 = time.perf_counter()
+    try:
+        df = sweep.build(req.recipe)
+    except Exception as e:
+        fail(400, f"Could not make the merged table again: {e}")
+    path = req.recipe.get("path", "") if "merge" not in req.recipe else ""
+    return _register(df, path, req.name or os.path.basename(path.rstrip("/\\\\")), t0, req.recipe)
+
+
+@router.post("/api/sweep/drop")
+def sweep_drop(req: OpenReq):
+    """A table closed on the page: its memory back (`path` carries the table id)."""
+    _TABLES.pop(req.path, None)
+    return {"ok": True}
+
+
+class ValuesReq(BaseModel):
+    id: str
+    column: str
+    limit: int = 5000
+
+
+@router.post("/api/sweep/values")
+def sweep_values(req: ValuesReq):
+    """A column's values and how many runs have each (a condition's full list, with a search)."""
+    df = _get(req.id)["df"]
+    if req.column not in df.columns:
+        fail(404, f"No column named {req.column!r}.")
+    vc = df[req.column].value_counts(dropna=True, sort=False)
+    try:
+        vc = vc.sort_index()
+    except TypeError:
+        pass
+    vals = [[k.item() if hasattr(k, "item") else k, int(n)] for k, n in vc.items()]
+    return {"values": vals[: max(1, req.limit)], "total": len(vals), "numeric": bool(pd.api.types.is_numeric_dtype(df[req.column]))}
+
+
+class FormulaReq(BaseModel):
+    id: str
+    expr: str
+    derived: List[Dict[str, Any]] = []   # the new columns before it (a formula may use them)
+
+
+@router.post("/api/sweep/formula-preview")
+def sweep_formula_preview(req: FormulaReq):
+    """A new column's value in the first run, or what is wrong with the formula - as it is typed."""
+    from svcore.sweep.derived import DerivedError, row_formula
+    df = _get(req.id)["df"].head(1).copy()
+    try:
+        for d in req.derived:
+            if d.get("kind") == "row" and d.get("name") and d.get("expr"):
+                df[d["name"]] = row_formula(df, d["expr"])
+        v = float(row_formula(df, req.expr)[0])
+    except DerivedError as e:
+        return {"ok": False, "error": str(e)}
+    except Exception as e:              # numpy's own complaint (a wrong number of arguments...)
+        return {"ok": False, "error": f"Formula: {e}"}
+    return {"ok": True, "value": None if not np.isfinite(v) else v}
+
+
+class ExportTableReq(BaseModel):
+    id: str
+    path: str
+    format: str = "csv"                  # csv | html (the parallel plot, interactive, the data inside)
+    title: str = ""
+    axes: List[str] = []
+    labels: Dict[str, str] = {}
+    view: Dict[str, Any] = {}            # html: {colorBy, filters, zoom} - the plot as it was on screen
+
+
+@router.post("/api/sweep/export-table")
+def sweep_export_table(req: ExportTableReq):
+    """A table of the Data step as a file: CSV, or an HTML page with its parallel plot."""
+    from app import sweep_report
+    if req.format not in ("csv", "html"):
+        fail(400, "Unknown export format.")
+    ext = "." + req.format
+    path = os.path.abspath(os.path.expanduser(req.path))
+    if not path.lower().endswith(ext):
+        path += ext
+    df = _get(req.id)["df"]
+    try:
+        if req.format == "csv":
+            df.to_csv(path, index=False)
+            return {"path": path, "rows": int(len(df))}
+        if len(df) > 50_000:
+            df = df.sample(50_000, random_state=0)
+        names = [c for c in (req.axes or list(df.columns)) if c in df.columns]
+        a = sweep_report.plot_data(df, names)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(sweep_report._html(a, {"axes": names, "plotOnly": True, "title": req.title, "labels": req.labels,
+                                            "init": sweep_report.init_view(a, req.view)}, []))
+    except OSError as e:
+        fail(400, f"Could not write {path}: {e}")
+    return {"path": path, "rows": int(len(df))}

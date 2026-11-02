@@ -27,6 +27,10 @@ export interface PickerRequest {
   title: string;
   exts?: string[];                 // e.g. [".svsession"]; default: data files
   defaultName?: string;
+  /** save: the "Save as type" choices (the path comes back with the chosen one's extension);
+   *  `type` is the one chosen first */
+  types?: { label: string; ext: string }[];
+  type?: number;
   resolve: (path: string | null) => void;
 }
 /** A dashed line computed but not kept (Create signals > Preview). */
