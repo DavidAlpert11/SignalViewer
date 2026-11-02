@@ -23,18 +23,22 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   PCA, MDS, SOM as Charts panes; clusters = groups). Every M23 e2e file has now run in a browser (fixes in
   the log). **Owner's choices 2026-11-01:** scikit-learn is in `requirements.txt` (Kriging everywhere;
   lite keeps the extra `sweeps-opt`); the old Explore tabs (Lines, Map, Points...) go in the next version
-  after 1.17.0. **Milestone 24: Q130-Q134 done; next Q135-Q137.** Then Sweeps round 4 (S24-S27).
+  after 1.17.0. **Milestone 24: Q130-Q134 done; next Q135-Q137** - after the owner tries What changed
+  first and the new Sweeps on real data (his feedback decides). Q138 is a list of ideas: not without the
+  owner. Sweeps round 4 (S24-S27) closed 2026-11-02 (Explore is gone).
+- **Owner's choices 2026-11-02:** the Sweeps report keeps Map and Points (from the Charts / next runs on
+  screen) and drops *Which parameter matters*; Live is in the Recordings bar.
 - Fixed 2026-11-01 (owner's report): a refresh of a file still being written followed the writer to the
   end (100 % until the writing stopped). CSV reads are bounded to the size when the read began; the store
   keeps the size from before the read.
-- Branch `main`. **1.17.0 prepared 2026-11-01** (Milestones 17-19 in ROADMAP.md, S00-S23 - the
-  Sweeps area, Explore - and the work areas, the tool rail's names, the welcome screen, one place for
-  messages). The owner pushes, waits for the green `ci` run, tags `v1.17.0` and pushes the tag
-  (build.yml: packages, PyPI, draft release), then publishes the draft. Prepared before: 1.16.0
-  (2026-10-29) - if its tag was never pushed, 1.17.0 carries it too (its CHANGELOG section stays).
-- Checked here for 1.17.0 (Linux): see the log line of 2026-11-01. Not run here: Windows / macOS (CI
-  and the owner) - in particular Sweeps / Explore in WebView2 and WKWebView (S27) -, the Windows
-  installer. Open: Q120, Q121; Sweeps round 4 (S24-S27).
+- Branch `main`. **1.18.0 prepared 2026-11-02** (the Sweeps redesign, Milestone 23's charts / groups,
+  Milestone 24's Q130-Q134, the growing-file fix, Live in the Recordings bar, the report's figures). The
+  owner applies the patch, pushes, runs `ci` by hand (Releasing step 0), tags `v1.18.0` and pushes the tag
+  (build.yml: packages, PyPI, draft release), then publishes the draft. Prepared before: 1.17.0
+  (2026-11-01) - if its tag was never pushed, 1.18.0 carries it too (its CHANGELOG section stays).
+- Checked here for 1.18.0 (Linux): see the log line of 2026-11-02. Not run here: Windows / macOS (CI
+  and the owner) - the four Sweeps steps in WebView2 and WKWebView -, the Windows installer. Open:
+  Q120, Q121; e2e flake test_globe_without_webgl_falls_back (failed once in a full run, passes alone).
 - **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
   social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
   with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
@@ -305,7 +309,8 @@ optimization did not show in the parallel plot ("HiPlot") and the table.
 
 ## Sweeps, round 4 (2026-11-01): S24–S27 - Explore, what S23 left
 
-**Progress:** none started. Found while doing S23; S25 needs the owner's choice first.
+**Progress:** **closed 2026-11-02 (owner)** - none done: the Sweeps redesign took Explore out, so none of
+these applies any more. Kept below as a record.
 
 ### S24 · A condition added in Explore starts where it keeps every set — S
 **Now:** *+ condition* (and a new column chosen on a row) starts at the far end of the column's
@@ -2319,3 +2324,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-01 · Sweeps redesign (owner: "a mess - redo it simply, not more and more"; then "remove the old things"): StepNav four steps (normStep maps clean / report / run), CenterTabs five tabs (normCenter), GoalTable (at least / at most per column = conditions mode "all"; optimize per output), RolesStep with the clean tools (constant -> not used; removed columns shown as not used), undo / redo in the plot bar. Deleted: CleanStep, ExploreView, DecidePanel, ExploreButton, EffectsView, SensitivityTable, SurrogateView, HealthView, CompareView, RunArea, RunStepPanel, DoeSheet, OptimiserPanel, RobustSheet, NumField, sweeps/explore.ts; e2e test_sweeps_{run,model,sensitivity,robust,doe,problem} and the flow tests of removed tabs; e2e +1 (four steps, five tabs, the goal table).
 - 2026-11-01 · Sweeps cleanup (owner: "delete everything old that is not used"): backend svcore/sweep/{doe,surrogate,sensitivity,runner,optimise,robust,mcdm,compare,quality}.py, 15 endpoints and their tests (test_sweep_{doe,mcdm,optimise,robust,runner,sensitivity,surrogate}; test_sweep's suspects / compare tests), scikit-learn out of requirements.txt and extras (sweeps-opt gone); frontend: the unused sweepApi calls and types, view.runStep / exploreAs / explore, ScattersView, idOfParams / paramsOfId, CENTERS, ROLES / SCALES, 307 strings, 175 style rules (the ones made from a value - sw-mark-<kind>, sw-th-<role> - kept); README, GUIDE / GUIDE.he 12, features, index, gallery, limitations on the four steps; docs/images/23_sweeps_goal.png (tools/make_readme_media.py --only 23) for 23_sweeps_explore.png; SWEEPS_MODEFRONTIER.md marked as history.
 - 2026-11-02 · Checks after the redesign and the cleanup: backend 920 + 12 skipped, mypy clean, tsc, build, mkdocs --strict, the whole e2e suite one file per process (all green; test_sweeps_flow 31, test_sweeps_groups 2, test_sweeps_charts 4).
+- 2026-11-02 · Owner's answers (commit "Live in the Recordings bar..."): TopBar's Live group (Live, its settings, the MAVLink pill) moved to RecordingsBar beside undo; the Sweeps report without *Which parameter matters* (sweep_report.fig_effects, svcore sweep.effects, swCenterEffects removed), Map / Points from the Charts' panes on screen and next runs' maps (reportFigures in ReportDialog, a count beside each box, disabled with none; scatterList removed, mapSpec to sweeps/view.ts); GUIDE / GUIDE.he / features.md; S24-S27 closed. Tests: backend +1 assertion, e2e test_file_help_menus (Live only in the area bar), test_sweeps_flow (the report's boxes and figures), the Live selectors of test_features and test_workflows (the CI smoke set).
+- 2026-11-02 · Release 1.18.0 prepared: version in version.py, build.bat, CITATION.cff (+ date), the installer, version_info.txt, install.md (+ ~930 server tests); CHANGELOG 1.18.0 (highlights; Changed / Added / Fixed); README review: README, features.md, limitations, gallery already describe the four Sweeps steps (the redesign's commit) - Live, Templates and Clear now said to be in the Recordings bar; pictures not retaken (23_sweeps_goal.png is from the redesign); validation regenerated (23 / 23, the version). Here: backend 920 + 12 skipped, mypy clean, tsc, oxlint 54 (as before), build, mkdocs --strict; e2e: test_file_help_menus, test_sweeps_flow (31), test_sweeps_charts, test_features -k live / mav / follow (6), test_fresh_user, test_workflows; frontend/dist rebuilt.

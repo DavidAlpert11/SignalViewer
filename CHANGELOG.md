@@ -1,21 +1,30 @@
 # Changelog
 
-## Unreleased
+## 1.18.0 – 2026-11-02
 
-- **Live is in the Recordings bar**, beside undo - it follows the open files and MAVLink, so it belongs to that area; the top row keeps only what every area shares.
-- **Sweeps report: the maps and point plots on screen.** The *Map* and *Points* parts now draw the Charts' map and point panes (and next runs' maps), with how many beside each box; *Which parameter matters* is no longer in the report.
+Highlights: **Sweeps, redone simply** - four steps (Data, Columns, Goal, Results), the goal as one
+table of *at least* / *at most* and what to optimize, and the results as parameter sets, all runs,
+linked **Charts** (points, histograms, boxes, a correlation matrix, maps, Pareto, clusters, a
+self-organising map), **groups** of sets, next runs and the report; the older tools are gone and
+scikit-learn is no longer installed. **What changed first** now shows the changes in clusters, the
+likeliest cause first, and who leads whom. **Live** moved to the Recordings bar. Fixed: refreshing
+a file that is **still being written**. Sessions and templates you already have open as before.
+
+### Changed
 - **Sweeps, redone simply.** Four steps: *Data* (load, merge, the table and its lines), *Columns* (what each column is - parameter, output, scenario, run id, not used), *Goal* (one table: at least / at most on any column, what to optimize; the count and the best set follow each change) and *Results* (parameter sets and all runs as lines - Keep, Exclude, undo, redo, export -, charts, next runs, report). The older tools (Explore / ranking methods, which parameter matters, the model, maps and points tabs - both still chart kinds -, data health, running sets from the app, comparing studies) are gone, and scikit-learn is no longer installed.
+- **Sweeps report: the maps and point plots on screen.** The *Map* and *Points* parts now draw the Charts' map and point panes (and next runs' maps), with how many beside each box; *Which parameter matters* is no longer in the report.
+- **Live is in the Recordings bar**, beside undo - it follows the open files and MAVLink, so it belongs to that area; the top row keeps only what every area shares.
+- **CI runs on a push only when asked** (`[ci]` in the last commit's message, or *Run workflow*); pull requests always.
+
+### Added
 - **What changed first: clusters, the likeliest first.** The changes that happen together are one line each (when, how many, the likeliest names), ordered by how likely a cause - strength, how early before the event, whether it stays changed, whether the other open runs have it too, whether its shape leads the event's signal, whether others follow it; hover a number for its parts (or order by time). An opened cluster has its own plot right there (every signal on its usual level and noise, the span shaded, a tick at each change), *Open as a tab* and *Add to the investigation*. Constant signals, clocks and counters and heartbeats are left out and counted; a log's names are grouped by message (ATT.*); the arrow keys walk the clusters. Above them, *who leads whom*: the likeliest of each cluster in time order, an arrow where the next clearly follows it (by how long, how well it matches).
-- **Fixed: refreshing a file that is still being written.** The read used to follow the writer to the end of the file - the progress stood at 100 % until the writing stopped - and the refresh after it could report the file as unchanged. Now a refresh reads the file as it was when the refresh began (a row still being written waits for the next read), the next refresh or live mode reads the rest once, and a file's text columns are no longer lost when it grew in between.
-
+- **Sweeps: Charts.** A desktop of 1, 2 or 4 linked charts - points, bubble, histogram, box, scatter matrix with Pearson or Spearman correlations, history, Pareto, the lines, a map, a comparison of the marked sets, and which conditions fail how often - each for all the sets or one group. All show the same sets in the same colours; a range dragged on a histogram (or a rectangle on the points, a click on a broken condition) filters every chart, the lines and the table.
 - **Sweeps / Charts: the shape of the sets.** Two new chart kinds: *Principal components / clusters* - the sets on their first two principal components (or a map that keeps their distances), coloured by k-means or hierarchical clusters, the clusters kept as groups in one click - and a *Self-organising map*, a grid of nodes with how many sets each holds, darker at the borders between clusters; a click on a node keeps its sets as a group.
-
 - **Sweeps: groups of parameter sets.** Filter on the axes and *Save as group* (a rule that follows new results; Shift keeps just the sets of now). The groups panel lists the automatic groups (all, hold every condition, Pareto front, fail, error, marked) and yours: colour, count, show / hide in every plot and the table, rename, freeze, union / intersection / difference. Colour the plot by group.
 - **Sweeps: each set's status in the table** - a stripe for the sets that fail (amber) or miss an output (red), the failing condition's cells marked, and a tooltip *fails in k of n*; a column with each set's groups.
 
-- **Sweeps: Charts.** A desktop of 1, 2 or 4 linked charts - points, bubble, histogram, box, scatter matrix with Pearson or Spearman correlations, history, Pareto, the lines, a map, a comparison of the marked sets, and which conditions fail how often - each for all the sets or one group. All show the same sets in the same colours; a range dragged on a histogram (or a rectangle on the points, a click on a broken condition) filters every chart, the lines and the table.
-
-- **CI runs on a push only when asked** (`[ci]` in the last commit's message, or *Run workflow*); pull requests always.
+### Fixed
+- **Refreshing a file that is still being written.** The read used to follow the writer to the end of the file - the progress stood at 100 % until the writing stopped - and the refresh after it could report the file as unchanged. Now a refresh reads the file as it was when the refresh began (a row still being written waits for the next read), the next refresh or live mode reads the rest once, and a file's text columns are no longer lost when it grew in between.
 
 ## 1.17.0 – 2026-11-01
 
