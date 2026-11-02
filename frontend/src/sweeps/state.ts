@@ -106,6 +106,8 @@ interface SweepsState {
   templatesOpen: boolean;
   /** the steps' side panel is hidden (more room for the plot); remembered */
   leftHidden: boolean;
+  /** the goal's "More options" open (for this session) */
+  goalMore: boolean;
   setLeftHidden: (hidden: boolean) => void;
   /** opening the studies of the last run again (autosave) */
   restoring: boolean;
@@ -319,6 +321,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     reportOpen: false,
     templatesOpen: false,
     leftHidden: getPrefValue<boolean>("sv3.swLeftHidden") === true,
+    goalMore: false,
     setLeftHidden: (hidden) => { setPref("sv3.swLeftHidden", hidden); set({ leftHidden: hidden }); },
     restoring: false,
     reopenLast: async () => {

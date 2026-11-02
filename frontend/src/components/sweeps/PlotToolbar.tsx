@@ -27,10 +27,6 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
   const off = (v.axesOff ?? []).filter((a) => here.has(a) && !v.axes.includes(a));
   return (
     <div className="sw-plotbar">
-      <div className="sw-seg" role="radiogroup" aria-label={t("swLines")}>
-        <button role="radio" aria-checked={v.mode === "sets"} className={v.mode === "sets" ? "on" : ""} onClick={() => setView({ mode: "sets" })} title={t("swPerSetHint")}>{t("swPerSet")}</button>
-        <button role="radio" aria-checked={v.mode === "runs"} className={v.mode === "runs" ? "on" : ""} onClick={() => setView({ mode: "runs" })} title={t("swPerRunHint")}>{t("swPerRun")}</button>
-      </div>
       {/* the axes: chosen in one list (type to search, groups as one click); dragged on the plot to reorder */}
       <ColumnPicker options={axisOptions(t, study)} value={axes}
         presets={presetChoices(t, study, axisChoices(study), PRESET_KEY, v.mode === "runs" ? [] : ["scenarios"])}
@@ -48,6 +44,9 @@ export default function PlotToolbar({ study, shown, total, onKeep, onExclude, on
         <button className="btn outline" onClick={() => useSweeps.getState().restore(false)} title={t("swStepBackHint")}>{t("swStepBack")}</button>
         <button className="btn outline" onClick={() => useSweeps.getState().restore(true)}>{t("swRestore", { n: scoped })}</button>
       </>}
+      {/* undo / redo beside them (also Ctrl+Z / Ctrl+Y and the bar above) */}
+      <button className="iconbtn sw-undo" aria-label={t("undo")} title={t("undo")} disabled={!study.history?.past.length} onClick={() => useSweeps.getState().undo()}>↶</button>
+      <button className="iconbtn sw-redo" aria-label={t("redo")} title={t("redo")} disabled={!study.history?.future.length} onClick={() => useSweeps.getState().redo()}>↷</button>
       <button className="btn outline" disabled={!shown} onClick={onExport} title={t("swExportShownHint")}>{t("swExportShown")}</button>
       <button className="btn outline" onClick={onExportPlot} title={t("swExportPlotHint")}>{t("swExportPlot")}</button>
       {/* S15: the axes taken off lately, one click each to bring back */}

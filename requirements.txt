@@ -18,6 +18,3 @@ mcap>=1.1             # ROS 2 / Foxglove recordings (.mcap, T27): MIT, Foxglove,
 mcap-ros2-support>=0.5   # decodes ROS 2 messages from the file's own definitions (no ROS install); MIT
 lz4>=4.0              # compressed MCAP chunks (used by mcap)
 zstandard>=0.21       # compressed MCAP chunks (used by mcap)
-scikit-learn>=1.3     # Sweeps: Kriging model (MF04), owner's choice 2026-11-01 to ship it everywhere (~+40 MB).
-                      # Licence read in the released wheels (pip download --no-deps, 2026-11-01): scikit_learn-1.9.1
-                      # COPYING, joblib-1.6.0 LICENSE.txt, threadpoolctl-3.7.0 LICENSE - all BSD-3-Clause.

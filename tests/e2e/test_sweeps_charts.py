@@ -4,7 +4,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 from test_features import env, goto_folder, pg, save_as  # noqa: E402,F401
-from test_sweeps_flow import _fresh, _step, _the_goal  # noqa: E402
+from test_sweeps_flow import _fresh, _step, _the_goal, _tab  # noqa: E402
 
 
 def _charts(pg):
@@ -12,7 +12,7 @@ def _charts(pg):
     _the_goal(pg)
     _step(pg, "results")
     pg.wait_for_selector(".sw-table tbody tr")
-    pg.locator(".sw-center-tabs button", has_text="Charts").click()
+    _tab(pg, "charts")
     pg.wait_for_selector(".sw-desk .sw-pane")
 
 
@@ -43,16 +43,16 @@ def test_desk_layouts_and_kinds(pg):
 
 def test_histogram_brush_filters_everything(pg):
     _charts(pg)
-    pg.locator(".sw-center-tabs button", has_text="Lines").click()
+    _tab(pg, "sets")
     total = pg.locator(".sw-table-wrap .sw-table tbody tr").count()
-    pg.locator(".sw-center-tabs button", has_text="Charts").click()
+    _tab(pg, "charts")
     svg = pg.locator(".sw-pane[data-kind='histogram'] svg.sw-chart")
     b = svg.bounding_box()
     y = b["y"] + b["height"] * 0.5
     pg.mouse.move(b["x"] + b["width"] * 0.15, y); pg.mouse.down()
     pg.mouse.move(b["x"] + b["width"] * 0.55, y, steps=5); pg.mouse.up()
     pg.wait_for_selector(".sw-pane[data-kind='histogram'] .sw-brush-mark")
-    pg.locator(".sw-center-tabs button", has_text="Lines").click()
+    _tab(pg, "sets")
     pg.wait_for_selector(".sw-plotbar .btn:has-text('Clear 1 filters')")
     assert 0 < pg.locator(".sw-table-wrap .sw-table tbody tr").count() < total
 

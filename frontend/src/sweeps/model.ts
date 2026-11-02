@@ -95,16 +95,13 @@ export function upgradeQuestion(q: Partial<Question>): Question {
   return materialize(base);
 }
 
-/** The steps of the work, in order. */
+/** The steps of the work, in order (2026-11-01, the owner's redesign): the data (the table, merged
+ *  tables, as a table and as lines), the columns (what each one is), the goal (limits on columns and
+ *  what to optimize), the results. "clean", "report" and "run" are older steps: a saved study that
+ *  stands on one opens on its place now (normStep) - the columns, the report tool, the run tool. */
 export type Step = "raw" | "clean" | "roles" | "goals" | "results" | "report" | "run";
-export const STEPS: Step[] = ["raw", "clean", "roles", "goals", "results", "report"];
-
-/** The three areas (M23 §4): the problem (the table, its columns, the goal), running it (MF06 /
- *  MF11 - quiet until a run step exists), and exploring the results. The steps live in an area. */
-export type Area = "problem" | "run" | "explore";
-export const AREAS: Area[] = ["problem", "run", "explore"];
-export const areaOf = (s: Step): Area => (s === "run" ? "run" : s === "results" || s === "report" ? "explore" : "problem");
-export const AREA_STEPS: Record<Area, Step[]> = { problem: ["raw", "clean", "roles", "goals"], run: ["run"], explore: ["results", "report"] };
+export const STEPS: Step[] = ["raw", "roles", "goals", "results"];
+export const normStep = (s: Step): Step => (s === "clean" ? "roles" : s === "report" || s === "run" ? "results" : s);
 
 /** What the middle of the area shows. */
 /** A line of the study's journal (S08): when, what kind of step, its details (rendered in the
@@ -133,8 +130,11 @@ export interface NextRuns {
   exported?: string;
 }
 
-export type Center = "lines" | "explore" | "charts" | "effects" | "model" | "map" | "scatter" | "next" | "health" | "compare";
-export const CENTERS: Center[] = ["lines", "explore", "charts", "effects", "model", "map", "scatter", "next", "health", "compare"];
+export type Center = "lines" | "explore" | "charts" | "effects" | "model" | "map" | "scatter" | "next" | "health" | "compare" | "run" | "report";
+/** The results' views (2026-11-01 redesign: the sets and the runs are both "lines"); the others of
+ *  this list are from older studies and open the parameter sets (normCenter). */
+export const MAIN_CENTERS: Center[] = ["lines", "charts", "next", "report"];
+export const normCenter = (c: Center): Center => (MAIN_CENTERS.includes(c) ? c : "lines");
 
 /** MF02: a pane of the chart desktop and what it shows. */
 export type PaneKind = "lines" | "scatter" | "bubble" | "histogram" | "box" | "matrix" | "map" | "history" | "pareto" | "compare" | "broken" | "pca" | "som";
@@ -198,18 +198,12 @@ export interface View {
   journalAll?: boolean;
   /** the journal line where the analysis starts (its time); before it is out of the report */
   journalStart?: string;
-  /** Explore's draft of a goal and the goal it started from (S21): not the goal until saved */
-  explore?: { draft: import("./explore").Draft; from: number };
   /** how the plots look (S12) */
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */
   axesOff?: string[];
-  /** how a run is made and read (MF06; missing: no run step - the Run area is quiet) */
-  runStep?: import("./api").RunStep;
   /** the chart desktop (MF02; missing: two panes from the study's columns) */
   desk?: { layout: 1 | 2 | 4; panes: DeskPane[] };
-  /** Explore's controls as sliders or as one table of the problem (MF01; missing: sliders) */
-  exploreAs?: "sliders" | "table";
   /** the user's groups of sets (MF00; optional: an old study has the automatic groups only) */
   groups?: import("./groups").Group[];
   /** the group the tools read (an automatic group's name or a user group's id; missing: all) */
