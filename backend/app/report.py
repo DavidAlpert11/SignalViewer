@@ -846,9 +846,18 @@ def build_docx(store, req: Dict, path: str, progress=None):
     doc.save(path)
 
 
-def build_image(store, spec: Dict, fmt: str, theme: str) -> bytes:
-    p = plot_data(store, spec, for_html=False, points=4000)
-    fig = render_figure(p, theme, size=(8, 6) if p.get("mode") == "xyz" else (10, 4), dpi=200 if fmt == "png" else 100)
+def build_plot_html(store, spec: Dict, theme: str = "light", lang: str = "en") -> str:
+    """One plot as an interactive page (zoom, the lines on and off, values under the pointer) - the
+    report's page with just this plot."""
+    return build_html(store, {"title": spec.get("title") or "", "lang": lang, "theme": theme,
+                              "tabs": [{"name": "", "plots": [spec]}]})
+
+
+def build_image(store, spec: Dict, fmt: str, theme: str, scale: float = 1.0) -> bytes:
+    """A plot as PNG or SVG; `scale` 2 (or more) gives a PNG with that many times the pixels - for a
+    report or a slide (the lines drawn from more points too)."""
+    p = plot_data(store, spec, for_html=False, points=int(4000 * max(1.0, scale)))
+    fig = render_figure(p, theme, size=(8, 6) if p.get("mode") == "xyz" else (10, 4), dpi=int(200 * scale) if fmt == "png" else 100)
     if p["title"]:
         fig.suptitle(_bidi(p["title"]), fontsize=11, weight="bold", color=FIG_THEME[theme]["fg"])
         fig.subplots_adjust(top=0.88)

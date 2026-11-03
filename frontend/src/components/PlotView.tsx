@@ -91,10 +91,11 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       done(res.path);
     } catch (e) { failed(e); }
   };
-  const saveImage = async (format: "png" | "svg") => {
-    const path = await pickPath({ mode: "save", title: t("saveImage"), exts: [`.${format}`], defaultName: `${baseName}.${format}` });
+  // PNG (scale 2: high resolution, for a report or a slide), SVG, or the plot alone as an interactive page
+  const saveImage = async (format: "png" | "svg" | "html", scale = 1) => {
+    const path = await pickPath({ mode: "save", title: t("saveImage"), exts: [`.${format}`], defaultName: `${baseName}${scale > 1 ? "_hires" : ""}.${format}` });
     if (!path) return;
-    try { done((await api.image(path, format, theme, plotSpec(tab, plot, index, t("plotTitle", { n: "{n}" })))).path); } catch (e) { failed(e); }
+    try { done((await api.image(path, format, theme, plotSpec(tab, plot, index, t("plotTitle", { n: "{n}" })), scale, lang)).path); } catch (e) { failed(e); }
   };
   const copyImage = async () => {
     const canvas = sectionRef.current?.querySelector("canvas");
@@ -111,7 +112,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const plotItems = (): MenuItem[] => [
     { label: t("exportData"), run: exportCsv, disabled: !plot.signals.length },
     { label: `${t("saveImage")} (PNG)`, run: () => saveImage("png"), disabled: !plot.signals.length },
+    { label: t("saveImageHires"), run: () => saveImage("png", 2), disabled: !plot.signals.length },
     { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
+    { label: t("saveImageHtml"), run: () => saveImage("html"), disabled: !plot.signals.length },
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
     { label: "", run: () => {}, sep: true },
     // the error between two lines (a flight computer's X against the true X), here or in every such plot

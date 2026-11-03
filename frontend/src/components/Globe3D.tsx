@@ -2,6 +2,7 @@ import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "cesium/Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css";
 import { api } from "../api";
+import { openMenu } from "./Overlays";
 import { actions, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
@@ -395,14 +396,18 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   }, [measuring]);
 
   /* the view as a PNG (drawn here and read back at once - the drawing buffer is not kept) */
-  const saveImage = async () => {
+  // scale 2: drawn at twice the pixels for a report, then back to the screen's
+  const saveImage = async (scale = 1) => {
     const w = widgetRef.current;
     if (!w) return;
-    const path = await pickPath({ mode: "save", title: t("saveImage"), exts: [".png"], defaultName: "3d-view.png" });
+    const path = await pickPath({ mode: "save", title: t("saveImage"), exts: [".png"], defaultName: scale > 1 ? "3d-view_hires.png" : "3d-view.png" });
     if (!path) return;
+    const was = w.resolutionScale;
+    if (scale > 1) { w.resolutionScale = was * scale; w.resize(); }
     w.scene.requestRender();
     w.render();
     const url = w.scene.canvas.toDataURL("image/png");
+    if (scale > 1) { w.resolutionScale = was; w.resize(); w.scene.requestRender(); }
     try {
       const r = await api.saveImage(path, url);
       useApp.getState().toast({ kind: "info", text: t("savedTo", { path: r.path }) });
@@ -608,7 +613,10 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
             onClick={() => actions.updatePlot(plot.id, { showEvents: plot.showEvents === false })} title={t("g3EventsHint")}>{t("g3Events")}</button>}
           <button className={`g3-toggle${measuring ? " on" : ""}`} aria-pressed={measuring} title={t("g3MeasureHint")}
             onClick={() => { setMeasuring(!measuring); setMeasurePts([]); }}>{t("g3Measure")}</button>
-          <button className="g3-toggle" onClick={saveImage} title={t("saveImage")}>{t("g3Image")}</button>
+          <button className="g3-toggle" onClick={(e) => openMenu(e, [
+            { label: `${t("saveImage")} (PNG)`, run: () => saveImage(1) },
+            { label: t("saveImageHires"), run: () => saveImage(2) },
+          ])} title={t("saveImage")}>{t("g3Image")} ▾</button>
           <button className="g3-toggle g3-remove" onClick={() => actions.remove3d(plot.id)} title={t("g3RemoveHint")} aria-label={t("g3Remove")}>✕</button>
           <span className="g3-seg" role="radiogroup" aria-label={t("g3Time")}>
             <span className="g3-seg-label">{t("g3Time")}</span>
