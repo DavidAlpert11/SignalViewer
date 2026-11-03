@@ -17,7 +17,7 @@ export default function CenterTabs({ study }: { study: Study; studies?: number }
       {tab("sets", c === "lines" && v.mode === "sets", t("swTabSets"), () => st.setView({ center: "lines", mode: "sets" }))}
       {tab("runs", c === "lines" && v.mode === "runs", t("swTabRuns"), () => st.setView({ center: "lines", mode: "runs" }))}
       {tab("charts", c === "charts", t("swCenterCharts"), () => st.setView({ center: "charts" }))}
-      {tab("next", c === "next", t("swCenterNext"), () => st.setView({ center: "next" }))}
+      {tab("next", c === "next", v.rerun.length ? `${t("swCenterNext")} (${v.rerun.length})` : t("swCenterNext"), () => st.setView({ center: "next" }))}
       {tab("report", c === "report", t("swToolReport"), () => st.setView({ center: "report" }))}
     </div>
   );

@@ -1,7 +1,7 @@
 /* What the plot and the table show for a study: the columns of the current mode, their names on
    screen, their scales, and which axes can be added. Pure functions of the study. */
 import type { TFn, TKey } from "../i18n";
-import type { Col, DeskPane, MapSpec, PlotStyle, Role, Scale } from "./model";
+import type { Col, DeskPane, MapSpec, PlotStyle, Role, Scale, View } from "./model";
 import { wireQuestion, type Study } from "./state";
 import { keptMask } from "./filters";
 import { FLAG_COLS } from "./colors";
@@ -255,6 +255,15 @@ export function tableOptions(t: TFn, s: Study): { id: string; label: string; gro
     .map((c) => ({ id: c.name, label: colLabel(t, s, c.name), group: groupLabel(t, c.group) }));
 }
 
+/** Which sets the results show (Show: Holds ▾): all, those that hold, those that fail, a group. */
+export const showKey = (v: View): string => v.show ?? (v.onlyHolding === false ? "all" : "holds");
+/** The sets shown, as a mask over the answer's sets (null: every one). */
+export function showMask(s: Study): Uint8Array | null {
+  const a = s.answer, k = showKey(s.view);
+  if (!a || k === "all") return null;
+  return maskOfKey(a, s.view.groups ?? [], k === "fail" ? "fails" : k, s.view.rerun) ?? null;
+}
+
 /** The sets the table shows, in its order: kept by the plot's filters, the keep / exclude steps and
  *  "only those that hold"; sorted by the chosen column, else best first (rank, holds, the goal). */
 export function tableRows(s: Study): number[] {
@@ -266,7 +275,8 @@ export function tableRows(s: Study): number[] {
   const scope = scopeMask(s);
   const holds = cols.get("#holds")!.values;
   const rows: number[] = [];
-  for (let i = 0; i < n; i++) if (kept[i] && (!scope || scope[i]) && (!s.view.onlyHolding || holds[i] === 1)) rows.push(i);
+  const show = showMask(s);
+  for (let i = 0; i < n; i++) if (kept[i] && (!scope || scope[i]) && (!show || show[i] === 1)) rows.push(i);
   const sort = s.view.tableSort, sc = sort ? cols.get(sort.column) : undefined;
   if (sort && sc) {
     const v = sc.values, lab = sc.kind === "cat" ? sc.labels ?? [] : null, dir = sort.desc ? -1 : 1;
@@ -306,4 +316,17 @@ export function groupRows(s: Study, key: string | undefined, cols: Map<string, C
   const out = new Uint8Array(n);
   for (let r = 0; r < n; r++) out[r] = m[setOf ? setOf[r] : index ? index[r] : r] ? 1 : 0;
   return out;
+}
+
+/** A column to choose (ColumnSearch): its role and range beside its name. */
+export interface ColumnChoice { name: string; role: Role | "derived"; min?: number; max?: number }
+
+/** Columns to choose one from (ColumnSearch): the active ones of these roles (and the new columns),
+ *  each with its role and range. */
+export function columnChoices(s: Study, roles: Role[], derived = true): ColumnChoice[] {
+  const removed = new Set(s.question.removed);
+  return [
+    ...s.columns.filter((c) => roles.includes(c.role) && !removed.has(c.name)).map((c) => ({ name: c.name, role: c.role, min: c.min, max: c.max })),
+    ...(derived ? s.question.derived.map((d) => ({ name: d.name, role: "derived" as const })) : []),
+  ];
 }

@@ -87,7 +87,8 @@ def _condition(pg, column, op, value):
     _more(pg)
     pg.locator(".sw-goal-part .btn", has_text="+ condition").click()
     row = pg.locator(".sw-cond").last
-    row.locator("select[aria-label='Column']").select_option(column)
+    col = row.locator("input[aria-label='Column']")                              # typed: part of the name finds it
+    col.click(); col.fill(column.replace("_", " ")); col.press("Enter")
     row.locator("select[aria-label='Comparison']").select_option(op)
     box = row.locator("input[aria-label='Limit']")
     box.fill(str(value)); box.press("Enter")
@@ -221,6 +222,7 @@ def test_results_filter_keep_exclude_export_and_why(pg):
     pg.locator(".sw-plotbar .btn", has_text="Restore all").click()
     pg.wait_for_function(f"document.querySelectorAll('.sw-table-wrap .sw-table tbody tr').length === {total}")
     # a set that fails says why
+    pg.locator(".sw-show select").select_option("all")                           # every set, not only those that hold
     pg.locator(".sw-table tbody tr:not(.holds)").first.click()
     pg.wait_for_selector(".sw-detail .sw-why")
     assert "roll_error_deg" in pg.locator(".sw-why").inner_text() or "overshoot_pct" in pg.locator(".sw-why").inner_text()
@@ -265,7 +267,7 @@ def test_report_of_the_process(pg):
     html = open(os.path.join(pg.env["out"], "process.html"), encoding="utf-8").read()
     assert "Goal 2" in html and "<canvas" in html
     assert "<h2>Map: " in html and "<h2>Points: " in html
-    assert "filters" in preview.lower() or "every parameter set" in preview.lower()
+    assert "filters" in preview.lower() or "every parameter set" in preview.lower() or "shown:" in preview.lower()
     pg.locator(".sw-report-format", has_text="Word").click()
     pg.locator(".sw-report-page .btn", has_text="Make the report").click()
     save_as(pg, "process.docx")
@@ -405,7 +407,9 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
     names = [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
-    assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6, names
+    # (the rank's axis is added when an answer with it arrives after the choice: S19)
+    names = [x for x in names if x != "rank"]
+    assert names[:3] == ["kp_roll", "ki_roll", "filter_hz"] and len(names) == 6, " | ".join(names)
 
 
 def test_a_goals_weight_is_its_own_and_template_saved_says_so(pg):
@@ -513,7 +517,8 @@ def test_many_columns_scroll_pick_and_panels(pg, tmp_path):
     w0 = left.bounding_box()["width"]
     r = pg.locator(".sw-study > .resizer").first.bounding_box()
     pg.mouse.move(r["x"] + 3, r["y"] + 200); pg.mouse.down(); pg.mouse.move(r["x"] + 103, r["y"] + 200, steps=4); pg.mouse.up()
-    assert left.bounding_box()["width"] > w0 + 60
+    assert left.bounding_box()["width"] > w0 + 30                                # wider, up to 320 px (owner, 2026-11-02)
+    assert left.bounding_box()["width"] <= 321
     pg.locator(".sw-panel-toggle").click()
     assert pg.locator(".sw-left").count() == 0
     pg.locator(".sw-panel-toggle").click()
@@ -530,8 +535,10 @@ def test_the_sets_that_hold_sorted_and_exported(pg):
     pg.wait_for_selector(".sw-table th:has-text('worst')")
     holding = _holding(pg)
     rows = lambda: pg.locator(".sw-sets-table tbody tr").count()
-    assert rows() == 45
-    pg.locator(".sw-sets-bar label", has_text="Only sets that hold").locator("input").check()
+    assert rows() == holding                                                       # Show: Holds, first
+    pg.locator(".sw-show select").select_option("all")
+    pg.wait_for_function("document.querySelectorAll('.sw-sets-table tbody tr').length === 45")
+    pg.locator(".sw-show select").select_option("holds")
     pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {holding}")
     assert pg.locator(".sw-sets-table td.st-2.bad").count() == 0
     # sorted by kp_roll, the largest first (a second click)
@@ -563,9 +570,9 @@ def test_the_sets_that_hold_sorted_and_exported(pg):
     save_as(pg, "holding_runs.csv")
     pg.wait_for_selector(".toast:has-text('runs written')")
     assert len(open(os.path.join(pg.env["out"], "holding_runs.csv")).read().splitlines()) - 1 == holding * 18
-    # undone in one step each: the column, the sort, the choice
+    # undone in one step each: the column, the sort, Show (holds, all) - back to every set
     pg.locator(".sw-sets-table").click(position={"x": 5, "y": 5})
-    for _ in range(3):
+    for _ in range(4):
         pg.keyboard.press("Control+z")
     pg.wait_for_function("document.querySelectorAll('.sw-sets-table tbody tr').length === 45")
 
@@ -608,9 +615,8 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
     _step(pg, "goals")
     _more(pg)
     sec = pg.locator(".sw-goal-part", has_text="Robust to")
-    sec.locator(".sw-colpick-btn").click()
-    pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
-    pg.keyboard.press("Escape")
+    box = sec.locator("input[aria-label^='Add a parameter']")
+    box.click(); box.fill("kp"); box.press("Enter")
     row = sec.locator(".sw-robust-row", has_text="kp_roll")
     assert row.locator("select").first.input_value() == "steps"          # the mode (then the distribution, MF08)
     pg.wait_for_function("document.querySelector('.sw-optimize-now').innerText.includes('hold robustly')")
@@ -774,8 +780,7 @@ def test_the_sets_that_hold_as_an_interactive_plot(pg):
     _step(pg, "results")
     pg.wait_for_selector(".sw-table th:has-text('worst')")
     holding = _holding(pg)
-    pg.locator(".sw-sets-bar label", has_text="Only sets that hold").locator("input").check()
-    pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {holding}")
+    pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length === {holding}")   # Show: Holds
     pg.locator(".sw-sets-bar .btn", has_text="Export").click()
     pg.locator(".menu.ctx button", has_text="interactive plot").click()
     save_as(pg, "holding_plot.html")
@@ -889,9 +894,8 @@ def test_the_journal_tells_the_final_story(pg):
     _step(pg, "goals")
     _more(pg)
     sec = pg.locator(".sw-goal-part", has_text="Robust to")                      # a trial: on, then off
-    sec.locator(".sw-colpick-btn").click()
-    pg.locator(".sw-colpick-pop .msp-item", has_text="kp_roll").locator("input").check()
-    pg.keyboard.press("Escape")
+    box = sec.locator("input[aria-label^='Add a parameter']")
+    box.click(); box.fill("kp"); box.press("Enter")
     pg.locator(".sw-robust-row button[aria-label='Remove']").click()
     _condition(pg, "settle_time_s", "<=", 3)                                     # the goal again, after it
     _step(pg, "report")

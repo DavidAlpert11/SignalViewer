@@ -146,3 +146,68 @@ def test_a_narrow_window_folds_the_side_panel(pg):
         assert pg.evaluate("document.querySelector('.app').scrollWidth") <= 820
     finally:
         pg.set_viewport_size({"width": 1440, "height": 900})
+
+
+def test_goal_rows_edited_together_and_the_column_search(pg):
+    """The Goal step: Ctrl / Shift choose several rows, the bar sets their limits (a value or a % of
+    each one's range) and what to optimize; a new column says "new" until touched; a column chosen by
+    typing part of its name."""
+    from test_sweeps_flow import _more
+    _fresh(pg)
+    _step(pg, "roles")
+    pg.locator(".sw-fold .btn", has_text="Add").click()
+    ed = pg.locator(".sw-derived-editor")
+    ed.locator("input").first.fill("energy_x2")
+    ed.locator("input[role=combobox]").fill("energy_wh * 2")
+    pg.wait_for_selector(".sw-formula-ok")
+    ed.locator(".btn", has_text="Add the column").click()
+    _step(pg, "goals")
+    pg.wait_for_selector(".sw-goal-table tr[data-col='energy_x2'] .sw-new")
+    name = lambda c: pg.locator(f".sw-goal-table tr[data-col='{c}'] td.sw-col-name")
+    name("roll_error_deg").click()
+    name("energy_wh").click(modifiers=["Shift"])
+    n = pg.locator(".sw-goal-table tr.sw-sel").count()
+    assert n >= 2 and pg.locator(".sw-bulk").count() == 1
+    pg.locator(".sw-bulk select[aria-label='Value or % of range']").select_option("pct")
+    pg.locator(".sw-bulk input[aria-label^='At most']").fill("50")
+    pg.locator(".sw-bulk .btn", has_text="Apply").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-goal-table .sw-limit-met').length >= {n}")
+    v = float(pg.locator("input[aria-label='roll_error_deg at most']").input_value())
+    lo, hi = [float(x) for x in pg.locator(".sw-goal-table tr[data-col='roll_error_deg'] td").nth(1).inner_text().replace("–", " ").split()]
+    assert abs(v - (lo + hi) / 2) < (hi - lo) * 0.01                                # half of its own range
+    # the column search: "roll err" finds roll_error_deg
+    _more(pg)
+    pg.locator(".sw-goal-part .btn", has_text="+ condition").click()
+    box = pg.locator(".sw-cond").last.locator("input[aria-label='Column']")
+    box.click(); box.fill("over pct")
+    pg.wait_for_selector(".sw-complete-list li:has-text('overshoot_pct')")
+    assert "output" in pg.locator(".sw-complete-list li").first.inner_text().lower()
+    box.press("Enter")
+    assert box.input_value() == "overshoot_pct"
+
+
+def test_show_holds_and_the_rerun_list_in_next_runs(pg):
+    """Results: Show (All / Holds / Fail / a group) - the table and the lines alike, Holds first; the
+    re-run list lives in Next runs (its count in the tab), a toast leads there."""
+    from test_sweeps_flow import _tab, _the_goal
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    sel = pg.locator(".sw-show select")
+    pg.wait_for_selector(".sw-sets-table tbody tr")
+    assert sel.input_value() == "holds"
+    holds = pg.locator(".sw-sets-table tbody tr").count()
+    sel.select_option("all")
+    pg.wait_for_function(f"document.querySelectorAll('.sw-sets-table tbody tr').length > {holds}")
+    shown_all = pg.locator(".sw-plotbar .sw-count").inner_text()
+    sel.select_option("fail")
+    pg.wait_for_function(f"document.querySelector('.sw-plotbar .sw-count').innerText !== {shown_all!r}")
+    sel.select_option("holds")
+    assert pg.locator(".areabar .btn", has_text="re-run").count() == 0              # no longer in the top row
+    pg.locator(".sw-sets-table tbody tr").first.locator("input[aria-label='Run this set again']").check()
+    pg.wait_for_selector(".toast:has-text('Added to Next runs')")
+    pg.locator(".toast button", has_text="Open Next runs").click()
+    pg.wait_for_selector(".sw-rerun li")
+    assert "Next runs (1)" in pg.locator(".sw-center-tabs button[data-tab='next']").inner_text()
+    pg.locator(".sw-rerun li button[aria-label^='Remove']").click()
+    pg.wait_for_selector(".sw-rerun .hint:has-text('No set yet')")
