@@ -11,7 +11,7 @@ import { hasFilter, keptMask } from "../../sweeps/filters";
 import { fmtValue, labelOf } from "../../sweeps/scales";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
-import { activeColumns, activeParams, colLabel, mapAxes, mapList, mapSpec, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
+import { activeColumns, activeParams, colLabel, showKey, mapAxes, mapList, mapSpec, scopeKey, scopeMask, setColumns, shownAxes, tableColumns, tableRows } from "../../sweeps/view";
 import { useEscape } from "../Overlays";
 import { goalName } from "./GoalsStep";
 import { KINDS } from "../../sweeps/next";
@@ -60,7 +60,8 @@ function processLines(t: TFn, s: Study): string[] {
       : f.values.map((x) => (c ? labelOf(c, x) : String(x))).join(", ");
     out.push(t("swRepFilter", { c: colLabel(t, s, name), what }));
   }
-  if (v.onlyHolding) out.push(t("swRepOnlyHolding"));
+  const k = showKey(v);
+  if (k !== "all") out.push(t("swRepShown", { what: k === "holds" ? t("swShowHoldsWord") : k === "fail" ? t("swShowFailWord") : (v.groups ?? []).find((g) => g.id === k)?.name ?? k }));
   if (v.tableSort && setColumns(s).has(v.tableSort.column))
     out.push(t(v.tableSort.desc ? "swRepSortedDesc" : "swRepSorted", { c: colLabel(t, s, v.tableSort.column) }));
   if (v.rerun.length) out.push(t("swRepRerun", { n: v.rerun.length }));
@@ -79,7 +80,7 @@ function processLines(t: TFn, s: Study): string[] {
  *  pane is a point plot), then next runs' maps; the same pair once. */
 function reportFigures(study: Study): { maps: MapSpec[]; scatters: { x: string; y: string }[] } {
   const setCols = new Set(study.answer?.sets.map((c) => c.name) ?? []);
-  const desk = deskOf(study), panes = desk.panes.slice(0, desk.layout);
+  const desk = deskOf(study), panes = desk.panes.filter((p) => p.inReport !== false);
   const scatters = panes.filter((p) => (p.kind === "scatter" || p.kind === "bubble") && setCols.has(p.x ?? "") && setCols.has(p.y ?? ""))
     .map((p) => ({ x: p.x!, y: p.y! }));
   const seen = new Set<string>(), maps: MapSpec[] = [];

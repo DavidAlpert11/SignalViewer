@@ -1,6 +1,7 @@
 /* One parameter set, on the right: its parameters, why it fails (which condition, in which
    combination, by how much), and every run of it - the cells that break a condition marked. */
 import { useEffect, useState } from "react";
+import { addedToNext } from "../../sweeps/notify";
 import { useT } from "../../i18n";
 import { sweepApi, type SetDetail as Detail } from "../../sweeps/api";
 import type { Condition } from "../../sweeps/model";
@@ -85,7 +86,7 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
           {d.recordings.length > 0
             ? <button className="btn outline" onClick={() => openRecordings(d.recordings)}>{t("swOpenRecordings", { n: d.recordings.length })}</button>
             : <p className="hint">{t("swNoRecordings")}</p>}
-          <button className={`btn ${inRerun ? "outline" : "primary"}`} onClick={() => setView({ rerun: inRerun ? study.view.rerun.filter((x) => x !== set) : [...study.view.rerun, set] })}>
+          <button className={`btn ${inRerun ? "outline" : "primary"}`} onClick={() => { setView({ rerun: inRerun ? study.view.rerun.filter((x) => x !== set) : [...study.view.rerun, set] }); if (!inRerun) addedToNext(t); }}>
             {inRerun ? t("swRemoveFromRerun") : t("swAddToRerun")}
           </button>
         </div>

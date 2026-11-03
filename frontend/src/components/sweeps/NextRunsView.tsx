@@ -14,6 +14,7 @@ import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { notify, notifyError } from "../../sweeps/notify";
 import { activeParams, mapList } from "../../sweeps/view";
 import ColumnPicker from "./ColumnPicker";
+import RerunList from "./RerunList";
 import MapsView from "./MapView";
 import { KINDS, MARK, stamp } from "../../sweeps/next";
 
@@ -88,6 +89,8 @@ export default function NextRunsView({ study }: { study: Study }) {
   return (
     <div className="sw-next">
       <div className="sw-next-side">
+        <RerunList study={study} />
+        <h3>{t("swSuggestedRuns")}</h3>
         <div className="sw-field">{t("swExplore")}
           <ColumnPicker options={params.map((p) => ({ id: p, label: p, group: t("swRoleParam") }))} value={exploring}
             onChange={(ids) => setNext({ focus: ids.length && ids.length < params.length ? ids : undefined })}

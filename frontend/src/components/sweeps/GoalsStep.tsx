@@ -117,6 +117,9 @@ export function GoalsCenter({ study }: { study: Study }) {
   const q = study.question;
   return (
     <div className="sw-goals-center">
+      {unusedInGoals(study).map((u) => (
+        <p key={`${u.goal}:${u.column}`} className="sw-warn" role="status">{t("swGoalUnused", { g: goalName(t, q.goals[u.goal], u.goal), c: u.column })}</p>
+      ))}
       <GoalTable study={study} />
       {q.goals.length > 1 && <><h3 className="sw-sub">{t("swGoalsCompare")}</h3><GoalsCompare study={study} /></>}
     </div>
@@ -137,6 +140,20 @@ function GoalTable({ study }: { study: Study }) {
   const outputs = [...study.columns.filter((c) => c.role === "output" && c.kind === "number" && !removed.has(c.name)),
     ...q.derived.map((d) => ({ name: d.name, min: undefined as number | undefined, max: undefined as number | undefined }))];
   const others = g.conditions.filter((c) => !simple(c)).length;
+  const derivedNames = new Set(q.derived.map((d) => d.name));
+  const seen = new Set(study.goalSeen ?? []);
+  // several rows chosen (Ctrl adds one, Shift a range) - edited together in the bar above the table
+  const order = [...outputs.map((c) => c.name), ...params.map((c) => c.name)];
+  const [sel, setSel] = useState<string[]>([]);
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const pick = (name: string, e: React.MouseEvent) => {
+    if (e.shiftKey && anchor && order.includes(anchor)) {
+      const [a, b] = [order.indexOf(anchor), order.indexOf(name)].sort((x, y) => x - y);
+      setSel([...new Set([...sel, ...order.slice(a, b + 1)])]);
+    } else if (e.ctrlKey || e.metaKey) {
+      setSel(sel.includes(name) ? sel.filter((x) => x !== name) : [...sel, name]); setAnchor(name);
+    } else { setSel(sel.length === 1 && sel[0] === name ? [] : [name]); setAnchor(name); }
+  };
   const idx = (col: string, op: ">=" | "<=") => g.conditions.findIndex((c) => simple(c) && c.column === col && c.op === op);
   const setLimit = (col: string, op: ">=" | "<=", text: string) => {
     const i = idx(col, op);
@@ -144,11 +161,13 @@ function GoalTable({ study }: { study: Study }) {
     if (!text.trim()) { if (i >= 0) st.removeCondition(i); return; }
     if (!Number.isFinite(v)) return;
     if (i >= 0) st.updateCondition(i, { value: v }); else st.addCondition({ column: col, op, value: v, mode: "all" });
+    st.seeInGoal([col]);
   };
   const opt = (col: string) => g.optimize.find((o) => o.column === col);
   const setOpt = (col: string, dir: "" | "min" | "max") => {
     const rest = g.optimize.filter((o) => o.column !== col);
     st.updateGoal({ optimize: dir ? [...g.optimize.map((o) => (o.column === col ? { ...o, direction: dir } : o)), ...(opt(col) ? [] : [{ column: col, direction: dir, weight: 1 }])] : rest });
+    st.seeInGoal([col]);
   };
   const met = (col: string, op: ">=" | "<=") => { const i = idx(col, op); return i >= 0 ? a?.conditions[i]?.met : undefined; };
   const Limit = ({ col, op }: { col: string; op: ">=" | "<=" }) => {
@@ -168,8 +187,11 @@ function GoalTable({ study }: { study: Study }) {
   const row = (c: { name: string; min?: number; max?: number }, out: boolean) => {
     const o = opt(c.name);
     return (
-      <tr key={c.name} data-col={c.name} className={(idx(c.name, ">=") >= 0 || idx(c.name, "<=") >= 0 || o) ? "sw-goal-on" : ""}>
-        <td className="sw-col-name">{c.name}</td>
+      <tr key={c.name} data-col={c.name} aria-selected={sel.includes(c.name)}
+        className={`${(idx(c.name, ">=") >= 0 || idx(c.name, "<=") >= 0 || o) ? "sw-goal-on" : ""}${sel.includes(c.name) ? " sw-sel" : ""}`}>
+        <td className="sw-col-name sw-pickable" title={`${c.name} - ${t("swGoalPickHint")}`} onClick={(e) => pick(c.name, e)}>
+          <span className="sw-ellipsis">{c.name}</span>
+          {derivedNames.has(c.name) && !seen.has(c.name) && <span className="sw-new" onClick={() => st.seeInGoal([c.name])}>{t("swNewBadge")}</span>}</td>
         <td className="hint">{c.min !== undefined && c.max !== undefined ? `${fmtValue(c.min)} – ${fmtValue(c.max)}` : ""}</td>
         <td><Limit col={c.name} op=">=" /></td>
         <td><Limit col={c.name} op="<=" /></td>
@@ -186,8 +208,9 @@ function GoalTable({ study }: { study: Study }) {
   return (
     <>
       <p className="hint">{t("swGoalTableHint")}</p>
+      {sel.length > 1 && <BulkBar study={study} cols={sel} outputs={outputs.map((c) => c.name)} onClear={() => setSel([])} />}
       <div className="sw-table-wrap">
-        <table className="sw-table sw-goal-table">
+        <table className="sw-table sw-goal-table sw-sticky-first">
           <thead><tr><th>{t("swColumn")}</th><th>{t("swRange")}</th><th>{t("swLimitMin")}</th><th>{t("swLimitMax")}</th><th>{t("swGoalOptimize")}</th><th>{g.optimize.length > 1 ? t("swWeight") : ""}</th></tr></thead>
           <tbody>
             {outputs.length > 0 && <tr className="sw-goal-group"><td colSpan={6}>{t("swGoalOutputs")}</td></tr>}
@@ -204,6 +227,59 @@ function GoalTable({ study }: { study: Study }) {
       </div>
     </>
   );
+}
+
+/** Several rows at once: at least / at most - a value, or a percentage of each column's own range
+ *  (the columns differ) - and what to optimize. */
+function BulkBar({ study, cols, outputs, onClear }: { study: Study; cols: string[]; outputs: string[]; onClear: () => void }) {
+  const t = useT();
+  const [lo, setLo] = useState("");
+  const [hi, setHi] = useState("");
+  const [pct, setPct] = useState(false);
+  const [optimize, setOptimize] = useState<"" | "min" | "max" | "keep">("keep");
+  const range = new Map(study.columns.map((c) => [c.name, [c.min, c.max] as const]));
+  const apply = () => {
+    const num = (x: string) => (x.trim() === "" ? undefined : Number(x.replace(/,/g, "")));
+    const a = num(lo), b = num(hi);
+    if ((a !== undefined && !Number.isFinite(a)) || (b !== undefined && !Number.isFinite(b))) return;
+    const st = useSweeps.getState();
+    // a percentage is of each column's range: one call per column
+    const groups: [string[], number | undefined, number | undefined][] = pct
+      ? cols.map((c) => {
+        const [mn, mx] = range.get(c) ?? [undefined, undefined];
+        const at = (p?: number) => (p === undefined || mn === undefined || mx === undefined ? undefined : mn + ((mx - mn) * p) / 100);
+        return [[c], at(a), at(b)];
+      })
+      : [[cols, a, b]];
+    for (const [cs, x, y] of groups) st.setLimits(cs, { atLeast: x, atMost: y, ...(optimize === "keep" ? {} : { optimize }) }, outputs);
+  };
+  return (
+    <div className="sw-bulk" role="toolbar" aria-label={t("swNSelected", { n: cols.length })}>
+      <b>{t("swNSelected", { n: cols.length })}</b>
+      <label>{t("swLimitMin")}<input className="sw-limit-in mono" inputMode="decimal" value={lo} onChange={(e) => setLo(e.target.value)} aria-label={t("swBulkAtLeast")} /></label>
+      <label>{t("swLimitMax")}<input className="sw-limit-in mono" inputMode="decimal" value={hi} onChange={(e) => setHi(e.target.value)} aria-label={t("swBulkAtMost")} /></label>
+      <select value={pct ? "pct" : "abs"} onChange={(e) => setPct(e.target.value === "pct")} aria-label={t("swBulkMode")} title={t("swBulkModeHint")}>
+        <option value="abs">{t("swBulkAbs")}</option><option value="pct">{t("swBulkPct")}</option>
+      </select>
+      <label>{t("swGoalOptimize")}<select value={optimize} onChange={(e) => setOptimize(e.target.value as typeof optimize)} aria-label={t("swBulkOptimize")}>
+        <option value="keep">{t("swBulkKeep")}</option><option value="">–</option><option value="min">{t("swMinimize")}</option><option value="max">{t("swMaximize")}</option>
+      </select></label>
+      <button className="btn primary" onClick={apply}>{t("swApply")}</button>
+      <button className="btn" onClick={onClear}>{t("swBulkClear")}</button>
+    </div>
+  );
+}
+
+/** Limits and objectives of the goals on columns no longer in use (deleted, or Not used): left out. */
+function unusedInGoals(study: Study): { goal: number; column: string }[] {
+  const removed = new Set(study.question.removed);
+  const live = new Set([...study.columns.filter((c) => (c.role === "output" || c.role === "param") && !removed.has(c.name)).map((c) => c.name),
+    ...study.question.derived.map((d) => d.name)]);
+  const out: { goal: number; column: string }[] = [];
+  study.question.goals.forEach((g, i) => {
+    for (const col of new Set([...g.conditions.map((c) => c.column), ...g.optimize.map((o) => o.column)])) if (!live.has(col)) out.push({ goal: i, column: col });
+  });
+  return out;
 }
 
 /** The goals side by side. */

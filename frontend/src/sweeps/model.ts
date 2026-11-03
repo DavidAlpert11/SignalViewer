@@ -142,7 +142,9 @@ export interface DeskPane { kind: PaneKind; x?: string; y?: string; size?: strin
   /** MF09 (pca): clusters by k-means or hierarchical, or a map by distances; k clusters */
   method?: "kmeans" | "hierarchical" | "mds"; k?: number;
   /** only this group's sets (an automatic group, "marked" or a user group's id; missing: all) */
-  group?: string }
+  group?: string;
+  /** in the report (missing: yes) */
+  inReport?: boolean }
 
 /** A range filter on an axis keeps a value inside any of its ranges; a category filter keeps the
  *  listed values (codes into the column's labels). */
@@ -181,8 +183,12 @@ export interface View {
   /** the parallel plot fits the width of the screen (every axis squeezed in) instead of scrolling
    *  sideways when its axes need more room (optional: older studies scroll) */
   fitAxes?: boolean;
-  /** the table of sets: only the sets that hold (the export and the report's table follow it) */
+  /** the table of sets: only the sets that hold (the export and the report's table follow it) -
+   *  before `show`; read only to open older studies */
   onlyHolding?: boolean;
+  /** which sets the results show - the table, the lines and the export alike (owner, 2026-11-02):
+   *  "all", "holds", "fail" or a group's id (missing: holds; an older study's onlyHolding false: all) */
+  show?: string;
   /** the table's columns, in order (missing: the parameters, the goal and the conditions) */
   tableColumns?: string[];
   /** the table sorted by a column (missing: best first) */
@@ -202,8 +208,9 @@ export interface View {
   style?: PlotStyle;
   /** axes taken off the lines lately, newest first (S15: one click brings one back) */
   axesOff?: string[];
-  /** the chart desktop (MF02; missing: two panes from the study's columns) */
-  desk?: { layout: 1 | 2 | 4; panes: DeskPane[] };
+  /** the chart desktop (MF02; missing: two panes from the study's columns). Since 2026-11-02 every
+   *  pane is on screen, `perRow` of them in a row (older studies: the first `layout` panes) */
+  desk?: { layout: 1 | 2 | 4; panes: DeskPane[]; perRow?: 1 | 2 | 4 };
   /** the user's groups of sets (MF00; optional: an old study has the automatic groups only) */
   groups?: import("./groups").Group[];
   /** the group the tools read (an automatic group's name or a user group's id; missing: all) */

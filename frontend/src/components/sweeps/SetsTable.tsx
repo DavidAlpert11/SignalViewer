@@ -6,12 +6,13 @@
    given the draft's study (explore.ts draftStudy): the sets left, in the draft's order. */
 import { useMemo, useState } from "react";
 import { pickPath, useApp } from "../../store";
+import { addedToNext } from "../../sweeps/notify";
 import { useT } from "../../i18n";
 import { sweepApi } from "../../sweeps/api";
 import { labelOf } from "../../sweeps/scales";
 import { useSweeps, wireQuestion, type Study } from "../../sweeps/state";
 import { notify, notifyError } from "../../sweeps/notify";
-import { colLabel, setColumns, tableColumns, tableOptions, tableRows, TABLE_FIXED } from "../../sweeps/view";
+import { colLabel, setColumns, showKey, tableColumns, tableOptions, tableRows, TABLE_FIXED } from "../../sweeps/view";
 import { openMenu } from "../Overlays";
 import ColumnPicker from "./ColumnPicker";
 import { exportPlot } from "./ReportStep";
@@ -87,10 +88,13 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
   return (
     <div className="sw-sets">
       <div className="sw-sets-bar">
-        {!draft && <label className="acheck" title={t("swOnlyHoldingHint")}>
-          <input type="checkbox" checked={!!v.onlyHolding} onChange={(e) => setView({ onlyHolding: e.target.checked })} />
-          {t("swOnlyHolding", { n: holding.toLocaleString(), of: a.counts.sets.toLocaleString() })}
-        </label>}
+        {!draft && <label className="sw-show" title={t("swShowHint")}>{t("swShow")}
+          <select value={showKey(v)} onChange={(e) => setView({ show: e.target.value })} aria-label={t("swShow")}>
+            <option value="all">{t("swShowAllSets", { n: a.counts.sets.toLocaleString() })}</option>
+            <option value="holds">{t("swShowHolds", { n: holding.toLocaleString() })}</option>
+            <option value="fail">{t("swShowFail", { n: (a.counts.sets - holding).toLocaleString() })}</option>
+            {(v.groups ?? []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select></label>}
         <ColumnPicker options={tableOptions(t, study)} value={show} onChange={(ids) => setView({ tableColumns: ids })}
           label={t("swColumnsOf", { n: show.length, of: tableOptions(t, study).length })} />
         {sort && <button className="linklike" onClick={() => setView({ tableSort: null })}>{t("swBestFirst")}</button>}
@@ -118,7 +122,7 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
               <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""} status-${status[i]}`} data-status={status[i]} onClick={() => setView({ pinned: i })}>
                 <td className="st st-0" onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" aria-label={t("swRerunThis")} checked={v.rerun.includes(i)}
-                    onChange={(e) => setView({ rerun: e.target.checked ? [...v.rerun, i] : v.rerun.filter((x) => x !== i) })} />
+                    onChange={(e) => { setView({ rerun: e.target.checked ? [...v.rerun, i] : v.rerun.filter((x) => x !== i) }); if (e.target.checked) addedToNext(t); }} />
                 </td>
                 <td className="st st-1 num">{labelOf(cols.get("#rank")!, cols.get("#rank")!.values[i])}</td>
                 <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`} title={why(i)}>{status[i] === "virtual" ? "≈" : holds[i] === 1 ? "✓" : "✗"}</td>

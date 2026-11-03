@@ -5,8 +5,8 @@
 import { useT } from "../../i18n";
 import type { Tolerance } from "../../sweeps/model";
 import { useSweeps, type Study } from "../../sweeps/state";
-import { activeParams } from "../../sweeps/view";
-import ColumnPicker from "./ColumnPicker";
+import { activeParams, columnChoices } from "../../sweeps/view";
+import ColumnSearch from "./ColumnSearch";
 
 const DEFAULT_TOL: Tolerance = { mode: "steps", value: 1 };
 
@@ -29,8 +29,8 @@ export default function RobustEditor({ study }: { study: Study }) {
       <h3>{t("swRobustTo")}</h3>
       <span className="hint">{t("swRobustHint")}</span>
       {params.length === 0 ? <span className="hint">{t("swRobustNoParams")}</span> : (
-        <ColumnPicker options={params.map((p) => ({ id: p, label: p, group: t("swRoleParam") }))} value={chosen} onChange={choose}
-          label={t("swRobustPick", { n: chosen.length, of: params.length })} />
+        params.length > chosen.length && <ColumnSearch label={t("swRobustAdd")} value="" onChange={(c) => choose([...chosen, c])}
+          options={columnChoices(study, ["param"], false).filter((o) => params.includes(o.name) && !chosen.includes(o.name))} />
       )}
       {chosen.map((c) => {
         const tol = robust[c];

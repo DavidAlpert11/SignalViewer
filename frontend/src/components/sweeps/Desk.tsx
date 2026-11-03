@@ -4,7 +4,12 @@
    holds, a column) and filters with the ONE brush (`view.filters`): a range dragged on a histogram,
    a rectangle on the points, a bar of the broken conditions - the lines, the table and every other
    pane follow. */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { api } from "../../api";
+import { pickPath } from "../../store";
+import { Icon } from "../../icons";
+import { openMenu } from "../Overlays";
+import { notify, notifyError } from "../../sweeps/notify";
 import { useT, type TFn, type TKey } from "../../i18n";
 import { category, FAILS, FLAG_COLS, HOLDS } from "../../sweeps/colors";
 import { hasFilter, keptMask } from "../../sweeps/filters";
@@ -24,9 +29,17 @@ const KIND_KEY: Record<PaneKind, TKey> = { lines: "swPaneLines", scatter: "swPan
 const AUTO_KEYS: Record<string, TKey> = { all: "swGrpAll", holds: "swGrpHolds", pareto: "swGrpPareto", fails: "swGrpFails", error: "swGrpError", marked: "swGrpMarked" };
 const BINS = 20;
 
-/** The panes on screen: the study's, or a first desk from its columns. */
-export function deskOf(s: Study): { layout: 1 | 2 | 4; panes: DeskPane[] } {
+/** The charts on screen: the study's (every one, `perRow` in a row), or two from its columns. */
+export function deskOf(s: Study): { layout: 1 | 2 | 4; panes: DeskPane[]; perRow: 1 | 2 | 4 } {
   const d = s.view.desk;
+  const first = firstPanes(s);
+  if (!d) return { layout: 2, perRow: 2, panes: first.slice(0, 2) };
+  // an older desk: always four panes, `layout` of them on screen
+  if (d.perRow === undefined) return { layout: d.layout, perRow: d.layout, panes: first.map((p, i) => d.panes[i] ?? p).slice(0, d.layout) };
+  return { layout: d.layout, perRow: d.perRow, panes: d.panes };
+}
+/** the first charts of a study: points, a histogram, a box, a matrix - from its columns */
+function firstPanes(s: Study): DeskPane[] {
   const ch = axisChoices(s);
   const params = s.answer?.sets.filter((c) => c.group === "param").map((c) => c.name).filter((c) => ch.includes(c)) ?? [];
   const goal = ch.includes("#goal") ? "#goal" : s.answer?.sets.find((c) => c.group === "output")?.name ?? ch[0] ?? "";
@@ -36,8 +49,39 @@ export function deskOf(s: Study): { layout: 1 | 2 | 4; panes: DeskPane[] } {
     { kind: "box", x: goal },
     { kind: "matrix", columns: [...params.slice(0, 4), goal].filter(Boolean), corr: "pearson" },
   ];
-  const panes = first.map((p, i) => d?.panes[i] ?? p);
-  return { layout: d?.layout ?? 2, panes };
+  return first;
+}
+/** a new chart: the next of the first ones not on screen, or points */
+function newPane(s: Study, have: DeskPane[]): DeskPane {
+  const firsts = firstPanes(s);
+  return firsts.find((p) => !have.some((h) => h.kind === p.kind)) ?? { ...firsts[0] };
+}
+
+/** A chart as a PNG: its canvas, or its drawing (SVG) with the colours it has on screen. */
+async function paneImage(el: HTMLElement): Promise<string | null> {
+  const canvases = [...el.querySelectorAll("canvas")], svgs = [...el.querySelectorAll("svg")].filter((x) => x.getBoundingClientRect().width > 60);
+  const area = (e: Element) => { const r = e.getBoundingClientRect(); return r.width * r.height; };
+  const c = canvases.sort((a, b) => area(b) - area(a))[0], g = svgs.sort((a, b) => area(b) - area(a))[0];
+  if (c && (!g || area(c) >= area(g))) return c.toDataURL("image/png");
+  if (!g) return null;
+  const copy = g.cloneNode(true) as SVGSVGElement;
+  const src = [g, ...g.querySelectorAll("*")], dst = [copy, ...copy.querySelectorAll("*")];
+  src.forEach((e, i) => {
+    const cs = getComputedStyle(e), d = dst[i] as SVGElement;
+    for (const k of ["fill", "stroke", "stroke-width", "opacity", "font-size", "font-family", "font-weight"]) d.style.setProperty(k, cs.getPropertyValue(k));
+  });
+  const r = g.getBoundingClientRect(), dpr = 2;
+  copy.setAttribute("width", String(r.width)); copy.setAttribute("height", String(r.height));
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(copy));
+  await img.decode();
+  const cv = document.createElement("canvas");
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  const ctx = cv.getContext("2d")!;
+  ctx.fillStyle = getComputedStyle(document.body).backgroundColor || "#fff";
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(img, 0, 0, cv.width, cv.height);
+  return cv.toDataURL("image/png");
 }
 
 /** Rows in series by the colouring: a group / category per code, holds and the others, or one. */
@@ -59,28 +103,55 @@ export default function Desk({ study }: { study: Study }) {
   const set = (p: Partial<typeof desk>) => useSweeps.getState().setView({ desk: { ...desk, ...p } });
   const setPane = (i: number, p: Partial<DeskPane>) => set({ panes: desk.panes.map((x, j) => (j === i ? { ...x, ...p } : x)) });
   const [big, setBig] = useState<number | null>(null);
-  const shown = big !== null ? [big] : desk.panes.slice(0, desk.layout).map((_, i) => i);
+  const shown = big !== null && desk.panes[big] ? [big] : desk.panes.map((_, i) => i);
+  const add = () => set({ panes: [...desk.panes, newPane(study, desk.panes)] });
+  const duplicate = (i: number) => set({ panes: [...desk.panes.slice(0, i + 1), { ...desk.panes[i] }, ...desk.panes.slice(i + 1)] });
+  const remove = (i: number) => { setBig(null); set({ panes: desk.panes.filter((_, j) => j !== i) }); };
   return (
     <div className="sw-desk">
       <div className="sw-row sw-desk-bar">
+        <button className="btn outline" onClick={add}><Icon.Plus width={14} height={14} /> {t("swAddChart")}</button>
         <span className="hint">{t("swDeskHint")}</span>
         <div className="sw-seg" role="radiogroup" aria-label={t("swDeskLayout")}>
-          {([1, 2, 4] as const).map((n) => <button key={n} role="radio" aria-checked={desk.layout === n} className={desk.layout === n ? "on" : ""}
-            onClick={() => { setBig(null); set({ layout: n }); }}>{t("swDeskPanes", { n })}</button>)}
+          {([1, 2, 4] as const).map((n) => <button key={n} role="radio" aria-checked={desk.perRow === n} className={desk.perRow === n ? "on" : ""}
+            onClick={() => { setBig(null); set({ perRow: n, layout: n }); }}>{t("swDeskPerRow", { n })}</button>)}
         </div>
       </div>
-      <div className={`sw-desk-grid n${shown.length}`}>
+      {!desk.panes.length && <p className="empty-note">{t("swNoCharts")}</p>}
+      <div className={`sw-desk-grid per${big !== null ? 1 : desk.perRow}`}>
         {shown.map((i) => (
           <Pane key={i} study={study} pane={desk.panes[i]} onChange={(p) => setPane(i, p)} big={big === i}
-            onBig={() => setBig(big === i ? null : i)} />
+            onBig={() => setBig(big === i ? null : i)} onDuplicate={() => duplicate(i)} onRemove={() => remove(i)} />
         ))}
       </div>
     </div>
   );
 }
 
-function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskPane; onChange: (p: Partial<DeskPane>) => void; big: boolean; onBig: () => void }) {
+function Pane({ study, pane, onChange, big, onBig, onDuplicate, onRemove }: { study: Study; pane: DeskPane; onChange: (p: Partial<DeskPane>) => void; big: boolean; onBig: () => void;
+  onDuplicate: () => void; onRemove: () => void }) {
   const t = useT();
+  const box = useRef<HTMLElement>(null);
+  const exportPng = async () => {
+    const el = box.current;
+    if (!el) return;
+    const p = await pickPath({ mode: "save", title: t("swExportChart"), exts: [".png"], defaultName: `${pane.kind}.png` });
+    if (!p) return;
+    try {
+      const url = await paneImage(el);
+      if (!url) { notify(t("swChartNoImage"), "error"); return; }
+      const r = await api.saveImage(p, url);
+      notify(t("swSaved", { path: r.path }));
+    } catch (e) { notifyError(e); }
+  };
+  const menu = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    openMenu({ clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, [
+      { label: t("swDuplicateChart"), run: onDuplicate },
+      { label: t("swExportChart") + "…", run: exportPng },
+      { label: t("swRemoveChart"), run: onRemove },
+    ]);
+  };
   const choices = axisChoices(study);
   // a group gone (deleted) is all the sets again
   const g = pane.group && (pane.group in AUTO_KEYS || study.view.groups?.some((x) => x.id === pane.group)) ? pane.group : undefined;
@@ -98,7 +169,7 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
     onChange(p);
   };
   return (
-    <section className="sw-pane" data-kind={pane.kind} aria-label={t(KIND_KEY[pane.kind])}>
+    <section ref={box} className="sw-pane" data-kind={pane.kind} aria-label={t(KIND_KEY[pane.kind])}>
       <div className="sw-row sw-pane-head">
         <select aria-label={t("swPaneKind")} value={pane.kind} onChange={(e) => kind(e.target.value as PaneKind)}>
           {PANE_KINDS.map((k) => <option key={k} value={k}>{t(KIND_KEY[k])}</option>)}
@@ -114,7 +185,10 @@ function Pane({ study, pane, onChange, big, onBig }: { study: Study; pane: DeskP
             <option value="pearson">Pearson</option><option value="spearman">Spearman</option></select>
           <MatrixColumns study={study} value={pane.columns ?? []} onChange={(columns) => onChange({ columns })} />
         </>}
+        <label className="acheck sw-in-report" title={t("swInReportHint")}><input type="checkbox" checked={pane.inReport !== false}
+          onChange={(e) => onChange({ inReport: e.target.checked })} /> {t("swInReport")}</label>
         <button className="iconbtn sw-pane-big" aria-label={t(big ? "swPaneSmall" : "swPaneBig")} title={t(big ? "swPaneSmall" : "swPaneBig")} onClick={onBig}>{big ? "⤡" : "⤢"}</button>
+        <button className="iconbtn sw-pane-menu" aria-label={t("swChartMenu")} title={t("swChartMenu")} onClick={menu}><Icon.More width={15} height={15} /></button>
       </div>
       {(pane.kind === "scatter" || pane.kind === "bubble") && (
         <ScatterPanel study={study} group={g} pair={{ x: pane.x ?? choices[0] ?? "", y: pane.y ?? choices[1] ?? "", size: pane.kind === "bubble" ? pane.size ?? choices[2] ?? "" : undefined }}

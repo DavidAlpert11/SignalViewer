@@ -25,7 +25,7 @@ import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
 import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
 import { notify, notifyError, say } from "../../sweeps/notify";
-import { activeParams, colLabel, scaleOf, scopedColumns, scopeKey, shownAxes } from "../../sweeps/view";
+import { activeParams, colLabel, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
 import ReportDialog from "./ReportDialog";
 import TemplatesDialog from "./TemplatesDialog";
@@ -134,12 +134,6 @@ function SweepsBar() {
   const studies = useSweeps((s) => s.studies);
   const active = useSweeps((s) => s.active);
   const study = studies[active];
-  const exportRerun = async (onlyMissing: boolean) => {
-    useSweeps.getState().setView({ onlyMissing });
-    const p = await pickPath({ mode: "save", title: t("swExportRerun"), exts: [".csv"], defaultName: "rerun.csv" });
-    if (!p) return;
-    say(useSweeps.getState().exportRerun(p).then((r) => { useSweeps.getState().journal("export", { path: r.path, n: r.rows }); return t("swExported", { n: r.rows, path: r.path }); }));
-  };
   const below = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     return { clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent;
@@ -170,10 +164,6 @@ function SweepsBar() {
       { label: t("swReportMenu"), disabled: !study.answer, run: report },
     ]);
   };
-  const rerunMenu = (e: React.MouseEvent) => openMenu(below(e), [
-    { label: t("swRerunAll"), run: () => exportRerun(false) },
-    { label: t("swOnlyMissing"), run: () => exportRerun(true) },
-  ]);
   useEffect(() => { useSweeps.getState().loadTemplates(); }, []);
   const reportOpen = useSweeps((s) => s.reportOpen);
   const templatesOpen = useSweeps((s) => s.templatesOpen);
@@ -204,9 +194,6 @@ function SweepsBar() {
       <div className="spacer" />
       {reportOpen && study?.answer && <ReportDialog study={study} onClose={() => useSweeps.setState({ reportOpen: false })} />}
       {templatesOpen && study && <TemplatesDialog study={study} onClose={() => useSweeps.setState({ templatesOpen: false })} />}
-      {study && <button className="btn primary" disabled={!study.view.rerun.length} onClick={rerunMenu}
-        title={t("swExportRerunN", { n: study.view.rerun.length })}><span className="sw-wide">{t("swExportRerunN", { n: study.view.rerun.length })}</span>
-        <span className="sw-narrow">{t("swRerunShort", { n: study.view.rerun.length })}</span> ▾</button>}
     </div>
   );
 }
@@ -353,9 +340,17 @@ function ResultsCenter({ study }: { study: Study }) {
   const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
   const axes = shownAxes(study);
   const scale = useMemo(() => (name: string) => scaleOf(study, name, cols.get(name)), [study, cols]);
-  const shown = useMemo(() => { const m = keptMask(cols, v.filters, n); let k = 0; for (let i = 0; i < n; i++) k += m[i]; return k; }, [cols, v.filters, n]);
   // the open set drawn thick: its line, or every run of it
   const setOfRow = (r: number) => (v.mode === "sets" ? (index ? index[r] : r) : (cols.get("#set")?.values[r] ?? -1));
+  // the lines kept: the axes' filters and Show (all, those that hold, a group...) - as the table
+  const showM = useMemo(() => showMask(study), [study]);
+  const keep = useMemo(() => {
+    const m = keptMask(cols, v.filters, n);
+    if (showM) for (let i = 0; i < n; i++) if (m[i] && !showM[setOfRow(i)]) m[i] = 0;
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cols, v.filters, n, showM, index, v.mode]);
+  const shown = useMemo(() => { let k = 0; for (let i = 0; i < n; i++) k += keep[i]; return k; }, [keep, n]);
   const highlight = useMemo(() => {
     if (v.pinned === null || !n) return null;
     const h = new Uint8Array(n);
@@ -365,7 +360,7 @@ function ResultsCenter({ study }: { study: Study }) {
   }, [v.pinned, v.mode, cols, n, index]);
   // what is selected now: the lines every filter keeps - as parameter sets, and as runs (table rows)
   const selection = () => {
-    const m = keptMask(cols, v.filters, n);
+    const m = keep;
     const sets = new Set<number>(), rows: number[] = [];
     const rowCol = cols.get("#row")?.values;
     for (let i = 0; i < n; i++) if (m[i]) { sets.add(setOfRow(i)); if (rowCol) rows.push(rowCol[i]); }
@@ -402,7 +397,7 @@ function ResultsCenter({ study }: { study: Study }) {
           {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}
-              filters={v.filters} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
+              filters={v.filters} keep={keep} highlight={highlight} labelOf={(a) => colLabel(t, study, a)} fit={!!v.fitAxes}
               zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)}
               onPick={(r) => st.setView({ pinned: setOfRow(r) })}
               onFilter={(name, f) => st.setFilter(name, f)} onAxisMenu={(name, at) => setMenu({ name, at })}
