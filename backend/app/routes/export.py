@@ -130,18 +130,28 @@ async def report_preview(req: ReportRequest):
 
 class ImageRequest(BaseModel):
     path: str
-    format: str = "png"              # png | svg
+    format: str = "png"              # png | svg | html (the plot alone, interactive, as in the report)
     theme: str = "light"
     plot: dict
+    scale: float = 1                 # png: 2 = twice the pixels (a report, a slide), up to 4
+    lang: str = "en"
 
 
 
 @router.post("/api/export/image")
 async def export_image(req: ImageRequest):
-    if req.format not in ("png", "svg"):
+    if req.format not in ("png", "svg", "html"):
         fail(400, "Unknown image format.")
     path = _check_target(req.path, "." + req.format)
-    data = await asyncio.to_thread(reports.build_image, store, req.plot, req.format, req.theme)
+    try:
+        if req.format == "html":
+            text = await asyncio.to_thread(reports.build_plot_html, store, req.plot, req.theme, req.lang)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return {"path": path}
+        data = await asyncio.to_thread(reports.build_image, store, req.plot, req.format, req.theme, max(1.0, min(4.0, req.scale)))
+    except KeyError:
+        fail(404, "One of the plot's signals is no longer open.")
     with open(path, "wb") as f:
         f.write(data)
     return {"path": path}

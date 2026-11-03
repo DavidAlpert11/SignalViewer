@@ -817,6 +817,15 @@ def test_N20_images(pg):
     for fmt in ("PNG", "SVG"):
         pg.locator(".plot-more").first.click(); pg.click(f"text=Save image ({fmt})"); save_as(pg, f"img.{fmt.lower()}")
         pg.wait_for_selector(f".toast:has-text('img.{fmt.lower()}')")
+    # for a report: twice the pixels; and the plot alone as an interactive page
+    pg.locator(".plot-more").first.click(); pg.click("text=Save image for a report"); save_as(pg, "img_hires.png")
+    pg.wait_for_selector(".toast:has-text('img_hires.png')")
+    import struct
+    size = lambda n: struct.unpack(">II", open(os.path.join(pg.env["out"], n), "rb").read(24)[16:24])
+    assert size("img_hires.png")[0] >= 2 * size("img.png")[0] - 4
+    pg.locator(".plot-more").first.click(); pg.click("text=Save as an interactive page"); save_as(pg, "img.html")
+    pg.wait_for_selector(".toast:has-text('img.html')")
+    assert "Speed" in open(os.path.join(pg.env["out"], "img.html"), encoding="utf-8").read()
     pg.locator(".plot-more").first.click(); pg.click("text=Copy image")
     pg.wait_for_selector(".toast:has-text('copied')")
 

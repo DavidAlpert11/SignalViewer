@@ -429,3 +429,58 @@ def cumulative_trapezoid(time: np.ndarray, data: np.ndarray) -> np.ndarray:
     out[0] = 0.0
     np.cumsum(0.5 * (y[1:] + y[:-1]) * np.diff(t), out=out[1:])
     return out
+
+
+def update_indices(time: np.ndarray, data: np.ndarray, hz: Optional[float] = None,
+                   flag: Optional[np.ndarray] = None) -> np.ndarray:
+    """The samples where a signal really updated (owner, 2026-11-03): a value computed at a slower
+    rate but logged at a fast one repeats itself, and a derivative of the repeats is zero then a
+    spike. `hz`: the signal's own rate - the first sample of each period of 1/hz. `flag`: another
+    signal on the same samples, 1 where this one updated (0 elsewhere). Samples with no value are
+    left out; the first sample with a value is always kept."""
+    t = np.asarray(time, dtype=np.float64)
+    y = np.asarray(data, dtype=np.float64)
+    ok = np.isfinite(y) & np.isfinite(t)
+    if flag is not None:
+        f = np.asarray(flag, dtype=np.float64)
+        keep = ok & np.isfinite(f) & (f >= 0.5)
+    elif hz is not None:
+        if not hz > 0:
+            raise ValueError("The rate must be above 0 Hz.")
+        idx = np.flatnonzero(ok)
+        if not len(idx):
+            return idx
+        k = np.floor((t[idx] - t[idx[0]]) * hz + 1e-9)
+        first = np.concatenate([[True], k[1:] != k[:-1]])
+        return idx[first]
+    else:
+        keep = ok
+    idx = np.flatnonzero(keep)
+    first_ok = np.flatnonzero(ok)
+    if len(first_ok) and (not len(idx) or idx[0] != first_ok[0]):
+        idx = np.concatenate([[first_ok[0]], idx])
+    return idx
+
+
+def on_updates(time: np.ndarray, data: np.ndarray, op: str, hz: Optional[float] = None,
+               flag: Optional[np.ndarray] = None) -> np.ndarray:
+    """A derivative or an integral of the updates alone (update_indices), back on every sample of
+    the signal (linear between updates; empty before the first and after the last)."""
+    t = np.asarray(time, dtype=np.float64)
+    y = np.asarray(data, dtype=np.float64)
+    idx = update_indices(t, y, hz, flag)
+    out = np.full(len(t), np.nan)
+    if len(idx) < 2:
+        return out
+    tu, yu = t[idx], y[idx]
+    if op == "derivative":
+        with np.errstate(divide="ignore", invalid="ignore"):
+            r = np.gradient(yu, tu)
+        r[~np.isfinite(r)] = np.nan
+    else:
+        r = cumulative_trapezoid(tu, yu)
+    inside = (t >= tu[0]) & (t <= tu[-1])
+    out[inside] = np.interp(t[inside], tu, r)
+    if op == "integral":                                  # an integral holds its last value after the last update
+        out[t > tu[-1]] = r[-1]
+    return out

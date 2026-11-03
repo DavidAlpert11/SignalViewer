@@ -71,6 +71,11 @@ export default function AnalysisPanel() {
   const [cutoff, setCutoff] = useState(10);
   const [smoothSec, setSmoothSec] = useState(1);              // vector smoothing window (s)
   const [smoothLla, setSmoothLla] = useState(false);          // the components are lat / lon [/ alt]
+  // a derivative / integral of the signal's real updates (owner, 2026-11-03): every sample, its own
+  // slower rate, or the samples where another signal (a 0/1 "updated" flag) is 1
+  const [upd, setUpd] = useState<"every" | "hz" | "flag">("every");
+  const [updHz, setUpdHz] = useState(10);
+  const [updFlag, setUpdFlag] = useState("");
   const [gain, setGain] = useState(1);
   const [bias, setBias] = useState(0);
   const multi = useApp((s) => s.multi);
@@ -174,7 +179,9 @@ export default function AnalysisPanel() {
     const own = c.names.filter((n) => !n.startsWith("@"));          // {file:Name} needs no file of x's own
     return own.length && xHomes.some((h) => !h) ? { ...c, error: t("fxXNoFile", { name: own[0] }) } : c;
   })();
-  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr };
+  const updOp = op === "derivative" || op === "integral";
+  const update = !updOp || upd === "every" ? undefined : upd === "hz" ? { hz: updHz } : { flag: true };
+  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr, ...(update ? { update } : {}) };
   const xProblem = !isX ? null : !xexpr.trim() ? "" : (() => {
     const p = parenProblem(xexpr);
     if (p) return t(p);
@@ -183,7 +190,7 @@ export default function AnalysisPanel() {
   const sigName = (id: string) => runs.flatMap((r) => r.signals).find((s) => s.id === id)?.name ?? id;
   /** the operation, its parameters and its sources, for a new signal made from `sources` */
   const derivedCall = (sources: string[]): [string, Record<string, unknown>, string[]] => {
-    if (!isX || !xCanon) return [op, params, sources];
+    if (!isX || !xCanon) return [op, params, update?.flag ? [...sources, updFlag] : sources];
     // x -> v0, {Name} -> v1.. : the named signals of x's own file are sources too
     const home = homeRun(runs, sources[0]);
     const names = xCanon.names;
@@ -208,7 +215,7 @@ export default function AnalysisPanel() {
 
   const create = async () => {
     if (kind === "one" && output === "edit") {
-      const step = opToStep(op, params);
+      const step = opToStep(op, { ...params, hz: update?.hz });
       const ids = batch ? many : [a];
       if (!step || !ids.length) return;
       setBusy(true);
@@ -346,6 +353,7 @@ export default function AnalysisPanel() {
     : kind === "py" ? !!py && pySources.length >= py.op.inputs && pySources.every((x) => !!x)
     : kind === "fx" ? !!fxRes && !fxRes.error
     : kind === "one" ? (batch ? batchSigs.length > 0 : !!a) && (!isX || xProblem === null)
+      && !(updOp && upd === "flag" && (!updFlag || output === "edit")) && !(updOp && upd === "hz" && !(updHz > 0))
     : kind === "two" ? !!a && !!b : many.length >= 2;
 
   return (
@@ -411,6 +419,16 @@ export default function AnalysisPanel() {
               <label className="afield" title={t("cutoffHint")}><span>{t("cutoffHz")}</span>
                 <input type="number" min={0} step="any" value={cutoff} onChange={(e) => setCutoff(+e.target.value)} /></label>
             )}
+            {updOp && <div className="afield upd-field"><span>{t("updTitle")}</span>
+              <select aria-label={t("updTitle")} value={upd} onChange={(e) => setUpd(e.target.value as typeof upd)} title={t("updHint")}>
+                <option value="every">{t("updEvery")}</option><option value="hz">{t("updRate")}</option><option value="flag">{t("updFlag")}</option>
+              </select>
+              {upd === "hz" && <label className="afield"><span>{t("updRateHz")}</span>
+                <input type="number" min={0} step="any" aria-label={t("updRateHz")} value={updHz} onChange={(e) => setUpdHz(+e.target.value)} /></label>}
+              {upd === "flag" && sigSelect(updFlag, setUpdFlag, t("updFlagSignal"))}
+              {upd === "flag" && output === "edit" && <p className="hint err">{t("updFlagNewOnly")}</p>}
+              <p className="hint" style={{ fontSize: "0.846rem", margin: "4px 0 0" }}>{t(upd === "every" ? "updHint" : upd === "hz" ? "updRateHint" : "updFlagHint")}</p>
+            </div>}
           </>}
 
           {kind === "two" && <>

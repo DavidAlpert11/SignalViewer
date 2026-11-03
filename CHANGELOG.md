@@ -12,6 +12,8 @@
 - **Sweeps / Charts: as many as wanted** - *Add chart*, 1 / 2 / 4 in a row, each with *Duplicate*, *Remove*, *Export as PNG* and *In report* (the report has the charts ticked).
 
 ### Added
+- **Derivative and integral of a signal's real updates.** A value computed slower than it is logged repeats itself - its derivative was zero, then a spike. In *Create signals*, a derivative or an integral now takes *Updates of the signal*: every sample, *at its own, slower rate* (Hz), or *where another signal is 1* (a 0 / 1 flag that marks each update); it is computed on those samples and put back on every sample. In formulas too: `deriv(x, 10)`, `deriv(x, {Flag})`, `integ(...)`.
+- **Images for a report, and as a page.** A plot's menu adds *Save image for a report* (a PNG with twice the pixels) and *Save as an interactive page (HTML)* - the plot alone, as in the HTML report (zoom, lines on and off, values under the pointer). The 3D view's *Image* saves at the screen's size or at twice it.
 - **Sweeps: zoom in the parallel plots** - the mouse wheel (Ctrl + wheel when the plot is wider than the screen: the wheel still moves it sideways) and + / − / *Reset zoom*, a drag pans while zoomed - to pick one line where they are dense. In Data, a click on a line shows that run's values and marks its row in the Table tab; a click on a column's name colours by it (its menu: right-click); the plot stays as left across tabs.
 - **Sweeps in a small window**: the side panel is 220-320 px wide (drag), folds into a panel opened with its button below 900 px; wide tables keep their name column in place; long names are cut with … (whole in a tooltip); the step's button stays at the foot of the side panel.
 

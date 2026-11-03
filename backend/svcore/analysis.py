@@ -14,7 +14,7 @@ import numpy as np
 
 from svcore.decimate import minmax_decimate, stride_decimate
 from svcore.ops import (FilterError, apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average,
-                        nearest_indices, uniform_samples)
+                        nearest_indices, on_updates, uniform_samples)
 
 UNARY = {"derivative", "integral", "abs", "negate", "normalize", "smooth", "rms", "lowpass", "highpass", "affine"}
 FORMULA = {"expr"}
@@ -58,8 +58,8 @@ class DerivedDef:
         n = [short(s) for s in self.sources]
         p = self.params
         return {
-            "derivative": lambda: f"derivative({n[0]})",
-            "integral": lambda: f"∫ {n[0]} dt",
+            "derivative": lambda: f"derivative({n[0]}{_upd_name(n, p)})",
+            "integral": lambda: f"∫ {n[0]}{_upd_name(n, p)} dt",
             "abs": lambda: f"|{n[0]}|",
             "negate": lambda: f"−{n[0]}",
             "normalize": lambda: f"norm01({n[0]})",
@@ -83,6 +83,33 @@ class DerivedDef:
             "vecsmooth": lambda: vecsmooth_name(n, p),
             "py": lambda: _py_name(n, p),
         }[self.op]()
+
+
+def _upd_name(n: List[str], p: Dict) -> str:
+    """How a derivative / integral takes the updates: ", 10 Hz" or ", when FLAG"."""
+    u = p.get("update") or {}
+    if u.get("flag") and len(n) > 1:
+        return f", when {n[1]}"
+    if u.get("hz"):
+        return f", {float(u['hz']):g} Hz"
+    return ""
+
+
+def _update_of(params: Dict, signals: List[Tuple[np.ndarray, np.ndarray]], t: np.ndarray):
+    """A derivative / integral's updates (owner, 2026-11-03): {"hz": rate} or {"flag": true} with the
+    flag the second source (on this signal's samples, nearest). None: every sample."""
+    u = params.get("update") or {}
+    if u.get("flag"):
+        if len(signals) != 2:
+            raise OpError("Choose the signal that is 1 when this one updates.")
+        tf, yf = signals[1]
+        return None, align_to(t, _f64(tf), _f64(yf), "nearest")
+    if u.get("hz") is not None:
+        hz = float(u["hz"] or 0)
+        if not hz > 0:
+            raise OpError("Enter the signal's rate, above 0 Hz.")
+        return hz, None
+    return None
 
 
 def _py_name(n: List[str], p: Dict) -> str:
@@ -126,11 +153,19 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
         except FormulaError as e:
             raise OpError(str(e)) from None
     if op in UNARY:
-        if len(signals) != 1:
-            raise OpError("This operation needs exactly one signal.")
+        flagged = op in ("derivative", "integral") and (params.get("update") or {}).get("flag")
+        if len(signals) != (2 if flagged else 1):
+            raise OpError("Choose the signal that is 1 when this one updates." if flagged else "This operation needs exactly one signal.")
         t, y = _f64(signals[0][0]), _f64(signals[0][1])
         if len(t) < 2:
             raise OpError("The signal is too short.")
+        upd = _update_of(params, signals, t) if op in ("derivative", "integral") else None
+        if upd is not None:
+            hz, flag = upd
+            try:
+                return t, on_updates(t, y, op, hz, flag)
+            except ValueError as e:
+                raise OpError(str(e)) from None
         if op == "derivative":
             with np.errstate(divide="ignore", invalid="ignore"):
                 r = np.gradient(y, t)

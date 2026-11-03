@@ -359,7 +359,9 @@ export const api = {
   exportCsv: (path: string, signals: { id: string; label: string; scale: number; offset: number; tOffset?: number }[], t0: number | null, t1: number | null) =>
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),
   report: (body: Record<string, unknown>) => call<{ path: string; size: number }>("/api/report", body),
-  image: (path: string, format: "png" | "svg", theme: string, plot: unknown) => call<{ path: string }>("/api/export/image", { path, format, theme, plot }),
+  /** a plot as PNG (scale 2: for a report, twice the pixels), SVG or an interactive HTML page */
+  image: (path: string, format: "png" | "svg" | "html", theme: string, plot: unknown, scale = 1, lang = "en") =>
+    call<{ path: string }>("/api/export/image", { path, format, theme, plot, scale, lang }),
   discrete: (sig: string) => call<{ discrete: boolean }>(`/api/discrete?sig=${encodeURIComponent(sig)}`),
   recent: () => call<{ items: RecentItem[] }>("/api/recent"),
   forgetRecent: (path: string) => call<{ items: RecentItem[] }>("/api/recent/forget", { path }),

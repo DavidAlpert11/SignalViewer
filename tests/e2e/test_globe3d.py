@@ -321,6 +321,7 @@ def test_log_events_on_the_track_and_image(g3multi):
     # picture then goes to the folder the dialog is still in (the likely cause of the owner's run).
     out = os.path.join(tempfile.mkdtemp(prefix="sv_g3_"), "g3_view_test.png")
     pg.locator(".globe3d-bar button", has_text="Image").click()
+    pg.locator(".menu.ctx button", has_text="high resolution").click()          # twice the pixels, for a report
     pg.wait_for_selector(".dialog-foot input")
     pg.locator(".dialog-foot input").fill(out)
     pg.locator(".dialog-foot .btn.primary").click()
