@@ -234,8 +234,25 @@ def test_split_by_a_condition_and_the_best_set_per_value(pg):
     pg.wait_for_function(f"+document.querySelector('.sw-answer-n').innerText.split(' ')[0].replace(/,/g, '') >= {together}")
     bar.locator(".linklike", has_text="Best set per value").click()
     pg.wait_for_function(f"document.querySelectorAll('.sw-split-table tbody tr').length === {len(values)}")
+    # a group of each value: the sets that hold for it, a colour each
+    groups_before = pg.locator(".sw-groups .sw-group:not(.auto)").count()
+    pg.locator(".sw-split-groups").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-groups .sw-group:not(.auto)').length === {groups_before + len(values) - 1}")
+    # a set chosen for this value: in the re-run list with it
+    pg.locator(".sw-sets-table tbody tr").first.locator("input[aria-label='Run this set again']").check()
+    pg.wait_for_selector(".toast:has-text('Added to Next runs')")
     pg.locator(".sw-split-table tbody tr").first.click()
     pg.wait_for_function("document.querySelector('.sw-split-bar .sw-pill.on').innerText === 'All together'")
+    pg.locator(".sw-center-tabs button[data-tab='next']").click()
+    pg.wait_for_selector(".sw-rerun li:has-text('for scenario_payload_kg = ')")
+    # the export: its parameters with the combinations of that value only
+    pg.locator(".sw-rerun .btn", has_text="Export re-run list").click()
+    pg.locator(".menu.ctx button", has_text="Every combination").click()
+    save_as(pg, "split_rerun.csv")
+    pg.wait_for_selector(".toast:has-text('split_rerun.csv')")
+    import csv
+    rows = list(csv.DictReader(open(os.path.join(pg.env["out"], "split_rerun.csv"))))
+    assert rows and len({r["scenario_payload_kg"] for r in rows}) == 1
 
 
 def test_next_runs_budget_shared_by_mode(pg):

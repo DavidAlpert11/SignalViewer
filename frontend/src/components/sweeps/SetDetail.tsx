@@ -2,6 +2,7 @@
    combination, by how much), and every run of it - the cells that break a condition marked. */
 import { useEffect, useState } from "react";
 import { addedToNext } from "../../sweeps/notify";
+import { inRerun as inRerunNow } from "../../sweeps/split";
 import { useT } from "../../i18n";
 import { sweepApi, type SetDetail as Detail } from "../../sweeps/api";
 import type { Condition } from "../../sweeps/model";
@@ -36,7 +37,7 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
     useApp.setState({ area: "recordings" });
     openPaths(paths, undefined, { autoView: true });
   };
-  const inRerun = study.view.rerun.includes(set);
+  const inRerun = inRerunNow(study, set);
   const conds = study.question.conditions;
   return (
     <aside className="side sw-detail" aria-label={t("swSetDetail")}>
@@ -86,7 +87,7 @@ export default function SetDetail({ study, set }: { study: Study; set: number })
           {d.recordings.length > 0
             ? <button className="btn outline" onClick={() => openRecordings(d.recordings)}>{t("swOpenRecordings", { n: d.recordings.length })}</button>
             : <p className="hint">{t("swNoRecordings")}</p>}
-          <button className={`btn ${inRerun ? "outline" : "primary"}`} onClick={() => { setView({ rerun: inRerun ? study.view.rerun.filter((x) => x !== set) : [...study.view.rerun, set] }); if (!inRerun) addedToNext(t); }}>
+          <button className={`btn ${inRerun ? "outline" : "primary"}`} onClick={() => { useSweeps.getState().toggleRerun(set); if (!inRerun) addedToNext(t); }}>
             {inRerun ? t("swRemoveFromRerun") : t("swAddToRerun")}
           </button>
         </div>

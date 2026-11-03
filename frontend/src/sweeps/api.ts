@@ -136,8 +136,10 @@ export const sweepApi = {
   loadText: (path: string) => call<{ path: string; text: string }>("/api/sweep/load-text", { path }),
   autosave: () => call<{ state: unknown; damaged?: string }>("/api/sweep/autosave"),
   autosaveSave: (state: unknown) => call<{ ok: boolean }>("/api/sweep/autosave", state),
-  exportRerun: (id: string, question: WireQuestion, sets: number[], onlyMissing: boolean, path: string) =>
-    call<{ path: string; rows: number }>("/api/sweep/export", { id, question, sets, onlyMissing, path }),
+  /** extra: sets by their parameters, each for the combinations with these condition values (Split by) */
+  exportRerun: (id: string, question: WireQuestion, sets: number[], onlyMissing: boolean, path: string,
+    extra: { params: Record<string, string | number | null>; holds: Record<string, string | number> }[] = []) =>
+    call<{ path: string; rows: number }>("/api/sweep/export", { id, question, sets, onlyMissing, path, extra }),
 };
 
 /** MF09: the sets' shape (svcore/sweep/clusters.py analyse); rows in the order of `sets`. */
