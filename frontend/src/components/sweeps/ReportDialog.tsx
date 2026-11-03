@@ -19,6 +19,7 @@ import { journalLine, reportJournal } from "../../sweeps/journal";
 import { notify, notifyError } from "../../sweeps/notify";
 import type { MapSpec } from "../../sweeps/model";
 import { deskOf } from "./Desk";
+import { splitColumn, splitRows } from "../../sweeps/split";
 
 type Format = "html" | "docx" | "pdf" | "csv";
 const EXT: Record<Format, string> = { html: ".html", docx: ".docx", pdf: ".pdf", csv: ".csv" };
@@ -130,6 +131,16 @@ export function ReportForm({ study, onBefore }: { study: Study; onBefore?: () =>
       // the journal as chosen in the Report step: the final story or everything, hidden lines out (S20)
       ...(inc.journal && journal.length ? [{ title: t("swRepJournal"), items: journal.map((e) => journalLine(t, e)) }] : []),
     ];
+    // Split by: the best set per value, and each value's answer in short
+    const splitCol = splitColumn(study);
+    if (splitCol) {
+      try {
+        const rows = await splitRows(study);
+        sections.push({ title: t("swRepSplit", { c: splitCol }), items: rows.map((r) => t("swRepSplitLine", {
+          v: r.value === null ? t("swAllTogether") : `${splitCol} = ${r.value}`, h: r.holding, n: r.sets,
+          b: r.best === null || !Number.isFinite(r.best) ? "–" : fmtValue(r.best), s: r.set || "–" })) });
+      } catch { /* the report without it */ }
+    }
     const map = mapAxes(study);
     notify(t("swRepMaking"));
     try {

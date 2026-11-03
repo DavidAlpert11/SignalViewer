@@ -33,6 +33,29 @@ def rerun_rows(p: Prepared, sets: List[int], only_missing: bool = False) -> List
     return out
 
 
+def _same(a, b) -> bool:
+    """one value, as a number or as text (1 and 1.0 alike)"""
+    try:
+        return float(a) == float(b)
+    except (TypeError, ValueError):
+        return str(a) == str(b)
+
+
+def rerun_rows_for(p: Prepared, params: Dict, holds: Dict) -> List[Dict]:
+    """A parameter set given by its values, for the combinations of the conditions with these values
+    only (a split condition's value): one row per such combination."""
+    out_params = {c: params.get(c) for c in p.params}
+    if not p.holds:
+        return [out_params]
+    combos = p.df[p.holds].iloc[np.unique(p.combo_id, return_index=True)[1]]
+    out: List[Dict] = []
+    for row in combos.itertuples(index=False, name=None):
+        vals = dict(zip(p.holds, row))
+        if all(_same(_py(vals.get(k)), v) for k, v in holds.items() if k in vals):
+            out.append({**out_params, **{h: _py(v) for h, v in vals.items()}})
+    return out
+
+
 def write_csv(path: str, rows: List[Dict], columns: List[str]) -> None:
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=columns)

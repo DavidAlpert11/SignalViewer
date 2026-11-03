@@ -197,6 +197,9 @@ export interface View {
   show?: string;
   /** Split by: the value of the split condition the results are for (missing / null: all together) */
   splitValue?: string | number | null;
+  /** sets to run again for one value of the split condition (by their parameters: set numbers
+   *  change with the value shown) */
+  rerunSplit?: { id: string; column: string; value: string | number; params: Record<string, string | number | null> }[];
   /** the table's columns, in order (missing: the parameters, the goal and the conditions) */
   tableColumns?: string[];
   /** the table sorted by a column (missing: best first) */
