@@ -110,8 +110,10 @@ export const sweepApi = {
     call<ClustersResult>("/api/sweep/clusters", { id, question, columns, sets, method, k }),
   map: (id: string, question: WireQuestion, x: string, y: string, rest: "all" | "best" = "all") =>
     call<PairMap & { rest: "all" | "best"; fixed: Record<string, string | number | null> | null; goal: boolean; direction: "max" | "min"; bestAt: [number, number] | null }>("/api/sweep/map", { id, question, x, y, rest }),
-  suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number, focus: string[] | null) =>
-    call<{ suggestions: Suggestion[]; available: Record<string, number>; taken: Record<string, number>; budget: number }>("/api/sweep/suggest", { id, question, kinds, budget, focus }),
+  suggest: (id: string, question: WireQuestion, kinds: SuggestKind[], budget: number, focus: string[] | null,
+    split: "equal" | "proportional" | "manual" = "equal", shares?: Record<string, number>) =>
+    call<{ suggestions: Suggestion[]; available: Record<string, number>; taken: Record<string, number>; budget: number }>("/api/sweep/suggest",
+      { id, question, kinds, budget, focus, split, ...(shares ? { shares } : {}) }),
   suggestExport: (id: string, question: WireQuestion, params: Suggestion["params"][], path: string, combos = true) =>
     call<{ path: string; rows: number }>("/api/sweep/suggest/export", { id, question, params, path, combos }),
   merge: (id: string, path: string, keys: string[], prefer: "new" | "old" | "both") =>

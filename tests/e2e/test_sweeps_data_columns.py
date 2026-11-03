@@ -211,3 +211,46 @@ def test_show_holds_and_the_rerun_list_in_next_runs(pg):
     assert "Next runs (1)" in pg.locator(".sw-center-tabs button[data-tab='next']").inner_text()
     pg.locator(".sw-rerun li button[aria-label^='Remove']").click()
     pg.wait_for_selector(".sw-rerun .hint:has-text('No set yet')")
+
+
+def test_split_by_a_condition_and_the_best_set_per_value(pg):
+    """Split by: a condition's values studied apart - Columns' toggle, the bar above the results
+    (All together | each value), the best set per value."""
+    from test_sweeps_flow import _the_goal
+    _fresh(pg)
+    _step(pg, "roles")
+    card = pg.locator(".sw-cond-card", has_text="scenario_payload_kg")
+    card.locator("summary").click()
+    card.locator(".sw-split-toggle input").check()
+    _the_goal(pg)
+    _step(pg, "results")
+    bar = pg.locator(".sw-split-bar")
+    bar.wait_for()
+    together = int(pg.locator(".sw-answer-n").inner_text().split()[0].replace(",", ""))
+    values = bar.locator(".sw-pill").all_inner_texts()
+    assert values[0] == "All together" and len(values) >= 3
+    bar.locator(".sw-pill").nth(1).click()
+    pg.wait_for_function("document.querySelector('.sw-split-bar .sw-pill.on').innerText !== 'All together'")
+    pg.wait_for_function(f"+document.querySelector('.sw-answer-n').innerText.split(' ')[0].replace(/,/g, '') >= {together}")
+    bar.locator(".linklike", has_text="Best set per value").click()
+    pg.wait_for_function(f"document.querySelectorAll('.sw-split-table tbody tr').length === {len(values)}")
+    pg.locator(".sw-split-table tbody tr").first.click()
+    pg.wait_for_function("document.querySelector('.sw-split-bar .sw-pill.on').innerText === 'All together'")
+
+
+def test_next_runs_budget_shared_by_mode(pg):
+    from test_sweeps_flow import _tab, _the_goal
+    _fresh(pg)
+    _the_goal(pg)
+    _step(pg, "results")
+    _tab(pg, "next")
+    pg.locator(".sw-next-side select[aria-label='Share the budget']").select_option("manual")
+    shares = pg.locator(".sw-share")
+    assert shares.count() >= 2
+    for i in range(shares.count()):
+        shares.nth(i).fill("2")
+    budget = pg.locator(".sw-next-side input[type=number]").first
+    assert budget.is_disabled() and budget.input_value() == str(2 * shares.count())
+    pg.locator(".sw-next-side .btn", has_text="Suggest").click()
+    pg.wait_for_selector(".sw-next-main .sw-table tbody tr")
+    assert pg.locator(".sw-next-main .sw-table tbody tr").count() <= 2 * shares.count()
