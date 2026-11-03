@@ -203,6 +203,51 @@ def finish_video(ctx, pg, name, since=None):
                     "fps=8,scale=900:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle", gif], check=True)
     print("video", os.path.relpath(mp4, ROOT), f"{os.path.getsize(mp4) // 1024} kB,", os.path.relpath(gif, ROOT), f"{os.path.getsize(gif) // 1024} kB")
 
+def sweeps_fresh(pg):
+    """The Sweeps area with no study open (the studies are kept from the last scene)."""
+    pg.locator(".areas .area-btn", has_text="Sweeps").click()
+    pg.wait_for_selector(".sw-welcome, .sw-study-wrap")
+    while pg.locator(".areabar .tab .x").count():
+        pg.locator(".areabar .tab .x").first.click(); pg.wait_for_timeout(150)
+    pg.wait_for_selector(".sw-welcome")
+
+
+def img_25_sweeps_data(b, app):
+    """Sweeps / Data: the example's two sweeps as two tables and a third, merged with a source column;
+    the merge box and Continue with in the side panel, the merged table's parallel plot."""
+    ctx, pg = page(b, app)
+    sweeps_fresh(pg)
+    pg.locator(".sw-welcome .btn", has_text="two sweeps, merged").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-table-item').length === 3")
+    for box in pg.locator(".sw-table-item input[type=checkbox]").all()[:2]:
+        box.check()
+    pg.locator(".sw-center-tabs button", has_text="Parallel plot").click()
+    pg.wait_for_selector(".pp canvas"); pg.locator(".pp-axis-name", has_text="_source").first.click()
+    pg.wait_for_selector(".sw-merge-preview"); pg.wait_for_timeout(600)
+    shot(pg, "25_sweeps_data"); ctx.close()
+
+
+def img_26_sweeps_split(b, app):
+    """Sweeps / Results split by payload: one value of the condition, the best set per value."""
+    ctx, pg = page(b, app)
+    sweeps_fresh(pg)
+    pg.locator(".sw-welcome .btn", has_text="Try an example").click()
+    pg.wait_for_selector(".sw-steps")
+    pg.locator(".sw-step-btn[data-step='roles']").click()
+    card = pg.locator(".sw-cond-card", has_text="scenario_payload_kg")
+    card.locator("summary").click(); card.locator(".sw-split-toggle input").check()
+    pg.locator(".sw-step-btn[data-step='goals']").click()
+    for col, v in (("roll_error_deg", 5), ("overshoot_pct", 15)):
+        box = pg.locator(f"input[aria-label='{col} at most']"); box.fill(str(v)); box.press("Enter")
+        pg.locator(f".sw-goal-table tr[data-col='{col}'] .sw-limit-met").first.wait_for()
+    pg.locator("select[aria-label='Optimize energy_wh']").select_option("min")
+    pg.locator(".sw-step-btn[data-step='results']").click()
+    bar = pg.locator(".sw-split-bar"); bar.wait_for()
+    bar.locator(".sw-pill").nth(2).click()
+    bar.locator(".linklike", has_text="Best set per value").click()
+    pg.wait_for_selector(".sw-split-table tbody tr"); pg.wait_for_timeout(800)
+    shot(pg, "26_sweeps_split"); ctx.close()
+
 
 # ----------------------------------------------------------------------------- scenes
 def overview(pg, app):
@@ -497,7 +542,7 @@ def main():
                 try:
                     fn(b, app, tmp) if name.startswith("vid_") else fn(b, app)
                 except Exception as e:                          # one scene failing must not stop the others
-                    print("FAILED", name, "-", str(e).splitlines()[0][:200])
+                    print("FAILED", name, "-", str(e)[:600])
             b.close()
     finally:
         app.close()

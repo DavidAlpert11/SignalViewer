@@ -13,49 +13,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- **Sweeps, owner's spec 2026-11-02** (the Claude Doc "מפרט Sweeps: מסכי Data ו-Columns"): in progress.
-  Done: the general part (window sizes, the parallel plot's zoom / pan / click), the Data step (tables
-  apart, merge = a new table - concat or join, source column, dedupe, preview -, Continue with,
-  export CSV / HTML) and the Columns step (roles renamed, tool row, numbers row, condition cards,
-  new columns with completion and preview, Template as a JSON file with its summary). Next, in this
-  order: the e2e still to fix / add (see the log), then the Goal step (new columns' marker, several
-  rows edited at once, the smart column search), Results (Show: Holds ▾, Charts add / duplicate /
-  remove / In report / export, the re-run list into Next runs, Next runs' Equal / Proportional /
-  Manual split), Split by. Open questions of the spec: Next runs vs the re-run list (one list or
-  two), Goal limits vs Must meet.
-- **Sweeps redesigned (owner, 2026-11-01)** - four steps (Data, Columns, Goal, Results), the goal as one
-  table, the results as five tabs (Parameter sets, All runs, Charts, Next runs, Report); the old tools and
-  their code deleted (ROADMAP "Sweeps redesign"; scikit-learn is no longer a dependency). Keep it simple:
-  ask the owner before adding a tool to the area.
-- **Milestone 23 (Sweeps toward modeFRONTIER): done** - MF00-MF11. The last three (2026-11-01): MF10 Decide
-  (TOPSIS, Hurwicz, Savage, AHP weights, margin, each row explained), MF08 Robust (a distribution per
-  tolerance, MC / LHS on a model or as a group to run, mean / σ / percentile / P(fail)), MF09 (clusters,
-  PCA, MDS, SOM as Charts panes; clusters = groups). Every M23 e2e file has now run in a browser (fixes in
-  the log). **Owner's choices 2026-11-01:** scikit-learn is in `requirements.txt` (Kriging everywhere;
-  lite keeps the extra `sweeps-opt`); the old Explore tabs (Lines, Map, Points...) go in the next version
-  after 1.17.0. **Milestone 24: Q130-Q134 done; next Q135-Q137** - after the owner tries What changed
-  first and the new Sweeps on real data (his feedback decides). Q138 is a list of ideas: not without the
-  owner. Sweeps round 4 (S24-S27) closed 2026-11-02 (Explore is gone).
-- **Owner's choices 2026-11-02:** the Sweeps report keeps Map and Points (from the Charts / next runs on
-  screen) and drops *Which parameter matters*; Live is in the Recordings bar.
-- Fixed 2026-11-01 (owner's report): a refresh of a file still being written followed the writer to the
-  end (100 % until the writing stopped). CSV reads are bounded to the size when the read began; the store
-  keeps the size from before the read.
-- Branch `main`. **1.18.0 prepared 2026-11-02** (the Sweeps redesign, Milestone 23's charts / groups,
-  Milestone 24's Q130-Q134, the growing-file fix, Live in the Recordings bar, the report's figures). The
-  owner applies the patch, pushes, runs `ci` by hand (Releasing step 0), tags `v1.18.0` and pushes the tag
-  (build.yml: packages, PyPI, draft release), then publishes the draft. Prepared before: 1.17.0
-  (2026-11-01) - if its tag was never pushed, 1.18.0 carries it too (its CHANGELOG section stays).
-- Checked here for 1.18.0 (Linux): see the log line of 2026-11-02. Not run here: Windows / macOS (CI
-  and the owner) - the four Sweeps steps in WebView2 and WKWebView -, the Windows installer. Open:
-  Q120, Q121; e2e flake test_globe_without_webgl_falls_back (failed once in a full run, passes alone).
-- **Owner's:** docs/dev/OUTREACH.md - `gh repo edit` (description, homepage, topics, Discussions),
-  social preview, private vulnerability reporting, the posts. Still open from before: Q55's "Open
-  with" on a real Windows install, Q60's tour video, Q24 signing, Q1 (T12) with real SITL / a radio.
-- **Behaviour changes the owner should know:** *Link files* is now *Link plots* (same button; derived
-  signals follow it too) beside the new *Link operations*; a second Shift range in the file list is
-  added to the first; pan is Alt + drag (Shift + drag zooms values);
-  `sv.load()` prints nothing on stdout (its progress line is on stderr).
+- **1.19.0 (2026-11-03)**: the owner's Sweeps spec (Data, Columns, Goal, Results, Next runs' split,
+  Split by) and two Recordings requests (derivatives / integrals of a signal's real updates; images
+  for a report and as a page). Left for a next round: the report's charts reordered in the Report
+  tab, a suggestion moved to the re-run list in one click, Charts' own SVG / CSV export; the spec's
+  open questions (Next runs vs the re-run list; Goal limits vs Must meet). test_plot_menus fails
+  here on origin/main too (the window's size in this environment) - to check on the owner's machine.
 
 ## Releasing
 
@@ -2340,4 +2303,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-02 · Release 1.18.0 prepared: version in version.py, build.bat, CITATION.cff (+ date), the installer, version_info.txt, install.md (+ ~930 server tests); CHANGELOG 1.18.0 (highlights; Changed / Added / Fixed); README review: README, features.md, limitations, gallery already describe the four Sweeps steps (the redesign's commit) - Live, Templates and Clear now said to be in the Recordings bar; pictures not retaken (23_sweeps_goal.png is from the redesign); validation regenerated (23 / 23, the version). Here: backend 920 + 12 skipped, mypy clean, tsc, oxlint 54 (as before), build, mkdocs --strict; e2e: test_file_help_menus, test_sweeps_flow (31), test_sweeps_charts, test_features -k live / mav / follow (6), test_fresh_user, test_workflows; frontend/dist rebuilt.
 - 2026-11-02 · The v1.18.0 tag's build failed on Windows only: test_a_half_written_last_line_waits_while_the_file_grows wrote with `write_text` (CRLF on Windows) and compared with a length in `\n`s - the code was right (it stopped after the last complete CRLF line). The test writes bytes now and checks both `\n` and `\r\n` on every platform. Nothing was published (pypi-publish and release need every build), so the version stays 1.18.0: the owner moves the tag to this commit. Backend 921 + 12 skipped.
 - 2026-11-03 · Owner's spec, Data + Columns (patch sweeps-data-columns): backend sweep.combine / combine_preview / build / recipe_files (svcore/sweep/io.py), /api/sweep/combine, build, drop, values, formula-preview, export-table; summary with holdValues (rowsAll); reload / changed / provenance through a table's recipe; MAX_TABLES 12; the HTML plot starts from the view on screen and zooms. Frontend: Study.tables / use / shown / picked, RawStep and RolesStep rewritten, DerivedEditor (completion, preview, edit), ParallelPlot zoom (sweeps/zoom.ts), narrow window (sweeps/narrow.ts), FileBrowser "Save as type", template summary (sweeps/templates.ts). Checked: backend 926 + 12 skipped, mypy, tsc, build, oxlint 54; e2e test_sweeps_flow 26 / 31 with the updated tests - left: test_new_column... (fixed, not rerun), test_undo_redo_and_the_studies_open_again, test_many_columns_scroll_pick_and_panels, test_templates_dialog_save_replace_export_import_apply; new e2e for join / Continue with / condition cards / Template / narrow window still to write; the rest of the suite not run.
+- 2026-11-03 · Release 1.19.0: version in version.py, build.bat, CITATION.cff (+ date), installer (iss, version_info), install.md; CHANGELOG 1.19.0; README, features, GUIDE / GUIDE.he, gallery; pictures 23_sweeps_goal (again), 25_sweeps_data, 26_sweeps_split (tools/make_readme_media.py --only 23_sweeps 25 26); validation regenerated (23 / 23); ROADMAP. Split by completed (groups per value, re-runs with their value, the report); Next runs' split; Charts' high-resolution PNG and HTML; derivative / integral on a signal's updates; plot images for a report and as HTML.
 
