@@ -566,3 +566,9 @@
 .sw-rerun-list { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow: auto; }
 .sw-rerun-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 2px 0; }
 .sw-show { display: inline-flex; gap: 6px; align-items: center; }
+.sw-share { width: 4.5em; margin-inline-end: 6px; }
+.sw-split { display: flex; flex-direction: column; gap: 6px; }
+.sw-split-bar { flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.sw-split-table { flex: none; max-height: 240px; }
+.sw-split-toggle { font-size: 0.846rem; margin-bottom: 4px; }
+.sw-pane.sw-out-of-report { opacity: 0.6; }

@@ -272,6 +272,8 @@ class SuggestReq(BaseModel):
     kinds: List[str]
     budget: int = 40
     focus: Optional[List[str]] = None    # S06: the parameters to explore (None: all)
+    split: str = "equal"                 # equal | proportional | manual: how the budget is shared
+    shares: Optional[Dict[str, int]] = None   # manual: each kind's number
 
 
 @router.post("/api/sweep/suggest")
@@ -284,7 +286,8 @@ def sweep_suggest(req: SuggestReq):
     return sweep.suggest(p, d["#holds"], d.get("#goal"), goal.get("direction", "max") != "min",
                          d["#partial"], kinds, max(1, min(2000, req.budget)), focus=req.focus,
                          score=d.get("#score") if several else None, rank=d["#rank"],
-                         robust=req.question.get("robust") or None)
+                         robust=req.question.get("robust") or None,
+                         split=req.split if req.split in ("equal", "proportional", "manual") else "equal", shares=req.shares)
 
 
 class SuggestExportReq(BaseModel):

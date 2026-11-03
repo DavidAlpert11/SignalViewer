@@ -129,7 +129,8 @@ def _mid(g: Grid, j: int, a: int, b: int) -> Optional[float]:
 def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize: bool, partial: np.ndarray,
             kinds: List[str], budget: int = 40, seed: int = 0, focus: Optional[List[str]] = None,
             score: Optional[np.ndarray] = None, rank: Optional[np.ndarray] = None,
-            robust: Optional[Dict[str, Dict]] = None) -> Dict:
+            robust: Optional[Dict[str, Dict]] = None, split: str = "equal",
+            shares: Optional[Dict[str, int]] = None) -> Dict:
     """New parameter sets to run, each with why:
     edge     - between a set that holds and a neighbour that does not: where the limit really is
     best     - between the best holding sets and their neighbours: a better one in between?
@@ -137,7 +138,9 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
     gaps     - far from every set run so far (the emptiest corners of the space)
     missing  - sets that miss a combination or have a run with no result: run those again
     robust   - the ends of the tolerance of the best sets on each robust parameter: is it robust?
-    Returned round-robin over the kinds asked for, up to `budget`, without repeats.
+    Returned round-robin over the kinds asked for, up to `budget`, without repeats. How the budget
+    is shared (`split`, owner 2026-11-02): equal - in turns; proportional - by how many each kind
+    has; manual - `shares` sets each kind's number (their sum may be under the budget).
     focus: the parameters to explore (S06) - only they move, the others stay at the set's values
     (gaps: at the best set's); None: all of them. score (two objectives or more) picks the best
     sets instead of the goal. With none of focus / score / rank / robust the answer is as before."""
@@ -231,12 +234,45 @@ def suggest(p: Prepared, holds: np.ndarray, goal: Optional[np.ndarray], maximize
                         add("robust", s, j, float(np.round(v, 10)), {"param": name})
     # the budget shared in turns: one set of each kind, then a second of each... - a kind that has
     # no more leaves its turn to the others; with a small budget the first kinds asked get the one
+    cap = allocate({k: len(pools[k]) for k in kinds}, kinds, budget, split, shares)
     out: List[Dict] = []
     r = 0
-    while len(out) < budget and any(r < len(v) for v in pools.values()):
+    while any(r < cap[k] for k in kinds):
         for kind in kinds:
-            if r < len(pools[kind]) and len(out) < budget:
+            if r < cap[kind]:
                 out.append(pools[kind][r])
         r += 1
     taken = {k: sum(1 for x in out if x["kind"] == k) for k in pools}
-    return {"suggestions": out, "available": {k: len(v) for k, v in pools.items()}, "taken": taken, "budget": budget}
+    return {"suggestions": out, "available": {k: len(v) for k, v in pools.items()}, "taken": taken, "budget": budget, "split": split}
+
+
+def allocate(available: Dict[str, int], kinds: List[str], budget: int, split: str = "equal",
+             shares: Optional[Dict[str, int]] = None) -> Dict[str, int]:
+    """How many sets of each kind: equal - in turns (a kind with no more leaves its turn to the
+    others; with a small budget the first kinds asked get one); proportional - by what each kind
+    has (largest remainders), what one cannot fill going to the others in turns; manual - the
+    numbers given, each at most what that kind has, together at most the budget."""
+    n = {k: 0 for k in kinds}
+    if split == "manual":
+        left = budget
+        for k in kinds:
+            n[k] = max(0, min(int((shares or {}).get(k, 0)), available[k], left))
+            left -= n[k]
+        return n
+    if split == "proportional":
+        total = sum(available[k] for k in kinds)
+        if total:
+            want = {k: budget * available[k] / total for k in kinds}
+            # at least one of every kind that found any (while the budget lasts)
+            n = {k: min(available[k], max(int(want[k]), 1 if available[k] and budget >= len(kinds) else 0)) for k in kinds}
+            while sum(n.values()) > budget:
+                k = max(kinds, key=lambda x: n[x])
+                n[k] -= 1
+            for k in sorted(kinds, key=lambda k: -(want[k] - int(want[k]))):
+                if sum(n.values()) < budget and n[k] < available[k]:
+                    n[k] += 1
+    while sum(n.values()) < budget and any(n[k] < available[k] for k in kinds):
+        for k in kinds:
+            if n[k] < available[k] and sum(n.values()) < budget:
+                n[k] += 1
+    return n

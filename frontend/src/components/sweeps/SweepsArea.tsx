@@ -41,6 +41,7 @@ import { confirmAsk, openMenu, prompt } from "../Overlays";
 import type { SavedStudy } from "../../sweeps/state";
 import AxisMenu from "./AxisMenu";
 import CenterTabs from "./CenterTabs";
+import SplitBar from "./SplitBar";
 import Desk from "./Desk";
 import NextRunsView from "./NextRunsView";
 import ParallelPlot from "./ParallelPlot";
@@ -381,6 +382,7 @@ function ResultsCenter({ study }: { study: Study }) {
   const zoom = useSweeps((s) => s.zooms[zoomKey]) ?? NO_ZOOM;
   return (
     <>
+      {study.question.split && study.columns.some((c) => c.name === study.question.split && c.role === "hold") && <SplitBar study={study} />}
       <CenterTabs study={study} studies={useSweeps.getState().studies.length} />
       {study.answer && v.center === "charts" && <Desk study={study} />}
       {study.answer && v.center === "next" && <NextRunsView study={study} />}

@@ -58,6 +58,19 @@ def test_desk_layouts_and_kinds(pg):
     save_as(pg, "hist.png")
     pg.wait_for_selector(".toast:has-text('hist.png')")
     assert open(os.path.join(pg.env["out"], "hist.png"), "rb").read(8) == b"\x89PNG\r\n\x1a\n"
+    # for a report: twice the pixels; and as a page of its own (the drawing itself)
+    import struct
+    size = lambda n: struct.unpack(">II", open(os.path.join(pg.env["out"], n), "rb").read(24)[16:24])
+    pg.locator(".sw-pane").nth(1).locator(".sw-pane-menu").click()
+    pg.locator(".menu.ctx button", has_text="Export for a report").click()
+    save_as(pg, "hist_hires.png")
+    pg.wait_for_selector(".toast:has-text('hist_hires.png')")
+    assert size("hist_hires.png")[0] >= 2 * size("hist.png")[0] - 4
+    pg.locator(".sw-pane").nth(1).locator(".sw-pane-menu").click()
+    pg.locator(".menu.ctx button", has_text="Export as a page").click()
+    save_as(pg, "hist.html")
+    pg.wait_for_selector(".toast:has-text('hist.html')")
+    assert "<svg" in open(os.path.join(pg.env["out"], "hist.html"), encoding="utf-8").read()
 
 
 def test_histogram_brush_filters_everything(pg):

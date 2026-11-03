@@ -60,6 +60,9 @@ export interface Question {
   /** robust to these parameters (S06, optional): the sets within each one's tolerance must hold
    *  too, and the goal is their worst case - for every goal of the study */
   robust?: Record<string, Tolerance>;
+  /** Split by (owner, 2026-11-02): a condition whose values are studied apart - for one value a
+   *  set must hold in every combination of the other conditions with that value (missing: none) */
+  split?: string;
 }
 
 /** How far a parameter may move: a percentage of its value, a value either way, or steps of the grid. */
@@ -120,6 +123,9 @@ export interface NextRuns {
   focus?: string[];
   kinds?: string[];
   budget?: number;
+  /** how the budget is shared among the kinds (missing: equal); manual: `shares` (owner, 2026-11-02) */
+  split?: "equal" | "proportional" | "manual";
+  shares?: Record<string, number>;
   result?: { suggestions: { params: Record<string, number | string | null>; kind: string; from: number; param?: string }[];
     available: Record<string, number>; at: string; focus: string[] | null;
     /** how many of each kind went into the suggestions, and the budget asked (S16) */
@@ -189,6 +195,8 @@ export interface View {
   /** which sets the results show - the table, the lines and the export alike (owner, 2026-11-02):
    *  "all", "holds", "fail" or a group's id (missing: holds; an older study's onlyHolding false: all) */
   show?: string;
+  /** Split by: the value of the split condition the results are for (missing / null: all together) */
+  splitValue?: string | number | null;
   /** the table's columns, in order (missing: the parameters, the goal and the conditions) */
   tableColumns?: string[];
   /** the table sorted by a column (missing: best first) */

@@ -57,31 +57,63 @@ function newPane(s: Study, have: DeskPane[]): DeskPane {
   return firsts.find((p) => !have.some((h) => h.kind === p.kind)) ?? { ...firsts[0] };
 }
 
-/** A chart as a PNG: its canvas, or its drawing (SVG) with the colours it has on screen. */
-async function paneImage(el: HTMLElement): Promise<string | null> {
-  const canvases = [...el.querySelectorAll("canvas")], svgs = [...el.querySelectorAll("svg")].filter((x) => x.getBoundingClientRect().width > 60);
-  const area = (e: Element) => { const r = e.getBoundingClientRect(); return r.width * r.height; };
-  const c = canvases.sort((a, b) => area(b) - area(a))[0], g = svgs.sort((a, b) => area(b) - area(a))[0];
-  if (c && (!g || area(c) >= area(g))) return c.toDataURL("image/png");
-  if (!g) return null;
+/** A chart's drawing with the colours it has on screen baked in (a copy needs no stylesheet). */
+function bakedSvg(g: SVGSVGElement): SVGSVGElement {
   const copy = g.cloneNode(true) as SVGSVGElement;
   const src = [g, ...g.querySelectorAll("*")], dst = [copy, ...copy.querySelectorAll("*")];
   src.forEach((e, i) => {
     const cs = getComputedStyle(e), d = dst[i] as SVGElement;
-    for (const k of ["fill", "stroke", "stroke-width", "opacity", "font-size", "font-family", "font-weight"]) d.style.setProperty(k, cs.getPropertyValue(k));
+    for (const k of ["fill", "stroke", "stroke-width", "stroke-dasharray", "opacity", "font-size", "font-family", "font-weight", "text-anchor"]) d.style.setProperty(k, cs.getPropertyValue(k));
   });
-  const r = g.getBoundingClientRect(), dpr = 2;
+  const r = g.getBoundingClientRect();
   copy.setAttribute("width", String(r.width)); copy.setAttribute("height", String(r.height));
-  const img = new Image();
-  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(copy));
-  await img.decode();
+  if (!copy.getAttribute("viewBox")) copy.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
+  copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  return copy;
+}
+/** the chart's drawing: its largest canvas or SVG */
+function mainDrawing(el: HTMLElement): HTMLCanvasElement | SVGSVGElement | null {
+  const area = (e: Element) => { const r = e.getBoundingClientRect(); return r.width * r.height; };
+  const c = [...el.querySelectorAll("canvas")].sort((a, b) => area(b) - area(a))[0];
+  const g = [...el.querySelectorAll("svg")].filter((x) => x.getBoundingClientRect().width > 60).sort((a, b) => area(b) - area(a))[0];
+  return c && (!g || area(c) >= area(g)) ? c : g ?? null;
+}
+const pageBg = () => getComputedStyle(document.body).backgroundColor || "#fff";
+
+/** A chart as a PNG - `scale` times its pixels on screen (2: for a report). A drawn chart (SVG) is
+ *  drawn again at that size; a canvas is scaled up. */
+async function paneImage(el: HTMLElement, scale = 1): Promise<string | null> {
+  const d = mainDrawing(el);
+  if (!d) return null;
+  const r = d.getBoundingClientRect(), k = Math.max(1, scale) * (window.devicePixelRatio || 1);
   const cv = document.createElement("canvas");
-  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  cv.width = Math.round(r.width * k); cv.height = Math.round(r.height * k);
   const ctx = cv.getContext("2d")!;
-  ctx.fillStyle = getComputedStyle(document.body).backgroundColor || "#fff";
-  ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.drawImage(img, 0, 0, cv.width, cv.height);
+  ctx.fillStyle = pageBg(); ctx.fillRect(0, 0, cv.width, cv.height);
+  if (d instanceof HTMLCanvasElement) {
+    if (scale <= 1) return d.toDataURL("image/png");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(d, 0, 0, cv.width, cv.height);
+  } else {
+    const img = new Image();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(bakedSvg(d)));
+    await img.decode();
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+  }
   return cv.toDataURL("image/png");
+}
+
+/** A chart as a page of its own: the drawing itself (SVG - sharp at any zoom), or a sharp picture
+ *  of a canvas chart; its title and when it was made. */
+async function paneHtml(el: HTMLElement, title: string): Promise<string | null> {
+  const d = mainDrawing(el);
+  if (!d) return null;
+  const body = d instanceof HTMLCanvasElement ? `<img alt="" style="max-width:100%" src="${await paneImage(el, 2)}">`
+    : new XMLSerializer().serializeToString(bakedSvg(d)).replace(/ width="[^"]*" height="[^"]*"/, ' style="width:100%;height:auto"');
+  const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title>
+<style>body{margin:24px;font-family:system-ui,sans-serif;background:${pageBg()};color:${getComputedStyle(document.body).color}}main{max-width:1100px;margin:auto}</style></head>
+<body><main><h1 style="font-size:1.2rem">${esc(title)}</h1>${body}<p style="opacity:.6;font-size:.8rem">${esc(new Date().toLocaleString())} · Signal Viewer</p></main></body></html>`;
 }
 
 /** Rows in series by the colouring: a group / category per code, holds and the others, or one. */
@@ -132,15 +164,28 @@ function Pane({ study, pane, onChange, big, onBig, onDuplicate, onRemove }: { st
   onDuplicate: () => void; onRemove: () => void }) {
   const t = useT();
   const box = useRef<HTMLElement>(null);
-  const exportPng = async () => {
+  // PNG (scale 2: for a report), or the chart as a page of its own (HTML)
+  const exportPng = async (scale = 1) => {
     const el = box.current;
     if (!el) return;
-    const p = await pickPath({ mode: "save", title: t("swExportChart"), exts: [".png"], defaultName: `${pane.kind}.png` });
+    const p = await pickPath({ mode: "save", title: t("swExportChart"), exts: [".png"], defaultName: `${pane.kind}${scale > 1 ? "_hires" : ""}.png` });
     if (!p) return;
     try {
-      const url = await paneImage(el);
+      const url = await paneImage(el, scale);
       if (!url) { notify(t("swChartNoImage"), "error"); return; }
       const r = await api.saveImage(p, url);
+      notify(t("swSaved", { path: r.path }));
+    } catch (e) { notifyError(e); }
+  };
+  const exportHtml = async () => {
+    const el = box.current;
+    if (!el) return;
+    const p = await pickPath({ mode: "save", title: t("swExportChartHtml"), exts: [".html"], defaultName: `${pane.kind}.html` });
+    if (!p) return;
+    try {
+      const page = await paneHtml(el, `${study.name} - ${t(KIND_KEY[pane.kind])}`);
+      if (!page) { notify(t("swChartNoImage"), "error"); return; }
+      const r = await api.saveText(p, page, ".html", false);
       notify(t("swSaved", { path: r.path }));
     } catch (e) { notifyError(e); }
   };
@@ -148,7 +193,9 @@ function Pane({ study, pane, onChange, big, onBig, onDuplicate, onRemove }: { st
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     openMenu({ clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {} } as React.MouseEvent, [
       { label: t("swDuplicateChart"), run: onDuplicate },
-      { label: t("swExportChart") + "…", run: exportPng },
+      { label: t("swExportChart") + "…", run: () => exportPng(1) },
+      { label: t("swExportChartHires") + "…", run: () => exportPng(2) },
+      { label: t("swExportChartHtml") + "…", run: exportHtml },
       { label: t("swRemoveChart"), run: onRemove },
     ]);
   };
@@ -169,7 +216,7 @@ function Pane({ study, pane, onChange, big, onBig, onDuplicate, onRemove }: { st
     onChange(p);
   };
   return (
-    <section ref={box} className="sw-pane" data-kind={pane.kind} aria-label={t(KIND_KEY[pane.kind])}>
+    <section ref={box} className={`sw-pane${pane.inReport === false ? " sw-out-of-report" : ""}`} data-kind={pane.kind} aria-label={t(KIND_KEY[pane.kind])}>
       <div className="sw-row sw-pane-head">
         <select aria-label={t("swPaneKind")} value={pane.kind} onChange={(e) => kind(e.target.value as PaneKind)}>
           {PANE_KINDS.map((k) => <option key={k} value={k}>{t(KIND_KEY[k])}</option>)}

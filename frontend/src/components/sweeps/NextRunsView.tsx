@@ -34,7 +34,12 @@ export default function NextRunsView({ study }: { study: Study }) {
   const exploring = focus?.length ? focus : params;
   const robustSet = Object.keys(study.question.robust ?? {}).length > 0;
   const kinds = ((next.kinds as SuggestKind[] | undefined) ?? DEFAULT_KINDS).filter((k) => k !== "robust" || robustSet);
-  const budget = next.budget ?? 40;
+  const split = next.split ?? "equal";
+  // manual: each kind's number (missing: an equal share of the budget); their sum is the budget
+  const budget0 = next.budget ?? 40;
+  const shares = Object.fromEntries(kinds.map((k) => [k, next.shares?.[k] ?? Math.floor(budget0 / Math.max(1, kinds.length))]));
+  const sharesSum = Object.values(shares).reduce((a, b) => a + b, 0);
+  const budget = split === "manual" ? Math.max(1, sharesSum) : budget0;
   const res = next.result;
   const [busy, setBusy] = useState(false);
   const combos = study.answer?.counts.combos ?? 1;
@@ -43,7 +48,7 @@ export default function NextRunsView({ study }: { study: Study }) {
     setBusy(true);
     const f = focus?.length && focus.length < params.length ? focus : null;
     try {
-      const r = await sweepApi.suggest(study.tableId, wireQuestion(study), kinds, budget, f);
+      const r = await sweepApi.suggest(study.tableId, wireQuestion(study), kinds, budget, f, split, split === "manual" ? shares : undefined);
       setNext({ result: { ...r, at: stamp(), focus: f, key: keyOf(study, f) } });
       useSweeps.getState().journal("suggest", { n: r.suggestions.length });
     } catch (e) { notifyError(e); }
@@ -99,7 +104,8 @@ export default function NextRunsView({ study }: { study: Study }) {
           <span className="hint">{t("swExploreHint")}</span>
         </div>
         <label className="sw-row">{t("swBudget")}
-          <input type="number" min={1} max={2000} value={budget} onChange={(e) => setNext({ budget: Math.max(1, Number(e.target.value) || 1) })} style={{ width: 70 }} />
+          <input type="number" min={1} max={2000} value={budget} disabled={split === "manual"} title={split === "manual" ? t("swSplitManualHint", { n: sharesSum, b: budget }) : undefined}
+            onChange={(e) => setNext({ budget: Math.max(1, Number(e.target.value) || 1) })} style={{ width: 70 }} />
         </label>
         <span className="hint">{t("swBudgetUpTo", { n: budget, c: combos.toLocaleString(), r: (budget * combos).toLocaleString() })}</span>
         {KINDS.map(({ k, title, hint }) => {
@@ -108,13 +114,22 @@ export default function NextRunsView({ study }: { study: Study }) {
             <label key={k} className={`sw-kind${off ? " off" : ""}`}>
               <input type="checkbox" disabled={off} checked={kinds.includes(k)}
                 onChange={(e) => setNext({ kinds: e.target.checked ? [...kinds, k] : kinds.filter((x) => x !== k) })} />
+              {split === "manual" && kinds.includes(k) && (
+                <input type="number" min={0} max={2000} className="sw-share" aria-label={t("swShareOf", { k: t(title) })} value={shares[k] ?? 0}
+                  onClick={(e) => e.preventDefault()}
+                  onChange={(e) => setNext({ shares: { ...shares, [k]: Math.max(0, Number(e.target.value) || 0) } })} />)}
               <span><b className={`sw-mark-${k}`}>{MARK[k]} {t(title)}</b>
                 {res && res.available[k] !== undefined && <span className="hint"> · {t("swFoundTaken", { f: res.available[k], n: res.taken?.[k] ?? 0 })}</span>}<br />
                 <span className="hint">{off ? t("swNextRobustOff") : t(hint)}</span></span>
             </label>
           );
         })}
-        <span className="hint">{t("swBudgetShare")}</span>
+        <label className="sw-row">{t("swSplit")}
+          <select value={split} aria-label={t("swSplit")} onChange={(e) => setNext({ split: e.target.value as typeof split })}>
+            <option value="equal">{t("swSplitEqual")}</option><option value="proportional">{t("swSplitProp")}</option><option value="manual">{t("swSplitManual")}</option>
+          </select></label>
+        <span className="hint">{t(split === "equal" ? "swBudgetShare" : split === "proportional" ? "swSplitPropHint" : "swSplitManualHint", { n: sharesSum, b: budget })}</span>
+
         <button className="btn primary" disabled={busy || !kinds.length} onClick={run}>{t("swSuggest")}</button>
       </div>
       <div className="sw-next-main">

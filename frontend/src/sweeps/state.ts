@@ -81,6 +81,8 @@ export interface TemplateResult {
   skippedFormulas: { name: string; missing: string }[];
   /** goal limits / objectives on columns this table lacks */
   skippedLimits: number;
+  /** the Split by condition, not a condition of this table */
+  splitSkipped?: string;
 }
 
 const FORMULA_WORDS = new Set(["abs", "sqrt", "exp", "log", "log10", "sin", "cos", "tan", "atan2", "sign", "floor", "ceil", "round",
@@ -183,6 +185,9 @@ interface SweepsState {
   setPicked: (ids: string[]) => void;
   /** new columns touched in the Goal step's table: no longer "new" */
   seeInGoal: (names: string[]) => void;
+  /** Split by: the condition whose values are studied apart (null: none), and the value shown */
+  setSplit: (column: string | null) => void;
+  setSplitValue: (v: string | number | null) => void;
   /** several columns' limits and what to optimize at once (the Goal step's bar) */
   setLimits: (cols: string[], p: { atLeast?: number | null; atMost?: number | null; optimize?: "" | "min" | "max" }, outputs: string[]) => void;
   /** the Data step: Table or Parallel plot - the same for every table (UI only) */
@@ -281,7 +286,11 @@ export function wireQuestion(s: Study): WireQuestion {
   const outputs = s.columns.filter((c) => c.role === "output").map((c) => c.name)
     .concat(s.question.derived.filter((d) => d.kind === "row").map((d) => d.name));
   const q = s.question;
-  return { roles, combine: q.combine, holdValues: q.holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
+  // Split by: one value of the split condition - the question for the runs with that value
+  const sv = s.view.splitValue;
+  const split = q.split && roles[q.split] === "hold" && sv !== undefined && sv !== null ? q.split : null;
+  const holdValues = split ? { ...q.holdValues, [split]: [sv as string | number] } : q.holdValues;
+  return { roles, combine: q.combine, holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
     outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])), objectives: q.objectives, exclude: q.exclude,
     ...(q.robust && Object.keys(q.robust).length ? { robust: q.robust } : {}) };
 }
@@ -551,6 +560,11 @@ export const useSweeps = create<SweepsState>((set, get) => {
     },
     setShown: (i) => patch((x) => ({ ...x, shown: i }), false),
     setPicked: (ids) => patch((x) => ({ ...x, picked: ids }), false),
+    setSplit: (column) => {
+      patchV((v) => ({ ...v, splitValue: null }));
+      patchQ((q) => { const n = { ...q }; if (column) n.split = column; else delete n.split; return n; });
+    },
+    setSplitValue: (value) => patchV((v) => ({ ...v, splitValue: value, scope: { key: "", steps: [] }, pinned: null }), true),
     seeInGoal: (names) => patch((x) => ({ ...x, goalSeen: [...new Set([...(x.goalSeen ?? []), ...names])] }), false),
     setLimits: (cols, p, outputs) => {
       // one change of the goal: every column's at least / at most (null clears it) and what to optimize
@@ -624,9 +638,9 @@ export const useSweeps = create<SweepsState>((set, get) => {
       if (!s) return;
       // what belongs to this table's runs stays out: the open set, filters, re-runs, keep / exclude
       // (by set number), next runs' answer; their choices (what to explore, the kinds) are kept
-      const { pinned: _p, filters: _f, rerun: _r, scope: _s, next, ...rest } = s.view;
-      void _p; void _f; void _r; void _s;
-      const view = { ...rest, ...(next ? { next: { focus: next.focus, kinds: next.kinds, budget: next.budget } } : {}) };
+      const { pinned: _p, filters: _f, rerun: _r, scope: _s, splitValue: _v, next, ...rest } = s.view;
+      void _p; void _f; void _r; void _s; void _v;
+      const view = { ...rest, ...(next ? { next: { focus: next.focus, kinds: next.kinds, budget: next.budget, split: next.split, shares: next.shares } } : {}) };
       // every value of each condition, as known now: a value new to the template is then kept (not dropped)
       const holdAll = Object.fromEntries(s.columns.filter((c) => c.role === "hold" && c.values).map((c) => [c.name, c.values!]));
       const r = await sweepApi.saveTemplate(name, { columns: s.columns.map((c) => ({ name: c.name, role: c.role, scale: c.scale })),
@@ -670,11 +684,13 @@ export const useSweeps = create<SweepsState>((set, get) => {
           const next = now.filter((v) => keep.has(String(v)) || !known.has(String(v)));
           holdValues[k] = next.length === now.length ? [] : next;
         }
+        const splitGone = !!q.split && !columns.some((c) => c.name === q.split && c.role === "hold");
+        if (splitGone) delete q.split;
         const question: Question = materialize({ ...q, derived, goals,
           removed: q.removed.filter((c) => have.has(c)), holdValues,
           robust: q.robust && Object.fromEntries(Object.entries(q.robust).filter(([k]) => have.has(k))) });
         const newColumns = columns.filter((c) => !roles.has(c.name)).map((c) => c.name);
-        res = { matched: columns.length - newColumns.length, of: columns.length, newColumns, skippedFormulas, skippedLimits };
+        res = { matched: columns.length - newColumns.length, of: columns.length, newColumns, skippedFormulas, skippedLimits, splitSkipped: splitGone ? raw.split : undefined };
         const n = { ...s, columns, question, view: { ...emptyView(), ...(t.view as Partial<View>), pinned: null, filters: {}, rerun: [] }, offer: null, toCheck: newColumns };
         remember(n);
         return n;
@@ -839,7 +855,8 @@ export const useSweeps = create<SweepsState>((set, get) => {
         let best: number | null = null;
         if (rank && goalCol) { let r0 = Infinity; for (let i = 0; i < rank.length; i++) if (rank[i] < r0) { r0 = rank[i]; best = goalCol[i]; } }
         patch((x) => (x.tableId !== s.tableId ? x : { ...x, answer, evaluating: false, evalError: "",
-          iterations: withIteration(x.iterations, x, answer.counts.holding, answer.counts.sets, best),
+          // one value of a split condition is not an iteration of the study
+          iterations: x.view.splitValue !== undefined && x.view.splitValue !== null ? x.iterations : withIteration(x.iterations, x, answer.counts.holding, answer.counts.sets, best),
           view: x.view.axes.length ? { ...x.view, axes: withNewOptAxes(x.view.axes, x.answer, answer) } : { ...x.view, axes: defaultAxes(answer) } }), false);
       }).catch((e) => {
         if (my !== seq) return;

@@ -9,6 +9,7 @@ export function templateSummary(t: TFn, r: TemplateResult): string {
   if (r.newColumns.length) parts.push(t("swTplNewCols", { n: r.newColumns.length }));
   if (r.skippedFormulas.length) parts.push(t("swTplSkippedFormulas", { n: r.skippedFormulas.length, list: r.skippedFormulas.map((x) => x.missing).join(", ") }));
   if (r.skippedLimits) parts.push(t("swTplSkippedLimits", { n: r.skippedLimits }));
+  if (r.splitSkipped) parts.push(t("swTplSplitSkipped", { c: r.splitSkipped }));
   return `${t("swTplAppliedLead")} ${parts.join(", ")}.`;
 }
 
