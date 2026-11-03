@@ -35,11 +35,12 @@ export async function applyTransform(ids: string[], tf: SignalTransform | null) 
 export interface Step { expr?: string; scale?: number; offset?: number; dt?: number; unit?: string }
 
 /** Analysis operation -> an in-place step (every one-signal operation has one). */
-export function opToStep(op: string, p: { window?: number; cutoff?: number; gain?: number; bias?: number; expr?: string }): Step | null {
+export function opToStep(op: string, p: { window?: number; cutoff?: number; gain?: number; bias?: number; expr?: string; hz?: number }): Step | null {
   const n = Math.max(2, Math.round(p.window ?? 10)), fc = p.cutoff ?? 10;
   switch (op) {
-    case "derivative": return { expr: "deriv(x)" };
-    case "integral": return { expr: "integ(x)" };
+    // hz: of the updates at that rate (a slower signal logged fast)
+    case "derivative": return { expr: p.hz ? `deriv(x, ${p.hz})` : "deriv(x)" };
+    case "integral": return { expr: p.hz ? `integ(x, ${p.hz})` : "integ(x)" };
     case "abs": return { expr: "abs(x)" };
     case "negate": return { expr: "-x" };
     case "normalize": return { expr: "norm01(x)" };

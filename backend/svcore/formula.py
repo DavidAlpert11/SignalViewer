@@ -11,6 +11,8 @@ Variables:  v0..vN (signals, aligned in time onto v0's samples), t (time),
 Operators:  + - * / ** %, unary -, comparisons (> < >= <= == !=) give 1 / 0.
 Functions:  abs sqrt exp log log10 sin cos tan asin acos atan atan2 sign floor
             ceil round min max clip where deriv integ smooth.
+            deriv(x, 10) / integ(x, 10): of x's updates at 10 Hz (a slower signal logged fast);
+            deriv(x, v1) / integ(x, v1): of the samples where v1 is 1 (a flag "x updated now").
 """
 
 import ast
@@ -18,7 +20,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from svcore.ops import FilterError, apply_filter, cumulative_trapezoid, moving_average
+from svcore.ops import FilterError, apply_filter, cumulative_trapezoid, moving_average, on_updates
 
 
 class FormulaError(ValueError):
@@ -32,14 +34,28 @@ _CMP = {ast.Gt: np.greater, ast.Lt: np.less, ast.GtE: np.greater_equal, ast.LtE:
 
 
 def _funcs(t: np.ndarray):
-    def deriv(x):
+    def _updates(x, upd, op):
+        """the second argument: a rate in Hz (a number) or a flag signal (1 where x updated)"""
+        x = np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape)
+        try:
+            if np.ndim(upd) == 0:
+                return on_updates(t, x, op, hz=float(upd))
+            return on_updates(t, x, op, flag=np.broadcast_to(np.asarray(upd, dtype=np.float64), t.shape))
+        except ValueError as e:
+            raise FormulaError(f"{'deriv' if op == 'derivative' else 'integ'}(): {e}") from None
+
+    def deriv(x, upd=None):
+        if upd is not None:
+            return _updates(x, upd, "derivative")
         x = np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape)
         with np.errstate(divide="ignore", invalid="ignore"):
             r = np.gradient(x, t)
         r[~np.isfinite(r)] = np.nan
         return r
 
-    def integ(x):
+    def integ(x, upd=None):
+        if upd is not None:
+            return _updates(x, upd, "integral")
         return cumulative_trapezoid(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape))
 
     def norm01(x):
@@ -93,7 +109,7 @@ def _funcs(t: np.ndarray):
         "atan": (np.arctan, 1), "atan2": (np.arctan2, 2), "sign": (np.sign, 1), "floor": (np.floor, 1),
         "ceil": (np.ceil, 1), "round": (np.round, 1), "min": (np.minimum, 2), "max": (np.maximum, 2),
         "clip": (np.clip, 3), "where": (lambda c, a, b: np.where(np.asarray(c) != 0, a, b), 3),
-        "deriv": (deriv, 1), "integ": (integ, 1), "smooth": (smooth, (1, 2)),
+        "deriv": (deriv, (1, 2)), "integ": (integ, (1, 2)), "smooth": (smooth, (1, 2)),
         "lowpass": (lowpass, 2), "highpass": (highpass, 2), "norm01": (norm01, 1),
     }
 
