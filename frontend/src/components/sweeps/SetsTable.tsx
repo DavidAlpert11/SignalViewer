@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 import { pickPath, useApp } from "../../store";
 import { addedToNext } from "../../sweeps/notify";
+import { inRerun as inRerunNow } from "../../sweeps/split";
 import { useT } from "../../i18n";
 import { sweepApi } from "../../sweeps/api";
 import { labelOf } from "../../sweeps/scales";
@@ -121,8 +122,8 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
             {rows.map((i) => (
               <tr key={i} className={`${v.pinned === i ? "pinned" : ""}${holds[i] === 1 ? " holds" : ""} status-${status[i]}`} data-status={status[i]} onClick={() => setView({ pinned: i })}>
                 <td className="st st-0" onClick={(e) => e.stopPropagation()}>
-                  <input type="checkbox" aria-label={t("swRerunThis")} checked={v.rerun.includes(i)}
-                    onChange={(e) => { setView({ rerun: e.target.checked ? [...v.rerun, i] : v.rerun.filter((x) => x !== i) }); if (e.target.checked) addedToNext(t); }} />
+                  <input type="checkbox" aria-label={t("swRerunThis")} checked={inRerunNow(study, i)}
+                    onChange={(e) => { useSweeps.getState().toggleRerun(i); if (e.target.checked) addedToNext(t); }} />
                 </td>
                 <td className="st st-1 num">{labelOf(cols.get("#rank")!, cols.get("#rank")!.values[i])}</td>
                 <td className={`st st-2 ${holds[i] === 1 ? "ok" : "bad"}`} title={why(i)}>{status[i] === "virtual" ? "≈" : holds[i] === 1 ? "✓" : "✗"}</td>

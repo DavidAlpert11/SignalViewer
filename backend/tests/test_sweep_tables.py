@@ -107,3 +107,25 @@ def test_routes_combine_build_values_preview_export(tmp_path):
     assert '"colorBy": "' + num in page and '"k": 2.0' in page and "zreset" in page
     assert c.post("/api/sweep/drop", json={"path": b["id"]}).json()["ok"]
     assert c.post("/api/sweep/summary", json={"id": b["id"], "roles": {}}).status_code == 404
+
+
+def test_rerun_for_one_value_of_a_split_condition(tmp_path):
+    """Split by: a set chosen for one value of a condition is written with the combinations that
+    have that value only, beside the sets chosen for all of them."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    c = TestClient(app)
+    a = c.post("/api/sweep/open", json={"path": EXAMPLE}).json()
+    roles = {col["name"]: col["role"] for col in a["columns"]}
+    holds = [n for n, r in roles.items() if r == "hold"]
+    params = [n for n, r in roles.items() if r == "param"]
+    q = {"roles": roles}
+    vals = c.post("/api/sweep/values", json={"id": a["id"], "column": holds[0]}).json()["values"]
+    v0 = vals[0][0]
+    first = {pn: a["head"][0][[col["name"] for col in a["columns"]].index(pn)] for pn in params}
+    r = c.post("/api/sweep/export", json={"id": a["id"], "question": q, "sets": [0], "path": str(tmp_path / "r.csv"),
+                                           "extra": [{"params": first, "holds": {holds[0]: v0}}]}).json()
+    lines = open(r["path"]).read().splitlines()
+    whole = c.post("/api/sweep/export", json={"id": a["id"], "question": q, "sets": [0], "path": str(tmp_path / "w.csv")}).json()["rows"]
+    assert r["rows"] == whole + whole // len(vals)          # the extra: only the combinations with v0
+    assert len(lines) == r["rows"] + 1

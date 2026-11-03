@@ -56,6 +56,7 @@ class ExportReq(BaseModel):
     sets: List[int]
     onlyMissing: bool = False
     path: str
+    extra: List[Dict[str, Any]] = []     # [{params, holds}]: a set for some condition values only (Split by)
 
 
 def _get(tid: str) -> Dict:
@@ -178,7 +179,10 @@ def sweep_set(req: SetReq):
 @router.post("/api/sweep/export")
 def sweep_export(req: ExportReq):
     p = _prepared(req.id, req.question)
-    rows = sweep.rerun_rows(p, req.sets, req.onlyMissing)
+    rows = sweep.rerun_rows(p, req.sets, req.onlyMissing) if req.sets else []
+    # Split by: sets chosen for one value of a condition - their parameters x the combinations with it
+    for x in req.extra:
+        rows += sweep.rerun_rows_for(p, x.get("params") or {}, x.get("holds") or {})
     path = os.path.abspath(os.path.expanduser(req.path))
     try:
         sweep.write_csv(path, rows, p.params + p.holds)

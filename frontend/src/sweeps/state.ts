@@ -99,7 +99,7 @@ export function formulaColumns(expr: string): string[] {
 
 /** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
  *  the view that change what is shown. Not where one is (step, tab, open set, map axes, follow). */
-const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "onlyMissing", "scope",
+const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "rerunSplit", "onlyMissing", "scope",
   "onlyHolding", "show", "tableColumns", "tableSort", "maps", "scatters", "groups", "desk"] as const;
 type UndoView = Pick<View, (typeof UNDO_VIEW)[number]>;
 export interface Snap { roles: Record<string, { role: Role; scale: Scale }>; question: Question; view: UndoView }
@@ -250,6 +250,10 @@ interface SweepsState {
   saveGroup: (frozen: boolean, name: string) => void;
   /** a group from a mask (∪ ∩ ∖ of two groups, the marked sets): frozen ids */
   addFrozenGroup: (name: string, mask: Uint8Array, source?: Group["source"]) => void;
+  /** a group of these sets (their ids), frozen - one per value of a split condition */
+  addIdsGroup: (name: string, ids: string[]) => void;
+  /** a set to run again: as All together, or - a split value shown - for that value only */
+  toggleRerun: (set: number) => void;
   editGroup: (id: string, patch: Partial<Pick<Group, "name" | "hidden" | "frozen">>) => void;
   removeGroup: (id: string) => void;
   setFilter: (column: string, f: Filter | null) => void;
@@ -809,6 +813,37 @@ export const useSweeps = create<SweepsState>((set, get) => {
       const g: Group = { id: `g${Date.now().toString(36)}${gs.length}`, name, color: freeColor(gs), source, frozen: true, ids: freeze(mask, setIds(s.answer)) };
       patchV((v) => ({ ...v, groups: [...gs, g], colorBy: "#group" }), false);
     },
+    addIdsGroup: (name, ids) => {
+      const s = get().studies[get().active];
+      if (!s) return;
+      patchV((v) => {
+        const gs = v.groups ?? [];
+        // the same name again: replaced (the values' groups made once more)
+        const rest = gs.filter((g) => g.name !== name);
+        const g: Group = { id: `g${Date.now().toString(36)}${gs.length}`, name, color: freeColor(rest), source: "user", frozen: true, ids };
+        return { ...v, groups: [...rest, g], colorBy: "#group" };
+      }, false);
+    },
+    toggleRerun: (set) => {
+      const s = get().studies[get().active];
+      if (!s?.answer) return;
+      const sv = s.view.splitValue, col = s.question.split;
+      if (sv === undefined || sv === null || !col) {
+        const on = s.view.rerun.includes(set);
+        patchV((v) => ({ ...v, rerun: on ? v.rerun.filter((x) => x !== set) : [...v.rerun, set] }), false);
+        return;
+      }
+      // for one value of the split condition: the set's parameters and the value, kept apart
+      const id = setIds(s.answer)[set];
+      const list = s.view.rerunSplit ?? [];
+      const at = list.findIndex((r) => r.id === id && r.value === sv);
+      if (at >= 0) { patchV((v) => ({ ...v, rerunSplit: list.filter((_, j) => j !== at) }), false); return; }
+      const params = Object.fromEntries(s.answer.sets.filter((c) => c.group === "param").map((c) => {
+        const x = c.values[set];
+        return [c.name, c.kind === "cat" ? (c.labels?.[x] ?? null) : Number.isFinite(x) ? x : null];
+      }));
+      patchV((v) => ({ ...v, rerunSplit: [...list, { id, column: col, value: sv, params }] }), false);
+    },
     editGroup: (id, p) => {
       const s = get().studies[get().active];
       if (!s?.answer) return;
@@ -865,7 +900,10 @@ export const useSweeps = create<SweepsState>((set, get) => {
     },
     exportRerun: (path) => {
       const s = get().studies[get().active];
-      return sweepApi.exportRerun(s.tableId, wireQuestion(s), s.view.rerun, s.view.onlyMissing, path);
+      // the sets as All together, and those chosen for one value of the split condition
+      const all = { ...s, view: { ...s.view, splitValue: null } };
+      return sweepApi.exportRerun(s.tableId, wireQuestion(all), s.view.rerun, s.view.onlyMissing, path,
+        (s.view.rerunSplit ?? []).map((r) => ({ params: r.params, holds: { [r.column]: r.value } })));
     },
   };
 });

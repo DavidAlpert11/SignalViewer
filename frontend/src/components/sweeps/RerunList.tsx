@@ -13,6 +13,8 @@ export default function RerunList({ study }: { study: Study }) {
   const t = useT();
   const st = useSweeps.getState();
   const list = study.view.rerun;
+  const forValue = study.view.rerunSplit ?? [];
+  const n = list.length + forValue.length;
   const ids = study.answer ? setIds(study.answer) : [];
   const exportRerun = async (onlyMissing: boolean) => {
     st.setView({ onlyMissing });
@@ -29,8 +31,8 @@ export default function RerunList({ study }: { study: Study }) {
   };
   return (
     <section className="sw-rerun" aria-label={t("swRerunList")}>
-      <h3>{t("swRerunList")} <span className="hint">({list.length})</span></h3>
-      {!list.length ? <p className="hint">{t("swRerunEmpty")}</p> : (
+      <h3>{t("swRerunList")} <span className="hint">({n})</span></h3>
+      {!n ? <p className="hint">{t("swRerunEmpty")}</p> : (
         <>
           <ul className="sw-rerun-list">
             {list.map((i) => (
@@ -38,10 +40,17 @@ export default function RerunList({ study }: { study: Study }) {
                 <button className="iconbtn sm" aria-label={t("swRemoveFromRerun")} title={t("swRemoveFromRerun")}
                   onClick={() => st.setView({ rerun: list.filter((x) => x !== i) })}><Icon.X width={12} height={12} /></button></li>
             ))}
+            {forValue.map((r, j) => (
+              <li key={`${r.value}|${r.id}`}><span className="sw-ellipsis mono" title={`${r.id} · ${r.column} = ${r.value}`}>
+                {r.id.replace(/\|/g, ", ")} <span className="hint">· {t("swRerunFor", { c: r.column, v: String(r.value) })}</span></span>
+                <button className="iconbtn sm" aria-label={t("swRemoveFromRerun")} title={t("swRemoveFromRerun")}
+                  onClick={() => st.setView({ rerunSplit: forValue.filter((_, k) => k !== j) })}><Icon.X width={12} height={12} /></button></li>
+            ))}
           </ul>
+          {forValue.length > 0 && <p className="hint">{t("swRerunForHint")}</p>}
           <div className="sw-row">
-            <button className="btn primary" onClick={menu}>{t("swExportRerunN", { n: list.length })} ▾</button>
-            <button className="btn" onClick={() => st.setView({ rerun: [] })}>{t("swBulkClear")}</button>
+            <button className="btn primary" onClick={menu}>{t("swExportRerunN", { n })} ▾</button>
+            <button className="btn" onClick={() => st.setView({ rerun: [], rerunSplit: [] })}>{t("swBulkClear")}</button>
           </div>
         </>
       )}
