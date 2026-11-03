@@ -95,6 +95,9 @@ function ConditionCard({ study, c }: { study: Study; c: StudyColumn }) {
     <details className="sw-cond-card">
       <summary><span className="sw-ellipsis" title={c.name}>{c.name}</span>
         <span className="hint">{t("swKeptOf", { n: kept.length, of: values.length || c.distinct })}</span></summary>
+      <label className="acheck sw-split-toggle" title={t("swSplitThisHint")}>
+        <input type="checkbox" checked={study.question.split === c.name} onChange={(e) => st.setSplit(e.target.checked ? c.name : null)} /> {t("swSplitThis")}
+      </label>
       {!many ? <div className="sw-hold-values">{values.map(chip)}</div> : (
         <>
           <div className="sw-row">
