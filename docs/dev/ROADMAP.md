@@ -649,6 +649,18 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
 - [x] T68 One piece of work for many runs (Q87). Done 2026-10-22: peers.ts (the same signal in another file, derived signals by operation + mapped sources), Link operations (`linkEdits`: transforms.ts, Analysis, *Create signal ▸*), Link plots through peers (derived too), *Add a run with the same work* (sameWork.ts, SameWorkDialog: edits, derived in order, overlay or tab copies).
 - [x] F39 Shift ranges that add up, Shift + drag (Q86). Done 2026-10-22: DataPanel `shiftPress` / `rangeTo` (a new press of Shift starts a new range on top of the selection), the range on mousedown (no native drag of the row), hover extends while the button is held, auto-scroll at the edges.
 
+## Sweeps, the owner's spec (2026-11-02) — 1.19.0
+The Claude Doc "מפרט Sweeps: מסכי Data ו-Columns" (general, Data, Columns, Goal, Results, Next runs, Split by), with two
+requests of 2026-11-03 for Recordings:
+- [x] General: side panel 220-320 px, folded below 900 px; sticky name columns; names cut with …; the step's button kept in view; the parallel plots zoom / pan / pick a line.
+- [x] Data: tables apart, merge into a new table (concat / join, source column, duplicates, preview), Continue with, export CSV / HTML with the view.
+- [x] Columns: roles renamed (Conditions, Identifiers) with tooltips, tool row, numbers row, condition cards (search, +N more, range), new columns (completion, preview, edit), Template as a JSON file with a summary.
+- [x] Goal: new columns marked, unused limits said, several rows edited together, the column search.
+- [x] Results: Show ▾, the re-run list in Next runs, Charts (add / duplicate / remove / export / In report), Next runs' split (equal / proportional / manual).
+- [x] Split by: All together / one value, best set per value, a group of each value, re-runs with their value, the report.
+- [x] Recordings: derivative / integral of a signal's real updates (its rate, or a 0/1 flag); images for a report (2× PNG) and as an interactive page (HTML).
+- [ ] Left: the report's charts reordered in the Report tab; a suggestion moved to the re-run list in one click; open questions - Next runs vs the re-run list, Goal limits vs Must meet.
+
 ## Sweeps redesign (owner, 2026-11-01) — 1.18.0: a clean, simple area - not more and more
 The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the old things taken out:
 - [x] Four steps, no areas: **Data** (load, merge, the table as CSV and as lines), **Columns** (parameter /

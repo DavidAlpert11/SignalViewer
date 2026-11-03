@@ -170,19 +170,11 @@ function GoalTable({ study }: { study: Study }) {
     st.seeInGoal([col]);
   };
   const met = (col: string, op: ">=" | "<=") => { const i = idx(col, op); return i >= 0 ? a?.conditions[i]?.met : undefined; };
+  // a limit's box (LimitBox, below: a component of its own, so a new answer arriving while it is
+  // typed in does not make a new box and lose what was typed)
   const Limit = ({ col, op }: { col: string; op: ">=" | "<=" }) => {
     const i = idx(col, op);
-    const m = met(col, op);
-    return (
-      <span className="sw-limit">
-        <input key={`${col}${op}${i >= 0 ? g.conditions[i].value : ""}`} className="sw-limit-in mono" inputMode="decimal"
-          aria-label={t(op === ">=" ? "swAtLeastOf" : "swAtMostOf", { c: col })} placeholder="–"
-          defaultValue={i >= 0 ? String(g.conditions[i].value) : ""}
-          onBlur={(e) => setLimit(col, op, e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { (e.target as HTMLInputElement).value = i >= 0 ? String(g.conditions[i].value) : ""; (e.target as HTMLInputElement).blur(); } }} />
-        {m !== undefined && <span className="hint sw-limit-met" title={t("swLimitMetHint")}>{t("swLimitMet", { n: m })}</span>}
-      </span>
-    );
+    return <LimitBox col={col} op={op} value={i >= 0 ? g.conditions[i].value : null} met={met(col, op)} onSet={(text) => setLimit(col, op, text)} />;
   };
   const row = (c: { name: string; min?: number; max?: number }, out: boolean) => {
     const o = opt(c.name);
@@ -193,8 +185,8 @@ function GoalTable({ study }: { study: Study }) {
           <span className="sw-ellipsis">{c.name}</span>
           {derivedNames.has(c.name) && !seen.has(c.name) && <span className="sw-new" onClick={() => st.seeInGoal([c.name])}>{t("swNewBadge")}</span>}</td>
         <td className="hint">{c.min !== undefined && c.max !== undefined ? `${fmtValue(c.min)} – ${fmtValue(c.max)}` : ""}</td>
-        <td><Limit col={c.name} op=">=" /></td>
-        <td><Limit col={c.name} op="<=" /></td>
+        <td>{Limit({ col: c.name, op: ">=" })}</td>
+        <td>{Limit({ col: c.name, op: "<=" })}</td>
         <td>{out && (
           <select aria-label={t("swOptimizeOf", { c: c.name })} value={o?.direction ?? ""} onChange={(e) => setOpt(c.name, e.target.value as "" | "min" | "max")}>
             <option value="">–</option><option value="min">{t("swMinimize")}</option><option value="max">{t("swMaximize")}</option>
@@ -226,6 +218,20 @@ function GoalTable({ study }: { study: Study }) {
         <button className="btn primary" onClick={() => st.setView({ step: "results" })}>{t("swGoalSeeResults")} →</button>
       </div>
     </>
+  );
+}
+
+function LimitBox({ col, op, value, met, onSet }: { col: string; op: ">=" | "<="; value: number | null; met?: number; onSet: (text: string) => void }) {
+  const t = useT();
+  return (
+    <span className="sw-limit">
+      <input key={`${col}${op}${value ?? ""}`} className="sw-limit-in mono" inputMode="decimal"
+        aria-label={t(op === ">=" ? "swAtLeastOf" : "swAtMostOf", { c: col })} placeholder="–"
+        defaultValue={value !== null ? String(value) : ""}
+        onBlur={(e) => onSet(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { (e.target as HTMLInputElement).value = value !== null ? String(value) : ""; (e.target as HTMLInputElement).blur(); } }} />
+      {met !== undefined && <span className="hint sw-limit-met" title={t("swLimitMetHint")}>{t("swLimitMet", { n: met })}</span>}
+    </span>
   );
 }
 

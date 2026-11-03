@@ -159,6 +159,13 @@ without a file); a source written with its file - and the baseline of a *Compare
 is kept. So when the work is copied to a new run, the new run gets its own signal against the same
 fixed source.
 
+**A signal that updates slower than it is logged.** A value computed at 10 Hz but written at 100 Hz
+repeats itself; its plain derivative is zero, then a spike. For a *Derivative* or an *Integral*,
+choose **Updates of the signal**: *at its own, slower rate* (give it in Hz), or *where another signal
+is 1* (a 0 / 1 flag the logger writes when the value updates). The derivative or integral is taken
+on those samples alone and put back on every sample. In a formula: `deriv(Altitude, 10)`,
+`deriv(Altitude, {Alt_updated})`, `integ(...)` the same way.
+
 **Convert units:** right-click a signal → *Change this signal…* → *Convert units* (rad → deg,
 m/s → km/h, m → ft, °C → °F…; the ones from the signal's unit first). The values and the unit
 shown change together – on the axis, in the list, in the legend – and it can be undone like any change.
@@ -171,7 +178,10 @@ shown change together – on the axis, in the list, in the legend – and it can
   other files with the same signals.
 - **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
   interactive HTML, PDF or Word.
-- A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), copy the image.
+- A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), **save an image for a
+  report** (a PNG with twice the pixels), **save as an interactive page** (HTML: the plot alone - zoom,
+  lines on and off, values under the pointer), copy the image. The 3D view's *Image* saves at the
+  screen's size or at twice it.
 - **Clear ▾** (the Recordings bar): this tab's plots, the other tabs, all
   tabs, or all the work on the data - tabs, notes, derived signals and edits - while the files stay
   open. Each is undone with **Undo** in the message or Ctrl+Z. *Everything* also closes the files
@@ -203,15 +213,33 @@ outputs. It answers *which parameter sets hold in every scenario, and which of t
 
 Four steps, left to right:
 
-1. **Data** – the table as it is, as rows or as lines; a second sweep is merged in here.
-2. **Columns** – check each column's role: parameter, output, scenario, run id, not used (the guess
-   is usually right); add columns made from others.
+1. **Data** – every table you load is listed apart in *Tables in this study*: tick, show (as rows or
+   as lines - the wheel zooms, a click on a line shows that run), export (CSV, or HTML with its
+   parallel plot as you left it) or close. **Merge** makes a new table from the ticked ones - the
+   rows one under the other, or side by side on key columns (join) - with a source column if you
+   want it; the tables merged stay. **Continue with** chooses the table the next steps work on.
+2. **Columns** – check each column's role: parameter, output, condition (what you don't choose:
+   wind, payload), identifier (a run id or a recording), not used. Above the table: undo, redo,
+   *Reset to guessed roles*, *Template ▾* (save to a JSON file to share, load - it says what matched)
+   and the study's numbers. In the side panel each condition's values (search, *+N more*, a range),
+   and new columns made from others (the formula completes names and shows the first run's value).
+   *Split results by this* on a condition studies its values apart (below).
 3. **Goal** – one table: *at least* / *at most* on any column (`roll_error_deg` at most 5 - an output
-   in every scenario, judged by the worst case) and what to optimize (the least `energy_wh`). The
-   count and the best set follow each change.
-4. **Results** – the parameter sets and every run as lines (drag on an axis to keep a range, as in
-   HiPlot; Keep, Exclude, undo), the sets best first, *Why it fails* for any set, charts, **Next runs**
-   (where to run more) and the **Report** (HTML, Word or PDF with the whole process).
+   in every condition, judged by the worst case) and what to optimize (the least `energy_wh`).
+   Ctrl / Shift-click choose several rows and set them together (a value, or a % of each one's
+   range). The count and the best set follow each change.
+4. **Results** – *Show: Holds ▾* (all, those that hold, those that fail, a group) for the table, the
+   lines and the export; the parameter sets and every run as lines (drag on an axis to keep a range,
+   as in HiPlot; Keep, Exclude, undo; zoom), *Why it fails* for any set, **Charts** (as many as you
+   like, each exported as PNG or HTML, in the report or not), **Next runs** (where to run more, the
+   budget shared equally, in proportion or by hand; and the re-run list you collect) and the
+   **Report** (HTML, Word or PDF with the whole process).
+
+**Split by a condition.** With *Split results by this* on, say, payload, the results show *All
+together* or one payload at a time: for one value a set must hold in every combination of the other
+conditions with it (the same goal). *Best set per value* puts them side by side; *A group of each
+value* colours the sets that hold for each. A set added to the re-run list then runs with that
+value only.
 
 Ctrl+Z undoes any step, the study is kept when the app closes, and *Study ▾* saves it or makes a
 template for the next table. In CI: `signalviewer-cli sweep results.csv --question study.svsweep`.
