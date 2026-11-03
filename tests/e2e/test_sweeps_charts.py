@@ -1,5 +1,7 @@
 """MF02: the chart desktop - 1 / 2 / 4 panes of linked charts; a range dragged on a histogram is the
 one brush (the table follows), the scatter matrix's correlations, the broken conditions."""
+import os
+
 import pytest
 
 pytest.importorskip("playwright.sync_api")
@@ -19,8 +21,10 @@ def _charts(pg):
 def test_desk_layouts_and_kinds(pg):
     _charts(pg)
     assert pg.locator(".sw-desk .sw-pane").count() == 2
-    pg.locator(".sw-desk-bar button[role='radio']", has_text="4").click()
+    pg.locator(".sw-desk-bar .btn", has_text="Add chart").click()                    # as many charts as wanted
+    pg.locator(".sw-desk-bar .btn", has_text="Add chart").click()
     pg.wait_for_function("document.querySelectorAll('.sw-desk .sw-pane').length === 4")
+    pg.locator(".sw-desk-bar button[role='radio']", has_text="4").click()          # 4 in a row
     kinds = [pg.locator(".sw-pane").nth(i).get_attribute("data-kind") for i in range(4)]
     assert kinds == ["scatter", "histogram", "box", "matrix"]
     pane = pg.locator(".sw-pane").nth(0)
@@ -39,6 +43,21 @@ def test_desk_layouts_and_kinds(pg):
     pg.wait_for_function("document.querySelectorAll('.sw-desk .sw-pane').length === 1")
     pg.locator(".sw-pane .sw-pane-big").click()
     pg.wait_for_function("document.querySelectorAll('.sw-desk .sw-pane').length === 4")
+    # a chart duplicated, one removed, one left out of the report
+    pg.locator(".sw-pane").nth(2).locator(".sw-pane-menu").click()
+    pg.locator(".menu.ctx button", has_text="Duplicate").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-desk .sw-pane').length === 5")
+    assert pg.locator(".sw-pane").nth(3).get_attribute("data-kind") == "box"
+    pg.locator(".sw-pane").nth(3).locator(".sw-pane-menu").click()
+    pg.locator(".menu.ctx button", has_text="Remove").click()
+    pg.wait_for_function("document.querySelectorAll('.sw-desk .sw-pane').length === 4")
+    pg.locator(".sw-pane").nth(0).locator(".sw-in-report input").uncheck()
+    # a chart as a PNG
+    pg.locator(".sw-pane").nth(1).locator(".sw-pane-menu").click()
+    pg.locator(".menu.ctx button", has_text="Export as PNG").click()
+    save_as(pg, "hist.png")
+    pg.wait_for_selector(".toast:has-text('hist.png')")
+    assert open(os.path.join(pg.env["out"], "hist.png"), "rb").read(8) == b"\x89PNG\r\n\x1a\n"
 
 
 def test_histogram_brush_filters_everything(pg):

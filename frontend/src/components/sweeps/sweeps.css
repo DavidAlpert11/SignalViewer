@@ -542,3 +542,27 @@
   .sw-study > .resizer { display: none; }
   .sw-study > .sw-detail { position: absolute; z-index: 14; inset-block: 0; inset-inline-end: 0; width: min(380px, 92vw); box-shadow: 0 0 24px rgba(0,0,0,.25); }
 }
+
+/* the Goal step: several rows edited together, a new column, the column search */
+.sw-goal-table td.sw-pickable { cursor: pointer; user-select: none; }
+.sw-goal-table tr.sw-sel td { background: color-mix(in srgb, var(--focus) 14%, transparent); }
+.sw-new { margin-inline-start: 6px; padding: 0 5px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; color: var(--bg); background: var(--amber); cursor: pointer; }
+.sw-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; border: 1px solid var(--focus); border-radius: 8px; background: var(--panel); }
+.sw-bulk label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 0.846rem; }
+.sw-bulk .sw-limit-in { width: 6em; }
+.sw-colsearch { display: inline-block; min-width: 10em; flex: 1 1 10em; }
+.sw-complete-list li.cur { font-weight: 600; }
+
+/* Charts: every chart on screen, 1 / 2 / 4 in a row; the re-run list in Next runs */
+.sw-desk-grid.per1 { grid-template-columns: minmax(0, 1fr) !important; }
+.sw-desk-grid.per2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.sw-desk-grid.per4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+@media (max-width: 1100px) { .sw-desk-grid.per4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 899px) { .sw-desk-grid.per2, .sw-desk-grid.per4 { grid-template-columns: minmax(0, 1fr) !important; } }
+.sw-desk-grid { grid-auto-rows: minmax(280px, auto); }
+.sw-in-report { margin-inline-start: auto; font-size: 0.846rem; }
+.sw-rerun { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.sw-rerun h3, .sw-next-side > h3 { margin: 0; font-size: 0.923rem; }
+.sw-rerun-list { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow: auto; }
+.sw-rerun-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 2px 0; }
+.sw-show { display: inline-flex; gap: 6px; align-items: center; }

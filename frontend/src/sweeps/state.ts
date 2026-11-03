@@ -70,6 +70,8 @@ export interface Study {
   picked: string[];
   /** columns to check after a template was applied (new to it: their role is a guess) - UI only */
   toCheck?: string[];
+  /** new columns already seen in the Goal step's table (the others say "new") - UI only */
+  goalSeen?: string[];
 }
 
 /** What applying a template did (its summary to the user). */
@@ -96,7 +98,7 @@ export function formulaColumns(expr: string): string[] {
 /** What undo brings back: the columns' roles and scales (by name), the question, and the parts of
  *  the view that change what is shown. Not where one is (step, tab, open set, map axes, follow). */
 const UNDO_VIEW = ["mode", "axes", "colorBy", "filters", "reversed", "scales", "hideConstant", "hideFlat", "rerun", "onlyMissing", "scope",
-  "onlyHolding", "tableColumns", "tableSort", "maps", "scatters", "groups", "desk"] as const;
+  "onlyHolding", "show", "tableColumns", "tableSort", "maps", "scatters", "groups", "desk"] as const;
 type UndoView = Pick<View, (typeof UNDO_VIEW)[number]>;
 export interface Snap { roles: Record<string, { role: Role; scale: Scale }>; question: Question; view: UndoView }
 export interface History { past: Snap[]; future: Snap[]; kind: string; at: number }
@@ -179,6 +181,10 @@ interface SweepsState {
   useTable: (i: number) => void;
   setShown: (i: number) => void;
   setPicked: (ids: string[]) => void;
+  /** new columns touched in the Goal step's table: no longer "new" */
+  seeInGoal: (names: string[]) => void;
+  /** several columns' limits and what to optimize at once (the Goal step's bar) */
+  setLimits: (cols: string[], p: { atLeast?: number | null; atMost?: number | null; optimize?: "" | "min" | "max" }, outputs: string[]) => void;
   /** the Data step: Table or Parallel plot - the same for every table (UI only) */
   dataTab: "table" | "plot";
   /** each table's parallel plot as it was left (axes, filters, colour, zoom): kept across the tabs */
@@ -545,6 +551,30 @@ export const useSweeps = create<SweepsState>((set, get) => {
     },
     setShown: (i) => patch((x) => ({ ...x, shown: i }), false),
     setPicked: (ids) => patch((x) => ({ ...x, picked: ids }), false),
+    seeInGoal: (names) => patch((x) => ({ ...x, goalSeen: [...new Set([...(x.goalSeen ?? []), ...names])] }), false),
+    setLimits: (cols, p, outputs) => {
+      // one change of the goal: every column's at least / at most (null clears it) and what to optimize
+      const simple = (c: Condition) => c.mode === "all" && !c.where && !c.in && (c.op === ">=" || c.op === "<=");
+      patchG((g) => {
+        let conditions = g.conditions;
+        const put = (col: string, op: ">=" | "<=", v: number | null | undefined) => {
+          if (v === undefined) return;
+          const i = conditions.findIndex((c) => simple(c) && c.column === col && c.op === op);
+          if (v === null) { if (i >= 0) conditions = conditions.filter((_, j) => j !== i); return; }
+          conditions = i >= 0 ? conditions.map((c, j) => (j === i ? { ...c, value: v } : c)) : [...conditions, { column: col, op, value: v, mode: "all" }];
+        };
+        let optimize = g.optimize;
+        for (const col of cols) {
+          put(col, ">=", p.atLeast); put(col, "<=", p.atMost);
+          if (p.optimize !== undefined && outputs.includes(col)) {
+            optimize = optimize.filter((o) => o.column !== col);
+            if (p.optimize) optimize = [...optimize, { column: col, direction: p.optimize, weight: 1 }];
+          }
+        }
+        return { ...g, conditions, optimize };
+      });
+      get().seeInGoal(cols);
+    },
     dataTab: "table",
     rawViews: {},
     setRawView: (id, v) => set((st) => ({ rawViews: { ...st.rawViews, [id]: v } })),
