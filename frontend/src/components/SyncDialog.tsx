@@ -58,6 +58,13 @@ export default function SyncDialog() {
     }
     return (c.sameNames ? t("syncSameNames") + " " : "") + t("syncSignalDetail", { a: c.pair?.[0] ?? "", b: c.pair?.[1] ?? "", r: fmtNum(c.corr ?? 0, lang, 3) });
   };
+  /** Why a boot / events candidate is (or is not) taken as the same flight - shown under its detail. */
+  const why = (c: SyncCandidate): { text: string; bad: boolean } | null => {
+    if (c.unconfirmed === "vehicle") return { text: t("syncUnconfirmedVehicle"), bad: true };
+    if (c.confirm === undefined || !c.confirmPair) return null;
+    const v = { a: c.confirmPair[0], b: c.confirmPair[1], r: fmtNum(c.confirm, lang, 2) };
+    return c.unconfirmed === "signal" ? { text: t("syncUnconfirmedSignal", v), bad: true } : { text: t("syncConfirmed", v), bad: false };
+  };
   const nameOf = (id: string) => id.slice(id.indexOf("/") + 1);
   const sigOpts = (rid: string) => runs.filter((r) => r.id === rid).flatMap((r) => r.signals.map((s) => ({ id: s.id, label: s.name, group: fileLabel(runs, r.id) })));
 
@@ -93,6 +100,7 @@ export default function SyncDialog() {
                   {i > 0 && c.agrees !== undefined && <span className={`agree ${c.agrees ? "yes" : "no"}`}>{c.agrees ? t("syncAgrees") : t("syncDisagrees")}</span>}
                 </div>
                 <div className="sync-detail">{describe(c)}</div>
+                {(() => { const w = why(c); return w && <div className={`sync-detail sync-why${w.bad ? " err" : ""}`}>{w.text}</div>; })()}
                 <div className="sync-off" dir="ltr">{c.delta >= 0 ? "+" : ""}{c.delta.toFixed(3)} s → {t("timeOffset")} {c.offset.toFixed(3)} s</div>
               </div>
               <div className="sync-actions">

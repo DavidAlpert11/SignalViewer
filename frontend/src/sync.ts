@@ -77,7 +77,10 @@ export async function detectSameFlight() {
     const L = useApp.getState().lang;
     useApp.getState().toast({
       kind: "info", ms: 30000,
-      text: translate(L, "syncDetected", { a: b.name, b: a.name, s: c.delta.toFixed(2) }),
+      text: c.confirm !== undefined && c.confirmPair
+        ? translate(L, "syncDetectedConfirmed", { a: b.name, b: a.name, s: c.delta.toFixed(2),
+            sig: c.confirmPair[0].replace(/ \[[^\]]*\]$/, ""), r: c.confirm.toFixed(2) })
+        : translate(L, "syncDetected", { a: b.name, b: a.name, s: c.delta.toFixed(2) }),
       action: { label: translate(L, "syncAlign"), run: () => { applySyncOffset(b.id, c!.offset); } },
     });
   }

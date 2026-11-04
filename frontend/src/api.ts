@@ -453,5 +453,9 @@ export interface SyncCandidate {
   at?: [number, number]; sameNames?: boolean; offset: number; current: number; quality: "high" | "medium" | "low";
   agrees?: boolean; spread?: number; pairs?: number; overlap?: number; reboots?: number; matched?: number; examples?: string[];
   corr?: number; pair?: [string, string]; scale?: number;
+  /** boot / events: how well a pair of one quantity changes together at this offset, and which pair */
+  confirm?: number; confirmPair?: [string, string];
+  /** why the candidate was lowered to "low": different vehicle types, or the pair does not move together */
+  unconfirmed?: "vehicle" | "signal";
   check?: { pair: [string, string] | null; scale: number; refMode: string | null; otherMode: string | null };
 }
