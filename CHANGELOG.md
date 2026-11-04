@@ -4,6 +4,7 @@
 
 ### Fixed
 - **"Looks like the same flight" no longer offered for unrelated logs.** A .tlog's boot clock says how to put it on an autopilot log's time, not that the two are one flight: opening any .bin and any .tlog together offered to align them. The boot / events alignment is now confirmed by a pair of the same quantity (attitude, altitude, battery...) changing together, and never offered for two different vehicle types.
+- **The Align dialog says why.** Under the boot clock and the matching events: "Confirmed: ATT.Roll and ATTITUDE.roll change together at this offset (r = 0.85)", or in red "Probably not the same flight" with the pair and its r, or that the vehicle types differ. Such a candidate can still be applied (two flights on one time axis on purpose). The "same flight" notice names the signal that confirmed it.
 - **Old ArduPilot telemetry (before 3.4): boot messages are no longer errors.** Those versions sent STATUSTEXT on their own severity scale (LOW = 1); read as MAVLink's (1 = ALERT) the version banner, "Initialising APM..." and "Frame: QUAD" were errors and the health check said so. The scale is recognised from the banner; the firmware (`APM:Copter V3.x`) is shown again.
 - **A failed arming check is a warning, not an error** (`PreArm: Motors Emergency Stopped` made a clean flight's health check red), in .bin, .tlog and .ulg alike.
 

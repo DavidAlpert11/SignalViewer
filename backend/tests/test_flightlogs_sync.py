@@ -153,6 +153,8 @@ def test_sync_two_recordings_of_one_flight(flight):
     for m in by.values():                       # true offset 37.25 s, minus 10-60 ms of radio latency
         assert 37.15 < m["delta"] < 37.26, m
         assert m["quality"] == "high"
+    for m in (by["boot"], by["events"]):        # confirmed by a pair of one quantity moving together
+        assert m["confirm"] > 0.5 and len(m["confirmPair"]) == 2 and "unconfirmed" not in m, m
     assert by["signal"]["corr"] > 0.99 and by["signal"]["check"]["scale"] == pytest.approx(57.2958, rel=1e-4)
     assert c[0]["method"] == "boot" and all(x.get("agrees", True) for x in c)
     # applying it: the .tlog's roll now lines up with the .bin's in time
@@ -302,3 +304,5 @@ def test_unrelated_logs_are_not_called_the_same_flight(flight):
     for m in c:
         if m["method"] in ("boot", "events"):
             assert m["quality"] != "high", m
+            if "confirm" in m:                  # the dialog says why: which pair did not move together
+                assert m["unconfirmed"] == "signal" and m["confirm"] < 0.3 and len(m["confirmPair"]) == 2
