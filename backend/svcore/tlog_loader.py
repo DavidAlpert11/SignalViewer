@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from svcore.flightlog import FlightLogInfo, text_codes
+from svcore.flightlog import FlightLogInfo, is_arming_check, text_codes
 from svcore.models import Run, Signal
 from svcore.extras import missing
 
@@ -34,6 +34,10 @@ UNIT_CONV = {"degE7": ("deg", 1e-7), "degE5": ("deg", 1e-5), "cdeg": ("deg", 0.0
              "mrad": ("rad", 1e-3), "mrad/s": ("rad/s", 1e-3), "cm/s/s": ("m/s/s", 0.01), "mm/s/s": ("m/s/s", 1e-3)}
 _SKIP_FIELDS = {"time_boot_ms", "time_usec", "time_unix_usec", "time_boot_us"}
 _SEVERITY = {0: "error", 1: "error", 2: "error", 3: "error", 4: "warning"}
+# ArduPilot before 3.4 sent its own scale in STATUSTEXT.severity: SEVERITY_LOW=1, MEDIUM=2, HIGH=3,
+# CRITICAL=4, USER_RESPONSE=5 (not MAV_SEVERITY, where 1 = ALERT). Its version banner came as LOW.
+_LEGACY_SEVERITY = {1: "info", 2: "info", 3: "warning", 4: "error", 5: "info"}
+_BANNER = re.compile(r"(APM:\w+|Ardu\w+)\s+V?\d+\.\d+", re.I)
 _MAV_TYPE_VEHICLE = {1: "plane", 2: "copter", 3: "copter", 4: "copter", 13: "copter", 14: "copter", 15: "copter",
                      10: "rover", 11: "rover", 12: "sub", 19: "plane", 20: "plane", 21: "plane", 22: "plane"}
 # PX4 custom_mode = main_mode << 16 | sub_mode << 24
@@ -109,6 +113,8 @@ class TLogState:
         self.text_labels: Dict[str, Dict[int, str]] = {}
         self.mode_labels: Dict[int, str] = {}
         self.flightlog = FlightLogInfo()
+        self.legacy_severity: Optional[bool] = None   # STATUSTEXT on ArduPilot's pre-3.4 scale (from its banner)
+        self.early_texts: List[Tuple[dict, int]] = []  # texts before the banner, with their raw severity
         self.bad_bytes = 0
         # (receive time [s from the first packet], autopilot boot time [s]) from messages that carry
         # time_boot_ms: the link between this log's clock and the autopilot's (.bin / .ulg) clock
@@ -378,8 +384,22 @@ def _special(name, t, arr, st: TLogState, out):
     if name == "STATUSTEXT":
         for tv, sev, txt in zip(t.tolist(), arr["severity"].tolist(), arr["text"].tolist()):
             s = txt.split(b"\0", 1)[0].decode("latin-1", "replace").strip()
-            if s:
-                fl.add_event(tv, "msg", s, _SEVERITY.get(int(sev), "info"))
+            if not s:
+                continue
+            sev = int(sev)
+            if st.legacy_severity is None and _BANNER.match(s):
+                st.legacy_severity = sev <= 2         # the banner: INFO (6) now, LOW (1) before 3.4
+                if st.legacy_severity:                # the texts before it were read on the wrong scale
+                    for e, sv in st.early_texts:
+                        e["level"] = _LEGACY_SEVERITY.get(sv, "info")
+                st.early_texts = []
+            table = _LEGACY_SEVERITY if st.legacy_severity else _SEVERITY
+            level = table.get(sev, "info")
+            if level == "error" and is_arming_check(s):
+                level = "warning"                     # sent as CRITICAL, but the vehicle only refused to arm
+            fl.add_event(tv, "msg", s, level)
+            if st.legacy_severity is None and len(st.early_texts) < 200:
+                st.early_texts.append((fl.events[-1], sev))
     elif name == "PARAM_VALUE":
         for tv, pid, val in zip(t.tolist(), arr["param_id"].tolist(), arr["param_value"].tolist()):
             nm = pid.split(b"\0", 1)[0].decode("latin-1", "replace").strip()

@@ -94,22 +94,12 @@ EVENTS = {10: "ARMED", 11: "DISARMED", 15: "AUTO_ARMED", 17: "LAND_COMPLETE_MAYB
           25: "SET_HOME", 28: "NOT_LANDED"}
 
 
-_ERR_WORDS = re.compile(r"crash|emergency|critical|panic|fail|error|lost|terminat|thrust loss|ekf.*(variance|lane switch)", re.I)
-_WARN_WORDS = re.compile(r"prearm|arm:|warn|unhealthy|glitch|timeout|bad |low|check|disabled|not ready|vibration|clipping", re.I)
+from svcore.flightlog import message_level  # noqa: E402  (one word list for .bin, .tlog and .ulg texts)
 
 
 def _f32(v) -> float:
     """A float32 parameter as written (0.15, not 0.15000000596)."""
     return float(f"{float(v):.7g}")
-
-
-def message_level(text: str) -> str:
-    """'error' / 'warning' / 'info' from the words of a log text (DataFlash MSG has no severity)."""
-    if _ERR_WORDS.search(text):
-        return "error"
-    if _WARN_WORDS.search(text):
-        return "warning"
-    return "info"
 
 
 def vehicle_of(texts) -> Optional[str]:
@@ -503,7 +493,7 @@ class DataFlash:
             t0, v0, d = self.param_first[nm]
             params.append({"name": nm, "value": self.params.get(nm, v0), "first": v0, "default": d,
                            "changes": [[t, v] for t, v in self.param_changes.get(nm, [])]})
-        firmware = next((txt for _t, txt in self.texts[:60] if re.match(r"(Ardu\w+|Rover|Blimp|AntennaTracker)\b.*V?\d+\.\d+", txt)), None)
+        firmware = next((txt for _t, txt in self.texts[:60] if re.match(r"(Ardu\w+|APM:\w+|Rover|Blimp|AntennaTracker)\b.*V?\d+\.\d+", txt)), None)
         return {"vehicle": self.vehicle, "firmware": firmware, "params": params, "events": self.events,
                 "hasDefaults": any(p["default"] is not None for p in params)}
 
