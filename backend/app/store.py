@@ -1347,6 +1347,33 @@ class Store:
         with self._lock:
             self.derived.pop(name, None)
 
+    def rename_derived(self, old: str, new: str) -> str:
+        """A derived signal's new name, in place (its place in the list kept): the signals made from
+        it now name it so - their sources, and the {name} in a formula's text. Returns the name
+        given ("/" is replaced: it separates the run id and the name in signal ids)."""
+        new = new.strip().replace("/", "∕")
+        if not new:
+            raise ValueError("The name is empty.")
+        with self._lock:
+            if old not in self.derived:
+                raise KeyError(old)
+            if new == old:
+                return new
+            if new in self.derived:
+                raise ValueError(f"A signal named \"{new}\" already exists - choose another name.")
+            items = list(self.derived.items())
+            self.derived.clear()
+            for name, d in items:
+                if name == old:
+                    d.name = new
+                    name = new
+                d.sources = [f"{DERIVED_ID}/{new}" if x == f"{DERIVED_ID}/{old}" else x for x in d.sources]
+                text = d.params.get("text") if isinstance(d.params, dict) else None
+                if isinstance(text, str) and "{" + old + "}" in text:
+                    d.params = {**d.params, "text": text.replace("{" + old + "}", "{" + new + "}")}
+                self.derived[name] = d
+        return new
+
     def invalidate_derived(self, op: Optional[str] = None) -> List[str]:
         """F34: recompute these derived signals on their next read (op None = all) - for the
         Python operations, whose code can change while their sources do not."""

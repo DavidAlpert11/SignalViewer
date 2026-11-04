@@ -9,6 +9,8 @@ export interface ViewSlice {
   yRanges: Record<string, Range>;  // value-axis zoom; key: plot id, or "<tab id>:y" when the tab links Y
   yExtents: Record<string, [number, number]>;   // per plot, for linked value axes
   hover: { plotId: string; t: number; vals: Record<string, number | null> } | null;
+  /** the legend entry under the pointer: its line is drawn on top, the plot's others faint */
+  legendFocus: { plotId: string; sig: string } | null;
   /** Dashed lines in one plot, computed but not kept (Create signals > Preview). Several for an
    *  operation with several outputs (the three axes of a frame conversion). */
   preview: { plotId: string; lines: PreviewLine[]; separate?: boolean } | null;   // separate: a plot per line under the grid
@@ -35,6 +37,7 @@ export const viewSlice = (): ViewSlice => ({
   yRanges: {},
   yExtents: {},
   hover: null,
+  legendFocus: null,
   preview: null,
   valuesOnPlot: false,
   follow: null,

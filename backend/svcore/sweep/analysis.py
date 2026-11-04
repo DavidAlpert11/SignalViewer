@@ -10,13 +10,62 @@ from svcore.sweep.grid import Grid
 
 
 # ----------------------------------------------------------------------------- several goals
+def pareto_levels(m: np.ndarray, max_level: int = 10) -> np.ndarray:
+    """Non-dominated sorting of the rows of m (bigger is better on every column): 1 = the Pareto front,
+    2 = the front once the first is taken away, ... Two columns: a sort and a sweep per level
+    (n log n); more: each row against the front found so far (rows sorted best-first). Rows past `max_level`
+    fronts get max_level + 1 (deep levels say nothing more, and peeling them all is slow)."""
+    n = len(m)
+    level = np.zeros(n, dtype=int)
+    left = np.arange(n)
+    k = 1
+    while len(left):
+        if k > max_level:
+            level[left] = max_level + 1
+            break
+        sub = m[left]
+        if sub.shape[1] == 2:
+            # by the first column (then the second) descending: a row is on the front when its second
+            # is above every second seen so far (ties on both: both on the front)
+            order = np.lexsort((-sub[:, 1], -sub[:, 0]))
+            on = np.zeros(len(sub), bool)
+            best = -np.inf
+            prev = None
+            for i in order:
+                row = (sub[i, 0], sub[i, 1])
+                if sub[i, 1] > best or row == prev:
+                    on[i] = True
+                    best = max(best, sub[i, 1])
+                    prev = row
+        else:
+            # sorted best-first on every column: a row can only be dominated by one before it, and
+            # whatever dominates it is dominated by (or is) a front row - so the front seen so far
+            # is enough to compare with (n x front, not n x n)
+            order = np.lexsort(tuple(-sub[:, j] for j in range(sub.shape[1] - 1, -1, -1)))
+            on = np.zeros(len(sub), bool)
+            front_rows = np.empty((0, sub.shape[1]))
+            for i in order:
+                x = sub[i]
+                if len(front_rows) and np.any(np.all(front_rows >= x, axis=1) & np.any(front_rows > x, axis=1)):
+                    continue
+                on[i] = True
+                front_rows = np.vstack([front_rows, x])
+        level[left[on]] = k
+        left = left[~on]
+        k += 1
+    return level
+
+
 def objectives(p: Prepared, objs: List[Dict], holds: np.ndarray, only_holding: bool = True):
     """objs: [{column, direction, weight}]. Worst case of each per set. Returns (pareto 0/1, score
-    0..1 or NaN). A set is on the front when no other set is at least as good on every objective
-    and better on one. The score is the weighted mean of each objective scaled 0 (worst set) .. 1."""
+    0..1, Pareto level 1.., distance to the ideal 0..1 - NaN outside the pool). A set is on the front
+    when no other set is at least as good on every objective and better on one. The score is the
+    weighted mean of each objective scaled 0 (worst set) .. 1; the distance is from the point best on
+    every objective, in the same scaled units (weighted), 0 = ideal; and the balanced choice (1 on
+    the front's set closest to the ideal, every objective counted the same)."""
     n = p.n_sets
     if not objs:
-        return None, None
+        return None, None, None, None, None
     cols = []
     for o in objs:
         maximize = o.get("direction", "max") != "min"
@@ -25,19 +74,29 @@ def objectives(p: Prepared, objs: List[Dict], holds: np.ndarray, only_holding: b
     m = np.vstack(cols).T
     pool = np.where((holds.astype(bool) if only_holding else np.ones(n, bool)) & np.all(np.isfinite(m), axis=1))[0]
     front = np.zeros(n)
-    sub = m[pool]
-    for a, i in enumerate(pool):
-        dom = np.all(sub >= sub[a], axis=1) & np.any(sub > sub[a], axis=1)
-        if not dom.any():
-            front[i] = 1
+    level = np.full(n, np.nan)
     score = np.full(n, np.nan)
+    dist = np.full(n, np.nan)
+    knee = np.zeros(n)
     if len(pool):
+        sub = m[pool]
+        lv = pareto_levels(sub)
+        level[pool] = lv
+        front[pool[lv == 1]] = 1
         lo, hi = np.nanmin(sub, axis=0), np.nanmax(sub, axis=0)
         span = np.where(hi > lo, hi - lo, 1.0)
         w = np.array([float(o.get("weight", 1) or 0) for o in objs])
         w = w / w.sum() if w.sum() > 0 else np.full(len(objs), 1 / len(objs))
-        score[pool] = ((sub - lo) / span) @ w
-    return front, score
+        scaled = (sub - lo) / span
+        score[pool] = scaled @ w
+        dist[pool] = np.sqrt(((1 - scaled) ** 2) @ w)
+        # the balanced choice: on the front, the closest to the ideal with every objective counted
+        # the same (the weights rank; "balanced" means none favoured)
+        if len(objs) >= 2:
+            eq = np.sqrt(((1 - scaled) ** 2).mean(axis=1))
+            on = np.where(lv == 1)[0]
+            knee[pool[on[np.argmin(eq[on])]]] = 1
+    return front, score, level, dist, knee
 
 
 def best_set(rank: np.ndarray, holds: np.ndarray) -> Optional[int]:

@@ -1,7 +1,7 @@
 import { DATA_EXTS } from "../values";
 import { laneMenuForSignal } from "../lanes";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { groupByPrefix, groupDerived, memberLabel } from "../signalGroups";
+import { groupByPrefix, groupDerived, memberLabel, subGroups } from "../signalGroups";
 import { unitOf } from "../units";
 import { sparkPath, useSpark } from "../sparks";
 import type { RunInfo, SignalInfo } from "../api";
@@ -22,12 +22,17 @@ import { startRetarget } from "../files";
 import { SIGNAL_MIME } from "./PlotView";
 import { api } from "../api";
 import { createSignalItem } from "../createSignalMenu";
+import { deleteMadeSignals, editMadeFormula, isMadeFormula, renameMadeSignal } from "../derivedOps";
+import { addToGroup, groupNames, groupTree, removeFromGroup, renameGroup, ungroup, type GroupNode } from "../userGroups";
+import type { MenuItem } from "../store";
 
 /* Virtualized rows: only what is on screen is in the DOM (thousands of signals). */
 type Row =
   | { kind: "run"; run: RunInfo; closed: boolean; h: number }
-  | { kind: "group"; runId: string; key: string; ids: string[]; closed: boolean; h: number }
-  | { kind: "sig"; sig: SignalInfo; depth: number; h: number; group?: string };
+  | { kind: "group"; runId: string; key: string; ids: string[]; closed: boolean; h: number; depth?: number }
+  | { kind: "sig"; sig: SignalInfo; depth: number; h: number; group?: string; ugroup?: string }
+  | { kind: "uroot"; closed: boolean; n: number; h: number }
+  | { kind: "ugroup"; node: GroupNode; closed: boolean; h: number };
 const H_RUN = 30, H_GROUP = 26, H_SIG = 26, OVERSCAN = 10;
 
 import { exactMatch, fuzzyMatch } from "../fuzzy";
@@ -147,7 +152,33 @@ export default function DataPanel() {
       onePerPlotItem(ids, used),
     ]);
   };
-  const sigMenu = (e: React.MouseEvent, sig: SignalInfo) => {
+  /* the user's groups: put signals in one (a new one, named), or take one out of the group it is listed in */
+  const groupItems = (ids: string[], inGroup?: string): MenuItem[] => {
+    const names = groupNames();
+    const newGroup = async () => {
+      const v = await prompt(t("ugNew"), t("ugNameLabel"), t("ugDefault", { n: names.length + 1 }));
+      if (v !== null) addToGroup(v, ids);
+    };
+    return [
+      { label: ids.length > 1 ? t("ugGroupN", { n: ids.length }) : t("ugAddTo"), run: () => {},
+        items: [{ label: t("ugNew") + "…", run: newGroup }, ...(names.length ? [{ label: "", run: () => {}, sep: true }] : []),
+          ...names.map((g) => ({ label: g, run: () => addToGroup(g, ids) }))] },
+      ...(inGroup ? [{ label: t("ugRemoveFrom", { g: inGroup }), run: () => removeFromGroup(inGroup, ids) }] : []),
+    ];
+  };
+  /* a made signal (Create signals): rename it, change its formula, delete it - here, not only there */
+  const madeItems = (ids: string[]): MenuItem[] => {
+    const made = ids.filter((id) => id.startsWith("derived/"));
+    if (!made.length) return [];
+    const one = made.length === 1 ? runs.find((r) => r.format === "derived")?.signals.find((x) => x.id === made[0]) : undefined;
+    return [
+      { label: "", run: () => {}, sep: true },
+      ...(one ? [{ label: t("dsRename") + "…", run: () => { renameMadeSignal(one.id); } }] : []),
+      ...(one && isMadeFormula(one) ? [{ label: t("dsEditFormula") + "…", run: () => { editMadeFormula(one.id); } }] : []),
+      { label: made.length > 1 ? t("dsDeleteN", { n: made.length }) : t("dsDelete"), keys: "Del", danger: true, run: () => { deleteMadeSignals(made); } },
+    ];
+  };
+  const sigMenu = (e: React.MouseEvent, sig: SignalInfo, inGroup?: string) => {
     const sel = useApp.getState().listSel;
     if (sel.length > 1 && sel.includes(sig.id)) {
       // right-click on one of several selected signals: the menu acts on all of them
@@ -161,12 +192,15 @@ export default function DataPanel() {
         { label: t("tfEditMany", { n: originals.length }), run: () => useApp.setState({ transformTargets: originals }), disabled: !originals.length },
         createSignalItem(sel),
         { label: "", run: () => {}, sep: true },
+        ...groupItems(sel, inGroup),
+        ...madeItems(sel),
+        { label: "", run: () => {}, sep: true },
         { label: t("clearSelection"), run: clearSel },
       ]);
     }
-    return sigMenu1(e, sig);
+    return sigMenu1(e, sig, inGroup);
   };
-  const sigMenu1 = (e: React.MouseEvent, sig: SignalInfo) => openMenu(e, [
+  const sigMenu1 = (e: React.MouseEvent, sig: SignalInfo, inGroup?: string) => openMenu(e, [
     ...(() => {
       const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active];
       return p?.signals.some((s) => s.sig === sig.id)
@@ -181,6 +215,9 @@ export default function DataPanel() {
     createSignalItem(sig.id),
     // a state (texts, or a few values): a lane on the tab or on every tab without adding it to a plot first
     ...(sig.labels || sig.discrete ? [{ label: "", run: () => {}, sep: true }, ...laneMenuForSignal(sig.id)] : []),
+    { label: "", run: () => {}, sep: true },
+    ...groupItems([sig.id], inGroup),
+    ...madeItems([sig.id]),
   ]);
 
   // recent files that are not open now, to add one more file quickly
@@ -197,6 +234,12 @@ export default function DataPanel() {
     ]);
   };
 
+  const dataFiles = runs.filter((r) => r.format !== "derived").length;
+  const fileOfSig = (id: string) => {
+    const rid = id.slice(0, id.indexOf("/"));
+    if (rid === "derived") return "ƒ";
+    return dataFiles > 1 ? fileLabel(runs, rid) : null;
+  };
   const tab = activeTab(ws);
   const activePlot = tab.plots[tab.active];
   const colorOf = useMemo(() => {
@@ -231,6 +274,23 @@ export default function DataPanel() {
 
   const rows = useMemo(() => {
     const out: Row[] = [];
+    // the user's own groups (named, nested) above the files
+    const byId = new Map<string, SignalInfo>();
+    for (const r of runs) for (const x of r.signals) byId.set(x.id, x);
+    const tree = groupTree(ws.sigGroups ?? [], (id) => { const x = byId.get(id); return !!x && (!q.trim() || match(x.name, q)); });
+    if (tree.length) {
+      const rootClosed = searching ? !!sClosed["u:"] : !!closed["u:"];
+      out.push({ kind: "uroot", closed: rootClosed, n: new Set(tree.flatMap((n) => n.all)).size, h: H_RUN });
+      const walk = (n: GroupNode) => {
+        const k = `u|${n.path}`;
+        const open = searching ? !sClosed[`g:${k}`] : groupOpen[k] ?? true;
+        out.push({ kind: "ugroup", node: n, closed: !open, h: H_GROUP });
+        if (!open) return;
+        n.children.forEach(walk);
+        n.sigs.forEach((id) => out.push({ kind: "sig", sig: byId.get(id)!, depth: n.depth + 1, h: H_SIG, ugroup: n.path }));
+      };
+      if (!rootClosed) tree.forEach(walk);
+    }
     for (const { run, sigs } of filtered) {
       if (searching && !sigs.length) continue;
       const closedRun = searching ? !!sClosed[`r:${run.id}`] : !!closed[run.id];
@@ -247,12 +307,22 @@ export default function DataPanel() {
         const open = searching ? !sClosed[`g:${gk}`] : groupOpen[gk] ?? !many;
         if (!g.key) { g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
         out.push({ kind: "group", runId: run.id, key: g.key, ids: g.items.map((x) => x.id), closed: !open, h: H_GROUP });
-        if (open) g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG, group: derived ? g.key : undefined }));
+        if (!open) continue;
+        // a big group nests again by the rest of the name (IMU[0] > Acc > X...)
+        const subs = derived ? null : subGroups(g.key, g.items, (x) => x.name);
+        if (!subs) { g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG, group: derived ? g.key : undefined })); continue; }
+        for (const sg of subs) {
+          if (!sg.key) { sg.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG })); continue; }
+          const sk = `${gk}|${sg.key}`;
+          const sOpen = searching ? !sClosed[`g:${sk}`] : groupOpen[sk] ?? !many;
+          out.push({ kind: "group", runId: run.id, key: `${g.key}|${sg.key}`, ids: sg.items.map((x) => x.id), closed: !sOpen, h: H_GROUP, depth: 1 });
+          if (sOpen) sg.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 2, h: H_SIG }));
+        }
       }
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runs, q, closed, groupOpen, sClosed]);
+  }, [runs, q, closed, groupOpen, sClosed, ws.sigGroups]);
 
   const offsets = useMemo(() => {
     const o = new Array(rows.length + 1);
@@ -269,7 +339,7 @@ export default function DataPanel() {
   last = Math.min(rows.length, last + OVERSCAN);
 
   /** the signals in the order shown (closed files and groups left out) */
-  const sigOrder = () => rows.flatMap((r) => (r.kind === "sig" ? [r.sig.id] : []));
+  const sigOrder = () => Array.from(new Set(rows.flatMap((r) => (r.kind === "sig" ? [r.sig.id] : []))));
   const rangeTo = (id: string) => {
     const order = sigOrder();
     const anchor = useApp.getState().listAnchor;
@@ -350,12 +420,71 @@ export default function DataPanel() {
         </div>
       );
     }
+    if (row.kind === "uroot") {
+      return (
+        <div className={`run-head ugroups-head${row.closed ? " closed" : ""}`} onClick={() => (searching
+          ? setSClosed({ ...sClosed, "u:": !sClosed["u:"] }) : setClosed({ ...closed, "u:": !closed["u:"] }))}
+          title={t("ugHint")}>
+          <Icon.Chevron className="chev" />
+          <span className="run-name">{t("ugTitle")}</span>
+          <span className="run-meta">{fmtInt(row.n, lang)}</span>
+        </div>
+      );
+    }
+    if (row.kind === "ugroup") {
+      const n = row.node, k = `u|${n.path}`;
+      const nSel = n.all.filter((id) => pickedSet.has(id)).length, allSel = nSel === n.all.length;
+      return (
+        <div className={`grp-head ugroup${row.closed ? " closed" : ""}`} style={{ paddingInlineStart: 18 + n.depth * 14 }}
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey) { toggleMany(n.all); return; }
+            if (searching) setSClosed({ ...sClosed, [`g:${k}`]: !row.closed });
+            else setGroupOpen({ ...groupOpen, [k]: row.closed });
+          }}
+          onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME)) { e.preventDefault(); e.currentTarget.classList.add("drop"); } }}
+          onDragLeave={(e) => e.currentTarget.classList.remove("drop")}
+          onDrop={(e) => {
+            e.currentTarget.classList.remove("drop");
+            const id = e.dataTransfer.getData(SIGNAL_MIME);
+            if (!id) return;
+            e.preventDefault();
+            const sel = useApp.getState().listSel;
+            addToGroup(n.path, sel.includes(id) ? sel : [id]);
+          }}
+          onContextMenu={(e) => openMenu(e, [
+            { label: t("groupAddAll"), run: () => actions.addSignals(n.all) },
+            { label: t("groupEachNewPlot"), run: () => actions.addSignalsToNewPlots(n.all) },
+            onePerPlotItem(n.all),
+            { label: "", run: () => {}, sep: true },
+            { label: t(allSel ? "unselectGroup" : "selectGroup", { n: n.all.length }), run: () => toggleMany(n.all) },
+            { label: t("ugRename"), run: async () => {
+              const v = await prompt(t("ugRename"), t("ugNameLabel"), n.path);
+              if (v !== null) renameGroup(n.path, v);
+            } },
+            { label: t("ugNewInside"), run: async () => {
+              const sel = useApp.getState().listSel;
+              const v = await prompt(t("ugNew"), t("ugNameLabel"), `${n.path}/`);
+              if (v !== null && sel.length) addToGroup(v, sel);
+              else if (v !== null) useApp.getState().toast({ kind: "info", text: t("ugNeedSel") });
+            } },
+            { label: t("ugUngroup"), run: () => ungroup(n.path), danger: true },
+          ])}>
+          <Icon.Chevron className="chev" />
+          {picked.length > 0 && (
+            <input type="checkbox" className="grp-pick" checked={allSel} aria-label={t(allSel ? "unselectGroup" : "selectGroup", { n: n.all.length })}
+              ref={(el) => { if (el) el.indeterminate = nSel > 0 && !allSel; }}
+              onClick={(e) => e.stopPropagation()} onChange={() => toggleMany(n.all)} />
+          )}
+          <span className="nm" title={n.path}>{n.label}</span><span className="run-meta">{fmtInt(n.all.length, lang)}</span>
+        </div>
+      );
+    }
     if (row.kind === "group") {
       const gk = `${row.runId}|${row.key}`;
       const nSel = row.ids.filter((id) => pickedSet.has(id)).length;
       const allSel = nSel === row.ids.length;
       return (
-        <div className={`grp-head${row.closed ? " closed" : ""}`}
+        <div className={`grp-head${row.closed ? " closed" : ""}`} style={row.depth ? { paddingInlineStart: 18 + row.depth * 14 } : undefined}
           onClick={(e) => {
             if (e.ctrlKey || e.metaKey) { toggleMany(row.ids); return; }      // Ctrl+click: the whole group
             if (searching) setSClosed({ ...sClosed, [`g:${gk}`]: !row.closed });
@@ -374,7 +503,7 @@ export default function DataPanel() {
               ref={(el) => { if (el) el.indeterminate = nSel > 0 && !allSel; }}
               onClick={(e) => e.stopPropagation()} onChange={() => toggleMany(row.ids)} />
           )}
-          <span className="nm">{row.key}</span><span className="run-meta">{nSel > 0 && !allSel ? `${fmtInt(nSel, lang)}/` : ""}{fmtInt(row.ids.length, lang)}</span>
+          <span className="nm">{row.key.split("|").pop()}</span><span className="run-meta">{nSel > 0 && !allSel ? `${fmtInt(nSel, lang)}/` : ""}{fmtInt(row.ids.length, lang)}</span>
         </div>
       );
     }
@@ -384,6 +513,12 @@ export default function DataPanel() {
     const picking = picked.length > 0;
     const button = (
       <button className={`sig${color ? " in" : ""}${row.depth ? " deep" : ""}${picking ? " pickable" : ""}`} draggable
+        style={row.depth > 1 ? { paddingInlineStart: 38 + (row.depth - 1) * 14 } : undefined}
+        onKeyDown={(e) => {
+          if (e.key !== "Delete" || !s.id.startsWith("derived/")) return;
+          const sel = useApp.getState().listSel;
+          deleteMadeSignals(sel.includes(s.id) ? sel.filter((x) => x.startsWith("derived/")) : [s.id]);
+        }}
         onDragStart={(e) => { e.dataTransfer.setData(SIGNAL_MIME, s.id); e.dataTransfer.effectAllowed = "copy"; }}
         // Shift: a range, on the press - so the row is not dragged to a plot and no text gets selected
         onMouseDown={(e) => { if (e.button === 0 && e.shiftKey) { e.preventDefault(); shiftPress(s.id); } }}
@@ -397,10 +532,11 @@ export default function DataPanel() {
           if (e.altKey) { actions.addSignalToNewPlot(s.id); return; }
           if (colorOf.has(s.id)) actions.toggleSignal(s.id); else actions.addSignalLinked(s.id);
         }}
-        onContextMenu={(e) => sigMenu(e, s)}
+        onContextMenu={(e) => sigMenu(e, s, row.ugroup)}
         title={`${s.formula ?? s.name}${rateLine(s, lang)}\n${t("listSelHint")}`} aria-label={s.name}>
         <span className="dot" style={color ? { background: color } : undefined} />
         <span className="nm"><Highlight text={nameOnly(row.group ? memberLabel(s.name, row.group) : s.name)} q={q} /></span>
+        {row.ugroup && fileOfSig(s.id) && <span className="sig-file" title={fileOfSig(s.id)!}>{fileOfSig(s.id)}</span>}
         {/* T22: the unit stays visible however long the name; the rate and a small picture of the signal */}
         {(s.transform?.unit || unitOf(s.name)) && <span className="sig-unit">{s.transform?.unit || unitOf(s.name)}</span>}
         {s.rate !== undefined && <span className="sig-rate">{fmtRate(s.rate, lang)}</span>}
@@ -513,7 +649,8 @@ export default function DataPanel() {
         <div className="vlist" style={{ height: total }}>
           {rows.slice(first, last).map((row, i) => {
             const idx = first + i;
-            const key = row.kind === "run" ? `r:${row.run.id}` : row.kind === "group" ? `g:${row.runId}|${row.key}` : `s:${row.sig.id}`;
+            const key = row.kind === "run" ? `r:${row.run.id}` : row.kind === "group" ? `g:${row.runId}|${row.key}`
+              : row.kind === "uroot" ? "u:" : row.kind === "ugroup" ? `u:${row.node.path}` : `s:${row.ugroup ? `u:${row.ugroup}|` : ""}${row.sig.id}`;
             return <div key={key} className="vrow" style={{ top: offsets[idx], height: row.h }}>{renderRow(row)}</div>;
           })}
         </div>

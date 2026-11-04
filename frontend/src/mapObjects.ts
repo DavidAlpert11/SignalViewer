@@ -62,7 +62,50 @@ function guessRolesNow(run: RunInfo): Partial<Record<Role, string>> {
 
 
 /** An object's signals on one time axis (from the server). */
-export interface ObjTrack { t: Float64Array; lat: Float64Array; lon: Float64Array; yaw: Float32Array | null; course: Float32Array; units: Record<string, "deg" | "rad"> }
+export interface ObjTrack { t: Float64Array; lat: Float64Array; lon: Float64Array; yaw: Float32Array | null; course: Float32Array; units: Record<string, "deg" | "rad">;
+  color?: Float32Array | null }
+
+/* A track coloured by a signal (owner, 2026-11-03): a colour per point, and the key that says what
+   each colour is. A state (the flight mode): a colour per value, named by the signal's texts. A value:
+   a colour scale from its lowest to its highest along the track, in steps (each a stretch of track). */
+const STATE_COLORS = ["#3D8BFD", "#F07B3F", "#2FBF9F", "#E5677A", "#9B7BFF", "#B8A33A", "#4FC3E8", "#D08CE8", "#7CC35A", "#FF8FB1", "#A0522D", "#6B7280"];
+const RAMP = ["#440154", "#482878", "#3e4989", "#31688e", "#26828e", "#1f9e89", "#35b779", "#6ece58", "#b5de2b", "#fde725"];   // viridis
+export interface TrackColors { at: (string | null)[]; key: { color: string; label: string }[]; ramp?: { lo: number; hi: number; colors: string[] } }
+export function trackColors(mode: "state" | "value", v: Float32Array, labels: Record<string, string> | null,
+  fmt: (x: number) => string, stateCol?: (code: number) => string): TrackColors | null {
+  const at: (string | null)[] = new Array(v.length).fill(null);
+  if (mode === "state") {
+    const order: number[] = [];
+    for (const x of v) if (Number.isFinite(x) && !order.includes(x)) order.push(x);
+    if (!order.length) return null;
+    // the state lanes' colour for each code (the map and the plots agree), else one per value seen
+    const col = new Map(order.map((x, i) => [x, stateCol ? stateCol(x) : STATE_COLORS[i % STATE_COLORS.length]]));
+    for (let i = 0; i < v.length; i++) at[i] = Number.isFinite(v[i]) ? col.get(v[i])! : null;
+    return { at, key: order.map((x) => ({ color: col.get(x)!, label: labels?.[String(x)] ?? fmt(x) })) };
+  }
+  let lo = Infinity, hi = -Infinity;
+  for (const x of v) if (Number.isFinite(x)) { if (x < lo) lo = x; if (x > hi) hi = x; }
+  if (!Number.isFinite(lo)) return null;
+  const span = hi > lo ? hi - lo : 1;
+  for (let i = 0; i < v.length; i++) {
+    if (!Number.isFinite(v[i])) continue;
+    at[i] = RAMP[Math.min(RAMP.length - 1, Math.floor(((v[i] - lo) / span) * RAMP.length))];
+  }
+  return { at, key: [], ramp: { lo, hi, colors: RAMP } };
+}
+/** The points [i0, i1) in stretches of one colour (each stretch shares its first point with the
+ *  previous one, so the line has no gaps). */
+export function colorRuns(at: (string | null)[], i0: number, i1: number): { a: number; b: number; color: string }[] {
+  const out: { a: number; b: number; color: string }[] = [];
+  let a = i0;
+  for (let i = i0 + 1; i <= i1; i++) {
+    if (i === i1 || at[i] !== at[a]) {
+      if (at[a]) out.push({ a: Math.max(i0, a - (a > i0 ? 1 : 0)), b: i, color: at[a]! });
+      a = i;
+    }
+  }
+  return out;
+}
 
 /** Where an object is at time t (null outside its own time span), and where it points (degrees from
  *  north): its heading signal if it has one, else its direction of travel. */

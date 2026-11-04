@@ -975,7 +975,8 @@ def test_four_steps_five_tabs_and_the_goal_as_one_table(pg):
     pg.wait_for_selector(".sw-best:has-text('kp_roll = ')")
     _step(pg, "results")
     tabs = pg.locator(".sw-center-tabs button").all_inner_texts()
-    assert tabs == ["Parameter sets", "All runs", "Charts", "Next runs", "Report"]
+    # the two kinds of lines say how many they draw (owner, 2026-11-03: the tabs looked the same)
+    assert tabs == ["Parameter sets · 45", "All runs · 810", "Charts", "Next runs", "Report"]
     assert pg.locator(".sw-plotbar .sw-undo").is_enabled()
     pg.locator(".sw-plotbar .sw-undo").click()                   # the last change undone (the optimize choice with it)
     pg.wait_for_function("!document.querySelector('.sw-best')")

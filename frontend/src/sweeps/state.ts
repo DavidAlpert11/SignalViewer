@@ -296,7 +296,8 @@ export function wireQuestion(s: Study): WireQuestion {
   const holdValues = split ? { ...q.holdValues, [split]: [sv as string | number] } : q.holdValues;
   return { roles, combine: q.combine, holdValues, goal: q.goal, conditions: q.conditions, derived: q.derived,
     outputAgg: Object.fromEntries(outputs.map((o) => [o, q.outputAgg])), objectives: q.objectives, exclude: q.exclude,
-    ...(q.robust && Object.keys(q.robust).length ? { robust: q.robust } : {}) };
+    ...(q.robust && Object.keys(q.robust).length ? { robust: q.robust } : {}),
+    ...(q.objectives.length >= 2 && q.rankBy === "pareto" ? { rankBy: "pareto" as const } : {}) };
 }
 
 /** A template fits a table that has every column it gives a role to (other columns may be there too). */

@@ -41,6 +41,10 @@ export interface Plot {
   showEvents?: boolean;            // 3D: the log's events as marks on the objects' tracks (default shown)
   xyzEqual?: boolean;              // XYZ (plain 3D, T17c): the same scale on all three axes (default true - right for positions)
   xyzFlipZ?: boolean;              // XYZ: Z drawn pointing down (NED "down", depth)
+  /** where the signal names (and their values) are: auto (above while they fit in two rows, else a
+   *  column beside the plot), above, beside, hidden. Absent = auto. */
+  legend?: "auto" | "top" | "side" | "off";
+  legendW?: number;                // the side column's width, px (absent: 240)
 }
 export type ObjectKind = "aircraft" | "missile" | "ship" | "uav" | "drone" | "vehicle";
 /** Something that moves on the map: where it is (and how it points) comes from signals - which may
@@ -54,6 +58,10 @@ export interface MapObject {
   altRef?: "msl" | "home" | "agl";             // the altitude signal: above sea level (default), above the take-off point, above the ground
   size?: number;                               // icon size, px (default 26)
   trail?: boolean;                             // draw its track (default true)
+  /** the track's colour (owner, 2026-11-03): the object's own (default), by a state signal (the
+   *  flight mode: a colour per value, with a key) or by a value (altitude, speed: a colour scale) */
+  trackColor?: "object" | "state" | "value";
+  colorSig?: string | null;                    // the signal of "state" / "value"
 }
 export interface Tab {
   id: string; name: string; rows: number; cols: number; plots: Plot[]; active: number; linkX: boolean;
@@ -86,7 +94,11 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   conditions?: Condition[];
   /** The rows of the overview strip, in order (absent: the run's phase signal alone). */
   overviewRows?: StripRow[];
+  /** Groups of signals the user made and named in the signal list (owner, 2026-11-03); "/" in a
+   *  name nests it ("Nav/IMU" is inside "Nav"). Signals of any open file and made signals. */
+  sigGroups?: SigGroupDef[];
 }
+export interface SigGroupDef { name: string; sigs: string[] }
 /** A row of the overview strip: a state signal by NAME (every file), or a named condition. */
 export type StripRow = { kind: "state"; name: string } | { kind: "cond"; id: string };
 /** A named condition: the stretches of each open file where `text` holds (svcore/conditions.py), or
@@ -103,6 +115,9 @@ export interface Condition {
 export const TRACE_COLORS = [
   "#3D8BFD", "#2FBF9F", "#E5677A", "#9B7BFF", "#7CC35A",
   "#F07B3F", "#4FC3E8", "#D08CE8", "#B8A33A", "#FF8FB1",
+  // ten more (an investigation shows 20-40 signals at once: ten colours repeated every tenth line)
+  "#2563EB", "#D97706", "#059669", "#DC2626", "#7C3AED",
+  "#0891B2", "#DB2777", "#65A30D", "#A0522D", "#6B7280",
 ];
 
 /** A deep copy (the workspace is plain data). */

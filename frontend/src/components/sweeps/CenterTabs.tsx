@@ -13,10 +13,13 @@ export default function CenterTabs({ study }: { study: Study; studies?: number }
   const tab = (key: string, on: boolean, label: string, go: () => void) => (
     <button key={key} role="tab" data-tab={key} aria-selected={on} className={on ? "on" : ""} onClick={go}>{label}</button>
   );
+  // how many lines each one draws, in its name: the two tabs are told apart before they are opened
+  const k = study.answer?.counts;
+  const n = (x: number | undefined) => (x === undefined ? "" : ` · ${x.toLocaleString()}`);
   return (
     <div className="sw-center-tabs" role="tablist">
-      {tab("sets", c === "lines" && v.mode === "sets", t("swTabSets"), () => st.setView({ center: "lines", mode: "sets" }))}
-      {tab("runs", c === "lines" && v.mode === "runs", t("swTabRuns"), () => st.setView({ center: "lines", mode: "runs" }))}
+      {tab("sets", c === "lines" && v.mode === "sets", t("swTabSets") + n(k?.sets), () => st.setView({ center: "lines", mode: "sets" }))}
+      {tab("runs", c === "lines" && v.mode === "runs", t("swTabRuns") + n(k?.rows), () => st.setView({ center: "lines", mode: "runs" }))}
       {tab("charts", c === "charts", t("swCenterCharts"), () => st.setView({ center: "charts" }))}
       {tab("next", c === "next", rerunCount(study) ? `${t("swCenterNext")} (${rerunCount(study)})` : t("swCenterNext"), () => st.setView({ center: "next" }))}
       {tab("report", c === "report", t("swToolReport"), () => st.setView({ center: "report" }))}

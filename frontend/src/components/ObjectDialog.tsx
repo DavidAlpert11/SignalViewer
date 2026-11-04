@@ -244,6 +244,28 @@ export default function ObjectDialog() {
               </select></label>}
             <label className="check"><input type="checkbox" checked={o.trail !== false} onChange={(e) => setO({ ...o, trail: e.target.checked })} />{t("objTrail")}</label>
           </div>
+          {o.trail !== false && (
+            <div className="obj-row obj-trackcolor">
+              <label><span>{t("objTrackColor")}</span>
+                <select value={o.trackColor ?? "object"} aria-label={t("objTrackColor")} onChange={(e) => {
+                  const m = e.target.value as NonNullable<MapObject["trackColor"]>;
+                  // a sensible first signal: the flight mode for "state", the altitude for "value"
+                  const guess = m === "state" ? runs.find((r) => r.id === mainRun)?.signals.find((x) => x.labels && /mode/i.test(x.name) && !/num|rsn|reason/i.test(x.name))?.id
+                    ?? runs.find((r) => r.id === mainRun)?.signals.find((x) => x.labels)?.id
+                    : m === "value" ? o.alt ?? undefined : undefined;
+                  setO({ ...o, trackColor: m === "object" ? undefined : m, colorSig: m === "object" ? null : (o.trackColor === m ? o.colorSig : guess ?? o.colorSig ?? null) });
+                }}>
+                  <option value="object">{t("objTrackOwn")}</option>
+                  <option value="state">{t("objTrackState")}</option>
+                  <option value="value">{t("objTrackValue")}</option>
+                </select></label>
+              {o.trackColor && o.trackColor !== "object" && (
+                <div className="obj-role"><span>{t("objTrackBy")}</span>
+                  <SignalField value={o.colorSig ?? null} ariaLabel={t("objTrackBy")} prefer={mainRun} placeholder={t("objChoose")}
+                    onChange={(id) => setO({ ...o, colorSig: id })} /></div>
+              )}
+            </div>
+          )}
           {!posOk && <p className="hint err">{t("objNeedsPosition")}</p>}
           {!smoothOk && <p className="hint err">{t("objSmoothBad")}</p>}
         </div>
