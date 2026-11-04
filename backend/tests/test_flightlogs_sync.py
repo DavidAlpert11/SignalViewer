@@ -290,3 +290,15 @@ def test_align_periodic_signal_within_a_search_range(tmp_path):
     client.patch(f"/api/runs/{b['id']}", json={"timeOffset": 0.2})          # roughly aligned by hand already
     r = client.post("/api/sync/suggest", json={"ref": a["id"], "other": b["id"], "refSignal": "S", "otherSignal": "S", "maxLag": 0.6}).json()["candidates"]
     assert r[0]["delta"] == pytest.approx(0.3, abs=0.02)
+
+
+def test_unrelated_logs_are_not_called_the_same_flight(flight):
+    """A .tlog's boot clock tells how to put it on any autopilot log's time - not that the two are the
+    same flight. Two unrelated recordings must not get a "high" boot / events candidate (the app then
+    offers 'looks like the same flight' for every .bin and .tlog opened together)."""
+    a = open_(flight / "syn.bin")
+    b = open_(flight / "syn.tlog")
+    c = client.post("/api/sync/suggest", json={"ref": a["id"], "other": b["id"]}).json()["candidates"]
+    for m in c:
+        if m["method"] in ("boot", "events"):
+            assert m["quality"] != "high", m

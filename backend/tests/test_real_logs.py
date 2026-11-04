@@ -272,3 +272,29 @@ def test_your_log(path):
     if path == "(none)":
         pytest.skip("no log files in SV_REAL_LOGS")
     check_invariants(path)
+
+
+def test_old_arducopter_texts_on_their_own_severity_scale():
+    """ArduPilot before 3.4 sent STATUSTEXT.severity on its own scale (LOW=1 .. CRITICAL=4); read as
+    MAV_SEVERITY (1 = ALERT) every boot message was an error and the health check said
+    'errors in the log' on the version banner."""
+    from svcore.tlog_loader import load_tlog
+    run = load_tlog(fetch("flight.tlog"), "flight.tlog")
+    run = run[0] if isinstance(run, tuple) else run
+    info = run._flightlog.log_info()
+    assert info["firmware"] == "APM:Copter V3.4-dev (bdddfae5)"
+    lv = {}
+    for e in info["events"]:
+        if e["kind"] == "msg":
+            lv.setdefault(e["text"], e["level"])
+    assert lv["APM:Copter V3.4-dev (bdddfae5)"] == "info"
+    assert lv["Initialising APM..."] == "info" and lv["Frame: QUAD"] == "info"
+    assert lv["PreArm: Need 3D Fix"] == "warning" and lv["Low Battery!"] == "warning"
+    assert not any(e["level"] == "error" for e in info["events"] if e["kind"] == "msg")
+
+
+def test_a_failed_arming_check_is_a_warning():
+    from svcore.flightlog import message_level
+    assert message_level("PreArm: Motors Emergency Stopped") == "warning"
+    assert message_level("Arm: Throttle too high") == "warning"
+    assert message_level("Crash: Disarming") == "error"

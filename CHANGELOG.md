@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **"Looks like the same flight" no longer offered for unrelated logs.** A .tlog's boot clock says how to put it on an autopilot log's time, not that the two are one flight: opening any .bin and any .tlog together offered to align them. The boot / events alignment is now confirmed by a pair of the same quantity (attitude, altitude, battery...) changing together, and never offered for two different vehicle types.
+- **Old ArduPilot telemetry (before 3.4): boot messages are no longer errors.** Those versions sent STATUSTEXT on their own severity scale (LOW = 1); read as MAVLink's (1 = ALERT) the version banner, "Initialising APM..." and "Frame: QUAD" were errors and the health check said so. The scale is recognised from the banner; the firmware (`APM:Copter V3.x`) is shown again.
+- **A failed arming check is a warning, not an error** (`PreArm: Motors Emergency Stopped` made a clean flight's health check red), in .bin, .tlog and .ulg alike.
+
 ## 1.20.1 – 2026-11-04
 
 Highlights: **country borders on the satellite photos and clearer on the offline map** - with no

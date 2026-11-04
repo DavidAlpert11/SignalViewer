@@ -10,11 +10,22 @@ import numpy as np
 
 _ERR_WORDS = re.compile(r"crash|emergency|critical|panic|fail|error|lost|terminat|thrust loss|ekf.*(variance|lane switch)", re.I)
 _WARN_WORDS = re.compile(r"prearm|arm:|warn|unhealthy|glitch|timeout|bad |low|check|disabled|not ready|vibration|clipping", re.I)
-_FIRMWARE = re.compile(r"(Ardu\w+|Rover|Blimp|AntennaTracker|PX4)\b.*?V?\d+\.\d+", re.I)
+_FIRMWARE = re.compile(r"(Ardu\w+|APM:\w+|Rover|Blimp|AntennaTracker|PX4)\b.*?V?\d+\.\d+", re.I)
+
+
+_PREARM = re.compile(r"^\s*(PreArm|Arm)\s*:", re.I)
+
+
+def is_arming_check(text: str) -> bool:
+    return bool(_PREARM.match(text))
 
 
 def message_level(text: str) -> str:
-    """'error' / 'warning' / 'info' from the words of a log text (when the log has no severity)."""
+    """'error' / 'warning' / 'info' from the words of a log text (when the log has no severity).
+    An arming check that failed is a warning, whatever it says ("PreArm: Motors Emergency Stopped"):
+    the vehicle refused to arm - nothing went wrong in flight."""
+    if _PREARM.match(text):
+        return "warning"
     if _ERR_WORDS.search(text):
         return "error"
     if _WARN_WORDS.search(text):
