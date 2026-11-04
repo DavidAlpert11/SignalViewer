@@ -9,8 +9,8 @@ export interface SigGroup<T> { key: string; items: T[] }
 const SEPS = [".", "/", ":", "_"];
 export const GROUP_MIN = 40;
 
-export function groupByPrefix<T>(items: T[], name: (t: T) => string): SigGroup<T>[] | null {
-  if (items.length < GROUP_MIN) return null;
+export function groupByPrefix<T>(items: T[], name: (t: T) => string, min = GROUP_MIN): SigGroup<T>[] | null {
+  if (items.length < min) return null;
   for (const sep of SEPS) {
     const withSep = items.filter((t) => name(t).includes(sep)).length;
     if (withSep < items.length * 0.6) continue;
@@ -51,3 +51,11 @@ export const groupOf = (t: { params?: Record<string, unknown> }) => (typeof t.pa
 
 /** "ned_Pos_lla.N" in group "ned_Pos_lla" -> "N" (the name shown inside the group). */
 export const memberLabel = (name: string, group: string) => (group && name.startsWith(group + ".") ? name.slice(group.length + 1) : name);
+
+/** A group's own sub-groups (owner, 2026-11-03: nested by the name, more than one level): the part of
+ *  each name after the group's key and its separator, grouped again - for big groups only. */
+export const SUBGROUP_MIN = 12;
+export function subGroups<T>(key: string, items: T[], name: (t: T) => string): SigGroup<T>[] | null {
+  const rest = (t: T) => { const n = name(t); return n.length > key.length + 1 && n.startsWith(key) ? n.slice(key.length + 1) : n; };
+  return groupByPrefix(items, rest, SUBGROUP_MIN);
+}

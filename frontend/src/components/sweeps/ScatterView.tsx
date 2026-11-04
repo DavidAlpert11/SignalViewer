@@ -15,13 +15,15 @@ const W = 560, H = 380, L = 72, B = 52, T = 12, R = 16;
 /** two columns; `size`: a third as the points' size (a bubble chart, MF02) */
 type Pair = { x: string; y: string; size?: string };
 
-export function ScatterPanel({ study, pair, onChange, onRemove, group }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void;
+export function ScatterPanel({ study, pair, onChange, onRemove, group, objectivesOnly }: { study: Study; pair: Pair; onChange: (p: Partial<Pair>) => void; onRemove?: () => void;
+  /** the Pareto chart: only the objectives (their worst case per set) on the axes */
+  objectivesOnly?: boolean;
   /** MF02: only this group's sets (a desk pane's group) */
   group?: string }) {
   const t = useT();
   const cv = useRef<HTMLCanvasElement>(null);
   const { cols, n, index } = useMemo(() => scopedColumns(study), [study]);
-  const choices = axisChoices(study);
+  const choices = axisChoices(study).filter((c) => !objectivesOnly || c === "#goal" || /^#obj\d+$/.test(c));
   const v = study.view;
   const xName = pair.x, yName = pair.y;          // checked by scatterList
   const kept = useMemo(() => {
@@ -128,11 +130,31 @@ export function ScatterPanel({ study, pair, onChange, onRemove, group }: { study
       const pts: [number, number][] = [];
       for (let r = 0; r < n; r++) if (front.values[r] === 1 && kept[r]) pts.push([px(xc.values[r]), py(yc.values[r])]);
       pts.sort((a, b) => a[0] - b[0]);
-      ctx.strokeStyle = HOLDS; ctx.lineWidth = 1.5; ctx.beginPath();
-      pts.forEach(([X, Y], k) => (k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y)));
-      ctx.stroke();
+      ctx.strokeStyle = HOLDS; ctx.lineWidth = 1.5;
+      // the front joined only with two objectives: with more, a set on the front can look dominated
+      // in any one pair (it is better on a third) - ringed, not joined
+      if (!cols.has("#obj2")) {
+        ctx.beginPath();
+        pts.forEach(([X, Y], k) => (k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y)));
+        ctx.stroke();
+      }
       for (const [X, Y] of pts) { ctx.beginPath(); ctx.arc(X, Y, sz / 2 + 3, 0, Math.PI * 2); ctx.stroke(); }
       ctx.lineWidth = 1;
+      // the balanced choice: the front's set closest to the ideal (best on every objective)
+      const knee = cols.get("#knee");
+      for (let r = 0; knee && r < n; r++) {
+        if (knee.values[r] !== 1) continue;
+        const X = px(xc.values[r]), Y = py(yc.values[r]);
+        if (!Number.isFinite(X) || !Number.isFinite(Y)) continue;
+        ctx.fillStyle = "#f2a93b"; ctx.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? 4 : 10;
+          (k ? ctx.lineTo : ctx.moveTo).call(ctx, X + rr * Math.cos(a), Y + rr * Math.sin(a));
+        }
+        ctx.closePath(); ctx.fill();
+        ctx.font = "12px 'IBM Plex Sans', sans-serif"; ctx.textAlign = "left"; ctx.fillStyle = "#f2a93b";
+        ctx.fillText(t("swKnee"), X + 12, Y - 8);
+      }
     }
   }, [cols, n, kept, xName, yName, pair.size, v.colorBy, study, t]);
   const sel = (key: "x" | "y" | "size", val: string | undefined) => (

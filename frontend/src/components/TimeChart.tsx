@@ -589,7 +589,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       height: size.h,
       padding: [8, useR - rightSize - rightLabel, 0, 4],
       legend: { show: false },
-      cursor: { y: false, points: { size: 6 },
+      // a legend entry under the pointer: its line in front, the others faint (setSeries below)
+      focus: { alpha: 0.18 },
+      cursor: { y: false, points: { size: 6 }, focus: { prox: -1 },
         // zoom by dragging: a time window, a value window, or a box (a nearly flat drag zooms one axis)
         drag: { x: zoomMode !== "y", y: zoomMode !== "x", uni: zoomMode === "xy" ? 20 : undefined, setScale: false } },
       scales: {
@@ -908,6 +910,14 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   }, [aligned]);
 
   useEffect(() => { uRef.current?.setSize({ width: size.w, height: size.h }); }, [size]);
+  const focusSig = useApp((s) => (s.legendFocus?.plotId === plot.id ? s.legendFocus.sig : null));
+  useEffect(() => {
+    const u = uRef.current, a = alignedRef.current;
+    if (!u || !a) return;
+    const k = focusSig ? a.sigs.findIndex((x) => x.sig === focusSig) : -1;
+    // only with several lines: one line faint against nothing tells nothing
+    u.setSeries(k >= 0 && a.sigs.length > 1 ? k + 1 : null, { focus: k >= 0 && a.sigs.length > 1 });
+  }, [focusSig]);
   useEffect(() => {
     const u = uRef.current;
     if (u && range) u.setScale("x", { min: range[0], max: range[1] });

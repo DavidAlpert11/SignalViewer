@@ -50,7 +50,7 @@ class App:
                         "--seconds", "120"], check=True, capture_output=True)
         self.port = free_port()
         self.url = f"http://127.0.0.1:{self.port}"
-        env = {**os.environ, "HOME": self.home, "USERPROFILE": self.home}
+        env = {**os.environ, "HOME": self.home, "USERPROFILE": self.home, "SV_EXAMPLES": self.data}
         self.proc = subprocess.Popen([sys.executable, os.path.join(ROOT, "run.py"), "--port", str(self.port), "--no-open"],
                                      cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for _ in range(240):
@@ -77,7 +77,7 @@ def reset(app):
     for r in runs:
         if r.get("format") != "derived":
             urllib.request.urlopen(urllib.request.Request(f"{app.url}/api/runs/{r['id']}", method="DELETE"))
-    for name in ("autosave.json", "ui_settings.json"):    # settings too (1.8: kept in the app folder) -
+    for name in ("autosave.json", "ui_settings.json", "sweep_autosave.json"):    # settings too (1.8: kept in the app folder) -
         try:                                             # the Hebrew scene must not leave the next ones in Hebrew
             os.remove(os.path.join(app.home, ".signalviewer", name))
         except OSError:
@@ -207,9 +207,12 @@ def sweeps_fresh(pg):
     """The Sweeps area with no study open (the studies are kept from the last scene)."""
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
     pg.wait_for_selector(".sw-welcome, .sw-study-wrap")
-    while pg.locator(".areabar .tab .x").count():
-        pg.locator(".areabar .tab .x").first.click(); pg.wait_for_timeout(150)
+    if pg.locator(".areabar .tab .x").count():                  # Clear > Everything (1.20)
+        pg.locator(".sw-clear-btn").click()
+        pg.locator(".menu.ctx button", has_text="Everything").click()
+        pg.locator(".dialog-foot .btn").last.click()
     pg.wait_for_selector(".sw-welcome")
+    no_toasts(pg)
 
 
 def img_25_sweeps_data(b, app):
@@ -518,6 +521,111 @@ def vid_05_live_mavlink(b, app, tmp):
     stop = live_mavlink(pg, app, seconds=7)
     stop.set(); pg.wait_for_timeout(300)
     finish_video(ctx, pg, "05_live_mavlink")
+
+
+# ----------------------------------------------------------------------------- 1.20 (the owner's notes)
+def _many_signals(pg, app, n=30):
+    """copter_flight.bin with n of its signals in one plot (an investigation)."""
+    open_api(pg, app, "copter_flight.bin")
+    pg.evaluate("""(n) => { const st = window.__sv.state(); const r = st.runs[0];
+      const ids = r.signals.map((x) => x.id).filter((id) => /[/](ATT|RATE|IMU|VIBE|CTUN|RCOU)/.test(id)).slice(0, n);
+      const pal = ['#3D8BFD','#F07B3F','#2FBF9F','#E5677A','#9B7BFF','#B8A33A','#4FC3E8','#D08CE8','#7CC35A','#FF8FB1'];
+      st.commit((ws) => { ws.tabs[0].plots[0].signals = ids.map((id, i) => ({ sig: id, color: pal[i % 10], width: 1.5, scale: 1, offset: 0 })); return ws; }); }""", n)
+    pg.wait_for_selector(".legend-side .lrow"); pg.wait_for_timeout(1200)
+
+
+def img_27_legend_side(b, app):
+    """30 signals in one plot: the legend in a column beside it, the values aligned, one line in front."""
+    ctx, pg = page(b, app)
+    _many_signals(pg, app)
+    pg.evaluate("window.__sv.setState({ cursor: { on: true, dual: false, t1: 150, t2: null } })"); pg.wait_for_timeout(800)
+    pg.locator(".legend-side .lrow").nth(1).hover(); pg.wait_for_timeout(400)
+    no_toasts(pg)
+    path = os.path.join(IMAGES, "27_legend_side.png"); pg.screenshot(path=path); print("image", os.path.relpath(path, ROOT))
+    ctx.close()
+
+
+def img_28_map_by_mode(b, app):
+    """The copter's track on the map coloured by its flight mode, with the key."""
+    ctx, pg = page(b, app)
+    open_api(pg, app, "copter_flight.bin")
+    rid = S(pg, "s.runs[0].id")
+    obj = {"id": "o1", "name": "Copter", "kind": "drone", "color": "#E5677A", "lat": f"{rid}/GPS[0].Lat [deg]",
+           "lon": f"{rid}/GPS[0].Lng [deg]", "alt": f"{rid}/GPS[0].Alt [m]", "trail": True, "trackColor": "state", "colorSig": f"{rid}/MODE.Mode"}
+    pg.evaluate("""(o) => window.__sv.state().commit((ws) => { const p = ws.tabs[0].plots[0];
+        p.mode = 'geo'; p.xSignal = o.lon; p.signals = [{sig: o.lat, color: '#3D8BFD', width: 1.5, scale: 1, offset: 0}]; p.objects = [o]; return ws; })""", obj)
+    pg.wait_for_selector(".track-key", timeout=30000); pg.wait_for_timeout(2500)
+    shot(pg, "28_map_by_mode"); ctx.close()
+
+
+def _fleet(pg):
+    pg.click("[aria-label='Fleet']")
+    pg.locator(".fleet-example .btn").click()
+    pg.wait_for_selector(".fleet-trend circle", timeout=60000)
+    pg.wait_for_function("document.querySelectorAll('.fleet-log').length === 1"); pg.wait_for_timeout(500)
+
+
+def img_29_fleet_trend(b, app):
+    """The example fleet: one copter's vibration growing flight after flight, the flight over the limit."""
+    ctx, pg = page(b, app)
+    _fleet(pg)
+    pg.fill(".fleet-search input[type=search]", "X8-A")
+    pg.wait_for_function("document.querySelectorAll('.fleet-trend circle').length === 6")
+    pg.locator(".fleet-line").first.click(); pg.wait_for_timeout(500)
+    pg.locator(".fleet-findings button").first.click()          # Open here: the flight at the finding
+    pg.wait_for_function("window.__sv.state().runs.length > 0", timeout=30000); pg.wait_for_timeout(1500)
+    pg.evaluate("window.__sv.setState({ panel: 'fleet' })"); pg.wait_for_timeout(600)
+    shot(pg, "29_fleet_trend"); ctx.close()
+
+
+def _pareto(pg):
+    pg.locator(".areas .area-btn", has_text="Sweeps").click()
+    pg.locator(".sw-welcome .btn", has_text="Try an example").click()
+    pg.wait_for_selector(".sw-steps")
+    pg.locator(".sw-step-btn[data-step='goals']").click(); pg.wait_for_timeout(500)
+    pg.locator("select[aria-label='Optimize energy_wh']").select_option("min"); pg.wait_for_timeout(700)
+    pg.locator("select[aria-label='Optimize roll_error_deg']").select_option("min"); pg.wait_for_timeout(700)
+    pg.locator(".sw-rankby select").select_option("pareto"); pg.wait_for_timeout(900)
+
+
+def img_30_sweeps_pareto(b, app):
+    """Sweeps: two objectives - the Pareto front, the balanced set starred."""
+    ctx, pg = page(b, app)
+    _pareto(pg)
+    pg.locator(".sw-rankby .btn").click(); pg.wait_for_timeout(1500)
+    shot(pg, "30_sweeps_pareto"); ctx.close()
+
+
+def vid_06_many_signals(b, app, tmp):
+    ctx, pg = page(b, app, video=tmp)
+    since = mark(pg)
+    _many_signals(pg, app)
+    box = pg.locator(".plot-canvas").first.bounding_box()
+    for i in range(24):
+        pg.mouse.move(box["x"] + 40 + i * (box["width"] - 80) / 24, box["y"] + box["height"] * 0.5); pg.wait_for_timeout(70)
+    for k in (0, 3, 8):
+        pg.locator(".legend-side .lrow").nth(k).hover(); pg.wait_for_timeout(900)
+    pg.fill(".legend-filter", "Vibe"); pg.wait_for_timeout(1200)
+    pg.fill(".legend-filter", ""); pg.wait_for_timeout(600)
+    finish_video(ctx, pg, "06_many_signals", since)
+
+
+def vid_07_fleet(b, app, tmp):
+    ctx, pg = page(b, app, video=tmp)
+    since = mark(pg)
+    _fleet(pg); pg.wait_for_timeout(1200)
+    pg.locator(".fleet-search input[type=search]").type("X8-A", delay=120); pg.wait_for_timeout(1500)
+    pg.locator(".fleet-line").first.click(); pg.wait_for_timeout(1500)
+    pg.locator(".fleet-findings button").first.click(); pg.wait_for_timeout(2500)
+    finish_video(ctx, pg, "07_fleet", since)
+
+
+def vid_08_sweeps_pareto(b, app, tmp):
+    ctx, pg = page(b, app, video=tmp)
+    since = mark(pg)
+    _pareto(pg); pg.wait_for_timeout(800)
+    pg.locator(".sw-rankby .btn").click(); pg.wait_for_timeout(2500)
+    finish_video(ctx, pg, "08_sweeps_pareto", since)
 
 
 SCENES = [(n, f) for n, f in sorted(globals().items()) if n.startswith(("img_", "vid_"))]
