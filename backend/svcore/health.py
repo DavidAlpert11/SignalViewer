@@ -107,8 +107,9 @@ def check_clipping(c: _Ctx):
         if ok.sum() < 2:
             continue
         tt, yy = t[ok], y[ok]
-        inc = np.diff(yy) > 0
-        total += int(max(0.0, yy[-1] - yy[0]))
+        d = np.diff(yy)
+        inc = d > 0
+        total += int(d[inc].sum())            # counters restart at a reboot: add the rises, not last - first
         if inc.any():
             tf = float(tt[1:][inc][0])
             first = tf if first is None else min(first, tf)
@@ -226,8 +227,9 @@ def check_motors(c: _Ctx, vehicle: Optional[str]):
         means = [float(np.mean(y[fly])) for y in ys]
         spread = max(means) - min(means)
         hi = int(np.argmax(means))
+        ch = re.search(r"(?:\.C|servo)(\d+)", motors[hi][0])   # the output channel, not the place in the list
         level = "warning" if spread > 0.1 * (pmax - pmin) else "ok"
-        out.append(_result("motorsBalance", level, {"spread": _r(spread, 0), "motor": hi + 1,
+        out.append(_result("motorsBalance", level, {"spread": _r(spread, 0), "motor": int(ch.group(1)) if ch else hi + 1,
                                                      "means": [_r(m, 0) for m in means]}, None, [], [n for n, *_ in motors]))
     return out
 
