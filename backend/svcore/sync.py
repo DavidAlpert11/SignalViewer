@@ -286,6 +286,61 @@ def by_signal(ref, other, ref_sig: Optional[str] = None, other_sig: Optional[str
     return best
 
 
+def _confirm(ref, other, c: dict) -> None:
+    """A boot clock or a few matching events say HOW to align two logs if they are the same flight -
+    not THAT they are (two unrelated flights' boot clocks overlap too). Lower the candidate to "low"
+    when the vehicles differ, or when a pair of the same quantity does not move together at that offset."""
+    va = getattr(getattr(ref, "_flightlog", None), "vehicle", None)
+    vb = getattr(getattr(other, "_flightlog", None), "vehicle", None)
+    if va and vb and va != vb:
+        c["quality"], c["unconfirmed"] = "low", "vehicle"
+        return
+    if c["method"] not in ("boot", "events"):
+        return                                        # a signal match is its own confirmation
+    try:
+        r = _moves_together(ref, other, c["delta"])
+    except Exception:
+        log.warning("confirming the alignment failed", exc_info=True)
+        return
+    if r is None:
+        return                                        # nothing to compare with: keep the method's own rating
+    c["confirm"] = round(r, 3)
+    if r < 0.3:
+        c["quality"], c["unconfirmed"] = "low", "signal"
+
+
+def _moves_together(ref, other, delta: float, rate: float = 5.0) -> Optional[float]:
+    """The best correlation, over the known pairs of one quantity, of the CHANGES of the two signals
+    (first differences) with `other` shifted by delta. Changes, not values: a battery voltage or an
+    altitude that only falls or rises correlates with any other flight's by its trend alone."""
+    best = None
+    for a, b in PAIRS:
+        for x, y in ((a, b), (b, a)):
+            na, nb = _find(ref, x), _find(other, y)
+            if not (na and nb):
+                continue
+            ta, ya = ref.get_signal_data(na)
+            tb, yb = other.get_signal_data(nb)
+            ta = np.asarray(ta, dtype=np.float64) - float(ref.time_offset or 0)
+            tb = np.asarray(tb, dtype=np.float64) - float(other.time_offset or 0) + delta
+            ya, yb = np.asarray(ya, dtype=np.float64), np.asarray(yb, dtype=np.float64)
+            ok_a, ok_b = np.isfinite(ya), np.isfinite(yb)
+            ta, ya, tb, yb = ta[ok_a], ya[ok_a], tb[ok_b], yb[ok_b]
+            if len(ta) < 20 or len(tb) < 20:
+                continue
+            g0, g1 = max(ta[0], tb[0]), min(ta[-1], tb[-1])
+            if g1 - g0 < 10.0:
+                continue
+            g = np.arange(g0, g1, 1.0 / rate)[:20000]
+            da, db = np.diff(np.interp(g, ta, ya)), np.diff(np.interp(g, tb, yb))
+            if np.std(da) == 0 or np.std(db) == 0:
+                continue
+            r = float(np.corrcoef(da, db)[0, 1])
+            if np.isfinite(r) and (best is None or r > best):
+                best = r
+    return best
+
+
 FEATURES = ("rise", "fall", "step", "change", "max", "min", "start")
 
 
@@ -376,6 +431,9 @@ def suggest(ref, other, ref_sig=None, other_sig=None, feature=None, max_lag=None
                                       (other, "MODE.Mode"), (ref, "vehicle_status.nav_state"), (other, "vehicle_status.nav_state"))]
     check = {"pair": sig["pair"] if sig else None, "scale": sig.get("scale", 1.0) if sig else 1.0,
              "refMode": modes[0] or modes[2] or modes[4], "otherMode": modes[1] or modes[3] or modes[5]}
+    for c in cands:
+        if c["quality"] != "low" and "error" not in c:
+            _confirm(ref, other, c)
     base = float(ref.time_offset or 0.0)
     for c in cands:
         c["check"] = check
