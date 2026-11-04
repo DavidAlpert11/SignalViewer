@@ -321,6 +321,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             };
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const geoBase = useApp((s) => s.geoBase);
+  const geoBorders = useApp((s) => s.geoBorders);
 
   return (
     <section
@@ -393,6 +394,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               {(["auto", "osm", "esri", "light", "dark", "satellite", "topo", "offline"] as const).map((b) =>
                 <option key={b} value={b}>{t(`geo_${b}` as "geo_auto")}</option>)}
             </select>
+            {mode === "geo" && (geoBase === "offline" || geoBase === "satellite") && (
+              <label className="acheck geo-borders" title={t("geoBordersHint")}>
+                <input type="checkbox" checked={geoBorders} onChange={(e) => useApp.setState({ geoBorders: e.target.checked })} />{t("geoBorders")}</label>
+            )}
             {/* objects: things that move, drawn at the timeline's time */}
             <button className="btn sm obj-add" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id } })} title={t("objAddHint")}>
               + {t("objAdd")}</button>

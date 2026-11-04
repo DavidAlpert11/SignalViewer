@@ -197,7 +197,9 @@ shown change together – on the axis, in the list, in the legend – and it can
 ArduPilot and PX4 logs open with ready views (attitude, rates, vibration, battery, GPS, the map and
 the flight modes as coloured lanes) and a **health check** that points at what is worth a look. The
 *Flight log* panel lists the messages, events and parameters. On the map, an object's
-*Track colour* can follow the flight mode (or a value such as the altitude), with a key.
+*Track colour* can follow the flight mode (or a value such as the altitude), with a key. *Borders*
+(beside the map's layer) draws country borders and names over the offline map and the satellite
+photos, with no internet too.
 
 **Fleet** (rail → *Fleet*) runs the same checks on every log in a folder: follow a number over weeks
 (a motor wearing out), find the first flight over a limit, list the flights with a finding. *Try the

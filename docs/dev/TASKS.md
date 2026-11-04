@@ -13,6 +13,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **1.20.1 (2026-11-04)**: a user's request - *Borders* (`geoBorders`, beside the map's layer for the
+  offline map and the satellite photos): country borders with a halo, dashed, and names over the
+  satellite photos too; the offline map's borders stronger. Left: borders on the 3D globe; finer
+  borders (Natural Earth 1:10m) or provinces / states (admin-1) if asked.
+
 - **1.20.0 (2026-11-04)**: the owner's review notes of 2026-11-03 - the legend (beside the plot when
   many, values that do not move it, the line under the pointer in front, 20 colours), made signals
   renamed / re-formulated / deleted from the signal list (dependents asked about, one Undo), named
@@ -2316,3 +2321,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-03 · Owner's spec, Data + Columns (patch sweeps-data-columns): backend sweep.combine / combine_preview / build / recipe_files (svcore/sweep/io.py), /api/sweep/combine, build, drop, values, formula-preview, export-table; summary with holdValues (rowsAll); reload / changed / provenance through a table's recipe; MAX_TABLES 12; the HTML plot starts from the view on screen and zooms. Frontend: Study.tables / use / shown / picked, RawStep and RolesStep rewritten, DerivedEditor (completion, preview, edit), ParallelPlot zoom (sweeps/zoom.ts), narrow window (sweeps/narrow.ts), FileBrowser "Save as type", template summary (sweeps/templates.ts). Checked: backend 926 + 12 skipped, mypy, tsc, build, oxlint 54; e2e test_sweeps_flow 26 / 31 with the updated tests - left: test_new_column... (fixed, not rerun), test_undo_redo_and_the_studies_open_again, test_many_columns_scroll_pick_and_panels, test_templates_dialog_save_replace_export_import_apply; new e2e for join / Continue with / condition cards / Template / narrow window still to write; the rest of the suite not run.
 - 2026-11-03 · Release 1.19.0: version in version.py, build.bat, CITATION.cff (+ date), installer (iss, version_info), install.md; CHANGELOG 1.19.0; README, features, GUIDE / GUIDE.he, gallery; pictures 23_sweeps_goal (again), 25_sweeps_data, 26_sweeps_split (tools/make_readme_media.py --only 23_sweeps 25 26); validation regenerated (23 / 23); ROADMAP. Split by completed (groups per value, re-runs with their value, the report); Next runs' split; Charts' high-resolution PNG and HTML; derivative / integral on a signal's updates; plot images for a report and as HTML.
 - 2026-11-04 · 1.20.0 the owner's notes (legend, made signals, groups, track colour, fleet example, Sweeps Pareto / Clear) · branch owner-notes-1.20 · backend 943 + e2e all files pass; new test_owner_notes_1_20.py.
+- 2026-11-04 · 1.20.1 Borders over the offline map and the satellite photos · branch borders · test_offline_map (+1), map / settings / owner notes e2e pass.
