@@ -52,3 +52,25 @@ def test_offline_tiles_stand_in_for_unreachable_online_ones(pg):
         pg.wait_for_timeout(250)
     assert any("/api/tiles/osm/" in u for u in asked)
     assert any("/api/tiles/offline_topo/" in u for u in asked)
+
+
+def test_borders_over_the_offline_map_and_the_satellite_photos(pg):
+    """1.20.1 (a user's request): *Borders* beside the layer - country borders and names over the
+    offline map and the satellite photos; turned off, the base layer changes; the street maps have
+    no such switch (their tiles draw their own)."""
+    pg.evaluate("window.__sv.setState({ geoBase: 'satellite', geoBorders: true })")
+    _map(pg)
+    box = pg.locator(".plot .geo-borders input")
+    box.wait_for()
+    assert box.is_checked()
+    pg.wait_for_timeout(1200)
+    on = _drawn_pixels(pg)
+    box.uncheck()
+    pg.wait_for_function("window.__sv.state().geoBorders === false")
+    pg.wait_for_timeout(800)
+    sig_on = pg.evaluate("document.querySelector('.plot .geo canvas').toDataURL().length")
+    box.check(); pg.wait_for_timeout(800)
+    assert pg.evaluate("document.querySelector('.plot .geo canvas').toDataURL().length") != sig_on
+    assert on > 10000
+    pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")
+    pg.wait_for_selector(".plot .geo-borders", state="detached")

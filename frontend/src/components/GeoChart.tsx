@@ -109,6 +109,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const windowSec = useApp((s) => s.windowSec);
   const baseSetting = useApp((s) => s.geoBase);
   const base = baseSetting === "auto" ? (theme === "dark" ? "dark" : "osm") : baseSetting;
+  // country borders (and names) drawn over the maps whose tiles have none: the offline map and the
+  // satellite photos (owner's request, 2026-11-04); the street maps draw their own
+  const borders = useApp((s) => s.geoBorders);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cvRef = useRef<HTMLCanvasElement>(null);
   const size = useSize(wrapRef);
@@ -235,7 +238,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     // The base layer - tiles, borders, names - changes only with the view, size, theme, language or
     // newly arrived tiles. It is kept in a canvas of its own: during playback only the tracks and
     // objects are drawn again over a copy of it (a full redraw per frame held playback to ~36 fps).
-    const baseKey = [W, H, r, view.cx, view.cy, view.z, theme, base, lang, !!countries, !!places, tick, uiScale()].join("|");
+    const baseKey = [W, H, r, view.cx, view.cy, view.z, theme, base, lang, !!countries, !!places, tick, uiScale(), borders].join("|");
     const kept = baseRef.current?.key === baseKey ? baseRef.current.canvas : null;
     if (kept) screen.drawImage(kept, 0, 0, W, H);
     else {
@@ -300,21 +303,38 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       }
     }
 
-    // 3. what the offline map's tiles do not carry: borders, and names (drawn here: crisp, in the UI language)
-    const ownNames = base === "offline" || offlineUsed > 0 || tilesShown < tilesWanted / 2;
-    if (countries && (base === "offline" || offlineUsed > 0)) {
-      ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
-      ctx.strokeStyle = dark ? "rgba(200,190,230,.55)" : "rgba(110,80,140,.55)";
-      for (const c of countries) for (const poly of c.p) {
-        let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+    // 3. what the offline map's tiles and the satellite photos do not carry: borders, and names
+    //    (drawn here: crisp, in the UI language). A halo under each border so it reads on any land,
+    //    and dashed, so it is not taken for a road.
+    const ownLayer = borders && (base === "offline" || base === "satellite");
+    const ownNames = ownLayer || offlineUsed > 0 || tilesShown < tilesWanted / 2;
+    const onDark = dark || base === "satellite";                 // names and borders light on a photo
+    if (countries && (ownLayer || offlineUsed > 0)) {
+      const z = view.z, w = z < 3 ? 0.8 : z < 4 ? 1.1 : z < 7 ? 1.5 : 2;
+      const path = (c: Country) => {
+        let any = false;
         ctx.beginPath();
-        for (let i = 0; i < poly.length; i += 2) {
-          const px = X(mx(poly[i] / 100)), py = Y(my(poly[i + 1] / 100));
-          if (px < minx) minx = px; if (px > maxx) maxx = px; if (py < miny) miny = py; if (py > maxy) maxy = py;
-          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        for (const poly of c.p) {
+          let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+          for (let i = 0; i < poly.length; i += 2) {
+            const px = X(mx(poly[i] / 100)), py = Y(my(poly[i + 1] / 100));
+            if (px < minx) minx = px; if (px > maxx) maxx = px; if (py < miny) miny = py; if (py > maxy) maxy = py;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          if (!(maxx < 0 || minx > W || maxy < 0 || miny > H)) any = true;
         }
-        if (maxx < 0 || minx > W || maxy < 0 || miny > H) continue;
-        ctx.closePath(); ctx.stroke();
+        return any;
+      };
+      for (const c of countries) {
+        if (!path(c)) continue;
+        if (z >= 3) {                                            // the whole world: no halo (too busy)
+          ctx.setLineDash([]); ctx.lineWidth = w + 2.2;
+          ctx.strokeStyle = onDark ? "rgba(0,0,0,.45)" : "rgba(255,255,255,.75)"; ctx.stroke();
+        }
+        ctx.setLineDash([7, 3]); ctx.lineWidth = w;
+        ctx.strokeStyle = base === "satellite" ? "rgba(255,226,140,.95)" : onDark ? "rgba(214,196,245,.9)" : "rgba(118,62,160,.9)";
+        ctx.stroke();
       }
       ctx.setLineDash([]);
     }
@@ -339,11 +359,11 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         const box: [number, number, number, number] = [px + 4, py - h / 2, px + 4 + w, py + h / 2];
         if (overlaps(box)) continue;
         labelBoxes.push(box);
-        if (!p.a) { ctx.beginPath(); ctx.arc(px, py, p.r <= 3 ? 2.6 : 2, 0, Math.PI * 2); ctx.fillStyle = dark ? "#e6edf3" : "#30363d"; ctx.fill(); }
+        if (!p.a) { ctx.beginPath(); ctx.arc(px, py, p.r <= 3 ? 2.6 : 2, 0, Math.PI * 2); ctx.fillStyle = onDark ? "#e6edf3" : "#30363d"; ctx.fill(); }
         ctx.textAlign = "left"; ctx.textBaseline = "middle";
-        ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)";
+        ctx.lineWidth = 3; ctx.strokeStyle = onDark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)";
         ctx.strokeText(label, px + 6, py);
-        ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(label, px + 6, py);
+        ctx.fillStyle = onDark ? "#e6edf3" : "#24292f"; ctx.fillText(label, px + 6, py);
       }
     }
     if (countries && ownNames) {
@@ -359,9 +379,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         const box: [number, number, number, number] = [px - w / 2, py - h / 2, px + w / 2, py + h / 2];
         if (boxes.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
         boxes.push(box);
-        ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.85)" : "rgba(255,255,255,.85)";
+        ctx.lineWidth = 3; ctx.strokeStyle = onDark ? "rgba(14,22,32,.85)" : "rgba(255,255,255,.85)";
         ctx.strokeText(name, px, py);
-        ctx.fillStyle = dark ? "#c9d4e0" : "#4a4f57"; ctx.fillText(name, px, py);
+        ctx.fillStyle = onDark ? "#c9d4e0" : "#4a4f57"; ctx.fillText(name, px, py);
       }
     }
 
@@ -488,7 +508,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     ctx.fillStyle = veil;
     ctx.fillRect(W - aw - 10, H - 16, aw + 10, 16);
     ctx.fillStyle = dark ? "#9fb0c3" : "#3d4650"; ctx.fillText(att, W - 5, H - 3);
-  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors]);
+  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders]);
 
   /* ------------------------- zoom / pan / readout ------------------------ */
   const viewRef = useRef(view);

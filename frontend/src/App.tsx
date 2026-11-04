@@ -236,6 +236,7 @@ export default function App() {
   const logMarkers = useApp((s) => s.logMarkers);
   const syncFor = useApp((s) => s.syncFor);
   const geoBase = useApp((s) => s.geoBase);
+  const geoBorders = useApp((s) => s.geoBorders);
   // null: no open file has a flight log (no Log button at all); else the number of logged errors
   const logErrors = useMemo(() => {
     const lr = runs.filter((r) => r.log);
@@ -295,7 +296,7 @@ export default function App() {
     if (!restored.current) return;
     const h = window.setTimeout(() => { api.putAutosave(currentState()).catch(() => {}); }, 800);
     return () => window.clearTimeout(h);
-  }, [ws, runs, theme, lang, uiScale, zoomMode, liveAutoStop, liveNewFiles, logMarkers, geoBase]);
+  }, [ws, runs, theme, lang, uiScale, zoomMode, liveAutoStop, liveNewFiles, logMarkers, geoBase, geoBorders]);
   // an autopilot log and a telemetry log of the same flight, not aligned: offer to align them
   useEffect(() => { if (runs.some((r) => r.format === "tlog")) detectSameFlight(); }, [runs]);
   // flight-log data: fetched only for files that have it, when the panel or the plot markers need it

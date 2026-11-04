@@ -262,7 +262,7 @@ export function currentState() {
       id: r.id, path: r.path, name: r.name, importSettings: r.importSettings, timeOffset: r.timeOffset, tag: r.tag, color: r.color,
     })),
     ui: { theme: st.theme, lang: st.lang, uiScale: st.uiScale, linkRuns: st.linkRuns, linkEdits: st.linkEdits, zoomMode: st.zoomMode,
-      liveAutoStop: st.liveAutoStop, liveNewFiles: st.liveNewFiles, geoBase: st.geoBase,
+      liveAutoStop: st.liveAutoStop, liveNewFiles: st.liveNewFiles, geoBase: st.geoBase, geoBorders: st.geoBorders,
       playMode: st.playMode, playSpeed: st.playSpeed, windowSec: st.windowSec, timelineOpen: st.timelineOpen },
     transforms: Object.fromEntries(st.runs.flatMap((r) => r.signals.filter((x) => x.transform).map((x) => [x.id, x.transform]))),
     journal: st.journal,                  // investigation step 6
@@ -293,6 +293,7 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     if (state.ui && "liveAutoStop" in state.ui && (state.ui.liveAutoStop === null || typeof state.ui.liveAutoStop === "number") && !hasSetting("liveAutoStop")) useApp.setState({ liveAutoStop: state.ui.liveAutoStop });
     if (["ask", "auto", "ignore"].includes(state.ui?.liveNewFiles) && !hasSetting("liveNewFiles")) useApp.setState({ liveNewFiles: state.ui.liveNewFiles });
     if (["auto", "osm", "esri", "light", "dark", "satellite", "topo", "offline"].includes(state.ui?.geoBase)) useApp.setState({ geoBase: state.ui.geoBase });
+    if (typeof state.ui?.geoBorders === "boolean") useApp.setState({ geoBorders: state.ui.geoBorders });
     const res = state.runs?.length ? await api.restore(state.runs) : { restored: [], missing: [] };
     const keep = new Set<string>(res.restored.map((r) => r.id));
     // changes made on signals themselves (before derived signals, which may use them)
