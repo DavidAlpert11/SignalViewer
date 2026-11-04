@@ -298,22 +298,24 @@ def _confirm(ref, other, c: dict) -> None:
     if c["method"] not in ("boot", "events"):
         return                                        # a signal match is its own confirmation
     try:
-        r = _moves_together(ref, other, c["delta"])
+        found = _moves_together(ref, other, c["delta"])
     except Exception:
         log.warning("confirming the alignment failed", exc_info=True)
         return
-    if r is None:
+    if found is None:
         return                                        # nothing to compare with: keep the method's own rating
-    c["confirm"] = round(r, 3)
+    r, pair = found
+    c["confirm"], c["confirmPair"] = round(r, 3), list(pair)
     if r < 0.3:
         c["quality"], c["unconfirmed"] = "low", "signal"
 
 
-def _moves_together(ref, other, delta: float, rate: float = 5.0) -> Optional[float]:
+def _moves_together(ref, other, delta: float, rate: float = 5.0) -> Optional[Tuple[float, Tuple[str, str]]]:
     """The best correlation, over the known pairs of one quantity, of the CHANGES of the two signals
     (first differences) with `other` shifted by delta. Changes, not values: a battery voltage or an
-    altitude that only falls or rises correlates with any other flight's by its trend alone."""
-    best = None
+    altitude that only falls or rises correlates with any other flight's by its trend alone.
+    Returns (correlation, (reference signal, other signal)) of the best pair, or None."""
+    best: Optional[Tuple[float, Tuple[str, str]]] = None
     for a, b in PAIRS:
         for x, y in ((a, b), (b, a)):
             na, nb = _find(ref, x), _find(other, y)
@@ -336,8 +338,8 @@ def _moves_together(ref, other, delta: float, rate: float = 5.0) -> Optional[flo
             if np.std(da) == 0 or np.std(db) == 0:
                 continue
             r = float(np.corrcoef(da, db)[0, 1])
-            if np.isfinite(r) and (best is None or r > best):
-                best = r
+            if np.isfinite(r) and (best is None or r > best[0]):
+                best = (r, (na, nb))
     return best
 
 
