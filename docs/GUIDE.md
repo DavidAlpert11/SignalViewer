@@ -48,6 +48,11 @@ are told apart by them.
 - The button next to the plot's title (**Time ▾**) changes the plot's type: Time, X-Y, XYZ, Map, 3D,
   FFT, Spectrogram, Envelope (many runs of one quantity), Video.
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
+- **Many signals in one plot?** The legend moves into a column beside the plot by itself (a row per
+  signal, the values aligned, a filter); the plot's menu ▸ *Legend* puts it above, beside or hides it.
+  Point at a name to bring its line to the front.
+- **Your own groups:** select signals, right-click ▸ *Group these* ▸ *New group…* and give it a name;
+  `/` in the name puts a group inside another (`Nav/IMU`). *My groups* is at the top of the list.
 - **Right-click in the plot** for: cursor here, note here, previous zoom, show everything, export
   the data, save or copy the image, axis limits.
 - **Conditions** (rail → *Investigate*): the moments where something holds - `Speed > 30`,
@@ -191,7 +196,12 @@ shown change together – on the axis, in the list, in the legend – and it can
 
 ArduPilot and PX4 logs open with ready views (attitude, rates, vibration, battery, GPS, the map and
 the flight modes as coloured lanes) and a **health check** that points at what is worth a look. The
-*Flight log* panel lists the messages, events and parameters.
+*Flight log* panel lists the messages, events and parameters. On the map, an object's
+*Track colour* can follow the flight mode (or a value such as the altitude), with a key.
+
+**Fleet** (rail → *Fleet*) runs the same checks on every log in a folder: follow a number over weeks
+(a motor wearing out), find the first flight over a limit, list the flights with a finding. *Try the
+example fleet* shows how - the [Fleet tutorial](fleet-tutorial.md) walks through it.
 
 ## 11. Live data
 
@@ -226,6 +236,9 @@ Four steps, left to right:
    *Split results by this* on a condition studies its values apart (below).
 3. **Goal** – one table: *at least* / *at most* on any column (`roll_error_deg` at most 5 - an output
    in every condition, judged by the worst case) and what to optimize (the least `energy_wh`).
+   Optimize two or more (the least energy *and* the least roll error): choose how they are ranked -
+   the weighted score or the Pareto front - and **Show the Pareto front** for the trade-off, the
+   balanced set starred.
    Ctrl / Shift-click choose several rows and set them together (a value, or a % of each one's
    range). The count and the best set follow each change.
 4. **Results** – *Show: Holds ▾* (all, those that hold, those that fail, a group) for the table, the
@@ -233,7 +246,8 @@ Four steps, left to right:
    as in HiPlot; Keep, Exclude, undo; zoom), *Why it fails* for any set, **Charts** (as many as you
    like, each exported as PNG or HTML, in the report or not), **Next runs** (where to run more, the
    budget shared equally, in proportion or by hand; and the re-run list you collect) and the
-   **Report** (HTML, Word or PDF with the whole process).
+   **Report** (HTML, Word or PDF with the whole process). *Clear ▾* empties the charts and lists, the
+   goal, the whole study, or closes every study.
 
 **Split by a condition.** With *Split results by this* on, say, payload, the results show *All
 together* or one payload at a time: for one value a set must hold in every combination of the other

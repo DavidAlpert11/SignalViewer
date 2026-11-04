@@ -35,14 +35,15 @@
 the same test, a flight log after a flight, a simulation next to the real thing – often on a closed
 network. Open the files, see what is wrong, compare, report; then make the same check pass / fail in CI.
 
-- **Plot** – up to 9 linked plots per tab: Time, X-Y, FFT, spectrogram, map, 3D; two cursors with Δ and statistics.
+- **Plot** – up to 9 linked plots per tab: Time, X-Y, FFT, spectrogram, map, 3D; two cursors with Δ and statistics; dozens of signals in one plot with the legend in a column beside it; your own named, nested groups of signals.
 - **Compare runs** – every shared signal ranked by how different it is, time-aligned, also per segment (the 2nd AUTO of every flight); the work done on one file is copied to another in one step (its changes, new signals and plots - any of them), linked files keep getting it, and one file's work can be cleared alone.
 - **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check; a 1.2 GB ArduPilot log opens in seconds.
+- **Fleet** – the same checks on every log in a folder: a number followed over weeks (a motor wearing out), the first flight over a limit, the flights with a finding - try it on the example fleet.
 - **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives, or any file a logger keeps writing; the map and 3D objects stay at the newest data.
-- **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline.
+- **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline; the track coloured by the flight mode or by a value.
 - **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA); the same change on many signals at once (`x*8` or `sin(x)` on each one selected); unit conversions (rad → deg, m/s → km/h, m → ft…).
 - **Investigate** – from "something went wrong" to an answer you can show: name the moments that matter (`abs(Roll - DesRoll) > 5`), see which signal left its usual range first and how long after, check it against the other runs, the error per axis in one click, findings and an investigation report. Try it on the built-in example with a known answer.
-- **Sweeps** – a second work area for a run envelope's results table, in four steps: the data (each table apart, merged into a new one by rows or on key columns), what each column is, the goal (limits on columns and what to optimize, in one table) and the results (the parameter sets and every run as a parallel plot filtered as in HiPlot, charts, what to run next, the report) - and a condition can be split, to find the best set for each of its values.
+- **Sweeps** – a second work area for a run envelope's results table, in four steps: the data (each table apart, merged into a new one by rows or on key columns), what each column is, the goal (limits on columns and what to optimize - one objective or several, ranked by the Pareto front - in one table) and the results (the parameter sets and every run as a parallel plot filtered as in HiPlot, charts, what to run next, the report) - and a condition can be split, to find the best set for each of its values.
 - **Reports** – offline HTML, PDF and Word; one per file from the command line.
 - **CI** – `signalviewer-cli check` (limits) and `compare` (against a golden run) with exit codes and JUnit XML.
 - **Any recording** – CAN with a `.dbc`, raw binary packets from a layout (ICD), or your own format as a short Python reader.
@@ -101,6 +102,28 @@ best set for each of its values – a payload of 0.5 against 1.5 – with the sa
 <p align="center"><img src="docs/images/23_sweeps_goal.png" alt="Sweeps, the goal: at least / at most on each column and what to optimize in one table, the count and the best set beside it" width="100%"></p>
 
 <p align="center"><img src="docs/images/26_sweeps_split.png" alt="Sweeps split by payload: one value's results and the best set per value side by side" width="100%"></p>
+
+Optimize two things at once - the least energy *and* the least roll error - and *Show the Pareto
+front*: the sets no other beats on both, the balanced one starred.
+
+<p align="center"><img src="docs/media/08_sweeps_pareto.gif" alt="Sweeps: two objectives, ranked by the Pareto front, the Pareto chart with the balanced set" width="100%"></p>
+
+### Thirty signals in one plot
+
+An investigation puts many signals in one plot: the legend moves into a column beside it, the values
+stay in one aligned column as the cursor moves, and pointing at a name brings its line to the front.
+
+<p align="center"><img src="docs/media/06_many_signals.gif" alt="Thirty signals of a flight log in one plot, the legend beside it, one line brought to the front" width="100%"></p>
+
+### A fleet of flights
+
+**Fleet** runs the health check on every log in a folder. The example: two copters, ten flights - one
+copter's vibration grows flight after flight until a flight crosses the limit; *Open here* opens that
+flight at the moment. ([Tutorial](docs/fleet-tutorial.md))
+
+<p align="center"><img src="docs/media/07_fleet.gif" alt="The example fleet: the vibration trend of one copter and the flight over the limit" width="100%"></p>
+
+<p align="center"><img src="docs/images/28_map_by_mode.png" alt="A copter's track on the map coloured by its flight mode, with the key" width="100%"></p>
 
 > Higher-quality MP4 versions of these clips are in [`docs/media/`](docs/media).
 
@@ -186,7 +209,7 @@ Nothing leaves the PC: no account, no telemetry; English and Hebrew.
 [The documentation site](https://davidalpert11.github.io/SignalViewer/) - the [user guide](docs/GUIDE.md) ([עברית](docs/GUIDE.he.md)), [what works](docs/features.md)
 (every feature and the keyboard), [command line and formats](docs/command-line.md), [install and
 build](docs/install.md), [offline map and 3D](docs/maps-and-3d.md), [performance](docs/performance.md),
-[known limitations](docs/limitations.md), [**validation**](docs/validation.md) (every computation checked against a reference), [gallery](docs/gallery.md), [development](docs/development.md).
+[known limitations](docs/limitations.md), the tutorials [what went wrong](docs/investigate-tutorial.md) and [what the Fleet is for](docs/fleet-tutorial.md), [**validation**](docs/validation.md) (every computation checked against a reference), [gallery](docs/gallery.md), [development](docs/development.md).
 The same guide is in the app: *Help → User guide* (F1). Changes: [CHANGELOG](CHANGELOG.md).
 Found a problem or want to help? *Help → Report a problem…* in the app, or [CONTRIBUTING](CONTRIBUTING.md).
 
@@ -212,6 +235,9 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – המרת יחידות (רדיאנים למעלות, ‏m/s ל־km/h ועוד) ופעולות Python משלכם.
 - לחקור: מ"משהו השתבש בטיסה" לתשובה שאפשר להראות – לתת שם לרגעים שחשובים (<code dir="ltr">abs(Roll - DesRoll) > 5</code>), לראות איזה סיגנל יצא מהטווח הרגיל שלו ראשון ובכמה זמן לפני, לבדוק מול הריצות האחרות, שגיאה לכל ציר בקליק אחד, ממצאים ודוח חקירה. אפשר לנסות על דוגמה מובנית שהתשובה שלה ידועה.
 - לכייל על פני מעטפת ריצות: טבלת תוצאות עם שורה לכל ריצה – אילו סטים של פרמטרים עומדים בכל התרחישים ומי מהם הכי טוב: מטרות, גרף קואורדינטות מקבילות, מפות, חסינות והריצות הבאות; **חקירה** מנסה את המגבלות והיעדים של מטרה כמחוונים, והגרף והטבלה מתעדכנים בכל הזזה.
+- לעקוב אחרי צי: אותה בדיקת תקינות על כל הלוגים בתיקייה – מספר לאורך שבועות (מנוע שנשחק), הטיסה הראשונה שעברה גבול, הטיסות עם ממצא. יש צי דוגמה ו[מדריך](docs/fleet-tutorial.he.md).
+- הרבה סיגנלים בגרף אחד: המקרא עובר לעמודה בצד הגרף והערכים לא מזיזים אותו; קבוצות סיגנלים משלכם עם שם, גם מקוננות; מסלול במפה צבוע לפי מוד הטיסה.
+- כמה מטרות יחד במעטפת ריצות: דירוג לפי חזית Pareto וגרף Pareto עם הסט המאוזן.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.
 - לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים.
