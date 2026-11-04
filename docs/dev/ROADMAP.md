@@ -791,3 +791,11 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 
 ## Later
 - [ ] "copy as pandas code".
+
+## The owner's review notes (2026-11-03) — 1.20.0
+- [x] Legend: beside the plot when many (auto / above / beside / hidden, filter, width), values in a fixed place, the header not lower while hovering, the time in the plot's corner, the unit once, the line under the pointer in front, 20 colours.
+- [x] Made signals in the signal list: rename (`/api/derived/rename`, references follow), change the formula, delete (dependents asked, one Undo; `derivedOps.ts`, also Create signals).
+- [x] Groups: named, nested by `/` (`ws.sigGroups`, *My groups*), drag onto a group; big automatic groups nest a second level.
+- [x] Map / 3D: track colour by the object, a state (the lanes' colours) or a value, with a key; the plain track in the object's colour.
+- [x] Fleet: the example (two copters, ten flights), *Try the example fleet*, the trend follows the typed search, the search kept across panels; tutorial (en / he).
+- [x] Sweeps: All runs while loading, counts in the tabs; several objectives ranked by score or Pareto, *Show the Pareto front*, the Pareto chart (any pair, the balanced set, levels), fast fronts; *Clear ▾*.

@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.20.0 – 2026-11-04
+
+Highlights: the owner's review notes. A **legend that neither jumps nor fills the plot** (beside the
+plot when there are many signals), **made signals deleted and renamed from the signal list**,
+**named, nested groups** of signals, a **map track coloured by the flight mode** or by a value, an
+**example fleet** that shows what the Fleet is for, and in Sweeps **several objectives** ranked by
+the Pareto front with a **Pareto chart** that is one click away, and **Clear** as in Recordings.
+Sessions, studies and templates open as before.
+
+### Added
+- **The legend beside the plot.** A plot's menu has *Legend ▸ Automatic / Above the plot / Beside the plot / Hidden*. Automatic keeps it above while it fits in two rows and puts it in a column beside the plot otherwise (40 signals took a third of the plot): a row per signal, the values in one aligned column, a filter above 8 signals, the width dragged (double-click: as it was). Hidden says how many signals and shows it again in one click.
+- **The line under the pointer in front.** The pointer on a legend entry (above or beside) draws that line in front and the plot's others faint.
+- **Made signals managed in the signal list.** A signal made in *Create signals* has *Rename…*, *Change the formula…* and *Delete* on its right-click menu (and the Delete key, also for several selected). Deleting asks first when other made signals were made from it and deletes them too; one *Undo* puts all of it back, in every plot. A rename keeps its place: the plots, the groups and the signals made from it (their formulas' `{name}` too) follow. *Create signals*' own delete is the same one.
+- **Your own groups of signals.** Select signals, right-click ▸ *Group these* / *Add to a group* ▸ *New group…* and name it; `/` in the name nests it (`Nav/IMU` inside `Nav`). *My groups* is above the files: drag signals onto a group, rename it, take a signal out, remove the group (the signals stay), add the whole group to a plot. Any open file's signals and made signals; saved with the session, undone with Ctrl+Z.
+- **A map track coloured by a state or a value.** An object's dialog has *Track colour*: the object's colour, *By a state* (the flight mode is chosen by itself; the colours are the mode lane's) or *By a value* (altitude, speed - a colour scale). A key in the map's corner says what each colour is; the same in 3D. The plain track of the same position takes the object's colour.
+- **The Fleet's example.** `examples/fleet`: ten ArduPilot flights of two copters over six weeks - one's vibration grows flight after flight until a flight crosses the limit with clipping; the other has a flight with poor GPS and one on a worn battery. The Fleet panel says what it is for and has *Try the example fleet*, which opens on the vibration trend. Made by `tools/make_fleet_example.py`; see the [Fleet tutorial](docs/fleet-tutorial.md).
+- **Sweeps: several objectives, ranked together.** With two or more columns to optimize, the Goal step chooses how the sets that hold are ranked - *the weighted score* (the weights in the table) or *the Pareto front, then the closest to the ideal* - and has *Show the Pareto front* (the Results' charts, a Pareto chart added when there is none). With one, a line says how to add another.
+- **Sweeps: a better Pareto chart.** Any two of the objectives on its axes (three or more: a chart per pair), the *balanced* choice starred (the front's set closest to the ideal, every objective counted the same), the Pareto level of each set in the table (*Pareto level*: 1 = the front, 2 = the next...).
+- **Sweeps: Clear ▾** beside *Study ▾* - groups, charts, filters and the re-run list; the goal and the results (the columns stay); start the study over; or everything (every study closed, after asking - the notice's *Undo* opens them again).
+
+### Changed
+- **The legend's values no longer move it.** Each value keeps a place as wide as the widest it had, and the header never gets lower while the pointer is in the plot (it grew and shrank by a row as the numbers changed length). The time under the pointer moved into the plot's corner. A name that already says its unit (`Roll [deg]`) does not repeat it after the value.
+- **20 colours** for new lines (10 before - an investigation with 30 signals repeated them every tenth line).
+- **Big automatic groups nest again by the name** (`IMU[0]` ▸ `Acc` ▸ ...) - a group of 12 or more signals whose names go on with one more separator.
+- **Sweeps: the tabs say how many lines they draw** - *Parameter sets · 45*, *All runs · 810*; when every set ran once a line says why the two look the same.
+- **Sweeps: the Pareto front is found much faster** (10 000 sets and three objectives: 1.5 s instead of 46 s); levels past the tenth are counted together.
+- The Fleet's trend follows the typed search (a vehicle's name: its flights alone), not the number's limit (that is the line on it).
+
+### Fixed
+- **Sweeps: *All runs* showed the parameter sets** while the runs were still being read - it now says *Reading every run…* until they are there.
+
 ## 1.19.0 – 2026-11-03
 
 Highlights: **Sweeps, as the owner specified** - each table apart and merging into a new table
