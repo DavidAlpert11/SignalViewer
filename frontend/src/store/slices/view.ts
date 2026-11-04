@@ -25,6 +25,7 @@ export interface ViewSlice {
   timelineOpen: boolean;           // the timeline bar shown in full (or as a thin strip)
   logMarkers: LogMarkers;          // log events drawn on time plots: none, warnings + errors, or all
   geoBase: "auto" | "osm" | "esri" | "light" | "dark" | "satellite" | "topo" | "offline";   // map layer
+  geoBorders: boolean;            // country borders and names over the offline map and the satellite photos
   linkRuns: boolean;               // D-12: a signal clicked in one file is added from every file
   linkEdits: boolean;              // Q87: an edit or a new signal made on one file is made on the others
 }
@@ -48,6 +49,7 @@ export const viewSlice = (): ViewSlice => ({
   timelineOpen: true,
   logMarkers: "important",
   geoBase: "auto",
+  geoBorders: true,
   linkRuns: false,
   linkEdits: false,
 });

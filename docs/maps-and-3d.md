@@ -20,6 +20,10 @@ OpenStreetMap roads down to regional ones, places down to villages, airports and
 `backend/app/basemap_data/packs/<name>/` (`pack.json`, `dem.npz`, `vectors.json.gz`; ~1.4 MB for
 Cyprus) and the app uses every pack in that folder - copy a pack folder there on an offline machine.
 
+**Country borders.** The offline map and the satellite photos get the borders and the country names
+from the app itself (Natural Earth 1:50m, simplified to about 3 km - good for seeing which country,
+not for a border's exact line): *Borders*, beside the map's layer. The street maps draw their own.
+
 ## 3D view
 
 CesiumJS (pinned, `frontend/package.json`) is loaded only when a plot is switched to 3D; its web

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.20.1 – 2026-11-04
+
+Highlights: **country borders on the satellite photos and clearer on the offline map** - with no
+internet too.
+
+### Added
+- **Borders** beside the map's layer (offline map and satellite): country borders, with a halo so they read on any land and dashed so they are not taken for roads, and the country names (and on the satellite photos the places) in the UI language. On by default, kept with the session; the street maps keep their own borders.
+
+### Changed
+- The offline map's borders are stronger (they were thin and faint).
+
 ## 1.20.0 – 2026-11-04
 
 Highlights: the owner's review notes. A **legend that neither jumps nor fills the plot** (beside the
