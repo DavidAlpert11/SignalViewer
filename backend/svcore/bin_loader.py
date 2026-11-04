@@ -115,7 +115,8 @@ def message_level(text: str) -> str:
 def vehicle_of(texts) -> Optional[str]:
     for _t, txt in texts[:200]:
         low = txt.lower()
-        for key, veh in (("arducopter", "copter"), ("ardupilot copter", "copter"), ("heli", "copter"),
+        for key, veh in (("arducopter", "copter"), ("apm:copter", "copter"), ("apm:plane", "plane"),
+                         ("apm:rover", "rover"), ("ardupilot copter", "copter"), ("heli", "copter"),
                          ("arduplane", "plane"), ("ardurover", "rover"), ("rover", "rover"), ("ardusub", "sub")):
             if key in low:
                 return veh
@@ -584,6 +585,8 @@ class DataFlash:
         if hit is None:
             return
         tcol, tscale = hit
+        if tcol == "TimeMS" and "T" in f.columns and ("Week" in f.columns or "GWk" in f.columns):
+            tcol, tscale = "T", 1e-3          # old GPS (Copter 3.2): TimeMS is the GPS week's time, T the boot time
         ti = f.columns.index(tcol)
         time = col(ti).astype(np.float64) * tscale
         inst = f.instance
@@ -676,7 +679,7 @@ def _read(path: str, start: int = 0) -> np.ndarray:
 # memory-mapped when the same file is opened again: near-instant, and almost no RAM until a signal
 # is plotted. Used only when size, time stamp and a fingerprint of the bytes all match. Written
 # only for a log that is not being written to (live files change every second).
-INDEX_VERSION = 1
+INDEX_VERSION = 2   # v2: old GPS on its boot time (T), not the GPS week's time
 INDEX_QUIET_S = 60.0
 
 
