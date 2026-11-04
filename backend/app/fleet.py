@@ -48,8 +48,9 @@ CREATE INDEX IF NOT EXISTS modes_path ON modes(path);
 # What the index's rows were read with. When reading a format gets better, a newer number makes the
 # next scan read those logs again even though the files did not change (a scan skips unchanged files).
 #   2 (1.6.0): F11 - ArduPilot .bin dated by GPS[0].GWk / GPS[0].GMS [s]; older rows have the file date
-INDEX_VERSION = 2
-_REREAD = {2: "format = 'bin' AND date_source = 'file'"}
+INDEX_VERSION = 3
+_REREAD = {2: "format = 'bin' AND date_source = 'file'",
+           3: "1 = 1"}   # v3: clipping counted across counter restarts, motor = its output channel
 
 
 def _db() -> sqlite3.Connection:
