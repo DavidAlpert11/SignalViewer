@@ -117,6 +117,23 @@ async def restore_derived(req: DerivedBatch):
 
 
 
+class DerivedRename(BaseModel):
+    old: str
+    new: str
+
+
+@router.post("/api/derived/rename")
+def rename_derived(req: DerivedRename):
+    """A derived signal renamed in place; the signals made from it follow (owner, 2026-11-03)."""
+    try:
+        name = store.rename_derived(req.old, req.new)
+    except KeyError:
+        fail(404, f"No signal named \"{req.old}\" was made here (it may have been deleted).")
+    except ValueError as e:
+        fail(400, str(e))
+    return {"id": f"derived/{name}", "name": name, "runs": store.list()}
+
+
 @router.delete("/api/derived/{name:path}")
 def delete_derived(name: str):
     store.remove_derived(name)
@@ -230,6 +247,10 @@ class ObjectTrackRequest(BaseModel):
     qy: Optional[str] = None
     qz: Optional[str] = None
     points: int = 20000
+    # the track coloured by another signal (owner, 2026-11-03): a state (the flight mode - held until
+    # its next sample, colorStep) or a value (altitude, speed - interpolated), on the track's times
+    color: Optional[str] = None
+    colorStep: bool = False
 
 
 
@@ -281,6 +302,21 @@ def object_track(req: ObjectTrackRequest):
     if np.nanmax(np.abs(lat)) > 90 or np.nanmax(np.abs(lon_a)) > 180:     # 1e7 degrees (MAVLink ints)
         lat, lon_a = lat / 1e7, lon_a / 1e7
     out: dict = {"n": int(len(t)), "t": b64(t, np.float64), "lat": b64(lat, np.float64), "lon": b64(lon_a, np.float64), "units": {}}
+    if req.color:
+        try:
+            tc, vc = (np.asarray(a, dtype=np.float64) for a in store.signal(req.color))
+            ok = np.isfinite(tc) & np.isfinite(vc)
+            tc, vc = tc[ok], vc[ok]
+            if len(tc):
+                if req.colorStep:             # the value in force at each moment (no blend of two modes)
+                    k = np.searchsorted(tc, t, side="right") - 1
+                    cv = np.where(k >= 0, vc[np.clip(k, 0, len(vc) - 1)], np.nan)
+                else:
+                    cv = np.interp(t, tc, vc)
+                    cv[(t < tc[0]) | (t > tc[-1])] = np.nan
+                out["color"] = b64(cv, np.float32)
+        except KeyError:
+            pass                              # the colour's signal is no longer open: one colour
     raw = {}
     for role in ("alt", "yaw", "pitch", "roll"):
         sid = getattr(req, role)

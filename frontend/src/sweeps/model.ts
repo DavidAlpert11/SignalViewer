@@ -35,6 +35,9 @@ export interface GoalVariant {
   conditions: Condition[];
   combine: "and" | "or";
   optimize: Objective[];
+  /** two or more to optimize: rank by the weighted score (missing) or by the Pareto front, then the
+   *  closest to the ideal point (owner, 2026-11-03) */
+  rankBy?: "score" | "pareto";
 }
 
 export const newGoal = (name: string): GoalVariant => ({ name, conditions: [], combine: "and", optimize: [] });
@@ -63,6 +66,8 @@ export interface Question {
   /** Split by (owner, 2026-11-02): a condition whose values are studied apart - for one value a
    *  set must hold in every combination of the other conditions with that value (missing: none) */
   split?: string;
+  /** the active goal's ranking (see GoalVariant) */
+  rankBy?: "score" | "pareto";
 }
 
 /** How far a parameter may move: a percentage of its value, a value either way, or steps of the grid. */
@@ -84,7 +89,7 @@ export function materialize(q: Question): Question {
   const opt = g.optimize;
   return { ...q, conditions: g.conditions, combine: g.combine,
     goal: opt[0] ? { column: opt[0].column, direction: opt[0].direction } : null,
-    objectives: opt.length >= 2 ? opt : [] };
+    objectives: opt.length >= 2 ? opt : [], rankBy: g.rankBy };
 }
 
 /** A question saved before goals had variants: its goal and conditions become goal 1. */

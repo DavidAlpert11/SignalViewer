@@ -15,9 +15,17 @@ class FolderReq(BaseModel):
     path: str
 
 
+def _example_folder() -> Optional[str]:
+    """examples/fleet (tools/make_fleet_example.py): ten flights of two copters, when installed."""
+    import os
+    from app.routes.fs import EXAMPLES
+    p = os.path.abspath(os.path.join(EXAMPLES, "fleet"))
+    return p if os.path.isdir(p) else None
+
+
 @router.get("/api/fleet")
 def fleet_state():
-    return {"folders": fleet.folders(), "keys": fleet.keys()}
+    return {"folders": fleet.folders(), "keys": fleet.keys(), "example": _example_folder()}
 
 
 def _scan_job(folder: str, label: str):

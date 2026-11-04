@@ -98,9 +98,9 @@ T_ARM, T_TAKEOFF, T_END = 22.0, 25.0, 246.0
 VIB = (137.0, 143.0)                        # the loose propeller, mid-leg (not in a turn)
 
 
-def gps_time(t_boot):
+def gps_time(t_boot, start=GPS_START):
     import calendar
-    epoch = calendar.timegm(GPS_START) - calendar.timegm((1980, 1, 6, 0, 0, 0)) + 18      # GPS is 18 s ahead of UTC
+    epoch = calendar.timegm(start) - calendar.timegm((1980, 1, 6, 0, 0, 0)) + 18      # GPS is 18 s ahead of UTC
     s = epoch + t_boot
     return int(s // 604800), int((s % 604800) * 1000)
 
@@ -168,10 +168,14 @@ def simulate():
     return t, P, V, A, Y, events, landed_at
 
 
-def main(out=None):
+def main(out=None, start=GPS_START, seed=45, vib_scale=1.0, burst_on=True, gps_glitch=None, capacity=5200, thin=1):
+    """The defaults make examples/copter_flight.bin. The others make the fleet example's flights
+    (tools/make_fleet_example.py): another date and noise, vibration that grows with wear, no loose
+    propeller, a stretch of poor GPS (t0, t1), a smaller (worn) battery, and fewer 25 Hz samples
+    (`thin`: every n-th) so that ten flights stay small."""
     out = out or (sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
                                                                        "examples", "copter_flight.bin"))
-    rng = np.random.default_rng(45)
+    rng = np.random.default_rng(seed)
     t, P, V, A, Y, ev, landed_at = simulate()
     rtl = next(m[0] for m in MODES if m[1] == "RTL")
     assert len(ev) > len(WAYPOINTS) and ev[len(WAYPOINTS) - 1][0] < rtl, "the mission must end before RTL"
@@ -196,7 +200,7 @@ def main(out=None):
             acc = lag * acc + (1 - lag) * v
             y[i] = acc
         return y
-    in_vib = (t >= VIB[0]) & (t < VIB[1])
+    in_vib = (t >= VIB[0]) & (t < VIB[1]) & burst_on
     shake = np.where(in_vib, 1.6, 0.25)
     roll = follow(des_roll) + rng.normal(0, 1, n) * shake * flying
     pitch = follow(des_pitch) + rng.normal(0, 1, n) * shake * flying
@@ -222,12 +226,12 @@ def main(out=None):
     # battery 4S 5200 mAh
     cur = np.where(armed, 0.8 + 52 * thr ** 1.5, 0.6) + rng.normal(0, 0.15, n)
     mah = np.cumsum(cur) * DT / 3.6
-    soc = 1 - mah / 5200 - 0.04
+    soc = 1 - mah / capacity - 0.04
     ocv = 4 * (3.5 + 0.7 * soc - 0.15 * np.exp(-12 * soc) + 0.05 * soc ** 2)
     volt = ocv - cur * 0.022 + rng.normal(0, 0.01, n)
     wh = np.cumsum(volt * cur) * DT / 3600
     # vibration (m/s/s) and clipping
-    vib_lvl = np.where(armed, 7 + 6 * thr, 0.3)
+    vib_lvl = np.where(armed, (7 + 6 * thr) * vib_scale, 0.3)
     vibe = [vib_lvl * k + np.abs(rng.normal(0, 0.8, n)) for k in (1.0, 1.1, 1.6)]
     burst = np.where(in_vib, np.sin(np.pi * (t - VIB[0]) / (VIB[1] - VIB[0])), 0)
     vibe = [v + burst * a for v, a in zip(vibe, (22, 26, 34))]
@@ -264,9 +268,9 @@ def main(out=None):
             parts.append(mk.msg("MSG", T, b"Mission: 1 WP"))
         if abs(tk - 177.0) < DT / 2:
             parts.append(mk.msg("MSG", T, b"Mission: 7 RTL"))
-        if abs(tk - VIB[0] - 1.0) < DT / 2:
+        if burst_on and abs(tk - VIB[0] - 1.0) < DT / 2:
             parts.append(mk.msg("MSG", T, b"Vibration compensation ON"))
-        if abs(tk - VIB[1] - 3.0) < DT / 2:
+        if burst_on and abs(tk - VIB[1] - 3.0) < DT / 2:
             parts.append(mk.msg("MSG", T, b"Vibration compensation OFF"))
         if k in events:
             if events[k] == "LAND_COMPLETE":
@@ -277,15 +281,16 @@ def main(out=None):
         if landed_at and abs(tk - landed_at - 2.5) < DT / 2:
             parts.append(mk.msg("EV", T, 11))                                 # DISARMED
             parts.append(mk.msg("MSG", T, b"Disarming motors"))
-        # 25 Hz
-        parts.append(mk.msg("ATT", T, des_roll[k], roll[k], des_pitch[k], pitch[k], des_yaw[k], yaw_act[k], 3))
-        parts.append(mk.msg("RATE", T, r_des[k], r_act[k], p_des[k], p_act[k], y_des[k], y_act[k]))
-        ax = -g * math.sin(math.radians(pitch[k])) + rng.normal(0, 0.2 + burst[k] * 3)
-        ay = g * math.sin(math.radians(roll[k])) + rng.normal(0, 0.2 + burst[k] * 3)
-        az = -g * thrust[k] / max(thr[k] / 0.38, 1e-3) * thr[k] / 0.38 if flying[k] else -g
-        parts.append(mk.msg("IMU", T, 0, math.radians(r_act[k]), math.radians(p_act[k]), math.radians(y_act[k]),
-                            ax, ay, az + rng.normal(0, 0.3 + burst[k] * 6)))
-        if k % 2:
+        # 25 Hz (every `thin`-th)
+        if k % thin == 0:
+            parts.append(mk.msg("ATT", T, des_roll[k], roll[k], des_pitch[k], pitch[k], des_yaw[k], yaw_act[k], 3))
+            parts.append(mk.msg("RATE", T, r_des[k], r_act[k], p_des[k], p_act[k], y_des[k], y_act[k]))
+            ax = -g * math.sin(math.radians(pitch[k])) + rng.normal(0, 0.2 + burst[k] * 3)
+            ay = g * math.sin(math.radians(roll[k])) + rng.normal(0, 0.2 + burst[k] * 3)
+            az = -g * thrust[k] / max(thr[k] / 0.38, 1e-3) * thr[k] / 0.38 if flying[k] else -g
+            parts.append(mk.msg("IMU", T, 0, math.radians(r_act[k]), math.radians(p_act[k]), math.radians(y_act[k]),
+                                ax, ay, az + rng.normal(0, 0.3 + burst[k] * 6)))
+        if k % (2 * thin):
             continue
         # 12.5 Hz
         parts.append(mk.msg("RCOU", T, *(int(p[k]) for p in pwm)))
@@ -294,7 +299,7 @@ def main(out=None):
         parts.append(mk.msg("RCIN", T, int(1500 + 6 * des_roll[k]) if stick is None else 1500,
                             int(1500 - 6 * des_pitch[k]) if stick is None else 1500, thr_in, 1500))
         parts.append(mk.msg("CTUN", T, 0.0, thr[k], 0.38, alt_des[k], P[k, 2], baro_alt[k], V[k, 2], V[k, 2]))
-        if k % 5:
+        if k % (5 if thin == 1 else 2):
             continue
         # 5 Hz
         parts.append(mk.msg("VIBE", T, 0, vibe[0][k], vibe[1][k], vibe[2][k], int(clip[k])))
@@ -306,7 +311,9 @@ def main(out=None):
         fix = 3 if tk > 9 else 1
         sats = int(min(16, 5 + tk * 1.1)) if tk < 10 else 15 + (1 if math.sin(tk / 23) > 0.3 else 0)
         hdop = max(0.62, 3.5 - tk * 0.3)
-        wk, ms = gps_time(tk)
+        if gps_glitch and gps_glitch[0] <= tk < gps_glitch[1]:        # a poor stretch: few satellites
+            sats, hdop = 5, 3.2
+        wk, ms = gps_time(tk, start)
         gwk0 = gwk0 or wk
         parts.append(mk.msg("GPS", T, 0, fix, ms, wk, sats, hdop,
                             int(round((lat[k] + rng.normal(0, 2e-6)) * 1e7)), int(round((lon[k] + rng.normal(0, 2e-6)) * 1e7)),

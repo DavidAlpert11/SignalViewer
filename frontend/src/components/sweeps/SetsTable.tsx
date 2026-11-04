@@ -133,7 +133,7 @@ export default function SetsTable({ study, draft = false }: { study: Study; draf
                   const col = cols.get(c)!, val = col.values[i];
                   // the condition this set fails: its cells marked (worst, margin, passed)
                   const neg = (col.part === "margin" && val < 0) || (col.condition != null && status[i] === "fails" && failing(i).has(col.condition));
-                  const text = c === "#covered" ? `${val} / ${a.counts.combos}` : c === "#pareto" ? (val === 1 ? "◆" : "") : c === "#neighbours" ? (Number.isFinite(val) ? `${Math.round(val * 100)}%` : "–") : labelOf(col, val);
+                  const text = c === "#covered" ? `${val} / ${a.counts.combos}` : c === "#pareto" ? (val === 1 ? (cols.get("#knee")?.values[i] === 1 ? "◆ ★" : "◆") : "") : c === "#neighbours" ? (Number.isFinite(val) ? `${Math.round(val * 100)}%` : "–") : labelOf(col, val);
                   return <td key={c} className={`${col.kind === "num" ? "num" : ""}${neg ? " bad" : ""}`}>{text}</td>;
                 })}
               </tr>

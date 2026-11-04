@@ -6,6 +6,7 @@
    and what to optimize. A study keeps several goals - Goal 1, Goal 2... - to try what happens when
    a limit moves: the table in the middle sets them side by side (how many sets hold, the best,
    how robust), and a click makes one the goal the results show. */
+import { deskOf } from "./Desk";
 import { useEffect, useState } from "react";
 import type { Condition } from "../../sweeps/model";
 import { useT, type TFn } from "../../i18n";
@@ -47,7 +48,7 @@ function optimizeLine(t: TFn, g: GoalVariant, a: Study["answer"], n: string): st
   let p = 0;
   if (pareto) for (let i = 0; i < pareto.length; i++) p += pareto[i] === 1 ? 1 : 0;
   const list = g.optimize.map((o) => `${o.direction === "max" ? "↑" : "↓"}${o.column} ×${o.weight}`).join(", ");
-  return t("swOptimizeNowN", { n, list, p });
+  return t(g.rankBy === "pareto" ? "swOptimizeNowPareto" : "swOptimizeNowN", { n, list, p });
 }
 
 export function GoalsSide({ study }: { study: Study }) {
@@ -214,6 +215,18 @@ function GoalTable({ study }: { study: Study }) {
       </div>
       {others > 0 && <p className="hint">{t("swGoalOthers", { n: others })}</p>}
       <p className="hint sw-optimize-now" aria-live="polite">{optimizeNow(t, g, a)}</p>
+      {g.optimize.length === 1 && <p className="hint">{t("swOptimizeMoreHint")}</p>}
+      {g.optimize.length >= 2 && (
+        // several to optimize (owner, 2026-11-03): how they are ranked together, and their trade-off
+        <div className="sw-row sw-rankby">
+          <label>{t("swRankBy")}{" "}
+            <select value={g.rankBy ?? "score"} aria-label={t("swRankBy")} onChange={(e) => st.updateGoal({ rankBy: e.target.value === "pareto" ? "pareto" : undefined })}>
+              <option value="score">{t("swRankScore")}</option>
+              <option value="pareto">{t("swRankPareto")}</option>
+            </select></label>
+          <button className="btn sm" onClick={() => showPareto(study)}>{t("swShowPareto")} →</button>
+        </div>
+      )}
       <div className="sw-row">
         <button className="btn primary" onClick={() => st.setView({ step: "results" })}>{t("swGoalSeeResults")} →</button>
       </div>
@@ -334,4 +347,13 @@ function GoalsCompare({ study }: { study: Study }) {
       </div>
     </div>
   );
+}
+
+/** The Results' charts with a Pareto chart (added when there is none): the objectives' trade-off. */
+export function showPareto(study: Study) {
+  const st = useSweeps.getState();
+  const desk = deskOf(study);
+  const has = desk.panes.findIndex((p) => p.kind === "pareto");
+  const panes = has >= 0 ? desk.panes : [{ kind: "pareto" as const }, ...desk.panes];
+  st.setView({ step: "results", center: "charts", desk: { ...desk, panes } });
 }

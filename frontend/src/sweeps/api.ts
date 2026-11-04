@@ -45,6 +45,7 @@ export interface WireQuestion {
   objectives: Objective[];
   exclude: number[];
   robust?: Record<string, Tolerance>;
+  rankBy?: "pareto";
 }
 export interface WireAnswer {
   counts: { sets: number; holding: number; complete: number; combos: number; rows: number };

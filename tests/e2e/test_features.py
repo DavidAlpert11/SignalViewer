@@ -639,7 +639,13 @@ def test_O02_O03_O05_binary_multi_delete(pg):
     pg.get_by_role("button", name="Create signal", exact=True).click()
     pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
     pg.locator(".dsig").first.locator("button[aria-label='Remove']").click()
-    pg.wait_for_function("document.querySelectorAll('.dsig').length === 1")
+    # the second was made from the first (it was in the active plot): asked first, both go, one Undo
+    # puts both back (owner, 2026-11-03: the same delete as the signal list's)
+    pg.wait_for_selector(".dialog:has-text('made from these')")
+    pg.locator(".dialog-foot .btn").last.click()
+    pg.wait_for_function("document.querySelectorAll('.dsig').length === 0")
+    pg.locator(".toast button:has-text('Undo')").click()
+    pg.wait_for_function("document.querySelectorAll('.dsig').length === 2")
 
 
 # =========================================================== P: compare
@@ -1276,7 +1282,10 @@ def test_units_from_names(pg):
     open_files(pg, "units.csv")
     sig(pg, "Speed").click()                         # T22: the row shows the name, the unit on its own
     pg.keyboard.press("Space")
-    pg.wait_for_function("[...document.querySelectorAll('.chip .val')].some(e => e.innerText.endsWith('km/h'))")
+    pg.wait_for_selector(".chip:has-text('Speed') .val")
+    # the unit once (owner, 2026-11-03): the name says [km/h], so the value does not repeat it
+    chip = pg.locator(".chip:has-text('Speed')").first.inner_text()
+    assert chip.count("km/h") == 1, chip
     sig(pg, "imu[1]").click()                       # "[1]" is not a unit
     pg.wait_for_function("[...document.querySelectorAll('.chip .val')].length === 2")
     assert not any(v.endswith("1") and " " in v for v in pg.locator(".chip .val").all_inner_texts()[1:])

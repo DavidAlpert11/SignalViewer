@@ -23,7 +23,8 @@ import { stepTitle } from "./StepNav";
 import { useLeftHidden } from "../../sweeps/narrow";
 import { Icon } from "../../icons";
 import { sweepApi } from "../../sweeps/api";
-import { useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
+import { recipeFiles, savedOf, useSweeps, useStudy, wireQuestion, type Study } from "../../sweeps/state";
+import { emptyView, newGoal, materialize } from "../../sweeps/model";
 import { notify, notifyError, say } from "../../sweeps/notify";
 import { activeParams, colLabel, scaleOf, scopedColumns, scopeKey, showMask, shownAxes } from "../../sweeps/view";
 import { keptMask } from "../../sweeps/filters";
@@ -165,6 +166,33 @@ function SweepsBar() {
       { label: t("swReportMenu"), disabled: !study.answer, run: report },
     ]);
   };
+  /* Clear (owner, 2026-11-03: as in Recordings) - from the least to everything; each but the last is
+     undone with Ctrl+Z, closing the studies with the notice's Undo (they are opened again) */
+  const clearMenu = (e: React.MouseEvent) => {
+    const st = useSweeps.getState();
+    const s = st.studies[st.active];
+    openMenu(below(e), [
+      ...(s ? [
+        { label: t("swClearCharts"), run: () => st.setView({ groups: [], activeGroup: undefined, desk: undefined, rerun: [], rerunSplit: [], filters: {}, pinned: null }) },
+        { label: t("swClearGoal"), run: () => {
+          st.setQuestion(materialize({ ...s.question, goals: [newGoal("1")], active: 0, robust: undefined, split: undefined }));
+          st.setView({ ...emptyView(), step: "goals" });
+          useSweeps.getState().evaluate();
+        } },
+        { label: t("swStartOver"), run: () => st.resetStudy() },
+        { label: "", sep: true, run: () => {} },
+      ] : []),
+      { label: t("swClearAll", { n: studies.length }), danger: true, disabled: !studies.length, run: async () => {
+        if (!(await confirmAsk(t("swClearAllTitle"), t("swClearAllAsk"), t("swClearAllOk"), true))) return;
+        const now = useSweeps.getState();
+        // what can be opened again (read from files): put back by the notice's Undo
+        const docs = now.studies.filter((x) => x.path || x.tables.some((tb) => recipeFiles(tb.recipe).length)).map(savedOf);
+        for (let i = now.studies.length - 1; i >= 0; i--) useSweeps.getState().close(i);
+        useApp.getState().toast({ kind: "info", text: t("swClearedAll", { n: now.studies.length }),
+          action: docs.length ? { label: t("undo"), run: async () => { for (const d of docs) await useSweeps.getState().open(d.path, d); } } : undefined });
+      } },
+    ]);
+  };
   useEffect(() => { useSweeps.getState().loadTemplates(); }, []);
   const reportOpen = useSweeps((s) => s.reportOpen);
   const templatesOpen = useSweeps((s) => s.templatesOpen);
@@ -189,6 +217,7 @@ function SweepsBar() {
       </>}
       <button className="btn outline" onClick={openMenuAt}><Icon.Open /> {t("swOpen")} ▾</button>
       {study && <button className="btn outline" onClick={studyMenu}>{t("swStudy")} ▾</button>}
+      {studies.length > 0 && <button className="btn outline sw-clear-btn" onClick={clearMenu} title={t("swClearHint")}><Icon.Eraser /> {t("swClear")} ▾</button>}
       {study?.path && <button className="iconbtn" aria-label={t("swRefresh")} title={t("swRefresh")} onClick={() => useSweeps.getState().reload()}><Icon.Reload /></button>}
       {study?.path && <label className="acheck" title={t("swFollowHint")}><input type="checkbox" checked={study.view.follow} aria-label={t("swFollow")}
         onChange={(e) => useSweeps.getState().setView({ follow: e.target.checked })} /><span className="sw-wide">{t("swFollow")}</span></label>}
@@ -387,7 +416,11 @@ function ResultsCenter({ study }: { study: Study }) {
       {study.answer && v.center === "charts" && <Desk study={study} />}
       {study.answer && v.center === "next" && <NextRunsView study={study} />}
       {v.center === "report" && <div className="sw-report-tab"><ReportCenter study={study} /><ReportSide study={study} /></div>}
-      {v.center === "lines" && (study.answer ? (
+      {v.center === "lines" && v.mode === "runs" && study.answer && !study.answer.runs && (
+        // owner, 2026-11-03: "All runs" once showed the sets (the runs were still on their way) - now it says so
+        <p className="empty-note sw-runs-loading">{study.evalError || t("swRunsLoading")}</p>
+      )}
+      {v.center === "lines" && !(v.mode === "runs" && study.answer && !study.answer.runs) && (study.answer ? (
         <>
           <PlotToolbar study={study} shown={shown} total={n}
             onKeep={() => st.narrow("keep", selection().sets, scopeKey(study))}
@@ -396,6 +429,7 @@ function ResultsCenter({ study }: { study: Study }) {
             onExportPlot={() => say(exportPlot(t, study, lang))} />
           <p className="hint sw-what-line">{v.mode === "sets" ? t("swPerSetHint") : t("swPerRunHint")}
             <ZoomButtons zoom={zoom} onZoom={(z) => useSweeps.getState().setZoom(zoomKey, z)} /></p>
+          {v.mode === "runs" && study.answer.counts.rows === study.answer.counts.sets && <p className="hint">{t("swRunsSameAsSets")}</p>}
           {study.answer.runs?.sampled && v.mode === "runs" && <p className="hint">{t("swSampled", { n: study.answer.runs.n.toLocaleString(), of: study.answer.runs.total.toLocaleString() })}</p>}
           {axes.length ? (
             <ParallelPlot sliderLabel={(a, b, n) => t("swAxesOnScreen", { a, b, n })} cols={cols} n={n} axes={axes} scaleOf={scale} reversed={v.reversed} colorBy={v.colorBy && cols.has(v.colorBy) ? v.colorBy : null}

@@ -3,6 +3,7 @@ import { api } from "../api";
 import { showFileTags, actions, activeTab, useApp } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
+import { deleteMadeSignals } from "../derivedOps";
 import SignalPicker from "./SignalPicker";
 import FormulaInput from "./FormulaInput";
 import MultiSignalPicker from "./MultiSignalPicker";
@@ -333,13 +334,8 @@ export default function AnalysisPanel() {
   };
   const derivedRun = runs.find((r) => r.format === "derived");
   const editedCount = runs.reduce((n, r) => n + r.signals.filter((x) => x.transform).length, 0);
-  const remove = async (items: { id: string; name: string }[]) => {
-    let r: { runs: typeof runs } | null = null;
-    for (const s of items) r = await api.deleteDerived(s.name);
-    const gone = new Set(items.map((s) => s.id));
-    actions.removeSignalRefs((s) => gone.has(s));
-    if (r) useApp.setState({ runs: r.runs });
-  };
+  // the same delete as the signal list's: what was made from them too (asked first), one Undo
+  const remove = (items: { id: string; name: string }[]) => { deleteMadeSignals(items.map((s) => s.id)); };
 
   const sigSelect = (value: string, set: (v: string) => void, label: string) => (
     <div className="afield"><span>{label}</span>

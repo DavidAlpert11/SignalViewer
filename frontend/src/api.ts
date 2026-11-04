@@ -226,7 +226,7 @@ export const api = {
   pyopsReveal: () => call<{ folder: string }>("/api/pyops/reveal", {}),
   pushEvents: (since: number, opens = false) => call<{ seq: number; events: { seq: number; kind?: "open"; paths?: string[]; run?: string; name?: string; plot?: boolean; new?: boolean; age: number }[] }>(`/api/push/events?since=${since}${opens ? "&opens=1" : ""}`),
   pushSaveClient: (path: string) => call<{ path: string }>("/api/push/save-client", { path }),
-  fleet: () => call<{ folders: FleetFolder[]; keys: FleetKey[] }>("/api/fleet"),
+  fleet: () => call<{ folders: FleetFolder[]; keys: FleetKey[]; example?: string | null }>("/api/fleet"),
   fleetAdd: (path: string) => call<JobInfo>("/api/fleet/folder", { path }),
   fleetRescan: () => call<JobInfo>("/api/fleet/rescan", {}),
   fleetRemove: (path: string) => call<{ folders: FleetFolder[] }>("/api/fleet/remove", { path }),
@@ -289,6 +289,7 @@ export const api = {
     call<{ id: string; name: string; runs: RunInfo[] }>("/api/derived", { op, sources, params, name: name || null }),
   restoreDerived: (items: { op: string; sources: string[]; params?: unknown; name?: string }[]) =>
     call<{ restored: string[]; failed: { name: string; message: string }[]; runs: RunInfo[] }>("/api/derived/restore", { items }),
+  renameDerived: (old: string, name: string) => call<{ id: string; name: string; runs: RunInfo[] }>("/api/derived/rename", { old, new: name }),
   deleteDerived: (name: string) => call<{ runs: RunInfo[] }>(`/api/derived/${encodeURIComponent(name)}`, undefined, "DELETE"),
   fft: async (signals: string[], window: string, t0: number | null, t1: number | null, points: number, method: "fft" | "welch" = "fft") => {
     const r = await call<{ series: any[] }>("/api/fft", { signals, window, method, t0, t1, points });
@@ -311,12 +312,17 @@ export const api = {
   },
   /** An object on the map: its signals on one time axis (see the server's object_track). */
   objectTrack: async (o: { lat: string; lon: string; alt?: string | null; yaw?: string | null; pitch?: string | null; roll?: string | null;
-    qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null }) => {
+    qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null;
+    trackColor?: "object" | "state" | "value"; colorSig?: string | null }) => {
+    const { trackColor, colorSig, ...rest } = o;
+    const colored = trackColor && trackColor !== "object" && colorSig;
     const r = await call<{ n: number; t: string; lat: string; lon: string; alt?: string; yaw?: string; pitch?: string; roll?: string;
-      course: string; ground?: string; units: Record<string, "deg" | "rad"> }>("/api/object_track", o);
+      course: string; ground?: string; color?: string; units: Record<string, "deg" | "rad"> }>("/api/object_track",
+      { ...rest, ...(colored ? { color: colorSig, colorStep: trackColor === "state" } : {}) });
     const f = (s?: string) => (s ? decode(s, Float32Array) : null);
     return { n: r.n, t: decode(r.t, Float64Array), lat: decode(r.lat, Float64Array), lon: decode(r.lon, Float64Array),
-      alt: f(r.alt), yaw: f(r.yaw), pitch: f(r.pitch), roll: f(r.roll), course: decode(r.course, Float32Array), ground: f(r.ground), units: r.units };
+      alt: f(r.alt), yaw: f(r.yaw), pitch: f(r.pitch), roll: f(r.roll), course: decode(r.course, Float32Array), ground: f(r.ground), units: r.units,
+      color: f(r.color) };
   },
   states: (signals: string[], x0: number | null, x1: number | null, bins = 1500) =>
     call<{ states: Record<string, { points: [number, number | null][]; tooMany: boolean; end: number | null }> }>("/api/states", { signals, x0, x1, bins }),

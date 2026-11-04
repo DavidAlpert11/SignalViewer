@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { plotHasContent, actions, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
@@ -21,6 +21,7 @@ import EnvelopeChart from "./EnvelopeChart";
 import XYZChart from "./XYZChart";
 import SpecChart from "./SpecChart";
 import PlotBoundary from "./PlotBoundary";
+import { useSize } from "./chartUtil";
 
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
@@ -127,6 +128,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       return items.length ? [...items, { label: "", run: () => {}, sep: true }] : [];
     })(),
     { label: t("axisLimits") + ((plot.xlim || plot.ylim) ? " •" : ""), run: () => useApp.setState({ axisDialog: plot.id }) },
+    { label: t("legend"), run: () => {}, items: legendItems() },
     ...(showFileTags(runs) ? [{ label: t("colorByFile"), run: () => actions.colorPlotByFile(plot.id),
       disabled: !plot.signals.some((s) => fileMark(runs, s.sig)) }] : []),
     { label: t("clearPlot"), run: () => actions.clearPlot(plot.id), disabled: !plotHasContent(plot) && !plot.xSignal },
@@ -213,6 +215,110 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     else actions.addSignalLinked(sig, plot.id);
   };
 
+  /* the legend: above the plot while it fits in two rows, else a column beside it (owner, 2026-11-03:
+     40 signals filled the plot with names). The estimate counts a value's place in every chip, so
+     moving the pointer never switches it. */
+  const secSize = useSize(sectionRef);
+  const valuesOn = cursor.on || (!!hover && mode === "time");
+  const valW = useRef<Record<string, number>>({});
+  const [legendQ, setLegendQ] = useState("");
+  const legendPref = plot.legend ?? "auto";
+  const legendAt: "top" | "side" | "off" = legendPref !== "auto" ? legendPref : (() => {
+    if (!plot.signals.length || !secSize.w) return "top";
+    const room = 2 * secSize.w - 200;            // the first row beside the title and the type, the second whole
+    const need = plot.signals.reduce((a, ps) => a + (ps.label || signalName(runs, ps.sig)).length * 6.5 + 40 + 80, 0);
+    return need > room && secSize.w > 380 ? "side" : "top";
+  })();
+  const sideW = Math.max(120, Math.min(plot.legendW ?? 240, Math.max(140, secSize.w * 0.5)));
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const x0 = e.clientX, w0 = sideW, rtl = document.documentElement.dir === "rtl";
+    let w = w0;
+    const move = (ev: MouseEvent) => {
+      w = Math.round(Math.max(120, Math.min(secSize.w * 0.6, w0 + (rtl ? ev.clientX - x0 : x0 - ev.clientX))));
+      const el = sectionRef.current?.querySelector<HTMLElement>(".legend-side");
+      if (el) el.style.width = `${w}px`;
+    };
+    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); actions.updatePlot(plot.id, { legendW: w }); };
+    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  };
+  // while the pointer is in the plot the header never gets lower (a value that needs a second line
+  // grows it once, then it stays until the pointer leaves) - no more jumping up and down
+  const headRef = useRef<HTMLElement>(null);
+  const [inPlot, setInPlot] = useState(false);
+  const headMin = useRef(0);
+  useLayoutEffect(() => {
+    const h = headRef.current;
+    if (!h) return;
+    if (!inPlot && !cursor.on) { headMin.current = 0; h.style.minHeight = ""; return; }
+    headMin.current = Math.max(headMin.current, h.offsetHeight);
+    h.style.minHeight = `${headMin.current}px`;
+  });
+  const legendItems = (): MenuItem[] => ([["auto", "legendAuto"], ["top", "legendTop"], ["side", "legendSide"], ["off", "legendOff"]] as const)
+    .map(([k, key]) => ({ label: t(key), checked: legendPref === k, run: () => actions.updatePlot(plot.id, { legend: k === "auto" ? undefined : k }) }));
+  /* one entry of the legend: a chip above the plot, or a row of the column beside it */
+  const entry = (s: Plot["signals"][number], side: boolean) => {
+            const inMulti = multi.some((m) => m.plotId === plot.id && m.sig === s.sig);
+            const sel = (selected?.plotId === plot.id && selected.sig === s.sig) || inMulti;
+            const tagged = showFileTags(runs);
+            const raw = cvals[s.sig]?.[0];
+            let val: string | null = null;
+            const unit = signalUnit(runs, s.sig, s.label);
+            let hv = false;
+            if (mode === "fft") val = Number.isFinite(peaks[s.sig]) ? `${fmtNum(peaks[s.sig], lang, 4)} Hz` : null;
+            const labels = labelsOf(runs, s.sig);
+            const plain = s.scale === 1 && s.offset === 0;
+            const shownName = s.label || signalName(runs, s.sig);
+            // the unit once: a name that already ends in [deg] does not repeat it after the value
+            const u = unit && shownName.includes(`[${unit}]`) ? null : unit;
+            if (mode === "fft" || mode === "occ") { /* peak above; occ: its axis is not the recording's time */ }
+            else if (cursor.on && raw !== undefined && raw !== null) val = (plain && labelText(labels, raw)) || withUnit(fmtNum(raw * s.scale + s.offset, lang), u);
+            else if (hover && mode === "time" && hover.vals[s.sig] !== null && hover.vals[s.sig] !== undefined) {
+              const hvv = hover.vals[s.sig] as number;     // already scaled
+              val = (plain && labelText(labels, hvv)) || withUnit(fmtNum(hvv, lang), u); hv = true;
+            }
+            // while values are shown every entry keeps a place for one, as wide as the widest it had:
+            // a value that grows or comes and goes no longer moves the legend (owner, 2026-11-03)
+            const showing = valuesOn && mode !== "fft" && mode !== "occ";
+            const wkey = `${s.sig}|${s.scale}|${s.offset}`;
+            if (val && showing) valW.current[wkey] = Math.max(valW.current[wkey] ?? 0, val.length);
+            const slot = showing ? valW.current[wkey] ?? 0 : 0;
+            if (showing && !val) { val = "—"; hv = !cursor.on; }
+            // T46: with several files the chip shows the file's tag (in its colour) instead of the
+            // long " · file.csv" - the part that told files apart was cut off; the tooltip has it all
+            const mark = tagged ? fileMark(runs, s.sig) : null;
+            const run = runs.find((r) => r.id === s.sig.split("/")[0]);
+            return (
+              <span key={s.sig} className={`${side ? "lrow" : "chip"}${sel ? " sel" : ""}`} role={side ? "listitem" : "button"} tabIndex={0} draggable
+                onMouseEnter={() => useApp.setState({ legendFocus: { plotId: plot.id, sig: s.sig } })}
+                onMouseLeave={() => { if (useApp.getState().legendFocus?.plotId === plot.id) useApp.setState({ legendFocus: null }); }}
+                title={`${s.label || signalName(runs, s.sig)}${run && run.format !== "derived" && run.path ? `\n${run.path}` : ""}\n\n${t("chipHint")}`}
+                onDragStart={(e) => { e.dataTransfer.setData(CHIP_MIME, JSON.stringify({ plotId: plot.id, sig: s.sig })); e.dataTransfer.effectAllowed = "copyMove"; }}
+                onDragOver={(e) => { if (e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); } }}
+                onDrop={(e) => onDrop(e, "y", s.sig)}
+                onContextMenu={(e) => chipMenu(e, s.sig)}
+                onClick={(e) => {
+                  const me = { plotId: plot.id, sig: s.sig };
+                  if (e.ctrlKey || e.metaKey) {      // multi-select for batch editing
+                    const st = useApp.getState();
+                    const base = st.multi.length ? st.multi : st.selected ? [st.selected] : [];
+                    const next = inMulti || (st.selected?.plotId === me.plotId && st.selected.sig === me.sig && !st.multi.length)
+                      ? base.filter((m) => !(m.plotId === me.plotId && m.sig === me.sig)) : [...base, me];
+                    useApp.setState({ multi: next, selected: next.length === 1 ? next[0] : st.selected, inspectorOpen: true });
+                  } else useApp.setState({ selected: me, multi: [], inspectorOpen: true });
+                }}
+                onKeyDown={(e) => { if (e.key === "Delete") actions.removeSignal(plot.id, s.sig); }}>
+                <span className="sw" style={{ background: s.color }} />
+                {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
+                <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
+                {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
+                {s.axis === "right" && !s.state && mode === "time" && <span className="tag" title={t("toLeftAxis")}>{t("rightAxisTag")}</span>}
+                {val && <span className={`val${hv ? " hov" : ""}`} style={slot ? { minWidth: `${slot}ch` } : undefined} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
+                <span className="rm" role="button" aria-label={t("remove")}
+                  onClick={(e) => { e.stopPropagation(); actions.removeSignal(plot.id, s.sig); }}><Icon.X width={11} height={11} /></span>
+              </span>
+            );
+            };
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const geoBase = useApp((s) => s.geoBase);
 
@@ -224,9 +330,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       onDragLeave={() => setDragOver(null)}
       onDrop={(e) => onDrop(e, edgeOf(e) ?? "y")}
       onMouseDown={() => actions.setActivePlot(index)}
+      onMouseEnter={() => setInPlot(true)} onMouseLeave={() => setInPlot(false)}
       aria-label={title}
     >
-      <header className="plot-head">
+      <header className="plot-head" ref={headRef}>
         {editingTitle ? (
           <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
             onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}
@@ -321,63 +428,16 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             </select>
           </span>
         )}
-        {hover && mode === "time" && <span className="hover-t" title={t("hoverValue")}>t = {fmtNum(hover.t, lang, 7)}</span>}
-        <div className="legend">
-          {plot.signals.map((s) => {
-            const inMulti = multi.some((m) => m.plotId === plot.id && m.sig === s.sig);
-            const sel = (selected?.plotId === plot.id && selected.sig === s.sig) || inMulti;
-            const tagged = showFileTags(runs);
-            const raw = cvals[s.sig]?.[0];
-            let val: string | null = null;
-            const unit = signalUnit(runs, s.sig, s.label);
-            let hv = false;
-            if (mode === "fft") val = Number.isFinite(peaks[s.sig]) ? `${fmtNum(peaks[s.sig], lang, 4)} Hz` : null;
-            const labels = labelsOf(runs, s.sig);
-            const plain = s.scale === 1 && s.offset === 0;
-            if (mode === "fft" || mode === "occ") { /* peak above; occ: its axis is not the recording's time */ }
-            else if (cursor.on && raw !== undefined && raw !== null) val = (plain && labelText(labels, raw)) || withUnit(fmtNum(raw * s.scale + s.offset, lang), unit);
-            else if (hover && mode === "time" && hover.vals[s.sig] !== null && hover.vals[s.sig] !== undefined) {
-              const hvv = hover.vals[s.sig] as number;     // already scaled
-              val = (plain && labelText(labels, hvv)) || withUnit(fmtNum(hvv, lang), unit); hv = true;
-            }
-            // T46: with several files the chip shows the file's tag (in its colour) instead of the
-            // long " · file.csv" - the part that told files apart was cut off; the tooltip has it all
-            const mark = tagged ? fileMark(runs, s.sig) : null;
-            const run = runs.find((r) => r.id === s.sig.split("/")[0]);
-            return (
-              <span key={s.sig} className={`chip${sel ? " sel" : ""}`} role="button" tabIndex={0} draggable
-                title={`${s.label || signalName(runs, s.sig)}${run && run.format !== "derived" && run.path ? `\n${run.path}` : ""}\n\n${t("chipHint")}`}
-                onDragStart={(e) => { e.dataTransfer.setData(CHIP_MIME, JSON.stringify({ plotId: plot.id, sig: s.sig })); e.dataTransfer.effectAllowed = "copyMove"; }}
-                onDragOver={(e) => { if (e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); } }}
-                onDrop={(e) => onDrop(e, "y", s.sig)}
-                onContextMenu={(e) => chipMenu(e, s.sig)}
-                onClick={(e) => {
-                  const me = { plotId: plot.id, sig: s.sig };
-                  if (e.ctrlKey || e.metaKey) {      // multi-select for batch editing
-                    const st = useApp.getState();
-                    const base = st.multi.length ? st.multi : st.selected ? [st.selected] : [];
-                    const next = inMulti || (st.selected?.plotId === me.plotId && st.selected.sig === me.sig && !st.multi.length)
-                      ? base.filter((m) => !(m.plotId === me.plotId && m.sig === me.sig)) : [...base, me];
-                    useApp.setState({ multi: next, selected: next.length === 1 ? next[0] : st.selected, inspectorOpen: true });
-                  } else useApp.setState({ selected: me, multi: [], inspectorOpen: true });
-                }}
-                onKeyDown={(e) => { if (e.key === "Delete") actions.removeSignal(plot.id, s.sig); }}>
-                <span className="sw" style={{ background: s.color }} />
-                {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
-                <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
-                {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
-                {s.axis === "right" && !s.state && mode === "time" && <span className="tag" title={t("toLeftAxis")}>{t("rightAxisTag")}</span>}
-                {val && <span className={`val${hv ? " hov" : ""}`} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
-                <span className="rm" role="button" aria-label={t("remove")}
-                  onClick={(e) => { e.stopPropagation(); actions.removeSignal(plot.id, s.sig); }}><Icon.X width={11} height={11} /></span>
-              </span>
-            );
-          })}
-        </div>
+        {legendAt === "top" && <div className="legend">{plot.signals.map((s) => entry(s, false))}</div>}
+        {legendAt !== "top" && plot.signals.length > 0 && (
+          <button className="legend-hidden" onClick={() => actions.updatePlot(plot.id, { legend: legendAt === "off" ? undefined : "top" })}
+            title={legendAt === "off" ? t("legendShow") : t("legendTop")}>
+            {legendAt === "off" ? t("legendHiddenN", { n: plot.signals.length }) : t("legendBesideN", { n: plot.signals.length })}</button>
+        )}
         <button className="iconbtn plot-more" aria-haspopup="menu" aria-label={t("plotMenu")} title={t("plotMenu")}
           onClick={openPlotMenu}><Icon.More /></button>
       </header>
-      <div className="plot-body" onContextMenu={onPlotContext}>
+      <div className={`plot-body${legendAt === "side" ? " with-legend" : ""}`} onContextMenu={onPlotContext}>
         <PlotBoundary label={t("plotFailed")} retry={t("tryAgain")} resetKey={`${mode}|${plot.signals.map((x) => x.sig).join(",")}|${plot.xSignal ?? ""}`}>
           {mode === "time" && <TimeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
           {mode === "xy" && <XYChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("xyNeedsX") : t("emptyPlot")} />}
@@ -393,6 +453,22 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         </PlotBoundary>
         {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && mode !== "xyz" && mode !== "video" && <div className="plot-empty">{t("emptyPlot")}</div>}
         {loading && <div className="plot-loading">{t("loading")}</div>}
+        {hover && mode === "time" && <span className="hover-t" title={t("hoverValue")}>t = {fmtNum(hover.t, lang, 7)}</span>}
+        {legendAt === "side" && (
+          <aside className="legend-side" style={{ width: sideW }} aria-label={t("legend")}
+            onMouseDown={(e) => e.stopPropagation()}>
+            <span className="legend-grip" role="separator" aria-orientation="vertical" aria-label={t("legendResize")} title={t("legendResize")}
+              onMouseDown={startResize} onDoubleClick={() => actions.updatePlot(plot.id, { legendW: undefined })} />
+            {plot.signals.length > 8 && (
+              <input className="legend-filter" type="search" value={legendQ} placeholder={t("legendFilter")} aria-label={t("legendFilter")}
+                onChange={(e) => setLegendQ(e.target.value)} />
+            )}
+            <div className="legend-rows" role="list">
+              {plot.signals.filter((s) => !legendQ.trim() || (s.label || signalName(runs, s.sig)).toLowerCase().includes(legendQ.trim().toLowerCase()))
+                .map((s) => entry(s, true))}
+            </div>
+          </aside>
+        )}
       </div>
     </section>
   );

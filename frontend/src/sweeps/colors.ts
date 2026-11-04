@@ -42,4 +42,4 @@ export const HOLDS = "#f2a93b";
 export const FAILS = "#7f8b9a";
 
 /** Columns that are yes / no (1 / 0): coloured as holds / the others, shown as two categories. */
-export const FLAG_COLS = new Set(["#holds", "#pareto", "#partial", "#robustHolds"]);
+export const FLAG_COLS = new Set(["#holds", "#pareto", "#partial", "#robustHolds", "#knee"]);

@@ -13,15 +13,18 @@ export default function FleetPanel() {
   const [folders, setFolders] = useState<FleetFolder[]>([]);
   const [keys, setKeys] = useState<FleetKey[]>([]);
   const [logs, setLogs] = useState<FleetLog[] | null>(null);
-  const [text, setText] = useState("");
-  const [level, setLevel] = useState("");
-  const [code, setCode] = useState("");
-  const [key, setKey] = useState("");
-  const [op, setOp] = useState<"above" | "below">("above");
-  const [limit, setLimit] = useState("");
+  // the search is kept while another panel is shown (Open here opens the Log panel; back to the
+  // Fleet, the search, the trend and the open flight are as they were)
+  const [text, setText] = useKept("text", "");
+  const [level, setLevel] = useKept("level", "");
+  const [code, setCode] = useKept("code", "");
+  const [key, setKey] = useKept("key", "");
+  const [op, setOp] = useKept<"above" | "below">("op", "above");
+  const [limit, setLimit] = useKept("limit", "");
   const [trend, setTrend] = useState<{ path: string; name: string; date: number; value: number }[]>([]);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useKept<string | null>("open", null);
   const [busy, setBusy] = useState(false);
+  const [example, setExample] = useState<string | null>(null);
 
   const title = (c: string) => { const k = `hTitle_${c}`; const v = t(k as never); return v === k ? c : v; };
   const keyLabel = (k: string) => k === "duration" ? t("fleetDuration") : `${title(k.split(".")[0])} · ${k.split(".").slice(1).join(".")}`;
@@ -31,6 +34,7 @@ export default function FleetPanel() {
     const st = await api.fleet();
     setFolders(st.folders);
     setKeys(st.keys);
+    setExample(st.example ?? null);
   };
   const search = async () => {
     const q: Record<string, string | number> = {};
@@ -50,6 +54,12 @@ export default function FleetPanel() {
     api.fleetTrend(key).then((r) => setTrend(r.points)).catch(() => setTrend([]));
   }, [key, folders]);
 
+  // the trend follows the typed search (not the number's limit - that is the line on it): type a
+  // vehicle's name and the line is that vehicle's flights only
+  const shownTrend = useMemo(() => {
+    const q = text.trim().toLowerCase();
+    return q ? trend.filter((p) => p.name.toLowerCase().includes(q) || p.path.toLowerCase().includes(q)) : trend;
+  }, [trend, text]);
   const scan = async (start: () => Promise<Parameters<typeof followJob>[0]>, label: string) => {
     setBusy(true);
     try {
@@ -65,6 +75,13 @@ export default function FleetPanel() {
     const path = await pickPath({ mode: "folder", title: t("fleetChooseFolder") });
     if (path) scan(() => api.fleetAdd(path), t("fleetIndexing"));
   };
+  /* the example (owner, 2026-11-03: what the fleet is for): two copters, ten flights; it opens on the
+     vibration trend, where the worn motor shows */
+  const tryExample = async () => {
+    if (!example) return;
+    if (!folders.some((f) => f.folder === example)) await scan(() => api.fleetAdd(example), t("fleetIndexing"));
+    setText(""); setLevel(""); setCode(""); setKey("vibration.max"); setOp("above"); setLimit("30");
+  };
   const remove = async (f: string) => { setFolders((await api.fleetRemove(f)).folders); await refresh(); await search(); };
 
   return (
@@ -72,6 +89,12 @@ export default function FleetPanel() {
       <div className="side-head"><h2>{t("fleet")}</h2></div>
       <div className="fleet-body">
         <p className="hint">{t("fleetIntro")}</p>
+        {example && !folders.some((f) => f.folder === example) && (
+          <div className="fleet-example">
+            <p>{t("fleetWhat")}</p>
+            <button className="btn sm primary" disabled={busy} onClick={() => { void tryExample(); }}>{t("fleetTryExample")}</button>
+          </div>
+        )}
         <div className="fleet-folders">
           {folders.map((f) => (
             <div key={f.folder} className="fleet-folder">
@@ -115,7 +138,7 @@ export default function FleetPanel() {
             </div>
           </div>
 
-          {key && trend.length > 1 && <Trend points={trend} limit={limit === "" ? null : Number(limit)} lang={lang}
+          {key && shownTrend.length > 1 && <Trend points={shownTrend} limit={limit === "" ? null : Number(limit)} lang={lang}
             label={keyLabel(key)} onPick={(p) => openAt(p, null)} />}
 
           <div className="fleet-count muted">{logs ? (logs.length === 1 ? t("fleetFoundOne") : t("fleetFound", { n: logs.length })) : t("loading")}</div>
@@ -202,4 +225,11 @@ function Trend({ points, limit, label, lang, onPick }: {
       </svg></div>
     </figure>
   );
+}
+
+/* the panel's search, kept for the session (not saved) across the panel being closed and opened */
+const KEPT: Record<string, unknown> = {};
+function useKept<T>(name: string, initial: T): [T, (v: T) => void] {
+  const [v, setV] = useState<T>(name in KEPT ? (KEPT[name] as T) : initial);
+  return [v, (x: T) => { KEPT[name] = x; setV(x); }];
 }

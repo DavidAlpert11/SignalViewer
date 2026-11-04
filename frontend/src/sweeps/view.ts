@@ -92,6 +92,8 @@ export function colLabel(t: TFn, s: Study, name: string): string {
   if (name === "#complete") return t("swCompleteCol");
   if (name === "#set") return t("swSetCol");
   if (name === "#pareto") return t("swParetoCol");
+  if (name === "#front") return t("swFrontCol");
+  if (name === "#knee") return t("swKneeCol");
   if (name === "#group") return t("swGroupsCol");
   if (name === "#score") return t("swScoreCol");
   if (name === "#neighbours") return t("swNeighboursCol");
@@ -239,7 +241,7 @@ export function defaultTableColumns(s: Study): string[] {
   return [...sets.filter((c) => c.group === "param").map((c) => c.name), ...(have.has("#goal") ? ["#goal"] : []),
     ...sets.filter((c) => /^#obj\d+$/.test(c.name)).map((c) => c.name),
     ...sets.filter((c) => c.group === "condition" && c.part !== "passed").map((c) => c.name),
-    ...["#robustHolds", "#robustGoal", "#robustSeen", "#score", "#pareto", "#neighbours", "#tolerance", "#covered"].filter((x) => have.has(x))];
+    ...["#robustHolds", "#robustGoal", "#robustSeen", "#score", "#pareto", "#front", "#neighbours", "#tolerance", "#covered"].filter((x) => have.has(x))];
 }
 
 /** The table's columns now: the chosen ones that this answer has, else the default. */

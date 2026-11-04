@@ -6,7 +6,9 @@ import { openMenu } from "./Overlays";
 import { actions, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
-import { bearing, fmtDistance, groundDistance, objectAt, trackTime, visualOrder, type ObjTrack } from "../mapObjects";
+import { bearing, colorRuns, fmtDistance, groundDistance, objectAt, trackColors, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
+import { labelsOf, stateColor } from "../values";
+import TrackKeys from "./TrackKeys";
 import Globe3DFallback from "./Globe3DFallback";
 
 /* The 3D view: the earth with the app's own terrain (bundled elevation) and map tiles (offline or
@@ -109,7 +111,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const [lightMode, setLightMode] = useState(false);
   const widgetRef = useRef<import("cesium").CesiumWidget | null>(null);
   const objects: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
-  const objKey = objects.map((o) => [o.id, o.lat, o.lon, o.alt, o.yaw, o.pitch, o.roll, o.qw, o.qx, o.qy, o.qz].join(":")).join("|");
+  const objKey = objects.map((o) => [o.id, o.lat, o.lon, o.alt, o.yaw, o.pitch, o.roll, o.qw, o.qx, o.qy, o.qz, o.trackColor, o.colorSig].join(":")).join("|");
   /* what the models, lines and labels are built from: they are rebuilt only when this changes - not
      for every change of the plot (time of its own, camera, primary object...), which gives a new
      objects array each time and made the models vanish while they loaded again */
@@ -248,7 +250,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       for (const o of plot.objects ?? []) {
         try {
           const r = await api.objectTrack(o);
-          out[o.id] = { t: r.t, lat: r.lat, lon: r.lon, yaw: r.yaw, course: r.course, units: r.units, alt: r.alt, pitch: r.pitch, roll: r.roll, ground: r.ground };
+          out[o.id] = { t: r.t, lat: r.lat, lon: r.lon, yaw: r.yaw, course: r.course, units: r.units, alt: r.alt, pitch: r.pitch, roll: r.roll, ground: r.ground, color: r.color };
         } catch { /* a signal no longer open */ }
       }
       if (!cancelled) setTracks(out);
@@ -256,6 +258,19 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objKey, dataVersion, runsKey, failed]);
+
+  /* a track coloured by a mode or a value (as on the map) */
+  const allRuns = useApp((s) => s.runs);
+  const objColors = useMemo(() => {
+    const out: Record<string, TrackColors> = {};
+    for (const o of objects) {
+      const tr = tracks[o.id];
+      if (!tr?.color || !o.trackColor || o.trackColor === "object" || !o.colorSig) continue;
+      const c = trackColors(o.trackColor, tr.color, labelsOf(allRuns, o.colorSig) ?? null, (x) => fmtNum(x, lang, 4), (x) => stateColor(x, theme));
+      if (c) out[o.id] = c;
+    }
+    return out;
+  }, [objects, tracks, allRuns, lang, theme]);
 
   /* models (one per object; rebuilt when the objects change) */
   useEffect(() => {
@@ -315,7 +330,13 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         if (Number.isFinite(tr.lat[i]) && Number.isFinite(tr.lon[i]) && Number.isFinite(h)) { idx.push(i); pos.push(cz.Cartesian3.fromDegrees(tr.lon[i], tr.lat[i], h)); }
       }
       const d: Drawn = { idx, pos, full: null, part: null, fullMat: null, label: null };
-      if (o.trail !== false && pos.length > 1) {
+      const cols = objColors[o.id];
+      if (o.trail !== false && pos.length > 1 && cols) {
+        // coloured: a line per stretch of one colour, the whole track (no faint / shown parts)
+        const at = idx.map((i) => cols.at[i]);
+        for (const r of colorRuns(at, 0, at.length)) if (r.b - r.a > 0)
+          S.lines.add({ positions: pos.slice(r.a, Math.min(pos.length, r.b + 1)), width: 3, material: cz.Material.fromType("Color", { color: cz.Color.fromCssColorString(r.color) }) });
+      } else if (o.trail !== false && pos.length > 1) {
         d.fullMat = cz.Material.fromType("Color", { color: col });
         d.full = S.lines.add({ positions: pos, width: 2.5, material: d.fullMat });
         d.part = S.parts.add({ positions: pos, width: 2.5, material: cz.Material.fromType("Color", { color: col }), show: false });
@@ -327,7 +348,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     }
     updateRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cz, tracks, objKey, objLook]);
+  }, [cz, tracks, objKey, objLook, objColors]);
 
   /* the log's events on the tracks: a mark where the object was at each event (errors red, warnings
      amber, mode changes blue), with its text */
@@ -579,6 +600,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       <div ref={hostRef} className="globe3d-host" />
       <div ref={creditRef} className="globe3d-credits" />
       {!cz && <div className="plot-empty">{t("globeLoading")}</div>}
+      <TrackKeys objects={objects} colors={objColors} />
       {cz && !objects.length && <div className="plot-empty">{emptyText}</div>}
       {lightMode && <div className="globe3d-light" title={t("globeLightHint")}>{t("globeLight")}</div>}
       {/* the camera, the primary object and the related ones, the data box */}

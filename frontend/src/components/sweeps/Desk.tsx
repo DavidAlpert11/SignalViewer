@@ -30,6 +30,8 @@ const AUTO_KEYS: Record<string, TKey> = { all: "swGrpAll", holds: "swGrpHolds", 
 const BINS = 20;
 
 /** The charts on screen: the study's (every one, `perRow` in a row), or two from its columns. */
+const isObjective = (name: string) => name === "#goal" || /^#obj\d+$/.test(name);
+
 export function deskOf(s: Study): { layout: 1 | 2 | 4; panes: DeskPane[]; perRow: 1 | 2 | 4 } {
   const d = s.view.desk;
   const first = firstPanes(s);
@@ -242,7 +244,9 @@ function Pane({ study, pane, onChange, big, onBig, onDuplicate, onRemove }: { st
           onChange={(q) => onChange(q)} />
       )}
       {pane.kind === "pareto" && (study.answer?.sets.some((c) => c.name === "#obj1")
-        ? <ScatterPanel study={study} group={g} pair={{ x: "#goal", y: "#obj1" }} onChange={() => {}} />
+        // any two of the objectives on the axes (three or more: a pane per pair - Duplicate)
+        ? <ScatterPanel study={study} group={g} pair={{ x: pane.x && isObjective(pane.x) ? pane.x : "#goal", y: pane.y && isObjective(pane.y) ? pane.y : "#obj1" }}
+            onChange={(q) => onChange(q)} objectivesOnly />
         : <p className="empty-note">{t("swParetoNeedsTwo")}</p>)}
       {pane.kind === "lines" && <LinesPane study={study} group={g} />}
       {pane.kind === "map" && <MapPanel key={`${pane.x}:${pane.y}`} study={study} spec={mapSpec(study, pane)} onChange={(p) => onChange({ x: p.x ?? pane.x, y: p.y ?? pane.y })} />}

@@ -9,8 +9,10 @@ A question (JSON from the page):
                    k (atLeast), where (only: {hold column: [values]})}]
     combine      "and" (default: every condition) | "or" (at least one of them)
     outputAgg    {output column: mean | min | max | median | p10 | p90 | std | spread}   - default mean
-    objectives   [{column, direction, weight}] - two or more: the Pareto front and a weighted score,
-                 and the sets that hold are ranked by the score
+    objectives   [{column, direction, weight}] - two or more: the Pareto front (#pareto, its levels
+                 #front, the balanced choice #knee) and a weighted score; the sets that hold are
+                 ranked by the score
+    rankBy       "pareto" - ranked by the Pareto level, then the (weighted) distance to the ideal
     robust       {param: {mode: "pct" | "abs" | "steps", value}} - optional (S06): the sets within
                  the tolerance must hold too; only sets that hold robustly are ranked
     exclude      [table row]                  - runs left out (e.g. suspicious ones)
@@ -270,10 +272,12 @@ def answer(p: Prepared, q: Dict) -> Dict:
     from svcore.sweep.analysis import objectives as _objectives
     from svcore.sweep.grid import Grid, robustness, stability
     objs = q.get("objectives") or []
-    front, score = _objectives(p, objs, holds)
+    front, score, level, dist, knee = _objectives(p, objs, holds)
     if front is not None:
         add("#pareto", front, "result")
         add("#score", score, "result")
+        add("#front", level, "result")
+        add("#knee", knee, "result")              # the balanced choice on the front
         # each further objective's worst case (the first is #goal): the axes of a Pareto plot (S19)
         for i, o in enumerate(objs[1:], 1):
             if o.get("column") in p.df.columns or o.get("column") in p.set_cols:
@@ -281,9 +285,14 @@ def answer(p: Prepared, q: Dict) -> Dict:
                 add(f"#obj{i}", _agg(p, o["column"], "min" if mx else "max"), "goal", column=o["column"], direction="max" if mx else "min")
     if score is not None and len(objs) >= 2:
         # several things to optimize: the sets that hold are ranked by the weighted score (1 = best
-        # on every one), so the weights decide the order - the first alone used to rank them
+        # on every one), so the weights decide the order - the first alone used to rank them.
+        # rankBy "pareto" (owner, 2026-11-03): the front first, then the next front..., and within a
+        # front the closest to the ideal point first (no weights needed to agree on the front)
         idx = np.where(holds & np.isfinite(score))[0]
-        order = idx[np.argsort(-score[idx], kind="stable")]
+        if q.get("rankBy") == "pareto" and level is not None:
+            order = idx[np.lexsort((dist[idx], level[idx]))]
+        else:
+            order = idx[np.argsort(-score[idx], kind="stable")]
         rank = np.full(p.n_sets, np.nan)
         rank[order] = np.arange(1, len(order) + 1)
     grid = Grid(p)

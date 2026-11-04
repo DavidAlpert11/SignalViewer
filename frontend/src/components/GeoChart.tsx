@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { drawObjectIcon } from "./mapIcons";
-import { objectAt, trackTime, type ObjTrack } from "../mapObjects";
+import { colorRuns, objectAt, trackColors, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
+import TrackKeys from "./TrackKeys";
+import { labelsOf, stateColor } from "../values";
+import { fmtNum } from "../i18n";
 import type { Country } from "../worldCountries";
 import { dpr, indexSpan, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chartUtil";
 
@@ -115,7 +118,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   /* objects: each one's signals on one time axis, fetched when its signals change */
   const objects: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
   const [objTracks, setObjTracks] = useState<Record<string, ObjTrack>>({});
-  const objKey = objects.map((o) => [o.id, o.lat, o.lon, o.alt, o.yaw, o.pitch, o.roll].join(":")).join("|");
+  const objKey = objects.map((o) => [o.id, o.lat, o.lon, o.alt, o.yaw, o.pitch, o.roll, o.trackColor, o.colorSig].join(":")).join("|");
   const [countries, setCountries] = useState<Country[] | null>(null);
   const [places, setPlaces] = useState<Place[] | null>(null);
   const [tick, setTick] = useState(0);
@@ -156,7 +159,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       for (const o of plot.objects ?? []) {
         try {
           const r = await api.objectTrack(o);
-          out[o.id] = { t: r.t, lat: r.lat, lon: normLon(r.lon), yaw: r.yaw, course: r.course, units: r.units };
+          out[o.id] = { t: r.t, lat: r.lat, lon: normLon(r.lon), yaw: r.yaw, course: r.course, units: r.units, color: r.color };
         } catch { /* a signal no longer open: the object is skipped */ }
       }
       if (!cancelled) setObjTracks(out);
@@ -164,6 +167,17 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objKey, dataVersion, runsKey]);
+  /* each object's track colours (by a state or a value) and their key */
+  const objColors = useMemo(() => {
+    const out: Record<string, TrackColors> = {};
+    for (const o of objects) {
+      const tr = objTracks[o.id];
+      if (!tr?.color || !o.trackColor || o.trackColor === "object" || !o.colorSig) continue;
+      const c = trackColors(o.trackColor, tr.color, labelsOf(runs, o.colorSig) ?? null, (x) => fmtNum(x, lang, 4), (x) => stateColor(x, theme));
+      if (c) out[o.id] = c;
+    }
+    return out;
+  }, [objects, objTracks, runs, lang, theme]);
   /** Tracks and objects, for fitting the view. */
   const allTracks = (): Track[] => [...tracks, ...Object.entries(objTracks).map(([id, o]) => ({ id, lon: o.lon, lat: Float32Array.from(o.lat), t: o.t }))];
   const allTracksRef = useRef(allTracks);
@@ -357,9 +371,12 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     }
 
     // 4. tracks, with a halo so they read on any map
-    plot.signals.forEach((ps) => {
-      const t = tracks.find((x) => x.id === ps.sig);
+    plot.signals.forEach((ps0) => {
+      const t = tracks.find((x) => x.id === ps0.sig);
       if (!t) return;
+      // the same position as an object: one colour for both (the object's), not two unrelated ones
+      const twin = objects.find((o) => o.lat === ps0.sig && o.lon === plot.xSignal);
+      const ps = twin ? { ...ps0, color: twin.color } : ps0;
       const pts: [number, number][] = [];
       const path = (i0 = 0, i1 = t.lon.length) => {
         ctx.beginPath();
@@ -428,9 +445,15 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
           }
         };
         ctx.lineJoin = "round"; ctx.lineCap = "round";
-        if (span5) { pathIn(0, tr.t.length); ctx.globalAlpha = 0.28; ctx.strokeStyle = o.color; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1; }
-        pathIn(a0, a1); ctx.strokeStyle = dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"; ctx.lineWidth = 4.5; ctx.stroke();
-        pathIn(a0, a1); ctx.strokeStyle = o.color; ctx.lineWidth = 2; ctx.stroke();
+        const cols = objColors[o.id];
+        // a coloured track: each stretch of one colour drawn on its own
+        const stroke = (i0: number, i1: number, w: number) => {
+          if (!cols) { pathIn(i0, i1); ctx.strokeStyle = o.color; ctx.lineWidth = w; ctx.stroke(); return; }
+          for (const r of colorRuns(cols.at, i0, i1)) { pathIn(r.a, r.b); ctx.strokeStyle = r.color; ctx.lineWidth = w; ctx.stroke(); }
+        };
+        if (span5) { ctx.globalAlpha = 0.28; stroke(0, tr.t.length, 2); ctx.globalAlpha = 1; }
+        pathIn(a0, a1); ctx.strokeStyle = dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"; ctx.lineWidth = cols ? 5.5 : 4.5; ctx.stroke();
+        stroke(a0, a1, cols ? 3 : 2);
       }
       const tNow = trackTime(tr, cursor.on ? cursor.t1 : null, streaming);
       const st = objectAt(tr, tNow, o.angleUnit);
@@ -465,7 +488,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     ctx.fillStyle = veil;
     ctx.fillRect(W - aw - 10, H - 16, aw + 10, 16);
     ctx.fillStyle = dark ? "#9fb0c3" : "#3d4650"; ctx.fillText(att, W - 5, H - 3);
-  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming]);
+  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors]);
 
   /* ------------------------- zoom / pan / readout ------------------------ */
   const viewRef = useRef(view);
@@ -524,8 +547,10 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     <div className="plot-canvas geo" ref={wrapRef} style={{ position: "relative" }}>
       <canvas ref={cvRef} style={{ width: size.w, height: size.h, display: "block", cursor: "grab" }} />
       {mouse && <div className="geo-readout">{mouse.lat.toFixed(prec)}°, {mouse.lon.toFixed(prec)}°</div>}
+      <TrackKeys objects={objects} colors={objColors} />
       {(!plot.xSignal || !ys.length) && !objects.length && <div className="plot-empty">{emptyText}</div>}
       {badRange && <div className="plot-empty">{notDegrees}</div>}
     </div>
   );
 }
+
