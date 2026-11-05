@@ -608,9 +608,9 @@ class DataFlash:
         by = {self.formats[t].name: t for t in dec if t in self.formats}
         th, td = by.get("ISBH"), by.get("ISBD")
         if th is None or td is None:
-            for t in (th, td):
-                if t is not None:
-                    dec.pop(t, None)
+            for typ_id in (th, td):
+                if typ_id is not None:
+                    dec.pop(typ_id, None)
             return {}
         H, D = dec.pop(th), dec.pop(td)
         fh, fd = self.formats[th], self.formats[td]
@@ -659,18 +659,18 @@ class DataFlash:
                 continue
             mine = sorted(mine, key=lambda j: int(dseq[j]))
             m = min(cnt, 32 * len(mine))
-            t = float(hus[i]) * 1e-6 + np.arange(m) / rate
+            ts: np.ndarray = float(hus[i]) * 1e-6 + np.arange(m) / rate
             vals = np.stack([np.concatenate([a[j] for j in mine])[:m] for a in (dx, dy, dz)]).astype(np.float64) / mul
-            parts.setdefault((typ, inst, is_post), []).append((t, vals))
+            parts.setdefault((typ, inst, is_post), []).append((ts, vals))
         out: Dict[str, tuple] = {}
         for (typ, inst, is_post), chunks in parts.items():
-            t = np.concatenate([c[0] for c in chunks])
+            tt: np.ndarray = np.concatenate([c[0] for c in chunks])
             v = np.concatenate([c[1] for c in chunks], axis=1)
-            order = np.argsort(t, kind="stable")
-            t = t[order]
+            order = np.argsort(tt, kind="stable")
+            tt = tt[order]
             kind, unit = ("Gyr", "rad/s") if typ == 1 else ("Acc", "m/s/s")
             for a, axis in enumerate("XYZ"):
-                out[f"ISBD[{inst}].{kind}{axis}{'Post' if is_post else ''} [{unit}]"] = (t, v[a][order])
+                out[f"ISBD[{inst}].{kind}{axis}{'Post' if is_post else ''} [{unit}]"] = (tt, v[a][order])
         return out
 
     def _emit(self, out: Dict[str, tuple], f: "MsgFormat", col, pos: Optional[np.ndarray], base: int):
