@@ -8,6 +8,7 @@ import { fmtInt, fmtNum, useT } from "../i18n";
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { Icon } from "../icons";
 import { unitOf } from "../units";
+import { copyText } from "../errorReport";
 
 /** 10 significant digits: hides floating-point noise such as 4.596540300000117 */
 const clean = (v: number) => String(Number(v.toPrecision(10)));
@@ -234,8 +235,8 @@ export default function Inspector() {
       return [s.label || signalName(runs, s.sig, false), st ? Math.min(tr(st.min), tr(st.max)) : "", st ? Math.max(tr(st.min), tr(st.max)) : "",
         st ? tr(st.mean) : "", st ? st.rms * k : "", st ? st.std * k : "", st ? st.peak_to_peak * k : "", st?.samples ?? ""].join("\t");
     }));
-    try { await navigator.clipboard.writeText(lines.join("\n")); useApp.getState().toast({ kind: "info", text: t("copiedTable") }); }
-    catch { useApp.getState().toast({ kind: "error", text: t("copyFailed") }); }
+    if (await copyText(lines.join("\n"))) useApp.getState().toast({ kind: "info", text: t("copiedTable") });
+    else useApp.getState().toast({ kind: "error", text: t("copyTextFailed") });
   };
   const setT = (k: "t1" | "t2", v: number) => useApp.setState({ cursor: { ...useApp.getState().cursor, [k]: v } });
 

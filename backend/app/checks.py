@@ -217,7 +217,7 @@ def junit_xml(files: List[Dict[str, Any]]) -> str:
 # --- T58: a run against a golden run -------------------------------------------------------
 
 def load_tolerances(path: Optional[str], tol_abs: Optional[float], tol_pct: Optional[float],
-                    allow_outside: Optional[float] = None) -> Dict[str, Any]:
+                    allow_outside: Optional[float] = None, tol_time: Optional[float] = None) -> Dict[str, Any]:
     """{"default": {"abs": 0.5, "pct": 2}, "signals": {"Speed": {"abs": 1}, "Gear": {"skip": true}}}
     - the command line's --tol-abs / --tol-pct / --allow-outside are the default when given.
     T65: "outside_pct" (default 0) is the share of samples, in %, that may be outside the tolerance
@@ -241,6 +241,8 @@ def load_tolerances(path: Optional[str], tol_abs: Optional[float], tol_pct: Opti
         dflt["pct"] = tol_pct
     if allow_outside is not None:
         dflt["outside_pct"] = allow_outside
+    if tol_time is not None:
+        dflt["time"] = tol_time                   # 1.21: seconds the run may be early / late
     d["default"] = dflt
     return d
 
@@ -394,7 +396,7 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
         try:
             r = compare_runs([("g/" + name, np.asarray(ta, dtype=np.float64), np.asarray(ya, dtype=np.float64)),
                               ("n/" + name, np.asarray(tb, dtype=np.float64), np.asarray(yb, dtype=np.float64))],
-                             "g/" + name, "linear", tol.get("abs"), tol.get("pct"))
+                             "g/" + name, "linear", tol.get("abs"), tol.get("pct"), tol_time=tol.get("time"))
         except (ValueError, IndexError) as e:
             res.update(status="error", message=str(e) or "no samples to compare")
             rows.append(res)
@@ -414,7 +416,8 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
             res["outsidePct"] = outside
             if not m["pass"]:
                 lim = " / ".join(x for x in (f"±{tol['abs']}" if tol.get("abs") is not None else "",
-                                             f"±{tol['pct']} %" if tol.get("pct") is not None else "") if x)
+                                             f"±{tol['pct']} %" if tol.get("pct") is not None else "",
+                                             f"±{tol['time']} s" if tol.get("time") else "") if x)
                 also = f", {allowed:g} % allowed" if allowed is not None else ""
                 say = f"{_share(outside)} % of samples outside {lim}{also}; " + say
         else:

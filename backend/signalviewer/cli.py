@@ -169,7 +169,7 @@ def cmd_compare(a) -> int:
     from app.checks import ChecksError, load_tolerances, run_compare
     files = [f for pat in a.files for f in (sorted(glob.glob(pat)) or [pat])]
     try:
-        tol = load_tolerances(a.tolerances, a.tol_abs, a.tol_pct, a.allow_outside)
+        tol = load_tolerances(a.tolerances, a.tol_abs, a.tol_pct, a.allow_outside, a.tol_time)
     except ChecksError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -341,6 +341,8 @@ def main(argv=None) -> int:
     p.add_argument("--signals", help="comma-separated names (default: every signal both have)")
     p.add_argument("--tol-abs", type=float, help="allowed |difference| for every signal, in its unit")
     p.add_argument("--tol-pct", type=float, help="allowed difference in %% of the golden value")
+    p.add_argument("--tol-time", type=float, help="seconds a run may be early or late (the golden value's band is its "
+                   "lowest / highest within +-TOL_TIME, as the Simulink Data Inspector)")
     p.add_argument("--allow-outside", type=float, metavar="PCT",
                    help="share of samples (%%) that may be outside the tolerance and still pass (default 0: every sample)")
     p.add_argument("--tolerances", help='a .json file: {"default": {"abs": .., "pct": ..}, "signals": {"Speed": {"abs": 1}, "Gear": {"skip": true}}}')

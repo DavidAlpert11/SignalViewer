@@ -17,6 +17,7 @@ import ColumnPicker from "./ColumnPicker";
 import RerunList from "./RerunList";
 import MapsView from "./MapView";
 import { KINDS, MARK, stamp } from "../../sweeps/next";
+import { copyText } from "../../errorReport";
 
 const DEFAULT_KINDS: SuggestKind[] = ["edge", "best", "disagree", "missing"];
 /** the run list's formats: a file name's ending, its name in the menu */
@@ -82,7 +83,7 @@ export default function NextRunsView({ study }: { study: Study }) {
     if (!res?.suggestions.length) return;
     const cols = Object.keys(res.suggestions[0].params);
     const text = [cols.join("\t"), ...res.suggestions.map((s) => cols.map((c) => s.params[c] ?? "").join("\t"))].join("\n");
-    navigator.clipboard.writeText(text).then(() => notify(t("swNextCopied", { n: res.suggestions.length })), notifyError);
+    void copyText(text).then((ok) => ok ? notify(t("swNextCopied", { n: res.suggestions.length })) : notifyError(new Error(t("copyTextFailed"))));
   };
   // compact (S17): a parameter with one value in every suggestion is said once, above the table
   const [everyCol, setEveryCol] = useState(false);

@@ -139,7 +139,7 @@ export interface LimitResult { lo: number | null; hi: number | null; samples: nu
 export interface TplSignal { limits?: { lo?: number | null; hi?: number | null }; name: string; slot?: string; color?: string; width?: number; scale?: number; offset?: number;
   state?: boolean; tOffset?: number; label?: string }
 export interface TplPlot { title: string; mode?: string; xSignal?: string | null; xSlot?: string; xyAlign?: string; fftWindow?: string; fftMethod?: string;
-  fftLog?: boolean; specN?: number; caption?: string; ylim?: [number, number] | null; signals: TplSignal[]; objects?: TplObject[] }
+  fftLog?: boolean; fftFilters?: boolean; specN?: number; caption?: string; ylim?: [number, number] | null; signals: TplSignal[]; objects?: TplObject[] }
 /** A map object in a template: each of its signals by name (alternatives "a|b" allowed) and file slot. */
 export type TplObjectRole = "lat" | "lon" | "alt" | "yaw" | "pitch" | "roll" | "qw" | "qx" | "qy" | "qz";
 export interface TplObject { name: string; kind: string; color?: string; roles: Partial<Record<TplObjectRole, { name: string; slot?: string }>>;
@@ -152,7 +152,7 @@ export interface TplSlot { id: string; name: string; formats?: string[]; file?: 
 export interface ResolvedTab {
   name: string; rows: number; cols: number; rowSizes?: number[] | null; colSizes?: number[] | null; linkX?: boolean; linkY?: boolean | null;
   sharedStates?: string[] | null;
-  plots: { title: string; mode?: string; xSignal?: string | null; xyAlign?: string; fftWindow?: string; fftMethod?: string; fftLog?: boolean;
+  plots: { title: string; mode?: string; xSignal?: string | null; xyAlign?: string; fftWindow?: string; fftMethod?: string; fftLog?: boolean; fftFilters?: boolean;
     specN?: number; caption?: string; ylim?: [number, number] | null;
     signals: { sig: string; color: string | null; width?: number; scale?: number; offset?: number; state?: boolean | null; tOffset?: number | null;
       label?: string | null; limits?: { lo?: number | null; hi?: number | null } }[];
@@ -291,6 +291,14 @@ export const api = {
     call<{ restored: string[]; failed: { name: string; message: string }[]; runs: RunInfo[] }>("/api/derived/restore", { items }),
   renameDerived: (old: string, name: string) => call<{ id: string; name: string; runs: RunInfo[] }>("/api/derived/rename", { old, new: name }),
   deleteDerived: (name: string) => call<{ runs: RunInfo[] }>(`/api/derived/${encodeURIComponent(name)}`, undefined, "DELETE"),
+  filters: async (signal: string, t0: number | null, t1: number | null, fs: number | null) => {
+    const r = await call<{ setup: FilterSetup | null; f?: string; gain?: string; fs?: number }>("/api/filters", { signal, t0, t1, fs, points: 2000 });
+    return { setup: r.setup, f: r.f ? decode(r.f, Float64Array) : null, gain: r.gain ? decode(r.gain, Float32Array) : null };
+  },
+  stepResp: async (pairs: [string, string][], t0: number | null, t1: number | null): Promise<StepSeries[]> => {
+    const r = await call<{ series: any[] }>("/api/stepresp", { pairs, t0, t1, length: 0.5 });
+    return r.series.map((s) => ({ ...s, t: s.t ? decode(s.t, Float64Array) : undefined, step: s.step ? decode(s.step, Float32Array) : undefined }));
+  },
   fft: async (signals: string[], window: string, t0: number | null, t1: number | null, points: number, method: "fft" | "welch" = "fft") => {
     const r = await call<{ series: any[] }>("/api/fft", { signals, window, method, t0, t1, points });
     return r.series.map((s) => (s.missing ? { id: s.id, missing: true, n: 0, peak: NaN, x: new Float64Array(), y: new Float32Array() }
@@ -355,8 +363,8 @@ export const api = {
   places: () => call<FsPlaces>("/api/fs/places"),
   setFavourites: (paths: string[]) => call<{ favourites: { path: string; exists: boolean }[] }>("/api/fs/favourites", { paths }, "PUT"),
   compare: (signals: string[], baseline: string, alignment: string, tolAbs: number | null, tolPct: number | null,
-    windows?: Record<string, [number, number]> | null) =>
-    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct, windows: windows ?? null }),
+    windows?: Record<string, [number, number]> | null, tolTime: number | null = null) =>
+    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct, tolTime, windows: windows ?? null }),
   segmentsAcross: (runs: string[], state: string, value: number, occurrence: number) =>
     call<{ windows: import("./segments").SegWindow[] }>("/api/segments/across", { runs, state, value, occurrence }),
   compareAll: (runs: string[], baselineRun: string, alignment: string, tolAbs: number | null, tolPct: number | null) =>
@@ -430,6 +438,8 @@ export interface LogParam { name: string; value: number; first: number; default:
 export interface LogInfo {
   vehicle: string | null; firmware: string | null; hasDefaults: boolean; timeOffset: number;
   params: LogParam[]; events: LogEvent[];
+  /** 1.21: what the log says about the hardware (ArduPilot) - backend svcore/hardware.py */
+  hardware?: { sections: { name: string; rows: [string, string][] }[] };
 }
 
 export interface HealthFinding {
@@ -440,12 +450,25 @@ export interface HealthReport { findings: HealthFinding[]; errors: number; warni
 /** T25: the error A − B over some time. */
 export interface ErrStat { n: number; rms?: number; mean?: number; maxAbs?: number; tMaxAbs?: number }
 /** A1: how a spectrum's samples were put on an even time grid (gaps and NaN are bridged in time). */
-export interface SpectrumGrid { resampled?: boolean; fs?: number | null; gaps?: number; gapTime?: number; error?: string }
+export interface SpectrumGrid { resampled?: boolean; fs?: number | null; gaps?: number; gapTime?: number; error?: string; bursts?: number }
 
 export interface SpecData {
   nf: number; nt: number; f0: number; f1: number; t0: number; t1: number; img: string;
   dbLo: number; dbHi: number; fs: number; nfft: number; df: number; dt: number;
   sigT0?: number; sigT1?: number;     // F24: the signal's own first / last time
+}
+
+/** ArduPilot's gyro filters from the log's parameters (backend svcore/filters.py) */
+export interface FilterSetup {
+  notches: { name: string; instance: number; mode: string; base: number[]; baseFrom: "log" | "parameter"; harmonics: number[];
+    lines: number[]; ratio: number; att: number; composite: number }[];
+  lpf: number | null;
+}
+
+/** 1.21: a control loop's step response (backend svcore/stepresp.py) */
+export interface StepSeries {
+  pair: [string, string]; error?: string; rate?: number; t?: Float64Array; step?: Float32Array; windows?: number; fs?: number;
+  rise?: number; overshoot?: number; settle?: number | null; final?: number;
 }
 
 export interface SyncCandidate {

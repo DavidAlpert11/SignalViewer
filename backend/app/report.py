@@ -69,6 +69,8 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
         return _env_data(store, spec, out, for_html)
     if mode == "xyz":
         return _xyz_data(store, spec, out)
+    if mode == "step":
+        return _step_data(store, spec, out, for_html)
     if mode == "xy":
         xs = spec.get("xSignal")
         if not xs:
@@ -131,6 +133,36 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
         if for_html and "x" in sig:
             sig["x"], sig["y"] = _b64(sig["x"], np.float64), _b64(sig["y"], np.float32)
         out["signals"].append(sig)
+    return out
+
+
+def _step_data(store, spec: Dict, out: Dict, for_html: bool) -> Dict:
+    """1.21: a Step response plot - signals in pairs (setpoint, measured), the same estimate as on screen."""
+    from svcore.stepresp import step_response
+    sigs = spec.get("signals") or []
+    rng = spec.get("cursorRange") or None
+    out["log"] = False
+    out["xLabel"] = "s"
+    said = []
+    for a, b in zip(sigs[0::2], sigs[1::2]):
+        try:
+            ti, x = store.signal(a["id"])
+            to, y = store.signal(b["id"])
+        except KeyError:
+            continue
+        r = step_response(ti, x, to, y, rng[0] if rng else None, rng[1] if rng else None)
+        if "step" not in r:
+            continue
+        sig = {"id": b["id"], "label": f'{a.get("label") or a["id"]} → {b.get("label") or b["id"]}', "color": b.get("color"),
+               "width": b.get("width", 1.5), "state": False,
+               "x": np.asarray(r["t"], dtype=np.float64), "y": np.asarray(r["step"], dtype=np.float64)}
+        if for_html:
+            sig["x"], sig["y"] = _b64(sig["x"], np.float64), _b64(sig["y"], np.float32)
+        out["signals"].append(sig)
+        bits = [f'rise {r["rise"] * 1000:.0f} ms' if r.get("rise") else "", f'overshoot {r["overshoot"]:.0f} %' if "overshoot" in r else ""]
+        said.append(f'{b.get("label") or b["id"]}: ' + ", ".join(x for x in bits if x))
+    if said and not out.get("caption"):
+        out["caption"] = " · ".join(said)
     return out
 
 
@@ -577,6 +609,9 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
                             fontsize=7, color="white", bbox=dict(boxstyle="square,pad=0.2", fc=s["color"], ec="none"))
         else:
             ax.plot(x, y, **kw)
+    if mode == "step":
+        ax.set_xlabel("s", color=th["axis"], fontsize=8)
+        ax.axhline(1.0, color=th["axis"], linewidth=0.6, linestyle=":")
     if mode == "fft":
         ax.set_xlabel("Hz", color=th["axis"], fontsize=8)
         if pdata.get("log"):

@@ -18,6 +18,7 @@ const Globe3D = lazy(() => import("./Globe3D"));
 const VideoView = lazy(() => import("./VideoView"));
 import FFTChart from "./FFTChart";
 import EnvelopeChart from "./EnvelopeChart";
+import StepChart from "./StepChart";
 import XYZChart from "./XYZChart";
 import SpecChart from "./SpecChart";
 import PlotBoundary from "./PlotBoundary";
@@ -171,7 +172,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ] : [];
     openMenu(e, [...laneItems, ...timeItems, ...plotItems()]);
   };
-  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")],
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["step", t("modeStep")], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")],
     // occ is made from the Investigate panel (it needs a condition): listed only on such a plot
     ...(plot.occ ? [["occ", t("modeOcc")] as [PlotMode, string]] : [])];
   /* T49 item 9: the plot type is one button with its name (a menu of the types), not nine buttons on
@@ -374,6 +375,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               <option value="blackman">Blackman</option><option value="none">{t("noWindow")}</option>
             </select>
             <button className="btn" aria-pressed={plot.fftLog ?? true} onClick={() => actions.updatePlot(plot.id, { fftLog: !(plot.fftLog ?? true) })}>{t("logScale")}</button>
+            <button className="btn" aria-pressed={!!plot.fftFilters} title={t("fftFiltersTitle")}
+              onClick={() => actions.updatePlot(plot.id, { fftFilters: !plot.fftFilters })}>{t("fftFilters")}</button>
             <OrderPicker plot={plot} />
           </span>
         )}
@@ -450,6 +453,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             <Globe3D plot={plot} index={index} onLoading={setLoading} emptyText={t("globeNeedsObject")} /></Suspense>}
           {mode === "geo" && <GeoChart plot={plot} index={index} onLoading={setLoading} emptyText={!plot.xSignal ? t("geoNeedsLon") : t("emptyPlot")} notDegrees={t("geoNotDegrees")} />}
           {mode === "env" && <EnvelopeChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
+          {mode === "step" && <StepChart plot={plot} index={index} onLoading={setLoading} />}
           {mode === "occ" && <OccChart plot={plot} index={index} onLoading={setLoading} />}
           {mode === "xyz" && <XYZChart plot={plot} index={index} onLoading={setLoading} emptyText={t("xyzNeedsThree")} />}
           {mode === "fft" && <FFTChart plot={plot} index={index} onLoading={setLoading} onPeaks={setPeaks} />}

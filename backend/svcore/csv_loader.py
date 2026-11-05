@@ -34,6 +34,7 @@ import logging
 import hashlib
 import csv
 import io
+import re
 import json
 import os
 import shutil
@@ -97,7 +98,7 @@ CACHE_MIN_BYTES = int(float(os.environ.get("SV_CACHE_MIN_MB", "50")) * 1024 * 10
 CACHE_MAX_BYTES = int(float(os.environ.get("SV_CACHE_MAX_GB", "5")) * (1 << 30))
 CACHE_MAX_AGE = float(os.environ.get("SV_CACHE_DAYS", "30")) * 86400
 CACHE_IN_USE: Optional[Callable[[], set]] = None   # () -> entry folders open files read from (set by the app)
-CACHE_FORMAT_VERSION = 4   # v3: one column-major matrix file instead of one file per signal; v4: text columns
+CACHE_FORMAT_VERSION = 5   # v3: one column-major matrix file instead of one file per signal; v4: text columns; v5: decimal comma
 MAX_TEXT_STATES = int(os.environ.get("SV_MAX_TEXT_STATES", "1000"))   # more distinct texts: not a state column
 CHUNK_ROWS = 500_000
 DEFAULT_ENCODING = "utf-8-sig"  # strips the BOM Excel writes (otherwise "Time" -> "\ufeffTime")
@@ -168,6 +169,31 @@ def detect_delimiter(filepath: str, num_lines: int = 10, skip_rows: int = 0) -> 
         return ","
 
 
+_DEC_COMMA = re.compile(r"^\s*[-+]?\d+,\d+(?:[eE][-+]?\d+)?\s*$")
+_DEC_POINT = re.compile(r"^\s*[-+]?\d*\.\d+(?:[eE][-+]?\d+)?\s*$")
+
+
+def detect_decimal_comma(filepath: str, delimiter: str, skip_rows: int = 0, num_lines: int = 50) -> bool:
+    """A file written with a decimal comma (1,5) - Excel / a logger in a European locale. Only when
+    the delimiter is not a comma, the first rows have such numbers and none with a decimal point.
+    Without it each 1,5 was text: the column became a state signal, its numbers kept as labels."""
+    if delimiter == ",":
+        return False
+    try:
+        lines = _read_head_lines(filepath, num_lines, skip=skip_rows)
+    except (OSError, UnicodeError):
+        return False
+    comma = point = 0
+    for line in lines:
+        for f in _split_line(line, delimiter):
+            f = f.strip().strip('"')
+            if _DEC_COMMA.match(f):
+                comma += 1
+            elif _DEC_POINT.match(f):
+                point += 1
+    return comma > 0 and point == 0
+
+
 def _unique_names(names: List[str]) -> List[str]:
     """Make column names unique and non-empty."""
     seen: Dict[str, int] = {}
@@ -204,11 +230,27 @@ def _resolve_time_column_how(columns: List[str], wanted: Optional[str]) -> Tuple
     return 0, False
 
 
+def _not_a_time(t: np.ndarray) -> bool:
+    """A first column that cannot be the time: a non-number in it, or a value lower than the one before."""
+    if not np.isfinite(t).all():
+        return True
+    return bool(np.any(np.diff(t) < 0))
+
+
 def _to_numeric_array(values, dtype) -> np.ndarray:
     """Convert a column (pandas Series / array-like) to a numeric numpy array (NaN for junk)."""
     if not isinstance(values, pd.Series):
         values = pd.Series(np.asarray(values))
     kind = values.dtype.kind
+    if kind == "M":                     # date-times (ISO 8601 parsed by Arrow / pandas): seconds since 1970
+        v = values.dt.tz_convert("UTC").dt.tz_localize(None) if getattr(values.dt, "tz", None) is not None else values
+        out = v.to_numpy(dtype="datetime64[ns]").astype("int64").astype(dtype) / 1e9
+        out[v.isna().to_numpy()] = np.nan
+        return out
+    if kind == "m":                     # durations (00:01:02.5): seconds
+        out = values.to_numpy(dtype="timedelta64[ns]").astype("int64").astype(dtype) / 1e9
+        out[values.isna().to_numpy()] = np.nan
+        return out
     if kind in "fiu":
         return values.to_numpy(dtype=dtype, na_value=np.nan)
     if kind == "b":
@@ -287,7 +329,8 @@ def _open_bounded(path: str, limit: Optional[int]):
     return open(path, "rb") if limit is None else io.BufferedReader(_Bounded(path, limit), 1 << 20)
 
 
-def _read_text_columns(filepath, columns, names, skip_lines, delimiter, encoding, arrow: bool, limit: Optional[int] = None):
+def _read_text_columns(filepath, columns, names, skip_lines, delimiter, encoding, arrow: bool, limit: Optional[int] = None,
+                       decimal: str = "."):
     """Second, narrow pass over the file for the columns that turned out to hold text: returns
     (row count, {name: object array}). Uses the same parser as the numeric pass, so the rows match."""
     if arrow and HAS_PYARROW and len(delimiter) == 1:
@@ -308,7 +351,7 @@ def _read_text_columns(filepath, columns, names, skip_lines, delimiter, encoding
     with _open_bounded(filepath, limit) as fh:
         df = pd.read_csv(fh, sep=delimiter, header=None, names=columns, skiprows=skip_lines, usecols=list(names),
                          encoding=encoding, on_bad_lines="skip", engine=engine, index_col=False, dtype=str,
-                         keep_default_na=False)
+                         keep_default_na=False, decimal=decimal)
     return len(df), {n: df[n].to_numpy(dtype=object) for n in names}
 
 
@@ -432,13 +475,14 @@ def _repair_text_bytes(data: bytes, encoding: str) -> bytes:
     return data
 
 
-def _parse_pandas_chunked(filepath, columns, skip_lines, delimiter, encoding, limit: Optional[int] = None) -> Dict[str, np.ndarray]:
+def _parse_pandas_chunked(filepath, columns, skip_lines, delimiter, encoding, limit: Optional[int] = None,
+                          decimal: str = ".") -> Dict[str, np.ndarray]:
     """Chunked pandas parse: memory stays bounded by one chunk of Python objects."""
     parts: Dict[str, List[np.ndarray]] = {c: [] for c in columns}
     engine = "python" if delimiter == r"\s+" else "c"
     kwargs = dict(sep=delimiter, header=None, names=columns, skiprows=skip_lines,
                   encoding=encoding, encoding_errors="replace", on_bad_lines="skip", chunksize=CHUNK_ROWS,
-                  engine=engine, index_col=False)
+                  engine=engine, index_col=False, decimal=decimal)
     total = max(1, os.path.getsize(filepath) if limit is None else limit)
     with _open_bounded(filepath, limit) as fh:
         for chunk in pd.read_csv(fh, **kwargs):
@@ -665,6 +709,8 @@ def load_csv(
         if not columns:
             print(f"[ERROR] Empty CSV: {filepath}")
             return None
+        # a decimal comma: pandas reads it (Arrow has no such option in every version we support)
+        decimal = "," if detect_decimal_comma(filepath, delimiter, skip_lines) else "."
 
         time_idx, time_by_name = _resolve_time_column_how(columns, settings.time_column)
 
@@ -681,16 +727,21 @@ def load_csv(
         cached = _cache_load(key) if key is not None else None
 
         own: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}       # columns with their own time
+        time_is_index = False
         if cached is not None:
             time_array = cached["time"]
             signal_arrays = cached["signal_arrays"]
             text_labels = {n: {int(k): v for k, v in l.items()} for n, l in (cached.get("labels") or {}).items()}
             print(f"[CACHE] Opened memory-mapped cache for {os.path.basename(filepath)}", flush=True)
+            if cached.get("timeIsIndex"):
+                time_is_index = True
+                first = columns[time_idx]
+                source_columns[time_idx] = first if first not in source_columns else f"{first}_1"
         else:
             arrays = None
             used_arrow = False
             parse_stats: Dict = {}
-            if HAS_PYARROW:
+            if HAS_PYARROW and decimal == ".":
                 try:
                     arrays = _parse_pyarrow(filepath, source_columns, skip_lines, delimiter, settings.encoding,
                                             parse_stats, limit=file_size)
@@ -701,9 +752,20 @@ def load_csv(
                     print(f"[LOAD] Arrow parser not usable for this file ({e}); using pandas", flush=True)
             if arrays is None:
                 arrays = _parse_pandas_chunked(filepath, source_columns, skip_lines, delimiter, settings.encoding,
-                                               limit=file_size)
+                                               limit=file_size, decimal=decimal)
 
             time_array = np.asarray(arrays.pop("Time"), dtype=np.float64)
+            # No column is named as a time and the first one does not go up (a name, a value that
+            # falls back): it is a signal, and the time is the row number - it used to become the time
+            # anyway and every row was SORTED by it, scrambling the file. The Time axis dialog can
+            # still make any column the time.
+            if not time_by_name and len(time_array) > 1 and _not_a_time(time_array) \
+                    and any(a.size and np.isfinite(a).any() for a in (time_array, *arrays.values())):
+                first = columns[time_idx]
+                source_columns[time_idx] = first if first not in source_columns else f"{first}_1"
+                arrays[source_columns[time_idx]] = time_array
+                time_array = np.arange(len(time_array), dtype=np.float64)
+                time_is_index = True
             # columns where no value is a number: text (states such as "IDLE" / "ARMED")
             text_cols = [n for n, a in arrays.items() if a.size and np.isnan(a).all()]
             text_labels = {}
@@ -711,7 +773,7 @@ def load_csv(
             if text_cols:
                 try:
                     nrows, texts = _read_text_columns(filepath, source_columns, text_cols, skip_lines, delimiter,
-                                                      settings.encoding, used_arrow, limit=file_size)
+                                                      settings.encoding, used_arrow, limit=file_size, decimal=decimal)
                     if nrows != len(time_array):
                         raise ValueError("row count differs between passes")
                     for n in text_cols:
@@ -780,7 +842,7 @@ def load_csv(
 
             if key is not None and len(time_array):
                 _progress(1.0, "cache")
-                if _cache_store(key, {"delimiter": delimiter, "source": os.path.abspath(filepath), "labels": {n: {str(k): v for k, v in l.items()}
+                if _cache_store(key, {"delimiter": delimiter, "source": os.path.abspath(filepath), "timeIsIndex": time_is_index, "labels": {n: {str(k): v for k, v in l.items()}
                                                                           for n, l in text_labels.items()}},
                                 time_array, signal_arrays):
                     reopened = _cache_load(key)  # switch to mmap -> frees the RAM copy
@@ -811,11 +873,13 @@ def load_csv(
                 run.signals[name] = Signal(name=name, data=data, labels=text_labels.get(name))
 
         run.import_settings = settings.to_dict()
-        run.time_source = columns[time_idx]
+        run.time_source = None if time_is_index else columns[time_idx]
+        run.time_is_index = time_is_index
         run.original_names = {n: o for n, o in zip(source_columns, columns) if n != o and n != "Time"}
         run.load_report = load_report if cached is None else {"fromCache": True}
         run.load_report["timeByName"] = bool(time_by_name)
         run.delimiter = delimiter
+        run.decimal = decimal                       # live mode reads the appended rows the same way
         run.encoding = settings.encoding
         run.source_columns = source_columns
         run.byte_offset = file_size
@@ -912,7 +976,11 @@ def append_new_rows(run: Run, max_bytes: int = 256 * 1024 * 1024) -> int:
         return 0
 
     cols_new = _parse_appended(raw, text, run)
-    t_new = cols_new.get("Time", np.array([]))
+    if getattr(run, "time_is_index", False):         # the row number is the time: it goes on counting
+        rows = len(next(iter(cols_new.values()))) if cols_new else 0
+        t_new = len(run.time) + np.arange(rows, dtype=np.float64)
+    else:
+        t_new = cols_new.get("Time", np.array([]))
     valid = np.isfinite(t_new)
     t_new = t_new[valid]
     scale = time_scale_of(run.import_settings, "time_scale")
@@ -950,7 +1018,8 @@ def _parse_appended(raw: bytes, text: str, run: Run) -> Dict[str, np.ndarray]:
                 out[c], run.signals[c].labels = encode_text(out[c], run.signals[c].labels)
         return out
 
-    if HAS_PYARROW and len(run.delimiter) == 1:
+    decimal = getattr(run, "decimal", ".")
+    if HAS_PYARROW and len(run.delimiter) == 1 and decimal == ".":
         try:
             table = pa_csv.read_csv(
                 pa.BufferReader(raw),
@@ -962,7 +1031,7 @@ def _parse_appended(raw: bytes, text: str, run: Run) -> Dict[str, np.ndarray]:
         except Exception:               # Arrow refused these rows: pandas below reads them
             log.debug("live: Arrow could not parse the appended rows; using pandas", exc_info=True)
     engine = "python" if run.delimiter == r"\s+" else "c"
-    df = pd.read_csv(io.StringIO(text), sep=run.delimiter, header=None, names=cols,
+    df = pd.read_csv(io.StringIO(text), sep=run.delimiter, header=None, names=cols, decimal=decimal,
                      on_bad_lines="skip", engine=engine, index_col=False, dtype={c: str for c in texts})
     if df.empty:
         return {}
