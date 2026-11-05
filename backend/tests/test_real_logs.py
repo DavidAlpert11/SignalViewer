@@ -298,3 +298,20 @@ def test_a_failed_arming_check_is_a_warning():
     assert message_level("PreArm: Motors Emergency Stopped") == "warning"
     assert message_level("Arm: Throttle too high") == "warning"
     assert message_level("Crash: Disarming") == "error"
+
+
+def test_signal_alignment_of_unrelated_logs_is_not_reliable(tmp_path):
+    """Two altitudes that only climb line up at some shift by chance (correlation 1.0): the automatic
+    signal alignment must also see the changes move together before calling itself reliable."""
+    import subprocess
+    from svcore import sync
+    from svcore.bin_loader import load_bin
+    from svcore.tlog_loader import load_tlog
+    root = os.path.join(os.path.dirname(__file__), "..", "..")
+    subprocess.run([sys.executable, os.path.join(root, "tools", "make_test_bin.py"), str(tmp_path / "syn.bin"), "--seconds", "40"],
+                   check=True, capture_output=True)
+    a = load_bin(str(tmp_path / "syn.bin"), "syn.bin")
+    b = load_tlog(fetch("flight.tlog"), "flight.tlog")
+    a, b = (a[0] if isinstance(a, tuple) else a), (b[0] if isinstance(b, tuple) else b)
+    s = sync.by_signal(a, b)
+    assert s is not None and s["quality"] == "low" and s["unconfirmed"] == "signal" and s["confirm"] < 0.3

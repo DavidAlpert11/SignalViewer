@@ -199,8 +199,30 @@ def fit(t: dict, all_: List[dict], runs: List[dict]) -> Optional[float]:
         b = bind.get(s["id"])
         runs_for = data if b == ALL else [r for r in data if r["id"] == b]
         total += len(names)
-        found += max((match_count(r, names) for r in runs_for), default=0)
+        found += max((match_count(r, _usable(r, s["id"], e, names)) for r in runs_for), default=0)
     return found / total if total else 0.0
+
+
+def _usable(run: dict, slot_id: str, e: dict, names: List[str]) -> List[str]:
+    """The slot's names that would be drawn from this file: an object without its position (lat and
+    lon) is left out when the template opens (resolve), so its attitude roles must not make the
+    template look fitting - "Flight on the map & 3D" was offered for a log with ATT and no GPS, and
+    opening it said there was nothing to open."""
+    dead: Set[str] = set()
+    plain: Set[str] = set()
+    for tab in e["tabs"]:
+        for p in tab.get("plots", []):
+            plain.update(x["name"] for x in p.get("signals", []) if slot_of(x.get("slot"), e["slots"]) == slot_id)
+            if p.get("xSignal") and slot_of(p.get("xSlot"), e["slots"]) == slot_id:
+                plain.add(p["xSignal"])
+            for o in p.get("objects") or []:
+                roles = o.get("roles") or {}
+                mine = [r["name"] for r in roles.values() if r and slot_of(r.get("slot"), e["slots"]) == slot_id]
+                pos = [roles.get(k) for k in ("lat", "lon")]
+                if all(r and slot_of(r.get("slot"), e["slots"]) == slot_id for r in pos) \
+                        and not all(match_count(run, [r["name"]]) for r in pos if r):
+                    dead.update(mine)
+    return [n for n in names if n not in dead or n in plain]
 
 
 def slot_report(e: dict, runs: List[dict]) -> List[dict]:
@@ -237,7 +259,7 @@ def resolve(t: dict, all_: List[dict], bind: Dict[str, str], runs: List[dict], c
         plots = []
         for tp in tt.get("plots", []):
             p = {"title": tp.get("title", ""), "mode": tp.get("mode") or "time", "signals": [], "ylim": tp.get("ylim"),
-                 **{k: tp[k] for k in ("xyAlign", "fftWindow", "fftMethod", "fftLog", "specN", "caption") if tp.get(k) is not None}}
+                 **{k: tp[k] for k in ("xyAlign", "fftWindow", "fftMethod", "fftLog", "fftFilters", "specN", "caption") if tp.get(k) is not None}}
             if tp.get("xSignal"):
                 xs = ids(tp["xSignal"], tp.get("xSlot"))
                 p["xSignal"] = xs[0] if xs else None

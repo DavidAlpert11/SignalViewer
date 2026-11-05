@@ -4,6 +4,7 @@ import { api, type FsEntry, type FsPlaces } from "../api";
 import { useApp } from "../store";
 import { useT } from "../i18n";
 import { Icon } from "../icons";
+import { useEscape } from "./Overlays";
 import { openPaths, recentToOpen, refreshRecent } from "../files";
 import { fmtSize } from "../values";
 
@@ -85,6 +86,11 @@ export default function FileBrowser() {
   const anchor = useRef<string | null>(null);     // F21: where a Shift+click range starts
   const listed = useRef<string | null>(null);     // the folder listed now
   const edited = useRef(false);                   // the path box was typed in since the last listing
+  // Esc through the app's stack of dialogs: only this one closes when it was opened over another
+  // (Esc in Export CSV's picker closed the table of all signals behind it too), and it closes wherever
+  // the focus is (a breadcrumb that became the current folder lost the focus: Esc then did nothing).
+  // The list's and the filter's own Esc stop the event first, so they still clear only themselves.
+  useEscape(() => close(), open);
   const go = async (p?: string | null, initial = false) => {
     if (!initial) navigated.current = true;
     const my = ++seq.current;
@@ -292,7 +298,7 @@ export default function FileBrowser() {
     <div className={`scrim${picker ? " scrim-top" : ""}`} onMouseDown={() => close()}>
       <div className="dialog fs-dialog" role="dialog" aria-label={title} onMouseDown={(e) => e.stopPropagation()}
         ref={dialogRef} tabIndex={-1}
-        onKeyDown={(e) => { filterKey(e); if (e.key === "Escape" && !e.isPropagationStopped()) close(); }}>
+        onKeyDown={filterKey}>
         <div className="dialog-head"><h2>{title}</h2>
           <button className="iconbtn" onClick={() => close()} aria-label={t("close")}><Icon.X /></button></div>
         <div className="crumbs">

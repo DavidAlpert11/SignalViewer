@@ -6,6 +6,7 @@ import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { runLabels } from "../names";
 import HealthRow from "./HealthRow";
+import { copyText } from "../errorReport";
 
 /* Flight log of an ArduPilot .bin file: its events (messages, flight modes, events, errors) and
    its parameters. The rail button for this panel exists only while such a file is open, so
@@ -30,7 +31,7 @@ export default function LogPanel() {
   const [rid, setRid] = useState<string | null>(null);
   const run = logRuns.find((r) => r.id === rid) ?? logRuns[0];
   const info = run ? logs[run.id] : undefined;
-  const [tab, setTab] = useState<"health" | "events" | "params">("health");
+  const [tab, setTab] = useState<"health" | "events" | "params" | "hw">("health");
 
   useEffect(() => { ensureLogs(); }, [runs]);
 
@@ -68,12 +69,39 @@ export default function LogPanel() {
         <button role="tab" aria-selected={tab === "params"} className={tab === "params" ? "on" : ""} onClick={() => setTab("params")}>
           {t("logParams")} <span className="cnt">{run.log!.params}</span>
         </button>
+        {!!info?.hardware?.sections.length && (
+          <button role="tab" aria-selected={tab === "hw"} className={tab === "hw" ? "on" : ""} onClick={() => setTab("hw")}>
+            {t("logHardware")}
+          </button>
+        )}
       </div>
       {!info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
         : tab === "health" ? <Health key={run.id} runId={run.id} runKey={`${run.samples}:${run.log!.events}:${run.timeOffset}`} />
+        : tab === "hw" && info.hardware ? <Hardware hw={info.hardware} />
         : tab === "events" ? <Events key={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
           : <Params key={run.id} info={info} lang={lang} others={logRuns.filter((r) => r.id !== run.id).map((r) => ({ id: r.id, name: names.get(r.id) ?? r.name }))} />}
     </aside>
+  );
+}
+
+/* ------------------------------------------------------------------------- hardware */
+/** 1.21: the board, frame and sensors the log describes (as ArduPilot's Hardware Report) */
+function Hardware({ hw }: { hw: NonNullable<LogInfo["hardware"]> }) {
+  const t = useT();
+  const text = hw.sections.map((s) => `${s.name}\n` + s.rows.map(([k, v]) => `  ${k ? k + ": " : ""}${v}`).join("\n")).join("\n");
+  return (
+    <div className="log-hw">
+      {hw.sections.map((s) => (
+        <section key={s.name}>
+          <h3>{s.name}</h3>
+          <dl>{s.rows.map(([k, v], i) => <div key={i} className={k ? "" : "note"}>{k && <dt>{k}</dt>}<dd>{v}</dd></div>)}</dl>
+        </section>
+      ))}
+      <button className="btn" onClick={async () => {
+        const ok = await copyText(text);
+        useApp.getState().toast(ok ? { kind: "info", text: t("logHardwareCopied") } : { kind: "error", text: t("copyTextFailed") });
+      }}><Icon.Copy /> {t("logCopy")}</button>
+    </div>
   );
 }
 
@@ -174,8 +202,8 @@ function Params({ info, lang, others }: { info: LogInfo; lang: "en" | "he"; othe
   }, [info, q, filter, otherInfo, otherMap]);
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText(toParamFile(shown.filter((p) => Number.isFinite(p.value)))); useApp.getState().toast({ kind: "info", text: t("logParamsCopied", { n: shown.length }) }); }
-    catch { useApp.getState().toast({ kind: "error", text: t("copyFailed") }); }
+    if (await copyText(toParamFile(shown.filter((p) => Number.isFinite(p.value))))) useApp.getState().toast({ kind: "info", text: t("logParamsCopied", { n: shown.length }) });
+    else useApp.getState().toast({ kind: "error", text: t("copyTextFailed") });
   };
   const save = async () => {
     const path = await pickPath({ mode: "save", title: t("logSaveParams"), exts: [".param"], defaultName: "params.param" });

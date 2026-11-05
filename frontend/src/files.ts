@@ -8,6 +8,32 @@ import { dictionaries, translate, type Lang, type TKey } from "./i18n";
 
 /** Run a long operation as a background job: progress panel + cancel (N-04).
  *  Resolves with the job's result, or null when the user cancelled. Throws on errors. */
+
+/** Signal ids saved before 1.21 with ArduPilot's "[degheading]" / "[UNKNOWN]" units, mapped to the
+ *  names the reopened logs have now (keys too: changes on signals are kept by id). Only for .bin
+ *  files, and only when the old name is gone and the new one is there. */
+export function legacyUnitNames<T>(state: T, runs: { id: string; format: string; signals: { name: string }[] }[]): T {
+  const names = new Map(runs.filter((r) => r.format === "bin").map((r) => [r.id, new Set(r.signals.map((x) => x.name))]));
+  if (!names.size) return state;
+  const map = (v: string): string => {
+    const k = v.indexOf("/");
+    const have = k > 0 ? names.get(v.slice(0, k)) : undefined;
+    if (!have) return v;
+    const name = v.slice(k + 1);
+    if (have.has(name)) return v;
+    const now = name.endsWith(" [degheading]") ? name.slice(0, -" [degheading]".length) + " [deg]"
+      : name.endsWith(" [UNKNOWN]") ? name.slice(0, -" [UNKNOWN]".length) : null;
+    return now && have.has(now) ? v.slice(0, k + 1) + now : v;
+  };
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") return map(v);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([key, x]) => [map(key), walk(x)]));
+    return v;
+  };
+  return walk(state) as T;
+}
+
 export async function runJob<T = any>(kind: string, body: unknown, label: string): Promise<T | null> {
   return followJob<T>(await api.startJob(kind, body, label), label);
 }
@@ -296,6 +322,9 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     if (typeof state.ui?.geoBorders === "boolean") useApp.setState({ geoBorders: state.ui.geoBorders });
     const res = state.runs?.length ? await api.restore(state.runs) : { restored: [], missing: [] };
     const keep = new Set<string>(res.restored.map((r) => r.id));
+    // 1.21: ArduPilot's "degheading" / "UNKNOWN" units left the names ("ATT.Yaw [degheading]" is
+    // "ATT.Yaw [deg]"): a session saved before maps its references to the names the file has now
+    state = legacyUnitNames(state, res.restored);
     // changes made on signals themselves (before derived signals, which may use them)
     if (state.transforms && Object.keys(state.transforms).length) {
       const specs = Object.fromEntries(Object.entries(state.transforms).filter(([id]) => keep.has(id.split("/")[0])));

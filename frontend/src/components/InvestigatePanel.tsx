@@ -8,6 +8,7 @@ import WhatChanged from "./WhatChanged";
 import { record, restoreView } from "../investigation";
 import { combineConditions, condSignals, deleteCondition, evaluateOne, intervalsByRun, overlayInNewTab, saveCondition, stepOccurrence, updateCondition, usedBy } from "../conditions";
 import { api } from "../api";
+import { copyText } from "../errorReport";
 
 /** Investigation spec, step 2: the session's named conditions - shown or hidden, stepped through,
  *  edited in place with a live count, combined, deleted (one undo). */
@@ -215,7 +216,7 @@ function OccSection({ cond }: { cond: Condition }) {
   const copy = () => {
     const lines = [[...(multi ? ["file"] : []), "start_s", "duration_s", `${name}_${stat}`].join("\t"),
       ...sorted.map((r) => [...(multi ? [fileLabel(runs, r.rid)] : []), r.a, r.b - r.a, r.v ?? ""].join("\t"))];
-    void navigator.clipboard.writeText(lines.join("\n")).then(() => useApp.getState().toast({ kind: "info", text: t("occCopied") }));
+    void copyText(lines.join("\n")).then((ok) => useApp.getState().toast(ok ? { kind: "info", text: t("occCopied") } : { kind: "error", text: t("copyTextFailed") }));
   };
   const findDiffer = async () => {
     setBusy(true);

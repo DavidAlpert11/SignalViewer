@@ -29,8 +29,10 @@ def _cache_path(path: str) -> str:
 def _read_csv(path: str) -> pd.DataFrame:
     if not HAVE_ARROW:
         return pd.read_csv(path, sep=None, engine="python")
-    from svcore.csv_loader import detect_delimiter
+    from svcore.csv_loader import detect_decimal_comma, detect_delimiter
     delim = detect_delimiter(path)
+    if detect_decimal_comma(path, delim):        # 1,5 (a European Excel): pandas reads the decimal comma
+        return pd.read_csv(path, sep=delim, decimal=",")
     table = pa_csv.read_csv(
         path,
         read_options=pa_csv.ReadOptions(use_threads=True, block_size=8 << 20),

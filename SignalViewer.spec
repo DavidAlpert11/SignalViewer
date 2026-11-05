@@ -41,6 +41,8 @@ datas = [
     (os.path.join(ROOT, "examples"), "examples"),                  # "Open an example" on the welcome screen
     # the built-in templates (T11b: data, read by svcore/templates.py for the app and the CLI)
     (os.path.join(ROOT, "backend", "svcore", "builtin_templates.json"), "svcore"),
+    # 1.21: ArduPilot's device / parameter names for the hardware summary (svcore/hardware.py)
+    (os.path.join(ROOT, "backend", "svcore", "ap_names.json"), "svcore"),
 ] + collect_data_files("docx") + collect_data_files("webview")
 
 a = Analysis(

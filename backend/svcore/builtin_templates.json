@@ -227,6 +227,62 @@
       "name": "MODE.Mode"
      }
     ]
+   },
+   {
+    "name": "Step response",
+    "rows": 1,
+    "cols": 3,
+    "linkX": false,
+    "plots": [
+     {
+      "title": "Roll rate · step",
+      "mode": "step",
+      "signals": [
+       {
+        "name": "RATE.RDes",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RATE.R",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Pitch rate · step",
+      "mode": "step",
+      "signals": [
+       {
+        "name": "RATE.PDes",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RATE.P",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Yaw rate · step",
+      "mode": "step",
+      "signals": [
+       {
+        "name": "RATE.YDes",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "RATE.Y",
+        "color": "#F2A93B",
+        "width": 1.5
+       }
+      ]
+     }
+    ]
    }
   ]
  },
@@ -309,6 +365,87 @@
     "lanes": [
      {
       "name": "MODE.Mode"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "version": 2,
+  "id": "bi-ap-filters",
+  "name": "ArduPilot · Filter review",
+  "description": "@tplApFilt",
+  "group": "ardupilot",
+  "builtin": true,
+  "slots": [
+   {
+    "id": "main",
+    "name": "@tplSlotAp",
+    "formats": [
+     "bin"
+    ]
+   }
+  ],
+  "tabs": [
+   {
+    "name": "Filters",
+    "rows": 3,
+    "cols": 1,
+    "linkX": true,
+    "plots": [
+     {
+      "title": "Roll gyro",
+      "mode": "fft",
+      "fftMethod": "welch",
+      "fftFilters": true,
+      "signals": [
+       {
+        "name": "ISBD.GyrX|GYR.GyrX|IMU.GyrX",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "ISBD.GyrXPost",
+        "color": "#E5534B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Pitch gyro",
+      "mode": "fft",
+      "fftMethod": "welch",
+      "fftFilters": true,
+      "signals": [
+       {
+        "name": "ISBD.GyrY|GYR.GyrY|IMU.GyrY",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "ISBD.GyrYPost",
+        "color": "#E5534B",
+        "width": 1.5
+       }
+      ]
+     },
+     {
+      "title": "Yaw gyro",
+      "mode": "fft",
+      "fftMethod": "welch",
+      "fftFilters": true,
+      "signals": [
+       {
+        "name": "ISBD.GyrZ|GYR.GyrZ|IMU.GyrZ",
+        "color": "#3D8BFD",
+        "width": 1.5
+       },
+       {
+        "name": "ISBD.GyrZPost",
+        "color": "#E5534B",
+        "width": 1.5
+       }
+      ]
      }
     ]
    }

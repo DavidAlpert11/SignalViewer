@@ -16,7 +16,7 @@ rem ===========================================================================
 cd /d "%~dp0"
 set MODE=%1
 if "%MODE%"=="" set MODE=installer
-set VERSION=1.20.1
+set VERSION=1.21.0
 
 where python >nul 2>nul || (echo Python 3.10+ is needed to BUILD ^(not to run the result^). & exit /b 1)
 

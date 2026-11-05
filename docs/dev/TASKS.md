@@ -13,6 +13,22 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
+  Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
+  unrelated logs (boot / events / signal confirmed by a pair changing together; the Align dialog says
+  why), pre-3.4 STATUSTEXT severity, PreArm as a warning, ERR / EV names and levels, motors from
+  SERVOn_FUNCTION and RC3_MIN / MAX, battery 2's limits, battery held for BATT_LOW_TIMER (VoltR with
+  BATT_FS_VOLTSRC), CSV decimal comma / ISO date-times / no time column (row number, no sorting),
+  Esc in a file dialog over another dialog, text Copy with the clipboard fallback, a template
+  suggested that opens nothing. Changed: compare tolerance = the larger of abs / pct (SDI); units
+  degheading -> deg, UNKNOWN -> none (old sessions mapped in files.ts legacyUnitNames).
+  Added: Filter review (ISBH / ISBD decoding with pre / post by the instance offset, burst-averaged
+  spectra, svcore/filters.py notch + low-pass response with ArduPilot's coefficients, FFT "Filters"),
+  Step response plot (svcore/stepresp.py, Wiener deconvolution), Log ▸ Hardware (svcore/hardware.py,
+  ap_names.json from AP_*_Backend.h enums), compare time tolerance (SDI).
+  Next (ideas, not started): per-signal tolerances in the Compare panel; an RC sticks widget at the
+  cursor (UAV Log Viewer); MAGFit; PX4 vibration metric in the health check; layouts shared as JSON.
+
 - **1.20.1 (2026-11-04)**: a user's request - *Borders* (`geoBorders`, beside the map's layer for the
   offline map and the satellite photos): country borders with a halo, dashed, and names over the
   satellite photos too; the offline map's borders stronger. Left: borders on the 3D globe; finer
@@ -2322,3 +2338,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-03 · Release 1.19.0: version in version.py, build.bat, CITATION.cff (+ date), installer (iss, version_info), install.md; CHANGELOG 1.19.0; README, features, GUIDE / GUIDE.he, gallery; pictures 23_sweeps_goal (again), 25_sweeps_data, 26_sweeps_split (tools/make_readme_media.py --only 23_sweeps 25 26); validation regenerated (23 / 23); ROADMAP. Split by completed (groups per value, re-runs with their value, the report); Next runs' split; Charts' high-resolution PNG and HTML; derivative / integral on a signal's updates; plot images for a report and as HTML.
 - 2026-11-04 · 1.20.0 the owner's notes (legend, made signals, groups, track colour, fleet example, Sweeps Pareto / Clear) · branch owner-notes-1.20 · backend 943 + e2e all files pass; new test_owner_notes_1_20.py.
 - 2026-11-04 · 1.20.1 Borders over the offline map and the satellite photos · branch borders · test_offline_map (+1), map / settings / owner notes e2e pass.
+- 2026-11-05 · 1.21.0 Filter review, Step response, Hardware, compare time tolerance; review fixes (sync confirmation and why, old STATUSTEXT scale, PreArm, ERR/EV, motors, battery limits and timer, units, CSV decimal comma / ISO dates / no time column, compare tolerance, file-dialog Esc, Copy, template fit) · backend 983 pass; e2e 303 pass (new test_release_1_21.py), 2 fail as before (test_one_place_for_each_control fails on main too; test_borders… passes alone - a canvas timing).

@@ -90,8 +90,29 @@ MODES = {
     "sub": {0: "STABILIZE", 1: "ACRO", 2: "ALT_HOLD", 3: "AUTO", 4: "GUIDED", 7: "CIRCLE", 9: "SURFACE",
             16: "POSHOLD", 19: "MANUAL", 20: "MOTOR_DETECT", 21: "SURFTRAK"},
 }
+# AP_Logger.h: LogEvent
 EVENTS = {10: "ARMED", 11: "DISARMED", 15: "AUTO_ARMED", 17: "LAND_COMPLETE_MAYBE", 18: "LAND_COMPLETE",
-          25: "SET_HOME", 28: "NOT_LANDED"}
+          19: "LOST_GPS", 21: "FLIP_START", 22: "FLIP_END", 25: "SET_HOME", 28: "NOT_LANDED",
+          30: "AUTOTUNE_INITIALISED", 31: "AUTOTUNE_OFF", 32: "AUTOTUNE_RESTART", 33: "AUTOTUNE_SUCCESS",
+          34: "AUTOTUNE_FAILED", 35: "AUTOTUNE_REACHED_LIMIT", 36: "AUTOTUNE_PILOT_TESTING", 37: "AUTOTUNE_SAVEDGAINS",
+          38: "SAVE_TRIM", 41: "FENCE_ENABLE", 42: "FENCE_DISABLE", 46: "GRIPPER_GRAB", 47: "GRIPPER_RELEASE",
+          49: "PARACHUTE_DISABLED", 50: "PARACHUTE_ENABLED", 51: "PARACHUTE_RELEASED", 52: "LANDING_GEAR_DEPLOYED",
+          53: "LANDING_GEAR_RETRACTED", 54: "MOTORS_EMERGENCY_STOPPED", 55: "MOTORS_EMERGENCY_STOP_CLEARED",
+          56: "MOTORS_INTERLOCK_DISABLED", 57: "MOTORS_INTERLOCK_ENABLED", 58: "ROTOR_RUNUP_COMPLETE",
+          59: "ROTOR_SPEED_BELOW_CRITICAL", 60: "EKF_ALT_RESET", 61: "LAND_CANCELLED_BY_PILOT", 62: "EKF_YAW_RESET",
+          67: "GPS_PRIMARY_CHANGED", 74: "STANDBY_ENABLE", 75: "STANDBY_DISABLE", 85: "EK3_SOURCES_SET_TO_PRIMARY",
+          86: "EK3_SOURCES_SET_TO_SECONDARY", 87: "EK3_SOURCES_SET_TO_TERTIARY", 90: "AIRSPEED_PRIMARY_CHANGED",
+          163: "SURFACED", 164: "NOT_SURFACED", 165: "BOTTOMED", 166: "NOT_BOTTOMED", 167: "EKF_MAG_OFFSETS_SAVED"}
+# events worth a look in the health check (the rest are information - EKF yaw / altitude resets
+# happen in most healthy flights, at the first take-off, and an emergency stop is the pilot's own)
+EVENT_LEVEL = {19: "warning", 34: "warning", 59: "warning", 51: "error"}
+# AP_Logger.h: LogErrorSubsystem (ECode 0 = resolved)
+ERR_SUBSYS = {1: "Main", 2: "Radio", 3: "Compass", 4: "Optical flow", 5: "Radio failsafe", 6: "Battery failsafe",
+              7: "GPS failsafe", 8: "GCS failsafe", 9: "Fence failsafe", 10: "Flight mode", 11: "GPS", 12: "Crash check",
+              13: "Flip", 14: "Autotune", 15: "Parachute", 16: "EKF check", 17: "EKF / inertial nav failsafe",
+              18: "Barometer", 19: "CPU load", 20: "ADS-B failsafe", 21: "Terrain", 22: "Navigation",
+              23: "Terrain failsafe", 24: "EKF primary", 25: "Thrust loss", 26: "Sensors failsafe", 27: "Leak failsafe",
+              28: "Pilot input", 29: "Vibration failsafe", 30: "Internal error", 31: "Dead-reckoning failsafe"}
 
 
 from svcore.flightlog import message_level  # noqa: E402  (one word list for .bin, .tlog and .ulg texts)
@@ -474,14 +495,19 @@ class DataFlash:
             tus, ev = col("EV", "TimeUS"), col("EV", "Id")
             if tus is not None and ev is not None:
                 for t, e in zip((tus.astype(np.float64) * 1e-6).tolist(), ev.tolist()):
-                    new.append({"t": t, "kind": "event", "text": EVENTS.get(int(e), f"Event {int(e)}"), "level": "info"})
+                    new.append({"t": t, "kind": "event", "text": EVENTS.get(int(e), f"Event {int(e)}"),
+                                "level": EVENT_LEVEL.get(int(e), "info")})
         if "ERR" in by_name:
             tus, sub, code = col("ERR", "TimeUS"), col("ERR", "Subsys"), col("ERR", "ECode")
             if tus is not None and sub is not None:
                 codes = code.tolist() if code is not None else [None] * len(sub)
                 for t, sb, ec in zip((tus.astype(np.float64) * 1e-6).tolist(), sub.tolist(), codes):
-                    new.append({"t": t, "kind": "error", "level": "error",
-                                "text": f"Error: subsystem {int(sb)}" + (f", code {int(ec)}" if ec is not None else "")
+                    what = ERR_SUBSYS.get(int(sb), f"subsystem {int(sb)}")
+                    # ECode 0 is "resolved": the error ended - not a new one (it was counted as an error);
+                    # Flight mode: a mode change was refused (ECode = the mode asked for)
+                    level = "info" if ec == 0 else "warning" if int(sb) == 10 else "error"
+                    new.append({"t": t, "kind": "error", "level": level,
+                                "text": f"Error: {what}" + (f", code {int(ec)}" if ec is not None else "")
                                         + (" (cleared)" if ec == 0 else "")})
         new.sort(key=lambda e: e["t"])
         self.events.extend(new)
@@ -506,7 +532,10 @@ class DataFlash:
         uid = f.units[k] if f.units else "-"
         mid = f.mults[k] if f.mults and k < len(f.mults) else "-"
         label = self.unit_label.get(uid, "")
-        label = {"deglatitude": "deg", "deglongitude": "deg"}.get(label, label)
+        # ArduPilot's own unit names that are not units: a heading is in degrees; "UNKNOWN" is none.
+        # Before 1.21 they showed in the names ("ATT.Yaw [degheading]"): saved sessions are mapped
+        # to the new names when they open (files.ts, legacyUnitName)
+        label = {"deglatitude": "deg", "deglongitude": "deg", "degheading": "deg", "UNKNOWN": ""}.get(label, label)
         if not label or uid in ("-", "#"):
             return "", 1.0
         if ch in _SCALED or mid in ("-", "?", "0"):
@@ -527,6 +556,7 @@ class DataFlash:
         if self.vehicle is None:
             self.vehicle = vehicle_of(self.texts)
         self.collect_events({t: a for t, a in dec.items() if a.dtype.names})
+        out.update(self._batch_samples(dec, buf))         # ISBH / ISBD: the IMU batch sampler
         total = sum(a.nbytes for a in dec.values()) or 1
         done = 0
         lazy_jobs = []
@@ -566,6 +596,81 @@ class DataFlash:
                 done += nb
                 if report:
                     report(done / total)
+        return out
+
+    def _batch_samples(self, dec: Dict[int, Any], buf: Optional[np.ndarray]) -> Dict[str, tuple]:
+        """The IMU batch sampler (INS_LOG_BAT_*): ISBH says what a batch is (accel / gyro, which
+        IMU, the multiplier, the first sample's time and the rate), ISBD carries 32 samples per axis.
+        -> "ISBD[i].GyrX [rad/s]" ... at the sensor's own rate, for the spectrum that notch filters
+        are tuned with (ArduPilot's Filter Review). With INS_LOG_BAT_OPT bit 1 the samples are after
+        the filters, with bit 2 batches alternate before / after: those are "GyrXPost" ...
+        ISBH / ISBD themselves (sequence numbers) are not signals. Taken out of `dec`."""
+        by = {self.formats[t].name: t for t in dec if t in self.formats}
+        th, td = by.get("ISBH"), by.get("ISBD")
+        if th is None or td is None:
+            for t in (th, td):
+                if t is not None:
+                    dec.pop(t, None)
+            return {}
+        H, D = dec.pop(th), dec.pop(td)
+        fh, fd = self.formats[th], self.formats[td]
+
+        def col(f, arr, name):
+            k = f.columns.index(name)
+            if arr.dtype.names:
+                return arr[f"f{k}"]
+            if buf is None:
+                return None
+            return _gather(buf, arr, f.offsets[k], _FMT[f.fmt[k]][0])
+        try:
+            hn, htype, hinst = col(fh, H, "N"), col(fh, H, "type"), col(fh, H, "instance")
+            hmul, hcnt = col(fh, H, "mul"), col(fh, H, "smp_cnt")
+            hus, hrate = col(fh, H, "SampleUS"), col(fh, H, "smp_rate")
+            dn, dseq = col(fd, D, "N"), col(fd, D, "seqno")
+            dx, dy, dz = (np.asarray(col(fd, D, a)).reshape(-1, 32) for a in ("x", "y", "z"))
+        except (ValueError, TypeError):
+            return {}
+        if any(v is None for v in (hn, dn)) or not len(hn) or not len(dn):
+            return {}
+        opt = int(self.params.get("INS_LOG_BAT_OPT", 0) or 0)
+        rows: Dict[int, List[int]] = {}
+        for i, n in enumerate(np.asarray(dn).tolist()):
+            rows.setdefault(int(n), []).append(i)
+        used: Dict[int, int] = {}
+        # A batch after the filters is written with instance + the number of IMUs (AP_InertialSensor
+        # Write_ISBH, with "pre and post" or post at the sensor rate); with "post" alone (bit 1) every
+        # batch is after the filters under its own instance
+        n_imu = sum(1 for k in ("INS_GYR_ID", "INS_GYR2_ID", "INS_GYR3_ID") if self.params.get(k))
+        if not n_imu:
+            n_imu = max(1, (int(np.max(hinst)) + 1) // 2 if opt & 4 else int(np.max(hinst)) + 1)
+        parts: Dict[Tuple[int, int, bool], List[Tuple[np.ndarray, np.ndarray]]] = {}
+        for i in range(len(hn)):
+            n, typ, inst = int(hn[i]), int(htype[i]), int(hinst[i])
+            is_post = inst >= n_imu or bool(opt & 2)
+            if inst >= n_imu:
+                inst -= n_imu
+            cnt, mul, rate = int(hcnt[i]), float(hmul[i]), float(hrate[i])
+            need = (cnt + 31) // 32
+            got = rows.get(n, [])
+            k0 = used.get(n, 0)                        # N wraps at 65536: batches of one N in turn
+            mine = got[k0:k0 + need]
+            used[n] = k0 + need
+            if not mine or mul <= 0 or rate <= 0:
+                continue
+            mine = sorted(mine, key=lambda j: int(dseq[j]))
+            m = min(cnt, 32 * len(mine))
+            t = float(hus[i]) * 1e-6 + np.arange(m) / rate
+            vals = np.stack([np.concatenate([a[j] for j in mine])[:m] for a in (dx, dy, dz)]).astype(np.float64) / mul
+            parts.setdefault((typ, inst, is_post), []).append((t, vals))
+        out: Dict[str, tuple] = {}
+        for (typ, inst, is_post), chunks in parts.items():
+            t = np.concatenate([c[0] for c in chunks])
+            v = np.concatenate([c[1] for c in chunks], axis=1)
+            order = np.argsort(t, kind="stable")
+            t = t[order]
+            kind, unit = ("Gyr", "rad/s") if typ == 1 else ("Acc", "m/s/s")
+            for a, axis in enumerate("XYZ"):
+                out[f"ISBD[{inst}].{kind}{axis}{'Post' if is_post else ''} [{unit}]"] = (t, v[a][order])
         return out
 
     def _emit(self, out: Dict[str, tuple], f: "MsgFormat", col, pos: Optional[np.ndarray], base: int):

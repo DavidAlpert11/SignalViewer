@@ -179,6 +179,8 @@ class Run:
     # Loader bookkeeping (needed for correct reload / incremental append)
     import_settings: Dict[str, Any] = field(default_factory=dict)  # settings used to load
     delimiter: str = ","
+    decimal: str = "."            # "," for a file written with a decimal comma (1,5)
+    time_is_index: bool = False   # no time column: the row number is the time
     encoding: str = "utf-8-sig"
     source_columns: List[str] = field(default_factory=list)  # original column order (after rename of time col)
     byte_offset: int = 0          # file size (bytes) consumed so far - used for incremental append

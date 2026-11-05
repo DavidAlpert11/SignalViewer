@@ -89,7 +89,7 @@ export function templateFromTabs(tabs: Tab[], name: string): { template: Templat
     plots: tab.plots.map((p): TplPlot => ({
       title: p.title, mode: p.mode, xSignal: p.xSignal && keep(p.xSignal) ? nameOf(p.xSignal) : null,
       ...(p.xSignal ? { xSlot: slotOf.get(runOf(p.xSignal)) } : {}), xyAlign: p.xyAlign, fftWindow: p.fftWindow, fftMethod: p.fftMethod,
-      fftLog: p.fftLog, specN: p.specN, caption: p.caption, ylim: p.ylim ?? null,
+      fftLog: p.fftLog, fftFilters: p.fftFilters, specN: p.specN, caption: p.caption, ylim: p.ylim ?? null,
       signals: p.signals.filter((s) => keep(s.sig)).map((s) => ({ name: nameOf(s.sig), slot: slotOf.get(runOf(s.sig)), color: s.color,
         width: s.width, scale: s.scale, offset: s.offset, state: s.state, tOffset: s.tOffset, label: s.label,
         ...(s.limits ? { limits: s.limits } : {}) })),
@@ -271,7 +271,7 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
           ? (fileMark(st.runs, sig)?.color ?? TRACE_COLORS[fileOrder.indexOf(sig.split("/")[0]) % TRACE_COLORS.length]) : null;   // T46: the file's colour
         return {
           id: uid("p"), title: rp.title, mode: (rp.mode as Plot["mode"]) ?? "time", xyAlign: rp.xyAlign as Plot["xyAlign"],
-          fftWindow: rp.fftWindow as Plot["fftWindow"], fftMethod: rp.fftMethod as Plot["fftMethod"], fftLog: rp.fftLog, specN: rp.specN,
+          fftWindow: rp.fftWindow as Plot["fftWindow"], fftMethod: rp.fftMethod as Plot["fftMethod"], fftLog: rp.fftLog, fftFilters: rp.fftFilters, specN: rp.specN,
           caption: rp.caption, ylim: rp.ylim ?? null, ...(rp.xSignal ? { xSignal: rp.xSignal } : {}),
           signals: rp.signals.map((s) => ({ sig: s.sig, color: s.color ?? byFile(s.sig) ?? color(), width: s.width ?? 1.5, scale: s.scale ?? 1,
             offset: s.offset ?? 0, state: s.state ?? undefined, tOffset: s.tOffset ?? undefined, label: s.label ?? undefined,

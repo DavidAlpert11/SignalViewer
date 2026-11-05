@@ -283,6 +283,14 @@ def by_signal(ref, other, ref_sig: Optional[str] = None, other_sig: Optional[str
             best = {"method": "signal", "delta": r[0], "corr": round(r[1], 3), "pair": [na, nb], "sameNames": same,
                     "scale": _scale(na, nb, ya, yb),
                     "quality": "high" if r[1] > 0.9 else "medium" if r[1] > 0.6 else "low"}
+    # the values of two smooth signals line up at SOME shift by chance (two climbs, two discharges):
+    # an automatic pair must also change together there (the user's own pair is their call)
+    if best is not None and not (ref_sig and other_sig) and best["quality"] != "low":
+        ch = _changes_corr(ref, other, best["pair"][0], best["pair"][1], best["delta"])
+        if ch is not None:
+            best["confirm"], best["confirmPair"] = round(ch, 3), list(best["pair"])
+            if ch < 0.3:
+                best["quality"], best["unconfirmed"] = "low", "signal"
     return best
 
 
@@ -310,35 +318,41 @@ def _confirm(ref, other, c: dict) -> None:
         c["quality"], c["unconfirmed"] = "low", "signal"
 
 
-def _moves_together(ref, other, delta: float, rate: float = 5.0) -> Optional[Tuple[float, Tuple[str, str]]]:
-    """The best correlation, over the known pairs of one quantity, of the CHANGES of the two signals
-    (first differences) with `other` shifted by delta. Changes, not values: a battery voltage or an
-    altitude that only falls or rises correlates with any other flight's by its trend alone.
-    Returns (correlation, (reference signal, other signal)) of the best pair, or None."""
+def _changes_corr(ref, other, na: str, nb: str, delta: float, rate: float = 5.0) -> Optional[float]:
+    """Correlation of the CHANGES (first differences) of one pair with `other` shifted by delta.
+    Changes, not values: a battery voltage or an altitude that only falls or rises correlates with
+    any other flight's by its trend alone."""
+    ta, ya = ref.get_signal_data(na)
+    tb, yb = other.get_signal_data(nb)
+    ta = np.asarray(ta, dtype=np.float64) - float(ref.time_offset or 0)
+    tb = np.asarray(tb, dtype=np.float64) - float(other.time_offset or 0) + delta
+    ya, yb = np.asarray(ya, dtype=np.float64), np.asarray(yb, dtype=np.float64)
+    ok_a, ok_b = np.isfinite(ya), np.isfinite(yb)
+    ta, ya, tb, yb = ta[ok_a], ya[ok_a], tb[ok_b], yb[ok_b]
+    if len(ta) < 20 or len(tb) < 20:
+        return None
+    g0, g1 = max(ta[0], tb[0]), min(ta[-1], tb[-1])
+    if g1 - g0 < 10.0:
+        return None
+    g = np.arange(g0, g1, 1.0 / rate)[:20000]
+    da, db = np.diff(np.interp(g, ta, ya)), np.diff(np.interp(g, tb, yb))
+    if np.std(da) == 0 or np.std(db) == 0:
+        return None
+    r = float(np.corrcoef(da, db)[0, 1])
+    return r if np.isfinite(r) else None
+
+
+def _moves_together(ref, other, delta: float) -> Optional[Tuple[float, Tuple[str, str]]]:
+    """The best change correlation over the known pairs of one quantity, with `other` shifted by
+    delta: (correlation, (reference signal, other signal)), or None."""
     best: Optional[Tuple[float, Tuple[str, str]]] = None
     for a, b in PAIRS:
         for x, y in ((a, b), (b, a)):
             na, nb = _find(ref, x), _find(other, y)
             if not (na and nb):
                 continue
-            ta, ya = ref.get_signal_data(na)
-            tb, yb = other.get_signal_data(nb)
-            ta = np.asarray(ta, dtype=np.float64) - float(ref.time_offset or 0)
-            tb = np.asarray(tb, dtype=np.float64) - float(other.time_offset or 0) + delta
-            ya, yb = np.asarray(ya, dtype=np.float64), np.asarray(yb, dtype=np.float64)
-            ok_a, ok_b = np.isfinite(ya), np.isfinite(yb)
-            ta, ya, tb, yb = ta[ok_a], ya[ok_a], tb[ok_b], yb[ok_b]
-            if len(ta) < 20 or len(tb) < 20:
-                continue
-            g0, g1 = max(ta[0], tb[0]), min(ta[-1], tb[-1])
-            if g1 - g0 < 10.0:
-                continue
-            g = np.arange(g0, g1, 1.0 / rate)[:20000]
-            da, db = np.diff(np.interp(g, ta, ya)), np.diff(np.interp(g, tb, yb))
-            if np.std(da) == 0 or np.std(db) == 0:
-                continue
-            r = float(np.corrcoef(da, db)[0, 1])
-            if np.isfinite(r) and (best is None or r > best[0]):
+            r = _changes_corr(ref, other, na, nb, delta)
+            if r is not None and (best is None or r > best[0]):
                 best = (r, (na, nb))
     return best
 

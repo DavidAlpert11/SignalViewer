@@ -1,6 +1,7 @@
 """Files: open / locate / upload / suggest, signal lists and previews, the open runs, log health."""
 
 import asyncio
+import logging
 import os
 import shutil
 import tempfile
@@ -19,6 +20,7 @@ from svcore.health import health as log_health
 from svcore.mat_loader import choose_time, read_mat_vectors
 
 router = APIRouter()
+log = logging.getLogger("signalviewer.files")
 
 
 
@@ -361,4 +363,12 @@ def run_log(run_id: str):
     info = store.log_info(run_id)
     if info is None:
         fail(404, "This file has no flight-log parameters or messages.")
+    # 1.21: the hardware the log describes (ArduPilot: devices, frame, board) - svcore/hardware.py
+    fl = getattr(store.get(run_id).run, "_flightlog", None)
+    if fl is not None and getattr(fl, "params", None) and any(k.startswith(("INS_", "COMPASS_", "FRAME_")) for k in fl.params):
+        try:
+            from svcore.hardware import hardware
+            info = {**info, "hardware": hardware(dict(fl.params), list(getattr(fl, "texts", []) or []), info.get("firmware"))}
+        except Exception:                           # a summary that fails must not hide the log
+            log.warning("hardware summary failed", exc_info=True)
     return info
