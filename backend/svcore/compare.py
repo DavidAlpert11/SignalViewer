@@ -59,10 +59,19 @@ def _grid(base_t: np.ndarray, lo: float, hi: float, max_points: int) -> np.ndarr
 
 
 def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float],
-            period: Optional[float] = None) -> Dict:
+            period: Optional[float] = None, tol_k: int = 0) -> Dict:
+    """tol_k: the time tolerance in grid samples - the baseline's band at a sample is its lowest and
+    highest value within +-tol_k samples (as the Simulink Data Inspector's time tolerance), then
+    widened by abs / pct: a run a little early or late passes."""
     ok = np.isfinite(base) & np.isfinite(other)
     if ok.sum() < 2:
         return {"valid": False}
+    lo_b = hi_b = None
+    if tol_k > 0 and not period:
+        from scipy.ndimage import maximum_filter1d, minimum_filter1d
+        filled = np.where(np.isfinite(base), base, np.nan)
+        lo_b = minimum_filter1d(np.where(np.isfinite(filled), filled, np.inf), 2 * tol_k + 1, mode="nearest")[ok]
+        hi_b = maximum_filter1d(np.where(np.isfinite(filled), filled, -np.inf), 2 * tol_k + 1, mode="nearest")[ok]
     b, o = base[ok], other[ok]
     d = _wrap(o - b, period) if period else o - b
     if period:                  # the shapes without the 0/360 jumps, for the range and the correlation
@@ -82,12 +91,26 @@ def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_p
         "matchPct": float(max(0.0, 100.0 - np.sqrt(np.mean(d * d)) / span * 100.0)),
         "correlation": float(np.corrcoef(b, o)[0, 1]) if np.std(b) > 0 and np.std(o) > 0 else (1.0 if np.allclose(b, o) else 0.0),
     }
-    if tol_abs is not None or tol_pct is not None:
-        lim = np.full(len(b), np.inf)
+    if lo_b is not None and hi_b is not None:
+        def widen(v: np.ndarray) -> np.ndarray:
+            w = np.zeros(len(v))
+            if tol_abs is not None:
+                w = np.maximum(w, abs(tol_abs))
+            if tol_pct is not None:
+                w = np.maximum(w, np.abs(v) * abs(tol_pct) / 100.0)
+            return w
+        inside = (o >= lo_b - widen(lo_b)) & (o <= hi_b + widen(hi_b))
+        res["withinPct"] = float(inside.mean() * 100.0)
+        res["pass"] = bool(inside.all())
+    elif tol_abs is not None or tol_pct is not None:
+        # the band is the LARGER of the two (as the Simulink Data Inspector: max(abs, rel x |baseline|)).
+        # It was the smaller: with a percentage the band closed to 0 wherever the golden value crossed 0,
+        # so a roll angle with --tol-pct failed at every zero crossing, and adding pct to abs tightened it.
+        lim = np.zeros(len(b))
         if tol_abs is not None:
-            lim = np.minimum(lim, tol_abs)
+            lim = np.maximum(lim, abs(tol_abs))
         if tol_pct is not None:
-            lim = np.minimum(lim, np.abs(b) * tol_pct / 100.0)
+            lim = np.maximum(lim, np.abs(b) * abs(tol_pct) / 100.0)
         inside = np.abs(d) <= lim
         res["withinPct"] = float(inside.mean() * 100.0)
         res["pass"] = bool(inside.all())
@@ -116,7 +139,8 @@ def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS, 
 
 
 def compare(series: List[Tuple[str, np.ndarray, np.ndarray]], baseline: str, alignment: str = "linear",
-            tol_abs: Optional[float] = None, tol_pct: Optional[float] = None, max_points: int = 200_000) -> Dict:
+            tol_abs: Optional[float] = None, tol_pct: Optional[float] = None, max_points: int = 200_000,
+            tol_time: Optional[float] = None) -> Dict:
     """series: [(signal id, time, data)]; baseline: a signal id from series, or "mean"."""
     if len(series) < 2:
         raise ValueError("Choose at least two runs to compare.")
@@ -135,11 +159,15 @@ def compare(series: List[Tuple[str, np.ndarray, np.ndarray]], baseline: str, ali
         base = _circular_mean(stack, period) if period else np.nanmean(stack, axis=0)
     else:
         base = aligned[ref[0]]
+    tol_k = 0
+    if tol_time and tol_time > 0 and len(grid) > 1:
+        step = float(np.median(np.diff(grid)))
+        tol_k = int(np.ceil(tol_time / step)) if step > 0 else 0
     rows = []
     for sid, _, _ in series:
         if baseline != "mean" and sid == ref[0]:
             continue
-        m = metrics(base, aligned[sid], tol_abs, tol_pct, period)
+        m = metrics(base, aligned[sid], tol_abs, tol_pct, period, tol_k)
         if m.get("valid"):
             m["profile"] = diff_profile(base, aligned[sid], period=period)
         rows.append({"id": sid, **m})

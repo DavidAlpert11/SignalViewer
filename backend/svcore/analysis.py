@@ -595,7 +595,7 @@ def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
     if len(t) < 16:
         f, m = np.array([]), np.array([])
     else:
-        f, m = (compute_welch if method == "welch" else compute_fft)(_f64(t), _f64(y), window, how)
+        f, m = burst_spectrum(_f64(t), _f64(y), window, method, how)
     # bounded by SIZE, not only by count: a spectrum of a long high-rate signal is 100+ MB, and 33
     # of them could hold gigabytes. An older version of the same signal (live mode: every update)
     # is never needed again.
@@ -608,6 +608,42 @@ def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
     if info is not None:
         info.update(how)
     return f, m
+
+
+def burst_spectrum(t: np.ndarray, y: np.ndarray, window: str, method: str, how: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
+    """A spectrum, also of a signal recorded in bursts with long pauses between them (ArduPilot's
+    IMU batch sampler: 1024 samples at 2 kHz every second or so). Bridging such pauses (A1) puts more
+    time on the grid than there are samples and smears the peaks: there, each burst's spectrum is
+    taken alone and the spectra are averaged - what ArduPilot's Filter Review does."""
+    fn = compute_welch if method == "welch" else compute_fft
+    ok = np.isfinite(t) & np.isfinite(y)
+    tt, yy = t[ok], y[ok]
+    if len(tt) > 128:
+        d = np.diff(tt)
+        pos = d[d > 0]
+        med = float(np.median(pos)) if len(pos) else 0.0
+        if med > 0:
+            br = np.flatnonzero(d > 5 * med) + 1
+            segs = [s_ for s_ in np.split(np.arange(len(tt)), br) if len(s_) >= 64]
+            data_time = sum(float(tt[s_[-1]] - tt[s_[0]]) for s_ in segs)
+            gap_time = float(np.sum(d[d > 5 * med]))
+            if len(segs) >= 2 and gap_time >= 0.5 * data_time:
+                n = min(len(s_) for s_ in segs)
+                f0: Optional[np.ndarray] = None
+                acc: Optional[np.ndarray] = None
+                k = 0
+                for s_ in segs:
+                    f, m = fn(tt[s_[:n]], yy[s_[:n]], window, None)
+                    if not len(f):
+                        continue
+                    if f0 is None:
+                        f0, acc = f, np.zeros_like(m, dtype=np.float64)
+                    acc = acc + (m if len(f) == len(f0) else np.interp(f0, f, m))   # type: ignore[operator]
+                    k += 1
+                if f0 is not None and acc is not None and k >= 2:
+                    how.update({"resampled": False, "fs": float(1.0 / med), "gaps": 0, "gapTime": 0.0, "bursts": k})
+                    return f0, acc / k
+    return fn(t, y, window, how)
 
 
 def fft_display(freqs: np.ndarray, mags: np.ndarray, points: int) -> Tuple[np.ndarray, np.ndarray, Optional[float]]:

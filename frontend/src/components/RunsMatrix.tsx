@@ -5,6 +5,7 @@ import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { useEscape } from "./Overlays";
 import { openPaths } from "../files";
+import { copyText } from "../errorReport";
 
 const DATA_EXTS = [".csv", ".txt", ".mat", ".parquet", ".h5", ".hdf5"];
 const MAX_FOLDER = 200;
@@ -94,7 +95,7 @@ export default function RunsMatrix() {
   const copy = () => {
     const lines = [["file", ...allKeys.map(label)].join("\t"),
       ...rows.map((f) => [fileLabel(runs, f.id), ...allKeys.map((k) => value(f.id, k) ?? "")].join("\t"))];
-    void navigator.clipboard.writeText(lines.join("\n")).then(() => useApp.getState().toast({ kind: "info", text: t("occCopied") }));
+    void copyText(lines.join("\n")).then((ok) => useApp.getState().toast(ok ? { kind: "info", text: t("occCopied") } : { kind: "error", text: t("copyTextFailed") }));
   };
 
   // the same table in the Sweeps area: a row per run - its file, parameters and the conditions'

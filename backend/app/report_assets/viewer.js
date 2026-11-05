@@ -161,12 +161,16 @@
         axes: [Object.assign({}, axis, { size: 46, label: spec.xLabel, labelSize: 14, labelGap: 2 }), Object.assign({}, axis, { size: 56, values: ticks })],
         series: series };
     } else {
-      var tables = spec.signals.map(function (s) { var d = arr(s); return [Array.from(d[0]), Array.from(d[1], function (v) { return isFinite(v) && (!spec.log || v > 0) ? v : null; })]; });
+      // a log axis cannot reach far below 1e-15 (uPlot's tick search never ends): smaller values at a floor
+      var top = 0;
+      spec.signals.forEach(function (s) { arr(s)[1].forEach(function (v) { if (isFinite(v) && v > top) top = v; }); });
+      var floor = Math.max(1e-15, top * 1e-12);
+      var tables = spec.signals.map(function (s) { var d = arr(s); return [Array.from(d[0]), Array.from(d[1], function (v) { return !isFinite(v) ? null : !spec.log ? v : v > 0 ? Math.max(v, floor) : null; })]; });
       data = tables.length === 1 ? tables[0] : uPlot.join(tables, tables.map(function () { return [1]; }));
       opts = { width: w, height: h, padding: [8, 12, 0, 4], legend: { show: false },
         cursor: { y: false, drag: { x: true, y: false, setScale: true } },
         scales: { x: { time: false }, y: spec.log ? { distr: 3 } : { auto: true } },
-        axes: [Object.assign({}, axis, { size: 46, label: "Hz", labelSize: 14, labelGap: 2 }), Object.assign({}, axis, { size: 60, values: ticks })],
+        axes: [Object.assign({}, axis, { size: 46, label: spec.mode === "step" ? "s" : "Hz", labelSize: 14, labelGap: 2 }), Object.assign({}, axis, { size: 60, values: ticks })],
         series: series };
     }
     this.u = new uPlot(opts, data, this.canvas);

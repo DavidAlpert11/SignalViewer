@@ -1,8 +1,41 @@
 # Changelog
 
-## Unreleased
+## 1.21.0 – 2026-11-05
+
+Highlights: tools from ArduPilot's own web tools, inside the app and offline - **Filter review**
+(the IMU batch sampler, the harmonic notches and the gyro low-pass on the spectrum, with the
+spectrum after the filters estimated), a **Step response** plot (as PID Review), a **Hardware**
+summary of the log (as Hardware Report) - and a **time tolerance** in comparisons (as the Simulink
+Data Inspector). With them, a review before the ArduPilot forum: **unrelated logs are no longer
+called "the same flight"**, **tolerances the larger of abs / pct**, a **health check that reads the
+log's own motor outputs, limits and battery timer**, **ERR / EV by name**, **old ArduPilot telemetry
+no longer all errors**, **CSV with a decimal comma, ISO date-times or no time column**, Esc / Copy in
+dialogs. Sessions, templates and studies open as before (old ArduPilot unit names are mapped).
+
+### Added
+- **Filter review** (ArduPilot): the IMU batch sampler (`ISBH` / `ISBD`) is read - `ISBD[0].GyrX` … at the sensor's rate (2 kHz and more), and `…Post` for the samples after the filters (`INS_LOG_BAT_OPT` 4 or 2). An FFT plot's **Filters** button draws the harmonic notches at the centre frequencies the log recorded (`FTN` / `FTNS` / `FCN`, else `INS_HNTCH_FREQ`) times their harmonics (`INS_HNTCH_HMNCS`, and `INS_HNTC2_*`), the gyro low-pass (`INS_GYRO_FILTER`), and for a gyro before the filters a dashed line: its spectrum after them, estimated with ArduPilot's own filter coefficients. On a real Pixhawk 6X log the estimate is within a factor of 2 of the measured `…Post` spectrum. New template *ArduPilot · Filter review*.
+- **Spectra of signals recorded in bursts** (the batch sampler: 1024 samples every second or so) are averaged per burst ("averaged over N bursts") - bridging the pauses smeared the peaks.
+- **Step response** plot type: signals in pairs (setpoint, measured), the loop's response to a step estimated from the flight (Wiener deconvolution over 2-second windows, averaged - as ArduPilot's PID Review and PID-Analyzer), with rise time, overshoot and settling; over the cursors' region when they are on; it says when the log is too slow (under 40 Hz) or the setpoint barely moves. A *Step response* tab in *ArduPilot · Rates (PID)*; in reports too.
+- **Log panel ▸ Hardware**: board and firmware from the boot messages, frame, ESC protocol, loop rate, every IMU / compass / barometer from its device id (chip, bus, address - ArduPilot's own tables), GPS and battery monitor; *Copy* for a forum post.
+- **Time tolerance in comparisons** (as the Simulink Data Inspector): the Compare panel's *Time tolerance (s)* and `signalviewer-cli compare --tol-time` / `"time"` in a tolerances file - a run may be that much early or late (the golden value's band is its lowest / highest within ± that time, then widened by `abs` / `pct`).
+
+### Changed
+- **Comparison tolerance: the larger of `abs` and `pct`** of the golden value, as the Simulink Data Inspector (it was the smaller). With a percentage the band closed to 0 wherever the golden value crossed 0, so a roll angle compared with `--tol-pct` failed at every zero crossing, and adding `pct` to `abs` made a check stricter. `signalviewer-cli compare` and the Compare panel alike; give `abs` too for a signal that crosses 0.
+- **Health check, battery: below a limit for `BATT_LOW_TIMER` seconds** (10 by default), as ArduPilot judges it - a dip under a burst of throttle no longer makes a flight's battery "low". With `BATT_FS_VOLTSRC = 1` the resting voltage (`BAT.VoltR`) is the one judged.
+- **ArduPilot units:** a heading is `[deg]` (was `[degheading]`) and a field of unknown unit has none (was `[UNKNOWN]`): `ATT.Yaw [deg]`, `CTRL.RMSRollP`. A session saved before opens with the new names; templates and check files match either.
 
 ### Fixed
+- **A spectrum with very small values on a log axis no longer breaks the plot** ("Invalid array length": the axis' tick search never ended below about 1e-15 - a quiet signal, or a spectrum after deep filters). Values far below the largest are drawn at a floor (12 decades), in the app and in HTML reports.
+- **A CSV whose first column is not a time** (no column named *time*, and the first one has text or goes down) uses the row number as its time, and the first column is a signal. It became the time anyway and **every row was sorted by it**, scrambling the file; a file whose first column is a name did not open. Live mode goes on counting.
+- **The automatic signal alignment checks itself**: two altitudes or voltages that only climb or fall line up at some shift by chance (correlation 1.0 between two unrelated flights) - the pair must also change together there, else the way is *uncertain*, and the dialog says why.
+- **CSV with a decimal comma (`1,5`, columns separated by `;`)** - from Excel or a logger in a European locale - is read as numbers. Each such column became a state signal whose "states" were its numbers. Also in Sweeps and in live mode.
+- **ISO 8601 date-times in a CSV's time column** (`2026-01-01T10:00:00.5`) are seconds since 1970; they were read as nanoseconds (a time axis in the 10^18).
+- **Health check, motors:** when the log has `SERVOn_FUNCTION`, only the motor outputs are checked (a gimbal, a gripper or landing gear on another output counted as a motor), and the finding names the motor (*Motor 3*), not its output. `MOT_PWM_MIN / MAX` of 0 mean the throttle channel's range (`RC3_MIN / MAX`), as in ArduPilot - not the highest output seen, which called a motor saturated.
+- **Health check, battery:** the first battery is held to its own limits - with `BATT_LOW_VOLT` at 0 (no limit) battery 2's `BATT2_LOW_VOLT` was used for it.
+- **ArduPilot errors (ERR) and events (EV) by name**: *Error: Radio failsafe*, *EKF_YAW_RESET*... (they were *subsystem 5* and *Event 62*). An error marked resolved (code 0) is no longer counted as an error, a refused mode change is a warning, and a lost GPS, a failed autotune, a helicopter rotor below its critical speed and a released parachute are flagged in the health check.
+- **Esc in a file dialog opened over another dialog closes only the file dialog.** Esc in *Export CSV*'s save dialog also closed the table of all signals behind it (and the same over any dialog). And after a click on a part of the path (the folder became the current one) Esc did nothing.
+- **Copying text works in the desktop window, with the right message when it cannot.** *Copy* in the Log panel's parameters, the Inspector's statistics table, the runs matrix, Investigate's moments and Sweeps' next runs used the browser's clipboard API only (a webview may refuse it) and said "Copying images isn't available" when it failed - now the same fallback as Copy error details, and a message about the clipboard.
+- **A template is no longer suggested when it would open nothing.** *Flight on the map & 3D* was offered for a log with attitude and no GPS (the simulation example): its map objects need a position, and the click said "Nothing to open".
 - **"Looks like the same flight" no longer offered for unrelated logs.** A .tlog's boot clock says how to put it on an autopilot log's time, not that the two are one flight: opening any .bin and any .tlog together offered to align them. The boot / events alignment is now confirmed by a pair of the same quantity (attitude, altitude, battery...) changing together, and never offered for two different vehicle types.
 - **The Align dialog says why.** Under the boot clock and the matching events: "Confirmed: ATT.Roll and ATTITUDE.roll change together at this offset (r = 0.85)", or in red "Probably not the same flight" with the pair and its r, or that the vehicle types differ. Such a candidate can still be applied (two flights on one time axis on purpose). The "same flight" notice names the signal that confirmed it.
 - **Old ArduPilot telemetry (before 3.4): boot messages are no longer errors.** Those versions sent STATUSTEXT on their own severity scale (LOW = 1); read as MAVLink's (1 = ALERT) the version banner, "Initialising APM..." and "Frame: QUAD" were errors and the health check said so. The scale is recognised from the banner; the firmware (`APM:Copter V3.x`) is shown again.

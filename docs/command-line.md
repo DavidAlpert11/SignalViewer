@@ -69,8 +69,12 @@ signalviewer-cli compare golden.bin today.bin --tolerances tol.json --junit comp
 
 Every signal both runs have, with the Compare panel's numbers (RMS and largest difference,
 correlation; headings wrap at 360°), the most different first. A signal passes when every sample is
-within min(abs, pct of the golden value) - or, with `"outside_pct"` (`--allow-outside PCT` for every
-signal), when no more than that share of its samples is outside. Without any tolerance the
+within the larger of `abs` and `pct` of the golden value (as the Simulink Data Inspector;
+before 1.21 the smaller, which failed every zero crossing of a signal with `pct` - give `abs` too
+for a signal that crosses 0) - or, with `"outside_pct"` (`--allow-outside PCT` for every
+signal), when no more than that share of its samples is outside. `--tol-time SECONDS` (or `"time"` in the
+tolerances) lets a run be that much early or late: the golden value's band at each moment is its lowest
+and highest value within ± that time, then widened by `abs` / `pct` - as the Simulink Data Inspector. Without any tolerance the
 differences are only listed.
 
 ### A simulation against a flight

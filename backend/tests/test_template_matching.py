@@ -55,3 +55,15 @@ def test_objects_need_a_position():
     assert (o["lat"], o["lon"], o["alt"], o["yaw"], o["roll"]) == ("r1/GPS.Lat", "r1/GPS.Lng", "r1/GPS.Alt", "r1/ATT.Yaw", None)
     no_pos = [{"id": "r1", "path": "/f.BIN", "format": "bin", "signals": [{"name": "ATT.Yaw"}]}]
     assert T.resolve(t, ALL, {"main": "r1"}, no_pos)["tabs"] == []
+
+
+def test_an_object_without_its_position_does_not_make_a_template_fit():
+    """A log with attitude and no GPS: the map and 3D template would open nothing (its objects need a
+    position), so it must not be suggested - the template strip offered it and the click said
+    'Nothing to open'."""
+    t = next(x for x in ALL if x["id"] == "bi-ap-flight")
+    att = [{"id": "r1", "path": "/f.BIN", "format": "bin", "signals": [{"name": n} for n in ("ATT.Roll", "ATT.Pitch", "ATT.Yaw")]}]
+    assert T.fit(t, ALL, att) == 0.0
+    gps = [{"id": "r1", "path": "/f.BIN", "format": "bin",
+            "signals": [{"name": n} for n in ("ATT.Roll", "ATT.Pitch", "ATT.Yaw", "GPS.Lat", "GPS.Lng", "GPS.Alt")]}]
+    assert T.fit(t, ALL, gps) > 0.5

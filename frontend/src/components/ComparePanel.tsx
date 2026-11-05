@@ -49,6 +49,7 @@ export default function ComparePanel() {
   const [alignment, setAlignment] = useState("linear");
   const [tolAbs, setTolAbs] = useState("");
   const [tolPct, setTolPct] = useState("");
+  const [tolTime, setTolTime] = useState("");      // 1.21: seconds a run may be early / late (SDI)
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sim, setSim] = useState<CompareAllRow[] | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -121,14 +122,14 @@ export default function ComparePanel() {
   // in segment mode only the files where the segment was found take part
   const active = segment ? chosen.filter((rid) => segment.windows[rid]) : chosen;
   const segWaiting = over === "segment" && !segment;
-  const tolSet = num(tolAbs) !== null || num(tolPct) !== null;
+  const tolSet = num(tolAbs) !== null || num(tolPct) !== null || (num(tolTime) ?? 0) > 0;
   const runName = (rid: string) => fileLabel(allRuns, rid);
   // T46: a file has ONE colour everywhere (it was by position among the checked runs - unchecking
   // one recoloured the others)
   const runColor = (rid: string) => fileMark(runs, rid)?.color ?? TRACE_COLORS[Math.max(0, chosen.indexOf(rid)) % TRACE_COLORS.length];
 
   /* ------------- similarity list: debounced, cancellable, cached ------------- */
-  const key = `${[...active].sort().join(",")}|${baseline}|${alignment}|${tolAbs}|${tolPct}|${dataVersion}|${segment ? JSON.stringify(segment.windows) : ""}|${segWaiting}`;
+  const key = `${[...active].sort().join(",")}|${baseline}|${alignment}|${tolAbs}|${tolPct}|${tolTime}|${dataVersion}|${segment ? JSON.stringify(segment.windows) : ""}|${segWaiting}`;
   useEffect(() => {
     jobRef.current?.cancel();                // a newer choice replaces any running computation
     jobRef.current = null;
@@ -140,7 +141,7 @@ export default function ComparePanel() {
     setProgress(0);
     const h = window.setTimeout(() => {
       const job = startJob<{ signals: CompareAllRow[] }>("compareAll",
-        { runs: active, baselineRun: base, alignment, tolAbs: num(tolAbs), tolPct: num(tolPct), points: LIST_POINTS, windows: segment?.windows ?? null },
+        { runs: active, baselineRun: base, alignment, tolAbs: num(tolAbs), tolPct: num(tolPct), tolTime: num(tolTime), points: LIST_POINTS, windows: segment?.windows ?? null },
         (p) => setProgress(p));
       jobRef.current = job;
       job.result.then((r) => {
@@ -173,7 +174,7 @@ export default function ComparePanel() {
     setBusy(true);
     try {
       const base = baseline !== "mean" && runsOf.includes(baseline) ? sidIn(baseline, name) : "mean";
-      const r = await api.compare(runsOf.map((c) => sidIn(c, name)), base, alignment, num(tolAbs), num(tolPct), segment?.windows);
+      const r = await api.compare(runsOf.map((c) => sidIn(c, name)), base, alignment, num(tolAbs), num(tolPct), segment?.windows, num(tolTime));
       setRows(r.rows);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); setRows(null); }
     finally { setBusy(false); }
@@ -399,6 +400,7 @@ export default function ComparePanel() {
           <div className="arow">
             <label className="afield"><span>{t("tolAbs")}</span><input inputMode="decimal" value={tolAbs} onChange={(e) => setTolAbs(e.target.value)} placeholder="—" /></label>
             <label className="afield"><span>{t("tolPct")}</span><input inputMode="decimal" value={tolPct} onChange={(e) => setTolPct(e.target.value)} placeholder="—" /></label>
+            <label className="afield" title={t("tolTimeHint")}><span>{t("tolTime")}</span><input inputMode="decimal" value={tolTime} onChange={(e) => setTolTime(e.target.value)} placeholder="—" /></label>
           </div>
           <label className="afield"><span>{t("alignment")}</span>
             <select value={alignment} onChange={(e) => setAlignment(e.target.value)}>

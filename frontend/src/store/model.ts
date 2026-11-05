@@ -9,7 +9,7 @@ export interface PlotSignal { sig: string; color: string; width: number; scale: 
   axis?: "right";
   /** T13: pass / fail limits on the plotted value (null / absent = no limit on that side) */
   limits?: { lo?: number | null; hi?: number | null } }  // state: drawn as state markers only (no line)
-export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz" | "video" | "occ";   // occ: a condition's stretches together (investigation step 3)   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c); video: T15
+export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz" | "video" | "occ" | "step";   // step: 1.21 step response (PID Review)   // occ: a condition's stretches together (investigation step 3)   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c); video: T15
 export interface Plot {
   id: string; title: string; signals: PlotSignal[];
   mode?: PlotMode;                 // default "time"
@@ -20,6 +20,7 @@ export interface Plot {
   xyAlign?: "linear" | "nearest";
   fftWindow?: "hanning" | "hamming" | "blackman" | "none";
   fftLog?: boolean;
+  fftFilters?: boolean;            // 1.21: ArduPilot's gyro filters on the spectrum (notch lines, after-filter estimate)
   fftMethod?: "fft" | "welch";            // welch: averaged power spectral density (T16); absent = fft
   /** T16b: marks at 1x / 2x / 3x the mean rotation rate of this signal (and the blade-pass
    *  frequency with blades) over the spectrum's window; absent = no marks. */

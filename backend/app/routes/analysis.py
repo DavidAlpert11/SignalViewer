@@ -141,6 +141,82 @@ def delete_derived(name: str):
 
 
 
+class FiltersRequest(BaseModel):
+    signal: str                         # the spectrum's signal: its file has the filters' parameters
+    t0: Optional[float] = None
+    t1: Optional[float] = None
+    fs: Optional[float] = None          # the spectrum's sample rate (Hz): the filters run at it
+    points: int = 2000
+
+
+
+@router.post("/api/filters")
+def filters(req: FiltersRequest):
+    """ArduPilot's gyro filters over [t0, t1] (svcore.filters): the harmonic notches' lines and the
+    response of all the filters, for the FFT plot's "Filters" view. {"setup": None} when the file
+    has no such parameters."""
+    from svcore.filters import filter_setup, response
+    from svcore.naming import without_unit
+    run_id = req.signal.partition("/")[0]
+    try:
+        lr = store.get(run_id)
+    except KeyError:
+        return {"setup": None}
+    fl = getattr(lr.run, "_flightlog", None)
+    params = dict(fl.params) if fl is not None else {}
+    if not any(k.startswith(("INS_HNTCH_", "INS_HNTC2_", "INS_GYRO_FILTER")) for k in params):
+        return {"setup": None}
+    bare = {without_unit(n): n for n in lr.run.signals}
+
+    def signals_of(name: str):
+        n = bare.get(name)
+        if n is None:
+            return None
+        try:
+            return store.signal(f"{run_id}/{n}")
+        except KeyError:
+            return None
+    setup = filter_setup(params, signals_of, req.t0, req.t1)
+    if not setup["notches"] and not setup["lpf"]:
+        return {"setup": None}
+    out: dict = {"setup": setup}
+    if req.fs and req.fs > 0:
+        f = np.linspace(0.0, req.fs / 2.0, int(max(100, min(req.points, 20000))))
+        out.update({"f": b64(f, np.float64), "gain": b64(response(setup, f, req.fs), np.float32), "fs": req.fs})
+    return out
+
+
+
+class StepRequest(BaseModel):
+    pairs: List[List[str]]              # [[setpoint id, measured id], ...]
+    t0: Optional[float] = None
+    t1: Optional[float] = None
+    length: float = 0.5
+
+
+
+@router.post("/api/stepresp")
+def stepresp(req: StepRequest):
+    """1.21: a control loop's step response from flight data (svcore.stepresp), per pair."""
+    from svcore.stepresp import step_response
+    out: list = []
+    for pair in req.pairs:
+        if len(pair) != 2:
+            continue
+        try:
+            ti, x = store.signal(pair[0])
+            to, y = store.signal(pair[1])
+        except KeyError:
+            out.append({"pair": pair, "error": "missing"})
+            continue
+        r = step_response(ti, x, to, y, req.t0, req.t1, float(min(max(req.length, 0.05), 2.0)))
+        if "step" in r:
+            r["t"], r["step"] = b64(r["t"], np.float64), b64(r["step"], np.float32)
+        out.append({"pair": pair, **r})
+    return {"series": out}
+
+
+
 class FFTRequest(BaseModel):
     signals: List[str]
     window: str = "hanning"

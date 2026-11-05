@@ -164,19 +164,32 @@ def check_battery(c: _Ctx):
                    ("battery_status", ["voltage_filtered_v", "voltage_v"])])
     if not sigs:
         return None
+    # BATT_FS_VOLTSRC = 1: ArduPilot judges the sag-compensated (resting) voltage, logged as VoltR
+    if c.params.get("BATT_FS_VOLTSRC") == 1:
+        rest = c.find([("BAT", ["VoltR"])])
+        if rest:
+            sigs = rest
     n, t, y, _ = sigs[0]
     ok = np.isfinite(y) & (y > 0.5)
     if not ok.any():
         return None
     tt, yy = t[ok], y[ok]
     j = int(np.argmin(yy))
-    low = c.p("BATT_LOW_VOLT", "BATT2_LOW_VOLT")
-    crit = c.p("BATT_CRT_VOLT", "BATT2_CRT_VOLT")
+    # the first battery's own limits (BATT2_* are the second battery's: with BATT_LOW_VOLT = 0 -
+    # no limit - battery 2's limit was used for battery 1's voltage)
+    low = c.p("BATT_LOW_VOLT")
+    crit = c.p("BATT_CRT_VOLT")
+    # as ArduPilot: below the limit for BATT_LOW_TIMER seconds (10 by default) - a dip under a burst of
+    # throttle is not a low battery (the lowest instant alone called many good flights "low")
+    hold = c.p("BATT_LOW_TIMER", default=10.0) if (low or crit) else 0.0
     vals = {"min": _r(yy[j], 2), "start": _r(float(np.median(yy[:max(1, min(len(yy), 20))])), 2)}
-    if crit and yy[j] < crit:
-        return _result("battCrit", "error", {**vals, "limit": _r(crit, 2)}, float(tt[j]), _spans(tt, yy < crit, 0.5), [n])
-    if low and yy[j] < low:
-        return _result("battLow", "warning", {**vals, "limit": _r(low, 2)}, float(tt[j]), _spans(tt, yy < low, 0.5), [n])
+    for lim, code, level in ((crit, "battCrit", "error"), (low, "battLow", "warning")):
+        if not lim or yy[j] >= lim:
+            continue
+        sp = _spans(tt, yy < lim, min_dur=hold, gap=0.5)
+        if sp:
+            k0 = int(np.searchsorted(tt, sp[0][0]))
+            return _result(code, level, {**vals, "limit": _r(lim, 2), "secs": _r(hold, 0)}, float(tt[k0]), sp, [n])
     return _result("battOk", "ok", vals, float(tt[j]), [], [n])
 
 
@@ -201,17 +214,49 @@ def check_ekf(c: _Ctx):
                    wt, sorted(spans)[:20], [n for n, *_ in sigs])
 
 
+def _channel(name: str) -> Optional[int]:
+    m = re.search(r"(?:\.C|servo)(\d+)", name)
+    return int(m.group(1)) if m else None
+
+
+def _motor_channels(params: Dict[str, float]) -> Dict[int, int]:
+    """Output channel -> motor number, from SERVOn_FUNCTION (33-40: motors 1-8, 82-85: motors 9-12)."""
+    out: Dict[int, int] = {}
+    for k, v in params.items():
+        m = re.fullmatch(r"SERVO(\d+)_FUNCTION", k)
+        if not m:
+            continue
+        f = int(v)
+        if 33 <= f <= 40:
+            out[int(m.group(1))] = f - 32
+        elif 82 <= f <= 85:
+            out[int(m.group(1))] = f - 73
+    return out
+
+
 def check_motors(c: _Ctx, vehicle: Optional[str]):
     if vehicle not in (None, "copter"):
         return []
-    sigs = c.find([("RCOU", ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"]),
-                   ("SERVO_OUTPUT_RAW", [f"servo{i}_raw" for i in range(1, 9)])])
-    motors = [s for s in sigs if len(s[2]) > 10 and 900 < np.nanmedian(s[2]) < 2100 and np.nanstd(s[2]) > 5]
+    sigs = c.find([("RCOU", [f"C{i}" for i in range(1, 17)]),
+                   ("SERVO_OUTPUT_RAW", [f"servo{i}_raw" for i in range(1, 17)])])
+    by_motor = _motor_channels(c.params)
+    if by_motor:
+        # the log says which outputs drive motors (SERVOn_FUNCTION 33-40, 82-85): only those -
+        # a gimbal, a gripper or landing gear on another output is not a motor
+        keep = []
+        for s_ in sigs:
+            ch = _channel(s_[0])
+            if ch in by_motor and len(s_[2]) > 10:
+                keep.append(s_)
+        motors = sorted(keep, key=lambda s_: by_motor[_channel(s_[0]) or 0])
+    else:
+        motors = [s_ for s_ in sigs if (_channel(s_[0]) or 99) <= 8 and len(s_[2]) > 10
+                  and 900 < np.nanmedian(s_[2]) < 2100 and np.nanstd(s_[2]) > 5][:8]
     if len(motors) < 3:
         return []
-    motors = motors[:8]
-    pmax = c.p("MOT_PWM_MAX", default=None) or max(float(np.nanmax(s[2])) for s in motors)
-    pmin = c.p("MOT_PWM_MIN", default=1000.0)
+    # MOT_PWM_MIN / MAX of 0 mean "the throttle channel's range" (RC3_MIN / RC3_MAX) in ArduPilot
+    pmax = c.p("MOT_PWM_MAX", "RC3_MAX", default=None) or max(float(np.nanmax(s_[2])) for s_ in motors)
+    pmin = c.p("MOT_PWM_MIN", "RC3_MIN", default=1000.0)
     out, spans, first = [], [], None
     for n, t, y, _ in motors:
         sp = _spans(t, y >= pmax - 0.02 * (pmax - pmin), 0.3)
@@ -227,9 +272,11 @@ def check_motors(c: _Ctx, vehicle: Optional[str]):
         means = [float(np.mean(y[fly])) for y in ys]
         spread = max(means) - min(means)
         hi = int(np.argmax(means))
-        ch = re.search(r"(?:\.C|servo)(\d+)", motors[hi][0])   # the output channel, not the place in the list
+        ch = _channel(motors[hi][0])
+        # the motor's own number when the log says it (Motor 3 on output 5), else the output channel
+        num = by_motor.get(ch) if by_motor and ch else ch
         level = "warning" if spread > 0.1 * (pmax - pmin) else "ok"
-        out.append(_result("motorsBalance", level, {"spread": _r(spread, 0), "motor": int(ch.group(1)) if ch else hi + 1,
+        out.append(_result("motorsBalance", level, {"spread": _r(spread, 0), "motor": num or hi + 1,
                                                      "means": [_r(m, 0) for m in means]}, None, [], [n for n, *_ in motors]))
     return out
 

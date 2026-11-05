@@ -206,7 +206,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Plot menus
 
-- The plot's type is one button with its name (*Time ▾*: Time, X-Y, XYZ, Map, 3D, FFT, Spectrogram, Envelope, Video); right-click in a plot: cursor here, second cursor here, note here, previous zoom, show everything, export data, save / copy image, axis limits, clear plot (the ⋯ button has the plot's part)
+- The plot's type is one button with its name (*Time ▾*: Time, X-Y, XYZ, Map, 3D, FFT, Step response, Spectrogram, Envelope, Video); right-click in a plot: cursor here, second cursor here, note here, previous zoom, show everything, export data, save / copy image, axis limits, clear plot (the ⋯ button has the plot's part)
 
 ### Top bar
 
@@ -412,7 +412,14 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Health check
 
-- Log panel → Health: vibration, accelerometer clipping, GPS satellites / HDop / fix, battery (against BATT_LOW_VOLT / BATT_CRT_VOLT from the log), EKF variances (FS_EKF_THRESH), motors at full output and motor imbalance, board power, errors / warnings in the log. Each finding: a sentence, the moment (click → cursor), the stretches (click → zoom with both cursors on it), *Plot* (its signals in a new tab). Works for .bin, .tlog and .ulg
+- Log panel → Health: vibration, accelerometer clipping, GPS satellites / HDop / fix, battery (below BATT_LOW_VOLT / BATT_CRT_VOLT for BATT_LOW_TIMER seconds, the resting voltage with BATT_FS_VOLTSRC = 1), EKF variances (FS_EKF_THRESH), motors at full output and motor imbalance (the motor outputs from SERVOn_FUNCTION, named by motor number), board power, errors / warnings in the log. Each finding: a sentence, the moment (click → cursor), the stretches (click → zoom with both cursors on it), *Plot* (its signals in a new tab). Works for .bin, .tlog and .ulg
+
+### Filter review, step response, hardware (1.21)
+
+- **IMU batch sampler** (`INS_LOG_BAT_MASK`): `ISBH` / `ISBD` become `ISBD[i].GyrX … AccZ` at the sensor's own rate; with `INS_LOG_BAT_OPT` 4 (or 2) the samples after the filters are `…Post`. Their spectrum (FFT / Welch) is taken per burst and averaged ("averaged over N bursts") instead of bridging the pauses between bursts
+- **Filters** on an FFT plot (or the *ArduPilot · Filter review* template): the harmonic notches' lines at the centre frequencies the log recorded (`FTN` / `FTNS` / `FCN`, else `INS_HNTCH_FREQ`) × the harmonics of `INS_HNTCH_HMNCS` (and `INS_HNTC2_*`), the gyro low-pass (`INS_GYRO_FILTER`), and for a gyro before the filters a dashed line: its spectrum after them, estimated with ArduPilot's own filter coefficients - as ArduPilot's Filter Review
+- **Step response** plot type (and a tab of *ArduPilot · Rates (PID)*): signals in pairs (setpoint, measured - `RATE.RDes`, `RATE.R`); the loop's response to a step estimated from the flight by Wiener deconvolution over 2-second windows, averaged; rise time, overshoot and settling; over the cursors' region when they are on; needs 40 Hz or more (fast attitude / PID logging) - as ArduPilot's PID Review and PID-Analyzer
+- **Log panel ▸ Hardware**: the board and firmware (boot messages), frame, ESC protocol, loop rate, each IMU / compass / barometer decoded from its device id (chip, bus, address), GPS and battery monitor types; *Copy* for a forum post - as ArduPilot's Hardware Report
 
 ### Built-in views
 

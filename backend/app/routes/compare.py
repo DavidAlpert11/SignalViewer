@@ -29,6 +29,7 @@ class CompareRequest(BaseModel):
     alignment: str = "linear"
     tolAbs: Optional[float] = None
     tolPct: Optional[float] = None
+    tolTime: Optional[float] = None  # 1.21: seconds a run may be early / late (Simulink Data Inspector)
     windows: Optional[Dict[str, List[float]]] = None    # T10b: per run [t0, t1] - compared on time since t0
 
 
@@ -37,7 +38,7 @@ class CompareRequest(BaseModel):
 def compare(req: CompareRequest):
     try:
         series = [(sid, *_windowed(sid, req.windows)) for sid in req.signals]
-        return compare_runs(series, req.baseline, req.alignment, req.tolAbs, req.tolPct)
+        return compare_runs(series, req.baseline, req.alignment, req.tolAbs, req.tolPct, tol_time=req.tolTime)
     except KeyError:
         fail(404, "One of the chosen signals is no longer open.")
     except ValueError as e:
@@ -54,6 +55,7 @@ class CompareAllRequest(BaseModel):
     alignment: str = "linear"
     tolAbs: Optional[float] = None
     tolPct: Optional[float] = None
+    tolTime: Optional[float] = None
     windows: Optional[Dict[str, List[float]]] = None    # T10b: per run [t0, t1] - compared on time since t0
 
 
@@ -85,7 +87,7 @@ def compare_table(ca: "CompareAllRequest", progress=None) -> list:
         base = f"{ca.baselineRun}/{sigs[ca.baselineRun]}" if ca.baselineRun in rids else "mean"
         try:
             r = compare_runs([(sid, *_windowed(sid, ca.windows)) for sid in ids], base, ca.alignment, ca.tolAbs, ca.tolPct,
-                             int(max(2_000, min(ca.points, 200_000))))
+                             int(max(2_000, min(ca.points, 200_000))), tol_time=ca.tolTime)
         except (ValueError, IndexError) as e:       # IndexError: no sample inside a run's segment
             out.append({"name": name, "runs": rids, "sigs": sigs, "error": str(e) or "No samples in the segment."})
             continue
@@ -112,7 +114,7 @@ def compare_table(ca: "CompareAllRequest", progress=None) -> list:
             "profile": worst.get("profile") if worst else None,                     # where it diverges
             "worstMaxAbs": max((d["maxAbsDiff"] for d in diffs), default=None),
             "minCorrelation": min((d["correlation"] for d in diffs), default=None),
-            "pass": all(d.get("pass", True) for d in diffs) if diffs and (ca.tolAbs is not None or ca.tolPct is not None) else None,
+            "pass": all(d.get("pass", True) for d in diffs) if diffs and (ca.tolAbs is not None or ca.tolPct is not None or ca.tolTime) else None,
             "files": files, "diffs": diffs,
         })
         if progress:
