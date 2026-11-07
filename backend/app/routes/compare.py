@@ -31,6 +31,7 @@ class CompareRequest(BaseModel):
     tolPct: Optional[float] = None
     tolTime: Optional[float] = None  # 1.21: seconds a run may be early / late (Simulink Data Inspector)
     windows: Optional[Dict[str, List[float]]] = None    # T10b: per run [t0, t1] - compared on time since t0
+    trace: int = 0                   # U5: > 0 - each run's difference over time (about this many points) with the band
 
 
 
@@ -38,7 +39,7 @@ class CompareRequest(BaseModel):
 def compare(req: CompareRequest):
     try:
         series = [(sid, *_windowed(sid, req.windows)) for sid in req.signals]
-        return compare_runs(series, req.baseline, req.alignment, req.tolAbs, req.tolPct, tol_time=req.tolTime)
+        return compare_runs(series, req.baseline, req.alignment, req.tolAbs, req.tolPct, tol_time=req.tolTime, trace=min(max(req.trace, 0), 4000))
     except KeyError:
         fail(404, "One of the chosen signals is no longer open.")
     except ValueError as e:

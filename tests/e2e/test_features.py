@@ -656,7 +656,7 @@ def test_P01_to_P08_compare(pg):
     pg.click(".sim-settings-toggle"); pg.locator(".side .arow input").first.fill("1")
     pg.wait_for_function("document.querySelectorAll('.sim-row').length === 3", timeout=20000)   # P-04: all shared signals
     names = pg.locator(".sim-row .sim-name").all_inner_texts()
-    assert set(n.strip("!") for n in names) == {"Speed", "RPM", "Gear"}
+    assert set(n.strip("!✓✗") for n in names) == {"Speed", "RPM", "Gear"}    # U5: ✓ / ✗ with a tolerance
     pcts = [float(x.strip("%").replace(",", "")) for x in pg.locator(".sim-row .sim-pct").all_inner_texts()]
     assert pcts == sorted(pcts)                                         # least similar first
     pg.click(".sim-head .linklike")

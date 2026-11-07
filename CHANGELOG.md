@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- **Compare shows where and why a signal fails** (U5, as the Simulink Data Inspector): with a tolerance every signal in the list has ✓ or ✗; picking one shows, under its numbers, each run's difference from the baseline over time with the tolerance band shaded and the stretches outside it in red (stretches a hair apart are one), listed below - a click on one puts the cursors on it and zooms there; a click on the chart moves the cursor.
 - **Setpoint against measured value at a glance** (U4): a setpoint beside its measured value in one plot - ArduPilot's DesRoll / Roll and RATE.RDes / RATE.R, PX4's roll_sp / roll and `<topic>_setpoint.x` / `<topic>.x` - is drawn dashed and a little faded by itself, and its legend swatch is dashed. Inspector ▸ *Line*: Auto / Solid / Dashed; a choice by hand wins (saved with the session).
 - **The pointer over a time plot shows on the map and in 3D** (U6): a faint copy of each object (the map) or a faint point (3D) where it was at the moment under the pointer - also while the cursors are on; it goes when the pointer leaves the plot and never moves the cursor or adds an Undo step.
 - README: a new first picture (an ArduPilot flight on the map by flight mode, in 3D, Roll desired against actual and the vibration at the moment the health check found), then the map / 3D, health check and compare clips; the social preview is cut from it.

@@ -808,7 +808,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] A1 Split backend/app/store.py: svcore/investigate.py (pure functions, a signal getter) and a LiveWatcher; store.py < 900 lines. Done 2026-11-07: 850 lines; also app/filecheck.py, svcore/transforms.py; tests/test_investigate.py.
 - [x] U6 Hover moves a ghost point on the map / 3D (`s.hover.t`). Done 2026-11-07: `s.pointer` (also with the cursors on), GeoChart / Globe3D ghosts; test_hover_ghost.py.
 - [x] U4 Desired vs actual: `Des<X>` / `<X>` and `*_sp` pairs - desired dashed and muted unless styled by hand. Done 2026-11-07: desired.ts, `PlotSignal.dash`, Inspector ▸ Line; test_setpoint_style.py.
-- [ ] U5 SDI-style difference view in Compare: difference plot with the tolerance band, out-of-tolerance in red, ✓ / ✗ per signal.
+- [x] U5 SDI-style difference view in Compare: difference plot with the tolerance band, out-of-tolerance in red, ✓ / ✗ per signal. Done 2026-11-07: `/api/compare` `trace`, DiffChart.tsx; test_compare_trace.py, test_compare_diff.py.
 - [ ] U7 Less clutter: help line as a tooltip, labelled or grouped icons, plurals, the points wording; < 70 visible buttons in the ArduPilot example; automatic flags and log events told apart (owner, 2026-11-07).
 - [ ] A2 Split frontend/src/i18n.ts by area (same key count, no file > 600 lines).
 - [ ] A3 App.tsx cleanup: Welcome, RAIL, EXAMPLE_* to their own files; App.tsx < 450 lines.
