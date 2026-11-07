@@ -13,6 +13,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
+  store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
+  Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
+
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
   unrelated logs (boot / events / signal confirmed by a pair changing together; the Align dialog says
@@ -113,6 +117,164 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Sandbox gotchas seen so far: a background server or test run started inside a tool call may
   die when the call ends - start it with `setsid nohup ... &`. Never `pkill -f <pattern>` in the
   same shell command line that contains the pattern (it kills its own shell).
+
+## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
+
+**Owner:** the next round after 1.21.0. Patches as before (one `git format-patch` file per unit of
+work, built on the latest `origin/main`, never depending on an earlier patch). Testing rule changed in
+`/CLAUDE.md`: relevant e2e per task, the **whole** e2e suite at the end of each group below and at the
+end. Before coding a task: check in the code what already exists for it and tell the owner if the
+definition is wrong or partly done.
+
+**Already verified (do not redo):** drag & drop of signals onto plots (`PlotView.tsx` onDrop: y / x /
+right / bottom, chips between plots); filters are SOS (`ops.apply_filter`: butter(output="sos") +
+sosfiltfilt); `frontend/dist` need not be committed by contributors (build.yml builds it); Compare has
+tolerance abs / pct + time tolerance (1.21.0) - only its display is missing (U5); hover on a time plot is
+`s.hover {plotId, t, vals}` (TimeChart.tsx ~674), read only by PlotView's legend - GeoChart / Globe3D
+follow `cursor.t1` only.
+
+**Not decided - do not build unless the owner approves:** M2 a flight summary card on open (duration,
+distance, max altitude, modes, health green / yellow / red); M3 "Ask for help on the forum" export (image
++ text summary for discuss.ardupilot.org); auto-detecting Mission Planner / QGC log folders on first
+start; an opt-in update check; renaming the product (postponed).
+
+**Order:** U1, U3, U2 (group 1) · M1 (group 2) · A1 (group 3) · U6, U4, U5, U7 (group 4) · A2, A3, U8
+(group 5). Whole e2e suite after groups 1 and 4 and at the very end.
+
+Progress board (tick here AND in ROADMAP):
+
+| # | Task | Group | Size | Status |
+|---|---|---|---|---|
+| U1 | Choose which tabs a template opens (`defaultTabs`, "+N more") | 1 | M | ☐ |
+| U3 | One flight-mode band per tab | 1 | M | ☐ |
+| U2 | Health findings must not cover data | 1 | S/M | ☐ |
+| M1 | Hero image, social preview, tagline | 2 | S | ☐ |
+| A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☐ |
+| U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☐ |
+| U4 | Desired vs actual styled automatically | 4 | S | ☐ |
+| U5 | SDI-style difference view in Compare | 4 | M | ☐ |
+| U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ☐ |
+| A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☐ |
+| A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☐ |
+| U8 | Navigation design only (no code) | 5 | S | ☐ |
+
+**Checked in the code (2026-11-07, at `5b0ed7a`):** `store.py` 1,495 lines; `i18n.ts` 3,528; `App.tsx`
+628. The built-in ArduPilot set is *ArduPilot · Full review* (`bi-ap-review`, no tabs of its own,
+`includes` nine one-tab templates: Attitude, Rates (+ Step response), Vibration, Battery, GPS, Motors,
+Altitude, EKF, Flight) - so U1's tab list for it is the included templates' tabs, and its `defaultTabs`
+names those. State lanes exist: `Tab.sharedStates` (a lane at the bottom of every time plot of the tab)
+and `ws.globalStates` (every tab), drawn per plot in TimeChart.tsx ~94 - U3 builds on them.
+
+### Group 1 - opening a file (whole e2e suite at the end of the group)
+
+### U1 · Choose which tabs a template opens — M
+**Do:**
+- A template opened by hand (Templates menu / library) with more than one tab: a dialog listing the tabs
+  with checkboxes, *All* / *None*; by default all are checked (today's behaviour).
+- A new OPTIONAL template field `defaultTabs` (tab names). When present only those are pre-checked.
+  Old templates and sessions without it behave exactly as today. Saving a template lets the user mark
+  which tabs are default.
+- Opened automatically right after a file loads (smartStart): no dialog - open `defaultTabs` (all when
+  absent).
+- Tabs not opened stay available: "+N more from <template> ▾" next to the tab bar's "+" button; opens
+  one or all.
+- Settings: "Skip the tab choice and open the template's default tabs".
+- Built-in ArduPilot template: a sensible `defaultTabs` - **propose it to the owner** (e.g. Attitude +
+  Flight).
+
+**Done when:** the dialog works; auto-open opens only the defaults; "+N more" opens the rest; old
+templates and sessions unchanged; en + he strings, RTL checked; e2e for the flow.
+
+### U3 · One flight-mode band per tab — M
+**Do:**
+- When all plots of a tab share the X axis, the mode band (e.g. `MODE.Mode`) is shown once at the top of
+  the tab, not in every plot.
+- Cursors 1 / 2 AND hover are drawn on that band as vertical lines; the mode under the cursor is
+  highlighted / labelled, so it is clear which mode the inspected moment is in.
+- Clicking a segment keeps today's behaviour. A plot can turn its own band back on from its ⋯ menu.
+- First check whether a per-plot setting for this already exists (see `sharedStates` / `globalStates`
+  above).
+
+**Done when:** the ArduPilot example shows one band with the cursor and hover on it, the plots get the
+freed height, sessions compatible.
+
+### U2 · Health findings must not cover data — S/M
+**Do:** today the "Opened: <file>" health card floats over the 3rd plot. Move it to a docked corner /
+side panel (collapsible, e.g. "3 findings"), and show the findings as markers on the bottom timeline
+(click = the same as *Plot*).
+
+**Done when:** nothing covers plot data on open; the existing links (*Plot*, *All findings…*) still work.
+
+### Group 2 - marketing basics
+
+### M1 · Hero image, social preview, tagline — S
+**Do:**
+- A hero screenshot, 2×2 in one window, dark theme, 2x resolution, made by `tools/make_readme_media.py`:
+  the map with the track coloured by flight mode and the vehicle at the cursor; the 3D attitude; Roll
+  (desired vs actual) with the mode band and the cursor at the vibration moment (~140 s in the ArduPilot
+  example); a health finding visible. Signal list hidden / narrow; no popups.
+- README order: hero → one-line pitch → the play GIF (`02_flight_map_3d`) → health check → compare →
+  quickstart later.
+- A 1280×640 crop for GitHub's social preview (the owner uploads it).
+- Tagline (package name stays `signalviewer`): "Signal Viewer – offline flight log & test data
+  analysis" in the README, the pyproject description, mkdocs `site_name` / `site_description`.
+  **Confirm the wording with the owner first.**
+
+**Done when:** the hero and the crop are in `docs/images`, made by the tool; the README in the order
+above; `mkdocs build --strict` passes.
+
+### Group 3 - architecture
+
+### A1 · Split `backend/app/store.py` — M
+**Do:**
+- The investigate logic (`evaluate_condition`, `occurrence_rows` / `windows` / `differ`,
+  `first_changes`, `change_clusters`, `_chain`, `suggest_condition`, `lag_between`) → pure functions in
+  `svcore/investigate.py` that take a signal getter.
+- Live polling (`poll_appends`, `_poll_appends`, `newer_on_disk`, `new_files`, `activity`) → a
+  `LiveWatcher` class.
+- No change to routes, API, sessions or behaviour.
+
+**Done when:** `store.py` < 900 lines; pytest + mypy green; Investigate e2e green; unit tests for
+`investigate.py` without a Store.
+
+### Group 4 - UX (whole e2e suite at the end of the group)
+
+### U6 · Hover moves a ghost point on the map / 3D — S
+**Do:** GeoChart and Globe3D draw a semi-transparent point at `s.hover.t`; it disappears when the mouse
+leaves the plot and does not touch the cursor or undo.
+**Done when:** in the Flight tab, hovering a plot moves the point.
+
+### U4 · Desired vs actual — S
+**Do:** pairs `Des<X>` / `<X>` (ArduPilot) and `*_sp` (PX4) in one plot → the desired line dashed and
+muted automatically; a style set by hand wins. First check whether the templates already set styles.
+**Done when:** the ArduPilot Attitude tab shows desired dashed without a template change; a manual style
+is kept; sessions compatible.
+
+### U5 · SDI-style difference view in Compare — M
+**Do:** selecting a signal shows a difference plot under the overlay with the existing tolerance band,
+out-of-tolerance regions in red, ✓ / ✗ per signal in the list. First check what the current "difference
+profile" in ComparePanel shows.
+**Done when:** the 3-car example shows where and why a signal fails.
+
+### U7 · Less clutter — M
+**Do:** the plot-header help line ("Click: pick · Ctrl or Shift+click…") → a tooltip / first time only;
+toolbar icons without labels get labels or move into a ⋯ menu; "1 files" fixed (singular / plural, en +
+he); "Showing 3,840 of 12,300 points" reworded so it does not suggest missing data.
+**Done when:** fewer than 70 visible buttons in the ArduPilot example, measured in e2e (107 today).
+
+### Group 5 - maintenance / design
+
+### A2 · Split `frontend/src/i18n.ts` — M
+**Do:** by area into `i18n/*.ts` and an index merging them; `he: typeof en` kept per file.
+**Done when:** the same key count before and after; no file over 600 lines; tsc + build green.
+
+### A3 · App.tsx cleanup — S
+**Do:** Welcome, RAIL and the EXAMPLE_* maps to their own files.
+**Done when:** `App.tsx` < 450 lines; no behaviour change (relevant e2e green).
+
+### U8 · Navigation design (no code) — S
+**Do:** sketches for unifying the Recordings / Sweeps tabs, the view tabs and the left rail. After U1.
+**Done when:** a design note with sketches in `docs/dev/`, for the owner to choose from.
 
 ## Sweeps area plan (owner, 2026-10-31): S00–S08
 
@@ -2339,3 +2501,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-04 · 1.20.0 the owner's notes (legend, made signals, groups, track colour, fleet example, Sweeps Pareto / Clear) · branch owner-notes-1.20 · backend 943 + e2e all files pass; new test_owner_notes_1_20.py.
 - 2026-11-04 · 1.20.1 Borders over the offline map and the satellite photos · branch borders · test_offline_map (+1), map / settings / owner notes e2e pass.
 - 2026-11-05 · 1.21.0 Filter review, Step response, Hardware, compare time tolerance; review fixes (sync confirmation and why, old STATUSTEXT scale, PreArm, ERR/EV, motors, battery limits and timer, units, CSV decimal comma / ISO dates / no time column, compare tolerance, file-dialog Esc, Copy, template fit) · backend 983 pass; e2e 303 pass (new test_release_1_21.py), 2 fail as before (test_one_place_for_each_control fails on main too; test_borders… passes alone - a canvas timing).
+- 2026-11-07 · Patch 0: the owner's plan U1–U8, M1, A1–A3 in TASKS.md (spec, board) and ROADMAP.md (Milestone 25); CLAUDE.md e2e rule: relevant files per task, whole suite per group / at the end · docs only, no tests needed · next: U1.

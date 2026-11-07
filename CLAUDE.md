@@ -48,11 +48,13 @@ when you stop in the middle of a task.
 - `cd frontend && npx tsc -b && npm run build` — no errors (the build updates `frontend/dist`).
 - Add or update a test for any backend behaviour you change; e2e (`tests/e2e`, Playwright)
   for UI flows when possible.
-- A change to what is on screen by default (a panel open / closed, a new toolbar control, a
-  toast) changes the space other views get: run the **whole** e2e suite
-  (`python -m pytest -q tests/e2e`, ~9 min; one process is fine since F02 was closed), not only the ones that
-  look related. (T08 - the Inspector starting closed - made the 3D view wider; a 3D test that
-  clicked two fixed places on the globe broke and was only found three tasks later.)
+- e2e while developing (owner, 2026-11-07): after each task run **only the e2e files relevant to the
+  change** (the files / `-k` filters that touch what you changed - and when the change alters what is on
+  screen by default, also the files of the views that lose or gain space). Run the **whole** suite
+  (`python -m pytest -q tests/e2e`, ~9 min) at the end of each task group (TASKS.md marks the groups) and
+  at the end of a round of work, and say in the Log which e2e ran. (Why the space rule: T08 - the
+  Inspector starting closed - made the 3D view wider; a 3D test that clicked two fixed places on the
+  globe broke and was only found three tasks later.) CI is unchanged: manual (`[ci]`), full run before a release.
 - Update `CHANGELOG.md` (user-facing wording) and the task notes in `ROADMAP.md`.
 - Keep `docs/dev/TASKS.md` current after EVERY task (owner's standing request): the progress
   board, the task's **Status**, the "Current state" lines and a Log line - so anyone can see what
