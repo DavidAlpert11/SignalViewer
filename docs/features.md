@@ -51,6 +51,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - In the file dialog Shift+click selects a range and Ctrl+A every file shown; each use (open files, save a session, a report, an image) keeps its own last folder, and a first save starts where the data is
 - Opening a file that is already open reads it again from the disk (*Open another copy* on request)
 - Several files opened together: the start card suggests Compare open files
+- A flight log's health check findings, once the view is open, wait beside the timeline as *N findings* (they no longer cover a plot; a click opens the list, × puts it away) and each is a ◆ mark on the timeline - a click plots its signals in a new tab (findings close together: one mark, a list)
 - Places beside the folder: the folders of the open files, favourite folders (★ next to the path; drag to reorder), recent folders, home / Desktop / Documents / Downloads and the drives
 - Ctrl+P: quick open of recent files and folders
 - **Time axis…** (right-click a file): another column as the time (CSV / text, MAT, Parquet), its unit - ready conversions (ms / µs / ns / min / h → s, s → ms / µs / min) or any scale, a separate scale for columns with a time of their own - and the offset; checks before the change (goes up and down, repeats, missing values, gaps, the unit the name says) and what it changes (plots showing the column, new signals and edits computed against time, other open files); the same change on linked files; one Undo. Kept in the session, in refresh and in live mode

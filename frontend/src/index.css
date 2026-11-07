@@ -1547,3 +1547,14 @@ input.fx-input { width: 100%; }
 .ov-cur { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 1.5px solid var(--amber); pointer-events: none; z-index: 2; }
 .ov-cur.c2 { border-left-style: dashed; }
 .ov-cur.hover { border-left: 1px dashed var(--muted); }
+
+/* U2: the health check's findings docked beside the timeline, and their marks on it */
+.findings-dock { display: inline-flex; align-items: center; flex: none; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--raised); }
+.findings-btn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 6px; border: 0; background: none;
+  color: var(--ink); font: inherit; font-size: 0.8462rem; cursor: pointer; white-space: nowrap; }
+.findings-btn .hicon { width: 16px; height: 16px; font-size: 0.6923rem; line-height: 16px; }
+.findings-dock .iconbtn.sm { height: 22px; min-width: 22px; padding: 0; color: var(--muted); }
+.tl-finding { position: absolute; bottom: -1px; width: 9px; height: 9px; margin-left: -4.5px; padding: 0; border: 1px solid var(--panel);
+  transform: rotate(45deg); cursor: pointer; background: var(--amber); z-index: 1; }
+.tl-finding.error { background: var(--danger); }
+.tl-finding:hover, .tl-finding:focus-visible { transform: rotate(45deg) scale(1.4); outline: none; }

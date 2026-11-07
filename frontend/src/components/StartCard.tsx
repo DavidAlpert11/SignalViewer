@@ -8,14 +8,19 @@ import HealthRow from "./HealthRow";
 
 /** T29: suggestions after the first file opens - the template that fits it best and, for a flight
  *  log, the findings of its health check most worth a look. Floats over the plot area (it does not
- *  take room from the plots) until closed or used. */
+ *  take room from the plots) until closed or used. U2: once there is no template left to offer (the
+ *  view is open), the findings are docked beside the timeline as "N findings" (FindingsDock) - they
+ *  no longer cover the plots' data - and open over the plots only when asked. */
 export default function StartCard() {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const card = useApp((s) => s.startCard);
   const runs = useApp((s) => s.runs);
+  const open = useApp((s) => s.findingsOpen);
   if (!card || !runs.some((r) => r.id === card.runId)) return null;
-  const close = () => useApp.setState({ startCard: null });
+  if (!card.template && !open) return null;                  // docked: FindingsDock
+  // findings only: X folds them back into the dock; with a suggestion it closes the card, as before
+  const close = () => useApp.setState(card.template ? { startCard: null } : { findingsOpen: false });
   return (
     <section className="start-card" role="dialog" aria-label={t("startTitle")}>
       <div className="start-head">
@@ -42,5 +47,28 @@ export default function StartCard() {
         </div>
       )}
     </section>
+  );
+}
+
+/** U2: the health check's findings docked beside the timeline - "! 3 findings" opens them (the start
+ *  card's list), × puts them away (the Log panel has them all, the timeline keeps their marks). */
+export function FindingsDock() {
+  const t = useT();
+  const card = useApp((s) => s.startCard);
+  const runs = useApp((s) => s.runs);
+  const open = useApp((s) => s.findingsOpen);
+  if (!card || card.template || !card.health?.length || !runs.some((r) => r.id === card.runId)) return null;
+  const n = card.health.length;
+  const level = card.health.some((f) => f.level === "error") ? "error" : "warning";
+  return (
+    <span className={`findings-dock ${level}`}>
+      <button className="findings-btn" aria-expanded={open} onClick={() => useApp.setState({ findingsOpen: !open })}
+        title={t("findingsShow")}>
+        <span className={`hicon ${level}`} aria-hidden="true">{level === "error" ? "✕" : "!"}</span>
+        {n === 1 ? t("findingsOne") : t("findingsN", { n })}
+      </button>
+      <button className="iconbtn sm" onClick={() => useApp.setState({ startCard: null, findingsOpen: false })}
+        title={t("findingsHide")} aria-label={t("findingsHide")}><Icon.X width={12} height={12} /></button>
+    </span>
   );
 }

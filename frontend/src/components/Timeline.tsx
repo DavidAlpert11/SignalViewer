@@ -2,6 +2,9 @@ import { useMemo, useRef } from "react";
 import { actions, recordingExtent, useApp, type PlayMode } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
+import { FindingsDock } from "./StartCard";
+import { findingText, plotFinding } from "./HealthRow";
+import { openMenu } from "./Overlays";
 
 /* The timeline: one bar under the plots for the whole recording. Its handle IS the cursor - moving
    one moves the other - so the time plots, X-Y plots, maps (and later the 3D view) all follow the
@@ -45,6 +48,20 @@ export default function Timeline() {
   const data = useMemo(() => runs.filter((r) => r.format !== "derived" && r.end > r.start), [runs]);
 
   // marks along the track: errors / warnings of flight logs, and the user's notes
+  // U2: the health check's findings, each a mark that plots its signals (as its "Plot" link)
+  const findingMarks = useApp((s) => s.findingMarks);
+  const fmarks = useMemo(() => data.flatMap((r) => (findingMarks[r.id] ?? []).map((f) => ({ f, runId: r.id,
+    t: (f.t ?? f.spans[0]?.[0] ?? 0) + (logs[r.id]?.timeOffset || 0) }))), [data, findingMarks, logs]);
+  const fclusters = useMemo(() => {
+    const out: (typeof fmarks)[] = [];
+    const sorted = [...fmarks].sort((a, b) => a.t - b.t);
+    const gap = ext ? (ext[1] - ext[0]) * 0.015 : 0;           // closer than a mark's width on a usual timeline
+    for (const m of sorted) {
+      const last = out[out.length - 1];
+      if (last && m.t - last[last.length - 1].t <= gap) last.push(m); else out.push([m]);
+    }
+    return out;
+  }, [fmarks, ext]);
   const marks = useMemo(() => {
     const out: { t: number; text: string; level: string }[] = [];
     for (const r of data) {
@@ -119,6 +136,7 @@ export default function Timeline() {
   if (!open) {
     return (
       <div className="timeline slim">
+        <FindingsDock />
         {track}
         <button className="iconbtn sm" onClick={() => useApp.setState({ timelineOpen: true })} title={t("tlExpand")} aria-label={t("tlExpand")}>
           <Icon.Chevron style={{ transform: "rotate(180deg)" }} />
@@ -129,6 +147,7 @@ export default function Timeline() {
 
   return (
     <div className="timeline" role="group" aria-label={t("timeline")}>
+      <FindingsDock />
       <div className="tl-controls">
         <button className="iconbtn" onClick={() => jump(t0)} title={`${t("tlStart")} (Home)`} aria-label={t("tlStart")}>
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="2.5" height="14" rx="1" /><path d="M19 5L9 12l10 7z" /></svg>
@@ -151,6 +170,17 @@ export default function Timeline() {
             <button key={i} className={`tl-event ${m.level}`} style={{ left: `${frac(m.t) * 100}%` }}
               title={`${clock(m.t)} · ${m.text}`} aria-label={m.text} onClick={() => jump(m.t)} />
           ))}
+          {fclusters.map((c, i) => {
+            const texts = c.map((m) => findingText(t, m.f));
+            const plot = (m: typeof c[number]) => plotFinding(m.f, m.runId, t(`hTitle_${m.f.code}` as "hTitle_vibration"));
+            return (
+              <button key={`f${i}`} className={`tl-finding ${c.some((m) => m.f.level === "error") ? "error" : "warning"}`}
+                style={{ left: `${frac(c[0].t) * 100}%` }} aria-label={texts.join("; ")}
+                title={`${c.map((m, k) => `${clock(m.t)} · ${texts[k]}`).join("\n")}\n${t("findingMarkHint")}`}
+                // findings close together are one mark: a click lists them (each plots its signals)
+                onClick={(e) => (c.length === 1 ? plot(c[0]) : openMenu(e, c.map((m, k) => ({ label: texts[k], run: () => plot(m) }))))} />
+            );
+          })}
         </div>
       </div>
       <span className="tl-clock" title={now === null ? "" : fmtNum(now, lang, 9)}>
