@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2, A1, U6, U4, U5 done, U7 but the measure, M1 but the tagline (2026-11-07); next A2.
+  U1, U3, U2, A1, U6, U4, U5, A2 done, U7 but the measure, M1 but the tagline (2026-11-07); next A3.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -155,7 +155,7 @@ Progress board (tick here AND in ROADMAP):
 | U4 | Desired vs actual styled automatically | 4 | S | ☑ done |
 | U5 | SDI-style difference view in Compare | 4 | M | ☑ done |
 | U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ◐ 85 buttons / 59 controls - owner to choose the measure |
-| A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☐ |
+| A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☑ done |
 | A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☐ |
 | U8 | Navigation design only (no code) | 5 | S | ☐ |
 
@@ -370,6 +370,13 @@ test_features (V09 wording, Clear via ⋯), test_workflows (⋯, the folded chip
 ### A2 · Split `frontend/src/i18n.ts` — M
 **Do:** by area into `i18n/*.ts` and an index merging them; `he: typeof en` kept per file.
 **Done when:** the same key count before and after; no file over 600 lines; tsc + build green.
+**Status: done 2026-11-07.** `frontend/src/i18n.ts` (3,610 lines) -> `frontend/src/i18n/`: index.ts (48 lines:
+the merge, `translate`, `useT`, the number formats; imports still `./i18n` / `../i18n`) and eleven
+area files (app 183, common 247, compare 343, files 551, flightlog 299, investigate 405, liveAndFleet
+163, mapsAnd3d 371, plots 365, signals 323, templates 397 lines), each `en` + `he: typeof en`. Keys
+were assigned by their names' prefixes (a script; each key's line moved as it was, en and he in the
+same order). 1,785 keys before and after, none in two files; the Sweeps texts (sweeps/i18n.ts) merged
+first as before. CLAUDE.md / CONTRIBUTING.md point to the folder.
 
 ### A3 · App.tsx cleanup — S
 **Do:** Welcome, RAIL and the EXAMPLE_* maps to their own files.
@@ -2614,3 +2621,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U4 setpoints dashed and faded by themselves (desired.ts, `PlotSignal.dash`, Inspector ▸ Line) · e2e test_setpoint_style · next: U5.
 - 2026-11-07 · U5 the difference view in Compare (`trace`, DiffChart.tsx, ✓ / ✗) · pytest 981; e2e test_compare_diff, test_workflows -k compare, test_features -k compare/tol · next: U7.
 - 2026-11-07 · U7 less clutter (85 buttons / 59 controls in the ArduPilot example, from 107) · e2e test_less_clutter, test_features (all), test_workflows, test_template_tabs, test_object_templates, test_templates_recent_badfiles, test_overview_strip, test_fresh_user, test_plot_menus, test_tab_band, test_state_lanes · next: A2.
+- 2026-11-07 · A2 i18n.ts -> i18n/ (11 area files + index, 1,785 keys, none over 600 lines) · tsc + build · next: A3.
