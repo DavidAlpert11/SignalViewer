@@ -1903,7 +1903,7 @@ def test_live_follows_growing_text_column(pg):
 
 def test_flight_log_panel_only_for_logs(pg):
     open_files(pg, "run_a.csv")
-    assert pg.locator(".rail-log").count() == 0                              # CSV only: no Log button
+    assert pg.locator(".rail-log").is_disabled()                             # CSV only: the Log button greyed (U9)
     sys.path.insert(0, os.path.join(ROOT, "tools"))
     import make_test_bin as mk
     mk.FMTS.clear()
@@ -1976,7 +1976,7 @@ def test_same_flight_sync_health_notes_spectrogram(pg):
     pg.locator(".dialog .btn.primary").click()
     pg.wait_for_function("(window.__sv.state().ws.notes || []).some(n => n.text === 'vibration burst' && n.t === 30)")
     # a spectrogram plot draws its image
-    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")   # templates: top bar / file panel, for any file
+    pg.click(".areabar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu   # templates: top bar / file panel, for any file
     pg.locator(".tpl-item", has_text="ArduPilot · Vibration").click()
     pg.locator(".tpl-actions .btn.primary").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.at(-1).plots.some(p => p.mode === 'spec')")
@@ -2050,7 +2050,7 @@ def test_align_csv_and_mat_by_name_moment_and_cursors(pg):
 
 def test_template_library_collections_and_quick_look(pg):
     open_files(pg, "run_a.csv", "run_b.csv")
-    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu
     pg.wait_for_selector(".tpl-lib")
     # any file: a quick look of one file
     pg.locator(".tpl-item", has_text="Quick look").click()
@@ -2077,7 +2077,7 @@ def test_template_library_collections_and_quick_look(pg):
     cmp_tab = S(pg, f"s.ws.tabs.slice({n0}).find(t => t.name.startsWith('Compare'))")
     assert all(len(p["signals"]) == 2 for p in cmp_tab["plots"])           # every shared signal from both files
     # a template cannot include one that includes it (no loops)
-    pg.click(".areabar [aria-label='Templates']"); menu_item(pg, "Open a template")
+    pg.click(".areabar .more-tabs"); menu_item(pg, "Open a template")   # U9: the views menu
     pg.locator(".tpl-item", has_text="Speed set").click(); pg.locator(".tpl-actions .btn", has_text="Edit").click()
     opts = pg.locator(".tpl-editor select[aria-label='Include a template'] option").all_inner_texts()
     assert not any("All my views" in o for o in opts)

@@ -100,6 +100,25 @@ button, input, select { font: inherit; color: inherit; }
 .area-btn { font-weight: 500; color: var(--muted); border-bottom-color: transparent; cursor: pointer; }
 .area-btn:hover { color: var(--ink); }
 .area-btn.on { font-weight: 600; color: var(--ink-strong); border-bottom-color: var(--amber); background: var(--panel); }
+/* U9 (owner, 2026-11-07): the areas are a switch - one pill with a part each - not one more row of tabs */
+.areas { align-items: center; gap: 0; padding: 0 10px; }
+.areas .area-btn { height: 28px; padding: 0 14px; border: 1px solid var(--line-strong); border-inline-start-width: 0; border-radius: 0;
+  background: var(--bg); color: var(--muted); font-weight: 500; }
+.areas .area-btn:first-child { border-inline-start-width: 1px; border-start-start-radius: 14px; border-end-start-radius: 14px; }
+.areas .area-btn:last-child { border-start-end-radius: 14px; border-end-end-radius: 14px; }
+.areas .area-btn.on { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); font-weight: 600; }
+.areas .area-btn.on + .area-btn { border-inline-start-color: var(--amber); }
+.rail button:disabled { opacity: 0.35; cursor: default; }
+/* U9: the Fleet area - the folders, search and trend on one side, the flights on the other */
+.fleet-bar { gap: 12px; }
+.fleet-bar h2 { margin: 0 0 0 4px; font-size: 1rem; }
+.fleet-bar .hint { color: var(--muted); font-size: 0.8462rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fleet-area { position: relative; min-height: 0; overflow: auto; background: var(--bg); }
+.fleet-notices { position: fixed; bottom: 40px; }
+.fleet-area .fleet-body { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: 16px 24px; align-items: start;
+  max-width: 1280px; margin: 0 auto; padding: 16px; overflow: visible; }
+.fleet-area .fleet-side, .fleet-area .fleet-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+@media (max-width: 760px) { .fleet-area .fleet-body { grid-template-columns: 1fr; } }
 .areabar { display: flex; align-items: center; gap: 4px; padding-inline: 8px; min-width: 0;
   background: var(--panel); border-bottom: 1px solid var(--line); }
 .areabar > :not(.tabs-wrap):not(.spacer) { flex-shrink: 0; }
@@ -112,10 +131,12 @@ button, input, select { font: inherit; color: inherit; }
 .tabs { display: flex; align-items: stretch; gap: 2px; height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs-all { display: inline-flex; align-items: center; gap: 2px; width: auto; padding: 0 6px; flex: none; }
-/* U1: "+N more from <template> ▾" beside the + : the tabs a template left out */
-.more-tabs { flex: none; height: 26px; padding: 0 8px; gap: 4px; font-size: 0.8462rem; color: var(--muted); max-width: 260px; }
-.more-tabs .more-tabs-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.more-tabs:hover { color: var(--ink-strong); }
+/* U9: "+" (a new tab) and "▾" (the views menu: new, from a template, the tabs templates left out -
+   their number on it) */
+.add-view { display: inline-flex; align-items: center; flex: none; }
+.more-tabs { min-width: 22px; width: auto; padding: 0 4px; gap: 2px; }
+.more-tabs .more-count { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; font-size: 0.7308rem; line-height: 16px;
+  background: var(--amber); color: var(--amber-ink); font-weight: 600; }
 .tabs-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .menu.ctx.long { max-height: calc(100vh - 16px); overflow-y: auto; }
 .tab {

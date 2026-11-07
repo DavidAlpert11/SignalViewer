@@ -201,7 +201,7 @@ the flight modes as coloured lanes) and a **health check** that points at what i
 (beside the map's layer) draws country borders and names over the offline map and the satellite
 photos, with no internet too.
 
-**Fleet** (rail → *Fleet*) runs the same checks on every log in a folder: follow a number over weeks
+**Fleet** (the top row: *Recordings · Sweeps · Fleet*) runs the same checks on every log in a folder: follow a number over weeks
 (a motor wearing out), find the first flight over a limit, list the flights with a finding. *Try the
 example fleet* shows how - the [Fleet tutorial](fleet-tutorial.md) walks through it.
 

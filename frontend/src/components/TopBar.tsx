@@ -12,7 +12,7 @@ import { openPaths, openSession, saveSession } from "../files";
 import { copyErrorDetails, reportProblem } from "../errorReport";
 import type { MenuItem, MoreTabs } from "../store";
 import { openMenu } from "./Overlays";
-import { templateMenuItems } from "../templateMenu";
+import { openTemplates, templateMenuItems } from "../templateMenu";
 import { forgetMore, moreUsable, openMoreTabs, tx } from "../templates";
 import { getPref, setPref } from "../prefs";
 
@@ -153,13 +153,18 @@ export function RecordingsBar() {
   // one button even for several templates (a section each), so the tab bar does not fill up
   const nameOf = (m: MoreTabs) => (m.builtin ? tx(m.name) : m.name);
   const moreItems = (m: MoreTabs, head: boolean): MenuItem[] => [
-    ...(head ? [{ label: nameOf(m), run: () => {}, disabled: true }] : []),
+    ...(head ? [{ label: m.tabs.length === 1 ? t("moreTabsOne", { name: nameOf(m) }) : t("moreTabs", { n: m.tabs.length, name: nameOf(m) }), run: () => {}, disabled: true }] : []),
     ...m.tabs.map((n) => ({ label: (head ? "\u2003" : "") + (m.builtin ? tx(n) : n), run: () => { openMoreTabs(m, [n]); } })),
     ...(m.tabs.length > 1 ? [{ label: (head ? "\u2003" : "") + t("moreTabsAll", { n: m.tabs.length }), run: () => { openMoreTabs(m, m.tabs); } }] : []),
     { label: (head ? "\u2003" : "") + t("moreTabsDismiss"), run: () => forgetMore(m.tpl) },
   ];
-  const moreMenu = (e: React.MouseEvent) => openMenu(at(e), more.flatMap((m, i) => [
-    ...(i ? [{ label: "", run: () => {}, sep: true }] : []), ...moreItems(m, more.length > 1)]));
+  // U9 (owner, 2026-11-07): one menu for views - a new one, from a template, and the tabs templates
+  // left out (U1's "+N more", a section per template)
+  const viewsMenu = (e: React.MouseEvent) => openMenu(at(e, 280), [
+    { label: t("addTab"), run: actions.addTab },
+    { label: t("tplMenuOpen"), run: () => openTemplates() },
+    ...more.flatMap((m) => [{ label: "", run: () => {}, sep: true }, ...moreItems(m, true)]),
+  ]);
   const moreN = more.reduce((a, m) => a + m.tabs.length, 0);
   const moreLabel = more.length > 1 ? t("moreTabsN", { n: moreN })
     : more.length ? (moreN === 1 ? t("moreTabsOne", { name: nameOf(more[0]) }) : t("moreTabs", { n: moreN, name: nameOf(more[0]) })) : "";
@@ -210,13 +215,14 @@ export function RecordingsBar() {
             <Icon.Chevron width={14} height={14} /><span className="tabs-count">{ws.tabs.length}</span>
           </button>
         )}
-        <button className="iconbtn" onClick={actions.addTab} title={t("addTab")} aria-label={t("addTab")}
-          onContextMenu={(e) => openMenu(e, [{ label: t("addTab"), run: actions.addTab }])}><Icon.Plus /></button>
-        {more.length > 0 && (
-          <button className="btn more-tabs" aria-haspopup="menu" onClick={moreMenu} title={moreLabel}>
-            <span className="more-tabs-label">{moreLabel}</span> <Icon.Chevron width={12} height={12} />
+        <span className="add-view">
+          <button className="iconbtn" onClick={actions.addTab} title={t("addTab")} aria-label={t("addTab")}
+            onContextMenu={viewsMenu}><Icon.Plus /></button>
+          <button className={`iconbtn more-tabs${moreN ? " has" : ""}`} aria-haspopup="menu" onClick={viewsMenu}
+            title={moreN ? `${t("viewsMenu")}\n${moreLabel}` : t("viewsMenu")} aria-label={moreN ? moreLabel : t("viewsMenu")}>
+            <Icon.Chevron width={12} height={12} />{moreN > 0 && <span className="more-count">{moreN}</span>}
           </button>
-        )}
+        </span>
       </nav>
       <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")}
         onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect();

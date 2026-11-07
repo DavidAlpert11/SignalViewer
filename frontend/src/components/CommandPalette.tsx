@@ -52,7 +52,7 @@ export default function CommandPalette() {
       { id: "clearall", label: t("clearEverything"), group: t("files"), icon: <Icon.Trash />, run: clearEverything },
       { id: "compare", label: t("compare"), group: t("compare"), icon: <Icon.Compare />, run: () => useApp.setState({ panel: "compare" }) },
       { id: "report", label: t("report"), group: t("report"), icon: <Icon.Report />, run: () => useApp.setState({ panel: "report" }) },
-      { id: "fleet", label: t("fleet"), group: t("fleet"), icon: <Icon.Fleet />, run: () => useApp.setState({ panel: "fleet" }) },
+      { id: "fleet", label: t("fleet"), group: t("fleet"), icon: <Icon.Fleet />, run: () => useApp.setState({ area: "fleet" }) },
       { id: "analysis", label: t("analysis"), group: t("analysis"), icon: <Icon.Analysis />, run: () => useApp.setState({ panel: "analysis" }) },
       { id: "settings", label: t("settings"), group: t("hHelp"), icon: <Icon.Globe />, run: () => useApp.setState({ settingsOpen: true }), keys: "Ctrl ," },
       { id: "guide", label: t("menuGuide"), group: t("hHelp"), icon: <Icon.Keyboard />, run: () => useApp.setState({ guideOpen: true }), keys: "F1" },

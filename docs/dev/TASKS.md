@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  All of the round done 2026-11-07 except: M1's tagline (owner's wording), U7's measure (owner), U8's choice (owner).
+  The whole round done 2026-11-07 (U1-U9, M1, A1-A3); release 1.22.0 prepared.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -157,7 +157,8 @@ Progress board (tick here AND in ROADMAP):
 | U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ☑ done (owner: controls < 70; the strip's rows stay) |
 | A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☑ done |
 | A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☑ done |
-| U8 | Navigation design only (no code) | 5 | S | ☑ done - owner to choose |
+| U8 | Navigation design only (no code) | 5 | S | ☑ done (owner: option A) |
+| U9 | Navigation option A: areas as a switch, Fleet an area, one views menu, a fixed rail | 5 | M | ☑ done |
 
 **Checked in the code (2026-11-07, at `5b0ed7a`):** `store.py` 1,495 lines; `i18n.ts` 3,528; `App.tsx`
 628. The built-in ArduPilot set is *ArduPilot · Full review* (`bi-ap-review`, no tabs of its own,
@@ -394,6 +395,22 @@ test_file_help_menus, test_wheel, test_timeline, test_workflows, test_features -
 user meets them; Option A (the areas as a segmented switch, Fleet an area, one "+ ▾" for views, a
 fixed rail - recommended), Option B (an activity bar on the left, one row of chrome less), Option C
 (one strip for everything - rejected, why); three questions for the owner.
+
+### U9 · Navigation option A (owner approved U8's recommendation, 2026-11-07) — M
+**Do:** docs/dev/NAVIGATION.md option A: the areas as a segmented switch (not a tab row); Fleet an
+area (was a rail panel); one views menu "+ ▾" beside the tabs (new tab, open a template or collection,
+the tabs templates left out - U1's "+N more" folded in, their number on the ▾); the rail keeps its
+tools, Log disabled with a tooltip while no flight log is open.
+**Done when:** the three areas switch; the Fleet example works in its area and opening a flight goes
+to Recordings with the Log; templates open from the views menu; tests follow.
+**Status: done 2026-11-07.** `areas.ts` `fleet`; FleetPanel.tsx is the area (its bar, two columns, its
+own messages), `openAt` switches to Recordings; `PanelId` without `fleet`, the palette's Fleet opens
+the area; TopBar `.add-view` (+ and `.more-tabs` ▾ with `.more-count`), Templates ▾ keeps Save /
+New collection (`templateMenuItems`); App's rail shows Log disabled (`railLogNone`); the status bar
+only in Recordings / Sweeps. Tests: e2e test_navigation.py; test_fleet, test_owner_notes_1_20,
+test_template_tabs, test_fresh_user, test_templates_recent_badfiles, test_features, test_object_templates,
+test_one_per_plot follow the new places; tools/make_readme_media.py too. Docs: features, GUIDE (en / he),
+fleet tutorials.
 
 ## Sweeps area plan (owner, 2026-10-31): S00–S08
 
@@ -2635,3 +2652,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U8 docs/dev/NAVIGATION.md (options A / B / C, A recommended, 3 questions) · next: the whole e2e suite, then the owner's answers (tagline, U7 measure, U8 option).
 - 2026-11-07 · The whole e2e suite (one process, 16 min here): 313 passed, 1 failed - test_offline_map::test_borders_over_the_offline_map_and_the_satellite_photos, which fails the same way on origin/main in this environment (the canvas the same after toggling borders off and on) - to check on the owner's machine. Backend 981 passed; mypy: only the 4 known errors in routes/analysis.py (numpy 2.5 here, also on main). Sent as one patch (U3..U8) on d4c0f61.
 - 2026-11-07 · Owner: tagline approved (applied), U8 option A approved (next: U9), U7 - keep the strip's mode row and its picking ("it marks the region of interest; more modes can be added there and the intersections highlighted"): the measure is the controls (< 70), done.
+- 2026-11-07 · U9 navigation option A (areas switch with Fleet, views menu, fixed rail) · e2e test_navigation + the files that follow · next: release 1.22.0.

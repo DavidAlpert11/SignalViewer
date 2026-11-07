@@ -410,7 +410,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Flight log (ArduPilot)
 
-- A Log button appears in the side rail only while a `.bin` is open (red dot when the log has errors); nothing changes for CSV / MAT. Events: messages, flight-mode changes, events (ARMED…) and errors in time order, coloured by severity (from the text: PreArm / low / glitch → warning; fail / crash / EKF variance → error), search and filters; click an event → the cursor goes there and every plot scrolls to it; the row in force at the cursor is highlighted. On the plots: warnings and errors (or every message, or none) as markers along the top, text when there is room, full text on hover; events at the same moment are merged. Parameters: search (prefix in bold), changed in flight with each change clickable (`20 → 25 @ 11 s`), not default (when the log records defaults; the default is shown crossed out), differences against another open log; copy or save as .param (`NAME,VALUE`, for Mission Planner / MAVProxy) exactly the rows shown
+- The Log button of the side rail works while a flight log is open (`.bin`, `.tlog`, `.ulg`; a red dot when the log has errors) and is greyed otherwise; nothing changes for CSV / MAT. Events: messages, flight-mode changes, events (ARMED…) and errors in time order, coloured by severity (from the text: PreArm / low / glitch → warning; fail / crash / EKF variance → error), search and filters; click an event → the cursor goes there and every plot scrolls to it; the row in force at the cursor is highlighted. On the plots: warnings and errors (or every message, or none) as markers along the top, text when there is room, full text on hover; events at the same moment are merged. Parameters: search (prefix in bold), changed in flight with each change clickable (`20 → 25 @ 11 s`), not default (when the log records defaults; the default is shown crossed out), differences against another open log; copy or save as .param (`NAME,VALUE`, for Mission Planner / MAVProxy) exactly the rows shown
 
 ### Health check
 
@@ -436,7 +436,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Fleet
 
-- Rail ▸ Fleet: add folders of flight logs (.bin / .tlog / .ulg, sub-folders too) – each log is read once into a local index (`~/.signalviewer/fleet.sqlite`; Update reads only new and changed logs, drops removed ones, lists unreadable ones with the reason)
+- The **Fleet** area (beside Recordings and Sweeps in the top row; it was a panel of the rail): add folders of flight logs (.bin / .tlog / .ulg, sub-folders too) – each log is read once into a local index (`~/.signalviewer/fleet.sqlite`; Update reads only new and changed logs, drops removed ones, lists unreadable ones with the reason)
 - Search all flights at once: name / vehicle / firmware, a finding at a level (error, warning or error), a number above / below a limit (every number the health check measures: vibration max, clipping count, battery min, EKF max…, and the duration)
 - The chosen number's trend over the flights' dates, the limit drawn, flights over it in red, click a point to open that flight
 - Per flight: vehicle, firmware, duration, time in each flight mode, its findings with Open here (opens the log, cursor at the finding, Log panel)

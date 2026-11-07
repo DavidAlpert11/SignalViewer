@@ -17,7 +17,7 @@ they are.
 
 ## 1. Index it
 
-1. The rail ▸ **Fleet** ▸ **Try the example fleet** (or *Add a folder…* and choose `examples/fleet`).
+1. **Fleet** in the top row (beside Recordings and Sweeps) ▸ **Try the example fleet** (or *Add a folder…* and choose `examples/fleet`).
    The ten logs are read once; *Update* later reads only new and changed files.
 2. It opens with the number **Vibration · max** above **30** (the limit the health check uses):
    the trend of every flight, the limit as a dashed line, and the list - **one flight**,

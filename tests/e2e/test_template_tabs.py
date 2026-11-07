@@ -64,15 +64,17 @@ def tab_names(pg):
 def open_ardupilot_example(pg):
     pg.locator(".examples-line button", has_text="ArduPilot").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length))", timeout=30000)
-    pg.wait_for_selector(".more-tabs", timeout=10000)
+    pg.wait_for_selector(".more-tabs.has", timeout=10000)                 # U9: the views menu "▾" with their number
 
 
 def test_auto_open_takes_the_default_tabs_and_offers_the_rest(pg):
     open_ardupilot_example(pg)
     assert tab_names(pg) == ["Attitude", "Flight"]                 # the built-in review's defaultTabs
     more = pg.locator(".more-tabs")
-    assert more.inner_text().startswith(f"+{REVIEW_TABS - 2} more from ArduPilot")
+    assert more.inner_text().strip() == str(REVIEW_TABS - 2)
+    assert more.get_attribute("aria-label").startswith(f"+{REVIEW_TABS - 2} more from ArduPilot")
     more.click()
+    assert pg.locator(".menu.ctx button", has_text="Open a template or collection").count() == 1   # one menu for views
     pg.locator(".menu.ctx button", has_text="Vibration").first.click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 3", timeout=20000)
     assert tab_names(pg)[-1] == "Vibration"
@@ -85,13 +87,13 @@ def test_auto_open_takes_the_default_tabs_and_offers_the_rest(pg):
     pg.locator(".more-tabs").click()
     pg.locator(".menu.ctx button", has_text=f"Open all {REVIEW_TABS - 2}").click()
     pg.wait_for_function(f"window.__sv.state().ws.tabs.length === {REVIEW_TABS}", timeout=30000)
-    pg.wait_for_selector(".more-tabs", state="detached")
+    pg.wait_for_selector(".more-tabs.has", state="detached")
     # Hebrew / RTL: the offer is translated and stays beside the tabs
     pg.evaluate("window.__sv.state().undo()")
-    pg.wait_for_selector(".more-tabs")
+    pg.wait_for_selector(".more-tabs.has")
     pg.get_by_role("button", name="עברית").click()
     pg.wait_for_function("document.documentElement.dir === 'rtl'")
-    assert "עוד" in pg.locator(".more-tabs").inner_text()
+    assert "עוד" in pg.locator(".more-tabs").get_attribute("aria-label")
 
 
 def test_chip_asks_which_tabs_unless_settings_say_defaults(pg):
@@ -110,7 +112,7 @@ def test_chip_asks_which_tabs_unless_settings_say_defaults(pg):
     assert tab_names(pg)[-1] == "Step response"
     # two templates with tabs left: one button, a section each
     assert pg.locator(".more-tabs").count() == 1
-    assert pg.locator(".more-tabs").inner_text().startswith(f"+{REVIEW_TABS - 2 + 1} more tabs")
+    assert pg.locator(".more-tabs").get_attribute("aria-label").startswith(f"+{REVIEW_TABS - 2 + 1} more tabs")
     # Settings: open the default tabs at once - the chip asks nothing (and it is kept)
     pg.evaluate("window.__sv.setState({ tplTabChoice: 'defaults' })")
     pg.locator(".tpl-strip .chipbtn", has_text="Rates (PID)").click()

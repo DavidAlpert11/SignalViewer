@@ -62,7 +62,7 @@ def test_first_run(fresh):
     pg.locator(".examples-line").wait_for()
     assert pg.evaluate("window.__sv.state().runs.length") == 0
     # the template library has no error line (F14)
-    pg.locator("button", has_text="Templates").first.click()
+    pg.locator(".more-tabs").click()                                     # U9: opening a view: "+ ▾"
     pg.get_by_text("Open a template or collection…").click()
     pg.locator(".tpl-lib").wait_for()
     assert pg.locator(".tpl-lib .hint.err").count() == 0, pg.locator(".tpl-lib .hint.err").all_inner_texts()

@@ -120,7 +120,7 @@ def _variant_holding(pg, i):
 
 
 def test_area_switch_keeps_recordings(pg):
-    assert pg.locator(".areas .area-btn").count() == 2
+    assert pg.locator(".areas .area-btn").count() == 3                       # Recordings, Sweeps, Fleet (U9)
     _to_sweeps(pg)
     assert pg.locator(".rail").count() == 0
     pg.locator(".areas .area-btn", has_text="Recordings").click()
