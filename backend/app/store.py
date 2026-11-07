@@ -14,23 +14,27 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from svcore.csv_loader import CSVImportSettings, _read_head_lines, append_new_rows, detect_delimiter, load_csv
+from svcore.csv_loader import CSVImportSettings, load_csv
 from svcore.mat_loader import MatNeedsExtra, load_mat
 from svcore.can_loader import CAN_EXTS, CanError, load_can
 from svcore.readers import ReaderError
 from svcore.readers import read as user_read
-from svcore.bin_loader import BinFormatError, append_new_messages, load_bin
-from svcore.tlog_loader import TLogError, append_tlog, load_tlog
+from svcore.bin_loader import BinFormatError, load_bin
+from svcore.tlog_loader import TLogError, load_tlog
 from svcore.ulog_loader import ULogError, load_ulog
 from svcore.mcap_loader import McapError, load_mcap
 from svcore.hdf5_loader import Hdf5Error, load_hdf5
 from svcore.parquet_loader import ParquetError, load_parquet
 from svcore.models import Run
 from svcore import time_axis
+from svcore import investigate as inv
+# A1: parts moved to their own modules - imported back, so `from app.store import ...` keeps working
+from app.filecheck import (LoadError, SUPPORTED_EXTS, TEXT_EXTS, _can_csv, _csv_failure, _display_names, _text_file,  # noqa: F401
+                           _text_with_zero_block, check_file, sniff_kind)
+from svcore.transforms import REF, apply_transform, normalize_transform, ref_run, transform_refs  # noqa: F401
+from app.livewatch import SETTLE_MAX, SETTLE_QUIET, TIME_SLACK, UPLOAD_DIR, LiveWatcher, _stat, run_format  # noqa: F401
 from app import userreaders
-from app.prefs import APP_DIR
-from svcore.analysis import DerivedDef, OpError, compute, is_discrete
-from svcore.formula import evaluate as _evaluate_formula
+from svcore.analysis import DerivedDef, compute, is_discrete
 from collections import OrderedDict
 import json
 import re
@@ -40,87 +44,8 @@ log = logging.getLogger("signalviewer").getChild(__name__)
 DERIVED_ID = "derived"
 
 
-def normalize_transform(spec: Optional[dict]) -> Optional[dict]:
-    """Keep only meaningful parts; an all-default transform is no transform."""
-    if not spec:
-        return None
-    out: dict = {}
-    expr = str(spec.get("expr") or "").strip()
-    if expr and expr != "x":
-        out["expr"] = expr
-    for k, default in (("scale", 1.0), ("offset", 0.0), ("dt", 0.0)):
-        v = spec.get(k)
-        if v is not None and v != "" and float(v) != default:
-            out[k] = float(v)
-    # the unit shown after a unit conversion ("deg" for a signal logged in rad): a label only
-    unit = " ".join(str(spec.get("unit") or "").split())[:24]
-    if unit:
-        out["unit"] = unit
-    return out or None
-
-
-REF = re.compile(r"\{([^{}]+)\}")
-
-
-def transform_refs(spec: Optional[dict]) -> List[str]:
-    """Q89: the other signals an edit's expression reads - {Name}: of the same file; Q90:
-    {@<run id>:Name}: of that one file (the interface shows it as {file:Name})."""
-    out: List[str] = []
-    for m in REF.finditer(str((spec or {}).get("expr") or "")):
-        name = m.group(1).strip()
-        if name not in out:
-            out.append(name)
-    return out
-
-
-def ref_run(token: str) -> Optional[str]:
-    """The file a reference names ({@<run id>:Name}), or None for the edited signal's own file."""
-    if token.startswith("@") and ":" in token:
-        return token[1:token.index(":")]
-    return None
-
-
-def apply_transform(t, y, spec: dict, ref=None):
-    """y' = scale * f(x) + offset, t' = t + dt;  f is an expression in x (and t) and, Q89, of other
-    signals of the same file written {Name}: `ref(name)` gives their (time, data) as read from the
-    file (before any edit - so a group changed together sees the same values, and no edit can depend
-    on another in a circle). They are interpolated onto x's time."""
-    t = np.asarray(t, dtype=np.float64)
-    y = np.asarray(y, dtype=np.float64)
-    if spec.get("expr"):
-        names = transform_refs(spec)
-        sources = [(t, y)]
-        for name in names:
-            if ref is None:
-                raise OpError(f"{name}: another signal can not be used here.")
-            got = ref(name)
-            if got is None:
-                shown = name[name.index(":") + 1:] if name.startswith("@") and ":" in name else name
-                raise OpError(f"{shown} is not a signal of this file." if not name.startswith("@")
-                              else f"{shown}: its file is not open.")
-            sources.append((np.asarray(got[0], dtype=np.float64), np.asarray(got[1], dtype=np.float64)))
-        # {Name} first (a name may hold an x), then x itself
-        expr = REF.sub(lambda m: f"v{names.index(m.group(1).strip()) + 1}", spec["expr"])
-        expr = re.sub(r"\bx\b", "v0", expr)
-        try:
-            t2, y = _evaluate_formula(expr, sources, lambda tt, ts, ys: np.interp(tt, ts, ys))
-        except ValueError as e:
-            raise OpError(str(e)) from None
-        t = t2
-    if "scale" in spec or "offset" in spec:
-        y = y * spec.get("scale", 1.0) + spec.get("offset", 0.0)
-    if spec.get("dt"):
-        t = t + spec["dt"]
-    return t, y
 WIDE = 300          # files with more signals than this skip per-signal work at load
-TIME_SLACK = 2.0   # seconds: see new_files()
-UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
 
-
-# live mode, files rewritten as a whole (MAT, ULog, MCAP, HDF5, Parquet): read once unchanged for
-# SETTLE_QUIET seconds, and at least every SETTLE_MAX seconds while they keep changing
-SETTLE_QUIET = 0.4
-SETTLE_MAX = 2.0
 
 # T46: file colours - the same palette as the traces (frontend TRACE_COLORS), in the same order
 FILE_COLORS = ["#3D8BFD", "#2FBF9F", "#E5677A", "#9B7BFF", "#7CC35A", "#F07B3F", "#4FC3E8", "#D08CE8", "#B8A33A", "#FF8FB1"]
@@ -151,173 +76,10 @@ class LoadedRun:
     read_at: float = 0.0                          # time.time() when its data was last read from the disk
 
 
-def _stat(path: str) -> Optional[Tuple[int, int]]:
-    try:
-        st = os.stat(path)
-        return (st.st_size, st.st_mtime_ns)
-    except OSError:
-        return None
-
-
-def run_format(run: Run) -> str:
-    return (run.import_settings or {}).get("format") or "csv"
-
-
 def _vkey(v) -> str:
     """A short text for a version tuple (F34: sent to the UI as a cache key)."""
     import hashlib
     return hashlib.sha1(repr(v).encode()).hexdigest()[:12]
-
-
-class LoadError(Exception):
-    """A file that cannot be opened. `code` + `params` let the UI show the reason in its own
-    language (the English message stays as the fallback)."""
-    def __init__(self, message: str, code: Optional[str] = None, **params):
-        super().__init__(message)
-        self.code = code
-        self.params = params
-
-
-SUPPORTED_EXTS = (".csv", ".txt", ".tsv", ".dat", ".mat", ".bin", ".tlog", ".ulg", ".mcap", ".h5", ".hdf5", ".parquet", ".pq",
-                  ".asc", ".log")       # T40b: CAN logs (with a .dbc)
-TEXT_EXTS = (".csv", ".txt", ".tsv", ".dat", ".asc", ".log")
-_KIND_EXT = {"mat": ".mat", "ulg": ".ulg", "bin": ".bin", "hdf5": ".h5", "mcap": ".mcap", "parquet": ".parquet"}
-# the extensions a signature may have: HDF5 is also MATLAB v7.3 (T27)
-_KIND_OK = {"mat": (".mat",), "hdf5": (".h5", ".hdf5", ".mat"), "ulg": (".ulg",), "bin": (".bin",), "mcap": (".mcap",), "parquet": (".parquet", ".pq")}
-
-
-def sniff_kind(head: bytes) -> Optional[str]:
-    """What a file is by its first bytes, for the formats that have a clear signature."""
-    if head.startswith(b"MATLAB"):
-        return "mat"
-    if head.startswith(b"\x89HDF\r\n\x1a\n"):         # HDF5: .h5 / .hdf5, or a MATLAB v7.3 .mat
-        return "hdf5"
-    if head.startswith(b"\x89MCAP"):                  # ROS 2 / Foxglove recording
-        return "mcap"
-    if head.startswith(b"PAR1"):                       # Parquet (T40)
-        return "parquet"
-    if head.startswith(b"ULog\x01\x12\x35"):
-        return "ulg"
-    if head.startswith(b"\xa3\x95\x80"):          # ArduPilot DataFlash: starts with an FMT message
-        return "bin"
-    return None
-
-
-def _text_with_zero_block(head: bytes) -> bool:
-    """Text with a run of zero bytes in it (a file cut by a power loss, a half-finished copy)
-    is still text: without the zeros it is printable lines. Real binary files are not (T33)."""
-    rest = head.replace(b"\x00", b"")
-    if len(rest) < 16 or b"\n" not in rest:
-        return False
-    printable = sum(1 for b in rest if b in (9, 10, 13) or 32 <= b < 127 or b >= 0xC2)
-    return printable >= 0.95 * len(rest)
-
-
-def _can_csv(path: str) -> bool:
-    """A .csv that is a CAN frame log (time,id,data) - opened with the .dbc, not as a table -
-    only when a .dbc sits next to it."""
-    d = os.path.dirname(path)
-    try:
-        if not any(f.lower().endswith(".dbc") for f in os.listdir(d)):
-            return False
-        with open(path, encoding="utf-8-sig", errors="replace") as f:
-            head = [h.strip().lower() for h in f.readline().split(",")]
-    except OSError:
-        return False
-    return len(head) <= 6 and any(h in ("id", "can_id", "arbitration_id") for h in head) and any(h in ("data", "payload") for h in head)
-
-
-def check_file(path: str, settings: Optional[dict] = None) -> None:
-    """Cheap checks BEFORE a loader runs, so the user is told what is wrong in plain words:
-    unsupported type, empty file, a binary file with a text extension, or a known format
-    with the wrong extension. Raises LoadError."""
-    ext = os.path.splitext(path)[1].lower()
-    name = os.path.basename(path)
-    own = ext not in SUPPORTED_EXTS and bool(userreaders.for_ext(ext))   # T60: a format of the user's
-    if ext not in SUPPORTED_EXTS and not own:
-        raise LoadError(f"Unsupported file type ({ext or 'no extension'}). Supported: "
-                        + ", ".join(e[1:].upper() for e in SUPPORTED_EXTS) + ".",
-                        "unsupported", ext=ext or "-", supported=", ".join(e[1:].upper() for e in SUPPORTED_EXTS))
-    try:
-        size = os.path.getsize(path)
-        with open(path, "rb") as f:
-            head = f.read(4096)
-    except OSError as e:
-        raise LoadError(f"The file cannot be read: {e.strerror or e}", "unreadable", reason=str(e.strerror or e)) from None
-    if size == 0:
-        raise LoadError("The file is empty.", "empty")
-    if own:                                        # the user's reader decides what its files look like
-        return
-    kind = sniff_kind(head)
-    if kind and ext not in _KIND_OK[kind]:
-        raise LoadError(f"{name} looks like a {_KIND_EXT[kind]} file, but its extension is {ext}. "
-                        f"Rename it to {_KIND_EXT[kind]} and open it again.", "wrongExt", ext=ext, real=_KIND_EXT[kind])
-    if ext in TEXT_EXTS:
-        enc = str((settings or {}).get("encoding") or "").lower().replace("-", "").replace("_", "")
-        wide = enc.startswith(("utf16", "utf32")) or head.startswith((b"\xff\xfe", b"\xfe\xff"))
-        if not wide and b"\x00" in head and not _text_with_zero_block(head):
-            raise LoadError("This is a binary file, not text: it cannot be read as CSV.", "binaryText")
-
-
-def _text_file(path: str) -> bool:
-    """A .tlog that is a TEXT table (a telemetry export with columns), not a MAVLink recording:
-    read as CSV. A MAVLink .tlog starts with an 8-byte time stamp and binary packets."""
-    try:
-        with open(path, "rb") as f:
-            head = f.read(4096)
-    except OSError:
-        return False
-    if not head or b"\x00" in head:
-        return False
-    try:
-        text = head.decode("utf-8")
-    except UnicodeDecodeError:
-        try:
-            text = head.decode("cp1252")
-        except UnicodeDecodeError:
-            return False
-    printable = sum(ch.isprintable() or ch in "\r\n\t" for ch in text) / max(1, len(text))
-    return printable > 0.97 and "\n" in text and any(d in text for d in (",", ";", "\t", " "))
-
-
-def _display_names(paths: List[str]) -> Dict[str, str]:
-    """File name, plus parent folder when two files share a name."""
-    names = {}
-    base_count: Dict[str, int] = {}
-    for p in paths:
-        b = os.path.basename(p)
-        base_count[b] = base_count.get(b, 0) + 1
-    for p in paths:
-        b = os.path.basename(p)
-        names[p] = b if base_count[b] == 1 else f"{os.path.basename(os.path.dirname(p))}/{b}"
-    return names
-
-
-def _csv_failure(path: str, s: CSVImportSettings) -> LoadError:
-    """Why a text file could not be read, as precisely as a quick look at its first lines allows."""
-    generic = LoadError("Could not read this file as CSV. Check the delimiter, header row and time column.", "csvFailed")
-    try:
-        skip = s.skip_rows or 0
-        lines = [ln for ln in _read_head_lines(path, 60, s.encoding, skip=skip) if ln.strip()]
-        if len(lines) <= 1:
-            return LoadError("The file has a header row but no data rows.", "csvNoRows")
-        delim = s.delimiter or detect_delimiter(path, skip_rows=skip)
-        numeric = False
-        for ln in lines[1:]:
-            for cell in ln.rstrip("\r\n").split(delim):
-                try:
-                    float(cell.strip().replace(",", ".") if delim != "," else cell.strip())
-                    numeric = True
-                    break
-                except ValueError:
-                    continue
-            if numeric:
-                break
-        if not numeric:
-            return LoadError("No numeric values were found in this file.", "csvNoNumbers")
-    except Exception:                   # only a better reason was looked for; the generic one stands
-        log.debug("could not find a specific reason for %s", path, exc_info=True)
-    return generic
 
 
 def _rate_of(sg, run) -> dict:
@@ -368,9 +130,7 @@ class Store:
         # T46: every open data file has a colour and a short tag (A, B, C...) - kept by id, so a
         # reload / replace / live update keeps them; given when a file is first described
         self.marks: Dict[str, Dict[str, str]] = {}
-        self._poll_lock = threading.Lock()
-        self.poll_errors: Dict[str, str] = {}
-        self.writing: List[str] = []              # live: rewritten-as-a-whole files still being written
+        self.live = LiveWatcher(self)             # live mode: what was added to the open files (A1)
 
     # ------------------------------------------------------------------ files
     def open_file(self, path: str, settings: Optional[dict] = None) -> LoadedRun:
@@ -562,336 +322,51 @@ class Store:
     def set_time_offset(self, run_id: str, offset: float):
         self.get(run_id).run.time_offset = float(offset)
 
-    # ------------------------------------------------------------ conditions
+    # ------------------------------------------------------------ the investigation (A1: svcore/investigate.py)
+    def _source(self) -> "inv.Source":
+        """The open files as the investigation reads them: signals as shown, names and state texts."""
+        def signals(rid: str):
+            lr = self.runs.get(rid)
+            return None if lr is None else {n: sg.labels for n, sg in lr.run.signals.items()}
+        return inv.Source(signal=self.signal, signals=signals, discrete=self.is_discrete, derived=list(self.derived),
+                          runs=list(self.order), derived_run=DERIVED_ID)
+
     def evaluate_condition(self, text: str, exit_text: str = "", min_dur: float = 0.0, merge_gap: float = 0.0,
                            run_ids: Optional[List[str]] = None) -> Dict[str, dict]:
-        """A named condition in every open file (or these): its stretches, as shown (offset, unit,
-        edits applied). A file without the signals it reads says which ones are missing."""
-        from svcore.analysis import align_to
-        from svcore.conditions import ConditionError, evaluate_condition, names_in
-        if not text.strip():
-            raise LoadError("Write the condition, e.g. {Speed} > 12.")
-        out: Dict[str, dict] = {}
-        for rid in (run_ids or list(self.order)):
-            lr = self.runs.get(rid)
-            if lr is None or rid == DERIVED_ID:
-                continue
+        try:
+            return inv.evaluate_condition(self._source(), text, exit_text, min_dur, merge_gap, run_ids)
+        except inv.InvestigateError as e:
+            raise LoadError(str(e)) from None
 
-            def read(name: str, rid=rid, lr=lr):
-                if name in lr.run.signals:
-                    return self.signal(f"{rid}/{name}")
-                if name in self.derived:                       # a new signal made in Create signals
-                    try:
-                        return self.signal(f"{DERIVED_ID}/{name}")
-                    except KeyError:
-                        return None
-                return None
-
-            def labels(name: str, lr=lr):
-                sg = lr.run.signals.get(name)
-                return {str(k): v for k, v in (sg.labels or {}).items()} if sg is not None else None
-            try:
-                out[rid] = evaluate_condition(text, read, labels, lambda t, ts, ys: align_to(t, ts, ys, "nearest"),
-                                              exit_text, min_dur, merge_gap)
-            except ConditionError as e:
-                out[rid] = {"error": str(e)}
-            except KeyError as e:
-                out[rid] = {"error": str(e).strip("'\"")}
-        if not out and names_in(text):
-            raise LoadError("No open file to look in.")
-        return out
-
-    # ------------------------------------------------------------ occurrences
     def occurrence_rows(self, runs: Dict[str, List[List[float]]], names: List[str]) -> List[dict]:
-        """The occurrences table: one row per stretch (file, start, end) with max / min / mean of
-        each named signal in it."""
-        from svcore.occurrences import occurrence_stats
-        rows: List[dict] = []
-        for rid, iv in runs.items():
-            lr = self.runs.get(rid)
-            if lr is None:
-                continue
-            per = {}
-            for n in names:
-                if n in lr.run.signals:
-                    t, y = self.signal(f"{rid}/{n}")
-                    per[n] = occurrence_stats(t, y, iv)
-            for k, (a, b) in enumerate(iv):
-                rows.append({"rid": rid, "a": a, "b": b, "values": {n: v[k] for n, v in per.items()}})
-        rows.sort(key=lambda r: (r["a"], r["rid"]))
-        return rows
+        return inv.occurrence_rows(self._source(), runs, names)
 
     def occurrence_windows(self, items: List[dict], align: str, pad: float) -> List[dict]:
-        """The occurrences overlay: each item {sig, intervals} -> its stretches on one axis."""
-        from svcore.occurrences import windows
-        out = []
-        for it in items:
-            t, y = self.signal(str(it["sig"]))
-            out.append({"sig": it["sig"], **windows(t, y, it.get("intervals") or [], align, pad)})
-        return out
+        return inv.occurrence_windows(self._source(), items, align, pad)
 
     def occurrence_differ(self, runs: Dict[str, List[List[float]]], top: int = 25) -> List[dict]:
-        """What differs in the occurrences: every numeric signal of the files with stretches, ranked
-        by how far its mean inside them is from outside, in units of its usual spread outside.
-        Signals of the same name in several files are averaged (weighted by their time inside)."""
-        from svcore.occurrences import differ_one
-        acc: Dict[str, dict] = {}
-        for rid, iv in runs.items():
-            lr = self.runs.get(rid)
-            if lr is None or not iv:
-                continue
-            for name, sg in lr.run.signals.items():
-                if sg.labels:
-                    continue
-                try:
-                    t, y = self.signal(f"{rid}/{name}")
-                except (KeyError, ValueError):
-                    continue
-                r = differ_one(t, y, iv)
-                if r is None or not np.isfinite(r[0]):
-                    continue
-                eff, mi, mo, share = r
-                a = acc.setdefault(name, {"name": name, "w": 0.0, "eff": 0.0, "in": 0.0, "out": 0.0, "files": []})
-                w = max(share, 1e-9)
-                a["w"] += w; a["eff"] += eff * w; a["in"] += mi * w; a["out"] += mo * w
-                a["files"].append(rid)
-        items = [{"name": a["name"], "effect": a["eff"] / a["w"], "meanIn": a["in"] / a["w"], "meanOut": a["out"] / a["w"],
-                  "up": a["in"] >= a["out"], "files": a["files"]} for a in acc.values()]
-        items.sort(key=lambda x: -x["effect"])
-        return items[:top]
+        return inv.occurrence_differ(self._source(), runs, top)
 
-    # ------------------------------------------------------------ overview strip
     def overview(self, run_id: str, rows: Optional[List[str]] = None) -> dict:
-        """Investigation step 7: a run's phases (its mode / phase signal) and automatic flags -
-        stuck and saturated signals, gaps in the recording, spikes. Files with very many signals are
-        scanned on their first WIDE signals only (said in the result)."""
-        from svcore import overview as ov
-        lr = self.get(run_id)
-        r = lr.run
-        names = list(r.signals)
-        ph_name = ov.phase_signal([(n, bool(r.signals[n].labels)) for n in names])
-        run_end = float(r.end_time + (r.time_offset or 0))
-        phases: List[dict] = []
-        if ph_name:
-            t, y = self.signal(f"{run_id}/{ph_name}")
-            phases = ov.phases(t, y, {str(k): v for k, v in (r.signals[ph_name].labels or {}).items()}, run_end)
-        flags: List[dict] = []
-        tm, _ = (np.asarray(r.time) + float(r.time_offset or 0)), None
-        flags += ov.gaps(tm)
-        scanned = 0
-        for n in names[:WIDE]:
-            sg = r.signals[n]
-            if sg.labels or not getattr(sg, "loaded", True):
-                continue
-            try:
-                t, y = self.signal(f"{run_id}/{n}")
-            except (KeyError, ValueError):
-                continue
-            scanned += 1
-            flags += ov.scan(n, t, y, self.is_discrete(f"{run_id}/{n}"))
-        # rows the user put in the strip: each named state signal's stretches of one value
-        row_out: Dict[str, List[dict]] = {}
-        for n in rows or []:
-            row_sig = r.signals.get(n)
-            if row_sig is None:
-                continue
-            try:
-                t, y = self.signal(f"{run_id}/{n}")
-            except (KeyError, ValueError):
-                continue
-            row_out[n] = ov.phases(t, y, {str(k): v for k, v in (row_sig.labels or {}).items()}, run_end)[:5000]
-        return {"phaseSignal": ph_name, "phases": phases, "rows": row_out, "flags": ov.rank(flags),
-                "start": float(r.start_time + (r.time_offset or 0)), "end": run_end,
-                "scanned": scanned, "partial": len(names) > WIDE}
+        return inv.overview(self._source(), self.get(run_id).run, run_id, rows, WIDE)
 
-    # ------------------------------------------------------------ runs x conditions
     def run_params(self, run_ids: Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
-        """Investigation step 5: what tells runs apart, per open file - signals that hold one value
-        the whole run (a payload, a gain, a seed) and numbers in the file name ("mass2.4", "wind=8",
-        "run_012")."""
-        import re as _re
-        out: Dict[str, Dict[str, float]] = {}
-        token = _re.compile(r"^([A-Za-z][A-Za-z]*)[=]?(-?\d+(?:\.\d+)?)$")
-        for rid in (run_ids or list(self.order)):
-            lr = self.runs.get(rid)
-            if lr is None or rid == DERIVED_ID:
-                continue
-            ps: Dict[str, float] = {}
-            stem = os.path.splitext(os.path.basename(lr.run.file_path))[0]
-            parts = [x for x in _re.split(r"[_\s-]+", stem) if x]
-            for i, part in enumerate(parts):
-                m = token.match(part)
-                if m:
-                    ps[m.group(1)] = float(m.group(2))
-                elif i + 1 < len(parts) and _re.fullmatch(r"-?\d+(?:\.\d+)?", parts[i + 1]) and part.isalpha():
-                    ps[part] = float(parts[i + 1])
-            if len(lr.run.signals) <= WIDE:
-                for name, sg in lr.run.signals.items():
-                    if sg.labels or not getattr(sg, "loaded", True):
-                        continue
-                    y = np.asarray(sg.data, dtype=np.float64)
-                    y = y[np.isfinite(y)]
-                    if len(y) > 1 and float(y.min()) == float(y.max()):
-                        ps[name] = float(y[0])
-            out[rid] = ps
-        return out
+        return {rid: inv.run_params(self.runs[rid].run, WIDE) for rid in (run_ids or list(self.order))
+                if rid in self.runs and rid != DERIVED_ID}
 
-    # ------------------------------------------------------------ what changed first / lag
     def first_changes(self, sig_ids: List[str], run_ids: List[str], a: float, b: float,
                       base: Optional[Tuple[float, float]] = None, k: float = 4.0, persist: int = 3) -> List[dict]:
-        """Investigation step 4: for these signals (and every numeric signal of these files), when
-        each first left its usual range around the event [a, b] - candidates in time order."""
-        from svcore.firstchange import default_baseline, first_change, fit_baseline
-        fit = base is None                      # the default one is fitted to each signal's data
-        base = base or default_baseline(a, b)
-        ids = list(dict.fromkeys(sig_ids + [f"{rid}/{n}" for rid in run_ids if rid in self.runs for n in self.runs[rid].run.signals]))
-        out: List[dict] = []
-        for sid in ids:
-            rid, _, name = sid.partition("/")
-            lr = self.runs.get(rid)
-            sg = lr.run.signals.get(name) if lr else None
-            try:
-                t, y = self.signal(sid)
-            except (KeyError, ValueError):
-                continue
-            discrete = bool(sg is not None and (sg.labels or self.is_discrete(sid)))
-            own = fit_baseline(base, a, float(np.min(t))) if fit and len(t) else base
-            r = first_change(t, y, a, b, own, k, persist, discrete)
-            out.append({"id": sid, "name": name, "base": [float(own[0]), float(own[1])], **r})
-        changed = sorted([x for x in out if x["status"] == "changed"], key=lambda x: x["t"])
-        return changed + [x for x in out if x["status"] != "changed"]
+        return inv.first_changes(self._source(), sig_ids, run_ids, a, b, base, k, persist)
 
     def change_clusters(self, items: List[dict], a: float, b: float, refs: List[str], k: float = 4.0,
                         persist: int = 3, event: Optional[str] = None, shape_top: int = 30) -> dict:
-        """Q130 / Q131 on `first_changes`' items: each changed one scored (its parts kept - no black box),
-        the changes in clusters, the clusters by their best member. `refs`: the reference runs (the
-        other open files) - a signal of the same name changing there too is marked and comes last in its
-        cluster. `event`: the signal the event is in (default: the most unusual inside the span)."""
-        from svcore.firstchange import clusters, lag, score_of, score_parts
-        live = [x for x in items if x["status"] == "changed" and not x.get("skip")]
-        names = {x["name"] for x in live}
-        in_ref: Dict[str, List[str]] = {}
-        for rid in refs:
-            if rid not in self.runs:
-                continue
-            sigs = [f"{rid}/{n}" for n in self.runs[rid].run.signals if n in names]
-            for r in self.first_changes(sigs, [], a, b, None, k, persist):
-                if r["status"] == "changed":
-                    in_ref.setdefault(r["name"], []).append(rid)
-        start = min((x["base"][1] for x in live), default=a)
-        if event is None and live:
-            pick = self.suggest_condition([x["id"] for x in items if x.get("status") != "nodata"], a, b)
-            event = pick.get("id")
-        n = max(1, len(live) - 1)
-        for x in live:
-            later = sum(1 for o in live if o is not x and o["t"] > x["t"])
-            x["parts"] = score_parts(x, a, start, x["name"] in in_ref, None, later / n, k)
-            x["inRef"] = in_ref.get(x["name"], [])
-        # the shape against the event signal: only for the likeliest (a lag each is not free)
-        ev = None
-        if event:
-            try:
-                ev = self.signal(event)
-            except (KeyError, ValueError):
-                ev = None
-        if ev is not None:
-            L = b - a
-            for x in sorted(live, key=lambda x: -score_of(x["parts"]))[:shape_top]:
-                if x["id"] == event:
-                    continue
-                try:
-                    tx, yx = self.signal(x["id"])
-                except (KeyError, ValueError):
-                    continue
-                # room on both sides of the two changes (a window ending at the event's step made the
-                # largest shift, with almost no overlap, look best)
-                pad = max(L, a - start)
-                r = lag(tx, yx, ev[0], ev[1], start - pad, b + pad, max_lag=pad)
-                lg, rr = r.get("lag"), r.get("r")
-                if (r.get("status") == "ok" and not r.get("weak") and not r.get("ambiguous")
-                        and isinstance(lg, float) and isinstance(rr, float) and lg > 0):
-                    x["parts"]["shape"] = abs(rr)
-                    x["leadsEvent"] = lg
-        for x in live:
-            x["score"] = score_of(x["parts"])
-        cl = clusters(live, a, b, start)
-        by = {x["id"]: x for x in live}
-        if event in by:
-            by[event]["isEvent"] = True             # the event's own signal: shown, never "the likely first"
-        for c in cl:
-            c["ids"].sort(key=lambda i: (i == event, bool(by[i]["inRef"]), -by[i]["score"]))
-            c["best"] = max((by[i]["score"] for i in c["ids"] if i != event), default=0.0)
-        cl.sort(key=lambda c: -c["best"])
-        return {"clusters": cl, "event": event, "chain": self._chain(cl, by, event, a, b, start)}
-
-    def _chain(self, cl: List[dict], by: Dict[str, dict], event: Optional[str], a: float, b: float, start: float,
-               nodes_max: int = 8) -> dict:
-        """Q134: who leads whom among the clusters' best members (and the event's signal): the lag of
-        each pair, an edge A -> B only when B follows A clearly (a positive lag, no near-equal second
-        peak, a match of 0.5 or more) and A changed first. "Leads", never "causes"."""
-        from svcore.firstchange import lag
-        picks = []
-        for c in cl[:nodes_max]:
-            best = next((i for i in c["ids"] if i != event and not by[i]["inRef"]), None) or next((i for i in c["ids"] if i != event), None)
-            if best:
-                picks.append(best)
-        if event in by and event not in picks:
-            picks.append(event)
-        picks.sort(key=lambda i: by[i]["t"])
-        sig: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
-        for i in picks:
-            try:
-                sig[i] = self.signal(i)
-            except (KeyError, ValueError):
-                pass
-        L = b - a
-        pad = max(L, a - start)
-        edges = []
-        for j, p in enumerate(picks):
-            for q in picks[j + 1:]:
-                if p not in sig or q not in sig or by[q]["t"] <= by[p]["t"]:
-                    continue
-                r = lag(sig[p][0], sig[p][1], sig[q][0], sig[q][1], start - pad, b + pad, max_lag=pad)
-                lg, rr = r.get("lag"), r.get("r")
-                if (r.get("status") == "ok" and not r.get("weak") and not r.get("ambiguous")
-                        and isinstance(lg, float) and isinstance(rr, float) and lg > 0 and abs(rr) >= 0.5):
-                    edges.append({"a": p, "b": q, "lag": lg, "r": rr})
-        home = {i: c["first"] for c in cl for i in c["ids"]}
-        return {"nodes": [{"id": i, "t": by[i]["t"], "cluster": home.get(i)} for i in picks], "edges": edges}
+        return inv.change_clusters(self._source(), items, a, b, refs, k, persist, event, shape_top)
 
     def suggest_condition(self, sig_ids: List[str], a: float, b: float) -> dict:
-        """"Find similar": of these signals, the one most unusual inside the selection [a, b] (its
-        usual level read before it, as for "what changed first"), and a condition that finds
-        stretches like it. States are left out: their own value is the condition."""
-        import re
-        from svcore.firstchange import default_baseline, fit_baseline, selection_change
-        base = default_baseline(a, b)
-        best: Optional[dict] = None
-        for sid in dict.fromkeys(sig_ids):
-            rid, _, name = sid.partition("/")
-            lr = self.runs.get(rid)
-            sg = lr.run.signals.get(name) if lr else None
-            if sg is not None and (sg.labels or self.is_discrete(sid)):
-                continue
-            try:
-                t, y = self.signal(sid)
-            except (KeyError, ValueError):
-                continue
-            r = selection_change(t, y, a, b, fit_baseline(base, a, float(np.min(t))) if len(t) else base)
-            if r and np.isfinite(r["score"]) and (best is None or r["score"] > best["score"]):
-                best = {"id": sid, "name": name, **r}
-        if best is None:
-            return {"id": None}
-        ref = best["name"] if re.match(r"^[A-Za-z_][\w.]*$", best["name"]) else "{" + best["name"] + "}"
-        th = np.format_float_positional(float(f"{best['threshold']:.4g}"), trim="-")
-        return {"id": best["id"], "name": best["name"], "up": best["up"], "score": best["score"],
-                "text": f"{ref} {'>' if best['up'] else '<'} {th}"}
+        return inv.suggest_condition(self._source(), sig_ids, a, b)
 
     def lag_between(self, a_id: str, b_id: str, t0: float, t1: float) -> dict:
-        from svcore.firstchange import lag
-        ta, ya = self.signal(a_id)
-        tb, yb = self.signal(b_id)
-        return lag(ta, ya, tb, yb, t0, t1)
+        return inv.lag_between(self._source(), a_id, b_id, t0, t1)
 
     # ------------------------------------------------------------ time axis
     def time_axis_info(self, lr: "LoadedRun", candidates: bool = False) -> dict:
@@ -1037,98 +512,12 @@ class Store:
             prune_cache(source=os.path.abspath(fresh.run.file_path))   # its copy as it was: no longer read
         return fresh
 
+    # live mode (A1: app/livewatch.py)
     def poll_appends(self) -> List[str]:
-        """Live mode: read what was added to the open files. Returns the ids that changed.
-          * CSV: only the appended rows are parsed;
-          * ArduPilot .bin: only the appended messages are decoded;
-          * MAT (rewritten as a whole by MATLAB): reloaded once the file has stopped changing for
-            one poll, so a half-written file is never read.
-        A file that was re-saved from scratch (not appended) is reloaded. Problems (file locked
-        while another program saves it, unreadable...) are kept in self.poll_errors for the UI
-        instead of failing the whole poll."""
-        # one poll at a time: a slow poll (a big file read again) must not be overtaken by the next
-        if not self._poll_lock.acquire(blocking=False):
-            return []
-        try:
-            return self._poll_appends()
-        finally:
-            self._poll_lock.release()
-
-    def _poll_appends(self) -> List[str]:
-        changed = []
-        self.poll_errors = {}
-        self.writing = []
-        now = time.time()
-        for rid in list(self.order):
-            lr = self.runs.get(rid)
-            if lr is None or lr.run.file_path.startswith((UPLOAD_DIR + os.sep, "python:")):
-                continue                                     # a copy / data sent from Python (T39): no file to follow
-            st = _stat(lr.run.file_path)
-            if st is None:
-                self.poll_errors[rid] = "The file is no longer there."
-                continue
-            if st == lr.stat:
-                continue                                     # cheap path: untouched since last read
-            fmt = run_format(lr.run)
-            try:
-                if fmt in ("mat", "ulg", "mcap", "hdf5", "parquet"):   # rewritten / closed as a whole
-                    # Read it once it has been quiet for a moment - or, if it never stops changing
-                    # (saved every second by a running program), every SETTLE_MAX seconds anyway: it
-                    # used to wait for two equal polls, so a file saved often was never shown until
-                    # the writing stopped. A read of a half-written file fails and is tried again.
-                    if lr.pending_stat != st:
-                        lr.pending_stat = st
-                        lr.pending_since = lr.pending_since or now
-                        lr.last_change = now                 # being written: live mode is not idle
-                    quiet = now - st[1] / 1e9 >= SETTLE_QUIET
-                    overdue = now - lr.pending_since >= SETTLE_MAX
-                    if not (quiet or overdue):
-                        self.writing.append(rid)
-                        continue
-                    try:
-                        fresh = self.reload(rid)
-                    except Exception as e:
-                        if quiet:                            # settled but unreadable: say so
-                            self.poll_errors[rid] = str(e) or e.__class__.__name__
-                        else:                                # caught mid-write: next poll
-                            self.writing.append(rid)
-                        continue
-                    fresh.last_change = now
-                    fresh.pending_since = 0.0
-                    changed.append(rid)
-                    continue
-                elif fmt == "bin":
-                    n = append_new_messages(lr.run)
-                elif fmt == "tlog":
-                    n = append_tlog(lr.run)
-                else:
-                    n = append_new_rows(lr.run)
-            except Exception:              # any reader problem: reload the whole file instead -
-                # correct, but slow for a big file on every poll, so it must be visible
-                log.warning("live: reading the appended part of %s failed; reloading the whole file",
-                            lr.run.file_path, exc_info=True)
-                n = -1
-            if n > 0:
-                lr.last_change = now
-                lr.read_at = now
-                if fmt != "csv" or lr.run.byte_offset == st[0]:
-                    lr.stat = st                    # (a CSV row still being written is read next time)
-                changed.append(rid)
-            elif n < 0:
-                try:
-                    fresh = self.reload(rid)
-                    fresh.last_change = now
-                    changed.append(rid)
-                except Exception as e:          # e.g. locked while Excel saves: try again next poll
-                    self.poll_errors[rid] = str(e) or e.__class__.__name__
-            elif fmt != "csv" or lr.run.byte_offset == st[0]:
-                lr.stat = st                    # nothing new and nothing half-written left to read
-        return changed
+        return self.live.poll_appends()
 
     def activity(self) -> Dict[str, float]:
-        """Seconds since each file last received new data in live mode (absent: never)."""
-        now = time.time()
-        return {rid: round(now - lr.last_change, 2) for rid, lr in self.runs.items() if lr.last_change}
+        return self.live.activity()
 
     def reload_all(self, progress=None, cancelled=None) -> Dict[str, list]:
         """Read every open file again (refresh all). Files dragged in as copies are skipped (they
@@ -1160,57 +549,23 @@ class Store:
         return out
 
     def newer_on_disk(self) -> Dict[str, float]:
-        """Q123: the open files saved again since the app read them -> when (epoch s). Only their date
-        and size are looked at (a stat each, nothing is read), so the UI can ask every few seconds
-        and offer a refresh. Copies and data sent from Python have no file to compare."""
-        out: Dict[str, float] = {}
-        for rid in list(self.order):
-            lr = self.runs.get(rid)
-            if lr is None or lr.stat is None or lr.run.file_path.startswith((UPLOAD_DIR + os.sep, "python:")):
-                continue
-            st = _stat(lr.run.file_path)
-            if st is not None and st != lr.stat:
-                out[rid] = st[1] / 1e9
-        return out
+        return self.live.newer_on_disk()
 
     def new_files(self, since: float, known: Optional[set] = None) -> List[dict]:
-        """Files that appeared (or were first written) after `since` in the folders of the open
-        files and look like them (same extension and name pattern: run_012.csv -> run_013.csv;
-        an ArduPilot 00000042.BIN -> 00000043.BIN). Used by live mode to offer / open new runs."""
-        from app.patterns import name_pattern            # local import: no cycle at start-up
-        open_paths = {os.path.normcase(os.path.abspath(lr.run.file_path)) for lr in self.runs.values()}
-        folders: Dict[str, set] = {}
-        for lr in self.runs.values():
-            p = lr.run.file_path
-            if p.startswith(UPLOAD_DIR + os.sep):
-                continue
-            folders.setdefault(os.path.dirname(os.path.abspath(p)), set()).add(name_pattern(os.path.basename(p)))
-        found: list = []
-        for folder, pats in folders.items():
-            try:
-                with os.scandir(folder) as it:
-                    for e in it:
-                        try:
-                            if not e.is_file():
-                                continue
-                            full = os.path.abspath(e.path)
-                            if os.path.normcase(full) in open_paths or (known and full in known):
-                                continue
-                            if name_pattern(e.name) not in pats:
-                                continue
-                            st = e.stat()
-                            created = max(st.st_mtime, getattr(st, "st_birthtime", 0) or 0)
-                            # file-system clocks are coarser than time.time() (a few ms on Linux,
-                            # 2 s on FAT): a file written right after `since` can carry a time
-                            # slightly before it, so allow some slack
-                            if created >= since - TIME_SLACK and st.st_size > 0:
-                                found.append({"path": full, "name": e.name, "size": st.st_size, "mtime": st.st_mtime})
-                        except OSError:
-                            continue
-            except OSError:
-                continue
-        found.sort(key=lambda f: f["mtime"])
-        return found
+        return self.live.new_files(since, known)
+
+    # the watcher's state, where callers (and tests) have always looked for it
+    @property
+    def poll_errors(self) -> Dict[str, str]:
+        return self.live.poll_errors
+
+    @property
+    def writing(self) -> List[str]:
+        return self.live.writing
+
+    @property
+    def _poll_lock(self) -> threading.Lock:
+        return self.live.lock
 
     # ---------------------------------------------------------------- lookups
     def get(self, run_id: str) -> LoadedRun:
