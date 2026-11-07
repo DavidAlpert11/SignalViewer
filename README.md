@@ -28,8 +28,34 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/01_overview.png" alt="Signal Viewer: four linked plots, two cursors and statistics between them" width="100%">
+  <img src="docs/images/00_hero.png" alt="Signal Viewer, dark theme: an ArduPilot flight on the map coloured by flight mode, the vehicle in 3D, Roll desired against actual and the vibration with the cursor on the moment the health check found" width="100%">
 </p>
+
+<p align="center"><b>Open a flight log or a test run, see what went wrong, compare runs and report – all offline.</b></p>
+
+### A flight on the map and in 3D
+
+One template turns latitude / longitude / altitude / attitude signals into a map and a 3D view. Press
+play and both follow the timeline; *Up to the time* draws the track as it is flown.
+
+<p align="center"><img src="docs/media/02_flight_map_3d.gif" alt="A UAV flight over the Sea of Galilee played back on the offline map and in 3D" width="100%"></p>
+
+### Flight-log health check
+
+Open an ArduPilot `.bin` and the **Log** panel finds vibration, clipping, battery, EKF and motor
+problems. Click a finding to jump to it; click an event to move the cursor there.
+
+<p align="center"><img src="docs/media/04_flight_log_health.gif" alt="ArduPilot log: vibration template, health findings, events and parameters" width="100%"></p>
+
+### Compare runs
+
+Pick several files: every shared signal is ranked from least to most similar. Click a row to overlay
+it, align the runs in time automatically, or open the table of all signals.
+
+<p align="center"><img src="docs/media/03_compare_runs.gif" alt="Comparing three runs: similarity list, overlay and comparison table" width="100%"></p>
+
+---
+
 
 **For flight-test, drone and simulation engineers** who have recordings to judge: several runs of
 the same test, a flight log after a flight, a simulation next to the real thing – often on a closed
@@ -61,27 +87,6 @@ Multi-gigabyte recordings open in seconds, every sample stays available at full 
 Open a file, choose a layout, click signals into plots, then zoom and read values with two cursors.
 
 <p align="center"><img src="docs/media/01_quickstart.gif" alt="Opening a CSV, plotting four signals, zooming and placing two cursors" width="100%"></p>
-
-### A flight on the map and in 3D
-
-One template turns latitude / longitude / altitude / attitude signals into a map and a 3D view. Press
-play and both follow the timeline; *Up to the time* draws the track as it is flown.
-
-<p align="center"><img src="docs/media/02_flight_map_3d.gif" alt="A UAV flight over the Sea of Galilee played back on the offline map and in 3D" width="100%"></p>
-
-### Compare runs
-
-Pick several files: every shared signal is ranked from least to most similar. Click a row to overlay
-it, align the runs in time automatically, or open the table of all signals.
-
-<p align="center"><img src="docs/media/03_compare_runs.gif" alt="Comparing three runs: similarity list, overlay and comparison table" width="100%"></p>
-
-### Flight-log health check
-
-Open an ArduPilot `.bin` and the **Log** panel finds vibration, clipping, battery, EKF and motor
-problems. Click a finding to jump to it; click an event to move the cursor there.
-
-<p align="center"><img src="docs/media/04_flight_log_health.gif" alt="ArduPilot log: vibration template, health findings, events and parameters" width="100%"></p>
 
 ### Live from the vehicle
 

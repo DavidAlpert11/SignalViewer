@@ -558,6 +558,48 @@ def img_28_map_by_mode(b, app):
     shot(pg, "28_map_by_mode"); ctx.close()
 
 
+def img_00_hero(b, app):
+    """M1: the README's first picture - one window, 2 x 2, dark, at 2x: the map with the track coloured
+    by the flight mode and the vehicle at the cursor; the 3D attitude; Roll desired vs actual with
+    the mode lane; the vibration behind the health check's finding - the cursor at the vibration
+    (~140 s of the ArduPilot example), the findings docked beside the timeline. No signal list, no
+    popups. tools/make_social_preview.py crops docs/images/social-preview.png from it."""
+    reset(app)
+    ctx = b.new_context(viewport={"width": W, "height": H}, device_scale_factor=2, color_scheme="dark")
+    pg = ctx.new_page()
+    pg.goto(app.url); pg.wait_for_selector(".app"); pg.wait_for_timeout(400)
+    pg.evaluate("window.__sv.setState({ theme: 'dark' })")
+    pg.locator(".examples-line button", has_text="ArduPilot").click()          # as a user starts: the example
+    pg.wait_for_selector(".findings-dock", timeout=60000)
+    pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name === 'Flight')")
+    rid = S(pg, "s.runs.find((r) => r.format === 'bin').id")
+    pg.evaluate("""(rid) => window.__sv.state().commit((ws) => {
+      const tab = ws.tabs.find((t) => t.name === 'Flight');
+      const sig = (n) => `${rid}/${n}`;
+      const line = (n, color, width = 1.5) => ({ sig: sig(n), color, width, scale: 1, offset: 0 });
+      for (const p of tab.plots) {
+        for (const o of p.objects || []) { o.trackColor = 'state'; o.colorSig = sig('MODE.Mode'); o.trail = true; }
+        if (p.mode === '3d') { p.showReadout = false; p.showEvents = false; p.followObject = p.objects?.[0]?.id ?? null; }   // the attitude, close
+      }
+      tab.rows = 2; tab.cols = 2; tab.rowSizes = [1.15, 1]; tab.linkX = true;
+      tab.sharedStates = [sig('MODE.Mode')];
+      tab.plots.push(
+        { id: 'hero-roll', title: 'Roll', signals: [line('ATT.DesRoll [deg]', '#8FA3B8', 1.25), line('ATT.Roll [deg]', '#F2A33A', 1.75)] },
+        { id: 'hero-vibe', title: 'Vibration', signals: [line('VIBE[0].VibeX [m/s/s]', '#4C9AFF'), line('VIBE[0].VibeY [m/s/s]', '#3FB950'),
+          line('VIBE[0].VibeZ [m/s/s]', '#E5534B')] });
+      ws.activeTab = tab.id; tab.active = 2;
+      return ws; })""", rid)
+    pg.evaluate("window.__sv.setState({ panel: null, startCard: { ...window.__sv.state().startCard }, findingsOpen: false })")
+    cursors(pg, 140.4, 140.4)
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, dual: false, t2: null } })")
+    pg.wait_for_selector(".track-key", timeout=30000); pg.wait_for_timeout(4000)
+    cam = pg.locator("button", has_text="On the object")                        # the camera behind the vehicle
+    if cam.count():
+        cam.first.click()
+    pg.wait_for_timeout(8000)                                                   # the terrain, the map tiles, the 3D model
+    shot(pg, "00_hero"); ctx.close()
+
+
 def _fleet(pg):
     pg.click("[aria-label='Fleet']")
     pg.locator(".fleet-example .btn").click()
