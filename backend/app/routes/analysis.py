@@ -439,9 +439,10 @@ def object_track(req: ObjectTrackRequest):
                     out["units"][role] = "rad"
     # direction of travel: bearing between points ~1 s apart (or 3 samples), in degrees from north
     la, lo = np.radians(lat), np.radians(lon_a)
-    k = max(1, int(np.searchsorted(t, t[0] + 1.0)) if len(t) > 3 else 1)
-    k = max(1, min(k, len(t) // 4 or 1))
-    i0, i1 = np.arange(len(t)) - k // 2, np.arange(len(t)) + (k - k // 2)
+    # its own name: `k` above is an index array, and with numpy 2.5 mypy typed this one by it (ci failed)
+    step = max(1, int(np.searchsorted(t, t[0] + 1.0)) if len(t) > 3 else 1)
+    step = max(1, min(step, len(t) // 4 or 1))
+    i0, i1 = np.arange(len(t)) - step // 2, np.arange(len(t)) + (step - step // 2)
     i0, i1 = np.clip(i0, 0, len(t) - 1), np.clip(i1, 0, len(t) - 1)
     y = np.sin(lo[i1] - lo[i0]) * np.cos(la[i1])
     x = np.cos(la[i0]) * np.sin(la[i1]) - np.sin(la[i0]) * np.cos(la[i1]) * np.cos(lo[i1] - lo[i0])
