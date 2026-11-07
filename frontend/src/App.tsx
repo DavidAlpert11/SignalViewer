@@ -1,11 +1,9 @@
-import { addDataExts } from "./values";
 import OverviewStrip from "./components/OverviewStrip";
 import TabBand from "./components/TabBand";
-import { evaluateAll, stepOccurrence } from "./conditions";
+import { evaluateAll } from "./conditions";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
 import PanelResizer from "./components/PanelResizer";
-import { areaKey } from "./areaCommands";
 import { usePanelWidth } from "./components/panelWidth";
 import PreviewPlots from "./components/PreviewPlots";
 import StartCard from "./components/StartCard";
@@ -21,14 +19,14 @@ const RetargetDialog = lazyPreload(() => import("./components/RetargetDialog"));
 const SameWorkDialog = lazyPreload(() => import("./components/SameWorkDialog"));
 const TimeAxisDialog = lazyPreload(() => import("./components/TimeAxisDialog"));
 const RunsMatrix = lazyPreload(() => import("./components/RunsMatrix"));
-import { api, type ExampleId } from "./api";
-import { handleNewFiles, refreshAll, stopLive } from "./live";
+import { api } from "./api";
+import { handleNewFiles, stopLive } from "./live";
 import { ensureLogs } from "./logs";
 import { detectSameFlight } from "./sync";
-import { actions, activeTab, rangeKey, recordingExtent, useApp, type PanelId } from "./store";
-import { translate, useT, type TKey } from "./i18n";
+import { actions, activeTab, rangeKey, recordingExtent, useApp } from "./store";
+import { translate, useT } from "./i18n";
 import { Icon } from "./icons";
-import { applyState, currentState, explainCopy, openDropped, openPaths, openSession, saveSession, startRetarget } from "./files";
+import { applyState, currentState, explainCopy, openDropped, openPaths, openSession } from "./files";
 import TopBar, { RecordingsBar } from "./components/TopBar";
 import type { AreaId } from "./areas";
 import StageBar from "./components/StageBar";
@@ -41,7 +39,6 @@ const ReportPanel = lazyPreload(() => import("./components/ReportPanel"));
 const LogPanel = lazyPreload(() => import("./components/LogPanel"));
 const SyncDialog = lazyPreload(() => import("./components/SyncDialog"));
 import Inspector from "./components/Inspector";
-import PlotView from "./components/PlotView";
 import StatusBar from "./components/StatusBar";
 import CommandPalette from "./components/CommandPalette";
 import FileBrowser from "./components/FileBrowser";
@@ -51,151 +48,14 @@ import Jobs from "./components/Jobs";
 const Help = lazyPreload(() => import("./components/Help"));
 const GuideDialog = lazyPreload(() => import("./components/GuideDialog"));
 const SettingsDialog = lazyPreload(() => import("./components/SettingsDialog"));
-import { AxisDialog, ContextMenu, escapeTaken, ModalFocus, PromptDialog } from "./components/Overlays";
+import { AxisDialog, ContextMenu, ModalFocus, PromptDialog } from "./components/Overlays";
 import TabChoiceDialog from "./components/TabChoice";
+import Welcome from "./components/Welcome";
+import PlotGrid from "./components/PlotGrid";
+import { RAIL, RAIL_W } from "./components/rail";
+import { useShortcuts } from "./shortcuts";
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
-
-/** the tool rail's width: an icon with its short name under it (the names made Investigate and Fleet findable) */
-const RAIL_W = 64;
-const RAIL: { id: PanelId; icon: keyof typeof Icon; key: "data" | "analysis" | "compare" | "report" | "flightLog" | "fleet" | "investigate"; short: TKey }[] = [
-  { id: "data", icon: "Data", key: "data", short: "railData" },
-  { id: "analysis", icon: "Analysis", key: "analysis", short: "railAnalysis" },
-  { id: "compare", icon: "Compare", key: "compare", short: "railCompare" },
-  { id: "investigate", icon: "Search", key: "investigate", short: "railInvestigate" },  // investigation step 2: named conditions
-  { id: "report", icon: "Report", key: "report", short: "railReport" },
-  { id: "log", icon: "Log", key: "flightLog", short: "railLog" },       // only while a file with a flight log is open
-  { id: "fleet", icon: "Fleet", key: "fleet", short: "railFleet" },        // T41: every flight of the indexed folders
-];
-
-const EXAMPLE_LABEL = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_DESC = { flight: "exampleFlightDesc", twoFlights: "exampleTwoFlightsDesc", car: "exampleCarDesc", ardupilot: "exampleArdupilotDesc", simVsFlight: "exampleSimVsFlightDesc", investigate: "exampleInvestigateDesc" } as const satisfies Record<ExampleId, string>;
-const EXAMPLE_ICON = { flight: Icon.Globe, twoFlights: Icon.Compare, car: Icon.Table, ardupilot: Icon.Log, simVsFlight: Icon.Analysis, investigate: Icon.Search } satisfies Record<ExampleId, unknown>;
-
-function Welcome() {
-  const t = useT();
-  const items = useApp((s) => s.recent);
-  useEffect(() => { api.recent().then((r) => useApp.setState({ recent: r.items })).catch(() => {}); }, []);
-  // T09: ready examples (a drone flight; three car runs to compare) - a first look in one click
-  const [examples, setExamples] = useState<{ id: ExampleId; paths: string[] }[]>([]);
-  useEffect(() => { api.examples().then(setExamples).catch(() => setExamples([])); }, []);
-  // T60: files of the user's own readers can be chosen and dropped like the built-in types
-  useEffect(() => { api.readers().then((r) => addDataExts(r.readers.flatMap((x) => x.extensions))).catch(() => {}); }, []);
-  const files = items.filter((x) => x.kind === "file").slice(0, 6);
-  const sessions = items.filter((x) => x.kind === "session").slice(0, 4);
-  const openRecent = async (x: (typeof items)[number]) => {
-    if (!x.exists) return;
-    if (x.kind === "file") openPaths([x.path]);
-    else {
-      try { const r = await api.loadSession(x.path); await applyState(r.state, { announce: true }); }
-      catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
-    }
-  };
-  const forget = async (path: string) => useApp.setState({ recent: (await api.forgetRecent(path)).items });
-  const list = (title: string, xs: typeof items, icon: React.ReactNode) => xs.length > 0 && (
-    <div className="recent-col">
-      <h3>{title}</h3>
-      {xs.map((x) => (
-        <div key={x.path} className={`recent-row${x.exists ? "" : " gone"}`}>
-          <button className="recent-open" disabled={!x.exists} onClick={() => openRecent(x)} title={x.path}>
-            {icon}<span className="recent-name">{x.name}</span><span className="recent-folder">{x.exists ? x.folder : t("notFound")}</span>
-          </button>
-          {x.kind === "session" && x.exists && (
-            <button className="iconbtn sm" onClick={() => startRetarget(x.path)} aria-label={t("withNewFiles")} title={t("withNewFiles")}><Icon.Replace /></button>
-          )}
-          <button className="iconbtn sm" onClick={() => forget(x.path)} aria-label={t("forget")} title={t("forget")}><Icon.X /></button>
-        </div>
-      ))}
-    </div>
-  );
-  return (
-    <div className="welcome">
-      <div className="welcome-card">
-        <svg className="trace" viewBox="0 0 220 64" aria-hidden="true">
-          <path d="M0 40 C 18 40, 22 14, 40 14 S 62 54, 80 54 S 102 22, 120 22 S 142 46, 160 46 S 190 30, 220 30"
-            fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" />
-          <line x1="132" y1="2" x2="132" y2="62" stroke="var(--amber)" strokeWidth="1.6" />
-          <rect x="133" y="2" width="34" height="13" fill="var(--amber)" />
-        </svg>
-        <h1>{t("dropTitle")}</h1>
-        <p className="tagline">{t("welcomeTagline")}</p>
-        <p>{t("dropHint")}</p>
-        <button className="btn primary" style={{ height: 36, paddingInline: 16 }} onClick={() => useApp.setState({ browserOpen: true })}>
-          <Icon.Folder /> {t("openFiles")}
-        </button>
-        {examples.length > 0 && (
-          <>
-            {/* cards, not a line of links: the line did not wrap and its last example (the
-                Investigate one) ran off the screen below 1920 px */}
-            <h2 className="examples-title">{t("startFromExample")}</h2>
-            <div className="examples-line">
-              {examples.map((ex) => {
-                const Ico = EXAMPLE_ICON[ex.id];
-                return (
-                  <button key={ex.id} className="ex-card" onClick={() => openPaths(ex.paths, undefined, { autoView: true })}>
-                    <Ico width={18} height={18} />
-                    <span className="ex-text"><span className="ex-title">{t(EXAMPLE_LABEL[ex.id])}</span>
-                      <span className="ex-desc">{t(EXAMPLE_DESC[ex.id])}</span></span>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {(files.length > 0 || sessions.length > 0) && (
-          <div className="recent">
-            {list(t("recentFiles"), files, <Icon.File />)}
-            {list(t("recentSessions"), sessions, <Icon.Open />)}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** Plot grid; drag the gaps between plots to resize rows and columns (V-02). */
-function PlotGrid() {
-  const tab = useApp((s) => activeTab(s.ws));
-  const ref = useRef<HTMLDivElement>(null);
-  const rows = tab.rowSizes && tab.rowSizes.length === tab.rows ? tab.rowSizes : Array(tab.rows).fill(1);
-  const cols = tab.colSizes && tab.colSizes.length === tab.cols ? tab.colSizes : Array(tab.cols).fill(1);
-  const startDrag = (axis: "row" | "col", i: number) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    const el = ref.current;
-    if (!el) return;
-    const sizes = (axis === "row" ? rows : cols).slice();
-    const total = sizes.reduce((a, b) => a + b, 0);
-    const px = axis === "row" ? el.clientHeight : el.clientWidth;
-    const rtl = document.documentElement.dir === "rtl" && axis === "col";
-    const start = axis === "row" ? e.clientY : e.clientX;
-    const a0 = sizes[i], b0 = sizes[i + 1];
-    const move = (ev: MouseEvent) => {
-      let d = ((axis === "row" ? ev.clientY : ev.clientX) - start) / px * total;
-      if (rtl) d = -d;
-      const min = total * 0.08;
-      const a = Math.max(min, Math.min(a0 + b0 - min, a0 + d));
-      sizes[i] = a; sizes[i + 1] = a0 + b0 - a;
-      if (axis === "row") actions.setSizes(sizes.slice(), tab.colSizes); else actions.setSizes(tab.rowSizes, sizes.slice());
-    };
-    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
-    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
-  };
-  const frac = (arr: number[]) => arr.map((v) => `minmax(0, ${v}fr)`).join(" ");
-  const sum = (arr: number[], n: number) => arr.slice(0, n).reduce((a, b) => a + b, 0) / arr.reduce((a, b) => a + b, 0);
-  return (
-    <div className="grid" ref={ref} style={{ gridTemplateRows: frac(rows), gridTemplateColumns: frac(cols) }}>
-      {tab.plots.map((p, i) => <PlotView key={p.id} tab={tab} plot={p} index={i} active={i === tab.active} />)}
-      {rows.slice(0, -1).map((_, i) => (
-        <div key={`r${i}`} className="gutter-h" style={{ top: `calc(${sum(rows, i + 1) * 100}% - 4px)` }} onMouseDown={startDrag("row", i)}
-          onDoubleClick={() => actions.setSizes(undefined, tab.colSizes)} role="separator" aria-orientation="horizontal" />
-      ))}
-      {cols.slice(0, -1).map((_, i) => (
-        <div key={`c${i}`} className="gutter-v" style={{ insetInlineStart: `calc(${sum(cols, i + 1) * 100}% - 4px)` }} onMouseDown={startDrag("col", i)}
-          onDoubleClick={() => actions.setSizes(tab.rowSizes, undefined)} role="separator" aria-orientation="vertical" />
-      ))}
-    </div>
-  );
-}
 
 /* resizable side panels: components/PanelResizer.tsx */
 const MIN_STAGE = 380;
@@ -466,65 +326,7 @@ export default function App() {
     return () => window.clearInterval(h);
   }, [streaming]);
 
-  /* keyboard shortcuts */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const st = useApp.getState();
-      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
-      const mod = e.ctrlKey || e.metaKey;
-      const rec = st.area === "recordings";        // files, sessions, tabs and refresh are the Recordings area's
-      if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); useApp.setState({ paletteOpen: true, paletteMode: "all" }); return; }
-      // T24: quick open - recent files and folders, favourites (Ctrl+P is the editors' "go to file")
-      if (rec && mod && e.key.toLowerCase() === "p" && !e.shiftKey) { e.preventDefault(); useApp.setState({ paletteOpen: true, paletteMode: "open" }); return; }
-      if (rec && mod && e.key.toLowerCase() === "o" && e.shiftKey) { e.preventDefault(); openSession(); return; }
-      if (rec && mod && e.key.toLowerCase() === "o") { e.preventDefault(); useApp.setState({ browserOpen: true }); return; }
-      if (rec && mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveSession(); return; }
-      const SCALES = [1, 1.12, 1.25] as const;
-      if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); const i = SCALES.indexOf(st.uiScale); useApp.setState({ uiScale: SCALES[Math.min(2, i + 1)] }); return; }
-      if (mod && e.key === "-") { e.preventDefault(); const i = SCALES.indexOf(st.uiScale); useApp.setState({ uiScale: SCALES[Math.max(0, i - 1)] }); return; }
-      if (mod && e.key === "0") { e.preventDefault(); useApp.setState({ uiScale: 1 }); return; }
-      // F22: next / previous tab (Ctrl+Tab too where the window lets it through - a browser keeps it)
-      if (rec && mod && (e.key === "PageDown" || e.key === "PageUp")) { e.preventDefault(); actions.cycleTab(e.key === "PageDown" ? 1 : -1); return; }
-      if (rec && e.ctrlKey && e.key === "Tab") { e.preventDefault(); actions.cycleTab(e.shiftKey ? -1 : 1); return; }
-      if (rec && (e.key === "F5" || (mod && e.key.toLowerCase() === "r"))) { e.preventDefault(); refreshAll(); return; }   // not a page reload
-      if (typing || st.paletteOpen || st.browserOpen || st.picker || st.importPaths || st.helpOpen || st.guideOpen || st.settingsOpen) return;
-      if (e.key === "?") { useApp.setState({ helpOpen: true }); return; }
-      if (e.key === "F1") { e.preventDefault(); useApp.setState({ guideOpen: true }); return; }   // T55
-      if (mod && e.key === ",") { e.preventDefault(); useApp.setState({ settingsOpen: true }); return; }   // T18
-      if (!rec) { if (areaKey(st.area, e)) e.preventDefault(); return; }   // another area's own keys (areaCommands.ts)
-      // the keys below act on the Recordings area (undo, cursor, plots, timeline)
-      if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); st.undo(); return; }
-      if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); st.redo(); return; }
-      if (mod) return;
-      if (e.key === " ") { e.preventDefault(); actions.toggleCursor(); }
-      else if (e.key.toLowerCase() === "d") actions.toggleDual();
-      else if (e.key.toLowerCase() === "r") actions.resetZoom();
-      else if (e.key.toLowerCase() === "z") actions.cycleZoomMode();
-      else if (e.key.toLowerCase() === "n") { e.preventDefault(); actions.addNoteAtCursor(); }
-      else if ((e.key === "]" || e.key === "[") && st.condFocus) { e.preventDefault(); stepOccurrence(st.condFocus, e.key === "]" ? 1 : -1); }
-      else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowLeft")) { e.preventDefault(); actions.zoomBack(); }
-      else if (e.key === "Home" || e.key === "End") {          // the timeline: start / end of the recording
-        const r = recordingExtent(st.runs);
-        if (r) { e.preventDefault(); const tt = e.key === "Home" ? r[0] : r[1]; actions.setTime(tt); actions.followTime(tt); }
-      }
-      else if (e.key.toLowerCase() === "p") actions.togglePlay();
-      else if (/^[1-9]$/.test(e.key)) actions.setActivePlot(Number(e.key) - 1);
-      else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && st.cursor.on && st.cursor.t1 !== null) {
-        // jump from recorded value to recorded value (no interpolation); Shift = 10 samples
-        e.preventDefault();
-        actions.stepCursor((e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 10 : 1));
-      } else if (e.key === "Delete" && st.selected) actions.removeSignal(st.selected.plotId, st.selected.sig);
-      else if (e.key === "Escape" && !escapeTaken() && !st.menu) {
-        // one step back per press: the selection, then the newest message, then the start card
-        // (the start card used to stay over the plots until its × was clicked)
-        if (st.selected) useApp.setState({ selected: null });
-        else if (st.toasts.length) st.dismiss(st.toasts[st.toasts.length - 1].id);
-        else if (st.startCard) useApp.setState({ startCard: null });
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  useShortcuts();                       // A3: the keyboard (shortcuts.ts)
 
   /* drag & drop files from the OS anywhere in the window */
   useEffect(() => {
