@@ -5,7 +5,7 @@
 
 #define AppName "Signal Viewer"
 #ifndef AppVersion
-  #define AppVersion "1.21.0"
+  #define AppVersion "1.22.0"
 #endif
 
 [Setup]
