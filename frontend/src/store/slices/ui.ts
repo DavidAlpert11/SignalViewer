@@ -69,6 +69,10 @@ export interface UiSlice {
   /** F28: how the timeline writes time - seconds as recorded (like the axes, the cursor, the
    *  Inspector) or a clock from the start of the recording (m:ss) */
   timeFormat: "seconds" | "clock";
+  /** U1: a template with several tabs opened from its chip - ask which tabs, or open its default tabs */
+  tplTabChoice: "ask" | "defaults";
+  /** U1: the "which tabs?" dialog (UI only) */
+  tabChoice: { tpl: import("../../api").Template; all: import("../../api").Template[]; bind: Record<string, string> } | null;
   /** F24: each plot's room left / right of its plot area (px), so a column of plots shares one -
    *  the time axes line up. Reported by the charts; UI only. */
   gutters: Record<string, [number, number]>;
@@ -129,6 +133,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   guideOpen: false,
   settingsOpen: false,
   timeFormat: "seconds",
+  tplTabChoice: "ask",
+  tabChoice: null,
   gutters: {},
 
   set: (p) => set(p),

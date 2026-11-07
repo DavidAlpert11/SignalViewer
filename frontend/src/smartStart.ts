@@ -1,7 +1,6 @@
-import { api, type HealthFinding } from "./api";
+import { api, type HealthFinding, type Template } from "./api";
 import { tabHasContent, useApp } from "./store";
-import { translate } from "./i18n";
-import { applyTemplate, fits, rankTemplates, tx } from "./templates";
+import { announceOpened, applyTemplate, defaultTabIdx, expand, fits, rankTemplates } from "./templates";
 
 /**
  * Smart start (T29): when the first file goes into an empty workspace, a small card suggests the
@@ -64,7 +63,6 @@ export const isEmptyStart = () => !useApp.getState().ws.tabs.some(tabHasContent)
 /** "Open it": the suggested template on that file, as the library would open it. */
 export async function openSuggested(card: StartCard) {
   const st = useApp.getState();
-  const L = st.lang;
   if (!card.template) return;
   try {
     const r = await api.templates();
@@ -72,16 +70,21 @@ export async function openSuggested(card: StartCard) {
     const t = all.find((x) => x.id === card.template!.id);
     if (!t) return;
     const b = await api.bindTemplate(t, all, card.runId);
-    const res = await applyTemplate(t, all, b.bind);
+    const res = await applyTemplate(t, all, b.bind, defaultsOf(t, all));     // U1: no question here
     // the view is open: the card keeps only the log's findings (each a click from its moment), if any
     useApp.setState({ startCard: card.health?.length ? { ...card, template: null } : null });
-    if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
-    st.toast({ kind: "info", ms: res.dropped.length ? 12000 : 4000, text: translate(L, "tplOpened", { name: tx(t.name, L), n: res.tabs, p: res.plots })
-      + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
-      + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : "") });
+    announceOpened(t, res);
   } catch (e) {
     st.toast({ kind: "error", text: String((e as Error).message) });
   }
+}
+
+/** U1: the default tabs to open without asking - undefined (every tab, exactly as before) when
+ *  the template names none or all of them. */
+function defaultsOf(t: Template, all: Template[]): number[] | undefined {
+  const tabs = expand(t, all).tabs;
+  const idx = defaultTabIdx(t, tabs);
+  return idx.length < tabs.length ? idx : undefined;
 }
 
 /** T48: a template chip opens its template at once when nothing has to be asked - every file slot
@@ -89,7 +92,6 @@ export async function openSuggested(card: StartCard) {
  *  Returns whether it opened. */
 export async function openTemplateNow(id: string): Promise<boolean> {
   const st = useApp.getState();
-  const L = st.lang;
   try {
     const r = await api.templates();
     const all = [...r.builtin, ...r.templates];
@@ -107,13 +109,14 @@ export async function openTemplateNow(id: string): Promise<boolean> {
       return !Object.entries(sl.counts).some(([rid, n]) => rid !== v && n >= mine);
     });
     if (!settled) return false;
-    const res = await applyTemplate(t, all, b.bind);
-    if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return true; }
-    useApp.setState({ startCard: null });
-    st.toast({ kind: "info", ms: res.dropped.length ? 12000 : 5000, text: translate(L, "tplOpened", { name: tx(t.name, L), n: res.tabs, p: res.plots })
-      + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
-      + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : ""),
-      action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } });
+    // U1: several tabs - which ones? (unless Settings says: the template's default tabs at once)
+    if (expand(t, all).tabs.length > 1 && st.tplTabChoice === "ask") {
+      useApp.setState({ tabChoice: { tpl: t, all, bind: b.bind } });
+      return true;
+    }
+    const res = await applyTemplate(t, all, b.bind, defaultsOf(t, all));
+    if (res.tabs) useApp.setState({ startCard: null });
+    announceOpened(t, res, true);
     return true;
   } catch {
     return false;

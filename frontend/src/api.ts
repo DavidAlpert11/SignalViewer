@@ -166,6 +166,8 @@ export interface TplCondition { id: string; name: string; color: string; text: s
 export interface Template {
   version: 2; id: string; name: string; description?: string; group?: string;
   slots: TplSlot[]; tabs: TplTab[]; includes?: string[];
+  /** U1: the tabs (by name, over the included templates too) opened without asking; absent = all */
+  defaultTabs?: string[];
   conditions?: TplCondition[];       // the investigation's conditions: added (by name) when the template opens
   generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;

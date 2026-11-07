@@ -5,7 +5,7 @@ import { useApp } from "./store";
 import { inspectorPref } from "./store/inspector";
 import { getPrefValue, setPref } from "./prefs";
 
-const KEYS = ["theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles"] as const;
+const KEYS = ["theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice"] as const;
 type Key = (typeof KEYS)[number];
 
 const VALID: Record<Key, (v: unknown) => boolean> = {
@@ -15,6 +15,7 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   timeFormat: (v) => v === "seconds" || v === "clock",
   liveAutoStop: (v) => v === null || typeof v === "number",
   liveNewFiles: (v) => v === "ask" || v === "auto" || v === "ignore",
+  tplTabChoice: (v) => v === "ask" || v === "defaults",
 };
 
 /** True when the user has chosen this setting (a session file then leaves it alone). */

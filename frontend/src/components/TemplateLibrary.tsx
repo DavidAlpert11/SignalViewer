@@ -4,9 +4,10 @@ import { tabHasContent, activeTab, fileLabel, pickPath, useApp } from "../store"
 import { useT } from "../i18n";
 import { Icon } from "../icons";
 import { confirmAsk, openMenu, useEscape } from "./Overlays";
+import { TabChecklist } from "./TabChoice";
 import { openPaths, refreshRecent } from "../files";
 import {
-  ALL, applyTemplate, baseName, expand, fits as templateFits, includers, rankTemplates, slotNames, suggestTabName, templateFromTabs, tx,
+  ALL, applyTemplate, baseName, defaultTabIdx, expand, fits as templateFits, includers, rankTemplates, slotNames, suggestTabName, templateFromTabs, tx,
 } from "../templates";
 
 /** A new template's draft; src: for each of its tabs, the workspace tab it was made from (editor only, not saved). */
@@ -232,7 +233,7 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
     const hit = recent.find((x) => x.kind === "file" && x.exists && (x.path === sl.path || baseName(x.path).toLowerCase() === want));
     return hit?.path ?? null;
   };
-  const [chosen, setChosen] = useState<Set<number>>(() => new Set(e.tabs.map((_x, i) => i)));
+  const [chosen, setChosen] = useState<Set<number>>(() => new Set(defaultTabIdx(tpl, e.tabs)));   // U1: its default tabs
   const mineT = !tpl.builtin;
 
   const open = async () => {
@@ -293,17 +294,7 @@ function Details({ tpl, all, runs, prefer, onEdit, onCopy, onDeleted, onOpened }
 
       <h4>{t("tplTabs")}</h4>
       {e.generators.length > 0 && <p className="hint">{t("tplAutoTabs")}</p>}
-      <ul className="tpl-tabs">
-        {e.tabs.map((x, i) => (
-          <li key={i}><label>
-            <input type="checkbox" checked={chosen.has(i)} onChange={(ev) => {
-              const n = new Set(chosen); if (ev.target.checked) n.add(i); else n.delete(i); setChosen(n);
-            }} />
-            <span>{tx(x.name, lang)}</span>
-            <span className="hint">{(x.plots.length === 1 ? t("tplPlotsOne") : t("tplPlotsN", { n: x.plots.length }))}{x.from !== tpl.name ? ` · ${tx(x.from, lang)}` : ""}</span>
-          </label></li>
-        ))}
-      </ul>
+      <TabChecklist tpl={tpl} tabs={e.tabs} chosen={chosen} setChosen={setChosen} />
 
       <div className="tpl-actions">
         {/* the files for the slots come from the server: not before they are there for THIS template */}
@@ -343,7 +334,9 @@ function Editor({ draft, src: src0, slotRuns: slotRuns0, isNew, all, onCancel, o
   const [open, setOpen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<Template>) => setD({ ...d, ...patch });
-  const setTab = (i: number, tab: TplTab) => set({ tabs: d.tabs.map((x, k) => (k === i ? tab : x)) });
+  // U1: a renamed tab stays a default tab (defaultTabs are names)
+  const setTab = (i: number, tab: TplTab) => set({ tabs: d.tabs.map((x, k) => (k === i ? tab : x)),
+    ...(d.defaultTabs && tab.name !== d.tabs[i].name ? { defaultTabs: d.defaultTabs.map((n) => (n === d.tabs[i].name ? tab.name : n)) } : {}) });
   const move = (i: number, by: number) => {
     const tabs = [...d.tabs]; const j = i + by;
     if (j < 0 || j >= tabs.length) return;
@@ -413,7 +406,9 @@ function Editor({ draft, src: src0, slotRuns: slotRuns0, isNew, all, onCancel, o
     const suggested = !!srcTab && !(srcTab.name || "").trim() && d.tabs[0]?.name === suggestTabName(srcTab, ws.tabs.indexOf(srcTab), lang);
     const tabs = d.tabs.length === 1 && (!d.tabs[0].name || autoName.test(d.tabs[0].name) || suggested) ? [{ ...d.tabs[0], name: d.name.trim() }] : d.tabs;
     try {
-      const r = await api.saveTemplate({ ...d, tabs, slots: shownSlots.length ? shownSlots : [{ id: "main", name: "@tplSlotFile" }] }, !isNew);
+      const names = new Set(expand({ ...d, tabs }, all).tabs.map((x) => x.name));
+      const defaultTabs = (d.defaultTabs ?? []).filter((n) => names.has(n));
+      const r = await api.saveTemplate({ ...d, tabs, defaultTabs: defaultTabs.length ? defaultTabs : undefined, slots: shownSlots.length ? shownSlots : [{ id: "main", name: "@tplSlotFile" }] }, !isNew);
       useApp.getState().toast({ kind: "info", text: t("tplSaved", { name: r.template.name }) });
       onSaved(r.template.id);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
@@ -523,6 +518,25 @@ function Editor({ draft, src: src0, slotRuns: slotRuns0, isNew, all, onCancel, o
           {canInclude.map((x) => <option key={x.id} value={x.id}>{tx(x.name, lang)}</option>)}
         </select>
       )}
+
+      {used.tabs.length > 1 && (() => {
+        // U1: which of all its tabs (its own and the included templates') open without asking
+        const on = new Set(defaultTabIdx(d, used.tabs));
+        const toggle = (i: number, yes: boolean) => {
+          const next = used.tabs.map((_x, k) => k).filter((k) => (k === i ? yes : on.has(k)));
+          // all of them (or none) = no choice stored: every tab, as before
+          set({ defaultTabs: next.length && next.length < used.tabs.length ? next.map((k) => used.tabs[k].name) : undefined });
+        };
+        return (<>
+          <h4>{t("tplDefaultTabs")} <span className="hint">{t("tplDefaultTabsHint")}</span></h4>
+          <ul className="tpl-tabs tpl-default-tabs">
+            {used.tabs.map((x, i) => (
+              <li key={i}><label><input type="checkbox" checked={on.has(i)} disabled={on.has(i) && on.size === 1} onChange={(ev) => toggle(i, ev.target.checked)} />
+                <span>{tx(x.name, lang)}</span>{x.from !== d.name ? <span className="hint">{tx(x.from, lang)}</span> : null}</label></li>
+            ))}
+          </ul>
+        </>);
+      })()}
 
       <div className="tpl-actions">
         <button className="btn primary" disabled={busy} onClick={save}>{t("save")}</button>

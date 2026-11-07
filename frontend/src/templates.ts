@@ -1,5 +1,5 @@
 import { api, type RunInfo, type Template, type TplObject, type TplObjectRole, type TplPlot, type TplSlot, type TplTab } from "./api";
-import { colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type MapObject, type ObjectKind, type Plot, type Tab } from "./store";
+import { colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type MapObject, type MoreTabs, type ObjectKind, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
 import { guessRoles } from "./mapObjects";
 
@@ -238,14 +238,34 @@ function compareTabs(runs: RunInfo[], slot: string, lang: "en" | "he"): TplTab[]
 /* --------------------------------------------------------------- open a template */
 export interface ApplyResult { tabs: number; plots: number; dropped: string[]; missing: string[]; conditions: number }
 
+/** U1: the tabs opened without asking - those named in `defaultTabs`, by index into the expanded
+ *  tabs; every tab when it is absent or names none of them (a template edited since). */
+export function defaultTabIdx(t: Template, tabs: { name: string }[]): number[] {
+  const all = tabs.map((_x, i) => i);
+  const want = new Set(t.defaultTabs ?? []);
+  const pick = all.filter((i) => want.has(tabs[i].name));
+  return want.size && pick.length ? pick : all;
+}
+
+/** Indexes of the expanded tabs with these names (each name once, the first tab of that name). */
+export function tabIdxByName(tabs: { name: string }[], names: string[]): number[] {
+  const left = [...names];
+  return tabs.flatMap((x, i) => { const k = left.indexOf(x.name); if (k < 0) return []; left.splice(k, 1); return [i]; });
+}
+
 /** Open a template's tabs (or only those chosen, by index into the expanded tabs) with these files:
- *  the backend resolves the names to signal ids, this turns the result into workspace tabs. */
-export async function applyTemplate(t: Template, all: Template[], bind: Record<string, string>, chosen?: number[]): Promise<ApplyResult> {
+ *  the backend resolves the names to signal ids, this turns the result into workspace tabs.
+ *  U1: the tabs NOT chosen are remembered in `ws.moreTabs` ("+N more"), in the same Undo step;
+ *  `opts.rest` (opening from "+N more") gives what is left instead, and skips the generators'
+ *  tabs (opened the first time already). */
+export async function applyTemplate(t: Template, all: Template[], bind: Record<string, string>, chosen?: number[],
+  opts: { rest?: string[] } = {}): Promise<ApplyResult> {
   const st = useApp.getState();
   const L = st.lang;
   const e = expand(t, all);
+  const rest = opts.rest ?? (chosen ? e.tabs.filter((_x, i) => !chosen.includes(i)).map((x) => x.name) : []);
   const extraTabs: TplTab[] = [];
-  for (const g of e.generators) {
+  for (const g of opts.rest ? [] : e.generators) {
     const slot = g.slots[0].id;
     extraTabs.push(...(g.generator === "quicklook" ? quickLookTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
       : g.generator === "objects" ? objectTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
@@ -292,7 +312,56 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
       if (emptyStart && ws.tabs.length > before) ws.tabs = ws.tabs.slice(1);
     }
     res.conditions = mergeConditions(ws, [t, ...(t.includes ?? []).map((id) => all.find((x) => x.id === id)).filter((x): x is Template => !!x)]);
+    // U1: one "+N more" per template - opening it again replaces what was left the time before
+    const more = (ws.moreTabs ?? []).filter((m) => m.tpl !== t.id);
+    if (rest.length) more.push({ tpl: t.id, name: t.name, ...(t.builtin ? { builtin: true } : {}), bind: { ...bind }, tabs: rest });
+    if (more.length || ws.moreTabs) ws.moreTabs = more;
     return ws;
   });
   return res;
+}
+
+/** U1: is a "+N more" still usable - every file its slots were given is open? */
+export function moreUsable(m: MoreTabs, runs: RunInfo[]): boolean {
+  return Object.values(m.bind).every((r) => !r || r === ALL || runs.some((x) => x.id === r));
+}
+
+/** U1: open some (or all) of the tabs a template left out ("+N more from <template>"). */
+export async function openMoreTabs(m: MoreTabs, names: string[]): Promise<ApplyResult | null> {
+  const st = useApp.getState();
+  try {
+    const r = await api.templates();
+    const all = [...r.builtin, ...r.templates];
+    const t = all.find((x) => x.id === m.tpl);
+    if (!t) { forgetMore(m.tpl); st.toast({ kind: "error", text: translate(st.lang, "tplGone") }); return null; }
+    const e = expand(t, all);
+    const chosen = tabIdxByName(e.tabs, names);
+    const left = [...m.tabs];
+    names.forEach((n) => { const k = left.indexOf(n); if (k >= 0) left.splice(k, 1); });
+    // names no longer in the template (edited since) are dropped from the offer
+    const rest = left.filter((n) => e.tabs.some((x) => x.name === n));
+    if (!chosen.length) { forgetMore(m.tpl); return null; }
+    const res = await applyTemplate(t, all, m.bind, chosen, { rest });
+    announceOpened(t, res);
+    return res;
+  } catch (err) {
+    st.toast({ kind: "error", text: String((err as Error).message) });
+    return null;
+  }
+}
+
+/** The message after a template opened (or why nothing did); `undo` adds an Undo button. */
+export function announceOpened(t: Template, res: ApplyResult, undo = false) {
+  const st = useApp.getState();
+  const L = st.lang;
+  if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
+  st.toast({ kind: "info", ms: res.dropped.length ? 12000 : undo ? 5000 : 4000, text: translate(L, "tplOpened", { name: tx(t.name, L), n: res.tabs, p: res.plots })
+    + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
+    + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : ""),
+    ...(undo ? { action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } } : {}) });
+}
+
+/** U1: stop offering a template's left-out tabs. */
+export function forgetMore(tpl: string) {
+  useApp.getState().commit((ws) => { ws.moreTabs = (ws.moreTabs ?? []).filter((m) => m.tpl !== tpl); return ws; });
 }

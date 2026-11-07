@@ -112,6 +112,10 @@ button, input, select { font: inherit; color: inherit; }
 .tabs { display: flex; align-items: stretch; gap: 2px; height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs-all { display: inline-flex; align-items: center; gap: 2px; width: auto; padding: 0 6px; flex: none; }
+/* U1: "+N more from <template> ▾" beside the + : the tabs a template left out */
+.more-tabs { flex: none; height: 26px; padding: 0 8px; gap: 4px; font-size: 0.8462rem; color: var(--muted); max-width: 260px; }
+.more-tabs .more-tabs-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.more-tabs:hover { color: var(--ink-strong); }
 .tabs-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .menu.ctx.long { max-height: calc(100vh - 16px); overflow-y: auto; }
 .tab {
@@ -955,6 +959,10 @@ input.fx-input { width: 100%; }
 .tpl-tabs, .tpl-includes, .tpl-edit-tabs { list-style: none; margin: 0; padding: 0; }
 .tpl-tabs li label { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
 .tpl-tabs .hint { margin-inline-start: auto; }
+.tab-choice-hint { margin-top: 10px; }
+.tpl-tabs-bulk { display: flex; gap: 12px; margin: 2px 0 4px; }
+.tpl-tabs .badge.tpl-default { font-size: 0.7692rem; }
+.tpl-default-tabs label { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
 .tpl-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 .btn.danger { color: #e5534b; }
 .btn.primary.danger { background: #d1453b; border-color: #d1453b; color: #fff; }

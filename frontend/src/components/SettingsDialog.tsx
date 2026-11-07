@@ -50,6 +50,7 @@ export default function SettingsDialog() {
   const theme = useApp((s) => s.theme);
   const uiScale = useApp((s) => s.uiScale);
   const timeFormat = useApp((s) => s.timeFormat);
+  const tplTabChoice = useApp((s) => s.tplTabChoice);
   const close = () => useApp.setState({ settingsOpen: false });
   useEscape(close, true);
   const seg = <V extends string | number>(value: V, opts: [V, string][], set: (v: V) => void, label: string) => (
@@ -69,6 +70,8 @@ export default function SettingsDialog() {
             {seg(uiScale, [[1, "100%"], [1.12, "112%"], [1.25, "125%"]], (v) => useApp.setState({ uiScale: v }), t("hTextSize"))}</div>
           <div className="set-row"><span>{t("setTime")}<small>{t("setTimeHint")}</small></span>
             {seg(timeFormat, [["seconds", t("setTimeSeconds")], ["clock", t("setTimeClock")]], (v) => useApp.setState({ timeFormat: v }), t("setTime"))}</div>
+          <div className="set-row"><span>{t("setTabChoice")}<small>{t("setTabChoiceHint")}</small></span>
+            {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>
           <p className="hint">{t("setKept")}</p>
           <StorageSection />
         </div>
