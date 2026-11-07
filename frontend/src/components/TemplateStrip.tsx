@@ -17,6 +17,8 @@ export default function TemplateStrip() {
   const laterRuns = useDeferredValue(runs);
   const libOpen = useApp((s) => s.templatesOpen);
   const hasPlots = useApp((s) => s.ws.tabs.some(tabHasContent));
+  // U7: once something is plotted the suggestions fold away (a click on the title shows them)
+  const [unfold, setUnfold] = useState<boolean | null>(null);
   const [all, setAll] = useState<Template[]>([]);
   // re-read the templates when the library closes (one may have been saved or deleted)
   useEffect(() => { if (!libOpen) api.templates().then((r) => setAll([...r.builtin, ...r.templates])).catch(() => {}); }, [libOpen]);
@@ -47,10 +49,13 @@ export default function TemplateStrip() {
   return (
     <div className="tpl-strip" role="group" aria-label={t("tplStripTitle")}>
       <div className="tpl-strip-head">
-        <Icon.Layout /><h3 title={t("tplStripHint")}>{t("tplStripTitle")}</h3>
+        <Icon.Layout />
+        {hasPlots ? <h3><button className="linklike tpl-strip-fold" aria-expanded={unfold ?? false} title={t("tplStripHint")}
+          onClick={() => setUnfold(!(unfold ?? false))}>{(unfold ?? false) ? "▾" : "▸"} {t("tplStripTitle")} <span className="muted">({picks.length})</span></button></h3>
+          : <h3 title={t("tplStripHint")}>{t("tplStripTitle")}</h3>}
         <button className="linkbtn" onClick={() => openTemplates()}>{t("tplAll")}</button>
       </div>
-      <div className="tpl-strip-picks">
+      {(!hasPlots || unfold) && <div className="tpl-strip-picks">
         {picks.map((x) => (
           // T48: one click opens the template when nothing has to be chosen (else the library, as before);
           // right-click: the library with its details
@@ -60,7 +65,7 @@ export default function TemplateStrip() {
             {tx(x.name, lang)}
           </button>
         ))}
-      </div>
+      </div>}
       <button className="btn outline tpl-strip-save" disabled={!hasPlots} onClick={saveAsTemplate}>
         <Icon.Save /> {t("tplSaveView")}
       </button>

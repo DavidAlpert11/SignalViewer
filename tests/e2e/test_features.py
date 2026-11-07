@@ -149,7 +149,7 @@ def open_files(pg, *names, options=False, clear=True):
 
 def clear_plots(pg):
     """The stage bar's eraser empties this tab's plots (the other scopes: the top bar's Clear)."""
-    pg.click("[aria-label='Clear all plots']")
+    pg.click(".stage-more"); pg.locator(".menu.ctx button", has_text="Clear all plots").click()     # U7: in the stage bar's ⋯
 
 
 def clear_everything(pg):
@@ -512,7 +512,7 @@ def test_V08_zoom_pan_back(pg):
 def test_V09_decimation_status(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.wait_for_function("document.querySelector('.status').innerText.match(/Showing|All points/)")
+    pg.wait_for_function("document.querySelector('.status').innerText.match(/drawn for|All points/)")   # U7 wording
 
 
 def test_V10_theme(pg):

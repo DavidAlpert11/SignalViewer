@@ -96,6 +96,7 @@ def test_auto_open_takes_the_default_tabs_and_offers_the_rest(pg):
 
 def test_chip_asks_which_tabs_unless_settings_say_defaults(pg):
     open_ardupilot_example(pg)
+    pg.locator(".tpl-strip-fold").click()                          # U7: folded once something is plotted
     pg.locator(".tpl-strip .chipbtn", has_text="Rates (PID)").click()
     dlg = pg.locator(".tab-choice")
     dlg.wait_for(timeout=10000)

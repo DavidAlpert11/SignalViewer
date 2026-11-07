@@ -1,3 +1,4 @@
+import { openMenu } from "./Overlays";
 import { useEffect, useRef, useState } from "react";
 import { actions, activeTab, MAX_PLOTS, rangeKey, useApp } from "../store";
 import { useT } from "../i18n";
@@ -130,9 +131,13 @@ export default function StageBar() {
           <p className="hint">{t("zoomKeysHint")}</p>
         </Popover>}
       </span>
-      <button className="iconbtn" disabled={!canBack} onClick={actions.zoomBack} title={`${t("zoomBack")} (Backspace)`} aria-label={t("zoomBack")}><Icon.Undo /></button>
       <button className="btn" onClick={actions.resetZoom} title={`${t("resetZoom")} (R)`}><Icon.Reset /><span className="hide-narrow">{t("resetZoom")}</span></button>
-      <button className="iconbtn" onClick={actions.clearAllPlots} title={t("clearAllHint")} aria-label={t("clearAll")}><Icon.Eraser /></button>
+      {/* U7: the two icon-only buttons (zoom back, clear the plots) in one labelled menu */}
+      <button className="iconbtn stage-more" aria-haspopup="menu" aria-label={t("stageMore")} title={t("stageMore")}
+        onClick={(e) => openMenu(e, [
+          { label: `${t("zoomBack")} (Backspace)`, run: actions.zoomBack, disabled: !canBack },
+          { label: t("clearAll"), run: actions.clearAllPlots },
+        ])}><Icon.More /></button>
       {streaming && <>
         <span className="sep" />
         <span className="bar-label">{t("follow")}</span>

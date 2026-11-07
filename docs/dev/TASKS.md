@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2, A1, U6, U4, U5 done, M1 but the tagline (2026-11-07); next U7.
+  U1, U3, U2, A1, U6, U4, U5 done, U7 but the measure, M1 but the tagline (2026-11-07); next A2.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -154,7 +154,7 @@ Progress board (tick here AND in ROADMAP):
 | U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☑ done |
 | U4 | Desired vs actual styled automatically | 4 | S | ☑ done |
 | U5 | SDI-style difference view in Compare | 4 | M | ☑ done |
-| U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ☐ |
+| U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ◐ 85 buttons / 59 controls - owner to choose the measure |
 | A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☐ |
 | A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☐ |
 | U8 | Navigation design only (no code) | 5 | S | ☐ |
@@ -348,6 +348,22 @@ Also (owner, 2026-11-07): the overview strip's automatic flags and the plots' lo
 amber triangle - make them look different (e.g. a small diamond for automatic flags, its tooltip
 starting "Automatic flag:"), with a short key in the strip.
 **Done when:** fewer than 70 visible buttons in the ArduPilot example, measured in e2e (107 today).
+**Status: done but the target's measure, 2026-11-07.** Measured as the owner did: visible `<button>` +
+`<select>` in the example (107 on main at 1.21.0; with U1-U6 106). Now 85 - of them 26 are the log's
+data shown as buttons (6 signal rows of the open group, the MODE stretches in the strip (6) and in the
+tab band (6), 4 flag rings, 3 timeline marks, ...) and 59 controls. Made: DataPanel groups closed by
+default above 40 signals unless a signal of the active tab is in them (above 200: all closed, as
+before); TemplateStrip folds its chips once something is plotted (`.tpl-strip-fold`); `.mode-btn.is-time`
+only on the active / hovered plot; StageBar ⋯ (`.stage-more`: Back, Clear all plots) instead of two
+icon-only buttons; the strip's how-to line until first used (pref `ovHintSeen`), then the head's
+tooltip; automatic flags as rings, *Auto flags* + "Automatic flag (found in the data):" (the log's
+events stay ▼); "1 file", plurals in "tplOpened" (`openedCounts`), "N points drawn for M samples" with a
+tooltip. Not changed (owner's earlier choices): the session open / save icons and the Inspector icon
+in the Recordings bar (F35), the language / theme buttons in the top bar. To reach < 70 *buttons*:
+the strip's MODE row could hide while the tab band shows the same signal (-7; the owner kept the strip,
+2026-11-07), or the stretches could be drawn as one clickable track instead of a button each (-12,
+fewer keyboard stops) - owner's choice. Tests: e2e test_less_clutter.py (controls < 70, buttons < 90);
+test_features (V09 wording, Clear via ⋯), test_workflows (⋯, the folded chips), test_template_tabs.
 
 ### Group 5 - maintenance / design
 
@@ -2597,3 +2613,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U6 ghost on the map / 3D from `s.pointer` · e2e test_hover_ghost, test_globe3d, test_map_objects, test_tab_band, test_owner_notes_1_20, test_object_frames, test_features -k legend/hover/cursor/map/geo · next: U4.
 - 2026-11-07 · U4 setpoints dashed and faded by themselves (desired.ts, `PlotSignal.dash`, Inspector ▸ Line) · e2e test_setpoint_style · next: U5.
 - 2026-11-07 · U5 the difference view in Compare (`trace`, DiffChart.tsx, ✓ / ✗) · pytest 981; e2e test_compare_diff, test_workflows -k compare, test_features -k compare/tol · next: U7.
+- 2026-11-07 · U7 less clutter (85 buttons / 59 controls in the ArduPilot example, from 107) · e2e test_less_clutter, test_features (all), test_workflows, test_template_tabs, test_object_templates, test_templates_recent_badfiles, test_overview_strip, test_fresh_user, test_plot_menus, test_tab_band, test_state_lanes · next: A2.

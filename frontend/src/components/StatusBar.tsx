@@ -21,9 +21,9 @@ export default function StatusBar() {
   const samples = runs.reduce((a, r) => a + r.samples, 0);
   return (
     <footer className="status" role="status">
-      <span>{t("filesOpen", { n: runs.length })}</span>
+      <span>{runs.length === 1 ? t("filesOpenOne") : t("filesOpen", { n: runs.length })}</span>
       <span>{t("samples", { n: fmtInt(samples, lang) })}</span>
-      {d && d.total > 0 && <span>{d.shown < d.total ? t("shownPoints", { n: fmtInt(d.shown, lang), total: fmtInt(d.total, lang) }) : t("allPoints")}</span>}
+      {d && d.total > 0 && <span title={d.shown < d.total ? t("shownPointsHint") : undefined}>{d.shown < d.total ? t("shownPoints", { n: fmtInt(d.shown, lang), total: fmtInt(d.total, lang) }) : t("allPoints")}</span>}
       {busy > 0 && <span>{t("loading")}</span>}
       <span style={{ flex: 1 }} />
       {streaming && <span className={`live${updating ? " on" : ""}`}>● {t("streamOn")} · {t("liveCount", { n: updating, total: followed.length })}

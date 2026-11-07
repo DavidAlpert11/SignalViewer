@@ -1460,9 +1460,10 @@ input.fx-input { width: 100%; }
 .ov-phase.picked { box-shadow: inset 0 0 0 2px var(--ink-strong), inset 0 0 0 3px var(--panel); }
 .ov-phase span { padding: 0 3px; white-space: nowrap; }
 .ov-view { position: absolute; top: 3px; height: 6px; background: var(--line-strong); border-radius: 3px; }
-.ov-flag { position: absolute; top: -2px; width: 14px; height: 14px; margin-left: -7px; border: 0; padding: 0; cursor: pointer;
-  clip-path: polygon(50% 100%, 0 0, 100% 0); background: var(--amber); color: var(--amber-ink); font-size: 0.6rem; line-height: 10px; }
-.ov-flag.bad { background: var(--danger); }
+/* U7: the app's automatic flags are rings - the log's own events are the ▼ triangles on the plots */
+.ov-flag { position: absolute; top: -1px; width: 12px; height: 12px; margin-left: -6px; padding: 0; cursor: pointer; border-radius: 50%;
+  border: 2px solid var(--muted); background: var(--panel); color: var(--ink); font-size: 0.55rem; line-height: 8px; font-weight: 700; }
+.ov-flag.bad { border-color: var(--danger); }
 .ov-sel-label { color: #E5534B; font-weight: 600; }
 .ov-selbar { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; padding-inline-start: 128px; }
 .ov-seltext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1576,3 +1577,6 @@ input.fx-input { width: 100%; }
 .diff-out-n { color: var(--danger); font-weight: 600; margin-inline-start: auto; }
 .diff-outs { list-style: none; margin: 4px 0 0; padding: 0; font-size: 0.8077rem; }
 .diff-outs li { padding: 1px 0; }
+
+/* U7: the plot type shows on the plot in use (or under the pointer), or when it is not a time plot */
+.plot:not(.active):not(:hover) .mode-btn.is-time { visibility: hidden; }
