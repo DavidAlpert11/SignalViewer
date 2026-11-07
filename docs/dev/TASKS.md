@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2, A1, U6, U4, U5, A2, A3 done, U7 but the measure, M1 but the tagline (2026-11-07); next U8.
+  All of the round done 2026-11-07 except: M1's tagline (owner's wording), U7's measure (owner), U8's choice (owner).
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -157,7 +157,7 @@ Progress board (tick here AND in ROADMAP):
 | U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ◐ 85 buttons / 59 controls - owner to choose the measure |
 | A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☑ done |
 | A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☑ done |
-| U8 | Navigation design only (no code) | 5 | S | ☐ |
+| U8 | Navigation design only (no code) | 5 | S | ☑ done - owner to choose |
 
 **Checked in the code (2026-11-07, at `5b0ed7a`):** `store.py` 1,495 lines; `i18n.ts` 3,528; `App.tsx`
 628. The built-in ArduPilot set is *ArduPilot · Full review* (`bi-ap-review`, no tabs of its own,
@@ -389,6 +389,10 @@ test_file_help_menus, test_wheel, test_timeline, test_workflows, test_features -
 ### U8 · Navigation design (no code) — S
 **Do:** sketches for unifying the Recordings / Sweeps tabs, the view tabs and the left rail. After U1.
 **Done when:** a design note with sketches in `docs/dev/`, for the owner to choose from.
+**Status: done 2026-11-07.** docs/dev/NAVIGATION.md: today's three tab-like rows and the rail as a first-time
+user meets them; Option A (the areas as a segmented switch, Fleet an area, one "+ ▾" for views, a
+fixed rail - recommended), Option B (an activity bar on the left, one row of chrome less), Option C
+(one strip for everything - rejected, why); three questions for the owner.
 
 ## Sweeps area plan (owner, 2026-10-31): S00–S08
 
@@ -2627,3 +2631,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U7 less clutter (85 buttons / 59 controls in the ArduPilot example, from 107) · e2e test_less_clutter, test_features (all), test_workflows, test_template_tabs, test_object_templates, test_templates_recent_badfiles, test_overview_strip, test_fresh_user, test_plot_menus, test_tab_band, test_state_lanes · next: A2.
 - 2026-11-07 · A2 i18n.ts -> i18n/ (11 area files + index, 1,785 keys, none over 600 lines) · tsc + build · next: A3.
 - 2026-11-07 · A3 App.tsx 632 -> 434 (Welcome.tsx, rail.ts, PlotGrid.tsx, shortcuts.ts) · e2e as listed in A3 · next: U8.
+- 2026-11-07 · U8 docs/dev/NAVIGATION.md (options A / B / C, A recommended, 3 questions) · next: the whole e2e suite, then the owner's answers (tagline, U7 measure, U8 option).
+- 2026-11-07 · The whole e2e suite (one process, 16 min here): 313 passed, 1 failed - test_offline_map::test_borders_over_the_offline_map_and_the_satellite_photos, which fails the same way on origin/main in this environment (the canvas the same after toggling borders off and on) - to check on the owner's machine. Backend 981 passed; mypy: only the 4 known errors in routes/analysis.py (numpy 2.5 here, also on main). Sent as one patch (U3..U8) on d4c0f61.

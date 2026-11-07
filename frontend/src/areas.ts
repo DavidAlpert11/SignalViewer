@@ -3,11 +3,11 @@
  * (TopBar) is shared; everything under it belongs to the area on screen.
  *
  * Adding an area:
- *   1. add its id to AreaId and an entry to AREAS (its label goes through i18n.ts, en + he);
+ *   1. add its id to AreaId and an entry to AREAS (its label goes through i18n/, en + he);
  *   2. give it a bar and a body in AREA_VIEWS (App.tsx) - lazy, so an area costs nothing until opened;
  *   3. its state goes into a slice of its own (store/slices/), never into the Recordings workspace
  *      (`ws`): sessions, templates and autosave of Recordings stay as they are (CLAUDE.md invariants);
- *   4. keyboard shortcuts of one area check `area` first (App.tsx, the keydown handler).
+ *   4. keyboard shortcuts of one area check `area` first (shortcuts.ts).
  * With one area the switcher shows only its name; a second entry here makes it a row of tabs. */
 import type { TKey } from "./i18n";
 

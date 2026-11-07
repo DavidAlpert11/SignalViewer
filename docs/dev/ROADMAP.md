@@ -812,5 +812,5 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [~] U7 Less clutter: help line as a tooltip, labelled or grouped icons, plurals, the points wording; < 70 visible buttons in the ArduPilot example; automatic flags and log events told apart (owner, 2026-11-07). 2026-11-07: 107 -> 85 buttons (59 controls + the log's data); the measure / the last step is the owner's choice (TASKS U7).
 - [x] A2 Split frontend/src/i18n.ts by area (same key count, no file > 600 lines). Done 2026-11-07: frontend/src/i18n/ (11 areas + index), 1,785 keys.
 - [x] A3 App.tsx cleanup: Welcome, RAIL, EXAMPLE_* to their own files; App.tsx < 450 lines. Done 2026-11-07: 434 lines; Welcome.tsx, rail.ts, PlotGrid.tsx, shortcuts.ts.
-- [ ] U8 Navigation design only (no code): Recordings / Sweeps, view tabs, left rail.
+- [x] U8 Navigation design only (no code): Recordings / Sweeps, view tabs, left rail. Done 2026-11-07: docs/dev/NAVIGATION.md (A recommended); the owner chooses.
 - Not decided (owner's approval first): M2 flight summary card; M3 forum-help export; finding Mission Planner / QGC log folders; opt-in update check; renaming.
