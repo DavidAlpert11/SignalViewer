@@ -1,7 +1,7 @@
 import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
-import { actions, shownSpan, useApp, type MapObject, type Plot } from "../store";
+import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { drawObjectIcon } from "./mapIcons";
 import { colorRuns, objectAt, trackColors, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
@@ -103,6 +103,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const runs = useApp((s) => s.runs);
   const dataVersion = useApp((s) => s.dataVersion);
   const cursor = useApp((s) => s.cursor);
+  // U6: the time under the pointer over a time plot of this tab - a ghost of each object there
+  const pointerT = useApp((s) => (s.pointer && activeTab(s.ws).plots.some((p) => p.id === s.pointer!.plotId) ? s.pointer.t : null));
   const streaming = useApp((s) => s.streaming);
   const cvals = useApp((s) => s.cvals);
   const playMode = useApp((s) => s.playMode);
@@ -476,10 +478,16 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         stroke(a0, a1, cols ? 3 : 2);
       }
       const tNow = trackTime(tr, cursor.on ? cursor.t1 : null, streaming);
+      const sz = (o.size ?? 26) * uiScale();
+      const ghost = pointerT !== null && Math.abs(pointerT - tNow) > 1e-9 ? objectAt(tr, pointerT, o.angleUnit) : null;
+      if (ghost) {                    // where it was at the moment under the pointer: faint, no name
+        ctx.save(); ctx.globalAlpha = 0.45;
+        drawObjectIcon(ctx, o.kind, X(mx(ghost.lon)), Y(my(ghost.lat)), ghost.heading, sz * 0.9, o.color, dark);
+        ctx.restore();
+      }
       const st = objectAt(tr, tNow, o.angleUnit);
       if (!st) continue;
       const px = X(mx(st.lon)), py = Y(my(st.lat));
-      const sz = (o.size ?? 26) * uiScale();
       drawObjectIcon(ctx, o.kind, px, py, st.heading, sz, o.color, dark);
       ctx.font = `600 ${Math.round(11.5 * uiScale())}px ${family}`;
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -508,7 +516,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     ctx.fillStyle = veil;
     ctx.fillRect(W - aw - 10, H - 16, aw + 10, 16);
     ctx.fillStyle = dark ? "#9fb0c3" : "#3d4650"; ctx.fillText(att, W - 5, H - 3);
-  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders]);
+  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
 
   /* ------------------------- zoom / pan / readout ------------------------ */
   const viewRef = useRef(view);

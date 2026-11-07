@@ -655,8 +655,18 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         setCursor: [
           (u) => {
             const idx = u.cursor.idx;
-            if (idx === null || idx === undefined || cursorRef.current.on) {
+            if (idx === null || idx === undefined) {
+              const st = useApp.getState();
+              if (st.hover?.plotId === plot.id || st.pointer?.plotId === plot.id) useApp.setState({ hover: null, pointer: null });
+              hoverIdx = -1;
+              return;
+            }
+            if (cursorRef.current.on) {
+              // U6: the cursors keep the legend's values; the pointer's time still goes to the map / 3D
               if (useApp.getState().hover?.plotId === plot.id) useApp.setState({ hover: null });
+              const tp = (u.data[0] as number[])[idx];
+              if (useApp.getState().pointer?.t !== tp) useApp.setState({ pointer: { plotId: plot.id, t: tp } });
+              hoverIdx = -1;
               return;
             }
             if (hoverIdx === idx) return;
@@ -665,6 +675,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
             hoverRaf = requestAnimationFrame(() => {
               hoverRaf = 0;
               const i = hoverIdx;
+              if (i < 0) return;
               const xs = u.data[0] as number[];
               const vals: Record<string, number | null> = {};
               sigs.forEach((s, k) => {
@@ -674,7 +685,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
                 for (let d = 1; (v === undefined) && d < 64; d++) v = ys[i - d] ?? ys[i + d];
                 vals[s.sig] = v ?? null;
               });
-              useApp.setState({ hover: { plotId: plot.id, t: xs[i], vals } });
+              useApp.setState({ hover: { plotId: plot.id, t: xs[i], vals }, pointer: { plotId: plot.id, t: xs[i] } });
             });
           },
         ],
