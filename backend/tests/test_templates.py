@@ -111,3 +111,27 @@ def test_first_run_default_folder_is_available(home, monkeypatch):
     monkeypatch.setattr(prefs, "TEMPLATE_DIR", str(gone))
     r = client.get("/api/templates").json()
     assert not r["exists"] and not gone.exists()
+
+
+def test_default_tabs_optional_and_cleaned(home):
+    """U1: `defaultTabs` (the tabs opened without asking) is optional; junk is dropped, never an error."""
+    two = [TAB, {**TAB, "name": "U"}]
+    a = client.post("/api/templates", json={"template": tpl("Two", tabs=two, defaultTabs=["U", "U", "", 3])}).json()["template"]
+    assert a["defaultTabs"] == ["U"]
+    b = client.post("/api/templates", json={"template": tpl("Old", tabs=two)}).json()["template"]
+    assert "defaultTabs" not in b                                   # an old template stays as it was
+    c = client.post("/api/templates", json={"template": tpl("Bad", tabs=two, defaultTabs="U")}).json()["template"]
+    assert "defaultTabs" not in c
+    # resolve (also the command line's batch reports) still opens every tab when nothing is chosen
+    import svcore.templates as T
+    assert len(T.expand(a, [a])["tabs"]) == 2
+
+
+def test_builtin_reviews_name_existing_default_tabs():
+    """The built-in full reviews open Attitude + Flight by default (owner, 2026-11-07); the names must exist."""
+    import svcore.templates as T
+    b = T.builtin_templates()
+    for tid in ("bi-ap-review", "bi-mav-review"):
+        t = next(x for x in b if x["id"] == tid)
+        names = [x["name"] for x in T.expand(t, b)["tabs"]]
+        assert t["defaultTabs"] == ["Attitude", "Flight"] and set(t["defaultTabs"]) <= set(names)

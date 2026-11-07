@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **A template opens its default tabs, the rest a click away** (U1): a template can name the tabs it opens by default (*Opened by default* in the template editor; saved as the optional `defaultTabs`). Right after a file loads (and for the examples) only those open, with no question - the built-in *ArduPilot · Full review* and *MAVLink · Full review* open **Attitude** and **Flight** - and the other tabs wait in **+N more from <template> ▾** beside the tab bar's +: open one, *Open all*, or *Don't offer these*; Undo puts an opened tab back on offer. A template chip with several tabs asks which tabs (All / None, the default ones checked); *Settings ▸ Opening a template ▸ Default tabs* skips the question. The library pre-checks the default tabs and has All / None. Templates and sessions without `defaultTabs` open every tab, as before.
+
 ## 1.21.0 – 2026-11-05
 
 Highlights: tools from ArduPilot's own web tools, inside the app and offline - **Filter review**

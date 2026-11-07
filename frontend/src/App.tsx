@@ -51,6 +51,7 @@ const Help = lazyPreload(() => import("./components/Help"));
 const GuideDialog = lazyPreload(() => import("./components/GuideDialog"));
 const SettingsDialog = lazyPreload(() => import("./components/SettingsDialog"));
 import { AxisDialog, ContextMenu, escapeTaken, ModalFocus, PromptDialog } from "./components/Overlays";
+import TabChoiceDialog from "./components/TabChoice";
 const ReportPreview = lazyPreload(() => import("./components/ReportPreview"));
 const CompareTable = lazyPreload(() => import("./components/CompareTable"));
 
@@ -621,6 +622,7 @@ export default function App() {
       <ContextMenu />
       <ModalFocus />
       <PromptDialog />
+      <TabChoiceDialog />
       <AxisDialog />
       {dropping && <div className="drop-overlay"><div>{t("dropOverlay")}</div></div>}
     </div>

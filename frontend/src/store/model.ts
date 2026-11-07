@@ -85,6 +85,8 @@ export interface SavedView { tab: string; ranges: Record<string, [number, number
 /** kind: what the step was (the list groups by it); older sessions have none */
 export type StepKind = "condition" | "changed" | "lag" | "differ" | "overlay" | "finding" | "error";
 export interface JournalStep { id: string; at: number; text: string; view?: SavedView; include: boolean; kind?: StepKind }
+/** U1: the rest of a template's tabs - its id, the files its slots were given, the tab names left. */
+export interface MoreTabs { tpl: string; name: string; builtin?: boolean; bind: Record<string, string>; tabs: string[] }
 export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta; notes?: Note[];
   /** State lanes on every time plot of every tab (signal ids), beside each tab's own sharedStates. */
   globalStates?: string[];
@@ -98,6 +100,9 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   /** Groups of signals the user made and named in the signal list (owner, 2026-11-03); "/" in a
    *  name nests it ("Nav/IMU" is inside "Nav"). Signals of any open file and made signals. */
   sigGroups?: SigGroupDef[];
+  /** U1: tabs of a template that were not opened with it, offered by "+N more from <template>"
+   *  beside the tab bar's + (optional: older sessions have none). */
+  moreTabs?: MoreTabs[];
 }
 export interface SigGroupDef { name: string; sigs: string[] }
 /** A row of the overview strip: a state signal by NAME (every file), or a named condition. */

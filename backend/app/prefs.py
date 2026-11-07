@@ -121,7 +121,7 @@ def forget_recent(path: str) -> None:
 # One JSON file per template in ~/.signalviewer/templates, so templates can be edited, shared,
 # backed up, imported and exported. Format (version 2):
 #   {version: 2, id, name, description, group, slots: [{id, name, formats}], tabs: [tab...],
-#    includes: [template ids], saved}
+#    includes: [template ids], defaultTabs: [tab names] (optional, U1), saved}
 # A tab: {name, rows, cols, rowSizes, colSizes, linkX, linkY, lanes: [{name, slot}], plots: [...]};
 # a plot's signals are stored by NAME with the slot (file) they come from.
 DEFAULT_TEMPLATE_DIR = os.path.join(APP_DIR, "templates")
@@ -223,6 +223,14 @@ def _validate(t: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(tab, dict) or not isinstance(tab.get("plots"), list):
             raise ValueError("A tab of the template has no plots list.")
     t["name"] = str(t["name"]).strip()
+    # U1: the tabs opened without asking (by name); optional - absent means every tab, as before
+    dt = t.get("defaultTabs")
+    if dt is not None:
+        names = [str(x) for x in dt if isinstance(x, str) and x.strip()] if isinstance(dt, list) else []
+        if names:
+            t["defaultTabs"] = list(dict.fromkeys(names))
+        else:
+            t.pop("defaultTabs", None)
     return t
 
 
