@@ -120,6 +120,73 @@ def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_p
 PROFILE_BINS = 32
 
 
+def _band(base: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float], tol_k: int,
+          period: Optional[float]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """U5: the tolerance band around the baseline, as the allowed difference (low, high) at each
+    grid sample - the same rule as `metrics` (the larger of abs / pct, the time tolerance's
+    lowest / highest baseline within +-tol_k samples). None without a tolerance."""
+    if tol_abs is None and tol_pct is None and not tol_k:
+        return None
+
+    def widen(v: np.ndarray) -> np.ndarray:
+        w = np.zeros(len(v))
+        if tol_abs is not None:
+            w = np.maximum(w, abs(tol_abs))
+        if tol_pct is not None:
+            w = np.maximum(w, np.abs(v) * abs(tol_pct) / 100.0)
+        return w
+    if tol_k > 0 and not period:
+        from scipy.ndimage import maximum_filter1d, minimum_filter1d
+        lo_b = minimum_filter1d(np.where(np.isfinite(base), base, np.inf), 2 * tol_k + 1, mode="nearest")
+        hi_b = maximum_filter1d(np.where(np.isfinite(base), base, -np.inf), 2 * tol_k + 1, mode="nearest")
+        return lo_b - widen(lo_b) - base, hi_b + widen(hi_b) - base
+    w = widen(base)
+    return -w, w
+
+
+def difference_trace(grid: np.ndarray, base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float],
+                     period: Optional[float], tol_k: int, points: int) -> Dict:
+    """U5 (SDI-style difference view): run - baseline over time with the tolerance band and the
+    stretches outside it. The curve is reduced to about `points` buckets (each keeps its lowest and
+    highest difference, so a spike stays); the stretches outside are found at full resolution."""
+    ok = np.isfinite(base) & np.isfinite(other)
+    d = np.where(ok, _wrap(other - base, period) if period else other - base, np.nan)
+    band = _band(base, tol_abs, tol_pct, tol_k, period)
+    out: List[List[float]] = []
+    if band is not None:
+        bad = ok & ((d < band[0]) | (d > band[1]))
+        edges = np.flatnonzero(np.diff(np.concatenate([[0], bad.astype(np.int8), [0]])))
+        # stretches a hair apart (noise around the band's edge) are one: the gap must be at least
+        # 0.2 % of the comparison to count - else a noisy signal listed hundreds of slivers
+        gap = 0.002 * float(grid[-1] - grid[0]) if len(grid) > 1 else 0.0
+        for a, b in zip(edges[::2], edges[1::2]):
+            t_a, t_b = float(grid[a]), float(grid[min(b, len(grid)) - 1])
+            if out and t_a - out[-1][1] <= gap:
+                out[-1][1] = t_b
+            else:
+                out.append([t_a, t_b])
+    n = len(grid)
+    k = max(1, int(np.ceil(n / max(points, 1))))
+    t_out: List[float] = []
+    d_out: List[Optional[float]] = []
+    lo_out: List[Optional[float]] = []
+    hi_out: List[Optional[float]] = []
+    r = lambda v: float(f"{v:.6g}") if np.isfinite(v) else None   # noqa: E731
+    for i in range(0, n, k):
+        sl = slice(i, min(n, i + k))
+        seg = d[sl]
+        fin = np.isfinite(seg)
+        lo_b = float(np.min(band[0][sl])) if band is not None else np.nan
+        hi_b = float(np.max(band[1][sl])) if band is not None else np.nan
+        if not fin.any():
+            t_out.append(float(grid[i])); d_out.append(None); lo_out.append(r(lo_b)); hi_out.append(r(hi_b))
+            continue
+        j_lo, j_hi = int(np.nanargmin(np.where(fin, seg, np.inf))), int(np.nanargmax(np.where(fin, seg, -np.inf)))
+        for j in sorted({j_lo, j_hi}):
+            t_out.append(float(grid[i + j])); d_out.append(r(float(seg[j]))); lo_out.append(r(lo_b)); hi_out.append(r(hi_b))
+    return {"t": t_out, "d": d_out, **({"lo": lo_out, "hi": hi_out} if band is not None else {}), "out": out[:2000]}
+
+
 def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS, period: Optional[float] = None) -> List[Optional[float]]:
     """RMS of (other - base) in `bins` equal time slices, as % of the baseline's range
     (None for a slice with no valid sample: drawn as a gap)."""
@@ -140,8 +207,9 @@ def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS, 
 
 def compare(series: List[Tuple[str, np.ndarray, np.ndarray]], baseline: str, alignment: str = "linear",
             tol_abs: Optional[float] = None, tol_pct: Optional[float] = None, max_points: int = 200_000,
-            tol_time: Optional[float] = None) -> Dict:
-    """series: [(signal id, time, data)]; baseline: a signal id from series, or "mean"."""
+            tol_time: Optional[float] = None, trace: int = 0) -> Dict:
+    """series: [(signal id, time, data)]; baseline: a signal id from series, or "mean". trace > 0: each
+    row also has its difference over time with the tolerance band (U5, `difference_trace`)."""
     if len(series) < 2:
         raise ValueError("Choose at least two runs to compare.")
     lo = max(float(t[0]) for _, t, _ in series)
@@ -170,6 +238,8 @@ def compare(series: List[Tuple[str, np.ndarray, np.ndarray]], baseline: str, ali
         m = metrics(base, aligned[sid], tol_abs, tol_pct, period, tol_k)
         if m.get("valid"):
             m["profile"] = diff_profile(base, aligned[sid], period=period)
+            if trace > 0:
+                m["trace"] = difference_trace(grid, base, aligned[sid], tol_abs, tol_pct, period, tol_k, trace)
         rows.append({"id": sid, **m})
     return {"overlap": [lo, hi], "gridPoints": int(len(grid)), "baseline": baseline if baseline == "mean" else ref[0], "rows": rows,
             **({"angle": period} if period else {})}

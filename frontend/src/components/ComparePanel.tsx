@@ -1,3 +1,4 @@
+import DiffChart from "./DiffChart";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CompareAllRow, type CompareRow } from "../api";
 import { activeTab, fileLabel, fileMark, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
@@ -174,7 +175,7 @@ export default function ComparePanel() {
     setBusy(true);
     try {
       const base = baseline !== "mean" && runsOf.includes(baseline) ? sidIn(baseline, name) : "mean";
-      const r = await api.compare(runsOf.map((c) => sidIn(c, name)), base, alignment, num(tolAbs), num(tolPct), segment?.windows, num(tolTime));
+      const r = await api.compare(runsOf.map((c) => sidIn(c, name)), base, alignment, num(tolAbs), num(tolPct), segment?.windows, num(tolTime), 600);
       setRows(r.rows);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); setRows(null); }
     finally { setBusy(false); }
@@ -346,7 +347,10 @@ export default function ComparePanel() {
                 return (
                   <button key={x.name} role="listitem" className={`sim-row${signal === x.name ? " on" : ""}`} onClick={(e) => pick(x, e)}
                     title={`${x.name}\n${t("errorPct")}: ${fmtNum(x.worstRmsPct ?? null, lang, 3)}% · RMS Δ ${fmtNum(x.worstRmsDiff ?? null, lang, 4)} · max |Δ| ${fmtNum(x.worstMaxAbs ?? null, lang, 4)} · ${t("corr")} ${fmtNum(x.minCorrelation ?? null, lang, 4)}\n${t("simRowHint")}`}>
-                    <span className="sim-name">{x.name}{x.pass === false && <span className="sim-fail" aria-label={t("fail")}>!</span>}</span>
+                    <span className="sim-name">{x.name}
+                      {/* U5: with a tolerance, every row says pass / fail */}
+                      {x.pass === false && <span className="sim-fail" aria-label={t("fail")} title={t("fail")}>✗</span>}
+                      {x.pass === true && <span className="sim-pass" aria-label={t("pass")} title={t("pass")}>✓</span>}</span>
                     <span className={`sim-pct ${b}`}>{fmtNum(x.matchPct ?? 0, lang, 3)}%</span>
                     <span className="sim-bar"><span className={b} style={{ width: `${Math.max(2, x.matchPct ?? 0)}%` }} /></span>
                     <Spark values={x.profile} bucket={b} />
@@ -385,6 +389,9 @@ export default function ComparePanel() {
                 </tbody>
               ))}
             </table>
+            {/* U5: where and why it fails - the difference over time with the tolerance band */}
+            <DiffChart segment={!!segment} traces={rows.filter((r) => r.trace).map((r) => ({ id: r.id, color: runColor(r.id.split("/")[0]),
+              name: runName(r.id.split("/")[0]), trace: r.trace! }))} />
             <div className="arow wrap">
               {!segment && <button className="btn outline" disabled={busy} onClick={plotDiffs}>{t("plotDiffs")}</button>}
             </div>

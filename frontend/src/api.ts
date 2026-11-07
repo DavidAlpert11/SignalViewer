@@ -102,7 +102,10 @@ export interface Series {
 export interface Stats { min: number; max: number; mean: number; std: number; rms: number; peak_to_peak: number; samples: number; duration: number; segments?: number;
   /** A3: "time" when the samples are unevenly spaced and mean / RMS / std are weighted by time; gaps: dropouts not weighted */
   weighting?: "time"; gaps?: number }
-export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean }
+/** U5: a run's difference from the baseline over time (t, d), the tolerance band as an allowed
+ *  difference (lo, hi; absent without a tolerance) and the stretches outside it */
+export interface DiffTrace { t: number[]; d: (number | null)[]; lo?: (number | null)[]; hi?: (number | null)[]; out: [number, number][] }
+export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean; trace?: DiffTrace }
 export interface CompareFileStats { run: string; mean: number | null; std: number | null; min: number | null; max: number | null; rms: number | null }
 export interface CompareDiff { run: string; rmsDiff: number; rmsPct: number; maxAbsDiff: number; meanDiff: number; stdDiff: number; correlation: number; withinPct?: number | null; pass?: boolean | null }
 export interface CompareAllRow {
@@ -365,8 +368,8 @@ export const api = {
   places: () => call<FsPlaces>("/api/fs/places"),
   setFavourites: (paths: string[]) => call<{ favourites: { path: string; exists: boolean }[] }>("/api/fs/favourites", { paths }, "PUT"),
   compare: (signals: string[], baseline: string, alignment: string, tolAbs: number | null, tolPct: number | null,
-    windows?: Record<string, [number, number]> | null, tolTime: number | null = null) =>
-    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct, tolTime, windows: windows ?? null }),
+    windows?: Record<string, [number, number]> | null, tolTime: number | null = null, trace = 0) =>
+    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct, tolTime, windows: windows ?? null, trace }),
   segmentsAcross: (runs: string[], state: string, value: number, occurrence: number) =>
     call<{ windows: import("./segments").SegWindow[] }>("/api/segments/across", { runs, state, value, occurrence }),
   compareAll: (runs: string[], baselineRun: string, alignment: string, tolAbs: number | null, tolPct: number | null) =>

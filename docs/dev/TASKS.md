@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2, A1, U6, U4 done, M1 but the tagline (2026-11-07); next U5.
+  U1, U3, U2, A1, U6, U4, U5 done, M1 but the tagline (2026-11-07); next U7.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -153,7 +153,7 @@ Progress board (tick here AND in ROADMAP):
 | A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☑ done |
 | U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☑ done |
 | U4 | Desired vs actual styled automatically | 4 | S | ☑ done |
-| U5 | SDI-style difference view in Compare | 4 | M | ☐ |
+| U5 | SDI-style difference view in Compare | 4 | M | ☑ done |
 | U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ☐ |
 | A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☐ |
 | A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☐ |
@@ -327,6 +327,18 @@ open). Tests: e2e test_setpoint_style.py.
 out-of-tolerance regions in red, ✓ / ✗ per signal in the list. First check what the current "difference
 profile" in ComparePanel shows.
 **Done when:** the 3-car example shows where and why a signal fails.
+**Status: done 2026-11-07.** Found: the list's "difference profile" is a 32-bin spark of |Δ| (its shape
+only, no tolerance, no time); the detail had numbers per run and *Plot differences* (derived Δ
+signals in a new plot, no band); a failing row had "!", a passing one nothing. Made: backend
+`compare(..., trace=N)` / `/api/compare` `trace` -> each row's `trace` {t, d, lo, hi, out}
+(`difference_trace`, `_band`: the same rule as `metrics` - max(abs, pct x |baseline|), the time
+tolerance's envelope; min / max buckets keep spikes; `out` at full resolution, gaps under 0.2 % of the
+span merged); `DiffChart.tsx` in the detail (band green, out red, zero line, a line per run in its
+colour, click = cursor; the stretches listed, a click = both cursors + zoom; off in a segment
+comparison); ✓ / ✗ per row. The 3-car example, ±2 km/h on Speed: run_014 fails during the
+accelerations (it lags), run_013 only in slivers. Tests: test_compare_trace.py (3), e2e
+test_compare_diff.py; test_features P01-P08 reads names with ✓ / ✗ (passed 3 of 4 runs here on the
+first try, then every time - timing).
 
 ### U7 · Less clutter — M
 **Do:** the plot-header help line ("Click: pick · Ctrl or Shift+click…") → a tooltip / first time only;
@@ -2584,3 +2596,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · A1 store.py 1,495 -> 850 (svcore/investigate.py, app/livewatch.py, app/filecheck.py, svcore/transforms.py) · pytest 978, test_investigate (5); Investigate / live e2e · next: U6.
 - 2026-11-07 · U6 ghost on the map / 3D from `s.pointer` · e2e test_hover_ghost, test_globe3d, test_map_objects, test_tab_band, test_owner_notes_1_20, test_object_frames, test_features -k legend/hover/cursor/map/geo · next: U4.
 - 2026-11-07 · U4 setpoints dashed and faded by themselves (desired.ts, `PlotSignal.dash`, Inspector ▸ Line) · e2e test_setpoint_style · next: U5.
+- 2026-11-07 · U5 the difference view in Compare (`trace`, DiffChart.tsx, ✓ / ✗) · pytest 981; e2e test_compare_diff, test_workflows -k compare, test_features -k compare/tol · next: U7.
