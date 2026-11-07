@@ -5,6 +5,7 @@ import { actions, activeTab, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey,
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
+import { fade, lineLook, setpointsIn } from "../desired";
 import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
@@ -147,7 +148,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   }, [series, plot.id]);
 
   /* ------------------------- build aligned data ------------------------- */
-  const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}:${s.offset}:${s.state ? 1 : 0}:${s.tOffset ?? 0}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}:${s.axis ?? ""}`).join("|");
+  const styleKey = plot.signals.map((s) => `${s.sig}:${s.color}:${s.width}:${s.scale}:${s.offset}:${s.state ? 1 : 0}:${s.tOffset ?? 0}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}:${s.axis ?? ""}:${s.dash ?? ""}`).join("|");
   const aligned = useMemo(() => {
     const ok = plot.signals
       .map((ps) => ({ ps, s: series.find((x) => x.id === ps.sig) }))
@@ -179,7 +180,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const structKey = aligned
     // limits too: they are drawn by a hook that reads the sigs the plot was built with - a new limit
     // alone set no new data, so its dashed line never appeared (only after another style change)
-    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}:${s.axis === "right" ? "R" : ""}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}`).join("|") + `|${aligned.previewLabels.join("|")}`
+    ? aligned.sigs.map((s) => `${s.sig}:${s.color}:${s.width}:${s.state ? 1 : 0}:${s.axis === "right" ? "R" : ""}:${s.limits?.lo ?? ""}:${s.limits?.hi ?? ""}:${s.dash ?? ""}`).join("|") + `|${aligned.previewLabels.join("|")}`
     : "none";
   /* a dense line at the default width is drawn 1 device pixel wide (the canvas fast path: a wider
      stroke over a dense zig-zag cost ~7x per redraw without a GPU). A width the user chose is always
@@ -220,6 +221,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const pt = PLOT_THEME[theme];
     const axis = axisStyle(theme);
     const sigs = aligned.sigs;
+    const setpoints = setpointsIn(sigs);
 
     /* State signals: one lane each, a coloured block per state with its text (or value) inside.
        Shared with ordinary lines: thin lanes along the bottom (the value axis makes room for them).
@@ -638,7 +640,9 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       series: [
         {},
         ...sigs.map((s, k) => ({
-          stroke: s.color,
+          // U4: a setpoint beside its measured value dashed and faded (unless styled by hand)
+          ...(() => { const lk = lineLook(s, setpoints); return { stroke: lk.faded ? fade(s.color, 0.72) : s.color,
+            ...(lk.dashed ? { dash: [6 * dpr(), 4 * dpr()] } : {}) }; })(),
           scale: onRight(s) ? "y2" : "y",
           width: lineWidth(aligned, k),
           spanGaps: false,

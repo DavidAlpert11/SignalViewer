@@ -1558,3 +1558,6 @@ input.fx-input { width: 100%; }
   transform: rotate(45deg); cursor: pointer; background: var(--amber); z-index: 1; }
 .tl-finding.error { background: var(--danger); }
 .tl-finding:hover, .tl-finding:focus-visible { transform: rotate(45deg) scale(1.4); outline: none; }
+
+/* U4: a dashed line's swatch in the legend: the dash in its colour */
+.sw.dashed { width: 14px !important; background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 8px) !important; }
