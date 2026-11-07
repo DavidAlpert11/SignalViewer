@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2, A1, U6 done, M1 but the tagline (2026-11-07); next U4.
+  U1, U3, U2, A1, U6, U4 done, M1 but the tagline (2026-11-07); next U5.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -152,7 +152,7 @@ Progress board (tick here AND in ROADMAP):
 | M1 | Hero image, social preview, tagline | 2 | S | ◐ tagline waits for the owner's OK |
 | A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☑ done |
 | U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☑ done |
-| U4 | Desired vs actual styled automatically | 4 | S | ☐ |
+| U4 | Desired vs actual styled automatically | 4 | S | ☑ done |
 | U5 | SDI-style difference view in Compare | 4 | M | ☐ |
 | U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ☐ |
 | A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☐ |
@@ -314,6 +314,13 @@ template would make it show by default (owner's choice). Tests: e2e test_hover_g
 muted automatically; a style set by hand wins. First check whether the templates already set styles.
 **Done when:** the ArduPilot Attitude tab shows desired dashed without a template change; a manual style
 is kept; sessions compatible.
+**Status: done 2026-11-07.** Found: the built-in templates give colours (desired blue #3D8BFD, actual
+amber #F2A93B) and widths, no dash - and a plot line had no dash at all. Made: `desired.ts`
+(`actualNames`: Des<X> / <X>Des / <x>_sp / <topic>_setpoint.<f> -> the measured name, same file, unit
+ignored; `setpointsIn`, `lineLook`, `fade`), `PlotSignal.dash` (optional: true / false by hand, absent =
+automatic), TimeChart draws dash + 72 % opacity, the legend swatch dashed, Inspector ▸ Line (Auto
+(dashed / solid) / Solid / Dashed). Templates do not store `dash` (the automatic look comes back on
+open). Tests: e2e test_setpoint_style.py.
 
 ### U5 · SDI-style difference view in Compare — M
 **Do:** selecting a signal shows a difference plot under the overlay with the existing tolerance band,
@@ -2576,3 +2583,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · M1 hero (img_00_hero, 3200 x 1800 dark), social preview cropped from it, README order; the tagline waits for the owner · next: A1.
 - 2026-11-07 · A1 store.py 1,495 -> 850 (svcore/investigate.py, app/livewatch.py, app/filecheck.py, svcore/transforms.py) · pytest 978, test_investigate (5); Investigate / live e2e · next: U6.
 - 2026-11-07 · U6 ghost on the map / 3D from `s.pointer` · e2e test_hover_ghost, test_globe3d, test_map_objects, test_tab_band, test_owner_notes_1_20, test_object_frames, test_features -k legend/hover/cursor/map/geo · next: U4.
+- 2026-11-07 · U4 setpoints dashed and faded by themselves (desired.ts, `PlotSignal.dash`, Inspector ▸ Line) · e2e test_setpoint_style · next: U5.

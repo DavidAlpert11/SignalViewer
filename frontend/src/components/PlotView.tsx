@@ -28,6 +28,7 @@ export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
 import { openMenu } from "./Overlays";
 import { laneMenuItems } from "../lanes";
+import { lineLook, setpointsIn } from "../desired";
 import OccChart from "./OccChart";
 
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
@@ -109,6 +110,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     } catch { useApp.getState().toast({ kind: "error", text: t("copyFailed") }); }
   };
   const mode: PlotMode = plot.mode ?? "time";
+  const setpoints = setpointsIn(plot.signals);      // U4: drawn dashed (and the legend shows it)
   /* T49 item 12 / F25: the plot's options live in the app's one menu (drawn above everything, so a
      short plot no longer cuts them off); the ⋯ button and a right-click on the plot open them */
   const plotItems = (): MenuItem[] => [
@@ -312,7 +314,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                   } else useApp.setState({ selected: me, multi: [], inspectorOpen: true });
                 }}
                 onKeyDown={(e) => { if (e.key === "Delete") actions.removeSignal(plot.id, s.sig); }}>
-                <span className="sw" style={{ background: s.color }} />
+                {(() => { const lk = mode === "time" ? lineLook(s, setpoints) : { dashed: false, faded: false };   // U4: the line as drawn
+                  return <span className={`sw${lk.dashed ? " dashed" : ""}`} style={lk.dashed ? { color: s.color, opacity: lk.faded ? 0.75 : 1 } : { background: s.color }} />; })()}
                 {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
                 <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
                 {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}

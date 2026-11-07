@@ -8,7 +8,10 @@ export interface PlotSignal { sig: string; color: string; width: number; scale: 
   /** T47: on the plot's second value axis (right); absent = the left axis */
   axis?: "right";
   /** T13: pass / fail limits on the plotted value (null / absent = no limit on that side) */
-  limits?: { lo?: number | null; hi?: number | null } }  // state: drawn as state markers only (no line)
+  limits?: { lo?: number | null; hi?: number | null };
+  /** U4: dashed (true) or solid (false) by hand; absent = automatic (a setpoint beside its measured
+   *  value is dashed and faded - desired.ts) */
+  dash?: boolean }  // state: drawn as state markers only (no line)
 export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz" | "video" | "occ" | "step";   // step: 1.21 step response (PID Review)   // occ: a condition's stretches together (investigation step 3)   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c); video: T15
 export interface Plot {
   id: string; title: string; signals: PlotSignal[];

@@ -4,6 +4,7 @@ import type { FindingStatus } from "../store";
 import { useEffect, useState } from "react";
 import { api, type LimitResult, type Stats } from "../api";
 import { fileMark, showFileTags, actions, activeTab, rangeKey, signalName, TRACE_COLORS, useApp, type PlotSignal } from "../store";
+import { setpointsIn } from "../desired";
 import { fmtInt, fmtNum, useT } from "../i18n";
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { Icon } from "../icons";
@@ -402,6 +403,20 @@ export default function Inspector() {
             {!sel.state && (lazyDiscrete[sel.sig] || runs.some((r) => r.signals.some((x) => x.id === sel.sig && x.discrete))) &&
               <p className="hint" style={{ margin: "-2px 0 10px", fontSize: 12 }}>{t("looksDiscrete")}</p>}
             {sel.state && <Segments sig={sel.sig} tOffset={sel.tOffset ?? 0} />}
+            {!sel.state && (() => {
+              // U4: a setpoint beside its measured value is dashed by itself; Solid / Dashed by hand win
+              const v = sel.dash === true ? "dashed" : sel.dash === false ? "solid" : "auto";
+              const plotSigs = ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === selected.plotId)?.signals ?? [];
+              const autoDashed = setpointsIn(plotSigs).has(sel.sig);
+              return <div className="field"><label>{t("lineStyle")}</label>
+                <span className="seg" title={t("lineAutoHint")}>
+                  {(["auto", "solid", "dashed"] as const).map((k) => (
+                    <button key={k} className={v === k ? "on" : ""} onClick={() => actions.updateSignal(selected.plotId, sel.sig,
+                      { dash: k === "auto" ? undefined : k === "dashed" })}>
+                      {k === "auto" ? `${t("lineAuto")} (${autoDashed ? t("lineDashed") : t("lineSolid")})` : t(k === "solid" ? "lineSolid" : "lineDashed")}</button>
+                  ))}
+                </span></div>;
+            })()}
             <div className="field"><label>{t("width")}</label>
               <NumInput label={t("width")} value={sel.width} onCommit={(v) => actions.updateSignal(selected.plotId, sel.sig, { width: Math.max(0.5, Math.min(6, v)) })} /></div>
             <div className="field"><label>{t("scale")}</label>
