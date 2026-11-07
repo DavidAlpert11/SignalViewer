@@ -149,12 +149,12 @@ Progress board (tick here AND in ROADMAP):
 | U1 | Choose which tabs a template opens (`defaultTabs`, "+N more") | 1 | M | ☑ done |
 | U3 | One flight-mode band per tab | 1 | M | ☑ done |
 | U2 | Health findings must not cover data | 1 | S/M | ☑ done |
-| M1 | Hero image, social preview, tagline | 2 | S | ◐ tagline waits for the owner's OK |
+| M1 | Hero image, social preview, tagline | 2 | S | ☑ done |
 | A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☑ done |
 | U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☑ done |
 | U4 | Desired vs actual styled automatically | 4 | S | ☑ done |
 | U5 | SDI-style difference view in Compare | 4 | M | ☑ done |
-| U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ◐ 85 buttons / 59 controls - owner to choose the measure |
+| U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ☑ done (owner: controls < 70; the strip's rows stay) |
 | A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☑ done |
 | A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☑ done |
 | U8 | Navigation design only (no code) | 5 | S | ☑ done - owner to choose |
@@ -258,7 +258,8 @@ Tests: test_workflows (ArduPilot example), test_features (smart start) updated. 
 
 **Done when:** the hero and the crop are in `docs/images`, made by the tool; the README in the order
 above; `mkdocs build --strict` passes.
-**Status: hero, crop and README done 2026-11-07; the tagline waits for the owner's wording.** Made:
+**Status: done 2026-11-07** (the tagline approved by the owner the same day: README title line,
+tools/make_pypi.py `description`, mkdocs `site_name` / `site_description`). Made:
 `img_00_hero` in tools/make_readme_media.py (the ArduPilot example as a user opens it, its Flight tab
 made 2 x 2 - map with the track by MODE.Mode, 3D behind the vehicle without the data box and the
 events, Roll DesRoll / Roll, VIBE X / Y / Z - the cursor at 140.4 s, the findings docked, no signal
@@ -2633,3 +2634,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · A3 App.tsx 632 -> 434 (Welcome.tsx, rail.ts, PlotGrid.tsx, shortcuts.ts) · e2e as listed in A3 · next: U8.
 - 2026-11-07 · U8 docs/dev/NAVIGATION.md (options A / B / C, A recommended, 3 questions) · next: the whole e2e suite, then the owner's answers (tagline, U7 measure, U8 option).
 - 2026-11-07 · The whole e2e suite (one process, 16 min here): 313 passed, 1 failed - test_offline_map::test_borders_over_the_offline_map_and_the_satellite_photos, which fails the same way on origin/main in this environment (the canvas the same after toggling borders off and on) - to check on the owner's machine. Backend 981 passed; mypy: only the 4 known errors in routes/analysis.py (numpy 2.5 here, also on main). Sent as one patch (U3..U8) on d4c0f61.
+- 2026-11-07 · Owner: tagline approved (applied), U8 option A approved (next: U9), U7 - keep the strip's mode row and its picking ("it marks the region of interest; more modes can be added there and the intersections highlighted"): the measure is the controls (< 70), done.

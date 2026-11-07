@@ -5,7 +5,7 @@
 <h1 align="center">Signal Viewer</h1>
 
 <p align="center">
-  <b>A fast, offline desktop app for exploring, comparing and reporting on time-series data</b><br>
+  <b>Signal Viewer – offline flight log &amp; test data analysis</b><br>
   CSV · Parquet · MATLAB .mat · ArduPilot .bin · MAVLink .tlog · PX4 .ulg · ROS 2 .mcap · HDF5 · CAN + .dbc
 </p>
 

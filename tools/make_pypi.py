@@ -141,7 +141,8 @@ def stage(name="signalviewer"):
         sys.exit(f"svcore/extras.py lists packages that are not in requirements.txt: {', '.join(unknown)}")
     req, extra = flavour_metadata(name, req, extra)
     extras = "\n".join(f"{k} = [{q(v)}]" for k, v in extra.items())
-    desc = ("Look at recorded signals - test runs, flight logs (ArduPilot, PX4, MAVLink), CAN, simulation output - offline."
+    # M1 (owner, 2026-11-07): the tagline - one name everywhere (README, docs site, PyPI)
+    desc = ("Signal Viewer - offline flight log & test data analysis: ArduPilot, PX4, MAVLink, CSV, MATLAB, CAN, simulation output."
             + ("" if name == "signalviewer" else " The light install: the core, every other reader as an extra."))
     toml = f'''[build-system]
 requires = ["setuptools>=77"]
