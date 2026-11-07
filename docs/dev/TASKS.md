@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2 done (2026-11-07); next M1.
+  U1, U3, U2 done, M1 but the tagline (2026-11-07); next A1.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -149,7 +149,7 @@ Progress board (tick here AND in ROADMAP):
 | U1 | Choose which tabs a template opens (`defaultTabs`, "+N more") | 1 | M | ☑ done |
 | U3 | One flight-mode band per tab | 1 | M | ☑ done |
 | U2 | Health findings must not cover data | 1 | S/M | ☑ done |
-| M1 | Hero image, social preview, tagline | 2 | S | ☐ |
+| M1 | Hero image, social preview, tagline | 2 | S | ◐ tagline waits for the owner's OK |
 | A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☐ |
 | U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☐ |
 | U4 | Desired vs actual styled automatically | 4 | S | ☐ |
@@ -258,6 +258,16 @@ Tests: test_workflows (ArduPilot example), test_features (smart start) updated. 
 
 **Done when:** the hero and the crop are in `docs/images`, made by the tool; the README in the order
 above; `mkdocs build --strict` passes.
+**Status: hero, crop and README done 2026-11-07; the tagline waits for the owner's wording.** Made:
+`img_00_hero` in tools/make_readme_media.py (the ArduPilot example as a user opens it, its Flight tab
+made 2 x 2 - map with the track by MODE.Mode, 3D behind the vehicle without the data box and the
+events, Roll DesRoll / Roll, VIBE X / Y / Z - the cursor at 140.4 s, the findings docked, no signal
+list; dark, device scale 2 -> 3200 x 1800); tools/make_social_preview.py now crops it to 1280 x 640
+(the old card: `--card`); README: hero, a one-line pitch, then the map / 3D clip, the health check,
+compare, then the feature list and the rest. Note: in a headless browser the 3D view's camera does not
+come close (software WebGL, as for 06); the vehicle and its track show, its attitude only roughly -
+retake that quadrant from a real screen if wanted. The tagline goes to the README title line,
+tools/make_pypi.py (`description`) and mkdocs `site_name` / `site_description` once confirmed.
 
 ### Group 3 - architecture
 
@@ -2544,3 +2554,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U1 a template's default tabs, the rest in "+N more" (`defaultTabs`, `ws.moreTabs`, TabChoice dialog, Settings `tplTabChoice`) · backend all + mypy; e2e test_template_tabs, test_fresh_user, test_workflows, test_templates_recent_badfiles, test_settings, test_features -k template · next: U3.
 - 2026-11-07 · U3 the tab's lanes once above its plots (TabBand.tsx, `tabBandLanes`, `xViews`, `plot.ownBand`), the cursors and hover on it and on the overview strip; U7 gets the flags-vs-events look (owner) · backend all; e2e test_tab_band, test_state_lanes, test_overview_strip, test_template_tabs, test_plot_menus, test_timeline, test_workflows, test_aligned_plots, test_globe3d, test_map_objects, test_conditions, test_what_changed, test_features -k lane/state/cursor/overview/mode · next: U2, then the whole e2e suite (end of group 1).
 - 2026-11-07 · U2 the findings docked beside the timeline (FindingsDock), ◆ marks on it (`findingMarks`, plotFinding) · e2e test_workflows, test_features -k smart_start, test_fresh_user, test_findings_report, test_timeline · owner: one combined patch for the round, the whole e2e suite at the very end · next: M1.
+- 2026-11-07 · M1 hero (img_00_hero, 3200 x 1800 dark), social preview cropped from it, README order; the tagline waits for the owner · next: A1.

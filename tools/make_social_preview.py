@@ -1,9 +1,13 @@
 """B7: the repository's social preview (GitHub -> Settings -> Social preview), 1280 x 640.
 
-The card shown when the repository link is pasted in chat, mail or LinkedIn. Built from the app
-icon and a screenshot, so it is redrawn whenever the screenshots are retaken:
-    python tools/make_social_preview.py        ->  docs/images/social-preview.png
+The card shown when the repository link is pasted in chat, mail or LinkedIn. M1 (owner, 2026-11-07):
+a 1280 x 640 crop of the README's hero picture (docs/images/00_hero.png, tools/make_readme_media.py
+--only 00) - the plots, the map and the 3D, without the app's top rows. The older card (icon, words
+and a screenshot) is still made with --card:
+    python tools/make_social_preview.py          ->  docs/images/social-preview.png
+    python tools/make_social_preview.py --card   ->  the card
 """
+import sys
 import os
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -52,5 +56,17 @@ def main() -> str:
     return out
 
 
+def hero_crop() -> str:
+    """The hero at 1280 px wide, cut to 2:1 from just under the tab bar (the tabs and the strip of
+    modes stay; the window's top row and the bottom status line go)."""
+    im = Image.open(os.path.join(ROOT, "docs/images/00_hero.png")).convert("RGB")
+    k = W / im.width
+    im = im.resize((W, round(im.height * k)), Image.LANCZOS)
+    top = min(max(0, round(im.height * 0.05)), im.height - H)
+    out = os.path.join(ROOT, "docs/images/social-preview.png")
+    im.crop((0, top, W, top + H)).save(out, optimize=True)
+    return out
+
+
 if __name__ == "__main__":
-    print(main())
+    print(main() if "--card" in sys.argv else hero_crop())
