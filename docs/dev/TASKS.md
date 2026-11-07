@@ -13,6 +13,18 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
+  `ws.moreTabs`, the views menu), U3 the tab band (TabBand.tsx; the overview strip shows the cursors),
+  U2 the findings docked beside the timeline (◆ marks), U6 the ghost on the map / 3D (`s.pointer`), U4
+  setpoints dashed (desired.ts, `PlotSignal.dash`), U5 Compare's difference view (`trace`, DiffChart.tsx),
+  U7 less clutter (107 -> 85 buttons, 59 controls), U9 navigation option A (Recordings · Sweeps · Fleet,
+  Fleet an area, "+ ▾"), M1 hero / social preview / tagline, A1 store.py split (svcore/investigate.py,
+  app/livewatch.py, app/filecheck.py, svcore/transforms.py), A2 i18n/ by area, A3 App.tsx 434 lines,
+  U8 docs/dev/NAVIGATION.md. Left: test_offline_map's borders test fails here on main too (to check on
+  the owner's machine); the built-in Flight tab has no time plot for U6's ghost (owner's choice);
+  mypy's 4 numpy-2.5 errors in routes/analysis.py (environment). Not decided: M2, M3, log folders,
+  update check, renaming.
+
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
@@ -2653,3 +2665,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · The whole e2e suite (one process, 16 min here): 313 passed, 1 failed - test_offline_map::test_borders_over_the_offline_map_and_the_satellite_photos, which fails the same way on origin/main in this environment (the canvas the same after toggling borders off and on) - to check on the owner's machine. Backend 981 passed; mypy: only the 4 known errors in routes/analysis.py (numpy 2.5 here, also on main). Sent as one patch (U3..U8) on d4c0f61.
 - 2026-11-07 · Owner: tagline approved (applied), U8 option A approved (next: U9), U7 - keep the strip's mode row and its picking ("it marks the region of interest; more modes can be added there and the intersections highlighted"): the measure is the controls (< 70), done.
 - 2026-11-07 · U9 navigation option A (areas switch with Fleet, views menu, fixed rail) · e2e test_navigation + the files that follow · next: release 1.22.0.
+- 2026-11-07 · Release 1.22.0 prepared: version in build.bat, version.py, CITATION.cff (+ date), the installer (iss, version_info), install.md (+ ~980 server / ~320 browser tests); CHANGELOG 1.22.0 (highlights; Added / Changed / For developers); README (tagline, hero, compare / fleet bullets, the Hebrew part), features, limitations, GUIDE / GUIDE.he, fleet tutorials; validation.md regenerated; pictures and clips from tools/make_readme_media.py (all but 06 and the 02 clip, as before; its scenes follow U2 / U7 / U9: the findings dock, closed groups, the Fleet area; a MAVLink link stopped between scenes) and the social preview from the hero. frontend/dist not committed (build.yml builds it). `mkdocs build --strict` passes.
+- 2026-11-07 · The whole e2e suite on 1.22.0 (16 min here): 312 passed, 3 failed - two were tests still expecting the old navigation (the Log button gone for a CSV, two areas), updated (test_features, test_sweeps_flow) and passing; test_offline_map's borders test fails on origin/main here too. Backend 981 passed.

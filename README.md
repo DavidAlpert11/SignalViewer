@@ -62,9 +62,9 @@ the same test, a flight log after a flight, a simulation next to the real thing 
 network. Open the files, see what is wrong, compare, report; then make the same check pass / fail in CI.
 
 - **Plot** – up to 9 linked plots per tab: Time, X-Y, FFT, spectrogram, map, 3D; two cursors with Δ and statistics; dozens of signals in one plot with the legend in a column beside it; your own named, nested groups of signals.
-- **Compare runs** – every shared signal ranked by how different it is, time-aligned, also per segment (the 2nd AUTO of every flight); the work done on one file is copied to another in one step (its changes, new signals and plots - any of them), linked files keep getting it, and one file's work can be cleared alone.
+- **Compare runs** – every shared signal ranked by how different it is, time-aligned, also per segment (the 2nd AUTO of every flight); with a tolerance, pass / fail per signal and where it fails - the difference over time with the band, as the Simulink Data Inspector; the work done on one file is copied to another in one step (its changes, new signals and plots - any of them), linked files keep getting it, and one file's work can be cleared alone.
 - **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check; a 1.2 GB ArduPilot log opens in seconds.
-- **Fleet** – the same checks on every log in a folder: a number followed over weeks (a motor wearing out), the first flight over a limit, the flights with a finding - try it on the example fleet.
+- **Fleet** – a work area of its own: the same checks on every log in a folder: a number followed over weeks (a motor wearing out), the first flight over a limit, the flights with a finding - try it on the example fleet.
 - **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives, or any file a logger keeps writing; the map and 3D objects stay at the newest data.
 - **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline; the track coloured by the flight mode or by a value.
 - **Math** – formulas (`2*Speed - RPM/95`), filters, derivatives, integrals, coordinate frames (NED / ENU / body / ECEF / LLA); the same change on many signals at once (`x*8` or `sin(x)` on each one selected); unit conversions (rad → deg, m/s → km/h, m → ft…).
@@ -236,12 +236,12 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - לגרור קבצים לחלון: CSV, ‏MATLAB, לוגים של ArduPilot ו־PX4, ‏MAVLink, ‏ROS 2, ‏HDF5, ‏Parquet, ‏CAN עם קובץ ‎.dbc – גם לוגים גדולים מאוד (לוג ArduPilot של 1.2GB נפתח בשניות).
 - לעקוב בזמן אמת (חי) אחרי קבצים שנכתבים או קישור MAVLink: הגרפים, המפה והתלת־ממד מתקדמים עם הנתונים האחרונים.
 - לבנות תצוגה: עד 9 גרפים מקושרים בטאב, שני סמנים עם הפרש וסטטיסטיקה, FFT, ספקטרוגרם, מפה ותלת־ממד.
-- להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה. העבודה שנעשתה על קובץ אחד מועתקת לקובץ אחר בצעד אחד (שינויים, סיגנלים חדשים, גרפים - כל אחד מהם), קבצים מקושרים ממשיכים לקבל אותה, ואפשר לנקות עבודה של קובץ אחד בלבד.
+- להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, עם טולרנס – עבר/נכשל לכל סיגנל וגרף ההפרש שמראה איפה הוא נכשל, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה. העבודה שנעשתה על קובץ אחד מועתקת לקובץ אחר בצעד אחד (שינויים, סיגנלים חדשים, גרפים - כל אחד מהם), קבצים מקושרים ממשיכים לקבל אותה, ואפשר לנקות עבודה של קובץ אחד בלבד.
 - לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – המרת יחידות (רדיאנים למעלות, ‏m/s ל־km/h ועוד) ופעולות Python משלכם.
 - לחקור: מ"משהו השתבש בטיסה" לתשובה שאפשר להראות – לתת שם לרגעים שחשובים (<code dir="ltr">abs(Roll - DesRoll) > 5</code>), לראות איזה סיגנל יצא מהטווח הרגיל שלו ראשון ובכמה זמן לפני, לבדוק מול הריצות האחרות, שגיאה לכל ציר בקליק אחד, ממצאים ודוח חקירה. אפשר לנסות על דוגמה מובנית שהתשובה שלה ידועה.
 - לכייל על פני מעטפת ריצות: טבלת תוצאות עם שורה לכל ריצה – אילו סטים של פרמטרים עומדים בכל התרחישים ומי מהם הכי טוב: מטרות, גרף קואורדינטות מקבילות, מפות, חסינות והריצות הבאות; **חקירה** מנסה את המגבלות והיעדים של מטרה כמחוונים, והגרף והטבלה מתעדכנים בכל הזזה.
-- לעקוב אחרי צי: אותה בדיקת תקינות על כל הלוגים בתיקייה – מספר לאורך שבועות (מנוע שנשחק), הטיסה הראשונה שעברה גבול, הטיסות עם ממצא. יש צי דוגמה ו[מדריך](docs/fleet-tutorial.he.md).
-- הרבה סיגנלים בגרף אחד: המקרא עובר לעמודה בצד הגרף והערכים לא מזיזים אותו; קבוצות סיגנלים משלכם עם שם, גם מקוננות; מסלול במפה צבוע לפי מוד הטיסה.
+- לעקוב אחרי צי (אזור עבודה משלו): אותה בדיקת תקינות על כל הלוגים בתיקייה – מספר לאורך שבועות (מנוע שנשחק), הטיסה הראשונה שעברה גבול, הטיסות עם ממצא. יש צי דוגמה ו[מדריך](docs/fleet-tutorial.he.md).
+- הרבה סיגנלים בגרף אחד: המקרא עובר לעמודה בצד הגרף והערכים לא מזיזים אותו; קבוצות סיגנלים משלכם עם שם, גם מקוננות; מסלול במפה צבוע לפי מוד הטיסה; פס המודים פעם אחת מעל כל הגרפים של הטאב, עם הסמן עליו; ערך רצוי מול נמדד מקווקו לבד.
 - כמה מטרות יחד במעטפת ריצות: דירוג לפי חזית Pareto וגרף Pareto עם הסט המאוזן.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.

@@ -73,6 +73,11 @@ class App:
 # ----------------------------------------------------------------------------- helpers
 def reset(app):
     """Every scene starts clean: close the files earlier scenes opened (one server for all)."""
+    try:                                           # a MAVLink link an earlier scene left running
+        urllib.request.urlopen(urllib.request.Request(app.url + "/api/mavlink/stop", data=b"{}", method="POST",
+                                                      headers={"Content-Type": "application/json"}))
+    except Exception:
+        pass
     runs = json.loads(urllib.request.urlopen(app.url + "/api/runs").read())
     for r in runs:
         if r.get("format") != "derived":
@@ -109,7 +114,7 @@ def open_api(pg, app, *names):
       const runs = await (await fetch('/api/runs')).json();
       window.__sv.setState({ runs });
     }""", paths)
-    pg.wait_for_selector(".sig")
+    pg.wait_for_selector(".run-head")              # (a log's groups start closed: no signal row may show)
     pg.wait_for_timeout(300)
 
 
@@ -507,9 +512,12 @@ def vid_03_compare_runs(b, app, tmp):
 def vid_04_flight_log_health(b, app, tmp):
     ctx, pg = page(b, app, video=tmp)
     open_dialog(pg, app, "flight.bin", slow=True)
-    pg.wait_for_selector(".start-card", timeout=20000); pg.wait_for_timeout(1800)
+    pg.wait_for_selector(".start-card, .findings-dock", timeout=20000); pg.wait_for_timeout(1800)
+    if not pg.locator(".start-card").count():      # U2: findings only - docked beside the timeline
+        pg.locator(".findings-btn").click(); pg.wait_for_timeout(800)
     pg.locator(".start-card .hrow .pchange.span").first.click(); pg.wait_for_timeout(1300)
-    pg.locator(".start-card").get_by_role("button", name="Open it").click(); pg.wait_for_timeout(2200)
+    if pg.locator(".start-card").get_by_role("button", name="Open it").count():
+        pg.locator(".start-card").get_by_role("button", name="Open it").click(); pg.wait_for_timeout(2200)
     pg.evaluate("window.__sv.setState({ panel: 'log' })"); pg.wait_for_timeout(1200)
     pg.locator("[role='tab']", has_text="Events").first.click(); pg.wait_for_timeout(1200)
     pg.locator("[role='tab']", has_text="Parameters").first.click(); pg.wait_for_timeout(1500)
@@ -602,7 +610,11 @@ def img_00_hero(b, app):
 
 def _fleet(pg):
     pg.click(".areas .area-btn:has-text('Fleet')")                                  # U9: an area
-    pg.locator(".fleet-example .btn").click()
+    pg.wait_for_function("!!(document.querySelector('.fleet-example .btn') || document.querySelector('.fleet-folder'))", timeout=30000)
+    if pg.locator(".fleet-example .btn").count():
+        pg.locator(".fleet-example .btn").click()
+    else:                                           # indexed already by an earlier scene (kept in the home): its search
+        pg.select_option(".fleet-row select[aria-label='Number']", "vibration.max"); pg.fill(".fleet-limit", "30")
     pg.wait_for_selector(".fleet-trend circle", timeout=60000)
     pg.wait_for_function("document.querySelectorAll('.fleet-log').length === 1"); pg.wait_for_timeout(500)
 

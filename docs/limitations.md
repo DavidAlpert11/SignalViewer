@@ -33,3 +33,7 @@
 * A made signal's *Change the formula…* is for formulas; the other operations (derivative, filter…) are made again in *Create signals*. A changed formula moves the signal to the end of the made signals' list.
 * A coloured map track (by a state or a value) is drawn whole in 3D (not only the timeline's shown span); the value's colour scale runs from its lowest to its highest along that track.
 * Sweeps: the Pareto levels are counted up to the tenth front; sets further back share level 11. With three or more objectives a Pareto chart shows two of them at a time (the front is the sets no other beats on all of them, so a front set can look beaten in one pair).
+* The tab's band of state lanes (the flight mode once above the plots) is shown when the tab's time plots are in one column with X linked; with several columns each plot keeps its own lane.
+* The faint copy of an object under the pointer on the map / in 3D follows time plots of the same tab only; the built-in *Flight* tab (map and 3D) has no time plot - add one to see it.
+* A template keeps its default tabs; a line's dash chosen by hand (Inspector ▸ Line) is kept in the session, not in templates.
+* In a segment comparison the difference view's times are since each segment's start: a click there does not move the cursor.

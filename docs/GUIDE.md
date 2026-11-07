@@ -32,10 +32,15 @@ are told apart by them.
 
 ## 3. The screen
 
+- **Top:** the work areas as one switch - *Recordings* (your files and plots), *Sweeps* (a run
+  envelope's results table) and *Fleet* (every flight log in a folder).
 - **Left:** the panels – *Data* (the open files and their signals), *Create signals*, *Compare runs*,
-  *Report*, and for flight logs *Flight log* and *Fleet*.
-- **Middle:** the plots of the current tab. Tabs are at the top; the layout button (1 × 1) splits a
-  tab into rows and columns.
+  *Investigate*, *Report* and *Flight log* (greyed until a flight log is open).
+- **Middle:** the plots of the current tab. Tabs are at the top: **+** makes one, **▾** opens a
+  template or collection - and a template's other tabs: a template may open only its default ones
+  (the ArduPilot full review: Attitude and Flight) and keep the rest there, their number on the ▾.
+  The layout button (1 × 1) splits a tab into rows and columns. When a tab's plots share the time,
+  its flight-mode lane is drawn once above them, with the cursors and the pointer on it.
 - **Bottom:** the timeline – play, the time shown, the cursor. Time is written in seconds as
   recorded, like the axes; *Settings* (the gear, Ctrl+,) can show a clock from the start instead,
   and holds the theme and the text size.
@@ -128,7 +133,9 @@ for the values.
 - Open the runs together; plots show each signal once per file, in the file's colour.
 - **Compare runs** (left) compares each signal with a baseline run (or the mean of the runs): RMS and
   largest difference, correlation, a tolerance; its table lists every signal found in two or more
-  files, the worst first.
+  files, the worst first. With a tolerance every signal shows ✓ or ✗, and the one you pick shows its
+  difference from the baseline over time: the tolerance band shaded, the stretches outside it in red
+  and listed - a click takes you there.
 - Runs recorded with a time shift: right-click a file → **Align time with another file**.
 - **The work you did on one file, for another:** right-click the file you worked on → **Copy the work
   to another file…**, choose a file that is open already or one to open, and what to copy: its
@@ -195,7 +202,9 @@ shown change together – on the axis, in the list, in the legend – and it can
 ## 10. Flight logs
 
 ArduPilot and PX4 logs open with ready views (attitude, rates, vibration, battery, GPS, the map and
-the flight modes as coloured lanes) and a **health check** that points at what is worth a look. The
+the flight modes as coloured lanes; a setpoint such as DesRoll is drawn dashed beside its measured
+value) and a **health check** that points at what is worth a look - its findings wait beside the
+timeline (*3 findings*) and are ◆ marks on it; a click plots the signals behind one. The
 *Flight log* panel lists the messages, events and parameters. On the map, an object's
 *Track colour* can follow the flight mode (or a value such as the altitude), with a key. *Borders*
 (beside the map's layer) draws country borders and names over the offline map and the satellite
