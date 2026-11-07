@@ -1125,10 +1125,17 @@ def test_smart_start_card(pg):
     rows.first.locator(".pchange.span").first.click()                                  # jump to the finding
     pg.wait_for_function("window.__sv.state().cursor.dual")
     card.get_by_role("button", name="Open it").click()
-    pg.wait_for_function("!document.querySelector('.start-card .start-tpl')")       # T48: the findings stay
-    assert S(pg, "s.ws.tabs.some(t => t.plots.some(p => p.signals.length))")
-    pg.locator(".start-card .dialog-head button, .start-card button.iconbtn").first.click()
+    # U2: the view is open - the findings fold into "N findings" beside the timeline (off the plots)
+    pg.wait_for_selector(".findings-dock")
     pg.wait_for_function("!document.querySelector('.start-card')")
+    assert S(pg, "s.ws.tabs.some(t => t.plots.some(p => p.signals.length))")
+    pg.locator(".findings-btn").click()
+    card.locator(".hrow").first.wait_for()
+    pg.locator(".start-card button.iconbtn").first.click()                     # X folds them back
+    pg.wait_for_function("!document.querySelector('.start-card')")
+    pg.locator(".findings-dock .iconbtn").click()                              # x puts them away
+    pg.wait_for_selector(".findings-dock", state="detached")
+    assert pg.locator(".tl-finding").count() >= 1                              # the timeline keeps their marks
     # not again once the workspace has plots
     open_files(pg, "run_a.csv", clear=False)
     pg.wait_for_timeout(1500)

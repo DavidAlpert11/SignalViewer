@@ -28,6 +28,11 @@ export interface UiSlice {
   newerOnDisk: Record<string, number>;
   menu: { x: number; y: number; items: MenuItem[] } | null;
   startCard: import("../../smartStart").StartCard | null;   // T29: suggestions after the first file (UI only)
+  /** U2: the start card's findings (no template left to offer) are docked as "N findings" beside the
+   *  timeline; this opens them over the plots (UI only) */
+  findingsOpen: boolean;
+  /** U2: a flight log's health findings as marks on the timeline, by file (UI only) */
+  findingMarks: Record<string, import("../../api").HealthFinding[]>;
   syncFor: string | null;          // the file whose time the sync dialog aligns
   templatesTarget: string | null;  // templates dialog opened for this file (its templates first)
   templatesNew: "tab" | "all" | "collection" | null;   // open the library on a new template (current / all tabs) or collection
@@ -103,6 +108,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   newerOnDisk: {},
   menu: null,
   startCard: null,
+  findingsOpen: false,
+  findingMarks: {},
   syncFor: null,
   templatesTarget: null,
   templatesNew: null,

@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3 done (2026-11-07); next U2.
+  U1, U3, U2 done (2026-11-07); next M1.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -148,7 +148,7 @@ Progress board (tick here AND in ROADMAP):
 |---|---|---|---|---|
 | U1 | Choose which tabs a template opens (`defaultTabs`, "+N more") | 1 | M | ☑ done |
 | U3 | One flight-mode band per tab | 1 | M | ☑ done |
-| U2 | Health findings must not cover data | 1 | S/M | ☐ |
+| U2 | Health findings must not cover data | 1 | S/M | ☑ done |
 | M1 | Hero image, social preview, tagline | 2 | S | ☐ |
 | A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☐ |
 | U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☐ |
@@ -231,6 +231,15 @@ side panel (collapsible, e.g. "3 findings"), and show the findings as markers on
 (click = the same as *Plot*).
 
 **Done when:** nothing covers plot data on open; the existing links (*Plot*, *All findings…*) still work.
+**Status: done 2026-11-07.** The card is the start card (`StartCard.tsx`, T29) in the notices dock over the
+plots' bottom-left corner. While it offers a template (nothing plotted yet) it stays as it was; with
+findings only (the view is open) it folds into `FindingsDock` at the start of the timeline ("! 3
+findings"; click = the card over the plots, its X folds it back, the dock's × closes it). Every
+finding with a moment (all of the check's, not only the card's three) is a ◆ on the timeline
+(`findingMarks`, UI only, per file; kept after the dock is closed); a click = its *Plot*
+(`plotFinding`, HealthRow.tsx), marks closer than 1.5 % of the run are one mark with a list.
+Tests: test_workflows (ArduPilot example), test_features (smart start) updated. Left: the toast
+"<template>: 2 tabs, 5 plots opened" still sits over the third plot for 4 s.
 
 ### Group 2 - marketing basics
 
@@ -2534,3 +2543,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · Patch 0: the owner's plan U1–U8, M1, A1–A3 in TASKS.md (spec, board) and ROADMAP.md (Milestone 25); CLAUDE.md e2e rule: relevant files per task, whole suite per group / at the end · docs only, no tests needed · next: U1.
 - 2026-11-07 · U1 a template's default tabs, the rest in "+N more" (`defaultTabs`, `ws.moreTabs`, TabChoice dialog, Settings `tplTabChoice`) · backend all + mypy; e2e test_template_tabs, test_fresh_user, test_workflows, test_templates_recent_badfiles, test_settings, test_features -k template · next: U3.
 - 2026-11-07 · U3 the tab's lanes once above its plots (TabBand.tsx, `tabBandLanes`, `xViews`, `plot.ownBand`), the cursors and hover on it and on the overview strip; U7 gets the flags-vs-events look (owner) · backend all; e2e test_tab_band, test_state_lanes, test_overview_strip, test_template_tabs, test_plot_menus, test_timeline, test_workflows, test_aligned_plots, test_globe3d, test_map_objects, test_conditions, test_what_changed, test_features -k lane/state/cursor/overview/mode · next: U2, then the whole e2e suite (end of group 1).
+- 2026-11-07 · U2 the findings docked beside the timeline (FindingsDock), ◆ marks on it (`findingMarks`, plotFinding) · e2e test_workflows, test_features -k smart_start, test_fresh_user, test_findings_report, test_timeline · owner: one combined patch for the round, the whole e2e suite at the very end · next: M1.

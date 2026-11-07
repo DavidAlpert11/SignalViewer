@@ -239,12 +239,24 @@ def test_open_the_ardupilot_example(page, server):
     """T45: the flight-log example opens with the vibration warning from its health check; T48: and
     with its ArduPilot view already open (the card keeps only the findings)."""
     page.locator(".examples-line button", has_text="ArduPilot").click()
-    card = page.locator(".start-card")
-    card.wait_for(timeout=20000)
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length))", timeout=20000)
+    # U2: the findings do not cover the plots - docked beside the timeline, marks on it
+    dock = page.locator(".findings-dock")
+    dock.wait_for(timeout=20000)
+    assert "warning" in dock.get_attribute("class") and "3 findings" in dock.inner_text()
+    assert page.locator(".start-card").count() == 0 and page.locator(".tl-finding").count() >= 1
+    page.locator(".findings-btn").click()
+    card = page.locator(".start-card")
     page.wait_for_selector(".start-card .hrow")
     assert "warning" in card.locator(".hrow").first.get_attribute("class")
     assert card.locator(".start-tpl").count() == 0
+    # a finding's mark on the timeline = its "Plot": its signals in a new tab
+    card.locator("button.iconbtn").first.click()                      # folded back into the dock
+    page.wait_for_selector(".start-card", state="detached")
+    n = page.evaluate("window.__sv.state().ws.tabs.length")
+    page.locator(".tl-finding").first.click()                          # close together: one mark, a list
+    page.locator(".menu.ctx button", has_text="Vibration above").first.click()
+    page.wait_for_function(f"window.__sv.state().ws.tabs.length === {n + 1}")
 
 
 def test_compare_open_files_gives_each_file_its_colour(page, server):

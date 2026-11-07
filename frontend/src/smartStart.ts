@@ -47,13 +47,16 @@ export async function offerStart(runId: string, files = 1, auto = false) {
     try {
       const h = await api.runHealth(runId);
       const rank = (f: HealthFinding) => (f.level === "error" ? 0 : 1);
-      health = h ? h.findings.filter((f) => f.level !== "ok").sort((a, b) => rank(a) - rank(b)).slice(0, 3) : null;
+      const bad = h ? h.findings.filter((f) => f.level !== "ok") : [];
+      health = h ? [...bad].sort((a, b) => rank(a) - rank(b)).slice(0, 3) : null;
+      // U2: every finding with a moment, as a mark on the timeline (kept after the card is closed)
+      if (bad.length) useApp.setState((s) => ({ findingMarks: { ...s.findingMarks, [runId]: bad.filter((f) => f.t !== null || f.spans.length) } }));
     } catch { /* no health check for this file */ }
   }
   if (!template && health === null) return;
   if (!useApp.getState().runs.some((r) => r.id === runId)) return;      // closed meanwhile
   const card: StartCard = { runId, template, health };
-  useApp.setState({ startCard: card });
+  useApp.setState({ startCard: card, findingsOpen: false });
   if (auto && template) await openSuggested(card);      // T48: an example opens ready to look at
 }
 
@@ -72,7 +75,7 @@ export async function openSuggested(card: StartCard) {
     const b = await api.bindTemplate(t, all, card.runId);
     const res = await applyTemplate(t, all, b.bind, defaultsOf(t, all));     // U1: no question here
     // the view is open: the card keeps only the log's findings (each a click from its moment), if any
-    useApp.setState({ startCard: card.health?.length ? { ...card, template: null } : null });
+    useApp.setState({ startCard: card.health?.length ? { ...card, template: null } : null, findingsOpen: false });
     announceOpened(t, res);
   } catch (e) {
     st.toast({ kind: "error", text: String((e as Error).message) });
