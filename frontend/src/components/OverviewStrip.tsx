@@ -52,6 +52,8 @@ export default function OverviewStrip() {
     return () => { window.clearInterval(id); window.removeEventListener("resize", measure); };
   }, []);
   const [hidden, setHidden] = useState(!!getPrefValue<boolean>("overviewOff"));
+  const [hintSeen, setHintSeen] = useState(!!getPrefValue<boolean>("ovHintSeen"));
+  const used = () => { if (!hintSeen) { setPref("ovHintSeen", true); setHintSeen(true); } };
   const files = runs.filter((r) => r.format !== "derived");
   const tab = activeTab(ws);
   const plot = tab.plots[tab.active];
@@ -205,7 +207,7 @@ export default function OverviewStrip() {
 
   return (
     <div className="ov-strip" role="region" aria-label={t("ovTitle")}>
-      <div className="ov-head">
+      <div className="ov-head" title={hintSeen ? t("ovPickHint") : undefined}>
         {files.length > 1 ? (
           <select className="ov-file" value={rid} onChange={(e) => { setChosen(e.target.value); useApp.setState({ stripSel: null }); }} aria-label={t("ovFile")}>
             {files.map((f) => <option key={f.id} value={f.id}>{fileLabel(runs, f.id)}</option>)}
@@ -213,19 +215,20 @@ export default function OverviewStrip() {
         ) : <span className="ov-name">{fileLabel(runs, rid!)}</span>}
         {ov && <span className="muted">{t("ovSummary2", { d: fmtNum(ov.end - ov.start, lang, 4), f: ov.flags.length })}
           {ov.partial ? ` ${t("ovPartial", { n: ov.scanned })}` : ""}</span>}
-        <span className="ov-hint muted">{t("ovPickHint")}</span>
+        {/* U7: the how-to line until the strip is first used; then only in the tooltip */}
+        {!hintSeen && <span className="ov-hint muted">{t("ovPickHint")}</span>}
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>
         <button className="iconbtn sm ov-hide" aria-label={t("ovHide")} title={t("ovHide")} onClick={() => { setPref("overviewOff", true); setHidden(true); }}>×</button>
       </div>
       <div className="ov-rows" ref={rowsRef}
         style={align ? { gridTemplateColumns: `${align.lab}px 1fr`, paddingRight: align.end } : undefined}>
-        <span className="ov-label muted">{t("ovFlags")}</span>
+        <span className="ov-label muted" title={t("ovFlagsHint")}>{t("ovFlags")}</span>
         <div className="ov-track ov-flags">
           {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} title={t("ovView")} />}
           {curMarks}
           {clusters.map((c, i) => (
             <button key={i} className={`ov-flag${c.items.some((f) => bad(f.kind)) ? " bad" : ""}`} style={{ left: pct(c.a) }}
-              title={c.items.map(flagText).join("\n")} aria-label={c.items.map(flagText).join("; ")} onClick={() => go(c.a, c.b)}>
+              title={`${t("ovFlagPrefix")}\n${c.items.map(flagText).join("\n")}`} aria-label={c.items.map(flagText).join("; ")} onClick={() => { used(); go(c.a, c.b); }}>
               {c.items.length > 1 ? c.items.length : ""}
             </button>
           ))}
@@ -244,7 +247,7 @@ export default function OverviewStrip() {
                   <button key={k} className={`ov-phase${picked(r, p.label) ? " picked" : rowPicked ? " dim" : ""}`}
                     style={{ left: pct(p.a), width: width(p.a, p.b), background: bg, color: inkOn(bg) }}
                     title={`${rowName(r)}${r.kind === "state" ? `: ${p.label}` : ""} · ${fmtNum(p.a, lang, 5)} – ${fmtNum(p.b, lang, 5)} s`}
-                    onClick={(e) => pick(r, p.label, e.ctrlKey || e.metaKey || e.shiftKey)} onDoubleClick={() => go(p.a, p.b)}>
+                    onClick={(e) => { used(); pick(r, p.label, e.ctrlKey || e.metaKey || e.shiftKey); }} onDoubleClick={() => go(p.a, p.b)}>
                     <span>{r.kind === "state" ? p.label : ""}</span>
                   </button>
                 );

@@ -87,7 +87,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Start over
 
-- Clear ▾ (the Recordings bar; Ctrl+K; the eraser above the plots empties this tab): this tab's plots
+- Clear ▾ (the Recordings bar; Ctrl+K; the ⋯ above the plots: *Clear all plots* of this tab, and *Back* to the previous zoom): this tab's plots
 - The other tabs
 - All tabs (one empty tab)
 - All tabs + notes + derived signals + in-place edits, the files stay open - each undone by the toast's Undo or Ctrl+Z

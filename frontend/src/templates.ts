@@ -350,12 +350,18 @@ export async function openMoreTabs(m: MoreTabs, names: string[]): Promise<ApplyR
   }
 }
 
+/** "2 tabs", "1 plot" in the message after a template opened (plural or not). */
+export function openedCounts(name: string, res: { tabs: number; plots: number }, L = useApp.getState().lang) {
+  return { name: tx(name, L), tabs: res.tabs === 1 ? translate(L, "tplTabsOne") : translate(L, "tplTabsN", { n: res.tabs }),
+    plots: res.plots === 1 ? translate(L, "tplPlotsOne") : translate(L, "tplPlotsN", { n: res.plots }) };
+}
+
 /** The message after a template opened (or why nothing did); `undo` adds an Undo button. */
 export function announceOpened(t: Template, res: ApplyResult, undo = false) {
   const st = useApp.getState();
   const L = st.lang;
   if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
-  st.toast({ kind: "info", ms: res.dropped.length ? 12000 : undo ? 5000 : 4000, text: translate(L, "tplOpened", { name: tx(t.name, L), n: res.tabs, p: res.plots })
+  st.toast({ kind: "info", ms: res.dropped.length ? 12000 : undo ? 5000 : 4000, text: translate(L, "tplOpened", openedCounts(t.name, res, L))
     + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
     + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : ""),
     ...(undo ? { action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } } : {}) });

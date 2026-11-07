@@ -530,12 +530,13 @@ def test_template_chip_opens_at_once_or_asks(page, server):
     choice to make (Quick look with two files: of which?) it opens the library as before."""
     _open(page, server["data"], ["run_a.csv"])
     page.evaluate("window.__sv.state().clearAllPlots ? 0 : 0")
-    page.locator("[aria-label='Clear all plots']").click()
+    page.locator(".stage-more").click(); page.locator(".menu.ctx button", has_text="Clear all plots").click()     # U7: in the stage bar's ⋯
     page.locator(".tpl-strip .chipbtn", has_text="Quick look").click()
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length))")
     assert page.locator(".dialog").count() == 0
     page.locator(".toast", has_text="Quick look").wait_for()
     _open(page, server["data"], ["run_b.csv"])
+    page.locator(".tpl-strip-fold").click()                                 # U7: folded while plots show
     page.locator(".tpl-strip .chipbtn", has_text="Quick look").click()
     page.locator(".dialog", has_text="Templates").wait_for()               # which file? - the library asks
 
@@ -568,7 +569,7 @@ def test_clearer_controls(page, server):
     bare "X" next to the link button."""
     page.set_viewport_size({"width": 1100, "height": 760})
     _open(page, server["data"], ["run_a.csv"])
-    page.locator("[aria-label='Clear all plots']").click()
+    page.locator(".stage-more").click(); page.locator(".menu.ctx button", has_text="Clear all plots").click()     # U7: in the stage bar's ⋯
     page.locator(".sig", has_text="Speed").first.click(button="right")
     page.locator(".menu.ctx button", has_text="Add to the active plot").click()
     page.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
@@ -589,7 +590,7 @@ def test_builtin_templates_in_hebrew(page, server):
     page.wait_for_function("document.documentElement.dir === 'rtl'")
     chip = page.locator(".tpl-strip .chipbtn", has_text="מבט מהיר")
     chip.wait_for()
-    page.locator("[aria-label='ניקוי כל הגרפים'], [aria-label='Clear all plots']").first.click()
+    page.locator(".stage-more").click(); page.locator(".menu.ctx button").nth(1).click()     # U7: ⋯ > clear the plots (in Hebrew)
     chip.click()
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name.startsWith('מבט מהיר'))")
     page.get_by_role("button", name="English").click()

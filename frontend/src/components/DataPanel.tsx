@@ -242,6 +242,9 @@ export default function DataPanel() {
   };
   const tab = activeTab(ws);
   const activePlot = tab.plots[tab.active];
+  // U7: the signals on the active tab's plots (their groups start open)
+  const onTabKey = useApp((st) => activeTab(st.ws).plots.flatMap((p) => p.signals.map((x) => x.sig)).join("|"));
+  const onTab = useMemo(() => new Set(onTabKey.split("|")), [onTabKey]);
   const colorOf = useMemo(() => {
     const m = new Map<string, string>();
     activePlot?.signals.forEach((s) => m.set(s.sig, s.color));
@@ -301,10 +304,14 @@ export default function DataPanel() {
       const groups = derived ? groupDerived(sigs) : groupByPrefix(sigs, (s) => s.name);
       if (!groups) { sigs.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
       const many = !derived && run.signals.length > 200;
+      // U7: a flight log's groups (more than 40 signals) start closed, except those with signals on
+      // the tab's plots - what is plotted shows, the rest is a click away (a 73-signal log listed
+      // every one of its groups open)
+      const some = !derived && run.signals.length > 40;
       for (const g of groups) {
         const gk = `${run.id}|${g.key}`;
         // searching opens every matching group (the user may close it); otherwise big files start collapsed
-        const open = searching ? !sClosed[`g:${gk}`] : groupOpen[gk] ?? !many;
+        const open = searching ? !sClosed[`g:${gk}`] : groupOpen[gk] ?? (!many && !(some && !g.items.some((x) => onTab.has(x.id))));
         if (!g.key) { g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
         out.push({ kind: "group", runId: run.id, key: g.key, ids: g.items.map((x) => x.id), closed: !open, h: H_GROUP });
         if (!open) continue;
@@ -322,7 +329,7 @@ export default function DataPanel() {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runs, q, closed, groupOpen, sClosed, ws.sigGroups]);
+  }, [runs, q, closed, groupOpen, sClosed, ws.sigGroups, onTabKey]);
 
   const offsets = useMemo(() => {
     const o = new Array(rows.length + 1);

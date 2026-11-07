@@ -350,7 +350,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         ) : (
           <button className="plot-title" onDoubleClick={() => setEditingTitle(true)} title={title}>{title}</button>
         )}
-        <button className="mode-btn" aria-haspopup="menu" aria-label={`${t("plotMode")}: ${modes.find(([m]) => m === mode)?.[1] ?? mode}`}
+        <button className={`mode-btn${mode === "time" ? " is-time" : ""}`} aria-haspopup="menu" aria-label={`${t("plotMode")}: ${modes.find(([m]) => m === mode)?.[1] ?? mode}`}
           title={t("plotMode")} onClick={openModeMenu}>
           {modes.find(([m]) => m === mode)?.[1] ?? mode}<Icon.Chevron width={12} height={12} />
         </button>
