@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2 done, M1 but the tagline (2026-11-07); next A1.
+  U1, U3, U2, A1 done, M1 but the tagline (2026-11-07); next U6.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -150,7 +150,7 @@ Progress board (tick here AND in ROADMAP):
 | U3 | One flight-mode band per tab | 1 | M | ☑ done |
 | U2 | Health findings must not cover data | 1 | S/M | ☑ done |
 | M1 | Hero image, social preview, tagline | 2 | S | ◐ tagline waits for the owner's OK |
-| A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☐ |
+| A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☑ done |
 | U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☐ |
 | U4 | Desired vs actual styled automatically | 4 | S | ☐ |
 | U5 | SDI-style difference view in Compare | 4 | M | ☐ |
@@ -282,6 +282,17 @@ tools/make_pypi.py (`description`) and mkdocs `site_name` / `site_description` o
 
 **Done when:** `store.py` < 900 lines; pytest + mypy green; Investigate e2e green; unit tests for
 `investigate.py` without a Store.
+**Status: done 2026-11-07.** 1,495 -> 850 lines. Moving the two named parts gave ~1,050, so two more
+self-contained parts left too: `app/filecheck.py` (LoadError, sniff_kind, check_file, the CSV failure
+reasons) and `svcore/transforms.py` (normalize / apply a change on a signal); `overview` and
+`run_params` (investigation steps 7 / 5) went with the investigate functions. `svcore/investigate.py`:
+`Source` (signal getter, names + state texts per file, discrete, derived names, open runs) and pure
+functions; Store methods are one-liners (`_source()`), LoadError for the user's mistakes as before.
+`app/livewatch.py` `LiveWatcher` (state: lock, poll_errors, writing - Store properties keep the old
+names; `_stat`, `run_format`, `UPLOAD_DIR`, SETTLE_* live there). `app.store` re-exports every moved
+name. Tests: tests/test_investigate.py (5, no Store); pytest all, mypy (only the 4 known numpy-2.5
+errors in routes/analysis.py, also on main); e2e test_conditions, test_what_changed, test_occurrences,
+test_runs_matrix, test_overview_strip, test_refresh_feedback, test_findings_report.
 
 ### Group 4 - UX (whole e2e suite at the end of the group)
 
@@ -2555,3 +2566,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U3 the tab's lanes once above its plots (TabBand.tsx, `tabBandLanes`, `xViews`, `plot.ownBand`), the cursors and hover on it and on the overview strip; U7 gets the flags-vs-events look (owner) · backend all; e2e test_tab_band, test_state_lanes, test_overview_strip, test_template_tabs, test_plot_menus, test_timeline, test_workflows, test_aligned_plots, test_globe3d, test_map_objects, test_conditions, test_what_changed, test_features -k lane/state/cursor/overview/mode · next: U2, then the whole e2e suite (end of group 1).
 - 2026-11-07 · U2 the findings docked beside the timeline (FindingsDock), ◆ marks on it (`findingMarks`, plotFinding) · e2e test_workflows, test_features -k smart_start, test_fresh_user, test_findings_report, test_timeline · owner: one combined patch for the round, the whole e2e suite at the very end · next: M1.
 - 2026-11-07 · M1 hero (img_00_hero, 3200 x 1800 dark), social preview cropped from it, README order; the tagline waits for the owner · next: A1.
+- 2026-11-07 · A1 store.py 1,495 -> 850 (svcore/investigate.py, app/livewatch.py, app/filecheck.py, svcore/transforms.py) · pytest 978, test_investigate (5); Investigate / live e2e · next: U6.
