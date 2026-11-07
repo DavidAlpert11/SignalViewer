@@ -810,7 +810,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] U4 Desired vs actual: `Des<X>` / `<X>` and `*_sp` pairs - desired dashed and muted unless styled by hand. Done 2026-11-07: desired.ts, `PlotSignal.dash`, Inspector ▸ Line; test_setpoint_style.py.
 - [x] U5 SDI-style difference view in Compare: difference plot with the tolerance band, out-of-tolerance in red, ✓ / ✗ per signal. Done 2026-11-07: `/api/compare` `trace`, DiffChart.tsx; test_compare_trace.py, test_compare_diff.py.
 - [~] U7 Less clutter: help line as a tooltip, labelled or grouped icons, plurals, the points wording; < 70 visible buttons in the ArduPilot example; automatic flags and log events told apart (owner, 2026-11-07). 2026-11-07: 107 -> 85 buttons (59 controls + the log's data); the measure / the last step is the owner's choice (TASKS U7).
-- [ ] A2 Split frontend/src/i18n.ts by area (same key count, no file > 600 lines).
+- [x] A2 Split frontend/src/i18n.ts by area (same key count, no file > 600 lines). Done 2026-11-07: frontend/src/i18n/ (11 areas + index), 1,785 keys.
 - [ ] A3 App.tsx cleanup: Welcome, RAIL, EXAMPLE_* to their own files; App.tsx < 450 lines.
 - [ ] U8 Navigation design only (no code): Recordings / Sweeps, view tabs, left rail.
 - Not decided (owner's approval first): M2 flight summary card; M3 forum-help export; finding Mission Planner / QGC log folders; opt-in update check; renaming.

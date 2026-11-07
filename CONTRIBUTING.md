@@ -42,7 +42,7 @@ The full list is in [`CLAUDE.md`](CLAUDE.md) (written for people and coding agen
   network calls, no telemetry.
 - **Old files keep opening.** Sessions, templates and autosave are backward compatible: new fields
   are optional with a default; a saved field is never renamed or repurposed.
-- **English and Hebrew.** Every text on screen goes through `frontend/src/i18n.ts` in both
+- **English and Hebrew.** Every text on screen goes through `frontend/src/i18n/` (a file per area) in both
   languages (TypeScript enforces it); check right-to-left. Colours come from the CSS variables
   (light and dark).
 - **Heavy work in the backend**, on full-resolution data; the UI receives decimated data only.

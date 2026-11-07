@@ -36,8 +36,10 @@ when you stop in the middle of a task.
 - Heavy work stays in the backend; the UI receives decimated data only.
 - The app works fully offline and listens only on 127.0.0.1.
 - Formulas are evaluated with the AST whitelist in `svcore/formula.py` — never `eval`.
-- English and Hebrew (RTL): every user-visible string goes through `i18n.ts`
-  (`he` is typed as `typeof en`, so tsc enforces both). Check RTL layout of anything new.
+- English and Hebrew (RTL): every user-visible string goes through `frontend/src/i18n/` - one file per
+  area (templates, flightlog, investigate, compare, mapsAnd3d, files, liveAndFleet, app, signals, plots,
+  common), each with `en` and `he: typeof en` (tsc enforces both); `i18n/index.ts` merges them and
+  holds `translate` / `useT`. A new key goes into its area's file. Check RTL layout of anything new.
 - Light and dark themes: use the CSS variables in `index.css`, no hard-coded colours.
 - Lazy-loaded heavy parts (Cesium 3D, map data) must stay out of the main bundle.
 

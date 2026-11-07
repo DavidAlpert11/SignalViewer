@@ -13,6 +13,7 @@
 - **A template opens its default tabs, the rest a click away** (U1): a template can name the tabs it opens by default (*Opened by default* in the template editor; saved as the optional `defaultTabs`). Right after a file loads (and for the examples) only those open, with no question - the built-in *ArduPilot · Full review* and *MAVLink · Full review* open **Attitude** and **Flight** - and the other tabs wait in **+N more from <template> ▾** beside the tab bar's +: open one, *Open all*, or *Don't offer these*; Undo puts an opened tab back on offer. A template chip with several tabs asks which tabs (All / None, the default ones checked); *Settings ▸ Opening a template ▸ Default tabs* skips the question. The library pre-checks the default tabs and has All / None. Templates and sessions without `defaultTabs` open every tab, as before.
 
 ### For developers
+- The texts (`frontend/src/i18n.ts`, 3,610 lines) are split by area into `frontend/src/i18n/` (A2): eleven files, each with English and Hebrew, merged by `i18n/index.ts`; imports are unchanged.
 - `backend/app/store.py` split (A1, 1,495 -> 850 lines; no change to routes, API, sessions or behaviour): the Investigate computations are pure functions over a signal getter in `svcore/investigate.py` (unit-tested without a Store), live polling is `app/livewatch.py` (`LiveWatcher`), the file checks `app/filecheck.py`, the changes on signals `svcore/transforms.py`; `app.store` still exports the names it did.
 
 ## 1.21.0 – 2026-11-05
