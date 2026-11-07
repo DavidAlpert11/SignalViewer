@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2, A1 done, M1 but the tagline (2026-11-07); next U6.
+  U1, U3, U2, A1, U6 done, M1 but the tagline (2026-11-07); next U4.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -151,7 +151,7 @@ Progress board (tick here AND in ROADMAP):
 | U2 | Health findings must not cover data | 1 | S/M | ☑ done |
 | M1 | Hero image, social preview, tagline | 2 | S | ◐ tagline waits for the owner's OK |
 | A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☑ done |
-| U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☐ |
+| U6 | Hover moves a ghost point on the map / 3D | 4 | S | ☑ done |
 | U4 | Desired vs actual styled automatically | 4 | S | ☐ |
 | U5 | SDI-style difference view in Compare | 4 | M | ☐ |
 | U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ☐ |
@@ -300,6 +300,14 @@ test_runs_matrix, test_overview_strip, test_refresh_feedback, test_findings_repo
 **Do:** GeoChart and Globe3D draw a semi-transparent point at `s.hover.t`; it disappears when the mouse
 leaves the plot and does not touch the cursor or undo.
 **Done when:** in the Flight tab, hovering a plot moves the point.
+**Status: done 2026-11-07.** Found: `s.hover` is empty while the cursors are on (the legend then shows the
+cursor's values) - and on the Flight template the cursor is usually on. So TimeChart also publishes
+`s.pointer {plotId, t}` (UI only), set whenever the pointer is over a time plot, cursors on or off,
+cleared on leave; `hover` keeps its meaning. GeoChart draws each object's icon at 45 % there (no
+name); Globe3D a faint point per object (`ghosts`, a PointPrimitiveCollection; not for a 3D view on
+its own time). Only from plots of the same tab. Note: the built-in Flight tab (map + 3D) has no time
+plot, so there the ghost needs a plot added (the e2e adds one) - an altitude / speed plot in the
+template would make it show by default (owner's choice). Tests: e2e test_hover_ghost.py.
 
 ### U4 · Desired vs actual — S
 **Do:** pairs `Des<X>` / `<X>` (ArduPilot) and `*_sp` (PX4) in one plot → the desired line dashed and
@@ -2567,3 +2575,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U2 the findings docked beside the timeline (FindingsDock), ◆ marks on it (`findingMarks`, plotFinding) · e2e test_workflows, test_features -k smart_start, test_fresh_user, test_findings_report, test_timeline · owner: one combined patch for the round, the whole e2e suite at the very end · next: M1.
 - 2026-11-07 · M1 hero (img_00_hero, 3200 x 1800 dark), social preview cropped from it, README order; the tagline waits for the owner · next: A1.
 - 2026-11-07 · A1 store.py 1,495 -> 850 (svcore/investigate.py, app/livewatch.py, app/filecheck.py, svcore/transforms.py) · pytest 978, test_investigate (5); Investigate / live e2e · next: U6.
+- 2026-11-07 · U6 ghost on the map / 3D from `s.pointer` · e2e test_hover_ghost, test_globe3d, test_map_objects, test_tab_band, test_owner_notes_1_20, test_object_frames, test_features -k legend/hover/cursor/map/geo · next: U4.

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "cesium/Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css";
 import { api } from "../api";
 import { openMenu } from "./Overlays";
-import { actions, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
+import { actions, activeTab, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
 import { bearing, colorRuns, fmtDistance, groundDistance, objectAt, trackColors, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
@@ -99,6 +99,10 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const theme = useApp((s) => s.theme);
   const base = useApp((s) => s.geoBase);
   const cursor = useApp((s) => s.cursor);
+  // U6: the time under the pointer over a time plot of this tab - a faint point for each object there
+  const pointerT = useApp((s) => (s.pointer && activeTab(s.ws).plots.some((p) => p.id === s.pointer!.plotId) ? s.pointer.t : null));
+  const pointerRef = useRef<number | null>(null);
+  pointerRef.current = pointerT;
   const playMode = useApp((s) => s.playMode);
   const windowSec = useApp((s) => s.windowSec);
   const dataVersion = useApp((s) => s.dataVersion);
@@ -126,8 +130,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     labels: import("cesium").LabelCollection | null; links: import("cesium").PolylineCollection | null; linkLabels: import("cesium").LabelCollection | null;
     events: import("cesium").PointPrimitiveCollection | null; eventLabels: import("cesium").LabelCollection | null;
     measure: import("cesium").PolylineCollection | null; measurePts: import("cesium").PointPrimitiveCollection | null;
+    ghosts: import("cesium").PointPrimitiveCollection | null;      // U6: each object at the time under the pointer
     drawn: Map<string, Drawn>; fitted: boolean }>({ models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
-      events: null, eventLabels: null, measure: null, measurePts: null, drawn: new Map(), fitted: false });
+      events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, drawn: new Map(), fitted: false });
   /* the dashed line material of each colour, made once (a new material per frame is costly) */
   const linkMats = useRef(new Map<string, import("cesium").Material>());
   const linkMat = (c: import("cesium").Color) => {
@@ -215,7 +220,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const w = widgetRef.current;
       widgetRef.current = null;
       scene3.current = { models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
-        events: null, eventLabels: null, measure: null, measurePts: null, drawn: new Map(), fitted: false };
+        events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, drawn: new Map(), fitted: false };
       mats.clear();
       if (w && !w.isDestroyed()) w.destroy();
     };
@@ -289,6 +294,8 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     S.links = w.scene.primitives.add(new cz.PolylineCollection());
     S.linkLabels = w.scene.primitives.add(new cz.LabelCollection());
     S.labels = w.scene.primitives.add(new cz.LabelCollection());
+    if (S.ghosts) w.scene.primitives.remove(S.ghosts);
+    S.ghosts = w.scene.primitives.add(new cz.PointPrimitiveCollection());
     let alive = true;
     (async () => {
       for (const o of objects) {
@@ -469,6 +476,8 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     const span = shownSpan({ playMode: st.playMode, windowSec: st.windowSec, cursor: cur });
     const states = new Map<string, ObjState>();
     const follow = plot.followObject;
+    S.ghosts?.removeAll();
+    const pt = pointerRef.current;
     for (const o of objects) {
       const tr = tracks[o.id];
       const d = S.drawn.get(o.id);
@@ -491,6 +500,15 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         }
       }
       const tNow = trackTime(tr, cur.on ? cur.t1 : null, st.streaming && own === null);
+      const gp = pt !== null && own === null && Math.abs(pt - tNow) > 1e-9 ? objectAt(tr, pt, o.angleUnit) : null;
+      if (gp && S.ghosts) {
+        let a = 0, z = tr.t.length - 1;
+        while (z - a > 1) { const k = (a + z) >> 1; if (tr.t[k] <= pt!) a = k; else z = k; }
+        const gh = heightAt(o, tr, tr.t[z] - pt! < pt! - tr.t[a] ? z : a);
+        if (Number.isFinite(gh)) S.ghosts.add({ position: cz.Cartesian3.fromDegrees(gp.lon, gp.lat, gh), pixelSize: 13,
+          color: cz.Color.fromCssColorString(o.color).withAlpha(0.45), outlineColor: cz.Color.WHITE.withAlpha(0.6), outlineWidth: 1.5,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY });
+      }
       const p = objectAt(tr, tNow, o.angleUnit);
       const m = S.models.get(o.id);
       if (!p) { if (m) m.show = false; if (d.label) d.label.show = false; continue; }
@@ -557,7 +575,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   };
   const updateRef = useRef(update);
   updateRef.current = update;
-  useEffect(() => { updateRef.current(); }, [cz, tracks, cursor, playMode, windowSec, plot.followObject, plot.primaryObject, plot.relatedObjects, objects, lang, ownT]);
+  useEffect(() => { updateRef.current(); }, [cz, tracks, cursor, playMode, windowSec, plot.followObject, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT]);
 
   /* the span of the objects' own tracks (the independent time runs over that) */
   const ownExt = useMemo((): [number, number] | null => {

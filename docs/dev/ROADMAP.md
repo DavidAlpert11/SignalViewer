@@ -806,7 +806,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] U2 Health findings do not cover data: a docked, collapsible card; markers on the bottom timeline. Done 2026-11-07: FindingsDock beside the timeline, `findingMarks` (◆, a click plots), clustered.
 - [ ] M1 Hero image (2×2, dark, 2x) and a 1280×640 social preview from make_readme_media.py; README order; tagline (owner confirms the wording).
 - [x] A1 Split backend/app/store.py: svcore/investigate.py (pure functions, a signal getter) and a LiveWatcher; store.py < 900 lines. Done 2026-11-07: 850 lines; also app/filecheck.py, svcore/transforms.py; tests/test_investigate.py.
-- [ ] U6 Hover moves a ghost point on the map / 3D (`s.hover.t`).
+- [x] U6 Hover moves a ghost point on the map / 3D (`s.hover.t`). Done 2026-11-07: `s.pointer` (also with the cursors on), GeoChart / Globe3D ghosts; test_hover_ghost.py.
 - [ ] U4 Desired vs actual: `Des<X>` / `<X>` and `*_sp` pairs - desired dashed and muted unless styled by hand.
 - [ ] U5 SDI-style difference view in Compare: difference plot with the tolerance band, out-of-tolerance in red, ✓ / ✗ per signal.
 - [ ] U7 Less clutter: help line as a tooltip, labelled or grouped icons, plurals, the points wording; < 70 visible buttons in the ArduPilot example; automatic flags and log events told apart (owner, 2026-11-07).

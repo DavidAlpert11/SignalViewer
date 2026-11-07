@@ -9,6 +9,9 @@ export interface ViewSlice {
   yRanges: Record<string, Range>;  // value-axis zoom; key: plot id, or "<tab id>:y" when the tab links Y
   yExtents: Record<string, [number, number]>;   // per plot, for linked value axes
   hover: { plotId: string; t: number; vals: Record<string, number | null> } | null;
+  /** U6: the time under the pointer over a time plot, also while the cursors are on (hover is
+   *  then empty: the legend shows the cursor's values) - the map / 3D draw a ghost there. UI only. */
+  pointer: { plotId: string; t: number } | null;
   /** the legend entry under the pointer: its line is drawn on top, the plot's others faint */
   legendFocus: { plotId: string; sig: string } | null;
   /** Dashed lines in one plot, computed but not kept (Create signals > Preview). Several for an
@@ -38,6 +41,7 @@ export const viewSlice = (): ViewSlice => ({
   yRanges: {},
   yExtents: {},
   hover: null,
+  pointer: null,
   legendFocus: null,
   preview: null,
   valuesOnPlot: false,
