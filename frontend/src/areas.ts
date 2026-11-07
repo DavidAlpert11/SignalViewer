@@ -11,7 +11,7 @@
  * With one area the switcher shows only its name; a second entry here makes it a row of tabs. */
 import type { TKey } from "./i18n";
 
-export type AreaId = "recordings" | "sweeps";
+export type AreaId = "recordings" | "sweeps" | "fleet";
 
 export interface AreaDef {
   id: AreaId;
@@ -22,6 +22,7 @@ export interface AreaDef {
 export const AREAS: readonly AreaDef[] = [
   { id: "recordings", label: "areaRecordings" },
   { id: "sweeps", label: "areaSweeps" },             // run-envelope results: components/sweeps, sweeps/
+  { id: "fleet", label: "areaFleet" },               // U9 (owner, 2026-11-07): every flight of the indexed folders, was a panel
 ];
 
 export const DEFAULT_AREA: AreaId = "recordings";

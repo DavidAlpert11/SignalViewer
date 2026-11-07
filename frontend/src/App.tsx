@@ -32,7 +32,7 @@ import type { AreaId } from "./areas";
 import StageBar from "./components/StageBar";
 import DataPanel from "./components/DataPanel";
 const AnalysisPanel = lazyPreload(() => import("./components/AnalysisPanel"));
-const FleetPanel = lazyPreload(() => import("./components/FleetPanel"));
+const FleetArea = lazyPreload(() => import("./components/FleetPanel"));
 const InvestigatePanel = lazyPreload(() => import("./components/InvestigatePanel"));
 const ComparePanel = lazyPreload(() => import("./components/ComparePanel"));
 const ReportPanel = lazyPreload(() => import("./components/ReportPanel"));
@@ -368,10 +368,13 @@ export default function App() {
         {inspectorOpen && <PanelResizer label={t("resizePanel")} style={{ insetInlineEnd: inspW - 3 }} width={inspW} setWidth={setInspW}
           grow={-1} def={320} max={() => window.innerWidth - RAIL_W - (panel ? sideW : 0) - MIN_STAGE} />}
         <nav className="rail" aria-label="Panels">
-          {RAIL.filter((r) => r.id !== "log" || logErrors !== null).map((r) => {
+          {RAIL.map((r) => {
             const I = Icon[r.icon];
+            // U9: the Log tool stays in its place, disabled while no flight log is open (it used to vanish)
+            const off = r.id === "log" && logErrors === null;
             return (
-              <button key={r.id} className={`${panel === r.id ? "on" : ""}${r.id === "log" ? " rail-log" : ""}`} title={t(r.key)} aria-label={t(r.key)} aria-pressed={panel === r.id}
+              <button key={r.id} className={`${panel === r.id ? "on" : ""}${r.id === "log" ? " rail-log" : ""}`} title={off ? t("railLogNone") : t(r.key)}
+                aria-label={t(r.key)} aria-pressed={panel === r.id} disabled={off}
                 onClick={() => useApp.setState({ panel: panel === r.id ? null : r.id })}><I /><span className="rail-label" aria-hidden="true">{t(r.short)}</span>
                 {r.id === "log" && !!logErrors && <span className="rail-badge" aria-label={t("logErrorsN", { n: logErrors })} />}
               </button>
@@ -382,7 +385,7 @@ export default function App() {
         <Suspense fallback={<aside className="side" />}>
           {panel === "data" ? <DataPanel /> : panel === "analysis" ? <AnalysisPanel /> : panel === "compare" ? <ComparePanel />
             : panel === "report" ? <ReportPanel /> : panel === "log" && logErrors !== null ? <LogPanel />
-            : panel === "fleet" ? <FleetPanel /> : panel === "investigate" ? <InvestigatePanel /> : <div />}
+            : panel === "investigate" ? <InvestigatePanel /> : <div />}
         </Suspense>
         <main className="stage">
           <StageBar />
@@ -401,8 +404,10 @@ export default function App() {
       </div>
       </>,
       sweeps: <Suspense fallback={<><div className="areabar" /><div /></>}><SweepsScreen /></Suspense>,
+      fleet: <Suspense fallback={<><div className="areabar" /><div /></>}><FleetArea /></Suspense>,
       } satisfies Record<AreaId, React.ReactNode>)[area]}
-      {area === "recordings" ? <StatusBar /> : <Suspense fallback={<footer className="status" />}><SweepsStatus /></Suspense>}
+      {area === "sweeps" ? <Suspense fallback={<footer className="status" />}><SweepsStatus /></Suspense>
+        : area === "recordings" ? <StatusBar /> : <footer className="status" />}
       <CommandPalette />
       <FileBrowser />
       <Suspense fallback={null}>

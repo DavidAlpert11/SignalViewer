@@ -601,7 +601,7 @@ def img_00_hero(b, app):
 
 
 def _fleet(pg):
-    pg.click("[aria-label='Fleet']")
+    pg.click(".areas .area-btn:has-text('Fleet')")                                  # U9: an area
     pg.locator(".fleet-example .btn").click()
     pg.wait_for_selector(".fleet-trend circle", timeout=60000)
     pg.wait_for_function("document.querySelectorAll('.fleet-log').length === 1"); pg.wait_for_timeout(500)
@@ -616,7 +616,7 @@ def img_29_fleet_trend(b, app):
     pg.locator(".fleet-line").first.click(); pg.wait_for_timeout(500)
     pg.locator(".fleet-findings button").first.click()          # Open here: the flight at the finding
     pg.wait_for_function("window.__sv.state().runs.length > 0", timeout=30000); pg.wait_for_timeout(1500)
-    pg.evaluate("window.__sv.setState({ panel: 'fleet' })"); pg.wait_for_timeout(600)
+    pg.evaluate("window.__sv.setState({ area: 'fleet' })"); pg.wait_for_timeout(600)
     shot(pg, "29_fleet_trend"); ctx.close()
 
 

@@ -25,7 +25,7 @@ def flights(env):
 
 
 def test_fleet_search_trend_and_open_at_a_finding(pg, flights):
-    pg.click("nav.rail [aria-label='Fleet']")
+    pg.click(".areas .area-btn:has-text('Fleet')")                                  # U9: an area
     pg.click(".fleet-btns button:has-text('Add a folder…')")
     goto_folder(pg, flights)
     pg.click(".dialog button:has-text('Use this folder')")
@@ -52,4 +52,4 @@ def test_fleet_search_trend_and_open_at_a_finding(pg, flights):
     pg.click(".fleet-line:has-text('f1.bin')")
     pg.click(".fleet-findings li >> nth=0 >> button:has-text('Open here')")
     pg.wait_for_function("window.__sv.state().runs.some(r => r.path.endsWith('f1.bin'))")
-    pg.wait_for_function("window.__sv.state().panel === 'log' && window.__sv.state().cursor.on")
+    pg.wait_for_function("window.__sv.state().panel === 'log' && window.__sv.state().cursor.on && window.__sv.state().area === 'recordings'")

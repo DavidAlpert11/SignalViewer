@@ -119,7 +119,7 @@ def test_map_track_coloured_by_the_flight_mode(pg):
 
 
 def test_fleet_example(pg):
-    pg.click("[aria-label='Fleet']")
+    pg.click(".areas .area-btn:has-text('Fleet')")                                  # U9: an area
     pg.locator(".fleet-example .btn").click()
     pg.wait_for_selector(".fleet-trend circle", timeout=60000)
     pg.wait_for_function("document.querySelectorAll('.fleet-log').length === 1")   # vibration above 30: one flight

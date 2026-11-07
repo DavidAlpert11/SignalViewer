@@ -3,6 +3,7 @@ import { api, type FleetFolder, type FleetKey, type FleetLog } from "../api";
 import { actions, pickPath, useApp } from "../store";
 import { useT, type Lang } from "../i18n";
 import { followJob, openPaths } from "../files";
+import Toasts from "./Toasts";
 
 /** T41: the fleet - every flight log of the indexed folders: search by finding, by a number
  *  (vibration above X...), see one number's trend over the flights' dates, open a flight at a
@@ -85,10 +86,15 @@ export default function FleetPanel() {
   const remove = async (f: string) => { setFolders((await api.fleetRemove(f)).folders); await refresh(); await search(); };
 
   return (
-    <aside className="side fleet" aria-label={t("fleet")}>
-      <div className="side-head"><h2>{t("fleet")}</h2></div>
+    // U9 (owner, 2026-11-07): an area of its own (was a panel of the Recordings rail) - the whole width
+    // for the folders, the search and the trend on one side, the flights on the other
+    <>
+    <div className="areabar fleet-bar" role="toolbar" aria-label={t("areaFleet")}>
+      <h2>{t("fleet")}</h2><span className="hint">{t("fleetIntro")}</span>
+    </div>
+    <main className="fleet-area" aria-label={t("fleet")}>
       <div className="fleet-body">
-        <p className="hint">{t("fleetIntro")}</p>
+        <div className="fleet-side">
         {example && !folders.some((f) => f.folder === example) && (
           <div className="fleet-example">
             <p>{t("fleetWhat")}</p>
@@ -140,6 +146,9 @@ export default function FleetPanel() {
 
           {key && shownTrend.length > 1 && <Trend points={shownTrend} limit={limit === "" ? null : Number(limit)} lang={lang}
             label={keyLabel(key)} onPick={(p) => openAt(p, null)} />}
+        </>}
+        </div>
+        {folders.length > 0 && <div className="fleet-main">
 
           <div className="fleet-count muted">{logs ? (logs.length === 1 ? t("fleetFoundOne") : t("fleetFound", { n: logs.length })) : t("loading")}</div>
           <ul className="fleet-list">
@@ -174,9 +183,12 @@ export default function FleetPanel() {
               </li>
             ))}
           </ul>
-        </>}
+        </div>}
       </div>
-    </aside>
+      {/* the area's messages (Recordings has its own place for them, over its timeline) */}
+      <div className="notices fleet-notices"><Toasts /></div>
+    </main>
+    </>
   );
 }
 
@@ -186,7 +198,7 @@ async function openAt(path: string, at: number | null) {
   if (!find()) await openPaths([path]);
   if (!find()) return;
   if (at !== null && Number.isFinite(at)) actions.setTime(at);
-  useApp.setState({ panel: "log" });
+  useApp.setState({ area: "recordings", panel: "log" });     // U9: the log opens in Recordings
 }
 
 function findingText(t: ReturnType<typeof useT>, code: string, level: string, vals: Record<string, number | string>) {
