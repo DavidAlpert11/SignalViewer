@@ -799,3 +799,18 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] Map / 3D: track colour by the object, a state (the lanes' colours) or a value, with a key; the plain track in the object's colour.
 - [x] Fleet: the example (two copters, ten flights), *Try the example fleet*, the trend follows the typed search, the search kept across panels; tutorial (en / he).
 - [x] Sweeps: All runs while loading, counts in the tabs; several objectives ranked by score or Pareto, *Show the Pareto front*, the Pareto chart (any pair, the balanced set, levels), fast fronts; *Clear ▾*.
+
+## Milestone 25 — opening a file, first impression, smaller files (owner's plan 2026-11-07). Spec: TASKS.md "Owner's plan (2026-11-07)". Order: U1, U3, U2, M1, A1, U6, U4, U5, U7, A2, A3, U8.
+- [ ] U1 Choose which tabs a template opens: a dialog when opened by hand, optional `defaultTabs`, auto-open without a dialog, "+N more from <template> ▾", a Settings option.
+- [ ] U3 One flight-mode band per tab (cursors and hover on it, the mode under the cursor labelled; a plot can turn its own back on).
+- [ ] U2 Health findings do not cover data: a docked, collapsible card; markers on the bottom timeline.
+- [ ] M1 Hero image (2×2, dark, 2x) and a 1280×640 social preview from make_readme_media.py; README order; tagline (owner confirms the wording).
+- [ ] A1 Split backend/app/store.py: svcore/investigate.py (pure functions, a signal getter) and a LiveWatcher; store.py < 900 lines.
+- [ ] U6 Hover moves a ghost point on the map / 3D (`s.hover.t`).
+- [ ] U4 Desired vs actual: `Des<X>` / `<X>` and `*_sp` pairs - desired dashed and muted unless styled by hand.
+- [ ] U5 SDI-style difference view in Compare: difference plot with the tolerance band, out-of-tolerance in red, ✓ / ✗ per signal.
+- [ ] U7 Less clutter: help line as a tooltip, labelled or grouped icons, plurals, the points wording; < 70 visible buttons in the ArduPilot example.
+- [ ] A2 Split frontend/src/i18n.ts by area (same key count, no file > 600 lines).
+- [ ] A3 App.tsx cleanup: Welcome, RAIL, EXAMPLE_* to their own files; App.tsx < 450 lines.
+- [ ] U8 Navigation design only (no code): Recordings / Sweeps, view tabs, left rail.
+- Not decided (owner's approval first): M2 flight summary card; M3 forum-help export; finding Mission Planner / QGC log folders; opt-in update check; renaming.
