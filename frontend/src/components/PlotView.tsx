@@ -1,5 +1,5 @@
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
-import { plotHasContent, actions, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
+import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
 import { exportRange, plotSpec } from "../plotSpec";
@@ -128,6 +128,9 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       if (all.length > 1) items.push({ label: t("pairErrAll", { n: all.length }), run: () => { void errorsOf(all); } });
       return items.length ? [...items, { label: "", run: () => {}, sep: true }] : [];
     })(),
+    // U3: the tab shows its lanes once above the plots; this plot can show them again itself
+    ...(onTimeAxis(plot) && tabBandLanes(useApp.getState().ws.globalStates, tab).length
+      ? [{ label: (plot.ownBand ? "✓ " : "") + t("bandInPlot"), run: () => actions.updatePlot(plot.id, { ownBand: !plot.ownBand || undefined }) }] : []),
     { label: t("axisLimits") + ((plot.xlim || plot.ylim) ? " •" : ""), run: () => useApp.setState({ axisDialog: plot.id }) },
     { label: t("legend"), run: () => {}, items: legendItems() },
     ...(showFileTags(runs) ? [{ label: t("colorByFile"), run: () => actions.colorPlotByFile(plot.id),
@@ -327,6 +330,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   return (
     <section
       ref={sectionRef}
+      data-plot={plot.id}
       className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
       onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver(edgeOf(e) ?? "y"); } }}
       onDragLeave={() => setDragOver(null)}

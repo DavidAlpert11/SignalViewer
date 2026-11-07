@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1 done (2026-11-07); next U3.
+  U1, U3 done (2026-11-07); next U2.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -147,7 +147,7 @@ Progress board (tick here AND in ROADMAP):
 | # | Task | Group | Size | Status |
 |---|---|---|---|---|
 | U1 | Choose which tabs a template opens (`defaultTabs`, "+N more") | 1 | M | ☑ done |
-| U3 | One flight-mode band per tab | 1 | M | ☐ |
+| U3 | One flight-mode band per tab | 1 | M | ☑ done |
 | U2 | Health findings must not cover data | 1 | S/M | ☐ |
 | M1 | Hero image, social preview, tagline | 2 | S | ☐ |
 | A1 | Split `backend/app/store.py` (investigate, live watcher) | 3 | M | ☐ |
@@ -211,6 +211,19 @@ Tests: test_templates.py (+2), e2e test_template_tabs.py (3). Left: "1 tabs" in 
 
 **Done when:** the ArduPilot example shows one band with the cursor and hover on it, the plots get the
 freed height, sessions compatible.
+**Status: done 2026-11-07.** Found first: the overview strip (`OverviewStrip.tsx`, above the plots)
+already showed the run's phase signal (MODE.Mode) - for the WHOLE run, one file, with the zoom window
+as a frame; a click there picks stretches for a condition. The per-plot lanes came from
+`tab.sharedStates` / `ws.globalStates` (a lane's scope menu: this plot / tab / all tabs); no per-plot
+opt-out of a tab lane existed. Owner (2026-11-07): keep the strip as it is, and show the plots'
+cursor on it too. Made: `TabBand.tsx` above the plot grid (`tabBandLanes`: tab + global lanes when
+X is linked, one column, two or more time plots - one band can line up with all of them); it follows
+the first time plot's shown window (`xViews`, reported by TimeChart's draw hook, UI only) and its
+drawing area (measured from `[data-plot] .u-over`); cursors 1 / 2 and hover as lines with the state
+under each named, that stretch outlined; click = cursors on the edges, Shift = zoom; the lane name
+opens the lane's scope menu. TimeChart leaves those lanes out unless `plot.ownBand` (optional; the
+plot's ⋯ *State lanes in this plot too*). The strip draws the cursors and hover (`.ov-cur`).
+Tests: e2e test_tab_band.py (2). Left: the hover line is drawn only on the hovered plot (as before).
 
 ### U2 · Health findings must not cover data — S/M
 **Do:** today the "Opened: <file>" health card floats over the 3rd plot. Move it to a docked corner /
@@ -274,6 +287,9 @@ profile" in ComparePanel shows.
 **Do:** the plot-header help line ("Click: pick · Ctrl or Shift+click…") → a tooltip / first time only;
 toolbar icons without labels get labels or move into a ⋯ menu; "1 files" fixed (singular / plural, en +
 he); "Showing 3,840 of 12,300 points" reworded so it does not suggest missing data.
+Also (owner, 2026-11-07): the overview strip's automatic flags and the plots' log events are the same
+amber triangle - make them look different (e.g. a small diamond for automatic flags, its tooltip
+starting "Automatic flag:"), with a short key in the strip.
 **Done when:** fewer than 70 visible buttons in the ArduPilot example, measured in e2e (107 today).
 
 ### Group 5 - maintenance / design
@@ -2517,3 +2533,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-05 · 1.21.0 Filter review, Step response, Hardware, compare time tolerance; review fixes (sync confirmation and why, old STATUSTEXT scale, PreArm, ERR/EV, motors, battery limits and timer, units, CSV decimal comma / ISO dates / no time column, compare tolerance, file-dialog Esc, Copy, template fit) · backend 983 pass; e2e 303 pass (new test_release_1_21.py), 2 fail as before (test_one_place_for_each_control fails on main too; test_borders… passes alone - a canvas timing).
 - 2026-11-07 · Patch 0: the owner's plan U1–U8, M1, A1–A3 in TASKS.md (spec, board) and ROADMAP.md (Milestone 25); CLAUDE.md e2e rule: relevant files per task, whole suite per group / at the end · docs only, no tests needed · next: U1.
 - 2026-11-07 · U1 a template's default tabs, the rest in "+N more" (`defaultTabs`, `ws.moreTabs`, TabChoice dialog, Settings `tplTabChoice`) · backend all + mypy; e2e test_template_tabs, test_fresh_user, test_workflows, test_templates_recent_badfiles, test_settings, test_features -k template · next: U3.
+- 2026-11-07 · U3 the tab's lanes once above its plots (TabBand.tsx, `tabBandLanes`, `xViews`, `plot.ownBand`), the cursors and hover on it and on the overview strip; U7 gets the flags-vs-events look (owner) · backend all; e2e test_tab_band, test_state_lanes, test_overview_strip, test_template_tabs, test_plot_menus, test_timeline, test_workflows, test_aligned_plots, test_globe3d, test_map_objects, test_conditions, test_what_changed, test_features -k lane/state/cursor/overview/mode · next: U2, then the whole e2e suite (end of group 1).

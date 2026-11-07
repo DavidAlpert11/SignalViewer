@@ -1,5 +1,6 @@
 import { addDataExts } from "./values";
 import OverviewStrip from "./components/OverviewStrip";
+import TabBand from "./components/TabBand";
 import { evaluateAll, stepOccurrence } from "./conditions";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { lazyPreload, preloadAll } from "./lazyPreload";
@@ -584,6 +585,7 @@ export default function App() {
         <main className="stage">
           <StageBar />
           {runs.length > 0 && <OverviewStrip />}
+          {runs.length > 0 && <TabBand />}
           {!runs.length ? <div className="stage-body"><Welcome /></div> : (
             <PlotGrid />
           )}

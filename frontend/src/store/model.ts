@@ -40,6 +40,9 @@ export interface Plot {
   /** T15 video mode: a local video file played with the timeline. data time = video time + offset (s). */
   video?: { path: string; offset: number };
   showEvents?: boolean;            // 3D: the log's events as marks on the objects' tracks (default shown)
+  /** U3: the tab's lanes drawn in this plot too, although the tab shows them once above its plots
+   *  (absent / false: not here - the band above has them) */
+  ownBand?: boolean;
   xyzEqual?: boolean;              // XYZ (plain 3D, T17c): the same scale on all three axes (default true - right for positions)
   xyzFlipZ?: boolean;              // XYZ: Z drawn pointing down (NED "down", depth)
   /** where the signal names (and their values) are: auto (above while they fit in two rows, else a
