@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
-  U1, U3, U2, A1, U6, U4, U5, A2 done, U7 but the measure, M1 but the tagline (2026-11-07); next A3.
+  U1, U3, U2, A1, U6, U4, U5, A2, A3 done, U7 but the measure, M1 but the tagline (2026-11-07); next U8.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -156,7 +156,7 @@ Progress board (tick here AND in ROADMAP):
 | U5 | SDI-style difference view in Compare | 4 | M | ☑ done |
 | U7 | Less clutter (< 70 visible buttons in the ArduPilot example) | 4 | M | ◐ 85 buttons / 59 controls - owner to choose the measure |
 | A2 | Split `frontend/src/i18n.ts` by area | 5 | M | ☑ done |
-| A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☐ |
+| A3 | App.tsx cleanup (< 450 lines) | 5 | S | ☑ done |
 | U8 | Navigation design only (no code) | 5 | S | ☐ |
 
 **Checked in the code (2026-11-07, at `5b0ed7a`):** `store.py` 1,495 lines; `i18n.ts` 3,528; `App.tsx`
@@ -381,6 +381,10 @@ first as before. CLAUDE.md / CONTRIBUTING.md point to the folder.
 ### A3 · App.tsx cleanup — S
 **Do:** Welcome, RAIL and the EXAMPLE_* maps to their own files.
 **Done when:** `App.tsx` < 450 lines; no behaviour change (relevant e2e green).
+**Status: done 2026-11-07.** App.tsx 632 -> 434 lines: components/Welcome.tsx (the welcome screen with the
+EXAMPLE_* maps), components/rail.ts (RAIL, RAIL_W), components/PlotGrid.tsx, shortcuts.ts
+(`useShortcuts`, the keyboard listener - Welcome / RAIL alone left ~540). e2e test_fresh_user,
+test_file_help_menus, test_wheel, test_timeline, test_workflows, test_features -k key / tab / V...
 
 ### U8 · Navigation design (no code) — S
 **Do:** sketches for unifying the Recordings / Sweeps tabs, the view tabs and the left rail. After U1.
@@ -2622,3 +2626,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · U5 the difference view in Compare (`trace`, DiffChart.tsx, ✓ / ✗) · pytest 981; e2e test_compare_diff, test_workflows -k compare, test_features -k compare/tol · next: U7.
 - 2026-11-07 · U7 less clutter (85 buttons / 59 controls in the ArduPilot example, from 107) · e2e test_less_clutter, test_features (all), test_workflows, test_template_tabs, test_object_templates, test_templates_recent_badfiles, test_overview_strip, test_fresh_user, test_plot_menus, test_tab_band, test_state_lanes · next: A2.
 - 2026-11-07 · A2 i18n.ts -> i18n/ (11 area files + index, 1,785 keys, none over 600 lines) · tsc + build · next: A3.
+- 2026-11-07 · A3 App.tsx 632 -> 434 (Welcome.tsx, rail.ts, PlotGrid.tsx, shortcuts.ts) · e2e as listed in A3 · next: U8.
