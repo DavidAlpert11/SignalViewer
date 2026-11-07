@@ -110,7 +110,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const playMode = useApp((s) => s.playMode);
   const windowSec = useApp((s) => s.windowSec);
   const baseSetting = useApp((s) => s.geoBase);
-  const base = baseSetting === "auto" ? (theme === "dark" ? "dark" : "osm") : baseSetting;
+  // automatic: OpenStreetMap's colours in both themes (owner, 1.22.0: the dark map was not inviting)
+  const base = baseSetting === "auto" ? "osm" : baseSetting;
   // country borders (and names) drawn over the maps whose tiles have none: the offline map and the
   // satellite photos (owner's request, 2026-11-04); the street maps draw their own
   const borders = useApp((s) => s.geoBorders);

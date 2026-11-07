@@ -123,6 +123,14 @@ export default function OverviewStrip() {
     return () => window.removeEventListener("keydown", esc);
   }, []);
 
+  // U3 fix: the state rows the strip shows (signal ids) - the tab band leaves them out, so the
+  // flight mode is drawn once (owner, 2026-11-07: two mode rows on top looked like a mistake)
+  const shownLanes = hidden || !rid ? "" : rows.filter((r): r is { kind: "state"; name: string } => r.kind === "state").map((r) => `${rid}/${r.name}`).join("|");
+  useEffect(() => {
+    useApp.setState({ stripLanes: shownLanes ? shownLanes.split("|") : [] });
+    return () => useApp.setState({ stripLanes: [] });
+  }, [shownLanes]);
+
   if (!files.length) return null;
   if (hidden) return <button className="ov-show linklike" onClick={() => { setPref("overviewOff", false); setHidden(false); }}>▸ {t("ovShow")}</button>;
 
@@ -167,6 +175,17 @@ export default function OverviewStrip() {
     ...(!cursor.on && inRun(hoverT) ? [{ x: hoverT, cls: "hover" }] : []),
   ];
   const curMarks = curLines.map((l) => <span key={l.cls} className={`ov-cur ${l.cls}`} style={{ left: pct(l.x) }} />);
+  // U3 fix (owner, 2026-11-07): on a row, each line names the state under it ("1 · AUTO")
+  const segAt = (segs: Seg[], x: number) => segs.find((p) => x >= p.a && x < p.b);
+  const rowMarks = (r: StripRow) => curLines.map((l) => {
+    const seg = r.kind === "state" ? segAt(segsOf(r), l.x) : undefined;
+    const tag = l.cls === "c1" ? "1" : l.cls === "c2" ? "2" : "";
+    return (
+      <span key={l.cls} className={`ov-cur ${l.cls}${ov && (l.x - ov.start) / span > 0.8 ? " flip" : ""}`} style={{ left: pct(l.x) }}>
+        {seg && <span className="ov-cur-tag" dir="auto">{tag ? `${tag} · ` : ""}{seg.label}</span>}
+      </span>
+    );
+  });
   const picked = (r: StripRow, label: string) => sel?.rid === rid && !!sel.picks[keyOf(r)]?.includes(label);
   const selText = sel && sel.rid === rid ? rows.filter((r) => sel.picks[keyOf(r)]?.length).map((r) => {
     const vals = sel.picks[keyOf(r)];
@@ -244,7 +263,7 @@ export default function OverviewStrip() {
                 const bg = cond?.color ?? (p.v !== undefined ? stateColor(p.v, theme) : hue(p.label));
                 const rowPicked = sel?.rid === rid && !!sel.picks[keyOf(r)]?.length;
                 return (
-                  <button key={k} className={`ov-phase${picked(r, p.label) ? " picked" : rowPicked ? " dim" : ""}`}
+                  <button key={k} className={`ov-phase${picked(r, p.label) ? " picked" : rowPicked ? " dim" : ""}${curLines.some((l) => l.x >= p.a && l.x < p.b) ? " at" : ""}`}
                     style={{ left: pct(p.a), width: width(p.a, p.b), background: bg, color: inkOn(bg) }}
                     title={`${rowName(r)}${r.kind === "state" ? `: ${p.label}` : ""} · ${fmtNum(p.a, lang, 5)} – ${fmtNum(p.b, lang, 5)} s`}
                     onClick={(e) => { used(); pick(r, p.label, e.ctrlKey || e.metaKey || e.shiftKey); }} onDoubleClick={() => go(p.a, p.b)}>
@@ -252,7 +271,7 @@ export default function OverviewStrip() {
                   </button>
                 );
               })}
-              {curMarks}
+              {rowMarks(r)}
             </div>,
           ];
         })}

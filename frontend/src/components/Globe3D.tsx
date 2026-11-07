@@ -239,7 +239,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     const off = dark ? "offline_topo_dark" : "offline_topo";
     w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${off}/{z}/{x}/{y}`, maximumLevel: 14, tilingScheme: merc,
       credit: "Natural Earth · Terrain Tiles (Mapzen: SRTM, GMTED2010, ETOPO1) · © OpenStreetMap contributors" }));
-    const online = base === "auto" ? (dark ? "dark" : "osm") : base;
+    const online = base === "auto" ? "osm" : base;            // automatic: OpenStreetMap in both themes (1.22.0)
     if (online !== "offline" && TILE_MAXZ[online]) {
       w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${online}/{z}/{x}/{y}`, maximumLevel: TILE_MAXZ[online], tilingScheme: merc }));
     }

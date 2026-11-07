@@ -10,7 +10,9 @@ and records. Run it before a release so the pictures show the current interface.
 Needs: playwright (+ a Chromium), ffmpeg on PATH for the videos (MP4 + GIF).
 Not made here (kept from a real screen): 06_3d_terrain.png and the 02_flight_map_3d video - a
 headless browser draws the 3D view on software WebGL, where its camera and its playback cannot
-be recorded well.
+be recorded well. The map scenes (00_hero, 05, 28) use OpenStreetMap's tiles: run them on a computer
+with the internet (`--only 00 05 28`, then tools/make_social_preview.py), else the map is empty.
+Every picture is in the dark theme (owner, 1.22.0).
 """
 import argparse
 import json
@@ -89,7 +91,7 @@ def reset(app):
             pass
 
 
-def page(browser, app, dark=False, video=None):
+def page(browser, app, dark=True, video=None):   # owner (1.22.0): every picture in the dark theme
     reset(app)
     t0 = time.time()
     ctx = browser.new_context(viewport={"width": W, "height": H}, color_scheme="dark" if dark else "light",
@@ -300,7 +302,11 @@ def img_04_comparison_table(b, app):
 def img_05_map_and_3d(b, app):
     ctx, pg = page(b, app); open_api(pg, app, "uav_flight.csv")
     apply_template(pg, "bi-position")
+    pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")      # OpenStreetMap's colours (needs the internet)
     cursors(pg, 160, 160); pg.wait_for_timeout(8000)               # the terrain and the map tiles load
+    for _ in range(2):              # until the 3D's tiles are refined (a fixed wait left them blurred on software WebGL)
+        pg.wait_for_function("!!window.__svGlobe && window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=60000)
+        pg.wait_for_timeout(1500)
     shot(pg, "05_map_and_3d"); ctx.close()
 
 
@@ -562,6 +568,7 @@ def img_28_map_by_mode(b, app):
            "lon": f"{rid}/GPS[0].Lng [deg]", "alt": f"{rid}/GPS[0].Alt [m]", "trail": True, "trackColor": "state", "colorSig": f"{rid}/MODE.Mode"}
     pg.evaluate("""(o) => window.__sv.state().commit((ws) => { const p = ws.tabs[0].plots[0];
         p.mode = 'geo'; p.xSignal = o.lon; p.signals = [{sig: o.lat, color: '#3D8BFD', width: 1.5, scale: 1, offset: 0}]; p.objects = [o]; return ws; })""", obj)
+    pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")      # OpenStreetMap's colours (needs the internet)
     pg.wait_for_selector(".track-key", timeout=30000); pg.wait_for_timeout(2500)
     shot(pg, "28_map_by_mode"); ctx.close()
 
@@ -587,7 +594,7 @@ def img_00_hero(b, app):
       const line = (n, color, width = 1.5) => ({ sig: sig(n), color, width, scale: 1, offset: 0 });
       for (const p of tab.plots) {
         for (const o of p.objects || []) { o.trackColor = 'state'; o.colorSig = sig('MODE.Mode'); o.trail = true; }
-        if (p.mode === '3d') { p.showReadout = false; p.showEvents = false; p.followObject = p.objects?.[0]?.id ?? null; }   // the attitude, close
+        if (p.mode === '3d') { p.showReadout = false; p.showEvents = false; p.followObject = null; }   // General camera: the whole track
       }
       tab.rows = 2; tab.cols = 2; tab.rowSizes = [1.15, 1]; tab.linkX = true;
       tab.sharedStates = [sig('MODE.Mode')];
@@ -597,13 +604,32 @@ def img_00_hero(b, app):
           line('VIBE[0].VibeZ [m/s/s]', '#E5534B')] });
       ws.activeTab = tab.id; tab.active = 2;
       return ws; })""", rid)
-    pg.evaluate("window.__sv.setState({ panel: null, startCard: { ...window.__sv.state().startCard }, findingsOpen: false })")
+    # the map in OpenStreetMap's colours (owner: more inviting than the dark automatic one)
+    pg.evaluate("window.__sv.setState({ panel: null, startCard: { ...window.__sv.state().startCard }, findingsOpen: false, geoBase: 'osm' })")
     cursors(pg, 140.4, 140.4)
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, dual: false, t2: null } })")
     pg.wait_for_selector(".track-key", timeout=30000); pg.wait_for_timeout(4000)
-    cam = pg.locator("button", has_text="On the object")                        # the camera behind the vehicle
-    if cam.count():
-        cam.first.click()
+    # the 3D as the owner's example (2026-11-07): General camera, the whole track at an angle (the
+    # default view looks down ~35 deg), brought closer with the wheel so the track fills the plot. The
+    # wheel zooms toward the mouse, so it points at the middle of the track (projected from the scene's
+    # track lines), not at the plot's middle - else the track drifts out of the view (and 3 steps
+    # at the plot's middle went down into the ground). The tiles are loaded first.
+    pg.wait_for_function("!!window.__svGlobe && window.__svGlobe.widget.scene.globe.tilesLoaded", timeout=60000)
+    xy = pg.evaluate("""() => { const { widget: w, Cesium: C } = window.__svGlobe; const pts = [];
+      const walk = (c) => { for (let i = 0; i < c.length; i++) { const p = c.get(i);
+        if (p instanceof C.PolylineCollection) for (let j = 0; j < p.length; j++) pts.push(...p.get(j).positions);
+        else if (p instanceof C.PrimitiveCollection) walk(p); } };
+      walk(w.scene.primitives);
+      if (!pts.length) return null;
+      const s = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.BoundingSphere.fromPoints(pts).center);
+      const r = w.canvas.getBoundingClientRect();
+      return s ? { x: r.left + s.x, y: r.top + s.y } : null; }""")
+    g = pg.locator(".plot", has_text="3D").locator("canvas").first.bounding_box()
+    pg.mouse.move(*((xy["x"], xy["y"]) if xy else (g["x"] + g["width"] / 2, g["y"] + g["height"] * 0.55)))
+    for _ in range(2):
+        pg.mouse.wheel(0, -240); pg.wait_for_timeout(200)
+    pg.mouse.move(5, H - 5)
+    pg.add_style_tag(content=".globe3d-bar { display: none !important }")      # a clean first picture (the 3D's bar is in 28)
     pg.wait_for_timeout(8000)                                                   # the terrain, the map tiles, the 3D model
     shot(pg, "00_hero"); ctx.close()
 

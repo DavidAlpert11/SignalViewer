@@ -10,7 +10,7 @@ hide:
 
 # Signal Viewer
 
-<p class="sv-tagline">Open a flight log, a test run or a simulation, see what went wrong, compare runs
+<p class="sv-tagline"><b>Offline flight log &amp; test data analysis.</b> Open a flight log, a test run or a simulation, see what went wrong, compare runs
 and write the report – offline, on your own machine, with every computation validated.</p>
 
 [:material-download: Download for Windows](https://github.com/DavidAlpert11/SignalViewer/releases/latest){ .md-button .md-button--primary }
@@ -21,8 +21,7 @@ and write the report – offline, on your own machine, with every computation va
 
 </div>
 
-![Four linked plots, two cursors and statistics between them](images/01_overview.png#only-light){ .sv-shot }
-![Four linked plots, two cursors and statistics between them, dark theme](images/02_dark_theme.png#only-dark){ .sv-shot }
+![An ArduPilot flight: the track on the map coloured by flight mode, the vehicle in 3D, Roll desired against actual and the vibration at the moment the health check found](images/00_hero.png){ .sv-shot }
 
 ## What you do with it
 
