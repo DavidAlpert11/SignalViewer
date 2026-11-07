@@ -31,7 +31,9 @@ export default function TabBand() {
   const dataVersion = useApp((s) => s.dataVersion);
   const cursor = useApp((s) => s.cursor);
   const tab = activeTab(ws);
-  const lanes = tabBandLanes(ws.globalStates, tab).filter((id) => runs.some((r) => r.signals.some((x) => x.id === id)));
+  // the lanes the overview strip shows already are drawn there (with the cursors), not twice
+  const inStrip = useApp((s) => s.stripLanes);
+  const lanes = tabBandLanes(ws.globalStates, tab).filter((id) => runs.some((r) => r.signals.some((x) => x.id === id)) && !inStrip.includes(id));
   const first = tab.plots.find(onTimeAxis);
   const view = useApp((s) => (first ? s.xViews[first.id] : undefined));
   const hover = useApp((s) => (s.hover && tab.plots.some((p) => p.id === s.hover!.plotId) ? s.hover.t : null));

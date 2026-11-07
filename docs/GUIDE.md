@@ -40,7 +40,7 @@ are told apart by them.
   template or collection - and a template's other tabs: a template may open only its default ones
   (the ArduPilot full review: Attitude and Flight) and keep the rest there, their number on the ▾.
   The layout button (1 × 1) splits a tab into rows and columns. When a tab's plots share the time,
-  its flight-mode lane is drawn once above them, with the cursors and the pointer on it.
+  its flight-mode lane is drawn once - in the strip above them - with the cursors and the pointer on it.
 - **Bottom:** the timeline – play, the time shown, the cursor. Time is written in seconds as
   recorded, like the axes; *Settings* (the gear, Ctrl+,) can show a clock from the start instead,
   and holds the theme and the text size.

@@ -83,6 +83,8 @@ export interface UiSlice {
   gutters: Record<string, [number, number]>;
   /** U3: each time plot's shown time window (reported by the charts; the tab's band follows it). UI only. */
   xViews: Record<string, [number, number]>;
+  /** U3: the state signals the overview strip shows as rows (ids): the tab band does not repeat them. UI only. */
+  stripLanes: string[];
 
   set: (p: Partial<AppState>) => void;
   toast: (t: Omit<Toast, "id">) => void;
@@ -146,6 +148,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   tabChoice: null,
   gutters: {},
   xViews: {},
+  stripLanes: [],
 
   set: (p) => set(p),
   toast: (t) => {
