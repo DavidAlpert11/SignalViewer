@@ -10,9 +10,10 @@ import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
 import { openPaths, openSession, saveSession } from "../files";
 import { copyErrorDetails, reportProblem } from "../errorReport";
-import type { MenuItem } from "../store";
+import type { MenuItem, MoreTabs } from "../store";
 import { openMenu } from "./Overlays";
 import { templateMenuItems } from "../templateMenu";
+import { forgetMore, moreUsable, openMoreTabs, tx } from "../templates";
 import { getPref, setPref } from "../prefs";
 
 
@@ -146,6 +147,22 @@ export function RecordingsBar() {
       ws.tabs.map((tab, i) => ({ label: `${tab.id === ws.activeTab ? "✓ " : "\u2003"}${tab.name || `${t("tab")} ${i + 1}`}`,
         run: () => actions.switchTab(tab.id) })));
   };
+  // U1: the tabs a template left out, a click away - one button per template, its files still open
+  const runs = useApp((s) => s.runs);
+  const more = (ws.moreTabs ?? []).filter((m) => m.tabs.length && moreUsable(m, runs));
+  // one button even for several templates (a section each), so the tab bar does not fill up
+  const nameOf = (m: MoreTabs) => (m.builtin ? tx(m.name) : m.name);
+  const moreItems = (m: MoreTabs, head: boolean): MenuItem[] => [
+    ...(head ? [{ label: nameOf(m), run: () => {}, disabled: true }] : []),
+    ...m.tabs.map((n) => ({ label: (head ? "\u2003" : "") + (m.builtin ? tx(n) : n), run: () => { openMoreTabs(m, [n]); } })),
+    ...(m.tabs.length > 1 ? [{ label: (head ? "\u2003" : "") + t("moreTabsAll", { n: m.tabs.length }), run: () => { openMoreTabs(m, m.tabs); } }] : []),
+    { label: (head ? "\u2003" : "") + t("moreTabsDismiss"), run: () => forgetMore(m.tpl) },
+  ];
+  const moreMenu = (e: React.MouseEvent) => openMenu(at(e), more.flatMap((m, i) => [
+    ...(i ? [{ label: "", run: () => {}, sep: true }] : []), ...moreItems(m, more.length > 1)]));
+  const moreN = more.reduce((a, m) => a + m.tabs.length, 0);
+  const moreLabel = more.length > 1 ? t("moreTabsN", { n: moreN })
+    : more.length ? (moreN === 1 ? t("moreTabsOne", { name: nameOf(more[0]) }) : t("moreTabs", { n: moreN, name: nameOf(more[0]) })) : "";
 
   return (
     <div className="areabar" role="toolbar" aria-label={t(areaDef("recordings").label)}>
@@ -195,6 +212,11 @@ export function RecordingsBar() {
         )}
         <button className="iconbtn" onClick={actions.addTab} title={t("addTab")} aria-label={t("addTab")}
           onContextMenu={(e) => openMenu(e, [{ label: t("addTab"), run: actions.addTab }])}><Icon.Plus /></button>
+        {more.length > 0 && (
+          <button className="btn more-tabs" aria-haspopup="menu" onClick={moreMenu} title={moreLabel}>
+            <span className="more-tabs-label">{moreLabel}</span> <Icon.Chevron width={12} height={12} />
+          </button>
+        )}
       </nav>
       <button className="btn tpl-menu-btn" aria-haspopup="menu" aria-label={t("tplMenu")}
         onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect();

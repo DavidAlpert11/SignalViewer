@@ -16,6 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Next (owner's plan, 2026-11-07)**: U1, U3, U2 (opening a file), M1 (hero / tagline), A1 (split
   store.py), U6, U4, U5, U7 (UX), A2, A3, U8 - spec and board in "Owner's plan (2026-11-07)" below.
   Testing rule changed in CLAUDE.md: relevant e2e per task, whole suite per group and at the end.
+  U1 done (2026-11-07); next U3.
 
 - **1.21.0 (2026-11-05)**: a review before the ArduPilot forum (real logs: Copter 4.5.5, Plane 3.8,
   Copter 3.4 tlog, VTOL tlog; every button clicked in every example). Fixed: same-flight offer for
@@ -145,7 +146,7 @@ Progress board (tick here AND in ROADMAP):
 
 | # | Task | Group | Size | Status |
 |---|---|---|---|---|
-| U1 | Choose which tabs a template opens (`defaultTabs`, "+N more") | 1 | M | ☐ |
+| U1 | Choose which tabs a template opens (`defaultTabs`, "+N more") | 1 | M | ☑ done |
 | U3 | One flight-mode band per tab | 1 | M | ☐ |
 | U2 | Health findings must not cover data | 1 | S/M | ☐ |
 | M1 | Hero image, social preview, tagline | 2 | S | ☐ |
@@ -184,6 +185,19 @@ and `ws.globalStates` (every tab), drawn per plot in TimeChart.tsx ~94 - U3 buil
 
 **Done when:** the dialog works; auto-open opens only the defaults; "+N more" opens the rest; old
 templates and sessions unchanged; en + he strings, RTL checked; e2e for the flow.
+**Status: done 2026-11-07.** Found first: the library's details already had a checkbox per tab
+(`applyTemplate(..., chosen)`); smartStart never opened a template by itself for an ordinary file
+(the start card's *Open it*; only the examples open at once, T48). Decided (owner agreed): the library
+= the choice (now All / None, defaults pre-checked); a chip of a template with several tabs = the
+"which tabs?" dialog (`TabChoice.tsx`, skipped by Settings `tplTabChoice: "defaults"`); *Open it* and
+the examples = the default tabs, no question. Owner chose `defaultTabs: ["Attitude", "Flight"]` for
+both built-in full reviews (also MAVLink's). Made: `Template.defaultTabs` (optional, names over the
+expanded tabs; prefs `_validate` drops junk), `templates.ts` `defaultTabIdx` / `tabIdxByName` /
+`openMoreTabs` / `forgetMore` / `announceOpened`, `applyTemplate` records the tabs left out in
+`ws.moreTabs` (optional; one entry per template, in the same Undo step), one "+N more ▾" button beside
+the + (a section per template when several; hidden when a bound file is closed), the editor's
+*Opened by default* list (a renamed tab stays default; all / none checked = not stored).
+Tests: test_templates.py (+2), e2e test_template_tabs.py (3). Left: "1 tabs" in the toast (plurals: U7).
 
 ### U3 · One flight-mode band per tab — M
 **Do:**
@@ -2502,3 +2516,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-04 · 1.20.1 Borders over the offline map and the satellite photos · branch borders · test_offline_map (+1), map / settings / owner notes e2e pass.
 - 2026-11-05 · 1.21.0 Filter review, Step response, Hardware, compare time tolerance; review fixes (sync confirmation and why, old STATUSTEXT scale, PreArm, ERR/EV, motors, battery limits and timer, units, CSV decimal comma / ISO dates / no time column, compare tolerance, file-dialog Esc, Copy, template fit) · backend 983 pass; e2e 303 pass (new test_release_1_21.py), 2 fail as before (test_one_place_for_each_control fails on main too; test_borders… passes alone - a canvas timing).
 - 2026-11-07 · Patch 0: the owner's plan U1–U8, M1, A1–A3 in TASKS.md (spec, board) and ROADMAP.md (Milestone 25); CLAUDE.md e2e rule: relevant files per task, whole suite per group / at the end · docs only, no tests needed · next: U1.
+- 2026-11-07 · U1 a template's default tabs, the rest in "+N more" (`defaultTabs`, `ws.moreTabs`, TabChoice dialog, Settings `tplTabChoice`) · backend all + mypy; e2e test_template_tabs, test_fresh_user, test_workflows, test_templates_recent_badfiles, test_settings, test_features -k template · next: U3.

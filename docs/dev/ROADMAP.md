@@ -801,7 +801,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] Sweeps: All runs while loading, counts in the tabs; several objectives ranked by score or Pareto, *Show the Pareto front*, the Pareto chart (any pair, the balanced set, levels), fast fronts; *Clear ▾*.
 
 ## Milestone 25 — opening a file, first impression, smaller files (owner's plan 2026-11-07). Spec: TASKS.md "Owner's plan (2026-11-07)". Order: U1, U3, U2, M1, A1, U6, U4, U5, U7, A2, A3, U8.
-- [ ] U1 Choose which tabs a template opens: a dialog when opened by hand, optional `defaultTabs`, auto-open without a dialog, "+N more from <template> ▾", a Settings option.
+- [x] U1 Choose which tabs a template opens: a dialog when opened by hand, optional `defaultTabs`, auto-open without a dialog, "+N more from <template> ▾", a Settings option. Done 2026-11-07: `defaultTabs` (built-in full reviews: Attitude + Flight), `ws.moreTabs`, TabChoice.tsx, Settings `tplTabChoice`, the editor's *Opened by default*; test_template_tabs.py.
 - [ ] U3 One flight-mode band per tab (cursors and hover on it, the mode under the cursor labelled; a plot can turn its own back on).
 - [ ] U2 Health findings do not cover data: a docked, collapsible card; markers on the bottom timeline.
 - [ ] M1 Hero image (2×2, dark, 2x) and a 1280×640 social preview from make_readme_media.py; README order; tagline (owner confirms the wording).
