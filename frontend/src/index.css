@@ -1522,3 +1522,28 @@ input.fx-input { width: 100%; }
 .log-hw dd { margin: 0; overflow-wrap: anywhere; }
 .log-hw dl > div.note dd { color: var(--muted); font-family: var(--mono, ui-monospace, monospace); font-size: 11.5px; }
 .log-hw .btn { margin-top: 12px; }
+
+/* U3: the tab's state lanes once above its plots, lined up with their time axis (TabBand.tsx).
+   Physical left / right on purpose: the time axis runs left to right in Hebrew too. */
+.tab-band { position: relative; flex: none; direction: ltr; padding: 6px 0 0; }
+.band-row { position: relative; height: 20px; margin-bottom: 2px; }
+.band-label { position: absolute; left: 0; top: 0; height: 100%; width: calc(var(--band-left, 120px) - 6px); text-align: right;
+  font-size: 0.7692rem; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0; }
+.band-track { position: absolute; top: 0; bottom: 0; left: var(--band-left, 120px); width: var(--band-width, calc(100% - 136px));
+  background: var(--panel-2); border-radius: 3px; }
+.band-seg { position: absolute; top: 0; bottom: 0; border: 0; border-left: 1px solid var(--bg); padding: 0 4px; min-width: 1px;
+  font-size: 0.7692rem; line-height: 20px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; text-align: center; }
+.band-seg span { pointer-events: none; }
+.band-seg.many { background: repeating-linear-gradient(45deg, var(--grid) 0 2px, transparent 2px 6px); }
+.band-seg.at { box-shadow: inset 0 0 0 2px var(--ink-strong); font-weight: 600; z-index: 1; }
+.band-line { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1.5px solid var(--amber); pointer-events: none; z-index: 2; }
+.band-line.c2 { border-left-style: dashed; }
+.band-line.hover { border-left: 1px dashed var(--muted); }
+.band-tag { position: absolute; top: 50%; left: 4px; transform: translateY(-50%); padding: 0 5px; border-radius: 3px; white-space: nowrap;
+  font-size: 0.7692rem; line-height: 16px; background: var(--raised); color: var(--ink-strong); box-shadow: 0 0 0 1px var(--line-strong); }
+.band-line.c1 .band-tag, .band-line.c2 .band-tag { background: var(--amber); color: var(--amber-ink); box-shadow: none; }
+.band-line.flip .band-tag { left: auto; right: 4px; }
+/* U3: the plots' cursors (and the pointer) on the overview strip too - which part of the run this is */
+.ov-cur { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 1.5px solid var(--amber); pointer-events: none; z-index: 2; }
+.ov-cur.c2 { border-left-style: dashed; }
+.ov-cur.hover { border-left: 1px dashed var(--muted); }

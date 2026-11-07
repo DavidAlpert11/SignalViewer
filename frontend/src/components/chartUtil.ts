@@ -127,6 +127,15 @@ export function reportGutter(plotId: string, l: number, r: number) {
   useApp.setState((s) => ({ gutters: { ...s.gutters, [plotId]: [l, r] } }));
 }
 
+/** U3: a time plot's shown time window, for the tab's band above the plots (UI only). */
+export function publishXView(plotId: string, u: { scales: Record<string, { min?: number | null; max?: number | null }> }) {
+  const a = u.scales.x?.min, b = u.scales.x?.max;
+  if (a == null || b == null || !(b > a)) return;
+  const cur = useApp.getState().xViews[plotId];
+  if (cur && cur[0] === a && cur[1] === b) return;
+  useApp.setState((s) => ({ xViews: { ...s.xViews, [plotId]: [a, b] } }));
+}
+
 /** The room left and right of the plot area that this plot's column uses (px; 0 before anyone reported). */
 export function useGutter(tab: Tab, plotId: string, on = true): [number, number] {
   const ids = columnPeers(tab, plotId);

@@ -802,14 +802,14 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 
 ## Milestone 25 — opening a file, first impression, smaller files (owner's plan 2026-11-07). Spec: TASKS.md "Owner's plan (2026-11-07)". Order: U1, U3, U2, M1, A1, U6, U4, U5, U7, A2, A3, U8.
 - [x] U1 Choose which tabs a template opens: a dialog when opened by hand, optional `defaultTabs`, auto-open without a dialog, "+N more from <template> ▾", a Settings option. Done 2026-11-07: `defaultTabs` (built-in full reviews: Attitude + Flight), `ws.moreTabs`, TabChoice.tsx, Settings `tplTabChoice`, the editor's *Opened by default*; test_template_tabs.py.
-- [ ] U3 One flight-mode band per tab (cursors and hover on it, the mode under the cursor labelled; a plot can turn its own back on).
+- [x] U3 One flight-mode band per tab (cursors and hover on it, the mode under the cursor labelled; a plot can turn its own back on). Done 2026-11-07: TabBand.tsx, `tabBandLanes`, `plot.ownBand`; the overview strip shows the cursors and hover too (owner); test_tab_band.py.
 - [ ] U2 Health findings do not cover data: a docked, collapsible card; markers on the bottom timeline.
 - [ ] M1 Hero image (2×2, dark, 2x) and a 1280×640 social preview from make_readme_media.py; README order; tagline (owner confirms the wording).
 - [ ] A1 Split backend/app/store.py: svcore/investigate.py (pure functions, a signal getter) and a LiveWatcher; store.py < 900 lines.
 - [ ] U6 Hover moves a ghost point on the map / 3D (`s.hover.t`).
 - [ ] U4 Desired vs actual: `Des<X>` / `<X>` and `*_sp` pairs - desired dashed and muted unless styled by hand.
 - [ ] U5 SDI-style difference view in Compare: difference plot with the tolerance band, out-of-tolerance in red, ✓ / ✗ per signal.
-- [ ] U7 Less clutter: help line as a tooltip, labelled or grouped icons, plurals, the points wording; < 70 visible buttons in the ArduPilot example.
+- [ ] U7 Less clutter: help line as a tooltip, labelled or grouped icons, plurals, the points wording; < 70 visible buttons in the ArduPilot example; automatic flags and log events told apart (owner, 2026-11-07).
 - [ ] A2 Split frontend/src/i18n.ts by area (same key count, no file > 600 lines).
 - [ ] A3 App.tsx cleanup: Welcome, RAIL, EXAMPLE_* to their own files; App.tsx < 450 lines.
 - [ ] U8 Navigation design only (no code): Recordings / Sweeps, view tabs, left rail.

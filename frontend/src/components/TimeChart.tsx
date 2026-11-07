@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, type Series } from "../api";
-import { actions, activeTab, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab } from "../store";
+import { actions, activeTab, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab, tabBandLanes } from "../store";
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
-import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
+import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
   tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void;
@@ -91,7 +91,10 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   // the tab's shared lanes (e.g. the flight mode on every plot) and the ones on every plot of every
   // tab, unless this plot already shows them - each lane once
   const globalStates = useApp((s) => s.ws.globalStates);
-  const shared = [...new Set([...(globalStates ?? []), ...(tab.sharedStates ?? [])])].filter((id) => !plot.signals.some((s) => s.sig === id));
+  // U3: lanes the tab shows once above its plots are not repeated here (unless this plot asks for them)
+  const inBand = plot.ownBand ? [] : tabBandLanes(globalStates, tab);
+  const shared = [...new Set([...(globalStates ?? []), ...(tab.sharedStates ?? [])])]
+    .filter((id) => !plot.signals.some((s) => s.sig === id) && !inBand.includes(id));
   const stateIds = [...plot.signals.filter((s) => s.state).map((s) => s.sig), ...shared];
   const stateKey = stateIds.join("|");
   const runsKey = runsDataKey(runs);
@@ -676,7 +679,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           },
         ],
         drawAxes: [clipStart],
-        draw: [clipEnd, drawConds, drawStates, drawLimits, drawLogMarks, (u) => drawOverlay(u)],
+        draw: [clipEnd, drawConds, drawStates, drawLimits, drawLogMarks, (u) => drawOverlay(u), (u) => publishXView(plot.id, u)],
         setSize: [(u) => syncOverlay(u)],
         setSelect: [
           (u) => {

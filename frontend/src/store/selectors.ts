@@ -122,6 +122,18 @@ export function laneScope(ws: Workspace, tab: Tab, plot: Plot, sig: string): Lan
   return plot.signals.some((s) => s.sig === sig && s.state) ? "plot" : null;
 }
 
+/** U3: a time plot on the tab's shared time axis (the band above the plots lines up with it). */
+export const onTimeAxis = (p: Plot) => (p.mode ?? "time") === "time" && !p.xSignal && !p.occ;
+
+/** U3: the lanes the tab shows ONCE above its plots instead of in each plot (the flight mode on an
+ *  ArduPilot tab): its own and every tab's lanes, when two or more time plots share the time axis
+ *  (X linked, one column - so one band lines up with all of them). [] = each plot keeps its lanes. */
+export function tabBandLanes(globalStates: string[] | undefined, tab: Tab): string[] {
+  const lanes = [...new Set([...(globalStates ?? []), ...(tab.sharedStates ?? [])])];
+  if (!lanes.length || tab.linkX === false || tab.cols !== 1) return [];
+  return tab.plots.filter(onTimeAxis).length >= 2 ? lanes : [];
+}
+
 export function nextColor(ws: Workspace): string {
   return colorAllocator(ws)();
 }

@@ -76,6 +76,8 @@ export interface UiSlice {
   /** F24: each plot's room left / right of its plot area (px), so a column of plots shares one -
    *  the time axes line up. Reported by the charts; UI only. */
   gutters: Record<string, [number, number]>;
+  /** U3: each time plot's shown time window (reported by the charts; the tab's band follows it). UI only. */
+  xViews: Record<string, [number, number]>;
 
   set: (p: Partial<AppState>) => void;
   toast: (t: Omit<Toast, "id">) => void;
@@ -136,6 +138,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   tplTabChoice: "ask",
   tabChoice: null,
   gutters: {},
+  xViews: {},
 
   set: (p) => set(p),
   toast: (t) => {

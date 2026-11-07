@@ -28,6 +28,10 @@ export default function OverviewStrip() {
   const condResults = useApp((s) => s.condResults);
   const sel = useApp((s) => s.stripSel);
   const theme = useApp((s) => s.theme);
+  // U3 (owner): the plots' cursors - and the pointer over a plot - on the strip too, so it is clear
+  // which part of the run is being looked at
+  const cursor = useApp((s) => s.cursor);
+  const hoverT = useApp((s) => s.hover?.t ?? null);
   // the strip's time axis under the plots' own: its tracks start and end where the plotting area of
   // the first time plot does (when that plot is about as wide as the strip; else its own layout)
   const rowsRef = useRef<HTMLDivElement>(null);
@@ -154,6 +158,13 @@ export default function OverviewStrip() {
     useApp.setState({ cursor: { ...useApp.getState().cursor, on: true, dual: b > a, t1: a, t2: b > a ? b : null, active: 1 } });
   };
   const bad = (k: string) => k === "saturated" || k === "gap";
+  const inRun = (x: number | null): x is number => x !== null && !!ov && x >= ov.start && x <= ov.end;
+  const curLines = [
+    ...(cursor.on && inRun(cursor.t1) ? [{ x: cursor.t1, cls: "c1" }] : []),
+    ...(cursor.on && cursor.dual && inRun(cursor.t2) ? [{ x: cursor.t2, cls: "c2" }] : []),
+    ...(!cursor.on && inRun(hoverT) ? [{ x: hoverT, cls: "hover" }] : []),
+  ];
+  const curMarks = curLines.map((l) => <span key={l.cls} className={`ov-cur ${l.cls}`} style={{ left: pct(l.x) }} />);
   const picked = (r: StripRow, label: string) => sel?.rid === rid && !!sel.picks[keyOf(r)]?.includes(label);
   const selText = sel && sel.rid === rid ? rows.filter((r) => sel.picks[keyOf(r)]?.length).map((r) => {
     const vals = sel.picks[keyOf(r)];
@@ -211,6 +222,7 @@ export default function OverviewStrip() {
         <span className="ov-label muted">{t("ovFlags")}</span>
         <div className="ov-track ov-flags">
           {view && ov && <div className="ov-view" style={{ left: pct(view[0]), width: width(view[0], view[1]) }} title={t("ovView")} />}
+          {curMarks}
           {clusters.map((c, i) => (
             <button key={i} className={`ov-flag${c.items.some((f) => bad(f.kind)) ? " bad" : ""}`} style={{ left: pct(c.a) }}
               title={c.items.map(flagText).join("\n")} aria-label={c.items.map(flagText).join("; ")} onClick={() => go(c.a, c.b)}>
@@ -237,6 +249,7 @@ export default function OverviewStrip() {
                   </button>
                 );
               })}
+              {curMarks}
             </div>,
           ];
         })}
