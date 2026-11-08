@@ -79,6 +79,18 @@ def b64(a: np.ndarray, dtype) -> str:
 
 
 
+def y_reference(y: np.ndarray) -> float:
+    """P3: the values are sent as float32 RELATIVE to this float64 reference (the middle of their
+    range): float32 alone rounds 1.7e9 (a Unix time, a counter) to steps of 128 and an RTK track by up
+    to 0.2 m - relative to the middle only the signal's own variation is rounded, ~1e-7 of it."""
+    f = y[np.isfinite(y)]
+    if not len(f):
+        return 0.0
+    mid = 0.5 * (float(f.min()) + float(f.max()))
+    return mid if np.isfinite(mid) else 0.0
+
+
+
 def fail(status: int, message: str) -> NoReturn:
     raise HTTPException(status_code=status, detail=message)
 

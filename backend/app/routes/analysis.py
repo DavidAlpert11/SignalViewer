@@ -8,7 +8,7 @@ import numpy as np
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from app.common import b64, fail
+from app.common import b64, fail, y_reference
 from app.store import LoadError
 from app.store import store
 from svcore.analysis import OPS, OpError, fft_display, fft_for, transitions, xy_pair
@@ -253,6 +253,7 @@ class XYRequest(BaseModel):
     t0: Optional[float] = None
     t1: Optional[float] = None
     points: int = 16000
+    relative: bool = False          # P3: y as float32 around a float64 reference "yRef" (the app asks so)
 
 
 
@@ -270,7 +271,11 @@ def xy(req: XYRequest):
             out.append({"id": sid, "missing": True})
             continue
         xs, ys, ts = xy_pair(tx, x, ty, y, req.alignment, req.t0, req.t1, req.points, with_t=True)
-        out.append({"id": sid, "n": int(len(xs)), "x": b64(xs, np.float64), "y": b64(ys, np.float32), "t": b64(ts, np.float64)})
+        # P3: asked relative (the app does), y goes as float32 around a float64 reference - a latitude in
+        # float32 is rounded by up to ~0.2 m (an RTK track); absolute float32 for any other client
+        ref = y_reference(np.asarray(ys, dtype=np.float64)) if req.relative else 0.0
+        out.append({"id": sid, "n": int(len(xs)), "x": b64(xs, np.float64), "y": b64(np.asarray(ys, dtype=np.float64) - ref, np.float32),
+                    "t": b64(ts, np.float64), **({"yRef": ref} if req.relative else {})})
     return {"series": out}
 
 

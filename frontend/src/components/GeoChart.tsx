@@ -13,7 +13,7 @@ import { dpr, indexSpan, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chart
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string; notDegrees: string }
 
-interface Track { id: string; lon: Float64Array; lat: Float32Array; t: Float64Array }
+interface Track { id: string; lon: Float64Array; lat: Float64Array; t: Float64Array }
 /** cx, cy: map centre in Web-Mercator world units (0..1); z: zoom (256 * 2^z pixels across the world). */
 interface View { cx: number; cy: number; z: number }
 
@@ -185,7 +185,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     return out;
   }, [objects, objTracks, runs, lang, theme]);
   /** Tracks and objects, for fitting the view. */
-  const allTracks = (): Track[] => [...tracks, ...Object.entries(objTracks).map(([id, o]) => ({ id, lon: o.lon, lat: Float32Array.from(o.lat), t: o.t }))];
+  const allTracks = (): Track[] => [...tracks, ...Object.entries(objTracks).map(([id, o]) => ({ id, lon: o.lon, lat: o.lat, t: o.t }))];
   const allTracksRef = useRef(allTracks);
   allTracksRef.current = allTracks;
 

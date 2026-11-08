@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
-import { api, type Series } from "../api";
+import { api, isAborted, type Series } from "../api";
+import { joinTables } from "../joinTables";
 import { actions, activeTab, DEFAULT_LINE_WIDTH, rangeKey, shownSpan, yRangeKey, useApp, type Plot, type PlotSignal, type PreviewLine, type Range, type Tab, tabBandLanes } from "../store";
 import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
@@ -108,6 +109,8 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   useEffect(() => {
     if (!sigIds.length) { setSeries([]); return; }
     let cancelled = false;
+    // P3: a pan or zoom burst makes a request per step - the older ones are aborted, not waited for
+    const ctl = new AbortController();
     const h = window.setTimeout(async () => {
       onLoading(true);
       try {
@@ -115,15 +118,15 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
         const groups = new Map<number, string[]>();
         plot.signals.forEach((ps) => { const o = ps.tOffset ?? 0; groups.set(o, [...(groups.get(o) ?? []), ps.sig]); });
         const parts = await Promise.all(Array.from(groups, ([off, ids]) =>
-          api.data(ids, range ? range[0] - off : null, range ? range[1] - off : null, widthBucket * 2)));
+          api.data(ids, range ? range[0] - off : null, range ? range[1] - off : null, widthBucket * 2, ctl.signal)));
         if (!cancelled) setSeries(parts.flat());
       } catch (e) {
-        if (!cancelled) useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
+        if (!cancelled && !isAborted(e)) useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
       } finally {
         if (!cancelled) onLoading(false);
       }
     }, 60);
-    return () => { cancelled = true; window.clearTimeout(h); };
+    return () => { cancelled = true; window.clearTimeout(h); ctl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sigKey, range?.[0], range?.[1], widthBucket, dataVersion, runsKey, plot.signals.map((p) => p.tOffset ?? 0).join("|")]);
 
@@ -166,7 +169,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     });
     const sigs = ok.map((v) => v.ps);
     for (const l of pv) tables.push([Array.from(l.x), Array.from(l.y, (v) => (Number.isFinite(v) ? v : null))] as uPlot.AlignedData);
-    const data = tables.length === 1 ? tables[0] : uPlot.join(tables, tables.map(() => [1]));
+    const data = joinTables(tables);                     // P3: uPlot.join's result, 2x faster for many signals
     // dense: about a point per pixel or more (decimated min/max) - see lineWidth below
     const dense = ok.map(({ s }) => s.decimated || s.n >= widthBucket * 0.75);
     return { data, sigs, dense, previewLabels: pv.map((l) => l.label) };

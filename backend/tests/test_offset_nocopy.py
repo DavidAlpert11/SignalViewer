@@ -107,3 +107,74 @@ def test_spectrogram_window(pair):
     for k in ("t0", "t1", "sigT0", "sigT1", "nf", "nt"):
         assert ra[k] == pytest.approx(rb[k]), k
     assert ra["img"] == rb["img"]
+
+
+# ---- P3: the binary answer of /api/data, values relative to a float64 reference ----
+
+def _unpack(raw: bytes):
+    import json
+    n = int.from_bytes(raw[:4], "little")
+    head = json.loads(raw[4:4 + n])
+    base = 4 + n
+    assert base % 8 == 0
+    out = {}
+    for s in head["series"]:
+        if s.get("missing"):
+            out[s["id"]] = None
+            continue
+        x = np.frombuffer(raw, "<f8", s["n"], base + s["xAt"])
+        y = s["yRef"] + np.frombuffer(raw, "<f4", s["n"], base + s["yAt"]).astype(np.float64)
+        out[s["id"]] = (x, y, s)
+    return out
+
+
+def test_binary_data_matches_json_and_keeps_precision():
+    """A Unix-time-like signal (1.7e9 + a +-3 wave): float32 alone rounds it to steps of 128 (the wave is gone); relative to
+    its float64 middle the error is ~1e-4."""
+    t = np.arange(0, 20, 0.01)
+    big = 1.7e9 + 3 * np.sin(t)
+    r = Run(file_path="p3", csv_display_name="p3", time=t)
+    r.signals["big"] = Signal(name="big", data=big, time=t)
+    r.signals["small"] = Signal(name="small", data=np.sin(t), time=t)
+    r.compute_metadata()
+    lr = store.add_pushed("p3", r)[0]
+    try:
+        ids = [f"{lr.id}/big", f"{lr.id}/small", f"{lr.id}/nope"]
+        res = client.post("/api/data", json={"signals": ids, "points": 4000, "format": "bin"})
+        assert res.headers["content-type"] == "application/octet-stream"
+        got = _unpack(res.content)
+        x, y, meta = got[ids[0]]
+        assert meta["n"] == len(t) and np.allclose(x, t) and got[ids[2]] is None
+        assert np.max(np.abs(y - big)) < 1e-3                      # was up to 64 (float32 of 1.7e9)
+        js = client.post("/api/data", json={"signals": ids[:2], "points": 4000}).json()["series"]
+        import base64
+        jy = np.frombuffer(base64.b64decode(js[1]["y"]), np.float32)
+        assert np.allclose(got[ids[1]][1], jy, atol=1e-6)          # the same values as the JSON answer
+        old = np.frombuffer(base64.b64decode(js[0]["y"]), np.float32).astype(np.float64)
+        assert np.max(np.abs(old - big)) > 2                       # JSON (absolute float32): the +-3 wave is lost
+    finally:
+        store.remove(lr.id)
+
+
+def test_xy_relative_keeps_a_latitude_to_the_centimetre():
+    """The Geo / XY plots: a latitude sent as float32 is rounded by up to ~0.2 m; relative to its
+    float64 reference, to well under a millimetre. Absolute float32 stays for other clients."""
+    import base64
+    t = np.arange(0, 10, 0.01)
+    lat = 32.0841234 + 1e-6 * np.sin(t)                         # ~0.1 m of wander (an RTK track)
+    lon = 34.7812345 + 1e-6 * np.cos(t)
+    r = Run(file_path="p3geo", csv_display_name="p3geo", time=t)
+    r.signals["lat"] = Signal(name="lat", data=lat, time=t)
+    r.signals["lon"] = Signal(name="lon", data=lon, time=t)
+    r.compute_metadata()
+    lr = store.add_pushed("p3geo", r)[0]
+    try:
+        body = {"x": f"{lr.id}/lon", "ys": [f"{lr.id}/lat"]}
+        s = client.post("/api/xy", json={**body, "relative": True}).json()["series"][0]
+        y = s["yRef"] + np.frombuffer(base64.b64decode(s["y"]), np.float32).astype(np.float64)
+        assert np.max(np.abs(y - lat)) * 111_000 < 1e-3               # metres
+        a = client.post("/api/xy", json=body).json()["series"][0]
+        old = np.frombuffer(base64.b64decode(a["y"]), np.float32).astype(np.float64)
+        assert "yRef" not in a and np.max(np.abs(old - lat)) * 111_000 > 0.05
+    finally:
+        store.remove(lr.id)
