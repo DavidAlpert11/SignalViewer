@@ -34,7 +34,7 @@ from app.filecheck import (LoadError, SUPPORTED_EXTS, TEXT_EXTS, _can_csv, _csv_
 from svcore.transforms import REF, apply_transform, normalize_transform, ref_run, transform_refs  # noqa: F401
 from app.livewatch import SETTLE_MAX, SETTLE_QUIET, TIME_SLACK, UPLOAD_DIR, LiveWatcher, _stat, run_format  # noqa: F401
 from app import userreaders
-from svcore.analysis import DerivedDef, compute, is_discrete
+from svcore.analysis import NAN_OPS, DerivedDef, compute, is_discrete
 from collections import OrderedDict
 import json
 import re
@@ -670,8 +670,9 @@ class Store:
             return d.time, d.data
         if any(v is None for v in versions):
             raise KeyError("A source signal of this derived signal is no longer open.")
-        t, y = compute(d.op, [self.signal(s) for s in d.sources], d.params, [self.is_state(s) for s in d.sources])
-        d.time, d.data, d.source_versions = t, y, versions
+        rep: dict = {}
+        t, y = compute(d.op, [self.signal(s) for s in d.sources], d.params, [self.is_state(s) for s in d.sources], rep)
+        d.time, d.data, d.source_versions, d.report = t, y, versions, rep
         return t, y
 
     def short_name(self, sig_id: str) -> str:
@@ -683,10 +684,18 @@ class Store:
         clash = any(rid != run_id and name in o.run.signals for rid, o in self.runs.items())
         return f"{name} ({lr.name})" if lr and clash else name
 
-    def add_derived(self, op: str, sources: List[str], params: dict, name: Optional[str] = None) -> DerivedDef:
+    def add_derived(self, op: str, sources: List[str], params: dict, name: Optional[str] = None,
+                    legacy: bool = False) -> DerivedDef:
+        """legacy: a recipe restored from a session / autosave. C3: an operation with a missing-data
+        policy always stores it explicitly - a new recipe "propagate", a restored one WITHOUT `nan`
+        (saved before 1.23) "legacy", so its numbers stay what they were; Undo and Clear re-send the
+        listed params, which carry it."""
         for s in sources:
             self.signal(s)  # validates ids (KeyError)
-        d = DerivedDef(name="", op=op, sources=list(sources), params=dict(params or {}))
+        params = dict(params or {})
+        if op in NAN_OPS and "nan" not in params:
+            params["nan"] = "legacy" if legacy else "propagate"
+        d = DerivedDef(name="", op=op, sources=list(sources), params=params)
         base = (name or "").strip() or d.formula(self.short_name)
         base = base.replace("/", "∕")  # "/" separates run id and name in signal ids
         final, k = base, 2
@@ -837,7 +846,8 @@ class Store:
                 ok, n = False, 0
             sigs.append({"id": f"{DERIVED_ID}/{name}", "name": name, "discrete": False, "op": d.op,
                          "sources": d.sources, "params": d.params, "formula": d.formula(self.short_name),
-                         "valid": ok, "samples": n, "version": _vkey(self.version(f"{DERIVED_ID}/{name}"))})
+                         "valid": ok, "samples": n, "version": _vkey(self.version(f"{DERIVED_ID}/{name}")),
+                         **({"quality": d.report} if ok and d.report else {})})
         return {"id": DERIVED_ID, "name": "Derived", "path": "", "format": "derived", "samples": 0,
                 "start": 0, "end": 0, "timeOffset": 0, "importSettings": {}, "signals": sigs, "report": {}}
 

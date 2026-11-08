@@ -109,7 +109,7 @@ async def restore_derived(req: DerivedBatch):
         if it.name and it.name in store.derived:
             store.remove_derived(it.name)
         try:
-            d = await asyncio.to_thread(store.add_derived, it.op, it.sources, it.params or {}, it.name)
+            d = await asyncio.to_thread(store.add_derived, it.op, it.sources, it.params or {}, it.name, True)
             ok.append(d.name)
         except Exception as e:
             failed.append({"name": it.name, "message": str(e)})

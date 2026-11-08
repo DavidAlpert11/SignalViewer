@@ -7,6 +7,7 @@ or grows (live mode), and sessions save only the formula, never the arrays.
 """
 
 import itertools
+import warnings
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -15,6 +16,11 @@ import numpy as np
 from svcore.decimate import minmax_decimate, stride_decimate
 from svcore.ops import (FilterError, apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average,
                         nearest_indices, on_updates, uniform_samples)
+
+# C3: the operations a missing-data policy (`params.nan`) applies to, and the policies. A recipe saved
+# before 1.23 has no `nan` and is restored as "legacy" (its numbers unchanged); new ones get "propagate".
+NAN_OPS = {"sum", "mean", "min", "max", "norm", "integral", "expr"}
+NAN_POLICIES = ("propagate", "skip", "legacy")
 
 UNARY = {"derivative", "integral", "abs", "negate", "normalize", "smooth", "rms", "lowpass", "highpass", "affine"}
 FORMULA = {"expr"}
@@ -48,6 +54,9 @@ class DerivedDef:
     # file saved again): part of the signal's version, so caches keyed by it (FFT, "discrete")
     # never hand a replaced signal of the same name and sources the numbers of the old one
     serial: int = field(default_factory=lambda: next(_DERIVED_SERIAL))
+    # C3: what the last computation did about missing / infinite values (compute's report) - shown
+    # with the signal so a result that skipped, bridged or lost values is marked, never silent
+    report: Dict = field(default_factory=dict)
 
     def invalidate(self) -> None:
         self.time = self.data = None
@@ -166,11 +175,25 @@ def _aligner(params: Dict, states: Optional[Sequence[bool]]):
     return align
 
 
+def nan_policy(params: Optional[Dict]) -> str:
+    """C3: the missing-data policy of an operation; an unknown value is an error, not a guess."""
+    v = (params or {}).get("nan", "propagate")
+    if v not in NAN_POLICIES:
+        raise OpError(f"Unknown missing-data choice \"{v}\": use propagate (a missing value stays missing) or skip.")
+    return str(v)
+
+
 def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
-            states: Optional[Sequence[bool]] = None) -> Tuple[np.ndarray, np.ndarray]:
+            states: Optional[Sequence[bool]] = None, report: Optional[Dict] = None) -> Tuple[np.ndarray, np.ndarray]:
     """signals: [(time, data), ...] in source order. Returns (time, data). states: per source, whether
-    it is a state signal (Store.is_state) - those are aligned with the value in force (C2)."""
-    align = _aligner(params or {}, states)
+    it is a state signal (Store.is_state) - those are aligned with the value in force (C2).
+    report (optional dict): filled with what was done about missing / infinite values (C3) - "nan"
+    (the policy, when it mattered), "skipped" (samples where a missing input was left out),
+    "missing" / "bridged" (an integral's stretches), "infinite" (formula values set to missing)."""
+    params = params or {}
+    policy = nan_policy(params) if op in NAN_OPS else "propagate"
+    rep: Dict = {} if report is None else report
+    align = _aligner(params, states)
     if op not in OPS:
         raise OpError(f"Unknown operation: {op}")
     if op == "py":
@@ -183,7 +206,8 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
         from svcore.formula import FormulaError, evaluate
         try:
             return evaluate(str(params.get("expr", "")), signals, lambda t, ts, ys: align_to(t, ts, ys, params.get("alignment", "linear")),
-                            holds=[bool(x) for x in states] if states is not None and params.get("hold", True) is not False else None)
+                            holds=[bool(x) for x in states] if states is not None and params.get("hold", True) is not False else None,
+                            nan=policy, report=rep)
         except FormulaError as e:
             raise OpError(str(e)) from None
     if op in UNARY:
@@ -205,7 +229,9 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
                 r = np.gradient(y, t)
             r[~np.isfinite(r)] = np.nan
         elif op == "integral":
-            r = cumulative_trapezoid(t, y)
+            r = cumulative_trapezoid(t, y, policy, rep)
+            if rep.get("missing") or rep.get("bridged"):
+                rep["nan"] = policy
         elif op == "abs":
             r = np.abs(y)
         elif op == "negate":
@@ -263,10 +289,24 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
     i0, i1 = np.searchsorted(t_base, t0, "left"), np.searchsorted(t_base, t1, "right")
     t = t_base[i0:i1]
     stack = np.vstack([align(t, ts, ys, k) for k, (ts, ys) in enumerate(signals)])
-    with np.errstate(invalid="ignore"):
+    if policy == "propagate":                         # C3: a missing input makes the sample missing
+        with np.errstate(invalid="ignore"):
+            r = {"mean": lambda: np.mean(stack, axis=0), "sum": lambda: np.sum(stack, axis=0),
+                 "min": lambda: np.min(stack, axis=0), "max": lambda: np.max(stack, axis=0),
+                 "norm": lambda: np.sqrt(np.sum(stack * stack, axis=0))}[op]()
+        return t, r
+    # "skip" / "legacy": the missing inputs are left out (all missing: missing) - the rule before 1.23
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)          # all-NaN columns: NaN, said below
         r = {"mean": lambda: np.nanmean(stack, axis=0), "sum": lambda: np.nansum(stack, axis=0),
              "min": lambda: np.nanmin(stack, axis=0), "max": lambda: np.nanmax(stack, axis=0),
              "norm": lambda: np.sqrt(np.nansum(stack * stack, axis=0))}[op]()
+    fin = np.isfinite(stack)
+    if op in ("sum", "norm") and policy == "skip":    # nansum of nothing is 0: keep it missing (legacy: as it was)
+        r = np.where(fin.any(axis=0), r, np.nan)
+    skipped = int((~fin.all(axis=0) & fin.any(axis=0)).sum())
+    if skipped:
+        rep.update(nan=policy, skipped=skipped)
     return t, r
 
 

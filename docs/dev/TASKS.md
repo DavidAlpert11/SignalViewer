@@ -16,7 +16,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Round of 2026-11-08 (in progress)**: the owner's audit round - correctness, trust, performance,
   a calmer UI (spec and board in "Owner's plan (2026-11-08)" below; IDs there are qualified as
   `26.<id>` where they collide with Milestone 25). Phase 1: C1 done (Compare judged on every sample of
-  both runs), C2 done (state signals held in formulas / operations / conditions). Next: C3, C4. Baseline before the round: backend
+  both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
+  `params.nan`, old sessions restored as "legacy"). Next: C4. Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
 - **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
@@ -170,8 +171,8 @@ Progress board:
 |---|---|---|---|
 | C1 | Compare judged at full resolution, both directions | 1 | ☑ done |
 | C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☑ done |
-| C3 | Explicit missing-data policy (`params.nan`) | 1 | ☐ next |
-| C4 | Validation cases V24-V29 | 1 | ☐ |
+| C3 | Explicit missing-data policy (`params.nan`) | 1 | ☑ done |
+| C4 | Validation cases V24-V29 | 1 | ☐ next |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☐ (changes 1.22.0's OSM default - asked for by the owner) |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
@@ -257,6 +258,41 @@ logged last at 218.41 cuts a formula there, although the mode stays in force to 
 a separate decision (extend held sources to v0's end?), not changed here. Transform formulas with
 `{Name}` references (svcore/transforms.py) still interpolate their references; the condition's exit
 value is still aligned by the nearest sample. V26 / V27 go into `validate` with C4.
+
+### C3 · Explicit missing-data policy
+**Status: done 2026-11-08.**
+**Reproduced first:** `sum` of 1, missing, 3 gave 4; `norm` / `mean` / `min` / `max` skipped the same way;
+`cumulative_trapezoid` turned NaN into 0 (y = [1,1,NaN,1,1] integrated to 1.5 at the gap and went on);
+`v0 != 1` was 1 on a missing v0; `1/v0` with v0 = 0 became NaN with nothing said.
+**Callers checked:** `compute` (store `_refresh_derived`, `/api/derived/preview`, validation V10 / V11 -
+finite data), `cumulative_trapezoid` (analysis integral, formula integ(), ops.on_updates - finite data
+only), `formula.evaluate` (compute, conditions, transforms.py). Restore paths in the frontend:
+files.ts (sessions / autosave), transforms.ts / derivedOps.ts / clearing.ts (Undo of delete / clear, a
+formula edit) - all re-send the params from `/api/runs`, so an explicit `nan` written at creation
+survives them.
+**Made:** `analysis.NAN_OPS` (sum, mean, min, max, norm, integral, expr) and `NAN_POLICIES`
+("propagate" default, "skip", "legacy" = exactly the numbers before 1.23); `nan_policy()` refuses an
+unknown value. `compute(..., report=)` fills `nan` / `skipped` / `missing` / `bridged` / `infinite`.
+Several-signal ops: propagate = plain numpy; skip = nan-functions (all missing stays missing); legacy =
+nan-functions as before (nansum of nothing = 0). `ops.cumulative_trapezoid(t, y, nan, report)`:
+propagate = NaN from the first missing sample on (`missing` stretches reported), skip = the gap
+bridged linearly (`bridged`), legacy = 0 as before; `ops.missing_stretches`. Formulas: comparisons,
+`not`, `where` missing on a missing operand; `and` / `or` three-valued (Kleene); integ() follows the
+policy; infinity still becomes NaN (plots / JSON cannot carry it) but is counted in `infinite`.
+`Store.add_derived(..., legacy=False)` writes `nan` into every NAN_OPS recipe ("propagate" new,
+"legacy" when restored WITHOUT it - `/api/derived/restore` passes legacy=True); `DerivedDef.report`;
+the derived listing has `quality` when something was skipped / bridged / lost. Transforms
+(transforms.py) evaluate with `spec.get("nan", "legacy")` - saved in sessions without it.
+**Saved files:** no format change and no migration step - `params.nan` is a new optional field; a
+recipe without it is old by construction. Documented in features.md and the CHANGELOG.
+**Owner to decide:** (1) named conditions are re-evaluated from their text, so a saved condition
+with `!=` / `not` over a missing value now gives false where it gave true (this is the fix; no flag
+added); (2) the GUI has no control yet for "skip" - the backend accepts it; the choice and the mark
+belong to 26.U6 (trust badges) - or a small control in Create signals sooner?
+**Tests run:** test_missing_policy.py (12, new), the 22 other files touching formulas / conditions /
+derived / investigate / integrals / transforms: 259 passed; validate 23 / 23; mypy clean on the 6
+changed modules. No frontend change (no build needed).
+**Left:** V28 goes into `validate` with C4; filters / smoothing over missing values belong to 26.A3.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -2799,3 +2835,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · 1.22.0 re-release, the map pictures retaken with the internet (00 / 05 / 28, social-preview). The hero's 3D was empty: the wheel zooms toward the mouse, which was at the plot's middle, not on the track, so 3 steps went down into the ground beside it -> `img_00_hero` waits for the 3D tiles, points the wheel at the track's middle (projected from the scene's track lines) and takes 2 steps: the whole track, tilted (General camera, -35 deg). 05's 3D was shot before its tiles were refined (blurred) -> it waits for `globe.tilesLoaded`. Checked: one MODE.Mode row above the plots, the automatic map is OSM in the dark theme. Tests: backend pytest, mypy, tsc; e2e test_tab_band, test_template_tabs, test_overview_strip, test_map_objects, test_globe3d (22 passed).
 - 2026-11-08 · Round of 2026-11-08 started (owner's audit: C, O, P, A, U, T, F); baseline at `77aaa4a`: backend 981 passed / 14 skipped, validate 23 / 23. C1 done: Compare judged on the union of both runs' samples (svcore/compare.py); tests: test_compare_fullres (new), test_checks (+1), compare / checks / sync / real logs files - 115 passed, 13 skipped; mypy compare.py clean. Next: C2.
 - 2026-11-08 · C2 done: state signals held (`analysis.hold_to`) in formulas, operations and conditions; the copter example's mode condition is [46.41, 60.41], no formula value outside the mode's values; tests: test_state_hold (new) + 16 related files, 185 passed; validate 23 / 23; mypy clean on the changed modules. Next: C3.
+- 2026-11-08 · Interim patch signalviewer-phase1-partial-2026-11-08.patch (C1, C2) checked with `git am` on a fresh clone (32 tests of the changed areas passed there). C3 done: `params.nan` (propagate / skip / legacy), restored recipes without it are "legacy"; tests: test_missing_policy (new) + 22 related files, 259 passed; validate 23 / 23; mypy clean. Next: C4.

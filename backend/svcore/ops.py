@@ -8,7 +8,7 @@ them; the operations are in svcore/analysis.py and svcore/formula.py.)
 """
 
 import weakref
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -419,15 +419,52 @@ def moving_average(data: np.ndarray, window: int) -> np.ndarray:
     return out
 
 
-def cumulative_trapezoid(time: np.ndarray, data: np.ndarray) -> np.ndarray:
-    """Cumulative trapezoidal integral (starts at 0, handles non-uniform time; NaN treated as 0)."""
+def missing_stretches(time: np.ndarray, data: np.ndarray, cap: int = 200) -> List[List[float]]:
+    """C3: the stretches with no value, as [[time of the first missing sample, of the last]] (at most `cap`)."""
+    bad = ~np.isfinite(np.asarray(data, dtype=np.float64))
+    if not bad.any():
+        return []
+    edges = np.flatnonzero(np.diff(np.concatenate([[0], bad.astype(np.int8), [0]])))
     t = np.asarray(time, dtype=np.float64)
-    y = np.nan_to_num(np.asarray(data, dtype=np.float64), nan=0.0)
+    return [[float(t[a]), float(t[b - 1])] for a, b in zip(edges[::2][:cap], edges[1::2][:cap])]
+
+
+def cumulative_trapezoid(time: np.ndarray, data: np.ndarray, nan: str = "propagate",
+                         report: Optional[Dict] = None) -> np.ndarray:
+    """Cumulative trapezoidal integral (starts at 0, handles non-uniform time).
+
+    C3 - a missing value is never silently 0 (before 1.23 it was, so the integral went on as if the
+    signal had been 0 through the gap):
+      * "propagate" (default): the integral is unknown (NaN) from the first missing sample on;
+      * "skip": the missing samples are left out - the gap is bridged by a straight line between
+        the samples around it, and the integral is defined everywhere;
+      * "legacy": the old rule, a missing value counts as 0 (sessions saved before 1.23).
+    `report` (optional) gets "missing" (propagate) or "bridged" (skip): the stretches concerned."""
+    t = np.asarray(time, dtype=np.float64)
+    y = np.asarray(data, dtype=np.float64)
     if len(y) < 2:
         return np.zeros_like(y)
+    bad = ~np.isfinite(y)
+    if nan == "legacy" or not bad.any():
+        y = np.nan_to_num(y, nan=0.0) if bad.any() else y
+        out = np.empty_like(y)
+        out[0] = 0.0
+        np.cumsum(0.5 * (y[1:] + y[:-1]) * np.diff(t), out=out[1:])
+        return out
+    if report is not None:
+        report["bridged" if nan == "skip" else "missing"] = missing_stretches(t, y)
+    if nan == "skip":
+        ok = ~bad
+        if ok.sum() < 2:
+            return np.full(len(y), np.nan)
+        part = cumulative_trapezoid(t[ok], y[ok], "legacy")
+        out = np.interp(t, t[ok], part)              # inside a gap: the bridged line's integral
+        out[:np.argmax(ok)] = np.nan                 # before the first value: unknown
+        return out
     out = np.empty_like(y)
-    out[0] = 0.0
-    np.cumsum(0.5 * (y[1:] + y[:-1]) * np.diff(t), out=out[1:])
+    out[0] = 0.0 if not bad[0] else np.nan
+    np.cumsum(0.5 * (y[1:] + y[:-1]) * np.diff(t), out=out[1:])   # NaN from the first missing sample on
+    out[np.maximum.accumulate(bad)] = np.nan
     return out
 
 
