@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. Next: 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Next: Phase 5 (26.U1 first); 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -202,7 +202,7 @@ Progress board:
 | 26.A2 | User file readers in a worker process | 4 | ☑ done |
 | 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☑ done |
 | 26.A4 | Transforms and derived recipes in the undoable workspace | 4 | ⏸ assessed - larger than expected, waiting for the owner |
-| 26.A5 | Heuristics visible and correctable (angle unit, discrete detection) | 4 | ☐ |
+| 26.A5 | Heuristics visible and correctable (angle unit, discrete detection) | 4 | ☑ done |
 | 26.U1 | Design tokens audit (index.css) | 5 | ☐ |
 | 26.U2 | Plot styling (grids, axes, palette, hover, legend, band) | 5 | ☐ |
 | 26.U3 | Less clutter (count before / after) | 5 | ☐ |
@@ -690,6 +690,33 @@ signal or a change and undoes it (test_features alone has ~15). Estimated: sever
 time (transforms first - fewer callers - then derived).
 **Owner to decide:** start it (one entity at a time, each its own commit and migration), or leave it for a
 later round. Until then: transforms keep "legacy" missing-data / filter rules (C3, 26.A3).
+
+### 26.A5 · Heuristics visible and correctable
+**Status: done 2026-11-09.**
+**Found first:** the angle unit was already correctable (object dialog: automatic / degrees / radians) but
+"automatic" did not say what it chose or why; discrete detection (`analysis.is_discrete`: a few whole-number
+levels) had no correction at all - a counter of whole numbers was held, a mode logged as floats was
+interpolated - and it drives cursor values, C2's hold in formulas / operations and conditions.
+`ws.stateNames` ("Always as a state") is about LANES (drawing), not about reading between samples - kept
+separate on purpose (a mode can be held and still drawn as a line).
+**Made:** backend - `Store.read_as` {signal name: "state" | "value"} (by name: every file, as stateNames),
+`set_read_as` (the whole map), `is_discrete` = the correction else `detected_discrete` (the old cached
+detection), texts always states; `version()` carries the correction, so derived signals made from such a
+signal are computed again; `/api/read_as` (replace the map, return the runs), `/api/discrete` adds
+`detected`, `levels`, `readAs`. `angle_units(raw)` -> {role: (unit, why)} with why "name" / "beyond" /
+"within" (the object track's old inline rule, now shared), `/api/angle_units`, `object_track` adds
+`unitWhy`. Frontend - `ws.readAs` (optional; sessions without it read as detected), `readAs.ts`:
+`watchReadAs()` (main.tsx) sends the workspace's map whenever it changes - commit, Undo, a session opened -
+and refreshes the runs; `readAsItem` - one "Read between samples as ▸" submenu in the signal list's menu
+(numeric file signals only): *Automatic - a state / a value* (what was detected; plain "Automatic" while a
+wide file's detection has not run), *A state - held*, *A value - interpolated*, checked. ObjectDialog: the
+Automatic option reads "automatic - degrees (one of the angles goes beyond 2π)" from `/api/angle_units`.
+Strings en / he.
+**Tests run:** test_heuristics.py (3, new: why a signal is a state and the correction - cursor value
+interpolated after it -; a derived signal recomputed; angle units with why, also in object_track - all fail
+on the code before), then the whole backend suite: 1068 passed; mypy clean; tsc + build; e2e
+test_heuristics.py (new, 2: the submenu, the backend following, Ctrl+Z; the dialog's automatic unit),
+test_map_objects, test_globe3d, test_state_lanes, test_file_help_menus, test_plot_menus (20).
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3250,3 +3277,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · 26.A2 done: app/subproc.py (shared with pyops), svcore/readerworker.py, readers isolated in the app; tests: test_readers (+2), test_pyops, whole backend suite 1059 passed; mypy; e2e test_user_reader (new). Next: 26.A3.
 - 2026-11-09 · Owner: no patches until the release - carry on to the end of the tasks. 26.A3 done: `apply_filter(sampling)`, smooth / rms `seconds`, `smooth_s`, SAMPLING_OPS for old sessions; tests: test_sampling (new, 6), whole backend suite, validate; tsc + build; e2e test_features, test_missing_choice, test_update_rate (130). Next: 26.A4 (size assessment first).
 - 2026-11-09 · 26.A4 assessed (39 call sites in 11 files, a sync layer, a session migration, undo moving from toasts to Ctrl+Z): larger than the task - not started, the owner decides. Next: 26.A5.
+- 2026-11-09 · 26.A5 done: `ws.readAs` + /api/read_as (held / interpolated, by name, undoable), /api/discrete with why, `angle_units` with why in the object dialog; tests: test_heuristics (new, 3), whole backend suite 1068 passed; mypy; tsc + build; e2e test_heuristics (new, 2) + 5 files. Phase 4 done except 26.A4. Next: 26.U1.
