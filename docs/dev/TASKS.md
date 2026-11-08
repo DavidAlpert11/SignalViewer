@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
   `params.nan`, old sessions restored as "legacy"), C4 done (V24-V28; V29 moves to P1). Phase 1 patch
   applied by the owner (`3110e75`). Phase 2: O1 done (offline by default, Never use the network,
-  the Online map sign). Owner's decisions recorded (see the plan). Next, in order: C2b, C3b, O2, O3,
+  the Online map sign). Owner's decisions recorded (see the plan). C2b done (old sessions restored with `"hold": false`). Next, in order: C3b, O2, O3,
   then the Phase 2 patch; the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
@@ -185,7 +185,7 @@ Progress board:
 | C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☑ done |
 | C3 | Explicit missing-data policy (`params.nan`) | 1 | ☑ done |
 | C4 | Validation cases V24-V29 | 1 | ☑ done (V24-V28; V29 with P1) |
-| C2b | Old sessions: state-source derived signals restored with `"hold": false` (owner, decision 2) | 1 | ☐ next |
+| C2b | Old sessions: state-source derived signals restored with `"hold": false` (owner, decision 2) | 1 | ☑ done |
 | C3b | Create signals: the missing-data choice (propagate / skip) for sum, mean, min, max, norm, integral (decision 4) | 1 | ☐ |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☑ done |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
@@ -325,6 +325,23 @@ V24, V25, V28 FAIL on their numbers (0, 0, 2); V26 / V27 fail there because the 
 until P1 lands. It is written together with P1 (Phase 3); a timing case also needs a tolerance that
 holds on slow CI runners - to be decided then (a ratio, not milliseconds).
 **Tests run:** `cli.py validate` 28 / 28; test_validation.py 32 passed.
+
+### C2b · Old sessions keep their numbers (owner's decision 2)
+**Status: done 2026-11-08.**
+**Reproduced first** (test_state_hold.py::test_old_session_keeps_its_numbers_new_recipes_hold, failing on
+`4c3c52f`): a recipe restored without `hold` (`legacy=True`, i.e. `/api/derived/restore`) had no `hold`,
+so a state source was held - new numbers for an old session.
+**Why a stored `true` too:** the restore path serves sessions / autosave AND Undo / Clear, and cannot
+tell a 1.23 session from an old one; C3 solved the same with an explicit `nan` on every new recipe. So
+`analysis.HOLD_OPS` (binary, several-signal, formula: the operations that align sources) always store
+`hold`: new `true`, restored without it `false` (for every such recipe, not only those whose source is a
+state today - 26.A5 will let the user change what is a state, and the old numbers must stay old).
+**Callers checked:** `Store.add_derived` (routes/analysis.py create + restore, transforms.ts /
+derivedOps.ts / clearing.ts re-send the listed params - `hold` rides along like `nan`), sweeps tests
+(unrelated "hold"). No frontend change.
+**Tests run:** test_state_hold (7, +1), test_missing_policy, test_backend, test_stale_data, test_time_axis,
+test_vecsmooth, test_derived_rename, test_conditions, test_investigate, test_pyops, test_report_sections:
+129 passed; validate 28 / 28; mypy app/store.py svcore/analysis.py clean.
 
 ### O1 · Offline by default, plus a strict offline switch
 **Status: done 2026-11-08.**
@@ -2900,3 +2917,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · C4 done: V24-V28 in validate (28 / 28), docs/validation.md regenerated; V29 moves to P1 (it would fail until the offset copy is gone). test_validation 32 passed. Phase 1 patch next.
 - 2026-11-08 · Owner applied the Phase 1 patch (`3110e75`). O1 done: Automatic = offline map, Never use the network (setting + SV_OFFLINE=1, checked in tiles.py), the Online map sign; tests: test_offline_switch (new), test_basemap, test_app_folder; e2e test_offline_map (+2), test_settings, test_globe3d, test_map_objects; tsc + build; mkdocs --strict. Next: O2.
 - 2026-11-08 · Owner answered the five questions (IDs approved; C2 old sessions keep their numbers - C2b; conditions change accepted; skip choice in Create signals - C3b; next version 1.23.0). Patch signalviewer-O1-2026-11-08.patch sent (O1 only, on `3110e75`). O2 started: only read (make_test_bin.py --corrupt exists; backend/tests/data/sample.ulg; routes/files.py turns unexpected errors into "Unexpected error while reading the file").
+- 2026-11-08 · Owner applied the O1 patch (`4c3c52f`). C2b done: restored recipes without `hold` get false, new ones true (`HOLD_OPS`); tests: test_state_hold (+1) + 10 related files, 129 passed; validate 28 / 28; mypy clean. Next: C3b.

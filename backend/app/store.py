@@ -34,7 +34,7 @@ from app.filecheck import (LoadError, SUPPORTED_EXTS, TEXT_EXTS, _can_csv, _csv_
 from svcore.transforms import REF, apply_transform, normalize_transform, ref_run, transform_refs  # noqa: F401
 from app.livewatch import SETTLE_MAX, SETTLE_QUIET, TIME_SLACK, UPLOAD_DIR, LiveWatcher, _stat, run_format  # noqa: F401
 from app import userreaders
-from svcore.analysis import NAN_OPS, DerivedDef, compute, is_discrete
+from svcore.analysis import HOLD_OPS, NAN_OPS, DerivedDef, compute, is_discrete
 from collections import OrderedDict
 import json
 import re
@@ -689,12 +689,15 @@ class Store:
         """legacy: a recipe restored from a session / autosave. C3: an operation with a missing-data
         policy always stores it explicitly - a new recipe "propagate", a restored one WITHOUT `nan`
         (saved before 1.23) "legacy", so its numbers stay what they were; Undo and Clear re-send the
-        listed params, which carry it."""
+        listed params, which carry it. C2b: the same for `hold` (an operation that aligns sources) -
+        new true, restored without it false (a state source interpolated as before 1.23)."""
         for s in sources:
             self.signal(s)  # validates ids (KeyError)
         params = dict(params or {})
         if op in NAN_OPS and "nan" not in params:
             params["nan"] = "legacy" if legacy else "propagate"
+        if op in HOLD_OPS and "hold" not in params:
+            params["hold"] = not legacy     # C2b: saved before 1.23 -> the old alignment, old numbers
         d = DerivedDef(name="", op=op, sources=list(sources), params=params)
         base = (name or "").strip() or d.formula(self.short_name)
         base = base.replace("/", "∕")  # "/" separates run id and name in signal ids

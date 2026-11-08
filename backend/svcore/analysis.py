@@ -27,9 +27,12 @@ FORMULA = {"expr"}
 BINARY = {"add", "sub", "mul", "div", "absdiff"}
 MULTI = {"mean", "sum", "min", "max", "norm"}
 FRAME = {"frame"}
-VECSMOOTH = {"vecsmooth"}    # Q102: a vector (2-3 components) smoothed over a window in seconds
+VECSMOOTH = {"vecsmooth"}
+# C2 / C2b: the operations that align several sources (a state source held unless `params.hold: false`).
+# A recipe saved before 1.23 has no `hold` and is restored with false (its numbers unchanged); new: true.    # Q102: a vector (2-3 components) smoothed over a window in seconds
 PY = {"py"}                 # T31: the user's own Python operations (params: {"op": "file.py:fn", "args": {...}})
 OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | VECSMOOTH | PY
+HOLD_OPS = BINARY | MULTI | FORMULA
 # set by app/pyops.py: runs an operation in the worker process (svcore does not import app)
 PY_RUNNER: Optional[Callable[[str, List[Tuple[np.ndarray, np.ndarray]], Dict], Tuple[np.ndarray, np.ndarray]]] = None
 
