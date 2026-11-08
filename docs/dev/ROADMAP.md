@@ -822,6 +822,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] C3 Explicit missing-data policy (`params.nan`: propagate | skip | legacy). Done 2026-11-08: NAN_OPS, compute report, cumulative_trapezoid policy, three-valued formula logic, restored recipes without `nan` = legacy; test_missing_policy.py.
 - [x] C4 Validation cases V24-V28 in `cli.py validate` and docs/validation.md (28 cases). Done 2026-11-08; V29 (offset timing) moves to P1.
 - [x] O1 Offline by default; "Never use the network" (pref + `SV_OFFLINE=1`); an indicator for online tiles. Done 2026-11-08: mapBase.ts, `offlineOnly` / `offlineForced`, tiles.network_allowed(); test_offline_switch.py, e2e test_offline_map (+2).
+- [x] C2b Old sessions: derived signals restored without `hold` get `"hold": false` (owner's decision 2). Done 2026-11-08: `analysis.HOLD_OPS`, new recipes store `true`; test_state_hold.py (+1).
+- [ ] C3b Create signals: the missing-data choice (propagate / skip).
 - [ ] O2 Honest damaged-file handling (.bin instances / fields against FMT, .ulg recovery, clear messages).
 - [ ] O3 `atomic_write()` in app/common.py for sessions, templates, readers, layouts, reports.
 - [ ] P1 Run time offsets without copying. - [ ] P2 One byte-bounded locked LRU. - [ ] P3 Frontend data path. - [ ] P4 Concurrent open. - [ ] P5 Benchmarks.

@@ -76,3 +76,26 @@ def test_copter_example_mode_condition_and_formula():
     d = s.add_derived("expr", [f"{r.id}/ATT.Roll [deg]", f"{r.id}/MODE.Mode"], {"expr": "v1"})
     _, y = s.signal(f"derived/{d.name}")
     assert set(np.unique(y[np.isfinite(y)])) <= set(np.unique(m))
+
+
+def test_old_session_keeps_its_numbers_new_recipes_hold(tmp_path):
+    """C2b (owner, 2026-11-08): a recipe restored from a session saved before 1.23 (no `hold`) gets
+    `"hold": false` - its numbers stay what they were; a new recipe stores `"hold": true`, so a session
+    saved now and re-opened keeps holding (the restore path cannot tell them apart otherwise)."""
+    from app.store import Store
+    csv = tmp_path / "m.csv"
+    rows = ["time,X,Mode"] + [f"{i / 10},{i / 10},{(i // 20) * 2}" for i in range(80)]
+    csv.write_bytes(("\n".join(rows) + "\n").encode())
+    s = Store()
+    r = s.open_file(str(csv))
+    x, m = f"{r.id}/X", f"{r.id}/Mode"
+    assert s.is_state(m)
+    old = s.add_derived("expr", [x, m], {"expr": "v1"}, "old", legacy=True)
+    assert old.params["hold"] is False
+    new = s.add_derived("expr", [x, m], {"expr": "v1"}, "new")
+    assert new.params["hold"] is True
+    again = s.add_derived("add", [x, m], {"hold": True}, "saved_now", legacy=True)   # 1.23 session
+    assert again.params["hold"] is True
+    assert s.add_derived("derivative", [x], {}).params.get("hold") is None          # no alignment
+    for op in ("add", "sum"):
+        assert s.add_derived(op, [x, m], {}, f"{op}_old", legacy=True).params["hold"] is False
