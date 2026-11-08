@@ -23,7 +23,7 @@ import StepChart from "./StepChart";
 import XYZChart from "./XYZChart";
 import SpecChart from "./SpecChart";
 import PlotBoundary from "./PlotBoundary";
-import { useSize } from "./chartUtil";
+import { ink, useSize } from "./chartUtil";
 
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
@@ -316,7 +316,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                 }}
                 onKeyDown={(e) => { if (e.key === "Delete") actions.removeSignal(plot.id, s.sig); }}>
                 {(() => { const lk = mode === "time" ? lineLook(s, setpoints) : { dashed: false, faded: false };   // U4: the line as drawn
-                  return <span className={`sw${lk.dashed ? " dashed" : ""}`} style={lk.dashed ? { color: s.color, opacity: lk.faded ? 0.75 : 1 } : { background: s.color }} />; })()}
+                  return <span className={`sw${lk.dashed ? " dashed" : ""}`} style={lk.dashed ? { color: ink(s.color, theme), opacity: lk.faded ? 0.75 : 1 } : { background: ink(s.color, theme) }} />; })()}
                 {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
                 <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
                 {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}

@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, type StepSeries } from "../api";
 import { fmtNum, useT } from "../i18n";
-import { actions, signalName, useApp, type Plot } from "../store";
-import { axisStyle, tickValues, useSize } from "./chartUtil";
+import { actions, signalName, TRACE_COLORS, useApp, type Plot } from "../store";
+import { axisStyle, ink, tickValues, useSize } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void }
 
@@ -56,7 +56,7 @@ export default function StepChart({ plot, index, onLoading }: Props) {
     const axis = axisStyle(theme);
     const tables = ok.map((d) => [Array.from(d.t!), Array.from(d.step!)] as uPlot.AlignedData);
     const aligned = tables.length === 1 ? tables[0] : uPlot.join(tables, tables.map(() => [1]));
-    const colorOf = (id: string) => sigs.find((s) => s.sig === id)?.color ?? "#3D8BFD";
+    const colorOf = (id: string) => ink(sigs.find((s) => s.sig === id)?.color ?? TRACE_COLORS[0], theme);
     const widthOf = (id: string) => sigs.find((s) => s.sig === id)?.width ?? 1.5;
     const opts: uPlot.Options = {
       width: size.w, height: size.h, padding: [8, 12, 0, 4], legend: { show: false },

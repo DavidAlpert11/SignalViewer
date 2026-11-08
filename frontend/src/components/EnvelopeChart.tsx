@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api } from "../api";
-import { actions, rangeKey, signalName, useApp, type Plot, type Range, type Tab } from "../store";
+import { actions, rangeKey, signalName, TRACE_COLORS, useApp, type Plot, type Range, type Tab } from "../store";
 import { useT } from "../i18n";
 import { axisStyle, reportGutter, tickValues, useGutter, useSize } from "./chartUtil";
 
@@ -50,7 +50,7 @@ export default function EnvelopeChart({ tab, plot, index, onLoading }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sigKey, region?.[0], region?.[1], dataVersion]);
 
-  const color = plot.signals[0]?.color ?? "#3D8BFD";
+  const color = plot.signals[0]?.color ?? TRACE_COLORS[0];
   useEffect(() => {
     const host = wrapRef.current;
     uRef.current?.destroy();

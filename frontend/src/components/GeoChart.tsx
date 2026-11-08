@@ -9,7 +9,7 @@ import TrackKeys from "./TrackKeys";
 import { labelsOf, stateColor } from "../values";
 import { fmtNum } from "../i18n";
 import type { Country } from "../worldCountries";
-import { dpr, indexSpan, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chartUtil";
+import { dpr, indexSpan, ink, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string; notDegrees: string }
 
@@ -418,10 +418,10 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       const span = shownSpan({ playMode, windowSec, cursor });
       const [i0, i1] = span && t.t.length === t.lon.length ? indexSpan(t.t, span) : [0, t.lon.length];
       if (span) {
-        path(); ctx.globalAlpha = 0.28; ctx.strokeStyle = ps.color; ctx.lineWidth = ps.width + 0.5; ctx.stroke(); ctx.globalAlpha = 1;
+        path(); ctx.globalAlpha = 0.28; ctx.strokeStyle = ink(ps.color, theme); ctx.lineWidth = ps.width + 0.5; ctx.stroke(); ctx.globalAlpha = 1;
       }
       path(i0, i1); ctx.strokeStyle = dark ? "rgba(0,0,0,.65)" : "rgba(255,255,255,.9)"; ctx.lineWidth = ps.width + 3.5; ctx.stroke();
-      path(i0, i1); ctx.strokeStyle = ps.color; ctx.lineWidth = ps.width + 0.5; ctx.stroke();
+      path(i0, i1); ctx.strokeStyle = ink(ps.color, theme); ctx.lineWidth = ps.width + 0.5; ctx.stroke();
       const dot = (p: [number, number] | undefined, fill: string) => {
         if (!p) return;
         ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill();

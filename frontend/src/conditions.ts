@@ -4,7 +4,7 @@
    their parts' stretches. */
 import { api } from "./api";
 import { translate } from "./i18n";
-import { actions, uid, useApp, type Condition, type CondResult } from "./store";
+import { actions, TRACE_COLORS, uid, useApp, type Condition, type CondResult } from "./store";
 import { record } from "./investigation";
 
 /** A small fixed palette: conditions never take the signals' colours. */
@@ -169,4 +169,4 @@ export function overlayInNewTab(id: string, name: string) {
     return ws;
   });
 }
-const COND_PALETTE_FILES = ["#3D8BFD", "#E8590C", "#2F9E44", "#AE3EC9", "#F08C00", "#0CA678"];
+const COND_PALETTE_FILES = TRACE_COLORS;            // 26.U2: the one palette
