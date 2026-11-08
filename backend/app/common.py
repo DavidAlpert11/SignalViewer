@@ -127,6 +127,16 @@ def open_with_prefs(path: str, settings: Optional[dict]):
 
 
 
+def unexpected_load_error(path: str, e: Exception) -> dict:
+    """O2: a loader failed in a way it does not report itself (a bug, or damage nobody foresaw): say what
+    happened and what to do, in the user's language (code "unexpected"); the traceback goes to the log."""
+    logging.getLogger("signalviewer.files").warning("opening %s failed", path, exc_info=True)
+    detail = f"{e.__class__.__name__}: {e}"[:200]
+    return {"path": path, "code": "unexpected", "params": {"detail": detail},
+            "message": f"The reader stopped on something it did not expect ({detail}) - the file may be damaged. "
+                       "Try another copy of it; Help > Copy error details has what happened, for a report."}
+
+
 def _load_error(path: str, e: Exception) -> dict:
     out: dict = {"path": path, "message": str(e)}
     if getattr(e, "code", None):

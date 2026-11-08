@@ -108,7 +108,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Flight modes by name (Copter / Plane / Rover / Sub, detected from the log) and EV events by name
 - Text fields (MSG…) as state signals
 - PARM values and MSG texts in the load report
-- Damaged blocks skipped (resync)
+- Damaged blocks skipped (resync); what the damage made look like data is left out and counted in the note after opening - the message just before a damaged block, and an instance only the damage had (`IMU[149]` next to `IMU[0]` / `IMU[1]`)
 - Live mode reads only the newly written messages. Checked value-by-value against pymavlink. Test log generator: `python tools/make_test_bin.py out.bin [--live 30]`
 
 ### MAVLink telemetry (.tlog)
@@ -117,7 +117,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### PX4 logs (.ulg)
 
-- Read with pyulog: one signal per topic field (`vehicle_attitude.q[0]`, `sensor_gps[1].…` when a topic has several instances), each topic with its own time; navigation state and arming by name; topics without time stamps skipped (reported); Log panel: logged messages by level, parameters with changes and defaults
+- Read with pyulog: one signal per topic field (`vehicle_attitude.q[0]`, `sensor_gps[1].…` when a topic has several instances), each topic with its own time; navigation state and arming by name; topics without time stamps skipped (reported); a damaged log opens with what can be read - samples with a time stamp only damage can make (after the log's end, a lone one far out of step), damaged parameters and messages are left out and counted; Log panel: logged messages by level, parameters with changes and defaults
 
 ### ROS 2 / Foxglove (.mcap)
 

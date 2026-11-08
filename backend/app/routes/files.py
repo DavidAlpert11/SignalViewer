@@ -12,7 +12,7 @@ from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import UPLOAD_DIR, supported_now, _load_error, _log_signal_names, fail, open_with_prefs
+from app.common import UPLOAD_DIR, supported_now, _load_error, unexpected_load_error, _log_signal_names, fail, open_with_prefs
 from app.patterns import name_pattern as _name_pattern
 from app.store import LoadError, store
 from svcore.csv_loader import CSVImportSettings, detect_delimiter, preview_csv
@@ -45,7 +45,7 @@ async def open_files(req: OpenRequest):
         except LoadError as e:
             errors.append(_load_error(p, e))
         except Exception as e:  # never crash on bad data
-            errors.append({"path": p, "message": f"Unexpected error while reading the file: {e}"})
+            errors.append(unexpected_load_error(p, e))
     return {"opened": opened, "errors": errors}
 
 

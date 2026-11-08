@@ -45,7 +45,7 @@ export interface RunInfo {
   timeAxis?: TimeAxisInfo;
   signals: SignalInfo[];
   report?: { skipped?: string[]; skippedColumns?: string[]; droppedRows?: number; sorted?: boolean; fromCache?: boolean; rememberedSettings?: boolean;
-    textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
+    textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; damaged?: boolean; droppedMessages?: number; phantomInstances?: string[]; badTimestamps?: number; damagedParams?: number; damagedTexts?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file

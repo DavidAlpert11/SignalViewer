@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
   `params.nan`, old sessions restored as "legacy"), C4 done (V24-V28; V29 moves to P1). Phase 1 patch
   applied by the owner (`3110e75`). Phase 2: O1 done (offline by default, Never use the network,
-  the Online map sign). Owner's decisions recorded (see the plan). C2b done (old sessions restored with `"hold": false`). C3b done (*Missing values* in Create signals, the mark). Next, in order: O2, O3,
+  the Online map sign). Owner's decisions recorded (see the plan). C2b done (old sessions restored with `"hold": false`). C3b done (*Missing values* in Create signals, the mark). O2 done (no phantom signals from damage; a damaged .ulg opens). Next, in order: O3,
   then the Phase 2 patch; the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
@@ -188,7 +188,7 @@ Progress board:
 | C2b | Old sessions: state-source derived signals restored with `"hold": false` (owner, decision 2) | 1 | ☑ done |
 | C3b | Create signals: the missing-data choice (propagate / skip) for sum, mean, min, max, norm, integral (decision 4) | 1 | ☑ done |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☑ done |
-| O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
+| O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☑ done |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
 | P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☐ |
 | P2 | One byte-bounded, locked LRU cache | 3 | ☐ |
@@ -391,6 +391,43 @@ saved), test_settings (1), test_globe3d (10), test_map_objects (4) - all passed.
 that 1.22.0's notes say fails here passed in this sandbox. mypy on tiles.py / routes/system.py: clean.
 Screenshots (English light, Hebrew dark): the sign beside the layer, RTL correct; the Settings row.
 **Left:** U6 puts the same network state in the general trust indicators.
+
+### O2 · Honest damaged-file handling
+**Status: done 2026-11-08.**
+**Reproduced first** (backend/tests/test_damaged_files.py, 12 new cases failing on `4b2eaf1`):
+`make_test_bin.py --corrupt`: 58 signals instead of 52 (`IMU[149].*`). The ArduPilot example (73 signals,
+the audit's count) damaged by the fuzzer's own seeds: 31 phantom signals in 60 seeds (IMU[8], IMU[16],
+IMU[190], IMU[247], BARO[87], VIBE[32]). sample.ulg with a flipped bit (seed 16): `ValueError: could not
+convert string to float: b'\x00\x00\x00\x00'` from `flightlog.f32` on a parameter - the whole log failed
+as "Unexpected error". Two other flips (seeds 1, 26) made 2 / 35 one-sample signals (a topic logged with
+only zero time stamps gained one).
+**Made:**
+- `bin_loader.DataFlash.frame`: the last message before a skipped block (it ends where no message starts)
+  is left out - a damaged block often starts with a header of a known type whose "message" fits the chain
+  exactly up to there (at most one real message per damaged block goes with it); `droppedMessages`.
+- `DataFlash._real_instances` (in `_emit`): an instance with fewer than 4 messages (and under 1/1000 of the
+  largest) that is beyond the others + 1 or negative is left out (`phantomInstances`); instances read
+  before are kept (`known_instances`: live mode reads small chunks). Covers bit flips in the instance field.
+- `ulog_loader`: parameters / logged messages that do not convert are left out and counted
+  (`damagedParams`, `damagedTexts`); `_damaged_times`: samples after the log's end (`_time_end`: the last
+  time stamp, or the topics' 99.9th percentiles + 1 min when the header's is absurd), a lone sample far out
+  of step with both neighbours (> max(1 s, 100 median steps)), and the few non-zero stamps of a topic that
+  is otherwise unstamped (`badTimestamps`). No lower bound: PX4 stamps `commander_state` at boot (2 s, the
+  log starts at 112 s) and a few messages slightly before logging starts - tried first, it dropped 680
+  real samples of the undamaged sample. A damaged definitions block (pyulog cannot start) says so and
+  what to do. `damaged: true` beside pyulog's `corruptBytes: 1` (it gives no count) - the note says "the
+  file is damaged - what could be read was read", not "1 damaged bytes".
+- `common.unexpected_load_error` (files.py, jobs.py): code `unexpected` + the exception, logged with its
+  traceback; `err_unexpected` (en / he) says the file may be damaged, try another copy, *Help ▸ Copy error
+  details*. files.ts shows the new report fields in the note after opening (i18n/compare.ts, en / he).
+**Callers checked:** `frame` (load_bin, append_new_messages - a chunk's end has no gap after it, so live
+mode drops nothing), `_emit` (signals, lazy jobs), the index cache (`_index_save` stores the report);
+`load_ulog` (store.open_file only). Fuzz after the change: 0 phantom signals in the same 60 .bin seeds and
+30 .ulg seeds, the undamaged files unchanged (73 / 249 signals, no new report fields).
+**Tests run:** test_damaged_files (all, 217: +20 new), the 29 test files that open .bin / .ulg / use the
+open routes: 482 passed, 13 skipped; validate 28 / 28; mypy on the 5 changed modules clean; tsc + build;
+e2e test_damaged_note.py (new), test_templates_recent_badfiles, test_file_help_menus, test_error_details.
+**Left:** .tlog has its own resync (pymavlink, CRC-checked) - not changed.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -2939,3 +2976,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · Owner answered the five questions (IDs approved; C2 old sessions keep their numbers - C2b; conditions change accepted; skip choice in Create signals - C3b; next version 1.23.0). Patch signalviewer-O1-2026-11-08.patch sent (O1 only, on `3110e75`). O2 started: only read (make_test_bin.py --corrupt exists; backend/tests/data/sample.ulg; routes/files.py turns unexpected errors into "Unexpected error while reading the file").
 - 2026-11-08 · Owner applied the O1 patch (`4c3c52f`). C2b done: restored recipes without `hold` get false, new ones true (`HOLD_OPS`); tests: test_state_hold (+1) + 10 related files, 129 passed; validate 28 / 28; mypy clean. Next: C3b.
 - 2026-11-08 · C3b done: *Missing values* in Create signals (sum / mean / min / max / norm / integral), the derived list marks skipped / bridged / unknown / infinite; tsc + build; e2e test_missing_choice (new, 2), test_update_rate, test_features + test_workflows (154 passed). Next: O2.
+- 2026-11-08 · O2 done: .bin - the message before a damaged block and damage-only instances left out (0 phantom signals in 60 fuzz seeds, was 31); .ulg - damaged parameters / messages / time stamps left out, the log opens; unexpected loader errors say what to do; tests: test_damaged_files (+20) and 28 related files, 482 passed; validate; mypy; tsc + build; e2e test_damaged_note (new) + 3 files. Next: O3.
