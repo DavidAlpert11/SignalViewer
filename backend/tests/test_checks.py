@@ -149,3 +149,21 @@ def test_compare_errors_exit_2(tmp_path, capsys):
     assert rc == 2 and "not found" in so.lower()
     rc, so, _ = run(capsys, "compare", RUNS[0], RUNS[1], "--signals", "Spede")
     assert rc == 2 and "Did you mean 'Speed [km/h]'" in so
+
+
+def test_compare_cli_fails_a_violation_between_golden_samples(tmp_path, capsys):
+    """C1: a 10 Hz golden run, a 1 kHz run with a 50 ms violation between two golden samples -
+    the run's own samples are judged too, so the CLI fails (exit 1); without it, it passes (0)."""
+    import numpy as np
+    tg, tr = np.arange(0, 20, 0.1), np.arange(0, 20, 0.001)
+    golden, ok, bad = tmp_path / "golden.csv", tmp_path / "ok.csv", tmp_path / "bad.csv"
+    golden.write_text("time,X\n" + "".join(f"{t:.3f},{np.sin(0.2 * t):.9f}\n" for t in tg))
+    y = np.sin(0.2 * tr)
+    ok.write_text("time,X\n" + "".join(f"{t:.3f},{v:.9f}\n" for t, v in zip(tr, y)))
+    y[(tr > 10.02) & (tr < 10.07)] += 2.0
+    bad.write_text("time,X\n" + "".join(f"{t:.3f},{v:.9f}\n" for t, v in zip(tr, y)))
+    rc, so, _ = run(capsys, "compare", str(golden), str(ok), "--tol-abs", "0.01", "--json")
+    assert rc == 0, so
+    rc, so, _ = run(capsys, "compare", str(golden), str(bad), "--tol-abs", "0.01", "--json")
+    row = json.loads(so)["files"][0]["results"][0]
+    assert rc == 1 and row["status"] == "fail" and row["maxAbsDiff"] > 1.9

@@ -815,3 +815,17 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] U8 Navigation design only (no code): Recordings / Sweeps, view tabs, left rail. Done 2026-11-07: docs/dev/NAVIGATION.md; the owner chose A.
 - [x] U9 Navigation option A: the areas as a switch (Recordings · Sweeps · Fleet), Fleet an area, one views menu "+ ▾", Log greyed in the rail. Done 2026-11-07; test_navigation.py.
 - Not decided (owner's approval first): M2 flight summary card; M3 forum-help export; finding Mission Planner / QGC log folders; opt-in update check; renaming.
+
+## Milestone 26 — the offline judge: correctness, trust, performance, a calm UI (owner's plan 2026-11-08). Spec: TASKS.md "Owner's plan (2026-11-08)". IDs that collide with Milestone 25 are written 26.<id>.
+- [x] C1 Compare judged at full resolution, in both directions. Done 2026-11-08: pass / withinPct / maxAbsDiff on the union of both runs' samples, descriptive numbers on all the baseline's samples, trace decimated only for drawing; CLI = UI; test_compare_fullres.py, test_checks.py (+1).
+- [ ] C2 Zero-order hold for state signals in formulas and conditions.
+- [ ] C3 Explicit missing-data policy (`params.nan`: propagate | skip).
+- [ ] C4 Validation cases V24-V29 in `cli.py validate` and docs/validation.md.
+- [ ] O1 Offline by default; "Never use the network" (pref + `SV_OFFLINE=1`); an indicator for online tiles.
+- [ ] O2 Honest damaged-file handling (.bin instances / fields against FMT, .ulg recovery, clear messages).
+- [ ] O3 `atomic_write()` in app/common.py for sessions, templates, readers, layouts, reports.
+- [ ] P1 Run time offsets without copying. - [ ] P2 One byte-bounded locked LRU. - [ ] P3 Frontend data path. - [ ] P4 Concurrent open. - [ ] P5 Benchmarks.
+- [ ] 26.A1 Dead code in models.py. - [ ] 26.A2 Readers in a worker. - [ ] 26.A3 Consistent sampling. - [ ] 26.A4 Transforms in the workspace. - [ ] 26.A5 Heuristics visible.
+- [ ] 26.U1-26.U8 Design tokens, plot styling, less clutter, judge-a-run flow, per-signal tolerances, trust badges, data quality, event navigation.
+- [ ] T1 Vitest. - [ ] T2 De-flake e2e. - [ ] T3 CI subset + validation + benchmarks.
+- Not started (owner's approval first): F1 test specs, F2 multi-run envelope, F3 measurement export, F4 reports from a spec.

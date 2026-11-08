@@ -77,6 +77,13 @@ tolerances) lets a run be that much early or late: the golden value's band at ea
 and highest value within ± that time, then widened by `abs` / `pct` - as the Simulink Data Inspector. Without any tolerance the
 differences are only listed.
 
+Every sample counts (since 1.23): pass / fail, the share outside and the largest difference are judged
+on **all** the samples of both runs inside their overlap - the run's own samples against the golden
+curve there, and the golden samples against the run - so a 5 ms excursion in two million samples, or
+a violation between two samples of a 10 Hz golden run recorded at 1 kHz, fails. The share outside is
+counted over those samples (the union of both runs' sample times). The Compare panel judges the same
+way, so the app and the command line give the same verdict.
+
 ### A simulation against a flight
 
 Two loggers, two clocks, two naming habits: `--align auto` lines the run up with the golden run by
