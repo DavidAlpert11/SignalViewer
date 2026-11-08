@@ -11,6 +11,8 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
+from app.atomic import atomic_open
+
 log = logging.getLogger("signalviewer").getChild(__name__)
 
 # The one definition of the app folder (F15): common, store, tiles and the rest take it from here.
@@ -41,11 +43,9 @@ def _read(name: str, default):
 
 
 def _write(name: str, data) -> None:
-    os.makedirs(APP_DIR, exist_ok=True)
-    tmp = _path(name) + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
+    # O3: one temporary file per process (".tmp" was shared: two apps saving at once wrote into one)
+    with atomic_open(_path(name)) as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, _path(name))
 
 
 # ------------------------------------------------------------------ recent
@@ -246,7 +246,7 @@ def _migrate_v1():
             v2 = template_v2(t)
             path = os.path.join(TEMPLATE_DIR, v2["id"] + ".json")
             if not os.path.exists(path):
-                with open(path, "w", encoding="utf-8") as f:
+                with atomic_open(path) as f:
                     json.dump(v2, f, ensure_ascii=False, indent=1)
         os.replace(old, old + ".migrated")
     except (OSError, ValueError):
@@ -289,10 +289,8 @@ def save_template(tpl: Dict[str, Any], replace: bool = True) -> Dict[str, Any]:
                 tid = f"{base}-{k}"; k += 1
         t["id"] = tid
         path = os.path.join(TEMPLATE_DIR, tid + ".json")
-        tmp = path + ".part"
-        with open(tmp, "w", encoding="utf-8") as f:
+        with atomic_open(path) as f:
             json.dump(t, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, path)
         return {**t, "file": path}
 
 

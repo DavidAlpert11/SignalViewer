@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import fail
+from app.common import atomic_open, fail
 from app.routes.export import _check_target
 from app.store import store
 from svcore import templates as tplm
@@ -164,7 +164,7 @@ def template_export(req: TemplatePath):
     items = [{k: v for k, v in mine[i].items() if k != "file"} for i in req.ids if i in mine]
     if not items:
         fail(400, "Nothing to export.")
-    with open(path, "w", encoding="utf-8") as f:
+    with atomic_open(path) as f:
         json.dump(items[0] if len(items) == 1 else {"templates": items}, f, ensure_ascii=False, indent=1)
     return {"path": path}
 
