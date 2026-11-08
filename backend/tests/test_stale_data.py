@@ -38,7 +38,9 @@ def test_python_operations_reloaded_recompute_their_signals():
     st.signal("derived/d")
     v1 = st.version("derived/d")
     assert st.invalidate_derived("derivative") == ["d"]
-    assert st.version("derived/d") != v1 and st.derived["d"].time is None
+    from svcore.memcache import CACHE
+    assert st.version("derived/d") != v1                            # a new serial: a new cache key
+    assert CACHE.get(("derived", "d", st.derived["d"].serial, (st.version(f"{lr.id}/RPM"),))) is None
     assert len(st.signal("derived/d")[0]) > 0                       # computed again on the next read
 
 

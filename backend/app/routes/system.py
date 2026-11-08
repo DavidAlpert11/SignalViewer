@@ -149,7 +149,7 @@ def put_settings(req: SettingsChange):
 # =============================================================================
 
 class ClearRequest(BaseModel):
-    what: list = []                 # "cache", "uploads", "tiles"
+    what: list = []                 # "cache", "uploads", "tiles", "memory" (P2)
 
 
 
@@ -163,5 +163,5 @@ def storage_info():
 @router.post("/api/storage/clear")
 def storage_clear(req: ClearRequest):
     from app import storage
-    what = [w for w in req.what if w in ("cache", "uploads", "tiles")]
+    what = [w for w in req.what if w in ("cache", "uploads", "tiles", "memory")]
     return {"result": storage.clear(what), **storage.info()}

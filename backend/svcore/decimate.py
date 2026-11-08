@@ -24,10 +24,11 @@ Configuration:
 """
 
 import os
-import weakref
 from typing import Optional, Sequence, Tuple
 
 import numpy as np
+
+from svcore.memcache import CACHE as MEMCACHE
 
 MAX_POINTS_PER_TRACE = int(os.environ.get("SV_MAX_POINTS", "4000"))
 _BLOCK = 1 << 22  # samples processed per block (bounded temporary memory)
@@ -90,14 +91,15 @@ def _minmax_indices(y: np.ndarray, n_out: int) -> np.ndarray:
 # The result is identical (the global min of a bin is the min of its blocks' mins).
 # ----------------------------------------------------------------------------
 BLOCK = 1024
-_summaries: "dict[tuple, tuple]" = {}
 
 
 def _summary(y: np.ndarray):
-    key = (id(y), len(y))
-    hit = _summaries.get(key)
-    if hit is not None and hit[0]() is y:
-        return hit[1], hit[2], hit[3], hit[4]
+    # P2: in the shared memory cache, owned by y - gone when y is freed (a reloaded / closed file),
+    # and an array that later gets y's address can never be handed y's summary
+    key = ("summary", id(y), len(y))
+    hit = MEMCACHE.get(key)
+    if hit is not None:
+        return hit
     nb = len(y) // BLOCK
     imin = np.empty(nb, dtype=np.int64)
     imax = np.empty(nb, dtype=np.int64)
@@ -115,14 +117,8 @@ def _summary(y: np.ndarray):
             imax[b0:b1] = blk.argmax(axis=1) + base
     vmin = np.asarray(y[imin], dtype=np.float64)
     vmax = np.asarray(y[imax], dtype=np.float64)
-    # Entries hold only a WEAK reference to the signal: a reloaded / replaced / closed file
-    # frees its (possibly gigabyte-sized) arrays at once instead of being kept alive here.
-    for k in [k for k, v in _summaries.items() if v[0]() is None]:
-        _summaries.pop(k, None)
-    if len(_summaries) > 256:
-        _summaries.pop(next(iter(_summaries)))
-    _summaries[key] = (weakref.ref(y), imin, imax, np.where(np.isnan(vmin), np.inf, vmin), np.where(np.isnan(vmax), -np.inf, vmax))
-    return imin, imax, _summaries[key][3], _summaries[key][4]
+    out = (imin, imax, np.where(np.isnan(vmin), np.inf, vmin), np.where(np.isnan(vmax), -np.inf, vmax))
+    return MEMCACHE.put(key, out, "summary", owners=(y,))
 
 
 def _minmax_range(y: np.ndarray, s0: int, s1: int, n_out: int) -> np.ndarray:

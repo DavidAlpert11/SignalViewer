@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 from svcore.decimate import minmax_decimate, stride_decimate
+from svcore.memcache import CACHE as MEMCACHE
 from svcore.ops import (FilterError, apply_filter, compute_fft, compute_welch, cumulative_trapezoid, moving_average,
                         nearest_indices, on_updates, uniform_samples)
 
@@ -50,9 +51,7 @@ class DerivedDef:
     op: str
     sources: List[str]
     params: Dict = field(default_factory=dict)
-    time: Optional[np.ndarray] = None
-    data: Optional[np.ndarray] = None
-    source_versions: Tuple = ()
+    # (its values live in the shared memory cache, P2, keyed by name, serial and source versions)
     # F34: a new number for every definition and every forced recompute (a Python operation's
     # file saved again): part of the signal's version, so caches keyed by it (FFT, "discrete")
     # never hand a replaced signal of the same name and sources the numbers of the old one
@@ -62,9 +61,7 @@ class DerivedDef:
     report: Dict = field(default_factory=dict)
 
     def invalidate(self) -> None:
-        self.time = self.data = None
-        self.source_versions = ()
-        self.serial = next(_DERIVED_SERIAL)
+        self.serial = next(_DERIVED_SERIAL)          # a new key: the cached values are never handed out again
 
     def formula(self, short) -> str:
         n = [short(s) for s in self.sources]
@@ -649,8 +646,6 @@ def _vecsmooth(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tu
 
 # ----------------------------------------------------------------------------- FFT
 
-_fft_cache: Dict[tuple, Tuple[np.ndarray, np.ndarray, Dict[str, Any]]] = {}
-_FFT_CACHE_BYTES = 256 << 20
 
 
 def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
@@ -659,8 +654,8 @@ def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
     """method: "fft" (magnitude of one FFT) or "welch" (averaged power spectral density).
     info, when given, is filled with how the samples were put on an even grid (ops.uniform_samples):
     resampled, fs, gaps, gapTime - so the plot can say that a gap was bridged."""
-    key = (sig_id, version, window, t0, t1, method)
-    hit = _fft_cache.get(key)
+    key = ("fft", sig_id, version, window, t0, t1, method)
+    hit = MEMCACHE.get(key)                      # P2: the shared memory cache (bounded in bytes)
     if hit is not None:
         if info is not None:
             info.update(hit[2])
@@ -673,15 +668,9 @@ def fft_for(sig_id: str, version, t: np.ndarray, y: np.ndarray, window: str,
         f, m = np.array([]), np.array([])
     else:
         f, m = burst_spectrum(_f64(t), _f64(y), window, method, how)
-    # bounded by SIZE, not only by count: a spectrum of a long high-rate signal is 100+ MB, and 33
-    # of them could hold gigabytes. An older version of the same signal (live mode: every update)
-    # is never needed again.
-    for k in [k for k in _fft_cache if k[0] == sig_id and k[1] != version]:
-        _fft_cache.pop(k, None)
-    _fft_cache[key] = (f, m, how)
-    while len(_fft_cache) > 1 and (len(_fft_cache) > 32 or
-                                   sum(v[0].nbytes + v[1].nbytes for v in _fft_cache.values()) > _FFT_CACHE_BYTES):
-        _fft_cache.pop(next(iter(_fft_cache)))
+    # an older version of the same signal (live mode: every update) is never needed again
+    MEMCACHE.drop(lambda k: k[0] == "fft" and k[1] == sig_id and k[2] != version)
+    MEMCACHE.put(key, (f, m, how), "fft")
     if info is not None:
         info.update(how)
     return f, m

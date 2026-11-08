@@ -273,15 +273,20 @@ def test_discrete_cache_does_not_grow_in_live_mode(big_mode):
     assert len(store._discrete) == n0
 
 
-def test_fft_cache_is_bounded_by_size(monkeypatch):
+def test_fft_cache_is_bounded_by_size():
+    """P2: spectra live in the shared memory cache - bounded in bytes, one version per signal."""
     from svcore import analysis as A
-    monkeypatch.setattr(A, "_FFT_CACHE_BYTES", 3 << 20)
-    A._fft_cache.clear()
-    t = np.arange(400_000) / 1000.0
-    y = np.sin(t)
-    for v in range(6):                                             # live mode: a new version each time
-        A.fft_for("r/x", v, t, y, "hann", None, None)
-    assert len([k for k in A._fft_cache if k[0] == "r/x"]) == 1
-    for s in range(6):
-        A.fft_for(f"r/y{s}", 0, t, y, "hann", None, None)
-    assert sum(v[0].nbytes + v[1].nbytes for v in A._fft_cache.values()) <= (3 << 20) or len(A._fft_cache) == 1
+    from svcore.memcache import CACHE
+    old = CACHE.limit
+    CACHE.clear(); CACHE.set_limit(8 << 20)              # a spectrum here is ~3.2 MB
+    try:
+        t = np.arange(400_000) / 1000.0
+        y = np.sin(t)
+        for v in range(6):                                         # live mode: a new version each time
+            A.fft_for("r/x", v, t, y, "hann", None, None)
+        assert CACHE.info()["kinds"]["fft"]["entries"] == 1
+        for s in range(6):
+            A.fft_for(f"r/y{s}", 0, t, y, "hann", None, None)
+        assert CACHE.info()["bytes"] <= (8 << 20)
+    finally:
+        CACHE.set_limit(old)

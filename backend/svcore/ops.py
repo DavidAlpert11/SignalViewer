@@ -7,10 +7,11 @@ moving average and integral.
 them; the operations are in svcore/analysis.py and svcore/formula.py.)
 """
 
-import weakref
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+
+from svcore.memcache import CACHE as MEMCACHE
 
 
 def nearest_indices(t_src: np.ndarray, t_query: np.ndarray) -> np.ndarray:
@@ -258,15 +259,7 @@ def apply_filter(time: np.ndarray, data: np.ndarray, filter_type: str, cutoff: f
 # weak references to the arrays themselves: CPython gives a new array the address of one just freed,
 # so an id alone would hand a fresh array (a filtered or scaled copy, a reloaded file) the numbers of
 # an old one (F23). A weak reference does not keep a big temporary alive; a dead one is a miss.
-_STATS_CACHE: Dict[tuple, Tuple[Any, Any, Dict[str, float]]] = {}
-_STATS_CACHE_MAX = 256
-
-
-def _weak(a):
-    try:
-        return weakref.ref(a)
-    except TypeError:            # not weak-referenceable (a list...): never matched again
-        return lambda: None
+# P2: in the shared memory cache, owned by both arrays (an entry goes when either is freed).
 
 
 def time_weights(t: np.ndarray) -> Tuple[Optional[np.ndarray], int]:
@@ -342,11 +335,11 @@ def compute_signal_stats(
     """
     if len(data) == 0:
         return {}
-    key = (id(time), id(data), len(data), t_start, t_end)
+    key = ("stats", id(time), id(data), len(data), t_start, t_end)
     if mask is None:
-        hit = _STATS_CACHE.get(key)
-        if hit is not None and hit[0]() is time and hit[1]() is data:
-            return hit[2]
+        hit = MEMCACHE.get(key)
+        if hit is not None:
+            return hit
 
     i0, i1 = 0, len(time)
     if t_start is not None:
@@ -378,10 +371,7 @@ def compute_signal_stats(
         result["weighting"] = "time"
         result["gaps"] = gaps
     if mask is None:
-        if len(_STATS_CACHE) >= _STATS_CACHE_MAX:
-            _STATS_CACHE.pop(next(iter(_STATS_CACHE)))
-        _STATS_CACHE.pop(key, None)
-        _STATS_CACHE[key] = (_weak(time), _weak(data), result)
+        MEMCACHE.put(key, result, "stats", owners=(time, data))
     return result
 
 

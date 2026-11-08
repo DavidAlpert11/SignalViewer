@@ -5,6 +5,8 @@
     uploads/   files dropped into a BROWSER window are copied here (a browser does not give the
                path). Copies older than UPLOAD_DAYS are removed at start.
     tiles/     online map tiles seen so far (app/tiles.py) - what makes those places work offline.
+    memory     not on disk: results computed again when needed (svcore/memcache.py, P2) - changed and
+               derived signals, spectra, plot summaries, statistics; its total and limit are shown.
 
 Nothing in use is removed: a cache entry an open file reads from, the copy an open file is.
 """
@@ -21,6 +23,7 @@ from app import tiles
 from app.common import UPLOAD_DIR
 from app.store import store
 from svcore import csv_loader
+from svcore.memcache import CACHE as MEMCACHE
 
 log = logging.getLogger("signalviewer").getChild(__name__)
 
@@ -69,6 +72,7 @@ def info() -> Dict[str, object]:
         "cache": {"path": csv_loader.CACHE_DIR, "bytes": _size(csv_loader.CACHE_DIR)},
         "uploads": {"path": UPLOAD_DIR, "bytes": _size(UPLOAD_DIR)},
         "tiles": {"path": tiles.CACHE, "bytes": _size(tiles.CACHE)},
+        "memory": {"path": "", **MEMCACHE.info()},
     }
 
 
@@ -109,6 +113,8 @@ def clear(what: Iterable[str]) -> Dict[str, Dict[str, int]]:
             out[w] = _remove_children(UPLOAD_DIR, uploads_in_use())
         elif w == "tiles":
             out[w] = _remove_children(tiles.CACHE, ())
+        elif w == "memory":                   # values a request holds stay alive until it is done
+            out[w] = {"freed": MEMCACHE.clear(), "kept": 0}
     log.info("cleared %s", out)
     return out
 

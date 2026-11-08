@@ -26,15 +26,20 @@ function StorageSection() {
       useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
     } finally { setBusy(false); }
   };
-  const rows: [StorageKind, string][] = [["cache", t("storageCache")], ["uploads", t("storageUploads")], ["tiles", t("storageTiles")]];
+  const rows: [StorageKind, string][] = [["cache", t("storageCache")], ["uploads", t("storageUploads")], ["tiles", t("storageTiles")], ["memory", t("storageMemory")]];
+  const ltr = (x: string) => `\u2066${x}\u2069`;      // each size isolated left-to-right inside a Hebrew sentence
+  // P2: the memory cache shows its limit too ("120 MB of 1 GB"); its kinds on hover
+  const sizeOf = (k: StorageKind) => !info?.[k] ? "…" : k === "memory" && info[k].limit
+    ? t("storageOfLimit", { size: ltr(fmtSize(info[k].bytes)), limit: ltr(fmtSize(info[k].limit!)) }) : fmtSize(info[k].bytes);
+  const titleOf = (k: StorageKind) => k === "memory" ? Object.entries(info?.[k]?.kinds ?? {}).map(([kind, v]) => `${t(("memKind_" + kind) as never)}: ${fmtSize(v.bytes)}`).join("\n") || undefined : info?.[k].path;
   return (
     <div className="set-storage">
       <div className="set-row"><span>{t("storage")}<small>{t("storageHint")}</small></span>
         <button className="btn outline" disabled={busy || !info} onClick={() => clear(["cache", "uploads"])}>{t("storageClearAll")}</button></div>
       {rows.map(([k, label]) => (
         <div className="set-row sub" key={k}>
-          <span>{label}<small title={info?.[k].path}><bdi>{info ? fmtSize(info[k].bytes) : "…"}</bdi></small></span>
-          <button className="btn outline" disabled={busy || !info || !info[k].bytes} onClick={() => clear([k])}>{t("storageClear")}</button>
+          <span>{label}<small title={titleOf(k)}><bdi>{sizeOf(k)}</bdi></small></span>
+          <button className="btn outline" disabled={busy || !info?.[k] || !info[k].bytes} onClick={() => clear([k])}>{t("storageClear")}</button>
         </div>
       ))}
       {note && <p className="hint" role="status">{note}</p>}
