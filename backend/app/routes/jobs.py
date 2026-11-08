@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import report as reports
-from app.common import _load_error, fail, open_with_prefs
+from app.common import _load_error, fail, unexpected_load_error, open_with_prefs
 from app.jobs import JobCancelled, jobs
 from app.routes.compare import CompareAllRequest, compare_table
 from app.routes.export import ReportRequest, _check_target
@@ -52,7 +52,7 @@ def start_job(req: JobRequest):
                 except Exception as e:
                     if e.__class__.__name__ == "LoadCancelled":
                         raise
-                    errors.append({"path": p, "message": f"Unexpected error while reading the file: {e}"})
+                    errors.append(unexpected_load_error(p, e))
                 job.report((i + 1) / n, "read")
             return {"opened": opened, "errors": errors}
     elif req.kind == "report":

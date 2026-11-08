@@ -155,7 +155,13 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       if (rep.skippedColumns?.length) parts.push(translate(lang, "skippedCols", { n: rep.skippedColumns.length }) + ` (${rep.skippedColumns.slice(0, 3).join(", ")}${rep.skippedColumns.length > 3 ? "…" : ""})`);
       if (rep.textColumns?.length) parts.push(translate(lang, "textColsRead", { list: rep.textColumns.slice(0, 3).join(", ") + (rep.textColumns.length > 3 ? ` (+${rep.textColumns.length - 3})` : "") }));
       if (rep.tooManyTexts?.length) parts.push(translate(lang, "textColsTooMany", { n: rep.tooManyTexts.length }) + ` (${rep.tooManyTexts.slice(0, 3).join(", ")}${rep.tooManyTexts.length > 3 ? "…" : ""})`);
-      if (rep.corruptBytes) parts.push(translate(lang, "corruptBytes", { n: rep.corruptBytes }));
+      // O2: a ULog reports only THAT it was damaged (pyulog gives no count) - not "1 damaged bytes"
+      if (rep.corruptBytes) parts.push(rep.damaged ? translate(lang, "damagedFile") : translate(lang, "corruptBytes", { n: rep.corruptBytes }));
+      if (rep.droppedMessages) parts.push(translate(lang, "droppedMessages", { n: rep.droppedMessages }));
+      if (rep.phantomInstances?.length) parts.push(translate(lang, "phantomInstances", { list: rep.phantomInstances.slice(0, 4).join(", ") + (rep.phantomInstances.length > 4 ? " …" : "") }));
+      if (rep.badTimestamps) parts.push(translate(lang, "badTimestamps", { n: rep.badTimestamps }));
+      if (rep.damagedParams) parts.push(translate(lang, "damagedParams", { n: rep.damagedParams }));
+      if (rep.damagedTexts) parts.push(translate(lang, "damagedTexts", { n: rep.damagedTexts }));
       if (rep.cutOff) parts.push(translate(lang, "cutOff"));
       if (rep.damagedText) parts.push(translate(lang, "damagedText"));
       if (rep.damagedObjects) parts.push(translate(lang, "damagedObjects", { n: rep.damagedObjects }));

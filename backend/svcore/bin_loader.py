@@ -66,6 +66,7 @@ _INSTANCE_NAMES = ("I", "Inst", "Instance")   # fallback when there is no FMTU
 _TIME_FIELDS = (("TimeUS", 1e-6), ("TimeMS", 1e-3), ("TimeUs", 1e-6))
 _SKIP_TYPES = {"FMT", "FMTU", "UNIT", "MULT", "PARM", "FILE"}   # metadata
 _MAX_TEXTS = 1000                    # a text field with more distinct values is not a state
+_PHANTOM_MAX = 4                    # O2: an instance with fewer messages than this (and 1/1000 of the largest) may be damage
 _BLOCK = 1 << 26                     # bytes per block of the header search (64 MB)
 _WORKERS = max(1, min(8, (os.cpu_count() or 1)))   # threads for the independent parts of a big read
 _MMAP_MIN = 64 << 20                 # files at least this big are memory-mapped, not read into RAM
@@ -296,6 +297,10 @@ class DataFlash:
         self.events: List[dict] = []                   # MSG / MODE / EV / ERR, in time order
         self._new_texts: List[Tuple[float, str]] = []
         self.corrupt_bytes = 0
+        # O2: what a damaged block made look like data, left out and reported (not silently kept)
+        self.dropped_messages = 0                      # messages that end where no message starts
+        self.phantom_instances: List[str] = []         # "IMU[149]": an instance only damage made
+        self.known_instances: Dict[str, set] = {}      # message name -> instances read so far (live mode)
         self.vehicle: Optional[str] = None
         self.text_labels: Dict[str, Dict[int, str]] = {}   # signal -> {code: text}, kept for live mode
         self.compact = False        # big log: exact float32 fields stay float32 (set by load_bin)
@@ -380,6 +385,14 @@ class DataFlash:
         self.corrupt_bytes += skipped
         if len(gaps) > 10000 and skipped > (n - start) // 2:
             raise BinFormatError("The log is too damaged to read.")
+        # O2: the last message before a skipped block ends where no message starts - a damaged block
+        # often begins with what looks like a header of a known type, and its "message" (garbage
+        # values, an instance like IMU[149]) fits the chain exactly up to there. Not trusted: left out
+        # (at most one real message per damaged block is lost with it).
+        bad = sp[:-1][gaps > 0]
+        if len(bad):
+            on[bad] = False
+            self.dropped_messages += int(len(bad))
         pos = cand[on]
         end = int(ends[sp[-1]])
         if report:
@@ -673,6 +686,26 @@ class DataFlash:
                 out[f"ISBD[{inst}].{kind}{axis}{'Post' if is_post else ''} [{unit}]"] = (tt, v[a][order])
         return out
 
+    def _real_instances(self, name: str, groups: List[Tuple[int, Any]]) -> List[Tuple[int, Any]]:
+        """O2: the instances of one message type that are real. ArduPilot numbers the instances of a
+        sensor 0, 1, 2...; an instance with a handful of messages far beyond the others (IMU[149] beside
+        IMU[0] / IMU[1] with thousands each) is what a damaged block decoded as that type - left out
+        and named in the load report. A small instance next to the others (IMU[2] starting late, a
+        second GPS seen briefly) or one read before (live mode) is kept."""
+        known = self.known_instances.setdefault(name, set())
+        sizes = {v: int(np.count_nonzero(sel)) for v, sel in groups}
+        big = max(sizes.values(), default=0)
+        solid = {v for v, c in sizes.items() if c >= max(_PHANTOM_MAX, big * 1e-3)} | known
+        top = max(solid, default=None)
+        keep = []
+        for v, sel in groups:
+            if top is not None and v not in solid and (v < 0 or v > top + 1):
+                self.phantom_instances.append(f"{name}[{v}]")
+                continue
+            keep.append((v, sel))
+            known.add(v)
+        return keep
+
     def _emit(self, out: Dict[str, tuple], f: "MsgFormat", col, pos: Optional[np.ndarray], base: int):
         """The signals of one message type. col(k): field k of all its messages (file order).
         pos: positions of its messages (lazy type: numeric fields become LazyFields)."""
@@ -695,7 +728,7 @@ class DataFlash:
         groups: List[Tuple[Optional[int], Any]] = [(None, slice(None))]
         if inst is not None:
             iv = col(inst)
-            groups = [(int(v), iv == v) for v in np.unique(iv)]
+            groups = list(self._real_instances(f.name, [(int(v), iv == v) for v in np.unique(iv)]))
         cols: Dict[int, np.ndarray] = {}
         for ival, sel in groups:
             tt = time[sel]
@@ -912,6 +945,10 @@ def load_bin(path: str, display_name: str) -> Tuple[Optional[Run], Dict]:
               "params": len(df.params)}
     if df.corrupt_bytes:
         report["corruptBytes"] = int(df.corrupt_bytes)
+    if df.dropped_messages:
+        report["droppedMessages"] = int(df.dropped_messages)
+    if df.phantom_instances:
+        report["phantomInstances"] = sorted(set(df.phantom_instances))
     report["events"] = len(df.events)
     if idx and df.lazy and time.time() - st.st_mtime >= INDEX_QUIET_S:
         _index_save(idx, path, df, sigs, end, report)

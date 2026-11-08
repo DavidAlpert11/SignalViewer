@@ -164,3 +164,102 @@ def test_mat_cut_before_any_complete_variable_says_so(tmp_path):
     p.write_bytes(open(src, "rb").read()[:300])
     err = client.post("/api/files/open", json={"paths": [str(p)]}).json()["errors"][0]
     assert err["code"] == "badMat"
+
+
+# ---- O2: damage must not become data (phantom signals), and a damaged .ulg opens what it can ----
+
+EXAMPLE_BIN = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "copter_flight.bin")
+
+
+def _names(path):
+    lr = store.open_file(str(path))
+    try:
+        return set(lr.run.signals), dict(lr.load_report)
+    finally:
+        store.remove(lr.id)
+
+
+def test_corrupt_bin_makes_no_phantom_signals(tmp_path):
+    """tools/make_test_bin.py --corrupt: garbage that starts like an IMU message gave IMU[149].* (6 signals
+    that are not in the log). The message before the damaged block is left out and counted."""
+    good, bad = tmp_path / "good.bin", tmp_path / "bad.bin"
+    for p, extra in ((good, []), (bad, ["--corrupt"])):
+        subprocess.run([sys.executable, os.path.join(TOOLS, "make_test_bin.py"), str(p), "--seconds", "8",
+                        "--imu-hz", "50"] + extra, check=True, capture_output=True)
+    want, _ = _names(good)
+    got, rep = _names(bad)
+    assert got == want, sorted(got ^ want)
+    assert rep["corruptBytes"] > 0 and rep["droppedMessages"] == 1
+
+
+@pytest.mark.parametrize("seed", [12, 26, 36, 39, 52, 54])
+def test_damaged_example_bin_has_only_its_own_signals(tmp_path, seed):
+    """The ArduPilot example (73 signals) damaged by the fuzzer's seeds that made IMU[8] / IMU[190] /
+    BARO[87] / VIBE[32] (an instance only the damage had): no signal beyond the 73."""
+    data = open(EXAMPLE_BIN, "rb").read()
+    want, _ = _names(EXAMPLE_BIN)
+    p = tmp_path / f"d{seed}.bin"
+    p.write_bytes(mutate(data, random.Random(seed), ("flip", "zero", "garbage", "dup")[seed % 4]))
+    got, rep = _names(p)
+    assert got <= want, sorted(got - want)
+    assert rep.get("droppedMessages") or rep.get("phantomInstances")      # and it says so
+
+
+def test_instance_rules_keep_real_instances():
+    """A late or brief real instance (next to the others) and one read before (live mode) stay."""
+    from svcore.bin_loader import DataFlash
+    df = DataFlash()
+    sel = lambda n: np.ones(n, bool)                                   # noqa: E731
+    keep = df._real_instances("IMU", [(0, sel(5000)), (1, sel(4000)), (2, sel(2)), (149, sel(1))])
+    assert [v for v, _ in keep] == [0, 1, 2] and df.phantom_instances == ["IMU[149]"]
+    assert [v for v, _ in df._real_instances("IMU", [(0, sel(40)), (2, sel(1))])] == [0, 2]   # 2 known now
+    assert [v for v, _ in df._real_instances("GPS", [(0, sel(3)), (1, sel(2))])] == [0, 1]    # all small: kept
+
+
+def _damaged_ulg(tmp_path, seed, kind):
+    p = tmp_path / f"d{seed}.ulg"
+    p.write_bytes(mutate(open(SAMPLE_ULG, "rb").read(), random.Random(seed), kind))
+    return p
+
+
+def test_ulg_with_a_damaged_parameter_opens(tmp_path):
+    """A flipped bit in the parameters: "could not convert string to float: b'\\x00...'" and the whole
+    log failed (as an unexpected error). Now the parameter is left out and counted."""
+    want, _ = _names(SAMPLE_ULG)
+    got, rep = _names(_damaged_ulg(tmp_path, 16, "flip"))
+    assert got == want and rep["damagedParams"] == 1
+
+
+@pytest.mark.parametrize("seed", [1, 26])
+def test_damaged_ulg_has_only_its_own_signals(tmp_path, seed):
+    """A topic logged without time stamps gained one by a flipped bit: 2 / 35 one-sample signals that are
+    not in the log. Time stamps only damage can make are left out and counted."""
+    want, _ = _names(SAMPLE_ULG)
+    got, rep = _names(_damaged_ulg(tmp_path, seed, "flip"))
+    assert got == want, sorted(got - want)
+    assert rep["badTimestamps"] >= 1
+
+
+def test_undamaged_ulg_loses_nothing():
+    """Topics stamped before logging started (a state published at boot) are real: none is dropped."""
+    _, rep = _names(SAMPLE_ULG)
+    assert "badTimestamps" not in rep and "damagedParams" not in rep
+
+
+def test_truncated_ulg_keeps_what_was_written(tmp_path):
+    data = open(SAMPLE_ULG, "rb").read()
+    p = tmp_path / "cut.ulg"
+    p.write_bytes(data[: len(data) // 2])
+    got, _ = _names(p)
+    assert len(got) > 100
+
+
+def test_unexpected_loader_error_says_what_to_do(tmp_path, monkeypatch):
+    import app.store as st
+    def boom(path, name):
+        raise ValueError("could not convert string to float: b'\\x00'")
+    monkeypatch.setattr(st, "load_ulog", boom)
+    r = client.post("/api/files/open", json={"paths": [SAMPLE_ULG]}).json()
+    err = r["errors"][0]
+    assert err["code"] == "unexpected" and "ValueError" in err["params"]["detail"]
+    assert "damaged" in err["message"] and "Copy error details" in err["message"]

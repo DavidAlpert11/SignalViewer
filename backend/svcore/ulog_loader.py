@@ -52,15 +52,24 @@ def load_ulog(path: str, display_name: str):
     try:
         u = ULog(path)
     except Exception as e:
-        raise ULogError(f"Could not read the PX4 log: {e}") from None
+        # pyulog reads the definitions at the start first; damage there leaves nothing to decode
+        raise ULogError(f"The PX4 log is damaged where its message definitions are (at the start of the file), "
+                        f"so nothing in it can be read ({e}). Copy the log from the vehicle again, or open "
+                        "another copy of it.") from None
     count: Dict[str, int] = {}
     for d in u.data_list:
         count[d.name] = count.get(d.name, 0) + 1
     sigs: Dict[str, tuple] = {}
     skipped = []
+    t_hi = _time_end(u)
+    bad_times = 0
     for d in u.data_list:
         ts = np.asarray(d.data.get("timestamp", []), dtype=np.float64) * 1e-6
         keep = ts > 0                       # a zero time stamp: no time (some old PX4 topics have only zeros)
+        out = _damaged_times(ts, keep, t_hi)            # O2: time stamps only damage can have
+        if out.any():
+            bad_times += int(out.sum())
+            keep &= ~out
         if not keep.any():
             skipped.append(d.name)
             continue
@@ -96,15 +105,27 @@ def load_ulog(path: str, display_name: str):
         log.debug("PX4 default parameters not read", exc_info=True)
         defaults = {}
     t0 = u.start_timestamp * 1e-6
+    bad_params = 0
+    # O2: a damaged parameter / message (bytes where a number should be) is left out, not the whole log
     for nm, v in sorted(u.initial_parameters.items()):
-        fl.set_param(t0, nm, v, defaults.get(nm))
+        try:
+            fl.set_param(t0, nm, v, defaults.get(nm))
+        except (TypeError, ValueError):
+            bad_params += 1
     for ts, nm, v in u.changed_parameters:
-        fl.set_param(ts * 1e-6, nm, v)
+        try:
+            fl.set_param(ts * 1e-6, nm, v)
+        except (TypeError, ValueError):
+            bad_params += 1
+    bad_texts = 0
     for m in u.logged_messages:
-        lv = int(m.log_level)
-        lv = lv - 48 if lv >= 48 else lv                 # stored as the character '0'..'7' (syslog levels)
-        lvl = "error" if lv <= 3 else "warning" if lv == 4 else "info"
-        fl.add_event(m.timestamp * 1e-6, "msg", str(m.message), lvl)
+        try:
+            lv = int(m.log_level)
+            lv = lv - 48 if lv >= 48 else lv             # stored as the character '0'..'7' (syslog levels)
+            lvl = "error" if lv <= 3 else "warning" if lv == 4 else "info"
+            fl.add_event(m.timestamp * 1e-6, "msg", str(m.message), lvl)
+        except (TypeError, ValueError):
+            bad_texts += 1
     _state_events(sigs, fl)
     fl.sort_events()
 
@@ -125,7 +146,51 @@ def load_ulog(path: str, display_name: str):
         rep["skipped"] = [f"{n} (no time stamps)" for n in skipped]
     if getattr(u, "file_corruption", False):
         rep["corruptBytes"] = 1
+        rep["damaged"] = True               # pyulog does not say how much it skipped: say only that it did
+    if bad_times:
+        rep["badTimestamps"] = bad_times
+    if bad_params:
+        rep["damagedParams"] = bad_params
+    if bad_texts:
+        rep["damagedTexts"] = bad_texts
     return run, rep
+
+
+def _time_end(u) -> float:
+    """O2: the latest time [s] a sample of this log can have - its last message. A damaged header can
+    make that absurd: then where the topics' own time stamps (all but the highest 0.1% of each) end,
+    plus a minute. (No lower bound: PX4 stamps some topics before logging starts - a state published
+    at boot keeps its boot time stamp.)"""
+    ends = []
+    for d in u.data_list:
+        ts = np.asarray(d.data.get("timestamp", []), dtype=np.float64)
+        ts = ts[ts > 0]
+        if len(ts) >= 10:
+            ends.append(float(np.percentile(ts, 99.9)) * 1e-6)
+    hi = float(getattr(u, "last_timestamp", 0) or 0) * 1e-6
+    bulk = max(ends) if ends else hi
+    if not hi or hi < bulk or hi > bulk + 3600:
+        hi = bulk + 60
+    return hi
+
+
+def _damaged_times(ts: np.ndarray, valid: np.ndarray, t_hi: float) -> np.ndarray:
+    """O2: the samples of one topic whose time stamp a damaged block made: after the log's end; a lone
+    sample far out of step with both neighbours (a flipped bit in an otherwise steady series); and a
+    topic that has only zero time stamps (no time) except a few - those few."""
+    bad = valid & (ts > t_hi)
+    idx = np.flatnonzero(valid & ~bad)
+    if 0 < len(idx) < 4 and len(ts) >= 100 * len(idx):
+        bad[idx] = True
+        return bad
+    if len(idx) >= 3:
+        v = ts[idx]
+        steps = np.diff(v)
+        tol = max(1.0, 100 * float(np.median(np.abs(steps)))) if len(steps) else 1.0
+        prev, cur, nxt = v[:-2], v[1:-1], v[2:]
+        lone = (prev <= nxt) & ((cur < prev - tol) | (cur > nxt + tol))
+        bad[idx[1:-1][lone]] = True
+    return bad
 
 
 def _release(v: int) -> str:
