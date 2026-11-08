@@ -431,6 +431,10 @@ mode drops nothing), `_emit` (signals, lazy jobs), the index cache (`_index_save
 open routes: 482 passed, 13 skipped; validate 28 / 28; mypy on the 5 changed modules clean; tsc + build;
 e2e test_damaged_note.py (new), test_templates_recent_badfiles, test_file_help_menus, test_error_details.
 **Left:** .tlog has its own resync (pymavlink, CRC-checked) - not changed.
+**Fix found in 26.A1 (2026-11-09):** a big log's index (`_index_save`, a pickled DataFlash) written before
+O2 was still used after it: it keeps the phantom signals, and its DataFlash lacks the O2 fields that live
+mode reads (an AttributeError on the first append). INDEX_VERSION 2 -> 3 (old indexes are rebuilt) and
+`DataFlash.__setstate__` fills any field an older pickle lacks; test_big_files.py (+1).
 
 ### O3 · Atomic writes everywhere
 **Status: done 2026-11-08.**
@@ -3156,3 +3160,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · P3 done: AbortController in api.ts / TimeChart, binary /api/data (`pack_series` / `unpackSeries`), `y_reference` for /api/data (bin) and /api/xy (relative), joinTables.ts (30 signals 162 -> 77 ms); backend 123 related tests; mypy; tsc + build; e2e test_data_path (new) + 8 files; borders test fails on origin/main here too (network). Next: P4.
 - 2026-11-08 · P4 done: app/openmany.py + common.open_paths (thread pool, memory budget SV_OPEN_BUDGET_MB, order / names / tags kept); 4 x 55 MB .bin 2.13 -> 1.42 s on 2 cores; tests: test_open_many (new, 5), whole backend suite 1056 passed; mypy; e2e 5 files + test_features -k open. Next: P5.
 - 2026-11-09 · P5 done: `tools/benchmark.py --synthetic` (offset ratio, 30-signal zoom, pan burst, .bin + changed signals vs the memory cache, live wide append) with targets; the file mode fixed (403 since the localhost check); docs/performance.md. Phase 3 done.
+- 2026-11-09 · O2 follow-up: log index version 3 (an index from before O2 kept phantom signals and broke live mode), `DataFlash.__setstate__`; test_big_files (+1, 15 passed).
