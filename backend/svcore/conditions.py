@@ -111,22 +111,27 @@ def stretches(t: np.ndarray, on: np.ndarray, off: Optional[np.ndarray] = None,
 
 def evaluate_condition(text: str, read: Callable[[str], Optional[Signal]],
                        labels: Callable[[str], Optional[Dict[str, str]]], align,
-                       exit_text: str = "", min_dur: float = 0.0, merge_gap: float = 0.0) -> dict:
-    """The condition in one file. `read(name)` -> (time, data) as shown (None: not in this file)."""
+                       exit_text: str = "", min_dur: float = 0.0, merge_gap: float = 0.0,
+                       is_state: Optional[Callable[[str], bool]] = None) -> dict:
+    """The condition in one file. `read(name)` -> (time, data) as shown (None: not in this file).
+    is_state(name): a state signal (mode, gear, text) - aligned with the value in force (C2): a
+    condition on a mode starts when the mode was entered, not halfway to the previous change."""
+    def holds(ns: List[str]) -> Optional[List[bool]]:
+        return [bool(is_state(n)) for n in ns] if is_state is not None else None
     expr, names = resolve(text, labels)
     missing = [n for n in names if read(n) is None]
     if missing:
         return {"missing": missing}
     sigs: List[Signal] = [x for x in (read(n) for n in names) if x is not None]
     try:
-        t, v = evaluate(expr, sigs, align)
+        t, v = evaluate(expr, sigs, align, holds(names))
         off = None
         if exit_text.strip():
             x_expr, x_names = resolve(exit_text, labels)
             x_missing = [n for n in x_names if read(n) is None]
             if x_missing:
                 return {"missing": x_missing}
-            xt, xv = evaluate(x_expr, [x for x in (read(n) for n in x_names) if x is not None], align)
+            xt, xv = evaluate(x_expr, [x for x in (read(n) for n in x_names) if x is not None], align, holds(x_names))
             off = align(t, xt, xv) > 0.5 if len(xt) else np.zeros(len(t), bool)
     except FormulaError as e:
         raise ConditionError(str(e)) from None

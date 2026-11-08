@@ -306,6 +306,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Autocomplete while typing (Tab / Enter)
 - `+ - * / ^ %`, comparisons (1 / 0), `abs sqrt exp log log10 sin cos tan asin acos atan atan2 sign floor ceil round min max clip where deriv integ smooth lowpass highpass` (`lowpass(Speed, 5)`: −3 dB cut-off in Hz), `t`, `pi`, `e`
 - Signals from different files are aligned in time
+- A state signal (a flight mode, a gear, a text column, a few whole numbers) is read as the value in force at each moment - never interpolated between two modes (the same in conditions: `Mode == 5` starts when the mode was entered); a derived signal saved with `"hold": false` keeps the old alignment
 - Clear errors (“Unknown signal: Spede. Did you mean Speed?”)
 - Evaluated safely on the server (a closed list of operations, no code execution)
 - Saved as a formula, updates when sources change

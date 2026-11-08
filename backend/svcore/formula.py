@@ -16,7 +16,7 @@ Functions:  abs sqrt exp log log10 sin cos tan asin acos atan atan2 sign floor
 """
 
 import ast
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -171,8 +171,10 @@ def _truth(v) -> np.ndarray:
     return np.isfinite(a) & (a != 0)
 
 
-def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align) -> Tuple[np.ndarray, np.ndarray]:
-    """signals: [(time, data)] for v0..vN. Returns (time, values) on v0's samples inside the common overlap."""
+def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
+             holds: Optional[Sequence[bool]] = None) -> Tuple[np.ndarray, np.ndarray]:
+    """signals: [(time, data)] for v0..vN. Returns (time, values) on v0's samples inside the common overlap.
+    holds: per signal, True for a state signal - aligned with the value in force (C2), not by `align`."""
     if not signals:
         raise FormulaError("Use at least one signal in the formula.")
     tree = parse(expr, len(signals))
@@ -185,7 +187,18 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align) -> 
     t = t0[i0:i1]
     env: Dict[str, object] = {"t": t, "pi": np.pi, "e": np.e}
     for k, (ts, ys) in enumerate(signals):
-        env[f"v{k}"] = np.asarray(ys[i0:i1], dtype=np.float64) if k == 0 else align(t, ts, ys)
+        held = holds is not None and k < len(holds) and holds[k]
+        if k == 0:
+            v0 = np.asarray(ys[i0:i1], dtype=np.float64)
+            if held:                                       # a blank sample of a state: the last value holds
+                from svcore.analysis import ffill_state
+                v0 = ffill_state(np.asarray(ys, dtype=np.float64))[i0:i1]
+            env["v0"] = v0
+        elif held:
+            from svcore.analysis import hold_to
+            env[f"v{k}"] = hold_to(t, ts, ys)
+        else:
+            env[f"v{k}"] = align(t, ts, ys)
     funcs = _funcs(t)
 
     def ev(node):

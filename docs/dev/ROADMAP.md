@@ -818,7 +818,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 
 ## Milestone 26 — the offline judge: correctness, trust, performance, a calm UI (owner's plan 2026-11-08). Spec: TASKS.md "Owner's plan (2026-11-08)". IDs that collide with Milestone 25 are written 26.<id>.
 - [x] C1 Compare judged at full resolution, in both directions. Done 2026-11-08: pass / withinPct / maxAbsDiff on the union of both runs' samples, descriptive numbers on all the baseline's samples, trace decimated only for drawing; CLI = UI; test_compare_fullres.py, test_checks.py (+1).
-- [ ] C2 Zero-order hold for state signals in formulas and conditions.
+- [x] C2 Zero-order hold for state signals in formulas and conditions. Done 2026-11-08: `analysis.hold_to`; compute(states), formula.evaluate(holds), conditions(is_state); optional `params.hold: false`; test_state_hold.py.
 - [ ] C3 Explicit missing-data policy (`params.nan`: propagate | skip).
 - [ ] C4 Validation cases V24-V29 in `cli.py validate` and docs/validation.md.
 - [ ] O1 Offline by default; "Never use the network" (pref + `SV_OFFLINE=1`); an indicator for online tiles.

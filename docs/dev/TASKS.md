@@ -16,7 +16,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - **Round of 2026-11-08 (in progress)**: the owner's audit round - correctness, trust, performance,
   a calmer UI (spec and board in "Owner's plan (2026-11-08)" below; IDs there are qualified as
   `26.<id>` where they collide with Milestone 25). Phase 1: C1 done (Compare judged on every sample of
-  both runs). Next: C2 (zero-order hold for state signals), C3, C4. Baseline before the round: backend
+  both runs), C2 done (state signals held in formulas / operations / conditions). Next: C3, C4. Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
 - **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
@@ -169,8 +169,8 @@ Progress board:
 | # | Task | Phase | Status |
 |---|---|---|---|
 | C1 | Compare judged at full resolution, both directions | 1 | ☑ done |
-| C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☐ next |
-| C3 | Explicit missing-data policy (`params.nan`) | 1 | ☐ |
+| C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☑ done |
+| C3 | Explicit missing-data policy (`params.nan`) | 1 | ☐ next |
 | C4 | Validation cases V24-V29 | 1 | ☐ |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☐ (changes 1.22.0's OSM default - asked for by the owner) |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
@@ -227,6 +227,36 @@ test_real_logs, test_segments_across, test_sim_vs_flight: 115 passed, 13 skipped
 svcore/compare.py clean. Docs: command-line.md, features.md; CHANGELOG (Unreleased ▸ Fixed).
 **Left:** V24 / V25 go into `validate` with C4. The compare list (`/api/compare/all`) now does full
 resolution for every signal - fine on the examples; P5's benchmarks should include it.
+
+### C2 · State signals use a zero-order hold in formulas and conditions
+**Status: done 2026-11-08.**
+**Reproduced first** (examples/copter_flight.bin, MODE.Mode 6 samples at 1.41 / 34.41 / 46.41 / 60.41 /
+177.41 / 218.41): `{ATT.Roll [deg]} > -1000 and {MODE.Mode} == 5` gave [40.452, 53.452] (the
+nearest sample: halfway between changes); a formula `v1` with MODE.Mode as v1 had 5,418 samples with
+values the mode never had. Both exactly as the audit.
+**Callers checked:** `analysis.compute` (store `_refresh_derived`, `/api/derived/preview`, validation
+V10 / V11 - unary, untouched), `formula.evaluate` (compute, conditions, svcore/transforms.py),
+`conditions.evaluate_condition` (investigate.py only), `investigate.Source.discrete` = `Store.is_discrete`.
+**Made:** `analysis.hold_to` (the value in force; NaN before the first sample; blank samples hold - the
+rule of `state_mask` / `decimate.hold_at`), `align_to(..., "hold")`. `compute(..., states=None)`: a
+source that is a state (`Store.is_state`: labels, or `is_discrete`) is held in `expr`, the binary ops
+and the several-signal ops; `formula.evaluate(..., holds=None)` (v0 a state: its blanks filled);
+`conditions.evaluate_condition(..., is_state=None)`, investigate passes labels / discrete per name.
+`states` / `holds` / `is_state` default to None = exactly the old behaviour for other callers.
+Opt-out saved per derived signal: optional `params.hold: false` (no UI; documented in features.md).
+**Owner to decide:** a derived signal in an OLD session whose source is a state now computes held
+values when the session opens (values that never existed were the bug, so no stored flag was added;
+`hold: false` exists if the old numbers must be kept).
+**Tests run:** test_state_hold.py (6, new; the copter example included), test_backend, test_conditions,
+test_investigate, test_derived_rename, test_filters, test_firstchange, test_occurrences, test_overview,
+test_push, test_pyops, test_report_sections, test_stale_data, test_time_axis, test_update_rate,
+test_vecsmooth, test_bin_text_live: 185 passed; `cli.py validate` 23 / 23; mypy on the 6 changed
+modules clean.
+**Left:** the overlap of a formula still ends at the state signal's LAST sample (a change-only mode
+logged last at 218.41 cuts a formula there, although the mode stays in force to the end of the log) -
+a separate decision (extend held sources to v0's end?), not changed here. Transform formulas with
+`{Name}` references (svcore/transforms.py) still interpolate their references; the condition's exit
+value is still aligned by the nearest sample. V26 / V27 go into `validate` with C4.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -2768,3 +2798,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · 1.22.0 re-release (owner, after the tag, before publishing): two MODE rows on top in the ArduPilot example (the strip's default row and the tab band) -> the band leaves out what the strip shows (`stripLanes`, published by OverviewStrip), the strip's rows name the mode under each cursor line (`.ov-cur-tag`, `.ov-phase.at`); the automatic map is OpenStreetMap in both themes (was dark grey in the dark theme); every README picture / clip in the dark theme (make_readme_media `page(dark=True)`); the hero with OSM and the 3D zoomed / tilted - but the sandbox has no internet for tiles, so 00 / 05 / 28 are to be retaken on the owner's machine (`--only 00 05 28`, then make_social_preview.py); the docs site's first picture is the hero. Tests: test_tab_band rewritten.
 - 2026-11-08 · 1.22.0 re-release, the map pictures retaken with the internet (00 / 05 / 28, social-preview). The hero's 3D was empty: the wheel zooms toward the mouse, which was at the plot's middle, not on the track, so 3 steps went down into the ground beside it -> `img_00_hero` waits for the 3D tiles, points the wheel at the track's middle (projected from the scene's track lines) and takes 2 steps: the whole track, tilted (General camera, -35 deg). 05's 3D was shot before its tiles were refined (blurred) -> it waits for `globe.tilesLoaded`. Checked: one MODE.Mode row above the plots, the automatic map is OSM in the dark theme. Tests: backend pytest, mypy, tsc; e2e test_tab_band, test_template_tabs, test_overview_strip, test_map_objects, test_globe3d (22 passed).
 - 2026-11-08 · Round of 2026-11-08 started (owner's audit: C, O, P, A, U, T, F); baseline at `77aaa4a`: backend 981 passed / 14 skipped, validate 23 / 23. C1 done: Compare judged on the union of both runs' samples (svcore/compare.py); tests: test_compare_fullres (new), test_checks (+1), compare / checks / sync / real logs files - 115 passed, 13 skipped; mypy compare.py clean. Next: C2.
+- 2026-11-08 · C2 done: state signals held (`analysis.hold_to`) in formulas, operations and conditions; the copter example's mode condition is [46.41, 60.41], no formula value outside the mode's values; tests: test_state_hold (new) + 16 related files, 185 passed; validate 23 / 23; mypy clean on the changed modules. Next: C3.
