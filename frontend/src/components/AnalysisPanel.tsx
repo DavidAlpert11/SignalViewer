@@ -70,7 +70,8 @@ export default function AnalysisPanel() {
   const setMany = (ids: string[]) => { setManyRaw(ids); setManyUsed(false); };
   const [xexpr, setXexpr] = useState("x * 8");
   const [batch, setBatch] = useState(false);
-  const [windowN, setWindowN] = useState(10);
+  // 26.A3: smooth / RMS windows in seconds - null = about 10 samples of the chosen signal (until typed)
+  const [windowSecRaw, setWindowSec] = useState<number | null>(null);
   const [cutoff, setCutoff] = useState(10);
   const [smoothSec, setSmoothSec] = useState(1);              // vector smoothing window (s)
   const [smoothLla, setSmoothLla] = useState(false);          // the components are lat / lon [/ alt]
@@ -184,11 +185,14 @@ export default function AnalysisPanel() {
     const own = c.names.filter((n) => !n.startsWith("@"));          // {file:Name} needs no file of x's own
     return own.length && xHomes.some((h) => !h) ? { ...c, error: t("fxXNoFile", { name: own[0] }) } : c;
   })();
+  const rateOf = (id: string) => runs.flatMap((r) => r.signals).find((s) => s.id === id)?.rate ?? 0;
+  const autoSec = (() => { const hz = rateOf(batch ? many[0] ?? "" : a); return hz > 0 ? Number((10 / hz).toPrecision(2)) : 0.1; })();
+  const windowSec = windowSecRaw ?? autoSec;
   const updOp = op === "derivative" || op === "integral";
   const update = !updOp || upd === "every" ? undefined : upd === "hz" ? { hz: updHz } : { flag: true };
   // C3b: the operations with a missing-data choice (an integral of updates has its own samples: none)
   const nanOp = kind === "many" ? NAN_MANY.has(op) : kind === "one" && op === "integral" && output === "new" && !update;
-  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr, ...(update ? { update } : {}),
+  const params = { seconds: windowSec, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr, ...(update ? { update } : {}),
     ...(nanOp ? { nan: nanPolicy } : {}) };
   const xProblem = !isX ? null : !xexpr.trim() ? "" : (() => {
     const p = parenProblem(xexpr);
@@ -409,8 +413,8 @@ export default function AnalysisPanel() {
               {xProblem ? <p className="hint err fx-err">{xProblem}</p>
                 : <p className="hint fx-help">{batch && many.length > 1 ? t("tfExprHintMany", { n: many.length }) : t("tfExprHint")}</p>}</div>}
             {(op === "smooth" || op === "rms") && (
-              <label className="afield"><span>{t("windowSamples")}</span>
-                <input type="number" min={2} value={windowN} onChange={(e) => setWindowN(Math.max(2, +e.target.value))} /></label>
+              <label className="afield" title={t("windowSecHint")}><span>{t("smoothWindowSec")}</span>
+                <input type="number" className="win-sec" min={0} step="any" value={windowSec} onChange={(e) => setWindowSec(+e.target.value > 0 ? +e.target.value : null)} /></label>
             )}
             {op === "affine" && (
               <div className="arow">

@@ -1473,7 +1473,7 @@ def test_edit_original_steps_and_undo_all(pg):
     pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'abs(x)'")
     pg.locator(".analysis .afield select").first.select_option("smooth")
     pg.click("text=Apply the change")                     # steps add up
-    pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'smooth(abs(x), 10)'")
+    pg.wait_for_function("window.__sv.state().runs[0].signals.find(x => x.name === 'Speed').transform?.expr === 'smooth_s(abs(x), 0.1)'")   # 26.A3: seconds (10 samples at 100 Hz)
     assert S(pg, "s.runs[0].signals.filter(x => !x.transform).length") == 2   # nothing else touched
     pg.locator(".seg.wide button", has_text="New signal").click()
     pg.get_by_role("button", name="Create signal", exact=True).click(); pg.get_by_role("button", name="Create signal", exact=True).click()

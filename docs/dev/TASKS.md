@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). Next: 26.A3, 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). Next: 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -200,7 +200,7 @@ Progress board:
 | P5 | New benchmarks in tools/benchmark.py | 3 | ☑ done |
 | 26.A1 | Remove dead code in svcore/models.py | 4 | ☑ done |
 | 26.A2 | User file readers in a worker process | 4 | ☑ done |
-| 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☐ |
+| 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☑ done |
 | 26.A4 | Transforms and derived recipes in the undoable workspace | 4 | ☐ (ask before starting if large) |
 | 26.A5 | Heuristics visible and correctable (angle unit, discrete detection) | 4 | ☐ |
 | 26.U1 | Design tokens audit (index.css) | 5 | ☐ |
@@ -637,6 +637,38 @@ fails in a script without `if __name__ == "__main__":` (seen while reproducing).
 and a hanging reader give clear errors and the next file opens), test_pyops (10), then the whole backend
 suite: 1059 passed; mypy on the 6 changed modules clean; e2e test_user_reader.py (new: in the running app
 a crashing reader leaves it working, the next file opens).
+
+### 26.A3 · Consistent sampling
+**Status: done 2026-11-09.**
+**Reproduced first** (backend/tests/test_sampling.py, 6 cases failing on `a5b8b90`): a step inside a 2 s
+logger pause through a 1 Hz low-pass: the 0 before the pause pulled above 1 (filtered across it); a 2 Hz
+tone, 100 Hz then 10 Hz logging, through a 5 Hz low-pass: below 0.3 in the 10 Hz half (the median rate
+made it look like 20 Hz); smooth / rms windows in samples.
+**Made:** `ops.apply_filter(..., sampling="time" | "samples", info)` - "time" (`_filter_in_time`): cut at
+`isolated_gaps` (the spectra's / statistics' rule: an isolated long step, not sparse sampling), each
+stretch on its own (fewer than 3 samples: missing), an even stretch (steps within +-50 % of its median)
+filtered as it is at its mean rate, an uneven one interpolated onto an even grid of its median step,
+filtered and read back at its own times (NaN kept); an absurd grid falls back to the samples; info
+{gaps, resampled} -> the derived signal's report (`filter`, for 26.U6). "samples" = the code before
+(`_filter_samples`). Even data gives the same numbers (checked to 1e-9). `compute`: smooth / rms with
+`params.seconds` use `time_moving_average` (rms = sqrt of the time average of y^2); `window` (samples)
+only without `seconds` or with `sampling: "samples"`; the formula label says "0.5 s".
+`analysis.SAMPLING_OPS` (lowpass, highpass, smooth, rms): `Store.add_derived` writes `sampling` - new
+"time", restored without it "samples" (as `nan` / `hold`). Formulas: lowpass / highpass in time except
+with `nan: "legacy"` (a formula or a change saved before 1.23), new `smooth_s(x, seconds)`
+(formulaHelp.ts lists it - test_ui_function_list_matches_server).
+UI: Create signals' smooth / RMS field is *Window (s)* (default: 10 samples of the chosen signal, from
+its rate; `seconds` in the recipe), *Change this signal* smooth / rms -> `smooth_s(x, s)`; the transform
+dialog's Smooth too (an old `smooth(x, n)` change shows as its formula, unchanged). `windowSamples`
+removed from i18n (unused).
+**Not changed (to decide with 26.A4):** a change on a signal (a transform) has no saved marker of when it
+was made - since C3 every transform is evaluated as "legacy", so `lowpass()` inside a transform keeps the
+sample-based filter (smooth_s is new, so it is in time). When transforms become recipes (26.A4) they get
+`nan` / `sampling` like derived signals.
+**Tests run:** test_sampling.py (6, new), test_filters, test_backend, test_bin_text_live, then the whole
+backend suite (1064 passed; one run had an extra failure that did not repeat); validate 29 / 29; tsc +
+build; e2e test_features (126, one expectation updated: `smooth_s(abs(x), 0.1)`), test_missing_choice,
+test_update_rate.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3195,3 +3227,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · O2 follow-up: log index version 3 (an index from before O2 kept phantom signals and broke live mode), `DataFlash.__setstate__`; test_big_files (+1, 15 passed).
 - 2026-11-09 · Owner: Phase 3 patch not applied yet, continue and send one cumulative patch. 26.A1 done: DerivedSignal, SubplotConfig, subplot_from_dict, Tab, ViewState, SignalType (+ the unused field), the index keys removed; whole backend suite 1056 passed; mypy. Next: 26.A2.
 - 2026-11-09 · 26.A2 done: app/subproc.py (shared with pyops), svcore/readerworker.py, readers isolated in the app; tests: test_readers (+2), test_pyops, whole backend suite 1059 passed; mypy; e2e test_user_reader (new). Next: 26.A3.
+- 2026-11-09 · Owner: no patches until the release - carry on to the end of the tasks. 26.A3 done: `apply_filter(sampling)`, smooth / rms `seconds`, `smooth_s`, SAMPLING_OPS for old sessions; tests: test_sampling (new, 6), whole backend suite, validate; tsc + build; e2e test_features, test_missing_choice, test_update_rate (130). Next: 26.A4 (size assessment first).

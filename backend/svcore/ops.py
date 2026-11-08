@@ -209,16 +209,77 @@ def zero_phase_design_cutoff(cutoff: float, fs: float, filter_type: str, order: 
 
 
 def apply_filter(time: np.ndarray, data: np.ndarray, filter_type: str, cutoff: float,
-                 order: int = 4) -> np.ndarray:
+                 order: int = 4, sampling: str = "time", info: Optional[Dict[str, Any]] = None) -> np.ndarray:
     """Butterworth low-pass / high-pass, run forward and backward (zero phase: no delay, so a
     filtered step stays where the raw step is). The cut-off is the -3 dB (half-power) point of the
     RESULT, as its name says: the filter is designed for the two passes (zero_phase_design_cutoff;
-    before A2 the result was at -6 dB there). The sample rate is the median sample interval,
-    which ignores logging jitter and gaps. NaN samples are bridged for the filter and are NaN
+    before A2 the result was at -6 dB there). NaN samples are bridged for the filter and are NaN
     again in the result.
+
+    sampling (26.A3) - "time" (default): a filter is a filter in time, as the spectra are (A1). The
+    signal is cut at its gaps (isolated_gaps: a logger pause, a radio dropout) and each stretch is
+    filtered on its own - the samples on both sides of a gap are not neighbours; a stretch whose steps
+    are not even (jitter beyond +-50 %, a change of logging rate) is put on an even grid of its median
+    step (uniform_samples' rule), filtered there and read back at its own times. "samples": every
+    sample one step of the median interval (before 1.23 - a 10 Hz part after a 100 Hz part looked ten
+    times faster to the filter; a gap was filtered across). info, when given: {"gaps", "resampled"}.
 
     Until T34 this was a moving average (the code avoided scipy, which is now a dependency) and
     it returned the RAW data, silently, whenever it could not filter."""
+    if sampling == "time":
+        return _filter_in_time(np.asarray(time, dtype=np.float64), np.asarray(data, dtype=np.float64),
+                               filter_type, float(cutoff), int(order), info)
+    return _filter_samples(time, data, filter_type, cutoff, order)
+
+
+def _filter_in_time(t: np.ndarray, y: np.ndarray, kind: str, cutoff: float, order: int,
+                    info: Optional[Dict[str, Any]]) -> np.ndarray:
+    n = len(y)
+    if kind not in ("lowpass", "highpass"):
+        raise FilterError(f"Unknown filter: {kind}.")
+    if n < 2 or len(t) != n:
+        raise FilterError("The signal is too short to filter.")
+    steps = np.diff(t)
+    pos = steps[np.isfinite(steps) & (steps > 0)]
+    if not len(pos):
+        raise FilterError("The time of this signal does not increase, so its sample rate is unknown.")
+    med = float(np.median(pos))
+    gap = isolated_gaps(steps, med)
+    cuts = np.flatnonzero(gap) + 1
+    out = np.full(n, np.nan)
+    resampled = False
+    for a, b in zip(np.r_[0, cuts], np.r_[cuts, n]):
+        if b - a < 3:                                       # one or two samples between gaps: no filter
+            continue
+        tt, yy = t[a:b], y[a:b]
+        d = np.diff(tt)
+        dpos = d[d > 0]
+        if not len(dpos):
+            continue
+        sm = float(np.median(dpos))
+        even = bool(np.all(d > 0)) and bool(np.all(np.abs(d - sm) <= 0.5 * sm))
+        if even:
+            out[a:b] = _filter_samples(tt, yy, kind, cutoff, order, fs=(len(tt) - 1) / float(tt[-1] - tt[0]))
+            continue
+        ok = np.isfinite(yy) & np.isfinite(tt)
+        m = int(np.floor((tt[-1] - tt[0]) / sm + 1e-9)) + 1
+        if ok.sum() < 3 or m > max(4 * len(tt), 1000) and m > MAX_UNIFORM_SAMPLES // 4:
+            out[a:b] = _filter_samples(tt, yy, kind, cutoff, order)   # an absurd grid: the samples as they are
+            continue
+        grid = tt[0] + np.arange(m) * sm
+        g = _filter_samples(grid, np.interp(grid, tt[ok], yy[ok]), kind, cutoff, order, fs=1.0 / sm)
+        r = np.interp(tt, grid, g)
+        r[~np.isfinite(yy)] = np.nan
+        out[a:b] = r
+        resampled = True
+    if info is not None:
+        info.update(gaps=int(gap.sum()), resampled=resampled)
+    return out
+
+
+def _filter_samples(time: np.ndarray, data: np.ndarray, filter_type: str, cutoff: float,
+                    order: int = 4, fs: Optional[float] = None) -> np.ndarray:
+    """The filter on the samples as they are, at the median interval (or `fs`)."""
     from scipy.signal import butter, sosfiltfilt
     if filter_type not in ("lowpass", "highpass"):
         raise FilterError(f"Unknown filter: {filter_type}.")
@@ -227,11 +288,12 @@ def apply_filter(time: np.ndarray, data: np.ndarray, filter_type: str, cutoff: f
     n = len(y)
     if n < 2 or len(t) != n:
         raise FilterError("The signal is too short to filter.")
-    steps = np.diff(t)
-    steps = steps[np.isfinite(steps) & (steps > 0)]
-    if not len(steps):
-        raise FilterError("The time of this signal does not increase, so its sample rate is unknown.")
-    fs = 1.0 / float(np.median(steps))
+    if fs is None:
+        steps = np.diff(t)
+        steps = steps[np.isfinite(steps) & (steps > 0)]
+        if not len(steps):
+            raise FilterError("The time of this signal does not increase, so its sample rate is unknown.")
+        fs = 1.0 / float(np.median(steps))
     nyq = 0.5 * fs
     cutoff = float(cutoff)
     if not (0 < cutoff < nyq):

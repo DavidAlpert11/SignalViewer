@@ -29,6 +29,8 @@ export const FUNC_INFO: Record<string, FuncInfo> = {
   integ: { args: ["x", "updates?"], en: "integral over time; integ(x, 10) / integ(x, {Flag}): of x's updates only",
     he: "אינטגרל לפי הזמן; integ(x, 10) / integ(x, {Flag}): של העדכונים של x בלבד" },
   smooth: { args: ["x", "n=10"], en: "moving average over n samples", he: "ממוצע נע על n דגימות" },
+  smooth_s: { args: ["x", "s"], en: "moving average over s seconds (the same at any sample rate; never across a gap)",
+    he: "ממוצע נע על s שניות (אותו דבר בכל קצב דגימה; אף פעם לא על פני פער)" },
   lowpass: { args: ["x", "fc"], en: "low-pass filter, cut-off fc in Hz", he: "מסנן מעביר נמוכים, תדר קטעון fc ב־Hz" },
   highpass: { args: ["x", "fc"], en: "high-pass filter, cut-off fc in Hz", he: "מסנן מעביר גבוהים, תדר קטעון fc ב־Hz" },
   deg: { args: ["x"], en: "radians to degrees", he: "רדיאנים למעלות" },

@@ -30,10 +30,11 @@ export default function TransformDialog() {
     return keys.size === 1 ? sigs[0]?.transform ?? null : null;
   }, [sigs]);
   const init = displayX(shared?.expr ?? "", runs);                  // {@id:Name} shown as {file:Name}
-  const m = /^(smooth|lowpass|highpass)\(x, *([\d.]+)\)$/.exec(init);
-  const [fn, setFn] = useState<Fn>(!init ? "none" : PRESET[init] ?? (m ? (m[1] as Fn) : "custom"));
-  const [n, setN] = useState(m && m[1] === "smooth" ? m[2] : "10");
-  const [fc, setFc] = useState(m && m[1] !== "smooth" ? m[2] : "10");
+  // 26.A3: Smooth is a window in seconds (smooth_s); an old smooth(x, n) - samples - shows as its formula
+  const m = /^(smooth_s|lowpass|highpass)\(x, *([\d.]+)\)$/.exec(init);
+  const [fn, setFn] = useState<Fn>(!init ? "none" : PRESET[init] ?? (m ? ((m[1] === "smooth_s" ? "smooth" : m[1]) as Fn) : "custom"));
+  const [n, setN] = useState(m && m[1] === "smooth_s" ? m[2] : "0.1");
+  const [fc, setFc] = useState(m && m[1] !== "smooth_s" ? m[2] : "10");
   const [custom, setCustom] = useState(init && !PRESET[init] && !m ? init : "x");
   const [scale, setScale] = useState(String(shared?.scale ?? 1));
   const [offset, setOffset] = useState(String(shared?.offset ?? 0));
@@ -50,7 +51,7 @@ export default function TransformDialog() {
   useEscape(close);
 
   const expr = fn === "none" ? "" : fn === "abs" ? "abs(x)" : fn === "negate" ? "-x" : fn === "deriv" ? "deriv(x)"
-    : fn === "integ" ? "integ(x)" : fn === "smooth" ? `smooth(x, ${n})` : fn === "lowpass" ? `lowpass(x, ${fc})`
+    : fn === "integ" ? "integ(x)" : fn === "smooth" ? `smooth_s(x, ${n})` : fn === "lowpass" ? `lowpass(x, ${fc})`
     : fn === "highpass" ? `highpass(x, ${fc})` : custom.trim();
   const num = (v: string, d: number) => (v.trim() === "" || !Number.isFinite(Number(v)) ? d : Number(v));
   const spec: SignalTransform = { expr, scale: num(scale, 1), offset: num(offset, 0), dt: num(dt, 0), ...(unit.trim() ? { unit: unit.trim() } : {}) };
@@ -136,7 +137,7 @@ export default function TransformDialog() {
               <option value="highpass">{t("opHighpass")}</option>
               <option value="custom">{t("tfCustom")}</option>
             </select></label>
-          {fn === "smooth" && <label className="afield"><span>{t("windowSamples")}</span><input inputMode="numeric" value={n} onChange={(e) => setN(e.target.value)} /></label>}
+          {fn === "smooth" && <label className="afield" title={t("windowSecHint")}><span>{t("smoothWindowSec")}</span><input inputMode="decimal" value={n} onChange={(e) => setN(e.target.value)} /></label>}
           {(fn === "lowpass" || fn === "highpass") && <label className="afield" title={t("cutoffHint")}><span>{t("cutoffHz")}</span><input inputMode="decimal" value={fc} onChange={(e) => setFc(e.target.value)} /></label>}
           {fn === "custom" && <div className="afield"><span>{t("tfExpr")}</span>
             <ExprInput value={custom} onChange={setCustom} vars={TF_VARS} params={tfParams} placeholder="x * 9.81" ariaLabel={t("tfExpr")}

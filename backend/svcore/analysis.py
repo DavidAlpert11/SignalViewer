@@ -34,6 +34,10 @@ VECSMOOTH = {"vecsmooth"}
 PY = {"py"}                 # T31: the user's own Python operations (params: {"op": "file.py:fn", "args": {...}})
 OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | VECSMOOTH | PY
 HOLD_OPS = BINARY | MULTI | FORMULA
+# 26.A3: the operations whose result depends on how samples are spaced in time - `params.sampling`
+# "time" (filters across gaps / rate changes as in time; smooth / RMS windows in `seconds`) or "samples"
+# (before 1.23; a recipe restored without `sampling` gets it, so its numbers stay what they were)
+SAMPLING_OPS = {"lowpass", "highpass", "smooth", "rms"}
 # set by app/pyops.py: runs an operation in the worker process (svcore does not import app)
 PY_RUNNER: Optional[Callable[[str, List[Tuple[np.ndarray, np.ndarray]], Dict], Tuple[np.ndarray, np.ndarray]]] = None
 
@@ -44,6 +48,13 @@ class OpError(ValueError):
 
 _DERIVED_SERIAL = itertools.count(1)
 
+
+
+def _window_name(p: Dict) -> str:
+    """A smooth / RMS window as it reads: "0.5 s" (26.A3), or a count of samples (saved before 1.23)."""
+    if p.get("seconds") is not None and p.get("sampling") != "samples":
+        return f"{float(p['seconds']):g} s"
+    return str(p.get("window", 10))
 
 @dataclass
 class DerivedDef:
@@ -72,8 +83,8 @@ class DerivedDef:
             "abs": lambda: f"|{n[0]}|",
             "negate": lambda: f"−{n[0]}",
             "normalize": lambda: f"norm01({n[0]})",
-            "smooth": lambda: f"smooth({n[0]}, {p.get('window', 10)})",
-            "rms": lambda: f"rms({n[0]}, {p.get('window', 10)})",
+            "smooth": lambda: f"smooth({n[0]}, {_window_name(p)})",
+            "rms": lambda: f"rms({n[0]}, {_window_name(p)})",
             "lowpass": lambda: f"lowpass({n[0]}, {p.get('cutoff')} Hz)",
             "highpass": lambda: f"highpass({n[0]}, {p.get('cutoff')} Hz)",
             "expr": lambda: str(p.get("text") or p.get("expr")),
@@ -241,18 +252,30 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
             r = (y - lo) / (hi - lo) if hi > lo else np.zeros_like(y)
         elif op == "affine":
             r = y * float(params.get("gain", 1)) + float(params.get("bias", 0))
-        elif op == "smooth":
-            r = moving_average(y, int(params.get("window", 10)))
-        elif op == "rms":
-            r = np.sqrt(np.maximum(moving_average(y * y, int(params.get("window", 10))), 0))
+        elif op in ("smooth", "rms"):
+            # 26.A3: a window in seconds (the same at any rate, never across a gap); in samples only as
+            # saved before 1.23 (or given so)
+            sec = params.get("seconds")
+            if sec is not None and params.get("sampling") != "samples":
+                if not float(sec) > 0:
+                    raise OpError("Enter a window above 0 s.")
+                r = (time_moving_average(t, y, float(sec)) if op == "smooth"
+                     else np.sqrt(np.maximum(time_moving_average(t, y * y, float(sec)), 0)))
+            elif op == "smooth":
+                r = moving_average(y, int(params.get("window", 10)))
+            else:
+                r = np.sqrt(np.maximum(moving_average(y * y, int(params.get("window", 10))), 0))
         else:
             cutoff = float(params.get("cutoff") or 0)
             if cutoff <= 0:
                 raise OpError("Enter a cut-off frequency above 0 Hz.")
+            how: Dict[str, Any] = {}
             try:
-                r = apply_filter(t, y, op, cutoff)
+                r = apply_filter(t, y, op, cutoff, sampling="samples" if params.get("sampling") == "samples" else "time", info=how)
             except FilterError as e:
                 raise OpError(str(e)) from None
+            if how.get("gaps") or how.get("resampled"):
+                rep["filter"] = how                          # what a trust badge can say (26.U6)
         return t, _f64(r)
 
     if op == "frame":
