@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import crashlog
 from app import storage  # noqa: F401  (the CSV cache must know which entries open files read)
+from app import userreaders
 from app.routes import (
     analysis,
     compare,
@@ -64,6 +65,7 @@ class SafeJSONResponse(JSONResponse):
 
 
 app = FastAPI(default_response_class=SafeJSONResponse, title="Signal Viewer", docs_url="/api/docs")
+userreaders.isolate()        # 26.A2: in the app, the user's file readers run in a process of their own
 
 
 

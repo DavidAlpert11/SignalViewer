@@ -14,8 +14,9 @@ What a reader returns (numpy arrays or lists):
 Mixing both forms is fine; `None` means "not my file" and the built-in reader (if any) is used.
 
 Only the user's own folder is read, as for the Python operations (never code from a session, a
-template or a data file). Readers run inside the app: a reader that hangs holds that file's
-opening; an exception is shown as the file's error with the line in the reader's file.
+template or a data file). Readers run in a process of their own (26.A2, svcore/readerworker.py): a
+reader that crashes or hangs is stopped (SV_READER_TIMEOUT, default 600 s) and the app keeps working;
+an exception is shown as the file's error with the line in the reader's file.
 """
 import importlib.util
 import os
@@ -148,6 +149,8 @@ def to_run(result: Any, path: str, display_name: str, reader_name: str) -> Optio
 def read(r: Dict[str, Any], path: str, display_name: str) -> Optional[Run]:
     try:
         result = r["fn"](path)
+    except ReaderError:                      # already says which reader and why (the worker, 26.A2)
+        raise
     except Exception as e:
         raise ReaderError(f'The reader "{r["name"]}" failed: {_short(e, r["path"])}') from None
     return to_run(result, path, display_name, r["name"])

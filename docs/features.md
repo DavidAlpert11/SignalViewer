@@ -145,7 +145,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Your own formats
 
-- A Python file in the readers folder (`~/.signalviewer/readers`) with `@reader(extensions=[".kv"])` returning the time and the signals: those files open like the built-in types (file dialog, drag & drop, Python, command line); re-read when saved; errors name the line
+- A Python file in the readers folder (`~/.signalviewer/readers`) with `@reader(extensions=[".kv"])` returning the time and the signals: those files open like the built-in types (file dialog, drag & drop, Python, command line); re-read when saved; errors name the line; in the app a reader runs in a process of its own - one that crashes Python or never ends (`SV_READER_TIMEOUT`, default 600 s) is stopped and the app keeps working
 - Binary layouts (ICD): a `*.icd.json` there describes packets (sync, id, length, header time; fields with type, byte order, scale / offset, unit, bits, value names) and raw recordings open as `<packet>.<field> [unit]` - see [Command line and formats](command-line.md)
 
 ### Text values
