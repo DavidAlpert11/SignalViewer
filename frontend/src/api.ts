@@ -1,7 +1,8 @@
 import { translate } from "./i18n";
 
-export type StorageKind = "cache" | "uploads" | "tiles";
-export type StorageInfo = Record<StorageKind, { path: string; bytes: number }>;
+export type StorageKind = "cache" | "uploads" | "tiles" | "memory";
+/** memory (P2): not on disk - the results kept in memory to be fast, with its limit and per kind */
+export type StorageInfo = Record<StorageKind, { path: string; bytes: number; limit?: number; kinds?: Record<string, { bytes: number; entries: number }> }>;
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
 export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot" | "simVsFlight" | "investigate";
 export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number;

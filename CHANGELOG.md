@@ -14,6 +14,7 @@
 
 ### Performance
 - **A run moved in time (a time offset) is as fast as one that is not** (P1). Every plot redraw, cursor value, step to the next sample, statistics and spectrogram of a shifted run copied its whole time vector: with 20 million samples about 50 ms and 160 MB per signal per request (statistics 460 ms - their cache never hit). Now the window is shifted instead: about 3 ms and no copy, the same as without an offset.
+- **One memory budget for results kept to be fast** (P2). Changed signals were kept by count (32 of them - at 20 million samples 5 GB), derived signals without any limit, spectra by their own 256 MB; now changed and derived signals, spectra, plot summaries and statistics share one budget in bytes (1 GB, `SV_MEMCACHE_MB`), the least recently used going first (12 changed signals of 20 million samples: 1.8 GB kept before, 0.9 GB now). Two requests at once could make a changed signal look missing for a moment; no longer. *Settings ▸ Storage* shows the memory used (*120 MB of 1 GB*, by kind on hover) and clears it.
 
 ### Added
 - **Six new validation cases** (`signalviewer-cli validate`, the *Validation* page; 29 in all): a 5 ms violation in 2 million samples fails Compare (V24), a violation between two samples of a 10 Hz golden run fails (V25), a condition on a mode starts when the mode was entered (V26), a formula of a mode makes only values the mode has (V27), a sum and a norm with a missing input are missing (V28); and a plot request on a run with a time offset is not more than 2 times slower than without (V29).

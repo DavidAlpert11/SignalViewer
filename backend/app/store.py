@@ -35,6 +35,7 @@ from svcore.transforms import REF, apply_transform, normalize_transform, ref_run
 from app.livewatch import SETTLE_MAX, SETTLE_QUIET, TIME_SLACK, UPLOAD_DIR, LiveWatcher, _stat, run_format  # noqa: F401
 from app import userreaders
 from svcore.analysis import HOLD_OPS, NAN_OPS, DerivedDef, compute, is_discrete
+from svcore.memcache import CACHE as MEMCACHE, own_bytes
 from collections import OrderedDict
 import json
 import re
@@ -125,7 +126,6 @@ class Store:
         # Applied every time the signal is read, so plots, cursor, stats, compare, reports and
         # exports all see the same values. The file's data is never modified.
         self.transforms: Dict[str, dict] = {}
-        self._tcache: "OrderedDict[tuple, tuple]" = OrderedDict()
         self._discrete: Dict[str, Tuple[str, bool]] = {}     # signal id -> (version, discrete)
         # T46: every open data file has a colour and a short tag (A, B, C...) - kept by id, so a
         # reload / replace / live update keeps them; given when a file is first described
@@ -606,16 +606,15 @@ class Store:
         return t, y, 0.0
 
     def _transformed(self, sig_id: str, raw, spec: dict):
-        key = (sig_id, self._raw_version(sig_id), self._ref_versions(sig_id, spec), json.dumps(spec, sort_keys=True))
-        hit = self._tcache.get(key)
+        # P2: the shared memory cache (bytes, locked; the private OrderedDict raced: a KeyError from
+        # it read as "signal missing" when two requests came at once)
+        key = ("transform", sig_id, self._raw_version(sig_id), self._ref_versions(sig_id, spec), json.dumps(spec, sort_keys=True))
+        hit = MEMCACHE.get(key)
         if hit is not None:
-            self._tcache.move_to_end(key)
             return hit
         t, y = apply_transform(raw[0], raw[1], spec, self._ref_reader(sig_id))
-        self._tcache[key] = (t, y)
-        while len(self._tcache) > 32:
-            self._tcache.popitem(last=False)
-        return t, y
+        MEMCACHE.drop(lambda k: k[0] == "transform" and k[1] == sig_id and k != key)   # an older version
+        return MEMCACHE.put(key, (t, y), "transform", nbytes=own_bytes((t, y), [raw[0]]))
 
     def set_transforms(self, specs: Dict[str, Optional[dict]]) -> Dict[str, Optional[dict]]:
         """Set (or clear, with None) transforms; validates every one first. Returns the previous ones."""
@@ -682,14 +681,18 @@ class Store:
     def _refresh_derived(self, d: DerivedDef) -> Tuple[np.ndarray, np.ndarray]:
         """The derived signal's (time, data), computed again when a source changed."""
         versions = tuple(self.version(s) for s in d.sources)
-        if d.time is not None and d.data is not None and versions == d.source_versions:
-            return d.time, d.data
+        # P2: kept in the shared memory cache (bounded in bytes) - computed again when pushed out
+        key = ("derived", d.name, d.serial, versions)
+        hit = MEMCACHE.get(key)
+        if hit is not None:
+            return hit
         if any(v is None for v in versions):
             raise KeyError("A source signal of this derived signal is no longer open.")
         rep: dict = {}
         t, y = compute(d.op, [self.signal(s) for s in d.sources], d.params, [self.is_state(s) for s in d.sources], rep)
-        d.time, d.data, d.source_versions, d.report = t, y, versions, rep
-        return t, y
+        d.report = rep
+        MEMCACHE.drop(lambda k: k[0] == "derived" and k[1] == d.name and k != key)
+        return MEMCACHE.put(key, (t, y), "derived", nbytes=own_bytes((t, y), [self.signal_parts(s)[0] for s in d.sources]))
 
     def short_name(self, sig_id: str) -> str:
         run_id, _, name = sig_id.partition("/")

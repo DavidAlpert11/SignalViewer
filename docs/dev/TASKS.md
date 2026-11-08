@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). Next: P2, P3, P4, P5;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). Next: P3, P4, P5;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -194,7 +194,7 @@ Progress board:
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☑ done |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☑ done |
 | P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☑ done |
-| P2 | One byte-bounded, locked LRU cache | 3 | ☐ |
+| P2 | One byte-bounded, locked LRU cache | 3 | ☑ done |
 | P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☐ |
 | P4 | Open several files concurrently within the memory budget | 3 | ☐ |
 | P5 | New benchmarks in tools/benchmark.py | 3 | ☐ |
@@ -491,6 +491,36 @@ array; the stats cache hits; 2 of them fail on the old code), the 14 files touch
 decimate / offsets / validation: 190 passed; validate 29 / 29 (docs/validation.md regenerated, index.md 29
 cases); mypy on the 5 changed modules clean; e2e test_what_changed, test_aligned_plots, test_features -k
 offset / align / sync / cursor / stats (23). No frontend change.
+
+### P2 · One cache policy
+**Status: done 2026-11-08.**
+**Reproduced first:** the race - 8 threads reading 64 changed signals (sys.setswitchinterval(1e-6)): 33
+KeyErrors from `Store._tcache` (`move_to_end` on a key another thread had popped; the routes read a
+KeyError as "signal missing") - now test_memcache.py::test_two_requests_at_once_never_see_a_signal_missing,
+failing on `89fd784`. The bounds by reading: `_tcache` 32 entries (20M samples: 32 x 160 MB = 5 GB), the
+derived results on each DerivedDef with no bound, `_fft_cache` its own 256 MB / 32, decimate's block
+summaries 256 entries, the stats cache 256 entries.
+**Made:** `svcore/memcache.py` - `ByteLRU` (one RLock; `get` / `put(kind, nbytes, owners)` /
+`get_or_compute` / `drop(pred)` / `clear` / `info`), `CACHE` (SV_MEMCACHE_MB, default 1024), `own_bytes`
+(a changed signal's time vector that IS the file's, or a derived one's that is its source's, is not
+counted). Owners: an entry dies with the arrays it was computed from (weak references) - the summaries
+and the stats (their old id-with-weakref schemes folded in); a value bigger than the whole budget is not
+kept. Used by: transforms (`Store._transformed`), derived signals (`_refresh_derived`: key name + serial
++ source versions; DerivedDef no longer holds time / data - `invalidate` gives a new serial), FFT
+(`fft_for`), block summaries (`decimate._summary`), statistics (`compute_signal_stats`). An older version
+of the same signal is dropped when the new one is put (as the FFT cache did).
+Settings ▸ Storage: a fourth row *Results kept in memory* - "0 B of 1.00 GB" (each size isolated LTR in
+the Hebrew sentence), the kinds with their sizes on hover, Clear (`/api/storage/clear` what "memory").
+**Not moved into it:** `_LazyBudget` (models.py: lazily READ values of big logs, re-read from the file
+rather than recomputed - a different budget, SV_LAZY_MB), tlog's message dtypes, the template name index
+(tiny), the Sweeps tables (maintenance mode).
+**Measured** (12 changed signals of 20M samples read once, RSS kept): before 1832 MB (all 12; would reach
+32), after 916 MB (under 1 GB). 40 of 5M: 1298 -> 1069 MB. Speed unchanged (1.5 / 1.6 s).
+**Tests run:** test_memcache.py (5, new), test_stale_data and test_big_files updated (they read the old
+private caches), then the WHOLE backend suite (P2 touches the core): 1049 passed, 14 skipped; validate
+29 / 29; mypy on the 7 changed modules clean; tsc + build; e2e test_settings, test_offline_map
+(the borders test failed once, then passed twice alone - the flaky one 1.22.0's notes name). Screenshot
+English light / Hebrew dark of the Storage rows.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3042,3 +3072,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · O2 done: .bin - the message before a damaged block and damage-only instances left out (0 phantom signals in 60 fuzz seeds, was 31); .ulg - damaged parameters / messages / time stamps left out, the log opens; unexpected loader errors say what to do; tests: test_damaged_files (+20) and 28 related files, 482 passed; validate; mypy; tsc + build; e2e test_damaged_note (new) + 3 files. Next: O3.
 - 2026-11-08 · O3 done: `atomic_path` / `atomic_open` / `atomic_write` (app/atomic.py, from app/common.py) for sessions, autosave, templates, settings, readers / layouts, reports, Recordings' saves, Sweeps' study / templates / report; tests: test_atomic_write (new, 5) + 42 related files, 829 passed; mypy; e2e test_workflows, test_findings_report, test_template_tabs. Phase 2 done; patch next.
 - 2026-11-08 · Owner applied the Phase 2 patch (`a39b8d5`). P1 done: `signal_parts` / `view_shifted`, the per-request routes shift the window (20M samples with an offset: 51 -> 3.7 ms, 160 -> 0.2 MB; stats 458 -> 2.6 ms); V29 in validate (29 / 29); tests: test_offset_nocopy (new, 7) + 14 files, 190 passed; mypy; e2e test_what_changed, test_aligned_plots, test_features -k offset (23). Next: P2.
+- 2026-11-08 · P2 done: svcore/memcache.py (`ByteLRU`, SV_MEMCACHE_MB 1024) for transforms, derived, FFT, summaries, stats; the transform-cache race fixed; Settings ▸ Storage shows memory; 12 x 20M changed signals 1832 -> 916 MB; whole backend suite 1049 passed; validate; mypy; tsc + build; e2e test_settings, test_offline_map. Next: P3.
