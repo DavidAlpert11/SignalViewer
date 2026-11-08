@@ -3,9 +3,9 @@
    and a session file opened later does not change them. */
 import { useApp } from "./store";
 import { inspectorPref } from "./store/inspector";
-import { getPrefValue, setPref } from "./prefs";
+import { getPrefValue, offlineForcedByEnv, setPref } from "./prefs";
 
-const KEYS = ["theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice"] as const;
+const KEYS = ["theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly"] as const;
 type Key = (typeof KEYS)[number];
 
 const VALID: Record<Key, (v: unknown) => boolean> = {
@@ -16,6 +16,7 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   liveAutoStop: (v) => v === null || typeof v === "number",
   liveNewFiles: (v) => v === "ask" || v === "auto" || v === "ignore",
   tplTabChoice: (v) => v === "ask" || v === "defaults",
+  offlineOnly: (v) => typeof v === "boolean",
 };
 
 /** True when the user has chosen this setting (a session file then leaves it alone). */
@@ -30,6 +31,7 @@ export function applySettings(): void {
     const v = getPrefValue(k);
     if (v !== undefined && VALID[k](v)) set[k] = v;
   }
+  set.offlineForced = offlineForcedByEnv();
   const insp = inspectorPref();
   if (insp) set.inspectorOpen = insp === "open";
   useApp.setState(set);

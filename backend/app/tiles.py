@@ -2,6 +2,11 @@
 Map tiles for the Geo plot, fetched through the app (so the page needs no outside access) and kept
 in a disk cache (~/.signalviewer/tiles), so places already seen stay available without internet.
 
+O1 - offline by default: the map's *Automatic* layer is the bundled offline map; an online layer is
+used only when chosen. "Never use the network" (Settings, ui_settings `offlineOnly`, or the
+environment variable SV_OFFLINE=1) is checked here before any request: this module is the app's only
+network access. Tiles already in the cache are still shown then (they are on the disk).
+
 Every source asks for attribution, which the map shows. (CARTO's basemaps now need an API key, so
 the light / dark maps are Esri's grey canvases.) OpenStreetMap's tile servers are for light
 use: the cache, a real User-Agent and no bulk downloading keep within their policy.
@@ -32,6 +37,28 @@ SOURCES: dict = {
 _MAX_AGE = 30 * 24 * 3600          # refresh a cached tile after a month (when online)
 _offline_until = 0.0               # after a failure, do not try the network again for a while
 _lock = threading.Lock()
+_policy_cache: dict = {}           # {"at": time, "allowed": bool} - the setting is read at most once a second
+
+
+def offline_forced() -> bool:
+    """SV_OFFLINE=1 (or true / yes): the network is off whatever the Settings say."""
+    return os.environ.get("SV_OFFLINE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def network_allowed() -> bool:
+    """False when "Never use the network" is on (Settings or SV_OFFLINE)."""
+    if offline_forced():
+        return False
+    now = time.monotonic()
+    if _policy_cache and now - _policy_cache["at"] < 1.0:
+        return bool(_policy_cache["allowed"])
+    from app import prefs
+    try:
+        allowed = prefs.ui_settings().get("offlineOnly") is not True
+    except Exception:                  # an unreadable settings file: stay on the safe side
+        allowed = False
+    _policy_cache.update(at=now, allowed=allowed)
+    return allowed
 
 
 def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
@@ -62,12 +89,13 @@ def tile(src: str, z: int, x: int, y: int) -> Optional[tuple]:
     path = os.path.join(CACHE, src, str(z), str(x), f"{y}.{s['ext']}")
     media = "image/jpeg" if s["ext"] == "jpg" else "image/png"
     cached = None
+    allowed = network_allowed()
     if os.path.isfile(path):
         with open(path, "rb") as f:
             cached = f.read()
-        if time.time() - os.path.getmtime(path) < _MAX_AGE or time.time() < _offline_until:
+        if not allowed or time.time() - os.path.getmtime(path) < _MAX_AGE or time.time() < _offline_until:
             return cached, media
-    if time.time() < _offline_until:
+    if not allowed or time.time() < _offline_until:
         return (cached, media) if cached else None
     try:
         req = urllib.request.Request(s["url"].format(z=z, x=x, y=y), headers={"User-Agent": UA})

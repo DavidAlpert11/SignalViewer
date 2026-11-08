@@ -1,5 +1,6 @@
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
+import { GEO_BASES, effectiveBase, isOnlineBase } from "../mapBase";
 import { fmtNum, translate, useT } from "../i18n";
 import { api } from "../api";
 import { exportRange, plotSpec } from "../plotSpec";
@@ -328,6 +329,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             };
   const title = plot.title || t("plotTitle", { n: index + 1 });
   const geoBase = useApp((s) => s.geoBase);
+  const netOff = useApp((s) => s.offlineOnly || s.offlineForced);
+  const shownBase = effectiveBase(geoBase, netOff);
   const geoBorders = useApp((s) => s.geoBorders);
 
   return (
@@ -400,11 +403,20 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         {(mode === "geo" || mode === "3d") && (
           <span className="xpick">
             <select value={geoBase} onChange={(e) => useApp.setState({ geoBase: e.target.value as typeof geoBase })}
-              aria-label={t("geoLayer")} title={t("geoLayerHint")}>
-              {(["auto", "osm", "esri", "light", "dark", "satellite", "topo", "offline"] as const).map((b) =>
-                <option key={b} value={b}>{t(`geo_${b}` as "geo_auto")}</option>)}
+              aria-label={t("geoLayer")} title={t(netOff ? "geoLayerHintOff" : "geoLayerHint")}>
+              <optgroup label={t("geoLocalGroup")}>
+                {GEO_BASES.filter((b) => !isOnlineBase(b)).map((b) => <option key={b} value={b}>{t(`geo_${b}` as "geo_auto")}</option>)}
+              </optgroup>
+              <optgroup label={t(netOff ? "geoOnlineGroupOff" : "geoOnlineGroup")}>
+                {GEO_BASES.filter(isOnlineBase).map((b) =>
+                  <option key={b} value={b} disabled={netOff}>{t(`geo_${b}` as "geo_auto")}</option>)}
+              </optgroup>
             </select>
-            {mode === "geo" && (geoBase === "offline" || geoBase === "satellite") && (
+            {/* O1: a small, clear sign whenever map tiles come from the internet */}
+            {isOnlineBase(shownBase) && (
+              <span className="net-badge" role="status" title={t("netOnlineHint")}>{t("netOnline")}</span>
+            )}
+            {mode === "geo" && (shownBase === "offline" || shownBase === "satellite") && (
               <label className="acheck geo-borders" title={t("geoBordersHint")}>
                 <input type="checkbox" checked={geoBorders} onChange={(e) => useApp.setState({ geoBorders: e.target.checked })} />{t("geoBorders")}</label>
             )}

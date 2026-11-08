@@ -18,7 +18,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   `26.<id>` where they collide with Milestone 25). Phase 1: C1 done (Compare judged on every sample of
   both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
   `params.nan`, old sessions restored as "legacy"), C4 done (V24-V28; V29 moves to P1). Phase 1 patch
-  delivered. Next: Phase 2 (O1, O2, O3). Baseline before the round: backend
+  applied by the owner (`3110e75`). Phase 2: O1 done (offline by default, Never use the network,
+  the Online map sign). Next: O2, O3. Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
 - **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
@@ -174,7 +175,7 @@ Progress board:
 | C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☑ done |
 | C3 | Explicit missing-data policy (`params.nan`) | 1 | ☑ done |
 | C4 | Validation cases V24-V29 | 1 | ☑ done (V24-V28; V29 with P1) |
-| O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☐ (changes 1.22.0's OSM default - asked for by the owner) |
+| O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☑ done |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
 | P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☐ |
@@ -312,6 +313,35 @@ V24, V25, V28 FAIL on their numbers (0, 0, 2); V26 / V27 fail there because the 
 until P1 lands. It is written together with P1 (Phase 3); a timing case also needs a tolerance that
 holds on slow CI runners - to be decided then (a ratio, not milliseconds).
 **Tests run:** `cli.py validate` 28 / 28; test_validation.py 32 passed.
+
+### O1 · Offline by default, plus a strict offline switch
+**Status: done 2026-11-08.**
+**Reproduced first:** `tiles.tile("osm", 3, 4, 2)` downloaded an 11.7 kB tile and wrote it to
+`~/.signalviewer/tiles/osm`; GeoChart.tsx and Globe3D.tsx both mapped `geoBase: "auto"` to "osm" (1.22.0).
+**Network access in the code:** `app/tiles.py` is the backend's only `urlopen` (grep of app / svcore /
+signalviewer); the frontend has no outside URL; Cesium has `Ion.defaultAccessToken = ""`,
+`baseLayer: false` and its assets are copied into the build.
+**Made:** `frontend/src/mapBase.ts` (GEO_BASES, `isOnlineBase`, `effectiveBase`, `useMapBase`: auto ->
+offline; an online layer -> offline when the network is off), used by GeoChart, Globe3D and the layer
+menu (PlotView: two option groups, *On this computer* / *Online - downloads map tiles*, the online
+ones disabled when off; an amber `.net-badge` "Online map" with a tooltip while online tiles are drawn).
+Setting `offlineOnly` (ui slice + settings.ts KEYS -> ui_settings.json), `offlineForced` (UI only, from
+`/api/settings`' new `offlineForced`, i.e. SV_OFFLINE=1). Settings dialog row *Never use the network*
+(locked On when forced). Backend: `tiles.offline_forced()`, `tiles.network_allowed()` (env, then the
+setting; read at most once a second, cleared when `/api/settings` changes it) checked before any
+request - cached tiles are still served. `geoBase` saved in sessions is unchanged (an old "auto" now
+means the offline map - the intended change; an explicit "osm" stays).
+**First tried:** a " · online" suffix on each option: it cut the chosen layer's name in the closed
+menu (seen in the screenshot) - replaced by option groups.
+**Docs:** README (English + Hebrew), docs/index.md, SECURITY.md, docs/features.md, a new section
+docs/maps-and-3d.md#the-network; CHANGELOG (Unreleased ▸ Changed). `mkdocs build --strict` passes.
+**Tests run:** backend test_offline_switch.py (4, new), test_basemap, test_app_folder: 18 passed;
+`npx tsc -b && npm run build`; e2e test_offline_map.py (5: +2 new - Automatic asks only offline tiles,
+no sign; an online layer shows the sign; the switch disables online layers, asks for none, and is
+saved), test_settings (1), test_globe3d (10), test_map_objects (4) - all passed. The borders test
+that 1.22.0's notes say fails here passed in this sandbox. mypy on tiles.py / routes/system.py: clean.
+Screenshots (English light, Hebrew dark): the sign beside the layer, RTL correct; the Settings row.
+**Left:** U6 puts the same network state in the general trust indicators.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -2856,3 +2886,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · C2 done: state signals held (`analysis.hold_to`) in formulas, operations and conditions; the copter example's mode condition is [46.41, 60.41], no formula value outside the mode's values; tests: test_state_hold (new) + 16 related files, 185 passed; validate 23 / 23; mypy clean on the changed modules. Next: C3.
 - 2026-11-08 · Interim patch signalviewer-phase1-partial-2026-11-08.patch (C1, C2) checked with `git am` on a fresh clone (32 tests of the changed areas passed there). C3 done: `params.nan` (propagate / skip / legacy), restored recipes without it are "legacy"; tests: test_missing_policy (new) + 22 related files, 259 passed; validate 23 / 23; mypy clean. Next: C4.
 - 2026-11-08 · C4 done: V24-V28 in validate (28 / 28), docs/validation.md regenerated; V29 moves to P1 (it would fail until the offset copy is gone). test_validation 32 passed. Phase 1 patch next.
+- 2026-11-08 · Owner applied the Phase 1 patch (`3110e75`). O1 done: Automatic = offline map, Never use the network (setting + SV_OFFLINE=1, checked in tiles.py), the Online map sign; tests: test_offline_switch (new), test_basemap, test_app_folder; e2e test_offline_map (+2), test_settings, test_globe3d, test_map_objects; tsc + build; mkdocs --strict. Next: O2.

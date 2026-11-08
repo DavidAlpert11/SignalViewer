@@ -117,7 +117,8 @@ against logs from real vehicles, field by field, with their projects' own reader
     cd SignalViewer && pip install -r requirements.txt && python run.py
     ```
 
-Nothing needs the internet at run time – not the map, not the 3D terrain. No account, no telemetry.
+Nothing needs the internet at run time – not the map, not the 3D terrain. No account, no telemetry;
+nothing is sent unless you choose an online map layer ([what that sends](maps-and-3d.md#the-network)).
 [More about installing](install.md).
 
 <p class="sv-small">Source, releases and issues on <a href="https://github.com/DavidAlpert11/SignalViewer">GitHub</a> · MIT License · English and Hebrew.</p>

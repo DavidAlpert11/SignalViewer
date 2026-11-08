@@ -8,12 +8,17 @@
 import { api } from "./api";
 
 let cache: Record<string, unknown> = {};
+let forced = false;                  // O1: SV_OFFLINE=1 - "Never use the network" locked on
+
+export const offlineForcedByEnv = (): boolean => forced;
 let pending: Record<string, unknown> = {};
 let timer = 0;
 
 export async function loadPrefs(): Promise<void> {
   try {
-    cache = (await api.getSettings()).settings ?? {};
+    const got = await api.getSettings();
+    cache = got.settings ?? {};
+    forced = got.offlineForced === true;
   } catch { cache = {}; }
   // the first start with this version: take what the browser still remembers (same port only)
   if (!cache.migrated) {

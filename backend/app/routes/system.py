@@ -120,7 +120,9 @@ def report_problem():
 @router.get("/api/settings")
 def get_settings():
     from app import prefs
-    return {"settings": prefs.ui_settings()}
+    from app.tiles import offline_forced
+    # O1: SV_OFFLINE=1 turns "Never use the network" on whatever the settings say - the UI shows it locked
+    return {"settings": prefs.ui_settings(), "offlineForced": offline_forced()}
 
 
 class SettingsChange(BaseModel):
@@ -132,7 +134,11 @@ def put_settings(req: SettingsChange):
     from app import prefs
     from app.common import fail
     try:
-        return {"settings": prefs.update_ui_settings(req.changes)}
+        out = prefs.update_ui_settings(req.changes)
+        if "offlineOnly" in req.changes:            # O1: tiles.py reads it at once, not a second later
+            from app import tiles
+            tiles._policy_cache.clear()
+        return {"settings": out}
     except ValueError as e:
         fail(400, str(e))
 

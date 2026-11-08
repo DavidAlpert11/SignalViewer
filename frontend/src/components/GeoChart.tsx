@@ -2,6 +2,7 @@ import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
+import { useMapBase } from "../mapBase";
 import { drawObjectIcon } from "./mapIcons";
 import { colorRuns, objectAt, trackColors, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
@@ -16,7 +17,6 @@ interface Track { id: string; lon: Float64Array; lat: Float32Array; t: Float64Ar
 /** cx, cy: map centre in Web-Mercator world units (0..1); z: zoom (256 * 2^z pixels across the world). */
 interface View { cx: number; cy: number; z: number }
 
-export type GeoBase = "auto" | "osm" | "esri" | "light" | "dark" | "satellite" | "topo" | "offline";
 const MAXZ: Record<string, number> = { osm: 19, esri: 19, light: 16, dark: 16, satellite: 19, topo: 17, offline: 14 };
 /* The offline map: tiles the app draws itself from bundled data (terrain, water, roads), so a map
    works on a machine with no internet; also what fills in for an online tile that cannot be had. */
@@ -109,9 +109,9 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const cvals = useApp((s) => s.cvals);
   const playMode = useApp((s) => s.playMode);
   const windowSec = useApp((s) => s.windowSec);
-  const baseSetting = useApp((s) => s.geoBase);
-  // automatic: OpenStreetMap's colours in both themes (owner, 1.22.0: the dark map was not inviting)
-  const base = baseSetting === "auto" ? "osm" : baseSetting;
+  // O1: automatic = the offline map (nothing leaves the PC); an online layer only when chosen, and
+  // never with "Never use the network" (1.22.0 had made automatic OpenStreetMap)
+  const base = useMapBase();
   // country borders (and names) drawn over the maps whose tiles have none: the offline map and the
   // satellite photos (owner's request, 2026-11-04); the street maps draw their own
   const borders = useApp((s) => s.geoBorders);
