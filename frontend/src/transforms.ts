@@ -35,8 +35,8 @@ export async function applyTransform(ids: string[], tf: SignalTransform | null) 
 export interface Step { expr?: string; scale?: number; offset?: number; dt?: number; unit?: string }
 
 /** Analysis operation -> an in-place step (every one-signal operation has one). */
-export function opToStep(op: string, p: { window?: number; cutoff?: number; gain?: number; bias?: number; expr?: string; hz?: number }): Step | null {
-  const n = Math.max(2, Math.round(p.window ?? 10)), fc = p.cutoff ?? 10;
+export function opToStep(op: string, p: { seconds?: number; cutoff?: number; gain?: number; bias?: number; expr?: string; hz?: number }): Step | null {
+  const sec = p.seconds && p.seconds > 0 ? p.seconds : 0.1, fc = p.cutoff ?? 10;     // 26.A3: windows in seconds
   switch (op) {
     // hz: of the updates at that rate (a slower signal logged fast)
     case "derivative": return { expr: p.hz ? `deriv(x, ${p.hz})` : "deriv(x)" };
@@ -44,8 +44,8 @@ export function opToStep(op: string, p: { window?: number; cutoff?: number; gain
     case "abs": return { expr: "abs(x)" };
     case "negate": return { expr: "-x" };
     case "normalize": return { expr: "norm01(x)" };
-    case "smooth": return { expr: `smooth(x, ${n})` };
-    case "rms": return { expr: `sqrt(smooth(x*x, ${n}))` };
+    case "smooth": return { expr: `smooth_s(x, ${sec})` };
+    case "rms": return { expr: `sqrt(smooth_s(x*x, ${sec}))` };
     case "lowpass": return { expr: `lowpass(x, ${fc})` };
     case "highpass": return { expr: `highpass(x, ${fc})` };
     case "affine": return { scale: p.gain ?? 1, offset: p.bias ?? 0 };

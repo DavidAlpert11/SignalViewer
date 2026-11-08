@@ -35,7 +35,7 @@ from app.filecheck import (LoadError, SUPPORTED_EXTS, TEXT_EXTS, _can_csv, _csv_
 from svcore.transforms import REF, apply_transform, normalize_transform, ref_run, transform_refs  # noqa: F401
 from app.livewatch import SETTLE_MAX, SETTLE_QUIET, TIME_SLACK, UPLOAD_DIR, LiveWatcher, _stat, run_format  # noqa: F401
 from app import userreaders
-from svcore.analysis import HOLD_OPS, NAN_OPS, DerivedDef, compute, is_discrete
+from svcore.analysis import HOLD_OPS, NAN_OPS, SAMPLING_OPS, DerivedDef, compute, is_discrete
 from svcore.memcache import CACHE as MEMCACHE, own_bytes
 from collections import OrderedDict
 import contextlib
@@ -742,6 +742,8 @@ class Store:
             params["nan"] = "legacy" if legacy else "propagate"
         if op in HOLD_OPS and "hold" not in params:
             params["hold"] = not legacy     # C2b: saved before 1.23 -> the old alignment, old numbers
+        if op in SAMPLING_OPS and "sampling" not in params:
+            params["sampling"] = "samples" if legacy else "time"   # 26.A3: likewise
         d = DerivedDef(name="", op=op, sources=list(sources), params=params)
         base = (name or "").strip() or d.formula(self.short_name)
         base = base.replace("/", "∕")  # "/" separates run id and name in signal ids

@@ -304,7 +304,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Write a new signal as an equation, e.g. `2*Speed - RPM/95 + where(Gear > 2, 1, 0)`
 - Signal names as they are, `{file.csv:Speed}` when a name is in several files
 - Autocomplete while typing (Tab / Enter)
-- `+ - * / ^ %`, comparisons (1 / 0), `abs sqrt exp log log10 sin cos tan asin acos atan atan2 sign floor ceil round min max clip where deriv integ smooth lowpass highpass` (`lowpass(Speed, 5)`: −3 dB cut-off in Hz), `t`, `pi`, `e`
+- `+ - * / ^ %`, comparisons (1 / 0), `abs sqrt exp log log10 sin cos tan asin acos atan atan2 sign floor ceil round min max clip where deriv integ smooth smooth_s lowpass highpass` (`lowpass(Speed, 5)`: −3 dB cut-off in Hz, filtered in time - never across a gap, the same after a change of logging rate; `smooth_s(Speed, 0.5)`: a centred average over 0.5 s; `smooth(x, n)`: over n samples), `t`, `pi`, `e`
 - Signals from different files are aligned in time
 - A state signal (a flight mode, a gear, a text column, a few whole numbers) is read as the value in force at each moment - never interpolated between two modes (the same in conditions: `Mode == 5` starts when the mode was entered); a derived signal saved with `"hold": false` keeps the old alignment - derived signals in a session saved before 1.23 are restored so, their numbers unchanged
 - Clear errors (“Unknown signal: Spede. Did you mean Speed?”)
@@ -322,7 +322,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 ### Analysis
 
 - A derivative or integral of a signal's real updates: at its own, slower rate (Hz), or where another signal (a 0 / 1 flag) is 1 - a value computed slower than it is logged no longer gives zero, then a spike; in formulas `deriv(x, 10)`, `deriv(x, {Flag})`
-- One signal (derivative, integral, abs, negate, normalize, k·x + c, smoothing, RMS, low/high-pass – 4th-order Butterworth, run both ways so nothing is delayed, with the cut-off at the −3 dB point of the result (the filter is designed for the two passes); a cut-off it cannot use is explained, never the raw signal under the filter's name; your own expression in x – `x*8`, `sin(x)`, `sin(x) + Speed` with another signal of the same file – on one signal or on each of several), two signals, several signals
+- One signal (derivative, integral, abs, negate, normalize, k·x + c, smoothing and RMS over a window in seconds (never across a gap), low/high-pass (in time: each stretch between gaps on its own, an uneven stretch on an even grid of its usual step) – 4th-order Butterworth, run both ways so nothing is delayed, with the cut-off at the −3 dB point of the result (the filter is designed for the two passes); a cut-off it cannot use is explained, never the raw signal under the filter's name; your own expression in x – `x*8`, `sin(x)`, `sin(x) + Speed` with another signal of the same file – on one signal or on each of several), two signals, several signals
 - Apply to the selected signals or to the whole plot
 - Preview (dashed) before creating
 - Derived signals keep their formula and update when sources change

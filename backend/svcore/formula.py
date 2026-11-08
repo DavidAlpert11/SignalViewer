@@ -71,7 +71,10 @@ def _funcs(t: np.ndarray, nan: str = "propagate"):
 
     def _filter(x, fc, kind):
         try:
-            return apply_filter(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), kind, float(fc))
+            # 26.A3: in time (gaps, rate changes); a formula or a change saved before 1.23 ("legacy"):
+            # on the samples, as it was
+            return apply_filter(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), kind, float(fc),
+                                sampling="samples" if nan == "legacy" else "time")
         except FilterError as e:
             raise FormulaError(f"{kind}(): {e}") from None
 
@@ -83,6 +86,13 @@ def _funcs(t: np.ndarray, nan: str = "propagate"):
 
     def smooth(x, n=10):
         return moving_average(np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), int(n))
+
+    def smooth_s(x, seconds):
+        """26.A3: a centred average over `seconds` (any sample rate; never across a gap)."""
+        if not float(seconds) > 0:
+            raise FormulaError("smooth_s(): the window must be above 0 s.")
+        from svcore.analysis import time_moving_average     # (analysis imports this module)
+        return time_moving_average(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), float(seconds))
 
     # Angles and attitude (flight logs). Quaternions: Hamilton, w first (PX4, ArduPilot);
     # Euler angles: aerospace order (yaw, then pitch, then roll), in DEGREES.
@@ -115,7 +125,7 @@ def _funcs(t: np.ndarray, nan: str = "propagate"):
         "atan": (np.arctan, 1), "atan2": (np.arctan2, 2), "sign": (np.sign, 1), "floor": (np.floor, 1),
         "ceil": (np.ceil, 1), "round": (np.round, 1), "min": (np.minimum, 2), "max": (np.maximum, 2),
         "clip": (np.clip, 3), "where": (where, 3),
-        "deriv": (deriv, (1, 2)), "integ": (integ, (1, 2)), "smooth": (smooth, (1, 2)),
+        "deriv": (deriv, (1, 2)), "integ": (integ, (1, 2)), "smooth": (smooth, (1, 2)), "smooth_s": (smooth_s, 2),
         "lowpass": (lowpass, 2), "highpass": (highpass, 2), "norm01": (norm01, 1),
     }
 
