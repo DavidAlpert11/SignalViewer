@@ -127,12 +127,14 @@ export interface Condition {
   combine?: { op: "and" | "or"; ids: string[] };   // instead of text: these conditions together
 }
 
+/* 26.U2: the first eight are Okabe & Ito's colours for colour-blind readers (blue, orange, bluish green,
+   vermilion, sky blue, reddish purple, yellow, grey - told apart with any of the common colour vision
+   deficiencies), the next twelve their darker / lighter companions. Drawn through chartUtil.ink(), which
+   keeps each at 3:1 or more against the plot in either theme (yellow on white, grey on dark). */
 export const TRACE_COLORS = [
-  "#3D8BFD", "#2FBF9F", "#E5677A", "#9B7BFF", "#7CC35A",
-  "#F07B3F", "#4FC3E8", "#D08CE8", "#B8A33A", "#FF8FB1",
-  // ten more (an investigation shows 20-40 signals at once: ten colours repeated every tenth line)
-  "#2563EB", "#D97706", "#059669", "#DC2626", "#7C3AED",
-  "#0891B2", "#DB2777", "#65A30D", "#A0522D", "#6B7280",
+  "#0072B2", "#E69F00", "#009E73", "#D55E00", "#56B4E9", "#CC79A7", "#F0E442", "#7F7F7F",
+  "#004C7A", "#A86F00", "#00694C", "#9A4200", "#2A86C0", "#9A4F7E",
+  "#B0A500", "#4D4D4D", "#3399CC", "#FFB733", "#33CC99", "#FF7A33",
 ];
 
 /** A deep copy (the workspace is plain data). */

@@ -1617,13 +1617,20 @@ input.fx-input { width: 100%; }
 /* U5: the difference over time under the overlay (Compare panel), as the Simulink Data Inspector */
 .diff-chart { margin: 10px 0 4px; }
 .diff-chart figcaption { font-size: var(--fs-s); color: var(--ink); margin-bottom: 4px; display: flex; gap: var(--sp-1_5); flex-wrap: wrap; align-items: baseline; }
-.diff-chart svg { width: 100%; height: 132px; display: block; background: var(--panel-2); border-radius: var(--r-m); }
-.diff-band { fill: var(--ok); opacity: 0.16; }
-.diff-out { fill: var(--danger); opacity: 0.22; }
+.diff-chart svg { display: block; background: var(--plot-bg); border: 1px solid var(--line); border-radius: var(--r-m); }
+.diff-band { fill: var(--ok); opacity: 0.14; }
+.diff-band-edge { fill: none; stroke: var(--ok); stroke-width: 1; opacity: 0.55; }
+.diff-hover-pt { stroke: var(--plot-bg); stroke-width: 1.5; }
+.diff-readout { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-top: var(--sp-1); font-size: var(--fs-xs);
+  color: var(--muted); font-variant-numeric: tabular-nums; }
+.diff-out { fill: var(--danger); opacity: 0.1; }
+.diff-out-mark { fill: var(--danger); }
 .diff-zero { stroke: var(--line-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.diff-line { fill: none; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.diff-line { fill: none; stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .diff-hover { stroke: var(--muted); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
-.diff-tick { font-size: var(--fs-3xs); fill: var(--muted); }
+.diff-tick { font-size: var(--fs-2xs); fill: var(--axis); font-variant-numeric: tabular-nums; }
+/* 26.U2: the plots' crosshair - a quiet line in the theme's axis colour (uPlot's own is a fixed grey) */
+.u-cursor-x { border-right: 1px dashed var(--axis) !important; opacity: 0.7; }
 .diff-out-n { color: var(--danger); font-weight: 600; margin-inline-start: auto; }
 .diff-outs { list-style: none; margin: 4px 0 0; padding: 0; font-size: var(--fs-xs); }
 .diff-outs li { padding: 1px 0; }

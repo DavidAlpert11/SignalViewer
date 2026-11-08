@@ -15,6 +15,31 @@ export const PREVIEW_DASH = [[6, 4], [2, 3], [12, 3, 2, 3]];
 
 export type ThemeName = keyof typeof PLOT_THEME;
 
+/* 26.U2: a line must stand out from the plot's background in either theme (WCAG: 3:1 for graphics).
+   A colour that already does is drawn as it is - the user's own colours too; one that does not (a
+   yellow on white, a dark blue on the dark plot) is lightened or darkened just enough. Session files
+   keep the colour as chosen; only the drawing adapts. */
+const lum = (hex: string): number => {
+  const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+};
+export const contrast = (a: string, b: string) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const mix = (hex: string, to: number, f: number) =>
+  "#" + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - f) + to * f).toString(16).padStart(2, "0")).join("");
+const inkCache = new Map<string, string>();
+export function ink(color: string, theme: ThemeName): string {
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return color;          // named / rgba colours: as given
+  const key = `${theme}|${color}`;
+  const hit = inkCache.get(key);
+  if (hit) return hit;
+  const bg = PLOT_THEME[theme].bg;
+  let out = color.toLowerCase();
+  const toward = theme === "dark" ? 255 : 0;                    // lighter on dark, darker on light
+  for (let f = 0.08; contrast(out, bg) < 3 && f <= 1; f += 0.08) out = mix(color, toward, f);
+  inkCache.set(key, out);
+  return out;
+}
+
 /** UI text scale (accessibility): canvas text follows the same setting as the page. */
 export const uiScale = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ui-scale")) || 1;
 

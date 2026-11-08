@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api } from "../api";
-import { useApp, actions, signalName, type Plot } from "../store";
+import { useApp, actions, signalName, TRACE_COLORS, type Plot } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { axisStyle, tickValues, useSize } from "./chartUtil";
 
@@ -46,7 +46,7 @@ export default function OccChart({ plot, index, onLoading }: Props) {
     const data: (number | null)[][] = [grid];
     const series: uPlot.Series[] = [{}];
     win.forEach((w) => {
-      const color = plot.signals.find((s) => s.sig === w.sig)?.color ?? "#3D8BFD";
+      const color = plot.signals.find((s) => s.sig === w.sig)?.color ?? TRACE_COLORS[0];
       // one grid for all: each item's grid is the same length; resample onto the first one's values
       const map = (ys: (number | null)[]) => (w.grid === grid ? ys : grid.map((g) => {
         const i = Math.round(((g - w.grid[0]) / (w.grid[w.grid.length - 1] - w.grid[0] || 1)) * (w.grid.length - 1));

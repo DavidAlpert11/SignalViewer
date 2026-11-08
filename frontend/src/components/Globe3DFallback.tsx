@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import { useApp, type Plot } from "../store";
+import { TRACE_COLORS, useApp, type Plot } from "../store";
 import { useT } from "../i18n";
 import { XYZCanvas, type Shown } from "./XYZChart";
 
@@ -59,7 +59,7 @@ export default function Globe3DFallback({ plot, index, onLoading, reason }: Prop
         no[i] = -sla * clo * dx - sla * slo * dy + cla * dz;
         u[i] = cla * clo * dx + cla * slo * dy + sla * dz;
       }
-      return { t: r.t, v: [e, no, u], color: objects[k]?.color ?? "#3D8BFD", width: 2, names, label: objects[k]?.name ?? "" };
+      return { t: r.t, v: [e, no, u], color: objects[k]?.color ?? TRACE_COLORS[0], width: 2, names, label: objects[k]?.name ?? "" };
     });
   }, [raw, objects, t]);
 

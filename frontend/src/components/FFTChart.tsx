@@ -4,7 +4,7 @@ import uPlot from "uplot";
 import { api, type FilterSetup, type SpectrumGrid } from "../api";
 import { fmtNum, useT } from "../i18n";
 import { actions, useApp, type Plot } from "../store";
-import { axisStyle, tickValues, useSize } from "./chartUtil";
+import { axisStyle, ink, tickValues, useSize } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; onPeaks: (p: Record<string, number>) => void }
 
@@ -113,8 +113,8 @@ export default function FFTChart({ plot, index, onLoading, onPeaks }: Props) {
         y: plot.ylim ? { auto: false, distr: log ? 3 : 1, range: () => plot.ylim! } : log ? { distr: 3 } : { auto: true },
       },
       axes: [{ ...axis, size: 46, label: "Hz", labelSize: 14, labelGap: 2 }, { ...axis, size: 60, values: tickValues }],
-      series: [{}, ...rows.map(({ ps }) => ({ stroke: ps.color, width: ps.width, points: { show: false } })),
-        ...est.map(({ ps }) => ({ stroke: ps.color, width: Math.max(1, ps.width - 0.5), dash: [6, 4], points: { show: false } }))],
+      series: [{}, ...rows.map(({ ps }) => ({ stroke: ink(ps.color, theme), width: ps.width, points: { show: false } })),
+        ...est.map(({ ps }) => ({ stroke: ink(ps.color, theme), width: Math.max(1, ps.width - 0.5), dash: [6, 4], points: { show: false } }))],
       plugins: [...(orderHz ? [orderMarks(orderHz, ord?.blades ?? 0, axis.stroke as string)] : []),
         ...(filt ? [filterMarks(filt.setup, axis.stroke as string)] : [])],
     };

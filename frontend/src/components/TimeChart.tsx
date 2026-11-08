@@ -7,7 +7,7 @@ import { inkOn, labelsOf, labelText, stateColor, runsDataKey } from "../values";
 import { fmtNum, translate } from "../i18n";
 import { signalUnit } from "../units";
 import { fade, lineLook, setpointsIn } from "../desired";
-import { axisStyle, tickValues, dpr, flag, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
+import { axisStyle, tickValues, dpr, flag, ink, PLOT_THEME, PREVIEW_DASH, publishXView, reportGutter, uiScale, useGutter, useSize, WHEEL_GESTURE_MS, wheelPixels, wheelZoom } from "./chartUtil";
 
 interface Props {
   tab: Tab; plot: Plot; index: number; onLoading: (b: boolean) => void;
@@ -167,14 +167,14 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       const off = ps.tOffset ?? 0;
       return [off ? Array.from(s.x, (v) => v + off) : Array.from(s.x), y] as uPlot.AlignedData;
     });
-    const sigs = ok.map((v) => v.ps);
+    const sigs = ok.map((v) => ({ ...v.ps, color: ink(v.ps.color, theme) }));    // 26.U2: readable in either theme
     for (const l of pv) tables.push([Array.from(l.x), Array.from(l.y, (v) => (Number.isFinite(v) ? v : null))] as uPlot.AlignedData);
     const data = joinTables(tables);                     // P3: uPlot.join's result, 2x faster for many signals
     // dense: about a point per pixel or more (decimated min/max) - see lineWidth below
     const dense = ok.map(({ s }) => s.decimated || s.n >= widthBucket * 0.75);
     return { data, sigs, dense, previewLabels: pv.map((l) => l.label) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, styleKey, preview, widthBucket]);
+  }, [series, styleKey, preview, widthBucket, theme]);
   const alignedRef = useRef(aligned);
   alignedRef.current = aligned;
   const builtWith = useRef<typeof aligned>(null);
@@ -599,7 +599,8 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       legend: { show: false },
       // a legend entry under the pointer: its line in front, the others faint (setSeries below)
       focus: { alpha: 0.18 },
-      cursor: { y: false, points: { size: 6 }, focus: { prox: -1 },
+      // 26.U2: the hover points as rings in each line's colour on the plot's background (a dot hid the line's own value)
+      cursor: { y: false, points: { size: 8, width: 2, fill: () => PLOT_THEME[theme].bg }, focus: { prox: -1 },
         // zoom by dragging: a time window, a value window, or a box (a nearly flat drag zooms one axis)
         drag: { x: zoomMode !== "y", y: zoomMode !== "x", uni: zoomMode === "xy" ? 20 : undefined, setScale: false } },
       scales: {

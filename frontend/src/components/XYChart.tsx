@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api } from "../api";
 import { actions, shownSpan, signalName, useApp, type Plot } from "../store";
-import { axisStyle, tickValues, dpr, indexSpan, orderedLinesIn, PLOT_THEME, useSize, wheelZoom } from "./chartUtil";
+import { axisStyle, tickValues, dpr, ink, indexSpan, orderedLinesIn, PLOT_THEME, useSize, wheelZoom } from "./chartUtil";
 
 interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string }
 
@@ -92,7 +92,7 @@ export default function XYChart({ plot, index, onLoading, emptyText }: Props) {
         { ...axis, size: 56, values: tickValues },
       ],
       // the timeline's mode: only the points up to the time / in the last seconds
-      series: [{}, ...rows.map(({ ps }) => ({ stroke: ps.color, width: ps.width, points: { show: false },
+      series: [{}, ...rows.map(({ ps }) => ({ stroke: ink(ps.color, theme), width: ps.width, points: { show: false },
         paths: orderedLinesIn((si) => indexSpan(rows[si - 1]?.d?.t ?? [], shownSpan(markRef.current))) }))],
       hooks: { draw: [drawMarks] },
     } as unknown as uPlot.Options;
