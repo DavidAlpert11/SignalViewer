@@ -21,9 +21,22 @@ const sigOf = (runs: RunInfo[], id: string): SignalInfo | undefined => runs.find
 export const pinnedOf = (s?: SignalInfo): Set<number> =>
   new Set(Array.isArray(s?.params?.pinned) ? (s!.params!.pinned as unknown[]).filter((i): i is number => typeof i === "number") : []);
 
+// The parameters the backend writes into every NEW recipe when they are not given (app/store.py
+// add_derived): C3 `nan`, C2b `hold`, 26.A3 `sampling`. A request without them and the stored recipe
+// with them are the same signal (Link operations, "the same again" reusing a signal).
+const NAN_OPS = new Set(["sum", "mean", "min", "max", "norm", "integral", "expr"]);
+const HOLD_OPS = new Set(["add", "sub", "mul", "div", "absdiff", "mean", "sum", "min", "max", "norm", "expr"]);
+const SAMPLING_OPS = new Set(["lowpass", "highpass", "smooth", "rms"]);
+const withDefaults = (op: string | undefined, p: Record<string, unknown>): Record<string, unknown> => ({
+  ...(op && NAN_OPS.has(op) ? { nan: "propagate" } : {}),
+  ...(op && HOLD_OPS.has(op) ? { hold: true } : {}),
+  ...(op && SAMPLING_OPS.has(op) ? { sampling: "time" } : {}),
+  ...p,
+});
+
 /** a derived signal's identity apart from its sources: the operation and its parameters (not the label) */
 const opKey = (op?: string, params?: Record<string, unknown>) => {
-  const { text: _text, ...rest } = params ?? {};
+  const { text: _text, ...rest } = withDefaults(op, params ?? {});
   return `${op}|${JSON.stringify(Object.keys(rest).sort().map((k) => [k, rest[k]]))}`;
 };
 

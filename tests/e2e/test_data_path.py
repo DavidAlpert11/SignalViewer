@@ -17,23 +17,35 @@ def test_a_zoom_burst_aborts_the_older_requests(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     pg.wait_for_selector(".plot .u-over")
-    seen, aborted = [], []
-    pg.on("request", lambda r: seen.append(r) if r.url.endswith("/api/data") else None)
-    pg.on("requestfailed", lambda r: aborted.append(r) if r.url.endswith("/api/data") else None)
+    # counted in the page itself: each /api/data fetch, and those rejected as aborted (the browser's own verdict)
+    pg.evaluate("""() => {
+        window.__data = { sent: 0, aborted: 0, bin: 0 };
+        const real = window.fetch;
+        window.fetch = (url, init) => {
+            if (String(url).endsWith('/api/data')) {
+                window.__data.sent++;
+                if (JSON.parse(init.body).format === 'bin') window.__data.bin++;
+                return real(url, init).catch((e) => { if (e.name === 'AbortError') window.__data.aborted++; throw e; });
+            }
+            return real(url, init);
+        };
+    }""")
 
     def slow(route):                                            # a slow server: every answer takes 0.6 s
         time.sleep(0.6)
         route.continue_()
     pg.route("**/api/data", slow)
-    b = pg.locator(".plot .u-over").first.bounding_box()
-    pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2)
-    for _ in range(4):                                          # each step after the 60 ms debounce
-        pg.mouse.wheel(0, -100)
-        pg.wait_for_timeout(150)
-    pg.wait_for_timeout(1500)
+    # the wheel steps come from the page itself, 150 ms apart (each after the 60 ms debounce): a route
+    # handler holds the test's thread while it waits, so steps sent from here would wait for it too
+    pg.evaluate("""() => {
+        const el = document.querySelector('.plot .u-over'), b = el.getBoundingClientRect();
+        const at = { clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, deltaY: -100, bubbles: true, cancelable: true };
+        for (let k = 0; k < 4; k++) setTimeout(() => el.dispatchEvent(new WheelEvent('wheel', at)), 150 * k);
+    }""")
+    pg.wait_for_timeout(4000)
     pg.unroute("**/api/data")
-    assert len(seen) >= 3 and len(aborted) >= 2, (len(seen), len(aborted))
-    assert all(r.post_data_json.get("format") == "bin" for r in seen)
+    d = pg.evaluate("window.__data")
+    assert d["sent"] >= 3 and d["aborted"] >= 2 and d["bin"] == d["sent"], d
     lo, hi = S(pg, RANGE)
     assert 0 < hi - lo < 30 * 0.8 ** 3                          # four steps in: the last window is kept
     assert not pg.locator(".toast.error").count()               # an aborted request is not an error
