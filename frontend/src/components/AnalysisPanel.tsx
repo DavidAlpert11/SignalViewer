@@ -398,7 +398,7 @@ export default function AnalysisPanel() {
                 <button className={output === "new" ? "on" : ""} onClick={() => setOutput("new")} title={t("resultNewHint")}>{t("resultNew")}</button>
                 <button className={output === "edit" ? "on" : ""} onClick={() => setOutput("edit")} title={t("resultEditHint")}>{t("resultEdit")}</button>
               </div>
-              <p className="hint" style={{ fontSize: "0.846rem", margin: "4px 0 0" }}>{output === "edit" ? t("resultEditHint") : t("resultNewHint")}</p>
+              <p className="hint" style={{ fontSize: "var(--fs-s)", margin: "4px 0 0" }}>{output === "edit" ? t("resultEditHint") : t("resultNewHint")}</p>
             </div>
             <div className="seg wide small" role="group">
               <button className={!batch ? "on" : ""} onClick={() => setBatch(false)}>{t("applyToThis")}</button>
@@ -434,7 +434,7 @@ export default function AnalysisPanel() {
                 <input type="number" min={0} step="any" aria-label={t("updRateHz")} value={updHz} onChange={(e) => setUpdHz(+e.target.value)} /></label>}
               {upd === "flag" && sigSelect(updFlag, setUpdFlag, t("updFlagSignal"))}
               {upd === "flag" && output === "edit" && <p className="hint err">{t("updFlagNewOnly")}</p>}
-              <p className="hint" style={{ fontSize: "0.846rem", margin: "4px 0 0" }}>{t(upd === "every" ? "updHint" : upd === "hz" ? "updRateHint" : "updFlagHint")}</p>
+              <p className="hint" style={{ fontSize: "var(--fs-s)", margin: "4px 0 0" }}>{t(upd === "every" ? "updHint" : upd === "hz" ? "updRateHint" : "updFlagHint")}</p>
             </div>}
           </>}
 
@@ -464,7 +464,7 @@ export default function AnalysisPanel() {
               <button className={qty === "vector" ? "on" : ""} onClick={() => pickQty("vector")}>{t("qtyVector")}</button>
               <button className={qty === "position" ? "on" : ""} onClick={() => pickQty("position")}>{t("qtyPosition")}</button>
             </div>
-            <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t(qty === "vector" ? "qtyVectorHint" : "qtyPositionHint")}</p>
+            <p className="hint" style={{ fontSize: "var(--fs-s)", margin: "0 0 8px" }}>{t(qty === "vector" ? "qtyVectorHint" : "qtyPositionHint")}</p>
             <label className="afield"><span>{t("frameFrom")}</span>
               <select value={frSrc} onChange={(e) => pickSrc(e.target.value as Frame)}>
                 {FRAMES_OF[qty].map((f) => <option key={f} value={f}>{t(FRAME_KEYS[f])}</option>)}
@@ -503,9 +503,9 @@ export default function AnalysisPanel() {
               {refManual && LLA_KEYS.map((k, i) => (
                 <label key={k} className="afield"><span>{t(k)}{i < 2 ? " (°)" : " (m)"}</span>
                   <input type="number" step="any" value={refLla[i]} onChange={(e) => setAt(refLla, setRefLla, i)(e.target.value)} /></label>))}
-              <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t(refManual ? "refManualHint" : refFromSigs ? "refSignalsHint" : "refFirstHint")}</p>
+              <p className="hint" style={{ fontSize: "var(--fs-s)", margin: "0 0 8px" }}>{t(refManual ? "refManualHint" : refFromSigs ? "refSignalsHint" : "refFirstHint")}</p>
             </>}
-            <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t("frameHint")}</p>
+            <p className="hint" style={{ fontSize: "var(--fs-s)", margin: "0 0 8px" }}>{t("frameHint")}</p>
           </>}
 
           {nanOp && (
@@ -514,7 +514,7 @@ export default function AnalysisPanel() {
                 <option value="propagate">{t("nanPropagate")}</option>
                 <option value="skip">{t(op === "integral" ? "nanBridge" : "nanSkip")}</option>
               </select>
-              <p className="hint" style={{ fontSize: "0.846rem", margin: "4px 0 0" }}>
+              <p className="hint" style={{ fontSize: "var(--fs-s)", margin: "4px 0 0" }}>
                 {t(nanPolicy === "propagate" ? (op === "integral" ? "nanPropagateHintInt" : "nanPropagateHint") : op === "integral" ? "nanBridgeHint" : "nanSkipHint")}</p>
             </div>
           )}
@@ -555,7 +555,7 @@ export default function AnalysisPanel() {
             <button className="btn primary" disabled={!canCreate || busy} onClick={async () => { await create(); clearPreviews(); }}>
               {busy ? t("loading") : kind === "one" && output === "edit" ? t("applyEdit") : kind === "frame" ? t("createThree") : t("createSignal")}</button>
           </div>
-          {previewOn && <p className="hint" style={{ fontSize: "0.923rem", margin: "6px 0 0" }}>{t(previewNow?.separate ? "previewShownSeparate" : "previewShown")} ·{" "}
+          {previewOn && <p className="hint" style={{ fontSize: "var(--fs-m)", margin: "6px 0 0" }}>{t(previewNow?.separate ? "previewShownSeparate" : "previewShown")} ·{" "}
             <button className="linklike" onClick={clearPreviews}>{t("clearPreview")}</button></p>}
           {previewNow && !previewNow.separate && previewNow.lines.length > 1 && <PreviewKey lines={previewNow.lines} />}
 

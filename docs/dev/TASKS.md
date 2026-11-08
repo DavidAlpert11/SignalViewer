@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Next: Phase 5 (26.U1 first); 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens). Next: 26.U2; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -203,7 +203,7 @@ Progress board:
 | 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☑ done |
 | 26.A4 | Transforms and derived recipes in the undoable workspace | 4 | ⏸ assessed - larger than expected, waiting for the owner |
 | 26.A5 | Heuristics visible and correctable (angle unit, discrete detection) | 4 | ☑ done |
-| 26.U1 | Design tokens audit (index.css) | 5 | ☐ |
+| 26.U1 | Design tokens audit (index.css) | 5 | ☑ done |
 | 26.U2 | Plot styling (grids, axes, palette, hover, legend, band) | 5 | ☐ |
 | 26.U3 | Less clutter (count before / after) | 5 | ☐ |
 | 26.U4 | "Judge a run" as the main flow | 5 | ☐ |
@@ -717,6 +717,31 @@ interpolated after it -; a derived signal recomputed; angle units with why, also
 on the code before), then the whole backend suite: 1068 passed; mypy clean; tsc + build; e2e
 test_heuristics.py (new, 2: the submenu, the backend following, Ctrl+Z; the dialog's automatic unit),
 test_map_objects, test_globe3d, test_state_lanes, test_file_help_menus, test_plot_menus (20).
+
+### 26.U1 · Design tokens
+**Status: done 2026-11-09.**
+**Audit (index.css, after the theme blocks):** 45 distinct font-size literals (0.75 ... 1.692rem and px
+sizes that ignored Settings ▸ Text size), 11 radius literals (2 ... 14px), 12 gap literals, 69 hex colours
+outside the tokens - among them #e5534b / #3fb950 (14 + 12 uses: errors, pass / fail, live dots), fixed in
+both themes (#3fb950 text on white is 2.6:1, below WCAG AA), a `var(--accent, #3D8BFD)` whose token never
+existed, `var(--mono, ...)` the same; 11 inline `fontSize` literals in components.
+**Made:** tokens in index.css - the type scale `--fs-3xs ... --fs-4xl` (rem: 9, 10, 10.5, 11, 11.5, 12,
+12.5, 13, 14, 15 ... px at the default root, following Text size), radii `--r-xs/s/m/l/xl/round`, spacing
+`--sp-0_5 ... --sp-6`, and colours by role: `--info` (per theme), `--overlay-*` (over imagery: the 3D
+globe, satellite map - the same in both themes), `--own-time*`, `--paper`, `--letterbox`, `--kind-mode /
+--kind-event`, `--on-color`, `--mono`. Every font-size / radius / gap literal mapped to the nearest step
+(a size moves by at most ~0.4 px; radii 3 / 5 -> 4, 9 / 10 -> 8, 11 / 14 -> 12; gaps 3 -> 4, 5 -> 6);
+#e5534b-family -> `--danger`, #3fb950 -> `--ok` (theme-aware), #1b1305 -> `--amber-ink`. What is left are relative `em`
+sizes (by design) and the token definitions themselves. Inline styles: `var(--fs-*)`.
+**Counts:** font-size literals 45 -> 0 (7 relative em sizes remain), radius literals 11 -> 0, gap literals
+12 -> 8 (0, 1px and two-value gaps), hex colours outside tokens 69 -> 0. `test_design_tokens.py` keeps it so
+(a new literal size / radius / colour fails the backend suite).
+**Screenshots** (ArduPilot example, English light; Compare, Hebrew dark; before / after): the same picture -
+U1 unifies, the visible changes come with U2 - except the pass / fail colours in the light theme.
+**Tests run:** test_design_tokens.py (3, new - fail on the CSS before); tsc + build; e2e test_less_clutter,
+test_tab_band, test_navigation, test_overview_strip, test_plot_menus, test_fresh_user, test_compare_diff,
+test_timeline (19). **Left:** the data palettes in TS (OverviewStrip's state colours, Globe3DFallback) belong
+to U2 (the trace palette).
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3279,3 +3304,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · 26.A4 assessed (39 call sites in 11 files, a sync layer, a session migration, undo moving from toasts to Ctrl+Z): larger than the task - not started, the owner decides. Next: 26.A5.
 - 2026-11-09 · 26.A5 done: `ws.readAs` + /api/read_as (held / interpolated, by name, undoable), /api/discrete with why, `angle_units` with why in the object dialog; tests: test_heuristics (new, 3), whole backend suite 1068 passed; mypy; tsc + build; e2e test_heuristics (new, 2) + 5 files. Phase 4 done except 26.A4. Next: 26.U1.
 - 2026-11-09 · Whole e2e suite at the end of Phase 4 (52 files, one per process): 4 files with a failure. Fixed: (1) test_one_per_plot "the same again" made 6 signals instead of reusing 3 - since C2b a stored recipe carries `hold` (and `nan` / `sampling`) the request did not, so peers.ts `opKey` did not match; it now completes a request with the defaults the backend writes (`withDefaults`); (2) test_data_path's burst test counted aborts by network events, and its route handler (a sleep) held the test's thread, so the wheel steps waited for it - now the steps come from the page and the aborts are counted in the page (passes twice). Not reproduced: test_features (1 failure in the suite run; 126 passed alone). Known: test_offline_map borders (the network; fails on origin/main here too).
+- 2026-11-09 · 26.U1 done: type scale, radii, spacing, semantic colour tokens; literals 45 / 11 / 69 -> 0; test_design_tokens (new); tsc + build; e2e 8 files (19). Next: 26.U2.

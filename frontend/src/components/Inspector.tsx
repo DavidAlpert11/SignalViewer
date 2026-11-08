@@ -345,7 +345,7 @@ export default function Inspector() {
         <div className="section">
           <h3>{t("nSelected", { n: multi.length })}
             <button className="linklike" style={{ marginInlineStart: "auto", fontWeight: 400 }} onClick={() => useApp.setState({ multi: [] })}>{t("clearSelection")}</button></h3>
-          <p className="hint" style={{ fontSize: "0.923rem", margin: "0 0 8px" }}>{t("batchHint")}</p>
+          <p className="hint" style={{ fontSize: "var(--fs-m)", margin: "0 0 8px" }}>{t("batchHint")}</p>
           {(() => {
             const items = multi.map((m) => ({ m, s: tab.plots.find((p) => p.id === m.plotId)?.signals.find((x) => x.sig === m.sig) })).filter((x) => x.s);
             const same = (k: "scale" | "offset" | "width" | "tOffset") => {
@@ -401,7 +401,7 @@ export default function Inspector() {
                 <button className={sel.state ? "on" : ""} onClick={() => actions.updateSignal(selected.plotId, sel.sig, { state: true })}>{t("asStates")}</button>
               </span></div>
             {!sel.state && (lazyDiscrete[sel.sig] || runs.some((r) => r.signals.some((x) => x.id === sel.sig && x.discrete))) &&
-              <p className="hint" style={{ margin: "-2px 0 10px", fontSize: 12 }}>{t("looksDiscrete")}</p>}
+              <p className="hint" style={{ margin: "-2px 0 10px", fontSize: "var(--fs-m)" }}>{t("looksDiscrete")}</p>}
             {sel.state && <Segments sig={sel.sig} tOffset={sel.tOffset ?? 0} />}
             {!sel.state && (() => {
               // U4: a setpoint beside its measured value is dashed by itself; Solid / Dashed by hand win

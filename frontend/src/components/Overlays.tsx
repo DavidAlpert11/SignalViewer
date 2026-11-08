@@ -227,7 +227,7 @@ export function AxisDialog() {
           <div className="arow">{num("y0", `Y ${t("from")}`)}{num("y1", `Y ${t("to")}`)}</div>
           {bad(f.y0, f.y1) && <p className="hint err">{t("limitsInvalid")}</p>}
           <label className="acheck"><input type="checkbox" checked={f.all} onChange={(e) => setF({ ...f, all: e.target.checked })} />{t("applyAllPlots")}</label>
-          <p className="hint" style={{ fontSize: "0.923rem" }}>{t("limitsHint")}</p>
+          <p className="hint" style={{ fontSize: "var(--fs-m)" }}>{t("limitsHint")}</p>
         </div>
         <div className="dialog-foot">
           <button className="btn outline" onClick={() => { actions.setAxisLimits(plot.id, null, null, f.all); close(); }}>{t("clearLimits")}</button>
