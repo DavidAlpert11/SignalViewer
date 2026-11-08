@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). Next: P3, P4, P5;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). Next: P4, P5;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -195,7 +195,7 @@ Progress board:
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☑ done |
 | P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☑ done |
 | P2 | One byte-bounded, locked LRU cache | 3 | ☑ done |
-| P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☐ |
+| P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☑ done |
 | P4 | Open several files concurrently within the memory budget | 3 | ☐ |
 | P5 | New benchmarks in tools/benchmark.py | 3 | ☐ |
 | 26.A1 | Remove dead code in svcore/models.py | 4 | ☐ |
@@ -521,6 +521,40 @@ private caches), then the WHOLE backend suite (P2 touches the core): 1049 passed
 29 / 29; mypy on the 7 changed modules clean; tsc + build; e2e test_settings, test_offline_map
 (the borders test failed once, then passed twice alone - the flaky one 1.22.0's notes name). Screenshot
 English light / Hebrew dark of the Storage rows.
+
+### P3 · Frontend data path
+**Status: done 2026-11-08.**
+**Reproduced / measured first:** a value 1.7e9 + 3 sin(t) came back from /api/data (float32) with the
+wave gone (error 3; steps of 128); a latitude through /api/xy (float32) off by > 0.05 m (up to ~0.2 m);
+GeoChart also turned the map objects' float64 latitudes into Float32Array itself. TimeChart's request
+per zoom step had no cancellation (a stale answer was dropped only after it arrived). uPlot.join, 30
+signals x 6,400 points each on their own x (decimation picks other samples per signal): 162 ms
+(node, median of 7) - 192,000 rows.
+**Made:**
+- **Cancellation:** api.ts `send()` / `call(..., signal)` pass an AbortSignal; an abort is rethrown as
+  itself (`isAborted`), not turned into "the server is gone"; TimeChart aborts its request in the
+  effect's cleanup (every new range / signal set) and shows no error for it.
+- **Binary /api/data:** `format: "bin"` -> `pack_series` (routes/data.py): uint32 header length, JSON
+  header (`id, n, total, decimated, yRef, xAt, yAt`), x float64 at multiples of 8 (viewed in place),
+  y - yRef float32. `unpackSeries` (api.ts) rebuilds y as Float64Array (`Series.y` is now Float64Array).
+  The JSON answer is unchanged (absolute float32) for any other client (tests, tools, scripts).
+- **Precision:** `common.y_reference` (the middle of the finite values) for the binary answer and for
+  /api/xy when asked `relative: true` (the app asks; `yRef` in the answer). GeoChart keeps object
+  latitudes float64.
+- **uPlot.join:** `joinTables.ts` - the same result (checked equal on 2 / 10 / 30 signals, nulls kept,
+  missing rows undefined) with one sorted Float64Array merge and a linear walk: 2 x 3.2 -> 2.7 ms, 10 x
+  28 -> 8.6 ms, 30 x 162 -> 77 ms. What is left is building 31 columns of 192k rows (uPlot's aligned
+  table); faceted series (uPlot mode 2) would avoid it but change the cursor / legend logic - not done.
+  FFTChart / StepChart keep uPlot.join (a few series).
+**Measured** (30 signals of 5M samples, a 600 s window, 3200 points): payload JSON 1872 kB -> binary 1406
+kB; server + transfer unchanged (64 / 65 ms); client decode 4.3 -> 1.4 ms (node, the same functions).
+**Tests run:** backend test_offset_nocopy.py (+2: the binary answer = the JSON values and exact around
+1.7e9; /api/xy relative keeps a latitude to < 1 mm, absolute stays for others), the 123 tests touching
+/api/data, /api/xy and common; mypy clean; tsc + build; e2e test_data_path.py (new, 2: a zoom burst
+against a slow server aborts the older requests, all binary, no error toast, the last window kept; a
+Unix-time value exact through the binary path), test_wheel, test_plot_style, test_aligned_plots,
+test_map_objects, test_setpoint_style, test_globe3d, test_workflows. test_offline_map's borders test fails
+here - also on `a39b8d5` built alone (checked in a worktree): the satellite base needs the network.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3073,3 +3107,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · O3 done: `atomic_path` / `atomic_open` / `atomic_write` (app/atomic.py, from app/common.py) for sessions, autosave, templates, settings, readers / layouts, reports, Recordings' saves, Sweeps' study / templates / report; tests: test_atomic_write (new, 5) + 42 related files, 829 passed; mypy; e2e test_workflows, test_findings_report, test_template_tabs. Phase 2 done; patch next.
 - 2026-11-08 · Owner applied the Phase 2 patch (`a39b8d5`). P1 done: `signal_parts` / `view_shifted`, the per-request routes shift the window (20M samples with an offset: 51 -> 3.7 ms, 160 -> 0.2 MB; stats 458 -> 2.6 ms); V29 in validate (29 / 29); tests: test_offset_nocopy (new, 7) + 14 files, 190 passed; mypy; e2e test_what_changed, test_aligned_plots, test_features -k offset (23). Next: P2.
 - 2026-11-08 · P2 done: svcore/memcache.py (`ByteLRU`, SV_MEMCACHE_MB 1024) for transforms, derived, FFT, summaries, stats; the transform-cache race fixed; Settings ▸ Storage shows memory; 12 x 20M changed signals 1832 -> 916 MB; whole backend suite 1049 passed; validate; mypy; tsc + build; e2e test_settings, test_offline_map. Next: P3.
+- 2026-11-08 · P3 done: AbortController in api.ts / TimeChart, binary /api/data (`pack_series` / `unpackSeries`), `y_reference` for /api/data (bin) and /api/xy (relative), joinTables.ts (30 signals 162 -> 77 ms); backend 123 related tests; mypy; tsc + build; e2e test_data_path (new) + 8 files; borders test fails on origin/main here too (network). Next: P4.

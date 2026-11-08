@@ -104,7 +104,7 @@ export interface Series {
   total: number;
   decimated: boolean;
   x: Float64Array;
-  y: Float32Array;
+  y: Float64Array;              // P3: rebuilt from float32 differences around a float64 reference
 }
 export interface Stats { min: number; max: number; mean: number; std: number; rms: number; peak_to_peak: number; samples: number; duration: number; segments?: number;
   /** A3: "time" when the samples are unevenly spaced and mean / RMS / std are weighted by time; gaps: dropouts not weighted */
@@ -183,15 +183,20 @@ export interface Template {
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
 
-export async function call<T>(url: string, body?: unknown, method = body === undefined ? "GET" : "POST"): Promise<T> {
+/** P3: a request given up on purpose (a newer one replaced it: the plot moved on) - not an error to show. */
+export const isAborted = (e: unknown) => (e as { name?: string } | null)?.name === "AbortError";
+
+async function send(url: string, body: unknown, method: string, signal?: AbortSignal): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(url, {
       method,
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
     });
-  } catch {
+  } catch (e) {
+    if (isAborted(e)) throw e;
     // no answer at all ("Failed to fetch"): the app's local server is not running any more -
     // say that and what to do, instead of the browser's bare words
     const lang = document.documentElement.lang === "he" ? "he" : "en";
@@ -202,7 +207,29 @@ export async function call<T>(url: string, body?: unknown, method = body === und
     try { msg = (await res.json()).detail ?? msg; } catch { /* keep status text */ }
     throw new Error(msg);
   }
-  return res.json() as Promise<T>;
+  return res;
+}
+
+export async function call<T>(url: string, body?: unknown, method = body === undefined ? "GET" : "POST", signal?: AbortSignal): Promise<T> {
+  return (await send(url, body, method, signal)).json() as Promise<T>;
+}
+
+/** P3: the binary /api/data answer (backend routes/data.py pack_series): a uint32 header length, the JSON
+ *  header, then each series' x (float64) and y - yRef (float32) at the offsets it gives. x is viewed in
+ *  place; y is rebuilt in float64 around its reference (float32 alone rounds 1.7e9 to steps of 128). */
+export function unpackSeries(buf: ArrayBuffer): Series[] {
+  const n = new DataView(buf).getUint32(0, true);
+  const head = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n))) as { series: any[] };
+  const base = 4 + n;
+  return head.series.map((s) => {
+    if (s.missing) return { id: s.id, missing: true, n: 0, total: 0, decimated: false, x: new Float64Array(), y: new Float64Array() };
+    const x = new Float64Array(buf, base + s.xAt, s.n);
+    const rel = new Float32Array(buf, base + s.yAt, s.n);
+    const y = new Float64Array(s.n);
+    const ref = Number(s.yRef) || 0;
+    for (let i = 0; i < s.n; i++) y[i] = ref + rel[i];
+    return { id: s.id, n: s.n, total: s.total, decimated: s.decimated, x, y };
+  });
 }
 
 function decode<T extends Float64Array | Float32Array>(b64: string, Ctor: { new (buf: ArrayBuffer): T }): T {
@@ -291,12 +318,9 @@ export const api = {
   mavlinkStop: () => call<MavStatus>("/api/mavlink/stop", {}),
   mavlinkStatus: () => call<MavStatus>("/api/mavlink/status"),
   mavlinkPorts: () => call<{ ports: { device: string; description: string }[]; presets: string[]; folder: string }>("/api/mavlink/ports"),
-  data: async (signals: string[], x0: number | null, x1: number | null, points: number): Promise<Series[]> => {
-    const r = await call<{ series: any[] }>("/api/data", { signals, x0, x1, points });
-    return r.series.map((s) =>
-      s.missing ? { id: s.id, missing: true, n: 0, total: 0, decimated: false, x: new Float64Array(), y: new Float32Array() }
-        : { ...s, x: decode(s.x, Float64Array), y: decode(s.y, Float32Array) });
-  },
+  /** P3: binary (no base64), cancellable (a plot that moved on aborts its older requests) */
+  data: async (signals: string[], x0: number | null, x1: number | null, points: number, signal?: AbortSignal): Promise<Series[]> =>
+    unpackSeries(await (await send("/api/data", { signals, x0, x1, points, format: "bin" }, "POST", signal)).arrayBuffer()),
   createDerived: (op: string, sources: string[], params: Record<string, unknown>, name?: string) =>
     call<{ id: string; name: string; runs: RunInfo[] }>("/api/derived", { op, sources, params, name: name || null }),
   restoreDerived: (items: { op: string; sources: string[]; params?: unknown; name?: string }[]) =>
@@ -318,11 +342,13 @@ export const api = {
       { id: string; missing?: boolean; n: number; peak: number; x: Float64Array; y: Float32Array; grid?: SpectrumGrid }[];
   },
   xy: async (x: string, ys: string[], alignment: string, t0: number | null, t1: number | null) => {
-    const r = await call<{ series: any[] }>("/api/xy", { x, ys, alignment, t0, t1 });
+    const r = await call<{ series: any[] }>("/api/xy", { x, ys, alignment, t0, t1, relative: true });
     // t: the time of each point, so the timeline can draw the plot / map up to a time
-    return r.series.map((s) => (s.missing ? { id: s.id, missing: true, n: 0, x: new Float64Array(), y: new Float32Array(), t: new Float64Array() }
-      : { ...s, x: decode(s.x, Float64Array), y: decode(s.y, Float32Array), t: s.t ? decode(s.t, Float64Array) : new Float64Array() })) as
-      { id: string; missing?: boolean; n: number; x: Float64Array; y: Float32Array; t: Float64Array }[];
+    // P3: y around its float64 reference (a latitude in float32 is rounded by up to ~0.2 m)
+    return r.series.map((s) => (s.missing ? { id: s.id, missing: true, n: 0, x: new Float64Array(), y: new Float64Array(), t: new Float64Array() }
+      : { ...s, x: decode(s.x, Float64Array), y: Float64Array.from(decode(s.y, Float32Array), (v) => (Number(s.yRef) || 0) + v),
+          t: s.t ? decode(s.t, Float64Array) : new Float64Array() })) as
+      { id: string; missing?: boolean; n: number; x: Float64Array; y: Float64Array; t: Float64Array }[];
   },
   /** T17c plain 3D: each track's Y and Z on its X signal's samples. */
   xyz: async (tracks: { x: string; y: string; z: string }[], alignment: string) => {

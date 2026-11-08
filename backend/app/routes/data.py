@@ -4,10 +4,10 @@ import base64
 from typing import Dict, List, Optional
 
 import numpy as np
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from pydantic import BaseModel
 
-from app.common import b64, fail
+from app.common import b64, fail, y_reference
 from app.store import store
 from svcore.analysis import spectrogram as make_spectrogram
 from svcore.analysis import align_to, state_mask, transitions
@@ -30,25 +30,59 @@ class DataRequest(BaseModel):
     x0: Optional[float] = None
     x1: Optional[float] = None
     points: int = 4000
+    format: str = "json"            # "json" (base64 inside JSON) | "bin" (P3: a JSON header + raw arrays)
 
+
+def pack_series(parts: List[dict]) -> bytes:
+    """P3: the binary /api/data answer - a little-endian uint32 with the header's length, the JSON
+    header ({"series": [{id, n, total, decimated, yRef, xAt, yAt} or {id, missing}]}), then each
+    series' x (float64) and y - yRef (float32) at the byte offsets the header gives (x at a multiple
+    of 8, so the browser views the bytes as typed arrays without copying them)."""
+    import json as _json
+    body = bytearray()
+    heads = []
+    for p in parts:
+        if p.get("missing"):
+            heads.append({"id": p["id"], "missing": True})
+            continue
+        xb = np.ascontiguousarray(p["x"], dtype="<f8").tobytes()
+        yb = np.ascontiguousarray(p["y"] - p["yRef"], dtype="<f4").tobytes()
+        x_at = len(body)
+        body += xb
+        y_at = len(body)
+        body += yb
+        body += bytes((-len(body)) % 8)
+        heads.append({"id": p["id"], "n": p["n"], "total": p["total"], "decimated": p["decimated"], "yRef": p["yRef"],
+                      "xAt": x_at, "yAt": y_at})
+    head = _json.dumps({"series": heads}).encode()
+    start = 4 + len(head)
+    pad = (-start) % 8
+    head += b" " * pad                     # (spaces: still valid JSON) - the arrays start at a multiple of 8
+    return len(head).to_bytes(4, "little") + head + bytes(body)
 
 
 @router.post("/api/data")
 def get_data(req: DataRequest):
     """Display points for each signal: min/max decimated inside [x0, x1], coarse outside."""
-    out: list = []
+    parts: list = []
     points = int(max(200, min(req.points, 20000)))
     for sid in req.signals:
         try:
             t, y, off = store.signal_parts(sid)          # P1: the window shifted, not the time vector
         except KeyError:
-            out.append({"id": sid, "missing": True})
+            parts.append({"id": sid, "missing": True})
             continue
         rng = [req.x0, req.x1] if req.x0 is not None and req.x1 is not None else None
         xd, yd, dec = view_shifted(t, y, off, rng, points)
-        out.append({"id": sid, "n": int(len(xd)), "total": int(len(t)), "decimated": bool(dec),
-                    "x": b64(xd, np.float64), "y": b64(yd, np.float32)})
-    return {"series": out}
+        yd = np.asarray(yd, dtype=np.float64)
+        parts.append({"id": sid, "n": int(len(xd)), "total": int(len(t)), "decimated": bool(dec),
+                      "x": xd, "y": yd, "yRef": y_reference(yd)})
+    if req.format == "bin":
+        return Response(pack_series(parts), media_type="application/octet-stream")
+    # the JSON answer keeps its meaning for any client that reads it (absolute float32 values)
+    return {"series": [p if p.get("missing") else
+                       {**{k: p[k] for k in ("id", "n", "total", "decimated")},
+                        "x": b64(p["x"], np.float64), "y": b64(p["y"], np.float32)} for p in parts]}
 
 
 

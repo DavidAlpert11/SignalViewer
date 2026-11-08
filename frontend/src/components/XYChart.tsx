@@ -18,7 +18,7 @@ export default function XYChart({ plot, index, onLoading, emptyText }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
   const size = useSize(wrapRef);
-  const [data, setData] = useState<{ id: string; x: Float64Array; y: Float32Array; t: Float64Array }[]>([]);
+  const [data, setData] = useState<{ id: string; x: Float64Array; y: Float64Array; t: Float64Array }[]>([]);
   const playMode = useApp((s) => s.playMode);
   const windowSec = useApp((s) => s.windowSec);
   const markRef = useRef({ cursor, cvals, playMode, windowSec });
