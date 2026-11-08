@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done**; the Phase 3 patch next, then Phase 4 (26.A1 first);
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. Next: 26.A2, 26.A3, 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -198,7 +198,7 @@ Progress board:
 | P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☑ done |
 | P4 | Open several files concurrently within the memory budget | 3 | ☑ done |
 | P5 | New benchmarks in tools/benchmark.py | 3 | ☑ done |
-| 26.A1 | Remove dead code in svcore/models.py | 4 | ☐ |
+| 26.A1 | Remove dead code in svcore/models.py | 4 | ☑ done |
 | 26.A2 | User file readers in a worker process | 4 | ☐ |
 | 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☐ |
 | 26.A4 | Transforms and derived recipes in the undoable workspace | 4 | ☐ (ask before starting if large) |
@@ -605,6 +605,15 @@ mode on a 46 MB CSV: everything passes except "memory for the data / binary size
 +170 MB runtime) - not comparable with the 730 MB reference file the target is for; to measure with that
 file in the release run (the tool could not measure it at all before).
 **Tests run:** both modes run end to end (`--synthetic` at 1M and 5M samples, `run0.csv`).
+
+### 26.A1 · Dead code in svcore/models.py
+**Status: done 2026-11-09.**
+**Checked first:** no reference outside models.py (grep -w over backend, tools, cli.py, tests) to
+DerivedSignal, SubplotConfig, subplot_from_dict, Tab, ViewState, make_signal_key, parse_signal_key,
+DERIVED_RUN_IDX ("Tab" appears only as a word in other files). SignalType: used only by Signal's own
+`signal_type` field, which nothing reads or sets - both removed. Nothing removed is pickled (the log
+index pickles a DataFlash, not Signals). The index-based keys ("run_idx:name") went with them.
+**Tests run:** the whole backend suite (1056 passed); mypy svcore/models.py clean.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3161,3 +3170,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · P4 done: app/openmany.py + common.open_paths (thread pool, memory budget SV_OPEN_BUDGET_MB, order / names / tags kept); 4 x 55 MB .bin 2.13 -> 1.42 s on 2 cores; tests: test_open_many (new, 5), whole backend suite 1056 passed; mypy; e2e 5 files + test_features -k open. Next: P5.
 - 2026-11-09 · P5 done: `tools/benchmark.py --synthetic` (offset ratio, 30-signal zoom, pan burst, .bin + changed signals vs the memory cache, live wide append) with targets; the file mode fixed (403 since the localhost check); docs/performance.md. Phase 3 done.
 - 2026-11-09 · O2 follow-up: log index version 3 (an index from before O2 kept phantom signals and broke live mode), `DataFlash.__setstate__`; test_big_files (+1, 15 passed).
+- 2026-11-09 · Owner: Phase 3 patch not applied yet, continue and send one cumulative patch. 26.A1 done: DerivedSignal, SubplotConfig, subplot_from_dict, Tab, ViewState, SignalType (+ the unused field), the index keys removed; whole backend suite 1056 passed; mypy. Next: 26.A2.
