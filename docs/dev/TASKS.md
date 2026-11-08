@@ -15,13 +15,16 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 - **Round of 2026-11-08 (in progress)**: the owner's audit round - correctness, trust, performance,
   a calmer UI (spec and board in "Owner's plan (2026-11-08)" below; IDs there are qualified as
-  `26.<id>` where they collide with Milestone 25). Phase 1: C1 done (Compare judged on every sample of
-  both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
-  `params.nan`, old sessions restored as "legacy"), C4 done (V24-V28; V29 moves to P1). Phase 1 patch
-  applied by the owner (`3110e75`). Phase 2: O1 done (offline by default, Never use the network,
-  the Online map sign). Owner's decisions recorded (see the plan). C2b done (old sessions restored with `"hold": false`). C3b done (*Missing values* in Create signals, the mark). O2 done (no phantom signals from damage; a damaged .ulg opens). Next, in order: O3,
-  then the Phase 2 patch; the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend
-  981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
+  `26.<id>` where they collide with Milestone 25). **Phase 1 done:** C1 (Compare judged on every sample
+  of both runs), C2 (state signals held in formulas / operations / conditions), C3 (missing stays
+  missing; `params.nan`), C4 (V24-V28; V29 moves to P1), C2b (old sessions restored with `"hold": false`),
+  C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
+  the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
+  save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Next: Phase 3** - P1 (with V29), P2, P3, P4, P5;
+  the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
+  passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
+  patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
 
 - **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
   `ws.moreTabs`, the views menu), U3 the tab band (TabBand.tsx; the overview strip shows the cursors),
@@ -189,7 +192,7 @@ Progress board:
 | C3b | Create signals: the missing-data choice (propagate / skip) for sum, mean, min, max, norm, integral (decision 4) | 1 | ☑ done |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☑ done |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☑ done |
-| O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
+| O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☑ done |
 | P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☐ |
 | P2 | One byte-bounded, locked LRU cache | 3 | ☐ |
 | P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☐ |
@@ -428,6 +431,33 @@ mode drops nothing), `_emit` (signals, lazy jobs), the index cache (`_index_save
 open routes: 482 passed, 13 skipped; validate 28 / 28; mypy on the 5 changed modules clean; tsc + build;
 e2e test_damaged_note.py (new), test_templates_recent_badfiles, test_file_help_menus, test_error_details.
 **Left:** .tlog has its own resync (pymavlink, CRC-checked) - not changed.
+
+### O3 · Atomic writes everywhere
+**Status: done 2026-11-08.**
+**Reproduced first** (backend/tests/test_atomic_write.py, 3 cases failing on `f6bacb0`): a session save
+whose write fails half-way (a full disk) left the cut JSON in place of the saved session; a template
+export the same; an HTML report whose building failed (a signal closed meanwhile: 404) left an EMPTY
+file - `open(path, "w")` ran before `build_html`.
+**Made:** `app/atomic.py` - `atomic_path(path)` (a temporary path in the same folder, with the target's
+extension so PDF / Word writers that go by the name still work; fsync, the old file's permissions copied,
+a symbolic link keeps pointing at its file, a few retries of the rename on Windows when a reader holds
+the file; on any error the temporary file is removed), `atomic_open` (open() for writing on top of it),
+`atomic_write` (text or bytes). **Why not in app/common.py itself:** app.prefs and app.userreaders need
+it and app.common imports them - so the body is a module without app imports and app.common re-exports
+it; the routes import it from app.common, as asked.
+Used for: sessions (`session_save`), autosave (`write_autosave`, as before), templates (template export,
+`prefs.save_template`, the v1 migration), settings (`prefs._write` - its `.tmp` was one name shared by two
+apps saving at once), readers and layouts (the example reader and the example ICD layout, the example
+Python operations), reports (`/api/report`, the report job: built into the temporary path, then
+replaced), and the other files Recordings saves (CSV export, plot images, `save/text`, `save/image`). In
+Sweeps (maintenance mode) only what the task names: the study (`save-text`), its templates, its report.
+Not changed: Sweeps' table / row exports (not in the task), tiles / push / the .bin index (already a
+temporary file + rename).
+**Callers checked:** every `open(..., "w")` / `.save(` under app, svcore, signalviewer (grep); `build_pdf`
+/ `build_docx` / `sweep_report.build` take the path given (only the target's extension matters).
+**Tests run:** test_atomic_write.py (5, new); the 42 test files that save sessions / templates / settings
+/ reports / exports or touch prefs, readers, pyops, jobs, sweeps: 829 passed, 14 skipped; mypy on the 10
+changed modules clean; e2e test_workflows, test_findings_report, test_template_tabs (33).
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -2977,3 +3007,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · Owner applied the O1 patch (`4c3c52f`). C2b done: restored recipes without `hold` get false, new ones true (`HOLD_OPS`); tests: test_state_hold (+1) + 10 related files, 129 passed; validate 28 / 28; mypy clean. Next: C3b.
 - 2026-11-08 · C3b done: *Missing values* in Create signals (sum / mean / min / max / norm / integral), the derived list marks skipped / bridged / unknown / infinite; tsc + build; e2e test_missing_choice (new, 2), test_update_rate, test_features + test_workflows (154 passed). Next: O2.
 - 2026-11-08 · O2 done: .bin - the message before a damaged block and damage-only instances left out (0 phantom signals in 60 fuzz seeds, was 31); .ulg - damaged parameters / messages / time stamps left out, the log opens; unexpected loader errors say what to do; tests: test_damaged_files (+20) and 28 related files, 482 passed; validate; mypy; tsc + build; e2e test_damaged_note (new) + 3 files. Next: O3.
+- 2026-11-08 · O3 done: `atomic_path` / `atomic_open` / `atomic_write` (app/atomic.py, from app/common.py) for sessions, autosave, templates, settings, readers / layouts, reports, Recordings' saves, Sweeps' study / templates / report; tests: test_atomic_write (new, 5) + 42 related files, 829 passed; mypy; e2e test_workflows, test_findings_report, test_template_tabs. Phase 2 done; patch next.

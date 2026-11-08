@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import APP_DIR, AUTOSAVE, fail, log, read_autosave, write_autosave
+from app.common import APP_DIR, AUTOSAVE, atomic_open, fail, log, read_autosave, write_autosave
 from app.routes.export import _check_target
 from app.store import store
 
@@ -28,7 +28,7 @@ class SessionSave(BaseModel):
 def session_save(req: SessionSave):
     path = _check_target(req.path, ".svsession")
     doc = {"format": "signalviewer-session", "version": 3, "saved": __import__("datetime").datetime.now().isoformat(), **req.state}
-    with open(path, "w", encoding="utf-8") as f:
+    with atomic_open(path) as f:          # O3: a failed save keeps the session that was there
         json.dump(doc, f, indent=1, ensure_ascii=False)
     prefs.add_recent(path, "session")
     return {"path": path}

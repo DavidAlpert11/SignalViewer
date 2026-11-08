@@ -6,7 +6,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import report as reports
-from app.common import _load_error, fail, unexpected_load_error, open_with_prefs
+from app.atomic import write_text as _write_text
+from app.common import _load_error, atomic_path, fail, unexpected_load_error, open_with_prefs
 from app.jobs import JobCancelled, jobs
 from app.routes.compare import CompareAllRequest, compare_table
 from app.routes.export import ReportRequest, _check_target
@@ -65,14 +66,13 @@ def start_job(req: JobRequest):
         def work(job):
             body = rr.model_dump()
             job.report(0.05, "prepare")
-            if rr.format == "html":
-                text = reports.build_html(store, body, progress=job.report)
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(text)
-            elif rr.format == "pdf":
-                reports.build_pdf(store, body, path, progress=job.report)
-            else:
-                reports.build_docx(store, body, path, progress=job.report)
+            with atomic_path(path) as tmp:     # O3: the old report stays until the new one is complete
+                if rr.format == "html":
+                    _write_text(tmp, reports.build_html(store, body, progress=job.report))
+                elif rr.format == "pdf":
+                    reports.build_pdf(store, body, tmp, progress=job.report)
+                else:
+                    reports.build_docx(store, body, tmp, progress=job.report)
             return {"path": path, "size": os.path.getsize(path)}
     elif req.kind == "reloadAll":
         def work(job):

@@ -10,7 +10,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import report as reports
-from app.common import fail
+from app.atomic import write_text as _write_text
+from app.common import atomic_open, atomic_path, atomic_write, fail
 from app.store import store
 from svcore.analysis import align_to
 
@@ -67,7 +68,7 @@ async def export_csv(req: ExportCsvRequest):
             y = align_to(t, ts, ys, req.alignment) if s is not req.signals[0] else np.asarray(ys[i0:i1], dtype=np.float64)
             cols.append(y * float(s.get("scale", 1) or 1) + float(s.get("offset", 0) or 0))
             header.append(str(s.get("label") or s["id"].split("/", 1)[-1]).replace(",", " "))
-        with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        with atomic_open(path, "w", "utf-8-sig", "") as f:
             f.write(",".join(header) + "\n")
             np.savetxt(f, np.column_stack(cols), delimiter=",", fmt="%.10g")
         return len(t)
@@ -104,13 +105,15 @@ async def make_report(req: ReportRequest):
     body = req.model_dump()
 
     def work():
-        if req.format == "html":
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(reports.build_html(store, body))
-        elif req.format == "pdf":
-            reports.build_pdf(store, body, path)
-        else:
-            reports.build_docx(store, body, path)
+        # O3: built into a temporary file that replaces the old report only when complete (the HTML was
+        # opened - emptied - before it was built, so a failed build left an empty report)
+        with atomic_path(path) as tmp:
+            if req.format == "html":
+                _write_text(tmp, reports.build_html(store, body))
+            elif req.format == "pdf":
+                reports.build_pdf(store, body, tmp)
+            else:
+                reports.build_docx(store, body, tmp)
     try:
         await asyncio.to_thread(work)
     except KeyError:
@@ -146,14 +149,12 @@ async def export_image(req: ImageRequest):
     try:
         if req.format == "html":
             text = await asyncio.to_thread(reports.build_plot_html, store, req.plot, req.theme, req.lang)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(text)
+            atomic_write(path, text)
             return {"path": path}
         data = await asyncio.to_thread(reports.build_image, store, req.plot, req.format, req.theme, max(1.0, min(4.0, req.scale)))
     except KeyError:
         fail(404, "One of the plot's signals is no longer open.")
-    with open(path, "wb") as f:
-        f.write(data)
+    atomic_write(path, data)
     return {"path": path}
 
 
@@ -170,8 +171,7 @@ class TextSave(BaseModel):
 def save_text(req: TextSave):
     """Save text produced by the UI (e.g. comparison results as CSV)."""
     path = _check_target(req.path, req.ext)
-    with open(path, "w", encoding="utf-8-sig" if req.bom else "utf-8", newline="") as f:
-        f.write(req.content)
+    atomic_write(path, req.content, "utf-8-sig" if req.bom else "utf-8", "")
     return {"path": path}
 
 
@@ -192,6 +192,5 @@ def save_image(req: ImageSave):
         fail(400, "Not an image.")
     if not raw.startswith(b"\x89PNG\r\n\x1a\n"):
         fail(400, "Not a PNG image.")
-    with open(path, "wb") as f:
-        f.write(raw)
+    atomic_write(path, raw)
     return {"path": path}

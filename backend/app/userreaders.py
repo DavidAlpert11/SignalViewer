@@ -8,6 +8,7 @@ import threading
 from typing import Any, Dict, List, Optional
 
 from app import prefs
+from app.atomic import atomic_open, atomic_write
 from svcore import icd
 from svcore import readers as rd
 
@@ -119,7 +120,7 @@ def write_example_icd() -> Dict[str, str]:
     os.makedirs(d, exist_ok=True)
     lay = os.path.join(d, "example_bench.icd.json")
     if not os.path.exists(lay):
-        with open(lay, "w", encoding="utf-8") as f:
+        with atomic_open(lay) as f:
             json.dump(icd.EXAMPLE, f, indent=2)
     return {"layout": lay}
 
@@ -129,6 +130,5 @@ def write_example() -> str:
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, "example_kv_reader.py")
     if not os.path.exists(path):
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(rd.EXAMPLE)
+        atomic_write(path, rd.EXAMPLE)
     return path

@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from app import prefs
+from app.atomic import atomic_write
 from svcore import analysis, pyworker
 from svcore.analysis import OpError
 
@@ -155,8 +156,7 @@ def write_example() -> str:
     os.makedirs(d, exist_ok=True)
     p = os.path.join(d, "example_operations.py")
     if not os.path.exists(p):
-        with open(p, "w", encoding="utf-8") as f:
-            f.write(EXAMPLE)
+        atomic_write(p, EXAMPLE)
     stop()
     return p
 

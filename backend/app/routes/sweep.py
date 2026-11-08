@@ -14,7 +14,7 @@ import pandas as pd
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.common import SWEEP_AUTOSAVE, fail, read_autosave, write_autosave
+from app.common import SWEEP_AUTOSAVE, atomic_open, atomic_path, atomic_write, fail, read_autosave, write_autosave
 from app.routes.fs import EXAMPLES
 from svcore import sweep
 
@@ -326,8 +326,7 @@ def sweep_save_text(req: TextReq):
     """A study (.svsweep) or a report (.html) the page made."""
     path = os.path.abspath(os.path.expanduser(req.path))
     try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(req.text or "")
+        atomic_write(path, req.text or "")        # O3: a study saved again is replaced whole or not at all
     except OSError as e:
         fail(400, f"Could not write {path}: {e}")
     return {"path": path}
@@ -430,8 +429,7 @@ TEMPLATE_KIND = "signalviewer-sweep-template"
 
 
 def _tpl_write(name: str, tpl: Dict[str, Any]) -> None:
-    os.makedirs(TEMPLATES, exist_ok=True)
-    with open(_tpl_path(name), "w", encoding="utf-8") as f:
+    with atomic_open(_tpl_path(name)) as f:
         json.dump({**tpl, "kind": TEMPLATE_KIND, "name": name.strip(), "saved": time.strftime("%Y-%m-%d %H:%M")}, f, indent=1)
 
 
@@ -454,8 +452,8 @@ def sweep_template_export(req: TemplateFileReq):
         fail(404, f"No template named {req.name!r}.")
     path = os.path.abspath(os.path.expanduser(req.path))
     try:
-        with open(src, encoding="utf-8") as f, open(path, "w", encoding="utf-8") as g:
-            g.write(f.read())
+        with open(src, encoding="utf-8") as f:
+            atomic_write(path, f.read())
     except OSError as e:
         fail(400, f"Could not write {path}: {e}")
     return {"path": path}
@@ -628,18 +626,18 @@ def sweep_report(req: ReportReq):
             df = df.sample(50_000, random_state=0)
         names = [c for c in (req.axes or list(df.columns)) if c in df.columns]
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(sweep_report._html(sweep_report.plot_data(df, names), {**req.model_dump(), "axes": names, "plotOnly": True}, []))
+            atomic_write(path, sweep_report._html(sweep_report.plot_data(df, names), {**req.model_dump(), "axes": names, "plotOnly": True}, []))
         except OSError as e:
             fail(400, f"Could not write {path}: {e}")
         return {"path": path, "size": os.path.getsize(path)}
     p, a = _answer(req.id, req.question)
-    body = {**req.model_dump(), "path": path}
+    body = {**req.model_dump(), "path": path}       # (the report is built into a temporary file below, O3)
     if (req.include or {}).get("provenance", True):
         L = req.labels or {}
         body["sections"] = [*(req.sections or []), {"title": L.get("#provenance", "Where it comes from"), "items": provenance(req.id)}]
     try:
-        sweep_report.build(p, req.question, a, body)
+        with atomic_path(path) as tmp:
+            sweep_report.build(p, req.question, a, {**body, "path": tmp})
     except ReportNeedsExtra as e:
         fail(400, str(e))
     except OSError as e:
