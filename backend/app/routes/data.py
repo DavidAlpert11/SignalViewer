@@ -11,7 +11,7 @@ from app.common import b64, fail
 from app.store import store
 from svcore.analysis import spectrogram as make_spectrogram
 from svcore.analysis import align_to, state_mask, transitions
-from svcore.decimate import decimate_for_view, hold_at, interp_at
+from svcore.decimate import hold_at, interp_at, view_shifted
 from svcore.envelope import envelope
 from svcore.limits import check_limits
 from svcore.ops import compute_signal_stats
@@ -40,12 +40,12 @@ def get_data(req: DataRequest):
     points = int(max(200, min(req.points, 20000)))
     for sid in req.signals:
         try:
-            t, y = store.signal(sid)
+            t, y, off = store.signal_parts(sid)          # P1: the window shifted, not the time vector
         except KeyError:
             out.append({"id": sid, "missing": True})
             continue
         rng = [req.x0, req.x1] if req.x0 is not None and req.x1 is not None else None
-        xd, yd, dec = decimate_for_view(t, y, rng, points)
+        xd, yd, dec = view_shifted(t, y, off, rng, points)
         out.append({"id": sid, "n": int(len(xd)), "total": int(len(t)), "decimated": bool(dec),
                     "x": b64(xd, np.float64), "y": b64(yd, np.float32)})
     return {"series": out}
@@ -63,9 +63,9 @@ def cursor_values(req: CursorRequest):
     vals: Dict[str, Optional[float]] = {}
     for sid in req.signals:
         try:
-            t, y = store.signal(sid)
+            t, y, off = store.signal_parts(sid)
             # states, text values and other discrete signals: the value in force, never interpolated
-            v = hold_at(t, y, req.t) if store.is_state(sid) else interp_at(t, y, req.t)
+            v = hold_at(t, y, req.t - off) if store.is_state(sid) else interp_at(t, y, req.t - off)
             vals[sid] = None if v is None or not np.isfinite(v) else float(v)
         except KeyError:
             vals[sid] = None
@@ -85,21 +85,22 @@ def neighbor(req: NeighborRequest):
     """Time of the sample `steps` samples after / before time `t` (no interpolation):
     what the arrow keys use to move the cursor from one recorded value to the next."""
     try:
-        t, _ = store.signal(req.signal)
+        t, _, off = store.signal_parts(req.signal)
     except KeyError:
         fail(404, "Signal not found.")
     n = len(t)
     if n == 0:
         return {"t": req.t, "index": None}
     k = int(req.steps)
+    q = req.t - off
     if k >= 0:
-        i = int(np.searchsorted(t, req.t, side="right")) + max(0, k - 1)   # first sample after t
+        i = int(np.searchsorted(t, q, side="right")) + max(0, k - 1)       # first sample after t
         if k == 0:
-            i = max(0, int(np.searchsorted(t, req.t, side="left")))
+            i = max(0, int(np.searchsorted(t, q, side="left")))
     else:
-        i = int(np.searchsorted(t, req.t, side="left")) - 1 - (-k - 1)     # last sample before t
+        i = int(np.searchsorted(t, q, side="left")) - 1 - (-k - 1)         # last sample before t
     i = min(n - 1, max(0, i))
-    return {"t": float(t[i]), "index": i}
+    return {"t": float(t[i]) + off, "index": i}
 
 
 
@@ -153,10 +154,10 @@ def limits(req: LimitsRequest):
     out: dict = {}
     for it in req.items:
         try:
-            t, y = store.signal(it.id)
+            t, y, off = store.signal_parts(it.id)
         except KeyError:
             continue
-        tt = np.asarray(t, dtype=np.float64) + it.tOffset
+        tt = np.asarray(t, dtype=np.float64) + (it.tOffset + off)      # one copy, not two
         yy = np.asarray(y, dtype=np.float64) * (it.scale or 1.0) + it.offset
         out[it.id] = check_limits(tt, yy, it.lo, it.hi, req.t0, req.t1)
     return {"results": out}
@@ -178,10 +179,10 @@ def envelope_view(req: EnvelopeRequest):
     series, ids = [], []
     for s in req.signals:
         try:
-            t, y = store.signal(s["id"])
+            t, y, off = store.signal_parts(s["id"])
         except KeyError:
             continue
-        series.append((np.asarray(t, dtype=np.float64) + float(s.get("tOffset") or 0),
+        series.append((np.asarray(t, dtype=np.float64) + (float(s.get("tOffset") or 0) + off),
                        np.asarray(y, dtype=np.float64) * float(s.get("scale", 1) or 1) + float(s.get("offset") or 0)))
         ids.append(s["id"])
     r = envelope(series, req.t0, req.t1, req.points, max(0.0, min(req.pct, 49.0)))
@@ -291,7 +292,7 @@ def sparks(req: SparkRequest):
     out: dict = {}
     for sid in req.signals[:200]:
         try:
-            t, y = store.signal(sid)
+            t, y, _off = store.signal_parts(sid)        # the shape only: the time offset does not matter
             out[sid] = spark(t, y, max(8, min(int(req.points), 120)))
         except (KeyError, ValueError, TypeError):     # closed, or not numeric: no picture
             out[sid] = None
@@ -306,8 +307,8 @@ def stats(req: StatsRequest):
     seg_total, seg_count = 0.0, 0
     if req.state and req.stateValues:
         try:
-            st, sy = store.signal(req.state)
-            st = np.asarray(st, dtype=np.float64) + req.stateOffset
+            st, sy, soff = store.signal_parts(req.state)
+            st = np.asarray(st, dtype=np.float64) + (req.stateOffset + soff)
             where = (st, sy)
         except KeyError:
             fail(404, "The state signal is no longer open.")
@@ -321,18 +322,20 @@ def stats(req: StatsRequest):
                 seg_count += 1
     for sid in req.signals:
         try:
-            t, y = store.signal(sid)
+            t, y, off = store.signal_parts(sid)        # P1: the window shifted; the stats cache hits again
         except KeyError:
             continue
+        t0 = None if req.t0 is None else req.t0 - off
+        t1 = None if req.t1 is None else req.t1 - off
         if where is None:
-            s = compute_signal_stats(t, y, req.t0, req.t1)
+            s = compute_signal_stats(t, y, t0, t1)
         else:
             t = np.asarray(t, dtype=np.float64)
-            m = state_mask(t, where[0], where[1], req.stateValues)
-            if req.t0 is not None:
-                m &= t >= req.t0
-            if req.t1 is not None:
-                m &= t <= req.t1
+            m = state_mask(t, where[0] - off, where[1], req.stateValues)
+            if t0 is not None:
+                m &= t >= t0
+            if t1 is not None:
+                m &= t <= t1
             # the mask, not t[m]: the time between two stretches is not a gap to weigh (A3)
             s = compute_signal_stats(t, y, mask=m) if m.any() else {}
             if s:
@@ -358,22 +361,22 @@ class SpecRequest(BaseModel):
 def spectrogram_ep(req: SpecRequest):
     """Spectrogram image of one signal over the visible time window (power in dB, 0..255 coded)."""
     try:
-        t, y = store.signal(req.signal)
+        t, y, off = store.signal_parts(req.signal)     # P1: redrawn on every pan - no time copy
     except KeyError:
         fail(404, "The signal is no longer open.")
     try:
-        r = make_spectrogram(t, y, req.x0, req.x1, int(max(64, min(req.nfft, 16384))),
+        r = make_spectrogram(t, y, None if req.x0 is None else req.x0 - off, None if req.x1 is None else req.x1 - off, int(max(64, min(req.nfft, 16384))),
                              int(max(50, min(req.width, 3000))), int(max(50, min(req.height, 1500))), req.fmax)
     except ValueError as e:
         fail(400, str(e))
     f = r["f"]
     step = float(f[1] - f[0]) if len(f) > 1 else r["df"]
     return {"nf": int(len(f)), "nt": int(len(r["t"])), "f0": max(0.0, float(f[0]) - step / 2), "f1": float(f[-1]) + step / 2,
-            "t0": float(r["t"][0]), "t1": float(r["t"][-1]), "img": base64.b64encode(np.ascontiguousarray(r["img"]).tobytes()).decode(),
+            "t0": float(r["t"][0]) + off, "t1": float(r["t"][-1]) + off, "img": base64.b64encode(np.ascontiguousarray(r["img"]).tobytes()).decode(),
             "dbLo": r["dbLo"], "dbHi": r["dbHi"], "fs": r["fs"], "nfft": r["nfft"], "df": r["df"], "dt": r["dt"],
             # F24: the signal's own extent - the whole-signal view spans it like the signal's time plot
             # (the image itself starts and ends half a window inside)
-            "sigT0": float(t[0]), "sigT1": float(t[-1])}
+            "sigT0": float(t[0]) + off, "sigT1": float(t[-1]) + off}
 
 
 

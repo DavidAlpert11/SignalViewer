@@ -83,7 +83,7 @@ against logs from real vehicles, field by field, with their projects' own reader
 
 <div class="grid cards" markdown>
 
--   :material-sine-wave: **Validation** – spectra, filters, statistics, Compare, conditions, formulas and frames, 28 cases,
+-   :material-sine-wave: **Validation** – spectra, filters, statistics, Compare, conditions, formulas and frames, plot speed, 29 cases,
     with the expected and measured values. Run them yourself: `signalviewer-cli validate`.
     [:octicons-arrow-right-24: Validation](validation.md)
 

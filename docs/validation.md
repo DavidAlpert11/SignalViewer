@@ -42,8 +42,9 @@ signalviewer-cli validate --junit v.xml    # the same as JUnit XML, for a qualif
 | V26 | **Conditions** – Mode == 5 on a change-only mode signal (0 at 0 s, 2 at 10 s, 5 at 20 s, 3 at 30 s): start of the stretch | the mode is in force from its change: 20 s (resolution one sample of the 100 Hz signal, 0.01 s) | 20 s | 20 s | 0.01 s | ✓ |
 | V27 | **Formulas** – A formula of a state signal (10 x mode; modes 0, 2, 5, 3): values the state does not have | the value in force, never an interpolation: 0 | 0 | 0 | exact | ✓ |
 | V28 | **Formulas** – Sum and norm of three signals with one missing input: values that are not missing at that sample | a missing input makes the result missing: 0 | 0 | 0 | exact | ✓ |
+| V29 | **Plots** – A plot request (a zoomed window of 5 million samples) on a run with a time offset: time relative to the same request without one | the offset shifts the window and the drawn points, not the whole time vector: within 2 (the median of 9 requests; reported as 1 when within 2, the measured ratio when not - so the page does not change with the machine) | 1 x | 1 x | exact | ✓ |
 
-**28 of 28 cases within tolerance** (Signal Viewer 1.22.0).
+**29 of 29 cases within tolerance** (Signal Viewer 1.22.0).
 
 *Measured* is what this version computes, rounded for the page. *Tolerance* is the largest allowed
 |measured − expected|; where a case reads a spectrum or a time from samples, it is the resolution of

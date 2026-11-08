@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Next: Phase 3** - P1 (with V29), P2, P3, P4, P5;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). Next: P2, P3, P4, P5;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -193,7 +193,7 @@ Progress board:
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☑ done |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☑ done |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☑ done |
-| P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☐ |
+| P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☑ done |
 | P2 | One byte-bounded, locked LRU cache | 3 | ☐ |
 | P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☐ |
 | P4 | Open several files concurrently within the memory budget | 3 | ☐ |
@@ -458,6 +458,39 @@ temporary file + rename).
 **Tests run:** test_atomic_write.py (5, new); the 42 test files that save sessions / templates / settings
 / reports / exports or touch prefs, readers, pyops, jobs, sweeps: 829 passed, 14 skipped; mypy on the 10
 changed modules clean; e2e test_workflows, test_findings_report, test_template_tabs (33).
+
+### P1 · Run time offsets without copying
+**Status: done 2026-11-08.**
+**Measured before** (one signal of 20M samples, median of 7 requests through the API; tracemalloc peak):
+
+| request | no offset | offset, before | offset, after |
+|---|---|---|---|
+| /api/data zoomed | 3.5 ms, 0.2 MB | 51.2 ms, 160 MB | 3.7 ms, 0.2 MB |
+| /api/data whole | 3.2 ms | 48.2 ms, 160 MB | 3.4 ms |
+| /api/cursor | 2.5 ms | 49.6 ms, 160 MB | 3.3 ms |
+| /api/stats window | 2.6 ms | 458 ms, 570 MB (cache miss) | 2.6 ms |
+| /api/neighbor | 3.0 ms | 52.8 ms, 160 MB | 2.4 ms |
+
+**Made:** `Run.signal_parts(name)` -> (stored time, data, offset) (`get_signal_data` built on it, unchanged);
+`Store.signal_parts(sig_id)` (a transformed or derived signal: its own time, offset 0 - their results
+are cached once per version); `decimate.view_shifted` (window shifted by -offset, display points +offset).
+Routes on it: /api/data, /api/cursor, /api/neighbor, /api/stats (window and state mask), /api/limits and
+/api/envelope (one copy instead of two - they add the plot's own tOffset anyway), /api/sparks (shape only),
+/api/spectrogram (redrawn on every pan). The stats cache (keyed on the time array's identity) hits again.
+**Callers of store.signal() reviewed (46):** kept as they are, because they need the whole shifted time
+and run once per user action, not per redraw - compare (both runs aligned), analysis.py (FFT, derived
+previews, frames, XY / maps, conditions through investigate), export (CSV), report (figures), checks (the
+CLI's own store), the segment list / windows / error segments, the store's derived recipes (computed once
+per version). Run.get_signal_data's other callers (sync.py, health.py) also once per action.
+**V29** (validate): a 5M-sample zoomed request on a run with an offset vs without, median of 9 (in svcore:
+Run.signal_parts + view_shifted - what /api/data does). Reports 1 when within 2x, the ratio when not, so
+docs/validation.md does not change with the machine. Measured 1.07; with the old copy 20.7 (fails).
+**Tests run:** test_offset_nocopy.py (7, new: every changed endpoint gives exactly the answers of a run whose
+time already includes the offset - binary-fraction times so both are exact; signal_parts returns the stored
+array; the stats cache hits; 2 of them fail on the old code), the 14 files touching the data routes /
+decimate / offsets / validation: 190 passed; validate 29 / 29 (docs/validation.md regenerated, index.md 29
+cases); mypy on the 5 changed modules clean; e2e test_what_changed, test_aligned_plots, test_features -k
+offset / align / sync / cursor / stats (23). No frontend change.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3008,3 +3041,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · C3b done: *Missing values* in Create signals (sum / mean / min / max / norm / integral), the derived list marks skipped / bridged / unknown / infinite; tsc + build; e2e test_missing_choice (new, 2), test_update_rate, test_features + test_workflows (154 passed). Next: O2.
 - 2026-11-08 · O2 done: .bin - the message before a damaged block and damage-only instances left out (0 phantom signals in 60 fuzz seeds, was 31); .ulg - damaged parameters / messages / time stamps left out, the log opens; unexpected loader errors say what to do; tests: test_damaged_files (+20) and 28 related files, 482 passed; validate; mypy; tsc + build; e2e test_damaged_note (new) + 3 files. Next: O3.
 - 2026-11-08 · O3 done: `atomic_path` / `atomic_open` / `atomic_write` (app/atomic.py, from app/common.py) for sessions, autosave, templates, settings, readers / layouts, reports, Recordings' saves, Sweeps' study / templates / report; tests: test_atomic_write (new, 5) + 42 related files, 829 passed; mypy; e2e test_workflows, test_findings_report, test_template_tabs. Phase 2 done; patch next.
+- 2026-11-08 · Owner applied the Phase 2 patch (`a39b8d5`). P1 done: `signal_parts` / `view_shifted`, the per-request routes shift the window (20M samples with an offset: 51 -> 3.7 ms, 160 -> 0.2 MB; stats 458 -> 2.6 ms); V29 in validate (29 / 29); tests: test_offset_nocopy (new, 7) + 14 files, 190 passed; mypy; e2e test_what_changed, test_aligned_plots, test_features -k offset (23). Next: P2.
