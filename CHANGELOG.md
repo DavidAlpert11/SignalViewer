@@ -17,6 +17,7 @@
 
 ### Added (26.A5)
 - **The app's guesses are shown and can be corrected.** Whether a numeric signal is a state (held between its samples - a flight mode number, a gear) or a value (interpolated) was decided by the app alone; a counter of a few whole numbers was held, a mode logged as a float was interpolated. Now the signal list's right-click has *Read between samples as ▸* with what was detected and the choice - by signal name, in every open file, kept in the session and undone with Ctrl+Z; cursor values, formulas, conditions and operations follow it. The map / 3D object dialog's *Automatic* angle unit now says what it takes the angles to be and why (*automatic - degrees (one of the angles goes beyond 2π)*).
+- **One design system** (26.U1): every text size, corner, spacing and colour of the interface comes from one set of tokens - a type scale of nine steps instead of about thirty sizes, five corner radii, a spacing scale, and semantic colours. Pass / fail greens and reds now follow the theme (they were fixed colours: green text on white was hard to read), and a few labels that ignored *Settings ▸ Text size* follow it now.
 
 ### Performance
 - **A run moved in time (a time offset) is as fast as one that is not** (P1). Every plot redraw, cursor value, step to the next sample, statistics and spectrogram of a shifted run copied its whole time vector: with 20 million samples about 50 ms and 160 MB per signal per request (statistics 460 ms - their cache never hit). Now the window is shifted instead: about 3 ms and no copy, the same as without an offset.

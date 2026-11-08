@@ -121,7 +121,7 @@ export default function ReportPanel() {
           <button className="btn outline" style={{ flex: "0 0 auto" }} disabled={!!busy} onClick={preview}>{busy === "preview" ? t("loading") : t("reportPreview")}</button>
           <button className="btn primary" disabled={!!busy} onClick={() => make("html")}>{busy === "html" ? t("loading") : t("makeHtml")}</button>
         </div>
-        <p className="hint" style={{ fontSize: 12, margin: "6px 0 10px" }}>{t("htmlHint")}</p>
+        <p className="hint" style={{ fontSize: "var(--fs-m)", margin: "6px 0 10px" }}>{t("htmlHint")}</p>
         <div className="arow">
           <button className="btn outline" disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? t("loading") : "PDF"}</button>
           <button className="btn outline" disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? t("loading") : "Word"}</button>
