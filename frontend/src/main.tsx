@@ -9,6 +9,7 @@ import { installErrorReporting } from "./errorReport";
 import { loadPrefs } from "./prefs";
 import { applySettings } from "./settings";
 import { watchNewerOnDisk } from "./fileTimes";
+import { watchReadAs } from "./readAs";
 
 installErrorReporting();             // T38: UI errors into the local log
 
@@ -19,5 +20,6 @@ installErrorReporting();             // T38: UI errors into the local log
 loadPrefs().finally(() => {
   applySettings();
   watchNewerOnDisk();          // Q123: a file saved again on the disk - its time turns amber, click to read it
+  watchReadAs();               // 26.A5: the user's "read as a state / a value" -> the backend
   createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
 });

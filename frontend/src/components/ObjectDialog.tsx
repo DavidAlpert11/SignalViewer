@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { actions, nextColor, uid, useApp, type MapObject, type ObjectKind } from "../store";
 import { useT, type TKey } from "../i18n";
 import { iconSvg, OBJECT_KINDS } from "./mapIcons";
@@ -6,7 +6,7 @@ import { guessRoles, QUAT_ROLES, ROLES, type Role } from "../mapObjects";
 import { useEscape } from "./Overlays";
 import SignalField from "./SignalField";
 import { AXES, createFrameGroup, createSmoothGroup, frameGroupName } from "../frames";
-import type { SignalInfo } from "../api";
+import { api, type SignalInfo } from "../api";
 
 /* Q101 / Q102: the position may come in ECEF, NED or ENU (m) instead of latitude / longitude, and
    may be smoothed over a window in seconds. Both are derived signals ("frame" position -> LLA, then
@@ -64,6 +64,17 @@ export default function ObjectDialog() {
       alt: g.alt ?? null, yaw: g.yaw ?? null, pitch: g.pitch ?? null, roll: g.roll ?? null,
       qw: g.qw ?? null, qx: g.qx ?? null, qy: g.qy ?? null, qz: g.qz ?? null, angleUnit: "auto", trail: true };
   });
+  // 26.A5: what "Automatic" takes the angles to be, and why - shown in the choice, so it can be checked
+  const [guess, setGuess] = useState<{ unit: "deg" | "rad"; why: string } | null>(null);
+  useEffect(() => {
+    if (!o.yaw && !o.pitch && !o.roll) { setGuess(null); return; }
+    let gone = false;
+    api.angleUnits({ yaw: o.yaw, pitch: o.pitch, roll: o.roll }).then((r) => {
+      const all = Object.values(r.units);
+      if (!gone) setGuess(all[0] ?? null);          // one rule for all the angles (or each by its name)
+    }).catch(() => { if (!gone) setGuess(null); });
+    return () => { gone = true; };
+  }, [o.yaw, o.pitch, o.roll]);
   const runOf = (sig?: string | null) => (sig ? sig.slice(0, sig.indexOf("/")) : "");
   const [mainRun, setMainRun] = useState(runOf(o.lat) || data[0]?.id || "");
   // the attitude: three angles, or a quaternion (four signals - e.g. a PX4 log has only that)
@@ -236,7 +247,7 @@ export default function ObjectDialog() {
           <div className="obj-row">
             <label><span>{t("objAngleUnit")}</span>
               <select value={o.angleUnit ?? "auto"} onChange={(e) => setO({ ...o, angleUnit: e.target.value as MapObject["angleUnit"] })}>
-                <option value="auto">{t("objUnitAuto")}</option><option value="deg">{t("objUnitDeg")}</option><option value="rad">{t("objUnitRad")}</option>
+                <option value="auto">{guess && !quat ? `${t("objUnitAuto")} - ${t(guess.unit === "deg" ? "objUnitDeg" : "objUnitRad")} (${t(("objUnitWhy_" + guess.why) as TKey)})` : t("objUnitAuto")}</option><option value="deg">{t("objUnitDeg")}</option><option value="rad">{t("objUnitRad")}</option>
               </select></label>
             {o.alt && <label><span>{t("objAltRef")}</span>
               <select value={o.altRef ?? "msl"} onChange={(e) => setO({ ...o, altRef: e.target.value as MapObject["altRef"] })}>

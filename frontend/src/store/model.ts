@@ -109,6 +109,9 @@ export interface Workspace { tabs: Tab[]; activeTab: string; report?: ReportMeta
   /** U1: tabs of a template that were not opened with it, offered by "+N more from <template>"
    *  beside the tab bar's + (optional: older sessions have none). */
   moreTabs?: MoreTabs[];
+  /** 26.A5: how a numeric signal is read between samples, by signal NAME (every file), as the user
+   *  corrected it - "state" (held) or "value" (interpolated); absent = detected (readAs.ts). */
+  readAs?: Record<string, "state" | "value">;
 }
 export interface SigGroupDef { name: string; sigs: string[] }
 /** A row of the overview strip: a state signal by NAME (every file), or a named condition. */

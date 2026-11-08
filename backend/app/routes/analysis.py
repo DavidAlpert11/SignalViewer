@@ -341,6 +341,45 @@ def _unit_guess(v: np.ndarray) -> str:
     return "rad" if len(f) and np.nanmax(np.abs(f)) <= 2 * np.pi + 0.05 else "deg"
 
 
+def angle_units(raw: Dict[str, tuple]) -> Dict[str, Tuple[str, str]]:
+    """{role: (unit, why)} for an object's angle signals {role: (sig_id, t, values)} (26.A5: shown with
+    "Automatic", so the guess can be checked and corrected). why: "name" - the signal's name says it
+    ("... [rad]", "_deg"); else all the object's angles together - "beyond" (one of them goes beyond
+    2 pi: degrees, one log uses one unit) or "within" (all within 2 pi: radians). (By its own range
+    alone a pitch of a few degrees would pass for radians.)"""
+    beyond = any(len(v[2]) and np.nanmax(np.abs(np.asarray(v[2], dtype=np.float64))) > 2 * np.pi + 0.05 for v in raw.values())
+    out: Dict[str, Tuple[str, str]] = {}
+    for role, (sid, _ts, _vs) in raw.items():
+        name = sid.split("/", 1)[-1].lower()
+        if re.search(r"(\[rad\]|\brad\b|_rad\b|\(rad\))", name):
+            out[role] = ("rad", "name")
+        elif re.search(r"(\[deg\]|\bdeg\b|_deg\b|\(deg\)|°)", name):
+            out[role] = ("deg", "name")
+        else:
+            out[role] = ("deg", "beyond") if beyond else ("rad", "within")
+    return out
+
+
+class AngleUnitsRequest(BaseModel):
+    yaw: Optional[str] = None
+    pitch: Optional[str] = None
+    roll: Optional[str] = None
+
+
+@router.post("/api/angle_units")
+def angle_units_ep(req: AngleUnitsRequest):
+    """26.A5: what "Automatic" takes an object's angles to be, and why (the object dialog shows it)."""
+    raw = {}
+    for role in ("yaw", "pitch", "roll"):
+        sid = getattr(req, role)
+        if sid:
+            try:
+                raw[role] = (sid, *store.signal(sid))
+            except KeyError:
+                continue
+    return {"units": {r: {"unit": u, "why": w} for r, (u, w) in angle_units(raw).items()}}
+
+
 
 @router.post("/api/object_track")
 def object_track(req: ObjectTrackRequest):
@@ -407,21 +446,13 @@ def object_track(req: ObjectTrackRequest):
             raw[role] = (sid, *store.signal(sid))
         except KeyError:
             continue
-    # angle units: the signal's name says it ("... [rad]", "_deg"), else the object's angles together -
-    # if any of them goes beyond 2 pi they are all degrees (one log uses one unit), else radians.
-    # (By its own range alone, a pitch of a few degrees would pass for radians.)
-    angles = {r: v for r, v in raw.items() if r != "alt"}
-    beyond = any(np.nanmax(np.abs(np.asarray(v[2], dtype=np.float64))) > 2 * np.pi + 0.05 for v in angles.values() if len(v[2]))
+    # angle units: the name, else the object's angles together (angle_units, 26.A5: with why)
+    guess = angle_units({r: v for r, v in raw.items() if r != "alt"})
+    out["unitWhy"] = {}
     for role, (sid, ts, vs) in raw.items():
         v = onto(ts, vs, angle=role != "alt")
         if role != "alt":
-            name = sid.split("/", 1)[-1].lower()
-            if re.search(r"(\[rad\]|\brad\b|_rad\b|\(rad\))", name):
-                out["units"][role] = "rad"
-            elif re.search(r"(\[deg\]|\bdeg\b|_deg\b|\(deg\)|°)", name):
-                out["units"][role] = "deg"
-            else:
-                out["units"][role] = "deg" if beyond else "rad"
+            out["units"][role], out["unitWhy"][role] = guess[role]
         out[role] = b64(v, np.float32)
     # a quaternion (Hamilton, w first; body to NED as PX4 logs it) -> roll / pitch / yaw in radians,
     # for the angles not given as signals
@@ -468,12 +499,30 @@ def object_track(req: ObjectTrackRequest):
 
 @router.get("/api/discrete")
 def discrete(sig: str):
-    """On-demand discrete-signal check (wide files skip it at load)."""
+    """On-demand discrete-signal check (wide files skip it at load) - and why (26.A5): what was
+    detected (a few whole-number levels: how many), and the user's correction for its name."""
     try:
-        store.signal(sig)
+        _t, y = store.signal(sig)
     except KeyError:
         fail(404, "Signal not found.")
-    return {"discrete": store.is_discrete(sig)}
+    detected = store.detected_discrete(sig)
+    levels = None
+    if detected:
+        v = np.asarray(y[:: max(1, len(y) // 200_000)], dtype=np.float64)
+        levels = int(len(np.unique(v[np.isfinite(v)])))
+    return {"discrete": store.is_discrete(sig), "detected": detected, "levels": levels,
+            "readAs": store.read_as.get(sig.partition("/")[2])}
+
+
+class ReadAsRequest(BaseModel):
+    names: Dict[str, str] = {}          # signal name -> "state" | "value"
+
+
+@router.post("/api/read_as")
+def read_as(req: ReadAsRequest):
+    """26.A5: how numeric signals are read between samples, as the user corrected it (by name)."""
+    store.set_read_as(req.names)
+    return {"runs": store.list()}
 
 
 

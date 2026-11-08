@@ -134,6 +134,10 @@ class Store:
         self.marks: Dict[str, Dict[str, str]] = {}
         self.live = LiveWatcher(self)             # live mode: what was added to the open files (A1)
         self._pending: set = set()                # P4: files of a batch being opened at once (their names)
+        # 26.A5: how a numeric signal is read between its samples, by signal NAME (every file), as the
+        # user corrected it: "state" (held - the value in force) or "value" (interpolated); absent =
+        # detected (is_discrete). Kept in the workspace (ws.readAs) and sent here (/api/read_as).
+        self.read_as: Dict[str, str] = {}
 
     # ------------------------------------------------------------------ files
     def open_file(self, path: str, settings: Optional[dict] = None) -> LoadedRun:
@@ -699,6 +703,9 @@ class Store:
             d = self.derived.get(name)
             return ("d", name, d.serial, tuple(self.version(s) for s in d.sources)) if d else None
         base = self._raw_version(sig_id)
+        fix = self.read_as.get(name)
+        if base and fix is not None:                  # 26.A5: read another way -> what is made from it changes
+            base = (*base, fix)
         spec = self.transforms.get(sig_id)
         return (base, self._ref_versions(sig_id, spec), json.dumps(spec, sort_keys=True)) if (base and spec) else base
 
@@ -827,10 +834,24 @@ class Store:
         return sg.labels if sg is not None else None
 
     def is_state(self, sig_id: str) -> bool:
-        """Text values, or a numeric signal with a few whole-number levels (gear, mode number...)."""
+        """Text values, or a numeric signal with a few whole-number levels (gear, mode number...) - or
+        what the user said it is (26.A5; texts are always states)."""
         return bool(self.labels(sig_id)) or self.is_discrete(sig_id)
 
+    def set_read_as(self, names: Dict[str, str]) -> None:
+        """26.A5: the user's corrections, all of them (the workspace's map replaces the old one)."""
+        clean = {str(k): v for k, v in (names or {}).items() if v in ("state", "value")}
+        with self._lock:
+            self.read_as = clean
+
     def is_discrete(self, sig_id: str) -> bool:
+        """A numeric signal read as a state: the user's correction for its name, else detected."""
+        fix = self.read_as.get(sig_id.partition("/")[2])
+        if fix is not None and not sig_id.startswith(DERIVED_ID + "/"):
+            return fix == "state"
+        return self.detected_discrete(sig_id)
+
+    def detected_discrete(self, sig_id: str) -> bool:
         # one entry per signal, for its current version: keyed by version it gained an entry per
         # signal on every live update (a slow leak over a long live session)
         # the same loaded file and the same edit: rows appended in live mode do not turn a signal

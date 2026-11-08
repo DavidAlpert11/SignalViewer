@@ -414,7 +414,12 @@ export const api = {
   /** a plot as PNG (scale 2: for a report, twice the pixels), SVG or an interactive HTML page */
   image: (path: string, format: "png" | "svg" | "html", theme: string, plot: unknown, scale = 1, lang = "en") =>
     call<{ path: string }>("/api/export/image", { path, format, theme, plot, scale, lang }),
-  discrete: (sig: string) => call<{ discrete: boolean }>(`/api/discrete?sig=${encodeURIComponent(sig)}`),
+  discrete: (sig: string) => call<{ discrete: boolean; detected?: boolean; levels?: number | null; readAs?: "state" | "value" | null }>(`/api/discrete?sig=${encodeURIComponent(sig)}`),
+  /** 26.A5: the user's corrections (the workspace's whole map) -> the backend; the runs come back */
+  readAs: (names: Record<string, "state" | "value">) => call<{ runs: RunInfo[] }>("/api/read_as", { names }),
+  /** 26.A5: what "Automatic" takes an object's angles to be, and why */
+  angleUnits: (roles: { yaw?: string | null; pitch?: string | null; roll?: string | null }) =>
+    call<{ units: Record<string, { unit: "deg" | "rad"; why: "name" | "beyond" | "within" }> }>("/api/angle_units", roles),
   recent: () => call<{ items: RecentItem[] }>("/api/recent"),
   forgetRecent: (path: string) => call<{ items: RecentItem[] }>("/api/recent/forget", { path }),
   forgetImport: (path: string) => call<{ ok: boolean }>("/api/import/forget", { path }),

@@ -1,4 +1,5 @@
 import { DATA_EXTS } from "../values";
+import { readAsItem } from "../readAs";
 import { laneMenuForSignal } from "../lanes";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { groupByPrefix, groupDerived, memberLabel, subGroups } from "../signalGroups";
@@ -215,6 +216,8 @@ export default function DataPanel() {
     createSignalItem(sig.id),
     // a state (texts, or a few values): a lane on the tab or on every tab without adding it to a plot first
     ...(sig.labels || sig.discrete ? [{ label: "", run: () => {}, sep: true }, ...laneMenuForSignal(sig.id)] : []),
+    // 26.A5: held or interpolated between samples - what was detected, and the user's correction
+    ...(() => { const it = readAsItem(sig); return it ? [it] : []; })(),
     { label: "", run: () => {}, sep: true },
     ...groupItems([sig.id], inGroup),
     ...madeItems([sig.id]),
