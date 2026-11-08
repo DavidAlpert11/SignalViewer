@@ -175,6 +175,24 @@ def _dec_range(x, y, s0, s1, n_out):
     return np.asarray(x[idx]), np.asarray(y[idx])
 
 
+def view_shifted(
+    x: np.ndarray,
+    y: np.ndarray,
+    offset: float,
+    xrange: Optional[Sequence[float]] = None,
+    n_out: Optional[int] = None,
+) -> Tuple[np.ndarray, np.ndarray, bool]:
+    """decimate_for_view of (x + offset, y) without making x + offset (P1): the window is shifted by
+    -offset and only the display points get +offset - a run's time offset costs nothing per request."""
+    rng = None
+    if xrange is not None and len(xrange) == 2 and xrange[0] is not None and xrange[1] is not None:
+        rng = [xrange[0] - offset, xrange[1] - offset]
+    xd, yd, dec = decimate_for_view(x, y, rng, n_out)
+    if offset:
+        xd = np.asarray(xd, dtype=np.float64) + offset          # (xd may be a view of x: a new array)
+    return xd, yd, dec
+
+
 def decimate_for_view(
     x: np.ndarray,
     y: np.ndarray,

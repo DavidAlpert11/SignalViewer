@@ -589,6 +589,22 @@ class Store:
         spec = self.transforms.get(sig_id)
         return self._transformed(sig_id, raw, spec) if spec and set(spec) - {"unit"} else raw   # (a unit alone: same values)
 
+    def signal_parts(self, sig_id: str) -> Tuple[np.ndarray, np.ndarray, float]:
+        """P1: (time, data, offset) with signal(sig_id) == (time + offset, data) - the run's time offset
+        NOT applied, so a lookup (a plot window, the cursor, statistics) costs no copy of the time
+        vector. A changed signal (transform) or a derived one: its own time, offset 0."""
+        run_id, _, name = sig_id.partition("/")
+        if run_id != DERIVED_ID:
+            lr = self.get(run_id)
+            if name not in lr.run.signals:
+                raise KeyError(sig_id)
+            spec = self.transforms.get(sig_id)
+            if not (spec and set(spec) - {"unit"}):
+                t, y, off = lr.run.signal_parts(name)
+                return t, y, off
+        t, y = self.signal(sig_id)
+        return t, y, 0.0
+
     def _transformed(self, sig_id: str, raw, spec: dict):
         key = (sig_id, self._raw_version(sig_id), self._ref_versions(sig_id, spec), json.dumps(spec, sort_keys=True))
         hit = self._tcache.get(key)

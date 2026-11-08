@@ -201,17 +201,22 @@ class Run:
     def signal_names(self) -> List[str]:
         return list(self.signals.keys())
     
-    def get_signal_data(self, signal_name: str) -> tuple:
-        """Get (time, data) for a signal, with offsets applied"""
+    def signal_parts(self, signal_name: str) -> tuple:
+        """(time as stored, data, time offset): the signal's time is time + offset. P1: callers that
+        only look up a window or a moment shift the question by -offset and the answer by +offset,
+        instead of copying the whole time vector (160 MB and ~45 ms for 20M samples) per request."""
         if signal_name not in self.signals:
-            return np.array([]), np.array([])
-        
+            return np.array([]), np.array([]), 0.0
         sig = self.signals[signal_name]
         time = sig.time if sig.time is not None else self.time
-        total_offset = (self.time_offset or 0.0) + (sig.time_offset or 0.0)
+        return time, sig.data, float((self.time_offset or 0.0) + (sig.time_offset or 0.0))
+
+    def get_signal_data(self, signal_name: str) -> tuple:
+        """Get (time, data) for a signal, with offsets applied"""
+        time, data, total_offset = self.signal_parts(signal_name)
         if total_offset == 0.0:
-            return time, sig.data  # no copy (important for large / memory-mapped data)
-        return time + total_offset, sig.data
+            return time, data  # no copy (important for large / memory-mapped data)
+        return time + total_offset, data
     
     def compute_metadata(self):
         """Compute metadata from time vector"""

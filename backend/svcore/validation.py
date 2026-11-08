@@ -367,6 +367,34 @@ def _v28() -> Result:
     return Result(0.0, float(np.isfinite(a[1])) + float(np.isfinite(b[1])), 0.0)
 
 
+# ------------------------------------------------------------------ performance (P1)
+
+@case("V29", "Plots", "A plot request (a zoomed window of 5 million samples) on a run with a time offset: time relative to the same request without one",
+      "the offset shifts the window and the drawn points, not the whole time vector: within 2 (the median of 9 requests; "
+      "reported as 1 when within 2, the measured ratio when not - so the page does not change with the machine)")
+def _v29() -> Result:
+    import time as _time
+    from svcore.decimate import view_shifted
+    from svcore.models import Run, Signal
+    t = np.arange(5_000_000) * 0.001
+    run = Run(file_path="v29", csv_display_name="v29", time=t)
+    run.signals["y"] = Signal(name="y", data=np.sin(t), time=t)
+
+    def request() -> float:                          # what /api/data does for one signal
+        a = _time.perf_counter()
+        x, y, off = run.signal_parts("y")
+        view_shifted(x, y, off, (2500.0, 2510.0), 4000)
+        return _time.perf_counter() - a
+
+    def median(offset: float) -> float:
+        run.time_offset = offset
+        request()                                    # warm
+        return float(np.median([request() for _ in range(9)]))
+    base, shifted = median(0.0), median(12.5)
+    ratio = shifted / max(base, 1e-6)
+    return Result(1.0, 1.0 if ratio <= 2.0 else ratio, 0.0, "x")
+
+
 def run_all() -> List[Dict]:
     """Every case as a row: id, area, title, reference, expected, measured, error, tol, unit, ok
     (a case that raises is a failed row with the error as its reference note)."""
