@@ -1,9 +1,16 @@
 """
 Run comparison (phase 4).
 
-The same signal from several runs is resampled onto one time grid (the baseline's
-samples inside the common overlap, at most `max_points` of them) and compared to a
-baseline: a chosen run, or the mean of all runs.
+The same signal from several runs is compared to a baseline: a chosen run, or the mean of all runs.
+
+C1 - judged at full resolution, in both directions. Each run is a piecewise-linear curve between its
+own samples, so the largest difference between two runs is at a sample of one of them: `pass`,
+`withinPct` and `maxAbsDiff` are computed on the union of the run's and the baseline's samples
+inside the overlap (the run's samples against the baseline interpolated there, and the baseline's
+samples against the run). The descriptive numbers (RMS, mean, std, correlation, the profile) use
+the baseline's own samples, all of them. Only the drawn difference trace is decimated. Before C1
+everything ran on the baseline's samples strided down to `max_points` (200k in the CLI, 20k-50k in
+the UI list), so a short excursion - or one between two samples of a slow golden run - passed.
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -50,12 +57,67 @@ def _circular_mean(rows: np.ndarray, period: float) -> np.ndarray:
     return np.arctan2(np.nanmean(np.sin(a), axis=0), np.nanmean(np.cos(a), axis=0)) * (period / (2 * np.pi))
 
 
-def _grid(base_t: np.ndarray, lo: float, hi: float, max_points: int) -> np.ndarray:
+def _grid(base_t: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    """The baseline's own samples inside [lo, hi] - all of them (C1: no stride)."""
     i0, i1 = np.searchsorted(base_t, lo, "left"), np.searchsorted(base_t, hi, "right")
-    g = np.asarray(base_t[i0:i1], dtype=np.float64)
-    if len(g) > max_points:
-        g = g[:: int(np.ceil(len(g) / max_points))]
-    return g
+    return np.asarray(base_t[i0:i1], dtype=np.float64)
+
+
+def _union(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """The sorted union of two sample-time vectors (both already inside the overlap)."""
+    if len(a) == len(b) and np.array_equal(a, b):
+        return a
+    return np.union1d(a, b)
+
+
+def _widen(v: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float]) -> np.ndarray:
+    """The allowed difference at a baseline value: the larger of abs and pct x |value| (SDI)."""
+    w = np.zeros(len(v))
+    if tol_abs is not None:
+        w = np.maximum(w, abs(tol_abs))
+    if tol_pct is not None:
+        w = np.maximum(w, np.abs(v) * abs(tol_pct) / 100.0)
+    return w
+
+
+def _judge_band(grid: np.ndarray, base_g: np.ndarray, u: np.ndarray, base_u: np.ndarray,
+                tol_abs: Optional[float], tol_pct: Optional[float], tol_k: int,
+                period: Optional[float]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """The allowed difference (low, high) relative to the baseline at the judging times `u`. With a
+    time tolerance the baseline's lowest / highest within +-tol_k of ITS OWN samples (the SDI rule,
+    as before C1) is interpolated to `u`; angles have no time tolerance (as before)."""
+    if tol_abs is None and tol_pct is None and (not tol_k or period):
+        return None
+    if tol_k > 0 and not period:
+        from scipy.ndimage import maximum_filter1d, minimum_filter1d
+        lo_g = minimum_filter1d(np.where(np.isfinite(base_g), base_g, np.inf), 2 * tol_k + 1, mode="nearest")
+        hi_g = maximum_filter1d(np.where(np.isfinite(base_g), base_g, -np.inf), 2 * tol_k + 1, mode="nearest")
+        if u is grid:
+            lo_u, hi_u = lo_g, hi_g
+        else:
+            fin = np.isfinite(lo_g) & np.isfinite(hi_g)
+            lo_u = np.interp(u, grid[fin], lo_g[fin]) if fin.any() else np.full(len(u), np.nan)
+            hi_u = np.interp(u, grid[fin], hi_g[fin]) if fin.any() else np.full(len(u), np.nan)
+        lo_u = np.fmin(lo_u, base_u)
+        hi_u = np.fmax(hi_u, base_u)
+        return lo_u - _widen(lo_u, tol_abs, tol_pct) - base_u, hi_u + _widen(hi_u, tol_abs, tol_pct) - base_u
+    w = _widen(base_u, tol_abs, tol_pct)
+    return -w, w
+
+
+def _judge(u: np.ndarray, base_u: np.ndarray, other_u: np.ndarray, band: Optional[Tuple[np.ndarray, np.ndarray]],
+           period: Optional[float]) -> Dict:
+    """maxAbsDiff (and withinPct / pass with a band) over every judging time where both have data."""
+    ok = np.isfinite(base_u) & np.isfinite(other_u)
+    if not ok.any():
+        return {}
+    d = _wrap(other_u[ok] - base_u[ok], period) if period else other_u[ok] - base_u[ok]
+    res: Dict = {"maxAbsDiff": float(np.max(np.abs(d))), "judgedSamples": int(ok.sum())}
+    if band is not None:
+        inside = (d >= band[0][ok]) & (d <= band[1][ok])
+        res["withinPct"] = float(inside.mean() * 100.0)
+        res["pass"] = bool(inside.all())
+    return res
 
 
 def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float],
@@ -120,38 +182,15 @@ def metrics(base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_p
 PROFILE_BINS = 32
 
 
-def _band(base: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float], tol_k: int,
-          period: Optional[float]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-    """U5: the tolerance band around the baseline, as the allowed difference (low, high) at each
-    grid sample - the same rule as `metrics` (the larger of abs / pct, the time tolerance's
-    lowest / highest baseline within +-tol_k samples). None without a tolerance."""
-    if tol_abs is None and tol_pct is None and not tol_k:
-        return None
-
-    def widen(v: np.ndarray) -> np.ndarray:
-        w = np.zeros(len(v))
-        if tol_abs is not None:
-            w = np.maximum(w, abs(tol_abs))
-        if tol_pct is not None:
-            w = np.maximum(w, np.abs(v) * abs(tol_pct) / 100.0)
-        return w
-    if tol_k > 0 and not period:
-        from scipy.ndimage import maximum_filter1d, minimum_filter1d
-        lo_b = minimum_filter1d(np.where(np.isfinite(base), base, np.inf), 2 * tol_k + 1, mode="nearest")
-        hi_b = maximum_filter1d(np.where(np.isfinite(base), base, -np.inf), 2 * tol_k + 1, mode="nearest")
-        return lo_b - widen(lo_b) - base, hi_b + widen(hi_b) - base
-    w = widen(base)
-    return -w, w
-
-
-def difference_trace(grid: np.ndarray, base: np.ndarray, other: np.ndarray, tol_abs: Optional[float], tol_pct: Optional[float],
-                     period: Optional[float], tol_k: int, points: int) -> Dict:
-    """U5 (SDI-style difference view): run - baseline over time with the tolerance band and the
-    stretches outside it. The curve is reduced to about `points` buckets (each keeps its lowest and
-    highest difference, so a spike stays); the stretches outside are found at full resolution."""
+def difference_trace(grid: np.ndarray, base: np.ndarray, other: np.ndarray,
+                     band: Optional[Tuple[np.ndarray, np.ndarray]], period: Optional[float], points: int) -> Dict:
+    """U5 (SDI-style difference view): run - baseline over time with the tolerance band (`band`: the
+    allowed difference low / high at each `grid` time, see `_judge_band`) and the stretches outside
+    it. C1: `grid` is the full judging grid; the stretches outside are found on all of it and only the
+    curve is reduced to about `points` buckets (each keeps its lowest and highest difference, so a
+    spike stays)."""
     ok = np.isfinite(base) & np.isfinite(other)
     d = np.where(ok, _wrap(other - base, period) if period else other - base, np.nan)
-    band = _band(base, tol_abs, tol_pct, tol_k, period)
     out: List[List[float]] = []
     if band is not None:
         bad = ok & ((d < band[0]) | (d > band[1]))
@@ -176,8 +215,8 @@ def difference_trace(grid: np.ndarray, base: np.ndarray, other: np.ndarray, tol_
         sl = slice(i, min(n, i + k))
         seg = d[sl]
         fin = np.isfinite(seg)
-        lo_b = float(np.min(band[0][sl])) if band is not None else np.nan
-        hi_b = float(np.max(band[1][sl])) if band is not None else np.nan
+        lo_b = float(np.nanmin(band[0][sl])) if band is not None and np.isfinite(band[0][sl]).any() else np.nan
+        hi_b = float(np.nanmax(band[1][sl])) if band is not None and np.isfinite(band[1][sl]).any() else np.nan
         if not fin.any():
             t_out.append(float(grid[i])); d_out.append(None); lo_out.append(r(lo_b)); hi_out.append(r(hi_b))
             continue
@@ -205,11 +244,47 @@ def diff_profile(base: np.ndarray, other: np.ndarray, bins: int = PROFILE_BINS, 
     return out
 
 
+def _on(u: np.ndarray, t: np.ndarray, y: np.ndarray, alignment: str, period: Optional[float]) -> np.ndarray:
+    # an angle is unwrapped before resampling (else a 359 -> 1 step interpolates through 180)
+    return align_to(u, t, _unwrap(y, period) if period else y, alignment)
+
+
+def _mean_on(u: np.ndarray, series: List[Tuple[str, np.ndarray, np.ndarray]], alignment: str,
+             period: Optional[float]) -> np.ndarray:
+    """The mean of all runs at the times `u`, one run at a time (memory: a few vectors of len(u))."""
+    acc = np.zeros(len(u))
+    acc2 = np.zeros(len(u)) if period else None
+    cnt = np.zeros(len(u))
+    for _, t, y in series:
+        v = _on(u, t, y, alignment, period)
+        fin = np.isfinite(v)
+        if period:
+            a = v * (2 * np.pi / period)
+            acc[fin] += np.sin(a[fin])
+            assert acc2 is not None
+            acc2[fin] += np.cos(a[fin])
+        else:
+            acc[fin] += v[fin]
+        cnt += fin
+    with np.errstate(invalid="ignore", divide="ignore"):
+        if period:
+            assert acc2 is not None
+            out = np.arctan2(acc / cnt, acc2 / cnt) * (period / (2 * np.pi))
+        else:
+            out = acc / cnt
+    out[cnt == 0] = np.nan
+    return out
+
+
 def compare(series: List[Tuple[str, np.ndarray, np.ndarray]], baseline: str, alignment: str = "linear",
             tol_abs: Optional[float] = None, tol_pct: Optional[float] = None, max_points: int = 200_000,
             tol_time: Optional[float] = None, trace: int = 0) -> Dict:
     """series: [(signal id, time, data)]; baseline: a signal id from series, or "mean". trace > 0: each
-    row also has its difference over time with the tolerance band (U5, `difference_trace`)."""
+    row also has its difference over time with the tolerance band (U5, `difference_trace`).
+
+    max_points: kept for callers; since C1 nothing that is judged or reported is reduced (the CLI and
+    the UI give the same numbers whatever they pass) - only the drawn trace is, to about `trace`."""
+    del max_points
     if len(series) < 2:
         raise ValueError("Choose at least two runs to compare.")
     lo = max(float(t[0]) for _, t, _ in series)
@@ -217,29 +292,36 @@ def compare(series: List[Tuple[str, np.ndarray, np.ndarray]], baseline: str, ali
     if hi <= lo:
         raise ValueError("The runs do not overlap in time. Try aligning them in time first.")
     ref = next((s for s in series if s[0] == baseline), series[0])
-    grid = _grid(ref[1], lo, hi, max_points)
+    grid = _grid(ref[1], lo, hi)
     sid0 = series[0][0]
     period = angle_period(sid0[sid0.find("/") + 1:], [np.asarray(y, dtype=np.float64) for _, _, y in series])
-    # an angle is unwrapped before resampling (else a 359 -> 1 step interpolates through 180)
-    aligned = {sid: align_to(grid, t, _unwrap(y, period) if period else y, alignment) for sid, t, y in series}
-    if baseline == "mean":
-        stack = np.vstack(list(aligned.values()))
-        base = _circular_mean(stack, period) if period else np.nanmean(stack, axis=0)
-    else:
-        base = aligned[ref[0]]
+
+    def base_at(u: np.ndarray) -> np.ndarray:
+        return _mean_on(u, series, alignment, period) if baseline == "mean" else _on(u, ref[1], ref[2], alignment, period)
+    base = base_at(grid)
     tol_k = 0
     if tol_time and tol_time > 0 and len(grid) > 1:
         step = float(np.median(np.diff(grid)))
         tol_k = int(np.ceil(tol_time / step)) if step > 0 else 0
     rows = []
-    for sid, _, _ in series:
+    for sid, t, y in series:
         if baseline != "mean" and sid == ref[0]:
             continue
-        m = metrics(base, aligned[sid], tol_abs, tol_pct, period, tol_k)
+        other = _on(grid, t, y, alignment, period)
+        # descriptive numbers on the baseline's own samples (all of them); the band only via _judge
+        m = metrics(base, other, None, None, period)
         if m.get("valid"):
-            m["profile"] = diff_profile(base, aligned[sid], period=period)
+            t64 = np.asarray(t, dtype=np.float64)
+            own = t64[np.searchsorted(t64, lo, "left"):np.searchsorted(t64, hi, "right")]
+            u = _union(grid, own)
+            base_u = base if u is grid else base_at(u)
+            other_u = other if u is grid else _on(u, t, y, alignment, period)
+            band = _judge_band(grid, base, u, base_u, tol_abs, tol_pct, tol_k, period)
+            j = _judge(u, base_u, other_u, band, period)
+            m.update(j)
+            m["profile"] = diff_profile(base, other, period=period)
             if trace > 0:
-                m["trace"] = difference_trace(grid, base, aligned[sid], tol_abs, tol_pct, period, tol_k, trace)
+                m["trace"] = difference_trace(u, base_u, other_u, band, period, trace)
         rows.append({"id": sid, **m})
     return {"overlap": [lo, hi], "gridPoints": int(len(grid)), "baseline": baseline if baseline == "mean" else ref[0], "rows": rows,
             **({"angle": period} if period else {})}

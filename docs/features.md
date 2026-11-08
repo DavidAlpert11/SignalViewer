@@ -380,6 +380,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Computed in the background with quiet progress; changing the choice cancels the running computation on the server, waits 0.35 s for further changes, and earlier choices are cached
 - The first chosen file is the baseline by default (against the mean, two files would each show half their real difference)
 - Angles (yaw, heading, course… in deg / rad) are compared around the circle: 359° and 1° are 2° apart
+- Pass / fail and the largest difference are judged on every sample of both runs (a short excursion, or one between two samples of a slower golden run, fails) - the same verdict as `signalviewer-cli compare`
 
 ### Compare
 

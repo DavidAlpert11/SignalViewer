@@ -13,6 +13,12 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Round of 2026-11-08 (in progress)**: the owner's audit round - correctness, trust, performance,
+  a calmer UI (spec and board in "Owner's plan (2026-11-08)" below; IDs there are qualified as
+  `26.<id>` where they collide with Milestone 25). Phase 1: C1 done (Compare judged on every sample of
+  both runs). Next: C2 (zero-order hold for state signals), C3, C4. Baseline before the round: backend
+  981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
+
 - **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
   `ws.moreTabs`, the views menu), U3 the tab band (TabBand.tsx; the overview strip shows the cursors),
   U2 the findings docked beside the timeline (◆ marks), U6 the ghost on the map / 3D (`s.pointer`), U4
@@ -130,6 +136,97 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Sandbox gotchas seen so far: a background server or test run started inside a tool call may
   die when the call ends - start it with `setsid nohup ... &`. Never `pkill -f <pattern>` in the
   same shell command line that contains the pattern (it kills its own shell).
+
+## Owner's plan (2026-11-08): C, O, P, A, U, T, F - correctness, trust, performance, a calm UI
+
+**Owner:** an audit before this round listed findings; implement them one at a time with tests, a
+cumulative patch (`git format-patch origin/main..HEAD`, checked with `git am` on a fresh clone) at the
+end of every phase and whenever work stops. Product identity: *the offline judge of engineering
+recordings* - when in doubt, what makes comparing, validating and trusting results better. No scope
+growth (no new areas, formats, map or 3D features); Sweeps in maintenance mode.
+
+**IDs.** The owner's IDs are kept. U1-U8 and A1-A5 also name Milestone 25's / earlier tasks, so in
+ROADMAP and commit messages this round writes them `26.U1` ... `26.A5` (C, O, P, T, F are not taken
+in that form). *Owner to confirm.*
+
+**Testing in this round (owner, overrides CLAUDE.md's "after every change"):** per task only the
+backend test files / `-k` filters that touch the change (new behaviour: the test first), `cli.py
+validate` for numerical changes, `npx tsc -b && npm run build` + the touched views' e2e files for
+frontend changes (and the views that gain / lose space), mypy on the changed modules; the tests run
+are written in each task's notes. At the end, before any version change: everything (all backend,
+mypy app svcore signalviewer, validate, tsc + build, the whole e2e suite, tools/benchmark.py with the
+new benchmarks, `mkdocs build --strict`, the Releasing checklist).
+
+**Baseline (2026-11-08, at `77aaa4a`):** `python -m pytest backend/tests -q` 981 passed, 14 skipped;
+`python cli.py validate` 23 passed, 0 failed. No failure existed before this round.
+
+**Stop and ask the owner:** a changed default users rely on (beyond O1), removing / hiding a feature,
+a saved-format change that needs migration, a task clearly bigger than described, a finding that
+cannot be reproduced.
+
+Progress board:
+
+| # | Task | Phase | Status |
+|---|---|---|---|
+| C1 | Compare judged at full resolution, both directions | 1 | ☑ done |
+| C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☐ next |
+| C3 | Explicit missing-data policy (`params.nan`) | 1 | ☐ |
+| C4 | Validation cases V24-V29 | 1 | ☐ |
+| O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☐ (changes 1.22.0's OSM default - asked for by the owner) |
+| O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
+| O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
+| P1 | Run time offsets without copying the time vector | 3 | ☐ |
+| P2 | One byte-bounded, locked LRU cache | 3 | ☐ |
+| P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☐ |
+| P4 | Open several files concurrently within the memory budget | 3 | ☐ |
+| P5 | New benchmarks in tools/benchmark.py | 3 | ☐ |
+| 26.A1 | Remove dead code in svcore/models.py | 4 | ☐ |
+| 26.A2 | User file readers in a worker process | 4 | ☐ |
+| 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☐ |
+| 26.A4 | Transforms and derived recipes in the undoable workspace | 4 | ☐ (ask before starting if large) |
+| 26.A5 | Heuristics visible and correctable (angle unit, discrete detection) | 4 | ☐ |
+| 26.U1 | Design tokens audit (index.css) | 5 | ☐ |
+| 26.U2 | Plot styling (grids, axes, palette, hover, legend, band) | 5 | ☐ |
+| 26.U3 | Less clutter (count before / after) | 5 | ☐ |
+| 26.U4 | "Judge a run" as the main flow | 5 | ☐ |
+| 26.U5 | Per-signal tolerances in Compare, in `cli compare`'s JSON | 5 | ☐ |
+| 26.U6 | Trust badges + the network indicator | 5 | ☐ |
+| 26.U7 | Per-signal data-quality summary on open | 5 | ☐ |
+| 26.U8 | Event navigation (one list, next / previous keys) | 5 | ☐ |
+| T1 | Frontend unit tests (Vitest) | 6 | ☐ |
+| T2 | De-flake e2e (74 `wait_for_timeout`, test_quick_view) | 6 | ☐ |
+| T3 | CI: larger e2e subset, validation and benchmarks with tolerances | 6 | ☐ |
+| F1-F4 | Test specs, multi-run envelope, measurement export, reports from a spec | 7 | ☐ (ask the owner before starting) |
+
+### C1 · Compare judges at full resolution, in both directions
+**Status: done 2026-11-08.**
+**Reproduced first** (backend/tests/test_compare_fullres.py, failing on `77aaa4a`): the 10 Hz golden vs
+1 kHz run with a spike between two golden samples: PASS, maxAbsDiff 1.4e-15 (exactly as the audit).
+The 2M-sample 5 ms excursion: position-dependent - an excursion that covers a multiple of the stride
+(10 at 200k points) is seen, others are not; on the UI list's 20k grid (stride 100) it passed. The mean
+baseline missed it the same way. The trace's stretch was placed on the strided grid (1234.57 for
+1234.567).
+**Callers checked:** `app/routes/compare.py` (`/api/compare`, `compare_table` for `/api/compare/all`),
+`app/checks.py` `run_compare` (CLI), tests; `metrics()` is also used by svcore/validation.py (V15-V17) and
+test_compare_tolerance.py - kept unchanged. `difference_trace` had no other caller; `_band` removed.
+**Made:** `svcore/compare.py` - each curve is piecewise linear between its own samples, so the largest
+difference is at a sample of one of them: `pass` / `withinPct` / `maxAbsDiff` are computed on the
+union of the run's and the baseline's samples in the overlap (`_union`, `_judge_band`, `_judge`; adds
+`judgedSamples`). RMS / mean / std / correlation / profile use all the baseline's own samples (no
+stride). The time tolerance keeps the SDI rule on the baseline's own samples (min / max within
++-tol_k), its envelope interpolated to the judging times; angles still have no time tolerance. The
+mean baseline is accumulated run by run (`_mean_on`, memory O(samples), circular for angles). The
+trace is computed on the full judging grid (stretches outside exact) and only the curve is decimated.
+`max_points` is accepted and ignored, so the CLI (200k) and the UI (20k-50k) give identical numbers.
+**Changed meaning (documented):** for runs at different rates `withinPct` (and the CLI's
+`outside_pct` allowance) counts over both runs' samples, not the baseline's.
+**Measured:** 2M vs 2M same times 0.28 s, 20M 2.4 s, 2M with offset times (union 4M) 0.46 s.
+**Tests run:** test_compare_fullres.py (7, new), test_checks.py (+1 CLI exit-code test, fails on the
+old code), test_backend, test_compare_angles / _tolerance / _trace, test_flightlogs_sync,
+test_real_logs, test_segments_across, test_sim_vs_flight: 115 passed, 13 skipped; mypy
+svcore/compare.py clean. Docs: command-line.md, features.md; CHANGELOG (Unreleased ▸ Fixed).
+**Left:** V24 / V25 go into `validate` with C4. The compare list (`/api/compare/all`) now does full
+resolution for every signal - fine on the examples; P5's benchmarks should include it.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -2670,3 +2767,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-07 · ci failed on the 1.22.0 push: mypy, the 4 errors in routes/analysis.py (the course step `k` reused after an index array; numpy 2.5's stubs on the runner) - renamed `step`; mypy clean, backend 981 passed.
 - 2026-11-07 · 1.22.0 re-release (owner, after the tag, before publishing): two MODE rows on top in the ArduPilot example (the strip's default row and the tab band) -> the band leaves out what the strip shows (`stripLanes`, published by OverviewStrip), the strip's rows name the mode under each cursor line (`.ov-cur-tag`, `.ov-phase.at`); the automatic map is OpenStreetMap in both themes (was dark grey in the dark theme); every README picture / clip in the dark theme (make_readme_media `page(dark=True)`); the hero with OSM and the 3D zoomed / tilted - but the sandbox has no internet for tiles, so 00 / 05 / 28 are to be retaken on the owner's machine (`--only 00 05 28`, then make_social_preview.py); the docs site's first picture is the hero. Tests: test_tab_band rewritten.
 - 2026-11-08 · 1.22.0 re-release, the map pictures retaken with the internet (00 / 05 / 28, social-preview). The hero's 3D was empty: the wheel zooms toward the mouse, which was at the plot's middle, not on the track, so 3 steps went down into the ground beside it -> `img_00_hero` waits for the 3D tiles, points the wheel at the track's middle (projected from the scene's track lines) and takes 2 steps: the whole track, tilted (General camera, -35 deg). 05's 3D was shot before its tiles were refined (blurred) -> it waits for `globe.tilesLoaded`. Checked: one MODE.Mode row above the plots, the automatic map is OSM in the dark theme. Tests: backend pytest, mypy, tsc; e2e test_tab_band, test_template_tabs, test_overview_strip, test_map_objects, test_globe3d (22 passed).
+- 2026-11-08 · Round of 2026-11-08 started (owner's audit: C, O, P, A, U, T, F); baseline at `77aaa4a`: backend 981 passed / 14 skipped, validate 23 / 23. C1 done: Compare judged on the union of both runs' samples (svcore/compare.py); tests: test_compare_fullres (new), test_checks (+1), compare / checks / sync / real logs files - 115 passed, 13 skipped; mypy compare.py clean. Next: C2.

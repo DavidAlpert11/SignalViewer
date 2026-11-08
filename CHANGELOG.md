@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Compare judges every sample, in both directions** (C1). Pass / fail, the share within tolerance and the largest difference were computed on the baseline's samples thinned to 200,000 (the command line) or 20,000-50,000 (the Compare list), and the run was only looked at the baseline's times - so a 5 ms excursion in a long recording, or a violation between two samples of a 10 Hz golden run against a 1 kHz run, could pass. Now they are judged on all the samples of both runs inside the overlap; only the drawn difference curve is thinned (its peaks kept). The command line and the app give the same numbers. For runs at different rates the share within tolerance is now counted over both runs' samples.
+
 ## 1.22.0 – 2026-11-07
 
 Highlights: **a flight log opens on what matters, and nothing covers it** - a template opens its
