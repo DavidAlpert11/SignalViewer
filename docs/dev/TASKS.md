@@ -19,7 +19,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
   `params.nan`, old sessions restored as "legacy"), C4 done (V24-V28; V29 moves to P1). Phase 1 patch
   applied by the owner (`3110e75`). Phase 2: O1 done (offline by default, Never use the network,
-  the Online map sign). Next: O2, O3. Baseline before the round: backend
+  the Online map sign). Owner's decisions recorded (see the plan). Next, in order: C2b, C3b, O2, O3,
+  then the Phase 2 patch; the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
 - **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
@@ -163,6 +164,15 @@ new benchmarks, `mkdocs build --strict`, the Releasing checklist).
 **Baseline (2026-11-08, at `77aaa4a`):** `python -m pytest backend/tests -q` 981 passed, 14 skipped;
 `python cli.py validate` 23 passed, 0 failed. No failure existed before this round.
 
+**Owner's decisions (2026-11-08, after Phase 1):**
+1. IDs `26.U1`-`26.U8`, `26.A1`-`26.A5` for this round: approved.
+2. C2: derived signals restored from a session saved before 1.23 get `"hold": false` (their old numbers
+   kept) - **to do** (C2b below), the same way C3 restores old recipes as `"nan": "legacy"`.
+3. Saved conditions with `!=` / `not` over a missing value now give false: accepted (the fix itself).
+4. The "skip" choice on screen: answered "yes" to "now in Create signals, or wait for 26.U6?" - read as
+   **now, in Create signals** (C3b below); confirm if 26.U6 was meant.
+5. The next version is **1.23.0**.
+
 **Stop and ask the owner:** a changed default users rely on (beyond O1), removing / hiding a feature,
 a saved-format change that needs migration, a task clearly bigger than described, a finding that
 cannot be reproduced.
@@ -175,6 +185,8 @@ Progress board:
 | C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☑ done |
 | C3 | Explicit missing-data policy (`params.nan`) | 1 | ☑ done |
 | C4 | Validation cases V24-V29 | 1 | ☑ done (V24-V28; V29 with P1) |
+| C2b | Old sessions: state-source derived signals restored with `"hold": false` (owner, decision 2) | 1 | ☐ next |
+| C3b | Create signals: the missing-data choice (propagate / skip) for sum, mean, min, max, norm, integral (decision 4) | 1 | ☐ |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☑ done |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
@@ -2887,3 +2899,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · Interim patch signalviewer-phase1-partial-2026-11-08.patch (C1, C2) checked with `git am` on a fresh clone (32 tests of the changed areas passed there). C3 done: `params.nan` (propagate / skip / legacy), restored recipes without it are "legacy"; tests: test_missing_policy (new) + 22 related files, 259 passed; validate 23 / 23; mypy clean. Next: C4.
 - 2026-11-08 · C4 done: V24-V28 in validate (28 / 28), docs/validation.md regenerated; V29 moves to P1 (it would fail until the offset copy is gone). test_validation 32 passed. Phase 1 patch next.
 - 2026-11-08 · Owner applied the Phase 1 patch (`3110e75`). O1 done: Automatic = offline map, Never use the network (setting + SV_OFFLINE=1, checked in tiles.py), the Online map sign; tests: test_offline_switch (new), test_basemap, test_app_folder; e2e test_offline_map (+2), test_settings, test_globe3d, test_map_objects; tsc + build; mkdocs --strict. Next: O2.
+- 2026-11-08 · Owner answered the five questions (IDs approved; C2 old sessions keep their numbers - C2b; conditions change accepted; skip choice in Create signals - C3b; next version 1.23.0). Patch signalviewer-O1-2026-11-08.patch sent (O1 only, on `3110e75`). O2 started: only read (make_test_bin.py --corrupt exists; backend/tests/data/sample.ulg; routes/files.py turns unexpected errors into "Unexpected error while reading the file").
