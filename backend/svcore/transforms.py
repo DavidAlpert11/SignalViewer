@@ -75,7 +75,9 @@ def apply_transform(t, y, spec: dict, ref=None):
         expr = REF.sub(lambda m: f"v{names.index(m.group(1).strip()) + 1}", spec["expr"])
         expr = re.sub(r"\bx\b", "v0", expr)
         try:
-            t2, y = _evaluate_formula(expr, sources, lambda tt, ts, ys: np.interp(tt, ts, ys))
+            # C3: a change on a signal is saved in sessions without `nan`; until transforms are recipes
+            # in the workspace (26.A4) they keep the rules before 1.23 unless the spec names one
+            t2, y = _evaluate_formula(expr, sources, lambda tt, ts, ys: np.interp(tt, ts, ys), nan=str(spec.get("nan", "legacy")))
         except ValueError as e:
             raise OpError(str(e)) from None
         t = t2

@@ -33,7 +33,7 @@ _CMP = {ast.Gt: np.greater, ast.Lt: np.less, ast.GtE: np.greater_equal, ast.LtE:
         ast.Eq: np.equal, ast.NotEq: np.not_equal}
 
 
-def _funcs(t: np.ndarray):
+def _funcs(t: np.ndarray, nan: str = "propagate"):
     def _updates(x, upd, op):
         """the second argument: a rate in Hz (a number) or a flag signal (1 where x updated)"""
         x = np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape)
@@ -56,7 +56,13 @@ def _funcs(t: np.ndarray):
     def integ(x, upd=None):
         if upd is not None:
             return _updates(x, upd, "integral")
-        return cumulative_trapezoid(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape))
+        return cumulative_trapezoid(t, np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape), nan)
+
+    def where(c, a, b):
+        r = np.where(np.asarray(c) != 0, a, b)
+        if nan == "legacy":                              # before 1.23: a missing condition chose a
+            return r
+        return np.where(_missing(c), np.nan, r)
 
     def norm01(x):
         x = np.broadcast_to(np.asarray(x, dtype=np.float64), t.shape)
@@ -108,7 +114,7 @@ def _funcs(t: np.ndarray):
         "sin": (np.sin, 1), "cos": (np.cos, 1), "tan": (np.tan, 1), "asin": (np.arcsin, 1), "acos": (np.arccos, 1),
         "atan": (np.arctan, 1), "atan2": (np.arctan2, 2), "sign": (np.sign, 1), "floor": (np.floor, 1),
         "ceil": (np.ceil, 1), "round": (np.round, 1), "min": (np.minimum, 2), "max": (np.maximum, 2),
-        "clip": (np.clip, 3), "where": (lambda c, a, b: np.where(np.asarray(c) != 0, a, b), 3),
+        "clip": (np.clip, 3), "where": (where, 3),
         "deriv": (deriv, (1, 2)), "integ": (integ, (1, 2)), "smooth": (smooth, (1, 2)),
         "lowpass": (lowpass, 2), "highpass": (highpass, 2), "norm01": (norm01, 1),
     }
@@ -171,10 +177,26 @@ def _truth(v) -> np.ndarray:
     return np.isfinite(a) & (a != 0)
 
 
+def _missing(*vs) -> np.ndarray:
+    """Where any of the values is missing (NaN)."""
+    out = np.zeros((), dtype=bool)
+    for v in vs:
+        out = out | np.isnan(np.asarray(v, dtype=np.float64))
+    return out
+
+
 def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
-             holds: Optional[Sequence[bool]] = None) -> Tuple[np.ndarray, np.ndarray]:
+             holds: Optional[Sequence[bool]] = None, nan: str = "propagate",
+             report: Optional[Dict] = None) -> Tuple[np.ndarray, np.ndarray]:
     """signals: [(time, data)] for v0..vN. Returns (time, values) on v0's samples inside the common overlap.
-    holds: per signal, True for a state signal - aligned with the value in force (C2), not by `align`."""
+    holds: per signal, True for a state signal - aligned with the value in force (C2), not by `align`.
+
+    nan (C3): "propagate" (default) - a comparison, `not`, `where` with a missing value is missing, and
+    `and` / `or` are missing unless the other side decides (false and ? = false, true or ? = true);
+    integ() is unknown from a gap on. "skip": the same, but integ() bridges gaps. "legacy": the rules
+    before 1.23 (a comparison with a missing value false, so `!=` true; integ() counts a gap as 0).
+    report (optional): "infinite" - how many values were infinite (1/0...) and are now missing."""
+    strict = nan != "legacy"
     if not signals:
         raise FormulaError("Use at least one signal in the formula.")
     tree = parse(expr, len(signals))
@@ -199,7 +221,7 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
             env[f"v{k}"] = hold_to(t, ts, ys)
         else:
             env[f"v{k}"] = align(t, ts, ys)
-    funcs = _funcs(t)
+    funcs = _funcs(t, nan)
 
     def ev(node):
         if isinstance(node, ast.Expression):
@@ -211,14 +233,28 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
         if isinstance(node, ast.UnaryOp):
             v = ev(node.operand)
             if isinstance(node.op, ast.Not):
-                return np.asarray(~_truth(v), dtype=np.float64)
+                r = np.asarray(~_truth(v), dtype=np.float64)
+                return np.where(_missing(v), np.nan, r) if strict else r
             return -v if isinstance(node.op, ast.USub) else v
         if isinstance(node, ast.BoolOp):
-            parts = [_truth(ev(x)) for x in node.values]
+            vals = [ev(x) for x in node.values]
+            parts = [_truth(v) for v in vals]
             out = parts[0]
             for p in parts[1:]:
                 out = np.logical_and(out, p) if isinstance(node.op, ast.And) else np.logical_or(out, p)
-            return np.asarray(out, dtype=np.float64)
+            res = np.asarray(out, dtype=np.float64)
+            if strict:                                   # Kleene: unknown unless a known side decides
+                unknown = _missing(*vals)
+                if isinstance(node.op, ast.And):
+                    decided = np.zeros((), dtype=bool)
+                    for v, p in zip(vals, parts):
+                        decided = decided | (~_missing(v) & ~p)      # a known false
+                else:
+                    decided = np.zeros((), dtype=bool)
+                    for p in parts:
+                        decided = decided | p                        # a known true
+                res = np.where(unknown & ~decided, np.nan, res)
+            return res
         if isinstance(node, ast.BinOp):
             return _BIN[type(node.op)](ev(node.left), ev(node.right))
         if isinstance(node, ast.Compare):
@@ -226,8 +262,11 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
             out = None
             for op, comp in zip(node.ops, node.comparators):
                 right = ev(comp)
-                r = _CMP[type(op)](left, right)
-                out = r if out is None else np.logical_and(out, r)
+                r = np.asarray(_CMP[type(op)](left, right), dtype=np.float64)
+                if strict:
+                    r = np.where(_missing(left, right), np.nan, r)
+                out = r if out is None else (np.where(_missing(out, r), np.nan, np.logical_and(out, r)).astype(np.float64)
+                                             if strict else np.logical_and(out, r))
                 left = right
             return np.asarray(out, dtype=np.float64)
         if isinstance(node, ast.Call):
@@ -237,5 +276,8 @@ def evaluate(expr: str, signals: List[Tuple[np.ndarray, np.ndarray]], align,
     with np.errstate(all="ignore"):
         r = ev(tree)
     r = np.broadcast_to(np.asarray(r, dtype=np.float64), t.shape).copy()
-    r[~np.isfinite(r)] = np.nan
+    inf = np.isinf(r)
+    if inf.any() and report is not None:              # C3: not silent - the result says how many
+        report["infinite"] = int(inf.sum())
+    r[inf] = np.nan
     return t, r
