@@ -63,8 +63,14 @@ def evaluate_condition(src: Source, text: str, exit_text: str = "", min_dur: flo
             if name not in names:
                 return None
             return {str(k): v for k, v in (names[name] or {}).items()}
+
+        def is_state(name: str, rid=rid, names=names) -> bool:   # C2: modes / gears / texts are held
+            if name in names:
+                return bool(names[name]) or bool(src.discrete(f"{rid}/{name}"))
+            return name in derived and bool(src.discrete(f"{src.derived_run}/{name}"))
         try:
-            out[rid] = evaluate(text, read, labels, lambda t, ts, ys: align_to(t, ts, ys, "nearest"), exit_text, min_dur, merge_gap)
+            out[rid] = evaluate(text, read, labels, lambda t, ts, ys: align_to(t, ts, ys, "nearest"), exit_text, min_dur, merge_gap,
+                                is_state)
         except ConditionError as e:
             out[rid] = {"error": str(e)}
         except KeyError as e:

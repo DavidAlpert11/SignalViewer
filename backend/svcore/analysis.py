@@ -8,7 +8,7 @@ or grows (live mode), and sessions save only the formula, never the arrays.
 
 import itertools
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -129,14 +129,48 @@ def _f64(a) -> np.ndarray:
     return np.asarray(a, dtype=np.float64)
 
 
+def hold_to(t_base: np.ndarray, t_src: np.ndarray, y_src: np.ndarray) -> np.ndarray:
+    """C2: a state signal (mode, gear, a text column) at the times t_base - the value IN FORCE (its last
+    real sample at or before each time), never an interpolation or the nearest later sample: between
+    STABILIZE=0 and ACRO=1 there is no 0.2, and a mode is not in force before it was entered. As
+    `state_mask` and `decimate.hold_at`. Before the first sample: NaN."""
+    ts = _f64(t_src)
+    out = np.full(len(t_base), np.nan)
+    if not len(ts):
+        return out
+    y = ffill_state(y_src)
+    i = np.searchsorted(ts, _f64(t_base), side="right") - 1
+    ok = i >= 0
+    out[ok] = y[i[ok]]
+    return out
+
+
 def align_to(t_base: np.ndarray, t_src: np.ndarray, y_src: np.ndarray, method: str) -> np.ndarray:
+    if method == "hold":
+        return hold_to(t_base, t_src, y_src)
     if method == "nearest":
         return _f64(y_src)[nearest_indices(t_src, t_base)]
     return np.interp(t_base, _f64(t_src), _f64(y_src), left=np.nan, right=np.nan)
 
 
-def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict) -> Tuple[np.ndarray, np.ndarray]:
-    """signals: [(time, data), ...] in source order. Returns (time, data)."""
+def _aligner(params: Dict, states: Optional[Sequence[bool]]):
+    """align(t, ts, ys, k): source k onto t - held when it is a state signal (C2; `params.hold: false`
+    keeps the alignment chosen for every source, as before 1.23), else the chosen alignment."""
+    method = params.get("alignment", "linear")
+    hold = params.get("hold", True) is not False
+
+    def align(t: np.ndarray, ts: np.ndarray, ys: np.ndarray, k: int) -> np.ndarray:
+        if hold and states is not None and k < len(states) and states[k]:
+            return hold_to(t, ts, ys)
+        return align_to(t, ts, ys, method)
+    return align
+
+
+def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
+            states: Optional[Sequence[bool]] = None) -> Tuple[np.ndarray, np.ndarray]:
+    """signals: [(time, data), ...] in source order. Returns (time, data). states: per source, whether
+    it is a state signal (Store.is_state) - those are aligned with the value in force (C2)."""
+    align = _aligner(params or {}, states)
     if op not in OPS:
         raise OpError(f"Unknown operation: {op}")
     if op == "py":
@@ -148,8 +182,8 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
     if op == "expr":
         from svcore.formula import FormulaError, evaluate
         try:
-            return evaluate(str(params.get("expr", "")), signals,
-                            lambda t, ts, ys: align_to(t, ts, ys, params.get("alignment", "linear")))
+            return evaluate(str(params.get("expr", "")), signals, lambda t, ts, ys: align_to(t, ts, ys, params.get("alignment", "linear")),
+                            holds=[bool(x) for x in states] if states is not None and params.get("hold", True) is not False else None)
         except FormulaError as e:
             raise OpError(str(e)) from None
     if op in UNARY:
@@ -212,7 +246,7 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
         i0, i1 = np.searchsorted(ta, t0, "left"), np.searchsorted(ta, t1, "right")
         t = ta[i0:i1]
         a = ya[i0:i1]
-        b = align_to(t, tb, yb, params.get("alignment", "linear"))
+        b = align(t, tb, yb, 1)
         with np.errstate(divide="ignore", invalid="ignore"):
             r = {"add": lambda: a + b, "sub": lambda: a - b, "mul": lambda: a * b,
                  "div": lambda: np.where(b != 0, a / np.where(b == 0, 1, b), np.nan),
@@ -228,7 +262,7 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict)
         raise OpError("The signals do not overlap in time.")
     i0, i1 = np.searchsorted(t_base, t0, "left"), np.searchsorted(t_base, t1, "right")
     t = t_base[i0:i1]
-    stack = np.vstack([align_to(t, ts, ys, params.get("alignment", "linear")) for ts, ys in signals])
+    stack = np.vstack([align(t, ts, ys, k) for k, (ts, ys) in enumerate(signals)])
     with np.errstate(invalid="ignore"):
         r = {"mean": lambda: np.nanmean(stack, axis=0), "sum": lambda: np.nansum(stack, axis=0),
              "min": lambda: np.nanmin(stack, axis=0), "max": lambda: np.nanmax(stack, axis=0),

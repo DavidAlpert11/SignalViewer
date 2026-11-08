@@ -670,7 +670,7 @@ class Store:
             return d.time, d.data
         if any(v is None for v in versions):
             raise KeyError("A source signal of this derived signal is no longer open.")
-        t, y = compute(d.op, [self.signal(s) for s in d.sources], d.params)
+        t, y = compute(d.op, [self.signal(s) for s in d.sources], d.params, [self.is_state(s) for s in d.sources])
         d.time, d.data, d.source_versions = t, y, versions
         return t, y
 

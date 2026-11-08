@@ -60,7 +60,7 @@ def preview_derived(req: PreviewRequest2):
     """Compute an operation WITHOUT keeping it, for a dashed preview in the plot (O-04)."""
     from svcore.analysis import compute
     try:
-        t, y = compute(req.op, [store.signal(s) for s in req.sources], req.params or {})
+        t, y = compute(req.op, [store.signal(s) for s in req.sources], req.params or {}, [store.is_state(s) for s in req.sources])
     except KeyError:
         fail(404, "One of the chosen signals is no longer open.")
     except OpError as e:

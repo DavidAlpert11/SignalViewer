@@ -4,6 +4,7 @@
 
 ### Fixed
 - **Compare judges every sample, in both directions** (C1). Pass / fail, the share within tolerance and the largest difference were computed on the baseline's samples thinned to 200,000 (the command line) or 20,000-50,000 (the Compare list), and the run was only looked at the baseline's times - so a 5 ms excursion in a long recording, or a violation between two samples of a 10 Hz golden run against a 1 kHz run, could pass. Now they are judged on all the samples of both runs inside the overlap; only the drawn difference curve is thinned (its peaks kept). The command line and the app give the same numbers. For runs at different rates the share within tolerance is now counted over both runs' samples.
+- **A flight mode (or any state signal) in a formula or a condition is the mode in force** (C2). A formula with a state signal interpolated between two modes - values the signal never had (between mode 2 and mode 5 there is no 3.7) - and a condition such as `{MODE.Mode} == 5` started halfway to the previous change (40.45 s instead of 46.41 s in the ArduPilot example). Now a state signal - text values, or a few whole numbers - is read as its last value at or before each moment, as the plots and the cursor already showed it; also in the two-signal and several-signal operations. Derived signals with a state source in a saved session are recomputed this way when it opens.
 
 ## 1.22.0 – 2026-11-07
 
