@@ -5,15 +5,14 @@ endless loop there is stopped and the worker restarted, and the app keeps workin
 in the folder the user chose run (owner's decision, 2026-10-15); a session or a template stores the
 operation's NAME ("file.py:function") and its parameters, never code."""
 import logging
-import multiprocessing as mp
 import os
-import threading
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from app import prefs
 from app.atomic import atomic_write
+from app.subproc import Worker, WorkerGone
 from svcore import analysis, pyworker
 from svcore.analysis import OpError
 
@@ -23,9 +22,6 @@ DEFAULT_DIR = os.path.join(prefs.APP_DIR, "operations")
 TIMEOUT = float(os.environ.get("SV_PYOPS_TIMEOUT", "120"))     # seconds one run may take
 LIST_TIMEOUT = 60.0
 
-_lock = threading.Lock()
-_proc: Optional[Any] = None
-_conn: Optional[Any] = None
 
 
 def folder() -> str:
@@ -49,54 +45,22 @@ def set_folder(path: Optional[str]) -> str:
     return folder()
 
 
+_worker = Worker(pyworker.main, "signalviewer-python-operations", lambda: (folder(),))
+
+
 def stop() -> None:
     """Stop the worker: the next use starts a new one, which reads the files again (Reload)."""
-    with _lock:
-        _kill()
-
-
-def _kill() -> None:
-    global _proc, _conn
-    if _proc is not None:
-        try:
-            _proc.kill()
-            _proc.join(2)
-        except Exception:                # already gone
-            log.debug("stopping the Python worker", exc_info=True)
-    if _conn is not None:
-        try:
-            _conn.close()
-        except OSError:
-            pass
-    _proc, _conn = None, None
+    _worker.stop()
 
 
 def _call(msg: tuple, timeout: float) -> Any:
-    global _proc, _conn
-    with _lock:
-        if _proc is None or not _proc.is_alive():
-            _kill()
-            ctx = mp.get_context("spawn")             # the same on every OS; nothing of the server is copied
-            parent, child = ctx.Pipe()
-            _proc = ctx.Process(target=pyworker.main, args=(child, folder()), daemon=True,
-                                name="signalviewer-python-operations")
-            _proc.start()
-            child.close()
-            _conn = parent
-        assert _conn is not None
-        try:
-            _conn.send(msg)
-            if not _conn.poll(timeout):
-                _kill()
-                raise OpError(f"The Python operation took longer than {timeout:g} s and was stopped.")
-            return _conn.recv()
-        except (EOFError, BrokenPipeError, ConnectionResetError):
-            if _proc is not None:
-                _proc.join(2)                         # gone: wait for its exit code
-            code = _proc.exitcode if _proc is not None else None
-            _kill()
-            raise OpError(f"The Python operation crashed the worker process (exit code {code}); "
-                          "it was restarted.") from None
+    try:
+        return _worker.call(msg, timeout)
+    except WorkerGone as e:
+        if e.timed_out:
+            raise OpError(f"The Python operation took longer than {timeout:g} s and was stopped.") from None
+        raise OpError(f"The Python operation crashed the worker process (exit code {e.exitcode}); "
+                      "it was restarted.") from None
 
 
 def listing() -> Dict[str, Any]:

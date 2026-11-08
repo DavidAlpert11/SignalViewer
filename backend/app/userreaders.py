@@ -9,8 +9,27 @@ from typing import Any, Dict, List, Optional
 
 from app import prefs
 from app.atomic import atomic_open, atomic_write
-from svcore import icd
+from app.subproc import Worker, WorkerGone
+from svcore import icd, readerworker
 from svcore import readers as rd
+
+# 26.A2: the user's Python readers run in their own process - a crash or an endless loop there is
+# stopped and the app keeps working (the ICD layouts are data, decoded here)
+TIMEOUT = float(os.environ.get("SV_READER_TIMEOUT", "600"))   # seconds one file's reading may take
+LIST_TIMEOUT = 60.0
+_worker = Worker(readerworker.main, "signalviewer-file-readers", lambda: (folder(),))
+# In the app (app/main.py turns it on) the readers run in the worker. The Python API and the command
+# line are the user's own script: there they run in it, as before - a worker started with "spawn"
+# re-imports the script, which fails in a script without `if __name__ == "__main__":`.
+ISOLATED = False
+
+
+def isolate(on: bool = True) -> None:
+    global ISOLATED
+    if on != ISOLATED:
+        ISOLATED = on
+        with _lock:
+            _cache["key"] = None               # read the folder again, the other way
 
 ICD_SUFFIXES = (".icd.json", ".icd.yaml", ".icd.yml")
 
@@ -81,12 +100,45 @@ def _load_layouts(d: str):
     return found, errors
 
 
+def _remote(meta: Dict[str, Any]):
+    """A Python reader as a function of the path that runs it in the worker process."""
+    def read(path: str) -> Any:
+        try:
+            res = _worker.call(("read", meta["id"], path), TIMEOUT)
+        except WorkerGone as e:
+            if e.timed_out:
+                raise rd.ReaderError(f'The reader "{meta["name"]}" took longer than {TIMEOUT:g} s and was stopped '
+                                     f'(SV_READER_TIMEOUT). Check {meta["file"]} for a loop that never ends.') from None
+            raise rd.ReaderError(f'The reader "{meta["name"]}" crashed its process (exit code {e.exitcode}); the app kept working '
+                                 f'and starts it again for the next file. Check {meta["file"]}.') from None
+        if res[0] == "err":
+            raise rd.ReaderError(res[1])
+        return res[1]
+    return read
+
+
+def _load_python(d: str):
+    """The folder's Python readers, as the worker process loaded them."""
+    if not any(fn.lower().endswith(".py") and not fn.startswith((".", "_")) for fn in os.listdir(d)):
+        return [], []
+    try:
+        res = _worker.call(("list",), LIST_TIMEOUT)
+    except WorkerGone as e:                 # a file that loops or crashes while it is loaded
+        why = f"loading it took longer than {LIST_TIMEOUT:g} s" if e.timed_out else f"loading it crashed Python (exit code {e.exitcode})"
+        return [], [{"file": "", "error": f"The readers folder could not be read: {why}."}]
+    return [{**m, "fn": _remote(m)} for m in res["readers"]], list(res["errors"])
+
+
 def current() -> Dict[str, Any]:
     d = folder()
     key = _key(d)
     with _lock:
         if _cache["key"] != key:
-            found, errors = rd.load_folder(d)
+            _worker.stop()                  # a file was added / saved / removed: the worker loads them again
+            if not os.path.isdir(d):
+                found, errors = [], []
+            else:
+                found, errors = _load_python(d) if ISOLATED else rd.load_folder(d)
             lf, le = _load_layouts(d)
             _cache.update(key=key, readers=found + lf, errors=errors + le)
         return {"folder": d, "readers": list(_cache["readers"]), "errors": list(_cache["errors"])}

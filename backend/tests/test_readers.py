@@ -92,3 +92,42 @@ def read(path):
     return {"time": [0, 1], "signals": {"v": [1, 2]}}
 ''')
     assert "v" in Store().open_file(str(p)).run.signals          # no restart needed
+
+
+# ---- 26.A2: in the app the readers run in a process of their own ----
+
+@pytest.fixture()
+def isolated(monkeypatch):
+    from app import userreaders
+    userreaders.isolate(True)
+    monkeypatch.setattr(userreaders, "TIMEOUT", 5.0)
+    yield userreaders
+    userreaders._worker.stop()
+    userreaders.isolate(False)
+
+
+def test_a_reader_runs_in_its_own_process(home, tmp_path, isolated):
+    assert main(["readers", "--example"]) == 0
+    p = tmp_path / "bench.kv"
+    p.write_text("t=0.0 speed=1 mode=IDLE\nt=0.1 speed=2 mode=RUN\n", encoding="utf-8")
+    lr = Store().open_file(str(p))
+    assert np.allclose(lr.run.signals["speed"].data, [1, 2]) and lr.run.signals["mode"].labels == {0: "IDLE", 1: "RUN"}
+    proc = isolated._worker._proc
+    assert proc is not None and proc.is_alive() and proc.pid != os.getpid()
+    assert isolated.listing()["readers"][0]["extensions"] == [".kv"]
+
+
+def test_a_reader_that_crashes_or_hangs_does_not_take_the_app_down(home, tmp_path, isolated):
+    """Before: os._exit in a reader ended the whole app (exit code 3); an endless loop held the file's
+    opening forever."""
+    write(home, "bad.py", "import os\n@reader(extensions=['.boom'])\ndef boom(path):\n    os._exit(3)\n\n"
+                          "@reader(extensions=['.hang'])\ndef hang(path):\n    while True:\n        pass\n\n"
+                          "@reader(extensions=['.ok'])\ndef ok(path):\n    return {'time': [0, 1], 'signals': {'v': [1, 2]}}\n")
+    for ext in ("boom", "hang", "ok"):
+        (tmp_path / f"f.{ext}").write_text("x", encoding="utf-8")
+    with pytest.raises(LoadError, match="crashed its process .exit code 3"):
+        Store().open_file(str(tmp_path / "f.boom"))
+    with pytest.raises(LoadError, match="took longer than 5 s and was stopped"):
+        Store().open_file(str(tmp_path / "f.hang"))
+    lr = Store().open_file(str(tmp_path / "f.ok"))            # and the next file reads as ever
+    assert list(lr.run.signals["v"].data) == [1, 2]
