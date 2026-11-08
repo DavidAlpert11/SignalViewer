@@ -4,6 +4,7 @@ is addressed as "<run_id>/<signal name>". Removing or reloading a file therefore
 never shifts other files' signals (the root cause of many 2.x bugs).
 """
 
+import contextlib
 import logging
 import os
 import threading
@@ -37,6 +38,7 @@ from app import userreaders
 from svcore.analysis import HOLD_OPS, NAN_OPS, DerivedDef, compute, is_discrete
 from svcore.memcache import CACHE as MEMCACHE, own_bytes
 from collections import OrderedDict
+import contextlib
 import json
 import re
 
@@ -131,6 +133,7 @@ class Store:
         # reload / replace / live update keeps them; given when a file is first described
         self.marks: Dict[str, Dict[str, str]] = {}
         self.live = LiveWatcher(self)             # live mode: what was added to the open files (A1)
+        self._pending: set = set()                # P4: files of a batch being opened at once (their names)
 
     # ------------------------------------------------------------------ files
     def open_file(self, path: str, settings: Optional[dict] = None) -> LoadedRun:
@@ -143,7 +146,8 @@ class Store:
         # unchanged and a refresh read nothing new until the writing stopped)
         before = _stat(path)
         ext = os.path.splitext(path)[1].lower()
-        all_paths = [r.run.file_path for r in self.runs.values()] + [path]
+        with self._lock:                          # P4: the other files of the batch count for the names too
+            all_paths = [r.run.file_path for r in self.runs.values()] + sorted(self._pending - {path}) + [path]
         name = _display_names(all_paths)[path]
         report: Dict = {}
         run = None
@@ -242,6 +246,27 @@ class Store:
             self.runs[lr.id] = lr
             self.order.append(lr.id)
         return lr
+
+    @contextlib.contextmanager
+    def batch(self, paths: List[str]):
+        """P4: files opened at once - each file's name knows the others (two log.bin from different
+        folders are named by their folders, as one after the other); afterwards `order_as`."""
+        full = {os.path.abspath(p) for p in paths}
+        with self._lock:
+            self._pending |= full
+        try:
+            yield
+        finally:
+            with self._lock:
+                self._pending -= full
+
+    def order_as(self, ids: List[str]) -> None:
+        """P4: the files of a batch listed in the order asked, not the order they finished in."""
+        with self._lock:
+            want = [i for i in ids if i in self.order]
+            slots = sorted(self.order.index(i) for i in want)
+            for k, i in zip(slots, want):
+                self.order[k] = i
 
     def add_pushed(self, name: str, run: Run, replace: bool = True) -> Tuple[LoadedRun, bool]:
         """T39: data sent from Python. With replace, a pushed run of the same name keeps its id

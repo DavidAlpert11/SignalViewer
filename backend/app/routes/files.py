@@ -12,7 +12,7 @@ from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 
 from app import prefs
-from app.common import UPLOAD_DIR, supported_now, _load_error, unexpected_load_error, _log_signal_names, fail, open_with_prefs
+from app.common import UPLOAD_DIR, supported_now, open_paths, _log_signal_names, fail
 from app.patterns import name_pattern as _name_pattern
 from app.store import LoadError, store
 from svcore.csv_loader import CSVImportSettings, detect_delimiter, preview_csv
@@ -37,15 +37,8 @@ class OpenRequest(BaseModel):
 
 @router.post("/api/files/open")
 async def open_files(req: OpenRequest):
-    opened, errors = [], []
-    for p in req.paths:
-        try:
-            lr = await asyncio.to_thread(open_with_prefs, p, req.settings)
-            opened.append(store.describe(lr))
-        except LoadError as e:
-            errors.append(_load_error(p, e))
-        except Exception as e:  # never crash on bad data
-            errors.append(unexpected_load_error(p, e))
+    # P4: several at once within the memory budget (app/openmany.py); never crashes on bad data
+    opened, errors = await asyncio.to_thread(open_paths, req.paths, req.settings)
     return {"opened": opened, "errors": errors}
 
 

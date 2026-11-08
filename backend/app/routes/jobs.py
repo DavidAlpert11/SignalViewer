@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app import report as reports
 from app.atomic import write_text as _write_text
-from app.common import _load_error, atomic_path, fail, unexpected_load_error, open_with_prefs
+from app.common import atomic_path, fail, open_paths
 from app.jobs import JobCancelled, jobs
 from app.routes.compare import CompareAllRequest, compare_table
 from app.routes.export import ReportRequest, _check_target
@@ -36,25 +36,10 @@ def start_job(req: JobRequest):
         paths, settings = list(b.get("paths") or []), b.get("settings")
 
         def work(job):
-            opened, errors, n = [], [], max(1, len(paths))
-            for i, p in enumerate(paths):
-                # each file gets an equal share of the bar; the loader reports inside it
-                def sub(frac, phase="", i=i):
-                    job.report((i + frac) / n, phase)
-                from svcore.csv_loader import set_progress_context
-                set_progress_context(sub, job.cancelled)
-                try:
-                    lr = open_with_prefs(p, settings)
-                    opened.append(store.describe(lr))
-                except LoadError as e:
-                    errors.append(_load_error(p, e))
-                except JobCancelled:
-                    raise
-                except Exception as e:
-                    if e.__class__.__name__ == "LoadCancelled":
-                        raise
-                    errors.append(unexpected_load_error(p, e))
-                job.report((i + 1) / n, "read")
+            # P4: several at once within the memory budget; each file its share of the bar
+            opened, errors = open_paths(paths, settings, job.report, job.cancelled)
+            if job.cancelled():
+                raise JobCancelled()
             return {"opened": opened, "errors": errors}
     elif req.kind == "report":
         rr = ReportRequest(**b)
