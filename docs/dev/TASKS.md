@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). Next: P5, then the Phase 3 patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done**; the Phase 3 patch next, then Phase 4 (26.A1 first);
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -197,7 +197,7 @@ Progress board:
 | P2 | One byte-bounded, locked LRU cache | 3 | ☑ done |
 | P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☑ done |
 | P4 | Open several files concurrently within the memory budget | 3 | ☑ done |
-| P5 | New benchmarks in tools/benchmark.py | 3 | ☐ |
+| P5 | New benchmarks in tools/benchmark.py | 3 | ☑ done |
 | 26.A1 | Remove dead code in svcore/models.py | 4 | ☐ |
 | 26.A2 | User file readers in a worker process | 4 | ☐ |
 | 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☐ |
@@ -581,6 +581,26 @@ cancelled files not started, the route's order / names / a bad file / the list /
 code before - and the job's progress to 1.0), then the whole backend suite: 1056 passed; mypy on the 5
 changed modules clean; e2e test_templates_recent_badfiles, test_file_help_menus, test_fresh_user,
 test_refresh_feedback, test_damaged_note, test_features -k open / files / mark / progress (33).
+
+### P5 · New benchmarks
+**Status: done 2026-11-09.**
+**Found first:** `tools/benchmark.py FILE` had been answered 403 since the localhost-only middleware - its
+TestClient sends `Host: testserver` (the backend tests set SV_ALLOWED_HOSTS; the tool did not), so every
+request it "timed" was refused. Fixed: `base_url="http://127.0.0.1"`; the synthetic run also checks every
+status code (a refused request must not be timed as fast).
+**Made:** `--synthetic [--samples N] [--json file]` - a fresh process builds its own data and measures:
+/api/data (binary, zoomed) with and without a run offset (ratio ≤ 2); 30 signals x N on a zoom step
+(< 500 ms, ≤ 2 MB); a pan burst of 10 steps - all waited for vs only the last (what cancelling gives;
+< 300 ms); a 52 MB .bin (make_test_bin.py --seconds 1800) with 10 changed IMU signals - RSS and the memory
+cache against its budget (≤ 1); a live append of 1,000 rows on a 300-column CSV (< 1 s). `SYNTH_ROWS` holds
+the targets (T3 uses them with a tolerance). docs/performance.md has a table of the round, install.md the
+command.
+**Measured** (5M samples, 2 CPUs): offset 0.97x (3.2 / 3.3 ms), 30-signal zoom 17 ms / 1380 KB, pan last
+19 ms (all 10: 186 ms), cache 59 / 1024 MB (log +112 MB open, +202 MB with the changes), live 35 ms. The file
+mode on a 46 MB CSV: everything passes except "memory for the data / binary size" 1.46x (target 1.2x;
++170 MB runtime) - not comparable with the 730 MB reference file the target is for; to measure with that
+file in the release run (the tool could not measure it at all before).
+**Tests run:** both modes run end to end (`--synthetic` at 1M and 5M samples, `run0.csv`).
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3135,3 +3155,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · P2 done: svcore/memcache.py (`ByteLRU`, SV_MEMCACHE_MB 1024) for transforms, derived, FFT, summaries, stats; the transform-cache race fixed; Settings ▸ Storage shows memory; 12 x 20M changed signals 1832 -> 916 MB; whole backend suite 1049 passed; validate; mypy; tsc + build; e2e test_settings, test_offline_map. Next: P3.
 - 2026-11-08 · P3 done: AbortController in api.ts / TimeChart, binary /api/data (`pack_series` / `unpackSeries`), `y_reference` for /api/data (bin) and /api/xy (relative), joinTables.ts (30 signals 162 -> 77 ms); backend 123 related tests; mypy; tsc + build; e2e test_data_path (new) + 8 files; borders test fails on origin/main here too (network). Next: P4.
 - 2026-11-08 · P4 done: app/openmany.py + common.open_paths (thread pool, memory budget SV_OPEN_BUDGET_MB, order / names / tags kept); 4 x 55 MB .bin 2.13 -> 1.42 s on 2 cores; tests: test_open_many (new, 5), whole backend suite 1056 passed; mypy; e2e 5 files + test_features -k open. Next: P5.
+- 2026-11-09 · P5 done: `tools/benchmark.py --synthetic` (offset ratio, 30-signal zoom, pan burst, .bin + changed signals vs the memory cache, live wide append) with targets; the file mode fixed (403 since the localhost check); docs/performance.md. Phase 3 done.

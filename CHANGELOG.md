@@ -20,6 +20,7 @@
 - **Faster, exact plot data** (P3). A zoom or pan made a request per step and every one was waited for; now the older ones are cancelled. The points come as raw binary arrays (a quarter smaller, decoded three times faster than before), and a time plot of many signals is put together twice as fast (30 signals: 160 -> 77 ms per redraw).
 
 ### Added
+- **Benchmarks of this version's changes** (P5): `python tools/benchmark.py --synthetic` measures, on generated data, a plot request with and without a time offset, a zoom step of 30 signals, a pan burst, the memory of a large log with changed signals and a live append on a wide CSV, each against a target (*Performance* page); `--json` for CI. `tools/benchmark.py FILE` works again (its requests were refused by the localhost-only check since 1.19).
 - **Six new validation cases** (`signalviewer-cli validate`, the *Validation* page; 29 in all): a 5 ms violation in 2 million samples fails Compare (V24), a violation between two samples of a 10 Hz golden run fails (V25), a condition on a mode starts when the mode was entered (V26), a formula of a mode makes only values the mode has (V27), a sum and a norm with a missing input are missing (V28); and a plot request on a run with a time offset is not more than 2 times slower than without (V29).
 
 ## 1.22.0 – 2026-11-07
