@@ -13,7 +13,13 @@ export interface SignalInfo {
   transform?: SignalTransform;          // a change made on the signal itself
   // derived signals only
   op?: string; sources?: string[]; params?: Record<string, unknown>; formula?: string; valid?: boolean; samples?: number;
+  quality?: DerivedQuality;             // C3: what was done about missing / infinite values (only when something was)
   version?: string;                     // F34: changes whenever the derived signal's data does
+}
+/** C3: a derived signal's missing-data report - samples where a missing input was left out ("skip"),
+ *  an integral's gaps bridged ("skip") or where it became unknown ("propagate"), infinite values. */
+export interface DerivedQuality {
+  nan?: string; skipped?: number; bridged?: [number, number][]; missing?: [number, number][]; infinite?: number;
 }
 /** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
 export interface MavStatus {

@@ -19,7 +19,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
   `params.nan`, old sessions restored as "legacy"), C4 done (V24-V28; V29 moves to P1). Phase 1 patch
   applied by the owner (`3110e75`). Phase 2: O1 done (offline by default, Never use the network,
-  the Online map sign). Owner's decisions recorded (see the plan). C2b done (old sessions restored with `"hold": false`). Next, in order: C3b, O2, O3,
+  the Online map sign). Owner's decisions recorded (see the plan). C2b done (old sessions restored with `"hold": false`). C3b done (*Missing values* in Create signals, the mark). Next, in order: O2, O3,
   then the Phase 2 patch; the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
@@ -186,7 +186,7 @@ Progress board:
 | C3 | Explicit missing-data policy (`params.nan`) | 1 | ☑ done |
 | C4 | Validation cases V24-V29 | 1 | ☑ done (V24-V28; V29 with P1) |
 | C2b | Old sessions: state-source derived signals restored with `"hold": false` (owner, decision 2) | 1 | ☑ done |
-| C3b | Create signals: the missing-data choice (propagate / skip) for sum, mean, min, max, norm, integral (decision 4) | 1 | ☐ |
+| C3b | Create signals: the missing-data choice (propagate / skip) for sum, mean, min, max, norm, integral (decision 4) | 1 | ☑ done |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☑ done |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
@@ -342,6 +342,26 @@ derivedOps.ts / clearing.ts re-send the listed params - `hold` rides along like 
 **Tests run:** test_state_hold (7, +1), test_missing_policy, test_backend, test_stale_data, test_time_axis,
 test_vecsmooth, test_derived_rename, test_conditions, test_investigate, test_pyops, test_report_sections:
 129 passed; validate 28 / 28; mypy app/store.py svcore/analysis.py clean.
+
+### C3b · The missing-data choice in Create signals (owner's decision 4)
+**Status: done 2026-11-08.**
+**Made:** AnalysisPanel.tsx - *Missing values* (`.nan-field`) under the operation for the several-signal
+sum / mean / min / max / norm and for the integral as a NEW signal of every sample (not for an integral
+of updates - `on_updates` has its own samples - nor *Change this signal*, a transform). *Keep missing*
+(default, sent as `nan: "propagate"`) or *Use the signals that have a value* / for the integral *Bridge
+the gap* (`nan: "skip"`); a hint under it says what each does. The mark: `QualityMark` beside a derived
+signal whose listing has `quality` (the C3 report) - *skipped missing*, *gaps bridged*, *gap: unknown
+after*, *infinite → missing*, the counts and the stretches in its title (`.dsig-quality`, amber tokens).
+`SignalInfo.quality` / `DerivedQuality` in api.ts. Strings in i18n/files.ts (en + he). No backend change
+(the backend accepted `nan` since C3). Formulas (`expr`, also a NAN_OPS op) keep the default - not in
+the owner's list; 26.U6 can add it with the general trust badges.
+**Callers checked:** `params` feeds `derivedCall` (create, batch, preview) and `opToStep` (edit in place -
+gets no `nan`: `nanOp` is false there); peers.ts `findDerived` compares params (Link operations: a skip
+and a propagate recipe are different signals - intended).
+**Tests run:** `npx tsc -b && npm run build`; e2e test_missing_choice.py (2, new: the default, skip
+saved and marked with its count, the integral's Bridge, no choice for a derivative or in place),
+test_update_rate (2), test_features + test_workflows (154 - the Create signals panel gained a row).
+Screenshots English light / Hebrew dark: the row and the mark, RTL correct.
 
 ### O1 · Offline by default, plus a strict offline switch
 **Status: done 2026-11-08.**
@@ -2918,3 +2938,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · Owner applied the Phase 1 patch (`3110e75`). O1 done: Automatic = offline map, Never use the network (setting + SV_OFFLINE=1, checked in tiles.py), the Online map sign; tests: test_offline_switch (new), test_basemap, test_app_folder; e2e test_offline_map (+2), test_settings, test_globe3d, test_map_objects; tsc + build; mkdocs --strict. Next: O2.
 - 2026-11-08 · Owner answered the five questions (IDs approved; C2 old sessions keep their numbers - C2b; conditions change accepted; skip choice in Create signals - C3b; next version 1.23.0). Patch signalviewer-O1-2026-11-08.patch sent (O1 only, on `3110e75`). O2 started: only read (make_test_bin.py --corrupt exists; backend/tests/data/sample.ulg; routes/files.py turns unexpected errors into "Unexpected error while reading the file").
 - 2026-11-08 · Owner applied the O1 patch (`4c3c52f`). C2b done: restored recipes without `hold` get false, new ones true (`HOLD_OPS`); tests: test_state_hold (+1) + 10 related files, 129 passed; validate 28 / 28; mypy clean. Next: C3b.
+- 2026-11-08 · C3b done: *Missing values* in Create signals (sum / mean / min / max / norm / integral), the derived list marks skipped / bridged / unknown / infinite; tsc + build; e2e test_missing_choice (new, 2), test_update_rate, test_features + test_workflows (154 passed). Next: O2.
