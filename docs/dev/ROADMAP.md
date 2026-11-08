@@ -820,7 +820,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] C1 Compare judged at full resolution, in both directions. Done 2026-11-08: pass / withinPct / maxAbsDiff on the union of both runs' samples, descriptive numbers on all the baseline's samples, trace decimated only for drawing; CLI = UI; test_compare_fullres.py, test_checks.py (+1).
 - [x] C2 Zero-order hold for state signals in formulas and conditions. Done 2026-11-08: `analysis.hold_to`; compute(states), formula.evaluate(holds), conditions(is_state); optional `params.hold: false`; test_state_hold.py.
 - [x] C3 Explicit missing-data policy (`params.nan`: propagate | skip | legacy). Done 2026-11-08: NAN_OPS, compute report, cumulative_trapezoid policy, three-valued formula logic, restored recipes without `nan` = legacy; test_missing_policy.py.
-- [ ] C4 Validation cases V24-V29 in `cli.py validate` and docs/validation.md.
+- [x] C4 Validation cases V24-V28 in `cli.py validate` and docs/validation.md (28 cases). Done 2026-11-08; V29 (offset timing) moves to P1.
 - [ ] O1 Offline by default; "Never use the network" (pref + `SV_OFFLINE=1`); an indicator for online tiles.
 - [ ] O2 Honest damaged-file handling (.bin instances / fields against FMT, .ulg recovery, clear messages).
 - [ ] O3 `atomic_write()` in app/common.py for sessions, templates, readers, layouts, reports.

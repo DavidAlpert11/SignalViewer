@@ -37,8 +37,13 @@ signalviewer-cli validate --junit v.xml    # the same as JUnit XML, for a qualif
 | V21 | **Frames** – ECEF -> LLA round trip at the Sea of Galilee (32.8 N, 35.6 E, -212 m): height | the starting height; sub-millimetre | -212 m | -212 m | 0.001 m | ✓ |
 | V22 | **Frames** – Body -> NED: the nose (body X) at pitch 30 deg, yaw 90 deg: Down component | nose up 30 deg: D = -sin 30 = -0.5 | -0.5 | -0.5 | 1e-12 | ✓ |
 | V23 | **Frames** – Body -> NED: the nose at pitch 30 deg, yaw 90 deg: East component | heading east: E = cos 30 = 0.8660 | 0.86603 | 0.86603 | 1e-12 | ✓ |
+| V24 | **Compare** – A 5 ms violation (+5) in 2 million samples, tolerance 0.1: largest difference found (the verdict must be FAIL) | every sample is judged: the excursion, 5 | 5 | 5 | 1e-09 | ✓ |
+| V25 | **Compare** – A 10 Hz golden ramp against a 1 kHz run with a +2 violation between two golden samples: largest difference (must FAIL) | the run's own samples are judged too: 2 | 2 | 2 | 1e-09 | ✓ |
+| V26 | **Conditions** – Mode == 5 on a change-only mode signal (0 at 0 s, 2 at 10 s, 5 at 20 s, 3 at 30 s): start of the stretch | the mode is in force from its change: 20 s (resolution one sample of the 100 Hz signal, 0.01 s) | 20 s | 20 s | 0.01 s | ✓ |
+| V27 | **Formulas** – A formula of a state signal (10 x mode; modes 0, 2, 5, 3): values the state does not have | the value in force, never an interpolation: 0 | 0 | 0 | exact | ✓ |
+| V28 | **Formulas** – Sum and norm of three signals with one missing input: values that are not missing at that sample | a missing input makes the result missing: 0 | 0 | 0 | exact | ✓ |
 
-**23 of 23 cases within tolerance** (Signal Viewer 1.22.0).
+**28 of 28 cases within tolerance** (Signal Viewer 1.22.0).
 
 *Measured* is what this version computes, rounded for the page. *Tolerance* is the largest allowed
 |measured − expected|; where a case reads a spectrum or a time from samples, it is the resolution of

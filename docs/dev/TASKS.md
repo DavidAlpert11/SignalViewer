@@ -17,7 +17,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   a calmer UI (spec and board in "Owner's plan (2026-11-08)" below; IDs there are qualified as
   `26.<id>` where they collide with Milestone 25). Phase 1: C1 done (Compare judged on every sample of
   both runs), C2 done (state signals held in formulas / operations / conditions), C3 done (missing stays missing;
-  `params.nan`, old sessions restored as "legacy"). Next: C4. Baseline before the round: backend
+  `params.nan`, old sessions restored as "legacy"), C4 done (V24-V28; V29 moves to P1). Phase 1 patch
+  delivered. Next: Phase 2 (O1, O2, O3). Baseline before the round: backend
   981 passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure.
 
 - **1.22.0 (2026-11-07)**: the owner's plan of 2026-11-07 - U1 a template's default tabs (`defaultTabs`,
@@ -172,11 +173,11 @@ Progress board:
 | C1 | Compare judged at full resolution, both directions | 1 | ☑ done |
 | C2 | Zero-order hold for state signals in formulas / conditions | 1 | ☑ done |
 | C3 | Explicit missing-data policy (`params.nan`) | 1 | ☑ done |
-| C4 | Validation cases V24-V29 | 1 | ☐ next |
+| C4 | Validation cases V24-V29 | 1 | ☑ done (V24-V28; V29 with P1) |
 | O1 | Offline by default + strict offline switch (`SV_OFFLINE=1`) | 2 | ☐ (changes 1.22.0's OSM default - asked for by the owner) |
 | O2 | Honest damaged-file handling (.bin phantom instances, .ulg recovery) | 2 | ☐ |
 | O3 | `atomic_write()` for sessions, templates, readers, layouts, reports | 2 | ☐ |
-| P1 | Run time offsets without copying the time vector | 3 | ☐ |
+| P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☐ |
 | P2 | One byte-bounded, locked LRU cache | 3 | ☐ |
 | P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☐ |
 | P4 | Open several files concurrently within the memory budget | 3 | ☐ |
@@ -293,6 +294,24 @@ belong to 26.U6 (trust badges) - or a small control in Create signals sooner?
 derived / investigate / integrals / transforms: 259 passed; validate 23 / 23; mypy clean on the 6
 changed modules. No frontend change (no build needed).
 **Left:** V28 goes into `validate` with C4; filters / smoothing over missing values belong to 26.A3.
+
+### C4 · New validation cases
+**Status: done 2026-11-08 for V24-V28; V29 moved to P1.**
+**Made:** svcore/validation.py V24 (2M samples, a 5 ms +5 violation, compared on the UI's old 20k grid
+size: maxAbsDiff 5 and FAIL), V25 (a 10 Hz golden RAMP - its straight lines are exact, so the
+reference is exactly 2 - against a 1 kHz run with +2 between golden samples), V26 (a condition on a
+change-only mode starts at 20 s, the change), V27 (10 x mode makes no value outside 10 x the modes),
+V28 (sum and norm with one missing input: 0 non-missing results there). Each returns 0 instead of the
+difference when the verdict is PASS, so a regression fails the case. docs/validation.md regenerated
+(tools/make_validation_doc.py: 28 of 28), docs/index.md says 28 cases.
+**Checked against the code before the round** (a worktree at `77aaa4a` with the new validation.py):
+V24, V25, V28 FAIL on their numbers (0, 0, 2); V26 / V27 fail there because the functions do not take
+`is_state` / `states` yet (their old behaviour is shown by test_state_hold.py).
+**Why V29 is not here:** it times a plot request with a run offset against one without (at most about
+2x). Today it is about 50x (P1's numbers) - adding it now turns `validate` and the backend suite red
+until P1 lands. It is written together with P1 (Phase 3); a timing case also needs a tolerance that
+holds on slow CI runners - to be decided then (a ratio, not milliseconds).
+**Tests run:** `cli.py validate` 28 / 28; test_validation.py 32 passed.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -2836,3 +2855,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · Round of 2026-11-08 started (owner's audit: C, O, P, A, U, T, F); baseline at `77aaa4a`: backend 981 passed / 14 skipped, validate 23 / 23. C1 done: Compare judged on the union of both runs' samples (svcore/compare.py); tests: test_compare_fullres (new), test_checks (+1), compare / checks / sync / real logs files - 115 passed, 13 skipped; mypy compare.py clean. Next: C2.
 - 2026-11-08 · C2 done: state signals held (`analysis.hold_to`) in formulas, operations and conditions; the copter example's mode condition is [46.41, 60.41], no formula value outside the mode's values; tests: test_state_hold (new) + 16 related files, 185 passed; validate 23 / 23; mypy clean on the changed modules. Next: C3.
 - 2026-11-08 · Interim patch signalviewer-phase1-partial-2026-11-08.patch (C1, C2) checked with `git am` on a fresh clone (32 tests of the changed areas passed there). C3 done: `params.nan` (propagate / skip / legacy), restored recipes without it are "legacy"; tests: test_missing_policy (new) + 22 related files, 259 passed; validate 23 / 23; mypy clean. Next: C4.
+- 2026-11-08 · C4 done: V24-V28 in validate (28 / 28), docs/validation.md regenerated; V29 moves to P1 (it would fail until the offset copy is gone). test_validation 32 passed. Phase 1 patch next.

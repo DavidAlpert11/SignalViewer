@@ -308,6 +308,65 @@ def _v23() -> Result:
     return Result(float(np.cos(np.radians(30))), float(e[0]), 1e-12)
 
 
+# ------------------------------------------------------------------ judging (C4, round of 2026-11-08)
+
+@case("V24", "Compare", "A 5 ms violation (+5) in 2 million samples, tolerance 0.1: largest difference found (the verdict must be FAIL)",
+      "every sample is judged: the excursion, 5")
+def _v24() -> Result:
+    from svcore.compare import compare
+    t = np.arange(2_000_000) * 0.001
+    g = np.sin(2 * np.pi * 0.01 * t)
+    r = g.copy()
+    r[1_234_567:1_234_572] += 5.0                    # 5 samples, between the points a thinned grid keeps
+    row = compare([("g/X", t, g), ("n/X", t, r)], "g/X", "linear", 0.1, None, max_points=20_000)["rows"][0]
+    return Result(5.0, float(row["maxAbsDiff"]) if row.get("pass") is False else 0.0, 1e-9)
+
+
+@case("V25", "Compare", "A 10 Hz golden ramp against a 1 kHz run with a +2 violation between two golden samples: largest difference (must FAIL)",
+      "the run's own samples are judged too: 2")
+def _v25() -> Result:
+    from svcore.compare import compare
+    tg, tr = np.arange(0, 100, 0.1), np.arange(0, 100, 0.001)
+    r = 0.01 * tr                                    # a ramp: the golden run's straight lines are exact
+    r[(tr > 50.02) & (tr < 50.07)] += 2.0            # golden samples at 50.0 and 50.1
+    row = compare([("g/X", tg, 0.01 * tg), ("n/X", tr, r)], "g/X", "linear", 0.1, None)["rows"][0]
+    return Result(2.0, float(row["maxAbsDiff"]) if row.get("pass") is False else 0.0, 1e-9)
+
+
+@case("V26", "Conditions", "Mode == 5 on a change-only mode signal (0 at 0 s, 2 at 10 s, 5 at 20 s, 3 at 30 s): start of the stretch",
+      "the mode is in force from its change: 20 s (resolution one sample of the 100 Hz signal, 0.01 s)")
+def _v26() -> Result:
+    from svcore.analysis import align_to
+    from svcore.conditions import evaluate_condition
+    tf = np.arange(0, 35, 0.01)
+    sig = {"X": (tf, np.sin(tf)), "Mode": (np.array([0.0, 10.0, 20.0, 30.0]), np.array([0.0, 2.0, 5.0, 3.0]))}
+    r = evaluate_condition("{X} > -10 and {Mode} == 5", sig.get, lambda n: None,
+                           lambda t, ts, ys: align_to(t, ts, ys, "nearest"), is_state=lambda n: n == "Mode")
+    return Result(20.0, float(r["intervals"][0][0]), 0.01, "s")
+
+
+@case("V27", "Formulas", "A formula of a state signal (10 x mode; modes 0, 2, 5, 3): values the state does not have",
+      "the value in force, never an interpolation: 0")
+def _v27() -> Result:
+    from svcore.analysis import compute
+    tf = np.arange(0, 35, 0.01)
+    tm, m = np.array([0.0, 10.0, 20.0, 30.0]), np.array([0.0, 2.0, 5.0, 3.0])
+    _, y = compute("expr", [(tf, np.sin(tf)), (tm, m)], {"expr": "10 * v1"}, [False, True])
+    y = y[np.isfinite(y)]
+    return Result(0.0, float(np.sum(~np.isin(y, 10 * m))), 0.0)
+
+
+@case("V28", "Formulas", "Sum and norm of three signals with one missing input: values that are not missing at that sample",
+      "a missing input makes the result missing: 0")
+def _v28() -> Result:
+    from svcore.analysis import compute
+    t = np.arange(5.0)
+    sig = [(t, np.ones(5)), (t, np.array([2, np.nan, 2, 2, 2.0])), (t, 3 * np.ones(5))]
+    _, a = compute("sum", sig, {})
+    _, b = compute("norm", sig, {})
+    return Result(0.0, float(np.isfinite(a[1])) + float(np.isfinite(b[1])), 0.0)
+
+
 def run_all() -> List[Dict]:
     """Every case as a row: id, area, title, reference, expected, measured, error, tol, unit, ok
     (a case that raises is a failed row with the error as its reference note)."""
