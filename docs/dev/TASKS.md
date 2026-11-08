@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). Next: 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. Next: 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -201,7 +201,7 @@ Progress board:
 | 26.A1 | Remove dead code in svcore/models.py | 4 | ☑ done |
 | 26.A2 | User file readers in a worker process | 4 | ☑ done |
 | 26.A3 | Consistent sampling (filters over gaps; smooth / rms windows in seconds) | 4 | ☑ done |
-| 26.A4 | Transforms and derived recipes in the undoable workspace | 4 | ☐ (ask before starting if large) |
+| 26.A4 | Transforms and derived recipes in the undoable workspace | 4 | ⏸ assessed - larger than expected, waiting for the owner |
 | 26.A5 | Heuristics visible and correctable (angle unit, discrete detection) | 4 | ☐ |
 | 26.U1 | Design tokens audit (index.css) | 5 | ☐ |
 | 26.U2 | Plot styling (grids, axes, palette, hover, legend, band) | 5 | ☐ |
@@ -669,6 +669,27 @@ sample-based filter (smooth_s is new, so it is in time). When transforms become 
 backend suite (1064 passed; one run had an extra failure that did not repeat); validate 29 / 29; tsc +
 build; e2e test_features (126, one expectation updated: `smooth_s(abs(x), 0.1)`), test_missing_choice,
 test_update_rate.
+
+### 26.A4 · Transforms and derived recipes in the undoable workspace
+**Status: assessed 2026-11-09 - larger than the task; not started (the task's own rule: ask first).**
+**Where things are today:** derived recipes (`Store.derived`) and changes on signals (`Store.transforms`)
+live in the backend; the frontend reads them from `/api/runs` and changes them through 5 api calls used in
+39 places in 11 files (AnalysisPanel, ComparePanel, clearing.ts, derivedOps.ts, transforms.ts, frames.ts,
+peers.ts - Link operations -, sameWork.ts, files.ts - sessions / autosave -, createSignalMenu.ts,
+errors.ts). Undo for them is a toast action that re-sends the previous recipes / specs (clearing.ts,
+derivedOps.ts, transforms.ts), beside the workspace's Ctrl+Z (clearing.ts already joins both for "Clear").
+Sessions save them as top-level `derived` / `transforms`, restored after the files.
+**What the task needs:** (1) `ws.derived` / `ws.transforms` in the workspace model (every change through
+`commit`, so Ctrl+Z / Ctrl+Y cover them); (2) one sync layer: after every commit / undo / redo, the
+difference between the workspace and what the backend holds is sent (restore / delete / set specs) -
+including recipes that fail to compute and Link operations' copies; (3) all 39 call sites rewritten to
+change the workspace instead of the backend; the toasts' Undo replaced by Ctrl+Z; (4) session / template /
+autosave migration (top-level `derived` / `transforms` -> `ws`, both read; never renamed), with C3 / C2b /
+26.A3's `nan` / `hold` / `sampling` markers; (5) e2e: every flow that deletes / renames / edits a made
+signal or a change and undoes it (test_features alone has ~15). Estimated: several days, one entity at a
+time (transforms first - fewer callers - then derived).
+**Owner to decide:** start it (one entity at a time, each its own commit and migration), or leave it for a
+later round. Until then: transforms keep "legacy" missing-data / filter rules (C3, 26.A3).
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3228,3 +3249,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · Owner: Phase 3 patch not applied yet, continue and send one cumulative patch. 26.A1 done: DerivedSignal, SubplotConfig, subplot_from_dict, Tab, ViewState, SignalType (+ the unused field), the index keys removed; whole backend suite 1056 passed; mypy. Next: 26.A2.
 - 2026-11-09 · 26.A2 done: app/subproc.py (shared with pyops), svcore/readerworker.py, readers isolated in the app; tests: test_readers (+2), test_pyops, whole backend suite 1059 passed; mypy; e2e test_user_reader (new). Next: 26.A3.
 - 2026-11-09 · Owner: no patches until the release - carry on to the end of the tasks. 26.A3 done: `apply_filter(sampling)`, smooth / rms `seconds`, `smooth_s`, SAMPLING_OPS for old sessions; tests: test_sampling (new, 6), whole backend suite, validate; tsc + build; e2e test_features, test_missing_choice, test_update_rate (130). Next: 26.A4 (size assessment first).
+- 2026-11-09 · 26.A4 assessed (39 call sites in 11 files, a sync layer, a session migration, undo moving from toasts to Ctrl+Z): larger than the task - not started, the owner decides. Next: 26.A5.
