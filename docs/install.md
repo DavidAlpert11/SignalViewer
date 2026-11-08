@@ -104,4 +104,5 @@ python -m pytest tests/e2e              # ~320 browser tests, the whole suite in
 python -m pytest tests/e2e/test_features.py    # or one file: one test per catalog feature
 cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer   # type check
 python tools/benchmark.py big.csv       # performance against the targets (results in docs/)
+python tools/benchmark.py --synthetic   # the plot / offset / memory / live benchmarks, on generated data
 ```

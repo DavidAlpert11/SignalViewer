@@ -17,3 +17,19 @@ with cores (64 MB parts are parsed in parallel). Redraw time does not grow with 
 summaries per 1,024-sample block are computed once per signal. Wide files: the cache is one
 column-major matrix (not one file per column), discrete-signal detection runs on demand, the signal
 list is virtualized, and signal choosers are searchable instead of long dropdowns.
+
+## The round of 2026-11-08 (`tools/benchmark.py --synthetic`)
+
+Generated data, no file needed (`--samples`, default 5 million per signal; `--json` writes the numbers for
+CI). Measured on a 2-CPU test machine:
+
+| Measurement | Target | Result |
+|---|---|---|
+| Plot request with a run time offset / without (one signal, zoomed) | ≤ 2× | 0.97× (3.2 / 3.3 ms; was ~15× before 1.23) |
+| Zoom step, 30 signals (server, binary answer) | < 500 ms | 17 ms |
+| Data sent for that step | ≤ 2 MB | 1.4 MB (JSON before 1.23: a third more) |
+| Pan burst of 10 steps: the last answer (older ones cancelled) | < 300 ms | 19 ms (186 ms when every step was waited for) |
+| Large .bin (52 MB) with 10 changed signals: memory cache / its budget | ≤ 1 | 59 / 1024 MB |
+| Live append, 300-column CSV: 1,000 rows readable | < 1 s | 35 ms |
+
+Opening several files at once (1.23): four 55 MB ArduPilot logs in 1.4 s instead of 2.1 s on two cores.
