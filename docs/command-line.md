@@ -31,7 +31,8 @@ signalviewer-cli cache --clear all          # or: cache / uploads / tiles - with
 The app keeps the cache small by itself (an old copy of a changed file is removed, entries unused
 for 30 days go, at most 5 GB: `SV_CACHE_MAX_GB`, `SV_CACHE_DAYS`); Settings shows and clears it too.
 `SV_LAZY_MB` (default 1536) is the memory big logs' values may use before the least recently used are
-read again from the file. `SV_MEMCACHE_MB` (default 1024) is the memory for results that can be
+read again from the file. `SV_OPEN_BUDGET_MB` (default half the computer's memory, at most 8 GB) is the memory files opened
+together may use while they are read side by side. `SV_MEMCACHE_MB` (default 1024) is the memory for results that can be
 computed again (changed and derived signals, spectra, plot summaries, statistics): beyond it the least
 recently used go, and are computed again when needed.
 

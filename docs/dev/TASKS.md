@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). Next: P4, P5;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). Next: P5, then the Phase 3 patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -196,7 +196,7 @@ Progress board:
 | P1 | Run time offsets without copying the time vector (+ V29 from C4) | 3 | ☑ done |
 | P2 | One byte-bounded, locked LRU cache | 3 | ☑ done |
 | P3 | Frontend data path: AbortController, binary `/api/data`, `y - y_ref` float32 | 3 | ☑ done |
-| P4 | Open several files concurrently within the memory budget | 3 | ☐ |
+| P4 | Open several files concurrently within the memory budget | 3 | ☑ done |
 | P5 | New benchmarks in tools/benchmark.py | 3 | ☐ |
 | 26.A1 | Remove dead code in svcore/models.py | 4 | ☐ |
 | 26.A2 | User file readers in a worker process | 4 | ☐ |
@@ -555,6 +555,32 @@ against a slow server aborts the older requests, all binary, no error toast, the
 Unix-time value exact through the binary path), test_wheel, test_plot_style, test_aligned_plots,
 test_map_objects, test_setpoint_style, test_globe3d, test_workflows. test_offline_map's borders test fails
 here - also on `a39b8d5` built alone (checked in a worktree): the satellite base needs the network.
+
+### P4 · Open several files concurrently
+**Status: done 2026-11-08.**
+**Before** (the open job, files one after the other; this sandbox has 2 cores, SV_CACHE=0): 4 x 55 MB
+.bin (make_test_bin.py --seconds 1800) 2.13 s; 4 x 52 MB CSV (1.5M rows) 1.16 s.
+**Made:** `app/openmany.py` - `open_many(paths, open_one, cancelled, workers)` (a thread pool, up to
+min(files, cores, 4); results in the order asked; an error stays with its file), `_Budget` (a file
+starts when the bytes of the files being read leave room for it; a file bigger than the whole budget
+is read alone), `budget_bytes()` (SV_OPEN_BUDGET_MB, else half the physical memory - sysconf, or
+GlobalMemoryStatusEx on Windows - at most 8 GB, else 2 GB), `need_bytes` (file size x a factor per
+format: compressed Parquet 5, ULog / tlog / MCAP 3, .bin 1.5, others 2), `Progress` (the bar = the mean
+of each file's own fraction). `common.open_paths` (used by /api/files/open and the open job): per thread
+progress context (csv_loader's is thread-local), `store.batch(paths)` (the batch's other files count
+for display names - two log.bin from different folders get their folders from the start; one after the
+other the first got the bare name), `store.order_as` (listed in the order asked), described in order
+(tags A, B, C follow it). A cancellation inside a file is raised again; files not started are skipped.
+**Callers checked:** /api/files/open (sync route, tests), the open job (the UI's runJob), open_with_prefs
+(unchanged; reload / replace / session restore still open one at a time); thread safety: store.open_file
+adds the run under the store's lock, prefs has its own lock, the loaders keep no module state between
+files except tlog's dtype cache (filled idempotently).
+**After:** 4 x .bin 1.42 s (1.5x), 4 x CSV 0.96 s (1.2x) - two cores here; more with more cores.
+**Tests run:** test_open_many.py (5, new: side by side and in order, a file bigger than the budget alone,
+cancelled files not started, the route's order / names / a bad file / the list / tags - fails on the
+code before - and the job's progress to 1.0), then the whole backend suite: 1056 passed; mypy on the 5
+changed modules clean; e2e test_templates_recent_badfiles, test_file_help_menus, test_fresh_user,
+test_refresh_feedback, test_damaged_note, test_features -k open / files / mark / progress (33).
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3108,3 +3134,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-08 · Owner applied the Phase 2 patch (`a39b8d5`). P1 done: `signal_parts` / `view_shifted`, the per-request routes shift the window (20M samples with an offset: 51 -> 3.7 ms, 160 -> 0.2 MB; stats 458 -> 2.6 ms); V29 in validate (29 / 29); tests: test_offset_nocopy (new, 7) + 14 files, 190 passed; mypy; e2e test_what_changed, test_aligned_plots, test_features -k offset (23). Next: P2.
 - 2026-11-08 · P2 done: svcore/memcache.py (`ByteLRU`, SV_MEMCACHE_MB 1024) for transforms, derived, FFT, summaries, stats; the transform-cache race fixed; Settings ▸ Storage shows memory; 12 x 20M changed signals 1832 -> 916 MB; whole backend suite 1049 passed; validate; mypy; tsc + build; e2e test_settings, test_offline_map. Next: P3.
 - 2026-11-08 · P3 done: AbortController in api.ts / TimeChart, binary /api/data (`pack_series` / `unpackSeries`), `y_reference` for /api/data (bin) and /api/xy (relative), joinTables.ts (30 signals 162 -> 77 ms); backend 123 related tests; mypy; tsc + build; e2e test_data_path (new) + 8 files; borders test fails on origin/main here too (network). Next: P4.
+- 2026-11-08 · P4 done: app/openmany.py + common.open_paths (thread pool, memory budget SV_OPEN_BUDGET_MB, order / names / tags kept); 4 x 55 MB .bin 2.13 -> 1.42 s on 2 cores; tests: test_open_many (new, 5), whole backend suite 1056 passed; mypy; e2e 5 files + test_features -k open. Next: P5.

@@ -4,7 +4,7 @@ import base64
 import json
 import logging
 import os
-from typing import NoReturn, Optional
+from typing import List, NoReturn, Optional
 
 import numpy as np
 from fastapi import HTTPException
@@ -94,6 +94,42 @@ def y_reference(y: np.ndarray) -> float:
 def fail(status: int, message: str) -> NoReturn:
     raise HTTPException(status_code=status, detail=message)
 
+
+
+def open_paths(paths: list, settings: Optional[dict], report=None, cancelled=None) -> tuple:
+    """P4: several files read at once (app/openmany.py: within the memory budget); (opened, errors) in
+    the order asked, the files listed in that order. report(frac, phase): the overall progress;
+    cancelled(): stop starting files. A cancellation raised inside a file is raised again here."""
+    from app.openmany import Progress, open_many
+    from svcore.csv_loader import set_progress_context
+    prog = Progress(len(paths), report or (lambda f, p="": None))
+
+    def one(p: str, i: int):
+        set_progress_context(prog.file(i), cancelled)      # per thread: each file its share of the bar
+        try:
+            return open_with_prefs(p, settings)
+        finally:
+            prog.file(i)(1.0, "read")
+            set_progress_context(None, None)
+    with store.batch(paths):
+        results = open_many(list(paths), one, cancelled or (lambda: False))
+    opened: List[LoadedRun] = []
+    errors: list = []
+    for p, lr, err in results:
+        if err is not None and err.__class__.__name__ in ("JobCancelled", "LoadCancelled"):
+            raise err
+        if err is None and lr is None:             # never started: cancelled meanwhile
+            continue
+        if isinstance(err, LoadError):
+            errors.append(_load_error(p, err))
+        elif isinstance(err, Exception):
+            errors.append(unexpected_load_error(p, err))
+        elif err is not None:                      # KeyboardInterrupt / SystemExit: not a file's fault
+            raise err
+        elif isinstance(lr, LoadedRun):
+            opened.append(lr)
+    store.order_as([lr.id for lr in opened])
+    return [store.describe(lr) for lr in opened], errors     # described in order: tags A, B, C... follow it
 
 
 def open_with_prefs(path: str, settings: Optional[dict]):
