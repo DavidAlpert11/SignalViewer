@@ -287,6 +287,9 @@ button, input, select { font: inherit; color: inherit; }
 .dsig-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .dsig-name { border: 0; background: none; padding: 0; text-align: start; color: var(--ink-strong); font-weight: 500; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dsig-formula { color: var(--faint); font-size: 0.8846rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: start; }
+/* C3b: a derived signal that left out / bridged missing values says so (title: where) */
+.dsig-quality { align-self: flex-start; margin-top: 2px; padding: 0 6px; border-radius: 4px; font-size: 0.8077rem; color: var(--amber);
+  background: var(--amber-soft); border: 1px solid var(--amber); cursor: help; white-space: nowrap; }
 .dsig.broken .dsig-name { color: var(--danger); }
 .dsig .iconbtn { height: 26px; min-width: 26px; padding: 0; opacity: .6; }
 .dsig:hover .iconbtn { opacity: 1; }

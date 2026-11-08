@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../api";
+import { api, type DerivedQuality } from "../api";
 import { showFileTags, actions, activeTab, useApp } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
@@ -32,6 +32,8 @@ const UNARY: [string, TKey][] = [
 const BINARY: [string, string][] = [["sub", "A − B"], ["add", "A + B"], ["mul", "A × B"], ["div", "A ÷ B"], ["absdiff", "|A − B|"]];
 const MULTI: [string, TKey][] = [["mean", "opMean"], ["sum", "opSum"], ["min", "opMin"], ["max", "opMax"], ["norm", "opNorm"],
   ["vecsmooth", "opVecSmooth"]];      // Q102: 2-3 components of one vector, a window in seconds, one signal each
+// C3b: the several-signal operations with a missing-data choice (svcore/analysis.py NAN_OPS)
+const NAN_MANY = new Set(["mean", "sum", "min", "max", "norm"]);
 // Frame conversion (svcore/analysis.py "frame"): one derived signal per output axis, the three
 // made as one nested group (frames.ts). A vector (velocity...) only rotates; a position also moves
 // its origin, so the frames differ.
@@ -82,6 +84,8 @@ export default function AnalysisPanel() {
   const multi = useApp((s) => s.multi);
   const multiSigs = Array.from(new Set(multi.map((m) => m.sig)));
   const [alignment, setAlignment] = useState("linear");
+  // C3b: a missing input - the sample stays missing (default), or the inputs that have a value are used
+  const [nanPolicy, setNanPolicy] = useState<"propagate" | "skip">("propagate");
   const [name, setName] = useState("");
   const [fx, setFx] = useState("");
   const [output, setOutput] = useState<"new" | "edit">("new");
@@ -182,7 +186,10 @@ export default function AnalysisPanel() {
   })();
   const updOp = op === "derivative" || op === "integral";
   const update = !updOp || upd === "every" ? undefined : upd === "hz" ? { hz: updHz } : { flag: true };
-  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr, ...(update ? { update } : {}) };
+  // C3b: the operations with a missing-data choice (an integral of updates has its own samples: none)
+  const nanOp = kind === "many" ? NAN_MANY.has(op) : kind === "one" && op === "integral" && output === "new" && !update;
+  const params = { window: windowN, cutoff, alignment, gain, bias, expr: xCanon?.text ?? xexpr, ...(update ? { update } : {}),
+    ...(nanOp ? { nan: nanPolicy } : {}) };
   const xProblem = !isX ? null : !xexpr.trim() ? "" : (() => {
     const p = parenProblem(xexpr);
     if (p) return t(p);
@@ -497,6 +504,17 @@ export default function AnalysisPanel() {
             <p className="hint" style={{ fontSize: "0.846rem", margin: "0 0 8px" }}>{t("frameHint")}</p>
           </>}
 
+          {nanOp && (
+            <div className="afield nan-field"><span>{t("nanTitle")}</span>
+              <select aria-label={t("nanTitle")} value={nanPolicy} onChange={(e) => setNanPolicy(e.target.value as typeof nanPolicy)}>
+                <option value="propagate">{t("nanPropagate")}</option>
+                <option value="skip">{t(op === "integral" ? "nanBridge" : "nanSkip")}</option>
+              </select>
+              <p className="hint" style={{ fontSize: "0.846rem", margin: "4px 0 0" }}>
+                {t(nanPolicy === "propagate" ? (op === "integral" ? "nanPropagateHintInt" : "nanPropagateHint") : op === "integral" ? "nanBridgeHint" : "nanSkipHint")}</p>
+            </div>
+          )}
+
           {(kind === "two" || kind === "many" || kind === "frame" || (kind === "fx" && (fxRes?.sources.length ?? 0) > 1)) && (
             <label className="afield"><span>{t("alignment")}</span>
               <select value={alignment} onChange={(e) => setAlignment(e.target.value)}>
@@ -555,6 +573,7 @@ export default function AnalysisPanel() {
                   <button className="dsig-name" onClick={() => actions.toggleSignal(s.id)} title={`${s.name}\n${t("addToActivePlot")}`}>{deep ? memberLabel(s.name, g.key) : s.name}</button>
                   {!deep && s.formula && s.formula !== s.name && <span className="dsig-formula">{s.formula}</span>}
                   {s.valid === false && <span className="dsig-formula">{t("derivedBroken")}</span>}
+                  {s.quality && <QualityMark q={s.quality} />}
                 </div>
                 <button className="iconbtn" onClick={() => remove([s])} aria-label={t("remove")} title={t("remove")}><Icon.Trash /></button>
               </div>
@@ -600,4 +619,20 @@ function PreviewKey({ lines }: { lines: PreviewLine[] }) {
       ))}
     </div>
   );
+}
+
+/** C3: what a derived signal did about missing / infinite values (the backend's `quality`), as one
+ *  short mark - a signal made with "skip" says so wherever it is listed. */
+function QualityMark({ q }: { q: DerivedQuality }) {
+  const t = useT();
+  const fmt = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(0) : x.toPrecision(3));
+  const span = (s: [number, number][]) => s.slice(0, 5).map(([a, b]) => (a === b ? fmt(a) : `${fmt(a)}–${fmt(b)}`)).join(", ") + (s.length > 5 ? " …" : "");
+  const parts: string[] = [];
+  if (q.skipped) parts.push(t("qSkipped", { n: q.skipped.toLocaleString() }));
+  if (q.bridged?.length) parts.push(t("qBridged", { n: q.bridged.length, at: span(q.bridged) }));
+  if (q.missing?.length) parts.push(t("qMissing", { at: span(q.missing) }));
+  if (q.infinite) parts.push(t("qInfinite", { n: q.infinite.toLocaleString() }));
+  if (!parts.length) return null;
+  const short = q.skipped ? t("qSkippedShort") : q.bridged?.length ? t("qBridgedShort") : q.missing?.length ? t("qMissingShort") : t("qInfiniteShort");
+  return <span className="dsig-quality" role="note" title={parts.join("\n")}>{short}</span>;
 }
