@@ -307,6 +307,12 @@ class DataFlash:
         self.lazy = False           # big log: numeric fields are read when first used (set by load_bin)
         self.src: Optional[_BinSource] = None
 
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        # a DataFlash unpickled from a log index written by an older version: every field it did not
+        # have yet gets its default (O2's added three; live mode reads them)
+        fresh = DataFlash().__dict__
+        self.__dict__.update({**fresh, **state})
+
     # ------------------------------------------------------------------ framing
     def _lengths(self) -> np.ndarray:
         lut = np.zeros(256, dtype=np.int64)
@@ -807,7 +813,8 @@ def _read(path: str, start: int = 0) -> np.ndarray:
 # memory-mapped when the same file is opened again: near-instant, and almost no RAM until a signal
 # is plotted. Used only when size, time stamp and a fingerprint of the bytes all match. Written
 # only for a log that is not being written to (live files change every second).
-INDEX_VERSION = 2   # v2: old GPS on its boot time (T), not the GPS week's time
+INDEX_VERSION = 3   # v2: old GPS on its boot time (T); v3: O2 - damage left out (a v2 index keeps the phantom
+                    # signals, and its pickled DataFlash lacks the O2 fields that live mode reads)
 INDEX_QUIET_S = 60.0
 
 

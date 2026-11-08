@@ -290,3 +290,20 @@ def test_fft_cache_is_bounded_by_size():
         assert CACHE.info()["bytes"] <= (8 << 20)
     finally:
         CACHE.set_limit(old)
+
+
+def test_an_index_from_an_older_version_is_not_used_and_its_state_still_loads(big_mode):
+    """26.A1 found: O2 added fields to DataFlash; an index pickled before them (and holding O2's phantom
+    signals) must not be used - INDEX_VERSION 3 - and an old pickled DataFlash gets the new fields."""
+    import pickle
+    p = str(big_mode / "v.bin")
+    write_bin(p)
+    assert B.INDEX_VERSION >= 3
+    run, _ = B.load_bin(p, "x")
+    df = run._dataflash
+    old = {k: v for k, v in df.__dict__.items() if k not in ("dropped_messages", "phantom_instances", "known_instances")}
+    old["src"] = None
+    back = B.DataFlash.__new__(B.DataFlash)
+    back.__setstate__(pickle.loads(pickle.dumps(old)))
+    assert back.dropped_messages == 0 and back.phantom_instances == [] and back.known_instances == {}
+    assert back.formats.keys() == df.formats.keys()
