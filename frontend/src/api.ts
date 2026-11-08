@@ -431,7 +431,7 @@ export const api = {
   getAutosave: () => call<{ state: any; damaged?: string }>("/api/autosave"),
   errorSegments: (a: string, b: string, state: string | null, alignment: string) => call<{
     total: ErrStat; rows: (ErrStat & { t0: number; t1: number; value: number; label: string | null; occurrence: number })[] }>("/api/error-segments", { a, b, state, alignment }),
-  getSettings: () => call<{ settings: Record<string, unknown> }>("/api/settings"),
+  getSettings: () => call<{ settings: Record<string, unknown>; offlineForced?: boolean }>("/api/settings"),
   putSettings: (changes: Record<string, unknown>) => call<{ settings: Record<string, unknown> }>("/api/settings", { changes }, "PUT"),
   putAutosave: (state: unknown) => call<{ ok: boolean }>("/api/autosave", state),
   restore: (runs: unknown[]) => call<{ restored: RunInfo[]; missing: any[] }>("/api/session/restore", { runs }),

@@ -76,6 +76,10 @@ export interface UiSlice {
   timeFormat: "seconds" | "clock";
   /** U1: a template with several tabs opened from its chip - ask which tabs, or open its default tabs */
   tplTabChoice: "ask" | "defaults";
+  /** O1: "Never use the network" (a setting): online map layers fall back to the offline map */
+  offlineOnly: boolean;
+  /** O1: SV_OFFLINE=1 for the app - the same, and the setting is locked on (from /api/settings; UI only) */
+  offlineForced: boolean;
   /** U1: the "which tabs?" dialog (UI only) */
   tabChoice: { tpl: import("../../api").Template; all: import("../../api").Template[]; bind: Record<string, string> } | null;
   /** F24: each plot's room left / right of its plot area (px), so a column of plots shares one -
@@ -145,6 +149,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   settingsOpen: false,
   timeFormat: "seconds",
   tplTabChoice: "ask",
+  offlineOnly: false,
+  offlineForced: false,
   tabChoice: null,
   gutters: {},
   xViews: {},

@@ -1606,3 +1606,8 @@ input.fx-input { width: 100%; }
 
 /* U7: the plot type shows on the plot in use (or under the pointer), or when it is not a time plot */
 .plot:not(.active):not(:hover) .mode-btn.is-time { visibility: hidden; }
+
+/* O1: the sign that map tiles come from the internet - small, amber, beside the layer menu */
+.net-badge { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--amber);
+  background: var(--amber-soft); color: var(--amber); font-size: 0.8462rem; line-height: 1.6; white-space: nowrap; cursor: help; }
+.net-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }

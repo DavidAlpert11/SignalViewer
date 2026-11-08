@@ -1,5 +1,21 @@
 # Offline map and 3D view
 
+## The network { #the-network }
+
+The map's *Automatic* layer is the **offline map** the app draws from data it ships with: nothing is
+sent. The layers under *Online – downloads map tiles* in the layer menu (streets: OpenStreetMap or
+Esri; light / dark grey and satellite: Esri; topographic: OpenTopoMap) are used only when you choose
+one; the app then requests the tiles of the area on screen from that provider - through its own
+server, so the page itself never talks to the internet - and keeps them in `~/.signalviewer/tiles`.
+Such a request carries the tile's coordinates (roughly where you are looking) and the app's name.
+While online tiles are in use the plot shows an amber **Online map** sign.
+
+**Never use the network** (*Settings*), or `SV_OFFLINE=1` in the environment (it locks the setting on,
+for a whole installation): the online layers are off in the menu, a session that chose one shows the
+offline map, and the server refuses every download (`app/tiles.py` checks it before any request) -
+tiles already on the disk are still shown. Nothing else in the app uses the network: the 3D view's
+terrain and imagery are the bundled ones (no Cesium ion), and there is no update check or telemetry.
+
 ## Offline map data
 
 `backend/app/basemap_data/` (17 MB) is built by `python tools/make_basemap.py --all` on a machine

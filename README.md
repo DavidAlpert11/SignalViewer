@@ -76,7 +76,8 @@ network. Open the files, see what is wrong, compare, report; then make the same 
 
 Under the hood: a Python core (FastAPI + NumPy) and a React / TypeScript UI in one native window.
 Multi-gigabyte recordings open in seconds, every sample stays available at full resolution, and
-**nothing needs the internet** – not even the map and the 3D globe.
+**nothing needs the internet** – not even the map and the 3D globe (the map is the offline one unless
+you pick an online layer).
 
 ---
 
@@ -207,7 +208,10 @@ More - the checks and tolerances files, your own readers, binary layouts, CAN: [
 | review one ArduPilot / PX4 flight online | UAV Log Viewer, PX4 Flight Review | offline, several flights side by side, your own limits in CI |
 | write the final analysis as a script | Python / MATLAB | a quick look first; `sv.load()` / `sv.show()` go both ways |
 
-Nothing leaves the PC: no account, no telemetry; English and Hebrew.
+Nothing leaves the PC: no account, no telemetry. The one exception is your choice: an online map
+layer (OpenStreetMap, Esri, OpenTopoMap) downloads the tiles of the area on screen, shown by an
+*Online map* sign - *Settings ▸ Never use the network* (or `SV_OFFLINE=1`) turns even that off.
+English and Hebrew.
 
 ## Documentation
 
@@ -223,7 +227,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 <div dir="rtl">
 
 **Signal Viewer** – אפליקציה לצפייה, השוואה ודוחות על נתוני זמן: ריצות ניסוי, לוגים של טיסה, תוצאות סימולציה,
-לוגים של CAN והקלטות בינאריות. עובדת כולה בלי אינטרנט, והקבצים לא יוצאים מהמחשב.
+לוגים של CAN והקלטות בינאריות. עובדת כולה בלי אינטרנט, והקבצים לא יוצאים מהמחשב (שכבת מפה מקוונת, רק אם בוחרים בה, מורידה אריחי מפה של האזור המוצג; *הגדרות ▸ לעולם לא להשתמש ברשת* או `SV_OFFLINE=1` מבטלים גם את זה).
 
 **התקנה**
 

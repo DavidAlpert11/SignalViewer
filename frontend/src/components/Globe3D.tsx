@@ -4,6 +4,7 @@ import "cesium/Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css";
 import { api } from "../api";
 import { openMenu } from "./Overlays";
 import { actions, activeTab, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
+import { useMapBase } from "../mapBase";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
 import { bearing, colorRuns, fmtDistance, groundDistance, objectAt, trackColors, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
@@ -97,7 +98,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const theme = useApp((s) => s.theme);
-  const base = useApp((s) => s.geoBase);
+  const base = useMapBase();
   const cursor = useApp((s) => s.cursor);
   // U6: the time under the pointer over a time plot of this tab - a faint point for each object there
   const pointerT = useApp((s) => (s.pointer && activeTab(s.ws).plots.some((p) => p.id === s.pointer!.plotId) ? s.pointer.t : null));
@@ -239,7 +240,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     const off = dark ? "offline_topo_dark" : "offline_topo";
     w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${off}/{z}/{x}/{y}`, maximumLevel: 14, tilingScheme: merc,
       credit: "Natural Earth · Terrain Tiles (Mapzen: SRTM, GMTED2010, ETOPO1) · © OpenStreetMap contributors" }));
-    const online = base === "auto" ? "osm" : base;            // automatic: OpenStreetMap in both themes (1.22.0)
+    const online = base;                                        // O1: "offline" unless an online layer is chosen
     if (online !== "offline" && TILE_MAXZ[online]) {
       w.imageryLayers.addImageryProvider(new cz.UrlTemplateImageryProvider({ url: `/api/tiles/${online}/{z}/{x}/{y}`, maximumLevel: TILE_MAXZ[online], tilingScheme: merc }));
     }

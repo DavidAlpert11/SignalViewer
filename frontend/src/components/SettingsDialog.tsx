@@ -51,6 +51,8 @@ export default function SettingsDialog() {
   const uiScale = useApp((s) => s.uiScale);
   const timeFormat = useApp((s) => s.timeFormat);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
+  const offlineOnly = useApp((s) => s.offlineOnly);
+  const offlineForced = useApp((s) => s.offlineForced);
   const close = () => useApp.setState({ settingsOpen: false });
   useEscape(close, true);
   const seg = <V extends string | number>(value: V, opts: [V, string][], set: (v: V) => void, label: string) => (
@@ -72,6 +74,11 @@ export default function SettingsDialog() {
             {seg(timeFormat, [["seconds", t("setTimeSeconds")], ["clock", t("setTimeClock")]], (v) => useApp.setState({ timeFormat: v }), t("setTime"))}</div>
           <div className="set-row"><span>{t("setTabChoice")}<small>{t("setTabChoiceHint")}</small></span>
             {seg(tplTabChoice, [["ask", t("setTabChoiceAsk")], ["defaults", t("setTabChoiceDefaults")]], (v) => useApp.setState({ tplTabChoice: v }), t("setTabChoice"))}</div>
+          <div className="set-row"><span>{t("setOffline")}<small>{t(offlineForced ? "setOfflineForced" : "setOfflineHint")}</small></span>
+            {offlineForced
+              ? <span className="seg" aria-label={t("setOffline")}><button className="on" disabled aria-checked>{t("setOfflineOn")}</button></span>
+              : seg(offlineOnly ? "on" : "off", [["off", t("setOfflineOff")], ["on", t("setOfflineOn")]],
+                (v) => useApp.setState({ offlineOnly: v === "on" }), t("setOffline"))}</div>
           <p className="hint">{t("setKept")}</p>
           <StorageSection />
         </div>
