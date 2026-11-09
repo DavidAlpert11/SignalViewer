@@ -2,9 +2,18 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0 (plan, baseline, fixture) and **N1 (dot nesting) done**. **Next stage: N5** (map
-> objects), then N6. N5 is the biggest task: split it into commits (detection → dialog → template → docs)
-> and hand off a patch after each part if the session ends.
+> **Stage reached:** N0 and **N1 done**; **N5 mostly done** - detection (`frontend/src/objectDetect.ts`),
+> the found-objects dialog (Add all / Add selected / Why? / naming note / Advanced…), the template that
+> adds every object, and the docs. **Next stage: the rest of N5**, then N6:
+> 1. *Default look by class*: navigation dashed, receiver as points with an outlined icon (a new optional
+>    saved field on MapObject, e.g. `track?: "line" | "dash" | "points"`, drawn in GeoChart and Globe3D).
+> 2. *Attitude source* (owner's decision 3): optional `attitudeSource?: "own" | "motion" | { object: id }`;
+>    motion = course over ground + flight-path angle, roll 0 shown as unknown, heading held below 1 m/s;
+>    borrowed = another object's angles, interpolated the short way round; outlined icon + ≈ badge.
+> 3. *The suggestion bar on open*: "3 objects found: phys, nav, gps · Add all · Choose… · Why?".
+> 4. Move `guessRoles`' other callers (`frames.ts`, `PlaceOnMapDialog.tsx`) onto `detectObjects`.
+> e2e: open the object form through `object_form(pg, row)` in test_features.py (the dialog now opens on
+> the found list).
 >
 > **Base and patch.** Base commit `dafea49` (1.23.0). All work so far is in **one cumulative patch**,
 > `signalviewer-2026-11-09.patch`. To continue:
