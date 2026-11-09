@@ -47,6 +47,11 @@ filter ran stretch by stretch), and every file gets a data-quality summary as it
 One template turns latitude / longitude / altitude / attitude signals into a map and a 3D view. Press
 play and both follow the timeline; *Up to the time* draws the track as it is flown.
 
+Every object in the recording is found by its names - truth, each navigation solution, each receiver,
+each from its own prefix - and added in one click, with *Why?* for every guess. Name your signals
+`<object>.lat / lon / alt / roll / pitch / yaw` (sub-groups like `<object>.att.roll` work too) and
+the guess just works: `truth.*`, `nav.*` and `gps.*` become three objects of the right kind.
+
 <p align="center"><img src="docs/media/02_flight_map_3d.gif" alt="A UAV flight over the Sea of Galilee played back on the offline map and in 3D" width="100%"></p>
 
 <p align="center"><img src="docs/images/31_flight_map_3d.png" alt="An ArduPilot flight: the track on the map coloured by flight mode, the vehicle in 3D, Roll desired against actual and the vibration at the moment the health check found" width="100%"></p>
