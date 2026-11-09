@@ -910,6 +910,12 @@ body.resizing { cursor: col-resize; user-select: none; }
 .kind-dot.mode { background: var(--kind-mode); }
 .kind-dot.event { background: var(--kind-event); }
 .kind-dot.error, .lvl-dot.error { background: var(--danger); }
+/* 26.U8: the findings, conditions and limit violations in the same list */
+.kind-dot.finding { background: var(--amber); border-radius: 1px; transform: rotate(45deg); }
+.kind-dot.condition { background: var(--ok); border-radius: 1px; }
+.kind-dot.limit { background: var(--danger); border-radius: 1px; }
+.ev-at { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.ev-at.warning { color: var(--amber); } .ev-at.error { color: var(--danger); }
 .lvl-dot.warning { background: var(--amber); }
 .log-list { list-style: none; margin: 0; padding: 0 4px; overflow: auto; flex: 1; min-height: 80px; }
 .log-row { display: grid; grid-template-columns: auto 8px 1fr; align-items: baseline; gap: var(--sp-1_5); width: 100%; padding: 3px 6px; border: 0; border-radius: var(--r-s); background: none; text-align: start; color: var(--ink); cursor: pointer; font-size: var(--fs-m); }

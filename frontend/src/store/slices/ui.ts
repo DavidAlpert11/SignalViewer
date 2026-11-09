@@ -74,6 +74,8 @@ export interface UiSlice {
   /** 26.U7: each open file's data-quality summary (checked after opening), and the file whose dialog is open */
   quality: Record<string, import("../../api").RunQuality>;
   qualityFor: string | null;
+  /** 26.U8: the event ] / [ went to (shown in the status bar while the cursor is on it) */
+  eventAt: { text: string; t: number; n: number; of: number; level: "info" | "warning" | "error" } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;
@@ -154,6 +156,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   compareJudge: null,
   quality: {},
   qualityFor: null,
+  eventAt: null,
   promptDialog: null,
   uiScale: 1,
   helpOpen: false,

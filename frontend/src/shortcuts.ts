@@ -1,5 +1,6 @@
 /* The app's keyboard shortcuts in one listener (A3: moved out of App.tsx). Help > Keyboard shortcuts
    lists them; a key is handled here only when nothing being typed into has it. */
+import { stepEvent } from "./events";
 import { useEffect } from "react";
 import { actions, recordingExtent, useApp } from "./store";
 import { areaKey } from "./areaCommands";
@@ -44,6 +45,8 @@ export function useShortcuts() {
       else if (e.key.toLowerCase() === "z") actions.cycleZoomMode();
       else if (e.key.toLowerCase() === "n") { e.preventDefault(); actions.addNoteAtCursor(); }
       else if ((e.key === "]" || e.key === "[") && st.condFocus) { e.preventDefault(); stepOccurrence(st.condFocus, e.key === "]" ? 1 : -1); }
+      // 26.U8: the next / previous event of any kind (modes, log events, findings, conditions, limits)
+      else if (e.key === "]" || e.key === "[") { e.preventDefault(); void stepEvent(e.key === "]" ? 1 : -1); }
       else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowLeft")) { e.preventDefault(); actions.zoomBack(); }
       else if (e.key === "Home" || e.key === "End") {          // the timeline: start / end of the recording
         const r = recordingExtent(st.runs);
