@@ -1,6 +1,7 @@
 import { translate, type TKey } from "./i18n";
 import { TRACE_COLORS, uid, type MapObject, type Plot } from "./store";
 import { createFrameGroup, frameGroupName } from "./frames";
+import { trackOfClass } from "./mapObjects";
 import { ATT_ROLES, QUAT, VEC_ROLES, type Candidate, type DetRole } from "./objectDetect";
 
 /* N5: what the found list adds, and the words of its *Why?* - shared by the dialog and the template. */
@@ -41,8 +42,23 @@ export async function candidateObject(c: Candidate, color: string, name = c.name
   return {
     id: uid("o"), name, kind: "aircraft", color, lat: lat!, lon: lon!, alt,
     yaw: id("yaw"), pitch: id("pitch"), roll: id("roll"), qw: id("qw"), qx: id("qx"), qy: id("qy"), qz: id("qz"),
-    angleUnit: "auto", trail: true,
+    angleUnit: "auto", trail: true, cls: c.cls,
+    ...(trackOfClass(c.cls) ? { track: trackOfClass(c.cls) } : {}),
+    // N5 (owner's decision 3): no angles of its own - drawn by its motion until another source is chosen
+    ...(c.attitude === "none" ? { attitudeSource: "motion" as const } : {}),
   };
+}
+
+/** N5: the objects of a found list with their attitude sources: a row borrowing from another row
+ *  (`from`: that row's candidate key) takes that row's new object, or the object already on the plot for it. */
+export function linkAttitudes(pairs: { c: Candidate; o: MapObject; from?: string }[], all: Candidate[], plot: Plot | undefined) {
+  for (const p of pairs) {
+    if (!p.from) continue;
+    const lat = all.find((x) => x.key === p.from)?.picks.lat?.id;
+    const src = pairs.find((x) => x.c.key === p.from)?.o ?? plot?.objects?.find((x) => !!lat && x.lat === lat);
+    if (src) p.o.attitudeSource = { object: src.id };
+  }
+  return pairs.map((p) => p.o);
 }
 
 /** "phys (truth), nav (navigation), gps (receiver)" - for a toast. */
@@ -52,7 +68,7 @@ export function addedSummary(cs: { name: string; cls: Candidate["cls"] }[], lang
 }
 
 /** *Why?* in plain words, one line per point: position, attitude, units, class, what is missing, near misses. */
-export function whyLines(c: Candidate, lang: Lang): string[] {
+export function whyLines(c: Candidate, lang: Lang, borrowedFrom?: string): string[] {
   const tr = (k: string, v: Record<string, string | number> = {}) => translate(lang, k as TKey, v);
   const how = (roles: DetRole[]) => {
     const p = c.picks[roles.find((r) => c.picks[r])!]!;
@@ -69,7 +85,8 @@ export function whyLines(c: Candidate, lang: Lang): string[] {
   out.push(c.pos === "lla" ? tr("objWhyPos", { list: names(posRoles), how: how(posRoles) })
     : tr("objWhyPosVec", { frame: c.pos.toUpperCase(), list: names(posRoles), how: how(posRoles) }));
   const att = c.attitude === "quaternion" ? QUAT : ATT_ROLES;
-  out.push(c.attitude === "none" ? tr("objWhyNoAtt", { prefix: c.prefix || c.name }) : tr("objWhyAtt", { list: names(att), how: how(att) }));
+  out.push(c.attitude !== "none" ? tr("objWhyAtt", { list: names(att), how: how(att) })
+    : borrowedFrom ? tr("objAttBorrowed", { name: borrowedFrom }) + "." : tr("objWhyNoAtt", { prefix: c.prefix || c.name }));
   const u = Object.values(c.picks).find((p) => p?.unit);
   if (u?.unit) out.push(tr("objWhyUnit", { unit: u.unit.unit, from: tr(u.unit.from === "suffix" ? "objWhyUnitSuffix" : "objWhyUnitBrackets") }));
   const cls = tr(`objCls_${c.cls}`);

@@ -15,6 +15,7 @@ import { clearFileItem } from "../clearing";
 import { openPaths, recentToOpen, refreshRecent, reloadRun, removeRun } from "../files";
 import { fileTimeLines, shortClock } from "../fileTimes";
 import TemplateStrip from "./TemplateStrip";
+import ObjectSuggestBar from "./ObjectSuggestBar";
 import { refreshAll } from "../live";
 import { applySyncOffset } from "../sync";
 import { openMenu, prompt } from "./Overlays";
@@ -700,6 +701,7 @@ export default function DataPanel() {
           })}
         </div>
       </div>
+      <ObjectSuggestBar />
       <TemplateStrip />
       {picked.length > 0 && (
         <div className="pick-actions" role="region" aria-label={t("nChosen", { n: picked.length })}>

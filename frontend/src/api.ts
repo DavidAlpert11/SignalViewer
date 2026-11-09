@@ -1,4 +1,5 @@
 import { translate } from "./i18n";
+import type { MapObject } from "./store";
 
 export type StorageKind = "cache" | "uploads" | "tiles" | "memory";
 /** memory (P2): not on disk - the results kept in memory to be fast, with its limit and per kind */
@@ -171,7 +172,9 @@ export interface TplPlot { title: string; mode?: string; xSignal?: string | null
 /** A map object in a template: each of its signals by name (alternatives "a|b" allowed) and file slot. */
 export type TplObjectRole = "lat" | "lon" | "alt" | "yaw" | "pitch" | "roll" | "qw" | "qx" | "qy" | "qz";
 export interface TplObject { name: string; kind: string; color?: string; roles: Partial<Record<TplObjectRole, { name: string; slot?: string }>>;
-  angleUnit?: string; altRef?: string; trail?: boolean; size?: number }
+  angleUnit?: string; altRef?: string; trail?: boolean; size?: number;
+  /** N5: the class, the track's look and a motion attitude (a borrowed one names an object: not kept) */
+  cls?: "truth" | "navigation" | "receiver" | "other"; track?: "line" | "dash" | "points"; attitudeSource?: "motion"; minSpeed?: number }
 export interface TplTab { name: string; rows: number; cols: number; rowSizes?: number[]; colSizes?: number[]; linkX?: boolean;
   linkY?: boolean; lanes?: { name: string; slot?: string }[]; plots: TplPlot[] }
 /** A file the template takes. file / path: the file it was saved from (to find the same file again when opened). */
@@ -186,7 +189,7 @@ export interface ResolvedTab {
       label?: string | null; limits?: { lo?: number | null; hi?: number | null } }[];
     objects?: { name: string; kind?: string; color?: string | null; lat: string; lon: string; alt?: string | null; yaw?: string | null; pitch?: string | null;
       roll?: string | null; qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null; angleUnit?: string; altRef?: string;
-      trail?: boolean; size?: number }[] }[];
+      trail?: boolean; size?: number; cls?: MapObject["cls"]; track?: MapObject["track"]; attitudeSource?: "motion"; minSpeed?: number }[] }[];
 }
 /** A condition kept in a template (by signal NAME, so it holds in any file that has the names). */
 export interface TplCondition { id: string; name: string; color: string; text: string; exit?: string; minDur?: number; mergeGap?: number;
@@ -377,16 +380,17 @@ export const api = {
   /** An object on the map: its signals on one time axis (see the server's object_track). */
   objectTrack: async (o: { lat: string; lon: string; alt?: string | null; yaw?: string | null; pitch?: string | null; roll?: string | null;
     qw?: string | null; qx?: string | null; qy?: string | null; qz?: string | null;
-    trackColor?: "object" | "state" | "value"; colorSig?: string | null }) => {
-    const { trackColor, colorSig, ...rest } = o;
+    trackColor?: "object" | "state" | "value"; colorSig?: string | null; attitude?: "motion" | null; minSpeed?: number }) => {
+    const { trackColor, colorSig, attitude, minSpeed, ...rest } = o;
     const colored = trackColor && trackColor !== "object" && colorSig;
     const r = await call<{ n: number; t: string; lat: string; lon: string; alt?: string; yaw?: string; pitch?: string; roll?: string;
-      course: string; ground?: string; color?: string; units: Record<string, "deg" | "rad"> }>("/api/object_track",
-      { ...rest, ...(colored ? { color: colorSig, colorStep: trackColor === "state" } : {}) });
+      course: string; ground?: string; color?: string; units: Record<string, "deg" | "rad">; derived?: "motion" }>("/api/object_track",
+      { ...rest, ...(colored ? { color: colorSig, colorStep: trackColor === "state" } : {}),
+        ...(attitude === "motion" ? { attitude, ...(minSpeed !== undefined ? { minSpeed } : {}) } : {}) });
     const f = (s?: string) => (s ? decode(s, Float32Array) : null);
     return { n: r.n, t: decode(r.t, Float64Array), lat: decode(r.lat, Float64Array), lon: decode(r.lon, Float64Array),
       alt: f(r.alt), yaw: f(r.yaw), pitch: f(r.pitch), roll: f(r.roll), course: decode(r.course, Float32Array), ground: f(r.ground), units: r.units,
-      color: f(r.color) };
+      color: f(r.color), derived: r.derived ?? null };
   },
   states: (signals: string[], x0: number | null, x1: number | null, bins = 1500) =>
     call<{ states: Record<string, { points: [number, number | null][]; tooMany: boolean; end: number | null }> }>("/api/states", { signals, x0, x1, bins }),

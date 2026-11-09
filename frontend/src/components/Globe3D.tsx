@@ -7,7 +7,7 @@ import { useMapBase } from "../mapBase";
 import { globeImage } from "../globeBridge";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
-import { bearing, colorRuns, fmtDistance, groundDistance, objectAt, trackColors, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
+import { angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
 import Globe3DFallback from "./Globe3DFallback";
@@ -116,11 +116,11 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const [lightMode, setLightMode] = useState(false);
   const widgetRef = useRef<import("cesium").CesiumWidget | null>(null);
   const objects: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
-  const objKey = objects.map((o) => [o.id, o.lat, o.lon, o.alt, o.yaw, o.pitch, o.roll, o.qw, o.qx, o.qy, o.qz, o.trackColor, o.colorSig].join(":")).join("|");
+  const objKey = objects.map((o) => trackKey(o, objects)).join("|");
   /* what the models, lines and labels are built from: they are rebuilt only when this changes - not
      for every change of the plot (time of its own, camera, primary object...), which gives a new
      objects array each time and made the models vanish while they loaded again */
-  const objLook = objects.map((o) => [o.id, o.kind, o.color, o.name, o.size, o.trail, o.altRef, o.angleUnit].join(":")).join("|");
+  const objLook = objects.map((o) => [o.id, o.kind, o.color, o.name, o.size, o.trail, o.altRef, angleUnitOf(o, objects), o.track, derivedAttitude(o, objects)].join(":")).join("|");
   const [tracks, setTracks] = useState<Record<string, Track3>>({});
   /* per object, built once (when the objects or their data change) and only moved as time passes:
      rebuilding lines, colours (materials) and labels every frame held playback below 1 fps */
@@ -255,7 +255,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const out: Record<string, Track3> = {};
       for (const o of plot.objects ?? []) {
         try {
-          const r = await api.objectTrack(o);
+          const r = await api.objectTrack(trackRequest(o, plot.objects ?? []));
           out[o.id] = { t: r.t, lat: r.lat, lon: r.lon, yaw: r.yaw, course: r.course, units: r.units, alt: r.alt, pitch: r.pitch, roll: r.roll, ground: r.ground, color: r.color };
         } catch { /* a signal no longer open */ }
       }
@@ -303,7 +303,11 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         try {
           const m = await cz.Model.fromGltfAsync({
             url: `/models/${o.kind}.glb`, minimumPixelSize: Math.round((o.size ?? 26) * 1.8), maximumScale: 50000,
-            forwardAxis: cz.Axis.X, color: cz.Color.fromCssColorString(o.color), colorBlendMode: cz.ColorBlendMode.MIX, colorBlendAmount: 0.75,
+            forwardAxis: cz.Axis.X, colorBlendMode: cz.ColorBlendMode.MIX, colorBlendAmount: 0.75,
+            // N5: an attitude not its own (from motion, borrowed) - see-through, with an outline in its colour
+            ...(derivedAttitude(o, objects)
+              ? { color: cz.Color.fromCssColorString(o.color).withAlpha(0.3), silhouetteColor: cz.Color.fromCssColorString(o.color), silhouetteSize: 2 }
+              : { color: cz.Color.fromCssColorString(o.color) }),
           });
           if (!alive || w.isDestroyed()) return;
           m.show = false;
@@ -345,9 +349,14 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         for (const r of colorRuns(at, 0, at.length)) if (r.b - r.a > 0)
           S.lines.add({ positions: pos.slice(r.a, Math.min(pos.length, r.b + 1)), width: 3, material: cz.Material.fromType("Color", { color: cz.Color.fromCssColorString(r.color) }) });
       } else if (o.trail !== false && pos.length > 1) {
-        d.fullMat = cz.Material.fromType("Color", { color: col });
-        d.full = S.lines.add({ positions: pos, width: 2.5, material: d.fullMat });
-        d.part = S.parts.add({ positions: pos, width: 2.5, material: cz.Material.fromType("Color", { color: col }), show: false });
+        // N5: a navigation solution dashed, a receiver as points (short dashes: one per fix at most zooms)
+        const mat = () => (o.track === "dash" ? cz.Material.fromType("PolylineDash", { color: col, dashLength: 18 })
+          : o.track === "points" ? cz.Material.fromType("PolylineDash", { color: col, dashLength: 8, dashPattern: 0x000f })
+          : cz.Material.fromType("Color", { color: col }));
+        const wd = o.track === "points" ? 4 : 2.5;
+        d.fullMat = mat();
+        d.full = S.lines.add({ positions: pos, width: wd, material: d.fullMat });
+        d.part = S.parts.add({ positions: pos, width: wd, material: mat(), show: false });
       }
       d.label = S.labels.add({ position: pos[0] ?? cz.Cartesian3.ZERO, text: visualOrder(o.name), font, fillColor: cz.Color.WHITE, show: false,
         outlineColor: cz.Color.fromCssColorString("#0b1118"), outlineWidth: 3, style: cz.LabelStyle.FILL_AND_OUTLINE,
@@ -380,7 +389,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         const kind = ev.kind === "mode" ? "mode" : ev.level === "error" ? "error" : ev.level === "warning" ? "warning" : null;
         if (!kind) continue;
         const te = ev.t + (L.timeOffset || 0);
-        const p = objectAt(tr, te, o.angleUnit);
+        const p = objectAt(tr, te, angleUnitOf(o, objects));
         if (!p) continue;
         let i = 0;
         while (i < tr.t.length - 1 && tr.t[i + 1] <= te) i++;
@@ -506,7 +515,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         }
       }
       const tNow = trackTime(tr, cur.on ? cur.t1 : null, st.streaming && own === null);
-      const gp = pt !== null && own === null && Math.abs(pt - tNow) > 1e-9 ? objectAt(tr, pt, o.angleUnit) : null;
+      const gp = pt !== null && own === null && Math.abs(pt - tNow) > 1e-9 ? objectAt(tr, pt, angleUnitOf(o, objects)) : null;
       if (gp && S.ghosts) {
         let a = 0, z = tr.t.length - 1;
         while (z - a > 1) { const k = (a + z) >> 1; if (tr.t[k] <= pt!) a = k; else z = k; }
@@ -515,7 +524,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           color: cz.Color.fromCssColorString(o.color).withAlpha(0.45), outlineColor: cz.Color.WHITE.withAlpha(0.6), outlineWidth: 1.5,
           disableDepthTestDistance: Number.POSITIVE_INFINITY });
       }
-      const p = objectAt(tr, tNow, o.angleUnit);
+      const p = objectAt(tr, tNow, angleUnitOf(o, objects));
       const m = S.models.get(o.id);
       if (!p) { if (m) m.show = false; if (d.label) d.label.show = false; continue; }
       // values at the time, by the nearest samples (altitude / attitude)
@@ -528,7 +537,8 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const rad = (arr: Float32Array | null, key: string) => {
         if (!arr) return 0;
         const v = lerp(arr[lo], arr[hi]);
-        const isRad = o.angleUnit === "rad" || ((o.angleUnit ?? "auto") === "auto" && tr.units[key] === "rad");
+        const u = angleUnitOf(o, objects);
+        const isRad = u === "rad" || ((u ?? "auto") === "auto" && tr.units[key] === "rad");
         return Number.isFinite(v) ? (isRad ? v : cz.Math.toRadians(v)) : 0;
       };
       const pitch = rad(tr.pitch, "pitch"), roll = rad(tr.roll, "roll");

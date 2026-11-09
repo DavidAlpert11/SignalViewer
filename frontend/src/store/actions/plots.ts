@@ -232,6 +232,34 @@ export const plotActions = {
     if (full) tabFullMessage();
     return !full;
   },
+  /** N5: objects onto every map / 3D plot of the active tab (each plot its own copies), or onto a new
+   *  map when it has none - one commit. Returns the first plot's id (null: the tab is full). */
+  addObjectsToMaps(objs: MapObject[]): string | null {
+    let first: string | null = null, full = false;
+    useApp.getState().commit((ws) => {
+      const tab = activeTab(ws);
+      const maps = tab.plots.filter((p) => p.mode === "geo" || p.mode === "3d");
+      if (!maps.length) {
+        const np: Plot = { ...newPlot(), mode: "geo", objects: objs };
+        const at = placePlot(tab, np);
+        if (at < 0) { full = true; return ws; }
+        tab.active = at;
+        first = np.id;
+        return ws;
+      }
+      maps.forEach((p, i) => {
+        // a copy per plot: a borrowed attitude points at the copy in the same plot
+        const ids = new Map(objs.map((o) => [o.id, i ? uid("o") : o.id]));
+        const mine = objs.map((o) => ({ ...o, id: ids.get(o.id)!,
+          ...(o.attitudeSource && typeof o.attitudeSource === "object" ? { attitudeSource: { object: ids.get(o.attitudeSource.object) ?? o.attitudeSource.object } } : {}) }));
+        p.objects = [...(p.objects ?? []), ...mine];
+      });
+      first = maps[0].id;
+      return ws;
+    });
+    if (full) tabFullMessage();
+    return first;
+  },
   updateObject(plotId: string, id: string, patch: Partial<MapObject>) {
     useApp.getState().commit((ws) => {
       const p = findPlot(ws, plotId);

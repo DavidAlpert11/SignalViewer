@@ -1,4 +1,4 @@
-import TrustBadge, { AngleGuessBadge } from "./TrustBadge";
+import TrustBadge, { AngleGuessBadge, AttitudeSourceBadge } from "./TrustBadge";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
 import { GEO_BASES, effectiveBase, isOnlineBase } from "../mapBase";
@@ -448,6 +448,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                   <img src={iconSvg(o.kind, o.color)} alt="" width={16} height={16} />{o.name}
                 </button>
                 <AngleGuessBadge o={o} />
+                <AttitudeSourceBadge o={o} all={plot.objects!} />
                 <button className={`iconbtn sm${plot.followObject === o.id ? " on" : ""}`} aria-pressed={plot.followObject === o.id}
                   title={t("objFollow")} aria-label={`${t("objFollow")}: ${o.name}`}
                   onClick={() => actions.updatePlot(plot.id, { followObject: plot.followObject === o.id ? null : o.id })}>

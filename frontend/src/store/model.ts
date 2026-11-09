@@ -69,6 +69,16 @@ export interface MapObject {
    *  flight mode: a colour per value, with a key) or by a value (altitude, speed: a colour scale) */
   trackColor?: "object" | "state" | "value";
   colorSig?: string | null;                    // the signal of "state" / "value"
+  /** N5: the kind of source it was found as (truth / navigation / receiver / other) - sets its default
+   *  look and, in N7, the default primary / secondary; absent = unknown (objects made before) */
+  cls?: "truth" | "navigation" | "receiver" | "other";
+  /** N5: how its track is drawn - a line (default), dashed (a navigation solution) or points (a receiver) */
+  track?: "line" | "dash" | "points";
+  /** N5 (owner's decision 3): where its attitude comes from - its own signals (default: absent = as
+   *  before), its motion (course over ground, flight-path angle, roll unknown), or another object's */
+  attitudeSource?: "own" | "motion" | { object: string };
+  /** N5: below this ground speed (m/s) a heading from motion holds its last value (default 1) */
+  minSpeed?: number;
 }
 export interface Tab {
   id: string; name: string; rows: number; cols: number; plots: Plot[]; active: number; linkX: boolean;
