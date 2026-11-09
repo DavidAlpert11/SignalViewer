@@ -22,6 +22,7 @@ export default function Toasts() {
       {shown.map((m, i) => (
         <div key={m.id} className={`toast ${m.kind}`}>
           <span className="toast-text">{m.text}</span>
+          {m.action2 && <button className="btn outline" onClick={() => { m.action2!.run(); dismiss(m.id); }}>{m.action2.label}</button>}
           {m.action && <button className="btn outline" onClick={() => { m.action!.run(); dismiss(m.id); }}>{m.action.label}</button>}
           {i === shown.length - 1 && hidden > 0 && (
             <button className="toast-more" onClick={() => setAll(true)} title={t("moreMessages", { n: hidden })}>+{hidden}</button>

@@ -5,6 +5,8 @@ export type ZoomMode = "x" | "y" | "xy";
 export type NewFilesMode = "ask" | "auto" | "ignore";
 export interface CursorState { on: boolean; dual: boolean; t1: number | null; t2: number | null; active?: 1 | 2 }
 export interface Toast { id: string; kind: "info" | "error"; text: string; action?: { label: string; run: () => void }; ms?: number;
+  /** N5: a second button (the objects template's *Why?* beside *Undo*) */
+  action2?: { label: string; run: () => void };
   /** its action undoes the LAST workspace change: valid only until the next change / undo / redo */
   undoesWs?: boolean;
   /** a message that replaces the previous one of the same key (Q123: refresh after refresh) */

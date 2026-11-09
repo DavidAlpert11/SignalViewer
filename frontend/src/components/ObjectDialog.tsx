@@ -7,6 +7,9 @@ import { useEscape } from "./Overlays";
 import SignalField from "./SignalField";
 import { AXES, createFrameGroup, createSmoothGroup, frameGroupName } from "../frames";
 import { api, type SignalInfo } from "../api";
+import { detectAll, VEC_ROLES, type Candidate } from "../objectDetect";
+import { addable, candidateObject, isAdded, NAMING_EXAMPLE, objectColors, whyLines } from "../objectAdd";
+import { copyText } from "../errorReport";
 
 /* Q101 / Q102: the position may come in ECEF, NED or ENU (m) instead of latitude / longitude, and
    may be smoothed over a window in seconds. Both are derived signals ("frame" position -> LLA, then
@@ -45,6 +48,116 @@ const setupKey = (p: PosSetup) => JSON.stringify(p.frame === "lla" ? [p.frame, p
    names (GPS.Lat / Lng / Alt together, angles from the attitude group). */
 
 export default function ObjectDialog() {
+  const req = useApp((s) => s.objectDialog);
+  const runs = useApp((s) => s.runs);
+  const ws = useApp((s) => s.ws);
+  // N5: adding starts from the objects found in the open files; "Advanced…" (or by hand) is the form below
+  const [form, setForm] = useState<{ preset: Candidate | null } | null>(null);
+  useEffect(() => setForm(null), [req]);
+  const plot = useMemo(() => ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === req?.plotId), [ws, req]);
+  const cands = useMemo(() => detectAll(runs.filter((r) => r.format !== "derived")), [runs]);
+  if (!req || !plot) return null;
+  const fresh = cands.filter((c) => !isAdded(c, plot));
+  if (req.objectId || form || (!fresh.length && !req.why && !cands.length)) {
+    return <ObjectForm key={form?.preset?.key ?? "form"} preset={form?.preset ?? null} onBack={form && cands.length ? () => setForm(null) : undefined} />;
+  }
+  return <FoundObjects plotId={plot.id} cands={cands} why={!!req.why} onForm={(preset) => setForm({ preset })} />;
+}
+
+/** N5: "Objects found in this recording" - one row per candidate of every open file, Add all / Add
+ *  selected (one Undo), *Why?* in plain words, the naming convention, Advanced… for the full form. */
+function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: Candidate[]; why: boolean; onForm: (c: Candidate | null) => void }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const ws = useApp((s) => s.ws);
+  const runs = useApp((s) => s.runs);
+  const plot = ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === plotId);
+  const close = () => useApp.setState({ objectDialog: null });
+  useEscape(close, true);
+  const [colors] = useState(() => { const next = objectColors(plot); return new Map(cands.map((c) => [c.key, next()])); });
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [color, setColor] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState<Record<string, boolean>>(() => Object.fromEntries(cands.map((c) => [c.key, addable(c) && !isAdded(c, plot)])));
+  const [open, setOpen] = useState<Record<string, boolean>>(() => (why ? Object.fromEntries(cands.map((c) => [c.key, true])) : {}));
+  const [busy, setBusy] = useState(false);
+  const fileName = (c: Candidate) => runs.find((r) => r.id === c.runId)?.name ?? "";
+  const many = new Set(cands.map((c) => c.runId)).size > 1;
+  const can = cands.filter((c) => addable(c) && !isAdded(c, plot));
+  const sel = can.filter((c) => checked[c.key]);
+  const add = async (list: Candidate[]) => {
+    if (!list.length || busy) return;
+    setBusy(true);
+    try {
+      const objs = [];
+      for (const c of list) objs.push(await candidateObject(c, color[c.key] ?? colors.get(c.key)!, (names[c.key] ?? c.name).trim() || c.name));
+      actions.addObjects(plotId, objs);                 // one commit: one Undo
+      close();
+    } catch (e) {
+      useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
+    } finally { setBusy(false); }
+  };
+  const chip = (id: string) => <span key={id} className="obj-chip-sig" title={id.slice(id.indexOf("/") + 1)}>{id.slice(id.indexOf("/") + 1)}</span>;
+  return (
+    <div className="scrim" onMouseDown={close}>
+      <div className="dialog obj-found" role="dialog" aria-modal="true" aria-label={t("objFoundTitle")} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="dialog-head"><h2>{t("objFoundTitle")}</h2></div>
+        <div className="dialog-body">
+          {!cands.length && <p className="hint">{t("objFoundNone")}</p>}
+          {cands.length > 0 && (
+            <ul className="obj-found-list">
+              {cands.map((c) => {
+                const added = isAdded(c, plot);
+                const col = color[c.key] ?? colors.get(c.key)!;
+                return (
+                  <li key={c.key} className={`obj-found-row${added ? " added" : ""}`} data-key={c.key}>
+                    <div className="obj-found-main">
+                      <input type="checkbox" className="obj-found-check" aria-label={names[c.key] ?? c.name}
+                        checked={!added && !!checked[c.key]} disabled={added || !addable(c)}
+                        onChange={(e) => setChecked({ ...checked, [c.key]: e.target.checked })} />
+                      <img src={iconSvg("aircraft", col)} alt="" width={22} height={22} />
+                      <input className="obj-found-name" value={names[c.key] ?? c.name} disabled={added} aria-label={t("objName")}
+                        onChange={(e) => setNames({ ...names, [c.key]: e.target.value })} />
+                      <span className={`obj-cls cls-${c.cls}`}>{t(`objCls_${c.cls}` as TKey)}</span>
+                      <input type="color" value={col} disabled={added} aria-label={t("objColor")} onChange={(e) => setColor({ ...color, [c.key]: e.target.value })} />
+                      {many && <span className="obj-found-file" title={fileName(c)}>{fileName(c)}</span>}
+                      <span className="spacer" />
+                      {added ? <span className="obj-found-added">✓ {t("objAdded")}</span>
+                        : !addable(c) ? <span className="obj-found-origin">{t("objNeedsOrigin")}</span> : null}
+                      <button className="linklike obj-why" aria-expanded={!!open[c.key]} onClick={() => setOpen({ ...open, [c.key]: !open[c.key] })}>{t("objWhy")}</button>
+                      {!added && <button className="linklike obj-adv" onClick={() => onForm(c)}>{t("objAdvanced")}</button>}
+                    </div>
+                    <div className="obj-found-sigs">{[...(c.pos === "lla" ? (["lat", "lon", "alt"] as const) : VEC_ROLES), "roll", "pitch", "yaw", "qw", "qx", "qy", "qz"]
+                      .map((r) => c.picks[r as keyof Candidate["picks"]]?.id).filter((x): x is string => !!x).map(chip)}</div>
+                    {open[c.key] && <ul className="obj-why-lines">{whyLines(c, lang).map((l, i) => <li key={i}>{l}</li>)}</ul>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="obj-naming">
+            <b>{t("objNamingTitle")}</b>
+            <p>{t("objNamingText")}</p>
+            <pre dir="ltr">{NAMING_EXAMPLE}</pre>
+            <div className="obj-naming-links">
+              <button className="linklike" onClick={() => void copyText(NAMING_EXAMPLE)}>{t("objNamingCopy")}</button>
+              <button className="linklike" onClick={() => useApp.setState({ guideOpen: true })}>{t("objNamingMore")}</button>
+            </div>
+          </div>
+        </div>
+        <div className="dialog-foot">
+          <button className="btn obj-byhand" onClick={() => onForm(null)}>{t("objByHand")}</button>
+          <span className="spacer" />
+          <button className="btn" onClick={close}>{t("cancel")}</button>
+          {can.length >= 2 && <button className="btn obj-add-sel" disabled={!sel.length || busy} onClick={() => void add(sel)}>{t("objAddSelected")}</button>}
+          {can.length >= 1 && <button className="btn primary obj-add-all" disabled={busy || (can.length === 1 && !sel.length)}
+            onClick={() => void add(can.length >= 2 ? can : sel)}>{can.length >= 2 ? t("objAddAll", { n: can.length }) : t("objAddOne")}</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () => void }) {
   const t = useT();
   const req = useApp((s) => s.objectDialog);
   const runs = useApp((s) => s.runs);
@@ -58,9 +171,12 @@ export default function ObjectDialog() {
   const [o, setO] = useState<MapObject>(() => {
     if (editing) return { ...editing };
     const run = data[0];
-    const g = run ? guessRoles(run) : {};
+    // N5: from a found object (Advanced…), else the old guess from the first file
+    const g: Partial<Record<Role, string>> = preset
+      ? Object.fromEntries(Object.entries(preset.picks).filter(([r]) => !VEC_ROLES.includes(r as never)).map(([r, p]) => [r, p!.id]))
+      : run ? guessRoles(run) : {};
     const n = (plot?.objects?.length ?? 0) + 1;
-    return { id: uid("o"), name: `${t("obj_aircraft")} ${n}`, kind: "aircraft", color: nextColor(ws), lat: g.lat ?? "", lon: g.lon ?? "",
+    return { id: uid("o"), name: preset?.name ?? `${t("obj_aircraft")} ${n}`, kind: "aircraft", color: nextColor(ws), lat: g.lat ?? "", lon: g.lon ?? "",
       alt: g.alt ?? null, yaw: g.yaw ?? null, pitch: g.pitch ?? null, roll: g.roll ?? null,
       qw: g.qw ?? null, qx: g.qx ?? null, qy: g.qy ?? null, qz: g.qz ?? null, angleUnit: "auto", trail: true };
   });
@@ -76,14 +192,18 @@ export default function ObjectDialog() {
     return () => { gone = true; };
   }, [o.yaw, o.pitch, o.roll]);
   const runOf = (sig?: string | null) => (sig ? sig.slice(0, sig.indexOf("/")) : "");
-  const [mainRun, setMainRun] = useState(runOf(o.lat) || data[0]?.id || "");
+  const [mainRun, setMainRun] = useState(preset?.runId || runOf(o.lat) || data[0]?.id || "");
   // the attitude: three angles, or a quaternion (four signals - e.g. a PX4 log has only that)
   const [quat, setQuat] = useState(!!o.qw);
   const derivedSigs = runs.find((r) => r.format === "derived")?.signals ?? [];
   const [orig] = useState<PosSetup | null>(() => (editing ? readSetup(editing, derivedSigs) : null));
   const [pos, setPos] = useState<PosSetup>(() => {
     if (orig) return { ...orig };
-    const g = data[0] ? guessRoles(data[0]) : {};
+    if (preset && preset.pos !== "lla") {
+      const v = VEC_ROLES.map((r) => preset.picks[r]?.id ?? "");
+      return { frame: preset.pos, vec: v, refMode: "manual", refSigs: ["", "", ""], refLla: ["", "", ""], lat: "", lon: "", alt: null, smooth: 0 };
+    }
+    const g = data[0] && !preset ? guessRoles(data[0]) : {};
     return { frame: "lla", vec: ["", "", ""], refMode: g.lat && g.lon && g.alt ? "signals" : "manual",
       refSigs: [g.lat ?? "", g.lon ?? "", g.alt ?? ""], refLla: ["", "", ""], lat: o.lat, lon: o.lon, alt: o.alt ?? null, smooth: 0 };
   });
@@ -282,6 +402,7 @@ export default function ObjectDialog() {
         </div>
         <div className="dialog-foot">
           {editing && <button className="btn danger" onClick={() => { actions.removeObject(plot.id, o.id); close(); }}>{t("remove")}</button>}
+          {onBack && <button className="btn obj-back" onClick={onBack}>{t("objFoundTitle")}</button>}
           <span className="spacer" />
           <button className="btn" onClick={close}>{t("cancel")}</button>
           <button className="btn primary obj-save" disabled={!ok || busy} onClick={() => void save()}>{editing ? t("save") : t("objAddBtn")}</button>

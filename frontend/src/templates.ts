@@ -1,7 +1,8 @@
 import { api, type RunInfo, type Template, type TplObject, type TplObjectRole, type TplPlot, type TplSlot, type TplTab } from "./api";
-import { colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type MapObject, type MoreTabs, type ObjectKind, type Plot, type Tab } from "./store";
+import { activeTab, colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useApp, type Condition, type MapObject, type MoreTabs, type ObjectKind, type Plot, type Tab } from "./store";
 import { translate } from "./i18n";
-import { guessRoles } from "./mapObjects";
+import { detectObjects, type Candidate } from "./objectDetect";
+import { addedSummary } from "./objectAdd";
 
 const OBJ_ROLES: TplObjectRole[] = ["lat", "lon", "alt", "yaw", "pitch", "roll", "qw", "qx", "qy", "qz"];
 
@@ -191,22 +192,24 @@ export function rankTemplates(all: Template[], fitOf: Map<string, number>, prefe
 
 /** "Position on the map & 3D" fits only when a file has latitude and longitude signals. */
 const objectsFit = (t: Template, runs: RunInfo[]) =>
-  t.generator === "objects" && dataRuns(runs).some((r) => { const g = guessRoles(r); return !!(g.lat && g.lon); }) ? 1 : 0;
+  t.generator === "objects" && dataRuns(runs).some((r) => detectObjects(r).candidates.some((c) => c.pos === "lla")) ? 1 : 0;
 
 /* --------------------------------------------------------------- generators (built-in, any file) */
 const PER_TAB = 4;
-/** "Position on the map & 3D": the file's position (and attitude) signals, found by their names, as an
- *  object on a map and in the 3D view. */
-function objectTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): TplTab[] {
+/** "Position on the map & 3D": EVERY object of the file found by its names (N5: truth, navigation
+ *  solutions, receivers - each from its own prefix), on a map and in the 3D view. */
+function objectTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he", found?: Candidate[]): TplTab[] {
   if (!run) return [];
-  const g = guessRoles(run);
-  if (!g.lat || !g.lon) return [];
-  const bare = (id?: string) => (id ? id.slice(id.indexOf("/") + 1) : undefined);
-  const roles = Object.fromEntries(OBJ_ROLES.filter((k) => g[k]).map((k) => [k, { name: bare(g[k])!, slot }]));
-  const obj: TplObject = { name: run.name.replace(/\.[^.]+$/, ""), kind: "aircraft", color: "#E5534B", roles };
+  const cands = detectObjects(run).candidates.filter((c) => c.pos === "lla");   // NED / ENU / ECEF need the dialog
+  if (!cands.length) return [];
+  found?.push(...cands);
+  const bare = (id: string) => id.slice(id.indexOf("/") + 1);
+  const objs: TplObject[] = cands.map((c, i) => ({ name: c.name, kind: "aircraft", color: TRACE_COLORS[i % TRACE_COLORS.length],
+    roles: Object.fromEntries(OBJ_ROLES.filter((k) => c.picks[k]).map((k) => [k, { name: bare(c.picks[k]!.id), slot }])) }));
+  const obj = objs;
   return [{ name: translate(lang, "tplObjTab"), rows: 1, cols: 2, linkX: false, plots: [
-    { title: translate(lang, "modeGeo"), mode: "geo", signals: [], objects: [obj] },
-    { title: translate(lang, "mode3d"), mode: "3d", signals: [], objects: [obj] }] }];
+    { title: translate(lang, "modeGeo"), mode: "geo", signals: [], objects: obj },
+    { title: translate(lang, "mode3d"), mode: "3d", signals: [], objects: obj }] }];
 }
 
 function quickLookTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he"): TplTab[] {
@@ -236,7 +239,9 @@ function compareTabs(runs: RunInfo[], slot: string, lang: "en" | "he"): TplTab[]
 }
 
 /* --------------------------------------------------------------- open a template */
-export interface ApplyResult { tabs: number; plots: number; dropped: string[]; missing: string[]; conditions: number }
+export interface ApplyResult { tabs: number; plots: number; dropped: string[]; missing: string[]; conditions: number;
+  /** N5: the objects the objects generator added (for the toast's list and its *Why?*) */
+  objects?: Candidate[] }
 
 /** U1: the tabs opened without asking - those named in `defaultTabs`, by index into the expanded
  *  tabs; every tab when it is absent or names none of them (a template edited since). */
@@ -265,14 +270,15 @@ export async function applyTemplate(t: Template, all: Template[], bind: Record<s
   const e = expand(t, all);
   const rest = opts.rest ?? (chosen ? e.tabs.filter((_x, i) => !chosen.includes(i)).map((x) => x.name) : []);
   const extraTabs: TplTab[] = [];
+  const found: Candidate[] = [];
   for (const g of opts.rest ? [] : e.generators) {
     const slot = g.slots[0].id;
     extraTabs.push(...(g.generator === "quicklook" ? quickLookTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
-      : g.generator === "objects" ? objectTabs(st.runs.find((r) => r.id === bind[slot]), slot, L)
+      : g.generator === "objects" ? objectTabs(st.runs.find((r) => r.id === bind[slot]), slot, L, found)
       : compareTabs(st.runs, slot, L)));
   }
   const r = await api.resolveTemplate(t, all, bind, chosen ?? null, extraTabs);
-  const res: ApplyResult = { tabs: 0, plots: 0, dropped: r.dropped, missing: r.missing, conditions: 0 };
+  const res: ApplyResult = { tabs: 0, plots: 0, dropped: r.dropped, missing: r.missing, conditions: 0, ...(found.length ? { objects: found } : {}) };
   let firstNew: string | null = null;
   st.commit((ws) => {
     const color = colorAllocator(ws);   // F13: one allocator for the whole apply
@@ -363,8 +369,14 @@ export function announceOpened(t: Template, res: ApplyResult, undo = false) {
   if (!res.tabs) { st.toast({ kind: "error", text: translate(L, "tplNothing2", { names: res.missing.slice(0, 5).join(", ") }), ms: 12000 }); return; }
   st.toast({ kind: "info", ms: res.dropped.length ? 12000 : undo ? 5000 : 4000, text: translate(L, "tplOpened", openedCounts(t.name, res, L))
     + (res.dropped.length ? " " + translate(L, "tplLeftOut", { list: res.dropped.slice(0, 4).join(", ") + (res.dropped.length > 4 ? "…" : "") }) : "")
-    + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : ""),
-    ...(undo ? { action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } } : {}) });
+    + (res.conditions ? " " + translate(L, "tplCondsAdded", { n: res.conditions }) : "")
+    + (res.objects?.length ? " " + addedSummary(res.objects, L) : ""),
+    ...(undo ? { action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } } : {}),
+    // N5: *Why?* opens the found list with every explanation open, on the new map
+    ...(res.objects?.length ? { action2: { label: translate(L, "objWhy"), run: () => {
+      const p = activeTab(useApp.getState().ws).plots.find((x) => x.mode === "geo" && x.objects?.length);
+      if (p) useApp.setState({ objectDialog: { plotId: p.id, why: true } });
+    } } } : {}) });
 }
 
 /** U1: stop offering a template's left-out tabs. */
