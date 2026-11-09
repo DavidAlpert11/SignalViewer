@@ -34,6 +34,17 @@
   looks from it towards the second object. Changing mode or object flies there instead of jumping, and a
   short hint says what the mouse does in each mode.
 
+- **Primary and secondary objects, and what is between them (Tacview-like).** On a map with several
+  objects one is the *primary* (a ring) and one the *secondary* (a dashed ring) - by default the truth
+  and the first navigation solution (in a flight log the EKF and a GPS). Click an object (Shift+click:
+  the secondary), use the chip's menu, or Q / Shift+Q and X on the map. A box at the cursor shows the
+  range, horizontal distance, Δalt, bearing, relative bearing, closure rate, time to closest approach,
+  heading difference and aspect; a dashed line with the range joins them (or the primary to every
+  object, or none). From the box: *Plot over time* (range, Δalt, bearing, closure in a new tab), *Error
+  signals* (horizontal / vertical / 3D, heading, roll, pitch errors against the primary - `nav_vs_phys.err.*`),
+  and *Differences* / *Overlay* in NED, ENU, ECEF, LLA or the track frame - differences in NED / ENU are
+  in the primary's local frame at each sample, overlays share one origin. All computed in the backend.
+
 ### Performance
 - **Smoother playback and map.** While playing, only what moves is drawn again: the panels, the file
   list and the plots' heads no longer re-render every frame. Dragging and zooming the map move the map

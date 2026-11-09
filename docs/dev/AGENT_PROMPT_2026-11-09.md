@@ -2,27 +2,30 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0, N1, N5 done; **N6 mostly done** - measured (numbers in the Log), playback renders
-> only what moves, the map drags / zooms by moving what is drawn, controls / keys / hint / follow offset,
-> smooth following (Settings), 3D Chase and Look at with a flight, benchmark budgets. **Next:** the last
-> piece of N6 - **North up / Track up** on the 2D map (a control in the map's corner; the base layer stays
-> north-up in its canvas and is drawn rotated about the middle - the margin must then cover the screen's
-> diagonal; the pointer and drag maths rotate back; labels may turn with it) - then **N7**.
-> - For N7: `Plot.primaryObject` / `Plot.relatedObjects` already exist (Globe3D: the info box's object and
->   dashed lines with distances; N6's *Look at* uses the first related object as the secondary) - extend
->   them, do not add parallel fields; `MapObject.cls` (N5) gives the default primary (truth) / secondary.
-> - Measuring: `python tools/browser_benchmark.py --data <dir> --results r.json --group smooth` (about 3
->   minutes); `window.__svRenders = {}` turns on the render counter (`frontend/src/perf.ts`).
-> - Left from N5 (small follow-up): a motion attitude from the object's own velocity signals.
+> **Stage reached:** N0, N1, N5, **N6 done**; **N7 in progress** - the backend op `relate`
+> (`svcore/relate.py`), the pair with its defaults (`relation.ts`: `defaultPair` / `pairOf` on the
+> existing `Plot.primaryObject` / `relatedObjects`; `actions.setObjectPair`), the map's rings, range line,
+> click / Shift+click / Q / X, the chip's menu, the relation box (`RelationPanel.tsx`), *Plot over time*,
+> *Error signals*, *Differences* / *Overlay* in a frame. **Next, the rest of N7:**
+> 1. 3D: rings (primary / dashed secondary) on the models, a click on a model picks the primary
+>    (Shift: the secondary), Q / X when the 3D view has the focus, and the 3D box's relation lines with
+>    closure / aspect as on the map (use `relation()` - one set of maths).
+> 2. The offer after objects are added: in the suggestion line, *"Compare objects · NED ▾ · Make plots"*
+>    (`relation.compareObjects` / `overlayObjects`), and in the object chip's menu.
+> 3. Velocities: when both objects have `vel.north/east/down`, compare / differences of them too.
+> Then N2, N3, N4, (N8 only if approved), N9.
+> - Measuring: `python tools/browser_benchmark.py --data <dir> --results r.json --group smooth`;
+>   `window.__svRenders = {}` turns on the render counter (`frontend/src/perf.ts`).
+> - Left from N5 (small): a motion attitude from the object's own velocity signals.
 > - Known flaky e2e: `test_features.py::test_limits_pass_fail_in_the_inspector` (after a reload; also
->   before this round's changes) - look at it in N9.
+>   before this round) - look at it in N9.
 >
 > e2e: open the object form through `object_form(pg, row)` in test_features.py (the dialog opens on the
 > found list). e2e needs `npm run build` first; do not commit `frontend/dist` before N9.
 >
 > **Base and patch.** The owner applies each patch and pushes it to `main`, so every session's patch is
 > made **against the repository's `main` as it is when the session starts** (it was `c5bf95b` for the
-> N6 session; the round began at `dafea49`, 1.23.0). To continue:
+> N6 / N7 sessions; the round began at `dafea49`, 1.23.0). To continue:
 > ```
 > git clone https://github.com/DavidAlpert11/SignalViewer.git && cd SignalViewer
 > git log --oneline -3          # the base: main's HEAD
