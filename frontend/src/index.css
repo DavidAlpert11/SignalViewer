@@ -1170,6 +1170,27 @@ input.fx-input { width: 100%; }
 .obj-chip-main { display: inline-flex; align-items: center; gap: var(--sp-1_5); border: 0; background: none; color: var(--ink); cursor: pointer; font: inherit; font-size: var(--fs-s); padding: 0; }
 .obj-chip .iconbtn.on { color: var(--amber); }
 .obj-dialog { width: min(640px, 94vw); }
+/* N5: the objects found in a recording */
+.obj-found { width: min(720px, 96vw); }
+.obj-found-list { list-style: none; margin: 0 0 var(--sp-2); padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.obj-found-row { border: 1px solid var(--line); border-radius: var(--r-m); padding: var(--sp-1) var(--sp-1_5); background: var(--panel); }
+.obj-found-row.added { opacity: .7; }
+.obj-found-main { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; font-size: var(--fs-s); }
+.obj-found-name { width: 12em; min-width: 0; }
+.obj-found-main input[type=color] { width: 28px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-s); }
+.obj-found-file, .obj-found-origin { color: var(--muted); font-size: var(--fs-xs); max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obj-found-added { color: var(--ok); font-size: var(--fs-xs); }
+.obj-cls { font-size: var(--fs-2xs); padding: 1px var(--sp-1); border-radius: var(--r-xs); border: 1px solid var(--line-strong); color: var(--ink); }
+.obj-cls.cls-truth { border-color: var(--ok); }
+.obj-cls.cls-navigation { border-color: var(--focus); }
+.obj-cls.cls-receiver { border-color: var(--amber); }
+.obj-found-sigs { display: flex; flex-wrap: wrap; gap: var(--sp-0_5); margin-top: var(--sp-0_5); padding-inline-start: 30px; }
+.obj-chip-sig { font-size: var(--fs-2xs); color: var(--muted); background: var(--panel-2); border-radius: var(--r-xs); padding: 0 var(--sp-1); direction: ltr; unicode-bidi: isolate; }
+.obj-why-lines { margin: var(--sp-1) 0 0; padding-inline-start: 46px; font-size: var(--fs-xs); color: var(--ink); }
+.obj-naming { border-top: 1px solid var(--line); padding-top: var(--sp-1_5); font-size: var(--fs-xs); color: var(--muted); }
+.obj-naming p { margin: var(--sp-0_5) 0; }
+.obj-naming pre { margin: var(--sp-1) 0; padding: var(--sp-1); background: var(--panel-2); border-radius: var(--r-s); overflow-x: auto; color: var(--ink); text-align: left; }
+.obj-naming-links { display: flex; gap: var(--sp-2); }
 .obj-kinds { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--sp-1_5); margin-bottom: 12px; }
 .obj-kind { display: flex; flex-direction: column; align-items: center; gap: var(--sp-0_5); padding: 6px 2px; border: 1px solid var(--line); border-radius: var(--r-l); background: none; color: var(--ink); cursor: pointer; font: inherit; font-size: var(--fs-s); }
 .obj-kind.on { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }

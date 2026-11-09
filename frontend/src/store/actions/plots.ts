@@ -214,6 +214,11 @@ export const plotActions = {
   addObject(plotId: string, o: MapObject) {
     useApp.getState().commit((ws) => { const p = findPlot(ws, plotId); if (p) p.objects = [...(p.objects ?? []), o]; return ws; });
   },
+  /** N5: several objects in one step (one Undo) - *Add all* / *Add selected*. */
+  addObjects(plotId: string, objs: MapObject[]) {
+    if (!objs.length) return;
+    useApp.getState().commit((ws) => { const p = findPlot(ws, plotId); if (p) p.objects = [...(p.objects ?? []), ...objs]; return ws; });
+  },
   /** T17c: map objects in a new map / 3D plot of the active tab (false: the tab is full). */
   addObjectsToNewPlot(mode: "geo" | "3d", objs: MapObject[], title = ""): boolean {
     let full = false;

@@ -8,7 +8,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, frames, menu_item, open_files, pg, S  # noqa: E402,F401
+from test_features import env, frames, menu_item, open_files, pg, S, object_form  # noqa: E402,F401
 
 
 @pytest.fixture(autouse=True)
@@ -31,16 +31,15 @@ def _files(pg):
 def _map_with_objects(pg):
     open_files(pg, "obj_aircraft.csv", "obj_ship.csv")
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
-    pg.locator(".obj-add").click()
-    pg.wait_for_selector(".obj-dialog")
+    pg.locator(".obj-add").click(); object_form(pg)
     # each role: a signal typed by name (SignalField) - the one guessed from the names is shown in it
     filled = pg.evaluate("[...document.querySelectorAll('.obj-role .picker-val')].map(e => e.querySelector('.ph') ? '' : e.textContent.trim())")
     assert filled == ["GPS.Lat", "GPS.Lng", "GPS.Alt", "ATT.Yaw", "ATT.Pitch", "ATT.Roll"]
     pg.locator(".obj-dialog .btn.primary").click()
-    pg.locator(".obj-add").click()
+    pg.locator(".obj-add").click(); object_form(pg)                              # the ship: the found row not added yet
     pg.locator(".obj-kind", has_text="Ship").click()
     pg.select_option(".obj-main select", label="obj_ship.csv")
-    assert pg.locator(".obj-dialog .obj-name input").input_value().startswith("Ship")   # the name follows the kind
+    assert pg.locator(".obj-dialog .obj-name input").input_value() == "obj_ship"     # N5: the found name (no prefix: the file's) stays
     pg.locator(".obj-dialog .btn.primary").click()
     pg.wait_for_selector(".obj-chip >> nth=1")
     return S(pg, "s.ws.tabs[0].plots[0].objects")
@@ -99,3 +98,52 @@ def test_edit_and_remove_object(pg):
     assert len(S(pg, "s.ws.tabs[0].plots[0].objects")) == 1
     pg.keyboard.press("Control+z")                                              # undo brings it back
     assert len(S(pg, "s.ws.tabs[0].plots[0].objects")) == 2
+
+
+def _three(pg):
+    import shutil
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
+    open_files(pg, "three_objects.csv")
+    pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
+
+
+def test_found_objects_add_all_in_one_undo(pg):
+    """N5: the three objects of the fixture are found, classified, from their own prefixes, and added in
+    one click and one Undo; *Why?* says why in plain words."""
+    _three(pg)
+    pg.locator(".obj-add").click()
+    pg.wait_for_selector(".obj-found")
+    rows = pg.locator(".obj-found-row")
+    assert [rows.nth(i).locator(".obj-found-name").input_value() for i in range(3)] == ["phys", "nav", "gps"]
+    assert pg.locator(".obj-found .obj-cls").all_inner_texts() == ["truth", "navigation", "receiver"]
+    assert rows.nth(1).locator(".obj-chip-sig").all_inner_texts() == ["nav.lat", "nav.lon", "nav.alt", "nav.att.roll", "nav.att.pitch", "nav.att.yaw"]
+    rows.nth(1).locator(".obj-why").click()
+    why = rows.nth(1).locator(".obj-why-lines").inner_text()
+    assert "names under the prefix nav" in why and "sub-group att of nav" in why and "the word 'nav'" in why
+    rows.nth(2).locator(".obj-why").click()
+    assert "course over ground" in rows.nth(2).locator(".obj-why-lines").inner_text()     # gps: position only
+    assert "How to name your signals" in pg.locator(".obj-naming").inner_text()
+    n0 = len(S(pg, "window.__sv.state().ws.tabs[0].plots[0].objects ?? []"))
+    pg.locator(".obj-add-all", has_text="Add all (3)").click()
+    pg.wait_for_selector(".obj-found", state="detached")
+    objs = S(pg, "s.ws.tabs[0].plots[0].objects")
+    assert [o["name"] for o in objs] == ["phys", "nav", "gps"] and n0 == 0
+    assert objs[0]["roll"].endswith("/phys.att.roll") and objs[2]["yaw"] is None   # no mixed sources
+    assert len({o["color"] for o in objs}) == 3
+    pg.keyboard.press("Control+z")                                              # one Undo takes all three
+    pg.wait_for_function("(window.__sv.state().ws.tabs[0].plots[0].objects ?? []).length === 0")
+
+
+def test_found_objects_add_selected_and_shown_as_added(pg):
+    _three(pg)
+    pg.locator(".obj-add").click()
+    pg.wait_for_selector(".obj-found")
+    pg.locator(".obj-found-row").nth(2).locator(".obj-found-check").uncheck()
+    pg.locator(".obj-found-row").nth(0).locator(".obj-found-name").fill("Truth")
+    pg.locator(".obj-add-sel").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].objects.length === 2")
+    assert [o["name"] for o in S(pg, "s.ws.tabs[0].plots[0].objects")] == ["Truth", "nav"]
+    pg.locator(".obj-add").click()
+    pg.wait_for_selector(".obj-found")
+    assert pg.locator(".obj-found-row.added").count() == 2 and pg.locator(".obj-add-all").inner_text() == "Add"

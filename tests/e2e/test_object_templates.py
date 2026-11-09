@@ -8,7 +8,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, template_strip, env, menu_item, open_files, pg  # noqa: E402,F401
+from test_features import S, template_strip, env, menu_item, open_files, pg, object_form  # noqa: E402,F401
 
 FLIGHT = "Time,GPS.Lat,GPS.Lng,GPS.Alt,ATT.Yaw,ATT.Pitch,ATT.Roll\n"
 
@@ -41,7 +41,7 @@ def _objects(pg):
 def test_template_keeps_objects_by_name_and_recreates_them_from_another_file(pg):
     open_files(pg, "tpl_flight_a.csv")
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
-    pg.locator(".obj-add").click()
+    pg.locator(".obj-add").click(); object_form(pg)
     pg.locator(".obj-kind", has_text="UAV").click()
     pg.locator(".obj-dialog .obj-name input").fill("Heron")
     pg.locator(".obj-dialog .btn.primary").click()
@@ -92,8 +92,7 @@ def test_position_template_only_for_a_file_with_a_position(pg):
 def test_quaternion_found_by_name(pg):
     open_files(pg, "tpl_px4.csv")
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
-    pg.locator(".obj-add").click()
-    pg.wait_for_selector(".obj-dialog")
+    pg.locator(".obj-add").click(); object_form(pg)
     assert pg.locator(".obj-dialog select", has_text="a quaternion").evaluate("e => e.value") == "quat"
     pg.locator(".obj-dialog .btn.primary").click()
     o = _objects(pg)[-1]
@@ -109,3 +108,19 @@ def test_ardupilot_flight_template(pg):
     o = _objects(pg)[-1]
     for role, name in (("lat", "GPS.Lat"), ("lon", "GPS.Lng"), ("alt", "GPS.Alt"), ("yaw", "ATT.Yaw"), ("pitch", "ATT.Pitch"), ("roll", "ATT.Roll")):
         assert o[role].endswith("/" + name), (role, o[role])
+
+
+def test_position_template_adds_every_object_with_why(pg):
+    """N5: "Position on the map & 3D" adds all the file's objects; its message lists them and offers Why?."""
+    import shutil
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
+    open_files(pg, "three_objects.csv")
+    chip = pg.locator(".tpl-strip .chipbtn", has_text="Position on the map")
+    chip.wait_for(); chip.click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 3))")
+    toast = pg.locator(".toast", has_text="3 objects")
+    assert "phys (truth), nav (navigation), gps (receiver)" in toast.inner_text()
+    toast.locator("button", has_text="Why?").click()
+    pg.wait_for_selector(".obj-found")
+    assert pg.locator(".obj-found-row.added").count() == 3 and pg.locator(".obj-why-lines").count() == 3

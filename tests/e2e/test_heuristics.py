@@ -6,7 +6,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, env, open_files, pg, sig, object_form  # noqa: E402,F401
 from test_map_objects import _files  # noqa: E402,F401
 
 
@@ -42,8 +42,7 @@ def test_read_as_a_value_and_undo(pg):
 def test_object_dialog_says_what_automatic_angles_are(pg):
     open_files(pg, "obj_aircraft.csv")                           # ATT.Yaw is 90: beyond 2 pi -> degrees
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
-    pg.locator(".obj-add").click()
-    pg.wait_for_selector(".obj-dialog")
+    pg.locator(".obj-add").click(); object_form(pg)
     opt = pg.locator(".obj-dialog option[value='auto']")
     pg.wait_for_function("document.querySelector(\".obj-dialog option[value='auto']\").textContent.includes('degrees')")
     assert "goes beyond 2π" in opt.inner_text()

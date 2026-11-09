@@ -37,7 +37,7 @@ export interface UiSlice {
   templatesTarget: string | null;  // templates dialog opened for this file (its templates first)
   templatesNew: "tab" | "all" | "collection" | null;   // open the library on a new template (current / all tabs) or collection
   templatesSelect: string | null;  // open the library with this template selected (suggestions in the file panel)
-  objectDialog: { plotId: string; objectId?: string } | null;   // adding / editing a map object
+  objectDialog: { plotId: string; objectId?: string; why?: boolean } | null;   // adding / editing a map object (N5 why: the found list, explanations open)
   placeDialog: string | null;      // T17c: putting an XYZ plot's tracks on a map / 3D plot (the XYZ plot's id)
   axisDialog: string | null;            // plot id whose axis limits are being edited
   reportPreviewHtml: string | null;

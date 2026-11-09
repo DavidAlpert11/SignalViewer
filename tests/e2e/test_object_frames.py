@@ -9,7 +9,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, env, open_files, pg, sig, object_form  # noqa: E402,F401
 
 
 def _ecef(lat, lon, alt):
@@ -39,8 +39,7 @@ def _files(pg):
 def _map(pg, name):
     open_files(pg, name)
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="Map").first.click()
-    pg.locator(".obj-add").click()
-    pg.wait_for_selector(".obj-dialog")
+    pg.locator(".obj-add").click(); object_form(pg, None)
 
 
 def _pick(pg, k, name):

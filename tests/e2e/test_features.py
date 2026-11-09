@@ -215,6 +215,15 @@ def sig(pg, name, run=None):
     return loc.first if run is None else loc.nth(run)
 
 
+def object_form(pg, row=0):
+    """N5: the object dialog opens on the objects found in the files; Advanced… on a found row (row=None:
+    "Add one by hand…") opens the full form - which opens directly when nothing is found."""
+    pg.wait_for_selector(".obj-found, .obj-dialog")
+    if pg.locator(".obj-found").count():
+        (pg.locator(".obj-byhand") if row is None else pg.locator(".obj-found .obj-adv").nth(row)).click()
+    pg.wait_for_selector(".obj-dialog")
+
+
 def menu_item(pg, label):
     pg.locator(".menu.ctx button", has_text=label).first.click()
 
@@ -1636,7 +1645,7 @@ def test_object_signals_are_typed_and_changed_in_place(pg):
     _flight_csv(pg)
     pid = S(pg, "s.ws.tabs[0].plots[0].id")
     pg.evaluate(f"window.__sv.setState({{ objectDialog: {{ plotId: '{pid}', objectId: null }} }})")
-    pg.wait_for_selector(".obj-dialog")
+    object_form(pg)
     yaw = pg.locator(".obj-role", has_text="Yaw")
     yaw.locator(".picker-btn").click()
     pg.keyboard.type("yaw")
