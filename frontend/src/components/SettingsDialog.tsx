@@ -55,6 +55,7 @@ export default function SettingsDialog() {
   const theme = useApp((s) => s.theme);
   const uiScale = useApp((s) => s.uiScale);
   const timeFormat = useApp((s) => s.timeFormat);
+  const smoothFollow = useApp((s) => s.smoothFollow);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
@@ -84,6 +85,8 @@ export default function SettingsDialog() {
               ? <span className="seg" aria-label={t("setOffline")}><button className="on" disabled aria-checked>{t("setOfflineOn")}</button></span>
               : seg(offlineOnly ? "on" : "off", [["off", t("setOfflineOff")], ["on", t("setOfflineOn")]],
                 (v) => useApp.setState({ offlineOnly: v === "on" }), t("setOffline"))}</div>
+          <div className="set-row"><span>{t("setSmoothFollow")}<small>{t("setSmoothFollowHint")}</small></span>
+            {seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow"))}</div>
           <p className="hint">{t("setKept")}</p>
           <StorageSection />
         </div>
