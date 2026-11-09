@@ -48,6 +48,8 @@ when you stop in the middle of a task.
 - `cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer` — clean (T36; no per-module
   overrides since T36b - narrow the Optional, do not silence the module).
 - `cd frontend && npx tsc -b && npm run build` — no errors (the build updates `frontend/dist`).
+- `cd frontend && npm test` — the frontend's unit tests (Vitest, `src/**/*.test.ts`: store / undo, session
+  migration, pairing, colours...) - all green; add one when you change frontend logic that has no screen.
 - Add or update a test for any backend behaviour you change; e2e (`tests/e2e`, Playwright)
   for UI flows when possible.
 - e2e while developing (owner, 2026-11-07): after each task run **only the e2e files relevant to the

@@ -26,6 +26,12 @@ Workspace autosave and the binary cache live in `~/.signalviewer/`; the error lo
 
 ## Tests: numbers and real logs
 
+**The frontend's logic** (`cd frontend && npm test`): Vitest unit tests next to the code they test
+(`src/**/*.test.ts`) - the workspace's commit / undo / redo, opening old sessions (`files.ts`), which
+signals the work uses (`sameWork.ts`), pairing signals with plots, the plot colours' contrast, the
+judge-a-run verdict, trust badges and the data-quality words. They run in Node without a browser (a
+few browser globals are stubbed in `src/test/setup.ts`); the screens are tested by `tests/e2e`.
+
 `cd backend && python -m pytest -q` runs everything that needs no network, including the
 [numerical validation](validation.md) (`tests/test_validation.py`; after changing a case, rewrite the
 page with `python tools/make_validation_doc.py`).
