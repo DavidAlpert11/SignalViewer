@@ -362,3 +362,32 @@ def test_remove_the_3d_view_and_undo(g3multi):
     assert item.is_enabled()
     item.click()
     assert pg.evaluate(f"[{P}.mode, {P}.objects.length]") == ["3d", 0]
+
+
+CAM = """(() => { const { widget: w, Cesium: C } = window.__svGlobe;
+  const at = (lon, lat, h) => C.Cartesian3.fromDegrees(lon, lat, h);
+  const toward = (p) => C.Cartesian3.dot(C.Cartesian3.normalize(C.Cartesian3.subtract(p, w.camera.positionWC, new C.Cartesian3()), new C.Cartesian3()), w.camera.directionWC);
+  const A = at(34.5, 32.5, 300), B = at(34.51, 32.5, 500);
+  const inv = C.Matrix4.getMatrix3(C.Matrix4.inverse(C.Transforms.eastNorthUpToFixedFrame(A), new C.Matrix4()), new C.Matrix3());
+  const d = C.Matrix3.multiplyByVector(inv, w.camera.directionWC, new C.Cartesian3());
+  return { a: toward(A), b: toward(B), e: d.x, n: d.y, u: d.z, dist: C.Cartesian3.distance(w.camera.positionWC, A) }; })()"""
+
+
+def test_camera_chase_and_look_at(g3multi):
+    """N6: Chase - behind and above the object along its heading (still objects head north), A in the
+    middle; Look at - from A towards B; both reached by a short flight, then held; the hint follows the mode."""
+    pg = g3multi
+    pg.locator(".globe3d-bar .g3-cam-chase").click()
+    assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].camera") == "chase"
+    pg.wait_for_function(f"(() => {{ const c = {CAM}; return c.a > 0.999 && c.dist <= 610; }})()", timeout=20000)   # the flight has ended
+    c = pg.evaluate(CAM)
+    assert c["n"] > 0.9 and -0.35 < c["u"] < -0.1 and c["dist"] <= 610, c       # looking north, down ~12°
+    assert "behind the object" in pg.locator(".g3-cam-hint").inner_text()
+    pg.locator(".globe3d-bar .g3-cam-lookat").click()
+    assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].relatedObjects") == ["B"]   # something to look at
+    pg.wait_for_function(f"(() => {{ const c = {CAM}; return c.b > 0.9995 && c.dist < 60; }})()", timeout=20000)
+    c = pg.evaluate(CAM)
+    assert c["e"] > 0.9 and c["dist"] < 60, c                                     # from A, towards B (east)
+    pg.locator(".globe3d-bar button", has_text="General").click()
+    assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].followObject") is None
+    assert "drag to move" in pg.locator(".g3-cam-hint").inner_text()

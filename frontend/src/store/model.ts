@@ -38,6 +38,10 @@ export interface Plot {
   followObject?: string | null;    // map / 3D: keep this object in the middle (3D: the camera centred on it - it orbits and zooms towards it)
   primaryObject?: string | null;   // 3D: the object whose data the box shows and the relations start from (default: the first)
   relatedObjects?: string[];       // 3D: up to two more objects - a line to each, with distance, in the box: their distance, height difference, bearing
+  /** N6: how the 3D camera follows the followed object - on it (absent: it orbits and zooms towards it,
+   *  as before), "chase" (behind and above it, along its heading) or "lookat" (from it towards the
+   *  first related object) */
+  camera?: "chase" | "lookat";
   showReadout?: boolean;           // 3D: the box with the primary object's current values (default shown)
   ownTime?: number | null;         // 3D: a time of its own (not the timeline's) - null / absent: the shared time
   /** T15 video mode: a local video file played with the timeline. data time = video time + offset (s). */
