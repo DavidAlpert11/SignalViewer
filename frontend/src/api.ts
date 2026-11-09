@@ -115,6 +115,12 @@ export interface Stats { min: number; max: number; mean: number; std: number; rm
   weighting?: "time"; gaps?: number }
 /** U5: a run's difference from the baseline over time (t, d), the tolerance band as an allowed
  *  difference (lo, hi; absent without a tolerance) and the stretches outside it */
+/** 26.U7: a signal's data quality (svcore/quality.py) and a file's summary */
+export interface SignalQuality { name: string; n: number; rate: number | null; missing: number; missingPct: number; allMissing: boolean;
+  gaps: number; gapTime: number; firstGap: number | null; duplicates: number; backwards: number;
+  rateChanges: { t: number; from: number; to: number }[]; issues: string[] }
+export interface RunQuality { signals: SignalQuality[]; count: Record<"missing" | "gaps" | "duplicates" | "backwards" | "rateChanges", number>;
+  checked: number; withIssues: number; sorted: boolean }
 /** 26.U5: a tolerance (signalviewer-cli compare's --tolerances file): abs in the signal's unit, pct of the
  *  baseline's value, time in seconds, outside_pct the share of samples allowed outside; `as` (the run's
  *  name) and keys of later versions are kept as written */
@@ -415,6 +421,7 @@ export const api = {
   compare: (signals: string[], baseline: string, alignment: string, tolerances: Tolerances,
     windows?: Record<string, [number, number]> | null, trace = 0) =>
     call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[]; tol: TolEntry }>("/api/compare", { signals, baseline, alignment, tolerances, windows: windows ?? null, trace }),
+  runQuality: (id: string) => call<RunQuality>(`/api/runs/${id}/quality`),
   loadTolerances: (path: string) => call<{ path: string; tolerances: Tolerances }>("/api/compare/tolerances/load", { path }),
   saveTolerances: (path: string, tolerances: Tolerances) => call<{ path: string }>("/api/compare/tolerances/save", { path, tolerances }),
   segmentsAcross: (runs: string[], state: string, value: number, occurrence: number) =>

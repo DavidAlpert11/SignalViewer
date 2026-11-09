@@ -350,6 +350,31 @@ def run_health(run_id: str):
 
 
 
+@router.get("/api/runs/{run_id}/quality")
+async def run_quality_route(run_id: str):
+    """26.U7: the data-quality summary of a file's signals (missing values, gaps, repeated or backwards
+    time stamps, rate changes) - checked once per file as read (kept until it is read again)."""
+    from svcore.quality import run_quality
+    lr = store.runs.get(run_id)
+    if lr is None:
+        fail(404, "This file is no longer open.")
+    run = lr.run
+    hit = getattr(lr, "_quality", None)
+    if hit is not None and hit[0] is run:
+        return hit[1]
+
+    def work():
+        items = ((name, s.time if s.time is not None else run.time, s.data, store.is_state(f"{run_id}/{name}"))
+                 for name, s in list(run.signals.items()))
+        res = run_quality(items)
+        res["sorted"] = bool((lr.load_report or {}).get("sorted"))     # the CSV reader put rows in time order
+        return res
+    res = await asyncio.to_thread(work)
+    lr._quality = (run, res)             # type: ignore[attr-defined]
+    return res
+
+
+
 @router.get("/api/runs/{run_id}/log")
 def run_log(run_id: str):
     """Parameters and events (messages, mode changes, events, errors) of a flight log."""

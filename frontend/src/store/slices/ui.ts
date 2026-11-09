@@ -71,6 +71,9 @@ export interface UiSlice {
   compareTol: import("../../api").Tolerances;
   /** 26.U4: "judge this run" - Compare starts on these files with this baseline (consumed by the panel) */
   compareJudge: { baseline: string; runs: string[] } | null;
+  /** 26.U7: each open file's data-quality summary (checked after opening), and the file whose dialog is open */
+  quality: Record<string, import("../../api").RunQuality>;
+  qualityFor: string | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;
@@ -149,6 +152,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   compareTable: null,
   compareTol: { default: {}, signals: {} },
   compareJudge: null,
+  quality: {},
+  qualityFor: null,
   promptDialog: null,
   uiScale: 1,
   helpOpen: false,

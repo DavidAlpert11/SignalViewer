@@ -1,3 +1,4 @@
+import { checkQuality } from "./quality";
 import { DATA_EXTS } from "./values";
 import { hasSetting } from "./settings";
 import { isEmptyStart, offerStart } from "./smartStart";
@@ -115,6 +116,7 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
         useApp.setState({ runs: await api.listRuns(), dataVersion: s2.dataVersion + 1 });
         actions.dropStaleRanges();
         actions.pinTimeToEnd(before);
+        void checkQuality(again.map((p) => open.get(key(p))!.id));      // 26.U7: read again - checked again
         s2.toast({ kind: "info", text: translate(lang, "alreadyOpen", { names }),
           action: { label: translate(lang, "openAnotherCopy"), run: () => { openPaths(again, settings, { copy: true }); } } });
       } catch (e) {
@@ -134,6 +136,8 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
     useApp.setState({ runs });
     const firstNew = res.opened.find((o) => o?.id)?.id;
     // F20: several files at once get a suggestion for several files (Compare), not for the first one
+    // 26.U7: each file's data quality, checked in the background (a note when there is something to say)
+    void checkQuality(res.opened.filter((o) => o?.id).map((o) => o.id as string));
     if (emptyStart && firstNew && !opts.noStart) offerStart(firstNew, res.opened.filter((o) => o?.id).length, !!opts.autoView);   // in the background
     refreshRecent();
     for (const err of res.errors) {
