@@ -120,9 +120,16 @@ def test_chip_asks_which_tabs_unless_settings_say_defaults(pg):
     assert pg.locator(".tab-choice").count() == 0
 
 
+def template_strip(pg):
+    """26.U3: with something plotted the template strip is folded to one line - unfold it."""
+    fold = pg.locator(".tpl-strip-fold")
+    if fold.count() and fold.get_attribute("aria-expanded") != "true":
+        fold.click()
+
+
 def test_library_prechecks_default_tabs(pg):
     open_ardupilot_example(pg)
-    pg.locator(".tpl-strip-head .linkbtn").click()
+    template_strip(pg); pg.locator(".tpl-strip-head .linkbtn").click()
     pg.locator(".tpl-lib").wait_for()
     pg.locator(".tpl-item", has_text="ArduPilot · Full review").first.click()
     lst = pg.locator(".tpl-details .tpl-tabs")

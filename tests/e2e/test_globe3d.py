@@ -320,7 +320,7 @@ def test_log_events_on_the_track_and_image(g3multi):
     # listing - on Windows the shared Temp folder has thousands of files and lists slowly, and the
     # picture then goes to the folder the dialog is still in (the likely cause of the owner's run).
     out = os.path.join(tempfile.mkdtemp(prefix="sv_g3_"), "g3_view_test.png")
-    pg.locator(".globe3d-bar button", has_text="Image").click()
+    pg.locator(".plot:has(.globe3d) .plot-more").click()                      # 26.U3: in the plot's ⋯ menu
     pg.locator(".menu.ctx button", has_text="high resolution").click()          # twice the pixels, for a report
     pg.wait_for_selector(".dialog-foot input")
     pg.locator(".dialog-foot input").fill(out)
@@ -344,7 +344,8 @@ def test_log_events_on_the_track_and_image(g3multi):
 def test_remove_the_3d_view_and_undo(g3multi):
     pg = g3multi
     P = "window.__sv.state().ws.tabs[0].plots[0]"
-    pg.locator(".globe3d-bar button[aria-label='Remove the 3D view']").click()
+    pg.locator(".plot:has(.globe3d) .plot-more").click()                      # 26.U3: in the plot's ⋯ menu
+    pg.locator(".menu.ctx button", has_text="Remove the 3D view").click()
     pg.wait_for_selector(".globe3d", state="detached")
     assert pg.evaluate(f"[{P}.mode, {P}.objects.length]") == ["time", 0]
     pg.keyboard.press("Control+z")                                              # back, with its objects

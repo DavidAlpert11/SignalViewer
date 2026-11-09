@@ -53,7 +53,9 @@ export default function TemplateStrip() {
         {hasPlots ? <h3><button className="linklike tpl-strip-fold" aria-expanded={unfold ?? false} title={t("tplStripHint")}
           onClick={() => setUnfold(!(unfold ?? false))}>{(unfold ?? false) ? "▾" : "▸"} {t("tplStripTitle")} <span className="muted">({picks.length})</span></button></h3>
           : <h3 title={t("tplStripHint")}>{t("tplStripTitle")}</h3>}
-        <button className="linkbtn" onClick={() => openTemplates()}>{t("tplAll")}</button>
+        {/* 26.U3: folded (something is plotted), the strip is one line - the library and "save" are in
+            the views menu (+ ▾) and Templates ▾, and here again when unfolded */}
+        {(!hasPlots || unfold) && <button className="linkbtn" onClick={() => openTemplates()}>{t("tplAll")}</button>}
       </div>
       {(!hasPlots || unfold) && <div className="tpl-strip-picks">
         {picks.map((x) => (
@@ -66,9 +68,9 @@ export default function TemplateStrip() {
           </button>
         ))}
       </div>}
-      <button className="btn outline tpl-strip-save" disabled={!hasPlots} onClick={saveAsTemplate}>
+      {(!hasPlots || unfold) && <button className="btn outline tpl-strip-save" disabled={!hasPlots} onClick={saveAsTemplate}>
         <Icon.Save /> {t("tplSaveView")}
-      </button>
+      </button>}
     </div>
   );
 }

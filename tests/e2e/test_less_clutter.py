@@ -25,7 +25,7 @@ def test_fewer_buttons_and_clearer_words(pg):
     pg.wait_for_timeout(400)
     total, controls = pg.evaluate(COUNT, True), pg.evaluate(COUNT, False)
     print("visible buttons:", total, "controls:", controls)
-    assert controls < 70, controls
+    assert controls <= 54, controls               # 26.U3: 58 -> 54 (the folded template strip, the strip's + / hide on hover)
     assert total < 90, total                      # 107 on 1.21.0; the rest is data (see TASKS U7)
     status = pg.locator(".status").inner_text()
     assert "1 file" in status and "1 files" not in status
@@ -38,3 +38,22 @@ def test_fewer_buttons_and_clearer_words(pg):
     # the stage bar's icon-only buttons are in one menu
     pg.locator(".stage-more").click()
     assert pg.locator(".menu.ctx button", has_text="Clear all plots").count() == 1
+
+
+def test_what_does_not_apply_is_hidden(pg):
+    """26.U3: the Flight tab (map + 3D, 80 -> 71 controls): a map whose object draws the track has no
+    Lon / Lat pickers or alignment (they come back from Plot options); the 3D view's image and remove
+    are in its Plot options, not on the globe."""
+    open_ardupilot_example(pg)
+    pg.locator(".tab", has_text="Flight").first.click()
+    geo = pg.locator(".plot:has(.obj-add)").first
+    geo.wait_for()
+    assert geo.locator(".picker-btn").count() == 0
+    assert geo.locator("select[aria-label='Alignment']").count() == 0
+    geo.locator(".plot-more").click()
+    pg.locator(".menu.ctx button", has_text="Lat / lon track").click()
+    assert geo.locator(".picker-btn").count() == 2
+    pg.locator(".plot:has(.globe3d)").wait_for()
+    assert pg.locator(".g3-remove").count() == 0
+    pg.locator(".plot:has(.globe3d) .plot-more").click()
+    assert pg.locator(".menu.ctx button", has_text="Remove the 3D view").count() == 1

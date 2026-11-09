@@ -2,9 +2,9 @@ import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "cesium/Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css";
 import { api } from "../api";
-import { openMenu } from "./Overlays";
 import { actions, activeTab, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { useMapBase } from "../mapBase";
+import { globeImage } from "../globeBridge";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
 import { bearing, colorRuns, fmtDistance, groundDistance, objectAt, trackColors, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
@@ -442,6 +442,11 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       useApp.getState().toast({ kind: "info", text: t("savedTo", { path: r.path }) });
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
   };
+  // 26.U3: the picture and removing the view are in the plot's ⋯ menu (PlotView), not two more buttons here
+  useEffect(() => {
+    globeImage.set(plot.id, (scale) => { void saveImage(scale); });
+    return () => { globeImage.delete(plot.id); };
+  });
 
   /* fit the camera to the tracks the first time they arrive */
   useEffect(() => {
@@ -654,11 +659,6 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
             onClick={() => actions.updatePlot(plot.id, { showEvents: plot.showEvents === false })} title={t("g3EventsHint")}>{t("g3Events")}</button>}
           <button className={`g3-toggle${measuring ? " on" : ""}`} aria-pressed={measuring} title={t("g3MeasureHint")}
             onClick={() => { setMeasuring(!measuring); setMeasurePts([]); }}>{t("g3Measure")}</button>
-          <button className="g3-toggle" onClick={(e) => openMenu(e, [
-            { label: `${t("saveImage")} (PNG)`, run: () => saveImage(1) },
-            { label: t("saveImageHires"), run: () => saveImage(2) },
-          ])} title={t("saveImage")}>{t("g3Image")} ▾</button>
-          <button className="g3-toggle g3-remove" onClick={() => actions.remove3d(plot.id)} title={t("g3RemoveHint")} aria-label={t("g3Remove")}>✕</button>
           <span className="g3-seg" role="radiogroup" aria-label={t("g3Time")}>
             <span className="g3-seg-label">{t("g3Time")}</span>
             <button role="radio" aria-checked={!detached} className={!detached ? "on" : ""} onClick={attach} title={t("g3TimeSharedHint")}>{t("g3TimeShared")}</button>

@@ -8,7 +8,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, menu_item, open_files, pg  # noqa: E402,F401
+from test_features import S, template_strip, env, menu_item, open_files, pg  # noqa: E402,F401
 
 FLIGHT = "Time,GPS.Lat,GPS.Lng,GPS.Alt,ATT.Yaw,ATT.Pitch,ATT.Roll\n"
 
@@ -46,7 +46,7 @@ def test_template_keeps_objects_by_name_and_recreates_them_from_another_file(pg)
     pg.locator(".obj-dialog .obj-name input").fill("Heron")
     pg.locator(".obj-dialog .btn.primary").click()
     pg.wait_for_selector(".obj-chip")
-    pg.locator(".tpl-strip-save").click()
+    template_strip(pg); pg.locator(".tpl-strip-save").click()
     pg.wait_for_selector(".tpl-editor")
     pg.locator(".tpl-editor input").first.fill("Heron on the map")
     pg.locator(".tpl-editor .btn.primary").click()

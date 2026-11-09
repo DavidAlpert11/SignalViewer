@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). Next: 26.U3; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). 26.U3 done (58 -> 54 / 80 -> 71 controls). Next: 26.U4; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -205,7 +205,7 @@ Progress board:
 | 26.A5 | Heuristics visible and correctable (angle unit, discrete detection) | 4 | ☑ done |
 | 26.U1 | Design tokens audit (index.css) | 5 | ☑ done |
 | 26.U2 | Plot styling (grids, axes, palette, hover, legend, band) | 5 | ☑ done |
-| 26.U3 | Less clutter (count before / after) | 5 | ☐ |
+| 26.U3 | Less clutter (count before / after) | 5 | ☑ done (58 -> 54 / 80 -> 71 controls) |
 | 26.U4 | "Judge a run" as the main flow | 5 | ☐ |
 | 26.U5 | Per-signal tolerances in Compare, in `cli compare`'s JSON | 5 | ☐ |
 | 26.U6 | Trust badges + the network indicator | 5 | ☐ |
@@ -768,6 +768,30 @@ layout; the difference chart readable with 54 stretches outside; hover rings in 
 **Tests run:** tsc + build; e2e test_plot_style, test_setpoint_style, test_compare_diff, test_aligned_plots,
 test_hover_ghost, test_owner_notes_1_20, test_release_1_21, test_features -k colour / legend / conditions
 (22). `ink()`'s contrast is unit-tested with Vitest in T1.
+
+### 26.U3 · Less clutter
+**Status: done 2026-11-09.**
+**Counted** (tests/e2e/test_less_clutter.py's COUNT - visible `<button>` / `<select>`; "controls" without
+data items: signal rows, state stretches, flags, event marks), ArduPilot example, 1440x900:
+| View | before (total / controls) | after |
+|---|---|---|
+| Attitude tab (default) | 78 / 58 | 74 / 54 |
+| Flight tab (map + 3D) | 93 / 80 | 84 / 71 |
+**Made (nothing removed - every function is still one click away):** TemplateStrip - when something is
+plotted (the strip is folded) *All templates…* and *Save as template…* show only unfolded (both are in
+Templates ▾ and the command palette). Overview strip: *+* (add a row) and *hide* at opacity 0 until the
+strip is hovered or focused (keyboard still reaches them). PlotView (map): a plot with objects and no
+x / y signal hides the Lon / Lat pickers and the alignment select; *⋯ ▸ Lat / lon track (beside the
+objects)…* shows them (UI state, `geoPicks`). Globe3D: *Image ▾* and *✕ Remove* moved to the plot's ⋯
+(`globeBridge.ts` - the globe registers its saveImage; the generic server-image items are replaced for 3D).
+**Not changed (looked at):** the 3D view's toggles (data / events / measure - each used while looking);
+the object chips (one per object, each with its follow / remove); the legend chips (they are the signals).
+**Tests:** test_less_clutter (controls <= 54 + the Flight tab's hidden pickers / 3D menu), helper
+`template_strip()` for tests that use the strip with plots (test_template_tabs, test_object_templates,
+test_one_per_plot, test_templates_recent_badfiles); test_features S04 now expects the U2 palette's 4th
+colour. e2e: test_globe3d, test_template_tabs, test_object_templates, test_one_per_plot,
+test_templates_recent_badfiles, test_map_objects, test_features, test_overview_strip, test_tab_band,
+test_workflows, test_less_clutter. Screenshots (scratch): EN light / HE dark, both tabs.
 
 ## Owner's plan (2026-11-07): U1–U8, M1, A1–A3 - opening a file, marketing, architecture, UX
 
@@ -3332,3 +3356,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · Whole e2e suite at the end of Phase 4 (52 files, one per process): 4 files with a failure. Fixed: (1) test_one_per_plot "the same again" made 6 signals instead of reusing 3 - since C2b a stored recipe carries `hold` (and `nan` / `sampling`) the request did not, so peers.ts `opKey` did not match; it now completes a request with the defaults the backend writes (`withDefaults`); (2) test_data_path's burst test counted aborts by network events, and its route handler (a sleep) held the test's thread, so the wheel steps waited for it - now the steps come from the page and the aborts are counted in the page (passes twice). Not reproduced: test_features (1 failure in the suite run; 126 passed alone). Known: test_offline_map borders (the network; fails on origin/main here too).
 - 2026-11-09 · 26.U1 done: type scale, radii, spacing, semantic colour tokens; literals 45 / 11 / 69 -> 0; test_design_tokens (new); tsc + build; e2e 8 files (19). Next: 26.U2.
 - 2026-11-09 · 26.U2 done: colour-blind-safe palette + `ink()` (3:1 in both themes), hover rings, crosshair, the difference chart unstretched with band edges / bottom marks / hover readout, one palette everywhere; tsc + build; e2e 8 files (22). Next: 26.U3.
+- 2026-11-09 · 26.U3 done: controls 58 -> 54 (Attitude) / 80 -> 71 (Flight): folded template strip, strip's + / hide on hover, map pickers hidden with an object, 3D image / remove in ⋯; tsc + build; e2e 11 files (see the task). Next: 26.U4.

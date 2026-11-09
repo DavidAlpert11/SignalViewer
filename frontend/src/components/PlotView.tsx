@@ -24,6 +24,7 @@ import XYZChart from "./XYZChart";
 import SpecChart from "./SpecChart";
 import PlotBoundary from "./PlotBoundary";
 import { ink, useSize } from "./chartUtil";
+import { globeImage } from "../globeBridge";
 
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
@@ -114,10 +115,21 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const setpoints = setpointsIn(plot.signals);      // U4: drawn dashed (and the legend shows it)
   /* T49 item 12 / F25: the plot's options live in the app's one menu (drawn above everything, so a
      short plot no longer cuts them off); the ⋯ button and a right-click on the plot open them */
+  // 26.U3: on a map whose objects draw the track, the plain Lon / Lat track's pickers (and its
+  // alignment) say nothing until asked for - "Lat / lon track…" in the plot's menu shows them
+  const [geoPicks, setGeoPicks] = useState(false);
+  const geoPicksHidden = mode === "geo" && (plot.objects?.length ?? 0) > 0 && !plot.xSignal && !plot.signals[0] && !geoPicks;
   const plotItems = (): MenuItem[] => [
+    ...(geoPicksHidden ? [{ label: t("geoTrackShow"), run: () => setGeoPicks(true) }, { label: "", run: () => {}, sep: true }] : []),
     { label: t("exportData"), run: exportCsv, disabled: !plot.signals.length },
-    { label: `${t("saveImage")} (PNG)`, run: () => saveImage("png"), disabled: !plot.signals.length },
-    { label: t("saveImageHires"), run: () => saveImage("png", 2), disabled: !plot.signals.length },
+    // the 3D view's picture is Cesium's (globeBridge); every other plot's comes from the server
+    ...(mode === "3d" ? [
+      { label: `${t("saveImage")} (PNG)`, run: () => globeImage.get(plot.id)?.(1) },
+      { label: t("saveImageHires"), run: () => globeImage.get(plot.id)?.(2) },
+    ] : [
+      { label: `${t("saveImage")} (PNG)`, run: () => saveImage("png"), disabled: !plot.signals.length },
+      { label: t("saveImageHires"), run: () => saveImage("png", 2), disabled: !plot.signals.length },
+    ]),
     { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
     { label: t("saveImageHtml"), run: () => saveImage("html"), disabled: !plot.signals.length },
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
@@ -357,7 +369,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           title={t("plotMode")} onClick={openModeMenu}>
           {modes.find(([m]) => m === mode)?.[1] ?? mode}<Icon.Chevron width={12} height={12} />
         </button>
-        {(mode === "xy" || mode === "geo") && (
+        {(mode === "xy" || (mode === "geo" && !geoPicksHidden)) && (
           <span className={`xpick${dragOver === "x" ? " over" : ""}`}
             onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); setDragOver("x"); } }}
             onDrop={(e) => onDrop(e, "x")}>
@@ -369,10 +381,11 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               <SignalPicker compact value={plot.signals[0]?.sig ?? null} options={allSignals} ariaLabel={t("geoLat")}
                 onChange={(id) => actions.setGeoLat(plot.id, id)} />
             </>}
-            <select value={plot.xyAlign ?? "linear"} onChange={(e) => actions.updatePlot(plot.id, { xyAlign: e.target.value as "linear" | "nearest" })} aria-label={t("alignment")} title={t("alignment")}>
+            {/* the alignment matters only once there is a line to align (26.U3) */}
+            {(mode === "xy" || (plot.xSignal && plot.signals[0])) && <select value={plot.xyAlign ?? "linear"} onChange={(e) => actions.updatePlot(plot.id, { xyAlign: e.target.value as "linear" | "nearest" })} aria-label={t("alignment")} title={t("alignment")}>
               <option value="linear">{t("alignLinear")}</option>
               <option value="nearest">{t("alignNearest")}</option>
-            </select>
+            </select>}
           </span>
         )}
         {mode === "fft" && (

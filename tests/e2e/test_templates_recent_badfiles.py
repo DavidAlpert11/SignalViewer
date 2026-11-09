@@ -8,7 +8,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, goto_folder, menu_item, open_files, pg, sig, toast_text  # noqa: E402,F401
+from test_features import S, template_strip, env, goto_folder, menu_item, open_files, pg, sig, toast_text  # noqa: E402,F401
 
 
 def test_templates_in_file_panel_for_csv(pg):
@@ -22,6 +22,7 @@ def test_templates_in_file_panel_for_csv(pg):
     pg.keyboard.press("Escape")
     strip.locator(".chipbtn").first.click()                       # a click opens it at once (one file)
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.signals.length))")
+    template_strip(pg)                                            # 26.U3: folded once something is plotted
     strip.locator(".linkbtn").click()                             # "All templates…"
     pg.wait_for_selector(".tpl-lib")
 
@@ -45,7 +46,7 @@ def test_save_template_starts_with_current_tab_then_picks_others(pg):
     pg.click("[aria-label='New tab']")
     sig(pg, "Gear").click()                                       # tab 3: Gear
     pg.locator(".tab").first.click()                              # current tab: the first
-    pg.locator(".tpl-strip-save").click()
+    template_strip(pg); pg.locator(".tpl-strip-save").click()
     pg.wait_for_selector(".tpl-editor")
     names = pg.locator(".tpl-edit-tab input").evaluate_all("els => els.map(e => e.value)")
     assert len(names) == 1 and "Speed" in names[0]               # only the current tab, named by what it shows
@@ -112,7 +113,7 @@ def test_file_slots_follow_the_tabs(pg):
     pg.click("[aria-label='New tab']")
     sig(pg, "Gear", run=0).click()                                # tab 3: run_a again
     pg.locator(".tab").first.click()
-    pg.locator(".tpl-strip-save").click()
+    template_strip(pg); pg.locator(".tpl-strip-save").click()
     pg.wait_for_selector(".tpl-editor")
     assert pg.locator(".tpl-editor", has_text="Add a file slot").count() == 0
     assert files() == ["run_a.csv"]
@@ -133,7 +134,7 @@ def test_template_files_are_found_from_tabs_and_matched_by_name(pg):
     open_files(pg, "run_a.csv", clear=False)
     pg.locator(".run-head", has_text="run_a.csv").first.wait_for()
     pg.locator(".sig", has_text="Speed").nth(1).click()           # Speed of run_a (the second file)
-    pg.locator(".tpl-strip-save").click()
+    template_strip(pg); pg.locator(".tpl-strip-save").click()
     pg.wait_for_selector(".tpl-editor")
     files = pg.locator(".tpl-used-files li").all_inner_texts()
     assert len(files) == 1 and files[0].startswith("run_a.csv")
@@ -162,7 +163,7 @@ def test_template_files_are_found_from_tabs_and_matched_by_name(pg):
 
 
 def _save_tab_as(pg, name):
-    pg.locator(".tpl-strip-save").click()
+    template_strip(pg); pg.locator(".tpl-strip-save").click()
     pg.wait_for_selector(".tpl-editor")
     pg.locator(".tpl-editor input").first.fill(name)
     pg.locator(".tpl-editor .btn.primary").click()
