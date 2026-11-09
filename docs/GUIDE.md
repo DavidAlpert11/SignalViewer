@@ -192,8 +192,9 @@ shown change together – on the axis, in the list, in the legend – and it can
   interactive HTML, PDF or Word.
 - A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), **save an image for a
   report** (a PNG with twice the pixels), **save as an interactive page** (HTML: the plot alone - zoom,
-  lines on and off, values under the pointer), copy the image. The 3D view's *Image* saves at the
-  screen's size or at twice it.
+  lines on and off, values under the pointer), copy the image. The 3D view's **⋯** saves its image at
+  the screen's size or at twice it, and removes the 3D view. A map whose object already draws the track
+  shows no Lon / Lat pickers; **⋯ ▸ Lat / lon track** brings them back.
 - **Clear ▾** (the Recordings bar): this tab's plots, the other tabs, all
   tabs, or all the work on the data - tabs, notes, derived signals and edits - while the files stay
   open. Each is undone with **Undo** in the message or Ctrl+Z. *Everything* also closes the files

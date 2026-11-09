@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, _csv, clear_plots, env, menu_item, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, template_strip, _csv, clear_plots, env, menu_item, open_files, pg, sig  # noqa: E402,F401
 
 
 @pytest.fixture(autouse=True)
@@ -125,7 +125,7 @@ def test_a_template_takes_the_conditions_to_the_next_flight(pg):
     pg.click(".cond-save")
     pg.wait_for_function("(window.__sv.state().ws.conditions || []).length === 1")
     pg.locator("nav.rail button").first.click()                             # back to the files (the template strip)
-    pg.locator(".tpl-strip-save").click()
+    template_strip(pg); pg.locator(".tpl-strip-save").click()
     pg.wait_for_selector(".tpl-editor")
     pg.locator(".tpl-editor input").first.fill("Payload check")
     pg.locator(".tpl-editor .btn.primary").click()

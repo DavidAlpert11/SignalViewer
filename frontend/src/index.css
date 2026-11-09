@@ -1493,6 +1493,10 @@ input.fx-input { width: 100%; }
 .ov-head { display: flex; gap: var(--sp-2); align-items: center; font-size: var(--fs-xs); white-space: nowrap; }
 .ov-head select { font-size: var(--fs-xs); max-width: 180px; }
 .ov-head .ov-hint { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-2xs); }
+/* 26.U3: the strip's "+" and "×" while the pointer is on the strip (or the keyboard in it) */
+.ov-head .ov-add, .ov-head .ov-hide { opacity: 0; transition: opacity .12s; }
+.ov-strip:hover .ov-head .ov-add, .ov-strip:hover .ov-head .ov-hide, .ov-strip:focus-within .ov-head .ov-add,
+.ov-strip:focus-within .ov-head .ov-hide { opacity: 1; }
 /* left to right like the plots' time axis (also in Hebrew), so the tracks can sit under it */
 .ov-rows { display: grid; grid-template-columns: minmax(60px, 120px) 1fr; gap: 2px 8px; align-items: center; direction: ltr; }
 .ov-label { font-size: var(--fs-2xs); text-align: end; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

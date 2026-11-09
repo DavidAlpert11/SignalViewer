@@ -164,6 +164,13 @@ def save_as(pg, name, folder=None):
     pg.fill(".savename input", name); pg.click(".dialog:has(.savename) .dialog-foot .btn.primary")   # the save dialog's, even over another one
 
 
+def template_strip(pg):
+    """26.U3: with something plotted the template strip is folded to one line - unfold it."""
+    fold = pg.locator(".tpl-strip-fold")
+    if fold.count() and fold.get_attribute("aria-expanded") != "true":
+        fold.click()
+
+
 def chips(pg, plot=0):
     return pg.locator(".plot").nth(plot).locator(".chip .nm").all_inner_texts()
 
@@ -363,7 +370,7 @@ def test_S04_signal_properties(pg):
     pg.locator(".inspector .field", has_text="Scale").locator("input").fill("2"); pg.keyboard.press("Enter")
     pg.locator(".inspector .field", has_text="Time offset").locator("input").fill("1.5"); pg.keyboard.press("Enter")
     ps = S(pg, "s.ws.tabs[0].plots[0].signals[0]")
-    assert ps["scale"] == 2 and ps["tOffset"] == 1.5 and ps["color"] == "#9B7BFF"
+    assert ps["scale"] == 2 and ps["tOffset"] == 1.5 and ps["color"] == "#D55E00"   # 26.U2: the 4th Okabe-Ito colour
 
 
 def test_S05_state_display(pg):
