@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { openMenu } from "./Overlays";
 import { useEffect, useRef, useState } from "react";
 import { actions, activeTab, MAX_PLOTS, rangeKey, useApp } from "../store";
@@ -86,9 +87,11 @@ function Popover({ anchor, onClose, label, children }: { anchor: DOMRect | null;
 }
 
 export default function StageBar() {
+  countRender("StageBar");
   const t = useT();
   const tab = useApp((s) => activeTab(s.ws));
-  const cursor = useApp((s) => s.cursor);
+  // N6: only what the buttons show - the time itself changes every frame of playback
+  const cursor = { on: useApp((s) => s.cursor.on), dual: useApp((s) => s.cursor.dual) };
   const streaming = useApp((s) => s.streaming);
   const follow = useApp((s) => s.follow);
   const plot = tab.plots[tab.active];

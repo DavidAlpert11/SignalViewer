@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import type { RunInfo } from "../api";
 import { restoreView, setFindingStatus } from "../investigation";
 import type { FindingStatus } from "../store";
@@ -139,6 +140,7 @@ function BatchInput({ value, onCommit, label }: { value: number | null; onCommit
 }
 
 export default function Inspector() {
+  countRender("Inspector");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const ws = useApp((s) => s.ws);

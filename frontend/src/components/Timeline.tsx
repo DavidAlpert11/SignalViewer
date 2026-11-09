@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { useMemo, useRef } from "react";
 import { actions, recordingExtent, useApp, type PlayMode } from "../store";
 import { fmtNum, useT } from "../i18n";
@@ -30,6 +31,7 @@ function fmtSec(v: number, span: number, lang: string): string {
 }
 
 export default function Timeline() {
+  countRender("Timeline");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const timeFormat = useApp((s) => s.timeFormat);

@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { actions, activeTab, onTimeAxis, signalName, tabBandLanes, useApp } from "../store";
@@ -23,6 +24,7 @@ const at = (segs: Seg[], t: number) => segs.find((s) => t >= s.a && t < s.b) ?? 
  *  edges, Shift+click zooms to it (as a lane in a plot does); right-click: where the lane is shown.
  *  A plot can show the lanes again itself (its ⋯ menu). */
 export default function TabBand() {
+  countRender("TabBand");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const theme = useApp((s) => s.theme);

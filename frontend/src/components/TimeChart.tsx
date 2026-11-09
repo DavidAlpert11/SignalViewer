@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { useEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, isAborted, type Series } from "../api";
@@ -26,6 +27,7 @@ function laneCss(plotH: number, n: number): number {
 }
 
 export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: Props) {
+  countRender("TimeChart");
   const theme = useApp((s) => s.theme);
   const scale = useApp((s) => s.uiScale);
   const runs = useApp((s) => s.runs);

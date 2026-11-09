@@ -1,9 +1,11 @@
+import { countRender } from "../perf";
 import { activeTab, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { effectiveBase, isOnlineBase } from "../mapBase";
 
 export default function StatusBar() {
+  countRender("StatusBar");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const runs = useApp((s) => s.runs).filter((r) => r.format !== "derived");
