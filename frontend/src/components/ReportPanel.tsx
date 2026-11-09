@@ -22,6 +22,8 @@ export default function ReportPanel() {
   const notes = ws.notes ?? [];
   const hasInvestigation = notes.some((n) => n.status) || (ws.conditions ?? []).length > 0 || useApp.getState().journal.length > 0;
   const withInvestigation = hasInvestigation && meta.investigation !== false;
+  // 26.U4: Compare's verdict ("Report…" in Compare), first in the report
+  const withVerdict = !!meta.verdict && meta.includeVerdict !== false;
   const buildBody = async (format: string, path: string) => {
     const plotLabel = translate(meta.lang, "plotTitle", { n: "{n}" });
     // occurrences plots are not drawn in reports yet (they need a condition's stretches)
@@ -41,7 +43,10 @@ export default function ReportPanel() {
     return {
       path, format, title: meta.title, intro: meta.intro, summary: meta.summary, lang: meta.lang, theme: meta.theme,
       notes: notes.filter((n) => !n.status || !withInvestigation).map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text })),
-      sections: withInvestigation ? await investigationSections(meta.lang) : [],
+      sections: [
+        ...(withVerdict ? [{ title: meta.verdict!.title, items: meta.verdict!.summary, table: { head: meta.verdict!.head, rows: meta.verdict!.rows } }] : []),
+        ...(withInvestigation ? await investigationSections(meta.lang) : []),
+      ],
       tabs: [...(evidence.length ? [{ name: translate(meta.lang, "rFindings"), plots: evidence }] : []), ...tabSpecs],
     };
   };
@@ -89,6 +94,12 @@ export default function ReportPanel() {
           <button className={meta.scope === "all" ? "on" : ""} onClick={() => setMeta({ scope: "all" })}>{t("scopeAll")}</button>
         </div>
 
+        {meta.verdict && (
+          <label className="acheck rverdict">
+            <input type="checkbox" checked={withVerdict} onChange={(e) => setMeta({ includeVerdict: e.target.checked })} />
+            <span>{t("rVerdict")} <span className="muted">· {meta.verdict.title}</span></span>
+          </label>
+        )}
         {hasInvestigation && (
           <label className="acheck rinv">
             <input type="checkbox" className="report-investigation" checked={withInvestigation} onChange={(e) => setMeta({ investigation: e.target.checked })} />

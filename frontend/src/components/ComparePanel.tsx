@@ -2,7 +2,8 @@ import DiffChart from "./DiffChart";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CompareAllRow, type CompareRow, type TolEntry, type Tolerances } from "../api";
 import TolFields from "./TolFields";
-import { activeTab, fileLabel, fileMark, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
+import { activeTab, fileLabel, fileMark, fitLayout, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
+import { isGolden, proposeBaseline, rememberTolerances, reportVerdict, setGolden, verdicts } from "../judge";
 import { fmtNum, translate, useT } from "../i18n";
 import { startJob } from "../files";
 import { Icon } from "../icons";
@@ -46,15 +47,16 @@ export default function ComparePanel() {
   const runs = useMemo(() => allRuns.filter((r) => r.format !== "derived"), [allRuns]);
   // defaults computed on the FIRST render (no flash of "mean" while effects catch up)
   const [chosen, setChosen] = useState<string[]>(() => runs.map((r) => r.id));
-  // default baseline: the first chosen file. Against the mean, two files would each show
-  // only half of their real difference, which understates exactly what the user asks about.
-  const [baseline, setBaseline] = useState(() => runs[0]?.id ?? "");
+  // default baseline: a file, not the mean (two files would each show only half of their real
+  // difference) - 26.U4: a golden run, else a file named as the reference, else the first
+  const [baseline, setBaseline] = useState(() => proposeBaseline(runs));
   const [alignment, setAlignment] = useState("linear");
   // 26.U5: every signal's tolerance and each signal's own (abs / pct / time - 1.21, SDI - / outside_pct / skip)
   const tols = useApp((s) => s.compareTol);
   const setTols = (x: Tolerances) => useApp.setState({ compareTol: x });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sim, setSim] = useState<CompareAllRow[] | null>(null);
+  const [simKey, setSimKey] = useState("");          // 26.U4: the choice `sim` was computed for
   const [progress, setProgress] = useState<number | null>(null);
   const [simError, setSimError] = useState("");
   const [sort, setSort] = useState<"worst" | "best">("worst");
@@ -81,6 +83,17 @@ export default function ComparePanel() {
     });
   }, [runs]);
   useEffect(() => { if (baseline !== "mean" && !chosen.includes(baseline)) setBaseline(chosen[0] ?? ""); }, [chosen, baseline]);
+  // 26.U4: "judge this run" (the start card, a golden run) - these files, this baseline
+  const judge = useApp((s) => s.compareJudge);
+  useEffect(() => {
+    if (!judge) return;
+    setChosen(judge.runs.filter((r) => runs.some((x) => x.id === r)));
+    setBaseline(judge.baseline); setOver("whole"); setSignal(""); setRows(null);
+    useApp.setState({ compareJudge: null });
+  }, [judge, runs]);
+  const [, setGoldenTick] = useState(0);
+  const basePath = runs.find((r) => r.id === baseline)?.path;
+  const golden = isGolden(basePath);
 
   /* ------------- T10b segment: state signals shared by the chosen files ------------- */
   const stateNames = useMemo(() => {
@@ -125,6 +138,8 @@ export default function ComparePanel() {
   const segWaiting = over === "segment" && !segment;
   const tolSet = hasLimit(tols.default) || Object.values(tols.signals).some(hasLimit);
   const tolKey = JSON.stringify(tols);
+  // 26.U4: a golden run keeps the tolerances last used against it
+  useEffect(() => { if (golden && basePath) rememberTolerances(basePath, tols); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tolKey, golden, basePath]);
   const runName = (rid: string) => fileLabel(allRuns, rid);
   // T46: a file has ONE colour everywhere (it was by position among the checked runs - unchecking
   // one recoloured the others)
@@ -139,7 +154,7 @@ export default function ComparePanel() {
     if (active.length < 2 || !baseline || segWaiting) { setSim(null); setProgress(null); return; }
     const base = baseline === "mean" || active.includes(baseline) ? baseline : "mean";
     const hit = cache.get(key);
-    if (hit) { setSim(hit); setProgress(null); return; }
+    if (hit) { setSim(hit); setSimKey(key); setProgress(null); return; }
     setProgress(0);
     const h = window.setTimeout(() => {
       const job = startJob<{ signals: CompareAllRow[] }>("compareAll",
@@ -150,7 +165,7 @@ export default function ComparePanel() {
         if (!r || jobRef.current !== job) return;            // cancelled or superseded
         cache.set(key, r.signals);
         if (cache.size > 8) cache.delete(cache.keys().next().value!);
-        setSim(r.signals); setProgress(null); setLimit(PAGE);
+        setSim(r.signals); setSimKey(key); setProgress(null); setLimit(PAGE);
       }).catch((e) => { if (jobRef.current === job) { setSimError(String((e as Error).message)); setProgress(null); } });
     }, 350);                                  // wait until the user stops changing the choice
     return () => window.clearTimeout(h);
@@ -193,7 +208,7 @@ export default function ComparePanel() {
         tab.active = at;
       } else {
         const p = tab.plots[tab.active];
-        if (p) { p.signals = signals; p.title = p.title || ""; }     // flip through signals in the same plot
+        if (p) { p.signals = signals; p.title = name; }     // flip through signals in the same plot (26.U4: its title follows)
       }
       return ws;
     });
@@ -222,6 +237,51 @@ export default function ComparePanel() {
     const signals = { ...tols.signals };
     if (!e || !Object.keys(e).length) delete signals[ownKey]; else signals[ownKey] = e;
     setTols({ ...tols, signals });
+  };
+  /* ------------------------- 26.U4: the verdict per file ------------------------- */
+  // only on a list computed for the current choice (not the previous one while the new one is computed)
+  const vs = useMemo(() => (sim && simKey === key && baseline !== "mean" && tolSet ? verdicts(sim, baseline, active) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sim, simKey, key, baseline, tolSet, active.join(",")]);
+  const showWorst = () => {
+    const worst = vs?.flatMap((v) => v.failed).sort((a, b) => (b.outsidePct ?? 0) - (a.outsidePct ?? 0))[0];
+    const x = worst && sim?.find((r) => r.name === worst.name);
+    if (!x) return;
+    setBucket("all"); setQ("");
+    const rs = x.runs ?? active;
+    showInPlot(x.name, rs, false);
+    scrollTo.current = true;
+    detail(x.name, rs);
+  };
+  // the worst failure's comparison is below the list: bring it into view once it is there
+  const scrollTo = useRef(false);
+  const blockRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollTo.current && rows && blockRef.current) { scrollTo.current = false; blockRef.current.scrollIntoView({ block: "start", behavior: "smooth" }); }
+  }, [rows]);
+  const makeReport = () => {
+    if (!sim || !vs) return;
+    const rl = useApp.getState().ws.report?.lang ?? lang;
+    const verdict = reportVerdict(sim, baseline, active, rl);
+    // the failing signals, worst first (or the most different when all pass), each a plot of every file
+    const failing = Array.from(new Set(vs.flatMap((v) => v.failed.map((f) => f.name))));
+    const names = (failing.length ? failing : list.map((x) => x.name)).slice(0, 6);
+    const tabName = `${translate(rl, "judgeReportTab")} · ${active.filter((r) => r !== baseline).map(runName).join(", ")}`.slice(0, 60);
+    useApp.getState().commit((ws) => {
+      const tab = { id: uid("t"), name: tabName, rows: 1, cols: 1, active: 0, linkX: true,
+        plots: names.map((nm) => {
+          const rs = sim.find((x) => x.name === nm)?.runs ?? active;
+          return { id: uid("p"), title: nm, signals: rs.map((rid) => ({ sig: sidIn(rid, nm), color: runColor(rid), width: 1.5, scale: 1, offset: 0 })) };
+        }) };
+      fitLayout(tab);
+      ws.tabs.push(tab);
+      ws.activeTab = tab.id;
+      const r = { intro: "", summary: "", lang: rl, theme: "light" as const, ...(ws.report ?? {}) };
+      ws.report = { ...r, title: r.title || verdict.title, scope: "tab", verdict, includeVerdict: true };
+      return ws;
+    });
+    useApp.setState({ panel: "report" });
+    useApp.getState().toast({ kind: "info", text: translate(lang, "judgeReportReady", { tab: tabName }) });
   };
   const openTols = async () => {
     const path = await pickPath({ mode: "open", title: t("tolOpen"), exts: [".json"] });
@@ -313,8 +373,16 @@ export default function ComparePanel() {
         <label className="afield"><span>{t("baseline")}</span>
           <select value={baseline} onChange={(e) => setBaseline(e.target.value)}>
             <option value="mean">{t("meanOfRuns")}</option>
-            {runs.filter((r) => chosen.includes(r.id)).map((r) => <option key={r.id} value={r.id}>{runName(r.id)}</option>)}
+            {runs.filter((r) => chosen.includes(r.id)).map((r) => <option key={r.id} value={r.id}>{isGolden(r.path) ? "★ " : ""}{runName(r.id)}</option>)}
           </select></label>
+        {/* 26.U4: a golden run is proposed for later recordings that have its signals, with its tolerances */}
+        {baseline !== "mean" && basePath && (
+          <label className="acheck golden-mark" title={t("goldenMarkHint")}>
+            <input type="checkbox" checked={golden} onChange={(e) => {
+              setGolden(basePath, e.target.checked, tols); setGoldenTick((n) => n + 1);
+              useApp.getState().toast({ kind: "info", text: translate(lang, e.target.checked ? "goldenOn" : "goldenOff", { name: runName(baseline) }) });
+            }} /> ★ {t("goldenMark")}</label>
+        )}
 
         {/* ---------------- T10b: over the whole runs, or the same segment of each ---------------- */}
         <div className="afield"><span>{t("compareOver")}</span>
@@ -350,6 +418,28 @@ export default function ComparePanel() {
           </ul>}
           <p className="hint">{t("segCompareHint")}</p>
         </div>}
+
+        {/* ---------------- 26.U4: the verdict - per file, pass / fail against the baseline ---------------- */}
+        {sim && baseline !== "mean" && active.length >= 2 && (simKey === key || !tolSet) && (
+          <section className={`judge-verdict${vs ? (vs.some((v) => v.failed.length) ? " fail" : " pass") : ""}`} aria-label={t("judgeHead", { base: runName(baseline) })}>
+            <h3>{t("judgeHead", { base: runName(baseline) })}</h3>
+            {vs ? <>
+              <ul>{vs.map((v) => (
+                <li key={v.run} className={v.failed.length ? "fail" : "pass"}>
+                  <span className={v.failed.length ? "sim-fail" : "sim-pass"} aria-hidden="true">{v.failed.length ? "✗" : "✓"}</span>
+                  <span className="run-dot" style={{ background: runColor(v.run) }} />
+                  <b className="nm">{runName(v.run)}</b>
+                  <span className="jv-text">{v.failed.length ? t("judgeFailN", { n: v.failed.length, of: v.judged }) : t("judgePassAll", { of: v.judged })}</span>
+                </li>))}
+              </ul>
+              <div className="arow wrap">
+                {vs.some((v) => v.failed.length > 0) && <button className="btn primary" onClick={showWorst}>{t("judgeWorst")}</button>}
+                <button className="btn outline" onClick={makeReport}>{t("judgeReport")}</button>
+              </div>
+            </> : <p className="hint">{t("judgeNoTol", { base: runName(baseline) })}{" "}
+              <button className="linklike" onClick={() => setSettingsOpen(true)}>{t("judgeSetTol")}</button></p>}
+          </section>
+        )}
 
         {/* ---------------- similarity list ---------------- */}
         <div className="sim-head">
@@ -406,7 +496,7 @@ export default function ComparePanel() {
 
         {/* ---------------- selected signal ---------------- */}
         {signal && rows && (
-          <div className="cmp-block">
+          <div className="cmp-block" ref={blockRef}>
             <h3 className="alist-head">{signal} <span className="muted">· {baseline === "mean" ? t("meanOfRuns") : runName(baseline)}</span></h3>
             <table className="vals cmp2">
               <thead><tr><th>{t("rmsDiff")}</th><th>{t("maxDiff")}</th><th>{t("corr")}</th>{tolSet && <th>{t("inTol")}</th>}</tr></thead>

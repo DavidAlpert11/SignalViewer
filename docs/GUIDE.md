@@ -138,6 +138,12 @@ for the values.
   and listed - a click takes you there. Under the picked signal, **This signal's tolerance** gives it a
   tolerance of its own or leaves it out; **Save tolerances…** writes them in the file
   `signalviewer-cli compare --tolerances` reads, so a CI job judges the next run the same way.
+- **Judging a run against a golden run**: in Compare, with the golden file as *Compare against* and a
+  tolerance, the **verdict** says per file ✓ or ✗ and how many signals are outside; **Show the worst
+  failure** opens that signal's difference over time, **Report…** makes a tab of the failing signals and
+  a report that starts with the verdict. Tick **★ Golden run**: the next recording you open with its
+  signals is offered *Judge it against …* on the start card - the golden run, its tolerances and the
+  verdict in one click.
 - Runs recorded with a time shift: right-click a file → **Align time with another file**.
 - **The work you did on one file, for another:** right-click the file you worked on → **Copy the work
   to another file…**, choose a file that is open already or one to open, and what to copy: its

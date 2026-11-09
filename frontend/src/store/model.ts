@@ -76,7 +76,11 @@ export interface Tab {
   sharedStates?: string[];         // state signals drawn as a lane at the bottom of EVERY time plot of the tab
   rowSizes?: number[]; colSizes?: number[];   // relative sizes (drag the gaps between plots)
 }
-export interface ReportMeta { title: string; intro: string; summary: string; lang: "en" | "he"; theme: "light" | "dark"; scope: "tab" | "all"; investigation?: boolean }
+export interface ReportMeta { title: string; intro: string; summary: string; lang: "en" | "he"; theme: "light" | "dark"; scope: "tab" | "all"; investigation?: boolean;
+  /** 26.U4: Compare's verdict (made by "Report…" in Compare) and whether the report includes it (default yes) */
+  verdict?: ReportVerdict; includeVerdict?: boolean }
+/** 26.U4: pass / fail per signal and file against a baseline, as a report section */
+export interface ReportVerdict { id: string; title: string; summary: string[]; head: string[]; rows: string[][] }
 /** A note at a moment of the recording ("vibration starts here"): shown on every time plot, saved
  *  with the session, listed in the report. */
 /** A note at a moment, or over a time range (T23: t2 = its end). */

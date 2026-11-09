@@ -2,6 +2,7 @@ import { useApp, fileLabel } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { openSuggested } from "../smartStart";
+import { judgeAgainst } from "../judge";
 import { openTemplates } from "../templateMenu";
 import { tx } from "../templates";
 import HealthRow from "./HealthRow";
@@ -18,21 +19,33 @@ export default function StartCard() {
   const runs = useApp((s) => s.runs);
   const open = useApp((s) => s.findingsOpen);
   if (!card || !runs.some((r) => r.id === card.runId)) return null;
-  if (!card.template && !open) return null;                  // docked: FindingsDock
+  if (!card.template && !card.golden && !open) return null;   // docked: FindingsDock
   // findings only: X folds them back into the dock; with a suggestion it closes the card, as before
-  const close = () => useApp.setState(card.template ? { startCard: null } : { findingsOpen: false });
+  const close = () => useApp.setState(card.template || card.golden ? { startCard: null } : { findingsOpen: false });
+  const judge = async () => {
+    const g = card.golden!;
+    useApp.setState({ startCard: { ...card, golden: null }, findingsOpen: false });
+    await judgeAgainst(card.runId, g);
+  };
   return (
     <section className="start-card" role="dialog" aria-label={t("startTitle")}>
       <div className="start-head">
         <h3>{t("startTitle")} <span className="muted">{card.files ? t("startFiles", { n: card.files }) : fileLabel(runs, card.runId)}</span></h3>
         <button className="iconbtn" onClick={close} aria-label={t("close")} title={t("close")}><Icon.X /></button>
       </div>
+      {card.golden && (
+        <div className="start-tpl start-judge">
+          <p>★ <b>{t("startJudge", { name: card.golden.name })}</b>
+            <span className="muted"> · {t("startJudgeWhy", { p: fmtNum(Math.round(card.golden.share * 100), lang) })}</span></p>
+          <div className="arow"><button className="btn primary" onClick={judge}>{t("startJudgeBtn")}</button></div>
+        </div>
+      )}
       {card.template && (
         <div className="start-tpl">
           <p>{t("startSuggest")} <b>{tx(card.template.name, lang)}</b>
             <span className="muted"> · {card.files ? t("startCompare") : t("startFits", { p: fmtNum(Math.round(card.template.fit * 100), lang) })}</span></p>
           <div className="arow">
-            <button className="btn primary" onClick={() => openSuggested(card)}>{t("startOpen")}</button>
+            <button className={`btn ${card.golden ? "outline" : "primary"}`} onClick={() => openSuggested(card)}>{t("startOpen")}</button>
             <button className="btn outline" onClick={() => { openTemplates(card.template!.id); close(); }}>{t("startOther")}</button>
           </div>
         </div>

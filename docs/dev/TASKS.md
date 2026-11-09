@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). 26.U3 done (58 -> 54 / 80 -> 71 controls). 26.U5 done before 26.U4 (per-signal tolerances, the CLI's file, one rule `svcore/tolerances.py`). Next: 26.U4; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). 26.U3 done (58 -> 54 / 80 -> 71 controls). 26.U5 done before 26.U4 (per-signal tolerances, the CLI's file, one rule `svcore/tolerances.py`). 26.U4 done (golden runs, start-card proposal, verdict, worst failure, report). Next: 26.U6; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -206,7 +206,7 @@ Progress board:
 | 26.U1 | Design tokens audit (index.css) | 5 | ☑ done |
 | 26.U2 | Plot styling (grids, axes, palette, hover, legend, band) | 5 | ☑ done |
 | 26.U3 | Less clutter (count before / after) | 5 | ☑ done (58 -> 54 / 80 -> 71 controls) |
-| 26.U4 | "Judge a run" as the main flow | 5 | ☐ |
+| 26.U4 | "Judge a run" as the main flow | 5 | ☑ done |
 | 26.U5 | Per-signal tolerances in Compare, in `cli compare`'s JSON | 5 | ☑ done (before U4: the judge-a-run flow uses it) |
 | 26.U6 | Trust badges + the network indicator | 5 | ☐ |
 | 26.U7 | Per-signal data-quality summary on open | 5 | ☐ |
@@ -792,6 +792,29 @@ test_one_per_plot, test_templates_recent_badfiles); test_features S04 now expect
 colour. e2e: test_globe3d, test_template_tabs, test_object_templates, test_one_per_plot,
 test_templates_recent_badfiles, test_map_objects, test_features, test_overview_strip, test_tab_band,
 test_workflows, test_less_clutter. Screenshots (scratch): EN light / HE dark, both tabs.
+
+### 26.U4 · "Judge a run" as the main flow
+**Status: done 2026-11-09** (after 26.U5).
+**Found:** Compare's baseline was the first file; nothing said a run passes or fails as a whole (✓ / ✗
+per signal only); a report had no comparison in it; opening a recording never proposed what to compare
+it with.
+**Made:** `judge.ts` - golden runs in the app's settings (`sv.goldenRuns`: path, name, the tolerances
+last used; up to 20; **settings, not the session** - they belong to the test); `proposeBaseline` (an open
+golden run, else a name like golden / ref / reference / baseline / nominal / expected, else the first -
+as before); `goldenFor(run)` (a golden run with >= half of the file's signals, by `api.fileSignals`
+without opening it); `judgeAgainst` (opens it with `openPaths(..., {noStart})`, sets its tolerances,
+`compareJudge` -> the panel takes these files and baseline); `verdicts` / `reportVerdict`. StartCard:
+*Judge it against …* (primary; the template's Open becomes outline beside it). ComparePanel: ★ Golden
+run (checkbox under *Compare against*, ★ in the select), the verdict box (per file ✓ / ✗ k of N; only on
+a list computed for the current choice - `simKey`), *Show the worst failure* (largest share outside;
+scrolls to its comparison), *Report…* (a tab "Verdict · …" with up to 6 failing signals - or the most
+different - and `ws.report.verdict` + `includeVerdict`, optional fields: old sessions open). ReportPanel:
+*Include the verdict*; it is the report's first section (HTML / PDF / Word already draw sections). The
+list's flip-through-one-plot now also renames that plot (its title stayed the first signal's).
+**Tests:** e2e test_judge_a_run (new: mark golden with a tolerance, verdict, worst failure, report tab +
+preview, clear, open run_014 alone -> card -> verdict with the remembered tolerance); test_compare_diff,
+test_compare_tolerances, test_findings_report, test_release_1_21, test_workflows, test_fresh_user,
+test_range_notes, test_features -k compare/start/report (50). Screenshots EN light / HE dark (scratch).
 
 ### 26.U5 · Per-signal tolerances in Compare, in `cli compare`'s JSON
 **Status: done 2026-11-09** (done before 26.U4: "judge a run" uses the tolerances).
@@ -3380,3 +3403,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · 26.U2 done: colour-blind-safe palette + `ink()` (3:1 in both themes), hover rings, crosshair, the difference chart unstretched with band edges / bottom marks / hover readout, one palette everywhere; tsc + build; e2e 8 files (22). Next: 26.U3.
 - 2026-11-09 · 26.U3 done: controls 58 -> 54 (Attitude) / 80 -> 71 (Flight): folded template strip, strip's + / hide on hover, map pickers hidden with an object, 3D image / remove in ⋯; tsc + build; e2e 11 files (see the task). Next: 26.U4.
 - 2026-11-09 · 26.U5 done (before U4): per-signal tolerances in Compare, saved / opened as the CLI's --tolerances file; `svcore/tolerances.py` judges for both (outside_pct now in the app too); backend all + mypy; e2e test_compare_tolerances, test_compare_diff. Next: 26.U4.
+- 2026-11-09 · 26.U4 done: golden runs (settings), the start card's *Judge it against …*, Compare's verdict per file, worst failure, *Report…* with the verdict section; tsc + build; e2e test_judge_a_run + 7 related files (51). Next: 26.U6.
