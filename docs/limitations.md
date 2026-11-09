@@ -24,7 +24,7 @@
 * The window needs an engine from about late 2020 or newer: Microsoft Edge WebView2 / Edge / Chrome 87+, or Firefox 78+. On an older one the app says so instead of starting.
 * CAN: candump logs, Vector ASC (classic CAN lines) and CAN tables in CSV are read; CAN FD lines in ASC files, `.blf` and MF4 are not. The same id on two buses is decoded as one message.
 * Binary layouts (ICD): fixed fields, bit fields and value names; no checksums (a damaged packet with a good sync and length is read), no arrays or strings inside a payload, no packets whose layout depends on a field.
-* Your own readers run inside the app: a reader that hangs holds the opening of that file (the rest of the app keeps working); files read by a reader are reloaded whole in live mode, not appended.
+* Your own readers run in a process of their own in the app (in Python and the command line they run in the calling process); a reader that never ends is stopped after `SV_READER_TIMEOUT` (600 s by default). Files read by a reader are reloaded whole in live mode, not appended.
 * A spectrum (FFT, Welch, spectrogram) of a signal with gaps bridges them with straight lines on an even time grid: the frequencies are right, but amplitudes are lower by about the share of time the gaps cover. For exact amplitudes put the two cursors on a stretch without gaps.
 * Telemetry logs (.tlog): messages that carry the autopilot's clock are placed on it (one offset per boot, the median radio delay); messages without it are at their receive time, so they include each packet's radio delay. Live, a boot's offset is learned from its first data and then kept.
 * Sweeps, the goal's table: a limit is *at least* / *at most* on a numeric column; a category parameter, conditions in some scenarios only and *or* goals are set under *More options*.
@@ -37,3 +37,7 @@
 * The faint copy of an object under the pointer on the map / in 3D follows time plots of the same tab only; the built-in *Flight* tab (map and 3D) has no time plot - add one to see it.
 * A template keeps its default tabs; a line's dash chosen by hand (Inspector ▸ Line) is kept in the session, not in templates.
 * In a segment comparison the difference view's times are since each segment's start: a click there does not move the cursor.
+* Golden runs and Compare's tolerances are kept in the app's settings and in the tolerances file (*Save tolerances…*), not in a session or a template. The Compare panel pairs signals by name: a tolerances file's `"as"` (another name in the run) is used by `signalviewer-cli compare` and kept when the panel saves the file.
+* Formulas keep a missing value missing (a sum, mean or norm in *Create signals* also offers to skip or bridge it; a formula does not yet).
+* The data-quality summary is of a file as it was opened or read again; a file growing in live mode is not checked again as it grows. A state or event signal (a mode, a message) is checked for missing values only.
+* The list of all events (modes, log events, findings, conditions, limits) is in the Log panel of a flight log; for other files ] / [ and the command palette step through the conditions and limits.

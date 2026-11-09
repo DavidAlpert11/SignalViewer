@@ -574,7 +574,58 @@ def img_28_map_by_mode(b, app):
 
 
 def img_00_hero(b, app):
-    """M1: the README's first picture - one window, 2 x 2, dark, at 2x: the map with the track coloured
+    """1.23: the README's first picture - judging a flight against its simulation (the release's main
+    flow), dark, at 2x: the model (the golden run, ★) and the flight overlaid in four plots, Compare's
+    verdict (2 of 7 signals outside the tolerances file the command line reads) and the worst failure's
+    difference over time with its band. Offline (no map tiles). The flight / map / 3D picture of
+    1.22 is 31_flight_map_3d (img_31_flight_map_3d, needs the internet for its map)."""
+    reset(app)
+    ctx = b.new_context(viewport={"width": W, "height": H}, device_scale_factor=2, color_scheme="dark")
+    pg = ctx.new_page()
+    pg.goto(app.url); pg.wait_for_selector(".app"); pg.wait_for_timeout(400)
+    pg.evaluate("window.__sv.setState({ theme: 'dark' })")
+    sim, flight = app.path("sim_vs_flight/sim_attitude_doublets.mat"), app.path("sim_vs_flight/flight_attitude_doublets.bin")
+    open_api(pg, app, "sim_vs_flight/sim_attitude_doublets.mat", "sim_vs_flight/flight_attitude_doublets.bin")
+    ids = pg.evaluate("""async ([sim, flight, tol]) => {
+      const runs = await (await fetch('/api/runs')).json();
+      const s = runs.find((r) => r.path === sim), f = runs.find((r) => r.path === flight);
+      await fetch('/api/runs/' + f.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timeOffset: -104.369 }) });
+      const t = await (await fetch('/api/compare/tolerances/load', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: tol }) })).json();
+      window.__sv.setState({ runs: await (await fetch('/api/runs')).json(), compareTol: t.tolerances, startCard: null });
+      return [s.id, f.id]; }""", [sim, flight, app.path("sim_vs_flight/tolerances.json")])
+    # the differences (flight - model), with the tolerance (3 deg) as their limits: where it fails shows
+    ids += pg.evaluate("""async ([s, f]) => { const made = [];
+      for (const [a, b, n] of [['ATT.Roll [deg]', 'ATT.Roll', 'Δ Roll'], ['ATT.Pitch [deg]', 'ATT.Pitch', 'Δ Pitch']]) {
+        const r = await (await fetch('/api/derived', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ op: 'sub', sources: [`${f}/${a}`, `${s}/${b}`], params: { alignment: 'linear', pinned: [1] }, name: n }) })).json();
+        window.__sv.setState({ runs: r.runs }); made.push(r.id); }
+      return made; }""", ids)
+    pg.evaluate("""([s, f, dr, dp]) => window.__sv.state().commit((ws) => {
+      const tab = ws.tabs[0];
+      const pair = (id, title, a, b) => ({ id, title, signals: [
+        { sig: `${s}/${a}`, color: '#58A6FF', width: 4, scale: 1, offset: 0, dash: false, label: 'Model ★' },
+        { sig: `${f}/${b}`, color: '#F2A33A', width: 1.5, scale: 1, offset: 0, label: 'Flight' }] });
+      const diff = (id, title, sig, color) => ({ id, title, signals: [{ sig, color, width: 1.25, scale: 1, offset: 0, limits: { lo: -3, hi: 3 } }] });
+      tab.name = 'Model vs flight';
+      tab.plots = [pair('h-roll', 'Roll (deg)', 'ATT.Roll', 'ATT.Roll [deg]'), pair('h-pitch', 'Pitch (deg)', 'ATT.Pitch', 'ATT.Pitch [deg]'),
+                   diff('h-droll', 'Roll: flight − model, tolerance ±3', dr, '#FF7B72'), diff('h-dpitch', 'Pitch: flight − model, tolerance ±3', dp, '#56D364')];
+      tab.rows = 2; tab.cols = 2; tab.linkX = true; tab.active = 2;
+      return ws; })""", ids)
+    pg.evaluate("() => { const t = window.__sv.state().ws.tabs[0]; window.__sv.setState({ ranges: { [t.id]: [0, 95] } }); }")
+    if pg.locator(".ov-head .ov-hide").count():                     # the overview strip: room for the plots
+        pg.locator(".ov-head .ov-hide").first.click(force=True)
+    pg.click("[aria-label='Compare runs']")
+    pg.wait_for_selector(".judge-verdict li", timeout=60000)
+    pg.locator(".golden-mark input").check()                        # the model is the golden run
+    pg.locator(".cmp-panel").evaluate("e => e.scrollTop = 0")
+    # the cursor on the worst place: the flight's roll 6.1 deg from the model's at 31.17 s (outside +-3)
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: false, t1: 31.171, t2: null, active: 1 } })")
+    pg.wait_for_timeout(2500)
+    shot(pg, "00_hero"); ctx.close()
+
+
+def img_31_flight_map_3d(b, app):
+    """M1 (1.22's first picture): one window, 2 x 2, dark, at 2x - one window, 2 x 2, dark, at 2x: the map with the track coloured
     by the flight mode and the vehicle at the cursor; the 3D attitude; Roll desired vs actual with
     the mode lane; the vibration behind the health check's finding - the cursor at the vibration
     (~140 s of the ArduPilot example), the findings docked beside the timeline. No signal list, no
@@ -605,7 +656,9 @@ def img_00_hero(b, app):
       ws.activeTab = tab.id; tab.active = 2;
       return ws; })""", rid)
     # the map in OpenStreetMap's colours (owner: more inviting than the dark automatic one)
-    pg.evaluate("window.__sv.setState({ panel: null, startCard: { ...window.__sv.state().startCard }, findingsOpen: false, geoBase: 'osm' })")
+    # (1.23: SV_HERO_MAP=auto - the offline map, on a computer without the internet)
+    pg.evaluate("b => window.__sv.setState({ panel: null, startCard: { ...window.__sv.state().startCard }, findingsOpen: false, geoBase: b })",
+                os.environ.get("SV_HERO_MAP", "osm"))
     cursors(pg, 140.4, 140.4)
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, dual: false, t2: null } })")
     pg.wait_for_selector(".track-key", timeout=30000); pg.wait_for_timeout(4000)
@@ -629,9 +682,9 @@ def img_00_hero(b, app):
     for _ in range(2):
         pg.mouse.wheel(0, -240); pg.wait_for_timeout(200)
     pg.mouse.move(5, H - 5)
-    pg.add_style_tag(content=".globe3d-bar { display: none !important }")      # a clean first picture (the 3D's bar is in 28)
+    pg.add_style_tag(content=".globe3d-bar { display: none !important }")      # a clean picture (the 3D's bar is in 28)
     pg.wait_for_timeout(8000)                                                   # the terrain, the map tiles, the 3D model
-    shot(pg, "00_hero"); ctx.close()
+    shot(pg, "31_flight_map_3d"); ctx.close()
 
 
 def _fleet(pg):

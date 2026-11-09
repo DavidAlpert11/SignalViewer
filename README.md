@@ -28,10 +28,19 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/00_hero.png" alt="Signal Viewer, dark theme: an ArduPilot flight on the map coloured by flight mode, the vehicle in 3D, Roll desired against actual and the vibration with the cursor on the moment the health check found" width="100%">
+  <img src="docs/images/00_hero.png" alt="Signal Viewer, dark theme: a flight judged against its simulation - the model (the golden run) and the flight overlaid for roll and pitch, the differences with the ±3° tolerance, the cursor on the worst place, and Compare's verdict: 2 of 7 signals outside the tolerance" width="100%">
 </p>
 
-<p align="center"><b>Open a flight log or a test run, see what went wrong, compare runs and report – all offline.</b></p>
+<p align="center"><b>Open a flight log or a test run, see what went wrong, judge it against a golden run and report – all offline.</b></p>
+
+### Judge a run against its golden run (new in 1.23)
+
+Mark a run – a simulation, a good flight – as the **golden run**, with a tolerance per signal. A
+recording opened later that has its signals is offered *Judge it against …*: one click, and Compare
+says **pass or fail per file**, shows the worst failure and its difference over time, and makes a
+report that starts with the verdict. The tolerances are the file `signalviewer-cli compare` reads, so
+CI gives the same answer. Results say what they rest on (≈ where values were interpolated or a
+filter ran stretch by stretch), and every file gets a data-quality summary as it opens.
 
 ### A flight on the map and in 3D
 
@@ -39,6 +48,8 @@ One template turns latitude / longitude / altitude / attitude signals into a map
 play and both follow the timeline; *Up to the time* draws the track as it is flown.
 
 <p align="center"><img src="docs/media/02_flight_map_3d.gif" alt="A UAV flight over the Sea of Galilee played back on the offline map and in 3D" width="100%"></p>
+
+<p align="center"><img src="docs/images/31_flight_map_3d.png" alt="An ArduPilot flight: the track on the map coloured by flight mode, the vehicle in 3D, Roll desired against actual and the vibration at the moment the health check found" width="100%"></p>
 
 ### Flight-log health check
 
@@ -62,8 +73,9 @@ the same test, a flight log after a flight, a simulation next to the real thing 
 network. Open the files, see what is wrong, compare, report; then make the same check pass / fail in CI.
 
 - **Plot** – up to 9 linked plots per tab: Time, X-Y, FFT, spectrogram, map, 3D; two cursors with Δ and statistics; dozens of signals in one plot with the legend in a column beside it; your own named, nested groups of signals.
-- **Compare runs** – every shared signal ranked by how different it is, time-aligned, also per segment (the 2nd AUTO of every flight); with a tolerance, pass / fail per signal and where it fails - the difference over time with the band, as the Simulink Data Inspector; the work done on one file is copied to another in one step (its changes, new signals and plots - any of them), linked files keep getting it, and one file's work can be cleared alone.
-- **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check; a 1.2 GB ArduPilot log opens in seconds.
+- **Compare runs** – every shared signal ranked by how different it is, time-aligned, also per segment (the 2nd AUTO of every flight); with a tolerance - one per signal if you like, in the file the command line reads - pass / fail per signal and per file and where it fails, the difference over time with the band, as the Simulink Data Inspector; a golden run remembered with its tolerances, proposed for the next recording, and a report that starts with the verdict; the work done on one file is copied to another in one step (its changes, new signals and plots - any of them), linked files keep getting it, and one file's work can be cleared alone.
+- **Flight logs** – ArduPilot, PX4 and MAVLink read directly: flight modes, events, parameters and an automatic health check, all in one list of events (] / [ jump to the next); a 1.2 GB ArduPilot log opens in seconds.
+- **Trust** – a data-quality summary of every file as it opens (missing values, gaps, repeated or backwards time stamps, rate changes); a badge where a result rests on an assumption; the app's guesses (a state or a value, the angle unit) shown and correctable; every computation checked against a reference.
 - **Fleet** – a work area of its own: the same checks on every log in a folder: a number followed over weeks (a motor wearing out), the first flight over a limit, the flights with a finding - try it on the example fleet.
 - **Live** – MAVLink over UDP, TCP or a serial radio, recorded to a `.tlog` as it arrives, or any file a logger keeps writing; the map and 3D objects stay at the newest data.
 - **Map and 3D** – the vehicle, its attitude and its track on an offline map and terrain, in step with the timeline; the track coloured by the flight mode or by a value.
@@ -240,6 +252,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - לגרור קבצים לחלון: CSV, ‏MATLAB, לוגים של ArduPilot ו־PX4, ‏MAVLink, ‏ROS 2, ‏HDF5, ‏Parquet, ‏CAN עם קובץ ‎.dbc – גם לוגים גדולים מאוד (לוג ArduPilot של 1.2GB נפתח בשניות).
 - לעקוב בזמן אמת (חי) אחרי קבצים שנכתבים או קישור MAVLink: הגרפים, המפה והתלת־ממד מתקדמים עם הנתונים האחרונים.
 - לבנות תצוגה: עד 9 גרפים מקושרים בטאב, שני סמנים עם הפרש וסטטיסטיקה, FFT, ספקטרוגרם, מפה ותלת־ממד.
+- לבדוק ריצה מול ריצת ייחוס (חדש ב־1.23): מסמנים ריצת ייחוס (סימולציה, טיסה טובה) עם טולרנס לכל סיגנל; הקלטה שנפתחת אחר כך מקבלת הצעה לבדוק אותה מולה – עבר/נכשל לכל קובץ, הכשל הגרוע ביותר ודוח שמתחיל בפסיקה. קובץ הטולרנסים הוא אותו קובץ ש־<code dir="ltr">signalviewer-cli compare</code> קורא, כך שה־CI נותן אותה תשובה.
 - להשוות ריצות: כל הסיגנלים המשותפים מדורגים לפי מידת השוני, עם טולרנס – עבר/נכשל לכל סיגנל וגרף ההפרש שמראה איפה הוא נכשל, יישור זמן אוטומטי, אותו מקטע בכל ריצה – גם סימולציה מול הטיסה שלה. העבודה שנעשתה על קובץ אחד מועתקת לקובץ אחר בצעד אחד (שינויים, סיגנלים חדשים, גרפים - כל אחד מהם), קבצים מקושרים ממשיכים לקבל אותה, ואפשר לנקות עבודה של קובץ אחד בלבד.
 - לחשב: נוסחאות, מסננים, נגזרות ואינטגרלים – גם על סיגנלים רבים בבת אחת – המרת יחידות (רדיאנים למעלות, ‏m/s ל־km/h ועוד) ופעולות Python משלכם.
 - לחקור: מ"משהו השתבש בטיסה" לתשובה שאפשר להראות – לתת שם לרגעים שחשובים (<code dir="ltr">abs(Roll - DesRoll) > 5</code>), לראות איזה סיגנל יצא מהטווח הרגיל שלו ראשון ובכמה זמן לפני, לבדוק מול הריצות האחרות, שגיאה לכל ציר בקליק אחד, ממצאים ודוח חקירה. אפשר לנסות על דוגמה מובנית שהתשובה שלה ידועה.
@@ -249,7 +262,8 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - כמה מטרות יחד במעטפת ריצות: דירוג לפי חזית Pareto וגרף Pareto עם הסט המאוזן.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
 - לבדוק אוטומטית ב־CI: הפקודות <code dir="ltr">signalviewer-cli check</code> ו־<code dir="ltr">compare</code> מחזירות עבר/נכשל ו־JUnit XML.
-- לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים.
+- לסמוך על המספרים: כל חישוב נבדק מול ערך ייחוס (<code dir="ltr">signalviewer-cli validate</code>), והקוראים נבדקו על לוגים של כלי טיס אמיתיים; כל קובץ מקבל סיכום איכות נתונים כשהוא נפתח (ערכים חסרים, פערים, חותמות זמן חוזרות, שינויי קצב), ותוצאה שנשענת על הנחה (אינטרפולציה, סינון לפי קטעים) מסומנת.
+- לנווט באירועים: רשימה אחת של מצבי טיסה, אירועים, ממצאים, תנאים וחריגות מגבולות, ו־<code dir="ltr">]</code> / <code dir="ltr">[</code> לאירוע הבא / הקודם.
 
 **מדריך מלא בעברית:** [docs/GUIDE.he.md](docs/GUIDE.he.md), וגם בתוך האפליקציה: עזרה ← מדריך למשתמש (F1).
 מה חדש בכל גרסה: [CHANGELOG](CHANGELOG.md).
