@@ -697,6 +697,20 @@ table.cmp-sub tr.base td { color: var(--muted); }
 /* ---- compare: similarity list ---- */
 .cmp-panel .acheck .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 .run-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; border: 1px solid var(--line-strong); display: inline-block; margin-inline-end: 4px; }
+/* 26.U4: the verdict per file against the baseline - the first thing Compare says */
+.judge-verdict { margin: var(--sp-3) 0 0; padding: var(--sp-2_5) var(--sp-3); border: 1px solid var(--line); border-inline-start: 4px solid var(--line-strong);
+  border-radius: var(--r-m); background: var(--raised); }
+.judge-verdict.pass { border-inline-start-color: var(--ok); }
+.judge-verdict.fail { border-inline-start-color: var(--danger); }
+.judge-verdict h3 { margin: 0 0 var(--sp-1_5); font-size: var(--fs-m); }
+.judge-verdict ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+.judge-verdict li { display: flex; align-items: center; gap: var(--sp-1_5); flex-wrap: wrap; }
+.judge-verdict li .sim-pass, .judge-verdict li .sim-fail { margin: 0; }
+.judge-verdict .jv-text { color: var(--muted); font-size: var(--fs-sm); }
+.judge-verdict li.fail .jv-text { color: var(--danger); }
+.judge-verdict .arow.wrap { margin-top: var(--sp-2); }
+.judge-verdict .hint { margin: 0; }
+.golden-mark { font-size: var(--fs-sm); }
 .sim-head { display: flex; align-items: baseline; gap: var(--sp-2); margin: 14px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); }
 .sim-head h3 { margin: 0; font-size: var(--fs-base); color: var(--ink-strong); flex: 1; }
 .sim-head .linklike { font-size: var(--fs-sm); text-decoration: none; color: var(--muted); }

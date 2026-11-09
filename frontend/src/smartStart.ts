@@ -1,6 +1,7 @@
 import { api, type HealthFinding, type Template } from "./api";
 import { tabHasContent, useApp } from "./store";
 import { announceOpened, applyTemplate, defaultTabIdx, expand, fits, rankTemplates } from "./templates";
+import { goldenFor, type Golden } from "./judge";
 
 /**
  * Smart start (T29): when the first file goes into an empty workspace, a small card suggests the
@@ -13,6 +14,8 @@ export interface StartCard {
   template: { id: string; name: string; fit: number } | null;
   health: HealthFinding[] | null;      // the worst findings (errors, then warnings); [] = nothing found
   files?: number;                      // F20: opened together with others - the card offers Compare
+  /** 26.U4: a golden run with this file's signals - "Judge it against …" */
+  golden?: (Golden & { share: number }) | null;
 }
 
 const FIT_MIN = 0.5;                   // a suggestion must have at least half of what it plots
@@ -53,11 +56,13 @@ export async function offerStart(runId: string, files = 1, auto = false) {
       if (bad.length) useApp.setState((s) => ({ findingMarks: { ...s.findingMarks, [runId]: bad.filter((f) => f.t !== null || f.spans.length) } }));
     } catch { /* no health check for this file */ }
   }
-  if (!template && health === null) return;
+  let golden: StartCard["golden"] = null;
+  try { golden = await goldenFor(runId); } catch { /* no golden run */ }
+  if (!template && health === null && !golden) return;
   if (!useApp.getState().runs.some((r) => r.id === runId)) return;      // closed meanwhile
-  const card: StartCard = { runId, template, health };
+  const card: StartCard = { runId, template, health, golden };
   useApp.setState({ startCard: card, findingsOpen: false });
-  if (auto && template) await openSuggested(card);      // T48: an example opens ready to look at
+  if (auto && template && !golden) await openSuggested(card);      // T48: an example opens ready to look at
 }
 
 /** Whether openPaths should offer a start: the workspace has nothing plotted yet. */

@@ -69,6 +69,8 @@ export interface UiSlice {
   /** 26.U5: Compare's tolerances - every signal's and each signal's own (UI state; kept in a file
    *  signalviewer-cli compare reads, not in the session) */
   compareTol: import("../../api").Tolerances;
+  /** 26.U4: "judge this run" - Compare starts on these files with this baseline (consumed by the panel) */
+  compareJudge: { baseline: string; runs: string[] } | null;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;
@@ -146,6 +148,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   stripSel: null,
   compareTable: null,
   compareTol: { default: {}, signals: {} },
+  compareJudge: null,
   promptDialog: null,
   uiScale: 1,
   helpOpen: false,
