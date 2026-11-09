@@ -2,7 +2,9 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0 done (plan, baseline, fixture). **Next stage: N1** (dot nesting), then N5.
+> **Stage reached:** N0 (plan, baseline, fixture) and **N1 (dot nesting) done**. **Next stage: N5** (map
+> objects), then N6. N5 is the biggest task: split it into commits (detection → dialog → template → docs)
+> and hand off a patch after each part if the session ends.
 >
 > **Base and patch.** Base commit `dafea49` (1.23.0). All work so far is in **one cumulative patch**,
 > `signalviewer-2026-11-09.patch`. To continue:
@@ -18,7 +20,7 @@
 > ("Owner's plan (2026-11-09)"), and hand both files to the owner. This prompt also lives in the repo
 > as `docs/dev/AGENT_PROMPT_2026-11-09.md`; keep the two copies equal.
 >
-> **Where things are:** board, owner's decisions 1-4, open questions Q1-Q8 with their defaults, notes
+> **Where things are:** board, owner's decisions 1-5, open questions Q1-Q7 with their defaults (Q8 answered), notes
 > from the code and the Log: `docs/dev/TASKS.md` → "Owner's plan (2026-11-09)". Milestone 27 in
 > `ROADMAP.md`. Fixture: `examples/three_objects.csv` (`tools/make_objects_fixture.py`).
 >
@@ -26,7 +28,12 @@
 >
 > **Found while reading the code (now part of the spec below):** names like `GPS.Lat [deg]` carry a
 > trailing unit (N1); CSVs with ArduPilot message names pair `GPS.*` position with `ATT.*` attitude
-> today, which N5's own-prefix rule would break (Q8: keep the known-groups table for any file).
+> today, which N5's own-prefix rule would break (Q8, **approved by the owner**: the known-groups table
+> applies to any file).
+>
+> **For N5, from N1:** `signalGroups.pathCuts(name)` already splits a name into its explicit path
+> (identifier-like segments, trailing unit ignored) - reuse it for prefixes instead of a second parser.
+> e2e needs `npm run build` first (run.py serves `frontend/dist`); do not commit `frontend/dist` before N9.
 
 You are a senior engineer working on **Signal Viewer** (repo `DavidAlpert11/SignalViewer`, base commit
 `dafea49`, version 1.23.0). It is an offline desktop app: Python FastAPI backend plus React/TypeScript frontend.
@@ -251,8 +258,8 @@ This is the biggest task. Split it into commits: detection → dialog → templa
   PX4 `vehicle_global_position`, `vehicle_gps_position`, `vehicle_attitude`. Pair attitude to position as
   today for these known groups. The known-groups table applies to **any** file, not only `.bin` / `.ulg`: a CSV
   with ArduPilot message names (`GPS.Lat`, `ATT.Yaw` – examples/uav_flight.csv and test_map_objects'
-  `obj_aircraft.csv`) stays one aircraft, GPS position with ATT attitude, as today. *Owner question
-  (Q8) – Default if unanswered: yes.* A copter `.bin` must still give a sensible main object.
+  `obj_aircraft.csv`) stays one aircraft, GPS position with ATT attitude, as today. *(Q8 – approved by
+  the owner.)* A copter `.bin` must still give a sensible main object.
 - Each candidate carries an **explanation**, as data: for each role, the signal chosen and the rule that
   chose it (exact name / alias / known log group / sub-group), the class and the keyword that decided
   it, what is missing, and the **near misses**. A near miss is a signal that almost matched, together

@@ -3,7 +3,7 @@ import { DATA_EXTS } from "../values";
 import { readAsItem } from "../readAs";
 import { laneMenuForSignal } from "../lanes";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { groupByPrefix, groupDerived, memberLabel, subGroups } from "../signalGroups";
+import { GROUP_MIN, HEURISTIC_SEPS, LOG_FORMATS, groupByPrefix, groupDerived, memberLabel, nameTree, subGroups, type TreeEntry } from "../signalGroups";
 import { unitOf } from "../units";
 import { sparkPath, useSpark } from "../sparks";
 import type { RunInfo, SignalInfo, SignalQuality } from "../api";
@@ -31,8 +31,8 @@ import type { MenuItem } from "../store";
 /* Virtualized rows: only what is on screen is in the DOM (thousands of signals). */
 type Row =
   | { kind: "run"; run: RunInfo; closed: boolean; h: number }
-  | { kind: "group"; runId: string; key: string; ids: string[]; closed: boolean; h: number; depth?: number }
-  | { kind: "sig"; sig: SignalInfo; depth: number; h: number; group?: string; ugroup?: string }
+  | { kind: "group"; runId: string; key: string; ids: string[]; closed: boolean; h: number; depth?: number; label?: string }
+  | { kind: "sig"; sig: SignalInfo; depth: number; h: number; group?: string; ugroup?: string; label?: string }
   | { kind: "uroot"; closed: boolean; n: number; h: number }
   | { kind: "ugroup"; node: GroupNode; closed: boolean; h: number };
 const H_RUN = 30, H_GROUP = 26, H_SIG = 26, OVERSCAN = 10;
@@ -313,13 +313,32 @@ export default function DataPanel() {
       if (closedRun) continue;
       // derived signals made together (a frame conversion's axes) are always nested
       const derived = run.format === "derived";
-      const groups = derived ? groupDerived(sigs) : groupByPrefix(sigs, (s) => s.name);
-      if (!groups) { sigs.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
+      const log = LOG_FORMATS.has(run.format);
       const many = !derived && run.signals.length > 200;
       // U7: a flight log's groups (more than 40 signals) start closed, except those with signals on
       // the tab's plots - what is plotted shows, the rest is a click away (a 73-signal log listed
       // every one of its groups open)
       const some = !derived && run.signals.length > 40;
+      // N1: "." and "/" nest at any depth, whatever the number of signals (not in a flight log, whose
+      // message.field names keep their grouping); a group with a plotted signal starts open
+      const tree = derived || log ? null : nameTree(sigs, (x) => x.name);
+      if (tree) {
+        const walk = (es: TreeEntry<SignalInfo>[], depth: number) => {
+          for (const e of es) {
+            if (e.kind === "item") { out.push({ kind: "sig", sig: e.t, depth, h: H_SIG, label: e.label }); continue; }
+            const gk = `${run.id}|${e.node.key}`;
+            const plotted = e.node.all.some((x) => onTab.has(x.id));
+            const open = searching ? !sClosed[`g:${gk}`] : groupOpen[gk] ?? (plotted || (!many && (depth > 0 || !some)));
+            out.push({ kind: "group", runId: run.id, key: e.node.key, label: e.node.label, ids: e.node.all.map((x) => x.id), closed: !open, h: H_GROUP, depth });
+            if (open) walk(e.node.entries, depth + 1);
+          }
+        };
+        walk(tree, 0);
+        continue;
+      }
+      const seps = log ? undefined : HEURISTIC_SEPS;
+      const groups = derived ? groupDerived(sigs) : groupByPrefix(sigs, (s) => s.name, GROUP_MIN, seps);
+      if (!groups) { sigs.forEach((sig) => out.push({ kind: "sig", sig, depth: 0, h: H_SIG })); continue; }
       for (const g of groups) {
         const gk = `${run.id}|${g.key}`;
         // searching opens every matching group (the user may close it); otherwise big files start collapsed
@@ -328,7 +347,7 @@ export default function DataPanel() {
         out.push({ kind: "group", runId: run.id, key: g.key, ids: g.items.map((x) => x.id), closed: !open, h: H_GROUP });
         if (!open) continue;
         // a big group nests again by the rest of the name (IMU[0] > Acc > X...)
-        const subs = derived ? null : subGroups(g.key, g.items, (x) => x.name);
+        const subs = derived ? null : subGroups(g.key, g.items, (x) => x.name, seps);
         if (!subs) { g.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG, group: derived ? g.key : undefined })); continue; }
         for (const sg of subs) {
           if (!sg.key) { sg.items.forEach((sig) => out.push({ kind: "sig", sig, depth: 1, h: H_SIG })); continue; }
@@ -528,7 +547,7 @@ export default function DataPanel() {
               ref={(el) => { if (el) el.indeterminate = nSel > 0 && !allSel; }}
               onClick={(e) => e.stopPropagation()} onChange={() => toggleMany(row.ids)} />
           )}
-          <span className="nm">{row.key.split("|").pop()}</span><span className="run-meta">{nSel > 0 && !allSel ? `${fmtInt(nSel, lang)}/` : ""}{fmtInt(row.ids.length, lang)}</span>
+          <span className="nm" title={row.label !== undefined && !row.key.startsWith("~") ? row.key : undefined}>{row.label ?? row.key.split("|").pop()}</span><span className="run-meta">{nSel > 0 && !allSel ? `${fmtInt(nSel, lang)}/` : ""}{fmtInt(row.ids.length, lang)}</span>
         </div>
       );
     }
@@ -560,7 +579,7 @@ export default function DataPanel() {
         onContextMenu={(e) => sigMenu(e, s, row.ugroup)}
         title={`${s.formula ?? s.name}${rateLine(s, lang)}\n${t("listSelHint")}`} aria-label={s.name}>
         <span className="dot" style={color ? { background: color } : undefined} />
-        <span className="nm"><Highlight text={nameOnly(row.group ? memberLabel(s.name, row.group) : s.name)} q={q} /></span>
+        <span className="nm"><Highlight text={nameOnly(row.label ?? (row.group ? memberLabel(s.name, row.group) : s.name))} q={q} /></span>
         {row.ugroup && fileOfSig(s.id) && <span className="sig-file" title={fileOfSig(s.id)!}>{fileOfSig(s.id)}</span>}
         {/* T22: the unit stays visible however long the name; the rate and a small picture of the signal */}
         {(s.transform?.unit || unitOf(s.name)) && <span className="sig-unit">{s.transform?.unit || unitOf(s.name)}</span>}

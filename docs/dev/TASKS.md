@@ -18,7 +18,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   secondary objects with live relations, error and comparison plots in NED / ECEF, moving plots, line
   defaults, group styling. Spec: `docs/dev/AGENT_PROMPT_2026-11-09.md`; board, decisions and open
   questions (Q1-Q8, each with a default) in "Owner's plan (2026-11-09)" below. Done: N0 (plan, baseline,
-  fixture). Next: N1. The work travels as one cumulative patch on `dafea49`.
+  fixture), N1 (dot nesting at any depth). Next: N5. The work travels as one cumulative patch on `dafea49`.
 
 - **Round of 2026-11-08 (in progress)**: the owner's audit round - correctness, trust, performance,
   a calmer UI (spec and board in "Owner's plan (2026-11-08)" below; IDs there are qualified as
@@ -187,6 +187,8 @@ full baseline of the previous round, 2026-11-09: backend 1081 passed / 14 skippe
    over ground, flight-path angle; the default) or borrowed from another object (the primary first).
 4. N7: once objects exist, offer comparison and difference plots, in NED / ENU / ECEF / LLA / track
    frame (differences in NED at the primary's position at each sample; overlays share one origin).
+5. Q8 approved: the known flight-log groups apply to any file, so a CSV with ArduPilot names (`GPS.*` +
+   `ATT.*`) stays one object.
 
 **Open questions (the work goes on with the default; each is easy to change):**
 | # | Question | Default if unanswered |
@@ -198,7 +200,7 @@ full baseline of the previous round, 2026-11-09: backend 1081 passed / 14 skippe
 | Q5 | N7: attitude error | Euler-angle differences wrapped to ±180°; the rotation-based error later if wanted |
 | Q6 | N8: export to Tacview `.acmi` - do it at all? | not started |
 | Q7 | N9: the version number | 1.24.0 |
-| Q8 | N5 (found in the code): CSVs with ArduPilot message names (`GPS.Lat`, `ATT.Yaw` - `examples/uav_flight.csv`, test_map_objects' file) are one aircraft today. Keep pairing ArduPilot / PX4 message groups as known log groups in CSV too? | yes: the known-groups table applies to any file, so GPS position + ATT attitude stay one object |
+| ~~Q8~~ | **Answered (decision 5): yes.** N5 (found in the code): CSVs with ArduPilot message names (`GPS.Lat`, `ATT.Yaw` - `examples/uav_flight.csv`, test_map_objects' file) are one aircraft today. Keep pairing ArduPilot / PX4 message groups as known log groups in CSV too? | yes: the known-groups table applies to any file, so GPS position + ATT attitude stay one object |
 
 **Notes from reading the code (2026-11-09):**
 - N1: names such as `GPS.Lat [deg]` (examples/uav_flight.csv) carry a unit in brackets; a trailing
@@ -218,8 +220,8 @@ Progress board:
 | # | Task | Order | Status |
 |---|---|---|---|
 | N0 | Plan, baseline, fixture, prompt in the repo | 0 | ☑ done |
-| N1 | Dot nesting, always and at any depth (bug) | 1 | ☐ next |
-| N5 | Map objects: naming convention, all at once, why each guess; attitude source | 2 | ☐ |
+| N1 | Dot nesting, always and at any depth (bug) | 1 | ☑ done |
+| N5 | Map objects: naming convention, all at once, why each guess; attitude source | 2 | ☐ next |
 | N6 | Smooth motion and an easy map (Tacview-like) | 3 | ☐ |
 | N7 | Primary / secondary, relations, error signals, comparison plots in frames | 4 | ☐ |
 | N2 | Move plots: swap places in the grid | 5 | ☐ |
@@ -3614,3 +3616,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · Release 1.23.0 prepared (Releasing steps 1-4, owner's request): version 1.23.0 in build.bat, app/version.py, CITATION.cff (2026-11-09), the installer (.iss, version_info four places), docs/install.md, docs/validation.md (made again by tools/make_validation_doc.py); CHANGELOG "Unreleased" -> "1.23.0 – 2026-11-09" with a highlights line, its sections merged (Added / Changed / Fixed / Performance / Tests and CI); README reviewed against it (the hero, a "Judge a run" section, Compare / Flight logs / Trust in the list, the Hebrew section), docs/index.md, gallery, limitations (readers in a process; golden runs and tolerances not in the session; formulas keep missing; data quality not re-checked live; the events list in the Log panel), GUIDE.he (tolerances per signal, judging, data quality, ≈, ] / [). Pictures: a new hero (00_hero: the model against the flight, the differences with the ±3° tolerance, the verdict - offline, no map tiles; make_readme_media.py img_00_hero), 1.22's hero kept as 31_flight_map_3d (needs the internet to remake), social-preview cropped again; every other picture and video remade except 05, 28 and 06 / the 02 video (map tiles or real-GPU 3D: owner's PC). frontend/dist built and committed. Left to the owner: Releasing step 0 (run ci by hand), the Windows build, tag v1.23.0 and push.
 - 2026-11-09 · v1.23.0's build failed on every platform in backend/tests/test_offset_nocopy.py: `pytest.approx` of the limits result (a dict holding the list of stretches) - approx takes flat values only; here the two results were equal to the bit, so approx was never asked to compare. Fixed: the stretches compared apart, flattened. Checked the whole backend suite with a stricter approx (one that refuses any nested value): no other case.
 - 2026-11-09 · Round of 2026-11-09 started (N0): the owner's prompt revised with him and kept as docs/dev/AGENT_PROMPT_2026-11-09.md; "Owner's plan (2026-11-09)" added (order, decisions 1-4, Q1-Q8 with defaults, board); Milestone 27 in ROADMAP. Baseline at `dafea49`: `npx tsc -b` clean, `npm test` 8 files / 24 tests. Fixture examples/three_objects.csv from tools/make_objects_fixture.py. Found while reading: `GPS.Lat [deg]`-style names (N1 must ignore a trailing unit) and ArduPilot names in CSV pair GPS + ATT today (Q8). Checks: tsc, Vitest. Next: N1.
+- 2026-11-09 · N1 done: `signalGroups.nameTree` / `pathCuts` - "." and "/" nest at any depth whatever the count (identifier-like segments only; a trailing `[unit]` / `(unit)` ignored; a leading "/" skipped; single-child chains folded into one row; no group of one signal - while searching a single match shows its full name); the heuristics kept for "_" / ":" only; flight logs (bin, tlog, ulg, can) on the old path unchanged. DataPanel walks the tree (`Row.label`; the group's full path in its tooltip; indentation by logical padding, so RTL follows). A group with a plotted signal starts open. Reproduced first: the fixture listed flat at `dafea49`. Checked: copter_flight.bin's list identical before / after (dumped with both builds); uav_flight.csv now nests GPS / ATT. Checks: tsc, Vitest 9 files / 35 tests (signalGroups.test.ts new, 11), e2e test_name_tree (new, 3), test_features -k "S03 or multi_select or group" (2), test_map_objects (4), test_object_templates (4), test_workflows (28), test_owner_notes_1_20 (5) - all green. Owner's Q8 answered (decision 5). Next: N5.
