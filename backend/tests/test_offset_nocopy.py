@@ -80,6 +80,11 @@ def test_cursor_neighbor_stats_limits(pair):
     assert wa == pytest.approx(wb)
     la = _post("/api/limits", {"items": [{"id": f"{a}/y", "hi": 3}], "t0": 15, "t1": 50})["results"][f"{a}/y"]
     lb = _post("/api/limits", {"items": [{"id": f"{b}/y", "hi": 3}], "t0": 15, "t1": 50})["results"][f"{b}/y"]
+    # pytest.approx takes flat values only: the stretches outside apart (on Windows the floats differ in
+    # the last bits, and approx then refused the nested list instead of comparing it)
+    spans_a, spans_b = la.pop("spans"), lb.pop("spans")
+    assert len(spans_a) == len(spans_b)
+    assert [x for s in spans_a for x in s] == pytest.approx([x for s in spans_b for x in s])
     assert la == pytest.approx(lb)
 
 
