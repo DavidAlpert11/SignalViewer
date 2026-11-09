@@ -138,6 +138,9 @@ for the values.
   and listed - a click takes you there. Under the picked signal, **This signal's tolerance** gives it a
   tolerance of its own or leaves it out; **Save tolerances…** writes them in the file
   `signalviewer-cli compare --tolerances` reads, so a CI job judges the next run the same way.
+- **! beside a file's name** (and on some of its signals): its data has something to know - values
+  missing, time with no data, repeated or backwards time stamps, a rate that changes. Click it (or
+  right-click the file → **Data quality…**) for each signal's details.
 - **≈ on a legend chip** (and a word in *Create signals*' list): the signal rests on an assumption -
   values read between another signal's samples, a filter run stretch by stretch, missing values left
   out or bridged; hover it for exactly what. The status bar says **● Online map** whenever map tiles

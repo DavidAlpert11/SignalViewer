@@ -317,6 +317,19 @@ button, input, select { font: inherit; color: inherit; }
 .trust.info { color: var(--muted); background: var(--panel); border: 1px solid var(--line-strong); }
 .trust.compact { padding: 0 4px; margin-inline-start: 2px; font-weight: 700; }
 .trust:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* 26.U7: data quality - a file's badge (a button), a signal's mark, the dialog */
+button.dq-badge { margin-inline-start: var(--sp-1); font-weight: 600; }
+.dq-sig { margin-inline-start: var(--sp-1); }
+.dq-dialog { width: min(820px, 94vw); }
+.dq-body { max-height: 60vh; overflow: auto; padding: 0 16px; }
+table.vals.dq-table { table-layout: auto; }
+table.vals.dq-table th:first-child { width: auto; }
+table.vals.dq-table td, table.vals.dq-table th { vertical-align: top; white-space: normal; text-align: start; overflow: visible; }
+table.vals.dq-table td.num { white-space: nowrap; }
+.dq-table ul { margin: 0; padding-inline-start: 1.1em; }
+.dq-table tr.bad td:first-child .linklike { font-weight: 600; }
+.dq-none { margin: var(--sp-3) 0; color: var(--ok); }
+.dq-sorted { color: var(--amber); }
 /* the network: what leaves the PC, said in the status bar */
 .net-state { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .net-state.online { color: var(--amber); font-weight: 600; }

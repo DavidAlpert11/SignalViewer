@@ -1,3 +1,4 @@
+import { kindsText, signalLines } from "../quality";
 import { DATA_EXTS } from "../values";
 import { readAsItem } from "../readAs";
 import { laneMenuForSignal } from "../lanes";
@@ -5,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { groupByPrefix, groupDerived, memberLabel, subGroups } from "../signalGroups";
 import { unitOf } from "../units";
 import { sparkPath, useSpark } from "../sparks";
-import type { RunInfo, SignalInfo } from "../api";
+import type { RunInfo, SignalInfo, SignalQuality } from "../api";
 import { showFileTags, actions, activeTab, fileLabel, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
@@ -52,6 +53,13 @@ export default function DataPanel() {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const runs = useApp((s) => s.runs);
+  // 26.U7: the data-quality summaries of the open files: a badge on a file, a mark on its signals
+  const quality = useApp((s) => s.quality);
+  const sigQuality = useMemo(() => {
+    const m = new Map<string, SignalQuality>();
+    for (const [rid, q] of Object.entries(quality)) for (const x of q.signals) if (x.issues.length) m.set(`${rid}/${x.name}`, x);
+    return m;
+  }, [quality]);
   const ws = useApp((s) => s.ws);
   const [q, setQ] = useState("");
   const [closed, setClosed] = useState<Record<string, boolean>>({});
@@ -128,6 +136,7 @@ export default function DataPanel() {
           : [];
       })()),
       { label: "", run: () => {}, sep: true },
+      { label: t("dqMenu"), run: () => useApp.setState({ qualityFor: run.id }) },
       { label: t("sameWorkMenu"), run: () => useApp.setState({ sameWorkFor: run.id }) },
       clearFileItem(run.id),
       { label: t("replaceFile"), run: async () => {
@@ -401,6 +410,12 @@ export default function DataPanel() {
               onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenaming(null); }} />
           ) : <span className="run-name">{run.format === "derived" ? t("derived") : fileLabel(runs, run.id)}</span>}
           {run.copy && <span className="badge-copy" title={t("copyBadgeHint")}>{t("copyBadge")}</span>}
+          {/* 26.U7: something in the file's data needs a look - its summary */}
+          {!!quality[run.id]?.withIssues && (
+            <button className="trust warn dq-badge" title={`${t("dqBadge", { n: quality[run.id].withIssues })}\n${kindsText(quality[run.id], lang)}`}
+              aria-label={t("dqBadge", { n: quality[run.id].withIssues })}
+              onClick={(e) => { e.stopPropagation(); useApp.setState({ qualityFor: run.id }); }}>! {quality[run.id].withIssues}</button>
+          )}
           {!!run.timeOffset && <span className="badge-off" title={t("timeShifted", { s: fmtNum(run.timeOffset, lang) })}>{run.timeOffset > 0 ? "+" : ""}{fmtNum(run.timeOffset, lang, 4)}s</span>}
           {streaming && run.format !== "derived" && !run.copy && (() => {
             const ago = activity[run.id];
@@ -552,6 +567,7 @@ export default function DataPanel() {
         {s.rate !== undefined && <span className="sig-rate">{fmtRate(s.rate, lang)}</span>}
         {!s.labels && <SigSpark id={s.id} version={`${s.n ?? s.samples ?? 0}:${s.version ?? runs.find((r) => s.id.startsWith(`${r.id}/`))?.version ?? ""}:${s.transform ? JSON.stringify(s.transform) : ""}`} />}
         {s.transform && <span className="tf-badge" title={`${t("tfChanged")}: ${describeTransform(s.transform)}`}>ƒ</span>}
+        {(() => { const dq = sigQuality.get(s.id); return dq && <span className="trust warn compact dq-sig" title={signalLines(dq, lang).join("\n")}>!</span>; })()}
         {s.labels && <span className="txt-badge" title={t("textSignalHint", { n: Object.keys(s.labels).length, list: Object.values(s.labels).slice(0, 8).join(", ") + (Object.keys(s.labels).length > 8 ? "…" : "") })}>Aa</span>}
       </button>
     );
