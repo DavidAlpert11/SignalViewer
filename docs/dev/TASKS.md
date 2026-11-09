@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). 26.U3 done (58 -> 54 / 80 -> 71 controls). 26.U5 done before 26.U4 (per-signal tolerances, the CLI's file, one rule `svcore/tolerances.py`). 26.U4 done (golden runs, start-card proposal, verdict, worst failure, report). 26.U6 done (trust badges, network in the status bar). 26.U7 done (data quality on open). 26.U8 done (one events list, ] / [). **Phase 5 done** (whole e2e next). Next: Phase 6 (T1); 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). 26.U3 done (58 -> 54 / 80 -> 71 controls). 26.U5 done before 26.U4 (per-signal tolerances, the CLI's file, one rule `svcore/tolerances.py`). 26.U4 done (golden runs, start-card proposal, verdict, worst failure, report). 26.U6 done (trust badges, network in the status bar). 26.U7 done (data quality on open). 26.U8 done (one events list, ] / [). **Phase 5 done** (whole e2e next). Phase 6: T1 done (Vitest, 24 tests). Next: T2; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -211,7 +211,7 @@ Progress board:
 | 26.U6 | Trust badges + the network indicator | 5 | ☑ done |
 | 26.U7 | Per-signal data-quality summary on open | 5 | ☑ done |
 | 26.U8 | Event navigation (one list, next / previous keys) | 5 | ☑ done |
-| T1 | Frontend unit tests (Vitest) | 6 | ☐ |
+| T1 | Frontend unit tests (Vitest) | 6 | ☑ done |
 | T2 | De-flake e2e (74 `wait_for_timeout`, test_quick_view) | 6 | ☐ |
 | T3 | CI: larger e2e subset, validation and benchmarks with tolerances | 6 | ☐ |
 | F1-F4 | Test specs, multi-run envelope, measurement export, reports from a spec | 7 | ☐ (ask the owner before starting) |
@@ -792,6 +792,24 @@ test_one_per_plot, test_templates_recent_badfiles); test_features S04 now expect
 colour. e2e: test_globe3d, test_template_tabs, test_object_templates, test_one_per_plot,
 test_templates_recent_badfiles, test_map_objects, test_features, test_overview_strip, test_tab_band,
 test_workflows, test_less_clutter. Screenshots (scratch): EN light / HE dark, both tabs.
+
+### T1 · Frontend unit tests (Vitest)
+**Status: done 2026-11-09.**
+**Why a new dev dependency:** the frontend's logic (undo, session migration, pairing, colours, the
+verdict) was tested only through the browser (e2e: minutes, and a failure says little about where);
+Vitest runs on Vite's own transform (no second build setup), with the project's tsconfig, in ~3 s.
+`vitest@5.0.5` (devDependency; `npm i` needed `--legacy-peer-deps` here because of an npm 10 arborist
+crash on peer sets - the lock file installs with a plain `npm ci`, checked). No DOM library: the tests
+are of logic; `src/test/setup.ts` stubs window / localStorage / matchMedia / document for the store.
+**Made:** `vitest.config.ts` (node, `src/**/*.test.ts`), `npm test`; tests: `store/undo.test.ts` (commit =
+one step, undo / redo, a no-op commit records nothing, a new change drops redo, the function gets a copy,
+UI state is not a step, 100 steps kept, undo drops the "undo" toasts), `files.test.ts`
+(`legacyUnitNames` both ways; `applyState` with a mocked api: names mapped, a missing file's signals and
+X axis dropped, not an undo step, a "missing" error, no 26.U4 field needed; `currentState`'s keys),
+`sameWork.test.ts` (usedNames: plots, derived sources, map objects, this file only), `pairing.test.ts`,
+`components/chartUtil.test.ts` (ink >= 3:1 for every trace colour in both themes, unchanged when
+readable / not hex), `judge.test.ts`, `components/TrustBadge.test.ts`, `quality.test.ts` - 24 tests.
+CLAUDE.md / CONTRIBUTING / docs/development.md say to run it. (CI: T3.)
 
 ### 26.U8 · Event navigation (one list, next / previous keys)
 **Status: done 2026-11-09.**
@@ -3471,3 +3489,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · 26.U6 done: trust badges (interpolated / filter by stretch / missing data, angle guess) on chips and the derived list, the network in the status bar; backend all + mypy; e2e test_trust_badges + 7 files. Next: 26.U7.
 - 2026-11-09 · 26.U7 done: per-signal data quality on open (svcore/quality.py, /api/runs/{id}/quality, note + badge + marks + dialog); backend all + mypy; e2e test_data_quality + 5 files. Next: 26.U8.
 - 2026-11-09 · 26.U8 done: one events list (Log panel, + findings / conditions / limits), ] / [ to step, the status bar names the event; tsc + build; e2e test_event_navigation + 3 files. Phase 5 done - the whole e2e suite next.
+- 2026-11-09 · T1 done: Vitest (devDependency, reason in the task), 8 files / 24 tests of the frontend's logic, `npm test`; tsc. Next: T2.

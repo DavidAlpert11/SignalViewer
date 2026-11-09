@@ -29,6 +29,7 @@ python run.py                            # rebuilds the UI by itself when its so
 cd backend && python -m pytest -q                                          # all green
 cd backend && mypy --config-file ../pyproject.toml app svcore signalviewer  # clean
 cd frontend && npx tsc -b && npm run build                                 # UI changes
+cd frontend && npm test                                                    # the UI's logic (Vitest)
 python -m pytest -q tests/e2e/test_workflows.py                            # UI flows (python -m playwright install chromium, once)
 ```
 
