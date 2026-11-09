@@ -29,10 +29,11 @@ BINARY = {"add", "sub", "mul", "div", "absdiff"}
 MULTI = {"mean", "sum", "min", "max", "norm"}
 FRAME = {"frame"}
 VECSMOOTH = {"vecsmooth"}
+RELATE = {"relate"}         # N7: two map objects compared (svcore/relate.py)
 # C2 / C2b: the operations that align several sources (a state source held unless `params.hold: false`).
 # A recipe saved before 1.23 has no `hold` and is restored with false (its numbers unchanged); new: true.    # Q102: a vector (2-3 components) smoothed over a window in seconds
 PY = {"py"}                 # T31: the user's own Python operations (params: {"op": "file.py:fn", "args": {...}})
-OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | VECSMOOTH | PY
+OPS = UNARY | BINARY | MULTI | FORMULA | FRAME | VECSMOOTH | PY | RELATE
 HOLD_OPS = BINARY | MULTI | FORMULA
 # 26.A3: the operations whose result depends on how samples are spaced in time - `params.sampling`
 # "time" (filters across gaps / rate changes as in time; smooth / RMS windows in `seconds`) or "samples"
@@ -101,8 +102,14 @@ class DerivedDef:
             "norm": lambda: f"‖{', '.join(n)}‖",
             "frame": lambda: frame_name(n[:3], p),
             "vecsmooth": lambda: vecsmooth_name(n, p),
+            "relate": lambda: _relate_name(n, p),
             "py": lambda: _py_name(n, p),
         }[self.op]()
+
+
+def _relate_name(n: List[str], p: Dict) -> str:
+    from svcore.relate import relate_name
+    return relate_name(n, p)
 
 
 def _upd_name(n: List[str], p: Dict) -> str:
@@ -301,6 +308,10 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
 
     if op == "vecsmooth":
         return _vecsmooth(signals, params)
+
+    if op == "relate":
+        from svcore.relate import relate
+        return relate(signals, params, rep)
 
     if op in BINARY:
         if len(signals) != 2:
