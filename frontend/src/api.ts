@@ -21,6 +21,10 @@ export interface SignalInfo {
  *  an integral's gaps bridged ("skip") or where it became unknown ("propagate"), infinite values. */
 export interface DerivedQuality {
   nan?: string; skipped?: number; bridged?: [number, number][]; missing?: [number, number][]; infinite?: number;
+  /** 26.A3 / 26.U6: a filter run on each stretch between gaps, or on an even grid (uneven samples) */
+  filter?: { gaps?: number; resampled?: boolean; fs?: number | null; gapTime?: number };
+  /** 26.U6: sources read between their samples (another signal's sample times), and how */
+  interpolated?: { method: string; sources: number[] };
 }
 /** Live MAVLink receiver (T12): the link is recorded to `path` (.tlog), which live mode follows. */
 export interface MavStatus {

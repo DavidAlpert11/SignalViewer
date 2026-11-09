@@ -310,8 +310,17 @@ button, input, select { font: inherit; color: inherit; }
 .dsig-name { border: 0; background: none; padding: 0; text-align: start; color: var(--ink-strong); font-weight: 500; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dsig-formula { color: var(--faint); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: start; }
 /* C3b: a derived signal that left out / bridged missing values says so (title: where) */
-.dsig-quality { align-self: flex-start; margin-top: 2px; padding: 0 6px; border-radius: var(--r-s); font-size: var(--fs-xs); color: var(--amber);
-  background: var(--amber-soft); border: 1px solid var(--amber); cursor: help; white-space: nowrap; }
+.dsig-quality { align-self: flex-start; margin-top: 2px; }
+/* 26.U6: trust badges - amber: missing data was handled somehow; quiet: how values were read */
+.trust { display: inline-block; padding: 0 6px; border-radius: var(--r-s); font-size: var(--fs-xs); cursor: help; white-space: nowrap; line-height: 1.5; }
+.trust.warn { color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber); }
+.trust.info { color: var(--muted); background: var(--panel); border: 1px solid var(--line-strong); }
+.trust.compact { padding: 0 4px; margin-inline-start: 2px; font-weight: 700; }
+.trust:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* the network: what leaves the PC, said in the status bar */
+.net-state { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.net-state.online { color: var(--amber); font-weight: 600; }
+.net-state.off { color: var(--muted); }
 .dsig.broken .dsig-name { color: var(--danger); }
 .dsig .iconbtn { height: 26px; min-width: 26px; padding: 0; opacity: .6; }
 .dsig:hover .iconbtn { opacity: 1; }
@@ -732,7 +741,7 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .sim-fail { display: inline-block; margin-inline-start: 6px; width: 15px; height: 15px; line-height: 15px; text-align: center; border-radius: 50%; background: var(--danger); color: var(--on-color); font-size: var(--fs-2xs); font-weight: 700; }
 /* 26.U5: a signal left out of pass / fail, a signal with a tolerance of its own */
 .sim-skip { margin-inline-start: 6px; font-size: var(--fs-2xs); color: var(--muted); font-weight: 400; }
-.sim-own { margin-inline-start: 6px; font-size: var(--fs-2xs); color: var(--amber-ink); font-weight: 700; }
+.sim-own { margin-inline-start: 6px; font-size: var(--fs-2xs); color: var(--amber); font-weight: 700; }
 .tol-fields { flex-wrap: wrap; }
 .tol-fields > .afield { flex: 1 1 40%; min-width: 0; }
 .tol-fields input[aria-invalid] { border-color: var(--danger); }

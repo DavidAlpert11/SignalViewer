@@ -138,6 +138,10 @@ for the values.
   and listed - a click takes you there. Under the picked signal, **This signal's tolerance** gives it a
   tolerance of its own or leaves it out; **Save tolerances…** writes them in the file
   `signalviewer-cli compare --tolerances` reads, so a CI job judges the next run the same way.
+- **≈ on a legend chip** (and a word in *Create signals*' list): the signal rests on an assumption -
+  values read between another signal's samples, a filter run stretch by stretch, missing values left
+  out or bridged; hover it for exactly what. The status bar says **● Online map** whenever map tiles
+  are being downloaded.
 - **Judging a run against a golden run**: in Compare, with the golden file as *Compare against* and a
   tolerance, the **verdict** says per file ✓ or ✗ and how many signals are outside; **Show the worst
   failure** opens that signal's difference over time, **Report…** makes a tab of the failing signals and
