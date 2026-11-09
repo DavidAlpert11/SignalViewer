@@ -8,6 +8,7 @@ const ROWS: [string, TKey][] = [
   ["Ctrl K", "hCommands"], ["Ctrl O", "openFiles"], ["Ctrl S", "saveSession"], ["Ctrl ⇧ O", "openSession"],
   ["Ctrl Z", "undo"], ["Ctrl Y", "redo"], ["Space", "hCursor"], ["D", "dualCursor"], ["← →", "hMoveCursor"],
   ["⇧ ← →", "hMoveCursorFast"], ["1 – 9", "hSelectPlot"], ["Ctrl P", "quickOpen"], ["Ctrl PgUp / PgDn", "hSwitchTab"], ["R", "resetZoom"], ["Z", "hZoomMode"], ["Backspace", "zoomBack"], ["F5", "refreshAll"], ["P", "hPlay"], ["] / [", "hEvents"], ["Delete", "hRemoveSignal"],
+  ["← → ↑ ↓ · + − · F · 0", "hMapKeys"],
   ["Ctrl +  /  Ctrl −", "hTextSize"], ["Ctrl 0", "hTextReset"], ["?", "shortcuts"], ["F1", "menuGuide"], ["Esc", "hEscape"],
 ];
 const MOUSE: [TKey, TKey][] = [

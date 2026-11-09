@@ -23,6 +23,22 @@
   same vehicle (*Attitude* in its row or its form). Such an icon is drawn as an outline, its chip shows
   ≈ and says where the angles come from.
 
+- **A map that is easy to move (Tacview-like).** Dragging follows the pointer and glides on after a
+  quick drag; the wheel, **+ / −** and the keys zoom smoothly around the pointer; **Fit everything** and
+  **Follow ▾** are buttons in the corner. Dragging while following moves the map around the object
+  (*Back to following* puts it in the middle again). When the map has the focus: arrows move it, + / −
+  zoom, F follows, 0 fits everything (Shift+←/→ still step the cursor). A one-line hint shows until the
+  map is first moved. *Camera following an object* in Settings: smooth (default) or exact.
+- **3D camera: Chase and Look at.** *Chase* stays behind and above the object, turning with it; *Look at*
+  looks from it towards the second object. Changing mode or object flies there instead of jumping, and a
+  short hint says what the mouse does in each mode.
+
+### Performance
+- **Smoother playback and map.** While playing, only what moves is drawn again: the panels, the file
+  list and the plots' heads no longer re-render every frame. Dragging and zooming the map move the map
+  already drawn and draw it properly once movement pauses: on the copter log a drag went from 471
+  dropped frames to none, a wheel zoom from 315 to about 70 (headless, no GPU).
+
 ### Fixed
 - **Signal names with dots nest again, at any depth.** `phys.att.roll`, `nav.vel.north` and a MATLAB
   struct's `sim.nav.pos.x` are listed as a tree (phys › att › roll) whatever the number of signals -
