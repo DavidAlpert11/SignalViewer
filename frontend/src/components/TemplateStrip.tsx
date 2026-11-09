@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { api, type Template } from "../api";
 import { tabHasContent, useApp } from "../store";
@@ -10,6 +11,7 @@ import { openTemplateNow } from "../smartStart";
 /* Templates in the file panel, for ANY kind of file (CSV, MAT, flight logs): the few that fit the
    open files best, the whole library, and saving the current plots as a template. */
 export default function TemplateStrip() {
+  countRender("TemplateStrip");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const runs = useApp((s) => s.runs);

@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { kindsText, signalLines } from "../quality";
 import { DATA_EXTS } from "../values";
 import { readAsItem } from "../readAs";
@@ -51,6 +52,7 @@ function Highlight({ text, q }: { text: string; q: string }) {
 }
 
 export default function DataPanel() {
+  countRender("DataPanel");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const runs = useApp((s) => s.runs);

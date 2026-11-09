@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "cesium/Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css";
@@ -95,11 +96,11 @@ function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: 
 }
 
 export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
+  countRender("Globe3D");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const theme = useApp((s) => s.theme);
   const base = useMapBase();
-  const cursor = useApp((s) => s.cursor);
   // U6: the time under the pointer over a time plot of this tab - a faint point for each object there
   const pointerT = useApp((s) => (s.pointer && activeTab(s.ws).plots.some((p) => p.id === s.pointer!.plotId) ? s.pointer.t : null));
   const pointerRef = useRef<number | null>(null);
@@ -591,7 +592,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   };
   const updateRef = useRef(update);
   updateRef.current = update;
-  useEffect(() => { updateRef.current(); }, [cz, tracks, cursor, playMode, windowSec, plot.followObject, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT]);
+  // N6: the time moves the scene without a React render (playback re-rendered this 2-3 times a frame)
+  useEffect(() => useApp.subscribe((s, p) => { if (s.cursor !== p.cursor) updateRef.current(); }), []);
+  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT]);
 
   /* the span of the objects' own tracks (the independent time runs over that) */
   const ownExt = useMemo((): [number, number] | null => {

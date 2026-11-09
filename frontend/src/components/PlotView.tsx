@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import TrustBadge, { AngleGuessBadge, AttitudeSourceBadge } from "./TrustBadge";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
@@ -37,10 +38,12 @@ import OccChart from "./OccChart";
 interface Props { tab: Tab; plot: Plot; index: number; active: boolean }
 
 export default function PlotView({ tab, plot, index, active }: Props) {
+  countRender("PlotView");
   const t = useT();
   const lang = useApp((s) => s.lang);
   const runs = useApp((s) => s.runs);
-  const cursor = useApp((s) => s.cursor);
+  // N6: whether the cursor is on, not where - the plot's head is not redrawn every frame of playback
+  const cursor = { on: useApp((s) => s.cursor.on) };
   const cvals = useApp((s) => s.cvals);
   const selected = useApp((s) => s.selected);
   const multi = useApp((s) => s.multi);

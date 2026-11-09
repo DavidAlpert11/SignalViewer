@@ -61,6 +61,12 @@ BUDGETS = [
     ("globe_first_view_ms", "3D view: shown with an object (CesiumJS loaded on first use), software WebGL", 20000, "max", "ms"),
     # here even a bare Cesium globe draws at ~1.2 fps (software WebGL on one CPU): a regression floor only
     ("globe_play_fps", "3D view: playback with an object, software WebGL on 1 CPU (floor)", 0.5, "min", "fps"),
+    # N6 (group "smooth"): thresholds from the 2026-11-09 measurement (2 CPUs, headless, no GPU): before the
+    # change a drag of the copter log's map had p95 117 ms and 471 dropped frames, the wheel zoom 315,
+    # and every panel re-rendered every frame of playback
+    ("smooth_map_pan_p95_ms", "Map drag (copter log): p95 frame interval", 34, "max", "ms"),
+    ("smooth_map_zoom_dropped", "Map wheel zoom (copter log, 30 steps): frames dropped", 150, "max", ""),
+    ("smooth_play_panel_renders", "Playback on the map: panel / plot renders per frame (App, file panel, plot)", 0.1, "max", ""),
     ("mem_per_cycle_kb", "Memory: heap growth per open/plot/close cycle, cycles 10-30", 30, "max", "KB"),
 ]
 
@@ -523,7 +529,105 @@ def group_globe(b):
     return r
 
 
-GROUPS = {"core": group_core, "grid": group_grid, "wide": group_wide, "memory": group_memory, "map": group_map, "globe": group_globe}
+def smooth_stats(ts, renders=None):
+    """N6: frame intervals (ms) - median, p95, frames dropped (an interval of k vsyncs drops k - 1),
+    and React renders per frame of each counted component."""
+    d = sorted(b - a for a, b in zip(ts, ts[1:])) or [0]
+    vs = 1000 / 60
+    out = {"frames": len(ts), "median_ms": round(statistics.median(d), 1), "p95_ms": round(d[min(len(d) - 1, int(len(d) * 0.95))], 1),
+           "dropped": int(sum(max(0, round(x / vs) - 1) for x in d))}
+    if renders is not None:
+        n = max(1, len(ts) - 1)
+        out["renders_per_frame"] = {k: round(v / n, 2) for k, v in sorted(renders.items()) if v}
+    return out
+
+
+def _measure(pg, run_js, ms):
+    """Count renders and record frames while `run_js` (started first) runs for about `ms`."""
+    pg.evaluate("window.__svRenders = {}")
+    pg.evaluate(run_js)
+    ts = pg.evaluate(f"window.__frames({ms})")
+    renders = pg.evaluate("(() => { const r = window.__svRenders; window.__svRenders = undefined; return r; })()")
+    return smooth_stats(ts, renders)
+
+
+def _smooth_scenarios(b, pg, plot_sel, prefix, pan=True):
+    r = {}
+    pg.evaluate("window.__sv.setState({ playMode: 'draw' })")
+    for speed in (1, 10):
+        pg.evaluate(f"window.__sv.setState({{ playSpeed: {speed} }})")
+        pg.keyboard.press("Home")
+        r[f"{prefix}_play_x{speed}"] = _measure(pg, "window.__sv.setState({ playing: true })", 3000)
+        pg.evaluate("window.__sv.setState({ playing: false })")
+    if pan:
+        box = pg.locator(plot_sel).bounding_box()
+        cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        pg.mouse.move(cx, cy)
+        pg.mouse.down()
+        pg.evaluate("window.__svRenders = {}")
+        pg.evaluate("window.__rec()")
+        for i in range(90):
+            pg.mouse.move(cx + 150 * math.sin(i / 90 * math.pi * 2), cy + 90 * math.sin(i / 45 * math.pi))
+            pg.wait_for_timeout(8)
+        pg.mouse.up()
+        pg.evaluate("window.__raf2()")
+        ts = pg.evaluate("window.__recStop()")
+        r[f"{prefix}_pan"] = smooth_stats(ts, pg.evaluate("(() => { const r = window.__svRenders; window.__svRenders = undefined; return r; })()"))
+        pg.mouse.move(cx, cy)
+        pg.evaluate("window.__svRenders = {}")
+        pg.evaluate("window.__rec()")
+        for i in range(30):
+            pg.mouse.wheel(0, -60 if i < 15 else 60)
+            pg.wait_for_timeout(25)
+        pg.evaluate("window.__raf2()")
+        ts = pg.evaluate("window.__recStop()")
+        r[f"{prefix}_zoom"] = smooth_stats(ts, pg.evaluate("(() => { const r = window.__svRenders; window.__svRenders = undefined; return r; })()"))
+    return r
+
+
+def group_smooth(b):
+    """N6: smoothness on the map and in 3D - the round's fixture with its three objects (phys / nav / gps,
+    added in one click by the "objects found" line) and the copter log: playback at x1 and x10, a drag
+    (pan) and wheel zooms. Frame intervals (median / p95 / dropped) and React renders per frame."""
+    r = {}
+    for name, label in (("three_objects.csv", "fix"), ("copter_flight.bin", "copter")):
+        b.clear_runs()
+        b.api("/api/files/open", {"paths": [os.path.join(ROOT, "examples", name)]})
+        pg = b.page()
+        b.sync_runs(pg)
+        pg.evaluate("window.__sv.setState({ geoBase: 'offline' })")
+        pg.locator(".obj-suggest-add").click()
+        pg.wait_for_selector(".plot .geo canvas")
+        pg.wait_for_timeout(2500)                                     # tracks and tiles in
+        pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true } })")
+        r.update(_smooth_scenarios(b, pg, ".plot .geo canvas", f"{label}_map"))
+        pg.context.close()
+    # 3D: software WebGL here - the playback numbers are a floor, the render counts are what matter
+    b.browser.close()
+    b.browser = b.pw.chromium.launch(args=["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
+    b.clear_runs()
+    b.api("/api/files/open", {"paths": [os.path.join(ROOT, "examples", "three_objects.csv")]})
+    pg = b.page()
+    b.sync_runs(pg)
+    pg.evaluate("window.__sv.setState({ geoBase: 'offline' })")
+    pg.locator(".obj-suggest-add").click()
+    pg.wait_for_selector(".plot .geo canvas")
+    pg.evaluate("""window.__sv.setState({ ws: (() => { const ws = structuredClone(window.__sv.state().ws);
+        ws.tabs[0].plots.find((p) => p.mode === 'geo').mode = '3d'; return ws; })() })""")
+    pg.wait_for_selector(".globe3d-readout", timeout=120000)
+    pg.wait_for_timeout(6000)
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true } })")
+    r.update(_smooth_scenarios(b, pg, ".plot canvas", "fix_3d", pan=False))
+    pg.context.close()
+    # the budgeted numbers (BUDGETS)
+    r["smooth_map_pan_p95_ms"] = r["copter_map_pan"]["p95_ms"]
+    r["smooth_map_zoom_dropped"] = r["copter_map_zoom"]["dropped"]
+    r["smooth_play_panel_renders"] = max(r[k]["renders_per_frame"].get(c, 0) for k in ("fix_map_play_x10", "copter_map_play_x10")
+                                         for c in ("App", "DataPanel", "PlotView", "TemplateStrip"))
+    return r
+
+
+GROUPS = {"smooth": group_smooth, "core": group_core, "grid": group_grid, "wide": group_wide, "memory": group_memory, "map": group_map, "globe": group_globe}
 
 
 # ------------------------------------------------------------------ data + report
