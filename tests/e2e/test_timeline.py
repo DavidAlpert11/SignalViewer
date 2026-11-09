@@ -5,7 +5,7 @@
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
+from test_features import S, env, open_files, pg, sig, until  # noqa: E402,F401
 
 EXT = "(() => { const r = window.__sv.state().runs.filter(r => r.format !== 'derived'); return [Math.min(...r.map(x => x.start)), Math.max(...r.map(x => x.end))]; })()"
 
@@ -93,8 +93,10 @@ def test_timeline_settings_saved_in_the_session(pg):
     open_files(pg, "run_a.csv")
     pg.evaluate("window.__sv.setState({ playMode: 'window', windowSec: 7, playSpeed: 5, timelineOpen: false })")
     # the autosave carries them: reload the page and restore it
-    pg.wait_for_timeout(2500)
+    until(pg, """async () => { try { const r = await (await fetch('/api/autosave')).json();
+        return !!(r.state && r.state.ui && r.state.ui.playMode === 'window' && r.state.ui.windowSec === 7); } catch (e) { return false; } }""")
     pg.reload()
     pg.wait_for_selector(".app")
     pg.wait_for_function("window.__sv.state().runs.length > 0", timeout=20000)
+    pg.wait_for_function("window.__sv.state().playMode === 'window'", timeout=20000)    # (T2) the autosave put back
     assert S(pg, "[s.playMode, s.windowSec, s.playSpeed, s.timelineOpen]") == ["window", 7, 5, False]

@@ -12,7 +12,7 @@ import urllib.request
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env  # noqa: E402,F401
+from test_features import env, frames  # noqa: E402,F401
 
 GL = ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
 
@@ -89,13 +89,14 @@ def test_follow_centres_the_camera_on_the_object(g3):
     pid = pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].id")
     pg.evaluate(f"""window.__sv.setState({{ ws: (() => {{ const ws = structuredClone(window.__sv.state().ws);
         ws.tabs[0].plots[0].followObject = 'a'; return ws; }})() }})""")
-    pg.wait_for_timeout(2500)
-    # the point in the middle of the view is the object (the camera looks straight at it)
-    r = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m = null;
+    # the point in the middle of the view is the object (the camera looks straight at it) - once the flight ends
+    centred = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m = null;
       for (let i = 0; i < w.scene.primitives.length; i++) { const p = w.scene.primitives.get(i); if (p instanceof C.Model) m = p; }
       const pos = C.Matrix4.getTranslation(m.modelMatrix, new C.Cartesian3());
       const dir = C.Cartesian3.normalize(C.Cartesian3.subtract(pos, w.camera.positionWC, new C.Cartesian3()), new C.Cartesian3());
-      return C.Cartesian3.dot(dir, w.camera.directionWC); })()""")
+      return C.Cartesian3.dot(dir, w.camera.directionWC); })()"""
+    pg.wait_for_function(f"{centred} > 0.999", timeout=15000)
+    r = pg.evaluate(centred)
     assert r > 0.999                                                # within ~2.5 degrees of the view's centre
 
 
@@ -169,11 +170,11 @@ def test_camera_on_the_object_zooms_towards_it(g3multi):
     pg = g3multi
     pg.locator(".globe3d-bar select[aria-label='Object']").select_option("B")
     pg.locator(".globe3d-bar button", has_text="On the object").click()
-    pg.wait_for_timeout(1500)
     probe = """(() => { const { widget: w, Cesium: C } = window.__svGlobe;
       const pos = C.Cartesian3.fromDegrees(34.51, 32.5, 500);
       const dir = C.Cartesian3.normalize(C.Cartesian3.subtract(pos, w.camera.positionWC, new C.Cartesian3()), new C.Cartesian3());
       return { d: C.Cartesian3.distance(w.camera.positionWC, pos), centre: C.Cartesian3.dot(dir, w.camera.directionWC) }; })()"""
+    pg.wait_for_function(f"{probe}.centre > 0.999", timeout=15000)          # the camera's flight to B has ended
     a = pg.evaluate(probe)
     assert a["centre"] > 0.999, a                                              # B in the middle
     # zoom in with the wheel away from the middle: the camera still goes towards B
@@ -181,8 +182,7 @@ def test_camera_on_the_object_zooms_towards_it(g3multi):
     pg.mouse.move(box["x"] + box["width"] * 0.85, box["y"] + box["height"] * 0.8)
     for _ in range(4):
         pg.mouse.wheel(0, -400)
-        pg.wait_for_timeout(300)
-    pg.wait_for_timeout(1500)
+    pg.wait_for_function(f"(() => {{ const b = {probe}; return b.d < {a['d']} * 0.8 && b.centre > 0.999; }})()", timeout=15000)
     b = pg.evaluate(probe)
     assert b["d"] < a["d"] * 0.8 and b["centre"] > 0.999, (a, b)
     # another primary while centred: the camera moves to it
@@ -227,21 +227,26 @@ MODEL_LAT = """(() => { const { widget: w, Cesium: C } = window.__svGlobe; let m
   return C.Math.toDegrees(C.Cartographic.fromCartesian(C.Matrix4.getTranslation(m.modelMatrix, new C.Cartesian3())).latitude); })()"""
 
 
+def at_lat(pg, lat, timeout=10000):
+    """T2: the model is drawn at this latitude (instead of a fixed sleep)."""
+    pg.wait_for_function(f"Math.abs({MODEL_LAT} - {lat}) < 2e-6", timeout=timeout)
+
+
 def test_own_time_is_independent_of_the_timeline(g3move):
     pg = g3move
-    pg.wait_for_timeout(500)
+    at_lat(pg, 32.0 + 20 * 1e-4)
     assert abs(pg.evaluate(MODEL_LAT) - (32.0 + 20 * 1e-4)) < 2e-6                # shared: at the timeline's t = 20
     pg.locator(".globe3d-bar button", has_text="Own time").click()
     pg.wait_for_selector(".g3-own")
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].ownTime") == 20     # starts where the timeline was
     # the timeline moves: this view does not
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, t1: 80 } })")
-    pg.wait_for_timeout(500)
+    frames(pg, 3)                                                                     # (T2) drawn
     assert abs(pg.evaluate(MODEL_LAT) - (32.0 + 20 * 1e-4)) < 2e-6
     # its own playback moves it; the timeline's time stays
     pg.locator(".g3-own select").select_option("10")
     pg.locator(".g3-own .iconbtn").click()
-    pg.wait_for_timeout(2000)
+    pg.wait_for_function(f"{MODEL_LAT} > {32.0 + 25 * 1e-4}", timeout=15000)       # its own playback moved it
     pg.locator(".g3-own .iconbtn").click()
     lat = pg.evaluate(MODEL_LAT)
     assert lat > 32.0 + 25 * 1e-4, lat
@@ -250,12 +255,12 @@ def test_own_time_is_independent_of_the_timeline(g3move):
     assert own > 25                                                                 # kept when paused
     # dragging its own bar to the start
     pg.locator(".g3-own input[type=range]").fill("0")
-    pg.wait_for_timeout(500)
+    at_lat(pg, 32.0)
     assert abs(pg.evaluate(MODEL_LAT) - 32.0) < 2e-6
     # shared again: back on the timeline's time
     pg.locator(".globe3d-bar button", has_text="Shared").click()
     pg.wait_for_selector(".g3-own", state="detached")
-    pg.wait_for_timeout(500)
+    at_lat(pg, 32.0 + 80 * 1e-4)
     assert abs(pg.evaluate(MODEL_LAT) - (32.0 + 80 * 1e-4)) < 2e-6
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].ownTime") is None
 
@@ -288,7 +293,7 @@ def test_measure_two_points_on_the_ground(g3multi):
     pts = got["pts"]
     for x, y in pts:
         pg.mouse.click(x, y)
-        pg.wait_for_timeout(400)
+    pg.wait_for_function("/Ground [\\d.,]+ k?m/.test(document.querySelector('.g3-measure')?.textContent || '')")
     txt = pg.locator(".g3-measure").inner_text()
     import re
     ground = re.search(r"Ground ([\d.,]+) (k?m)", txt)

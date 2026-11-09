@@ -16,10 +16,23 @@ def _map(pg):
     pg.wait_for_selector(".plot .geo canvas")
 
 
-def _drawn_pixels(pg):
-    return pg.evaluate("""(() => { const c = document.querySelector('.plot .geo canvas');
+PIXELS = """(() => { const c = document.querySelector('.plot .geo canvas');
         const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0;
-        for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n })()""")
+        for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n })()"""
+
+
+def _drawn_pixels(pg):
+    return pg.evaluate(PIXELS)
+
+
+def _wait_pixels(pg, n, timeout=15000):
+    """T2: the map has drawn more than n pixels (instead of a fixed sleep)."""
+    pg.wait_for_function(f"{PIXELS} > {n}", timeout=timeout)
+
+
+def _wait_redrawn(pg, before, timeout=10000):
+    """T2: the map's picture is no longer `before` (its data URL's length)."""
+    pg.wait_for_function("b => document.querySelector('.plot .geo canvas').toDataURL().length !== b", arg=before, timeout=timeout)
 
 
 def test_offline_map_uses_its_own_tiles_and_names(pg):
@@ -28,13 +41,13 @@ def test_offline_map_uses_its_own_tiles_and_names(pg):
     pg.evaluate("window.__sv.setState({ geoBase: 'offline' })")
     _map(pg)
     pg.wait_for_function("document.querySelector('.plot .geo canvas') !== null")
-    pg.wait_for_timeout(1500)
+    _wait_for_tiles(pg, asked, "/api/tiles/offline_topo/"); _wait_for_tiles(pg, asked, "/api/basemap/places"); _wait_pixels(pg, 10000)
     assert any("/api/tiles/offline_topo/" in u for u in asked)
     assert not any("/api/tiles/osm/" in u for u in asked)                   # nothing from the internet
     assert any("/api/basemap/places" in u for u in asked)
     assert _drawn_pixels(pg) > 10000
     pg.evaluate("window.__sv.setState({ theme: 'dark' })")
-    pg.wait_for_timeout(1200)
+    _wait_for_tiles(pg, asked, "/api/tiles/offline_topo_dark/")
     assert any("/api/tiles/offline_topo_dark/" in u for u in asked)
 
 
@@ -63,13 +76,14 @@ def test_borders_over_the_offline_map_and_the_satellite_photos(pg):
     box = pg.locator(".plot .geo-borders input")
     box.wait_for()
     assert box.is_checked()
-    pg.wait_for_timeout(1200)
+    _wait_pixels(pg, 10000)
     on = _drawn_pixels(pg)
+    shown = pg.evaluate("document.querySelector('.plot .geo canvas').toDataURL().length")
     box.uncheck()
     pg.wait_for_function("window.__sv.state().geoBorders === false")
-    pg.wait_for_timeout(800)
+    _wait_redrawn(pg, shown)
     sig_on = pg.evaluate("document.querySelector('.plot .geo canvas').toDataURL().length")
-    box.check(); pg.wait_for_timeout(800)
+    box.check(); _wait_redrawn(pg, sig_on)
     assert pg.evaluate("document.querySelector('.plot .geo canvas').toDataURL().length") != sig_on
     assert on > 10000
     pg.evaluate("window.__sv.setState({ geoBase: 'osm' })")

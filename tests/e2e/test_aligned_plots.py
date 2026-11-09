@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, _csv, env, open_files, pg, set_layout, sig  # noqa: E402,F401
+from test_features import _csv, env, frames, open_files, pg, S, set_layout, settled, sig  # noqa: E402,F401
 
 
 def _boxes(pg):
@@ -22,7 +22,7 @@ def test_column_of_plots_lines_up_and_envelope_zooms_with_them(pg):
     pg.keyboard.press("1"); sig(pg, "Speed").click()          # a unit label on the value axis: wider
     pg.keyboard.press("2"); sig(pg, "Gear").click()           # no unit, short labels: narrower
     pg.wait_for_function("document.querySelectorAll('.plot .u-over').length === 2")
-    pg.wait_for_timeout(500)
+    settled(pg); frames(pg, 3)
     a, b = _boxes(pg)
     assert abs(a["x"] - b["x"]) < 1 and abs(a["width"] - b["width"]) < 1, (a, b)
 
@@ -30,7 +30,7 @@ def test_column_of_plots_lines_up_and_envelope_zooms_with_them(pg):
     sig(pg, "Speed2").click()
     pg.locator(".plot").nth(1).locator(".mode-btn").click(); pg.locator(".menu.ctx button", has_text="Envelope").click()
     pg.wait_for_function("document.querySelectorAll('.plot').length === 2 && document.querySelectorAll('.plot .u-over').length === 2")
-    pg.wait_for_timeout(800)
+    settled(pg); frames(pg, 3)
     a, b = _boxes(pg)
     assert abs(a["x"] - b["x"]) < 1 and abs(a["width"] - b["width"]) < 1, (a, b)
     y = b["y"] + b["height"] / 2

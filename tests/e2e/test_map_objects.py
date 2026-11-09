@@ -8,7 +8,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, menu_item, open_files, pg  # noqa: E402,F401
+from test_features import env, frames, menu_item, open_files, pg, S  # noqa: E402,F401
 
 
 @pytest.fixture(autouse=True)
@@ -64,10 +64,10 @@ def test_object_position_and_heading_at_the_time(pg):
     assert all(abs(c - 90) < 1 for c in course[5:-5])
     # icons are drawn where the objects are at the timeline's time: something at the ship's place changes as time moves
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 10 } })")
-    pg.wait_for_timeout(400)
+    frames(pg, 3)
     a = pg.locator(".plot .geo canvas").screenshot()
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 250 } })")
-    pg.wait_for_timeout(400)
+    frames(pg, 3)
     b = pg.locator(".plot .geo canvas").screenshot()
     assert a != b                                                               # the icons moved
 

@@ -45,5 +45,5 @@ def test_settings_kept_and_one_time_format(pg):
                                  headers={"Content-Type": "application/json", "X-SV-Token": tok}, method="POST")
     urllib.request.urlopen(req).read()
     pg.wait_for_function("window.__sv.state().runs.length > 0")
-    pg.wait_for_timeout(2500)                                     # the page took the session
+    pg.wait_for_function("window.__sv.state().theme === 'dark' && window.__sv.state().uiScale === 1.12")   # (T2) the page took the session
     assert S(pg, "[s.theme, s.uiScale]") == ["dark", 1.12]

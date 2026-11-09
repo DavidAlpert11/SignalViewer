@@ -109,12 +109,13 @@ def _save_as(pg, folder, name):
 def test_quick_view(page, server):
     """Open a file (nothing is plotted until a signal is chosen), plot it, read a value."""
     _open(page, server["data"], ["run_a.csv"])
-    page.wait_for_timeout(300)
+    page.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')")   # (T2) opened, nothing pending
     assert page.locator(".plot .chip").count() == 0
     page.locator(".sig", has_text="Speed").click()
     page.wait_for_selector(".plot .chip")
     page.keyboard.press("Space")
-    page.wait_for_function("document.querySelector('.plot .chip .val') !== null")
+    # T2: the value, not the place kept for it ("—" until the server's answer arrives)
+    page.wait_for_function("/\\d/.test(document.querySelector('.plot .chip .val')?.textContent || '')")
     assert float(page.locator(".plot .chip .val").first.inner_text().replace(",", "")) > 0
 
 
@@ -132,7 +133,8 @@ def test_compare_runs(page, server):
     assert "ok" in rows.nth(0).locator(".pf").get_attribute("class")
     corr_before = float(rows.nth(1).locator("td").nth(3).inner_text())
     rows.nth(1).locator("button").click()
-    page.wait_for_timeout(1500)
+    page.wait_for_function("b => parseFloat(document.querySelectorAll('table.cmp2 tbody')[1]?.querySelectorAll('td')[3]?.textContent || '0') > b",
+                           arg=corr_before, timeout=15000)
     assert float(page.locator("table.cmp2 tbody").nth(1).locator("td").nth(3).inner_text()) > corr_before
 
 
@@ -171,7 +173,7 @@ def test_share_report_and_session(page, server, tmp_path):
     assert "sv-data" in html and "uPlot" in html
     page.keyboard.press("Control+s")
     _save_as(page, str(tmp_path), "work")
-    page.wait_for_timeout(800)
+    page.wait_for_function("(window.__sv.state().toasts || []).some(t => t.text.includes('work.svsession'))")   # (T2) "Saved to …"
     assert (tmp_path / "work.svsession").exists()
     page.keyboard.press("Control+Shift+O")
     _goto_folder(page, str(tmp_path))

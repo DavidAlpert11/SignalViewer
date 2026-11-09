@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, _csv, open_files, pg, env, sig, menu_item  # noqa: E402,F401
+from test_features import _csv, env, menu_item, open_files, pg, S, settled, sig  # noqa: E402,F401
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 
@@ -76,7 +76,7 @@ def test_made_signal_renamed_deleted_and_grouped_from_the_list(pg):
         body: JSON.stringify({op: 'expr', sources: ['derived/twice'], params: {expr: 'v0+1', text: '{twice}+1'}, name: 'plus'})}); }""")
     pg.reload(); pg.wait_for_selector(".app")
     pg.wait_for_function("window.__sv.state().runs.some((r) => r.format === 'derived') && !!window.__sv.state().ws.tabs[0].plots[0]")
-    pg.wait_for_timeout(800)                                       # the session put back first
+    settled(pg)                                                    # the session put back first
     pg.evaluate("() => window.__sv.state().commit((ws) => { ws.tabs[0].plots[0].signals = [{sig: 'derived/twice', color: '#3D8BFD', width: 1.5, scale: 1, offset: 0}]; return ws; })")
     # rename: the plot follows
     sig(pg, "twice").click(button="right")

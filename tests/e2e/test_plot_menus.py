@@ -22,9 +22,12 @@ def test_plot_type_button_options_and_right_click(pg):
     # ⋯ in a short plot: every item is visible and on top (the plot card clipped Axis limits / Clear plot)
     pg.locator(".plot").first.locator(".plot-more").click()
     item = pg.locator(".menu.ctx button", has_text="Clear plot")
+    # (T2) the menu is placed after it is measured: judge it where it ends up, on top of everything
+    pg.wait_for_function("""() => { const b = [...document.querySelectorAll('.menu.ctx button')].find((x) => x.textContent.includes('Clear plot'));
+        if (!b) return false; const r = b.getBoundingClientRect();
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!at && !!at.closest('.menu.ctx'); }""")
     b = item.bounding_box()
     assert b["y"] + b["height"] <= 700
-    assert pg.evaluate(f"document.elementFromPoint({b['x'] + b['width'] / 2}, {b['y'] + b['height'] / 2}).closest('.menu.ctx') !== null")
     pg.keyboard.press("Escape")
 
     # right-click in the plot: the moment under the pointer first

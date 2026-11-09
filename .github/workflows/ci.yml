@@ -4,9 +4,13 @@
 # suite stay in build.yml and on the owner's PC.
 #
 #   backend   pytest on the oldest Python the package allows (3.9) and a current one; mypy once
-#   frontend  tsc + vite build (frontend/dist is not committed from here: a release rebuilds it)
-#   e2e       a short Playwright smoke run on the freshly built UI: a new user's first start, the
-#             main workflows, the top bar and Help menu
+#   frontend  tsc + vite build (frontend/dist is not committed from here: a release rebuilds it) and
+#             the frontend's unit tests (Vitest, T1)
+#   e2e       a Playwright run on the freshly built UI (T3: about 4 minutes): a new user's first start,
+#             the main workflows, the top bar and Help menu, and the flows each round changed most
+#             (judge a run, tolerances, trust badges, data quality, events, templates, plot styling)
+#   numbers   (in backend, 3.12) the numerical validation - its new cases V24-V29 too - and the
+#             synthetic benchmarks against their targets, times with a slack of 3 for a shared runner
 #
 # A push to main runs it only when asked (owner's request, 2026-11-01: not every push): the last
 # commit's message holds [ci], or Actions -> ci -> Run workflow (`gh workflow run ci`). Pull
@@ -53,6 +57,9 @@ jobs:
       - name: Numerical validation (as a user would run it)
         if: matrix.python == '3.12'
         run: python cli.py validate
+      - name: Benchmarks against their targets (T3; times may be 3x the target on a shared runner)
+        if: matrix.python == '3.12'
+        run: python tools/benchmark.py --synthetic --samples 2000000 --check 3 --json bench.json --out bench.md
 
   frontend:
     if: github.event_name != 'push' || contains(github.event.head_commit.message, '[ci]')
@@ -69,6 +76,9 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Unit tests (Vitest, T1)
+        working-directory: frontend
+        run: npm test
       - uses: actions/upload-artifact@v6
         with:
           name: frontend-dist
@@ -94,5 +104,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pytest httpx "playwright>=1.40"
           python -m playwright install --with-deps chromium
-      - name: End-to-end smoke run
-        run: python -m pytest -q tests/e2e/test_fresh_user.py tests/e2e/test_workflows.py tests/e2e/test_file_help_menus.py
+      - name: End-to-end run (a subset - the whole suite runs before a release)
+        run: >
+          python -m pytest -q tests/e2e/test_fresh_user.py tests/e2e/test_workflows.py tests/e2e/test_file_help_menus.py
+          tests/e2e/test_judge_a_run.py tests/e2e/test_compare_tolerances.py tests/e2e/test_compare_diff.py
+          tests/e2e/test_trust_badges.py tests/e2e/test_data_quality.py tests/e2e/test_event_navigation.py
+          tests/e2e/test_less_clutter.py tests/e2e/test_missing_choice.py tests/e2e/test_heuristics.py
+          tests/e2e/test_template_tabs.py tests/e2e/test_plot_style.py tests/e2e/test_aligned_plots.py
+          tests/e2e/test_tab_band.py tests/e2e/test_settings.py tests/e2e/test_navigation.py

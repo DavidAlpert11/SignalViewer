@@ -8,6 +8,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 from test_template_tabs import open_ardupilot_example, pg  # noqa: E402,F401
+from test_features import frames, settled  # noqa: E402
 
 COUNT = """(dataToo) => { const vis = (e) => { const r = e.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return false;
   if (r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) return false;
@@ -19,10 +20,10 @@ COUNT = """(dataToo) => { const vis = (e) => { const r = e.getBoundingClientRect
 def test_fewer_buttons_and_clearer_words(pg):
     open_ardupilot_example(pg)
     pg.wait_for_selector(".findings-dock")
-    pg.wait_for_timeout(1500)
+    settled(pg)
     pg.evaluate("document.querySelectorAll('.toast button[aria-label]').forEach(b => b.click())")
     pg.mouse.move(5, 5)
-    pg.wait_for_timeout(400)
+    pg.wait_for_function("!document.querySelector('.toast')"); frames(pg)
     total, controls = pg.evaluate(COUNT, True), pg.evaluate(COUNT, False)
     print("visible buttons:", total, "controls:", controls)
     assert controls <= 54, controls               # 26.U3: 58 -> 54 (the folded template strip, the strip's + / hide on hover)
