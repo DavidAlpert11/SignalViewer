@@ -114,6 +114,20 @@ are told apart by them.
 - **The 3D camera:** *General* (move freely), *On the object* (turn around it, wheel towards it), *Chase*
   (behind and above it, turning with it), *Look at* (from it towards the second object). A change of mode
   or object flies there; a line at the bottom says what the mouse does.
+- **Primary and secondary objects:** with two objects or more on a map, one is the *primary* (a ring)
+  and one the *secondary* (a dashed ring) - by default the truth and the first navigation solution.
+  Click an object to make it the primary, Shift+click for the secondary (or the chip's right-click menu;
+  Q / Shift+Q change the primary, X swaps them while the map has the focus). The box in the map's corner
+  shows, at the cursor: the **range** (straight line), the **horizontal** distance, **Δalt**, the
+  **bearing** from the primary, the **relative bearing** (from its heading, + = right), the **closure**
+  rate (+ while they close) and the time to the **closest approach**, the **heading difference**
+  (0-180°) and the secondary's **aspect**: the angle at the secondary between its tail and the line to
+  the primary - 0° the primary right behind it, 180° nose to nose, with L / R. *Plot over time* makes
+  these as signals in a new tab; *Error signals* makes the secondary's position, heading, roll and pitch
+  errors against the primary (`nav_vs_phys.err.*`); *Differences* plots each object minus the primary
+  in the frame chosen beside it - NED / ENU in the primary's local frame at each moment, ECEF, LLA (in
+  metres) or the track frame (along / across its heading) - and *Overlay* puts the same component of
+  every object on one plot, NED / ENU from one origin (the primary's first position).
 - **An attitude for a position-only object** (*Attitude* in its row or its form): *from motion* points it
   along its course over ground and pitches it by its climb (roll unknown; below *Hold the heading below*,
   1 m/s by default, the heading stays as it was, so a hovering drone does not spin); *from <object>*
