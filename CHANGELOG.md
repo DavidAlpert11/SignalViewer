@@ -12,6 +12,16 @@
   are found too. *Position on the map & 3D* adds every object of the file and says which, with *Why?*.
   A note in the dialog, the guide and the README gives the naming convention. Flight logs and CSVs with
   their names keep their pairing (POS with ATT); *Advanced…* opens the full form as before.
+- **Objects found as soon as a file opens.** A slim line in the file panel says *"3 objects found:
+  phys, nav, gps"* with **Add all** (onto the tab's map and 3D view, or a new map), *Choose…*, *Why?*
+  and × to hide it for that file. Nothing is added without a click.
+- **Each kind of object looks like what it is.** Truth is a solid line, a navigation solution dashed, a
+  receiver's fixes are points (*Track* in the object's form changes it).
+- **An attitude for an object that has none.** A GPS receiver (position only) is drawn by its motion -
+  heading along the course over ground, pitch from the climb, roll unknown, the heading held while it
+  hovers or stands (below 1 m/s, editable) - or with the angles borrowed from another object on the
+  same vehicle (*Attitude* in its row or its form). Such an icon is drawn as an outline, its chip shows
+  ≈ and says where the angles come from.
 
 ### Fixed
 - **Signal names with dots nest again, at any depth.** `phys.att.roll`, `nav.vel.north` and a MATLAB
