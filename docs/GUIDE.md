@@ -109,6 +109,8 @@ are told apart by them.
   and the keys work on it: arrows move it, + / − zoom, F follows, 0 fits everything (Shift+←/→ still
   step the cursor). *Settings → Camera following an object*: *Smooth* (default) eases after the object,
   so a noisy position does not shake the view; *Exact* stays right on it.
+  The **N** button turns the map *Track up*: the followed object's heading (else the primary's, else the
+  first's) points up and the N shows where north is; click again for north up.
 - **The 3D camera:** *General* (move freely), *On the object* (turn around it, wheel towards it), *Chase*
   (behind and above it, turning with it), *Look at* (from it towards the second object). A change of mode
   or object flies there; a line at the bottom says what the mouse does.

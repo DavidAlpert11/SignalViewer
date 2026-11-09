@@ -42,6 +42,9 @@ export interface Plot {
    *  as before), "chase" (behind and above it, along its heading) or "lookat" (from it towards the
    *  first related object) */
   camera?: "chase" | "lookat";
+  /** N6: the 2D map's "up" - north (absent) or the heading of the followed object (else the primary, else
+   *  the first): "track" */
+  mapUp?: "track";
   showReadout?: boolean;           // 3D: the box with the primary object's current values (default shown)
   ownTime?: number | null;         // 3D: a time of its own (not the timeline's) - null / absent: the shared time
   /** T15 video mode: a local video file played with the timeline. data time = video time + offset (s). */
