@@ -118,7 +118,18 @@ export const trackOfClass = (cls?: MapObject["cls"]): MapObject["track"] =>
 
 /** An object's signals on one time axis (from the server). */
 export interface ObjTrack { t: Float64Array; lat: Float64Array; lon: Float64Array; yaw: Float32Array | null; course: Float32Array; units: Record<string, "deg" | "rad">;
-  color?: Float32Array | null }
+  color?: Float32Array | null; alt?: Float32Array | null }
+
+/** N7: the altitude at time t (linear between samples; null without an altitude or outside it). */
+export function altAt(tr: ObjTrack, t: number): number | null {
+  const a = tr.alt, n = tr.t.length;
+  if (!a || !n || t < tr.t[0] || t > tr.t[n - 1]) return null;
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tr.t[m] <= t) lo = m; else hi = m; }
+  const f = tr.t[hi] > tr.t[lo] ? (t - tr.t[lo]) / (tr.t[hi] - tr.t[lo]) : 0;
+  const v = Number.isFinite(a[lo]) && Number.isFinite(a[hi]) ? a[lo] + (a[hi] - a[lo]) * f : Number.isFinite(a[lo]) ? a[lo] : a[hi];
+  return Number.isFinite(v) ? v : null;
+}
 
 /* A track coloured by a signal (owner, 2026-11-03): a colour per point, and the key that says what
    each colour is. A state (the flight mode): a colour per value, named by the signal's texts. A value:

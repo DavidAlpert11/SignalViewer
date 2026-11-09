@@ -31,6 +31,7 @@ import { globeImage } from "../globeBridge";
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
 import { openMenu } from "./Overlays";
+import { errorSignals, pairOf } from "../relation";
 import { laneMenuItems } from "../lanes";
 import { lineLook, setpointsIn } from "../desired";
 import OccChart from "./OccChart";
@@ -443,10 +444,18 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               + {t("objAdd")}</button>
           </span>
         )}
-        {(mode === "geo" || mode === "3d") && (plot.objects?.length ?? 0) > 0 && (
+        {(mode === "geo" || mode === "3d") && (plot.objects?.length ?? 0) > 0 && (() => { const pair = pairOf(plot); return (
           <span className="obj-chips" role="list" aria-label={t("objects")}>
             {plot.objects!.map((o) => (
-              <span key={o.id} className="obj-chip" role="listitem">
+              <span key={o.id} className={`obj-chip${pair.primary === o.id ? " primary" : pair.secondary === o.id ? " secondary" : ""}`} role="listitem"
+                onContextMenu={(e) => openMenu(e, [
+                  { label: t("relSetPrimary"), checked: pair.primary === o.id, run: () => actions.setObjectPair(plot.id, o.id, o.id === pair.secondary ? pair.primary : pair.secondary) },
+                  ...(plot.objects!.length > 1 ? [{ label: t("relSetSecondary"), checked: pair.secondary === o.id, disabled: pair.primary === o.id,
+                    run: () => actions.setObjectPair(plot.id, pair.primary, o.id) }] : []),
+                  ...(pair.primary && pair.primary !== o.id ? [{ label: t("relErrors"), run: () => { const P = plot.objects!.find((x) => x.id === pair.primary); if (P) void errorSignals(P, o, plot.objects!); } }] : []),
+                  { label: t("objEdit"), run: () => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } }) },
+                ])}
+                title={pair.primary === o.id ? t("relPrimary") : pair.secondary === o.id ? t("relSecondary") : undefined}>
                 <button className="obj-chip-main" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } })} title={t("objEdit")}>
                   <img src={iconSvg(o.kind, o.color)} alt="" width={16} height={16} />{o.name}
                 </button>
@@ -461,7 +470,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
               </span>
             ))}
           </span>
-        )}
+        ); })()}
         {mode === "spec" && (
           <span className="xpick">
             <select value={plot.specN ?? 1024} onChange={(e) => actions.updatePlot(plot.id, { specN: Number(e.target.value) })}

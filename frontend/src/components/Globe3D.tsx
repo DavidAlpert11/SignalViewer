@@ -8,6 +8,7 @@ import { useMapBase } from "../mapBase";
 import { globeImage } from "../globeBridge";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
+import { pairOf } from "../relation";
 import { angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
@@ -624,9 +625,10 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       } else flyRef.current = null;
     }
     // the primary object, and the related ones: a dashed line from it to each, with the distance on it
-    const primary = states.get(plot.primaryObject ?? "") ?? states.get(objects[0]?.id ?? "") ?? null;
+    const pair = pairOf(plot);                              // N7: the plot's choice, else by class
+    const primary = states.get(pair.primary ?? "") ?? null;
     const rel: Readout["rel"] = [];
-    const related = (plot.relatedObjects ?? []).filter((id) => id !== primary?.id).slice(0, 2);
+    const related = (plot.relatedObjects?.length ? plot.relatedObjects : pair.secondary ? [pair.secondary] : []).filter((id) => id !== primary?.id).slice(0, 2);
     S.links?.removeAll();
     S.linkLabels?.removeAll();
     if (primary) {
@@ -693,7 +695,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const attach = () => { setOwnPlaying(false); actions.updatePlot(plot.id, { ownTime: null }); };
   const keepOwn = (v: number) => actions.updatePlot(plot.id, { ownTime: v });
 
-  const primaryId = (plot.primaryObject && objects.some((o) => o.id === plot.primaryObject) ? plot.primaryObject : objects[0]?.id) ?? "";
+  const primaryId = pairOf(plot).primary ?? "";
   const centred = !!plot.followObject;
   const showBox = plot.showReadout !== false;
   const reFit = () => { scene3.current.fitted = false; setTracks((x) => ({ ...x })); };
@@ -712,8 +714,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         <div className="globe3d-bar" role="toolbar" aria-label={t("g3Bar")}>
           <label><span>{t("g3Primary")}</span>
             <select value={primaryId} aria-label={t("g3Primary")}
-              onChange={(e) => actions.updatePlot(plot.id, { primaryObject: e.target.value, ...(centred ? { followObject: e.target.value } : {}),
-                relatedObjects: (plot.relatedObjects ?? []).filter((x) => x !== e.target.value) })}>
+              onChange={(e) => { const pr = e.target.value, sec = pairOf(plot).secondary; actions.setObjectPair(plot.id, pr, sec === pr ? pairOf(plot).primary : sec); }}>
               {objects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select></label>
           <span className="g3-seg" role="radiogroup" aria-label={t("g3Camera")}>
