@@ -85,6 +85,7 @@ export interface UiSlice {
   /** F28: how the timeline writes time - seconds as recorded (like the axes, the cursor, the
    *  Inspector) or a clock from the start of the recording (m:ss) */
   timeFormat: "seconds" | "clock";
+  smoothFollow: boolean;           // N6: a camera following an object eases after it (Settings; default on)
   /** U1: a template with several tabs opened from its chip - ask which tabs, or open its default tabs */
   tplTabChoice: "ask" | "defaults";
   /** O1: "Never use the network" (a setting): online map layers fall back to the offline map */
@@ -165,6 +166,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   guideOpen: false,
   settingsOpen: false,
   timeFormat: "seconds",
+  smoothFollow: true,
   tplTabChoice: "ask",
   offlineOnly: false,
   offlineForced: false,

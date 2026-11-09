@@ -72,6 +72,16 @@ export const en = {
   objAltHome: "above the take-off point",
   objAltAgl: "above the ground",
   objects: "Objects",
+  // N6: moving the map
+  mapControls: "Map controls",
+  mapZoomIn: "Zoom in", mapZoomOut: "Zoom out", mapFitAll: "Fit everything",
+  mapFollowOff: "Follow: off",
+  mapBackToFollow: "Back to following",
+  mapHint: "drag to move · wheel to zoom · double-click to fit",
+  mapKeysHint: "Map - arrows move it, + / − zoom, F follows, 0 fits everything",
+  setSmoothFollow: "Camera following an object",
+  setSmoothFollowHint: "Smooth: the map (and 3D camera) eases after the object, so noisy positions do not shake it. Exact: always right on it.",
+  setSmoothFollowOn: "Smooth", setSmoothFollowOff: "Exact",
   // N5: the objects found in a recording
   objSuggestN: "{n} objects found: {list}",
   objSuggestOne: "1 object found: {list}",
@@ -324,6 +334,16 @@ export const he: typeof en = {
   objAltHome: "מעל נקודת ההמראה",
   objAltAgl: "מעל הקרקע",
   objects: "אובייקטים",
+  // N6: moving the map
+  mapControls: "פקדי המפה",
+  mapZoomIn: "התקרבות", mapZoomOut: "התרחקות", mapFitAll: "הצג הכול",
+  mapFollowOff: "מעקב: כבוי",
+  mapBackToFollow: "חזרה למעקב",
+  mapHint: "גרירה להזזה · גלגלת לזום · לחיצה כפולה להצגת הכול",
+  mapKeysHint: "מפה - החיצים מזיזים, + / − זום, F מעקב, 0 מציג הכול",
+  setSmoothFollow: "מצלמה שעוקבת אחרי אובייקט",
+  setSmoothFollowHint: "חלקה: המפה (ומצלמת התלת־ממד) נעה אחרי האובייקט בהדרגה, כך שמיקומים רועשים לא מרעידים אותה. מדויקת: תמיד בדיוק עליו.",
+  setSmoothFollowOn: "חלקה", setSmoothFollowOff: "מדויקת",
   // N5: the objects found in a recording
   objSuggestN: "נמצאו {n} אובייקטים: {list}",
   objSuggestOne: "נמצא אובייקט אחד: {list}",

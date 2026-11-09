@@ -1,3 +1,4 @@
+import { countRender } from "../perf";
 import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
@@ -7,7 +8,8 @@ import { drawObjectIcon } from "./mapIcons";
 import { angleUnitOf, colorRuns, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
 import { labelsOf, stateColor } from "../values";
-import { fmtNum } from "../i18n";
+import { fmtNum, useT } from "../i18n";
+import { getPrefValue, setPref } from "../prefs";
 import type { Country } from "../worldCountries";
 import { dpr, indexSpan, ink, PLOT_THEME, uiScale, useSize, wheelZoom } from "./chartUtil";
 
@@ -48,6 +50,9 @@ function normLon(lon: Float64Array): Float64Array {
   if (lo >= 0 && hi > 180 && hi <= 360) return Float64Array.from(lon, (v) => (v > 180 ? v - 360 : v));
   return lon;
 }
+
+const HINT_PREF = "mapHintSeen";
+const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 
 function fitView(tracks: Track[], w: number, h: number): View | null {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -97,12 +102,16 @@ const loadPlaces = () => (placesP ??= fetch("/api/basemap/places").then((r) => r
  *  seen work offline), over bundled country borders and names that always work offline.
  *  Wheel = zoom, drag = pan, double-click = fit to the track. */
 export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees }: Props) {
+  countRender("GeoChart");
+  const t = useT();
   const theme = useApp((s) => s.theme);
   const lang = useApp((s) => s.lang);
   const scale = useApp((s) => s.uiScale);
   const runs = useApp((s) => s.runs);
   const dataVersion = useApp((s) => s.dataVersion);
-  const cursor = useApp((s) => s.cursor);
+  // N6: the time is read when drawing (useApp.getState) - the map moves its objects without a React
+  // render per frame of playback
+  const cursorOn = useApp((s) => s.cursor.on);
   // U6: the time under the pointer over a time plot of this tab - a ghost of each object there
   const pointerT = useApp((s) => (s.pointer && activeTab(s.ws).plots.some((p) => p.id === s.pointer!.plotId) ? s.pointer.t : null));
   const streaming = useApp((s) => s.streaming);
@@ -120,10 +129,12 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const size = useSize(wrapRef);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [view, setView] = useState<View | null>(null);
-  const baseRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
+  const baseRef = useRef<{ hard: string; tick: number; view: View; canvas: HTMLCanvasElement } | null>(null);
   /* objects: each one's signals on one time axis, fetched when its signals change */
   const objects: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
   const [objTracks, setObjTracks] = useState<Record<string, ObjTrack>>({});
+  const objTracksRef = useRef(objTracks);
+  objTracksRef.current = objTracks;
   const objKey = objects.map((o) => trackKey(o, objects)).join("|");
   const [countries, setCountries] = useState<Country[] | null>(null);
   const [places, setPlaces] = useState<Place[] | null>(null);
@@ -197,18 +208,41 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracks, objTracks, size.w, size.h]);
 
-  /* following an object: the map keeps it in the middle as the time moves (zoom stays the user's) */
-  useEffect(() => {
+  /* following an object: the map keeps it in the middle as the time moves (zoom stays the user's);
+     N6: a drag while following moves the map around the object (followOff, in world units) instead of
+     fighting the user - "Back to following" puts it in the middle again */
+  const followOff = useRef<{ x: number; y: number } | null>(null);
+  const [offFollow, setOffFollow] = useState(false);
+  const followTarget = (): { cx: number; cy: number } | null => {
     const id = plot.followObject;
-    const tr = id ? objTracks[id] : null;
-    if (!tr || !cursor.on || cursor.t1 === null) return;
+    const tr = id ? objTracksRef.current[id] : null;
+    const c = useApp.getState().cursor;
+    if (!tr || !c.on || c.t1 === null) return null;
     const o = objects.find((x) => x.id === id);
-    const st = objectAt(tr, trackTime(tr, cursor.t1, streaming), o ? angleUnitOf(o, objects) : undefined);
-    if (!st) return;
+    const st = objectAt(tr, trackTime(tr, c.t1, streaming), o ? angleUnitOf(o, objects) : undefined);
+    if (!st) return null;
+    const off = followOff.current;
+    const goal = { cx: mx(st.lon) + (off?.x ?? 0), cy: my(st.lat) + (off?.y ?? 0) };
+    // N6: while playing, ease after it (a noisy position does not shake the map); else right on it
+    const app = useApp.getState(), now = performance.now(), last = eased.current;
+    if (app.smoothFollow && app.playing && last && last.id === id && now - last.t < 250) {
+      const a = 1 - Math.exp(-(now - last.t) / 120);
+      goal.cx = last.cx + (goal.cx - last.cx) * a; goal.cy = last.cy + (goal.cy - last.cy) * a;
+    }
+    eased.current = { id: id!, t: now, cx: goal.cx, cy: goal.cy };
+    return goal;
+  };
+  const eased = useRef<{ id: string; t: number; cx: number; cy: number } | null>(null);
+  const followRef = useRef(followTarget);
+  followRef.current = followTarget;
+  useEffect(() => { followOff.current = null; setOffFollow(false); }, [plot.followObject]);
+  useEffect(() => {
+    const g = followRef.current();
+    if (!g) return;
     userView.current = true;
-    setView((v) => (v ? { ...v, cx: mx(st.lon), cy: my(st.lat) } : v));
+    setView((v) => (v ? { ...v, cx: g.cx, cy: g.cy } : v));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plot.followObject, objTracks, cursor.t1, cursor.on, streaming]);
+  }, [plot.followObject, objTracks, cursorOn, streaming]);
   useEffect(() => { userView.current = false; }, [plot.xSignal, yKey]);
 
   const badRange = tracks.some((t) => {
@@ -218,11 +252,18 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   });
 
   /* ------------------------------ drawing ------------------------------ */
+  const drawRef = useRef<() => void>(() => {});
+  const lastMove = useRef(0);                     // when the view last changed (pan / zoom): reuse the base meanwhile
+  const drawnView = useRef<View | null>(null);
+  const settleTimer = useRef(0);
   useEffect(() => {
+   const draw = () => {
     const cv = cvRef.current;
     if (!cv || size.w < 50 || size.h < 50) return;
+    const cursor = useApp.getState().cursor;
     const r = dpr(), W = size.w, H = size.h;
-    cv.width = Math.round(W * r); cv.height = Math.round(H * r);
+    // resizing a canvas clears and reallocates it: only when its size changes (it was every frame)
+    if (cv.width !== Math.round(W * r) || cv.height !== Math.round(H * r)) { cv.width = Math.round(W * r); cv.height = Math.round(H * r); }
     const screen = cv.getContext("2d")!;
     screen.setTransform(r, 0, 0, r, 0, 0);
     let ctx = screen;
@@ -236,17 +277,42 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const Y = (wy: number) => H / 2 + (wy - view.cy) * S;
     const family = getComputedStyle(document.body).fontFamily;
     const font = `${Math.round(11 * uiScale())}px ${family}`;
-    const wx0 = view.cx - W / 2 / S, wx1 = view.cx + W / 2 / S, wy0 = view.cy - H / 2 / S, wy1 = view.cy + H / 2 / S;
 
     // The base layer - tiles, borders, names - changes only with the view, size, theme, language or
     // newly arrived tiles. It is kept in a canvas of its own: during playback only the tracks and
     // objects are drawn again over a copy of it (a full redraw per frame held playback to ~36 fps).
-    const baseKey = [W, H, r, view.cx, view.cy, view.z, theme, base, lang, !!countries, !!places, tick, uiScale(), borders].join("|");
-    const kept = baseRef.current?.key === baseKey ? baseRef.current.canvas : null;
-    if (kept) screen.drawImage(kept, 0, 0, W, H);
-    else {
+    // N6: it is drawn with a margin around the screen, and while the map is dragged or zoomed (or a
+    // tile arrives meanwhile) the one already drawn is moved / scaled instead of drawn again - every
+    // move of a drag redrew every tile (p95 117 ms a frame on the copter log); it is drawn again when
+    // the movement pauses
+    const M = Math.round(Math.max(W, H) * 0.25);
+    const hardKey = [W, H, r, theme, base, lang, !!countries, !!places, uiScale(), borders].join("|");
+    const prevView = drawnView.current;
+    if (!prevView || prevView.cx !== view.cx || prevView.cy !== view.cy || prevView.z !== view.z) lastMove.current = performance.now();
+    drawnView.current = view;
+    const B = baseRef.current;
+    let reused = false;
+    if (B && B.hard === hardKey) {
+      const k = 2 ** (view.z - B.view.z);
+      const ox = W / 2 + (B.view.cx - view.cx) * S - (W / 2 + M) * k, oy = H / 2 + (B.view.cy - view.cy) * S - (H / 2 + M) * k;
+      const same = B.view.cx === view.cx && B.view.cy === view.cy && B.view.z === view.z && B.tick === tick;
+      const covers = ox <= 0.5 && oy <= 0.5 && ox + (W + 2 * M) * k >= W - 0.5 && oy + (H + 2 * M) * k >= H - 0.5;
+      const moving = performance.now() - lastMove.current < 180;
+      if (same || (covers && moving && k > 0.49 && k < 2.01)) {
+        screen.drawImage(B.canvas, ox, oy, (W + 2 * M) * k, (H + 2 * M) * k);
+        reused = true;
+        if (!same) {                                   // draw it properly once the movement pauses
+          window.clearTimeout(settleTimer.current);
+          settleTimer.current = window.setTimeout(() => drawRef.current(), 200);
+        }
+      }
+    }
+    if (!reused) ((W: number, H: number) => {
+    const X = (wx: number) => W / 2 + (wx - view.cx) * S;
+    const Y = (wy: number) => H / 2 + (wy - view.cy) * S;
+    const wx0 = view.cx - W / 2 / S, wx1 = view.cx + W / 2 / S, wy0 = view.cy - H / 2 / S, wy1 = view.cy + H / 2 / S;
     const bc = document.createElement("canvas");
-    bc.width = cv.width; bc.height = cv.height;
+    bc.width = Math.round(W * r); bc.height = Math.round(H * r);
     ctx = bc.getContext("2d")!;
     ctx.setTransform(r, 0, 0, r, 0, 0);
     ctx.fillStyle = dark ? "#0e1620" : "#dfe9f1";
@@ -388,10 +454,10 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       }
     }
 
-    screen.drawImage(bc, 0, 0, W, H);
-    baseRef.current = { key: baseKey, canvas: bc };
+    screen.drawImage(bc, -M, -M, W, H);
+    baseRef.current = { hard: hardKey, tick, view, canvas: bc };
+    })(W + 2 * M, H + 2 * M);
     ctx = screen;
-    }
 
     // 4. tracks, with a halo so they read on any map
     plot.signals.forEach((ps0) => {
@@ -531,48 +597,128 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     ctx.fillStyle = veil;
     ctx.fillRect(W - aw - 10, H - 16, aw + 10, 16);
     ctx.fillStyle = dark ? "#9fb0c3" : "#3d4650"; ctx.fillText(att, W - 5, H - 3);
-  }, [tracks, view, size.w, size.h, theme, scale, cursor, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
+   };
+   drawRef.current = draw;
+   draw();
+  }, [tracks, view, size.w, size.h, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
+  // the time moves: follow the object (a new view, drawn by the effect above) or just draw again
+  useEffect(() => useApp.subscribe((st, prev) => {
+    if (st.cursor === prev.cursor) return;
+    const g = followRef.current();
+    if (g) { userView.current = true; setView((v) => (v ? { ...v, cx: g.cx, cy: g.cy } : v)); }
+    else drawRef.current();
+  }), []);
 
   /* ------------------------- zoom / pan / readout ------------------------ */
+  /* N6 (Tacview-like): the map follows the pointer at once while dragged, glides a little after a
+     quick drag, zooms smoothly (animated, around the pointer) by the wheel, the + / − buttons and the
+     keys; a drag while following moves the map around the followed object. No glide or animation
+     when the system asks for reduced motion. */
   const viewRef = useRef(view);
   viewRef.current = view;
+  const anim = useRef(0);
+  const zoomGoal = useRef<View | null>(null);
+  const stopAnim = () => { cancelAnimationFrame(anim.current); anim.current = 0; zoomGoal.current = null; };
+  useEffect(() => () => cancelAnimationFrame(anim.current), []);
+  /** Move the view to `to` over `ms` (at once when reduced motion is asked for). */
+  const animateTo = (to: View, ms = 140) => {
+    const from = viewRef.current;
+    cancelAnimationFrame(anim.current);
+    userView.current = true;
+    if (!from || reducedMotion() || ms <= 0) { zoomGoal.current = null; setView(to); return; }
+    zoomGoal.current = to;
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const f = Math.min(1, (now - t0) / ms), e = 1 - (1 - f) ** 3;          // ease out
+      setView({ z: from.z + (to.z - from.z) * e, cx: from.cx + (to.cx - from.cx) * e, cy: from.cy + (to.cy - from.cy) * e });
+      if (f < 1) anim.current = requestAnimationFrame(step); else { anim.current = 0; zoomGoal.current = null; }
+    };
+    anim.current = requestAnimationFrame(step);
+  };
+  /** Zoom by `dz` keeping the world point under (bx, by) - pixels from the map's middle - where it is. */
+  const zoomBy = (dz: number, bx = 0, by = 0) => {
+    const v = zoomGoal.current ?? viewRef.current;
+    if (!v) return;
+    const S0 = 256 * 2 ** v.z, wx = v.cx + bx / S0, wy = v.cy + by / S0;
+    const z = Math.max(1, Math.min(22, v.z + dz)), S = 256 * 2 ** z;
+    const to = { z, cx: wx - bx / S, cy: Math.max(0, Math.min(1, wy - by / S)) };
+    if (plot.followObject && followOff.current === null) { to.cx = v.cx; to.cy = v.cy; }   // following: around the object
+    animateTo(to);
+  };
+  /** Pan by (dx, dy) pixels; while following, the offset from the object changes instead. */
+  const panBy = (dx: number, dy: number) => {
+    const v = viewRef.current;
+    if (!v) return;
+    const S = 256 * 2 ** v.z;
+    userView.current = true;
+    if (plot.followObject) {
+      const o = followOff.current ?? { x: 0, y: 0 };
+      followOff.current = { x: o.x - dx / S, y: o.y - dy / S };
+      setOffFollow(true);
+    }
+    setView({ z: v.z, cx: v.cx - dx / S, cy: Math.max(0, Math.min(1, v.cy - dy / S)) });
+  };
+  const fitAll = () => { stopAnim(); userView.current = false; const f = fitView(allTracksRef.current(), size.w, size.h); if (f) animateTo(f, 220); };
+  const panRef = useRef(panBy); panRef.current = panBy;
+  const zoomRef = useRef(zoomBy); zoomRef.current = zoomBy;
+  const fitRef = useRef(fitAll); fitRef.current = fitAll;
   useEffect(() => {
     const cv = cvRef.current;
     if (!cv) return;
+    const rel = (e: { clientX: number; clientY: number }) => {
+      const b = cv.getBoundingClientRect();
+      return { bx: e.clientX - b.left - b.width / 2, by: e.clientY - b.top - b.height / 2 };
+    };
     const at = (e: { clientX: number; clientY: number }, v: View) => {
-      const b = cv.getBoundingClientRect(), S = 256 * 2 ** v.z;
-      const bx = e.clientX - b.left - b.width / 2, by = e.clientY - b.top - b.height / 2;
-      return { wx: v.cx + bx / S, wy: v.cy + by / S, bx, by };
+      const { bx, by } = rel(e), S = 256 * 2 ** v.z;
+      return { wx: v.cx + bx / S, wy: v.cy + by / S };
     };
     const onWheel = (e: WheelEvent) => {
-      const v = viewRef.current;
-      if (!v) return;
+      if (!viewRef.current) return;
       e.preventDefault();
-      const g = at(e, v);
       const f = wheelZoom(e);                 // F27: in proportion to the step (a trackpad sends many small ones)
       if (f === null) return;
-      const z = Math.max(1, Math.min(22, v.z - Math.log2(f) * 1.09));   // a mouse notch: 0.35, as before
-      const S = 256 * 2 ** z;
-      userView.current = true;
-      setView({ z, cx: g.wx - g.bx / S, cy: Math.max(0, Math.min(1, g.wy - g.by / S)) });   // keep the point under the pointer
+      const { bx, by } = rel(e);
+      zoomRef.current(-Math.log2(f) * 1.09, bx, by);                    // a mouse notch: 0.35, as before
+      markHintSeen();
     };
     const onDown = (e: MouseEvent) => {
       actions.setActivePlot(index);
-      const v = viewRef.current;
-      if (!v || e.button > 1) return;
+      if (!viewRef.current || e.button > 1) return;
       e.preventDefault();
-      const x0 = e.clientX, y0 = e.clientY, S = 256 * 2 ** v.z;
+      stopAnim();
+      wrapRef.current?.focus({ preventScroll: true });
+      let lx = e.clientX, ly = e.clientY;
+      const trail: [number, number, number][] = [[performance.now(), lx, ly]];
       cv.style.cursor = "grabbing";
       const move = (ev: MouseEvent) => {
-        userView.current = true;
-        setView({ z: v.z, cx: v.cx - (ev.clientX - x0) / S, cy: Math.max(0, Math.min(1, v.cy - (ev.clientY - y0) / S)) });
+        panRef.current(ev.clientX - lx, ev.clientY - ly);
+        lx = ev.clientX; ly = ev.clientY;
+        trail.push([performance.now(), lx, ly]);
+        if (trail.length > 8) trail.shift();
       };
-      const up = () => { cv.style.cursor = "grab"; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+      const up = () => {
+        cv.style.cursor = "grab"; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
+        // a quick drag glides on, slowing down (px / ms from the last ~80 ms of the drag)
+        const now = performance.now(), old = trail.find(([tt]) => now - tt <= 80) ?? trail[trail.length - 1];
+        const dt = now - old[0];
+        let vx = dt > 0 ? (lx - old[1]) / dt : 0, vy = dt > 0 ? (ly - old[2]) / dt : 0;
+        if (reducedMotion() || Math.hypot(vx, vy) < 0.3 || now - trail[trail.length - 1][0] > 60) return;
+        let last = now;
+        const glide = (tt: number) => {
+          const d = tt - last; last = tt;
+          panRef.current(vx * d, vy * d);
+          const k = Math.exp(-d / 260); vx *= k; vy *= k;
+          anim.current = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(glide) : 0;
+        };
+        anim.current = requestAnimationFrame(glide);
+        markHintSeen();
+      };
       window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
     };
     const onMove = (e: MouseEvent) => { const v = viewRef.current; if (v) { const g = at(e, v); setMouse({ lon: lonOf(g.wx), lat: latOf(g.wy) }); } };
     const onLeave = () => setMouse(null);
-    const onDbl = () => { userView.current = false; setView(fitView(allTracksRef.current(), size.w, size.h)); };
+    const onDbl = () => fitRef.current();
     cv.addEventListener("wheel", onWheel, { passive: false });
     cv.addEventListener("mousedown", onDown);
     cv.addEventListener("mousemove", onMove);
@@ -583,12 +729,64 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       cv.removeEventListener("mousemove", onMove); cv.removeEventListener("mouseleave", onLeave);
       cv.removeEventListener("dblclick", onDbl);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, tracks, size.w, size.h]);
+
+  /* the map's own keys, only while it has the focus: arrows pan (Shift+arrows still step the cursor),
+     + / − zoom, F follows (the primary object, else the first), 0 fits everything */
+  const toggleFollow = () => {
+    const id = plot.followObject ? null : (plot.primaryObject && objects.some((o) => o.id === plot.primaryObject) ? plot.primaryObject : objects[0]?.id ?? null);
+    actions.updatePlot(plot.id, { followObject: id });
+  };
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const step = 120;
+    const k = e.key;
+    const done = () => { e.preventDefault(); e.stopPropagation(); markHintSeen(); };
+    if (!e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowDown")) {
+      stopAnim();
+      panBy(k === "ArrowLeft" ? step : k === "ArrowRight" ? -step : 0, k === "ArrowUp" ? step : k === "ArrowDown" ? -step : 0);
+      done();
+    } else if (k === "+" || k === "=") { zoomBy(1); done(); }
+    else if (k === "-" || k === "_") { zoomBy(-1); done(); }
+    else if (k === "0") { fitAll(); done(); }
+    else if (k.toLowerCase() === "f" && objects.length) { toggleFollow(); done(); }
+  };
+
+  /* the one-line hint, until the map is first moved or the hint closed (remembered) */
+  const [hint, setHint] = useState(() => !getPrefValue<boolean>(HINT_PREF));
+  const markHintSeen = () => { if (!getPrefValue<boolean>(HINT_PREF)) setPref(HINT_PREF, true); setHint(false); };
+  const backToFollow = () => {
+    followOff.current = null; setOffFollow(false);
+    const g = followRef.current();
+    if (g) animateTo({ ...viewRef.current!, cx: g.cx, cy: g.cy }, 220);
+  };
 
   const prec = view ? Math.max(1, Math.min(8, Math.round(view.z * 0.3 + 1))) : 2;
   return (
-    <div className="plot-canvas geo" ref={wrapRef} style={{ position: "relative" }}>
+    <div className="plot-canvas geo" ref={wrapRef} style={{ position: "relative" }} tabIndex={0} onKeyDown={onKey}
+      aria-label={t("mapKeysHint")} data-view={view ? `${view.z.toFixed(4)},${view.cx.toFixed(9)},${view.cy.toFixed(9)}` : undefined}>
       <canvas ref={cvRef} style={{ width: size.w, height: size.h, display: "block", cursor: "grab" }} />
+      {view && (
+        <div className="geo-ctrl" role="toolbar" aria-label={t("mapControls")} onMouseDown={(e) => e.stopPropagation()}>
+          <button className="geo-zoom-in" onClick={() => zoomBy(1)} title={`${t("mapZoomIn")} (+)`} aria-label={t("mapZoomIn")}>+</button>
+          <button className="geo-zoom-out" onClick={() => zoomBy(-1)} title={`${t("mapZoomOut")} (−)`} aria-label={t("mapZoomOut")}>−</button>
+          <button className="geo-fit" onClick={fitAll} title={`${t("mapFitAll")} (0)`} aria-label={t("mapFitAll")}>
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
+          {objects.length > 0 && (
+            <select className="geo-follow" value={plot.followObject ?? ""} title={`${t("objFollow")} (F)`} aria-label={t("objFollow")}
+              onChange={(e) => actions.updatePlot(plot.id, { followObject: e.target.value || null })}>
+              <option value="">{t("mapFollowOff")}</option>
+              {objects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          )}
+          {offFollow && plot.followObject && <button className="geo-back" onClick={backToFollow}>{t("mapBackToFollow")}</button>}
+        </div>
+      )}
+      {view && hint && (
+        <div className="geo-hint" role="note">{t("mapHint")}
+          <button className="iconbtn sm" onClick={markHintSeen} aria-label={t("close")} title={t("close")}>×</button></div>
+      )}
       {mouse && <div className="geo-readout">{mouse.lat.toFixed(prec)}°, {mouse.lon.toFixed(prec)}°</div>}
       <TrackKeys objects={objects} colors={objColors} />
       {(!plot.xSignal || !ys.length) && !objects.length && <div className="plot-empty">{emptyText}</div>}
