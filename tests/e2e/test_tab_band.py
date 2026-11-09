@@ -10,13 +10,14 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 from test_template_tabs import open_ardupilot_example, pg  # noqa: E402,F401
+from test_features import frames, settled  # noqa: E402
 
 
 def _lane_title(pg, n=0):
     """What a plot's own bottom lane says when hovered ('' when it has none there)."""
     box = pg.locator(".plot").nth(n).locator(".u-over").bounding_box()
     pg.mouse.move(box["x"] + box["width"] * 0.5, box["y"] + box["height"] - 4)
-    pg.wait_for_timeout(300)
+    frames(pg)                                               # (T2) the hover drawn
     return pg.evaluate(f"document.querySelectorAll('.plot .u-over')[{n}].title || ''")
 
 
@@ -26,7 +27,7 @@ def test_one_mode_row_with_cursors_and_hover(pg):
     open_ardupilot_example(pg)
     strip = pg.locator(".ov-strip")
     strip.locator(".ov-phase").first.wait_for(timeout=20000)
-    pg.wait_for_timeout(800)
+    settled(pg); frames(pg)
     assert pg.locator(".tab-band .band-row").count() == 0           # once, in the strip
     assert "MODE" not in _lane_title(pg)                            # and not in every plot
     # cursors: lines on the strip's row, each naming the mode under it
@@ -71,5 +72,5 @@ def test_a_plot_shows_the_lane_again_and_single_plot_tabs_keep_theirs(pg):
     # X not linked: no band, every plot its lane again (as before U3)
     pg.evaluate("""(() => { const s = window.__sv.state(); const ws = structuredClone(s.ws);
         ws.tabs[0].linkX = false; window.__sv.setState({ ws }); })()""")
-    pg.wait_for_timeout(600)
+    frames(pg, 3)
     assert "MODE" in _lane_title(pg, 1)

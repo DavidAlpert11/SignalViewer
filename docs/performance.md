@@ -20,8 +20,9 @@ list is virtualized, and signal choosers are searchable instead of long dropdown
 
 ## The round of 2026-11-08 (`tools/benchmark.py --synthetic`)
 
-Generated data, no file needed (`--samples`, default 5 million per signal; `--json` writes the numbers for
-CI). Measured on a 2-CPU test machine:
+Generated data, no file needed (`--samples`, default 5 million per signal; `--json` writes the numbers;
+`--check SLACK` exits 1 when a target is missed - times may be SLACK times their target, sizes not - which CI
+runs with `--samples 2000000 --check 3`). Measured on a 2-CPU test machine:
 
 | Measurement | Target | Result |
 |---|---|---|

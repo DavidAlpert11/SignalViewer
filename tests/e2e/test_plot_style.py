@@ -4,15 +4,17 @@ after another style change."""
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, open_files, pg, sig  # noqa: E402,F401
+from test_features import env, frames, open_files, pg, settled, sig  # noqa: E402,F401
 
 CANVAS = "() => [...document.querySelectorAll('.plot canvas')].map((c) => c.toDataURL()).join('|')"
 
 
 def _set(pg, label, value):
     box = pg.locator(f".inspector input[aria-label='{label}']")
+    n = pg.evaluate("window.__sv.state().past.length")
     box.fill(value); box.press("Enter")
-    pg.wait_for_timeout(600)
+    pg.wait_for_function(f"window.__sv.state().past.length > {n}")    # (T2) the change made...
+    settled(pg); frames(pg, 3)                                         # ...its data fetched and drawn
 
 
 def test_line_width_and_limits_are_drawn(pg):
@@ -21,7 +23,7 @@ def test_line_width_and_limits_are_drawn(pg):
     pg.wait_for_selector(".plot .u-over")
     pg.locator(".plot .chip").first.click()
     pg.locator(".inspector input[aria-label='Line width']").wait_for()
-    pg.wait_for_timeout(400)
+    settled(pg); frames(pg, 3)
 
     before = pg.evaluate(CANVAS)
     _set(pg, "Line width", "5")

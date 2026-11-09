@@ -143,8 +143,43 @@ def open_files(pg, *names, options=False, clear=True):
     if not options:
         pg.wait_for_function(f"window.__sv.state().runs.filter(r => r.format !== 'derived').length >= {before + len(names)}", timeout=30000)
         if clear:   # the first signal of a first file is plotted automatically; start each test clean
-            pg.wait_for_timeout(300)
+            settled(pg)
             clear_plots(pg)
+
+
+def settled(pg, timeout=20000):
+    """T2: nothing is loading - no job, nothing the app counts as busy (instead of a fixed sleep)."""
+    pg.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')", timeout=timeout)
+
+
+def frames(pg, n=2):
+    """T2: n animation frames have been drawn (what was set is on screen) - instead of a fixed sleep.
+    (evaluate waits for a promise; wait_for_function would take the promise itself as true)"""
+    pg.evaluate("n => new Promise((r) => { const f = (k) => (k ? requestAnimationFrame(() => f(k - 1)) : r(true)); f(n); })", n)
+
+
+def until(pg, js, arg=None, timeout=10000, every=200):
+    """T2: poll an async page check (a fetch) until it is true - wait_for_function cannot await one."""
+    t_end = time.time() + timeout / 1000
+    while True:
+        if pg.evaluate(js, arg):
+            return
+        if time.time() > t_end:
+            raise AssertionError(f"not true after {timeout} ms: {js[:120]}")
+        pg.wait_for_timeout(every)
+
+
+def autosaved(pg, timeout=10000):
+    """T2: the autosave holds the workspace on screen (it is written 0.8 s after the last change)."""
+    until(pg, """async () => { try { const r = await (await fetch('/api/autosave')).json();
+        return JSON.stringify(r.state && r.state.ws) === JSON.stringify(window.__sv.state().ws); } catch (e) { return false; } }""",
+          timeout=timeout)
+
+
+def range_changed(pg, before, timeout=5000):
+    """T2: the first plot's time range is no longer `before` (a wheel, a pan)."""
+    pg.wait_for_function("b => JSON.stringify(Object.values(window.__sv.state().ranges)[0] || null) !== b",
+                         arg=json.dumps(before, separators=(",", ":")), timeout=timeout)
 
 
 def clear_plots(pg):
@@ -251,8 +286,9 @@ def test_D07_remove_file_removes_its_signals(pg):
 def test_D08_reload_from_disk(pg):
     open_files(pg, "run_a.csv")
     pg.locator(".run-head").first.hover()
+    v = S(pg, "s.dataVersion")
     pg.locator(".run-head [aria-label='Reload from disk']").click()
-    pg.wait_for_timeout(500)
+    pg.wait_for_function(f"window.__sv.state().dataVersion > {v}"); settled(pg)
     assert S(pg, "s.runs.length") == 1
 
 
@@ -266,7 +302,7 @@ def test_D09_D10_live_mode_and_follow(pg):
     with open(p, "a") as f:
         f.write("".join(f"{i * 0.1:.1f},{i}\n" for i in range(50, 300)))
     pg.wait_for_function("window.__sv.state().runs[0].samples === 300", timeout=8000)
-    pg.wait_for_timeout(1500)
+    pg.wait_for_function("(() => { const r = Object.values(window.__sv.state().ranges)[0]; return !!r && Math.abs(r[1] - 29.9) < 0.01; })()")
     r = S(pg, "Object.values(s.ranges)[0]")
     assert r and abs(r[1] - 29.9) < 0.01 and abs(r[1] - r[0] - 10) < 0.01
 
@@ -507,7 +543,8 @@ def test_V08_zoom_pan_back(pg):
     pg.wait_for_selector(".plot .u-over")
     box = pg.locator(".plot .u-over").first.bounding_box()
     pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-    pg.mouse.wheel(0, -300); pg.wait_for_timeout(200)
+    r0 = S(pg, "Object.values(s.ranges)[0] || null")
+    pg.mouse.wheel(0, -300); range_changed(pg, r0)
     r1 = S(pg, "Object.values(s.ranges)[0]")
     pg.keyboard.down("Alt"); pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] / 2 - 150, box["y"] + 100); pg.mouse.up(); pg.keyboard.up("Alt")   # T19: pan is Alt
     r2 = S(pg, "Object.values(s.ranges)[0]")
@@ -609,7 +646,7 @@ def test_C04_cursor_play(pg):
     sig(pg, "Speed").click()
     pg.keyboard.press("Space")
     t0 = S(pg, "s.cursor.t1")
-    pg.keyboard.press("p"); pg.wait_for_timeout(800); pg.keyboard.press("p")
+    pg.keyboard.press("p"); pg.wait_for_function(f"window.__sv.state().cursor.t1 > {t0}"); pg.keyboard.press("p")
     assert S(pg, "s.cursor.t1") > t0
 
 
@@ -794,7 +831,7 @@ def test_N04_progress_and_cancel(pg):
 def test_N05_autosave_restore(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
-    pg.wait_for_timeout(1500)
+    autosaved(pg)
     pg.reload(); pg.wait_for_selector(".plot .chip")
     assert chips(pg) == ["Speed"]
 
@@ -1023,11 +1060,12 @@ def test_zoom_keys_layout_button_and_split(pg):
         if mod: pg.keyboard.down(mod)
         pg.mouse.down(); pg.mouse.move(cx, cy, steps=5); pg.mouse.move(cx + 80, cy + 60, steps=5); pg.mouse.up()
         if mod: pg.keyboard.up(mod)
-        pg.wait_for_timeout(150)
     drag("Shift")
+    pg.wait_for_function("Object.keys(window.__sv.state().yRanges).length === 1")
     assert S(pg, "Object.keys(s.yRanges).length") == 1 and S(pg, "Object.keys(s.ranges).length") == 0   # values only
     pg.keyboard.press("r")
     drag("Control")
+    pg.wait_for_function("Object.keys(window.__sv.state().ranges).length === 1")
     assert S(pg, "Object.keys(s.yRanges).length") == 1 and S(pg, "Object.keys(s.ranges).length") == 1   # a box
     # the layout button shows the layout and opens the popover
     assert pg.locator(".stage-bar .layout-btn").inner_text().strip() == "1 × 1"
@@ -1145,7 +1183,7 @@ def test_smart_start_card(pg):
     assert pg.locator(".tl-finding").count() >= 1                              # the timeline keeps their marks
     # not again once the workspace has plots
     open_files(pg, "run_a.csv", clear=False)
-    pg.wait_for_timeout(1500)
+    settled(pg)                                                   # (the card is offered only into an empty workspace)
     assert pg.locator(".start-card").count() == 0
 
 
@@ -1251,7 +1289,7 @@ def test_play_draw_mode_and_clear_everything(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
     pg.locator(".timeline select[aria-label='What the plots show']").select_option("draw")   # the timeline
-    pg.keyboard.press("p"); pg.wait_for_timeout(400); pg.keyboard.press("p")
+    pg.keyboard.press("p"); pg.wait_for_function("window.__sv.state().cursor.t1 > 0"); pg.keyboard.press("p")
     assert S(pg, "s.playMode") == "draw" and S(pg, "s.cursor.t1") > 0
     clear_everything(pg)
     pg.wait_for_selector(".welcome")
@@ -1267,7 +1305,7 @@ def test_layout_picker_not_clipped(pg):
 
 def test_no_automatic_plot_and_linked_remove(pg):
     open_files(pg, "run_a.csv", "run_b.csv", clear=False)
-    pg.wait_for_timeout(400)
+    settled(pg)
     assert chips(pg) == []                                                # nothing plotted on open
     pg.click(".link-toggle")
     sig(pg, "RPM").click()
@@ -1362,11 +1400,11 @@ def test_regression_fft_plot_survives_signal_swap(pg):
     open_files(pg, "run_a.csv", "run_c.csv")
     sig(pg, "Speed").click()
     pg.locator(".plot .mode-btn").first.click(); pg.locator(".menu.ctx button", has_text="FFT").first.click()
-    pg.wait_for_timeout(600)
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].mode === 'fft'"); settled(pg)
     pg.click("[aria-label='Compare runs']")
     pg.wait_for_selector(".sim-row")
     pg.locator(".sim-row", has_text="RPM").click()
-    pg.wait_for_timeout(1000)
+    pg.wait_for_selector("table.cmp2 tbody"); settled(pg)
     assert pg.locator(".rail button").count() >= 4            # the app is still there
     assert pg.locator(".plot-error").count() == 0
     assert len(chips(pg)) == 2
@@ -1406,7 +1444,8 @@ def test_regression_second_cursor_visible_after_play_and_zoom(pg):
     pg.keyboard.press("d")                                  # off again
     pg.wait_for_selector(".plot .u-over")
     box = pg.locator(".plot .u-over").first.bounding_box()
-    pg.mouse.move(box["x"] + box["width"] * 0.2, box["y"] + 50); pg.mouse.wheel(0, -600); pg.wait_for_timeout(300)
+    r0 = S(pg, "Object.values(s.ranges)[0] || null")
+    pg.mouse.move(box["x"] + box["width"] * 0.2, box["y"] + 50); pg.mouse.wheel(0, -600); range_changed(pg, r0)
     r = S(pg, "Object.values(s.ranges)[0]")
     pg.keyboard.press("d")                                  # zoomed in: both cursors inside the view
     t1, t2 = S(pg, "s.cursor.t1"), S(pg, "s.cursor.t2")
@@ -1447,7 +1486,7 @@ def test_change_many_variables_from_search(pg):
     # re-apply, then reload: the change is kept with the workspace
     pg.click(".pick-actions .btn:has-text('Change them')"); pg.locator(".tf-dialog .arow input").nth(0).fill("3"); pg.click(".tf-dialog .btn.primary")
     pg.wait_for_selector(".toast:has-text('applied')")
-    pg.wait_for_timeout(1500)
+    autosaved(pg)
     pg.reload(); pg.wait_for_selector(".run-head")
     pg.wait_for_function("window.__sv.state().runs.flatMap(r => r.signals).filter(x => x.transform && x.transform.scale === 3).length === 5")
 
@@ -1798,11 +1837,10 @@ def test_map_plot_draws_track_on_world_outline(pg):
     pg.wait_for_selector(".plot .geo canvas")
     assert S(pg, "s.ws.tabs[0].plots[0].xSignal.endsWith('/Lon')")          # Lon chosen as the X (longitude) signal
     assert chips(pg) == ["Lat"]
-    pg.wait_for_timeout(600)
     # pixels were drawn (land outline / track), not an empty canvas
-    assert pg.evaluate("""(() => { const c = document.querySelector('.plot .geo canvas');
+    pg.wait_for_function("""(() => { const c = document.querySelector('.plot .geo canvas');
         const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0;
-        for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n })()""") > 1000
+        for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n > 1000 })()""")
     pg.keyboard.press("Space")                                               # cursor marker needs cursor values
     pg.wait_for_function("Object.keys(window.__sv.state().cvals).length >= 2")
 
@@ -2101,8 +2139,9 @@ def test_inspector_starts_closed_and_respects_the_user(pg):
     pg.keyboard.press("Space")
     pg.click(".areabar [aria-label^='Inspector']")                 # the user closes it on purpose
     assert pg.locator(".inspector").count() == 0
+    on = S(pg, "s.cursor.on")
     pg.keyboard.press("Space")
-    pg.wait_for_timeout(300)
+    pg.wait_for_function(f"window.__sv.state().cursor.on === {'false' if on else 'true'}")   # the key was handled
     assert pg.locator(".inspector").count() == 0                  # their choice wins
     pg.locator(".plot .chip").first.click()
     pg.wait_for_selector(".inspector")
@@ -2146,7 +2185,7 @@ def test_limits_pass_fail_in_the_inspector(pg):
     pg.wait_for_selector(".lim-result.pass")
     pg.keyboard.press("Control+z")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals[0].limits.hi === 25")
-    pg.wait_for_timeout(1500)                                  # autosave
+    autosaved(pg)
     pg.reload(); pg.wait_for_selector(".run-head")
     assert S(pg, "s.ws.tabs[0].plots[0].signals[0].limits.hi") == 25
 
@@ -2440,8 +2479,8 @@ def test_expression_with_a_signal_of_one_file(pg):
         menu_item(pg, "Change the 2 selected" if S(pg, "s.listSel.length") > 1 else "Change this signal")
         pg.wait_for_selector(".tf-dialog"); pg.locator(".tf-dialog select").first.select_option("custom")
         pg.locator(".tf-dialog [aria-label='Expression in x (and t)']").fill(expr)
-        pg.wait_for_timeout(300)
         if not ok:
+            pg.wait_for_selector(".tf-dialog .fx-err")
             msg = pg.locator(".tf-dialog .fx-err").inner_text()
             pg.click(".tf-dialog .dialog-head .iconbtn"); pg.wait_for_selector(".tf-dialog", state="detached")
             return msg

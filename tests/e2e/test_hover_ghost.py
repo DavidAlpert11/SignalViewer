@@ -7,6 +7,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 from test_template_tabs import open_ardupilot_example, pg  # noqa: E402,F401
+from test_features import frames, settled  # noqa: E402
 
 
 def test_hover_moves_a_ghost_on_the_map(pg):
@@ -19,7 +20,7 @@ def test_hover_moves_a_ghost_on_the_map(pg):
         tab.plots.push({ id: 'ghost-roll', title: 'Roll', signals: [{ sig: rid + '/ATT.Roll [deg]', color: '#F2A33A', width: 1.5, scale: 1, offset: 0 }] });
         return ws; }); })()""")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, dual: false, t1: 60, active: 1 } })")
-    pg.wait_for_timeout(1500)
+    settled(pg); frames(pg, 3)
     past = pg.evaluate("window.__sv.state().past.length")
     roll = pg.locator(".plot", has_text="Roll").locator(".u-over")
     roll.wait_for()

@@ -195,10 +195,32 @@ SYNTH_ROWS = [
 ]
 
 
-def synthetic_report(r: dict) -> str:
+# T3: what a slower machine (CI) may stretch - times by the slack given, a ratio of two times by half of
+# it (both slow down), sizes not at all (they do not depend on the machine)
+TIMES, RATIOS = {"zoom30_s", "pan_last_s", "live_wide_s"}, {"offset_ratio"}
+LIMITS = {"offset_ratio": 2.0, "zoom30_s": 0.5, "zoom30_kb": 2048.0, "pan_last_s": 0.3, "cache_vs_limit": 1.0, "live_wide_s": 1.0}
+
+
+def derived(r: dict) -> dict:
     r = dict(r)
     r["offset_ratio"] = r["data_offset_s"] / max(r["data_no_offset_s"], 1e-6)
     r["cache_vs_limit"] = r["memcache_mb"] / max(r["memcache_limit_mb"], 1e-6)
+    return r
+
+
+def misses(r: dict, slack: float) -> list:
+    """T3: the rows outside their target, each stretched by the slack for its kind."""
+    r = derived(r)
+    out = []
+    for key, lim in LIMITS.items():
+        f = slack if key in TIMES else max(1.0, slack / 2) if key in RATIOS else 1.0
+        if not r[key] <= lim * f:
+            out.append(f"{key} = {r[key]:.4g} (target {lim:g}, allowed {lim * f:.4g} with --check {slack:g})")
+    return out
+
+
+def synthetic_report(r: dict) -> str:
+    r = derived(r)
     shown = {"offset_ratio": f"{r['offset_ratio']:.2f}× ({r['data_offset_s'] * 1000:.1f} / {r['data_no_offset_s'] * 1000:.1f} ms)",
              "zoom30_s": f"{r['zoom30_s'] * 1000:.0f} ms", "zoom30_kb": f"{r['zoom30_kb']:.0f} KB",
              "pan_last_s": f"{r['pan_last_s'] * 1000:.0f} ms", "pan_all_s": f"{r['pan_all_s'] * 1000:.0f} ms",
@@ -223,6 +245,8 @@ def main():
     ap.add_argument("--out", default="benchmark.md")
     ap.add_argument("--child", default=None)
     ap.add_argument("--cache", default=None)
+    ap.add_argument("--check", type=float, default=None, metavar="SLACK",
+                    help="--synthetic: exit 1 when a target is missed - times may be SLACK times the target (a CI machine), sizes not")
     a = ap.parse_args()
     if a.child == "synthetic":
         print(json.dumps(synthetic(a.samples, a.cache)))
@@ -245,6 +269,13 @@ def main():
             with open(a.json, "w", encoding="utf-8") as f:
                 json.dump(res, f, indent=1)
         print(text)
+        if a.check is not None:
+            bad = misses(res, a.check)
+            for b in bad:
+                print("MISS", b)
+            if bad:
+                sys.exit(1)
+            print(f"every target met (slack {a.check:g} for times)")
         return
     if not a.file:
         ap.error("give a FILE, or --synthetic")

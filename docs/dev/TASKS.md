@@ -21,7 +21,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   C3b (*Missing values* in Create signals, the mark). **Phase 2 done:** O1 (offline by default, Never use
   the network, the Online map sign), O2 (no phantom signals from damage; a damaged .ulg opens), O3 (every
   save atomic: `app/atomic.py`, re-exported by app/common.py). Applied by the owner up to `4c3c52f`
-  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). 26.U3 done (58 -> 54 / 80 -> 71 controls). 26.U5 done before 26.U4 (per-signal tolerances, the CLI's file, one rule `svcore/tolerances.py`). 26.U4 done (golden runs, start-card proposal, verdict, worst failure, report). 26.U6 done (trust badges, network in the status bar). 26.U7 done (data quality on open). 26.U8 done (one events list, ] / [). **Phase 5 done** (whole e2e next). Phase 6: T1 done (Vitest, 24 tests). Next: T2; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
+  (O1); the Phase 2 patch carries C2b, C3b, O2, O3. **Phase 3:** P1 done (offsets without a copy: ~50 ms -> ~3 ms per request at 20M samples; V29). P2 done (one memory cache, bytes, locked; Settings shows it). P3 done (cancellation, binary /api/data, float32 around a float64 reference, joinTables). P4 done (several files at once within a memory budget). P5 done (`benchmark.py --synthetic`; the file mode works again). **Phase 3 done** (patch sent, not applied yet - the next patch carries it). Phase 4: 26.A1 done. 26.A2 done (readers in a worker process). 26.A3 done (filters in time, windows in seconds). 26.A4 assessed: larger than the task - waiting for the owner. 26.A5 done (read-as correction, angle unit's why). **Phase 4 done** except 26.A4. Phase 5: 26.U1 done (tokens), 26.U2 done (palette, ink, hover, difference chart). 26.U3 done (58 -> 54 / 80 -> 71 controls). 26.U5 done before 26.U4 (per-signal tolerances, the CLI's file, one rule `svcore/tolerances.py`). 26.U4 done (golden runs, start-card proposal, verdict, worst failure, report). 26.U6 done (trust badges, network in the status bar). 26.U7 done (data quality on open). 26.U8 done (one events list, ] / [). **Phase 5 done** (whole e2e next). Phase 6: T1 done (Vitest, 24 tests), T2 done (78 sleeps -> 30), T3 done (CI: npm test, 18 e2e files, benchmarks --check 3). **Phase 6 done.** Next: the final checks and the cumulative patch; Phase 7 / 26.A4 wait for the owner; 26.A4 (ask first if large), 26.A5, then a cumulative patch;
   the whole list is the board in "Owner's plan (2026-11-08)". Baseline before the round: backend 981
   passed / 14 skipped, `cli.py validate` 23 / 23 - no existing failure. `frontend/dist` is not in the
   patches (run.py rebuilds it); build and commit it before the 1.23.0 tag.
@@ -212,8 +212,8 @@ Progress board:
 | 26.U7 | Per-signal data-quality summary on open | 5 | ☑ done |
 | 26.U8 | Event navigation (one list, next / previous keys) | 5 | ☑ done |
 | T1 | Frontend unit tests (Vitest) | 6 | ☑ done |
-| T2 | De-flake e2e (74 `wait_for_timeout`, test_quick_view) | 6 | ☐ |
-| T3 | CI: larger e2e subset, validation and benchmarks with tolerances | 6 | ☐ |
+| T2 | De-flake e2e (74 `wait_for_timeout`, test_quick_view) | 6 | ☑ done (78 -> 30, each left has a reason) |
+| T3 | CI: larger e2e subset, validation and benchmarks with tolerances | 6 | ☑ done |
 | F1-F4 | Test specs, multi-run envelope, measurement export, reports from a spec | 7 | ☐ (ask the owner before starting) |
 
 ### C1 · Compare judges at full resolution, in both directions
@@ -792,6 +792,38 @@ test_one_per_plot, test_templates_recent_badfiles); test_features S04 now expect
 colour. e2e: test_globe3d, test_template_tabs, test_object_templates, test_one_per_plot,
 test_templates_recent_badfiles, test_map_objects, test_features, test_overview_strip, test_tab_band,
 test_workflows, test_less_clutter. Screenshots (scratch): EN light / HE dark, both tabs.
+
+### T3 · CI: a larger e2e subset, validation and benchmarks with tolerances
+**Status: done 2026-11-09.**
+**Made:** `.github/workflows/ci.yml` - frontend: `npm test` after the build; backend (3.12): `cli.py
+validate` (already there; its 29 cases include V24-V29 of this round) and `tools/benchmark.py --synthetic
+--samples 2000000 --check 3` (new `--check SLACK`: exit 1 when a target is missed - times may be SLACK x
+the target on a shared runner, a ratio of two times SLACK/2, sizes exactly; `misses()` unit-tested in
+backend/tests/test_benchmark_check.py; ~7 s here); e2e: 3 -> 18 files (~2.5 min here: the flows this round
+changed - judge a run, tolerances, the difference chart, trust badges, data quality, events, clutter,
+missing values, heuristics, templates, plot style, aligned plots, the tab band, settings). The whole
+suite stays a release step (build.yml / the owner's PC), as before. Not run here (no GitHub runner) -
+the YAML parses; the commands are the ones run locally.
+
+### T2 · De-flake e2e
+**Status: done 2026-11-09.**
+**Made:** 78 `wait_for_timeout` -> 30. Helpers in test_features.py: `settled` (busy 0, no job),
+`autosaved` (the server's autosave equals the workspace - polled with `until`, because
+`wait_for_function` does **not** await a promise: an async predicate returned at once, found while
+doing this), `until` (poll an async page check), `range_changed`, `frames` (n animation frames, via
+evaluate); test_offline_map `_wait_pixels` / `_wait_redrawn`; test_globe3d `at_lat` and waits on the
+camera's own measure (centred, closer). test_quick_view waits for a number in `.val` (it read the "—"
+kept for the value). test_plot_menus judges the menu where it ends up (it is placed after being
+measured - failed 1 in 3 here). test_timeline waits for the autosave that holds the settings, then
+for them to be put back. Side effect: test_offline_map's borders test - "fails also on origin/main
+here" since 1.22 - passes: it was a fixed 800 ms, not the network.
+**Left (30), each with a reason:** polls that use a short wait as their interval (offline tiles,
+settings saved, Sweeps steps, the 3D image file, stat_max); gesture timing the test is about (the
+wheel's trackpad grouping, the data path's burst under a slow route - the route holds the test's
+thread); playback for a time (timeline, globe's own time); negatives over time (no request leaves the
+PC in 1.5 s; the video not dragged); Sweeps' autosave (its state is not one comparable object).
+**Tests:** the 14 changed files, each in its own process: all green (test_features 126, test_globe3d 10,
+test_workflows 28, ...); test_plot_menus 4/4 after the change.
 
 ### T1 · Frontend unit tests (Vitest)
 **Status: done 2026-11-09.**
@@ -3490,3 +3522,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · 26.U7 done: per-signal data quality on open (svcore/quality.py, /api/runs/{id}/quality, note + badge + marks + dialog); backend all + mypy; e2e test_data_quality + 5 files. Next: 26.U8.
 - 2026-11-09 · 26.U8 done: one events list (Log panel, + findings / conditions / limits), ] / [ to step, the status bar names the event; tsc + build; e2e test_event_navigation + 3 files. Phase 5 done - the whole e2e suite next.
 - 2026-11-09 · T1 done: Vitest (devDependency, reason in the task), 8 files / 24 tests of the frontend's logic, `npm test`; tsc. Next: T2.
+- 2026-11-09 · Whole e2e suite (end of Phase 5, one file per process): 328 passed; failed under load, passed alone: test_error_details (setup), test_plot_menus (fixed in T2), test_features 1, test_object_templates 1, test_timeline 1 (T2's first autosave wait - fixed).
+- 2026-11-09 · T2 done: 78 sleeps -> 30 (helpers settled / autosaved / until / frames / range_changed), test_quick_view and test_plot_menus fixed, the borders test passes; 14 files green. T3 done: CI npm test, 18 e2e files, benchmarks --check 3. Phase 6 done.
