@@ -1124,3 +1124,69 @@ def test_damaged_autosave_is_kept_aside():
     assert open(r["damaged"]).read().startswith('{"ws": {"tabs": [')     # still there after the next save
     assert client.get("/api/autosave").json()["state"] == {"ws": {"tabs": []}}
     os.remove(r["damaged"]); os.remove(AUTOSAVE)
+
+
+def _motion_csv(tmp_path, rows):
+    p = tmp_path / "motion.csv"
+    with open(p, "w") as f:
+        f.write("Time,lat,lon,alt\n" + "".join(f"{t:.2f},{la:.9f},{lo:.9f},{al:.3f}\n" for t, la, lo, al in rows))
+    return client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]["id"]
+
+
+def test_object_track_attitude_from_motion_on_a_circle(tmp_path):
+    """N5: course over ground and the flight-path angle on a known track: a left-hand circle of 600 m at
+    60 m/s climbing 1 m/s (the round's fixture) - heading = the tangent, pitch = atan(1/60)."""
+    import math
+    R, V, C, lat0, lon0 = 600.0, 60.0, 1.0, 32.8, 35.6
+    rows = []
+    for i in range(0, 1201):
+        t = i / 10
+        a = V / R * t
+        n, e = R * math.sin(a), -R * (1 - math.cos(a))
+        rows.append((t, lat0 + math.degrees(n / 6378137.0), lon0 + math.degrees(e / (6378137.0 * math.cos(math.radians(lat0)))), 300 + C * t))
+    rid = _motion_csv(tmp_path, rows)
+    r = client.post("/api/object_track", json={"lat": f"{rid}/lat", "lon": f"{rid}/lon", "alt": f"{rid}/alt", "attitude": "motion"}).json()
+    dec = lambda k: np.frombuffer(base64.b64decode(r[k]), dtype=np.float32)
+    assert r["derived"] == "motion" and r["units"]["yaw"] == "deg" and "roll" not in r
+    t = np.arange(1201) / 10
+    truth = np.degrees(np.arctan2(-np.sin(V / R * t), np.cos(V / R * t))) % 360
+    err = (dec("yaw") - truth + 180) % 360 - 180
+    assert np.max(np.abs(err[20:-20])) < 1.0                       # within a degree, through 359 / 0
+    assert np.allclose(dec("pitch")[20:-20], math.degrees(math.atan2(C, V)), atol=0.1)
+
+
+def test_object_track_motion_holds_heading_when_slow(tmp_path):
+    """N5: below minSpeed the last heading is held - a hovering object (noise of a few cm) keeps
+    pointing east instead of spinning; without "motion" nothing changes."""
+    rng = np.random.default_rng(1)
+    rows = []
+    for i in range(400):
+        t = i / 10
+        e = 10.0 * t if t < 20 else 200.0 + rng.normal(0, 0.05)    # 10 m/s east, then hovering
+        rows.append((t, 32.0 + rng.normal(0, 0.05) / 111000 * (t >= 20), 34.8 + e / (111000 * np.cos(np.radians(32))), 100.0))
+    rid = _motion_csv(tmp_path, rows)
+    r = client.post("/api/object_track", json={"lat": f"{rid}/lat", "lon": f"{rid}/lon", "attitude": "motion", "minSpeed": 1.0}).json()
+    yaw = np.frombuffer(base64.b64decode(r["yaw"]), dtype=np.float32)
+    assert np.all(np.abs(yaw[30:190] - 90) < 1)
+    assert np.all(np.abs(yaw[230:] - 90) < 1)                      # held while hovering
+    assert "pitch" not in r                                        # no altitude given
+    plain = client.post("/api/object_track", json={"lat": f"{rid}/lat", "lon": f"{rid}/lon"}).json()
+    assert "yaw" not in plain and "derived" not in plain
+
+
+def test_object_track_borrowed_heading_interpolated_the_short_way(tmp_path):
+    """N5: a borrowed attitude is the other object's angle signal put on this object's times - across
+    359 / 1 degrees it goes the short way (through 0), not back through 180."""
+    p = tmp_path / "pair.csv"
+    with open(p, "w") as f:
+        f.write("Time,gps.lat,gps.lon,nav.att.yaw\n")
+        for i in range(40):
+            t = i * 0.5
+            yaw = (350 + i) % 360                                   # 350 ... 359, 0, 1 ... 29 at 2 Hz
+            f.write(f"{t},{32 + i * 1e-5 if i % 2 == 0 else ''},{34.8 if i % 2 == 0 else ''},{yaw}\n")
+    rid = client.post("/api/files/open", json={"paths": [str(p)]}).json()["opened"][0]["id"]
+    r = client.post("/api/object_track", json={"lat": f"{rid}/gps.lat", "lon": f"{rid}/gps.lon", "yaw": f"{rid}/nav.att.yaw"}).json()
+    yaw = np.frombuffer(base64.b64decode(r["yaw"]), dtype=np.float32)
+    t = np.frombuffer(base64.b64decode(r["t"]), dtype=np.float64)
+    want = (350 + t * 2 + 180) % 360 - 180                          # wrapped to +-180, as the server sends angles
+    assert np.max(np.abs((yaw - want + 180) % 360 - 180)) < 1e-3
