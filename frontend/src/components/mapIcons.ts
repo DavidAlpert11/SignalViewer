@@ -34,9 +34,10 @@ const SHAPES: Record<ObjectKind, { body: Path2D; detail?: Path2D }> = {
   },
 };
 
-/** Draw an object at (x, y) pointing `headingDeg` (0 = north, clockwise), `size` px across. */
+/** Draw an object at (x, y) pointing `headingDeg` (0 = north, clockwise), `size` px across.
+ *  outline (N5): its attitude is derived (from motion, or borrowed) - drawn as an outline, not filled. */
 export function drawObjectIcon(ctx: CanvasRenderingContext2D, kind: ObjectKind, x: number, y: number,
-  headingDeg: number | null, size: number, color: string, dark: boolean) {
+  headingDeg: number | null, size: number, color: string, dark: boolean, outline = false) {
   const sh = SHAPES[kind] ?? SHAPES.aircraft;
   ctx.save();
   ctx.translate(x, y);
@@ -46,6 +47,13 @@ export function drawObjectIcon(ctx: CanvasRenderingContext2D, kind: ObjectKind, 
   ctx.lineWidth = 9;
   ctx.strokeStyle = dark ? "rgba(10,14,20,.9)" : "rgba(255,255,255,.95)";
   ctx.stroke(sh.body);                                     // outline: readable on terrain and water
+  if (outline) {
+    ctx.fillStyle = dark ? "rgba(10,14,20,.55)" : "rgba(255,255,255,.6)";
+    ctx.fill(sh.body, "nonzero");
+    ctx.lineWidth = 6; ctx.strokeStyle = color; ctx.stroke(sh.body);
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = color;
   ctx.fill(sh.body, "nonzero");
   if (sh.detail) { ctx.fillStyle = dark ? "rgba(255,255,255,.75)" : "rgba(0,0,0,.35)"; ctx.fill(sh.detail); }

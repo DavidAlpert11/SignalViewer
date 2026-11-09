@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { actions, nextColor, uid, useApp, type MapObject, type ObjectKind } from "../store";
 import { useT, type TKey } from "../i18n";
 import { iconSvg, OBJECT_KINDS } from "./mapIcons";
-import { guessRoles, QUAT_ROLES, ROLES, type Role } from "../mapObjects";
+import { guessRoles, hasOwnAttitude, QUAT_ROLES, ROLES, trackOfClass, type Role } from "../mapObjects";
 import { useEscape } from "./Overlays";
 import SignalField from "./SignalField";
 import { AXES, createFrameGroup, createSmoothGroup, frameGroupName } from "../frames";
 import { api, type SignalInfo } from "../api";
 import { detectAll, VEC_ROLES, type Candidate } from "../objectDetect";
-import { addable, candidateObject, isAdded, NAMING_EXAMPLE, objectColors, whyLines } from "../objectAdd";
+import { addable, candidateObject, isAdded, linkAttitudes, NAMING_EXAMPLE, objectColors, whyLines } from "../objectAdd";
 import { copyText } from "../errorReport";
 
 /* Q101 / Q102: the position may come in ECEF, NED or ENU (m) instead of latitude / longitude, and
@@ -80,6 +80,9 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
   const [checked, setChecked] = useState<Record<string, boolean>>(() => Object.fromEntries(cands.map((c) => [c.key, addable(c) && !isAdded(c, plot)])));
   const [open, setOpen] = useState<Record<string, boolean>>(() => (why ? Object.fromEntries(cands.map((c) => [c.key, true])) : {}));
   const [busy, setBusy] = useState(false);
+  // N5 (owner's decision 3): a row with no angles - "motion" (default) or the key of the row to borrow from
+  const [attFrom, setAttFrom] = useState<Record<string, string>>({});
+  const withAtt = cands.filter((c) => c.attitude !== "none");     // truth first: the list is sorted so
   const fileName = (c: Candidate) => runs.find((r) => r.id === c.runId)?.name ?? "";
   const many = new Set(cands.map((c) => c.runId)).size > 1;
   const can = cands.filter((c) => addable(c) && !isAdded(c, plot));
@@ -88,9 +91,12 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
     if (!list.length || busy) return;
     setBusy(true);
     try {
-      const objs = [];
-      for (const c of list) objs.push(await candidateObject(c, color[c.key] ?? colors.get(c.key)!, (names[c.key] ?? c.name).trim() || c.name));
-      actions.addObjects(plotId, objs);                 // one commit: one Undo
+      const pairs = [];
+      for (const c of list) {
+        const o = await candidateObject(c, color[c.key] ?? colors.get(c.key)!, (names[c.key] ?? c.name).trim() || c.name);
+        pairs.push({ c, o, from: c.attitude === "none" && attFrom[c.key] && attFrom[c.key] !== "motion" ? attFrom[c.key] : undefined });
+      }
+      actions.addObjects(plotId, linkAttitudes(pairs, cands, plot));   // one commit: one Undo
       close();
     } catch (e) {
       useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
@@ -126,9 +132,17 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
                       <button className="linklike obj-why" aria-expanded={!!open[c.key]} onClick={() => setOpen({ ...open, [c.key]: !open[c.key] })}>{t("objWhy")}</button>
                       {!added && <button className="linklike obj-adv" onClick={() => onForm(c)}>{t("objAdvanced")}</button>}
                     </div>
+                    {!added && c.attitude === "none" && withAtt.length > 0 && (
+                      <label className="obj-found-att" title={t("objAttSourceHint")}><span>{t("objAttSource")}</span>
+                        <select value={attFrom[c.key] ?? "motion"} aria-label={`${t("objAttSource")}: ${names[c.key] ?? c.name}`}
+                          onChange={(e) => setAttFrom({ ...attFrom, [c.key]: e.target.value })}>
+                          <option value="motion">{t("objAttMotion")}</option>
+                          {withAtt.map((x) => <option key={x.key} value={x.key}>{t("objAttFrom", { name: names[x.key] ?? x.name })}</option>)}
+                        </select></label>
+                    )}
                     <div className="obj-found-sigs">{[...(c.pos === "lla" ? (["lat", "lon", "alt"] as const) : VEC_ROLES), "roll", "pitch", "yaw", "qw", "qx", "qy", "qz"]
                       .map((r) => c.picks[r as keyof Candidate["picks"]]?.id).filter((x): x is string => !!x).map(chip)}</div>
-                    {open[c.key] && <ul className="obj-why-lines">{whyLines(c, lang).map((l, i) => <li key={i}>{l}</li>)}</ul>}
+                    {open[c.key] && <ul className="obj-why-lines">{whyLines(c, lang, attFrom[c.key] && attFrom[c.key] !== "motion" ? names[attFrom[c.key]] ?? cands.find((x) => x.key === attFrom[c.key])?.name : undefined).map((l, i) => <li key={i}>{l}</li>)}</ul>}
                   </li>
                 );
               })}
@@ -178,7 +192,8 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
     const n = (plot?.objects?.length ?? 0) + 1;
     return { id: uid("o"), name: preset?.name ?? `${t("obj_aircraft")} ${n}`, kind: "aircraft", color: nextColor(ws), lat: g.lat ?? "", lon: g.lon ?? "",
       alt: g.alt ?? null, yaw: g.yaw ?? null, pitch: g.pitch ?? null, roll: g.roll ?? null,
-      qw: g.qw ?? null, qx: g.qx ?? null, qy: g.qy ?? null, qz: g.qz ?? null, angleUnit: "auto", trail: true };
+      qw: g.qw ?? null, qx: g.qx ?? null, qy: g.qy ?? null, qz: g.qz ?? null, angleUnit: "auto", trail: true,
+      ...(preset ? { cls: preset.cls, ...(trackOfClass(preset.cls) ? { track: trackOfClass(preset.cls) } : {}) } : {}) };
   });
   // 26.A5: what "Automatic" takes the angles to be, and why - shown in the choice, so it can be checked
   const [guess, setGuess] = useState<{ unit: "deg" | "rad"; why: string } | null>(null);
@@ -257,7 +272,10 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
           ids = [s3[0], s3[1], s3[2] ?? null];
         }
       }
-      const clean = { ...o, name: o.name.trim(), lat: ids[0], lon: ids[1], alt: ids[2] };
+      const clean: MapObject = { ...o, name: o.name.trim(), lat: ids[0], lon: ids[1], alt: ids[2] };
+      // N5: an object with angles of its own has no other source; a new one without them is drawn by its motion
+      if (hasOwnAttitude(clean)) { delete clean.attitudeSource; delete clean.minSpeed; }
+      else if (!editing && !clean.attitudeSource) clean.attitudeSource = "motion";
       if (editing) actions.updateObject(plot.id, o.id, clean); else actions.addObject(plot.id, clean);
       close();
     } catch (e) {
@@ -362,7 +380,26 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
               </select></label>
           </div>
           <div className="obj-roles">{(quat ? [...ROLES.slice(0, 3), ...QUAT_ROLES] : ROLES).map(roleRow)}</div>
-          {!o.yaw && !o.qw && <p className="hint">{t("objHeadingFromMotion")}</p>}
+          {!hasOwnAttitude(o) && (() => {
+            // N5 (owner's decision 3): no angles of its own - from its motion, or another object's (the primary / truth first)
+            const src = o.attitudeSource;
+            const val = src && typeof src === "object" ? src.object : "motion";
+            const others = (plot.objects ?? []).filter((x) => x.id !== o.id && hasOwnAttitude(x))
+              .sort((a, b) => Number(b.id === plot.primaryObject) - Number(a.id === plot.primaryObject) || Number(b.cls === "truth") - Number(a.cls === "truth"));
+            return (
+              <div className="obj-row obj-attsrc">
+                <label title={t("objAttSourceHint")}><span>{t("objAttSource")}</span>
+                  <select className="obj-att-source" value={others.some((x) => x.id === val) ? val : "motion"}
+                    onChange={(e) => setO({ ...o, attitudeSource: e.target.value === "motion" ? "motion" : { object: e.target.value } })}>
+                    <option value="motion">{t("objAttMotion")}</option>
+                    {others.map((x) => <option key={x.id} value={x.id}>{t("objAttFrom", { name: x.name })}</option>)}
+                  </select></label>
+                {val === "motion" && <label title={t("objMinSpeedHint")}><span>{t("objMinSpeed")}</span>
+                  <input type="number" className="obj-min-speed" min={0} step="any" value={o.minSpeed ?? 1}
+                    onChange={(e) => { const v = Number(e.target.value); setO({ ...o, minSpeed: Number.isFinite(v) && v >= 0 ? v : 1 }); }} /></label>}
+              </div>
+            );
+          })()}
           <p className="hint">{t("objAttHint")}</p>
           <div className="obj-row">
             <label><span>{t("objAngleUnit")}</span>
@@ -374,6 +411,10 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
                 <option value="msl">{t("objAltMsl")}</option><option value="home">{t("objAltHome")}</option><option value="agl">{t("objAltAgl")}</option>
               </select></label>}
             <label className="check"><input type="checkbox" checked={o.trail !== false} onChange={(e) => setO({ ...o, trail: e.target.checked })} />{t("objTrail")}</label>
+            {o.trail !== false && <label><span>{t("objTrackLook")}</span>
+              <select className="obj-track-look" value={o.track ?? "line"} onChange={(e) => setO({ ...o, track: e.target.value === "line" ? undefined : e.target.value as MapObject["track"] })}>
+                {(["line", "dash", "points"] as const).map((k) => <option key={k} value={k}>{t(`objTrack_${k}` as TKey)}</option>)}
+              </select></label>}
           </div>
           {o.trail !== false && (
             <div className="obj-row obj-trackcolor">

@@ -1,4 +1,6 @@
 import type { RunInfo } from "./api";
+import type { MapObject } from "./store";
+import { detectObjects } from "./objectDetect";
 
 /* Which signals of a file give a map object's position and attitude, guessed from their names. */
 
@@ -29,8 +31,18 @@ const group = (name: string) => (name.includes(".") ? name.slice(0, name.lastInd
 const guessed = new WeakMap<RunInfo["signals"], Partial<Record<Role, string>>>();
 export function guessRoles(run: RunInfo): Partial<Record<Role, string>> {
   let g = guessed.get(run.signals);
-  if (!g) { g = guessRolesNow(run); guessed.set(run.signals, g); }
+  if (!g) { g = fromDetection(run) ?? guessRolesNow(run); guessed.set(run.signals, g); }
   return { ...g };
+}
+/** N5: the file's first object found by objectDetect (full objects first, truth first) - its roles all
+ *  from one prefix (or a known log group), so the form and the frame suggestions never mix sources.
+ *  The old guess stays for files where nothing is found as an object (a lone "heading" signal...). */
+function fromDetection(run: RunInfo): Partial<Record<Role, string>> | null {
+  const c = detectObjects(run).candidates.find((x) => x.pos === "lla");
+  if (!c) return null;
+  const out: Partial<Record<Role, string>> = {};
+  for (const r of [...ROLES, ...QUAT_ROLES]) { const p = c.picks[r]; if (p) out[r] = p.id; }
+  return out;
 }
 
 function guessRolesNow(run: RunInfo): Partial<Record<Role, string>> {
@@ -60,6 +72,49 @@ function guessRolesNow(run: RunInfo): Partial<Record<Role, string>> {
   return out;
 }
 
+
+/* ---- N5: where an object's attitude comes from (owner's decision 3) ---------------------------- */
+
+/** It has angles of its own (three angles or a whole quaternion). */
+export const hasOwnAttitude = (o: Pick<MapObject, "yaw" | "pitch" | "roll" | "qw" | "qx" | "qy" | "qz">) =>
+  !!(o.yaw || o.pitch || o.roll || (o.qw && o.qx && o.qy && o.qz));
+
+export type AttitudeOf = { kind: "own" } | { kind: "motion" } | { kind: "borrowed"; from: MapObject } | { kind: "none" };
+/** What its attitude is drawn from. Its own signals win; "motion" or another object's (that object's
+ *  own angles only - no chains; a source gone or without angles falls back to motion). An object
+ *  with no angles and no source (made before) is "none": it points along its course, as before. */
+export function attitudeOf(o: MapObject, all: MapObject[]): AttitudeOf {
+  if (hasOwnAttitude(o)) return { kind: "own" };
+  const src = o.attitudeSource;
+  if (src && typeof src === "object") {
+    const from = all.find((x) => x.id === src.object && x.id !== o.id);
+    return from && hasOwnAttitude(from) ? { kind: "borrowed", from } : { kind: "motion" };
+  }
+  return src === "motion" ? { kind: "motion" } : { kind: "none" };
+}
+/** The request for its track: a borrowed attitude is the other object's angle signals (the server
+ *  puts them on this object's times, the short way round); a motion attitude is worked out there. */
+export function trackRequest(o: MapObject, all: MapObject[]) {
+  const a = attitudeOf(o, all);
+  if (a.kind === "borrowed") {
+    const f = a.from;
+    return { ...o, yaw: f.yaw ?? null, pitch: f.pitch ?? null, roll: f.roll ?? null, qw: f.qw ?? null, qx: f.qx ?? null, qy: f.qy ?? null, qz: f.qz ?? null,
+      angleUnit: f.angleUnit, attitude: null };
+  }
+  return { ...o, attitude: a.kind === "motion" ? ("motion" as const) : null, minSpeed: o.minSpeed };
+}
+/** What its fetched track depends on (the views refetch when it changes). */
+export function trackKey(o: MapObject, all: MapObject[]): string {
+  const r = trackRequest(o, all);
+  return [o.id, r.lat, r.lon, r.alt, r.yaw, r.pitch, r.roll, r.qw, r.qx, r.qy, r.qz, o.trackColor, o.colorSig, r.attitude, o.minSpeed].join(":");
+}
+/** The angle unit its attitude is drawn in (a borrowed one: the source's). */
+export const angleUnitOf = (o: MapObject, all: MapObject[]) => { const a = attitudeOf(o, all); return a.kind === "borrowed" ? a.from.angleUnit : o.angleUnit; };
+/** Its attitude is not its own (from motion or borrowed): drawn outlined, with a ≈ on its chip. */
+export const derivedAttitude = (o: MapObject, all: MapObject[]) => { const k = attitudeOf(o, all).kind; return k === "motion" || k === "borrowed"; };
+/** The look of a class (owner's spec): navigation dashed, a receiver as points, the rest a line. */
+export const trackOfClass = (cls?: MapObject["cls"]): MapObject["track"] =>
+  cls === "navigation" ? "dash" : cls === "receiver" ? "points" : undefined;
 
 /** An object's signals on one time axis (from the server). */
 export interface ObjTrack { t: Float64Array; lat: Float64Array; lon: Float64Array; yaw: Float32Array | null; course: Float32Array; units: Record<string, "deg" | "rad">;

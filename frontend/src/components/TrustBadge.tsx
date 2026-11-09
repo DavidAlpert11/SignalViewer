@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react";
 import { api, type DerivedQuality } from "../api";
 import { useT, type TKey } from "../i18n";
+import type { MapObject } from "../store";
+import { attitudeOf } from "../mapObjects";
 
 const fmt = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(0) : x.toPrecision(3));
 const span = (s: [number, number][]) => s.slice(0, 5).map(([a, b]) => (a === b ? fmt(a) : `${fmt(a)}–${fmt(b)}`)).join(", ") + (s.length > 5 ? " …" : "");
@@ -59,4 +61,13 @@ export function AngleGuessBadge({ o }: { o: { angleUnit?: string; yaw?: string |
   if (!auto || !g) return null;
   const line = t("trustAngles", { unit: t(g.unit === "deg" ? "objUnitDeg" : "objUnitRad"), why: t(("objUnitWhy_" + g.why) as TKey) });
   return <span className="trust info compact" role="note" title={`${t("trustHead")}\n• ${line}`} aria-label={line}>≈</span>;
+}
+
+/** N5: an attitude that is not the object's own - from its motion, or borrowed from another object. */
+export function AttitudeSourceBadge({ o, all }: { o: MapObject; all: MapObject[] }) {
+  const t = useT();
+  const a = attitudeOf(o, all);
+  if (a.kind !== "motion" && a.kind !== "borrowed") return null;
+  const line = a.kind === "motion" ? t("objAttFromMotion") : t("objAttBorrowed", { name: a.from.name });
+  return <span className="trust info compact obj-att-badge" role="note" title={`${t("trustHead")}\n• ${line}`} aria-label={line}>≈</span>;
 }

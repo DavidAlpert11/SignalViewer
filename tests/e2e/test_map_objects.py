@@ -147,3 +147,57 @@ def test_found_objects_add_selected_and_shown_as_added(pg):
     pg.locator(".obj-add").click()
     pg.wait_for_selector(".obj-found")
     assert pg.locator(".obj-found-row.added").count() == 2 and pg.locator(".obj-add-all").inner_text() == "Add"
+
+
+def test_suggestion_bar_adds_every_object_with_its_look(pg):
+    """N5: opening a file with objects shows "3 objects found: phys, nav, gps"; Add all puts them on a new
+    map (the tab has none), each with its class's look - navigation dashed, the receiver as points and
+    drawn by its motion; one Undo takes them back; × hides the bar for the file."""
+    import shutil
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
+    open_files(pg, "three_objects.csv")
+    bar = pg.locator(".obj-suggest")
+    bar.wait_for()
+    assert "3 objects found: phys, nav, gps" in bar.inner_text()
+    bar.locator(".obj-suggest-add").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 3)")
+    objs = S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').objects")
+    look = {o["name"]: (o.get("cls"), o.get("track"), o.get("attitudeSource")) for o in objs}
+    assert look == {"phys": ("truth", None, None), "nav": ("navigation", "dash", None), "gps": ("receiver", "points", "motion")}
+    pg.wait_for_selector(".obj-suggest", state="detached")                     # nothing new to suggest
+    gps_chip = pg.locator(".obj-chip", has_text="gps")
+    assert gps_chip.locator(".obj-att-badge").count() == 1                      # ≈: its attitude is from motion
+    assert pg.locator(".obj-chip", has_text="nav").locator(".obj-att-badge").count() == 0
+    pg.locator(".toast button", has_text="Undo").click()
+    pg.wait_for_function("!window.__sv.state().ws.tabs[0].plots.some((p) => (p.objects ?? []).length)")
+    bar.wait_for()
+    bar.locator(".obj-suggest-hide").click()
+    pg.wait_for_selector(".obj-suggest", state="detached")
+
+
+def test_found_list_borrows_an_attitude(pg):
+    """N5: a position-only row may borrow the angles of another row; the object then points as that one
+    does (its chip shows ≈), and editing it offers the source again (one commit)."""
+    _three(pg)
+    pg.locator(".obj-add").click()
+    pg.wait_for_selector(".obj-found")
+    gps = pg.locator(".obj-found-row").nth(2)
+    gps.locator(".obj-found-att select").select_option(label="from nav")
+    gps.locator(".obj-why").click()
+    assert "borrowed from nav" in gps.locator(".obj-why-lines").inner_text()
+    pg.locator(".obj-add-all").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].objects.length === 3")
+    objs = {o["name"]: o for o in S(pg, "s.ws.tabs[0].plots[0].objects")}
+    assert objs["gps"]["attitudeSource"] == {"object": objs["nav"]["id"]}
+    chip = pg.locator(".obj-chip", has_text="gps")
+    assert "borrowed from nav" in chip.locator(".obj-att-badge").get_attribute("aria-label")
+    chip.locator(".obj-chip-main").click()
+    pg.wait_for_selector(".obj-dialog")
+    sel = pg.locator(".obj-att-source")
+    assert sel.evaluate("e => e.options[e.selectedIndex].text") == "from nav"
+    sel.select_option("motion")
+    pg.locator(".obj-min-speed").fill("2.5")
+    pg.locator(".obj-save").click()
+    o = [x for x in S(pg, "s.ws.tabs[0].plots[0].objects") if x["name"] == "gps"][0]
+    assert o["attitudeSource"] == "motion" and o["minSpeed"] == 2.5

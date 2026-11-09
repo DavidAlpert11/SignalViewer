@@ -4,7 +4,7 @@ import { api } from "../api";
 import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { useMapBase } from "../mapBase";
 import { drawObjectIcon } from "./mapIcons";
-import { colorRuns, objectAt, trackColors, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
+import { angleUnitOf, colorRuns, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
 import { labelsOf, stateColor } from "../values";
 import { fmtNum } from "../i18n";
@@ -124,7 +124,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   /* objects: each one's signals on one time axis, fetched when its signals change */
   const objects: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
   const [objTracks, setObjTracks] = useState<Record<string, ObjTrack>>({});
-  const objKey = objects.map((o) => [o.id, o.lat, o.lon, o.alt, o.yaw, o.pitch, o.roll, o.trackColor, o.colorSig].join(":")).join("|");
+  const objKey = objects.map((o) => trackKey(o, objects)).join("|");
   const [countries, setCountries] = useState<Country[] | null>(null);
   const [places, setPlaces] = useState<Place[] | null>(null);
   const [tick, setTick] = useState(0);
@@ -164,7 +164,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       const out: Record<string, ObjTrack> = {};
       for (const o of plot.objects ?? []) {
         try {
-          const r = await api.objectTrack(o);
+          const r = await api.objectTrack(trackRequest(o, plot.objects ?? []));
           out[o.id] = { t: r.t, lat: r.lat, lon: normLon(r.lon), yaw: r.yaw, course: r.course, units: r.units, color: r.color };
         } catch { /* a signal no longer open: the object is skipped */ }
       }
@@ -203,7 +203,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const tr = id ? objTracks[id] : null;
     if (!tr || !cursor.on || cursor.t1 === null) return;
     const o = objects.find((x) => x.id === id);
-    const st = objectAt(tr, trackTime(tr, cursor.t1, streaming), o?.angleUnit);
+    const st = objectAt(tr, trackTime(tr, cursor.t1, streaming), o ? angleUnitOf(o, objects) : undefined);
     if (!st) return;
     userView.current = true;
     setView((v) => (v ? { ...v, cx: mx(st.lon), cy: my(st.lat) } : v));
@@ -470,26 +470,40 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         ctx.lineJoin = "round"; ctx.lineCap = "round";
         const cols = objColors[o.id];
         // a coloured track: each stretch of one colour drawn on its own
+        // N5: a receiver's fixes as points, a navigation solution dashed (o.track; default a line)
+        const dots = (i0: number, i1: number, r: number, color: (i: number) => string | null) => {
+          const step = Math.max(1, Math.ceil((i1 - i0) / 4000));
+          for (let i = i0; i < i1; i += step) {
+            const a = tr.lon[i], b = tr.lat[i], c = color(i);
+            if (!c || !Number.isFinite(a) || !Number.isFinite(b)) continue;
+            ctx.beginPath(); ctx.arc(X(mx(a)), Y(my(b)), r, 0, Math.PI * 2); ctx.fillStyle = c; ctx.fill();
+          }
+        };
+        const dash = o.track === "dash" ? [7, 5] : [];
         const stroke = (i0: number, i1: number, w: number) => {
-          if (!cols) { pathIn(i0, i1); ctx.strokeStyle = o.color; ctx.lineWidth = w; ctx.stroke(); return; }
-          for (const r of colorRuns(cols.at, i0, i1)) { pathIn(r.a, r.b); ctx.strokeStyle = r.color; ctx.lineWidth = w; ctx.stroke(); }
+          if (o.track === "points") { dots(i0, i1, w * 0.9, (i) => (cols ? cols.at[i] : o.color)); return; }
+          ctx.setLineDash(dash);
+          if (!cols) { pathIn(i0, i1); ctx.strokeStyle = o.color; ctx.lineWidth = w; ctx.stroke(); }
+          else for (const r of colorRuns(cols.at, i0, i1)) { pathIn(r.a, r.b); ctx.strokeStyle = r.color; ctx.lineWidth = w; ctx.stroke(); }
+          ctx.setLineDash([]);
         };
         if (span5) { ctx.globalAlpha = 0.28; stroke(0, tr.t.length, 2); ctx.globalAlpha = 1; }
-        pathIn(a0, a1); ctx.strokeStyle = dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"; ctx.lineWidth = cols ? 5.5 : 4.5; ctx.stroke();
+        if (o.track === "points") dots(a0, a1, 3.2, () => (dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"));
+        else { ctx.setLineDash(dash); pathIn(a0, a1); ctx.strokeStyle = dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"; ctx.lineWidth = cols ? 5.5 : 4.5; ctx.stroke(); ctx.setLineDash([]); }
         stroke(a0, a1, cols ? 3 : 2);
       }
       const tNow = trackTime(tr, cursor.on ? cursor.t1 : null, streaming);
       const sz = (o.size ?? 26) * uiScale();
-      const ghost = pointerT !== null && Math.abs(pointerT - tNow) > 1e-9 ? objectAt(tr, pointerT, o.angleUnit) : null;
+      const ghost = pointerT !== null && Math.abs(pointerT - tNow) > 1e-9 ? objectAt(tr, pointerT, angleUnitOf(o, objects)) : null;
       if (ghost) {                    // where it was at the moment under the pointer: faint, no name
         ctx.save(); ctx.globalAlpha = 0.45;
-        drawObjectIcon(ctx, o.kind, X(mx(ghost.lon)), Y(my(ghost.lat)), ghost.heading, sz * 0.9, o.color, dark);
+        drawObjectIcon(ctx, o.kind, X(mx(ghost.lon)), Y(my(ghost.lat)), ghost.heading, sz * 0.9, o.color, dark, derivedAttitude(o, objects));
         ctx.restore();
       }
-      const st = objectAt(tr, tNow, o.angleUnit);
+      const st = objectAt(tr, tNow, angleUnitOf(o, objects));
       if (!st) continue;
       const px = X(mx(st.lon)), py = Y(my(st.lat));
-      drawObjectIcon(ctx, o.kind, px, py, st.heading, sz, o.color, dark);
+      drawObjectIcon(ctx, o.kind, px, py, st.heading, sz, o.color, dark, derivedAttitude(o, objects));
       ctx.font = `600 ${Math.round(11.5 * uiScale())}px ${family}`;
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
       ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)";

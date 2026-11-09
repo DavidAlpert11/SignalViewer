@@ -3,6 +3,7 @@ import { activeTab, colorAllocator, fileLabel, fileMark, TRACE_COLORS, uid, useA
 import { translate } from "./i18n";
 import { detectObjects, type Candidate } from "./objectDetect";
 import { addedSummary } from "./objectAdd";
+import { trackOfClass } from "./mapObjects";
 
 const OBJ_ROLES: TplObjectRole[] = ["lat", "lon", "alt", "yaw", "pitch", "roll", "qw", "qx", "qy", "qz"];
 
@@ -96,6 +97,9 @@ export function templateFromTabs(tabs: Tab[], name: string): { template: Templat
         ...(s.limits ? { limits: s.limits } : {}) })),
       ...(p.objects?.length ? { objects: p.objects.map((o): TplObject => ({
         name: o.name, kind: o.kind, color: o.color, angleUnit: o.angleUnit, altRef: o.altRef, trail: o.trail, size: o.size,
+        ...(o.cls ? { cls: o.cls } : {}), ...(o.track ? { track: o.track } : {}),
+        // a borrowed attitude names an object of this session: the template keeps "from motion" instead
+        ...(o.attitudeSource && o.attitudeSource !== "own" ? { attitudeSource: "motion" as const, ...(o.minSpeed !== undefined ? { minSpeed: o.minSpeed } : {}) } : {}),
         roles: Object.fromEntries(OBJ_ROLES.filter((k) => o[k] && keep(o[k]!)).map((k) => [k, { name: nameOf(o[k]!), slot: slotOf.get(runOf(o[k]!)) }])),
       })) } : {}),
     })),
@@ -204,7 +208,8 @@ function objectTabs(run: RunInfo | undefined, slot: string, lang: "en" | "he", f
   if (!cands.length) return [];
   found?.push(...cands);
   const bare = (id: string) => id.slice(id.indexOf("/") + 1);
-  const objs: TplObject[] = cands.map((c, i) => ({ name: c.name, kind: "aircraft", color: TRACE_COLORS[i % TRACE_COLORS.length],
+  const objs: TplObject[] = cands.map((c, i) => ({ name: c.name, kind: "aircraft", color: TRACE_COLORS[i % TRACE_COLORS.length], cls: c.cls,
+    ...(trackOfClass(c.cls) ? { track: trackOfClass(c.cls) } : {}), ...(c.attitude === "none" ? { attitudeSource: "motion" as const } : {}),
     roles: Object.fromEntries(OBJ_ROLES.filter((k) => c.picks[k]).map((k) => [k, { name: bare(c.picks[k]!.id), slot }])) }));
   const obj = objs;
   return [{ name: translate(lang, "tplObjTab"), rows: 1, cols: 2, linkX: false, plots: [
