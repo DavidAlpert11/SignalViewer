@@ -99,8 +99,15 @@ are told apart by them.
   **Add all** adds them in one step (one Undo); untick a row and **Add selected** for some. **Why?**
   says which signals were taken and by which rule, what is missing and what almost matched (`yaw_cmd`,
   a misspelt `lattitude`). Each object takes its signals from its own prefix only - a GPS's position is
-  never mixed with the navigation's attitude. A position-only object (a receiver) points where it moves.
-  The *Position on the map & 3D* template adds every object of the file the same way.
+  never mixed with the navigation's attitude.
+  The *Position on the map & 3D* template adds every object of the file the same way, and when a file
+  with objects opens, a line in the file panel offers them (*Add all*, *Choose…*, *Why?*, × to hide it).
+  Truth is drawn as a line, a navigation solution dashed, a receiver as points (*Track* changes it).
+- **An attitude for a position-only object** (*Attitude* in its row or its form): *from motion* points it
+  along its course over ground and pitches it by its climb (roll unknown; below *Hold the heading below*,
+  1 m/s by default, the heading stays as it was, so a hovering drone does not spin); *from <object>*
+  borrows the angles of another object - use it when the receiver rides on that vehicle. Either way the
+  icon is drawn as an outline and its chip shows ≈.
 - **How to name your signals** so the guess just works: one prefix per object,
   `<object>.lat / lon / alt / roll / pitch / yaw`, sub-groups allowed (`<object>.att.roll`,
   `<object>.pos.lat`); aliases work too (latitude, lng, altitude, phi / theta / psi, heading). The words

@@ -2,18 +2,22 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0 and **N1 done**; **N5 mostly done** - detection (`frontend/src/objectDetect.ts`),
-> the found-objects dialog (Add all / Add selected / Why? / naming note / Advanced…), the template that
-> adds every object, and the docs. **Next stage: the rest of N5**, then N6:
-> 1. *Default look by class*: navigation dashed, receiver as points with an outlined icon (a new optional
->    saved field on MapObject, e.g. `track?: "line" | "dash" | "points"`, drawn in GeoChart and Globe3D).
-> 2. *Attitude source* (owner's decision 3): optional `attitudeSource?: "own" | "motion" | { object: id }`;
->    motion = course over ground + flight-path angle, roll 0 shown as unknown, heading held below 1 m/s;
->    borrowed = another object's angles, interpolated the short way round; outlined icon + ≈ badge.
-> 3. *The suggestion bar on open*: "3 objects found: phys, nav, gps · Add all · Choose… · Why?".
-> 4. Move `guessRoles`' other callers (`frames.ts`, `PlaceOnMapDialog.tsx`) onto `detectObjects`.
-> e2e: open the object form through `object_form(pg, row)` in test_features.py (the dialog now opens on
-> the found list).
+> **Stage reached:** N0, N1 and **N5 done** (map objects found as prefixes, the found list with Add all /
+> Why? / naming note / Advanced…, the template adding every object, the suggestion bar on open, looks by
+> class, attitude source own / motion / borrowed). **Next stage: N6** (smooth motion, an easy map), then N7.
+> - N6 starts by **measuring** (the timing hook, §3 N6) on `examples/three_objects.csv` with its three
+>   objects (the suggestion bar's *Add all* makes the map in one click) and on `examples/copter_flight.bin`.
+>   Write the numbers and the machine in the Log before changing anything.
+> - For N7: `Plot.primaryObject` / `Plot.relatedObjects` already exist (Globe3D: the info box's object and
+>   dashed lines with distances) - extend them, do not add parallel fields; `MapObject.cls` (N5) gives
+>   the default primary (truth) / secondary (navigation, else receiver).
+> - Left from N5 (small follow-up, any time): a motion attitude from the object's own velocity signals
+>   (`vel.north/east/down`); today the position is differentiated.
+> - Known flaky e2e: `test_features.py::test_limits_pass_fail_in_the_inspector` (after a reload; also
+>   before this round's changes) - look at it in N9.
+>
+> e2e: open the object form through `object_form(pg, row)` in test_features.py (the dialog opens on the
+> found list). e2e needs `npm run build` first; do not commit `frontend/dist` before N9.
 >
 > **Base and patch.** Base commit `dafea49` (1.23.0). All work so far is in **one cumulative patch**,
 > `signalviewer-2026-11-09.patch`. To continue:
@@ -40,9 +44,10 @@
 > today, which N5's own-prefix rule would break (Q8, **approved by the owner**: the known-groups table
 > applies to any file).
 >
-> **For N5, from N1:** `signalGroups.pathCuts(name)` already splits a name into its explicit path
-> (identifier-like segments, trailing unit ignored) - reuse it for prefixes instead of a second parser.
-> e2e needs `npm run build` first (run.py serves `frontend/dist`); do not commit `frontend/dist` before N9.
+> **Code map from N1 / N5:** `signalGroups.pathCuts` / `nameTree` (the list's tree); `objectDetect.ts`
+> (candidates, classes, known log groups, explanations); `objectAdd.ts` (candidate → MapObject, *Why?*
+> words, `linkAttitudes`); `mapObjects.ts` (`attitudeOf`, `trackRequest`, `trackKey`, `guessRoles` via
+> detection); `ObjectSuggestBar.tsx`; backend `motion_attitude` in `app/routes/analysis.py`.
 
 You are a senior engineer working on **Signal Viewer** (repo `DavidAlpert11/SignalViewer`, base commit
 `dafea49`, version 1.23.0). It is an offline desktop app: Python FastAPI backend plus React/TypeScript frontend.
