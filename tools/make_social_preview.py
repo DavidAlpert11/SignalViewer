@@ -2,7 +2,7 @@
 
 The card shown when the repository link is pasted in chat, mail or LinkedIn. M1 (owner, 2026-11-07):
 a 1280 x 640 crop of the README's hero picture (docs/images/00_hero.png, tools/make_readme_media.py
---only 00) - the plots, the map and the 3D, without the app's top rows. The older card (icon, words
+--only 00) - since 1.23 the model-vs-flight verdict - without the app's top rows. The older card (icon, words
 and a screenshot) is still made with --card:
     python tools/make_social_preview.py          ->  docs/images/social-preview.png
     python tools/make_social_preview.py --card   ->  the card

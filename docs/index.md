@@ -21,7 +21,7 @@ and write the report – offline, on your own machine, with every computation va
 
 </div>
 
-![An ArduPilot flight: the track on the map coloured by flight mode, the vehicle in 3D, Roll desired against actual and the vibration at the moment the health check found](images/00_hero.png){ .sv-shot }
+![Signal Viewer, dark theme: a flight judged against its simulation - the model (the golden run) and the flight overlaid for roll and pitch, the differences with the ±3° tolerance, the cursor on the worst place, and Compare's verdict: 2 of 7 signals outside the tolerance](images/00_hero.png){ .sv-shot }
 
 ## What you do with it
 
