@@ -80,7 +80,7 @@ const SEGMENT = /^[\p{L}_](?:[\p{L}\p{N}_\- ]*[\p{L}\p{N}_\-])?(?:\[[^\]]*\])*$/
  *  when the name is not an explicit path of two or more segments. A leading "/" (ROS topics) is skipped. */
 export function pathCuts(name: string): { start: number; cuts: number[] } | null {
   const m = UNIT_TAIL.exec(name);
-  const end = m ? m.index : name.length;
+  const end = m && !/^\[\d*\]$/.test(m[0].trim()) ? m.index : name.length;   // "q[0]" is an index, not a unit
   let start = 0;
   while (start < end && (name[start] === "." || name[start] === "/")) start++;
   const cuts: number[] = [];
