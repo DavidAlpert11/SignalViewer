@@ -1170,7 +1170,8 @@ input.fx-input { width: 100%; }
 .obj-chip-main { display: inline-flex; align-items: center; gap: var(--sp-1_5); border: 0; background: none; color: var(--ink); cursor: pointer; font: inherit; font-size: var(--fs-s); padding: 0; }
 .obj-chip .iconbtn.on { color: var(--amber); }
 .obj-dialog { width: min(640px, 94vw); }
-/* N6: the map's controls and its one-line hint */
+/* N6: the map's controls and its one-line hint; the 3D camera's hint */
+.g3-cam-hint { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 1px var(--sp-1_5); border-radius: var(--r-m); background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-size: var(--fs-xs); white-space: nowrap; pointer-events: none; opacity: .9; z-index: 2; }
 .plot-canvas.geo:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .geo-ctrl { position: absolute; top: var(--sp-2); inset-inline-start: var(--sp-2); display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-0_5); z-index: 2; }
 .geo-ctrl > button, .geo-ctrl > select { min-width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--panel); color: var(--ink); font: inherit; font-size: var(--fs-m); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.18); }

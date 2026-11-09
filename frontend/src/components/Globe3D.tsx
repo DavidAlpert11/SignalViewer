@@ -95,6 +95,9 @@ function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: 
   return { gs: Number.isFinite(d) ? d / dt : null, vs: Number.isFinite(dh) ? dh / dt : null };
 }
 
+const FLY_MS = 700;
+const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
+
 export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   countRender("Globe3D");
   const t = useT();
@@ -559,14 +562,67 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const { gs, vs } = ratesAt(o, tr, tNow);
       states.set(o.id, { id: o.id, name: o.name, color: o.color, pos, lat: p.lat, lon: p.lon, alt: h, agl, hdg: p.heading,
         pitch: tr.pitch ? cz.Math.toDegrees(pitch) : null, roll: tr.roll ? cz.Math.toDegrees(roll) : null, gs, vs });
-      if (o.id === follow) {
+    }
+    // the camera on the followed object (N6: chase it, or look from it at the second one), flying to a
+    // new mode / object over a moment instead of jumping
+    const fs = follow ? states.get(follow) : undefined;
+    const cam = w.camera;
+    const fly = flyRef.current;
+    const from = fly ? { pos: cam.positionWC.clone(), dir: cam.directionWC.clone(), up: cam.upWC.clone() } : null;
+    if (fs) {
+      const range = cam.positionCartographic ? Math.max(30, cz.Cartesian3.distance(cam.positionWC, fs.pos)) : 2000;
+      const second = plot.camera === "lookat" ? states.get((plot.relatedObjects ?? []).find((x) => x !== fs.id) ?? "") : undefined;
+      if (plot.camera === "chase") {
+        // behind and a little above, along its heading (eased while playing, so noise does not shake it)
+        const goal = fs.hdg ?? 0, now = performance.now(), last = chaseHdg.current;
+        let hdg = goal;
+        if (st.smoothFollow && st.playing && last && now - last.t < 250) {
+          const d = ((goal - last.h + 540) % 360) - 180;
+          hdg = last.h + d * (1 - Math.exp(-(now - last.t) / 200));
+        }
+        chaseHdg.current = { t: now, h: hdg };
+        // its distance: on entering, near enough to see it (60-600 m); then the user's (the wheel)
+        if (fly?.fresh || chaseRange.current === null) chaseRange.current = Math.min(Math.max(range, 60), 600);
+        else if (!fly) chaseRange.current = range;
+        const r0 = chaseRange.current;
+        cam.lookAt(fs.pos, new cz.HeadingPitchRange(cz.Math.toRadians(hdg), cz.Math.toRadians(-12), r0));
+      } else if (second) {
+        // from just behind and above the primary, looking at the second object
+        const dir = cz.Cartesian3.normalize(cz.Cartesian3.subtract(second.pos, fs.pos, new cz.Cartesian3()), new cz.Cartesian3());
+        const up = cz.Ellipsoid.WGS84.geodeticSurfaceNormal(fs.pos, new cz.Cartesian3());
+        const eye = cz.Cartesian3.add(cz.Cartesian3.multiplyByScalar(dir, -40, new cz.Cartesian3()), cz.Cartesian3.multiplyByScalar(up, 12, new cz.Cartesian3()), new cz.Cartesian3());
+        cz.Cartesian3.add(eye, fs.pos, eye);
+        const look = cz.Cartesian3.normalize(cz.Cartesian3.subtract(second.pos, eye, new cz.Cartesian3()), new cz.Cartesian3());
+        cam.lookAtTransform(cz.Matrix4.IDENTITY);
+        cam.setView({ destination: eye, orientation: { direction: look, up } });
+      } else {
         // keep the followed object in the middle; the user's angle and distance stay
-        const cam = w.camera;
-        const range = cam.positionCartographic ? Math.max(30, cz.Cartesian3.distance(cam.positionWC, pos)) : 2000;
-        cam.lookAt(pos, new cz.HeadingPitchRange(cam.heading, cam.pitch, range));
+        cam.lookAt(fs.pos, new cz.HeadingPitchRange(cam.heading, cam.pitch, range));
       }
     }
-    if (!follow) w.camera.lookAtTransform(cz.Matrix4.IDENTITY);
+    if (!follow) cam.lookAtTransform(cz.Matrix4.IDENTITY);
+    if (fly && from) {
+      // where the mode puts the camera now, reached from where it was when the mode changed
+      fly.fresh = false;
+      const f = Math.min(1, (performance.now() - fly.t0) / FLY_MS), e = 1 - (1 - f) ** 3;
+      if (fly.start === null) fly.start = from;
+      if (f < 1 && (fs || !follow)) {
+        const to = { pos: cam.positionWC.clone(), dir: cam.directionWC.clone(), up: cam.upWC.clone() };
+        const s0 = fly.start;
+        const mix = (a: import("cesium").Cartesian3, b: import("cesium").Cartesian3, norm: boolean) => {
+          const v = cz.Cartesian3.lerp(a, b, e, new cz.Cartesian3());
+          return norm ? cz.Cartesian3.normalize(v, v) : v;
+        };
+        cam.lookAtTransform(cz.Matrix4.IDENTITY);
+        cam.setView({ destination: mix(s0.pos, to.pos, false), orientation: { direction: mix(s0.dir, to.dir, true), up: mix(s0.up, to.up, true) } });
+        if (fs && !plot.camera) {
+          // back on the object for the next frame (its own transform: turning goes around it)
+          const r = cz.Cartesian3.distance(cam.positionWC, fs.pos);
+          cam.lookAt(fs.pos, new cz.HeadingPitchRange(cam.heading, cam.pitch, r));
+        }
+        if (!fly.raf) fly.raf = requestAnimationFrame(() => { fly.raf = 0; updateRef.current(); });
+      } else flyRef.current = null;
+    }
     // the primary object, and the related ones: a dashed line from it to each, with the distance on it
     const primary = states.get(plot.primaryObject ?? "") ?? states.get(objects[0]?.id ?? "") ?? null;
     const rel: Readout["rel"] = [];
@@ -592,9 +648,20 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   };
   const updateRef = useRef(update);
   updateRef.current = update;
+  // N6: a change of camera mode or of the object it is on flies there (FLY_MS) instead of jumping
+  const flyRef = useRef<{ t0: number; fresh: boolean; raf: number; start: { pos: import("cesium").Cartesian3; dir: import("cesium").Cartesian3; up: import("cesium").Cartesian3 } | null } | null>(null);
+  const chaseHdg = useRef<{ t: number; h: number } | null>(null);
+  const chaseRange = useRef<number | null>(null);
+  const camKey = `${plot.followObject ?? ""}|${plot.camera ?? ""}|${plot.camera === "lookat" ? (plot.relatedObjects ?? [])[0] ?? "" : ""}`;
+  const camKeyRef = useRef(camKey);
+  if (camKeyRef.current !== camKey) {
+    camKeyRef.current = camKey;
+    if (!reducedMotion()) { if (flyRef.current?.raf) cancelAnimationFrame(flyRef.current.raf); flyRef.current = { t0: performance.now(), fresh: true, raf: 0, start: null }; }
+    chaseHdg.current = null; chaseRange.current = null;
+  }
   // N6: the time moves the scene without a React render (playback re-rendered this 2-3 times a frame)
   useEffect(() => useApp.subscribe((s, p) => { if (s.cursor !== p.cursor) updateRef.current(); }), []);
-  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT]);
+  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.camera, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT]);
 
   /* the span of the objects' own tracks (the independent time runs over that) */
   const ownExt = useMemo((): [number, number] | null => {
@@ -651,9 +718,15 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
             </select></label>
           <span className="g3-seg" role="radiogroup" aria-label={t("g3Camera")}>
             <span className="g3-seg-label">{t("g3Camera")}</span>
-            <button role="radio" aria-checked={!centred} className={!centred ? "on" : ""} onClick={() => actions.updatePlot(plot.id, { followObject: null })}>{t("g3CamFree")}</button>
-            <button role="radio" aria-checked={centred} className={centred ? "on" : ""} title={t("g3CamCentreHint")}
-              onClick={() => actions.updatePlot(plot.id, { followObject: primaryId })}>{t("g3CamCentre")}</button>
+            <button role="radio" aria-checked={!centred} className={!centred ? "on" : ""} onClick={() => actions.updatePlot(plot.id, { followObject: null, camera: undefined })}>{t("g3CamFree")}</button>
+            <button role="radio" aria-checked={centred && !plot.camera} className={centred && !plot.camera ? "on" : ""} title={t("g3CamCentreHint")}
+              onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: undefined })}>{t("g3CamCentre")}</button>
+            <button role="radio" aria-checked={centred && plot.camera === "chase"} className={`g3-cam-chase${centred && plot.camera === "chase" ? " on" : ""}`} title={t("g3CamChaseHint")}
+              onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: "chase" })}>{t("g3CamChase")}</button>
+            {objects.length > 1 && <button role="radio" aria-checked={centred && plot.camera === "lookat"} className={`g3-cam-lookat${centred && plot.camera === "lookat" ? " on" : ""}`}
+              title={t("g3CamLookAtHint")} onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: "lookat",
+                // looking needs something to look at: the first other object when none is chosen
+                ...((plot.relatedObjects ?? []).some((x) => x !== primaryId) ? {} : { relatedObjects: [objects.find((o) => o.id !== primaryId)!.id] }) })}>{t("g3CamLookAt")}</button>}
           </span>
           {[0, 1].map((k) => (objects.length > k + 1 && (
             <label key={k}><span>{t(k === 0 ? "g3Second" : "g3Third")}</span>
@@ -678,6 +751,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
             <button role="radio" aria-checked={detached} className={detached ? "on" : ""} onClick={() => { if (!detached) detach(); }} title={t("g3TimeOwnHint")}>{t("g3TimeOwn")}</button>
           </span>
         </div>
+      )}
+      {cz && objects.length > 0 && !measuring && !detached && (
+        <div className="g3-cam-hint" role="note">{t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre")}</div>
       )}
       {measuring && (
         <div className="g3-measure" dir={lang === "he" ? "rtl" : "ltr"} role="status">
