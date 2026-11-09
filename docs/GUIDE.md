@@ -103,6 +103,15 @@ are told apart by them.
   The *Position on the map & 3D* template adds every object of the file the same way, and when a file
   with objects opens, a line in the file panel offers them (*Add all*, *Choose…*, *Why?*, × to hide it).
   Truth is drawn as a line, a navigation solution dashed, a receiver as points (*Track* changes it).
+- **Moving the map:** drag it (a quick drag glides on), zoom with the wheel or **+ / −** in its corner,
+  **Fit everything** (or a double-click) shows every track, **Follow ▾** keeps an object in the middle -
+  dragging while following moves the map around it, *Back to following* centres it again. Click the map
+  and the keys work on it: arrows move it, + / − zoom, F follows, 0 fits everything (Shift+←/→ still
+  step the cursor). *Settings → Camera following an object*: *Smooth* (default) eases after the object,
+  so a noisy position does not shake the view; *Exact* stays right on it.
+- **The 3D camera:** *General* (move freely), *On the object* (turn around it, wheel towards it), *Chase*
+  (behind and above it, turning with it), *Look at* (from it towards the second object). A change of mode
+  or object flies there; a line at the bottom says what the mouse does.
 - **An attitude for a position-only object** (*Attitude* in its row or its form): *from motion* points it
   along its course over ground and pitches it by its climb (roll unknown; below *Hold the heading below*,
   1 m/s by default, the heading stays as it was, so a hovering drone does not spin); *from <object>*

@@ -2,34 +2,35 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0, N1 and **N5 done** (map objects found as prefixes, the found list with Add all /
-> Why? / naming note / Advanced…, the template adding every object, the suggestion bar on open, looks by
-> class, attitude source own / motion / borrowed). **Next stage: N6** (smooth motion, an easy map), then N7.
-> - N6 starts by **measuring** (the timing hook, §3 N6) on `examples/three_objects.csv` with its three
->   objects (the suggestion bar's *Add all* makes the map in one click) and on `examples/copter_flight.bin`.
->   Write the numbers and the machine in the Log before changing anything.
+> **Stage reached:** N0, N1, N5 done; **N6 mostly done** - measured (numbers in the Log), playback renders
+> only what moves, the map drags / zooms by moving what is drawn, controls / keys / hint / follow offset,
+> smooth following (Settings), 3D Chase and Look at with a flight, benchmark budgets. **Next:** the last
+> piece of N6 - **North up / Track up** on the 2D map (a control in the map's corner; the base layer stays
+> north-up in its canvas and is drawn rotated about the middle - the margin must then cover the screen's
+> diagonal; the pointer and drag maths rotate back; labels may turn with it) - then **N7**.
 > - For N7: `Plot.primaryObject` / `Plot.relatedObjects` already exist (Globe3D: the info box's object and
->   dashed lines with distances) - extend them, do not add parallel fields; `MapObject.cls` (N5) gives
->   the default primary (truth) / secondary (navigation, else receiver).
-> - Left from N5 (small follow-up, any time): a motion attitude from the object's own velocity signals
->   (`vel.north/east/down`); today the position is differentiated.
+>   dashed lines with distances; N6's *Look at* uses the first related object as the secondary) - extend
+>   them, do not add parallel fields; `MapObject.cls` (N5) gives the default primary (truth) / secondary.
+> - Measuring: `python tools/browser_benchmark.py --data <dir> --results r.json --group smooth` (about 3
+>   minutes); `window.__svRenders = {}` turns on the render counter (`frontend/src/perf.ts`).
+> - Left from N5 (small follow-up): a motion attitude from the object's own velocity signals.
 > - Known flaky e2e: `test_features.py::test_limits_pass_fail_in_the_inspector` (after a reload; also
 >   before this round's changes) - look at it in N9.
 >
 > e2e: open the object form through `object_form(pg, row)` in test_features.py (the dialog opens on the
 > found list). e2e needs `npm run build` first; do not commit `frontend/dist` before N9.
 >
-> **Base and patch.** Base commit `dafea49` (1.23.0). All work so far is in **one cumulative patch**,
-> `signalviewer-2026-11-09.patch`. To continue:
+> **Base and patch.** The owner applies each patch and pushes it to `main`, so every session's patch is
+> made **against the repository's `main` as it is when the session starts** (it was `c5bf95b` for the
+> N6 session; the round began at `dafea49`, 1.23.0). To continue:
 > ```
 > git clone https://github.com/DavidAlpert11/SignalViewer.git && cd SignalViewer
-> git checkout -b round-2026-11-09 dafea49
-> git am < signalviewer-2026-11-09.patch
+> git log --oneline -3          # the base: main's HEAD
 > cd frontend && npm ci && npx tsc -b && npm test
 > ```
-> At the end of your session, replace the patch with a new cumulative one
-> (`git format-patch dafea49..HEAD --stdout > signalviewer-2026-11-09.patch`), check it with `git am` on a
-> fresh clone at `dafea49`, update this Status box and the board in `docs/dev/TASKS.md`
+> At the end of your session make the patch from that base to HEAD
+> (`git format-patch <base>..HEAD --stdout > signalviewer-<date>.patch`), check it with `git am` on a
+> fresh clone of `main`, update this Status box and the board in `docs/dev/TASKS.md`
 > ("Owner's plan (2026-11-09)"), and hand both files to the owner. This prompt also lives in the repo
 > as `docs/dev/AGENT_PROMPT_2026-11-09.md`; keep the two copies equal.
 >

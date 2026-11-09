@@ -82,6 +82,7 @@ export const en = {
   objects: "Objects",
   // N6: moving the map
   mapControls: "Map controls",
+  hMapKeys: "On a map that has the focus (click it): move it · zoom · follow an object · fit everything",
   mapZoomIn: "Zoom in", mapZoomOut: "Zoom out", mapFitAll: "Fit everything",
   mapFollowOff: "Follow: off",
   mapBackToFollow: "Back to following",
@@ -352,6 +353,7 @@ export const he: typeof en = {
   objects: "אובייקטים",
   // N6: moving the map
   mapControls: "פקדי המפה",
+  hMapKeys: "במפה שבפוקוס (לחיצה עליה): הזזה · זום · מעקב אחרי אובייקט · הצגת הכול",
   mapZoomIn: "התקרבות", mapZoomOut: "התרחקות", mapFitAll: "הצג הכול",
   mapFollowOff: "מעקב: כבוי",
   mapBackToFollow: "חזרה למעקב",
