@@ -283,7 +283,9 @@ def resolve(t: dict, all_: List[dict], bind: Dict[str, str], runs: List[dict], c
                 p.setdefault("objects", []).append({
                     "name": to.get("name", ""), "kind": to.get("kind") or "aircraft", "color": to.get("color"), "lat": lat, "lon": lon,
                     **{k: role(k) for k in ("alt", "yaw", "pitch", "roll", "qw", "qx", "qy", "qz")},
-                    **{k: to.get(k) for k in ("angleUnit", "altRef", "trail", "size")}})
+                    **{k: to.get(k) for k in ("angleUnit", "altRef", "trail", "size")},
+                    # N5: the class, the track's look and a motion attitude, when the template has them
+                    **{k: to[k] for k in ("cls", "track", "attitudeSource", "minSpeed") if to.get(k) is not None}})
             keep = any(not x.get("state") for x in p["signals"]) or (p["mode"] == "geo" and p.get("xSignal") and p["signals"]) \
                 or p.get("objects")
             if keep:

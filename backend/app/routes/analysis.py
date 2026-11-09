@@ -332,6 +332,11 @@ class ObjectTrackRequest(BaseModel):
     # its next sample, colorStep) or a value (altitude, speed - interpolated), on the track's times
     color: Optional[str] = None
     colorStep: bool = False
+    # N5 (owner's decision 3): an object with no angles of its own, drawn by its motion - heading =
+    # course over ground, pitch = flight-path angle (climb over ground speed), roll unknown; below
+    # minSpeed (m/s) the last valid heading / pitch is held, so a hovering object does not spin on noise
+    attitude: Optional[str] = None
+    minSpeed: float = 1.0
 
 
 
@@ -379,6 +384,43 @@ def angle_units_ep(req: AngleUnitsRequest):
                 continue
     return {"units": {r: {"unit": u, "why": w} for r, (u, w) in angle_units(raw).items()}}
 
+
+
+def motion_attitude(t, lat, lon, alt, i0, i1, min_speed: float = 1.0):
+    """N5: an attitude from the motion alone, for an object with no angles of its own (a GPS
+    receiver): heading = course over ground, pitch = flight-path angle atan(climb / ground speed),
+    both in degrees, over the same ~1 s baseline as `course` (i0 / i1: the sample pairs). Where the
+    ground speed is below `min_speed` (m/s) the last valid value is held (the first valid one before
+    it), so a hovering or parked object does not spin on noise. Pitch is None without an altitude.
+    Roll is not returned: it cannot be known from the track."""
+    la, lo = np.radians(lat), np.radians(lon)
+    dt = t[i1] - t[i0]
+    y = np.sin(lo[i1] - lo[i0]) * np.cos(la[i1])
+    x = np.cos(la[i0]) * np.sin(la[i1]) - np.sin(la[i0]) * np.cos(la[i1]) * np.cos(lo[i1] - lo[i0])
+    hav = np.sin((la[i1] - la[i0]) / 2) ** 2 + np.cos(la[i0]) * np.cos(la[i1]) * np.sin((lo[i1] - lo[i0]) / 2) ** 2
+    dist = 2 * 6371008.8 * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        gs = np.where(dt > 0, dist / dt, np.nan)
+    ok = np.isfinite(gs) & (gs >= min_speed)
+
+    def held(v):
+        v = np.where(ok & np.isfinite(v), v, np.nan)
+        good = np.isfinite(v)
+        if not good.any():
+            return np.full(len(v), np.nan)
+        idx = np.where(good, np.arange(len(v)), 0)
+        np.maximum.accumulate(idx, out=idx)
+        first = int(np.argmax(good))
+        idx[:first] = first
+        return v[idx]
+
+    yaw = held(np.mod(np.degrees(np.arctan2(y, x)), 360.0))
+    pitch = None
+    if alt is not None and np.isfinite(alt).any():
+        with np.errstate(invalid="ignore", divide="ignore"):
+            climb = np.where(dt > 0, (alt[i1] - alt[i0]) / dt, np.nan)
+            pitch = held(np.degrees(np.arctan2(climb, gs)))
+    return yaw, pitch
 
 
 @router.post("/api/object_track")
@@ -453,6 +495,8 @@ def object_track(req: ObjectTrackRequest):
         v = onto(ts, vs, angle=role != "alt")
         if role != "alt":
             out["units"][role], out["unitWhy"][role] = guess[role]
+        else:
+            out["_alt"] = v                       # for a "motion" pitch (dropped before the reply)
         out[role] = b64(v, np.float32)
     # a quaternion (Hamilton, w first; body to NED as PX4 logs it) -> roll / pitch / yaw in radians,
     # for the angles not given as signals
@@ -488,6 +532,15 @@ def object_track(req: ObjectTrackRequest):
         idx = np.where(~still, np.arange(len(t)), 0)
         np.maximum.accumulate(idx, out=idx)
         course = course[idx]
+    if req.attitude == "motion" and "yaw" not in out:
+        yaw_m, pitch_m = motion_attitude(t, lat, lon_a, out.get("_alt"), i0, i1, req.minSpeed)
+        out["yaw"] = b64(yaw_m, np.float32)
+        out["units"]["yaw"] = "deg"
+        if pitch_m is not None and "pitch" not in out:
+            out["pitch"] = b64(pitch_m, np.float32)
+            out["units"]["pitch"] = "deg"
+        out["derived"] = "motion"
+    out.pop("_alt", None)
     out["course"] = b64(course, np.float32)
     # the ground under the object (bundled elevation): height above ground, and altitudes given
     # relative to the take-off point
