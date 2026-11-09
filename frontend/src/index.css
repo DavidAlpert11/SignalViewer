@@ -911,9 +911,9 @@ body.resizing { cursor: col-resize; user-select: none; }
 .kind-dot.event { background: var(--kind-event); }
 .kind-dot.error, .lvl-dot.error { background: var(--danger); }
 /* 26.U8: the findings, conditions and limit violations in the same list */
-.kind-dot.finding { background: var(--amber); border-radius: 1px; transform: rotate(45deg); }
-.kind-dot.condition { background: var(--ok); border-radius: 1px; }
-.kind-dot.limit { background: var(--danger); border-radius: 1px; }
+.kind-dot.finding { background: var(--amber); border-radius: var(--r-xs); transform: rotate(45deg); }
+.kind-dot.condition { background: var(--ok); border-radius: var(--r-xs); }
+.kind-dot.limit { background: var(--danger); border-radius: var(--r-xs); }
 .ev-at { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .ev-at.warning { color: var(--amber); } .ev-at.error { color: var(--danger); }
 .lvl-dot.warning { background: var(--amber); }
