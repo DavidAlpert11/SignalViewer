@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+- **Every map object in a recording, found and added at once.** *Add object* lists the objects found
+  by their names - every prefix with a latitude and a longitude (`phys.*`, `nav.*`, `gps.*`, `ins2_*`,
+  `sim.nav.pos.*`), classified as truth, navigation or receiver - with **Add all** (one Undo), **Add
+  selected**, and **Why?**: which signals, by which rule, what is missing, what almost matched. Each
+  object takes its signals from its own prefix only (no more GPS position with the navigation's
+  attitude). Several navigation solutions and receivers are all proposed. NED / ENU / ECEF positions
+  are found too. *Position on the map & 3D* adds every object of the file and says which, with *Why?*.
+  A note in the dialog, the guide and the README gives the naming convention. Flight logs and CSVs with
+  their names keep their pairing (POS with ATT); *Advanced…* opens the full form as before.
+
 ### Fixed
 - **Signal names with dots nest again, at any depth.** `phys.att.roll`, `nav.vel.north` and a MATLAB
   struct's `sim.nav.pos.x` are listed as a tree (phys › att › roll) whatever the number of signals -

@@ -93,8 +93,23 @@ are told apart by them.
 - **State lanes** (flight mode, gear…): right-click the lane, its chip or the signal in the list to show
   it on this plot only, on every plot of the tab, or on every time plot of every tab - or remove it.
   *Always as a state* makes a signal a lane wherever it is added, in every file.
-- **Map and 3D objects:** *Add object* on a Map or 3D plot. Its position and attitude are filled in
-  from the signals' names; to choose another, type part of its name in the field. Beside each field
+- **Map and 3D objects:** *Add object* on a Map or 3D plot lists the **objects found in the
+  recording** - every prefix with a latitude and a longitude under it (`phys.lat`, `nav.att.roll`,
+  `ins2_lat`), classified as *truth*, *navigation* or *receiver* by the words in the prefix.
+  **Add all** adds them in one step (one Undo); untick a row and **Add selected** for some. **Why?**
+  says which signals were taken and by which rule, what is missing and what almost matched (`yaw_cmd`,
+  a misspelt `lattitude`). Each object takes its signals from its own prefix only - a GPS's position is
+  never mixed with the navigation's attitude. A position-only object (a receiver) points where it moves.
+  The *Position on the map & 3D* template adds every object of the file the same way.
+- **How to name your signals** so the guess just works: one prefix per object,
+  `<object>.lat / lon / alt / roll / pitch / yaw`, sub-groups allowed (`<object>.att.roll`,
+  `<object>.pos.lat`); aliases work too (latitude, lng, altitude, phi / theta / psi, heading). The words
+  truth / phys / sim, nav / ins / ekf / ahrs and gps / gnss in the prefix set the class. Example with
+  three objects: `truth.lat, truth.lon, truth.alt, truth.att.roll, …, nav.lat, nav.lon, …, gps.lat,
+  gps.lon, gps.alt`. Flight logs (ArduPilot, PX4, MAVLink) are paired as before (POS with ATT).
+- **One object by hand:** *Advanced…* on a found row (or *Add one by hand…*) opens the full form. Its
+  position and attitude are filled in from the signals' names; to choose another, type part of its
+  name in the field. Beside each field
   you see the unit the signal is in, and **ƒ** changes that signal on the spot – e.g. angles that
   turn out to be in radians: ƒ → *Convert units* → rad → deg. Or leave the signal as it is and set
   the object's *Angle unit* to radians: that only changes how it is drawn. The attitude can be three
