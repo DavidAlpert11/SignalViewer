@@ -13,6 +13,13 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
+  and added all at once with *Why?*, dot nesting at any depth, smooth motion and an easy map, primary /
+  secondary objects with live relations, error and comparison plots in NED / ECEF, moving plots, line
+  defaults, group styling. Spec: `docs/dev/AGENT_PROMPT_2026-11-09.md`; board, decisions and open
+  questions (Q1-Q8, each with a default) in "Owner's plan (2026-11-09)" below. Done: N0 (plan, baseline,
+  fixture). Next: N1. The work travels as one cumulative patch on `dafea49`.
+
 - **Round of 2026-11-08 (in progress)**: the owner's audit round - correctness, trust, performance,
   a calmer UI (spec and board in "Owner's plan (2026-11-08)" below; IDs there are qualified as
   `26.<id>` where they collide with Milestone 25). **Phase 1 done:** C1 (Compare judged on every sample
@@ -143,6 +150,85 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Sandbox gotchas seen so far: a background server or test run started inside a tool call may
   die when the call ends - start it with `setsid nohup ... &`. Never `pkill -f <pattern>` in the
   same shell command line that contains the pattern (it kills its own shell).
+
+## Owner's plan (2026-11-09): N1-N9 - map objects, smooth motion, primary / secondary (Tacview-like)
+
+**Owner:** a hands-on review by the owner and by a friend who uses **Tacview** (map objects tedious, the
+map hard to move). The full spec is `docs/dev/AGENT_PROMPT_2026-11-09.md` (the owner's prompt, revised
+with him); this section is the board, the decisions and the log. The friend's wishes come first.
+
+**Work order:** N1 → N5 → N6 → N7 → N2 → N3 → N4 → (N8 only if approved) → N9. The task numbers are
+IDs, not the order. If time is short, N2, N3 and N4 slip. (The review's findings are called "review
+F1-F6" in the prompt; they are not the F1-F4 of Phase 7 of 2026-11-08.)
+
+**How the work travels (owner, 2026-11-09):** the work is done in chat sessions whose machine does not
+keep the clone. Every session ends with **one cumulative patch** from `dafea49` to HEAD
+(`git format-patch dafea49..HEAD --stdout > signalviewer-2026-11-09.patch`, checked with `git am` on a
+fresh clone at `dafea49`) and with this board and the prompt's "Status" section updated for the next
+stage, so the owner or any other agent can continue. The next session starts with
+`git clone … && git checkout dafea49 && git am < signalviewer-2026-11-09.patch`.
+
+**Testing in this round (owner, overrides CLAUDE.md's "after every change" and per-group rule):** after
+each task `cd frontend && npx tsc -b && npm test` (all of Vitest), a Vitest test for every piece of logic
+without a screen, `python -m pytest -q -k <area>` on touched backend modules, and **only the e2e files
+named in the task** plus the views that gain / lose space. No whole e2e suite, full backend suite,
+mypy over everything, benchmarks or mkdocs between tasks: all of them run once, in N9. The checks that
+ran are written in the Log.
+
+**Baseline (2026-11-09, at `dafea49`):** `npx tsc -b` clean; `npm test` 8 files, 24 tests passed. (The
+full baseline of the previous round, 2026-11-09: backend 1081 passed / 14 skipped, validate 29/29.)
+
+**Owner's decisions (2026-11-09):**
+1. Execution: in chat, one cumulative patch against `dafea49`, the prompt updated per stage (above).
+2. N5: every nested prefix, at any depth, that holds the object signals (lat / lon / alt and roll /
+   pitch / yaw or phi / theta / psi) is proposed; when several are found, add all or choose some.
+   Position-only prefixes are proposed too.
+3. N5: a position-only object gets an attitude for display from a chosen source: from motion (course
+   over ground, flight-path angle; the default) or borrowed from another object (the primary first).
+4. N7: once objects exist, offer comparison and difference plots, in NED / ENU / ECEF / LLA / track
+   frame (differences in NED at the primary's position at each sample; overlays share one origin).
+
+**Open questions (the work goes on with the default; each is easy to change):**
+| # | Question | Default if unanswered |
+|---|---|---|
+| Q1 | N2: shortcut to swap the active plot with its neighbour (not Ctrl+Alt+Arrow, not Alt+Shift) | Ctrl+Shift+Arrow |
+| Q2 | N5: is the prefix word `ref` truth? (often a commanded / reference trajectory) | "other" |
+| Q3 | N6: map keys when the map is focused - ask the friend how Tacview does it | arrows pan (Shift+←/→ still steps the cursor), + / − zoom, F follow, 0 fit all |
+| Q4 | N7: keys for primary / secondary | Q / Shift+Q cycle the primary, X swaps |
+| Q5 | N7: attitude error | Euler-angle differences wrapped to ±180°; the rotation-based error later if wanted |
+| Q6 | N8: export to Tacview `.acmi` - do it at all? | not started |
+| Q7 | N9: the version number | 1.24.0 |
+| Q8 | N5 (found in the code): CSVs with ArduPilot message names (`GPS.Lat`, `ATT.Yaw` - `examples/uav_flight.csv`, test_map_objects' file) are one aircraft today. Keep pairing ArduPilot / PX4 message groups as known log groups in CSV too? | yes: the known-groups table applies to any file, so GPS position + ATT attitude stay one object |
+
+**Notes from reading the code (2026-11-09):**
+- N1: names such as `GPS.Lat [deg]` (examples/uav_flight.csv) carry a unit in brackets; a trailing
+  `[unit]` / `(unit)` is ignored when testing whether a segment is identifier-like (so `GPS.Lat [deg]`
+  still nests under `GPS`, and `vel (m/s)` is not split at the `/`). Flight-log names (`GPS[0].Lat`)
+  keep today's grouping exactly.
+- N6: today bare ←/→ step the cursor, Home / End jump to the ends of the recording, R / Z / D / N / P /
+  Space / 1-9 / ] / [ are taken, Ctrl+Tab cycles tabs, Ctrl+0 / Ctrl+= scale the UI (`shortcuts.ts`).
+- N7: `svcore/analysis.py` already has `lla_to_ecef`, `_ecef_to_ned`, `_reference` (first / manual /
+  signals) and the frame ops; the new relation / error / comparison ops build on them.
+- Fixture: `examples/three_objects.csv` (19 signals + time; phys / nav / gps, GPS at 5 Hz with empty
+  cells between fixes), made by `tools/make_objects_fixture.py` (seeded, 120 s at 10 Hz, a circle so
+  heading wraps through 0°).
+
+Progress board:
+
+| # | Task | Order | Status |
+|---|---|---|---|
+| N0 | Plan, baseline, fixture, prompt in the repo | 0 | ☑ done |
+| N1 | Dot nesting, always and at any depth (bug) | 1 | ☐ next |
+| N5 | Map objects: naming convention, all at once, why each guess; attitude source | 2 | ☐ |
+| N6 | Smooth motion and an easy map (Tacview-like) | 3 | ☐ |
+| N7 | Primary / secondary, relations, error signals, comparison plots in frames | 4 | ☐ |
+| N2 | Move plots: swap places in the grid | 5 | ☐ |
+| N3 | Line defaults in Settings, one place that makes a PlotSignal | 6 | ☐ |
+| N4 | Style a whole group of signals at once | 7 | ☐ |
+| N8 | Export to Tacview `.acmi` (optional) | - | ⏸ ask the owner first (Q6) |
+| N9 | Release preparation (the only full verification) | 8 | ☐ |
+
+---
 
 ## Owner's plan (2026-11-08): C, O, P, A, U, T, F - correctness, trust, performance, a calm UI
 
@@ -3527,3 +3613,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-09 · Final checks of the round: backend 1081 passed (14 skipped), mypy clean, `cli.py validate` 29/29, tsc + build, `npm test` 24, `benchmark.py --synthetic --check 3` all targets met, `mkdocs build --strict` clean. Whole e2e (one file per process): 332 passed; test_features 1 failed while the backend suite ran beside it, 126/126 alone. Cumulative patch: origin/main a39b8d5..HEAD (23 commits), applied on a fresh worktree and checked. Owner to decide: Phase 7 (F1-F4); 26.A4 (larger than the task); golden runs and Compare tolerances kept in the settings / a file, not the session (26.U4/U5); a "skip" choice for formulas' missing values (C3); live mode does not re-check data quality as a file grows (26.U7); the JSON form of /api/data kept beside the binary one (P3); the version number (not changed).
 - 2026-11-09 · Release 1.23.0 prepared (Releasing steps 1-4, owner's request): version 1.23.0 in build.bat, app/version.py, CITATION.cff (2026-11-09), the installer (.iss, version_info four places), docs/install.md, docs/validation.md (made again by tools/make_validation_doc.py); CHANGELOG "Unreleased" -> "1.23.0 – 2026-11-09" with a highlights line, its sections merged (Added / Changed / Fixed / Performance / Tests and CI); README reviewed against it (the hero, a "Judge a run" section, Compare / Flight logs / Trust in the list, the Hebrew section), docs/index.md, gallery, limitations (readers in a process; golden runs and tolerances not in the session; formulas keep missing; data quality not re-checked live; the events list in the Log panel), GUIDE.he (tolerances per signal, judging, data quality, ≈, ] / [). Pictures: a new hero (00_hero: the model against the flight, the differences with the ±3° tolerance, the verdict - offline, no map tiles; make_readme_media.py img_00_hero), 1.22's hero kept as 31_flight_map_3d (needs the internet to remake), social-preview cropped again; every other picture and video remade except 05, 28 and 06 / the 02 video (map tiles or real-GPU 3D: owner's PC). frontend/dist built and committed. Left to the owner: Releasing step 0 (run ci by hand), the Windows build, tag v1.23.0 and push.
 - 2026-11-09 · v1.23.0's build failed on every platform in backend/tests/test_offset_nocopy.py: `pytest.approx` of the limits result (a dict holding the list of stretches) - approx takes flat values only; here the two results were equal to the bit, so approx was never asked to compare. Fixed: the stretches compared apart, flattened. Checked the whole backend suite with a stricter approx (one that refuses any nested value): no other case.
+- 2026-11-09 · Round of 2026-11-09 started (N0): the owner's prompt revised with him and kept as docs/dev/AGENT_PROMPT_2026-11-09.md; "Owner's plan (2026-11-09)" added (order, decisions 1-4, Q1-Q8 with defaults, board); Milestone 27 in ROADMAP. Baseline at `dafea49`: `npx tsc -b` clean, `npm test` 8 files / 24 tests. Fixture examples/three_objects.csv from tools/make_objects_fixture.py. Found while reading: `GPS.Lat [deg]`-style names (N1 must ignore a trailing unit) and ArduPilot names in CSV pair GPS + ATT today (Q8). Checks: tsc, Vitest. Next: N1.
