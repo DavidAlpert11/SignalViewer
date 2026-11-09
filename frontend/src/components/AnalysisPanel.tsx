@@ -1,5 +1,6 @@
+import TrustBadge from "./TrustBadge";
 import { useEffect, useMemo, useState } from "react";
-import { api, type DerivedQuality } from "../api";
+import { api } from "../api";
 import { showFileTags, actions, activeTab, useApp } from "../store";
 import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
@@ -577,7 +578,8 @@ export default function AnalysisPanel() {
                   <button className="dsig-name" onClick={() => actions.toggleSignal(s.id)} title={`${s.name}\n${t("addToActivePlot")}`}>{deep ? memberLabel(s.name, g.key) : s.name}</button>
                   {!deep && s.formula && s.formula !== s.name && <span className="dsig-formula">{s.formula}</span>}
                   {s.valid === false && <span className="dsig-formula">{t("derivedBroken")}</span>}
-                  {s.quality && <QualityMark q={s.quality} />}
+                  {/* C3 / 26.U6: what was assumed (missing values, interpolation, a filter by stretch) */}
+                  <TrustBadge q={s.quality} className="dsig-quality" />
                 </div>
                 <button className="iconbtn" onClick={() => remove([s])} aria-label={t("remove")} title={t("remove")}><Icon.Trash /></button>
               </div>
@@ -625,18 +627,3 @@ function PreviewKey({ lines }: { lines: PreviewLine[] }) {
   );
 }
 
-/** C3: what a derived signal did about missing / infinite values (the backend's `quality`), as one
- *  short mark - a signal made with "skip" says so wherever it is listed. */
-function QualityMark({ q }: { q: DerivedQuality }) {
-  const t = useT();
-  const fmt = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(0) : x.toPrecision(3));
-  const span = (s: [number, number][]) => s.slice(0, 5).map(([a, b]) => (a === b ? fmt(a) : `${fmt(a)}–${fmt(b)}`)).join(", ") + (s.length > 5 ? " …" : "");
-  const parts: string[] = [];
-  if (q.skipped) parts.push(t("qSkipped", { n: q.skipped.toLocaleString() }));
-  if (q.bridged?.length) parts.push(t("qBridged", { n: q.bridged.length, at: span(q.bridged) }));
-  if (q.missing?.length) parts.push(t("qMissing", { at: span(q.missing) }));
-  if (q.infinite) parts.push(t("qInfinite", { n: q.infinite.toLocaleString() }));
-  if (!parts.length) return null;
-  const short = q.skipped ? t("qSkippedShort") : q.bridged?.length ? t("qBridgedShort") : q.missing?.length ? t("qMissingShort") : t("qInfiniteShort");
-  return <span className="dsig-quality" role="note" title={parts.join("\n")}>{short}</span>;
-}

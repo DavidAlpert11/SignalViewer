@@ -173,15 +173,30 @@ def align_to(t_base: np.ndarray, t_src: np.ndarray, y_src: np.ndarray, method: s
     return np.interp(t_base, _f64(t_src), _f64(y_src), left=np.nan, right=np.nan)
 
 
-def _aligner(params: Dict, states: Optional[Sequence[bool]]):
+def _note_interpolated(rep: Optional[Dict], t: np.ndarray, ts: np.ndarray, k: int, method: str) -> None:
+    """26.U6: a source read between its own samples (other sample times than the result's) - what a
+    trust badge says: "values of N signals interpolated (linear / nearest)"."""
+    if rep is None:
+        return
+    ts = np.asarray(ts)
+    if len(ts) >= len(t) and np.array_equal(ts[np.searchsorted(ts, t[0]) if len(t) else 0:][:len(t)], t):
+        return                                     # the result is on this source's own samples
+    got = rep.setdefault("interpolated", {"method": method, "sources": []})
+    if k < 0 or k not in got["sources"]:          # a formula's sources are not numbered here: each counts
+        got["sources"].append(k if k >= 0 else len(got["sources"]))
+
+
+def _aligner(params: Dict, states: Optional[Sequence[bool]], rep: Optional[Dict] = None):
     """align(t, ts, ys, k): source k onto t - held when it is a state signal (C2; `params.hold: false`
-    keeps the alignment chosen for every source, as before 1.23), else the chosen alignment."""
+    keeps the alignment chosen for every source, as before 1.23), else the chosen alignment.
+    rep (26.U6): notes the sources whose values were interpolated."""
     method = params.get("alignment", "linear")
     hold = params.get("hold", True) is not False
 
     def align(t: np.ndarray, ts: np.ndarray, ys: np.ndarray, k: int) -> np.ndarray:
         if hold and states is not None and k < len(states) and states[k]:
             return hold_to(t, ts, ys)
+        _note_interpolated(rep, t, ts, k, method)
         return align_to(t, ts, ys, method)
     return align
 
@@ -204,7 +219,7 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
     params = params or {}
     policy = nan_policy(params) if op in NAN_OPS else "propagate"
     rep: Dict = {} if report is None else report
-    align = _aligner(params, states)
+    align = _aligner(params, states, rep)
     if op not in OPS:
         raise OpError(f"Unknown operation: {op}")
     if op == "py":
@@ -216,7 +231,10 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
     if op == "expr":
         from svcore.formula import FormulaError, evaluate
         try:
-            return evaluate(str(params.get("expr", "")), signals, lambda t, ts, ys: align_to(t, ts, ys, params.get("alignment", "linear")),
+            def falign(t, ts, ys):
+                _note_interpolated(rep, t, ts, -1, params.get("alignment", "linear"))
+                return align_to(t, ts, ys, params.get("alignment", "linear"))
+            return evaluate(str(params.get("expr", "")), signals, falign,
                             holds=[bool(x) for x in states] if states is not None and params.get("hold", True) is not False else None,
                             nan=policy, report=rep)
         except FormulaError as e:

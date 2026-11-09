@@ -1,3 +1,4 @@
+import TrustBadge, { AngleGuessBadge } from "./TrustBadge";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
 import { GEO_BASES, effectiveBase, isOnlineBase } from "../mapBase";
@@ -331,6 +332,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                   return <span className={`sw${lk.dashed ? " dashed" : ""}`} style={lk.dashed ? { color: ink(s.color, theme), opacity: lk.faded ? 0.75 : 1 } : { background: ink(s.color, theme) }} />; })()}
                 {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
                 <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
+                {run?.format === "derived" && <TrustBadge compact q={run.signals.find((x) => x.id === s.sig)?.quality} />}
                 {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
                 {s.axis === "right" && !s.state && mode === "time" && <span className="tag" title={t("toLeftAxis")}>{t("rightAxisTag")}</span>}
                 {val && <span className={`val${hv ? " hov" : ""}`} style={slot ? { minWidth: `${slot}ch` } : undefined} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
@@ -445,6 +447,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                 <button className="obj-chip-main" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } })} title={t("objEdit")}>
                   <img src={iconSvg(o.kind, o.color)} alt="" width={16} height={16} />{o.name}
                 </button>
+                <AngleGuessBadge o={o} />
                 <button className={`iconbtn sm${plot.followObject === o.id ? " on" : ""}`} aria-pressed={plot.followObject === o.id}
                   title={t("objFollow")} aria-label={`${t("objFollow")}: ${o.name}`}
                   onClick={() => actions.updatePlot(plot.id, { followObject: plot.followObject === o.id ? null : o.id })}>
