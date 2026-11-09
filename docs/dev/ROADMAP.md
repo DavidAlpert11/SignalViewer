@@ -831,3 +831,15 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] 26.U1 Design tokens (done 2026-11-09: scale, radii, spacing, semantic colours; test_design_tokens.py). - [x] 26.U2 plot styling (done 2026-11-09). - [x] 26.U3 less clutter (done 2026-11-09: 58 -> 54 / 80 -> 71 controls). - [x] 26.U5 per-signal tolerances, the CLI's file (done 2026-11-09). - [x] 26.U4 judge a run: golden runs, verdict, report (done 2026-11-09). - [x] 26.U6 trust badges + the network in the status bar (done 2026-11-09). - [x] 26.U7 data quality per signal on open (done 2026-11-09). - [x] 26.U8 event navigation: one list, ] / [ (done 2026-11-09).
 - [x] T1 Vitest (done 2026-11-09: 24 tests of the frontend's logic). - [x] T2 De-flake e2e (done 2026-11-09: 78 -> 30 sleeps, each left has a reason). - [x] T3 CI subset + validation + benchmarks (done 2026-11-09).
 - Not started (owner's approval first): F1 test specs, F2 multi-run envelope, F3 measurement export, F4 reports from a spec.
+
+## Milestone 27 — map objects, smooth motion, primary / secondary (owner's plan 2026-11-09, with a Tacview user's review). Spec: docs/dev/AGENT_PROMPT_2026-11-09.md; board and decisions: TASKS.md "Owner's plan (2026-11-09)". Order: N1, N5, N6, N7, N2, N3, N4, (N8), N9.
+- [x] N0 Plan, baseline, fixture (examples/three_objects.csv, tools/make_objects_fixture.py), the prompt in docs/dev. Done 2026-11-09.
+- [ ] N1 Dot nesting, always and at any depth (`.` and `/` explicit, a trailing unit ignored, single-child chains folded, flight-log grouping unchanged).
+- [ ] N5 Map objects: every nested prefix with lat / lon proposed (also position-only), classified (truth / navigation / receiver), Add all / Add selected, *Why?* with near misses, the naming convention, the attitude source (own / motion / another object), the suggestion bar on open.
+- [ ] N6 Smooth motion and an easy map: measured first; pan by transform, inertia, animated zoom, map controls, follow with offset, map keys, the hint; 3D camera modes (Chase, Orbit, Look at); a frame-time benchmark.
+- [ ] N7 Primary / secondary objects, the relation panel and line, relation and error signals in svcore, comparison and difference plots in NED / ENU / ECEF / LLA / track frame.
+- [ ] N2 Move plots: swap by drag, *Move to…*, a shortcut (`layoutActions.swapPlots`).
+- [ ] N3 Line defaults in Settings, `newPlotSignal`, `PlotSignal.lineStyle`, *Apply to all open plots*.
+- [ ] N4 Style a whole group of signals at once (group menu, legend multi-select, Inspector batch).
+- [ ] N8 Export to Tacview `.acmi` - only if the owner approves (TASKS.md Q6).
+- [ ] N9 Release preparation: version, CHANGELOG, README, guides, the full checks, frontend/dist.
