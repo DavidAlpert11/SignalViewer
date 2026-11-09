@@ -111,10 +111,16 @@ export interface Stats { min: number; max: number; mean: number; std: number; rm
   weighting?: "time"; gaps?: number }
 /** U5: a run's difference from the baseline over time (t, d), the tolerance band as an allowed
  *  difference (lo, hi; absent without a tolerance) and the stretches outside it */
+/** 26.U5: a tolerance (signalviewer-cli compare's --tolerances file): abs in the signal's unit, pct of the
+ *  baseline's value, time in seconds, outside_pct the share of samples allowed outside; `as` (the run's
+ *  name) and keys of later versions are kept as written */
+export interface TolEntry { abs?: number; pct?: number; time?: number; outside_pct?: number; skip?: boolean; [key: string]: unknown }
+export interface Tolerances { default: TolEntry; signals: Record<string, TolEntry> }
+export const NO_TOLERANCES: Tolerances = { default: {}, signals: {} };
 export interface DiffTrace { t: number[]; d: (number | null)[]; lo?: (number | null)[]; hi?: (number | null)[]; out: [number, number][] }
-export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean; trace?: DiffTrace }
+export interface CompareRow { id: string; valid: boolean; matchPct?: number; samples?: number; rmsDiff?: number; maxAbsDiff?: number; meanDiff?: number; rmsPct?: number; correlation?: number; withinPct?: number; pass?: boolean; outsidePct?: number; trace?: DiffTrace }
 export interface CompareFileStats { run: string; mean: number | null; std: number | null; min: number | null; max: number | null; rms: number | null }
-export interface CompareDiff { run: string; rmsDiff: number; rmsPct: number; maxAbsDiff: number; meanDiff: number; stdDiff: number; correlation: number; withinPct?: number | null; pass?: boolean | null }
+export interface CompareDiff { run: string; rmsDiff: number; rmsPct: number; maxAbsDiff: number; meanDiff: number; stdDiff: number; correlation: number; withinPct?: number | null; pass?: boolean | null; outsidePct?: number | null }
 export interface CompareAllRow {
   name: string; runs?: string[]; baseline?: string; error?: string;
   /** C13: the signal of each file in this row (run id -> name), when names differ by their unit */
@@ -122,6 +128,8 @@ export interface CompareAllRow {
   meanSpread?: number | null; stdSpread?: number | null; worstRmsDiff?: number | null; worstRmsPct?: number | null;
   worstMaxAbs?: number | null; minCorrelation?: number | null; pass?: boolean | null;
   matchPct?: number | null; profile?: (number | null)[] | null;
+  /** 26.U5: the tolerance it is judged by, its own entry's key (null: every signal's), left out */
+  tol?: TolEntry; tolKey?: string | null; skipped?: boolean;
   files?: CompareFileStats[]; diffs?: CompareDiff[];
 }
 export interface JobInfo { id: string; kind: string; label: string; state: "running" | "done" | "error" | "cancelled"; progress: number; phase: string; error: string | null; result: any; elapsed: number }
@@ -400,13 +408,15 @@ export const api = {
   listDir: (path?: string | null, exts?: string[]) => call<{ path: string; parent: string | null; entries: FsEntry[]; hidden?: number }>("/api/fs/list", { path, exts }),
   places: () => call<FsPlaces>("/api/fs/places"),
   setFavourites: (paths: string[]) => call<{ favourites: { path: string; exists: boolean }[] }>("/api/fs/favourites", { paths }, "PUT"),
-  compare: (signals: string[], baseline: string, alignment: string, tolAbs: number | null, tolPct: number | null,
-    windows?: Record<string, [number, number]> | null, tolTime: number | null = null, trace = 0) =>
-    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[] }>("/api/compare", { signals, baseline, alignment, tolAbs, tolPct, tolTime, windows: windows ?? null, trace }),
+  compare: (signals: string[], baseline: string, alignment: string, tolerances: Tolerances,
+    windows?: Record<string, [number, number]> | null, trace = 0) =>
+    call<{ overlap: [number, number]; gridPoints: number; baseline: string; rows: CompareRow[]; tol: TolEntry }>("/api/compare", { signals, baseline, alignment, tolerances, windows: windows ?? null, trace }),
+  loadTolerances: (path: string) => call<{ path: string; tolerances: Tolerances }>("/api/compare/tolerances/load", { path }),
+  saveTolerances: (path: string, tolerances: Tolerances) => call<{ path: string }>("/api/compare/tolerances/save", { path, tolerances }),
   segmentsAcross: (runs: string[], state: string, value: number, occurrence: number) =>
     call<{ windows: import("./segments").SegWindow[] }>("/api/segments/across", { runs, state, value, occurrence }),
-  compareAll: (runs: string[], baselineRun: string, alignment: string, tolAbs: number | null, tolPct: number | null) =>
-    call<{ signals: CompareAllRow[] }>("/api/compare/all", { runs, baselineRun, alignment, tolAbs, tolPct }),
+  compareAll: (runs: string[], baselineRun: string, alignment: string, tolerances: Tolerances) =>
+    call<{ signals: CompareAllRow[] }>("/api/compare/all", { runs, baselineRun, alignment, tolerances }),
   shift: (base: string, other: string) => call<{ shift: number }>("/api/compare/shift", { base, other }),
   exportCsv: (path: string, signals: { id: string; label: string; scale: number; offset: number; tOffset?: number }[], t0: number | null, t1: number | null) =>
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),

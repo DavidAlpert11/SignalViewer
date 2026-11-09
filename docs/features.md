@@ -391,6 +391,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Any number of files
 - Baseline run or mean
 - One signal: RMS / max / mean Δ, correlation, tolerance, automatic time alignment (Undo), plot runs / differences
+- **Tolerances per signal** (the file `signalviewer-cli compare --tolerances` reads): *Tolerance and alignment* sets every signal's (± in the signal's unit, %, a time tolerance, the share of samples allowed outside); under the selected signal, its own (empty fields show every signal's, greyed) or *Leave out of pass / fail*. Signals with their own tolerance are marked ± in the list. *Save tolerances…* / *Open tolerances…* write and read that JSON file, so the app and CI judge with the same limits and give the same verdict
 - Comparison table: every signal name found in at least two of the chosen files, with Δ mean and Δ std between files, worst RMS / max Δ, lowest correlation, pass/fail; sort, search, expand a row for each file's mean / std / min / max and its differences from the baseline, plot a row, export everything to CSV
 - **Where and why a signal fails** (as the Simulink Data Inspector): with a tolerance every signal in the list has ✓ or ✗; the selected signal shows each run's difference from the baseline over time under its numbers, the tolerance band shaded, the stretches outside it in red and listed (a click: both cursors on it and zoom; a click on the chart: the cursor)
 

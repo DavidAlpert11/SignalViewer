@@ -716,6 +716,14 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .sim-name { grid-area: name; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
 .sim-pass { display: inline-block; margin-inline-start: 6px; width: 15px; height: 15px; line-height: 15px; text-align: center; border-radius: 50%; background: var(--ok); color: var(--on-color); font-size: var(--fs-2xs); font-weight: 700; }
 .sim-fail { display: inline-block; margin-inline-start: 6px; width: 15px; height: 15px; line-height: 15px; text-align: center; border-radius: 50%; background: var(--danger); color: var(--on-color); font-size: var(--fs-2xs); font-weight: 700; }
+/* 26.U5: a signal left out of pass / fail, a signal with a tolerance of its own */
+.sim-skip { margin-inline-start: 6px; font-size: var(--fs-2xs); color: var(--muted); font-weight: 400; }
+.sim-own { margin-inline-start: 6px; font-size: var(--fs-2xs); color: var(--amber-ink); font-weight: 700; }
+.tol-fields { flex-wrap: wrap; }
+.tol-fields > .afield { flex: 1 1 40%; min-width: 0; }
+.tol-fields input[aria-invalid] { border-color: var(--danger); }
+.tol-head, .tol-signal h4 { margin: var(--sp-2) 0 var(--sp-1); font-size: var(--fs-sm); font-weight: 600; display: flex; gap: var(--sp-2); align-items: baseline; }
+.tol-signal { margin-top: var(--sp-3); padding-top: var(--sp-2); border-top: 1px solid var(--line); }
 .sim-pct { grid-area: pct; text-align: end; font-variant-numeric: tabular-nums; font-weight: 600; }
 .sim-bar { grid-area: bar; height: 4px; border-radius: var(--r-xs); background: var(--panel-2); overflow: hidden; }
 .sim-row:hover .sim-bar, .sim-row.on .sim-bar { background: var(--bg); }
