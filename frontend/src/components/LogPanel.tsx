@@ -1,3 +1,4 @@
+import { collectEvents } from "../events";
 import { useEffect, useMemo, useState } from "react";
 import { api, type HealthReport, type LogEvent, type LogInfo, type LogParam } from "../api";
 import { ensureLogs } from "../logs";
@@ -12,8 +13,10 @@ import { copyText } from "../errorReport";
    its parameters. The rail button for this panel exists only while such a file is open, so
    nothing here is seen by anyone working with CSV / MAT files. */
 
-type Kind = LogEvent["kind"];
-const KINDS: Kind[] = ["msg", "mode", "event", "error"];
+// 26.U8: one list - the log's own events, and the health findings, conditions and limit violations
+type Kind = LogEvent["kind"] | "finding" | "condition" | "limit";
+const KINDS: Kind[] = ["mode", "event", "error", "msg", "finding", "condition", "limit"];
+type Row = { t: number; t2?: number; kind: Kind; text: string; level: string };
 
 const fmtTime = (t: number, lang: "en" | "he") => fmtNum(t, lang, Math.abs(t) >= 1000 ? 7 : 5);
 const fmtParam = (v: number) => (Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(7))));
@@ -78,7 +81,7 @@ export default function LogPanel() {
       {!info ? <p className="hint" style={{ padding: "0 14px" }}>…</p>
         : tab === "health" ? <Health key={run.id} runId={run.id} runKey={`${run.samples}:${run.log!.events}:${run.timeOffset}`} />
         : tab === "hw" && info.hardware ? <Hardware hw={info.hardware} />
-        : tab === "events" ? <Events key={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
+        : tab === "events" ? <Events key={run.id} runId={run.id} info={info} lang={lang} cursorT={cursorT} markers={markers} />
           : <Params key={run.id} info={info} lang={lang} others={logRuns.filter((r) => r.id !== run.id).map((r) => ({ id: r.id, name: names.get(r.id) ?? r.name }))} />}
     </aside>
   );
@@ -106,28 +109,39 @@ function Hardware({ hw }: { hw: NonNullable<LogInfo["hardware"]> }) {
 }
 
 /* ------------------------------------------------------------------------- events */
-function Events({ info, lang, cursorT, markers }: { info: LogInfo; lang: "en" | "he"; cursorT: number | null; markers: string }) {
+function Events({ runId, info, lang, cursorT, markers }: { runId: string; info: LogInfo; lang: "en" | "he"; cursorT: number | null; markers: string }) {
   const t = useT();
   const [q, setQ] = useState("");
-  const [kinds, setKinds] = useState<Record<Kind, boolean>>({ msg: true, mode: true, event: true, error: true });
+  const [kinds, setKinds] = useState<Record<Kind, boolean>>({ msg: true, mode: true, event: true, error: true, finding: true, condition: true, limit: true });
   const [important, setImportant] = useState(false);
   const off = info.timeOffset || 0;
+  // 26.U8: the findings, conditions and limit violations of this file, beside the log's own events
+  const condResults = useApp((s) => s.condResults);
+  const ws = useApp((s) => s.ws);
+  const [extra, setExtra] = useState<Row[]>([]);
+  useEffect(() => {
+    let gone = false;
+    collectEvents(runId).then((all) => { if (!gone) setExtra(all.filter((e) => e.kind === "finding" || e.kind === "condition" || e.kind === "limit")); })
+      .catch(() => {});
+    return () => { gone = true; };
+  }, [runId, condResults, ws.conditions, ws.tabs, ws.activeTab, off]);
+  const rows: Row[] = useMemo(() => [...info.events.map((e) => ({ ...e, t: e.t + off })), ...extra].sort((a, b) => a.t - b.t), [info, extra, off]);
   const counts = useMemo(() => {
-    const c: Record<Kind, number> = { msg: 0, mode: 0, event: 0, error: 0 };
-    info.events.forEach((e) => { c[e.kind]++; });
+    const c: Record<Kind, number> = { msg: 0, mode: 0, event: 0, error: 0, finding: 0, condition: 0, limit: 0 };
+    rows.forEach((e) => { c[e.kind]++; });
     return c;
-  }, [info]);
+  }, [rows]);
   const shown = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    return info.events.filter((e) => kinds[e.kind] && (!important || e.level !== "info") && (!ql || e.text.toLowerCase().includes(ql)));
-  }, [info, q, kinds, important]);
+    return rows.filter((e) => kinds[e.kind] && (!important || e.level !== "info") && (!ql || e.text.toLowerCase().includes(ql)));
+  }, [rows, q, kinds, important]);
   // the event in force at the cursor (the last one at or before it)
   const current = useMemo(() => {
     if (cursorT === null) return -1;
     let k = -1;
-    shown.forEach((e, i) => { if (e.t + off <= cursorT + 1e-9) k = i; });
+    shown.forEach((e, i) => { if (e.t <= cursorT + 1e-9) k = i; });
     return k;
-  }, [shown, cursorT, off]);
+  }, [shown, cursorT]);
   useEffect(() => {
     if (current >= 0) document.getElementById(`logev-${current}`)?.scrollIntoView({ block: "nearest" });
   }, [current]);
@@ -152,9 +166,14 @@ function Events({ info, lang, cursorT, markers }: { info: LogInfo; lang: "en" | 
       <ol className="log-list" aria-label={t("logEvents")}>
         {shown.map((e, i) => (
           <li key={i} id={`logev-${i}`}>
-            <button className={`log-row lvl-${e.level}${i === current ? " current" : ""}`} onClick={() => actions.goToTime(e.t + off)}
+            <button className={`log-row lvl-${e.level}${i === current ? " current" : ""}`}
+              onClick={() => {
+                // a stretch (a condition, a limit violation): shown whole, the cursor at its start
+                if (e.t2 !== undefined && e.t2 > e.t) actions.showSpan(e.t - (e.t2 - e.t) * 0.5, e.t2 + (e.t2 - e.t) * 0.5);
+                actions.goToTime(e.t);
+              }}
               title={t("logGoTo")}>
-              <span className="log-t">{fmtTime(e.t + off, lang)}</span>
+              <span className="log-t">{fmtTime(e.t, lang)}</span>
               <span className={`kind-dot ${e.kind}`} aria-label={t(`logKind_${e.kind}` as "logKind_msg")} />
               <span className="log-text">{e.text}</span>
             </button>

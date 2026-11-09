@@ -138,6 +138,9 @@ for the values.
   and listed - a click takes you there. Under the picked signal, **This signal's tolerance** gives it a
   tolerance of its own or leaves it out; **Save tolerances…** writes them in the file
   `signalviewer-cli compare --tolerances` reads, so a CI job judges the next run the same way.
+- **] and [** jump to the next / previous event - a mode change, a log event or error, a health
+  finding, a condition, a signal outside its limits; the status bar says which. The Log panel's
+  **Events** lists them all.
 - **! beside a file's name** (and on some of its signals): its data has something to know - values
   missing, time with no data, repeated or backwards time stamps, a rate that changes. Click it (or
   right-click the file → **Data quality…**) for each signal's details.

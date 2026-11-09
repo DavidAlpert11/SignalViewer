@@ -1,3 +1,4 @@
+import { stepEvent } from "../events";
 import { clearAllTabs, clearWork, closeOtherTabs } from "../clearing";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { refreshAll, toggleLive } from "../live";
@@ -48,6 +49,8 @@ export default function CommandPalette() {
       { id: "retarget-session", label: t("openSessionNewFiles"), group: t("files"), icon: <Icon.Replace />, run: pickSessionForRetarget },
       { id: "templates", label: t("tplMenuOpen"), group: t("templates"), icon: <Icon.Layout />, run: () => openTemplates() },
       { id: "tplSave", label: t("tplMenuSave"), group: t("templates"), icon: <Icon.Save />, run: saveAsTemplate },
+      { id: "evNext", label: `${t("evNext")}  ]`, group: t("logEvents"), run: () => { void stepEvent(1); } },
+      { id: "evPrev", label: `${t("evPrev")}  [`, group: t("logEvents"), run: () => { void stepEvent(-1); } },
       { id: "tplCollection", label: t("tplMenuCollection"), group: t("templates"), icon: <Icon.Layout />, run: newCollection },
       { id: "clearall", label: t("clearEverything"), group: t("files"), icon: <Icon.Trash />, run: clearEverything },
       { id: "compare", label: t("compare"), group: t("compare"), icon: <Icon.Compare />, run: () => useApp.setState({ panel: "compare" }) },
