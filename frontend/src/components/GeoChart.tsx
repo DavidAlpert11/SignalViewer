@@ -253,6 +253,27 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
 
   /* ------------------------------ drawing ------------------------------ */
   const drawRef = useRef<() => void>(() => {});
+  const rotRef = useRef(0);                       // Track up: degrees the map is turned (0 = north up)
+  const topRef = useRef<HTMLCanvasElement>(null);
+  const northRef = useRef<HTMLSpanElement>(null);
+  const upEased = useRef<{ t: number; h: number } | null>(null);
+  /** Track up: the heading of the followed object (else the primary, else the first) at the time - eased
+   *  while playing when following is smooth; the last one is kept while it has none. */
+  const upHeading = (): number => {
+    const id = plot.followObject ?? (plot.primaryObject && objects.some((o) => o.id === plot.primaryObject) ? plot.primaryObject : objects[0]?.id);
+    const tr = id ? objTracksRef.current[id] : undefined;
+    const app = useApp.getState(), c = app.cursor;
+    const o = objects.find((x) => x.id === id);
+    const st = tr && o ? objectAt(tr, trackTime(tr, c.on ? c.t1 : null, streaming), angleUnitOf(o, objects)) : null;
+    const last = upEased.current, now = performance.now();
+    let h = st?.heading ?? last?.h ?? 0;
+    if (st?.heading != null && last && app.smoothFollow && app.playing && now - last.t < 250) {
+      const d = ((h - last.h + 540) % 360) - 180;
+      h = last.h + d * (1 - Math.exp(-(now - last.t) / 200));
+    }
+    upEased.current = { t: now, h: ((h % 360) + 360) % 360 };
+    return upEased.current.h;
+  };
   const lastMove = useRef(0);                     // when the view last changed (pan / zoom): reuse the base meanwhile
   const drawnView = useRef<View | null>(null);
   const settleTimer = useRef(0);
@@ -261,7 +282,14 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const cv = cvRef.current;
     if (!cv || size.w < 50 || size.h < 50) return;
     const cursor = useApp.getState().cursor;
-    const r = dpr(), W = size.w, H = size.h;
+    // N6: Track up - the canvas is a square as wide as the view's diagonal, turned (CSS) so the heading
+    // points up: turning it costs nothing per frame, and the map drawn on it is the same as north up
+    const up = plot.mapUp === "track";
+    const r = dpr(), W = up ? Math.ceil(Math.hypot(size.w, size.h)) : size.w, H = up ? W : size.h;
+    const ang = up ? upHeading() : 0;
+    rotRef.current = ang;
+    cv.style.transform = up ? `rotate(${-ang}deg)` : "";
+    if (northRef.current) northRef.current.style.transform = `rotate(${-ang}deg)`;
     // resizing a canvas clears and reallocates it: only when its size changes (it was every frame)
     if (cv.width !== Math.round(W * r) || cv.height !== Math.round(H * r)) { cv.width = Math.round(W * r); cv.height = Math.round(H * r); }
     const screen = cv.getContext("2d")!;
@@ -577,7 +605,16 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(o.name, px + sz * 0.6, py - sz * 0.45);
     }
 
-    // 6. scale bar and attribution (every map provider asks for it)
+    // 6. scale bar and attribution (every map provider asks for it) - on a layer of their own over a turned map
+    const top = topRef.current;
+    if (up && top) {
+      const tw = Math.round(size.w * r), th = Math.round(size.h * r);
+      if (top.width !== tw || top.height !== th) { top.width = tw; top.height = th; }
+      ctx = top.getContext("2d")!;
+      ctx.setTransform(r, 0, 0, r, 0, 0);
+      ctx.clearRect(0, 0, size.w, size.h);
+    }
+    ((W: number, H: number) => {
     const mPerPx = (Math.cos((latOf(view.cy) * Math.PI) / 180) * 40075016.686) / S;
     const nice = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1e6, 2e6, 5e6];
     const len = nice.filter((m) => m / mPerPx <= 120).pop() ?? 1;
@@ -597,10 +634,11 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     ctx.fillStyle = veil;
     ctx.fillRect(W - aw - 10, H - 16, aw + 10, 16);
     ctx.fillStyle = dark ? "#9fb0c3" : "#3d4650"; ctx.fillText(att, W - 5, H - 3);
+    })(up ? size.w : W, up ? size.h : H);
    };
    drawRef.current = draw;
    draw();
-  }, [tracks, view, size.w, size.h, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
+  }, [tracks, view, size.w, size.h, plot.mapUp, plot.followObject, plot.primaryObject, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
   // the time moves: follow the object (a new view, drawn by the effect above) or just draw again
   useEffect(() => useApp.subscribe((st, prev) => {
     if (st.cursor === prev.cursor) return;
@@ -646,9 +684,15 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     animateTo(to);
   };
   /** Pan by (dx, dy) pixels; while following, the offset from the object changes instead. */
-  const panBy = (dx: number, dy: number) => {
+  /** A screen offset (px) in the map's own (turned) frame - Track up turns the canvas by -rot. */
+  const toCanvas = (x: number, y: number) => {
+    const a = (rotRef.current * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a);
+    return { bx: x * c - y * sn, by: x * sn + y * c };
+  };
+  const panBy = (sx: number, sy: number) => {
     const v = viewRef.current;
     if (!v) return;
+    const { bx: dx, by: dy } = toCanvas(sx, sy);
     const S = 256 * 2 ** v.z;
     userView.current = true;
     if (plot.followObject) {
@@ -666,8 +710,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const cv = cvRef.current;
     if (!cv) return;
     const rel = (e: { clientX: number; clientY: number }) => {
-      const b = cv.getBoundingClientRect();
-      return { bx: e.clientX - b.left - b.width / 2, by: e.clientY - b.top - b.height / 2 };
+      const b = (rotRef.current && wrapRef.current ? wrapRef.current : cv).getBoundingClientRect();   // Track up: the canvas is bigger and turned
+      return toCanvas(e.clientX - b.left - b.width / 2, e.clientY - b.top - b.height / 2);
     };
     const at = (e: { clientX: number; clientY: number }, v: View) => {
       const { bx, by } = rel(e), S = 256 * 2 ** v.z;
@@ -766,7 +810,12 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   return (
     <div className="plot-canvas geo" ref={wrapRef} style={{ position: "relative" }} tabIndex={0} onKeyDown={onKey}
       aria-label={t("mapKeysHint")} data-view={view ? `${view.z.toFixed(4)},${view.cx.toFixed(9)},${view.cy.toFixed(9)}` : undefined}>
-      <canvas ref={cvRef} style={{ width: size.w, height: size.h, display: "block", cursor: "grab" }} />
+      {(() => {
+        const D = plot.mapUp === "track" ? Math.ceil(Math.hypot(size.w, size.h)) : 0;
+        return <canvas ref={cvRef} style={D ? { width: D, height: D, display: "block", cursor: "grab", position: "absolute", left: (size.w - D) / 2, top: (size.h - D) / 2 }
+          : { width: size.w, height: size.h, display: "block", cursor: "grab" }} />;
+      })()}
+      {plot.mapUp === "track" && <canvas ref={topRef} className="geo-top" style={{ width: size.w, height: size.h }} />}
       {view && (
         <div className="geo-ctrl" role="toolbar" aria-label={t("mapControls")} onMouseDown={(e) => e.stopPropagation()}>
           <button className="geo-zoom-in" onClick={() => zoomBy(1)} title={`${t("mapZoomIn")} (+)`} aria-label={t("mapZoomIn")}>+</button>
@@ -779,6 +828,12 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
               <option value="">{t("mapFollowOff")}</option>
               {objects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
+          )}
+          {objects.length > 0 && (
+            <button className={`geo-up${plot.mapUp === "track" ? " on" : ""}`} aria-pressed={plot.mapUp === "track"}
+              title={t(plot.mapUp === "track" ? "mapTrackUpHint" : "mapNorthUpHint")} aria-label={t(plot.mapUp === "track" ? "mapTrackUp" : "mapNorthUp")}
+              onClick={() => actions.updatePlot(plot.id, { mapUp: plot.mapUp === "track" ? undefined : "track" })}>
+              <span ref={northRef} className="geo-north" aria-hidden="true">N</span></button>
           )}
           {offFollow && plot.followObject && <button className="geo-back" onClick={backToFollow}>{t("mapBackToFollow")}</button>}
         </div>

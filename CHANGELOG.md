@@ -28,7 +28,8 @@
   **Follow ▾** are buttons in the corner. Dragging while following moves the map around the object
   (*Back to following* puts it in the middle again). When the map has the focus: arrows move it, + / −
   zoom, F follows, 0 fits everything (Shift+←/→ still step the cursor). A one-line hint shows until the
-  map is first moved. *Camera following an object* in Settings: smooth (default) or exact.
+  map is first moved. *Camera following an object* in Settings: smooth (default) or exact. **Track up**
+  (the N button in the corner) turns the map so the followed object's heading points up.
 - **3D camera: Chase and Look at.** *Chase* stays behind and above the object, turning with it; *Look at*
   looks from it towards the second object. Changing mode or object flies there instead of jumping, and a
   short hint says what the mouse does in each mode.

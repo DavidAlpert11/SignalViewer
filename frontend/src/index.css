@@ -1177,6 +1177,11 @@ input.fx-input { width: 100%; }
 .geo-ctrl > button, .geo-ctrl > select { min-width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--panel); color: var(--ink); font: inherit; font-size: var(--fs-m); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .geo-ctrl > select { font-size: var(--fs-xs); max-width: 9em; padding: 0 var(--sp-1); }
 .geo-ctrl > .geo-back { font-size: var(--fs-xs); padding: 0 var(--sp-1); }
+.geo-ctrl > .geo-up.on { border-color: var(--focus); }
+.geo-north { display: inline-block; font-weight: 700; font-size: var(--fs-s); line-height: 1; transition: none; }
+.geo-north::before { content: "▲"; display: block; font-size: 7px; line-height: 1; color: var(--danger, #e5534b); }
+.geo-top { position: absolute; left: 0; top: 0; pointer-events: none; }
+.plot-canvas.geo { overflow: hidden; }
 .geo-ctrl > button:hover { background: var(--panel-2); }
 .geo-hint { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: var(--sp-1); padding: 2px var(--sp-1_5); border-radius: var(--r-m); background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-size: var(--fs-xs); white-space: nowrap; z-index: 2; }
 /* N5: the objects found in a recording */

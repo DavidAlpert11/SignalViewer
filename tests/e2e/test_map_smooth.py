@@ -125,3 +125,27 @@ def test_playback_redraws_the_map_without_the_panels(three):
     assert r.get("Timeline", 0) > 20                                  # the time did move, every frame
     for k in ("App", "DataPanel", "PlotView", "GeoChart", "StageBar", "TemplateStrip", "Inspector"):
         assert r.get(k, 0) <= 3, (k, r)
+
+
+def test_track_up_turns_the_map(three):
+    """N6: Track up - the map turns so the object's heading points up (the fixture's circle heads east at
+    t = 47.12 s), the N on the button shows where north is, the arrows move the map as seen on the screen;
+    north up again puts it back."""
+    pg = three
+    pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 47.12 } })")
+    pg.locator(".geo-up").click()
+    assert S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').mapUp") == "track"
+    rot = lambda: pg.evaluate("document.querySelector('.plot-canvas.geo canvas').style.transform")
+    pg.wait_for_function("document.querySelector('.plot-canvas.geo canvas').style.transform.startsWith('rotate(-')")
+    ang = float(rot()[len("rotate(-"):].rstrip("deg)"))
+    assert abs(ang - 90) < 2, rot()
+    assert pg.locator(".geo-top").count() == 1                       # the scale bar stays level, on its own layer
+    pg.locator(".plot-canvas.geo").focus()
+    _settled(pg)
+    z, cx, cy = _view(pg)
+    pg.keyboard.press("ArrowRight"); _settled(pg)
+    z2, cx2, cy2 = _view(pg)
+    assert abs(cy2 - cy) > abs(cx2 - cx) * 10                         # east is up: screen-right is south on the map
+    pg.locator(".geo-up").click()
+    pg.wait_for_function("document.querySelector('.plot-canvas.geo canvas').style.transform === ''")
+    assert pg.locator(".geo-top").count() == 0
