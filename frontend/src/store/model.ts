@@ -45,6 +45,11 @@ export interface Plot {
   /** N6: the 2D map's "up" - north (absent) or the heading of the followed object (else the primary, else
    *  the first): "track" */
   mapUp?: "track";
+  /** N7: lines on the map between objects, with the range - the primary and the secondary (absent), the
+   *  primary to every object, or none */
+  relLines?: "all" | "off";
+  /** N7: the relation box on the map folded (absent: open) */
+  relFolded?: boolean;
   showReadout?: boolean;           // 3D: the box with the primary object's current values (default shown)
   ownTime?: number | null;         // 3D: a time of its own (not the timeline's) - null / absent: the shared time
   /** T15 video mode: a local video file played with the timeline. data time = video time + offset (s). */

@@ -483,6 +483,45 @@ export const plotActions = {
       return ws;
     });
   },
+  /** N7: a new time tab with these plots (a plot per entry, up to 6), linked in time; one commit. */
+  plotsInNewTab(plots: { title: string; ids: string[] }[], name: string) {
+    const list = plots.filter((p) => p.ids.length).slice(0, 6);
+    if (!list.length) return;
+    useApp.getState().commit((ws) => {
+      const ps: Plot[] = list.map((x) => {
+        const p: Plot = { id: uid("p"), title: x.title, signals: [] };
+        x.ids.slice(0, 10).forEach((id, i) => p.signals.push({ ...newPlotSignal(id, ws), color: TRACE_COLORS[i % TRACE_COLORS.length] }));
+        return p;
+      });
+      const cols = ps.length > 3 ? 2 : 1;
+      const tab: Tab = { id: uid("t"), name, rows: Math.ceil(ps.length / cols), cols, plots: ps, active: 0, linkX: true };
+      ws.tabs.push(tab);
+      ws.activeTab = tab.id;
+      return ws;
+    });
+  },
+  /** N7: the primary and the secondary object of a map / 3D plot - and of the tab's other maps and 3D
+   *  views (their own copies of the same objects, found by their latitude signal); one commit. */
+  setObjectPair(plotId: string, primary: string | null, secondary: string | null) {
+    useApp.getState().commit((ws) => {
+      const tab = ws.tabs.find((t) => t.plots.some((p) => p.id === plotId));
+      const src = tab?.plots.find((p) => p.id === plotId);
+      if (!tab || !src) return ws;
+      const latOf = (id: string | null) => src.objects?.find((o) => o.id === id)?.lat;
+      const pl = latOf(primary), sl = latOf(secondary);
+      for (const p of tab.plots) {
+        if (p.mode !== "geo" && p.mode !== "3d") continue;
+        const find = (lat?: string) => (lat ? p.objects?.find((o) => o.lat === lat)?.id ?? null : null);
+        const pr = p.id === plotId ? primary : find(pl), se = p.id === plotId ? secondary : find(sl);
+        if (!pr && p.id !== plotId) continue;
+        p.primaryObject = pr;
+        const rest = (p.relatedObjects ?? []).filter((x) => x !== pr && x !== se);
+        p.relatedObjects = se ? [se, ...rest].slice(0, 2) : rest;
+        if (p.mode === "3d" && p.followObject) p.followObject = pr;   // a 3D camera on the primary moves with it
+      }
+      return ws;
+    });
+  },
   /** A new tab with one plot of these signals (health check, log panel). */
   plotSignalsInNewTab(ids: string[], title: string) {
     const st = useApp.getState();

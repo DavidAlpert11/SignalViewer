@@ -5,8 +5,10 @@ import { api } from "../api";
 import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { useMapBase } from "../mapBase";
 import { drawObjectIcon } from "./mapIcons";
-import { angleUnitOf, colorRuns, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
+import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
+import RelationPanel from "./RelationPanel";
+import { pairOf, relation } from "../relation";
 import { labelsOf, stateColor } from "../values";
 import { fmtNum, useT } from "../i18n";
 import { getPrefValue, setPref } from "../prefs";
@@ -176,7 +178,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       for (const o of plot.objects ?? []) {
         try {
           const r = await api.objectTrack(trackRequest(o, plot.objects ?? []));
-          out[o.id] = { t: r.t, lat: r.lat, lon: normLon(r.lon), yaw: r.yaw, course: r.course, units: r.units, color: r.color };
+          out[o.id] = { t: r.t, lat: r.lat, lon: normLon(r.lon), yaw: r.yaw, course: r.course, units: r.units, color: r.color, alt: r.alt };
         } catch { /* a signal no longer open: the object is skipped */ }
       }
       if (!cancelled) setObjTracks(out);
@@ -253,6 +255,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
 
   /* ------------------------------ drawing ------------------------------ */
   const drawRef = useRef<() => void>(() => {});
+  const objAt = useRef(new Map<string, { px: number; py: number; lat: number; lon: number; alt: number | null; sz: number }>());   // N7: where each icon was drawn (a click picks one)
   const rotRef = useRef(0);                       // Track up: degrees the map is turned (0 = north up)
   const topRef = useRef<HTMLCanvasElement>(null);
   const northRef = useRef<HTMLSpanElement>(null);
@@ -546,6 +549,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     // 5b. objects: the track (as the timeline shows it) and the icon where the object is at the time,
     //     pointing where it heads; outside its own time span it is not shown
     const span5 = shownSpan({ playMode, windowSec, cursor });
+    const at5 = new Map<string, { px: number; py: number; lat: number; lon: number; alt: number | null; sz: number }>();
     for (const o of objects) {
       const tr = objTracks[o.id];
       if (!tr || !tr.t.length) continue;
@@ -597,6 +601,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       const st = objectAt(tr, tNow, angleUnitOf(o, objects));
       if (!st) continue;
       const px = X(mx(st.lon)), py = Y(my(st.lat));
+      at5.set(o.id, { px, py, lat: st.lat, lon: st.lon, alt: altAt(tr, tNow), sz });
       drawObjectIcon(ctx, o.kind, px, py, st.heading, sz, o.color, dark, derivedAttitude(o, objects));
       ctx.font = `600 ${Math.round(11.5 * uiScale())}px ${family}`;
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -604,6 +609,33 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       ctx.strokeText(o.name, px + sz * 0.6, py - sz * 0.45);
       ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(o.name, px + sz * 0.6, py - sz * 0.45);
     }
+    // N7: the primary (a ring) and the secondary (a dashed ring), and a line between them with the range
+    // (or from the primary to every object, or none - plot.relLines)
+    const pair = pairOf(plot);
+    const P5 = pair.primary ? at5.get(pair.primary) : undefined;
+    if (P5 && plot.relLines !== "off") {
+      const to = plot.relLines === "all" ? objects.filter((o) => o.id !== pair.primary).map((o) => o.id) : pair.secondary ? [pair.secondary] : [];
+      ctx.font = `600 ${Math.round(11 * uiScale())}px ${family}`;
+      for (const id of to) {
+        const q = at5.get(id);
+        if (!q) continue;
+        ctx.setLineDash([6, 4]); ctx.lineWidth = 1.6; ctx.strokeStyle = dark ? "rgba(230,237,243,.8)" : "rgba(36,41,47,.75)";
+        ctx.beginPath(); ctx.moveTo(P5.px, P5.py); ctx.lineTo(q.px, q.py); ctx.stroke(); ctx.setLineDash([]);
+        const rr = relation({ lat: P5.lat, lon: P5.lon, alt: P5.alt, hdg: null }, { lat: q.lat, lon: q.lon, alt: q.alt, hdg: null });
+        const txt = fmtDistanceShort(rr.slant ?? rr.horiz, lang);
+        const mxp = (P5.px + q.px) / 2, myp = (P5.py + q.py) / 2;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)"; ctx.strokeText(txt, mxp, myp);
+        ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(txt, mxp, myp);
+      }
+    }
+    for (const [id, dashed] of [[pair.primary, false], [pair.secondary, true]] as const) {
+      const q = id ? at5.get(id) : undefined;
+      if (!q) continue;
+      ctx.setLineDash(dashed ? [4, 3] : []); ctx.lineWidth = 2; ctx.strokeStyle = pt.amber;
+      ctx.beginPath(); ctx.arc(q.px, q.py, q.sz * 0.72, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    }
+    objAt.current = at5;
 
     // 6. scale bar and attribution (every map provider asks for it) - on a layer of their own over a turned map
     const top = topRef.current;
@@ -638,7 +670,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
    };
    drawRef.current = draw;
    draw();
-  }, [tracks, view, size.w, size.h, plot.mapUp, plot.followObject, plot.primaryObject, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
+  }, [tracks, view, size.w, size.h, plot.mapUp, plot.followObject, plot.primaryObject, plot.relatedObjects, plot.relLines, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
   // the time moves: follow the object (a new view, drawn by the effect above) or just draw again
   useEffect(() => useApp.subscribe((st, prev) => {
     if (st.cursor === prev.cursor) return;
@@ -741,8 +773,11 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         trail.push([performance.now(), lx, ly]);
         if (trail.length > 8) trail.shift();
       };
+      const x0 = e.clientX, y0 = e.clientY, shift = e.shiftKey;
       const up = () => {
         cv.style.cursor = "grab"; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up);
+        // N7: a click (no drag) on an object makes it the primary; with Shift the secondary
+        if (Math.hypot(lx - x0, ly - y0) < 4) { pickRef.current(x0, y0, shift); return; }
         // a quick drag glides on, slowing down (px / ms from the last ~80 ms of the drag)
         const now = performance.now(), old = trail.find(([tt]) => now - tt <= 80) ?? trail[trail.length - 1];
         const dt = now - old[0];
@@ -776,6 +811,34 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, tracks, size.w, size.h]);
 
+  /** N7: the object under a click (screen point), made the primary - or with Shift the secondary. */
+  const pick = (cx: number, cy: number, secondary: boolean) => {
+    const cv = cvRef.current;
+    if (!cv) return;
+    const b = cv.getBoundingClientRect();
+    // the canvas's own pixels: the click turned back (Track up) about the canvas's middle
+    const { bx, by } = toCanvas(cx - b.left - b.width / 2, cy - b.top - b.height / 2);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    let best: string | null = null, dmin = Infinity;
+    for (const [id, q] of objAt.current) {
+      const d = Math.hypot(q.px - (w / 2 + bx), q.py - (h / 2 + by));
+      if (d < q.sz * 0.75 && d < dmin) { dmin = d; best = id; }
+    }
+    if (!best) return;
+    const cur = pairOf(plot);
+    if (secondary) { if (best !== cur.primary) actions.setObjectPair(plot.id, cur.primary, best); }
+    else if (best !== cur.primary) actions.setObjectPair(plot.id, best, best === cur.secondary ? cur.primary : cur.secondary);
+  };
+  const pickRef = useRef(pick); pickRef.current = pick;
+  /** Q / Shift+Q: the next / previous object as the primary; X: swap the primary and the secondary. */
+  const cyclePrimary = (dir: 1 | -1) => {
+    if (objects.length < 2) return;
+    const cur = pairOf(plot);
+    const i = objects.findIndex((o) => o.id === cur.primary);
+    const next = objects[(i + dir + objects.length) % objects.length].id;
+    actions.setObjectPair(plot.id, next, next === cur.secondary ? cur.primary : cur.secondary);
+  };
+
   /* the map's own keys, only while it has the focus: arrows pan (Shift+arrows still step the cursor),
      + / − zoom, F follows (the primary object, else the first), 0 fits everything */
   const toggleFollow = () => {
@@ -795,6 +858,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     else if (k === "-" || k === "_") { zoomBy(-1); done(); }
     else if (k === "0") { fitAll(); done(); }
     else if (k.toLowerCase() === "f" && objects.length) { toggleFollow(); done(); }
+    else if (k.toLowerCase() === "q" && objects.length > 1) { cyclePrimary(e.shiftKey ? -1 : 1); done(); }
+    else if (k.toLowerCase() === "x" && objects.length > 1) { const c = pairOf(plot); if (c.secondary) actions.setObjectPair(plot.id, c.secondary, c.primary); done(); }
   };
 
   /* the one-line hint, until the map is first moved or the hint closed (remembered) */
@@ -844,6 +909,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       )}
       {mouse && <div className="geo-readout">{mouse.lat.toFixed(prec)}°, {mouse.lon.toFixed(prec)}°</div>}
       <TrackKeys objects={objects} colors={objColors} />
+      {objects.length > 1 && <RelationPanel plot={plot} objects={objects} tracks={objTracks} />}
       {(!plot.xSignal || !ys.length) && !objects.length && <div className="plot-empty">{emptyText}</div>}
       {badRange && <div className="plot-empty">{notDegrees}</div>}
     </div>

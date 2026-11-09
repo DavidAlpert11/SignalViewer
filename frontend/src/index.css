@@ -1169,6 +1169,8 @@ input.fx-input { width: 100%; }
 .obj-chip { display: inline-flex; align-items: center; gap: 1px; border: 1px solid var(--line); border-radius: var(--r-xl); padding: 0 2px 0 6px; height: 24px; }
 .obj-chip-main { display: inline-flex; align-items: center; gap: var(--sp-1_5); border: 0; background: none; color: var(--ink); cursor: pointer; font: inherit; font-size: var(--fs-s); padding: 0; }
 .obj-chip .iconbtn.on { color: var(--amber); }
+.obj-chip.primary { box-shadow: 0 0 0 2px var(--amber); }
+.obj-chip.secondary { outline: 2px dashed var(--amber); outline-offset: -1px; }
 .obj-dialog { width: min(640px, 94vw); }
 /* N6: the map's controls and its one-line hint; the 3D camera's hint */
 .g3-cam-hint { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 1px var(--sp-1_5); border-radius: var(--r-m); background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-size: var(--fs-xs); white-space: nowrap; pointer-events: none; opacity: .9; z-index: 2; }
@@ -1184,6 +1186,16 @@ input.fx-input { width: 100%; }
 .plot-canvas.geo { overflow: hidden; }
 .geo-ctrl > button:hover { background: var(--panel-2); }
 .geo-hint { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: var(--sp-1); padding: 2px var(--sp-1_5); border-radius: var(--r-m); background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-size: var(--fs-xs); white-space: nowrap; z-index: 2; }
+/* N7: the relation box on the map */
+.rel-panel { position: absolute; bottom: 34px; inset-inline-end: var(--sp-2); max-width: 270px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-m); padding: var(--sp-1) var(--sp-1_5); font-size: var(--fs-xs); color: var(--ink); z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.rel-head { font-size: var(--fs-xs); color: var(--ink); text-align: start; }
+.rel-body { display: grid; grid-template-columns: auto auto; gap: 0 var(--sp-2); margin-top: var(--sp-0_5); }
+.rel-row { display: contents; }
+.rel-row > span { color: var(--muted); }
+.rel-row > bdi { font-variant-numeric: tabular-nums; text-align: end; }
+.rel-actions { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-top: var(--sp-1); align-items: center; }
+.rel-compare { display: inline-flex; gap: var(--sp-0_5); }
+.rel-actions select { font-size: var(--fs-xs); }
 /* N5: the objects found in a recording */
 .obj-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); border-top: 1px solid var(--line); background: var(--panel-2); font-size: var(--fs-xs); }
 .obj-suggest-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
