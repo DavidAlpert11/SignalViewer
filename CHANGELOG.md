@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Signal names with dots nest again, at any depth.** `phys.att.roll`, `nav.vel.north` and a MATLAB
+  struct's `sim.nav.pos.x` are listed as a tree (phys › att › roll) whatever the number of signals -
+  before, a file needed 40 signals to be grouped at all, and only two levels were shown. A chain of
+  single levels is one row (`truth.pos`), a group of one signal is not made, and inside a group only the
+  rest of the name shows (the full name stays in the tooltip and in search). A unit in brackets
+  (`GPS.Lat [deg]`) does not split a name, nor does a number (`bus_1.5V`). Flight logs list as before.
+
 ## 1.23.0 – 2026-11-09
 
 Highlights: **judge a run, from opening it to the report** - a golden run is remembered with its
