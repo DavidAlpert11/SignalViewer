@@ -66,6 +66,9 @@ export interface UiSlice {
   stripSel: { rid: string; picks: Record<string, string[]>; iv: [number, number][] } | null;                  // investigation step 6: saved with the session (files.ts), no undo steps
   compareTable: { rows: import("../../api").CompareAllRow[]; baseline: string; fileCount: number; tol: boolean;
     segment?: import("../../segments").SegmentChoice } | null;
+  /** 26.U5: Compare's tolerances - every signal's and each signal's own (UI state; kept in a file
+   *  signalviewer-cli compare reads, not in the session) */
+  compareTol: import("../../api").Tolerances;
   promptDialog: { title: string; label: string; value: string; multiline?: boolean; resolve: (v: string | null) => void } | null;
   uiScale: 1 | 1.12 | 1.25;
   helpOpen: boolean;
@@ -142,6 +145,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   journal: [],
   stripSel: null,
   compareTable: null,
+  compareTol: { default: {}, signals: {} },
   promptDialog: null,
   uiScale: 1,
   helpOpen: false,

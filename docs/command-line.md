@@ -70,6 +70,9 @@ signalviewer-cli compare golden.bin today.bin --tolerances tol.json --junit comp
 {"default": {"abs": 0.5}, "signals": {"Speed": {"abs": 1.0}, "RPM": {"pct": 3, "outside_pct": 1}, "Gear": {"skip": true}}}
 ```
 
+The app writes this file too: *Compare runs ▸ Tolerance and alignment ▸ Save tolerances…* (each signal's
+own tolerance is set under it in the panel), and opens it again with *Open tolerances…*.
+
 Every signal both runs have, with the Compare panel's numbers (RMS and largest difference,
 correlation; headings wrap at 360°), the most different first. A signal passes when every sample is
 within the larger of `abs` and `pct` of the golden value (as the Simulink Data Inspector;

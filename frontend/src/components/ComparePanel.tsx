@@ -1,6 +1,7 @@
 import DiffChart from "./DiffChart";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type CompareAllRow, type CompareRow } from "../api";
+import { api, type CompareAllRow, type CompareRow, type TolEntry, type Tolerances } from "../api";
+import TolFields from "./TolFields";
 import { activeTab, fileLabel, fileMark, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { startJob } from "../files";
@@ -19,6 +20,7 @@ const bucketOf = (m: number | null | undefined): Exclude<Bucket, "all"> =>
 const LIST_POINTS = 20_000;          // per signal for the list (the detail view uses full detail)
 const PAGE = 120;
 const cache = new Map<string, CompareAllRow[]>();      // per file choice / settings / data version
+const hasLimit = (e: TolEntry) => e.abs !== undefined || e.pct !== undefined || !!e.time;
 
 /** Where in time the difference is: the SHAPE of the difference profile. A uniform
  *  difference is a flat line (not a full block that would look like a large error). */
@@ -48,9 +50,9 @@ export default function ComparePanel() {
   // only half of their real difference, which understates exactly what the user asks about.
   const [baseline, setBaseline] = useState(() => runs[0]?.id ?? "");
   const [alignment, setAlignment] = useState("linear");
-  const [tolAbs, setTolAbs] = useState("");
-  const [tolPct, setTolPct] = useState("");
-  const [tolTime, setTolTime] = useState("");      // 1.21: seconds a run may be early / late (SDI)
+  // 26.U5: every signal's tolerance and each signal's own (abs / pct / time - 1.21, SDI - / outside_pct / skip)
+  const tols = useApp((s) => s.compareTol);
+  const setTols = (x: Tolerances) => useApp.setState({ compareTol: x });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sim, setSim] = useState<CompareAllRow[] | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -79,8 +81,6 @@ export default function ComparePanel() {
     });
   }, [runs]);
   useEffect(() => { if (baseline !== "mean" && !chosen.includes(baseline)) setBaseline(chosen[0] ?? ""); }, [chosen, baseline]);
-
-  const num = (v: string) => (v.trim() === "" || !Number.isFinite(+v) ? null : +v);
 
   /* ------------- T10b segment: state signals shared by the chosen files ------------- */
   const stateNames = useMemo(() => {
@@ -123,14 +123,15 @@ export default function ComparePanel() {
   // in segment mode only the files where the segment was found take part
   const active = segment ? chosen.filter((rid) => segment.windows[rid]) : chosen;
   const segWaiting = over === "segment" && !segment;
-  const tolSet = num(tolAbs) !== null || num(tolPct) !== null || (num(tolTime) ?? 0) > 0;
+  const tolSet = hasLimit(tols.default) || Object.values(tols.signals).some(hasLimit);
+  const tolKey = JSON.stringify(tols);
   const runName = (rid: string) => fileLabel(allRuns, rid);
   // T46: a file has ONE colour everywhere (it was by position among the checked runs - unchecking
   // one recoloured the others)
   const runColor = (rid: string) => fileMark(runs, rid)?.color ?? TRACE_COLORS[Math.max(0, chosen.indexOf(rid)) % TRACE_COLORS.length];
 
   /* ------------- similarity list: debounced, cancellable, cached ------------- */
-  const key = `${[...active].sort().join(",")}|${baseline}|${alignment}|${tolAbs}|${tolPct}|${tolTime}|${dataVersion}|${segment ? JSON.stringify(segment.windows) : ""}|${segWaiting}`;
+  const key = `${[...active].sort().join(",")}|${baseline}|${alignment}|${tolKey}|${dataVersion}|${segment ? JSON.stringify(segment.windows) : ""}|${segWaiting}`;
   useEffect(() => {
     jobRef.current?.cancel();                // a newer choice replaces any running computation
     jobRef.current = null;
@@ -142,7 +143,7 @@ export default function ComparePanel() {
     setProgress(0);
     const h = window.setTimeout(() => {
       const job = startJob<{ signals: CompareAllRow[] }>("compareAll",
-        { runs: active, baselineRun: base, alignment, tolAbs: num(tolAbs), tolPct: num(tolPct), tolTime: num(tolTime), points: LIST_POINTS, windows: segment?.windows ?? null },
+        { runs: active, baselineRun: base, alignment, tolerances: tols, points: LIST_POINTS, windows: segment?.windows ?? null },
         (p) => setProgress(p));
       jobRef.current = job;
       job.result.then((r) => {
@@ -175,7 +176,7 @@ export default function ComparePanel() {
     setBusy(true);
     try {
       const base = baseline !== "mean" && runsOf.includes(baseline) ? sidIn(baseline, name) : "mean";
-      const r = await api.compare(runsOf.map((c) => sidIn(c, name)), base, alignment, num(tolAbs), num(tolPct), segment?.windows, num(tolTime), 600);
+      const r = await api.compare(runsOf.map((c) => sidIn(c, name)), base, alignment, tols, segment?.windows, 600);
       setRows(r.rows);
     } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); setRows(null); }
     finally { setBusy(false); }
@@ -205,6 +206,40 @@ export default function ComparePanel() {
   };
   const current = sim?.find((x) => x.name === signal);
   const detailRuns = current?.runs ?? active;
+  // 26.U5: a changed tolerance judges the signal on screen again (after typing stops)
+  const firstTol = useRef(true);
+  useEffect(() => {
+    if (firstTol.current) { firstTol.current = false; return; }
+    if (!signal) return;
+    const h = window.setTimeout(() => detail(signal, detailRuns), 350);
+    return () => window.clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tolKey]);
+  // this signal's own entry: the key it was found by (a file's "ATT.Roll" for "ATT.Roll [deg]"), else its name
+  const ownKey = current?.tolKey ?? signal;
+  const own: TolEntry = tols.signals[ownKey] ?? {};
+  const setOwn = (e: TolEntry | null) => {
+    const signals = { ...tols.signals };
+    if (!e || !Object.keys(e).length) delete signals[ownKey]; else signals[ownKey] = e;
+    setTols({ ...tols, signals });
+  };
+  const openTols = async () => {
+    const path = await pickPath({ mode: "open", title: t("tolOpen"), exts: [".json"] });
+    if (!path) return;
+    try {
+      const r = await api.loadTolerances(path);
+      setTols(r.tolerances);
+      useApp.getState().toast({ kind: "info", text: translate(lang, "tolOpened", { n: Object.keys(r.tolerances.signals).length, path: r.path }) });
+    } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+  };
+  const saveTols = async () => {
+    const path = await pickPath({ mode: "save", title: t("tolSave"), exts: [".json"], defaultName: "tolerances.json" });
+    if (!path) return;
+    try {
+      const r = await api.saveTolerances(path, tols);
+      useApp.getState().toast({ kind: "info", text: translate(lang, "tolSaved", { path: r.path }) });
+    } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+  };
 
   const align = async (sid: string) => {
     if (baseline === "mean") return;
@@ -350,7 +385,9 @@ export default function ComparePanel() {
                     <span className="sim-name">{x.name}
                       {/* U5: with a tolerance, every row says pass / fail */}
                       {x.pass === false && <span className="sim-fail" aria-label={t("fail")} title={t("fail")}>✗</span>}
-                      {x.pass === true && <span className="sim-pass" aria-label={t("pass")} title={t("pass")}>✓</span>}</span>
+                      {x.pass === true && <span className="sim-pass" aria-label={t("pass")} title={t("pass")}>✓</span>}
+                      {x.skipped && <span className="sim-skip">{t("tolSkipped")}</span>}
+                      {x.tolKey && !x.skipped && <span className="sim-own" title={t("tolOwn")} aria-label={t("tolOwn")}>±</span>}</span>
                     <span className={`sim-pct ${b}`}>{fmtNum(x.matchPct ?? 0, lang, 3)}%</span>
                     <span className="sim-bar"><span className={b} style={{ width: `${Math.max(2, x.matchPct ?? 0)}%` }} /></span>
                     <Spark values={x.profile} bucket={b} />
@@ -384,7 +421,8 @@ export default function ComparePanel() {
                     <td title={r.rmsPct !== undefined ? `${fmtNum(r.rmsPct, lang, 3)} %` : ""}>{fmtNum(r.rmsDiff, lang, 3)}</td>
                     <td>{fmtNum(r.maxAbsDiff, lang, 3)}</td>
                     <td>{fmtNum(r.correlation, lang, 4)}</td>
-                    {tolSet && <td><span className={`pf ${r.pass ? "ok" : "bad"}`}>{fmtNum(r.withinPct, lang, 3)}%</span></td>}
+                    {tolSet && <td>{r.pass === undefined ? <span className="muted">—</span>
+                      : <span className={`pf ${r.pass ? "ok" : "bad"}`} title={r.outsidePct ? t("outsideShare", { pct: fmtNum(r.outsidePct, lang, 3) }) : undefined}>{fmtNum(r.withinPct, lang, 3)}%</span>}</td>}
                   </tr>
                 </tbody>
               ))}
@@ -395,6 +433,14 @@ export default function ComparePanel() {
             <div className="arow wrap">
               {!segment && <button className="btn outline" disabled={busy} onClick={plotDiffs}>{t("plotDiffs")}</button>}
             </div>
+            {/* 26.U5: this signal's own tolerance (empty fields: every signal's, greyed) */}
+            <div className="tol-signal">
+              <h4 title={t("tolSignalHint")}>{t("tolSignalHead")}
+                {tols.signals[ownKey] && <button className="linklike" onClick={() => setOwn(null)}>{t("tolUseDefault")}</button>}</h4>
+              <TolFields entry={own} inherited={tols.default} onChange={(e) => setOwn(e)} />
+              <label className="acheck"><input type="checkbox" checked={!!own.skip}
+                onChange={(e) => { const x = { ...own }; if (e.target.checked) x.skip = true; else delete x.skip; setOwn(x); }} /> {t("tolSkip")}</label>
+            </div>
           </div>
         )}
 
@@ -404,10 +450,12 @@ export default function ComparePanel() {
           {(tolSet || alignment !== "linear") && <span className="tag">•</span>}
         </button>
         {settingsOpen && <>
-          <div className="arow">
-            <label className="afield"><span>{t("tolAbs")}</span><input inputMode="decimal" value={tolAbs} onChange={(e) => setTolAbs(e.target.value)} placeholder="—" /></label>
-            <label className="afield"><span>{t("tolPct")}</span><input inputMode="decimal" value={tolPct} onChange={(e) => setTolPct(e.target.value)} placeholder="—" /></label>
-            <label className="afield" title={t("tolTimeHint")}><span>{t("tolTime")}</span><input inputMode="decimal" value={tolTime} onChange={(e) => setTolTime(e.target.value)} placeholder="—" /></label>
+          <h4 className="tol-head">{t("tolDefaultHead")}</h4>
+          <TolFields entry={tols.default} onChange={(e) => setTols({ ...tols, default: e })} />
+          <div className="arow wrap">
+            <button className="btn outline sm" onClick={openTols}>{t("tolOpen")}</button>
+            <button className="btn outline sm" onClick={saveTols} disabled={!tolSet && !Object.keys(tols.signals).length}>{t("tolSave")}</button>
+            {(tolSet || Object.keys(tols.signals).length > 0) && <button className="linklike" onClick={() => setTols({ default: {}, signals: {} })}>{t("tolClear")}</button>}
           </div>
           <label className="afield"><span>{t("alignment")}</span>
             <select value={alignment} onChange={(e) => setAlignment(e.target.value)}>

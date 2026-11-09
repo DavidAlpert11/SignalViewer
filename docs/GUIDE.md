@@ -135,7 +135,9 @@ for the values.
   largest difference, correlation, a tolerance; its table lists every signal found in two or more
   files, the worst first. With a tolerance every signal shows ✓ or ✗, and the one you pick shows its
   difference from the baseline over time: the tolerance band shaded, the stretches outside it in red
-  and listed - a click takes you there.
+  and listed - a click takes you there. Under the picked signal, **This signal's tolerance** gives it a
+  tolerance of its own or leaves it out; **Save tolerances…** writes them in the file
+  `signalviewer-cli compare --tolerances` reads, so a CI job judges the next run the same way.
 - Runs recorded with a time shift: right-click a file → **Align time with another file**.
 - **The work you did on one file, for another:** right-click the file you worked on → **Copy the work
   to another file…**, choose a file that is open already or one to open, and what to copy: its

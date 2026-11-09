@@ -9,7 +9,7 @@ from app import report as reports
 from app.atomic import write_text as _write_text
 from app.common import atomic_path, fail, open_paths
 from app.jobs import JobCancelled, jobs
-from app.routes.compare import CompareAllRequest, compare_table
+from app.routes.compare import CompareAllRequest, _tolerances, compare_table
 from app.routes.export import ReportRequest, _check_target
 from app.store import LoadError, store
 
@@ -100,6 +100,7 @@ def start_job(req: JobRequest):
             return res
     elif req.kind == "compareAll":
         ca = CompareAllRequest(**b)
+        _tolerances(ca)                       # 26.U5: a wrong tolerance is said now, not as a failed job
 
         def work(job):
             return {"signals": compare_table(ca, job.report)}

@@ -303,6 +303,7 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
         the best-correlated of the compared signals). The shift used is the first result row."""
     from app.store import Store
     from svcore.compare import compare as compare_runs
+    from svcore.tolerances import judge
     store = Store()
     out: Dict[str, Any] = {"file": path, "golden": golden, "results": []}
     try:
@@ -410,8 +411,8 @@ def run_compare(golden: str, path: str, tolerances: Dict[str, Any], signals: Opt
         res["overlap"] = r["overlap"]
         say = f"RMS {m['rmsDiff']:.4g} ({m['rmsPct']:.2f} % of range), max |Δ| {m['maxAbsDiff']:.4g}, r {m['correlation']:.3f}"
         if "pass" in m:
-            outside = 100.0 - float(m["withinPct"])
-            ok = bool(m["pass"]) or (allowed is not None and outside <= allowed + 1e-9)
+            ok, outside = judge(m, {**tol, "outside_pct": allowed})       # 26.U5: the Compare panel's rule
+            assert ok is not None and outside is not None
             res["status"] = "pass" if ok else "fail"
             res["outsidePct"] = outside
             if not m["pass"]:
