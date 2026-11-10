@@ -217,7 +217,9 @@ export const plotActions = {
   /** N5: several objects in one step (one Undo) - *Add all* / *Add selected*. */
   addObjects(plotId: string, objs: MapObject[]) {
     if (!objs.length) return;
-    useApp.getState().commit((ws) => { const p = findPlot(ws, plotId); if (p) p.objects = [...(p.objects ?? []), ...objs]; return ws; });
+    let n = 0;
+    useApp.getState().commit((ws) => { const p = findPlot(ws, plotId); if (p) { p.objects = [...(p.objects ?? []), ...objs]; n = p.objects.length; } return ws; });
+    if (n > 1) useApp.setState({ compareOffer: plotId });          // N7: offer to compare them
   },
   /** T17c: map objects in a new map / 3D plot of the active tab (false: the tab is full). */
   addObjectsToNewPlot(mode: "geo" | "3d", objs: MapObject[], title = ""): boolean {
@@ -244,7 +246,7 @@ export const plotActions = {
         const at = placePlot(tab, np);
         if (at < 0) { full = true; return ws; }
         tab.active = at;
-        first = np.id;
+        first = tab.plots[at].id;                    // placePlot keeps an empty plot's id when it fills it
         return ws;
       }
       maps.forEach((p, i) => {
@@ -258,6 +260,8 @@ export const plotActions = {
       return ws;
     });
     if (full) tabFullMessage();
+    const p = first ? findPlot(useApp.getState().ws, first) : null;
+    if (p && (p.objects?.length ?? 0) > 1) useApp.setState({ compareOffer: first });   // N7: offer to compare them
     return first;
   },
   updateObject(plotId: string, id: string, patch: Partial<MapObject>) {

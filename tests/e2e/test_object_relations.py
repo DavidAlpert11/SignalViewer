@@ -123,3 +123,13 @@ def test_overlay_in_ned_shares_the_primary_origin(three):
     pg.evaluate("window.__sv.setState({ ws: { ...window.__sv.state().ws, activeTab: window.__sv.state().ws.tabs[0].id } })")
     pg.locator(".rel-compare select").select_option("track")
     assert pg.locator(".rel-overlay-btn").is_disabled()                             # track: differences only
+
+
+def test_compare_offer_after_add_all(three):
+    pg = three
+    offer = pg.locator(".obj-compare-offer")
+    offer.locator("select").select_option("enu")
+    offer.locator(".obj-compare-make").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
+    assert [p["title"].split(" ")[0] for p in S(pg, "s.ws.tabs[1].plots")[:3]] == ["Δeast", "Δnorth", "Δup"]
+    pg.wait_for_selector(".obj-compare-offer", state="detached")
