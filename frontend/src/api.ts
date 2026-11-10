@@ -113,7 +113,9 @@ export interface Series {
 }
 export interface Stats { min: number; max: number; mean: number; std: number; rms: number; peak_to_peak: number; samples: number; duration: number; segments?: number;
   /** A3: "time" when the samples are unevenly spaced and mean / RMS / std are weighted by time; gaps: dropouts not weighted */
-  weighting?: "time"; gaps?: number }
+  weighting?: "time"; gaps?: number;
+  /** L8: the largest |value|, its time (s, on the shown axis) and the 95th percentile of |value| */
+  abs_max?: number; t_abs_max?: number; p95_abs?: number }
 /** U5: a run's difference from the baseline over time (t, d), the tolerance band as an allowed
  *  difference (lo, hi; absent without a tolerance) and the stretches outside it */
 /** 26.U7: a signal's data quality (svcore/quality.py) and a file's summary */

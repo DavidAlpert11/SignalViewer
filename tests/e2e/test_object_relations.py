@@ -36,6 +36,15 @@ def _pick(pg, label):
     return pg.locator(f".rel-panel .rel-head select[aria-label='{label}'] option:checked").inner_text()
 
 
+def _open(pg, frame=None):
+    """L8: the relation box's one Compare… opens the dialog; the old four actions are its presets."""
+    pg.locator(".rel-panel .rel-compare-open").click()
+    pg.wait_for_selector(".cmpobj")
+    if frame:
+        pg.locator(".cmpobj .cmpobj-frame").select_option(frame)
+    return pg.locator(".cmpobj")
+
+
 def _derived(pg, name):
     return pg.evaluate(f"(window.__sv.state().runs.find((r) => r.format === 'derived')?.signals ?? []).find((s) => s.name === {name!r})?.id ?? null")
 
@@ -66,7 +75,7 @@ def test_defaults_swap_and_cycle(three):
 
 def test_panel_equals_the_backend_and_plot_the_relation(three):
     pg = three
-    pg.locator(".rel-plot").click()
+    _open(pg).locator(".rel-plot").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
     tab = S(pg, "s.ws.tabs[1]")
     assert tab["name"] == "nav vs phys" and len(tab["plots"]) == 4
@@ -84,7 +93,7 @@ def test_panel_equals_the_backend_and_plot_the_relation(three):
 
 def test_error_signals_and_compare_in_frames(three):
     pg = three
-    pg.locator(".rel-errors").click()
+    _open(pg).locator(".rel-errors").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
     for k in ("horiz", "vert", "3d", "hdg", "roll", "pitch"):
         assert _derived(pg, f"nav_vs_phys.err.{k}"), k
@@ -95,8 +104,7 @@ def test_error_signals_and_compare_in_frames(three):
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 3")
     assert _derived(pg, "gps_vs_phys.err.hdg_cog") and not _derived(pg, "gps_vs_phys.err.roll")
     pg.evaluate("window.__sv.setState({ ws: { ...window.__sv.state().ws, activeTab: window.__sv.state().ws.tabs[0].id } })")
-    pg.locator(".rel-compare select").select_option("ned")
-    pg.locator(".rel-compare-btn").click()
+    _open(pg, "ned").locator(".rel-compare-btn").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 4")
     tab = S(pg, "s.ws.tabs[3]")
     assert [p["title"].split(" ")[0] for p in tab["plots"][:3]] == ["Δnorth", "Δeast", "Δdown"]
@@ -108,8 +116,7 @@ def test_error_signals_and_compare_in_frames(three):
     # the fixture's navigation drifts 0.02 m/s north (with 0.3 m of noise): about 1.2 m north at 60 s
     assert abs(_value_at(pg, north, 60) - 1.2) < 1.5
     pg.evaluate("window.__sv.setState({ ws: { ...window.__sv.state().ws, activeTab: window.__sv.state().ws.tabs[0].id } })")
-    pg.locator(".rel-compare select").select_option("ecef")
-    pg.locator(".rel-compare-btn").click()
+    _open(pg, "ecef").locator(".rel-compare-btn").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 5")
     x, y, z = (_value_at(pg, _derived(pg, f"nav_vs_phys.decef.{a}"), 60) for a in "xyz")
     e = _value_at(pg, _derived(pg, "nav_vs_phys.err.3d"), 60)
@@ -118,8 +125,7 @@ def test_error_signals_and_compare_in_frames(three):
 
 def test_overlay_in_ned_shares_the_primary_origin(three):
     pg = three
-    pg.locator(".rel-compare select").select_option("ned")
-    pg.locator(".rel-overlay-btn").click()
+    _open(pg, "ned").locator(".rel-overlay-btn").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
     tab = S(pg, "s.ws.tabs[1]")
     assert len(tab["plots"]) == 3 and len(tab["plots"][0]["signals"]) == 3          # phys, nav, gps on one plot
@@ -129,15 +135,16 @@ def test_overlay_in_ned_shares_the_primary_origin(three):
     assert abs(_value_at(pg, pn, 0)) < 1e-6                                         # the origin: phys at its start
     assert abs(_value_at(pg, nn, 60) - _value_at(pg, pn, 60) - 1.2) < 1.5          # nav ~1.2 m north of phys
     pg.evaluate("window.__sv.setState({ ws: { ...window.__sv.state().ws, activeTab: window.__sv.state().ws.tabs[0].id } })")
-    pg.locator(".rel-compare select").select_option("track")
-    assert pg.locator(".rel-overlay-btn").is_disabled()                             # track: differences only
+    assert _open(pg, "track").locator(".rel-overlay-btn").is_disabled()            # track: differences only
 
 
 def test_compare_offer_after_add_all(three):
     pg = three
     offer = pg.locator(".obj-compare-offer")
-    offer.locator("select").select_option("enu")
-    offer.locator(".obj-compare-make").click()
+    offer.locator(".obj-compare-make").click()                            # L8: opens Compare objects… for this map
+    pg.wait_for_selector(".cmpobj")
+    pg.locator(".cmpobj .cmpobj-frame").select_option("enu")
+    pg.locator(".cmpobj .rel-compare-btn").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
     assert [p["title"].split(" ")[0] for p in S(pg, "s.ws.tabs[1].plots")[:3]] == ["Δeast", "Δnorth", "Δup"]
     pg.wait_for_selector(".obj-compare-offer", state="detached")

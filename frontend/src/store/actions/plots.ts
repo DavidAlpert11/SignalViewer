@@ -520,20 +520,40 @@ export const plotActions = {
   },
   /** N7: a new time tab with these plots (a plot per entry, up to 6), linked in time; one commit. */
   plotsInNewTab(plots: { title: string; ids: string[] }[], name: string) {
-    const list = plots.filter((p) => p.ids.length).slice(0, 6);
-    if (!list.length) return;
+    plotActions.plotTabs([{ name, plots }]);
+  },
+  /** L8: new time tabs, one commit (one Undo). A tab with more plots than fit (MAX_PLOTS, in whole rows of
+   *  `cols`) goes on in "name (2)"...; a plot with more than PLOT_SIGNALS signals keeps the first ones and the
+   *  toast says what was left out - nothing is dropped silently. Returns the number of tabs made. */
+  plotTabs(tabs: { name: string; plots: { title: string; ids: string[] }[]; cols?: number }[]): number {
+    const PLOT_SIGNALS = 10;
+    const left: string[] = [];
+    let made = 0;
     useApp.getState().commit((ws) => {
-      const ps: Plot[] = list.map((x) => {
-        const p: Plot = { id: uid("p"), title: x.title, signals: [] };
-        x.ids.slice(0, 10).forEach((id, i) => p.signals.push({ ...newPlotSignal(id, ws), color: TRACE_COLORS[i % TRACE_COLORS.length] }));
-        return p;
-      });
-      const cols = ps.length > 3 ? 2 : 1;
-      const tab: Tab = { id: uid("t"), name, rows: Math.ceil(ps.length / cols), cols, plots: ps, active: 0, linkX: true };
-      ws.tabs.push(tab);
-      ws.activeTab = tab.id;
+      let first: string | null = null;
+      for (const tb of tabs) {
+        const list = tb.plots.filter((p) => p.ids.length);
+        if (!list.length) continue;
+        const cols = Math.max(1, Math.min(tb.cols ?? (list.length > 3 ? 2 : 1), MAX_PLOTS));
+        const per = Math.max(cols, Math.floor(MAX_PLOTS / cols) * cols);
+        for (let k = 0; k * per < list.length; k++) {
+          const ps: Plot[] = list.slice(k * per, (k + 1) * per).map((x) => {
+            const p: Plot = { id: uid("p"), title: x.title, signals: [] };
+            if (x.ids.length > PLOT_SIGNALS) left.push(`${x.title} (${x.ids.length - PLOT_SIGNALS})`);
+            x.ids.slice(0, PLOT_SIGNALS).forEach((id, i) => p.signals.push({ ...newPlotSignal(id, ws), color: TRACE_COLORS[i % TRACE_COLORS.length] }));
+            return p;
+          });
+          const tab: Tab = { id: uid("t"), name: k ? `${tb.name} (${k + 1})` : tb.name, rows: Math.ceil(ps.length / cols), cols, plots: ps, active: 0, linkX: true };
+          ws.tabs.push(tab);
+          first ??= tab.id;
+          made++;
+        }
+      }
+      if (first) ws.activeTab = first;
       return ws;
     });
+    if (left.length) useApp.getState().toast({ kind: "info", text: translate(useApp.getState().lang, "tabsLeftOut", { n: PLOT_SIGNALS, list: left.join(", ") }) });
+    return made;
   },
   /** N7: the primary and the secondary object of a map / 3D plot - and of the tab's other maps and 3D
    *  views (their own copies of the same objects, found by their latitude signal); one commit. */

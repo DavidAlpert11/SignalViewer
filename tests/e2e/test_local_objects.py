@@ -100,3 +100,59 @@ def test_local_position_without_origin_gets_one_suggested(pg):
     assert "first valid sample of gps" in pg.locator(".obj-origin-why").inner_text()
     pg.locator(".obj-dialog .obj-save").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => (p.objects ?? []).some((o) => o.name === 'tgt'))")
+
+
+def _value_at(pg, sid, t):
+    return pg.evaluate("""([sid, t]) => fetch('/api/cursor', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signals: [sid], t }) }).then(r => r.json()).then(r => r.values[sid])""", [sid, t])
+
+
+def _derived_count(pg):
+    return pg.evaluate("(window.__sv.state().runs.find((r) => r.format === 'derived')?.signals ?? []).length")
+
+
+def test_compare_objects_dialog_on_ekf_lanes(pg):
+    """L8: Compare… with POS as the reference: Position + Attitude, Both - one tab each, values left and errors
+    right; lane 1's north error +1.5 m and its yaw error +0.5°, lane 0's ~0; the statistics table; velocity off
+    with its reason (POS has none); the same choice made again reuses the signals; Velocity from lane 0."""
+    _copy(pg, "ardupilot_lanes.csv")
+    open_files(pg, "ardupilot_lanes.csv")
+    pg.locator(".obj-suggest-add").click()
+    pg.wait_for_selector(".rel-panel")
+    pg.locator(".rel-panel .rel-compare-open").click()
+    dlg = pg.locator(".cmpobj")
+    dlg.wait_for()
+    assert dlg.locator(".cmpobj-ref option:checked").inner_text() == "POS"
+    vel = dlg.locator(".cmpobj-q-velocity")
+    assert vel.is_disabled() and "POS has no velocity" in dlg.inner_text()
+    dlg.locator(".cmpobj-objs label", has_text="GPS[0]").locator("input").uncheck()
+    tabs0 = len(S(pg, "s.ws.tabs"))
+    dlg.locator(".cmpobj-make").click()
+    dlg.locator(".cmpobj-stats").wait_for()
+    tabs = S(pg, "s.ws.tabs")[tabs0:]
+    assert [t["name"] for t in tabs] == ["Position (NED) vs POS", "Attitude vs POS"]
+    pos = tabs[0]
+    assert pos["cols"] == 2 and len(pos["plots"]) == 8
+    assert pos["plots"][0]["title"].startswith("north (NED)") and pos["plots"][1]["title"].startswith("Δnorth (NED")
+    assert len(pos["plots"][0]["signals"]) == 3 and len(pos["plots"][1]["signals"]) == 2          # POS + 2 lanes; 2 errors
+    e0, e1 = (p["sig"] for p in pos["plots"][1]["signals"])
+    assert abs(_value_at(pg, e0, 100)) < 0.05 and abs(_value_at(pg, e1, 100) - 1.5) < 0.05
+    yaw = [p["sig"] for p in tabs[1]["plots"][5]["signals"]]                                         # Δyaw column
+    assert abs(_value_at(pg, yaw[1], 100) - 0.5) < 0.01
+    rows = dlg.locator(".cmpobj-stats tbody tr").all_inner_texts()
+    north1 = [r for r in rows if r.startswith("XKF1[1]") and "Δnorth" in r][0]
+    assert "1.5" in north1.split("\t")[2]                                                          # RMS
+    n = _derived_count(pg)
+    dlg.locator(".cmpobj-make").click()                                                             # the same again: reused
+    pg.wait_for_function(f"window.__sv.state().ws.tabs.length === {tabs0 + 4}")
+    assert _derived_count(pg) == n
+    # velocity: lane 0 as the reference, lane 1 compared - the speed error is zero (same velocities)
+    dlg.locator(".cmpobj-ref").select_option(label="XKF1[0]")
+    assert not dlg.locator(".cmpobj-q-velocity").is_disabled()
+    for q in ("position", "attitude"):
+        dlg.locator(f".cmpobj-q-{q}").uncheck()
+    dlg.locator(".cmpobj-make").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.name === 'Velocity (NED) vs XKF1[0]')")
+    vt = [t for t in S(pg, "s.ws.tabs") if t["name"] == "Velocity (NED) vs XKF1[0]"][0]
+    sp = [p for p in vt["plots"] if p["title"].startswith("speed error")][0]["signals"]
+    assert all(abs(_value_at(pg, x["sig"], 100)) < 1e-6 for x in sp)

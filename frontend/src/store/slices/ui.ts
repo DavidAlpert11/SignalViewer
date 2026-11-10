@@ -39,6 +39,8 @@ export interface UiSlice {
   templatesSelect: string | null;  // open the library with this template selected (suggestions in the file panel)
   objectDialog: { plotId: string; objectId?: string; why?: boolean } | null;   // adding / editing a map object (N5 why: the found list, explanations open)
   objSuggestHidden: string[];      // N5: files whose "objects found" bar was dismissed (this run of the app only)
+  /** L8: Compare objects… open for this map / 3D plot */
+  compareDialog: { plotId: string } | null;
   compareOffer: string | null;     // N7: a map / 3D plot whose objects were just added - offer to compare them
   placeDialog: string | null;      // T17c: putting an XYZ plot's tracks on a map / 3D plot (the XYZ plot's id)
   axisDialog: string | null;            // plot id whose axis limits are being edited
@@ -139,6 +141,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   templatesSelect: null,
   objectDialog: null,
   objSuggestHidden: [],
+  compareDialog: null,
   compareOffer: null,
   placeDialog: null,
   axisDialog: null,
