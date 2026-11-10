@@ -2195,7 +2195,7 @@ def test_limits_pass_fail_in_the_inspector(pg):
     pg.keyboard.press("Control+z")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals[0].limits.hi === 25")
     autosaved(pg)
-    pg.reload(); pg.wait_for_selector(".run-head")
+    pg.reload(); pg.wait_for_selector(".plot .chip")      # N9: the workspace is restored after the file (was flaky)
     assert S(pg, "s.ws.tabs[0].plots[0].signals[0].limits.hi") == 25
 
 

@@ -1181,7 +1181,7 @@ input.fx-input { width: 100%; }
 .geo-ctrl > .geo-back { font-size: var(--fs-xs); padding: 0 var(--sp-1); }
 .geo-ctrl > .geo-up.on { border-color: var(--focus); }
 .geo-north { display: inline-block; font-weight: 700; font-size: var(--fs-s); line-height: 1; transition: none; }
-.geo-north::before { content: "▲"; display: block; font-size: 7px; line-height: 1; color: var(--danger, #e5534b); }
+.geo-north::before { content: "▲"; display: block; font-size: var(--fs-glyph); line-height: 1; color: var(--danger); }
 .geo-top { position: absolute; left: 0; top: 0; pointer-events: none; }
 .plot-canvas.geo { overflow: hidden; }
 .geo-ctrl > button:hover { background: var(--panel-2); }

@@ -2,9 +2,14 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0, N1, N5, N6, N7, N2, **N3** and **N4 done**. **Next: N9** (release 1.24.0 - Q7's
-> default; full checks; commit `frontend/dist`; no tag). N8 (ACMI export) only if the owner approves it
-> (Q6 - default: not started); if approved, do it before N9.
+> **Stage reached: the round is complete** - N0, N1, N5, N6, N7, N2, N3, N4, **N8** (approved by the owner on
+> 2026-11-10: Q6 answered) and **N9** (version **1.24.0**, CHANGELOG / README / guides / features /
+> limitations, the full checks - results in TASKS.md's Log -, `frontend/dist` committed). Not tagged:
+> the owner runs CI, builds on Windows and tags `v1.24.0`. A next session starts a new round: read
+> TASKS.md's Log entry "N9" for what is left open and what the owner checks by hand.
+> - N8's code map: `backend/svcore/acmi.py` (the ACMI 2.2 writer, its spec summary in the docstring),
+>   `POST /api/export/acmi` in `app/routes/export.py` (`acmi_objects` through `object_track`), the plot
+>   menu's *Export for Tacview (.acmi)…* in `PlotView.tsx`.
 > - N3's code map: `styledSignal(sig, color, extra)` in `store/selectors.ts` is the one place a line is
 >   made (Settings' `ui.lineWidth` / `ui.lineStyle`); `PlotSignal.lineStyle` - precedence lineStyle >
 >   dash > automatic (`desired.lineLook`, `DASH`); `actions.applyLineDefaults`; report.py `LINE_STYLES`.
