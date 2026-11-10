@@ -30,6 +30,7 @@ import { globeImage } from "../globeBridge";
 
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
+export const PLOT_MIME = "application/x-sv-plot-move"; // N2: a plot dragged by its handle to another cell
 import { openMenu } from "./Overlays";
 import { compareObjects, errorSignals, pairOf } from "../relation";
 import { laneMenuItems } from "../lanes";
@@ -49,6 +50,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const selected = useApp((s) => s.selected);
   const multi = useApp((s) => s.multi);
   const hover = useApp((s) => (s.hover && s.hover.plotId === plot.id ? s.hover : null));
+  const [moveOver, setMoveOver] = useState(false);
   const [dragOver, setDragOver] = useState<null | "y" | "x" | "right" | "bottom">(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -151,6 +153,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     // U3: the tab shows its lanes once above the plots; this plot can show them again itself
     ...(onTimeAxis(plot) && tabBandLanes(useApp.getState().ws.globalStates, tab).length
       ? [{ label: (plot.ownBand ? "✓ " : "") + t("bandInPlot"), run: () => actions.updatePlot(plot.id, { ownBand: !plot.ownBand || undefined }) }] : []),
+    // N2: move this plot to another cell of the tab (the two change places)
+    ...(tab.plots.length > 1 ? [{ label: t("plotMoveTo"), run: () => {}, items: tab.plots.map((p, k): MenuItem => ({
+      label: `${t("plotCell", { r: Math.floor(k / Math.max(1, tab.cols)) + 1, c: (k % Math.max(1, tab.cols)) + 1 })}${p.title ? ` · ${p.title}` : ""}`,
+      checked: k === index, disabled: k === index, run: () => actions.swapPlots(index, k) })) }] : []),
     { label: t("axisLimits") + ((plot.xlim || plot.ylim) ? " •" : ""), run: () => useApp.setState({ axisDialog: plot.id }) },
     { label: t("legend"), run: () => {}, items: legendItems() },
     ...(showFileTags(runs) ? [{ label: t("colorByFile"), run: () => actions.colorPlotByFile(plot.id),
@@ -355,15 +361,25 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     <section
       ref={sectionRef}
       data-plot={plot.id}
-      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
-      onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver(edgeOf(e) ?? "y"); } }}
-      onDragLeave={() => setDragOver(null)}
-      onDrop={(e) => onDrop(e, edgeOf(e) ?? "y")}
+      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${moveOver ? " move-target" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes(PLOT_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setMoveOver(true); return; }
+        if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver(edgeOf(e) ?? "y"); } }}
+      onDragLeave={() => { setDragOver(null); setMoveOver(false); }}
+      onDrop={(e) => {
+        const from = e.dataTransfer.getData(PLOT_MIME);
+        if (from !== "") { e.preventDefault(); setMoveOver(false); actions.swapPlots(Number(from), index); return; }
+        onDrop(e, edgeOf(e) ?? "y");
+      }}
       onMouseDown={() => actions.setActivePlot(index)}
       onMouseEnter={() => setInPlot(true)} onMouseLeave={() => setInPlot(false)}
       aria-label={title}
     >
       <header className="plot-head" ref={headRef}>
+        {tab.plots.length > 1 && (
+          <span className="plot-grip" draggable role="button" tabIndex={-1} aria-label={t("plotMoveGrip")} title={t("plotMoveGrip")}
+            onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.effectAllowed = "move"; }}>⠿</span>
+        )}
         {editingTitle ? (
           <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
             onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}

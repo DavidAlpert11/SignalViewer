@@ -1186,6 +1186,10 @@ input.fx-input { width: 100%; }
 .plot-canvas.geo { overflow: hidden; }
 .geo-ctrl > button:hover { background: var(--panel-2); }
 .geo-hint { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: var(--sp-1); padding: 2px var(--sp-1_5); border-radius: var(--r-m); background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-size: var(--fs-xs); white-space: nowrap; z-index: 2; }
+/* N2: moving plots */
+.plot-grip { cursor: grab; color: var(--muted); padding: 0 2px; user-select: none; font-size: var(--fs-s); line-height: 1; }
+.plot-grip:hover { color: var(--ink); }
+.plot.move-target { outline: 2px dashed var(--focus); outline-offset: -2px; }
 /* N7: the relation box on the map */
 .rel-panel { position: absolute; bottom: 34px; inset-inline-end: var(--sp-2); max-width: 270px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-m); padding: var(--sp-1) var(--sp-1_5); font-size: var(--fs-xs); color: var(--ink); z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
 .rel-head { font-size: var(--fs-xs); color: var(--ink); text-align: start; }
