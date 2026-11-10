@@ -853,7 +853,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] L5 Rows show frame and origin; Advanced… fills the found origin or suggests the file's receiver. Done 2026-11-10.
 - [x] L6 Downstream verified (relations, 3D, templates, Tacview path, old sessions). Done 2026-11-10.
 - [x] L7 The rings explained (tooltip, icons, Help) and the pair chosen in one place - Reference ⇄ Compared with, in the relation box and the 3D bar; Ctrl+K. Done 2026-11-10.
-- [ ] L8 Compare objects… - positions, velocities, angles; values and errors; statistics.
+- [x] L8 Compare objects… - positions, velocities, angles; values and errors; statistics (CSV); the relation box's four actions as presets; plotsInNewTab never drops silently. Done 2026-11-10.
 - [ ] L9 Compare with similar… - families of nested names; angle-wrapped `sub`.
 - [ ] L10 Move a plot to another tab / into another plot.
 - [ ] L11 Map export: PNG, standalone HTML, maps in reports.

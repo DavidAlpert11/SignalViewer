@@ -18,11 +18,23 @@
   pair - *Reference* ⇄ *Compared with*, with a swap button - and the 3D view uses the same header
   instead of its own selects. The object chips carry the same ring icons; Ctrl+K can set the reference.
 
+- **Compare objects…** - one dialog for comparing the objects of a map or 3D view against a
+  reference: position, velocity and attitude; their values, their errors or both; in NED, ENU, ECEF,
+  LLA or along / across track. *Make* adds one tab per quantity (values left, errors right, plus the
+  horizontal / vertical / 3D or speed error) - one Undo - and a statistics table of the errors (RMS,
+  mean, max |error| and when, 95th percentile) to copy or save as CSV. Open it from the relation box's
+  *Compare…*, the offer after adding objects, or Ctrl+K "Compare objects…".
+
 ### Changed
+- The relation box's four buttons are now one *Compare…*; *Plot the relation*, *Error signals*,
+  *Differences* and *Overlay* are one-click presets at the top of the dialog, with the same results.
+- Making the same relation or comparison again reuses the signals already made instead of adding copies.
 - "Primary / secondary" is now "Reference / Compared with" (Hebrew: בסיס / מושווה) everywhere - the
   box, the chips, their menu, Help.
 
 ### Fixed
+- A request for more plots than a tab holds (or more signals than a plot shows) no longer drops the
+  rest silently: it goes on in another tab, and a message says what was left out.
 - An ECEF (or any converted) object is no longer offered again by the suggestion bar after it was added,
   and *Add all* can no longer add it twice.
 - Origins and home points (`ORGN`, `HOME_POSITION`, `vehicle_local_position.ref_*`, `origin.*`) are no
