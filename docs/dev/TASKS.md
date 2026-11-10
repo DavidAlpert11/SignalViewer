@@ -13,6 +13,13 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Round of 2026-11-10 (in progress)**: the owner's round - objects whose position is in metres (NED,
+  ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
+  comparisons, moving plots across tabs, map export, a scripting API. Spec:
+  `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
+  in "Owner's plan (2026-11-10)" below. **Done: group A (L0-L6, local positions).** Next: L7. Travels as
+  one cumulative patch on `d61ab6d`.
+
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
   and added all at once with *Why?*, dot nesting at any depth, smooth motion and an easy map, primary /
   secondary objects with live relations, error and comparison plots in NED / ECEF, moving plots, line
@@ -150,6 +157,109 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 - Sandbox gotchas seen so far: a background server or test run started inside a tool call may
   die when the call ends - start it with `setsid nohup ... &`. Never `pkill -f <pattern>` in the
   same shell command line that contains the pattern (it kills its own shell).
+
+## Owner's plan (2026-11-10): L0-L13 - local-position objects, comparisons, moving plots, map export, an API
+
+**Owner:** the full spec is `docs/dev/AGENT_PROMPT_2026-11-10.md` (kept equal to the copy handed to the
+owner); this section is the board, the decisions, the notes and the log lines are in "Log" at the end.
+
+**Work order:** L0 → L13. Groups (whole e2e at the end of each): **A** = L0-L6, **B** = L7-L9, **C** =
+L10-L11, **D** = L12, **E** = L13. If time is short, finish a group and stop cleanly.
+
+**How the work travels:** one cumulative patch against `d61ab6d` ("Release 1.24.0"), checked with
+`git am` on a fresh clone; `frontend/dist` is **not** in the patch until L13 (the release builds it).
+
+**Baseline (2026-11-10, at `d61ab6d`):** backend 1095 passed / 14 skipped; mypy clean (109 files);
+`npx tsc -b` clean; `npm test` 15 files / 71 tests. No failure before the round.
+
+**Decisions taken in group A (each easy to change; say if you disagree):**
+1. A group whose last word is `origin`, `ref`, `home` or `datum` is never an object (the spec's L3 rule).
+   **Risk:** a simulation's `ref.lat / lon` *trajectory* is no longer offered. Proposed as **Q14** below.
+2. An origin "beside" an object counts only when its owner has a class word (`sim.nav_ref` beside
+   `sim.tgt`); an origin group *above* (or at the root: `origin.*`) always counts; the nearest wins. Without
+   the class-word condition any `x.origin` would attach to every top-level object.
+3. A local row with no origin: Advanced… suggests the same file's LLA object, **a receiver first** (its
+   first fix), else any; otherwise Manual (Q4's default).
+4. The "Position on the map & 3D" template stays latitude / longitude only: templates store roles by
+   name and cannot express a frame chain. Local objects come through the bar / found list. (Follow-up.)
+5. Known groups get an `order` (POS 0, EKF lanes 1, AHR2 2; PX4 global 0 / local 1; MAVLink global 0 /
+   local 1) used only among known groups of one class; other objects keep the file's order.
+
+**Open questions (the work goes on with the default):**
+| # | Question | Default if unanswered |
+|---|---|---|
+| Q1 | Lanes in *Add all* when POS exists | all offered and checked; POS first |
+| Q2 | Origin / home as a map marker | never an object; a "home" marker later |
+| Q3 | x / y / z with no frame (ROS `pose.position.x`) | a near miss with a better *Why?* |
+| Q4 | No ORGN in an ArduPilot log | needs an origin; Advanced… suggests the GPS's first fix |
+| Q5 | PX4 / MAVLink origin reset during a flight | first value used, said in *Why?* |
+| Q6 | Positions in cm / mm | found, not added by *Add all*, *Why?* points to ƒ |
+| Q7 | The relation box's buttons | one `Compare…` with four presets inside |
+| Q8 | Move or copy a plot | move; Ctrl while dropping copies |
+| Q9 | Map export imagery | offline basemap; online only if on and cached; 15 MB HTML |
+| Q10 | One source for detection | shared JSON tables + the same algorithm in TS and Python + shared vectors |
+| Q11 | Pass / fail in `compare-objects` | yes, `--tolerance`, JUnit |
+| Q12 | Loose matches in *Compare with similar…* | off, behind *More matches* |
+| Q13 | The 3D view's *Primary* select | moves into the relation-box header |
+| Q14 | (new, L3) Is a group named `ref` (`ref.lat`, `ref_lat`) an origin or a reference trajectory? | origin (never an object) - as the spec says |
+
+**Notes from reading the code (L0, 2026-11-10):**
+- Callers: `detectObjects` - templates.ts (objectsFit / objectTabs, LLA only), mapObjects.ts (guessRoles: the
+  first LLA candidate), ObjectSuggestBar, ObjectDialog (`detectAll`). `isAdded` / `addable` - ObjectDialog
+  only (the bar had its own lat-only test - removed in L4). `ATT_GROUPS` - only `parseName`'s "top-level
+  group" test (mapObjects.ts has its own regex of the same name for `guessRoles`, unrelated, unchanged).
+- `NED_VEL` / `NED_XYZ_GROUPS` lived in frames.ts; now defined once in objectDetect.ts and imported by
+  frames.ts (frames.ts already depended on objectDetect through mapObjects - no new cycle).
+- Loader names checked **from the loaders' code** (no real two-lane .bin at hand - please send one):
+  bin_loader `MSG[instance].Field [unit]` with the instance from FMTU `#` (XKF1's `C`, ORGN's `Type`);
+  ulog_loader `topic.field`, `topic[multi_id].field` only when several instances; tlog_loader converts
+  degE7 / mm, so `GPS_GLOBAL_ORIGIN.latitude [deg]`, `.altitude [m]`.
+- `XKQ[n].Q1..Q4` not paired (ArduPilot's Q1 is w, the alias table maps q1 → qx) - follow-up, alias table
+  unchanged. PX4 `vehicle_local_position.heading` is skipped (it would give a yaw-only attitude instead of
+  `vehicle_attitude`'s quaternion).
+- Live mode (mavlink.ts) is MAVLink, so LOCAL_POSITION_NED + GPS_GLOBAL_ORIGIN would be found by the same
+  rule; not exercised live (not extended in this round, as asked).
+- Idea I1 (altitude datum) is easier now: every local object's origin is known with its group (`origin.via`),
+  so its datum (ORGN AMSL, ECEF ellipsoid) can be guessed from it.
+
+**Code map of group A:**
+- `objectDetect.ts`: `metricPosition()` (frame word in any form, glued `ecefX`, single letters under a
+  position / frame sub-group, bare x / y / z a near miss); `Parsed.axis` + `detectNow`'s per-group decision
+  (down → NED, up → ENU); `FLAT_VEL` from the shared `NED_VEL`; `KNOWN_GROUPS` new fields `ned / vel /
+  origin / originMoves / skip / order / lane` (XKF1, NKF1, vehicle_local_position, LOCAL_POSITION_NED) and
+  `NED_XYZ_GROUPS`; `isOriginGroup`, `ORIGIN_WORDS / ORIGIN_GROUPS`; `originOf()` (own → known → sibling);
+  `Candidate.origin / badUnit / lane`; a quick pre-filter keeps 5000 names < 100 ms.
+- `objectAdd.ts`: `addable` (origin, unit), `objectSources` / `firstSource` / `candidateSource` (the one chain
+  walk and the one "already added" rule), `isAdded(c, plot, derived)`, `candidateObject` (NED / ENU with
+  `ref: "signals"`), `linkAttitudes(…, derived)`, `whyLines` (origin, lane, unit).
+- `ObjectDialog.tsx`: `readSetup` via `objectSources`; row label `frameLabel` ("NED · origin ORGN[0]");
+  form preset from the found origin or `suggestedOrigin()`, with a line saying which. `ObjectSuggestBar.tsx`:
+  `isAdded` on every map. `frames.ts`: imports the tables. i18n `mapsAnd3d.ts` (en + he), `index.css`.
+- Tests: `objectDetect.test.ts` (F1-F10, origins, 5000 metric names), `mapObjects.test.ts` (L3 / L4),
+  `backend/tests/test_local_objects.py` (lanes on POS, generic objects, relation lane 1 - lane 0),
+  `tests/e2e/test_local_objects.py` (3 flows). Fixtures: `tools/make_local_objects_fixture.py` →
+  `examples/ardupilot_lanes.csv`, `examples/local_frames.csv`.
+
+Progress board:
+
+| # | Task | Group | Status |
+|---|---|---|---|
+| L0 | Baseline, fixtures, notes | A | ☑ done |
+| L1 | Metric positions by name (generic rules) | A | ☑ done |
+| L2 | Known flight-log groups with local positions | A | ☑ done (names checked from the loaders' code; a real two-lane .bin wanted) |
+| L3 | The origin: found, used, explained | A | ☑ done |
+| L4 | "Already on the map" for every kind of object | A | ☑ done |
+| L5 | The found list and the form for local positions | A | ☑ done |
+| L6 | Everything downstream still works | A | ☑ done |
+| L7 | Primary / secondary explained, chosen in one place | B | ☐ next |
+| L8 | Compare objects: one dialog, values and errors | B | ☐ |
+| L9 | Compare similar nested signals | B | ☐ |
+| L10 | Move a plot to another tab / into another plot | C | ☐ |
+| L11 | Map export: PNG, HTML, maps in reports | C | ☐ |
+| L12 | A clear API (Python, CLI, REST) | D | ☐ |
+| L13 | Docs, changelog, release, full checks | E | ☐ |
+
+---
 
 ## Owner's plan (2026-11-09): N1-N9 - map objects, smooth motion, primary / secondary (Tacview-like)
 
@@ -3631,3 +3741,6 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · N4 done. `styleLines.ts`: `linesInScope(ws, sigs, "plot"|"tab"|"all")` (the active plot of the active tab / its every plot / every tab, in drawing order), `defaultScope` (the narrowest with a line), `restyle` (a field left out is kept; `color: "palette"` gives the i-th line `TRACE_COLORS[i]`; the style written as the Inspector writes it - Solid / Dashed the old `dash`, Dotted / Dash-dot `lineStyle`, Auto clears both; width clamped 0.5-6), `applyLook` (counts the lines that change). `actions.styleLines(targets, look)`: one commit (none when nothing changes), a toast with the count and Undo. `StyleLinesDialog` (`ui.styleDialog: {name, sigs, lines?}`): scope radios with each scope's count (hidden for a legend selection), colour Keep / Palette / 8 swatches, width (empty = keep), line style Keep / Auto / four styles, the count of lines, Apply. Entry points: *Style the lines…* in the file-group and the user-group menus of the signal list; the Inspector's batch section (legend Ctrl+click) gains colour (Palette + swatches) and line style through the same action, and *Style these lines…* opens the dialog on the selection. Checks: tsc, Vitest 15 / 71 (styleLines.test.ts new, 5), e2e test_plot_style (3, 2 new), test_setpoint_style, test_settings, test_one_per_plot, test_name_tree, test_plot_menus, test_owner_notes_1_20. Next: N9.
 - 2026-11-10 · N8 done (the owner approved it: Q6 answered). The format checked against Tacview's published "ACMI flight recordings 2.2" page (raia-software-inc.gitbook.io/tacview/technical-documentation/acmi-telemetry-file-format), not from memory: the two header lines, object 0's ReferenceTime / ReferenceLongitude / ReferenceLatitude / DataSource / DataRecorder / RecordingTime / Title, `#seconds` frames, hex ids, `T=Lon|Lat|Alt|Roll|Pitch|Yaw` (degrees, metres MSL, roll right, pitch up, yaw clockwise from true north), `-id` removal, `Type` tags (Air+FixedWing, Air+Rotorcraft, Sea+Watercraft, Ground+Vehicle, Weapon+Missile - Tacview has no UAV tag), the seven `Color` names, `\,` for a comma in text (the page gives no escape for line breaks: replaced by a space). `svcore/acmi.py` (`write_acmi`: one grid at `rate` Hz, 10 by default, angles interpolated the short way round, roll / pitch written ±180, yaw 0-360; whole-degree reference point; an object appears at its first position and is removed when it ends; epoch times (> 1e9 s) become the ReferenceTime, else 2000-01-01T00:00:00Z; `acmi_color` by hue ranges, a light blue Cyan, grey Blue). Route `POST /api/export/acmi` (export.py `acmi_objects`: each object through `object_track` without decimation - the same position, quaternion / motion attitude and angle units as the 3D view; altitude MSL by `altRef` with the bundled elevation; no altitude: on the ground; roll unknown: 0; UTF-8 with BOM, LF). Frontend: *Export for Tacview (.acmi)…* in the plot menu of a map / 3D view with objects (objects through `trackRequest`, borrowed attitude resolved; mapObjects imported lazily). Checks: backend test_acmi (4: a known small file verbatim, epoch / wrap, colours / text, the export of three_objects.csv), mypy on the two files, tsc, e2e test_map_objects (the new case).
 - 2026-11-10 · N9 done: release 1.24.0 prepared (not tagged). Version in version.py, build.bat, installer/SignalViewer.iss, installer/version_info.txt (4 places), CITATION.cff (date 2026-11-10), docs/install.md's file name; CHANGELOG `## 1.24.0 – 2026-11-10` with highlights; README review (the map section: primary / secondary, smooth map, Tacview; the Hebrew list: map and 3D, moving plots / line styles - no version numbers added), features.md (objects found, motion / borrowed attitude, primary / secondary, smooth motion, Tacview, line styles, moving plots), limitations.md (Tacview export, name-only guesses, 3D on software GL, no line opacity), validation.md regenerated (its version line). **Full checks:** backend pytest 1093 passed / 14 skipped after two fixes (test_design_tokens: N6's north arrow used `7px` and `#e5534b` - now `--fs-glyph` and `--danger`; test_validation: the page's version line); mypy (109 files) clean; `python cli.py validate` 29 / 29; `npx tsc -b`, `npm run build`, Vitest 15 files / 71 tests; **the whole e2e suite 361 passed** (first run: 2 failed - test_less_clutter read the status bar before the plot's "drawn for" count arrived, now waits for it; the known flaky test_limits_pass_fail_in_the_inspector read the workspace right after the reload, before the autosave was restored - now waits for the plot's chip; each passed 5 / 5 after, then the whole suite again: 361 / 361); `tools/benchmark.py --synthetic --samples 2000000 --check 3`: every target met; `tools/browser_benchmark.py --group smooth` (2 CPUs, no GPU): map pan p95 16.7 ms (≤ 34), wheel zoom 62 frames dropped (≤ 150), 0.01 panel renders per frame during playback (≤ 0.1); `mkdocs build --strict` passes. Defaults used for unanswered questions: Q1 Ctrl+Shift+arrows, Q2 `ref` = other, Q3 the map keys (arrows, + / −, F, 0), Q4 Q cycles the primary / X swaps, Q5 Euler differences wrapped to ±180°, Q7 1.24.0 (Q6 answered: yes). **Left open:** a motion attitude from the object's own velocity signals (N5), reverse playback (N6), `MapObject.vel` is not kept in templates, line opacity, ACMI of the plots' other signals / a chosen time span. **The owner checks by hand on Windows:** CI (run by hand), the build and the installer, the N6 smoothness on a real machine (60 fps targets: drag, zoom, playback with 3 objects), the Cesium 3D view on a real GPU (Chase / Look at, the flight between views), opening an exported .acmi in Tacview; then tag `v1.24.0`.
+- 2026-11-10 · Round of 2026-11-10 started (L0): prompt kept as docs/dev/AGENT_PROMPT_2026-11-10.md, "Owner's plan (2026-11-10)" with board, decisions, Q1-Q14, notes; Milestone 28 in ROADMAP. Baseline at `d61ab6d`: backend 1095 passed / 14 skipped, mypy clean, tsc clean, Vitest 15 files / 71 tests. Fixtures from tools/make_local_objects_fixture.py (the backend's own WGS-84 maths).
+- 2026-11-10 · L1-L5 done (code map in the plan): metric positions in every form, the frame decided per group, flat velocities, units flagged (Q6), XKF1 / NKF1 lanes / PX4 / MAVLink local positions, origins own → known → sibling, origin groups never objects, one chain walk and one "already on the map" rule (F8 fixed), rows say frame + origin, Advanced… fills / suggests the origin. Checks: tsc, Vitest 15 files / 87 tests (5000 metric names < 100 ms), pytest tests/test_local_objects.py.
+- 2026-11-10 · L6 done - group A complete. Checked: N7 relation between two lanes (pytest: lane 1 - lane 0 = +1.5 m north, err_hdg +0.5°), lane 0 on POS within 0.05 m (pytest and e2e through /api/object_track), 3D / templates / relations / frames (e2e), old sessions (no saved field added or changed: the objects are LLA objects behind derived signals), Tacview export (same object_track path, e2e of N8 green). Live mode: not exercised. e2e that ran: test_local_objects (new, 3), test_map_objects, test_object_frames, test_object_templates, test_object_relations, test_globe3d (35 passed); then the **whole e2e suite** at the end of the group (result in the next line). Next: L7.

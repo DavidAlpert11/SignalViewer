@@ -843,3 +843,19 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] N4 (done 2026-11-10) Style a whole group of signals at once (group menu, legend multi-select, Inspector batch).
 - [x] N8 (done 2026-11-10; approved by the owner) Export to Tacview `.acmi` (svcore/acmi.py, /api/export/acmi, the plot menu).
 - [x] N9 (done 2026-11-10) Release 1.24.0 prepared: version, CHANGELOG, README, guides; the full checks green; `frontend/dist` committed; the owner tags.
+
+## Milestone 28 — local-position objects, comparisons, moving plots, map export, an API (owner's plan 2026-11-10). Spec: docs/dev/AGENT_PROMPT_2026-11-10.md; board and decisions: TASKS.md "Owner's plan (2026-11-10)". Groups A L0-L6, B L7-L9, C L10-L11, D L12, E L13.
+- [x] L0 Baseline, fixtures (tools/make_local_objects_fixture.py → examples/ardupilot_lanes.csv, local_frames.csv), notes. Done 2026-11-10.
+- [x] L1 Metric positions by name: x / y / z under a frame word in any form (ned.x, x_ned, pos_ned_x, ecefX, X_ECEF), the frame decided per group, n / e / d under a position sub-group, flat velocities (shared `NED_VEL`), units flagged. Done 2026-11-10.
+- [x] L2 Known groups with local positions: XKF1 / NKF1 lanes (own angles, VN / VE / VD, ORGN), vehicle_local_position, LOCAL_POSITION_NED (`NED_XYZ_GROUPS` shared with frames.ts); order POS → lanes → AHR2. Done 2026-11-10 (names from the loaders' code).
+- [x] L3 Origins (own → known → sibling), origin groups never objects, NED / ENU addable through `ref: "signals"`, *Why?* explains the origin. Done 2026-11-10.
+- [x] L4 One chain walk (`objectSources`) and one "already on the map" rule (`isAdded`, first recorded source). Done 2026-11-10.
+- [x] L5 Rows show frame and origin; Advanced… fills the found origin or suggests the file's receiver. Done 2026-11-10.
+- [x] L6 Downstream verified (relations, 3D, templates, Tacview path, old sessions). Done 2026-11-10.
+- [ ] L7 Primary / secondary explained on the map, chosen in the relation-box header.
+- [ ] L8 Compare objects… - positions, velocities, angles; values and errors; statistics.
+- [ ] L9 Compare with similar… - families of nested names; angle-wrapped `sub`.
+- [ ] L10 Move a plot to another tab / into another plot.
+- [ ] L11 Map export: PNG, standalone HTML, maps in reports.
+- [ ] L12 API: Python, CLI, REST; shared detection tables and test vectors.
+- [ ] L13 Docs, changelog, release notes, full checks.

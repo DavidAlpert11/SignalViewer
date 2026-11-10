@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Objects whose position is in metres - NED, ENU or ECEF - are found and added like latitude /
+  longitude ones.** Every ArduPilot EKF lane (`XKF1[n]`, older logs `NKF1[n]`) is offered after POS with
+  its own attitude and velocity and placed on the map through the EKF origin (`ORGN`); PX4
+  (`vehicle_local_position`, through its own `ref_lat / ref_lon / ref_alt`) and MAVLink
+  (`LOCAL_POSITION_NED`, through `GPS_GLOBAL_ORIGIN`) local positions too. Generic names work in any
+  form: `tgt.ned.x`, `nav.x_ned`, `ship.ecefX`, `boat.pos.north / east / up` (ENU), `rov.pos.n / e / d`,
+  with an `origin.lat / lon / alt` (or `ref_*`) group as the origin. *Why?* says where the origin came
+  from; the found list shows each object's frame and origin ("NED · origin ORGN[0]").
+- A local position with no origin in the file: *Advanced…* fills in the file's GPS (its first fix
+  becomes the origin) and says so.
+
+### Fixed
+- An ECEF (or any converted) object is no longer offered again by the suggestion bar after it was added,
+  and *Add all* can no longer add it twice.
+- Origins and home points (`ORGN`, `HOME_POSITION`, `vehicle_local_position.ref_*`, `origin.*`) are no
+  longer offered as objects of their own.
+- A position in metres written in cm / mm / km is no longer added as if it were metres: *Why?* asks to
+  convert it first.
+
 ## 1.24.0 – 2026-11-10
 
 Highlights: **every object of a recording on the map and in 3D at once** - truth, each navigation
