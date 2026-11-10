@@ -6,6 +6,29 @@ import { useApp } from "../state";
 import { viewActions } from "./view";
 
 export const layoutActions = {
+  /** N2: two plots of the active tab change places (one Undo). The cells keep their sizes; the active
+   *  plot stays the one that moved; everything keyed by plot id (axes, cursors, map / 3D) moves with it. */
+  swapPlots(i: number, j: number) {
+    const tab0 = activeTab(useApp.getState().ws);
+    if (i === j || i < 0 || j < 0 || i >= tab0.plots.length || j >= tab0.plots.length) return;
+    useApp.getState().commit((ws) => {
+      const tab = activeTab(ws);
+      [tab.plots[i], tab.plots[j]] = [tab.plots[j], tab.plots[i]];
+      tab.active = tab.active === i ? j : tab.active === j ? i : tab.active;
+      return ws;
+    });
+  },
+  /** N2: the active plot swapped with its neighbour in the grid (false: there is none that way). */
+  moveActivePlot(dir: "left" | "right" | "up" | "down"): boolean {
+    const tab = activeTab(useApp.getState().ws);
+    const i = tab.active, c = Math.max(1, tab.cols), r = Math.floor(i / c), col = i % c;
+    const rtl = document.documentElement.dir === "rtl";   // left / right as seen on the screen
+    const d = dir === "left" ? (rtl ? 1 : -1) : dir === "right" ? (rtl ? -1 : 1) : 0;
+    const j = d ? (col + d >= 0 && col + d < c ? i + d : -1) : dir === "up" ? (r > 0 ? i - c : -1) : i + c;
+    if (j < 0 || j >= tab.plots.length) return false;
+    layoutActions.swapPlots(i, j);
+    return true;
+  },
   /** Any rows x cols with at most MAX_PLOTS plots. Shrinking removes the extra
    *  plots (their signals go with them); the toast offers Undo. */
   setLayout(rows: number, cols: number) {

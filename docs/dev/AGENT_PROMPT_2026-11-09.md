@@ -2,21 +2,18 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0, N1, N5, **N6 done**; **N7 in progress** - the backend op `relate`
-> (`svcore/relate.py`), the pair with its defaults (`relation.ts`: `defaultPair` / `pairOf` on the
-> existing `Plot.primaryObject` / `relatedObjects`; `actions.setObjectPair`), the map's rings, range line,
-> click / Shift+click / Q / X, the chip's menu, the relation box (`RelationPanel.tsx`), *Plot over time*,
-> *Error signals*, *Differences* / *Overlay* in a frame. **Next, the rest of N7:**
-> 1. 3D: rings (primary / dashed secondary) on the models, a click on a model picks the primary
->    (Shift: the secondary), Q / X when the 3D view has the focus, and the 3D box's relation lines with
->    closure / aspect as on the map (use `relation()` - one set of maths).
-> 2. The offer after objects are added: in the suggestion line, *"Compare objects · NED ▾ · Make plots"*
->    (`relation.compareObjects` / `overlayObjects`), and in the object chip's menu.
-> 3. Velocities: when both objects have `vel.north/east/down`, compare / differences of them too.
-> Then N2, N3, N4, (N8 only if approved), N9.
+> **Stage reached:** N0, N1, N5, N6, **N7** and **N2 done**. **Next: N3** (line defaults in Settings,
+> `newPlotSignal` as the one place that makes a PlotSignal - it already exists in `store/selectors.ts`:
+> check what it covers before adding a helper - `PlotSignal.lineStyle`, *Apply to all open plots*), then
+> N4, (N8 only if approved - Q6), N9.
+> - N7's code map: backend `svcore/relate.py` (op `relate`, definitions in its docstring); frontend
+>   `relation.ts` (pair defaults, at-cursor maths, the over-time actions), `RelationPanel.tsx`,
+>   `actions.setObjectPair` / `plotsInNewTab`, `ui.compareOffer`; the pair lives in the existing
+>   `Plot.primaryObject` / `relatedObjects`.
 > - Measuring: `python tools/browser_benchmark.py --data <dir> --results r.json --group smooth`;
 >   `window.__svRenders = {}` turns on the render counter (`frontend/src/perf.ts`).
-> - Left from N5 (small): a motion attitude from the object's own velocity signals.
+> - Left (small): a motion attitude from the object's own velocity signals (N5); reverse playback (N6,
+>   nice-to-have); `MapObject.vel` is not kept in templates.
 > - Known flaky e2e: `test_features.py::test_limits_pass_fail_in_the_inspector` (after a reload; also
 >   before this round) - look at it in N9.
 >
@@ -25,7 +22,7 @@
 >
 > **Base and patch.** The owner applies each patch and pushes it to `main`, so every session's patch is
 > made **against the repository's `main` as it is when the session starts** (it was `c5bf95b` for the
-> N6 / N7 sessions; the round began at `dafea49`, 1.23.0). To continue:
+> N6 / N7 / N2 sessions; the round began at `dafea49`, 1.23.0). To continue:
 > ```
 > git clone https://github.com/DavidAlpert11/SignalViewer.git && cd SignalViewer
 > git log --oneline -3          # the base: main's HEAD

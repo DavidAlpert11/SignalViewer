@@ -1,6 +1,12 @@
 /* Plots: legend, FFT, zoom, cursors, lanes, the timeline, tabs - English and Hebrew (A2, 2026-11-07: split from the one i18n.ts by area). Every key
    is in both: `he` is typed by `en`, so tsc enforces it. */
 export const en = {
+  // N2: moving plots
+  plotMoveGrip: "Drag to another plot to swap places (Ctrl+Shift+arrows)",
+  plotMoveTo: "Move to…",
+  hMovePlot: "Move the active plot to its neighbour's place",
+  plotCell: "row {r}, column {c}",
+  plotMove_left: "Move the plot left", plotMove_right: "Move the plot right", plotMove_up: "Move the plot up", plotMove_down: "Move the plot down",
   tab: "Tab",
   plot: "Plot",
   cursor: "Cursor",
@@ -183,6 +189,12 @@ export const en = {
 };
 
 export const he: typeof en = {
+  // N2: moving plots
+  plotMoveGrip: "גרירה לגרף אחר מחליפה ביניהם מקום (Ctrl+Shift+חיצים)",
+  plotMoveTo: "העבר אל…",
+  hMovePlot: "הזזת הגרף הפעיל למקום של שכנו",
+  plotCell: "שורה {r}, עמודה {c}",
+  plotMove_left: "הזז את הגרף שמאלה", plotMove_right: "הזז את הגרף ימינה", plotMove_up: "הזז את הגרף למעלה", plotMove_down: "הזז את הגרף למטה",
   tab: "טאב",
   plot: "גרף",
   cursor: "סמן",

@@ -103,6 +103,9 @@ are told apart by them.
   The *Position on the map & 3D* template adds every object of the file the same way, and when a file
   with objects opens, a line in the file panel offers them (*Add all*, *Choose…*, *Why?*, × to hide it).
   Truth is drawn as a line, a navigation solution dashed, a receiver as points (*Track* changes it).
+- **Moving plots:** drag a plot by the ⠿ beside its title onto another plot, or *Move to…* in the plot's
+  menu, or Ctrl+Shift+arrows on the active plot: the two plots change places (Undo puts them back); the
+  sizes of the cells stay.
 - **Moving the map:** drag it (a quick drag glides on), zoom with the wheel or **+ / −** in its corner,
   **Fit everything** (or a double-click) shows every track, **Follow ▾** keeps an object in the middle -
   dragging while following moves the map around it, *Back to following* centres it again. Click the map

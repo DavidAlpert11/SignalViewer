@@ -38,6 +38,13 @@ export function useShortcuts() {
       // the keys below act on the Recordings area (undo, cursor, plots, timeline)
       if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); st.undo(); return; }
       if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); st.redo(); return; }
+      // N2: Ctrl+Shift+arrow moves the active plot to its neighbour's place (Q1's default; not Ctrl+Alt:
+      // it turns the screen on many Windows machines, nor Alt+Shift: it switches the keyboard language)
+      if (e.ctrlKey && e.shiftKey && !e.altKey && e.key.startsWith("Arrow")) {
+        e.preventDefault();
+        actions.moveActivePlot(e.key.slice(5).toLowerCase() as "left" | "right" | "up" | "down");
+        return;
+      }
       if (mod) return;
       if (e.key === " ") { e.preventDefault(); actions.toggleCursor(); }
       else if (e.key.toLowerCase() === "d") actions.toggleDual();
