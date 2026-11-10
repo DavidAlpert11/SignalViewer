@@ -8,7 +8,7 @@ import os
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, frames, menu_item, open_files, pg, S, object_form  # noqa: E402,F401
+from test_features import env, frames, menu_item, open_files, pg, S, object_form, save_as  # noqa: E402,F401
 
 
 @pytest.fixture(autouse=True)
@@ -214,3 +214,25 @@ def test_suggestion_bar_choose_opens_the_list_on_a_new_map(pg):
     pg.locator(".obj-suggest-choose").click()
     pg.wait_for_selector(".obj-found")
     assert S(pg, "s.ws.tabs[0].plots.some((p) => p.mode === 'geo')")
+
+
+def test_export_the_objects_for_tacview(pg):
+    """N8: a map's objects saved as Tacview's ACMI 2.2 from the plot's menu - each object with its
+    position and attitude (the receiver's from its motion)."""
+    import shutil
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
+    open_files(pg, "three_objects.csv")
+    pg.locator(".obj-suggest .obj-suggest-add").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 3)")
+    i = S(pg, "s.ws.tabs[0].plots.findIndex((p) => p.mode === 'geo')")
+    pg.locator(".plot-more").nth(i).click()
+    menu_item(pg, "Export for Tacview (.acmi)…")
+    save_as(pg, "flight")
+    pg.wait_for_selector(".toast:has-text('3 object(s) saved for Tacview')")
+    with open(os.path.join(pg.env["out"], "flight.acmi"), encoding="utf-8-sig") as f:
+        lines = f.read().splitlines()
+    assert lines[:2] == ["FileType=text/acmi/tacview", "FileVersion=2.2"]
+    named = [x for x in lines if ",Name=" in x]
+    assert [x.split(",Name=")[1].split(",")[0] for x in named] == ["phys", "nav", "gps"]
+    assert all(len(x.split(",")[1][2:].split("|")) == 6 for x in named)       # position and attitude each

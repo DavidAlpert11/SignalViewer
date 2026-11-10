@@ -109,6 +109,17 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     if (!path) return;
     try { done((await api.image(path, format, theme, plotSpec(tab, plot, index, t("plotTitle", { n: "{n}" })), scale, lang)).path); } catch (e) { failed(e); }
   };
+  // N8: the objects of this map / 3D view for Tacview (positions and attitudes as this view draws them)
+  const exportAcmi = async () => {
+    const objs = plot.objects ?? [];
+    const path = await pickPath({ mode: "save", title: t("exportAcmi"), exts: [".acmi"], defaultName: `${baseName}.acmi` });
+    if (!path) return;
+    try {
+      const { trackRequest } = await import("../mapObjects");        // the map's code stays in its own chunk
+      const res = await api.exportAcmi(path, plot.title || baseName, objs.map((o) => trackRequest(o, objs)));
+      useApp.getState().toast({ kind: "info", text: translate(lang, "acmiSaved", { n: res.objects, path: res.path }) });
+    } catch (e) { failed(e); }
+  };
   const copyImage = async () => {
     const canvas = sectionRef.current?.querySelector("canvas");
     if (!canvas) return;
@@ -140,6 +151,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
     { label: t("saveImageHtml"), run: () => saveImage("html"), disabled: !plot.signals.length },
     { label: t("copyImage"), run: copyImage, disabled: !plot.signals.length },
+    ...((mode === "geo" || mode === "3d") && plot.objects?.length ? [{ label: t("exportAcmi"), run: exportAcmi }] : []),
     { label: "", run: () => {}, sep: true },
     // the error between two lines (a flight computer's X against the true X), here or in every such plot
     ...(() => {

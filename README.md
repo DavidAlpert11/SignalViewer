@@ -52,6 +52,12 @@ each from its own prefix - and added in one click, with *Why?* for every guess. 
 `<object>.lat / lon / alt / roll / pitch / yaw` (sub-groups like `<object>.att.roll` work too) and
 the guess just works: `truth.*`, `nav.*` and `gps.*` become three objects of the right kind.
 
+Pick a primary object and its secondaries to read range, bearing, closure and the angle off at the
+cursor, and plot their errors or differences (NED, ENU, ECEF, along / across the track) in one click.
+The map drags, glides and zooms smoothly, follows an object (north or track up) and the 3D view can
+chase it. *Export for Tacview (.acmi)* in the plot's menu saves the objects for
+[Tacview](https://www.tacview.net/).
+
 <p align="center"><img src="docs/media/02_flight_map_3d.gif" alt="A UAV flight over the Sea of Galilee played back on the offline map and in 3D" width="100%"></p>
 
 <p align="center"><img src="docs/images/31_flight_map_3d.png" alt="An ArduPilot flight: the track on the map coloured by flight mode, the vehicle in 3D, Roll desired against actual and the vibration at the moment the health check found" width="100%"></p>
@@ -263,6 +269,8 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - לחקור: מ"משהו השתבש בטיסה" לתשובה שאפשר להראות – לתת שם לרגעים שחשובים (<code dir="ltr">abs(Roll - DesRoll) > 5</code>), לראות איזה סיגנל יצא מהטווח הרגיל שלו ראשון ובכמה זמן לפני, לבדוק מול הריצות האחרות, שגיאה לכל ציר בקליק אחד, ממצאים ודוח חקירה. אפשר לנסות על דוגמה מובנית שהתשובה שלה ידועה.
 - לכייל על פני מעטפת ריצות: טבלת תוצאות עם שורה לכל ריצה – אילו סטים של פרמטרים עומדים בכל התרחישים ומי מהם הכי טוב: מטרות, גרף קואורדינטות מקבילות, מפות, חסינות והריצות הבאות; **חקירה** מנסה את המגבלות והיעדים של מטרה כמחוונים, והגרף והטבלה מתעדכנים בכל הזזה.
 - לעקוב אחרי צי (אזור עבודה משלו): אותה בדיקת תקינות על כל הלוגים בתיקייה – מספר לאורך שבועות (מנוע שנשחק), הטיסה הראשונה שעברה גבול, הטיסות עם ממצא. יש צי דוגמה ו[מדריך](docs/fleet-tutorial.he.md).
+- מפה ותלת־ממד (חדש ב־1.24): כל האובייקטים בהקלטה (אמת, פתרונות ניווט, מקלטים) נמצאים לפי השמות שלהם ומתווספים בלחיצה אחת, עם *למה?* לכל ניחוש; אובייקט ראשי ומשניים – טווח, כיוון, קצב התקרבות, ושגיאות או הפרשים ב־NED,‏ ENU,‏ ECEF או לאורך המסלול; מפה שזזה ומתקרבת בצורה חלקה ועוקבת אחרי אובייקט; ייצוא ל־Tacview (‎.acmi).
+- להזיז גרפים בגרירה, לקבוע עובי וסגנון לקווים חדשים בהגדרות, ולעצב קבוצת סיגנלים שלמה בבת אחת.
 - הרבה סיגנלים בגרף אחד: המקרא עובר לעמודה בצד הגרף והערכים לא מזיזים אותו; קבוצות סיגנלים משלכם עם שם, גם מקוננות; מסלול במפה צבוע לפי מוד הטיסה; פס המודים פעם אחת מעל כל הגרפים של הטאב, עם הסמן עליו; ערך רצוי מול נמדד מקווקו לבד.
 - כמה מטרות יחד במעטפת ריצות: דירוג לפי חזית Pareto וגרף Pareto עם הסט המאוזן.
 - לשתף: דוחות HTML, ‏PDF ו־Word, סשנים ותבניות.
