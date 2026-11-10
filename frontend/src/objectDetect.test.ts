@@ -125,4 +125,123 @@ describe("detectObjects (N5)", () => {
     expect(d.candidates).toHaveLength(100);
     expect(detectObjects(r)).toBe(d);
   });
+
+  it("is fast on 5000 names with positions in metres (L1)", () => {
+    const names = Array.from({ length: 5000 }, (_, i) => {
+      const k = Math.floor(i / 50), j = i % 50;
+      return j < 3 ? `obj${k}.ned.${"xyz"[j]}` : j < 6 ? `veh${k}.pos.${["north", "east", "up"][j - 3]}` : j < 9 ? `o${k}.origin.${["lat", "lon", "alt"][j - 6]}` : `sys${i % 20}.sig${i}_val`;
+    });
+    const r = run(names);
+    const t0 = performance.now();
+    const d = detectObjects(r);
+    expect(performance.now() - t0).toBeLessThan(100);
+    expect(d.candidates).toHaveLength(200);
+  });
+});
+
+/* ---- L1-L3 (round of 2026-11-10): positions in metres, flight-log lanes, origins ------------------ */
+const one = (names: string[]) => detectObjects(run(names)).candidates;
+const xyz = (pre: string, a: string[]) => a.map((x) => pre + x);
+
+describe("positions in metres by name (L1)", () => {
+  it("F3: x / y / z under a NED / ENU frame word, in any form", () => {
+    for (const [names, prefix, pos] of [
+      [xyz("nav.ned.", ["x", "y", "z"]), "nav", "ned"], [xyz("nav.", ["x_ned", "y_ned", "z_ned"]), "nav", "ned"],
+      [xyz("nav.pos_ned_", ["x", "y", "z"]), "nav", "ned"], [xyz("nav.pos.ned.", ["x", "y", "z"]), "nav", "ned"],
+      [xyz("tgt.enu.", ["x", "y", "z"]), "tgt", "enu"], [xyz("tgt.", ["x_enu", "y_enu", "z_enu"]), "tgt", "enu"],
+    ] as [string[], string, string][]) {
+      const c = one(names);
+      expect(c.map((x) => [x.prefix, x.pos]), names[0]).toEqual([[prefix, pos]]);
+      expect(c[0].picks.px!.name).toBe(names[0]);
+      expect(c[0].picks.pz!.name).toBe(names[2]);
+    }
+  });
+
+  it("F4: ECEF glued, suffix and upper-case forms", () => {
+    for (const names of [xyz("ship.ecef", ["X", "Y", "Z"]), xyz("ship.", ["X_ECEF", "Y_ECEF", "Z_ECEF"]), xyz("ship.ecef_", ["X", "Y", "Z"]),
+      xyz("ship.", ["x_ecef", "y_ecef", "z_ecef"]), xyz("ship.ecef_", ["x [m]", "y [m]", "z [m]"]), xyz("ship.", ["ecef_x_m", "ecef_y_m", "ecef_z_m"])]) {
+      expect(one(names).map((x) => [x.prefix, x.pos, x.picks.px?.name]), names[0]).toEqual([["ship", "ecef", names[0]]]);
+    }
+    expect(one(["nav.posX", "nav.posY", "nav.posZ"])).toEqual([]);              // a glued x only with a frame word
+  });
+
+  it("F5: the frame is decided by the whole group: north / east with up is ENU", () => {
+    const c = one(xyz("boat.pos.", ["north", "east", "up"]))[0];
+    expect([c.prefix, c.pos, c.picks.px?.name, c.picks.py?.name, c.picks.pz?.name]).toEqual(["boat", "enu", "boat.pos.east", "boat.pos.north", "boat.pos.up"]);
+    expect(one(xyz("tgt.pos.", ["north", "east", "down"]))[0].pos).toBe("ned");
+  });
+
+  it("F6: single letters n / e / d only right under a position or frame sub-group", () => {
+    const c = one(xyz("rov.pos.", ["n", "e", "d"]))[0];
+    expect([c.prefix, c.pos, c.picks.px?.name]).toEqual(["rov", "ned", "rov.pos.n"]);
+    expect(one(xyz("rov.ned.", ["n", "e", "d"]))[0].pos).toBe("ned");
+    expect(one(xyz("nav.", ["n", "e", "d"]))).toEqual([]);                     // nav.n is not a position
+  });
+
+  it("F9: flat velocity fields right under a prefix with a position", () => {
+    const c = one(["nav.lat", "nav.lon", "nav.alt", "nav.vel_n", "nav.vel_e", "nav.vel_d", "spd.vn", "spd.ve"]);
+    expect(c.map((x) => [x.prefix, x.picks.vn?.name, x.picks.vd?.name])).toEqual([["nav", "nav.vel_n", "nav.vel_d"]]);
+  });
+
+  it("units: a position in cm is found but flagged, metres are fine; bare x / y / z stay a near miss", () => {
+    expect(one(xyz("ship.ecef_", ["x [cm]", "y [cm]", "z [cm]"]))[0].badUnit).toBe("cm");
+    expect(one(xyz("ship.ecef_", ["x [m]", "y [m]", "z [m]"]))[0].badUnit).toBeUndefined();
+    expect(parseName("/odom.pose.pose.position.x").miss).toMatchObject({ why: "noframe" });   // F10, Q3
+  });
+});
+
+const COPTER = ["POS.Lat [deg]", "POS.Lng [deg]", "POS.Alt [m]", "ATT.Roll [deg]", "ATT.Pitch [deg]", "ATT.Yaw [deg]",
+  ...[0, 1].flatMap((k) => ["Roll [deg]", "Pitch [deg]", "Yaw [deg]", "VN [m/s]", "VE [m/s]", "VD [m/s]", "PN [m]", "PE [m]", "PD [m]"].map((f) => `XKF1[${k}].${f}`)),
+  "ORGN[0].Lat [deg]", "ORGN[0].Lng [deg]", "ORGN[0].Alt [m]", "GPS[0].Lat [deg]", "GPS[0].Lng [deg]", "GPS[0].Alt [m]"];
+
+describe("flight-log groups with local positions (L2) and their origins (L3)", () => {
+  it("F1: every ArduPilot EKF3 lane, after POS, with its own angles, velocity and the EKF origin", () => {
+    const c = one(COPTER);
+    expect(c.map((x) => x.prefix)).toEqual(["POS", "XKF1[0]", "XKF1[1]", "GPS[0]"]);
+    const lane = c[1];
+    expect([lane.pos, lane.attitude, lane.cls, lane.picks.roll?.name, lane.picks.vd?.name, lane.picks.pz?.name])
+      .toEqual(["ned", "angles", "navigation", "XKF1[0].Roll [deg]", "XKF1[0].VD [m/s]", "XKF1[0].PD [m]"]);
+    expect(lane.picks.roll?.rule).toBe("prefix");                            // its own, not ATT's
+    expect(lane.origin).toEqual({ ids: ["r", "ORGN[0].Lat [deg]", "ORGN[0].Lng [deg]", "ORGN[0].Alt [m]"].slice(1).map((n) => `${c[1].runId}/${n}`), via: "ORGN[0]", rule: "known" });
+    expect(c[2].lane).toEqual({ ekf: "EKF3", n: 1 });
+    expect(one(["NKF1[0].PN", "NKF1[0].PE", "NKF1[0].PD", "NKF1[0].Roll"])[0]).toMatchObject({ prefix: "NKF1[0]", pos: "ned", lane: { ekf: "EKF2", n: 0 } });
+  });
+
+  it("F2: PX4 and MAVLink local positions (x / y / z are NED there), with their origins", () => {
+    const px4 = one(["vehicle_local_position.x", "vehicle_local_position.y", "vehicle_local_position.z", "vehicle_local_position.vx",
+      "vehicle_local_position.vy", "vehicle_local_position.vz", "vehicle_local_position.heading", "vehicle_local_position.ref_lat",
+      "vehicle_local_position.ref_lon", "vehicle_local_position.ref_alt", ...[0, 1, 2, 3].map((i) => `vehicle_attitude.q[${i}]`)]);
+    expect(px4.map((x) => [x.prefix, x.pos, x.attitude, x.picks.vn?.name])).toEqual([["vehicle_local_position", "ned", "quaternion", "vehicle_local_position.vx"]]);
+    expect(px4[0].origin).toMatchObject({ via: "vehicle_local_position.ref", rule: "own", moves: true });
+    const mav = one(["LOCAL_POSITION_NED.x", "LOCAL_POSITION_NED.y", "LOCAL_POSITION_NED.z", "GPS_GLOBAL_ORIGIN.latitude [deg]",
+      "GPS_GLOBAL_ORIGIN.longitude [deg]", "GPS_GLOBAL_ORIGIN.altitude [m]", "ATTITUDE.roll [rad]", "ATTITUDE.pitch [rad]", "ATTITUDE.yaw [rad]"]);
+    expect(mav.map((x) => [x.prefix, x.pos, x.attitude, x.origin?.via])).toEqual([["LOCAL_POSITION_NED", "ned", "angles", "GPS_GLOBAL_ORIGIN"]]);
+  });
+
+  it("F7: origins and home points are never objects (nor incomplete)", () => {
+    const d = detectObjects(run([...COPTER, "HOME_POSITION.latitude", "HOME_POSITION.longitude", "HOME_POSITION.altitude", "home.lat", "home.lon"]));
+    expect(d.candidates.map((x) => x.prefix)).not.toContain("ORGN[0]");
+    expect(d.candidates.map((x) => x.prefix)).not.toContain("HOME_POSITION");
+    expect(d.incomplete.map((x) => x.prefix)).not.toContain("home");
+    expect(one(["vehicle_local_position.ref_lat", "vehicle_local_position.ref_lon", "vehicle_local_position.ref_alt"])).toEqual([]);
+  });
+
+  it("origins: own, sibling above, and none", () => {
+    const f = one(["time", ...xyz("tgt.ned.", ["x", "y", "z"]), ...xyz("ship.ecef_", ["x", "y", "z"]), ...xyz("boat.pos.", ["north", "east", "up"]),
+      ...xyz("rov.pos.", ["n", "e", "d"]), "origin.lat", "origin.lon", "origin.alt"]);
+    expect(f.map((x) => [x.prefix, x.pos, x.origin?.via, x.origin?.rule])).toEqual([
+      ["tgt", "ned", "origin", "sibling"], ["ship", "ecef", undefined, undefined], ["boat", "enu", "origin", "sibling"], ["rov", "ned", "origin", "sibling"]]);
+    expect(one([...xyz("sim.tgt.ned.", ["x", "y", "z"]), "sim.tgt.ref_lat", "sim.tgt.ref_lon", "sim.tgt.ref_alt"])[0].origin).toMatchObject({ via: "sim.tgt.ref", rule: "own" });
+    expect(one(xyz("tgt.ned.", ["x", "y", "z"]))[0].origin).toBeUndefined();
+    // beside it only with a class word (sim.nav_ref beside sim.tgt); an unrelated top-level x.origin is not its origin
+    expect(one([...xyz("sim.tgt.ned.", ["x", "y", "z"]), "sim.nav_ref_lat", "sim.nav_ref_lon", "sim.nav_ref_alt"])[0].origin).toMatchObject({ via: "sim.nav_ref", rule: "sibling" });
+    expect(one([...xyz("tgt.ned.", ["x", "y", "z"]), "boat.origin.lat", "boat.origin.lon", "boat.origin.alt"])[0].origin).toBeUndefined();
+    expect(one([...xyz("a.tgt.ned.", ["x", "y", "z"]), "a.origin.lat", "a.origin.lon"])[0].origin).toBeUndefined();   // no altitude: not an origin
+  });
+
+  it("keeps the older flight-log behaviour", () => {
+    expect(one(["XKF1[0].Roll", "XKF1[0].Pitch", "XKF1[0].Yaw"])).toEqual([]);          // angles only: no object
+    const g = one(["Time", "GPS.Lat [deg]", "GPS.Lng [deg]", "ATT.Roll [deg]", "XKF1[0].Roll [deg]"]);
+    expect(g.map((x) => [x.prefix, x.picks.roll?.name])).toEqual([["GPS", "ATT.Roll [deg]"]]);
+  });
 });

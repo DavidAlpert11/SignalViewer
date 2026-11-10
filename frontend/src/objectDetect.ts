@@ -50,6 +50,14 @@ export interface Candidate {
   full: boolean;           // position (with altitude) and attitude
   missing: DetRole[];      // alt / roll / pitch / yaw not found
   nearMisses: NearMiss[];
+  /** L3: where a NED / ENU position is placed on Earth - three lat / lon / alt signal ids. own: reference
+   *  fields of its own prefix (PX4 ref_lat...); known: the flight-log group's origin (XKF1 -> ORGN[0]);
+   *  sibling: an origin / ref / home / datum group beside or above it. moves: the log may reset it. */
+  origin?: { ids: [string, string, string]; via: string; rule: "own" | "known" | "sibling"; moves?: boolean };
+  /** L1: a position in metres written in another unit (cm, mm, km, ft): not added without a conversion */
+  badUnit?: string;
+  /** L2: an EKF lane of a flight log (XKF1[1] -> EKF3, 1) - for *Why?* */
+  lane?: { ekf: string; n: number };
 }
 /** A prefix with some position but not enough for an object (lat without lon...). */
 export interface Incomplete { runId: string; prefix: string; has: DetRole[]; missing: DetRole[] }
@@ -68,17 +76,30 @@ const OWN_WORD: Partial<Record<DetRole, string>> = { lat: "lat", lon: "lon", alt
 const WORD_ROLE = new Map<string, DetRole>();
 for (const [r, ws] of Object.entries(ALIASES)) for (const w of ws) WORD_ROLE.set(w, r as DetRole);
 /** Position in metres: the words, by frame. */
-const NED_WORDS: Record<string, DetRole> = { north: "px", east: "py", down: "pz" };
-const ENU_WORDS: Record<string, DetRole> = { east: "px", north: "py", up: "pz" };
 const XYZ: Record<string, DetRole> = { x: "px", y: "py", z: "pz" };
 const FRAME_WORDS = new Set(["ecef", "ned", "enu"]);
+/** L1: the axis words of a local position; NED or ENU is decided by the whole group (down -> NED,
+ *  up -> ENU), not by each name. Single letters only right under a position / frame sub-group. */
+type Axis = "n" | "e" | "d" | "u";
+const AXIS_WORDS: Record<string, Axis> = { north: "n", east: "e", down: "d", up: "u" };
+const AXIS_LETTERS: Record<string, Axis> = { n: "n", e: "e", d: "d", u: "u" };
+const LOCAL_ROLE: Record<"ned" | "enu", Partial<Record<Axis, DetRole>>> = { ned: { n: "px", e: "py", d: "pz" }, enu: { e: "px", n: "py", u: "pz" } };
+/** L1: a position in metres must be in metres to be added as it is (Q6: no silent scaling) */
+const GLUED = /^(?:(ecef|ned|enu)([xyz])|([xyz])(ecef|ned|enu))$/i;
+const METRES = new Set(["m", "meter", "meters", "metre", "metres"]);
 const POS_SUB = new Set(["pos", "position", "lla", "geo"]);
 /** N7: a velocity sub-group - its north / east / down (vn / ve / vd) compare between objects */
 const VEL_SUB = new Set(["vel", "velocity", "v_ned", "velned"]);
 const VEL_WORDS: Record<string, DetRole> = { north: "vn", east: "ve", down: "vd", n: "vn", e: "ve", d: "vd" };
 export const VEL_ROLES: DetRole[] = ["vn", "ve", "vd"];
+/** NED velocity fields right under an object's prefix (XKF1[0].VN, nav.vel_n) - one table, also used by
+ *  frames.ts for its conversion suggestions. Taken only by a prefix that has a position. */
+export const NED_VEL: string[][] = [["vn", "ve", "vd"], ["veln", "vele", "veld"], ["vel_n", "vel_e", "vel_d"], ["vel_n_m_s", "vel_e_m_s", "vel_d_m_s"]];
+const FLAT_VEL = new Map<string, DetRole>();
+for (const t of NED_VEL) t.forEach((w, i) => FLAT_VEL.set(w, VEL_ROLES[i]));
+const FLAT_VEL_LAST = new Set([...FLAT_VEL.keys()].map((w) => w.split("_").pop()!));   // a quick test before the table
 const ATT_SUB = new Set(["att", "attitude", "euler", "angles", "ori", "orientation", "q", "quat", "quaternion"]);
-const UNIT_WORDS = new Set(["deg", "degs", "degrees", "rad", "rads", "radians", "m", "ft", "meters", "metres", "feet"]);
+const UNIT_WORDS = new Set(["deg", "degs", "degrees", "rad", "rads", "radians", "m", "ft", "meters", "metres", "feet", "cm", "mm", "km"]);
 
 /** Class words, matched to WHOLE segments of the prefix (a number may follow: nav2, ekf_3, gps[1]);
  *  the deepest matching segment decides (sim.nav is navigation). "ref" is left out (owner's Q2). */
@@ -94,26 +115,53 @@ for (const [c, ws] of Object.entries(CLASS_WORDS)) for (const w of ws) CLASS_OF.
  *  name is the prefix without its instance ("GPS[1]" -> "GPS"). attFrom: the attitude group paired
  *  with a position group that has none of its own - for GPS only when the file has no POS (as before:
  *  a log's main object was GPS + ATT). */
-interface Known { cls: ObjClass; attFrom?: string[]; unlessAlso?: string }
+/* L2: ned / vel - the group's own field words for a NED position / velocity (lower case); origin - the
+ * groups (exact prefixes, in order) that hold its origin (L3); originMoves - the log may reset that
+ * origin during the flight (the first value is used, said in *Why?*); skip - fields that are not what
+ * their word says (PX4's local "heading" is not the attitude); order - the list order among the known
+ * groups of one class (POS, then the EKF lanes, then AHR2); lane - the EKF an instance is a lane of. */
+interface Known {
+  cls: ObjClass; attFrom?: string[]; unlessAlso?: string;
+  ned?: [string, string, string]; vel?: [string, string, string]; origin?: string[]; originMoves?: boolean;
+  skip?: string[]; order?: number; lane?: string;
+}
 export const KNOWN_GROUPS: Record<string, Known> = {
-  POS: { cls: "navigation", attFrom: ["ATT"] },                   // ArduPilot: the EKF's output
+  POS: { cls: "navigation", attFrom: ["ATT"], order: 0 },         // ArduPilot: the EKF's output
   GPS: { cls: "receiver", attFrom: ["ATT"], unlessAlso: "POS" },  // ArduPilot receivers (GPS[n])
   GPS2: { cls: "receiver" },
-  AHR2: { cls: "navigation" },                                     // the backup AHRS: its own angles
+  // ArduPilot EKF3 / EKF2 lanes: NED from the EKF origin (ORGN[0]; ORGN[1] is the AHRS home), own angles
+  XKF1: { cls: "navigation", ned: ["pn", "pe", "pd"], vel: ["vn", "ve", "vd"], origin: ["ORGN[0]", "ORGN"], order: 1, lane: "EKF3" },
+  NKF1: { cls: "navigation", ned: ["pn", "pe", "pd"], vel: ["vn", "ve", "vd"], origin: ["ORGN[0]", "ORGN"], order: 1, lane: "EKF2" },
+  AHR2: { cls: "navigation", order: 2 },                           // the backup AHRS: its own angles
   SIM: { cls: "truth" }, SIM2: { cls: "truth" },                   // SITL's simulated truth
-  vehicle_global_position: { cls: "navigation", attFrom: ["vehicle_attitude"] },   // PX4
+  vehicle_global_position: { cls: "navigation", attFrom: ["vehicle_attitude"], order: 0 },   // PX4
+  vehicle_local_position: { cls: "navigation", ned: ["x", "y", "z"], vel: ["vx", "vy", "vz"], attFrom: ["vehicle_attitude"],
+    originMoves: true, skip: ["heading"], order: 1 },              // origin: its own ref_lat / ref_lon / ref_alt
   vehicle_gps_position: { cls: "receiver" }, sensor_gps: { cls: "receiver" },
-  GLOBAL_POSITION_INT: { cls: "navigation", attFrom: ["ATTITUDE", "ATTITUDE_QUATERNION"] },   // MAVLink (.tlog)
+  GLOBAL_POSITION_INT: { cls: "navigation", attFrom: ["ATTITUDE", "ATTITUDE_QUATERNION"], order: 0 },   // MAVLink (.tlog)
+  LOCAL_POSITION_NED: { cls: "navigation", ned: ["x", "y", "z"], vel: ["vx", "vy", "vz"], attFrom: ["ATTITUDE", "ATTITUDE_QUATERNION"],
+    origin: ["GPS_GLOBAL_ORIGIN", "HOME_POSITION"], originMoves: true, order: 1 },
   GPS_RAW_INT: { cls: "receiver" }, GPS2_RAW: { cls: "receiver" }, SIM_STATE: { cls: "truth" },
 };
+/** The flight-log groups whose plain x / y / z are north / east / down (frames.ts builds its pattern from it). */
+export const NED_XYZ_GROUPS = Object.keys(KNOWN_GROUPS).filter((k) => KNOWN_GROUPS[k].ned?.[0] === "x");
 const baseOf = (prefix: string) => prefix.replace(/\[[^\]]*\]$/, "");
-/** Flight-log groups that only hold an attitude: a top-level "ATT" is that group, not a sub-group. */
-const ATT_GROUPS = new Set(["ATT", "ATTITUDE", "ATTITUDE_QUATERNION", "XKF1", "NKF1", "vehicle_attitude"]);
+/** Flight-log groups that only hold an attitude: a top-level "ATT" is that group, not a sub-group.
+ *  (XKF1 / NKF1 left it in L2: they are known groups now - a position of their own - and the same
+ *  "top-level group" rule protects them through KNOWN_GROUPS.) */
+const ATT_GROUPS = new Set(["ATT", "ATTITUDE", "ATTITUDE_QUATERNION", "vehicle_attitude"]);
+/** L3: origins and home points belong to the object they are the origin of - never objects themselves. */
+const ORIGIN_WORDS = ["origin", "ref", "home", "datum"];
+const ORIGIN_GROUPS = new Set(["ORGN", "HOME_POSITION", "GPS_GLOBAL_ORIGIN", "home_position", "HOME"]);
+const lastWord = (prefix: string) => (prefix.split(/[./_]/).pop() ?? "").replace(/\[[^\]]*\]$/, "").toLowerCase();
+const isOriginGroup = (prefix: string) => !!prefix && (ORIGIN_WORDS.includes(lastWord(prefix)) || ORIGIN_GROUPS.has(baseOf(prefix)));
 
 /* ---- parsing one name -------------------------------------------------------------------------- */
 
 const BRACKET_UNIT = /\s*[[(]([^[\]()]*)[\])]\s*$/;
-interface Parsed { role: DetRole; word: string; prefix: string; sub?: string; unit?: RolePick["unit"]; frame?: PosKind }
+/** frame: the position's frame when the name says it; axis without frame: north / east / down / up whose
+ *  frame (NED or ENU) the whole group decides (role is then a placeholder). */
+interface Parsed { role: DetRole; word: string; prefix: string; sub?: string; unit?: RolePick["unit"]; frame?: PosKind; axis?: Axis }
 type Miss = Omit<NearMiss, "id" | "name"> & { prefix: string };
 
 /** The role of a name and the object prefix it belongs to (null when it is no role), or a near miss. */
@@ -130,6 +178,16 @@ export function parseName(name: string): { hit?: Parsed; miss?: Miss } {
   let unit: RolePick["unit"] | undefined = br && br[1].trim() ? { unit: br[1].trim(), from: "brackets" } : undefined;
   if (toks.length > 1 && UNIT_WORDS.has(toks[toks.length - 1].toLowerCase())) unit = { unit: toks.pop()!, from: "suffix" };
   const low = toks.map((x) => x.toLowerCase());
+  const join = (ps: string[], extra: string[]) => [ps.join("."), extra.join("_")].filter(Boolean).join(ps.length && extra.length ? "." : "");
+  // L2: a known flight-log group's own fields (XKF1[0].PN, vehicle_local_position.x / vx, not its "heading")
+  const kn = parents.length === 1 && toks.length === 1 ? KNOWN_GROUPS[baseOf(parents[0])] : undefined;
+  if (kn) {
+    if (kn.skip?.includes(low[0])) return {};
+    const ni = kn.ned?.indexOf(low[0]) ?? -1;
+    if (ni >= 0) return { hit: { role: VEC_ROLES[ni], word: toks[0], prefix: parents[0], unit, frame: "ned" } };
+    const vi = kn.vel?.indexOf(low[0]) ?? -1;
+    if (vi >= 0) return { hit: { role: VEL_ROLES[vi], word: toks[0], prefix: parents[0], unit } };
+  }
   // the role word at the end of the leaf: two tokens (alt_msl, q_w) or one; what is before it is prefix
   let role: DetRole | undefined, word = "", n = 0;
   for (const k of [2, 1]) {
@@ -139,7 +197,6 @@ export function parseName(name: string): { hit?: Parsed; miss?: Miss } {
     if (r) { role = r; word = toks.slice(-k).join("_"); n = k; break; }
   }
   const before = toks.slice(0, toks.length - n);
-  const join = (ps: string[], extra: string[]) => [ps.join("."), extra.join("_")].filter(Boolean).join(ps.length && extra.length ? "." : "");
   if (role) {
     // a sub-group of the object: nav.att.roll -> nav (att), nav.pos.lat -> nav (pos)
     const last = parents[parents.length - 1]?.toLowerCase();
@@ -149,28 +206,57 @@ export function parseName(name: string): { hit?: Parsed; miss?: Miss } {
     if (!before.length && last && !top && (isPos ? POS_SUB.has(last) : ATT_SUB.has(last))) { sub = parents[parents.length - 1]; parents = parents.slice(0, -1); }
     return { hit: { role, word, prefix: join(parents, before), sub, unit } };
   }
-  // a position in metres: north / east / down (or up) under a position or frame sub-group, x / y / z under a frame word
+  // N7: a velocity: north / east / down under a velocity sub-group (nav.vel.north)
   const lw = low[low.length - 1];
   const lastSeg = parents[parents.length - 1]?.toLowerCase() ?? "";
-  const frameTok = low.length > 1 ? low[low.length - 2] : "";        // ecef_x
-  const frameWord = FRAME_WORDS.has(frameTok) ? frameTok : FRAME_WORDS.has(lastSeg) ? lastSeg : "";
-  // N7: a velocity: north / east / down under a velocity sub-group (nav.vel.north)
-  if (lw in VEL_WORDS && VEL_SUB.has(parents[parents.length - 1]?.toLowerCase() ?? "") && toks.length === 1) {
+  if (lw in VEL_WORDS && VEL_SUB.has(lastSeg) && toks.length === 1) {
     return { hit: { role: VEL_WORDS[lw], word: toks[0], prefix: join(parents.slice(0, -1), []), sub: parents[parents.length - 1], unit } };
   }
-  if (lw in XYZ || lw in NED_WORDS || lw === "up") {
-    const subOk = POS_SUB.has(lastSeg) || FRAME_WORDS.has(lastSeg) || !!frameWord;
-    const frame: PosKind | undefined = frameWord ? (frameWord as PosKind) : lw in XYZ ? undefined : lw === "up" ? "enu" : subOk ? "ned" : undefined;
-    const r = frame === "enu" ? ENU_WORDS[lw] : frame === "ned" ? NED_WORDS[lw] : frame === "ecef" ? XYZ[lw] : undefined;
-    if (frame && r && subOk) {
-      const pre = frameTok === frameWord && frameWord ? toks.slice(0, -2) : toks.slice(0, -1);
-      const ps = POS_SUB.has(lastSeg) || FRAME_WORDS.has(lastSeg) ? parents.slice(0, -1) : parents;
-      return { hit: { role: r, word: toks[toks.length - 1], prefix: join(ps, pre), sub: subOk && ps !== parents ? parents[parents.length - 1] : undefined, unit, frame } };
+  // L1: a flat NED velocity right under the prefix (XKF1[0].VN, nav.vel_n); kept only where there is a position
+  const lj = FLAT_VEL_LAST.has(lw) ? low.join("_") : "";
+  if (lj) for (const [w, r] of FLAT_VEL) {
+    if (lj === w || lj.endsWith("_" + w)) {
+      const k = w.split("_").length;
+      return { hit: { role: r, word: toks.slice(-k).join("_"), prefix: join(parents, toks.slice(0, -k)), unit } };
     }
-    if (lw in XYZ && POS_SUB.has(lastSeg)) return { miss: { role: "px", why: "noframe", detail: leaf, prefix: join(parents.slice(0, -1), toks.slice(0, -1)) } };
-    return {};
   }
+  // only a leaf ending in an axis or frame word can be a position in metres (most names are not: keep it fast)
+  const pos = lw in XYZ || lw in AXIS_WORDS || lw in AXIS_LETTERS || FRAME_WORDS.has(lw) || GLUED.test(lw) ? metricPosition(toks, parents, join, unit) : undefined;
+  if (pos) return pos;
   return { miss: nearMiss(toks, low, parents, join) };
+}
+
+/** L1: a position in metres. The frame from a frame word in any form - a sub-group (ned.x, pos.ned.x),
+ *  a token (ecef_x, x_ecef, pos_ned_x) or glued to the axis (ecefX) - or, for north / east / down / up
+ *  under a position sub-group (pos.north), decided later by the whole group. x / y / z need a frame word. */
+function metricPosition(toks: string[], parents: string[], join: (ps: string[], extra: string[]) => string, unit: RolePick["unit"] | undefined): { hit?: Parsed; miss?: Miss } | undefined {
+  // ecefX / Xecef: a frame word glued to its axis (only with a frame word: never a bare posX)
+  const tk = toks.flatMap((x) => { const m = GLUED.exec(x); return m ? (m[1] ? [m[1], m[2]] : [m[3], m[4]]) : [x]; });
+  const lo = tk.map((x) => x.toLowerCase());
+  const isAxis = (w: string) => w in XYZ || w in AXIS_WORDS;
+  let fw = "", aw = "", word = "", pre: string[] = [], ps = parents;
+  const subs: string[] = [];
+  const last = lo[lo.length - 1], prev = lo[lo.length - 2] ?? "";
+  if (lo.length >= 2 && isAxis(last) && FRAME_WORDS.has(prev)) { fw = prev; aw = last; word = tk[tk.length - 1]; pre = tk.slice(0, -2); }
+  else if (lo.length >= 2 && FRAME_WORDS.has(last) && isAxis(prev)) { fw = last; aw = prev; word = tk[tk.length - 2]; pre = tk.slice(0, -2); }
+  else if (lo.length === 1 && (isAxis(last) || last in AXIS_LETTERS)) {
+    aw = last; word = tk[0];
+    const seg = (i: number) => ps[ps.length - i]?.toLowerCase() ?? "";
+    if (FRAME_WORDS.has(seg(1))) { fw = seg(1); subs.unshift(ps[ps.length - 1]); ps = ps.slice(0, -1); }
+    else if (!POS_SUB.has(seg(1))) return undefined;                    // nav.x, nav.n: not a position
+  } else return undefined;
+  if (pre.length && POS_SUB.has(pre[pre.length - 1].toLowerCase())) pre = pre.slice(0, -1);        // nav.pos_ned_x
+  if (!pre.length && POS_SUB.has(ps[ps.length - 1]?.toLowerCase() ?? "")) { subs.unshift(ps[ps.length - 1]); ps = ps.slice(0, -1); }   // nav.pos.ned.x
+  const prefix = join(ps, pre);
+  const sub = subs.length ? subs.join(".") : undefined;
+  if (fw === "ecef") return aw in XYZ ? { hit: { role: XYZ[aw], word, prefix, sub, unit, frame: "ecef" } } : {};
+  if (fw === "ned" || fw === "enu") {
+    const r = aw in XYZ ? XYZ[aw] : LOCAL_ROLE[fw][AXIS_WORDS[aw] ?? AXIS_LETTERS[aw]];
+    return r ? { hit: { role: r, word, prefix, sub, unit, frame: fw } } : {};
+  }
+  // under a position sub-group with no frame word
+  if (aw in XYZ) return { miss: { role: "px", why: "noframe", detail: tk.join("_"), prefix } };
+  return { hit: { role: "px", word, prefix, sub, unit, axis: AXIS_WORDS[aw] ?? AXIS_LETTERS[aw] } };
 }
 
 /** Why a leaf almost gave a role: a suffix after the role word (yaw_cmd), a misspelling (lattitude),
@@ -229,12 +315,13 @@ export function detectObjects(run: Pick<RunInfo, "id" | "name" | "signals">): De
 }
 
 function detectNow(run: Pick<RunInfo, "id" | "name" | "signals">): Detection {
-  interface Group { prefix: string; picks: Partial<Record<DetRole, RolePick>>; frames: Partial<Record<PosKind, Partial<Record<DetRole, RolePick>>>>; misses: NearMiss[] }
+  interface Group { prefix: string; picks: Partial<Record<DetRole, RolePick>>; frames: Partial<Record<PosKind, Partial<Record<DetRole, RolePick>>>>;
+    loose: Partial<Record<Axis, RolePick>>; misses: NearMiss[] }
   const groups = new Map<string, Group>();
   const order: string[] = [];
   const get = (prefix: string) => {
     let g = groups.get(prefix);
-    if (!g) { g = { prefix, picks: {}, frames: {}, misses: [] }; groups.set(prefix, g); order.push(prefix); }
+    if (!g) { g = { prefix, picks: {}, frames: {}, loose: {}, misses: [] }; groups.set(prefix, g); order.push(prefix); }
     return g;
   };
   // the role's own word first (alt over alt_msl), then right under the prefix, then the shorter name
@@ -248,16 +335,48 @@ function detectNow(run: Pick<RunInfo, "id" | "name" | "signals">): Detection {
     const g = get(hit.prefix);
     const pick: RolePick = { role: hit.role, id: s.id, name: s.name, rule: hit.sub ? "subgroup" : "prefix", word: hit.word,
       exact: OWN_WORD[hit.role] === hit.word.toLowerCase(), ...(hit.sub ? { via: hit.sub } : {}), ...(hit.unit ? { unit: hit.unit } : {}) };
+    if (hit.axis && !hit.frame) { if (better(g.loose[hit.axis], pick)) g.loose[hit.axis] = pick; continue; }
     const into = hit.frame ? (g.frames[hit.frame] ??= {}) : g.picks;
     if (better(into[hit.role], pick)) into[hit.role] = pick;
+  }
+  // L1: north / east with down is NED, with up ENU - decided once per group (pos.north / east / up is ENU)
+  for (const g of groups.values()) {
+    const l = g.loose;
+    if (!l.n || !l.e || !(l.d || l.u)) continue;
+    const fr = l.d ? "ned" : "enu";
+    const into = (g.frames[fr] ??= {});
+    for (const [a, r] of Object.entries(LOCAL_ROLE[fr]) as [Axis, DetRole][]) {
+      const p = l[a];
+      if (p && better(into[r], { ...p, role: r })) into[r] = { ...p, role: r };
+    }
   }
 
   const candidates: Candidate[] = [];
   const incomplete: Incomplete[] = [];
   const hasPos = (g: Group) => !!(g.picks.lat && g.picks.lon) || Object.values(g.frames).some((f) => f && VEC_ROLES.every((r) => f[r]));
-  const prefixes = new Set(order.filter((p) => hasPos(groups.get(p)!)));
+  const prefixes = new Set(order.filter((p) => hasPos(groups.get(p)!) && !isOriginGroup(p)));
+  const lla = (p: string) => { const g = groups.get(p); return g?.picks.lat && g.picks.lon && g.picks.alt ? g : undefined; };
+  const parentOf = (p: string) => { const i = Math.max(p.lastIndexOf("."), p.lastIndexOf("_")); return i < 0 ? "" : p.slice(0, i); };
+  const origins = order.filter((p) => isOriginGroup(p) && !ORIGIN_GROUPS.has(baseOf(p)) && lla(p)).map((p) => ({ p, owner: parentOf(p) }));
+  /** L3: the origin of a local position: its own reference fields, the known group's origin, an origin group beside or above */
+  const originOf = (prefix: string, kn: Known | undefined): Candidate["origin"] => {
+    const make = (p: string, rule: "own" | "known" | "sibling") => { const g = lla(p)!; return { ids: [g.picks.lat!.id, g.picks.lon!.id, g.picks.alt!.id] as [string, string, string], via: p, rule, ...(kn?.originMoves ? { moves: true } : {}) }; };
+    for (const w of ORIGIN_WORDS) for (const sep of [".", "_"]) { const p = prefix ? prefix + sep + w : w; if (lla(p)) return make(p, "own"); }
+    for (const p of kn?.origin ?? []) if (lla(p)) return make(p, "known");
+    // an origin group whose owner (the path before its last word) is above the prefix, or beside it with a
+    // class word (nav.origin, nav_ref beside nav.tgt); the nearest (deepest owner) wins
+    const above = (a: string) => a === "" || prefix.startsWith(a + ".") || prefix.startsWith(a + "_");
+    let best: { p: string; depth: number } | undefined;
+    for (const { p, owner } of origins) {
+      if (owner === prefix) continue;
+      const ok = above(owner) || (owner !== "" && parentOf(owner) === parentOf(prefix) && CLASS_OF.has(lastWord(owner).replace(/\d+$/, "")));
+      if (ok && (!best || owner.length > best.depth)) best = { p, depth: owner.length };
+    }
+    return best ? make(best.p, "sibling") : undefined;
+  };
   for (const prefix of order) {
     const g = groups.get(prefix)!;
+    if (isOriginGroup(prefix)) continue;              // L3: an origin / home point is not an object
     if (!hasPos(g)) {
       const has = (Object.keys(g.picks) as DetRole[]).filter((r) => r === "lat" || r === "lon");
       if (has.length) incomplete.push({ runId: run.id, prefix, has, missing: (["lat", "lon"] as DetRole[]).filter((r) => !g.picks[r]) });
@@ -289,10 +408,15 @@ function detectNow(run: Pick<RunInfo, "id" | "name" | "signals">): Detection {
     const attitude = angles ? "angles" : picks.qw ? "quaternion" : "none";
     const missing = [...(pos === "lla" && !picks.alt ? ["alt" as DetRole] : []), ...(attitude === "none" ? ATT_ROLES : attitude === "angles" ? ATT_ROLES.filter((r) => !picks[r]) : [])];
     const c = classify(prefix);
+    const origin = pos === "ned" || pos === "enu" ? originOf(prefix, kn) : undefined;
+    const u = pos === "lla" ? undefined : VEC_ROLES.map((r) => picks[r]?.unit?.unit).find((x) => x && !METRES.has(x.toLowerCase()));
+    const inst = /\[(\d+)\]$/.exec(prefix);
     candidates.push({
       key: `${run.id}|${prefix}`, runId: run.id, prefix, name: prefix || run.name.replace(/\.[^.]+$/, ""),
       cls: c.cls, clsWhy: { ...(c.word ? { word: c.word } : {}), ...(c.known ? { known: c.known } : {}) },
       pos, picks, attitude, full: attitude !== "none" && (pos !== "lla" || !!picks.alt), missing, nearMisses: [],
+      ...(origin ? { origin } : {}), ...(u ? { badUnit: u } : {}),
+      ...(kn?.lane ? { lane: { ekf: kn.lane, n: inst ? Number(inst[1]) : 0 } } : {}),
     });
   }
   // a near miss belongs to the candidate of its prefix (or of the prefix above a sub-group)
@@ -304,9 +428,11 @@ function detectNow(run: Pick<RunInfo, "id" | "name" | "signals">): Detection {
     const { prefix: _p, ...nm } = m;
     if (c) { if (c.nearMisses.length < 8) c.nearMisses.push(nm); } else if (loose.length < 20) loose.push(nm);
   }
-  // full objects first, then truth, navigation, receiver, other; otherwise in the file's order
+  // full objects first, then truth, navigation, receiver, other; among the known groups of a class their
+  // order (POS, the EKF lanes, AHR2); otherwise in the file's order
   const at = new Map(candidates.map((c, i) => [c, i]));
-  candidates.sort((a, b) => Number(b.full) - Number(a.full) || RANK[a.cls] - RANK[b.cls] || at.get(a)! - at.get(b)!);
+  const ko = (c: Candidate) => KNOWN_GROUPS[baseOf(c.prefix)]?.order ?? 50;
+  candidates.sort((a, b) => Number(b.full) - Number(a.full) || RANK[a.cls] - RANK[b.cls] || ko(a) - ko(b) || at.get(a)! - at.get(b)!);
   return { candidates, incomplete, nearMisses: loose };
 }
 

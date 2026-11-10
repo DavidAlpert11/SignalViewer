@@ -1,6 +1,7 @@
 import { api, type RunInfo } from "./api";
 import { useApp } from "./store";
 import { guessRoles } from "./mapObjects";
+import { NED_VEL, NED_XYZ_GROUPS } from "./objectDetect";
 
 /** Coordinate frames (svcore/analysis.py "frame"): one derived signal per output axis. */
 export type Frame = "ned" | "enu" | "body" | "ecef" | "lla";
@@ -84,8 +85,8 @@ const groupOf = (n: string) => (n.includes(".") ? n.slice(0, n.lastIndexOf("."))
 const angleUnit = (n: string): "deg" | "rad" => (/\[rad\]/i.test(n) ? "rad" : /\[deg\]/i.test(n) ? "deg" : /^ATTITUDE\./.test(n) ? "rad" : "deg");
 
 /** Axis triples by field name, in the frame's order (the first set that matches a group wins). */
-const NED_VEL = [["vn", "ve", "vd"], ["veln", "vele", "veld"], ["vel_n", "vel_e", "vel_d"], ["vel_n_m_s", "vel_e_m_s", "vel_d_m_s"]];
-const NED_XYZ_GROUPS = /^(LOCAL_POSITION_NED|vehicle_local_position)(\[\d+\])?$/i;     // x/y/z there are north/east/down
+// NED_VEL and the groups whose x / y / z are north / east / down: one definition, in objectDetect.ts (L1, L2)
+const NED_XYZ = new RegExp(`^(${NED_XYZ_GROUPS.join("|")})(\\[\\d+\\])?$`, "i");
 const BODY_ACC = [["accx", "accy", "accz"], ["xacc", "yacc", "zacc"], ["acc_x", "acc_y", "acc_z"]];
 
 function triples(names: string[], sets: string[][], groupOk?: (g: string) => boolean): { group: string; names: string[] }[] {
@@ -123,7 +124,7 @@ export function suggestFrames(run: RunInfo | undefined): FrameSuggestion[] {
     ? { kind: "euler", sigs: [g.roll, g.pitch, g.yaw], unit: angleUnit(g.roll.slice(run.id.length + 1)) }
     : g.qw && g.qx && g.qy && g.qz ? { kind: "quat", sigs: [g.qw, g.qx, g.qy, g.qz], unit: "rad" } : undefined;
   if (att) {
-    const vel = [...triples(names, NED_VEL), ...triples(names, [["vx", "vy", "vz"]], (x) => NED_XYZ_GROUPS.test(x))];
+    const vel = [...triples(names, NED_VEL), ...triples(names, [["vx", "vy", "vz"]], (x) => NED_XYZ.test(x))];
     for (const v of vel.slice(0, 2)) out.push({ key: `ned-body:${v.group}`, group: v.group, qty: "vector", src: "ned", dst: "body", vec: v.names.map(id), att });
     for (const a of triples(names, BODY_ACC).slice(0, 2)) out.push({ key: `body-ned:${a.group}`, group: a.group, qty: "vector", src: "body", dst: "ned", vec: a.names.map(id), att });
   }
