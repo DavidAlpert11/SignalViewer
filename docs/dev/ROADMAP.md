@@ -842,4 +842,4 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] N3 (done 2026-11-10; opacity left out) Line defaults in Settings, `newPlotSignal`, `PlotSignal.lineStyle`, *Apply to all open plots*.
 - [x] N4 (done 2026-11-10) Style a whole group of signals at once (group menu, legend multi-select, Inspector batch).
 - [x] N8 (done 2026-11-10; approved by the owner) Export to Tacview `.acmi` (svcore/acmi.py, /api/export/acmi, the plot menu).
-- [ ] N9 Release preparation: version, CHANGELOG, README, guides, the full checks, frontend/dist.
+- [x] N9 (done 2026-11-10) Release 1.24.0 prepared: version, CHANGELOG, README, guides; the full checks green; `frontend/dist` committed; the owner tags.

@@ -28,6 +28,8 @@ def test_fewer_buttons_and_clearer_words(pg):
     print("visible buttons:", total, "controls:", controls)
     assert controls <= 54, controls               # 26.U3: 58 -> 54 (the folded template strip, the strip's + / hide on hover)
     assert total < 90, total                      # 107 on 1.21.0; the rest is data (see TASKS U7)
+    # the count of drawn points comes with the plot's data (after the file's sample count)
+    pg.wait_for_function("document.querySelector('.status')?.innerText.includes('drawn for')")
     status = pg.locator(".status").inner_text()
     assert "1 file" in status and "1 files" not in status
     assert "drawn for" in status and "Showing" not in status
