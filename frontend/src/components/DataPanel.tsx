@@ -504,6 +504,7 @@ export default function DataPanel() {
             onePerPlotItem(n.all),
             { label: "", run: () => {}, sep: true },
             { label: t(allSel ? "unselectGroup" : "selectGroup", { n: n.all.length }), run: () => toggleMany(n.all) },
+            { label: t("styleLines"), run: () => useApp.setState({ styleDialog: { name: n.label, sigs: n.all } }) },
             { label: t("ugRename"), run: async () => {
               const v = await prompt(t("ugRename"), t("ugNameLabel"), n.path);
               if (v !== null) renameGroup(n.path, v);
@@ -543,6 +544,7 @@ export default function DataPanel() {
             onePerPlotItem(row.ids),
             { label: "", run: () => {}, sep: true },
             { label: t(allSel ? "unselectGroup" : "selectGroup", { n: row.ids.length }), run: () => toggleMany(row.ids) },
+            { label: t("styleLines"), run: () => useApp.setState({ styleDialog: { name: String(row.label ?? row.key.split("|").pop()), sigs: row.ids } }) },
           ])}>
           <Icon.Chevron className="chev" />
           {picked.length > 0 && (

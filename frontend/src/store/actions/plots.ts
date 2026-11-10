@@ -1,11 +1,12 @@
 /* Signals and objects in plots: add, remove, move, style, plot modes. Workspace changes, through commit. */
 import { translate } from "../../i18n";
-import { MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
+import { clone, MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
 import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, tabFullMessage } from "../selectors";
 import { useApp } from "../state";
 import { signalUnit } from "../../units";
 import { peersOf } from "../../peers";
 import { contrastColor, pairWithPlots } from "../../pairing";
+import { applyLook, type LineLook, type LineRef } from "../../styleLines";
 
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
  *  that group is coloured by file, so "which line is which file" is the colour. */
@@ -506,6 +507,16 @@ export const plotActions = {
     const L = useApp.getState().lang;
     useApp.getState().toast(n ? { kind: "info", text: translate(L, "setLinesApplied", { n }), undoesWs: true,
       action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } } : { kind: "info", text: translate(L, "setLinesNone") });
+  },
+  /** N4: one look (colour or palette, width, line style) on these lines - one Undo step, said in a toast. */
+  styleLines(targets: LineRef[], look: LineLook) {
+    const st = useApp.getState();
+    const n = applyLook(clone(st.ws), targets, look).changed;
+    if (n) st.commit((ws) => applyLook(ws, targets, look).ws);
+    const L = useApp.getState().lang;
+    useApp.getState().toast(n ? { kind: "info", text: translate(L, "styleApplied", { n }), undoesWs: true,
+      action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } } : { kind: "info", text: translate(L, "styleNone") });
+    return n;
   },
   /** N7: a new time tab with these plots (a plot per entry, up to 6), linked in time; one commit. */
   plotsInNewTab(plots: { title: string; ids: string[] }[], name: string) {

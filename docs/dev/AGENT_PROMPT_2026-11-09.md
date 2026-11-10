@@ -2,10 +2,17 @@
 
 > ## Status – read this first (updated at the end of every session)
 >
-> **Stage reached:** N0, N1, N5, N6, **N7** and **N2 done**. **Next: N3** (line defaults in Settings,
-> `newPlotSignal` as the one place that makes a PlotSignal - it already exists in `store/selectors.ts`:
-> check what it covers before adding a helper - `PlotSignal.lineStyle`, *Apply to all open plots*), then
-> N4, (N8 only if approved - Q6), N9.
+> **Stage reached:** N0, N1, N5, N6, N7, N2, **N3** and **N4 done**. **Next: N9** (release 1.24.0 - Q7's
+> default; full checks; commit `frontend/dist`; no tag). N8 (ACMI export) only if the owner approves it
+> (Q6 - default: not started); if approved, do it before N9.
+> - N3's code map: `styledSignal(sig, color, extra)` in `store/selectors.ts` is the one place a line is
+>   made (Settings' `ui.lineWidth` / `ui.lineStyle`); `PlotSignal.lineStyle` - precedence lineStyle >
+>   dash > automatic (`desired.lineLook`, `DASH`); `actions.applyLineDefaults`; report.py `LINE_STYLES`.
+> - N4's code map: `frontend/src/styleLines.ts` (`linesInScope` plot / tab / all, `defaultScope`,
+>   `restyle`, `applyLook`), `actions.styleLines(targets, look)` (one commit, a toast with Undo),
+>   `components/StyleLinesDialog.tsx` opened by `ui.styleDialog` - from both group menus in the signal
+>   list (*Style the lines…*) and from the Inspector's batch section (*Style these lines…*, colour and
+>   line style there too).
 > - N7's code map: backend `svcore/relate.py` (op `relate`, definitions in its docstring); frontend
 >   `relation.ts` (pair defaults, at-cursor maths, the over-time actions), `RelationPanel.tsx`,
 >   `actions.setObjectPair` / `plotsInNewTab`, `ui.compareOffer`; the pair lives in the existing

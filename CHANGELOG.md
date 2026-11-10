@@ -55,6 +55,11 @@
   (solid, dashed, dotted, dash-dot) every new line gets; *Apply to all open plots* gives them to the
   lines already drawn (one Undo). The Inspector offers dotted and dash-dot too, and reports and saved
   pictures draw the styles as the plots do.
+- **Style a whole group of lines at once.** *Style the lines…* in a group's menu in the signal list
+  (a file's group or your own) gives every line of its signals one colour - or a different one each
+  from the palette - a width and a line style, in this plot, this tab or every tab (the count of lines
+  is shown). With several lines picked in the legend (Ctrl+click), the Inspector sets their colour and
+  line style too, or opens the same dialog. One Undo takes it back.
 
 ### Performance
 - **Smoother playback and map.** While playing, only what moves is drawn again: the panels, the file
