@@ -9,6 +9,7 @@ import { globeImage } from "../globeBridge";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
 import { pairOf, relation, type At } from "../relation";
+import { RelationPicker } from "./RelationPanel";
 import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
@@ -769,11 +770,8 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
         <div className="globe3d-bar" role="toolbar" aria-label={t("g3Bar")}>
-          <label><span>{t("g3Primary")}</span>
-            <select value={primaryId} aria-label={t("g3Primary")}
-              onChange={(e) => { const pr = e.target.value, sec = pairOf(plot).secondary; actions.setObjectPair(plot.id, pr, sec === pr ? pairOf(plot).primary : sec); }}>
-              {objects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select></label>
+          {/* L7: the pair is chosen in one place - the same Reference ⇄ Compared with as the map's relation box */}
+          <RelationPicker plot={plot} objects={objects} />
           <span className="g3-seg" role="radiogroup" aria-label={t("g3Camera")}>
             <span className="g3-seg-label">{t("g3Camera")}</span>
             <button role="radio" aria-checked={!centred} className={!centred ? "on" : ""} onClick={() => actions.updatePlot(plot.id, { followObject: null, camera: undefined })}>{t("g3CamFree")}</button>
@@ -786,18 +784,18 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
                 // looking needs something to look at: the first other object when none is chosen
                 ...((plot.relatedObjects ?? []).some((x) => x !== primaryId) ? {} : { relatedObjects: [objects.find((o) => o.id !== primaryId)!.id] }) })}>{t("g3CamLookAt")}</button>}
           </span>
-          {[0, 1].map((k) => (objects.length > k + 1 && (
-            <label key={k}><span>{t(k === 0 ? "g3Second" : "g3Third")}</span>
-              <select value={(plot.relatedObjects ?? [])[k] ?? ""} aria-label={t(k === 0 ? "g3Second" : "g3Third")}
-                onChange={(e) => {
-                  const cur = [...(plot.relatedObjects ?? [])];
-                  cur[k] = e.target.value;
-                  actions.updatePlot(plot.id, { relatedObjects: cur.filter((x, i) => !!x && x !== primaryId && cur.indexOf(x) === i) });
-                }}>
-                <option value="">—</option>
-                {objects.filter((o) => o.id !== primaryId && (k === 0 || o.id !== (plot.relatedObjects ?? [])[0])).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-              </select></label>
-          )))}
+          {objects.length > 2 && (() => {
+            // a third object: a second dashed line from the reference (the compared one is chosen in the picker)
+            const sec = pairOf(plot).secondary;
+            return (
+              <label><span>{t("g3Third")}</span>
+                <select value={(plot.relatedObjects ?? [])[1] ?? ""} aria-label={t("g3Third")}
+                  onChange={(e) => actions.updatePlot(plot.id, { relatedObjects: [sec, e.target.value].filter((x, n, a): x is string => !!x && x !== primaryId && a.indexOf(x) === n) })}>
+                  <option value="">—</option>
+                  {objects.filter((o) => o.id !== primaryId && o.id !== sec).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select></label>
+            );
+          })()}
           <button className={`g3-toggle${showBox ? " on" : ""}`} aria-pressed={showBox} onClick={() => actions.updatePlot(plot.id, { showReadout: !showBox })}>{t("g3Data")}</button>
           {hasEvents && <button className={`g3-toggle${plot.showEvents !== false ? " on" : ""}`} aria-pressed={plot.showEvents !== false}
             onClick={() => actions.updatePlot(plot.id, { showEvents: plot.showEvents === false })} title={t("g3EventsHint")}>{t("g3Events")}</button>}

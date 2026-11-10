@@ -31,6 +31,11 @@ def _chip(pg, name):
     return pg.locator(".obj-chip", has_text=name)
 
 
+def _pick(pg, label):
+    """The object chosen in the relation box's header select (Reference / Compared with)."""
+    return pg.locator(f".rel-panel .rel-head select[aria-label='{label}'] option:checked").inner_text()
+
+
 def _derived(pg, name):
     return pg.evaluate(f"(window.__sv.state().runs.find((r) => r.format === 'derived')?.signals ?? []).find((s) => s.name === {name!r})?.id ?? null")
 
@@ -42,7 +47,7 @@ def _value_at(pg, sid, t):
 def test_defaults_swap_and_cycle(three):
     pg = three
     assert "primary" in _chip(pg, "phys").get_attribute("class") and "secondary" in _chip(pg, "nav").get_attribute("class")
-    assert "nav" in pg.locator(".rel-head").inner_text() and "phys" in pg.locator(".rel-head").inner_text()
+    assert _pick(pg, "Reference") == "phys" and _pick(pg, "Compared with") == "nav"
     pg.locator(".plot-canvas.geo").focus()
     pg.keyboard.press("x")                                                # swap
     pg.wait_for_function("document.querySelector('.obj-chip.primary')?.textContent.includes('nav')")
@@ -52,7 +57,7 @@ def test_defaults_swap_and_cycle(three):
     pg.keyboard.press("Control+z"); pg.keyboard.press("Control+z")        # one undo each
     pg.wait_for_function("document.querySelector('.obj-chip.primary')?.textContent.includes('phys')")
     _chip(pg, "gps").click(button="right")                               # the chip's menu
-    menu_item(pg, "Set as secondary")
+    menu_item(pg, "Compare with the reference")
     pg.wait_for_function("document.querySelector('.obj-chip.secondary')?.textContent.includes('gps')")
     geo = S(pg, GEO)
     gps = [o for o in geo["objects"] if o["name"] == "gps"][0]
@@ -136,3 +141,37 @@ def test_compare_offer_after_add_all(three):
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 2")
     assert [p["title"].split(" ")[0] for p in S(pg, "s.ws.tabs[1].plots")[:3]] == ["Δeast", "Δnorth", "Δup"]
     pg.wait_for_selector(".obj-compare-offer", state="detached")
+
+
+def test_rings_explained_and_the_pair_chosen_in_one_place(three):
+    """L7: the box's header names the rings and chooses the pair (each choice one Undo, swap button); hovering
+    an object says what its ring means; the chips carry the same ring icons; Ctrl+K sets the reference."""
+    pg = three
+    head = pg.locator(".rel-panel .rel-head")
+    assert head.locator(".ring-icon.primary").count() == 1 and head.locator(".ring-icon.secondary").count() == 1
+    head.locator("select[aria-label='Compared with']").select_option(label="gps")
+    pg.wait_for_function("document.querySelector('.obj-chip.secondary')?.textContent.includes('gps')")
+    head.locator(".rel-swap").click()
+    pg.wait_for_function("document.querySelector('.obj-chip.primary')?.textContent.includes('gps')")
+    assert _pick(pg, "Reference") == "gps" and _pick(pg, "Compared with") == "phys"
+    assert _chip(pg, "gps").locator(".ring-icon.primary").count() == 1 and _chip(pg, "phys").locator(".ring-icon.secondary").count() == 1
+    assert "Solid ring" in _chip(pg, "gps").get_attribute("title")
+    pg.keyboard.press("Control+z")                                        # the swap is one Undo
+    pg.wait_for_function("document.querySelector('.obj-chip.primary')?.textContent.includes('phys')")
+    # hover the reference on the map: the tooltip says it is the reference
+    box = pg.locator(".plot-canvas.geo canvas").first.bounding_box()
+    found = None
+    for fx in range(4, 97, 3):
+        for fy in range(4, 97, 3):
+            pg.mouse.move(box["x"] + box["width"] * fx / 100, box["y"] + box["height"] * fy / 100)
+            if pg.locator(".ring-tip").count():
+                found = pg.locator(".ring-tip").inner_text()
+                break
+        if found:
+            break
+    assert found and ("Solid ring" in found or "Dashed ring" in found or "No ring" in found), found
+    pg.mouse.move(box["x"] - 30, box["y"] - 30)
+    pg.wait_for_selector(".ring-tip", state="detached")
+    # Ctrl+K: set the reference by name
+    pg.keyboard.press("Control+k"); pg.keyboard.type("reference object: nav"); pg.keyboard.press("Enter")
+    pg.wait_for_function("document.querySelector('.obj-chip.primary')?.textContent.includes('nav')")

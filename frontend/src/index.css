@@ -1194,7 +1194,18 @@ input.fx-input { width: 100%; }
 .plot.move-target { outline: 2px dashed var(--focus); outline-offset: -2px; }
 /* N7: the relation box on the map */
 .rel-panel { position: absolute; bottom: 34px; inset-inline-end: var(--sp-2); max-width: 270px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-m); padding: var(--sp-1) var(--sp-1_5); font-size: var(--fs-xs); color: var(--ink); z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
-.rel-head { font-size: var(--fs-xs); color: var(--ink); text-align: start; }
+.rel-head { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-xs); color: var(--ink); }
+/* L7: Reference ⇄ Compared with - in the relation box and the 3D bar */
+.rel-pick { display: inline-flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; min-width: 0; }
+.rel-pick label { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
+.rel-pick label > span { color: var(--muted); white-space: nowrap; }
+.rel-pick select { max-width: 9em; font-size: var(--fs-xs); }
+.ring-icon { flex: none; }
+.obj-chip .ring-icon { margin-inline-end: 2px; }
+.ring-tip { position: absolute; z-index: 5; max-width: 260px; pointer-events: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-m); padding: var(--sp-1) var(--sp-1_5);
+  font-size: var(--fs-xs); color: var(--ink); box-shadow: var(--shadow); }
+.ring-tip span { flex-basis: 100%; color: var(--muted); }
 .rel-body { display: grid; grid-template-columns: auto auto; gap: 0 var(--sp-2); margin-top: var(--sp-0_5); }
 .rel-row { display: contents; }
 .rel-row > span { color: var(--muted); }

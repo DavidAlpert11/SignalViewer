@@ -148,7 +148,7 @@ def g3multi(env):
 def test_related_objects_distance_line_and_box(g3multi):
     pg = g3multi
     assert pg.locator(".globe3d-readout b").inner_text() == "A"                # the first object is the primary
-    pg.locator(".globe3d-bar select[aria-label='Second']").select_option("B")
+    pg.locator(".globe3d-bar select[aria-label='Compared with']").select_option("B")
     pg.locator(".globe3d-bar select[aria-label='Third']").select_option("C")
     pg.wait_for_function("document.querySelectorAll('.globe3d-readout .g3-rel').length === 2")
     rel = pg.locator(".globe3d-readout .g3-rel").all_inner_texts()
@@ -168,7 +168,7 @@ def test_related_objects_distance_line_and_box(g3multi):
 
 def test_camera_on_the_object_zooms_towards_it(g3multi):
     pg = g3multi
-    pg.locator(".globe3d-bar select[aria-label='Object']").select_option("B")
+    pg.locator(".globe3d-bar select[aria-label='Reference']").select_option("B")
     pg.locator(".globe3d-bar button", has_text="On the object").click()
     probe = """(() => { const { widget: w, Cesium: C } = window.__svGlobe;
       const pos = C.Cartesian3.fromDegrees(34.51, 32.5, 500);
@@ -186,7 +186,7 @@ def test_camera_on_the_object_zooms_towards_it(g3multi):
     b = pg.evaluate(probe)
     assert b["d"] < a["d"] * 0.8 and b["centre"] > 0.999, (a, b)
     # another primary while centred: the camera moves to it
-    pg.locator(".globe3d-bar select[aria-label='Object']").select_option("C")
+    pg.locator(".globe3d-bar select[aria-label='Reference']").select_option("C")
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].followObject") == "C"
 
 

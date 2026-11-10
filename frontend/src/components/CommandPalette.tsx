@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { refreshAll, toggleLive } from "../live";
 import { mavlinkDisconnect } from "../mavlink";
 import { actions, activeTab, useApp } from "../store";
+import { pairOf } from "../relation";
 import { useT } from "../i18n";
 import { newCollection, openTemplates, saveAsTemplate } from "../templateMenu";
 import { Icon } from "../icons";
@@ -71,6 +72,17 @@ export default function CommandPalette() {
       { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       // F22: every tab is reachable by name, however many there are
+      // L7: the reference object of the active tab's first map / 3D view with two or more objects (Ctrl+K)
+      ...(() => {
+        const pl = activeTab(st().ws)?.plots.find((p) => (p.mode === "geo" || p.mode === "3d") && (p.objects?.length ?? 0) > 1);
+        if (!pl) return [];
+        const pr = pairOf(pl);
+        return [
+          ...pl.objects!.filter((o) => o.id !== pr.primary).map((o) => ({ id: `relref-${o.id}`, label: t("relCmdSetRef", { name: o.name }), group: t("objects"),
+            run: () => actions.setObjectPair(pl.id, o.id, o.id === pr.secondary ? pr.primary : pr.secondary) })),
+          ...(pr.secondary ? [{ id: "relswap", label: t("relCmdSwap"), group: t("objects"), keys: "X", run: () => actions.setObjectPair(pl.id, pr.secondary, pr.primary) }] : []),
+        ];
+      })(),
       ...st().ws.tabs.map((tb, i) => ({ id: `goto-${tb.id}`, label: t("goToTab", { name: tb.name || `${t("tab")} ${i + 1}` }), group: t("tab"),
         icon: <Icon.Layout />, run: () => actions.switchTab(tb.id) })),
       { id: "cursor", label: t("cursor"), group: t("cursor"), icon: <Icon.Cursor />, run: actions.toggleCursor, keys: "Space" },
