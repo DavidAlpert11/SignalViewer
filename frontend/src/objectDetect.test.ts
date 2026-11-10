@@ -17,15 +17,17 @@ describe("detectObjects (N5)", () => {
   it("finds the fixture's three objects, each from its own prefix only", () => {
     const d = detectObjects(run(FIXTURE));
     expect(d.candidates.map(short)).toEqual([
-      { prefix: "phys", cls: "truth", lat: "phys.lat", lon: "phys.lon", alt: "phys.alt", roll: "phys.att.roll", pitch: "phys.att.pitch", yaw: "phys.att.yaw" },
-      { prefix: "nav", cls: "navigation", lat: "nav.lat", lon: "nav.lon", alt: "nav.alt", roll: "nav.att.roll", pitch: "nav.att.pitch", yaw: "nav.att.yaw" },
+      { prefix: "phys", cls: "truth", lat: "phys.lat", lon: "phys.lon", alt: "phys.alt", roll: "phys.att.roll", pitch: "phys.att.pitch", yaw: "phys.att.yaw", vn: "phys.vel.north", ve: "phys.vel.east" },
+      { prefix: "nav", cls: "navigation", lat: "nav.lat", lon: "nav.lon", alt: "nav.alt", roll: "nav.att.roll", pitch: "nav.att.pitch", yaw: "nav.att.yaw", vn: "nav.vel.north", ve: "nav.vel.east" },
       { prefix: "gps", cls: "receiver", lat: "gps.lat", lon: "gps.lon", alt: "gps.alt" },
     ]);
     const [phys, , gps] = d.candidates;
     expect(phys.full).toBe(true);
     expect(phys.picks.roll).toMatchObject({ rule: "subgroup", via: "att", exact: true });
     expect(phys.clsWhy).toEqual({ word: "phys" });
-    expect(gps.attitude).toBe("none");                       // position only: still proposed (owner's decision 2)
+    expect(gps.attitude).toBe("none");
+    expect([phys.picks.vn?.name, phys.picks.ve?.name, phys.picks.vd]).toEqual(["phys.vel.north", "phys.vel.east", undefined]);   // N7: its velocity
+    expect(gps.picks.vn).toBeUndefined();                       // position only: still proposed (owner's decision 2)
     expect(gps.missing).toEqual(["roll", "pitch", "yaw"]);
   });
 

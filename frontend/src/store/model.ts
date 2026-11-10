@@ -91,6 +91,8 @@ export interface MapObject {
   attitudeSource?: "own" | "motion" | { object: string };
   /** N5: below this ground speed (m/s) a heading from motion holds its last value (default 1) */
   minSpeed?: number;
+  /** N7: its velocity north / east / down (m/s), found by its names - compared between objects */
+  vel?: [string, string, string | null] | null;
 }
 export interface Tab {
   id: string; name: string; rows: number; cols: number; plots: Plot[]; active: number; linkX: boolean;

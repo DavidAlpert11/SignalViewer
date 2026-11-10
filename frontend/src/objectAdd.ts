@@ -43,6 +43,7 @@ export async function candidateObject(c: Candidate, color: string, name = c.name
     id: uid("o"), name, kind: "aircraft", color, lat: lat!, lon: lon!, alt,
     yaw: id("yaw"), pitch: id("pitch"), roll: id("roll"), qw: id("qw"), qx: id("qx"), qy: id("qy"), qz: id("qz"),
     angleUnit: "auto", trail: true, cls: c.cls,
+    ...(c.picks.vn && c.picks.ve ? { vel: [c.picks.vn.id, c.picks.ve.id, c.picks.vd?.id ?? null] as [string, string, string | null] } : {}),
     ...(trackOfClass(c.cls) ? { track: trackOfClass(c.cls) } : {}),
     // N5 (owner's decision 3): no angles of its own - drawn by its motion until another source is chosen
     ...(c.attitude === "none" ? { attitudeSource: "motion" as const } : {}),

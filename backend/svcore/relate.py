@@ -22,6 +22,10 @@ Definitions (degrees and metres; the local frame is the primary's own NED at eac
              0 = the primary is right behind it, 180 = head-on (nose to nose)
   err_horiz / err_vert / err_3d   the secondary's position error, m (vert: secondary - primary)
   err_hdg / err_roll / err_pitch  the secondary's angle - the primary's, wrapped to -180..180
+  vdiff      the secondary's velocity - the primary's (N7), in `frame` as for diff (lla: as ned): each
+             object's own north / east / down velocity turned to ECEF, the difference turned into the
+             primary's local frame at each sample; needs "vel" (2: north / east, 3: with down) in both
+             layouts - its sources follow the angles
   diff       the secondary's position - the primary's in `frame` (axis 0..2):
              ned / enu  in the primary's local frame AT EACH SAMPLE (the ECEF difference turned by
                         its latitude / longitude at that time - a fixed origin would tilt the error)
@@ -35,7 +39,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 WHATS = ("range", "horiz", "dalt", "bearing", "relbearing", "closure", "tca", "hdgdiff", "aspect",
-         "err_horiz", "err_vert", "err_3d", "err_hdg", "err_roll", "err_pitch", "diff")
+         "err_horiz", "err_vert", "err_3d", "err_hdg", "err_roll", "err_pitch", "diff", "vdiff")
 DIFF_FRAMES = {"ned": ("north", "east", "down"), "enu": ("east", "north", "up"), "ecef": ("x", "y", "z"),
                "lla": ("north", "east", "up"), "track": ("along", "cross", "up")}
 
@@ -48,15 +52,15 @@ def relate_sources(params: Dict) -> int:
     n = 0
     for k in ("p", "s"):
         o = params.get(k) or {}
-        n += 2 + (1 if o.get("alt") else 0) + (3 if o.get("att") else 0)
+        n += 2 + (1 if o.get("alt") else 0) + (3 if o.get("att") else 0) + int(o.get("vel") or 0)
     return n
 
 
 def relate_name(n: List[str], p: Dict) -> str:
     what = str(p.get("what", ""))
-    if what == "diff":
+    if what in ("diff", "vdiff"):
         lbl = DIFF_FRAMES.get(str(p.get("frame", "ned")), ("?", "?", "?"))[int(p.get("axis", 0)) % 3]
-        what = f"Δ{lbl} {str(p.get('frame', 'ned')).upper()}"
+        what = f"Δ{'v' if what == 'vdiff' else ''}{lbl} {str(p.get('frame', 'ned')).upper()}"
     k = relate_sources({"p": p.get("p")}) if p.get("p") else 2
     sec = n[k] if len(n) > k else "?"
     return f"{what}({sec} vs {n[0] if n else '?'})"
@@ -116,10 +120,15 @@ def relate(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict, rep=None)
             u = o.get("unit", "deg")
             att = [take(i + j, angle=True, unit=u) for j in range(3)]     # roll, pitch, yaw
             i += 3
+        vel = None
+        nv = int(o.get("vel") or 0)
+        if nv:
+            vel = [take(i + j) for j in range(nv)] + ([np.zeros(len(t))] if nv == 2 else [])
+            i += nv
         if np.nanmax(np.abs(lat)) > 90 or np.nanmax(np.abs(lon)) > 180:  # 1e7 degrees (MAVLink integers)
             lat, lon = lat / 1e7, lon / 1e7
         lon = _wrap(lon)
-        return {"lat": lat, "lon": lon, "alt": alt, "has_alt": has_alt, "att": att}, i
+        return {"lat": lat, "lon": lon, "alt": alt, "has_alt": has_alt, "att": att, "vel": vel, "vd": nv == 3}, i
 
     P, nxt = obj("p", 0)
     S, _ = obj("s", nxt)
@@ -173,6 +182,30 @@ def relate(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict, rep=None)
         else:
             j = {"err_roll": 0, "err_pitch": 1, "err_hdg": 2}[what]
             out = _wrap(S["att"][j] - P["att"][j])
+    elif what == "vdiff":
+        frame = params.get("frame", "ned")
+        if P["vel"] is None or S["vel"] is None:
+            raise OpError("Velocity differences need both objects' velocities (north / east, and down).")
+        if frame not in DIFF_FRAMES or axis not in (0, 1, 2):
+            raise OpError("Choose the frame of the difference: NED, ENU, ECEF, LLA or track, and an axis 0-2.")
+        # each velocity from its own local frame to ECEF (R is NED <- ECEF: its transpose turns back)
+        Rs = _ecef_to_ned(S["lat"], S["lon"])
+        ve = lambda R, v: np.einsum("jin,jn->in", R, np.vstack(v))
+        dv = ve(Rs, S["vel"]) - ve(Rp, P["vel"])
+        vn = np.einsum("ijn,jn->in", Rp, dv)
+        if not (P["vd"] and S["vd"]):
+            vn[2] = np.nan                                  # no down velocity: nothing vertical is known
+            # (in ECEF the missing down is taken as 0 - x / y / z cannot leave the vertical out)
+        if frame in ("ned", "lla"):
+            v = vn
+        elif frame == "enu":
+            v = np.vstack([vn[1], vn[0], -vn[2]])
+        elif frame == "ecef":
+            v = dv
+        else:
+            h = np.radians(heading(P))
+            v = np.vstack([vn[0] * np.cos(h) + vn[1] * np.sin(h), -vn[0] * np.sin(h) + vn[1] * np.cos(h), -vn[2]])
+        out = v[axis]
     else:                                                    # diff
         frame = params.get("frame", "ned")
         if frame not in DIFF_FRAMES or axis not in (0, 1, 2):

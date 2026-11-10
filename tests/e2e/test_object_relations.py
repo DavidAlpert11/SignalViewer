@@ -96,6 +96,9 @@ def test_error_signals_and_compare_in_frames(three):
     tab = S(pg, "s.ws.tabs[3]")
     assert [p["title"].split(" ")[0] for p in tab["plots"][:3]] == ["Δnorth", "Δeast", "Δdown"]
     assert len(tab["plots"][0]["signals"]) == 2                          # nav and gps, each against phys
+    # the velocities: nav and phys have vel.north / east (gps has none): their difference, one plot
+    assert tab["plots"][4]["title"] == "Velocity difference (m/s, NED)" and len(tab["plots"][4]["signals"]) == 3
+    assert abs(_value_at(pg, _derived(pg, "nav_vs_phys.dvned.north"), 60)) < 0.6     # 0.1 m/s of noise
     north = _derived(pg, "nav_vs_phys.dned.north")
     # the fixture's navigation drifts 0.02 m/s north (with 0.3 m of noise): about 1.2 m north at 60 s
     assert abs(_value_at(pg, north, 60) - 1.2) < 1.5
