@@ -428,6 +428,12 @@ def compute_signal_stats(
     sel = seg[keep]
     result = _stats_of(sel, w)
     tk = tseg[keep]
+    # L8: the size of an error - the largest |value|, when it happened, and the 95th percentile of |value|
+    # (of the samples, not weighted by time: a percentile of what was recorded)
+    a = np.abs(sel)
+    im = int(np.argmax(a))
+    result["abs_max"], result["t_abs_max"] = float(a[im]), float(tk[im])
+    result["p95_abs"] = float(np.percentile(a, 95))
     result["duration"] = float(tk[-1] - tk[0]) if len(tk) > 1 else 0.0
     if w is not None:
         result["weighting"] = "time"

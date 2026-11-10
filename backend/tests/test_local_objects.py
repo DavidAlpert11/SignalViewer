@@ -86,3 +86,37 @@ def test_relation_between_lanes_shows_the_fixture_offset():
     hdg = compute("relate", rows, {"what": "err_hdg", "p": lay, "s": lay})[1]
     assert np.nanmax(np.abs(north - 1.5)) < 0.05 and np.nanmax(np.abs(down)) < 0.05
     assert np.nanmax(np.abs(hdg - 0.5)) < 0.01
+
+
+def test_comparison_statistics_match_numpy():
+    """L8: the statistics of an error signal (RMS, mean, max |error|, its time, 95th percentile of |error|)
+    are compute_signal_stats on the full-resolution data - checked against numpy on lane 1 vs lane 0."""
+    from svcore.ops import compute_signal_stats
+    run = _run("ardupilot_lanes.csv")
+    rows = []
+    for k in (0, 1):
+        t, lla = _to_lla(run, [f"XKF1[{k}].{f} [m]" for f in ("PN", "PE", "PD")], ORGN)
+        rows += [(t, lla[0]), (t, lla[1]), (t, lla[2])]
+    lay = {"alt": True}
+    t, e = compute("relate", rows, {"what": "err_horiz", "p": lay, "s": lay})
+    st = compute_signal_stats(t, e)
+    a = np.abs(e[np.isfinite(e)])
+    assert abs(st["rms"] - np.sqrt(np.mean(a ** 2))) < 1e-9 and abs(st["mean"] - np.mean(e)) < 1e-9
+    assert st["abs_max"] == a.max() and st["t_abs_max"] == t[np.isfinite(e)][np.argmax(a)]
+    assert abs(st["p95_abs"] - np.percentile(a, 95)) < 1e-12
+    assert abs(st["rms"] - 1.5) < 0.05                                     # the fixture's 1.5 m
+
+
+def test_speed_error():
+    """L8: err_speed is |v| of the secondary - |v| of the primary (here the same velocity: zero)."""
+    run = _run("ardupilot_lanes.csv")
+    rows = []
+    for k in (0, 1):
+        t, lla = _to_lla(run, [f"XKF1[{k}].{f} [m]" for f in ("PN", "PE", "PD")], ORGN)
+        rows += [(t, lla[0]), (t, lla[1]), (t, lla[2])] + [_sig(run, f"XKF1[{k}].{v} [m/s]") for v in ("VN", "VE", "VD")]
+    lay = {"alt": True, "vel": 3}
+    out = compute("relate", rows, {"what": "err_speed", "p": lay, "s": lay})[1]
+    assert np.nanmax(np.abs(out)) < 1e-9
+    rows2 = rows[:3] + [(rows[3][0], rows[3][1] * 0)] + rows[4:]           # P's north velocity zeroed
+    out2 = compute("relate", rows2, {"what": "err_speed", "p": lay, "s": lay})[1]
+    assert np.nanmin(out2) >= -1e-9 and np.nanmax(out2) > 1

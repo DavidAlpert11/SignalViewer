@@ -1,7 +1,8 @@
-import { api } from "./api";
+import { api, type Stats } from "./api";
+import { findDerived } from "./peers";
 import { translate } from "./i18n";
 import { actions, useApp, type MapObject, type Plot } from "./store";
-import { attitudeOf, trackRequest } from "./mapObjects";
+import { attitudeOf, hasOwnAttitude, trackRequest } from "./mapObjects";
 import { createFrameGroup, freeGroup } from "./frames";
 
 /* N7 (Tacview-like): a primary and a secondary object and what is between them - at the cursor (the
@@ -105,10 +106,13 @@ async function layout(o: MapObject, all: MapObject[], withVel = false) {
   const src = [o.lat, o.lon, ...(o.alt ? [o.alt] : []), ...(att ? [r.roll!, r.pitch!, r.yaw!] : []), ...vel];
   return { src, lay: { alt: !!o.alt, att, unit, ...(vel.length ? { vel: vel.length } : {}) } };
 }
-/** Derived signals of one group ("<secondary>_vs_<primary>.<suffix>.<label>"): one per item; all or nothing. */
+/** Derived signals of one group ("<secondary>_vs_<primary>.<suffix>.<label>"): one per item; all or nothing.
+ *  L8: the same items of the same pair made before are reused (their group's name aside) - no duplicates. */
 async function makeGroup(P: MapObject, S: MapObject, all: MapObject[], suffix: string, items: { label: string; params: Record<string, unknown> }[], vel = false) {
   const [p, s] = await Promise.all([layout(P, all, vel), layout(S, all, vel)]);
   const runs = useApp.getState().runs;
+  const have = items.map((it) => findDerived(runs, "relate", { ...it.params, p: p.lay, s: s.lay }, [...p.src, ...s.src], ["group"]));
+  if (have.every(Boolean)) return { ids: have as string[], att: p.lay.att && s.lay.att };
   const g = freeGroup(`${safe(S.name)}_vs_${safe(P.name)}.${suffix}`, runs, items.map((i) => i.label));
   const made: string[] = [];
   try {
@@ -196,10 +200,173 @@ export async function overlayObjects(primary: MapObject, objects: MapObject[], f
       if (!o.alt) continue;
       const ref = frame === "ecef" ? {} : { ref: "signals" };
       const src = [o.lat, o.lon, o.alt, ...(frame === "ecef" ? [] : [primary.lat, primary.lon, primary.alt ?? o.alt])];
-      const ids = await createFrameGroup(src, { qty: "position", src: "lla", dst: frame, ...ref }, `${safe(o.name)}_${frame}_from_${safe(primary.name)}`);
+      const ids = await frameOnce(src, { qty: "position", src: "lla", dst: frame, ...ref }, `${safe(o.name)}_${frame}_from_${safe(primary.name)}`);
       ids.forEach((id, k) => per[k].push(id));
     }
     const lbl = frame === "lla" ? ["lat", "lon", "alt"] : AXES[frame];
     actions.plotsInNewTab(lbl.map((l, k) => ({ title: `${l} (${frame.toUpperCase()})`, ids: per[k] })), tr("relTabOverlay", { frame: frame.toUpperCase(), p: primary.name }));
   } catch (e) { fail(e); }
+}
+
+/** A frame conversion's three signals - the ones made before for the same sources and choice, else new. */
+async function frameOnce(src: string[], params: Record<string, unknown>, group: string): Promise<string[]> {
+  const runs = useApp.getState().runs;
+  const have = [0, 1, 2].map((axis) => findDerived(runs, "frame", { ...params, axis }, src, ["group"]));
+  return have.every(Boolean) ? (have as string[]) : createFrameGroup(src, params, group);
+}
+/** One formula of one signal (an angle in degrees, wrapped) - reused when it exists. */
+async function exprOnce(expr: string, id: string, name: string): Promise<string> {
+  const have = findDerived(useApp.getState().runs, "expr", { expr }, [id]);
+  if (have) return have;
+  const r = await api.createDerived("expr", [id], { expr, text: expr.replace(/v0/g, "x") }, name);
+  useApp.setState({ runs: r.runs });
+  return r.id;
+}
+
+/* ---- L8: Compare objects… - one reference, positions, velocities and angles, values and errors ---- */
+
+export type CmpQty = "position" | "velocity" | "attitude";
+export type CmpShow = "values" | "errors" | "both";
+export interface CompareChoice { ref: MapObject; others: MapObject[]; qty: CmpQty[]; show: CmpShow; frame: CompareFrame }
+/** What each quantity can compare: `reason` when the reference itself cannot (the quantity is off), and
+ *  the objects left out with why (an i18n key and its values). */
+export interface Comparable { reason?: string; out: { o: MapObject; why: string }[] }
+
+export function comparable(ref: MapObject, others: MapObject[], all: MapObject[]): Record<CmpQty, Comparable> {
+  const euler = (o: MapObject) => { const r = trackRequest(o, all); return !!(r.roll && r.pitch && r.yaw); };
+  const vel: Comparable = { out: [] }, att: Comparable = { out: [] };
+  if (!ref.vel) vel.reason = tr("cmpNoVel", { name: ref.name });
+  else for (const o of others) if (!o.vel) vel.out.push({ o, why: tr("cmpNoVel", { name: o.name }) });
+  if (!hasOwnAttitude(ref) || !euler(ref)) att.reason = tr(hasOwnAttitude(ref) ? "cmpQuatAtt" : "cmpNoAtt", { name: ref.name });
+  else for (const o of others) {
+    const a = attitudeOf(o, all);
+    if (a.kind === "borrowed" && a.from.id === ref.id) att.out.push({ o, why: tr("relNoAttErr", { s: o.name, p: ref.name }) });
+    else if (a.kind === "motion") att.out.push({ o, why: tr("cmpMotionAtt", { name: o.name }) });
+    else if (a.kind === "none") att.out.push({ o, why: tr("cmpNoAtt", { name: o.name }) });
+    else if (!euler(o)) att.out.push({ o, why: tr("cmpQuatAtt", { name: o.name }) });
+  }
+  return { position: { out: [] }, velocity: vel, attitude: att };
+}
+
+/** One statistics row: an error signal of one object and component. */
+export interface CmpStat { object: string; qty: CmpQty; comp: string; id: string; s?: Stats }
+interface Cell { title: string; ids: string[] }
+
+/** The layout of one quantity's tab (pure - tested): one row per component, values left and errors right
+ *  with *Both* (one column otherwise), then the extra row (position: horizontal / 3D and vertical error;
+ *  velocity: speed error). Values missing (the track frame) leave errors alone in one column. */
+export function cmpLayout(show: CmpShow, values: Cell[] | null, errors: Cell[], extra: Cell[]): { plots: Cell[]; cols: number } {
+  const v = show !== "errors" && values?.some((c) => c.ids.length) ? values : null;
+  const e = show !== "values" ? errors : null;
+  if (v && e) return { plots: [...v.flatMap((c, k) => [c, e[k]]), ...extra], cols: 2 };
+  if (v) return { plots: v, cols: 1 };
+  return { plots: [...errors, ...extra], cols: 1 };
+}
+
+/** *Make*: one tab per quantity (one commit, one Undo, one toast with Undo), and the error statistics on
+ *  full-resolution data. Signals made before for the same choice are reused. */
+export async function makeComparison(c: CompareChoice, all: MapObject[]): Promise<{ tabs: number; stats: CmpStat[] }> {
+  const { ref, frame } = c;
+  const F = frame.toUpperCase();
+  const can = comparable(ref, c.others, all);
+  const tabs: { name: string; plots: Cell[]; cols: number }[] = [];
+  const stats: CmpStat[] = [];
+  const vs = tr("relVs", { p: ref.name });
+  const errLbl = AXES[frame];
+  for (const q of c.qty) {
+    const cq = can[q];
+    if (cq.reason) continue;
+    const others = c.others.filter((o) => o.id !== ref.id && !cq.out.some((x) => x.o.id === o.id));
+    if (!others.length) continue;
+    const errs: string[][] = [[], [], []];
+    const extra: Cell[] = [];
+    const note = (o: MapObject, comp: string, id: string) => stats.push({ object: o.name, qty: q, comp, id });
+    let values: Cell[] | null = null;
+    if (q === "position") {
+      const hz: string[] = [], vt: string[] = [];
+      for (const S of others) {
+        const d = await makeGroup(ref, S, all, `d${frame}`, errLbl.map((l, axis) => ({ label: l, params: { what: "diff", frame, axis } })));
+        d.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δ${errLbl[k]}`, id); });
+        const e = await makeGroup(ref, S, all, "err", [["horiz", "err_horiz"], ["vert", "err_vert"], ["3d", "err_3d"]].map(([l, w]) => ({ label: l, params: { what: w } })));
+        hz.push(e.ids[0], e.ids[2]); vt.push(e.ids[1]);
+        note(S, tr("cmpHoriz"), e.ids[0]); note(S, tr("cmpVert"), e.ids[1]); note(S, tr("cmp3d"), e.ids[2]);
+      }
+      extra.push({ title: tr("cmpHoriz3d"), ids: hz }, { title: tr("cmpVert"), ids: vt });
+      if (frame !== "track") {
+        const per: string[][] = [[], [], []];
+        for (const o of [ref, ...others]) {
+          if (frame === "lla") { [o.lat, o.lon, o.alt].forEach((id, k) => { if (id) per[k].push(id); }); continue; }
+          if (!o.alt) continue;
+          const src = [o.lat, o.lon, o.alt, ...(frame === "ecef" ? [] : [ref.lat, ref.lon, ref.alt ?? o.alt])];
+          (await frameOnce(src, { qty: "position", src: "lla", dst: frame, ...(frame === "ecef" ? {} : { ref: "signals" }) }, `${safe(o.name)}_${frame}_from_${safe(ref.name)}`))
+            .forEach((id, k) => per[k].push(id));
+        }
+        const lbl = frame === "lla" ? ["lat", "lon", "alt"] : errLbl;
+        values = lbl.map((l, k) => ({ title: `${l} (${F})`, ids: per[k] }));
+      }
+    } else if (q === "velocity") {
+      const sp: string[] = [];
+      for (const S of others) {
+        const d = await makeGroup(ref, S, all, `dv${frame}`, errLbl.map((l, axis) => ({ label: l, params: { what: "vdiff", frame, axis } })), true);
+        d.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δv ${errLbl[k]}`, id); });
+        const e = await makeGroup(ref, S, all, "dspeed", [{ label: "speed", params: { what: "err_speed" } }], true);
+        sp.push(e.ids[0]); note(S, tr("cmpSpeed"), e.ids[0]);
+      }
+      extra.push({ title: tr("cmpSpeed"), ids: sp });
+      // values: the recorded north / east / down; ENU turned by the frame op when there are three of them
+      const per: string[][] = [[], [], []];
+      const enu = frame === "enu";
+      for (const o of [ref, ...others]) {
+        const v = ([...(o.vel ?? [])] as (string | null)[]).filter((x): x is string => !!x);
+        if (enu && v.length === 3) (await frameOnce(v, { qty: "vector", src: "ned", dst: "enu" }, `${safe(o.name)}_vel_enu`)).forEach((id, k) => per[k].push(id));
+        else v.forEach((id, k) => per[k].push(id));
+      }
+      const vl = enu ? ["east", "north", "up"] : ["north", "east", "down"];
+      values = vl.map((l, k) => ({ title: `v ${l} (${enu ? "ENU" : "NED"})`, ids: per[k] }));
+    } else {
+      const names = ["roll", "pitch", "yaw"];
+      for (const S of others) {
+        const e = await makeGroup(ref, S, all, "datt", [["roll", "err_roll"], ["pitch", "err_pitch"], ["yaw", "err_hdg"]].map(([l, w]) => ({ label: l, params: { what: w } })));
+        e.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δ${names[k]}`, id); });
+      }
+      // values in degrees; every yaw wrapped as the reference's is (0..360 or -180..180), so no jumps between them
+      const lay = async (o: MapObject) => { const r = trackRequest(o, all); const l = await layout(o, all); return { ids: [r.roll!, r.pitch!, r.yaw!], rad: l.lay.unit === "rad" }; };
+      const R = await lay(ref);
+      let wrap = "wrap360";
+      try { const st = (await api.stats([R.ids[2]], null, null)).stats[R.ids[2]]; if (st && st.min < (R.rad ? -0.02 : -1)) wrap = "wrap180"; } catch { /* 0..360 */ }
+      const per: string[][] = [[], [], []];
+      for (const o of [ref, ...others]) {
+        const L = o.id === ref.id ? R : await lay(o);
+        for (let k = 0; k < 3; k++) {
+          const x = L.rad ? "deg(v0)" : "v0";
+          const expr = k === 2 ? `${wrap}(${x})` : x;
+          per[k].push(expr === "v0" ? L.ids[k] : await exprOnce(expr, L.ids[k], `${safe(o.name)}_${names[k]}_deg`));
+        }
+      }
+      values = names.map((l, k) => ({ title: `${l} (°)`, ids: per[k] }));
+    }
+    const errors = errLbl.map((l, k) => ({ title: q === "attitude" ? `Δ${["roll", "pitch", "yaw"][k]} (°, ${vs})` : `Δ${q === "velocity" ? "v " : ""}${l} (${F}, ${vs})`, ids: errs[k] }));
+    const lay = cmpLayout(c.show, values, errors, q === "attitude" ? [] : extra);
+    tabs.push({ name: tr(`cmpTab_${q}`, { frame: q === "attitude" ? "" : F, p: ref.name }), ...lay });
+  }
+  if (c.show !== "values" && stats.length) {
+    try {
+      const st = (await api.stats(stats.map((x) => x.id), null, null)).stats;
+      for (const row of stats) row.s = st[row.id];
+    } catch { /* the plots are still made */ }
+  }
+  const n = tabs.length ? actions.plotTabs(tabs) : 0;
+  if (n) {
+    const st = useApp.getState();
+    st.toast({ kind: "info", undoesWs: true, text: tr("cmpMade", { n }), action: { label: tr("undo"), run: () => useApp.getState().undo() } });
+  }
+  return { tabs: n, stats: c.show === "values" ? [] : stats };
+}
+
+/** The statistics as CSV (one row per object and component; numbers as recorded, "." decimal). */
+export function statsCsv(rows: CmpStat[]): string {
+  const f = (v?: number) => (v === undefined || !Number.isFinite(v) ? "" : String(+v.toPrecision(8)));
+  return ["object,quantity,component,rms,mean,max_abs,p95_abs,t_max_abs,samples",
+    ...rows.map((r) => [r.object, r.qty, r.comp].map((x) => `"${x.replace(/"/g, '""')}"`).join(",") + "," +
+      [r.s?.rms, r.s?.mean, r.s?.abs_max, r.s?.p95_abs, r.s?.t_abs_max, r.s?.samples].map(f).join(","))].join("\n") + "\n";
 }

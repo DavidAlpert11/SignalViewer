@@ -14,6 +14,7 @@ const SweepsScreen = lazyPreload(() => import("./components/sweeps/SweepsArea"))
 const SweepsStatus = lazyPreload(() => import("./components/sweeps/SweepsStatus"));
 const TemplateLibrary = lazyPreload(() => import("./components/TemplateLibrary"));
 const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
+const CompareObjectsDialog = lazyPreload(() => import("./components/CompareObjectsDialog"));
 const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog"));
 const TransformDialog = lazyPreload(() => import("./components/TransformDialog"));
 const RetargetDialog = lazyPreload(() => import("./components/RetargetDialog"));
@@ -84,6 +85,7 @@ export default function App() {
   const compareTable = useApp((s) => !!s.compareTable);
   const templatesOpen = useApp((s) => s.templatesOpen);
   const objectDialog = useApp((s) => s.objectDialog);
+  const compareDialog = useApp((s) => s.compareDialog);
   const placeDialog = useApp((s) => s.placeDialog);
   const transformOpen = useApp((s) => !!s.transformTargets);
   const retargetOpen = useApp((s) => !!s.retarget);
@@ -381,6 +383,7 @@ export default function App() {
         {compareTable && <CompareTable />}
         {templatesOpen && <TemplateLibrary />}
         {objectDialog && <ObjectDialog key={`${objectDialog.plotId}/${objectDialog.objectId ?? "new"}`} />}
+        {compareDialog && <CompareObjectsDialog key={compareDialog.plotId} />}
         {placeDialog && <PlaceOnMapDialog key={placeDialog} />}
         {syncFor && <SyncDialog />}
         {transformOpen && <TransformDialog />}

@@ -35,8 +35,9 @@ const withDefaults = (op: string | undefined, p: Record<string, unknown>): Recor
 });
 
 /** a derived signal's identity apart from its sources: the operation and its parameters (not the label) */
-const opKey = (op?: string, params?: Record<string, unknown>) => {
-  const { text: _text, ...rest } = withDefaults(op, params ?? {});
+const opKey = (op?: string, params?: Record<string, unknown>, ignore: string[] = []) => {
+  const { text: _text, ...all } = withDefaults(op, params ?? {});
+  const rest = Object.fromEntries(Object.entries(all).filter(([k]) => !ignore.includes(k)));
   return `${op}|${JSON.stringify(Object.keys(rest).sort().map((k) => [k, rest[k]]))}`;
 };
 
@@ -52,10 +53,11 @@ export function homeRun(runs: RunInfo[], id: string, depth = 0): string | null {
   return homes.size === 1 ? [...homes][0] : null;
 }
 
-/** The derived signal made by `op` / `params` from exactly `sources`, if there is one. */
-export function findDerived(runs: RunInfo[], op: string, params: Record<string, unknown> | undefined, sources: string[]): string | null {
-  const k = opKey(op, params);
-  const hit = derivedRun(runs)?.signals.find((s) => opKey(s.op, s.params) === k
+/** The derived signal made by `op` / `params` from exactly `sources`, if there is one. `ignore`: parameters
+ *  that do not change the values (L8: a relation's "group" - its name - so the same choice is reused). */
+export function findDerived(runs: RunInfo[], op: string, params: Record<string, unknown> | undefined, sources: string[], ignore: string[] = []): string | null {
+  const k = opKey(op, params, ignore);
+  const hit = derivedRun(runs)?.signals.find((s) => opKey(s.op, s.params, ignore) === k
     && s.sources?.length === sources.length && s.sources.every((x, i) => x === sources[i]));
   return hit?.id ?? null;
 }

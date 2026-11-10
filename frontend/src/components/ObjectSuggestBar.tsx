@@ -1,7 +1,7 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo } from "react";
 import { actions, activeTab, useApp, type Plot } from "../store";
-import { translate, useT, type TKey } from "../i18n";
-import { compareObjects, pairOf, type CompareFrame } from "../relation";
+import { translate, useT } from "../i18n";
+import { pairOf } from "../relation";
 import { detectObjects, type Candidate } from "../objectDetect";
 import { addable, addedSummary, candidateObject, isAdded, objectColors } from "../objectAdd";
 
@@ -27,10 +27,8 @@ export default function ObjectSuggestBar() {
     return null;
   }, [runs, ws, hidden]);
   const offer = useApp((s) => s.compareOffer);
-  const [frame, setFrame] = useState<CompareFrame>("ned");
-  const [busy, setBusy] = useState(false);
   if (!found) {
-    // N7: right after objects were added - their comparison in a frame, one click
+    // N7: right after objects were added - L8: the offer opens Compare objects… for this plot
     const plot = offer ? ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === offer) : undefined;
     const objs = plot?.objects ?? [];
     const P = plot ? objs.find((o) => o.id === pairOf(plot).primary) : undefined;
@@ -40,11 +38,7 @@ export default function ObjectSuggestBar() {
       <div className="obj-suggest obj-compare-offer" role="region" aria-label={t("relCompare")}>
         <span className="obj-suggest-text">{t("relOffer", { p: P.name })}</span>
         <span className="obj-suggest-btns">
-          <select value={frame} aria-label={t("relFrame")} title={t(`relFrameHint_${frame}` as TKey)} onChange={(e) => setFrame(e.target.value as CompareFrame)}>
-            {(["ned", "enu", "ecef", "lla", "track"] as const).map((f) => <option key={f} value={f}>{f.toUpperCase()}</option>)}
-          </select>
-          <button className="linklike obj-compare-make" disabled={busy}
-            onClick={async () => { setBusy(true); try { await compareObjects(P, objs, frame); close(); } finally { setBusy(false); } }}>{t("relMakePlots")}</button>
+          <button className="linklike obj-compare-make" onClick={() => { useApp.setState({ compareDialog: { plotId: plot.id } }); close(); }}>{t("cmpOpen")}</button>
           <button className="iconbtn sm obj-suggest-hide" onClick={close} title={t("close")} aria-label={t("close")}>×</button>
         </span>
       </div>

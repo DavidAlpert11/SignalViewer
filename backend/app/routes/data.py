@@ -374,6 +374,8 @@ def stats(req: StatsRequest):
             s = compute_signal_stats(t, y, mask=m) if m.any() else {}
             if s:
                 s = {**s, "duration": seg_total, "segments": seg_count}     # time in the state, not first-to-last
+        if s and off and "t_abs_max" in s:
+            s = {**s, "t_abs_max": s["t_abs_max"] + off}                      # L8: on the shown time axis
         if s:
             res[sid] = s
     return {"stats": res}

@@ -72,6 +72,17 @@ export default function CommandPalette() {
       { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       // F22: every tab is reachable by name, however many there are
+      // L8: Compare objects… - the active map / 3D plot of the tab (else its first with two objects); none: how to get there
+      {
+        id: "cmpobjects", label: t("cmpCmdOpen"), group: t("objects"), run: () => {
+          const tab = activeTab(st().ws);
+          const many = (p: { mode?: string; objects?: unknown[] }) => (p.mode === "geo" || p.mode === "3d") && (p.objects?.length ?? 0) > 1;
+          const act = tab?.plots[tab.active ?? 0];
+          const pl = act && many(act) ? act : tab?.plots.find(many);
+          if (pl) useApp.setState({ compareDialog: { plotId: pl.id } });
+          else st().toast({ kind: "info", text: t("cmpCmdNone") });
+        },
+      },
       // L7: the reference object of the active tab's first map / 3D view with two or more objects (Ctrl+K)
       ...(() => {
         const pl = activeTab(st().ws)?.plots.find((p) => (p.mode === "geo" || p.mode === "3d") && (p.objects?.length ?? 0) > 1);

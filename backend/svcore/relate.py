@@ -22,6 +22,8 @@ Definitions (degrees and metres; the local frame is the primary's own NED at eac
              0 = the primary is right behind it, 180 = head-on (nose to nose)
   err_horiz / err_vert / err_3d   the secondary's position error, m (vert: secondary - primary)
   err_hdg / err_roll / err_pitch  the secondary's angle - the primary's, wrapped to -180..180
+  err_speed  the secondary's speed - the primary's, m/s (L8): the norm of north / east (and down when
+             both have it); needs "vel" in both layouts, as vdiff
   vdiff      the secondary's velocity - the primary's (N7), in `frame` as for diff (lla: as ned): each
              object's own north / east / down velocity turned to ECEF, the difference turned into the
              primary's local frame at each sample; needs "vel" (2: north / east, 3: with down) in both
@@ -32,14 +34,15 @@ Definitions (degrees and metres; the local frame is the primary's own NED at eac
              ecef       x / y / z, m (no origin)
              lla        north / east (the latitude / longitude difference in metres) and up (Δalt)
              track      along-track / cross-track (+ = right) / up, along the primary's heading
-A heading is the yaw when the object has angles, else its course over ground (from its positions).
+A heading is the yaw when the object has angles, else its course over ground (from its positions) - so
+err_hdg is the yaw error when both objects have angles of their own (L8 checked: no separate yaw error).
 """
 from typing import Dict, List, Tuple
 
 import numpy as np
 
 WHATS = ("range", "horiz", "dalt", "bearing", "relbearing", "closure", "tca", "hdgdiff", "aspect",
-         "err_horiz", "err_vert", "err_3d", "err_hdg", "err_roll", "err_pitch", "diff", "vdiff")
+         "err_horiz", "err_vert", "err_3d", "err_hdg", "err_roll", "err_pitch", "diff", "vdiff", "err_speed")
 DIFF_FRAMES = {"ned": ("north", "east", "down"), "enu": ("east", "north", "up"), "ecef": ("x", "y", "z"),
                "lla": ("north", "east", "up"), "track": ("along", "cross", "up")}
 
@@ -182,6 +185,11 @@ def relate(signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict, rep=None)
         else:
             j = {"err_roll": 0, "err_pitch": 1, "err_hdg": 2}[what]
             out = _wrap(S["att"][j] - P["att"][j])
+    elif what == "err_speed":
+        if P["vel"] is None or S["vel"] is None:
+            raise OpError("A speed error needs both objects' velocities (north / east, and down).")
+        k = 3 if (P["vd"] and S["vd"]) else 2
+        out = np.linalg.norm(np.vstack(S["vel"][:k]), axis=0) - np.linalg.norm(np.vstack(P["vel"][:k]), axis=0)
     elif what == "vdiff":
         frame = params.get("frame", "ned")
         if P["vel"] is None or S["vel"] is None:

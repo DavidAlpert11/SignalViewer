@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultPair, pairOf, relation, type At } from "./relation";
+import { cmpLayout, comparable, defaultPair, pairOf, relation, statsCsv, type At } from "./relation";
 import type { MapObject } from "./store";
 
 // a point n / e metres from (lat, lon) - meridian and prime-vertical radii (WGS84), good to a few mm here
@@ -66,5 +66,37 @@ describe("primary / secondary (N7)", () => {
     expect(pairOf({ objects: objs, primaryObject: "gps", relatedObjects: ["phys"] })).toEqual({ primary: "gps", secondary: "phys" });
     expect(pairOf({ objects: objs, primaryObject: "gone" })).toEqual({ primary: "phys", secondary: "nav" });
     expect(pairOf({ objects: objs, primaryObject: "nav" })).toEqual({ primary: "nav", secondary: "phys" });
+  });
+});
+
+/* ---- L8: Compare objects… - the layout of a quantity's tab and what can be compared ---------------- */
+
+describe("Compare objects (L8)", () => {
+  const cell = (title: string, n = 1) => ({ title, ids: Array.from({ length: n }, (_, i) => `${title}${i}`) });
+  const vals = ["vN", "vE", "vD"].map((x) => cell(x)), errs = ["eN", "eE", "eD"].map((x) => cell(x)), extra = [cell("h3d"), cell("vert")];
+  it("Both: values left, errors right, one row per component, then the extra row", () => {
+    const l = cmpLayout("both", vals, errs, extra);
+    expect(l.cols).toBe(2);
+    expect(l.plots.map((p) => p.title)).toEqual(["vN", "eN", "vE", "eE", "vD", "eD", "h3d", "vert"]);
+  });
+  it("Values only / errors only: one column; no values (track frame): errors", () => {
+    expect(cmpLayout("values", vals, errs, extra)).toEqual({ plots: vals, cols: 1 });
+    expect(cmpLayout("errors", vals, errs, extra).plots.map((p) => p.title)).toEqual(["eN", "eE", "eD", "h3d", "vert"]);
+    expect(cmpLayout("both", null, errs, extra).cols).toBe(1);
+  });
+  const o = (id: string, extraFields: object = {}) => ({ id, name: id, kind: "aircraft", color: "#fff", lat: `${id}.lat`, lon: `${id}.lon`, alt: `${id}.alt`, ...extraFields }) as never;
+  it("says which objects cannot be compared in velocity / attitude, and why", () => {
+    const truth = o("truth", { vel: ["v1", "v2", "v3"], roll: "r", pitch: "p", yaw: "y" });
+    const lane = o("lane", { vel: ["a", "b", "c"], roll: "r2", pitch: "p2", yaw: "y2" });
+    const gps = o("gps", { attitudeSource: { object: "truth" } });
+    const c = comparable(truth, [lane, gps], [truth, lane, gps]);
+    expect(c.velocity.reason).toBeUndefined();
+    expect(c.velocity.out.map((x) => x.o.name)).toEqual(["gps"]);
+    expect(c.attitude.out.map((x) => x.o.name)).toEqual(["gps"]);           // borrows the reference's angles
+    expect(comparable(gps, [truth], [truth, gps]).velocity.reason).toMatch(/gps has no velocity/);
+  });
+  it("statistics as CSV", () => {
+    const csv = statsCsv([{ object: "lane 1", qty: "position", comp: "Δnorth", id: "x", s: { rms: 1.5, mean: 1.5, abs_max: 1.5004, p95_abs: 1.5, t_abs_max: 12, samples: 3001 } as never }]);
+    expect(csv.split("\n")[1]).toBe('"lane 1","position","Δnorth",1.5,1.5,1.5004,1.5,12,3001');
   });
 });
