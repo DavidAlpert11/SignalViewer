@@ -15,7 +15,7 @@ import { pathCuts } from "./signalGroups";
 export type ObjClass = "truth" | "navigation" | "receiver" | "other";
 export type PosKind = "lla" | "ned" | "enu" | "ecef";
 /** px / py / pz: a position in metres (north / east / down for NED, east / north / up for ENU, x / y / z for ECEF). */
-export type DetRole = Role | "px" | "py" | "pz";
+export type DetRole = Role | "px" | "py" | "pz" | "vn" | "ve" | "vd";
 export const POS_ROLES: DetRole[] = ["lat", "lon", "alt"];
 export const VEC_ROLES: DetRole[] = ["px", "py", "pz"];
 export const ATT_ROLES: DetRole[] = ["roll", "pitch", "yaw"];
@@ -62,7 +62,7 @@ const ALIASES: Record<DetRole, string[]> = {
   alt: ["alt", "altitude", "height", "hgt", "alt_msl", "altmsl"],
   roll: ["roll", "phi"], pitch: ["pitch", "theta"], yaw: ["yaw", "heading", "hdg", "psi"],
   qw: ["qw", "q0", "q[0]", "q_w"], qx: ["qx", "q1", "q[1]", "q_x"], qy: ["qy", "q2", "q[2]", "q_y"], qz: ["qz", "q3", "q[3]", "q_z"],
-  px: [], py: [], pz: [],                                     // by frame, below
+  px: [], py: [], pz: [], vn: [], ve: [], vd: [],             // by frame / velocity sub-group, below
 };
 const OWN_WORD: Partial<Record<DetRole, string>> = { lat: "lat", lon: "lon", alt: "alt", roll: "roll", pitch: "pitch", yaw: "yaw" };
 const WORD_ROLE = new Map<string, DetRole>();
@@ -73,6 +73,10 @@ const ENU_WORDS: Record<string, DetRole> = { east: "px", north: "py", up: "pz" }
 const XYZ: Record<string, DetRole> = { x: "px", y: "py", z: "pz" };
 const FRAME_WORDS = new Set(["ecef", "ned", "enu"]);
 const POS_SUB = new Set(["pos", "position", "lla", "geo"]);
+/** N7: a velocity sub-group - its north / east / down (vn / ve / vd) compare between objects */
+const VEL_SUB = new Set(["vel", "velocity", "v_ned", "velned"]);
+const VEL_WORDS: Record<string, DetRole> = { north: "vn", east: "ve", down: "vd", n: "vn", e: "ve", d: "vd" };
+export const VEL_ROLES: DetRole[] = ["vn", "ve", "vd"];
 const ATT_SUB = new Set(["att", "attitude", "euler", "angles", "ori", "orientation", "q", "quat", "quaternion"]);
 const UNIT_WORDS = new Set(["deg", "degs", "degrees", "rad", "rads", "radians", "m", "ft", "meters", "metres", "feet"]);
 
@@ -150,6 +154,10 @@ export function parseName(name: string): { hit?: Parsed; miss?: Miss } {
   const lastSeg = parents[parents.length - 1]?.toLowerCase() ?? "";
   const frameTok = low.length > 1 ? low[low.length - 2] : "";        // ecef_x
   const frameWord = FRAME_WORDS.has(frameTok) ? frameTok : FRAME_WORDS.has(lastSeg) ? lastSeg : "";
+  // N7: a velocity: north / east / down under a velocity sub-group (nav.vel.north)
+  if (lw in VEL_WORDS && VEL_SUB.has(parents[parents.length - 1]?.toLowerCase() ?? "") && toks.length === 1) {
+    return { hit: { role: VEL_WORDS[lw], word: toks[0], prefix: join(parents.slice(0, -1), []), sub: parents[parents.length - 1], unit } };
+  }
   if (lw in XYZ || lw in NED_WORDS || lw === "up") {
     const subOk = POS_SUB.has(lastSeg) || FRAME_WORDS.has(lastSeg) || !!frameWord;
     const frame: PosKind | undefined = frameWord ? (frameWord as PosKind) : lw in XYZ ? undefined : lw === "up" ? "enu" : subOk ? "ned" : undefined;
@@ -263,6 +271,7 @@ function detectNow(run: Pick<RunInfo, "id" | "name" | "signals">): Detection {
       Object.assign(picks, g.frames[pos]);
     }
     for (const r of [...ATT_ROLES, ...QUAT]) if (g.picks[r]) picks[r] = g.picks[r];
+    if (g.picks.vn && g.picks.ve) for (const r of VEL_ROLES) if (g.picks[r]) picks[r] = g.picks[r];   // N7: north and east at least
     // a known flight-log group with no attitude of its own: the paired attitude group, as before
     const kn = KNOWN_GROUPS[baseOf(prefix)];
     if (kn?.attFrom && !ATT_ROLES.some((r) => picks[r]) && !QUAT.every((r) => picks[r])

@@ -94,19 +94,20 @@ const bare = (id: string) => id.slice(id.indexOf("/") + 1);
 const safe = (s: string) => s.replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "") || "obj";
 /** An object's sources and layout for "relate": latitude, longitude, [altitude], [roll, pitch, yaw]
  *  (its own angles, or the borrowed ones; a motion attitude: none - the heading is its course). */
-async function layout(o: MapObject, all: MapObject[]) {
+async function layout(o: MapObject, all: MapObject[], withVel = false) {
   const r = trackRequest(o, all);
   const att = !!(r.roll && r.pitch && r.yaw);
   let unit: "deg" | "rad" = r.angleUnit === "rad" ? "rad" : "deg";
   if (att && (r.angleUnit ?? "auto") === "auto") {
     try { const u = await api.angleUnits({ yaw: r.yaw, pitch: r.pitch, roll: r.roll }); unit = u.units.yaw?.unit === "rad" ? "rad" : "deg"; } catch { /* degrees */ }
   }
-  const src = [o.lat, o.lon, ...(o.alt ? [o.alt] : []), ...(att ? [r.roll!, r.pitch!, r.yaw!] : [])];
-  return { src, lay: { alt: !!o.alt, att, unit } };
+  const vel = withVel && o.vel ? (o.vel.filter((x): x is string => !!x)) : [];
+  const src = [o.lat, o.lon, ...(o.alt ? [o.alt] : []), ...(att ? [r.roll!, r.pitch!, r.yaw!] : []), ...vel];
+  return { src, lay: { alt: !!o.alt, att, unit, ...(vel.length ? { vel: vel.length } : {}) } };
 }
 /** Derived signals of one group ("<secondary>_vs_<primary>.<suffix>.<label>"): one per item; all or nothing. */
-async function makeGroup(P: MapObject, S: MapObject, all: MapObject[], suffix: string, items: { label: string; params: Record<string, unknown> }[]) {
-  const [p, s] = await Promise.all([layout(P, all), layout(S, all)]);
+async function makeGroup(P: MapObject, S: MapObject, all: MapObject[], suffix: string, items: { label: string; params: Record<string, unknown> }[], vel = false) {
+  const [p, s] = await Promise.all([layout(P, all, vel), layout(S, all, vel)]);
   const runs = useApp.getState().runs;
   const g = freeGroup(`${safe(S.name)}_vs_${safe(P.name)}.${suffix}`, runs, items.map((i) => i.label));
   const made: string[] = [];
@@ -164,15 +165,21 @@ export async function compareObjects(primary: MapObject, objects: MapObject[], f
   if (!others.length) return;
   try {
     const per: string[][] = [[], [], []];
-    const errs: string[] = [];
+    const errs: string[] = [], vels: string[] = [];
     for (const S of others) {
+      // N7: the velocities too, when both have them
+      if (primary.vel && S.vel) {
+        const v = await makeGroup(primary, S, objects, `dv${frame}`, AXES[frame].map((l, axis) => ({ label: l, params: { what: "vdiff", frame, axis } })), true);
+        vels.push(...v.ids);
+      }
       const { ids } = await makeGroup(primary, S, objects, `d${frame}`, AXES[frame].map((l, axis) => ({ label: l, params: { what: "diff", frame, axis } })));
       ids.forEach((id, k) => per[k].push(id));
       const e = await makeGroup(primary, S, objects, "err", [["horiz", "err_horiz"], ["vert", "err_vert"], ["3d", "err_3d"]].map(([l, w]) => ({ label: l, params: { what: w } })));
       errs.push(...e.ids);
     }
     actions.plotsInNewTab([...AXES[frame].map((l, k) => ({ title: `Δ${l} (${frame.toUpperCase()}, ${tr("relVs", { p: primary.name })})`, ids: per[k] })),
-      { title: tr("relErrPos"), ids: errs }], tr("relTabCompare", { frame: frame.toUpperCase(), p: primary.name }));
+      { title: tr("relErrPos"), ids: errs }, ...(vels.length ? [{ title: tr("relVelDiff", { frame: frame.toUpperCase() }), ids: vels }] : [])],
+      tr("relTabCompare", { frame: frame.toUpperCase(), p: primary.name }));
   } catch (e) { fail(e); }
 }
 

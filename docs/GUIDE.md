@@ -127,7 +127,9 @@ are told apart by them.
   errors against the primary (`nav_vs_phys.err.*`); *Differences* plots each object minus the primary
   in the frame chosen beside it - NED / ENU in the primary's local frame at each moment, ECEF, LLA (in
   metres) or the track frame (along / across its heading) - and *Overlay* puts the same component of
-  every object on one plot, NED / ENU from one origin (the primary's first position).
+  every object on one plot, NED / ENU from one origin (the primary's first position). Objects with a
+  velocity (`<object>.vel.north / east / down`) get their velocity difference as well. In 3D the same:
+  rings, a click (Shift+click) on an object, Q / X once the view has the focus.
 - **An attitude for a position-only object** (*Attitude* in its row or its form): *from motion* points it
   along its course over ground and pitches it by its climb (roll unknown; below *Hold the heading below*,
   1 m/s by default, the heading stays as it was, so a hovering drone does not spin); *from <object>*

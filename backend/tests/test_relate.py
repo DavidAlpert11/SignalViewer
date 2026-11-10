@@ -101,3 +101,27 @@ def test_bad_requests():
         compute("relate", [(t, t)] * 4, {"what": "nope", "p": {}, "s": {}})
     with pytest.raises(OpError):
         compute("relate", [(t, t)] * 3, {"what": "range", "p": {}, "s": {}})
+
+
+def test_velocity_difference_far_apart():
+    """N7: the secondary flies 10 m/s faster north than the primary, 200 km east of it: 10 north in the
+    primary's NED (each velocity is turned through ECEF from its own local frame)."""
+    t = np.arange(0, 10, 1.0)
+    la2, lo2, al2 = _offset(32.0, 35.0, 1000.0, 0.0, 200000.0)
+    P = [np.full_like(t, 32.0), np.full_like(t, 35.0), np.full_like(t, 1000.0), np.full_like(t, 50.0), np.zeros_like(t), np.zeros_like(t)]
+    S = [np.full_like(t, la2), np.full_like(t, lo2), np.full_like(t, al2), np.full_like(t, 60.0), np.zeros_like(t), np.zeros_like(t)]
+    params = {"what": "vdiff", "p": {"alt": True, "vel": 3}, "s": {"alt": True, "vel": 3}}
+    sig = _sig(t, *P) + _sig(t, *S)
+    north, east, down = (compute("relate", sig, {**params, "frame": "ned", "axis": k})[1] for k in range(3))
+    # 200 km east the local north is turned ~1.8 deg about the up axis from the primary's: 60 m/s north
+    # there is not exactly north here - the difference is that turn, not a plain 10
+    ang = np.radians(lo2 - 35.0) * np.sin(np.radians(32.0))
+    assert np.allclose(north, 60 * np.cos(ang) - 50, atol=0.05) and np.allclose(abs(east), 60 * np.sin(ang), atol=0.05)
+    assert np.allclose(down, 0, atol=0.6)
+    x, y, z = (compute("relate", sig, {**params, "frame": "ecef", "axis": k})[1] for k in range(3))
+    assert np.allclose(np.sqrt(x * x + y * y + z * z), np.sqrt(north ** 2 + east ** 2 + down ** 2), atol=1e-6)
+    # side by side (no distance): exactly 10 north
+    S0 = [np.full_like(t, 32.0), np.full_like(t, 35.0), np.full_like(t, 1000.0), np.full_like(t, 60.0), np.zeros_like(t)]
+    p2 = {"what": "vdiff", "frame": "ned", "axis": 0, "p": {"alt": True, "vel": 3}, "s": {"alt": True, "vel": 2}}
+    assert np.allclose(compute("relate", _sig(t, *P) + _sig(t, *S0), p2)[1], 10)
+    assert np.all(np.isnan(compute("relate", _sig(t, *P) + _sig(t, *S0), {**p2, "axis": 2})[1]))

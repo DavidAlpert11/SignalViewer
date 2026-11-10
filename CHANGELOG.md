@@ -44,6 +44,9 @@
   signals* (horizontal / vertical / 3D, heading, roll, pitch errors against the primary - `nav_vs_phys.err.*`),
   and *Differences* / *Overlay* in NED, ENU, ECEF, LLA or the track frame - differences in NED / ENU are
   in the primary's local frame at each sample, overlays share one origin. All computed in the backend.
+  When both objects have velocities (`<object>.vel.north / east / down`) their difference is plotted
+  too. Right after objects are added, a line offers *Compare the objects with <primary> · frame · Make
+  plots*. In 3D the primary and secondary have rings, a click picks them and the box adds closure and aspect.
 
 ### Performance
 - **Smoother playback and map.** While playing, only what moves is drawn again: the panels, the file
@@ -52,6 +55,7 @@
   dropped frames to none, a wheel zoom from 315 to about 70 (headless, no GPU).
 
 ### Fixed
+- *Choose…* on the "objects found" line opened nothing when the tab had no map yet.
 - **Signal names with dots nest again, at any depth.** `phys.att.roll`, `nav.vel.north` and a MATLAB
   struct's `sim.nav.pos.x` are listed as a tree (phys › att › roll) whatever the number of signals -
   before, a file needed 40 signals to be grouped at all, and only two levels were shown. A chain of
