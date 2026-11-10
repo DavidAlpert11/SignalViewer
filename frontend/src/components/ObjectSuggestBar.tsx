@@ -3,7 +3,7 @@ import { actions, activeTab, useApp, type Plot } from "../store";
 import { translate, useT, type TKey } from "../i18n";
 import { compareObjects, pairOf, type CompareFrame } from "../relation";
 import { detectObjects, type Candidate } from "../objectDetect";
-import { addable, addedSummary, candidateObject, objectColors } from "../objectAdd";
+import { addable, addedSummary, candidateObject, isAdded, objectColors } from "../objectAdd";
 
 /* N5: "3 objects found: phys, nav, gps · Add all · Choose… · Why?" - a slim, non-blocking suggestion in
    the file panel when an open file has objects not on any map yet. Nothing is added without a click;
@@ -15,11 +15,13 @@ export default function ObjectSuggestBar() {
   const ws = useApp((s) => s.ws);
   const hidden = useApp((s) => s.objSuggestHidden);
   const found = useMemo(() => {
-    const onMaps = new Set(ws.tabs.flatMap((tb) => tb.plots.flatMap((p) => (p.objects ?? []).map((o) => o.lat))));
+    // L4: "on a map" by the one rule (isAdded): the same first recorded source, through any conversion
+    const maps = ws.tabs.flatMap((tb) => tb.plots).filter((p) => p.objects?.length);
+    const derived = runs.find((r) => r.format === "derived")?.signals ?? [];
     // the newest file with objects not on a map yet
     for (const r of [...runs].reverse()) {
       if (r.format === "derived" || hidden.includes(r.id)) continue;
-      const cs = detectObjects(r).candidates.filter((c) => addable(c) && !(c.picks.lat && onMaps.has(c.picks.lat.id)));
+      const cs = detectObjects(r).candidates.filter((c) => addable(c) && !maps.some((p) => isAdded(c, p, derived)));
       if (cs.length) return { runId: r.id, cands: cs };
     }
     return null;

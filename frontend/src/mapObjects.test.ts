@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { attitudeOf, derivedAttitude, guessRoles, trackKey, trackOfClass, trackRequest } from "./mapObjects";
-import { linkAttitudes } from "./objectAdd";
+import { addable, firstSource, isAdded, linkAttitudes, objectSources, whyLines } from "./objectAdd";
 import { detectObjects } from "./objectDetect";
-import type { MapObject } from "./store";
+import type { MapObject, Plot } from "./store";
+import type { SignalInfo } from "./api";
 
 const obj = (id: string, extra: Partial<MapObject> = {}): MapObject => ({ id, name: id, kind: "aircraft", color: "#000", lat: `r/${id}.lat`, lon: `r/${id}.lon`, ...extra });
 const nav = obj("nav", { yaw: "r/nav.att.yaw", pitch: "r/nav.att.pitch", roll: "r/nav.att.roll", cls: "navigation" });
@@ -64,5 +65,51 @@ describe("guessRoles (N5: one object's roles, never mixed)", () => {
     const names = ["phys.lat", "phys.lon", "phys.alt", "phys.att.roll", "phys.att.pitch", "phys.att.yaw", "nav.lat", "nav.lon", "nav.att.yaw", "gps.lat", "gps.lon"];
     const g = guessRoles({ id: "q", name: "x.csv", signals: names.map((n) => ({ id: `q/${n}`, name: n })) } as never);
     expect(g).toEqual({ lat: "q/phys.lat", lon: "q/phys.lon", alt: "q/phys.alt", roll: "q/phys.att.roll", pitch: "q/phys.att.pitch", yaw: "q/phys.att.yaw" });
+  });
+});
+
+/* ---- L3 / L4 (round of 2026-11-10): addable local positions, one "already on the map" rule ------- */
+
+describe("objects from positions in metres (L3, L4)", () => {
+  const run = (names: string[]) => ({ id: "r", name: "f.csv", signals: names.map((n) => ({ id: `r/${n}`, name: n })) }) as unknown as Parameters<typeof detectObjects>[0];
+  const lane = ["XKF1[0].PN [m]", "XKF1[0].PE [m]", "XKF1[0].PD [m]", "XKF1[0].Roll [deg]", "XKF1[0].Pitch [deg]", "XKF1[0].Yaw [deg]"];
+  const orgn = ["ORGN[0].Lat [deg]", "ORGN[0].Lng [deg]", "ORGN[0].Alt [m]"];
+  // what the backend makes for an added lane: frame NED -> LLA (ref "signals"), then smoothed over 2 s
+  const derived: SignalInfo[] = [
+    ...["lat", "lon", "alt"].map((a, i) => ({ id: `derived/lla_Pos_ned.${a}`, name: `lla_Pos_ned.${a}`, op: "frame",
+      sources: [...lane.slice(0, 3), ...orgn].map((n) => `r/${n}`), params: { qty: "position", src: "ned", dst: "lla", ref: "signals", axis: i } })),
+    ...["lat", "lon", "alt"].map((a, i) => ({ id: `derived/smooth_2s.${a}`, name: `smooth_2s.${a}`, op: "vecsmooth",
+      sources: ["lat", "lon", "alt"].map((x) => `derived/lla_Pos_ned.${x}`), params: { kind: "lla", window: 2, axis: i } })),
+  ];
+  it("a lane with its origin is addable; without one, or in cm, it is not", () => {
+    expect(addable(detectObjects(run([...lane, ...orgn])).candidates[0])).toBe(true);
+    expect(addable(detectObjects(run(lane)).candidates[0])).toBe(false);
+    expect(addable(detectObjects(run(["s.ecef_x [cm]", "s.ecef_y [cm]", "s.ecef_z [cm]"])).candidates[0])).toBe(false);
+  });
+  it("walks the smoothing and the conversion back to the recorded signal (one walk for the form and the bar)", () => {
+    const o = { lat: "derived/smooth_2s.lat", lon: "derived/smooth_2s.lon", alt: "derived/smooth_2s.alt" };
+    const ch = objectSources(o, derived);
+    expect([ch.smooth, ch.lat, ch.frame?.src, ch.frame?.sources[3]]).toEqual([2, "derived/lla_Pos_ned.lat", "ned", "r/ORGN[0].Lat [deg]"]);
+    expect(firstSource(o, derived)).toBe("r/XKF1[0].PN [m]");
+    expect(firstSource({ lat: "r/POS.Lat", lon: "r/POS.Lng", alt: null }, derived)).toBe("r/POS.Lat");
+  });
+  it("F8: a converted object is 'already on the map', so it is not offered again", () => {
+    const c = detectObjects(run([...lane, ...orgn])).candidates[0];
+    const plot = { objects: [obj("lane", { lat: "derived/smooth_2s.lat", lon: "derived/smooth_2s.lon" })] } as unknown as Plot;
+    expect(isAdded(c, plot, derived)).toBe(true);
+    expect(isAdded(c, plot, [])).toBe(false);                         // without the chain it cannot be known
+    expect(isAdded(c, { objects: [] } as unknown as Plot, derived)).toBe(false);
+  });
+  it("Why? explains the origin, the lane and a wrong unit - in English and Hebrew", () => {
+    const c = detectObjects(run([...lane, ...orgn])).candidates[0];
+    const en = whyLines(c, "en");
+    expect(en.some((l) => l.includes("ORGN[0]") && l.includes("EKF origin") && l.includes("above sea level"))).toBe(true);
+    expect(en).toContain("EKF3 lane 0.");
+    expect(whyLines(detectObjects(run(lane)).candidates[0], "en").some((l) => l.startsWith("No origin found"))).toBe(true);
+    expect(whyLines(c, "he").some((l) => l.includes("ORGN[0]"))).toBe(true);
+    const px4 = detectObjects(run(["vehicle_local_position.x", "vehicle_local_position.y", "vehicle_local_position.z",
+      "vehicle_local_position.ref_lat", "vehicle_local_position.ref_lon", "vehicle_local_position.ref_alt"])).candidates[0];
+    expect(whyLines(px4, "en").some((l) => l.includes("ref_lat / ref_lon / ref_alt") && l.includes("first value is used"))).toBe(true);
+    expect(whyLines(detectObjects(run(["s.ecef_x [cm]", "s.ecef_y [cm]", "s.ecef_z [cm]"])).candidates[0], "en").some((l) => l.includes("in cm"))).toBe(true);
   });
 });

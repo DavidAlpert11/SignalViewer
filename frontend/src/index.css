@@ -1213,7 +1213,9 @@ input.fx-input { width: 100%; }
 .obj-found-main { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; font-size: var(--fs-s); }
 .obj-found-name { width: 12em; min-width: 0; }
 .obj-found-main input[type=color] { width: 28px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-s); }
-.obj-found-file, .obj-found-origin { color: var(--muted); font-size: var(--fs-xs); max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obj-found-file, .obj-found-frame { color: var(--muted); font-size: var(--fs-xs); max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obj-found-frame { max-width: 18em; unicode-bidi: isolate; }
+.obj-found-frame.obj-found-origin { color: var(--amber); }
 .obj-found-added { color: var(--ok); font-size: var(--fs-xs); }
 .obj-cls { font-size: var(--fs-2xs); padding: 1px var(--sp-1); border-radius: var(--r-xs); border: 1px solid var(--line-strong); color: var(--ink); }
 .obj-cls.cls-truth { border-color: var(--ok); }
