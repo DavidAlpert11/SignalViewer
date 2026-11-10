@@ -41,3 +41,7 @@
 * Formulas keep a missing value missing (a sum, mean or norm in *Create signals* also offers to skip or bridge it; a formula does not yet).
 * The data-quality summary is of a file as it was opened or read again; a file growing in live mode is not checked again as it grows. A state or event signal (a mode, a message) is checked for missing values only.
 * The list of all events (modes, log events, findings, conditions, limits) is in the Log panel of a flight log; for other files ] / [ and the command palette step through the conditions and limits.
+* Tacview export (.acmi): the objects only (not the plots' other signals), 10 samples a second, the whole recording; a recording whose times are not Unix clock seconds starts at 2000-01-01 00:00 UTC in Tacview; an object without its own roll (drawn from its motion) is level. The file is plain text (Tacview also reads it zipped).
+* Object guesses read names only: an object whose position signals do not share a prefix (`lat`, `lon` alone, or `gpsLat` with `navLon`) is offered through *Advanced…* rather than found; a motion attitude has no roll.
+* The 3D *Chase* / *Look at* cameras and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.
+* Line styles: opacity is not a line setting (a setpoint's faded look is automatic).

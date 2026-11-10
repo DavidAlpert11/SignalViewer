@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.24.0 – 2026-11-10
+
+Highlights: **every object of a recording on the map and in 3D at once** - truth, each navigation
+solution and each receiver found by their names, with *Why?* for every guess, each drawn as what it is
+and given an attitude from its motion when it has none; **primary and secondary objects** with range,
+bearing, closure and the angle off at the cursor, and their errors or differences plotted in NED, ENU,
+ECEF or along the track in one click; **a map and 3D view that move smoothly** (drag, glide, follow,
+track up, Chase and Look at); **export for Tacview** (.acmi); plots that change places, defaults for
+new lines with dotted and dash-dot styles, and a whole group of lines styled at once.
 
 ### Added
 - **Every map object in a recording, found and added at once.** *Add object* lists the objects found
