@@ -165,7 +165,8 @@ def test_suggestion_bar_adds_every_object_with_its_look(pg):
     objs = S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo').objects")
     look = {o["name"]: (o.get("cls"), o.get("track"), o.get("attitudeSource")) for o in objs}
     assert look == {"phys": ("truth", None, None), "nav": ("navigation", "dash", None), "gps": ("receiver", "points", "motion")}
-    pg.wait_for_selector(".obj-suggest", state="detached")                     # nothing new to suggest
+    pg.wait_for_selector(".obj-suggest:not(.obj-compare-offer)", state="detached")   # nothing new to suggest
+    assert "Compare the objects with phys" in pg.locator(".obj-compare-offer").inner_text()   # N7: but their comparison
     gps_chip = pg.locator(".obj-chip", has_text="gps")
     assert gps_chip.locator(".obj-att-badge").count() == 1                      # ≈: its attitude is from motion
     assert pg.locator(".obj-chip", has_text="nav").locator(".obj-att-badge").count() == 0
@@ -201,3 +202,15 @@ def test_found_list_borrows_an_attitude(pg):
     pg.locator(".obj-save").click()
     o = [x for x in S(pg, "s.ws.tabs[0].plots[0].objects") if x["name"] == "gps"][0]
     assert o["attitudeSource"] == "motion" and o["minSpeed"] == 2.5
+
+
+def test_suggestion_bar_choose_opens_the_list_on_a_new_map(pg):
+    """The bar's Choose… on a tab without a map makes one and opens the found list on it (it took the
+    new plot's id while placePlot kept the empty plot's, so nothing opened)."""
+    import shutil
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
+    open_files(pg, "three_objects.csv")
+    pg.locator(".obj-suggest-choose").click()
+    pg.wait_for_selector(".obj-found")
+    assert S(pg, "s.ws.tabs[0].plots.some((p) => p.mode === 'geo')")

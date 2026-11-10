@@ -31,7 +31,7 @@ import { globeImage } from "../globeBridge";
 export const SIGNAL_MIME = "application/x-sv-signal";
 export const CHIP_MIME = "application/x-sv-chip";      // a chip dragged from a plot legend
 import { openMenu } from "./Overlays";
-import { errorSignals, pairOf } from "../relation";
+import { compareObjects, errorSignals, pairOf } from "../relation";
 import { laneMenuItems } from "../lanes";
 import { lineLook, setpointsIn } from "../desired";
 import OccChart from "./OccChart";
@@ -452,7 +452,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                   { label: t("relSetPrimary"), checked: pair.primary === o.id, run: () => actions.setObjectPair(plot.id, o.id, o.id === pair.secondary ? pair.primary : pair.secondary) },
                   ...(plot.objects!.length > 1 ? [{ label: t("relSetSecondary"), checked: pair.secondary === o.id, disabled: pair.primary === o.id,
                     run: () => actions.setObjectPair(plot.id, pair.primary, o.id) }] : []),
-                  ...(pair.primary && pair.primary !== o.id ? [{ label: t("relErrors"), run: () => { const P = plot.objects!.find((x) => x.id === pair.primary); if (P) void errorSignals(P, o, plot.objects!); } }] : []),
+                  ...(pair.primary && pair.primary !== o.id ? [{ label: t("relErrors"), run: () => { const P = plot.objects!.find((x) => x.id === pair.primary); if (P) void errorSignals(P, o, plot.objects!); } },
+                    { label: t("relCompareWith"), run: () => { const P = plot.objects!.find((x) => x.id === pair.primary); if (P) void compareObjects(P, plot.objects!, "ned", o); } }] : []),
                   { label: t("objEdit"), run: () => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } }) },
                 ])}
                 title={pair.primary === o.id ? t("relPrimary") : pair.secondary === o.id ? t("relSecondary") : undefined}>
