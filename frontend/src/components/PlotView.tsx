@@ -1,3 +1,4 @@
+import { RingIcon } from "./RelationPanel";
 import { countRender } from "../perf";
 import TrustBadge, { AngleGuessBadge, AttitudeSourceBadge } from "./TrustBadge";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
@@ -484,7 +485,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                     { label: t("relCompareWith"), run: () => { const P = plot.objects!.find((x) => x.id === pair.primary); if (P) void compareObjects(P, plot.objects!, "ned", o); } }] : []),
                   { label: t("objEdit"), run: () => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } }) },
                 ])}
-                title={pair.primary === o.id ? t("relPrimary") : pair.secondary === o.id ? t("relSecondary") : undefined}>
+                title={pair.primary === o.id ? t("relRingTip_primary") : pair.secondary === o.id ? t("relRingTip_secondary") : undefined}>
+                {(pair.primary === o.id || pair.secondary === o.id) && <RingIcon kind={pair.primary === o.id ? "primary" : "secondary"} />}
                 <button className="obj-chip-main" onClick={() => useApp.setState({ objectDialog: { plotId: plot.id, objectId: o.id } })} title={t("objEdit")}>
                   <img src={iconSvg(o.kind, o.color)} alt="" width={16} height={16} />{o.name}
                 </button>

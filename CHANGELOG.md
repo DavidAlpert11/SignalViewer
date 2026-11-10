@@ -13,6 +13,14 @@
   from; the found list shows each object's frame and origin ("NED · origin ORGN[0]").
 - A local position with no origin in the file: *Advanced…* fills in the file's GPS (its first fix
   becomes the origin) and says so.
+- **The rings on the map are explained.** Hovering an object says what its ring means (solid: the
+  reference, dashed: compared with it); the relation box's header shows the two rings and chooses the
+  pair - *Reference* ⇄ *Compared with*, with a swap button - and the 3D view uses the same header
+  instead of its own selects. The object chips carry the same ring icons; Ctrl+K can set the reference.
+
+### Changed
+- "Primary / secondary" is now "Reference / Compared with" (Hebrew: בסיס / מושווה) everywhere - the
+  box, the chips, their menu, Help.
 
 ### Fixed
 - An ECEF (or any converted) object is no longer offered again by the suggestion bar after it was added,

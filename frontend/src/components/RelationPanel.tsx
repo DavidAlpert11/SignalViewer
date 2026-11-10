@@ -4,9 +4,46 @@ import { fmtNum, useT, type TKey } from "../i18n";
 import { altAt, angleUnitOf, fmtDistance, objectAt, trackTime, type ObjTrack } from "../mapObjects";
 import { compareObjects, errorSignals, overlayObjects, pairOf, plotRelation, relation, type At, type CompareFrame } from "../relation";
 
-/* N7: the relation between the primary and the secondary object at the cursor (Tacview-like) - a small
+/** L7: the two rings, as drawn on the map: solid around the reference, dashed around the object compared with it. */
+export function RingIcon({ kind }: { kind: "primary" | "secondary" }) {
+  return (
+    <svg className={`ring-icon ${kind}`} viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <circle cx="8" cy="8" r="5.5" fill="none" stroke="var(--amber)" strokeWidth="2" strokeDasharray={kind === "secondary" ? "3 2.2" : undefined} />
+    </svg>
+  );
+}
+
+/** L7: the one place to choose the pair - Reference ⇄ Compared with - shared by the map's relation box
+ *  and the 3D view's bar (it replaced the 3D view's own Primary / Second selects). Each choice is one Undo. */
+export function RelationPicker({ plot, objects }: { plot: Plot; objects: MapObject[] }) {
+  const t = useT();
+  const { primary, secondary } = pairOf(plot);
+  if (objects.length < 2 || !primary) return null;
+  return (
+    <span className="rel-pick" role="group" aria-label={t("relPick")}>
+      <label className="rel-ref" title={t("relRingTip_primary")}>
+        <RingIcon kind="primary" /><span>{t("relPrimary")}</span>
+        <select value={primary} aria-label={t("relPrimary")}
+          onChange={(e) => { const x = e.target.value; actions.setObjectPair(plot.id, x, x === secondary ? primary : secondary); }}>
+          {objects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+      </label>
+      <button className="iconbtn sm rel-swap" disabled={!secondary} title={`${t("relSwap")} (X)`} aria-label={t("relSwap")}
+        onClick={() => { if (secondary) actions.setObjectPair(plot.id, secondary, primary); }}>⇄</button>
+      <label className="rel-cmp" title={t("relRingTip_secondary")}>
+        <RingIcon kind="secondary" /><span>{t("relSecondary")}</span>
+        <select value={secondary ?? ""} aria-label={t("relSecondary")} onChange={(e) => actions.setObjectPair(plot.id, primary, e.target.value)}>
+          {objects.filter((o) => o.id !== primary).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+      </label>
+    </span>
+  );
+}
+
+/* N7: the relation between the reference and the compared object at the cursor (Tacview-like) - a small
    box on the map that renders on its own as the time moves (the map does not), with the over-time
-   actions: plot the relation, error signals, compare in a frame. */
+   actions: plot the relation, error signals, compare in a frame. L7: its header says which ring is which
+   and chooses the pair. */
 export default function RelationPanel({ plot, objects, tracks }: { plot: Plot; objects: MapObject[]; tracks: Record<string, ObjTrack> }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
@@ -32,9 +69,11 @@ export default function RelationPanel({ plot, objects, tracks }: { plot: Plot; o
   const row = (k: TKey, v: string) => <div className="rel-row"><span>{t(k)}</span><bdi dir="ltr">{v}</bdi></div>;
   return (
     <div className="rel-panel" role="region" aria-label={t("relPanel")} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-      <button className="rel-head linklike" aria-expanded={!folded} onClick={() => actions.updatePlot(plot.id, { relFolded: !folded || undefined })}>
-        {folded ? "▸" : "▾"} <b style={{ color: S.color }}>{S.name}</b> → <b style={{ color: P.color }}>{P.name}</b>
-      </button>
+      <div className="rel-head">
+        <button className="iconbtn sm rel-fold" aria-expanded={!folded} aria-label={t(folded ? "relUnfold" : "relFold")} title={t(folded ? "relUnfold" : "relFold")}
+          onClick={() => actions.updatePlot(plot.id, { relFolded: !folded || undefined })}>{folded ? "▸" : "▾"}</button>
+        <RelationPicker plot={plot} objects={objects} />
+      </div>
       {!folded && r && (
         <div className="rel-body">
           {row("relRange", fmtDistance(r.slant ?? r.horiz, lang))}

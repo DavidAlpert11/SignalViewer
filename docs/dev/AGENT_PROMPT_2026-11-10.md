@@ -2,8 +2,8 @@
 
 > ## Status – read this first (update at the end of every session)
 >
-> **Stage reached: group A done (L0-L6), 2026-11-10.** Next: **L7**. Work order: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
-> Group A's code map, decisions (1-5) and the new question Q14 (`ref` as origin vs trajectory) are in
+> **Stage reached: group A done (L0-L6) and L7 done, 2026-11-10.** Next: **L8**. Work order: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
+> Group A's and L7's code maps, decisions (1-8) and the new question Q14 (`ref` as origin vs trajectory) are in
 > `TASKS.md` → "Owner's plan (2026-11-10)". In short: `objectDetect.ts` (`metricPosition`, per-group
 > NED / ENU decision, `KNOWN_GROUPS` with `ned / vel / origin / order / lane / skip`, `originOf`,
 > `isOriginGroup`, `Candidate.origin / badUnit / lane`), `objectAdd.ts` (`addable`, `objectSources`,
@@ -11,6 +11,9 @@
 > `ObjectDialog.tsx` (`frameLabel`, `suggestedOrigin`), `ObjectSuggestBar.tsx`; tests
 > `objectDetect.test.ts`, `mapObjects.test.ts`, `backend/tests/test_local_objects.py`,
 > `tests/e2e/test_local_objects.py`; fixtures `tools/make_local_objects_fixture.py`.
+> L7: `RelationPanel.tsx` (`RingIcon`, `RelationPicker` - also in `Globe3D.tsx`'s bar), the ring tooltip in
+> `GeoChart.tsx`, chips in `PlotView.tsx`, Ctrl+K, Help; words Reference / Compared with (he בסיס / מושווה).
+> The whole e2e of group A was cut off at ~74% (green until then) - run it in full at the end of group B.
 > **Left for L13:** the naming convention in the guides (en + he), `docs/features.md`.
 > The patch does not include `frontend/dist` (built in L13). Apply: `git am < signalviewer-2026-11-10.patch` on `d61ab6d`.
 > Groups (whole e2e at the end of each): **A** = L0–L6 (local positions), **B** = L7–L9 (primary / secondary made clear, comparisons),

@@ -7,7 +7,7 @@ import { useMapBase } from "../mapBase";
 import { drawObjectIcon } from "./mapIcons";
 import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
-import RelationPanel from "./RelationPanel";
+import RelationPanel, { RingIcon } from "./RelationPanel";
 import { pairOf, relation } from "../relation";
 import { labelsOf, stateColor } from "../values";
 import { fmtNum, useT } from "../i18n";
@@ -143,6 +143,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const [tick, setTick] = useState(0);
   const userView = useRef(false);               // the user zoomed / panned: stop auto-fitting
   const [mouse, setMouse] = useState<{ lon: number; lat: number } | null>(null);
+  /** L7: what the ring under the mouse means (solid: the reference, dashed: compared with it) */
+  const [ringTip, setRingTip] = useState<{ kind: "primary" | "secondary" | "none"; name: string; x: number; y: number } | null>(null);
 
   const ys = plot.signals.map((s) => s.sig);
   const yKey = ys.join("|");
@@ -795,8 +797,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       };
       window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
     };
-    const onMove = (e: MouseEvent) => { const v = viewRef.current; if (v) { const g = at(e, v); setMouse({ lon: lonOf(g.wx), lat: latOf(g.wy) }); } };
-    const onLeave = () => setMouse(null);
+    const onMove = (e: MouseEvent) => { const v = viewRef.current; if (v) { const g = at(e, v); setMouse({ lon: lonOf(g.wx), lat: latOf(g.wy) }); } hoverRef.current(e); };
+    const onLeave = () => { setMouse(null); setRingTip(null); };
     const onDbl = () => fitRef.current();
     cv.addEventListener("wheel", onWheel, { passive: false });
     cv.addEventListener("mousedown", onDown);
@@ -813,10 +815,18 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
 
   /** N7: the object under a click (screen point), made the primary - or with Shift the secondary. */
   const pick = (cx: number, cy: number, secondary: boolean) => {
+    const best = objUnder(cx, cy);           // the canvas's own pixels: the click turned back (Track up)
+    if (!best) return;
+    const cur = pairOf(plot);
+    if (secondary) { if (best !== cur.primary) actions.setObjectPair(plot.id, cur.primary, best); }
+    else if (best !== cur.primary) actions.setObjectPair(plot.id, best, best === cur.secondary ? cur.primary : cur.secondary);
+  };
+  const pickRef = useRef(pick); pickRef.current = pick;
+  /** The object under a screen point (the one an icon click picks), or null. */
+  const objUnder = (cx: number, cy: number): string | null => {
     const cv = cvRef.current;
-    if (!cv) return;
+    if (!cv) return null;
     const b = cv.getBoundingClientRect();
-    // the canvas's own pixels: the click turned back (Track up) about the canvas's middle
     const { bx, by } = toCanvas(cx - b.left - b.width / 2, cy - b.top - b.height / 2);
     const w = cv.clientWidth, h = cv.clientHeight;
     let best: string | null = null, dmin = Infinity;
@@ -824,12 +834,20 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       const d = Math.hypot(q.px - (w / 2 + bx), q.py - (h / 2 + by));
       if (d < q.sz * 0.75 && d < dmin) { dmin = d; best = id; }
     }
-    if (!best) return;
-    const cur = pairOf(plot);
-    if (secondary) { if (best !== cur.primary) actions.setObjectPair(plot.id, cur.primary, best); }
-    else if (best !== cur.primary) actions.setObjectPair(plot.id, best, best === cur.secondary ? cur.primary : cur.secondary);
+    return best;
   };
-  const pickRef = useRef(pick); pickRef.current = pick;
+  /** L7: hovering an object of a pair says what its ring means (a tooltip that follows the mouse). */
+  const hover = (e: MouseEvent) => {
+    const id = objects.length > 1 ? objUnder(e.clientX, e.clientY) : null;
+    const wb = wrapRef.current?.getBoundingClientRect();
+    const o = id ? objects.find((x) => x.id === id) : undefined;
+    if (!o || !wb) { setRingTip(null); return; }
+    const pr = pairOf(plot);
+    const kind = o.id === pr.primary ? "primary" : o.id === pr.secondary ? "secondary" : "none";
+    const x = e.clientX - wb.left, y = e.clientY - wb.top;
+    setRingTip((p) => (p && p.kind === kind && p.name === o.name && Math.abs(p.x - x) < 3 && Math.abs(p.y - y) < 3 ? p : { kind, name: o.name, x, y }));
+  };
+  const hoverRef = useRef(hover); hoverRef.current = hover;
   /** Q / Shift+Q: the next / previous object as the primary; X: swap the primary and the secondary. */
   const cyclePrimary = (dir: 1 | -1) => {
     if (objects.length < 2) return;
@@ -910,6 +928,12 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       {mouse && <div className="geo-readout">{mouse.lat.toFixed(prec)}°, {mouse.lon.toFixed(prec)}°</div>}
       <TrackKeys objects={objects} colors={objColors} />
       {objects.length > 1 && <RelationPanel plot={plot} objects={objects} tracks={objTracks} />}
+      {ringTip && (
+        <div className="ring-tip" role="tooltip" style={{ left: ringTip.x + 14, top: ringTip.y + 14 }}>
+          {ringTip.kind !== "none" && <RingIcon kind={ringTip.kind} />}<b>{ringTip.name}</b>
+          <span>{t(ringTip.kind === "primary" ? "relRingTip_primary" : ringTip.kind === "secondary" ? "relRingTip_secondary" : "relRingTipNone")}</span>
+        </div>
+      )}
       {(!plot.xSignal || !ys.length) && !objects.length && <div className="plot-empty">{emptyText}</div>}
       {badRange && <div className="plot-empty">{notDegrees}</div>}
     </div>

@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
   `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
-  in "Owner's plan (2026-11-10)" below. **Done: group A (L0-L6, local positions).** Next: L7. Travels as
+  in "Owner's plan (2026-11-10)" below. **Done: group A (L0-L6, local positions) and L7 (the rings explained).** Next: L8. Travels as
   one cumulative patch on `d61ab6d`.
 
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
@@ -185,6 +185,16 @@ L10-L11, **D** = L12, **E** = L13. If time is short, finish a group and stop cle
 5. Known groups get an `order` (POS 0, EKF lanes 1, AHR2 2; PX4 global 0 / local 1; MAVLink global 0 /
    local 1) used only among known groups of one class; other objects keep the file's order.
 
+**Decisions taken in L7:**
+6. The words: **Reference** / **Compared with** in English, **בסיס** / **מושווה** in Hebrew - not ראשי / משני
+   (too close to ראשית, the origin of a local position) and not ייחוס (already "נקודת ייחוס", the NED origin).
+   The code keeps `primary` / `secondary` (state names, sessions unchanged).
+7. The 3D view's *Object* and *Second* selects are replaced by the same `RelationPicker` as the map's relation
+   box; its *Third* select (a second dashed line) stays in the 3D bar. The 3D data box is unchanged (the map's
+   relation box is not shown in 3D - its numbers are already in the data box).
+8. The ring tooltip is on the 2D map (the hit-test the click already uses); in 3D the chips and the picker carry
+   the ring icons and the same tooltips.
+
 **Open questions (the work goes on with the default):**
 | # | Question | Default if unanswered |
 |---|---|---|
@@ -240,6 +250,13 @@ L10-L11, **D** = L12, **E** = L13. If time is short, finish a group and stop cle
   `tests/e2e/test_local_objects.py` (3 flows). Fixtures: `tools/make_local_objects_fixture.py` →
   `examples/ardupilot_lanes.csv`, `examples/local_frames.csv`.
 
+**Code map of L7:** `RelationPanel.tsx` (`RingIcon`, `RelationPicker`; the header: fold + picker),
+`GeoChart.tsx` (`objUnder` shared by click and hover, `hover` → `.ring-tip`), `Globe3D.tsx` (picker in the bar,
+Third select builds `[secondary, third]`), `PlotView.tsx` (ring icon + tooltip on the chips),
+`CommandPalette.tsx` (Set reference object: name / Swap), `Help.tsx` (Q · ⇧Q · X, the rings), i18n
+`rel*` (en + he), `index.css` (`.rel-pick`, `.ring-tip`, `.ring-icon`). e2e: `test_object_relations.py`
+(new test of L7, adapted words), `test_globe3d.py` (selects by their new labels).
+
 Progress board:
 
 | # | Task | Group | Status |
@@ -251,8 +268,8 @@ Progress board:
 | L4 | "Already on the map" for every kind of object | A | ☑ done |
 | L5 | The found list and the form for local positions | A | ☑ done |
 | L6 | Everything downstream still works | A | ☑ done |
-| L7 | Primary / secondary explained, chosen in one place | B | ☐ next |
-| L8 | Compare objects: one dialog, values and errors | B | ☐ |
+| L7 | Primary / secondary explained, chosen in one place | B | ☑ done |
+| L8 | Compare objects: one dialog, values and errors | B | ☐ next |
 | L9 | Compare similar nested signals | B | ☐ |
 | L10 | Move a plot to another tab / into another plot | C | ☐ |
 | L11 | Map export: PNG, HTML, maps in reports | C | ☐ |
@@ -3744,3 +3761,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · Round of 2026-11-10 started (L0): prompt kept as docs/dev/AGENT_PROMPT_2026-11-10.md, "Owner's plan (2026-11-10)" with board, decisions, Q1-Q14, notes; Milestone 28 in ROADMAP. Baseline at `d61ab6d`: backend 1095 passed / 14 skipped, mypy clean, tsc clean, Vitest 15 files / 71 tests. Fixtures from tools/make_local_objects_fixture.py (the backend's own WGS-84 maths).
 - 2026-11-10 · L1-L5 done (code map in the plan): metric positions in every form, the frame decided per group, flat velocities, units flagged (Q6), XKF1 / NKF1 lanes / PX4 / MAVLink local positions, origins own → known → sibling, origin groups never objects, one chain walk and one "already on the map" rule (F8 fixed), rows say frame + origin, Advanced… fills / suggests the origin. Checks: tsc, Vitest 15 files / 87 tests (5000 metric names < 100 ms), pytest tests/test_local_objects.py.
 - 2026-11-10 · L6 done - group A complete. Checked: N7 relation between two lanes (pytest: lane 1 - lane 0 = +1.5 m north, err_hdg +0.5°), lane 0 on POS within 0.05 m (pytest and e2e through /api/object_track), 3D / templates / relations / frames (e2e), old sessions (no saved field added or changed: the objects are LLA objects behind derived signals), Tacview export (same object_track path, e2e of N8 green). Live mode: not exercised. e2e that ran: test_local_objects (new, 3), test_map_objects, test_object_frames, test_object_templates, test_object_relations, test_globe3d (35 passed); then the **whole e2e suite** at the end of the group (result in the next line). Next: L7.
+- 2026-11-10 · Whole e2e at the end of group A: the run was cut off by the session at ~74% (all green until then, no failure); the files of the group (test_local_objects, map_objects, object_frames, object_templates, object_relations, globe3d) passed; the full suite is run again at the end of group B.
+- 2026-11-10 · L7 done: Reference ⇄ Compared with in the relation box's header (`RelationPicker`, also in the 3D bar instead of its Object / Second selects), ring icons in the header and on the chips, the ring tooltip on the map, Ctrl+K "Set reference object: …" / "Swap…", Help rows; words en Reference / Compared with, he בסיס / מושווה (decision 6). Checks: tsc, Vitest 15 / 87; e2e test_object_relations (6, one new), test_globe3d (12), test_file_help_menus + test_map_objects (12). Next: L8.
