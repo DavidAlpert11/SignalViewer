@@ -1786,7 +1786,7 @@ input.fx-input { width: 100%; }
 .cmpobj-show button.on { background: var(--amber-soft); color: var(--ink-strong); }
 .cmpobj-stats { margin-top: var(--sp-3); }
 .cmpobj-stats h3 { font-size: var(--fs-s); margin: 0 0 var(--sp-1); }
-.cmpobj-stats-scroll { overflow: auto; max-height: 260px; border: 1px solid var(--line); border-radius: var(--r-s, 4px); }
+.cmpobj-stats-scroll { overflow: auto; max-height: 260px; border: 1px solid var(--line); border-radius: var(--r-s); }
 .cmpobj-stats table { border-collapse: collapse; width: 100%; font-size: var(--fs-xs); }
 .cmpobj-stats th, .cmpobj-stats td { padding: 2px var(--sp-1_5); text-align: start; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .cmpobj-stats th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; }

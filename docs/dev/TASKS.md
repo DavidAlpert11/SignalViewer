@@ -17,8 +17,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
   `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
-  in "Owner's plan (2026-11-10)" below. **Done: group A (L0-L6, local positions) and L7 (the rings explained).** Next: L8. Travels as
-  one cumulative patch on `d61ab6d`.
+  in "Owner's plan (2026-11-10)" below. **Done: group A (L0-L6, local positions), L7 (the rings explained), L8 (Compare objects…).** Next: L9. Travels as
+  one cumulative patch on `d61ab6d`; the owner pushed up to L7 (`e2a75a8`), so later patches are on that.
 
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
   and added all at once with *Why?*, dot nesting at any depth, smooth motion and an easy map, primary /
@@ -195,6 +195,29 @@ L10-L11, **D** = L12, **E** = L13. If time is short, finish a group and stop cle
 8. The ring tooltip is on the 2D map (the hit-test the click already uses); in 3D the chips and the picker carry
    the ring icons and the same tooltips.
 
+**Decisions taken in L8:**
+9. Velocity *values* are shown as recorded (north / east / down), turned to ENU by the frame op when there
+   are three components; for ECEF / LLA / track the *errors* are in that frame and the values stay NED (the
+   tab says so). Velocity values in ECEF need the position too - a follow-up if wanted.
+10. Attitude values are in degrees and every yaw is wrapped as the reference's is (0..360 or -180..180,
+    from the reference's minimum) by an `expr` derived signal (`wrap360(deg(v0))`), reused when it exists.
+    Quaternion attitudes are not compared yet - the dialog says so.
+11. `err_hdg` already uses the yaw when both objects have angles of their own (checked, written in
+    relate.py's docstring) - no new yaw error. New: `err_speed` (|v| difference, 2D or 3D as both have it).
+12. The four old actions keep their exact results (same functions); re-running anything reuses the same
+    relation / frame signals (`findDerived(…, ignore=["group"])`) instead of making `_2` groups.
+
+**Code map of L8:** `relation.ts` (`comparable`, `cmpLayout` (pure, tested), `makeComparison`, `statsCsv`,
+`frameOnce`, `exprOnce`; `makeGroup` reuses), `components/CompareObjectsDialog.tsx` (new), `RelationPanel.tsx`
+(one `Compare…`, also folded), `ObjectSuggestBar.tsx` (the offer opens the dialog), `CommandPalette.tsx`
+(`Compare objects…`), `store/actions/plots.ts` (`plotTabs`: several tabs in one commit, overflow to "name (2)",
+left-out signals in a toast; `plotsInNewTab` calls it), `store/slices/ui.ts` (`compareDialog`), `peers.ts`
+(`findDerived` ignore), `api.ts` (`Stats.abs_max / t_abs_max / p95_abs`); backend `svcore/relate.py`
+(`err_speed`), `svcore/ops.py` (the three statistics), `app/routes/data.py` (`t_abs_max` on the shown axis);
+i18n `cmp*` (en + he), `tabsLeftOut`. Tests: relation.test.ts (layout, availability, CSV),
+backend/tests/test_local_objects.py (statistics = numpy, speed error), e2e test_local_objects (the dialog on the
+EKF lanes), test_object_relations (presets in the dialog).
+
 **Open questions (the work goes on with the default):**
 | # | Question | Default if unanswered |
 |---|---|---|
@@ -269,8 +292,8 @@ Progress board:
 | L5 | The found list and the form for local positions | A | ☑ done |
 | L6 | Everything downstream still works | A | ☑ done |
 | L7 | Primary / secondary explained, chosen in one place | B | ☑ done |
-| L8 | Compare objects: one dialog, values and errors | B | ☐ next |
-| L9 | Compare similar nested signals | B | ☐ |
+| L8 | Compare objects: one dialog, values and errors | B | ☑ done |
+| L9 | Compare similar nested signals | B | ☐ next |
 | L10 | Move a plot to another tab / into another plot | C | ☐ |
 | L11 | Map export: PNG, HTML, maps in reports | C | ☐ |
 | L12 | A clear API (Python, CLI, REST) | D | ☐ |
@@ -3763,3 +3786,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · L6 done - group A complete. Checked: N7 relation between two lanes (pytest: lane 1 - lane 0 = +1.5 m north, err_hdg +0.5°), lane 0 on POS within 0.05 m (pytest and e2e through /api/object_track), 3D / templates / relations / frames (e2e), old sessions (no saved field added or changed: the objects are LLA objects behind derived signals), Tacview export (same object_track path, e2e of N8 green). Live mode: not exercised. e2e that ran: test_local_objects (new, 3), test_map_objects, test_object_frames, test_object_templates, test_object_relations, test_globe3d (35 passed); then the **whole e2e suite** at the end of the group (result in the next line). Next: L7.
 - 2026-11-10 · Whole e2e at the end of group A: the run was cut off by the session at ~74% (all green until then, no failure); the files of the group (test_local_objects, map_objects, object_frames, object_templates, object_relations, globe3d) passed; the full suite is run again at the end of group B.
 - 2026-11-10 · L7 done: Reference ⇄ Compared with in the relation box's header (`RelationPicker`, also in the 3D bar instead of its Object / Second selects), ring icons in the header and on the chips, the ring tooltip on the map, Ctrl+K "Set reference object: …" / "Swap…", Help rows; words en Reference / Compared with, he בסיס / מושווה (decision 6). Checks: tsc, Vitest 15 / 87; e2e test_object_relations (6, one new), test_globe3d (12), test_file_help_menus + test_map_objects (12). Next: L8.
+- 2026-11-10 · L8 done: Compare objects… (dialog, presets, one tab per quantity, statistics, CSV), err_speed, stats abs_max / t_abs_max / p95_abs, plotTabs never drops silently, reuse of relation / frame signals (decisions 9-12). Checks: backend 1100 passed / 14 skipped (test_design_tokens caught a radius fallback in the new CSS - fixed), mypy clean, tsc, Vitest 15 / 91; e2e test_local_objects (4), test_object_relations (6), test_map_objects (10). On ardupilot_lanes.csv: lane 1 north error +1.5 m, lane 0 ~0, yaw error +0.5°, RMS 1.5 in the table, speed error 0. Next: L9.
