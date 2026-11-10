@@ -8,8 +8,8 @@ import { useMapBase } from "../mapBase";
 import { globeImage } from "../globeBridge";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
-import { pairOf } from "../relation";
-import { angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
+import { pairOf, relation, type At } from "../relation";
+import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
 import Globe3DFallback from "./Globe3DFallback";
@@ -81,7 +81,8 @@ interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; em
 /** An object's values at the time (for the data box and the relations). */
 interface ObjState { id: string; name: string; color: string; pos: import("cesium").Cartesian3; lat: number; lon: number; alt: number;
   agl: number | null; hdg: number | null; pitch: number | null; roll: number | null; gs: number | null; vs: number | null }
-interface Readout { primary: ObjState; rel: { name: string; color: string; horiz: number; dz: number; slant: number; brg: number }[] }
+interface Readout { primary: ObjState; rel: { name: string; color: string; horiz: number; dz: number; slant: number; brg: number;
+  closure: number | null; aspect: number | null; side: "L" | "R" | null }[] }
 
 /** Ground speed and climb rate (m/s) over about a second around t. */
 function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: number | null } {
@@ -137,8 +138,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     events: import("cesium").PointPrimitiveCollection | null; eventLabels: import("cesium").LabelCollection | null;
     measure: import("cesium").PolylineCollection | null; measurePts: import("cesium").PointPrimitiveCollection | null;
     ghosts: import("cesium").PointPrimitiveCollection | null;      // U6: each object at the time under the pointer
+    rings: import("cesium").PointPrimitiveCollection | null;       // N7: the primary and the secondary marked
     drawn: Map<string, Drawn>; fitted: boolean }>({ models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
-      events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, drawn: new Map(), fitted: false });
+      events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drawn: new Map(), fitted: false });
   /* the dashed line material of each colour, made once (a new material per frame is costly) */
   const linkMats = useRef(new Map<string, import("cesium").Material>());
   const linkMat = (c: import("cesium").Color) => {
@@ -207,8 +209,16 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         S0.measurePts = w.scene.primitives.add(new Cz.PointPrimitiveCollection());
         // measuring: two clicks on the ground (a third starts again)
         const h = new Cz.ScreenSpaceEventHandler(w.scene.canvas);
+        // N7: not measuring - a click on an object makes it the primary, with Shift the secondary
+        const pickAt = (e: { position: import("cesium").Cartesian2 }, second: boolean) => {
+          const got = w.scene.pick(e.position) as { id?: unknown; primitive?: { id?: unknown } } | undefined;
+          const id = typeof got?.id === "string" ? got.id : typeof got?.primitive?.id === "string" ? got.primitive.id : null;
+          if (id) pickRef.current(id.startsWith("ring-") ? id.slice(5) : id, second);
+          rootFocus.current();                              // its keys (Q / X) work after a click
+        };
+        h.setInputAction((e: { position: import("cesium").Cartesian2 }) => pickAt(e, true), Cz.ScreenSpaceEventType.LEFT_CLICK, Cz.KeyboardEventModifier.SHIFT);
         h.setInputAction((e: { position: import("cesium").Cartesian2 }) => {
-          if (!measuringRef.current) return;
+          if (!measuringRef.current) { pickAt(e, false); return; }
           const ray = w.camera.getPickRay(e.position);
           const p = (ray && w.scene.globe.pick(ray, w.scene)) || w.camera.pickEllipsoid(e.position);
           if (!p) return;
@@ -226,7 +236,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const w = widgetRef.current;
       widgetRef.current = null;
       scene3.current = { models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
-        events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, drawn: new Map(), fitted: false };
+        events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drawn: new Map(), fitted: false };
       mats.clear();
       if (w && !w.isDestroyed()) w.destroy();
     };
@@ -302,11 +312,14 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     S.labels = w.scene.primitives.add(new cz.LabelCollection());
     if (S.ghosts) w.scene.primitives.remove(S.ghosts);
     S.ghosts = w.scene.primitives.add(new cz.PointPrimitiveCollection());
+    if (S.rings) w.scene.primitives.remove(S.rings);
+    S.rings = w.scene.primitives.add(new cz.PointPrimitiveCollection());
     let alive = true;
     (async () => {
       for (const o of objects) {
         try {
           const m = await cz.Model.fromGltfAsync({
+            id: o.id,                                       // N7: a click on it picks it (scene.pick)
             url: `/models/${o.kind}.glb`, minimumPixelSize: Math.round((o.size ?? 26) * 1.8), maximumScale: 50000,
             forwardAxis: cz.Axis.X, colorBlendMode: cz.ColorBlendMode.MIX, colorBlendAmount: 0.75,
             // N5: an attitude not its own (from motion, borrowed) - see-through, with an outline in its colour
@@ -638,7 +651,18 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         // on the WGS84 ellipsoid, like the slant range (a sphere was ~0.2 % off from it)
         const horiz = new cz.EllipsoidGeodesic(cz.Cartographic.fromDegrees(primary.lon, primary.lat), cz.Cartographic.fromDegrees(q.lon, q.lat)).surfaceDistance;
         const slant = cz.Cartesian3.distance(primary.pos, q.pos);
-        rel.push({ name: q.name, color: q.color, horiz, dz: q.alt - primary.alt, slant, brg: bearing(primary.lat, primary.lon, q.lat, q.lon) });
+        // N7: closure and aspect as on the map (relation.ts - one set of maths), over the next half second
+        const at = (oid: string, dt: number): At | null => {
+          const tr = tracks[oid], o = objects.find((x) => x.id === oid);
+          if (!tr || !o) return null;
+          const tt = trackTime(tr, cur.on ? cur.t1 : null, st.streaming && own === null) + dt;
+          const p = objectAt(tr, tt, angleUnitOf(o, objects));
+          return p ? { lat: p.lat, lon: p.lon, alt: o.alt ? altAt(tr, tt) : null, hdg: p.heading } : null;
+        };
+        const p0 = at(primary.id, 0), q0 = at(id, 0), p1 = at(primary.id, 0.5), q1 = at(id, 0.5);
+        const rr = p0 && q0 ? relation(p0, q0, p1 ?? undefined, q1 ?? undefined, p1 && q1 ? 0.5 : 0) : null;
+        rel.push({ name: q.name, color: q.color, horiz, dz: q.alt - primary.alt, slant, brg: bearing(primary.lat, primary.lon, q.lat, q.lon),
+          closure: rr?.closure ?? null, aspect: rr?.aspect ?? null, side: rr?.aspectSide ?? null });
         S.links?.add({ positions: [primary.pos, q.pos], width: 2, material: linkMat(cz.Color.fromCssColorString(q.color)) });
         S.linkLabels?.add({ position: cz.Cartesian3.midpoint(primary.pos, q.pos, new cz.Cartesian3()), text: fmtDistance(slant, st.lang),
           font: `600 12px ${getComputedStyle(document.body).fontFamily}`, fillColor: cz.Color.WHITE, outlineColor: cz.Color.fromCssColorString("#0b1118"),
@@ -646,10 +670,42 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       }
     }
     setReadout(primary ? { primary, rel } : null);
+    // N7: a ring round the primary, a fainter one round the secondary
+    S.rings?.removeAll();
+    const amber = cz.Color.fromCssColorString(getComputedStyle(document.documentElement).getPropertyValue("--amber").trim() || "#d29922");
+    for (const [id, second] of [[pair.primary, false], [pair.secondary, true]] as const) {
+      const q = id ? states.get(id) : undefined;
+      if (!q) continue;
+      S.rings?.add({ id: `ring-${id}`, position: q.pos, pixelSize: second ? 40 : 46, color: cz.Color.TRANSPARENT,
+        outlineColor: second ? amber.withAlpha(0.55) : amber, outlineWidth: second ? 2 : 3, disableDepthTestDistance: Number.POSITIVE_INFINITY });
+    }
     w.scene.requestRender();
   };
   const updateRef = useRef(update);
   updateRef.current = update;
+  /** N7: an object made the primary (or the secondary) - shared with the tab's map. */
+  const pick = (id: string, second: boolean) => {
+    if (!objects.some((o) => o.id === id)) return;
+    const cur = pairOf(plot);
+    if (second) { if (id !== cur.primary) actions.setObjectPair(plot.id, cur.primary, id); }
+    else if (id !== cur.primary) actions.setObjectPair(plot.id, id, id === cur.secondary ? cur.primary : cur.secondary);
+  };
+  const pickRef = useRef(pick);
+  pickRef.current = pick;
+  /** Q / Shift+Q: the next / previous primary; X: swap them - while the 3D view has the focus. */
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || objects.length < 2) return;
+    const k = e.key.toLowerCase(), cur = pairOf(plot);
+    if (k === "q") {
+      const i = objects.findIndex((o) => o.id === cur.primary);
+      const next = objects[(i + (e.shiftKey ? -1 : 1) + objects.length) % objects.length].id;
+      actions.setObjectPair(plot.id, next, next === cur.secondary ? cur.primary : cur.secondary);
+    } else if (k === "x" && cur.secondary) actions.setObjectPair(plot.id, cur.secondary, cur.primary);
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  };
+  const rootRef = useRef<HTMLDivElement>(null);
+  const rootFocus = useRef(() => rootRef.current?.focus({ preventScroll: true }));
   // N6: a change of camera mode or of the object it is on flies there (FLY_MS) instead of jumping
   const flyRef = useRef<{ t0: number; fresh: boolean; raf: number; start: { pos: import("cesium").Cartesian3; dir: import("cesium").Cartesian3; up: import("cesium").Cartesian3 } | null } | null>(null);
   const chaseHdg = useRef<{ t: number; h: number } | null>(null);
@@ -702,7 +758,8 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
 
   if (failed) return <Globe3DFallback plot={plot} index={index} onLoading={onLoading} reason={failed} />;
   return (
-    <div className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={reFit}>
+    <div ref={rootRef} className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={reFit} tabIndex={-1} onKeyDown={onKey}
+      onPointerDownCapture={(e) => { if (!(e.target as HTMLElement).closest("button, select, input, a")) rootRef.current?.focus({ preventScroll: true }); }}>
       <div ref={hostRef} className="globe3d-host" />
       <div ref={creditRef} className="globe3d-credits" />
       {!cz && <div className="plot-empty">{t("globeLoading")}</div>}
@@ -797,6 +854,8 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
               <i style={{ background: r.color }} />{r.name}: <bdi dir="ltr">{fmtDistance(r.horiz, lang)}</bdi>
               {" "}· Δh <bdi dir="ltr">{r.dz >= 0 ? "+" : ""}{fmtDistance(r.dz, lang)}</bdi>
               {" "}· {t("g3Slant")} <bdi dir="ltr">{fmtDistance(r.slant, lang)}</bdi> · <bdi dir="ltr">{fmtNum(r.brg, lang, 4)}°</bdi>
+              {r.closure !== null && <>{" "}· {t("relClosure")} <bdi dir="ltr">{fmtNum(r.closure, lang, 4)} m/s</bdi></>}
+              {r.aspect !== null && <>{" "}· {t("relAspect")} <bdi dir="ltr">{fmtNum(r.aspect, lang, 4)}°{r.side ? ` ${r.side}` : ""}</bdi></>}
             </span>
           ))}
         </div>
