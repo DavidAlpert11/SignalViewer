@@ -7,8 +7,8 @@ import { useEscape } from "./Overlays";
 import SignalField from "./SignalField";
 import { AXES, createFrameGroup, createSmoothGroup, frameGroupName } from "../frames";
 import { api, type SignalInfo } from "../api";
-import { detectAll, VEC_ROLES, type Candidate } from "../objectDetect";
-import { addable, candidateObject, isAdded, linkAttitudes, NAMING_EXAMPLE, objectColors, whyLines } from "../objectAdd";
+import { detectAll, detectObjects, VEC_ROLES, type Candidate } from "../objectDetect";
+import { addable, candidateObject, isAdded, linkAttitudes, NAMING_EXAMPLE, objectColors, objectSources, whyLines } from "../objectAdd";
 import { copyText } from "../errorReport";
 
 /* Q101 / Q102: the position may come in ECEF, NED or ENU (m) instead of latitude / longitude, and
@@ -19,24 +19,17 @@ type PosFrame = "lla" | "ecef" | "ned" | "enu";
 interface PosSetup { frame: PosFrame; vec: string[]; refMode: "signals" | "manual"; refSigs: string[]; refLla: string[];
   lat: string; lon: string; alt: string | null; smooth: number }
 
-/** How an object's lat / lon / alt were made (a chain of "vecsmooth" and "frame" derived signals). */
+/** How an object's lat / lon / alt were made (L4: the one chain walk, objectSources). */
 function readSetup(o: MapObject, derived: SignalInfo[]): PosSetup {
-  const of = (id?: string | null) => (id && id.startsWith("derived/") ? derived.find((s) => s.id === id) : undefined);
+  const ch = objectSources(o, derived);
   const out: PosSetup = { frame: "lla", vec: ["", "", ""], refMode: "signals", refSigs: ["", "", ""], refLla: ["", "", ""],
-    lat: o.lat, lon: o.lon, alt: o.alt ?? null, smooth: 0 };
-  const sm = of(o.lat);
-  if (sm?.op === "vecsmooth" && sm.params?.kind === "lla" && sm.sources && sm.sources.length >= 2) {
-    out.smooth = Number(sm.params.window) || 0;
-    [out.lat, out.lon] = sm.sources;
-    out.alt = sm.sources[2] ?? null;
-  }
-  const fr = of(out.lat);
-  const p = fr?.params ?? {};
-  if (fr?.op === "frame" && p.qty === "position" && p.dst === "lla" && ["ecef", "ned", "enu"].includes(String(p.src)) && fr.sources) {
-    out.frame = p.src as PosFrame;
-    out.vec = fr.sources.slice(0, 3);
+    lat: ch.lat, lon: ch.lon, alt: ch.alt, smooth: ch.smooth };
+  if (ch.frame) {
+    const p = ch.frame.params;
+    out.frame = ch.frame.src as PosFrame;
+    out.vec = ch.frame.sources.slice(0, 3);
     if (p.ref === "manual") { out.refMode = "manual"; out.refLla = [p.ref_lat, p.ref_lon, p.ref_alt].map((v) => String(v ?? "")); }
-    else out.refSigs = fr.sources.slice(3, 6).concat(["", "", ""]).slice(0, 3);
+    else out.refSigs = ch.frame.sources.slice(3, 6).concat(["", "", ""]).slice(0, 3);
   }
   return out;
 }
@@ -57,7 +50,8 @@ export default function ObjectDialog() {
   const plot = useMemo(() => ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === req?.plotId), [ws, req]);
   const cands = useMemo(() => detectAll(runs.filter((r) => r.format !== "derived")), [runs]);
   if (!req || !plot) return null;
-  const fresh = cands.filter((c) => !isAdded(c, plot));
+  const derived = runs.find((r) => r.format === "derived")?.signals ?? [];
+  const fresh = cands.filter((c) => !isAdded(c, plot, derived));
   if (req.objectId || form || (!fresh.length && !req.why && !cands.length)) {
     return <ObjectForm key={form?.preset?.key ?? "form"} preset={form?.preset ?? null} onBack={form && cands.length ? () => setForm(null) : undefined} />;
   }
@@ -72,12 +66,14 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
   const ws = useApp((s) => s.ws);
   const runs = useApp((s) => s.runs);
   const plot = ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === plotId);
+  const derived = runs.find((r) => r.format === "derived")?.signals ?? [];
+  const added0 = (c: Candidate) => isAdded(c, plot, derived);
   const close = () => useApp.setState({ objectDialog: null });
   useEscape(close, true);
   const [colors] = useState(() => { const next = objectColors(plot); return new Map(cands.map((c) => [c.key, next()])); });
   const [names, setNames] = useState<Record<string, string>>({});
   const [color, setColor] = useState<Record<string, string>>({});
-  const [checked, setChecked] = useState<Record<string, boolean>>(() => Object.fromEntries(cands.map((c) => [c.key, addable(c) && !isAdded(c, plot)])));
+  const [checked, setChecked] = useState<Record<string, boolean>>(() => Object.fromEntries(cands.map((c) => [c.key, addable(c) && !added0(c)])));
   const [open, setOpen] = useState<Record<string, boolean>>(() => (why ? Object.fromEntries(cands.map((c) => [c.key, true])) : {}));
   const [busy, setBusy] = useState(false);
   // N5 (owner's decision 3): a row with no angles - "motion" (default) or the key of the row to borrow from
@@ -85,7 +81,7 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
   const withAtt = cands.filter((c) => c.attitude !== "none");     // truth first: the list is sorted so
   const fileName = (c: Candidate) => runs.find((r) => r.id === c.runId)?.name ?? "";
   const many = new Set(cands.map((c) => c.runId)).size > 1;
-  const can = cands.filter((c) => addable(c) && !isAdded(c, plot));
+  const can = cands.filter((c) => addable(c) && !added0(c));
   const sel = can.filter((c) => checked[c.key]);
   const add = async (list: Candidate[]) => {
     if (!list.length || busy) return;
@@ -96,11 +92,18 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
         const o = await candidateObject(c, color[c.key] ?? colors.get(c.key)!, (names[c.key] ?? c.name).trim() || c.name);
         pairs.push({ c, o, from: c.attitude === "none" && attFrom[c.key] && attFrom[c.key] !== "motion" ? attFrom[c.key] : undefined });
       }
-      actions.addObjects(plotId, linkAttitudes(pairs, cands, plot));   // one commit: one Undo
+      actions.addObjects(plotId, linkAttitudes(pairs, cands, plot, derived));   // one commit: one Undo
       close();
     } catch (e) {
       useApp.getState().toast({ kind: "error", text: String((e as Error).message) });
     } finally { setBusy(false); }
+  };
+  // L5: a position in metres says its frame and where it is placed: "NED · origin ORGN[0]", "ECEF", "NED · needs an origin"
+  const frameLabel = (c: Candidate) => {
+    const frame = c.pos.toUpperCase();
+    if (c.badUnit) return t("objRowBadUnit", { frame, unit: c.badUnit });
+    if (c.pos === "ecef") return frame;
+    return c.origin ? t("objRowOrigin", { frame, via: c.origin.via }) : t("objRowNeedsOrigin", { frame });
   };
   const chip = (id: string) => <span key={id} className="obj-chip-sig" title={id.slice(id.indexOf("/") + 1)}>{id.slice(id.indexOf("/") + 1)}</span>;
   return (
@@ -112,7 +115,7 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
           {cands.length > 0 && (
             <ul className="obj-found-list">
               {cands.map((c) => {
-                const added = isAdded(c, plot);
+                const added = added0(c);
                 const col = color[c.key] ?? colors.get(c.key)!;
                 return (
                   <li key={c.key} className={`obj-found-row${added ? " added" : ""}`} data-key={c.key}>
@@ -128,7 +131,7 @@ function FoundObjects({ plotId, cands, why, onForm }: { plotId: string; cands: C
                       {many && <span className="obj-found-file" title={fileName(c)}>{fileName(c)}</span>}
                       <span className="spacer" />
                       {added ? <span className="obj-found-added">✓ {t("objAdded")}</span>
-                        : !addable(c) ? <span className="obj-found-origin">{t("objNeedsOrigin")}</span> : null}
+                        : c.pos !== "lla" ? <span className={`obj-found-frame${addable(c) ? "" : " obj-found-origin"}`}>{frameLabel(c)}</span> : null}
                       <button className="linklike obj-why" aria-expanded={!!open[c.key]} onClick={() => setOpen({ ...open, [c.key]: !open[c.key] })}>{t("objWhy")}</button>
                       {!added && <button className="linklike obj-adv" onClick={() => onForm(c)}>{t("objAdvanced")}</button>}
                     </div>
@@ -215,8 +218,11 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
   const [pos, setPos] = useState<PosSetup>(() => {
     if (orig) return { ...orig };
     if (preset && preset.pos !== "lla") {
+      // L5: the found origin, else a suggestion - the same file's position in lat / lon / alt (a receiver
+      // first: its first fix is the closest thing to an origin), else typed in by hand
       const v = VEC_ROLES.map((r) => preset.picks[r]?.id ?? "");
-      return { frame: preset.pos, vec: v, refMode: "manual", refSigs: ["", "", ""], refLla: ["", "", ""], lat: "", lon: "", alt: null, smooth: 0 };
+      const refSigs = preset.origin?.ids ?? suggestedOrigin(preset)?.ids;
+      return { frame: preset.pos, vec: v, refMode: refSigs ? "signals" : "manual", refSigs: refSigs ? [...refSigs] : ["", "", ""], refLla: ["", "", ""], lat: "", lon: "", alt: null, smooth: 0 };
     }
     const g = data[0] && !preset ? guessRoles(data[0]) : {};
     return { frame: "lla", vec: ["", "", ""], refMode: g.lat && g.lon && g.alt ? "signals" : "manual",
@@ -328,6 +334,13 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
                 onChange={(e) => setPos((c) => ({ ...c, refLla: c.refLla.map((x, j) => (j === i ? e.target.value : x)) }))} /></label>
           )))}
         </div>
+        {preset && pos.refMode === "signals" && (() => {
+          // L5: say where the origin came from while it is still the one we filled in
+          const sug = preset.origin ? null : suggestedOrigin(preset);
+          const same = (ids?: string[]) => !!ids && ids.every((x, i) => x === pos.refSigs[i]);
+          return preset.origin && same(preset.origin.ids) ? <p className="hint obj-origin-why">{t("objOriginFound", { via: preset.origin.via })}</p>
+            : sug && same(sug.ids) ? <p className="hint obj-origin-why">{t("objOriginSuggested", { name: sug.name })}</p> : null;
+        })()}
         <p className="hint">{t(pos.refMode === "signals" ? "placeOriginSignalsHint" : "placeOriginManualHint")}</p>
       </>}
     </>
@@ -451,4 +464,14 @@ function ObjectForm({ preset, onBack }: { preset: Candidate | null; onBack?: () 
       </div>
     </div>
   );
+}
+
+/** L5: an origin to suggest for a local position that has none: a latitude / longitude / altitude object of
+ *  the same file - a receiver first (its first fix), else any. Its first valid sample becomes the origin. */
+function suggestedOrigin(c: Candidate): { ids: [string, string, string]; name: string } | undefined {
+  const run = useApp.getState().runs.find((r) => r.id === c.runId);
+  if (!run) return undefined;
+  const lla = detectObjects(run).candidates.filter((x) => x.pos === "lla" && x.picks.lat && x.picks.lon && x.picks.alt);
+  const s = lla.find((x) => x.cls === "receiver") ?? lla[0];
+  return s ? { ids: [s.picks.lat!.id, s.picks.lon!.id, s.picks.alt!.id], name: s.name } : undefined;
 }
