@@ -2,7 +2,7 @@ import DiffChart from "./DiffChart";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CompareAllRow, type CompareRow, type TolEntry, type Tolerances } from "../api";
 import TolFields from "./TolFields";
-import { activeTab, fileLabel, fileMark, fitLayout, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
+import { activeTab, fileLabel, fileMark, styledSignal, fitLayout, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
 import { isGolden, proposeBaseline, rememberTolerances, reportVerdict, setGolden, verdicts } from "../judge";
 import { fmtNum, translate, useT } from "../i18n";
 import { startJob } from "../files";
@@ -201,7 +201,7 @@ export default function ComparePanel() {
     let full = false;
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
-      const signals = runsOf.map((rid) => ({ sig: sidIn(rid, name), color: runColor(rid), width: 1.5, scale: 1, offset: 0 }));
+      const signals = runsOf.map((rid) => (styledSignal(sidIn(rid, name), runColor(rid))));
       if (newPlot) {
         const at = placePlot(tab, { id: uid("p"), title: name, signals });
         if (at < 0) { full = true; return ws; }
@@ -271,7 +271,7 @@ export default function ComparePanel() {
       const tab = { id: uid("t"), name: tabName, rows: 1, cols: 1, active: 0, linkX: true,
         plots: names.map((nm) => {
           const rs = sim.find((x) => x.name === nm)?.runs ?? active;
-          return { id: uid("p"), title: nm, signals: rs.map((rid) => ({ sig: sidIn(rid, nm), color: runColor(rid), width: 1.5, scale: 1, offset: 0 })) };
+          return { id: uid("p"), title: nm, signals: rs.map((rid) => (styledSignal(sidIn(rid, nm), runColor(rid)))) };
         }) };
       fitLayout(tab);
       ws.tabs.push(tab);
@@ -334,7 +334,7 @@ export default function ComparePanel() {
       let full = false;
       useApp.getState().commit((ws) => {
         const tab = activeTab(ws);
-        const at = placePlot(tab, { id: uid("p"), title: `Δ ${signal}`, signals: made.map((sig, i) => ({ sig, color: TRACE_COLORS[(i + 1) % TRACE_COLORS.length], width: 1.5, scale: 1, offset: 0 })) });
+        const at = placePlot(tab, { id: uid("p"), title: `Δ ${signal}`, signals: made.map((sig, i) => (styledSignal(sig, TRACE_COLORS[(i + 1) % TRACE_COLORS.length]))) });
         if (at < 0) { full = true; return ws; }
         tab.active = at;
         return ws;

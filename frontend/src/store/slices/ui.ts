@@ -87,6 +87,8 @@ export interface UiSlice {
    *  Inspector) or a clock from the start of the recording (m:ss) */
   timeFormat: "seconds" | "clock";
   smoothFollow: boolean;           // N6: a camera following an object eases after it (Settings; default on)
+  lineWidth: number;               // N3: a new line's width (Settings; 0.5-6, default 1.5)
+  lineStyle: "solid" | "dash" | "dot" | "dashdot";   // N3: a new line's style (Settings; default solid)
   /** U1: a template with several tabs opened from its chip - ask which tabs, or open its default tabs */
   tplTabChoice: "ask" | "defaults";
   /** O1: "Never use the network" (a setting): online map layers fall back to the offline map */
@@ -169,6 +171,8 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   settingsOpen: false,
   timeFormat: "seconds",
   smoothFollow: true,
+  lineWidth: 1.5,
+  lineStyle: "solid",
   tplTabChoice: "ask",
   offlineOnly: false,
   offlineForced: false,

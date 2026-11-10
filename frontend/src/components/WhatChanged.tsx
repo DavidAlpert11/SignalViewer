@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type ChangeChain, type ChangeCluster, type FirstChange, type LagResult } from "../api";
-import { actions, activeTab, fileLabel, rangeKey, signalName, TRACE_COLORS, uid, useApp, type Plot, type Tab } from "../store";
+import { actions, activeTab, fileLabel, rangeKey, signalName, styledSignal, TRACE_COLORS, uid, useApp, type Plot, type Tab } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { record } from "../investigation";
@@ -142,7 +142,7 @@ export default function WhatChanged() {
     const ids = only ?? (picked.length ? picked : shown.slice(0, 4).map((x) => x.id));
     if (!ids.length) return;
     useApp.getState().commit((w) => {
-      const plots: Plot[] = ids.map((id, i) => ({ id: uid("p"), title: signalName(runs, id), signals: [{ sig: id, color: TRACE_COLORS[i % TRACE_COLORS.length], width: 1.5, scale: 1, offset: 0 }] }));
+      const plots: Plot[] = ids.map((id, i) => ({ id: uid("p"), title: signalName(runs, id), signals: [styledSignal(id, TRACE_COLORS[i % TRACE_COLORS.length])] }));
       const tab: Tab = { id: uid("t"), name: t("wcTabName"), rows: plots.length, cols: 1, plots, active: 0, linkX: true };
       w.tabs.push(tab); w.activeTab = tab.id;
       return w;
@@ -191,8 +191,8 @@ export default function WhatChanged() {
       if (!plot) return w;
       const own = plot.signals.find((s) => s.sig === lag.b);
       if (own) own.tOffset = -lag.lag!;
-      else plot.signals.push({ sig: lag.b, color: "#888888", width: 1.5, scale: 1, offset: 0, tOffset: -lag.lag! });
-      if (!plot.signals.some((s) => s.sig === lag.a)) plot.signals.push({ sig: lag.a, color: TRACE_COLORS[0], width: 1.5, scale: 1, offset: 0 });
+      else plot.signals.push(styledSignal(lag.b, "#888888", { tOffset: -lag.lag! }));
+      if (!plot.signals.some((s) => s.sig === lag.a)) plot.signals.push(styledSignal(lag.a, TRACE_COLORS[0]));
       return w;
     });
   };

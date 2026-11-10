@@ -5,7 +5,7 @@ import { useApp } from "./store";
 import { inspectorPref } from "./store/inspector";
 import { getPrefValue, offlineForcedByEnv, setPref } from "./prefs";
 
-const KEYS = ["theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly", "smoothFollow"] as const;
+const KEYS = ["theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly", "smoothFollow", "lineWidth", "lineStyle"] as const;
 type Key = (typeof KEYS)[number];
 
 const VALID: Record<Key, (v: unknown) => boolean> = {
@@ -18,6 +18,8 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   tplTabChoice: (v) => v === "ask" || v === "defaults",
   offlineOnly: (v) => typeof v === "boolean",
   smoothFollow: (v) => typeof v === "boolean",
+  lineWidth: (v) => typeof v === "number" && v >= 0.5 && v <= 6,
+  lineStyle: (v) => v === "solid" || v === "dash" || v === "dot" || v === "dashdot",
 };
 
 /** True when the user has chosen this setting (a session file then leaves it alone). */

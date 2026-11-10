@@ -1186,6 +1186,8 @@ input.fx-input { width: 100%; }
 .plot-canvas.geo { overflow: hidden; }
 .geo-ctrl > button:hover { background: var(--panel-2); }
 .geo-hint { position: absolute; bottom: 34px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: var(--sp-1); padding: 2px var(--sp-1_5); border-radius: var(--r-m); background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-size: var(--fs-xs); white-space: nowrap; z-index: 2; }
+/* N3: the Inspector's line styles may wrap */
+.seg.wrap { flex-wrap: wrap; }
 /* N2: moving plots */
 .plot-grip { cursor: grab; color: var(--muted); padding: 0 2px; user-select: none; font-size: var(--fs-s); line-height: 1; }
 .plot-grip:hover { color: var(--ink); }
@@ -1722,6 +1724,8 @@ input.fx-input { width: 100%; }
 
 /* U4: a dashed line's swatch in the legend: the dash in its colour */
 .sw.dashed { width: 14px !important; background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 8px) !important; }
+.sw.dashed.ls-dot { background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 4px) !important; }
+.sw.dashed.ls-dashdot { background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 7px, currentColor 7px 9px, transparent 9px 11px) !important; }
 
 /* U5: the difference over time under the overlay (Compare panel), as the Simulink Data Inspector */
 .diff-chart { margin: 10px 0 4px; }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type StorageInfo, type StorageKind } from "../api";
-import { useApp } from "../store";
-import { useT } from "../i18n";
+import { actions, LINE_STYLES, useApp, type LineStyle } from "../store";
+import { useT, type TKey } from "../i18n";
 import { Icon } from "../icons";
 import { fmtSize } from "../values";
 import { useEscape } from "./Overlays";
@@ -56,6 +56,8 @@ export default function SettingsDialog() {
   const uiScale = useApp((s) => s.uiScale);
   const timeFormat = useApp((s) => s.timeFormat);
   const smoothFollow = useApp((s) => s.smoothFollow);
+  const lineWidth = useApp((s) => s.lineWidth);
+  const lineStyle = useApp((s) => s.lineStyle);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
   const offlineOnly = useApp((s) => s.offlineOnly);
   const offlineForced = useApp((s) => s.offlineForced);
@@ -85,6 +87,15 @@ export default function SettingsDialog() {
               ? <span className="seg" aria-label={t("setOffline")}><button className="on" disabled aria-checked>{t("setOfflineOn")}</button></span>
               : seg(offlineOnly ? "on" : "off", [["off", t("setOfflineOff")], ["on", t("setOfflineOn")]],
                 (v) => useApp.setState({ offlineOnly: v === "on" }), t("setOffline"))}</div>
+          {/* N3: the width and style of new lines, and a button to give them to the lines already drawn */}
+          <div className="set-row set-lines"><span>{t("setLines")}<small>{t("setLinesHint")}</small></span>
+            <span className="set-lines-ctl">
+              <label>{t("setLineWidth")} <input type="number" className="set-line-width" min={0.5} max={6} step={0.5} value={lineWidth}
+                onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0.5 && v <= 6) useApp.setState({ lineWidth: v }); }} /></label>
+              <label>{t("setLineStyle")} <select className="set-line-style" value={lineStyle} onChange={(e) => useApp.setState({ lineStyle: e.target.value as LineStyle })}>
+                {LINE_STYLES.map((k) => <option key={k} value={k}>{t(`lineStyle_${k}` as TKey)}</option>)}</select></label>
+              <button className="btn sm set-lines-apply" onClick={() => actions.applyLineDefaults()}>{t("setLinesApply")}</button>
+            </span></div>
           <div className="set-row"><span>{t("setSmoothFollow")}<small>{t("setSmoothFollowHint")}</small></span>
             {seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow"))}</div>
           <p className="hint">{t("setKept")}</p>

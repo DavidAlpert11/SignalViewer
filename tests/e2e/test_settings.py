@@ -47,3 +47,31 @@ def test_settings_kept_and_one_time_format(pg):
     pg.wait_for_function("window.__sv.state().runs.length > 0")
     pg.wait_for_function("window.__sv.state().theme === 'dark' && window.__sv.state().uiScale === 1.12")   # (T2) the page took the session
     assert S(pg, "[s.theme, s.uiScale]") == ["dark", 1.12]
+
+
+def test_line_defaults_and_apply_to_all(pg):
+    """N3: Settings → New lines: the width and style of the lines added from now on (kept in the app
+    folder); Apply to all open plots gives them to the lines already drawn - one Undo."""
+    open_files(pg, "run_a.csv")
+    sig(pg, "Speed").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
+    pg.click(".topbar [aria-label='Settings']")
+    pg.locator(".set-line-width").fill("3")
+    pg.locator(".set-line-style").select_option("dot")
+    pg.keyboard.press("Escape")
+    assert S(pg, "s.ws.tabs[0].plots[0].signals[0].width") == 1.5          # not restyled silently
+    sig(pg, "RPM").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.signals.some((s) => s.sig.endsWith('/RPM')))")
+    rpm = S(pg, "s.ws.tabs[0].plots.flatMap((p) => p.signals).find((s) => s.sig.endsWith('/RPM'))")
+    assert rpm["width"] == 3 and rpm["lineStyle"] == "dot"
+    assert pg.locator(".legend .sw.ls-dot").count() >= 1                   # the legend shows it dotted
+    pg.wait_for_timeout(800)
+    saved = json.load(open(os.path.join(pg.env["home"], ".signalviewer", "ui_settings.json")))
+    assert saved["lineWidth"] == 3 and saved["lineStyle"] == "dot"
+    pg.click(".topbar [aria-label='Settings']")
+    pg.locator(".set-lines-apply").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.flatMap((p) => p.signals).every((s) => s.width === 3 && s.lineStyle === 'dot')")
+    assert "restyled" in pg.locator(".toast").last.inner_text()
+    pg.keyboard.press("Escape")
+    pg.keyboard.press("Control+z")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.flatMap((p) => p.signals).find((s) => s.sig.endsWith('/Speed')).width === 1.5")

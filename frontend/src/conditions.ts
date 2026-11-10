@@ -4,7 +4,7 @@
    their parts' stretches. */
 import { api } from "./api";
 import { translate } from "./i18n";
-import { actions, TRACE_COLORS, uid, useApp, type Condition, type CondResult } from "./store";
+import { actions, styledSignal, TRACE_COLORS, uid, useApp, type Condition, type CondResult } from "./store";
 import { record } from "./investigation";
 
 /** A small fixed palette: conditions never take the signals' colours. */
@@ -162,7 +162,7 @@ export function overlayInNewTab(id: string, name: string) {
   st.commit((ws) => {
     const p = { id: uid("p"), title: `${cond.name} · ${name}`, mode: "occ" as const,
       occ: { cond: id, align: "start" as const, pad: 0.5 },
-      signals: runsWith.map((rid, i) => ({ sig: `${rid}/${name}`, color: COND_PALETTE_FILES[i % COND_PALETTE_FILES.length], width: 1.5, scale: 1, offset: 0 })) };
+      signals: runsWith.map((rid, i) => (styledSignal(`${rid}/${name}`, COND_PALETTE_FILES[i % COND_PALETTE_FILES.length]))) };
     const tab = { id: uid("t"), name: cond.name, rows: 1, cols: 1, plots: [p], active: 0, linkX: false };
     ws.tabs.push(tab);
     ws.activeTab = tab.id;

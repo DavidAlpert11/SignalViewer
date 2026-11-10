@@ -51,6 +51,11 @@
 - **Plots can change places.** Drag a plot by the ⠿ beside its title onto another plot, use *Move to…*
   in its menu, or Ctrl+Shift+arrows: the two swap (one Undo); the cells keep their sizes.
 
+- **Defaults for new lines, and more line styles.** *Settings → New lines*: the width and style
+  (solid, dashed, dotted, dash-dot) every new line gets; *Apply to all open plots* gives them to the
+  lines already drawn (one Undo). The Inspector offers dotted and dash-dot too, and reports and saved
+  pictures draw the styles as the plots do.
+
 ### Performance
 - **Smoother playback and map.** While playing, only what moves is drawn again: the panels, the file
   list and the plots' heads no longer re-render every frame. Dragging and zooming the map move the map

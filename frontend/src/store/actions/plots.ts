@@ -487,6 +487,26 @@ export const plotActions = {
       return ws;
     });
   },
+  /** N3: the Settings' width and style given to every line of every open plot (not state lanes) - one
+   *  commit, a message says how many changed. Solid clears a style set by hand (a setpoint dashes again). */
+  applyLineDefaults() {
+    const st = useApp.getState();
+    const w = st.lineWidth, want = st.lineStyle === "solid" ? undefined : st.lineStyle;
+    const differs = (s: PlotSignal) => !s.state && (s.width !== w || s.lineStyle !== want || s.dash !== undefined);
+    const n = st.ws.tabs.reduce((k, tb) => k + tb.plots.reduce((m, p) => m + p.signals.filter(differs).length, 0), 0);
+    if (n) st.commit((ws) => {
+      for (const tb of ws.tabs) for (const p of tb.plots) for (const s of p.signals) {
+        if (!differs(s)) continue;
+        s.width = w;
+        if (want) s.lineStyle = want; else delete s.lineStyle;
+        delete s.dash;
+      }
+      return ws;
+    });
+    const L = useApp.getState().lang;
+    useApp.getState().toast(n ? { kind: "info", text: translate(L, "setLinesApplied", { n }), undoesWs: true,
+      action: { label: translate(L, "undo"), run: () => useApp.getState().undo() } } : { kind: "info", text: translate(L, "setLinesNone") });
+  },
   /** N7: a new time tab with these plots (a plot per entry, up to 6), linked in time; one commit. */
   plotsInNewTab(plots: { title: string; ids: string[] }[], name: string) {
     const list = plots.filter((p) => p.ids.length).slice(0, 6);
