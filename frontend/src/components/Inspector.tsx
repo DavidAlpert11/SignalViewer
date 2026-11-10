@@ -360,6 +360,22 @@ export default function Inspector() {
             );
             return <>
               {field("scale", t("scale"))}{field("offset", t("offset"))}{field("tOffset", t("signalTimeOffset"))}{field("width", t("width"))}
+              {/* N4: colour and line style through the same change as the Style lines dialog (one Undo) */}
+              <div className="field"><label>{t("color")}</label>
+                <div className="swatches batch-colors">
+                  <button className="sl-palette" title={t("stylePaletteHint")} onClick={() => actions.styleLines(multi, { color: "palette" })}>{t("stylePalette")}</button>
+                  {TRACE_COLORS.slice(0, 8).map((c) => (
+                    <button key={c} className={items.every((x) => x.s!.color === c) ? "on" : ""} style={{ background: c }} aria-label={c}
+                      onClick={() => actions.styleLines(multi, { color: c })} />
+                  ))}
+                </div></div>
+              <div className="field"><label>{t("lineStyle")}</label>
+                <select className="batch-style" value="" aria-label={t("lineStyle")}
+                  onChange={(e) => { const v = e.target.value as "auto" | LineStyle; if (v) actions.styleLines(multi, { lineStyle: v }); }}>
+                  <option value="">{t("styleKeep")}</option>
+                  <option value="auto">{t("lineAuto")}</option>
+                  {LINE_STYLES.map((k) => <option key={k} value={k}>{t(`lineStyle_${k}` as "lineStyle_solid")}</option>)}
+                </select></div>
               <div className="field"><label>{t("display")}</label>
                 <span className="seg">
                   <button onClick={() => actions.updateSignals(multi, { state: false })}>{t("asLine")}</button>
@@ -375,6 +391,7 @@ export default function Inspector() {
                     <button className="btn outline" onClick={() => useApp.setState({ analysisSeed: sigs, panel: "analysis" })}>{t("batchDerived")}</button>
                   </>;
                 })()}
+                <button className="btn outline batch-style-dlg" onClick={() => useApp.setState({ styleDialog: { name: t("nSelected", { n: multi.length }), sigs: Array.from(new Set(multi.map((m) => m.sig))), lines: multi } })}>{t("styleSelected")}</button>
                 <button className="btn outline" onClick={() => actions.removeSignals(multi)}>{t("remove")}</button>
               </div>
             </>;
