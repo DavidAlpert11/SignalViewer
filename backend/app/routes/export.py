@@ -194,3 +194,80 @@ def save_image(req: ImageSave):
         fail(400, "Not a PNG image.")
     atomic_write(path, raw)
     return {"path": path}
+
+
+
+class AcmiRequest(BaseModel):
+    path: str
+    title: str = ""
+    rate: float = 10.0               # samples a second in the file
+    objects: List[dict]              # MapObject as the views fetch it (trackRequest: borrowed attitude resolved)
+
+
+def _decode(s, dtype):
+    return None if s is None else np.frombuffer(base64.b64decode(s), dtype=dtype).astype(np.float64)
+
+
+def acmi_objects(objects: List[dict]) -> list:
+    """N8: each map object's position and attitude, as the 3D view draws it: altitude above sea level
+    by its reference (above the take-off point / the ground: plus the bundled elevation; none: on the
+    ground), angles in degrees (the object's own unit if set, else the one found)."""
+    from app.routes.analysis import ObjectTrackRequest, object_track
+    out = []
+    for o in objects:
+        req = ObjectTrackRequest(lat=o["lat"], lon=o["lon"], alt=o.get("alt"), yaw=o.get("yaw"), pitch=o.get("pitch"),
+                                 roll=o.get("roll"), qw=o.get("qw"), qx=o.get("qx"), qy=o.get("qy"), qz=o.get("qz"),
+                                 points=10_000_000, attitude=o.get("attitude"), minSpeed=float(o.get("minSpeed") or 1.0))
+        tr = object_track(req)
+        t, lat, lon = _decode(tr["t"], np.float64), _decode(tr["lat"], np.float64), _decode(tr["lon"], np.float64)
+        ground = _decode(tr.get("ground"), np.float32)
+        g = np.where(np.isfinite(ground), ground, 0.0) if ground is not None else np.zeros(len(t))
+        alt = _decode(tr.get("alt"), np.float32)
+        kind = o.get("kind") or "aircraft"
+        if alt is None:
+            alt = g + (0.0 if kind == "ship" else 0.5 if kind == "vehicle" else 2.0)
+        elif o.get("altRef") == "agl":
+            alt = g + alt
+        elif o.get("altRef") == "home":
+            ok = np.flatnonzero(np.isfinite(alt))
+            alt = alt + (g[ok[0]] if len(ok) else 0.0)
+        unit_set = o.get("angleUnit") if o.get("angleUnit") in ("deg", "rad") else None
+        ang: dict = {}
+        for role in ("roll", "pitch", "yaw"):
+            v = _decode(tr.get(role), np.float32)
+            if v is None:
+                ang[role] = None
+                continue
+            unit = unit_set if (unit_set and o.get(role)) else tr["units"].get(role, "deg")
+            ang[role] = np.degrees(v) if unit == "rad" else v
+        if any(a is not None for a in ang.values()):
+            ang = {k: (v if v is not None else np.zeros(len(t))) for k, v in ang.items()}   # roll unknown: level
+        out.append({"name": o.get("name") or "Object", "kind": kind, "color": o.get("color", ""), "t": t, "lat": lat,
+                    "lon": lon, "alt": alt, "roll": ang["roll"], "pitch": ang["pitch"], "yaw": ang["yaw"],
+                    "group": o.get("cls") or ""})
+    return out
+
+
+@router.post("/api/export/acmi")
+async def export_acmi(req: AcmiRequest):
+    """N8: the objects of a map / 3D view as a Tacview ACMI 2.2 text file (svcore/acmi.py)."""
+    from datetime import datetime, timezone
+
+    from app.version import __version__
+    from svcore.acmi import write_acmi
+    path = _check_target(req.path, ".acmi")
+
+    def work():
+        objs = acmi_objects(req.objects)
+        body = write_acmi(objs, rate=req.rate, title=req.title, recorder=f"Signal Viewer {__version__}",
+                          recording_time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        with atomic_open(path, "w", "utf-8-sig", "\n") as f:
+            f.write(body)
+        return len(objs)
+    try:
+        n = await asyncio.to_thread(work)
+    except KeyError:
+        fail(404, "A signal of one of the objects is no longer open.")
+    except ValueError as e:
+        fail(400, str(e))
+    return {"path": path, "objects": n, "size": os.path.getsize(path)}

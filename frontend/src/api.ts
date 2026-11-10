@@ -433,6 +433,9 @@ export const api = {
   compareAll: (runs: string[], baselineRun: string, alignment: string, tolerances: Tolerances) =>
     call<{ signals: CompareAllRow[] }>("/api/compare/all", { runs, baselineRun, alignment, tolerances }),
   shift: (base: string, other: string) => call<{ shift: number }>("/api/compare/shift", { base, other }),
+  /** N8: a map / 3D view's objects as a Tacview ACMI 2.2 text file */
+  exportAcmi: (path: string, title: string, objects: object[], rate = 10) =>
+    call<{ path: string; objects: number; size: number }>("/api/export/acmi", { path, title, objects, rate }),
   exportCsv: (path: string, signals: { id: string; label: string; scale: number; offset: number; tOffset?: number }[], t0: number | null, t1: number | null) =>
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),
   report: (body: Record<string, unknown>) => call<{ path: string; size: number }>("/api/report", body),

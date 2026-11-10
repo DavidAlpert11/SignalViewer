@@ -113,6 +113,12 @@ are told apart by them.
 - **Moving plots:** drag a plot by the ⠿ beside its title onto another plot, or *Move to…* in the plot's
   menu, or Ctrl+Shift+arrows on the active plot: the two plots change places (Undo puts them back); the
   sizes of the cells stay.
+- **Tacview:** *Export for Tacview (.acmi)…* in a map's or a 3D view's menu saves its objects as a
+  Tacview ACMI 2.2 file - each object's position (altitude above sea level, by its altitude reference)
+  and attitude as the 3D view draws it (from its motion or borrowed from another object when it has
+  none), 10 samples a second, with its kind (plane, rotorcraft, ship, ground vehicle, missile), name
+  and the nearest of Tacview's colours. Times that are Unix clock seconds become the file's reference
+  time; otherwise the flight starts at 2000-01-01 00:00 UTC in Tacview.
 - **Moving the map:** drag it (a quick drag glides on), zoom with the wheel or **+ / −** in its corner,
   **Fit everything** (or a double-click) shows every track, **Follow ▾** keeps an object in the middle -
   dragging while following moves the map around it, *Back to following* centres it again. Click the map
