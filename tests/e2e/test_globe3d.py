@@ -391,3 +391,24 @@ def test_camera_chase_and_look_at(g3multi):
     pg.locator(".globe3d-bar button", has_text="General").click()
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].followObject") is None
     assert "drag to move" in pg.locator(".g3-cam-hint").inner_text()
+
+
+def test_primary_secondary_in_3d(g3multi):
+    """N7: in 3D the primary has a ring and the secondary a fainter one; a click on an object makes it the
+    primary (Shift+click the secondary); X swaps them while the view has the focus; the box shows the
+    closure and the aspect as the map does."""
+    pg = g3multi
+    rings = "window.__svGlobe.widget.scene.primitives._primitives.find((p) => p.length !== undefined && p.get && p.length && p.get(0).id && String(p.get(0).id).startsWith('ring-'))"
+    pg.wait_for_function(f"{rings}?.length === 2", timeout=20000)
+    assert pg.evaluate(f"[{rings}.get(0).id, {rings}.get(1).id]") == ["ring-A", "ring-B"]
+    assert "Aspect" in pg.locator(".globe3d-readout .g3-rel").first.inner_text()       # (closure: none, at the end of still tracks)
+    # click on C: its place on the screen
+    xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
+        const p = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.Cartesian3.fromDegrees(34.5, 32.51, 300));
+        const b = w.scene.canvas.getBoundingClientRect(); return p ? [b.left + p.x, b.top + p.y] : null; })()""")
+    assert xy
+    pg.mouse.click(xy[0], xy[1])
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].primaryObject === 'C'", timeout=20000)
+    pg.keyboard.press("x")                                     # the click gave the view the focus
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].primaryObject === 'B'", timeout=20000)
+    assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].relatedObjects[0]") == "C"
