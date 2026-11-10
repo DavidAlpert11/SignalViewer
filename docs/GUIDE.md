@@ -103,6 +103,9 @@ are told apart by them.
   The *Position on the map & 3D* template adds every object of the file the same way, and when a file
   with objects opens, a line in the file panel offers them (*Add all*, *Choose…*, *Why?*, × to hide it).
   Truth is drawn as a line, a navigation solution dashed, a receiver as points (*Track* changes it).
+- **Lines:** *Settings → New lines* sets the width and style (solid, dashed, dotted, dash-dot) of every
+  line added from now on - the lines already drawn keep theirs until *Apply to all open plots*. A line's
+  own style is in the Inspector; *Auto* dashes a setpoint beside its measured value by itself.
 - **Moving plots:** drag a plot by the ⠿ beside its title onto another plot, or *Move to…* in the plot's
   menu, or Ctrl+Shift+arrows on the active plot: the two plots change places (Undo puts them back); the
   sizes of the cells stay.

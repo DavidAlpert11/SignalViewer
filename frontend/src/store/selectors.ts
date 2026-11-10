@@ -102,9 +102,15 @@ export function colorByFile(plot: Plot, runs: RunInfo[], all = false) {
 
 /** the width a new line gets; a dense line at this width is drawn on the canvas fast path (TimeChart) */
 export const DEFAULT_LINE_WIDTH = 1.5;
+/** N3: a new line as the Settings say (default width and style) - the one place a PlotSignal is made. */
+export function styledSignal(sig: string, color: string, extra: Partial<PlotSignal> = {}): PlotSignal {
+  const st = useApp.getState();
+  const w = Number.isFinite(st.lineWidth) ? st.lineWidth : DEFAULT_LINE_WIDTH;
+  return { sig, color, width: w, scale: 1, offset: 0, ...(st.lineStyle && st.lineStyle !== "solid" ? { lineStyle: st.lineStyle } : {}), ...extra };
+}
 
 export function newPlotSignal(sig: string, ws: Workspace): PlotSignal {
-  const ps: PlotSignal = { sig, color: nextColor(ws), width: DEFAULT_LINE_WIDTH, scale: 1, offset: 0 };
+  const ps: PlotSignal = styledSignal(sig, nextColor(ws));
   if (alwaysState(ws, sig)) ps.state = true;
   return ps;
 }

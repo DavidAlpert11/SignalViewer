@@ -338,8 +338,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                   } else useApp.setState({ selected: me, multi: [], inspectorOpen: true });
                 }}
                 onKeyDown={(e) => { if (e.key === "Delete") actions.removeSignal(plot.id, s.sig); }}>
-                {(() => { const lk = mode === "time" ? lineLook(s, setpoints) : { dashed: false, faded: false };   // U4: the line as drawn
-                  return <span className={`sw${lk.dashed ? " dashed" : ""}`} style={lk.dashed ? { color: ink(s.color, theme), opacity: lk.faded ? 0.75 : 1 } : { background: ink(s.color, theme) }} />; })()}
+                {(() => { const lk = mode === "time" ? lineLook(s, setpoints) : { dashed: false, faded: false, style: "solid" as const };   // U4: the line as drawn
+                  return <span className={`sw${lk.dashed ? ` dashed ls-${lk.style}` : ""}`} style={lk.dashed ? { color: ink(s.color, theme), opacity: lk.faded ? 0.75 : 1 } : { background: ink(s.color, theme) }} />; })()}
                 {mark && <span className="file-tag" style={{ ["--tag" as string]: mark.color }}>{mark.tag}</span>}
                 <span className="nm">{s.label || signalName(runs, s.sig, !mark)}</span>
                 {run?.format === "derived" && <TrustBadge compact q={run.signals.find((x) => x.id === s.sig)?.quality} />}

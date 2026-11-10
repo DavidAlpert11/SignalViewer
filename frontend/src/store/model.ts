@@ -11,7 +11,11 @@ export interface PlotSignal { sig: string; color: string; width: number; scale: 
   limits?: { lo?: number | null; hi?: number | null };
   /** U4: dashed (true) or solid (false) by hand; absent = automatic (a setpoint beside its measured
    *  value is dashed and faded - desired.ts) */
-  dash?: boolean }  // state: drawn as state markers only (no line)
+  dash?: boolean;
+  /** N3: the line's style by hand - wins over `dash`, which wins over automatic (desired.ts) */
+  lineStyle?: LineStyle }  // state: drawn as state markers only (no line)
+export type LineStyle = "solid" | "dash" | "dot" | "dashdot";
+export const LINE_STYLES: LineStyle[] = ["solid", "dash", "dot", "dashdot"];
 export type PlotMode = "time" | "xy" | "fft" | "geo" | "spec" | "3d" | "env" | "xyz" | "video" | "occ" | "step";   // step: 1.21 step response (PID Review)   // occ: a condition's stretches together (investigation step 3)   // env: Monte-Carlo envelope (T14); xyz: plain 3D (T17c); video: T15
 export interface Plot {
   id: string; title: string; signals: PlotSignal[];

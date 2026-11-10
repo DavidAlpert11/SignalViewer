@@ -57,6 +57,9 @@ def _f(v):
 # DATA FOR ONE PLOT (shared by every format)
 # =============================================================================
 
+LINE_STYLES = {"solid": "-", "dash": "--", "dot": ":", "dashdot": "-."}   # N3: the app's line styles in matplotlib
+
+
 def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
     """Resolve a plot spec from the UI into display data + full-resolution statistics."""
     mode = spec.get("mode") or "time"
@@ -89,7 +92,7 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
             t = np.asarray(t, dtype=np.float64) + t_off
         ys = np.asarray(y, dtype=np.float64) * scale + offset if (scale != 1 or offset != 0) else y
         sig = {"label": s.get("label") or sid.split("/", 1)[-1], "color": s.get("color", "#3D8BFD"),
-               "width": s.get("width", 1.5), "state": bool(s.get("state"))}
+               "width": s.get("width", 1.5), "state": bool(s.get("state")), "style": s.get("style")}
         if s.get("axis") == "right" and mode == "time" and not s.get("state"):
             sig["axis"] = "right"                    # T47: the plot's second value axis
         labels = store.labels(sid) if hasattr(store, "labels") and not sid.startswith("derived/") else None
@@ -596,10 +599,14 @@ def draw_axes(ax, pdata: Dict, theme: str = "light"):
         x, y = s.get("x"), s.get("y")
         if x is None or not len(x):
             continue
+        # N3: the line's style as drawn in the app (dashed / dotted / dash-dot)
+        ls = LINE_STYLES.get(s.get("style") or "", "-")
         if ax2 is not None and s.get("axis") == "right":
-            ax2.plot(x, y, color=s["color"], linewidth=float(s.get("width") or 1.5) * 0.8, label=_bidi(s["label"]))
+            ax2.plot(x, y, color=s["color"], linewidth=float(s.get("width") or 1.5) * 0.8, linestyle=ls, label=_bidi(s["label"]))
             continue
         kw = dict(color=s["color"], linewidth=float(s.get("width") or 1.5) * 0.8, label=_bidi(s["label"]))
+        if not s.get("state"):
+            kw["linestyle"] = ls
         if mode == "time" and s.get("state"):
             ax.step(x, y, where="post", **kw)
             for i, (tv, val) in enumerate(s.get("states") or []):

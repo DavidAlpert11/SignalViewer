@@ -1,7 +1,7 @@
 import { useEscape } from "./Overlays";
 import { useMemo, useState } from "react";
 import { api, type CompareAllRow } from "../api";
-import { activeTab, fileLabel, pickPath, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
+import { activeTab, fileLabel, pickPath, styledSignal, placePlot, tabFullMessage, TRACE_COLORS, uid, useApp } from "../store";
 import { fmtNum, translate, useT } from "../i18n";
 import { Icon } from "../icons";
 import { exactMatch } from "../fuzzy";
@@ -51,7 +51,7 @@ export default function CompareTable() {
     let full = false;
     useApp.getState().commit((ws) => {
       const tab = activeTab(ws);
-      const p = { id: uid("p"), title: x.name, signals: (x.runs ?? []).map((rid, i) => ({ sig: `${rid}/${x.sigs?.[rid] ?? x.name}`, color: TRACE_COLORS[i % TRACE_COLORS.length], width: 1.5, scale: 1, offset: 0 })) };
+      const p = { id: uid("p"), title: x.name, signals: (x.runs ?? []).map((rid, i) => (styledSignal(`${rid}/${x.sigs?.[rid] ?? x.name}`, TRACE_COLORS[i % TRACE_COLORS.length]))) };
       const at = placePlot(tab, p);
       if (at < 0) { full = true; return ws; }
       tab.active = at;

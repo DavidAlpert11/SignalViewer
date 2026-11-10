@@ -6,7 +6,7 @@ import { api } from "./api";
 import { translate } from "./i18n";
 import { findDerived } from "./peers";
 import { record } from "./investigation";
-import { activeTab, signalName, uid, useApp, type Plot, type Tab } from "./store";
+import { activeTab, signalName, styledSignal, uid, useApp, type Plot, type Tab } from "./store";
 
 const COLORS = ["#E5677A", "#3D8BFD", "#2FBF9F", "#9B7BFF", "#F07B3F", "#4FC3E8"];
 
@@ -76,7 +76,7 @@ export async function errorsOf(plots: Plot[]) {
   };
   useApp.getState().commit((ws) => {
     const plotsOut: Plot[] = made.map((m, i) => ({ id: uid("p"), title: title(m),
-      signals: [{ sig: m.id, color: COLORS[i % COLORS.length], width: 1.5, scale: 1, offset: 0 }] }));
+      signals: [styledSignal(m.id, COLORS[i % COLORS.length])] }));
     const tab: Tab = { id: uid("t"), name: translate(L, "pairErrTabName"), rows: plotsOut.length, cols: 1, plots: plotsOut, active: 0, linkX: true };
     ws.tabs.push(tab); ws.activeTab = tab.id;
     return ws;

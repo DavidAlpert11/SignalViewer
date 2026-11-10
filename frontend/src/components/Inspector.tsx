@@ -4,9 +4,9 @@ import { restoreView, setFindingStatus } from "../investigation";
 import type { FindingStatus } from "../store";
 import { useEffect, useState } from "react";
 import { api, type LimitResult, type Stats } from "../api";
-import { fileMark, showFileTags, actions, activeTab, rangeKey, signalName, TRACE_COLORS, useApp, type PlotSignal } from "../store";
+import { fileMark, showFileTags, actions, activeTab, rangeKey, signalName, TRACE_COLORS, useApp, type PlotSignal, type LineStyle, LINE_STYLES } from "../store";
 import { setpointsIn } from "../desired";
-import { fmtInt, fmtNum, useT } from "../i18n";
+import { fmtInt, fmtNum, useT, type TKey } from "../i18n";
 import { inkOn, labelsOf, labelText, stateColor } from "../values";
 import { Icon } from "../icons";
 import { unitOf } from "../units";
@@ -407,16 +407,18 @@ export default function Inspector() {
             {sel.state && <Segments sig={sel.sig} tOffset={sel.tOffset ?? 0} />}
             {!sel.state && (() => {
               // U4: a setpoint beside its measured value is dashed by itself; Solid / Dashed by hand win
-              const v = sel.dash === true ? "dashed" : sel.dash === false ? "solid" : "auto";
+              // N3: lineStyle by hand > the old dash by hand > automatic; Solid / Dashed keep writing the old
+              // dash (sessions of 1.23 read it), Dotted / Dash-dot the new lineStyle
+              const v = sel.lineStyle && sel.lineStyle !== "solid" && sel.lineStyle !== "dash" ? sel.lineStyle
+                : sel.lineStyle ?? (sel.dash === true ? "dash" : sel.dash === false ? "solid" : "auto");
               const plotSigs = ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === selected.plotId)?.signals ?? [];
               const autoDashed = setpointsIn(plotSigs).has(sel.sig);
+              const set = (k: "auto" | LineStyle) => actions.updateSignal(selected.plotId, sel.sig, k === "auto" ? { lineStyle: undefined, dash: undefined }
+                : k === "solid" || k === "dash" ? { lineStyle: undefined, dash: k === "dash" } : { lineStyle: k, dash: undefined });
               return <div className="field"><label>{t("lineStyle")}</label>
-                <span className="seg" title={t("lineAutoHint")}>
-                  {(["auto", "solid", "dashed"] as const).map((k) => (
-                    <button key={k} className={v === k ? "on" : ""} onClick={() => actions.updateSignal(selected.plotId, sel.sig,
-                      { dash: k === "auto" ? undefined : k === "dashed" })}>
-                      {k === "auto" ? `${t("lineAuto")} (${autoDashed ? t("lineDashed") : t("lineSolid")})` : t(k === "solid" ? "lineSolid" : "lineDashed")}</button>
-                  ))}
+                <span className="seg wrap" title={t("lineAutoHint")}>
+                  <button className={v === "auto" ? "on" : ""} onClick={() => set("auto")}>{`${t("lineAuto")} (${autoDashed ? t("lineDashed") : t("lineSolid")})`}</button>
+                  {LINE_STYLES.map((k) => <button key={k} className={v === k ? "on" : ""} onClick={() => set(k)}>{t(`lineStyle_${k}` as TKey)}</button>)}
                 </span></div>;
             })()}
             <div className="field"><label>{t("width")}</label>

@@ -839,7 +839,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] N6 (done 2026-11-10; reverse playback not done) Smooth motion and an easy map: measured first; pan by transform, inertia, animated zoom, map controls, follow with offset, map keys, the hint; 3D camera modes (Chase, Orbit, Look at); a frame-time benchmark.
 - [x] N7 (done 2026-11-10) Primary / secondary objects, the relation panel and line, relation and error signals in svcore, comparison and difference plots in NED / ENU / ECEF / LLA / track frame.
 - [x] N2 (done 2026-11-10) Move plots: swap by drag, *Move to…*, a shortcut (`layoutActions.swapPlots`).
-- [ ] N3 Line defaults in Settings, `newPlotSignal`, `PlotSignal.lineStyle`, *Apply to all open plots*.
+- [x] N3 (done 2026-11-10; opacity left out) Line defaults in Settings, `newPlotSignal`, `PlotSignal.lineStyle`, *Apply to all open plots*.
 - [ ] N4 Style a whole group of signals at once (group menu, legend multi-select, Inspector batch).
 - [ ] N8 Export to Tacview `.acmi` - only if the owner approves (TASKS.md Q6).
 - [ ] N9 Release preparation: version, CHANGELOG, README, guides, the full checks, frontend/dist.

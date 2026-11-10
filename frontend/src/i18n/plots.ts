@@ -1,6 +1,11 @@
 /* Plots: legend, FFT, zoom, cursors, lanes, the timeline, tabs - English and Hebrew (A2, 2026-11-07: split from the one i18n.ts by area). Every key
    is in both: `he` is typed by `en`, so tsc enforces it. */
 export const en = {
+  // N3: line styles and the defaults for new lines
+  lineStyle_solid: "Solid", lineStyle_dash: "Dashed", lineStyle_dot: "Dotted", lineStyle_dashdot: "Dash-dot",
+  setLines: "New lines", setLinesHint: "The width and style of every line added from now on (lines already drawn keep theirs).",
+  setLineWidth: "Width", setLineStyle: "Style",
+  setLinesApply: "Apply to all open plots", setLinesApplied: "{n} lines restyled.", setLinesNone: "No lines to restyle.",
   // N2: moving plots
   plotMoveGrip: "Drag to another plot to swap places (Ctrl+Shift+arrows)",
   plotMoveTo: "Move to…",
@@ -189,6 +194,11 @@ export const en = {
 };
 
 export const he: typeof en = {
+  // N3: line styles and the defaults for new lines
+  lineStyle_solid: "רציף", lineStyle_dash: "מקווקו", lineStyle_dot: "מנוקד", lineStyle_dashdot: "קו-נקודה",
+  setLines: "קווים חדשים", setLinesHint: "העובי והסגנון של כל קו שיתווסף מעכשיו (קווים שכבר מצוירים נשארים כמו שהם).",
+  setLineWidth: "עובי", setLineStyle: "סגנון",
+  setLinesApply: "החל על כל הגרפים הפתוחים", setLinesApplied: "{n} קווים עוצבו מחדש.", setLinesNone: "אין קווים לעצב.",
   // N2: moving plots
   plotMoveGrip: "גרירה לגרף אחר מחליפה ביניהם מקום (Ctrl+Shift+חיצים)",
   plotMoveTo: "העבר אל…",

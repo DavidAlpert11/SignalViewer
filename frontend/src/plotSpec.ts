@@ -1,10 +1,12 @@
 import { rangeKey, signalName, useApp, type Plot, type Tab } from "./store";
+import { lineLook, setpointsIn } from "./desired";
 
 /** What the server needs to draw / export one plot (reports, images, CSV). */
 export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string) {
   const st = useApp.getState();
   const runs = st.runs;
   const range = st.ranges[rangeKey(tab, plot)] ?? null;
+  const setpoints = setpointsIn(plot.signals);
   return {
     title: plot.title || plotLabel.replace("{n}", String(index + 1)),
     caption: plot.caption || "",
@@ -19,6 +21,8 @@ export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string)
     xyzFlipZ: !!plot.xyzFlipZ,
     range,
     signals: plot.signals.map((s) => ({
+      // N3: the line's style as drawn (by hand, or a setpoint dashed by itself) - time plots only
+      ...((plot.mode ?? "time") === "time" && lineLook(s, setpoints).dashed ? { style: lineLook(s, setpoints).style } : {}),
       id: s.sig, label: s.label || signalName(runs, s.sig), color: s.color, width: s.width,
       scale: s.scale, offset: s.offset, state: !!s.state, tOffset: s.tOffset ?? 0, limits: s.limits ?? null,
       ...(s.axis === "right" ? { axis: "right" } : {}),

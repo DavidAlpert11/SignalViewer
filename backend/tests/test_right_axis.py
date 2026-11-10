@@ -34,3 +34,18 @@ def test_right_axis_in_reports_and_images(tmp_path):
         assert client.post("/api/export/image", json={"path": str(tmp_path / "i"), "format": "png", "plot": plot}).status_code == 200
     finally:
         client.delete(f"/api/runs/{run['id']}")
+
+
+def test_line_styles_in_images_and_reports():
+    """N3: a line's style (dashed / dotted / dash-dot) is drawn in the report's and image's pictures too."""
+    run = client.post("/api/files/open", json={"paths": [EX]}).json()["opened"][0]
+    try:
+        sig = lambda n, **k: {"id": f"{run['id']}/{n}", "label": n, "color": "#3D8BFD", "width": 1.5, "scale": 1, "offset": 0, **k}
+        plot = {"mode": "time", "title": "", "signals": [sig("GroundSpeed [m/s]", style="dot"), sig("Battery [V]", style="dashdot"), sig("GPS.Alt [m]")]}
+        fig = render_figure(plot_data(store, plot, for_html=False))
+        styles = [ln.get_linestyle() for ln in fig.axes[0].get_lines() if ln.get_label() in ("GroundSpeed [m/s]", "Battery [V]", "GPS.Alt [m]")]
+        assert styles == [":", "-.", "-"]
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+    finally:
+        client.post("/api/files/close", json={"id": run["id"]})

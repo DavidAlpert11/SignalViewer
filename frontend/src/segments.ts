@@ -1,5 +1,5 @@
 import type { Plot } from "./store";
-import { placePlot, rangeKey, tabFullMessage, TRACE_COLORS, uid, useApp } from "./store";
+import { placePlot, rangeKey, styledSignal, tabFullMessage, TRACE_COLORS, uid, useApp } from "./store";
 
 /** T10b: one segment (a value + occurrence of a state signal) found in each run. */
 export interface SegWindow { run: string; t0?: number; t1?: number; missing?: "signal" | "segment"; count?: number }
@@ -26,8 +26,8 @@ export function showSegmentPlot(name: string, runs: string[], seg: SegmentChoice
       newPlot = false;
     }
     ws.activeTab = tab.id;
-    const signals = ids.map((rid, i) => ({ sig: `${rid}/${sigs?.[rid] ?? name}`, color: colorOf?.(rid) ?? TRACE_COLORS[i % TRACE_COLORS.length],
-      width: 1.5, scale: 1, offset: 0, tOffset: -seg.windows[rid][0] }));
+    const signals = ids.map((rid, i) => styledSignal(`${rid}/${sigs?.[rid] ?? name}`, colorOf?.(rid) ?? TRACE_COLORS[i % TRACE_COLORS.length],
+      { tOffset: -seg.windows[rid][0] }));
     let plot: Plot | undefined;
     if (newPlot) {
       plot = { id: uid("p"), title: name, signals };
