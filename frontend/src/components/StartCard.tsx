@@ -1,4 +1,5 @@
-import { useApp, fileLabel } from "../store";
+import { useEffect } from "react";
+import { tabHasContent, useApp, fileLabel } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { openSuggested } from "../smartStart";
@@ -18,6 +19,12 @@ export default function StartCard() {
   const card = useApp((s) => s.startCard);
   const runs = useApp((s) => s.runs);
   const open = useApp((s) => s.findingsOpen);
+  // the Quick look is for an empty workspace: the user's first own line answers it - the card leaves
+  // (findings, if any, stay docked)
+  const plotted = useApp((s) => s.ws.tabs.some(tabHasContent));
+  useEffect(() => {
+    if (card?.quick && card.template && plotted) useApp.setState({ startCard: card.health?.length || card.golden ? { ...card, template: null, quick: false } : null });
+  }, [card, plotted]);
   if (!card || !runs.some((r) => r.id === card.runId)) return null;
   if (!card.template && !card.golden && !open) return null;   // docked: FindingsDock
   // findings only: X folds them back into the dock; with a suggestion it closes the card, as before
@@ -43,7 +50,7 @@ export default function StartCard() {
       {card.template && (
         <div className="start-tpl">
           <p>{t("startSuggest")} <b>{tx(card.template.name, lang)}</b>
-            <span className="muted"> · {card.files ? t("startCompare") : t("startFits", { p: fmtNum(Math.round(card.template.fit * 100), lang) })}</span></p>
+            <span className="muted"> · {card.files ? t("startCompare") : card.quick ? t("startQuick") : t("startFits", { p: fmtNum(Math.round(card.template.fit * 100), lang) })}</span></p>
           <div className="arow">
             <button className={`btn ${card.golden ? "outline" : "primary"}`} onClick={() => openSuggested(card)}>{t("startOpen")}</button>
             <button className="btn outline" onClick={() => { openTemplates(card.template!.id); close(); }}>{t("startOther")}</button>

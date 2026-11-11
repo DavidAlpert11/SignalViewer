@@ -112,3 +112,25 @@ def test_keys_list_keeps_its_words(pg):
     # what a gesture does is not squeezed into a few words a line (it was ~100 px wide)
     w = pg.locator(".help table.keys").nth(1).locator("tr").first.locator("td").nth(1).bounding_box()["width"]
     assert w > 180, w
+
+
+def test_quick_look_offered_when_no_template_fits(pg):
+    """A plain file with no fitting template opened on an empty plot and no word on what to do: the
+    start card offers the Quick look, and leaves by itself with the user's first own line."""
+    open_files(pg, "semi.csv", clear=False)
+    card = pg.locator(".start-card")
+    card.wait_for()
+    assert "Quick look" in card.inner_text() and "every signal in a plot of its own" in card.inner_text()
+    sig(pg, "A").click()
+    pg.wait_for_selector(".start-card", state="detached")
+    # answered once: emptying the plot does not bring it back
+    pg.evaluate("window.__sv.state().commit((ws) => { ws.tabs[0].plots[0].signals = []; return ws; })")
+    pg.wait_for_timeout(400)
+    assert pg.locator(".start-card").count() == 0
+
+
+def test_quick_look_opens_from_the_card(pg):
+    open_files(pg, "semi.csv", clear=False)
+    pg.locator(".start-card .btn.primary").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.filter(p => p.signals.length).length === 2)")
+    pg.wait_for_selector(".start-card", state="detached")
