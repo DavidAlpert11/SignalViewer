@@ -8,6 +8,7 @@ import { drawObjectIcon } from "./mapIcons";
 import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
 import RelationPanel, { RingIcon } from "./RelationPanel";
+import { geoViewBounds } from "../globeBridge";
 import { pairOf, relation } from "../relation";
 import { labelsOf, stateColor } from "../values";
 import { fmtNum, useT } from "../i18n";
@@ -688,6 +689,16 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
      when the system asks for reduced motion. */
   const viewRef = useRef(view);
   viewRef.current = view;
+  // L11: what is shown, for saving the map as an image of this view (the canvas's size at the view's zoom)
+  useEffect(() => {
+    geoViewBounds.set(plot.id, () => {
+      const v = viewRef.current, cv = cvRef.current;
+      if (!v || !cv) return null;
+      const S = 256 * 2 ** v.z, hw = cv.clientWidth / 2 / S, hh = cv.clientHeight / 2 / S;
+      return [latOf(v.cy + hh), lonOf(v.cx - hw), latOf(v.cy - hh), lonOf(v.cx + hw)];
+    });
+    return () => { geoViewBounds.delete(plot.id); };
+  }, [plot.id]);
   const anim = useRef(0);
   const zoomGoal = useRef<View | null>(null);
   const stopAnim = () => { cancelAnimationFrame(anim.current); anim.current = 0; zoomGoal.current = null; };

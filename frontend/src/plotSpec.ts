@@ -1,9 +1,27 @@
 import { rangeKey, signalName, useApp, type Plot, type Tab } from "./store";
 import { lineLook, setpointsIn } from "./desired";
+import { effectiveBase } from "./mapBase";
+import { geoViewBounds } from "./globeBridge";
 
-/** What the server needs to draw / export one plot (reports, images, CSV). */
-export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string) {
+/** L11: a map with objects is drawn by the server as a map (app/mapimage.py): the objects' positions, the
+ *  layer shown (an online one only from the tiles already cached), the cursor, and the view (`view`: what is
+ *  shown now; else every track fitted). Without objects a map stays the lon-lat X-Y it always was. */
+function geoSpec(plot: Plot, view: boolean) {
   const st = useApp.getState();
+  return {
+    objects: (plot.objects ?? []).map((o) => ({ name: o.name, color: o.color, lat: o.lat, lon: o.lon, alt: o.alt ?? null })),
+    base: effectiveBase(st.geoBase, st.offlineOnly || st.offlineForced),
+    cursor: st.cursor.on && st.cursor.t1 !== null ? st.cursor.t1 : null,
+    bounds: view ? geoViewBounds.get(plot.id)?.() ?? null : null,
+  };
+}
+
+/** What the server needs to draw / export one plot (reports, images, CSV). `view`: a map as shown now. */
+export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string, view = false) {
+  const st = useApp.getState();
+  if (plot.mode === "geo" && plot.objects?.length) {
+    return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "geo", signals: [], geo: geoSpec(plot, view) };
+  }
   const runs = st.runs;
   const range = st.ranges[rangeKey(tab, plot)] ?? null;
   const setpoints = setpointsIn(plot.signals);

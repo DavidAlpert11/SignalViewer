@@ -150,10 +150,12 @@ async def export_image(req: ImageRequest):
         if req.format == "html":
             text = await asyncio.to_thread(reports.build_plot_html, store, req.plot, req.theme, req.lang)
             atomic_write(path, text)
-            return {"path": path}
+            return {"path": path, "size": len(text.encode("utf-8"))}
         data = await asyncio.to_thread(reports.build_image, store, req.plot, req.format, req.theme, max(1.0, min(4.0, req.scale)))
     except KeyError:
         fail(404, "One of the plot's signals is no longer open.")
+    except ValueError as e:                                       # L11: a map with nothing to draw
+        fail(400, str(e))
     atomic_write(path, data)
     return {"path": path}
 
