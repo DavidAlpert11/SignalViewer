@@ -110,6 +110,10 @@ export const CLASS_WORDS: Record<Exclude<ObjClass, "other">, string[]> = {
 };
 const CLASS_OF = new Map<string, ObjClass>();
 for (const [c, ws] of Object.entries(CLASS_WORDS)) for (const w of ws) CLASS_OF.set(w, c as ObjClass);
+/** L9: the class of one whole path segment (nav2, ekf_3, gps[1] - a number may follow), or undefined. */
+export const classOfSegment = (seg: string): ObjClass | undefined => CLASS_OF.get(seg.toLowerCase().replace(/\[[^\]]*\]$/, "").replace(/[_-]?\d+$/, ""));
+/** L9: the words of an angle (roll / pitch / yaw and their aliases: phi, theta, heading, hdg, psi). */
+export const ANGLE_WORDS = new Set([...ALIASES.roll, ...ALIASES.pitch, ...ALIASES.yaw]);
 
 /** Well-known flight-log groups (any file: a CSV exported from a .bin has the same names). The base
  *  name is the prefix without its instance ("GPS[1]" -> "GPS"). attFrom: the attitude group paired

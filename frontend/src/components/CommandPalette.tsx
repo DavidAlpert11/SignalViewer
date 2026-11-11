@@ -72,6 +72,16 @@ export default function CommandPalette() {
       { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       // F22: every tab is reachable by name, however many there are
+      // L9: Compare similar signals… - the file of the active plot's first line, else the newest file
+      {
+        id: "cmpsimilar", label: t("simCmd"), group: t("compare"), run: () => {
+          const tab = activeTab(st().ws);
+          const first = tab?.plots[tab.active ?? 0]?.signals.find((x) => !x.sig.startsWith("derived/"))?.sig;
+          const runId = first ? first.slice(0, first.indexOf("/")) : [...st().runs].reverse().find((r) => r.format !== "derived")?.id;
+          if (runId) useApp.setState({ similarDialog: { runId, ids: [] } });
+          else st().toast({ kind: "info", text: t("simCmdNone") });
+        },
+      },
       // L8: Compare objects… - the active map / 3D plot of the tab (else its first with two objects); none: how to get there
       {
         id: "cmpobjects", label: t("cmpCmdOpen"), group: t("objects"), run: () => {

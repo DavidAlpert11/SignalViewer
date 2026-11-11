@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.common import b64, fail, y_reference
 from app.store import store
 from svcore.analysis import spectrogram as make_spectrogram
-from svcore.analysis import align_to, state_mask, transitions
+from svcore.analysis import OpError, _unwrap, align_to, state_mask, transitions, wrap_diff, wrap_period
 from svcore.decimate import hold_at, interp_at, view_shifted
 from svcore.envelope import envelope
 from svcore.limits import check_limits
@@ -425,6 +425,7 @@ class ErrorSegmentsRequest(BaseModel):
     b: str                              # e.g. the flight; aligned onto a's time
     state: Optional[str] = None         # a state signal (flight mode...): one row per stretch of it
     alignment: str = "linear"
+    wrap: Optional[str] = None          # L9: "360" / "2pi" - an angle error, wrapped (as the "sub" op's wrap)
 
 
 def _err_summary(e: np.ndarray, t: np.ndarray) -> dict:
@@ -449,7 +450,15 @@ def error_segments(req: ErrorSegmentsRequest):
     if req.alignment not in ("linear", "nearest"):
         fail(400, "Alignment is linear or nearest.")
     ta = np.asarray(ta, dtype=np.float64)
+    try:
+        period = wrap_period(req.wrap)
+    except OpError as err:
+        fail(400, str(err))
+    if period:
+        yb = _unwrap(np.asarray(yb, dtype=np.float64), period)
     e = np.asarray(ya, dtype=np.float64) - align_to(ta, np.asarray(tb, dtype=np.float64), yb, req.alignment)
+    if period:
+        e = wrap_diff(e, period)
     if req.alignment == "nearest":            # nearest has no "outside": keep A's samples inside B's time
         e[(ta < float(np.min(tb))) | (ta > float(np.max(tb)))] = np.nan
     rows = []

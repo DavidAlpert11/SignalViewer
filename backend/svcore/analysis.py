@@ -216,6 +216,24 @@ def nan_policy(params: Optional[Dict]) -> str:
     return str(v)
 
 
+def wrap_period(wrap) -> Optional[float]:
+    """L9: the period of an angle difference - "sub" with params.wrap 360 (degrees) or "2pi" (radians) gives
+    A - B wrapped to ±half a period (359° - 1° = -2°, not 358°); absent: a plain difference (old sessions)."""
+    if wrap in (360, "360", 360.0):
+        return 360.0
+    if wrap == "2pi":
+        return float(2 * np.pi)
+    if wrap not in (None, "", 0, False):
+        raise OpError("wrap is 360 (degrees) or \"2pi\" (radians).")
+    return None
+
+
+def wrap_diff(d: np.ndarray, period: float) -> np.ndarray:
+    """A difference of angles wrapped to -period/2 .. +period/2."""
+    h = period / 2
+    return (np.asarray(d, dtype=np.float64) + h) % period - h
+
+
 def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
             states: Optional[Sequence[bool]] = None, report: Optional[Dict] = None) -> Tuple[np.ndarray, np.ndarray]:
     """signals: [(time, data), ...] in source order. Returns (time, data). states: per source, whether
@@ -318,6 +336,9 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
             raise OpError("This operation needs exactly two signals.")
         (ta, ya), (tb, yb) = signals
         ta, ya = _f64(ta), _f64(ya)
+        period = wrap_period(params.get("wrap")) if op == "sub" else None
+        if period:                                    # L9: angles - B read between its samples the short way round
+            yb = _unwrap(_f64(yb), period)
         t0, t1 = max(ta[0], tb[0]), min(ta[-1], tb[-1])
         if t1 <= t0:
             raise OpError("The two signals do not overlap in time.")
@@ -329,6 +350,8 @@ def compute(op: str, signals: List[Tuple[np.ndarray, np.ndarray]], params: Dict,
             r = {"add": lambda: a + b, "sub": lambda: a - b, "mul": lambda: a * b,
                  "div": lambda: np.where(b != 0, a / np.where(b == 0, 1, b), np.nan),
                  "absdiff": lambda: np.abs(a - b)}[op]()
+        if period:
+            r = wrap_diff(r, period)
         return t, r
 
     if len(signals) < 2:

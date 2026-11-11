@@ -249,7 +249,7 @@ export function comparable(ref: MapObject, others: MapObject[], all: MapObject[]
 }
 
 /** One statistics row: an error signal of one object and component. */
-export interface CmpStat { object: string; qty: CmpQty; comp: string; id: string; s?: Stats }
+export interface CmpStat { object: string; qty: string; comp: string; id: string; s?: Stats }
 interface Cell { title: string; ids: string[] }
 
 /** The layout of one quantity's tab (pure - tested): one row per component, values left and errors right
