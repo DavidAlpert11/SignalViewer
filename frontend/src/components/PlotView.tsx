@@ -48,6 +48,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const runs = useApp((s) => s.runs);
   // N6: whether the cursor is on, not where - the plot's head is not redrawn every frame of playback
   const cursor = { on: useApp((s) => s.cursor.on) };
+  const dual = useApp((s) => s.cursor.on && s.cursor.dual);       // R2: the difference between the cursors in the chips
   const cvals = useApp((s) => s.cvals);
   const selected = useApp((s) => s.selected);
   const multi = useApp((s) => s.multi);
@@ -353,6 +354,15 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             if (val && showing) valW.current[wkey] = Math.max(valW.current[wkey] ?? 0, val.length);
             const slot = showing ? valW.current[wkey] ?? 0 : 0;
             if (showing && !val) { val = "—"; hv = !cursor.on; }
+            // R2: with two cursors, how much the line changed between them (cursor 2 - cursor 1) - read at a
+            // glance in the chip, as on a scope; a state's labels have no difference
+            const raw2 = cvals[s.sig]?.[1];
+            let dlt: string | null = null;
+            if (dual && mode === "time" && !labels && raw !== undefined && raw !== null && raw2 !== undefined && raw2 !== null) {
+              const d = (raw2 - raw) * s.scale;
+              dlt = withUnit(`${d > 0 ? "+" : d < 0 ? "−" : "±"}${fmtNum(Math.abs(d), lang)}`, u);
+              valW.current[`${wkey}|d`] = Math.max(valW.current[`${wkey}|d`] ?? 0, dlt.length);
+            }
             // T46: with several files the chip shows the file's tag (in its colour) instead of the
             // long " · file.csv" - the part that told files apart was cut off; the tooltip has it all
             const mark = tagged ? fileMark(runs, s.sig) : null;
@@ -385,6 +395,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
                 {s.state && mode === "time" && <span className="tag">{t("stateTag")}</span>}
                 {s.axis === "right" && !s.state && mode === "time" && <span className="tag" title={t("toLeftAxis")}>{t("rightAxisTag")}</span>}
                 {val && <span className={`val${hv ? " hov" : ""}`} style={slot ? { minWidth: `${slot}ch` } : undefined} title={mode === "fft" ? t("peak") : hv ? t("hoverValue") : undefined}>{val}</span>}
+                {dlt && <span className="dlt" style={{ minWidth: `${valW.current[`${wkey}|d`]}ch` }} title={t("deltaHint")}>Δ {dlt}</span>}
                 <span className="rm" role="button" aria-label={t("remove")}
                   onClick={(e) => { e.stopPropagation(); actions.removeSignal(plot.id, s.sig); }}><Icon.X width={11} height={11} /></span>
               </span>

@@ -691,6 +691,7 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .btn.sm { height: 24px; font-size: var(--fs-sm); padding-inline: 8px; }
 .more-btn { margin: 10px 14px 0; }
 .chip .val.hov { color: var(--muted); }
+.chip .dlt { font-variant-numeric: tabular-nums; font-size: var(--fs-s); color: var(--ink); background: var(--amber-soft); border-radius: var(--r-s); padding: 0 4px; white-space: nowrap; unicode-bidi: plaintext; }   /* R2 */
 /* the time under the pointer: in the plot's corner (in the header it came and went and moved the legend) */
 .hover-t { position: absolute; top: 2px; inset-inline-end: 8px; z-index: 3; pointer-events: none; font-size: var(--fs-s); color: var(--muted);
   background: color-mix(in srgb, var(--panel) 85%, transparent); border-radius: var(--r-s); padding: 0 4px;
@@ -1160,7 +1161,7 @@ input.fx-input { width: 100%; }
 .tl-controls { display: flex; gap: var(--sp-0_5); flex: none; }
 .tl-controls svg { width: 16px; height: 16px; }
 .tl-body { flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: var(--sp-1); }
-.tl-track { position: relative; height: 18px; cursor: pointer; touch-action: none; outline: none; }
+.tl-track { position: relative; height: 26px; cursor: pointer; touch-action: none; outline: none; }
 .timeline.slim .tl-track { flex: 1; height: 12px; }
 .tl-track:focus-visible { box-shadow: 0 0 0 2px var(--focus); border-radius: var(--r-s); }
 .tl-rail { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: var(--r-xs); background: var(--line-strong); }
@@ -1842,3 +1843,13 @@ input.fx-input { width: 100%; }
 .replay-card h3 svg { width: 16px; height: 16px; color: var(--amber); }
 .replay-card p { margin: 0 0 8px; font-size: var(--fs-m); color: var(--muted); line-height: 1.45; }
 .replay-card .replay-make { width: 100%; }
+
+/* R3: the timeline as a map of the recording - the active plot's line behind the track, the plots' window on it */
+.tl-env { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .45; }
+.tl-env path { fill: none; stroke-width: 1; }
+.tl-view { position: absolute; top: 0; bottom: 0; border: 1.5px solid var(--amber); border-radius: var(--r-s); background: var(--amber-soft);
+  cursor: grab; min-width: 6px; box-sizing: border-box; }
+.tl-view:active { cursor: grabbing; }
+.tl-edge { position: absolute; top: -1px; bottom: -1px; width: 7px; cursor: ew-resize; }
+.tl-edge.a { left: -4px; } .tl-edge.b { right: -4px; }
+.tl-edge::after { content: ""; position: absolute; top: 7px; bottom: 7px; left: 2px; width: 3px; border-radius: 2px; background: var(--amber); }

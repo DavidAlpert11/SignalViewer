@@ -1,6 +1,8 @@
 import { countRender } from "../perf";
-import { useMemo, useRef } from "react";
-import { actions, recordingExtent, useApp, type PlayMode } from "../store";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { actions, activeTab, rangeKey, recordingExtent, useApp, type PlayMode } from "../store";
+import { api } from "../api";
+import { envelopePath, panSpan, pullEdge, shownWindow, type Span } from "../timelineView";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
 import { FindingsDock } from "./StartCard";
@@ -78,6 +80,31 @@ export default function Timeline() {
     return out;
   }, [data, logs, notes]);
 
+  // R3: the active plot's first line, faint behind the track (its shape over the whole recording), and
+  // what the plots show as a window on the track - dragged to move along, its edges pulled to zoom
+  const tab = useApp((s) => activeTab(s.ws));
+  const dataVersion = useApp((s) => s.dataVersion);
+  const vplot = useMemo(() => {
+    const time = (p: (typeof tab.plots)[number]) => (p.mode ?? "time") === "time" && p.signals.some((x) => !x.state);
+    return (tab.plots[tab.active] && time(tab.plots[tab.active])) ? tab.plots[tab.active] : tab.plots.find(time) ?? null;
+  }, [tab]);
+  const vsig = vplot?.signals.find((x) => !x.state) ?? null;
+  const vkey = vplot ? rangeKey(tab, vplot) : null;
+  const vrange = useApp((s) => (vkey ? s.ranges[vkey] ?? null : null));
+  const [env, setEnv] = useState<{ d: string; color: string } | null>(null);
+  const envKey = open && vsig && ext ? `${vsig.sig}|${vsig.tOffset ?? 0}|${ext[0]}|${ext[1]}|${dataVersion}` : "";
+  useEffect(() => {
+    if (!envKey || !vsig || !ext) { setEnv(null); return; }
+    let gone = false;
+    const off = vsig.tOffset ?? 0;
+    api.data([vsig.sig], null, null, 500).then(([sr]) => {
+      if (gone || !sr || sr.missing) return;
+      const x = Float64Array.from(sr.x, (v) => v + off);
+      setEnv({ d: envelopePath(x, sr.y, ext[0], ext[1]), color: vsig.color });
+    }).catch(() => { if (!gone) setEnv(null); });
+    return () => { gone = true; };
+  }, [envKey]);          // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!ext) return null;
   const [t0, t1] = ext;
   const span = t1 - t0;
@@ -120,17 +147,46 @@ export default function Timeline() {
     }
   };
   const jump = (v: number) => { actions.setTime(v); actions.followTime(v); };
+  const win = shownWindow(vrange, ext);
+  /* the window: drag its body to move what the plots show, an edge to zoom; one Backspace undoes it */
+  const onWin = (e: React.PointerEvent, part: "body" | 0 | 1) => {
+    if (e.button !== 0 || !win || !vkey) return;
+    e.preventDefault(); e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const start: Span = win, x0 = e.clientX, w = trackRef.current!.getBoundingClientRect().width;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      const dt = ((ev.clientX - x0) / w) * span;
+      if (!moved && Math.abs(ev.clientX - x0) < 2) return;
+      if (!moved) { actions.pushZoomStep(vkey, { x: start }); moved = true; }
+      const r = part === "body" ? panSpan(start, dt, ext) : pullEdge(start, part, timeAt(ev.clientX), ext, span / 2000);
+      actions.setRange(vkey, r, { history: false });
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
 
   const track = (
     <div className="tl-track" ref={trackRef} dir="ltr" role="slider" tabIndex={0} aria-label={t("timeline")}
       aria-valuemin={0} aria-valuemax={Math.round(span * 1000) / 1000} aria-valuenow={now === null ? 0 : Math.round((now - t0) * 1000) / 1000}
       aria-valuetext={now === null ? t("tlHint") : clock(now)}
       title={t("tlHint")} onPointerDown={onDown} onKeyDown={onKey}>
+      {open && env?.d && (
+        <svg className="tl-env" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
+          <path d={env.d} style={{ stroke: env.color }} vectorEffect="non-scaling-stroke" />
+        </svg>)}
       <div className="tl-rail" />
       {now !== null && playMode === "draw" && <div className="tl-shown" style={{ left: 0, width: `${frac(now) * 100}%` }} />}
       {now !== null && playMode === "window" && (
         <div className="tl-shown" style={{ left: `${frac(now - windowSec) * 100}%`, width: `${(frac(now) - frac(now - windowSec)) * 100}%` }} />)}
       {cursor.on && cursor.dual && cursor.t2 !== null && <div className="tl-mark2" style={{ left: `${frac(cursor.t2) * 100}%` }} />}
+      {open && win && (
+        <div className="tl-view" style={{ left: `${frac(win[0]) * 100}%`, width: `${(frac(win[1]) - frac(win[0])) * 100}%` }}
+          title={t("tlViewHint")} onPointerDown={(e) => onWin(e, "body")}
+          onDoubleClick={(e) => { e.stopPropagation(); if (vkey) actions.setRange(vkey, null); }}>
+          <span className="tl-edge a" onPointerDown={(e) => onWin(e, 0)} />
+          <span className="tl-edge b" onPointerDown={(e) => onWin(e, 1)} />
+        </div>)}
       {now !== null && <div className="tl-handle" style={{ left: `${frac(now) * 100}%` }} />}
     </div>
   );
