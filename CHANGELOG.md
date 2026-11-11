@@ -40,6 +40,13 @@
   the objects, light / dark. Online imagery is used only from tiles already seen, always credited.
 - **Reports include maps** - as a picture in PDF / Word, as the interactive offline map in HTML.
 
+- **The whole process from a script, a shell or another program** - with the app's rules and numbers:
+  Python (`rec.objects()`, `rec.object("XKF1[0]")`, `sv.compare_objects(...)` with `values()` / `errors()` /
+  `stats()` / `to_csv` / `to_mat`, `sv.similar`, `sv.compare_signals`, `sv.map_image`, `sv.map_html`,
+  `sv.report`), the command line (`objects`, `compare-objects` with `--tolerance` and JUnit for CI,
+  `compare-similar`, `map`) and local REST (`/api/objects/detect`, `/compare`, `/similar`). Walk-through:
+  [API](docs/api.md).
+
 ### Changed
 - Differences of angles are wrapped: 359° − 1° is −2°, not 358° - in Compare with similar…, *Errors
   between two lines* and the error-segments table (degrees or radians, from the unit or the values).

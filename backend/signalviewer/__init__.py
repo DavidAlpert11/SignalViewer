@@ -25,7 +25,7 @@ From MATLAB or a shell, use the command line instead: `python cli.py --help`.
 import contextlib as _contextlib
 import os as _os
 import sys as _sys
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 # T56: installed with pip, the app's own modules (app, svcore), its UI and the examples live in
 # signalviewer/_core; from the source folder they are next to this package (backend/).
@@ -226,7 +226,7 @@ class Comparison:
         return f"<Comparison vs {self.reference} ({self.frame}): {len(self.raw['stats'])} error components>"
 
 
-def _objects_of(recs) -> Tuple[callable, List[Dict]]:
+def _objects_of(recs) -> Tuple[Callable[[str], Tuple[np.ndarray, np.ndarray]], List[Dict]]:
     """One signal reader and one object list for one or several recordings; with several files an object's
     name is "file:name" where two files have the same name (POS in both)."""
     recs = recs if isinstance(recs, (list, tuple)) else [recs]

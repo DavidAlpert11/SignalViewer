@@ -2,10 +2,11 @@
    against svcore/objects.py, so the app's rules and Python's cannot drift. SV_WRITE_VECTORS=1 writes the
    expectations from these (the app's) rules into the file; pytest must then agree. */
 import { describe, expect, it } from "vitest";
-import { readFileSync, writeFileSync } from "node:fs";
 import { detectObjects, type Candidate } from "./objectDetect";
+import DOC from "../../tests/data/object_detect_cases.json";
 
-const FILE = new URL("../../tests/data/object_detect_cases.json", import.meta.url);
+// node's fs / env only when writing the expectations (the app's tsconfig has no node types)
+const env = (globalThis as unknown as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 interface Case { name: string; names: string[]; expect?: unknown }
 
 /** The canonical summary both languages compute (the same keys, the same order). */
@@ -24,10 +25,13 @@ function run(names: string[]) {
 }
 
 describe("shared object-detection vectors (L12)", () => {
-  const doc = JSON.parse(readFileSync(FILE, "utf-8")) as { _about: string; cases: Case[] };
-  if (process.env.SV_WRITE_VECTORS) {
+  const doc = structuredClone(DOC) as { _about: string; cases: Case[] };
+  if (env.SV_WRITE_VECTORS) {
     for (const c of doc.cases) c.expect = run(c.names);
-    writeFileSync(FILE, JSON.stringify(doc, null, 1) + "\n");
+    it("writes the expectations", async () => {
+      const fs = await import(/* @vite-ignore */ ["node", "fs"].join(":")) as { writeFileSync: (p: URL, d: string) => void };
+      fs.writeFileSync(new URL("../../tests/data/object_detect_cases.json", import.meta.url), JSON.stringify(doc, null, 1) + "\n");
+    });
   }
   for (const c of doc.cases) it(c.name, () => expect(run(c.names)).toEqual(c.expect));
 });

@@ -8,9 +8,17 @@
     python cli.py check runs/*.csv --checks checks.json [--junit results.xml]   # pass / fail (CI)
     python cli.py compare golden.csv new.csv --tol-abs 0.5     # against a golden run (CI)
     python cli.py validate [--json] [--junit v.xml]        # the numerical validation, on this machine
+    python cli.py objects flight.bin [--all] [--json]      # the map objects found, and why (L12)
+    python cli.py compare-objects flight.bin --ref POS --objects "XKF1[0],XKF1[1]" --what position,attitude \
+        --frame ned --csv errors.csv --stats stats.csv --map map.png --map-html map.html --report report.html \
+        [--tolerance position=2m,attitude=1deg --junit r.xml] [--json]
+    python cli.py compare-similar flight.bin [--leaf att.roll] [--ref truth] [--csv d.csv] [--json]
+    python cli.py map flight.bin [--objects all] --out map.png|map.html
 
 MATLAB:  status = system('python cli.py export flight.bin --out f.mat'); d = load('f.mat');
 Exit code 0 = done, 1 = the file or a signal could not be read (the message says why).
+compare-objects with --tolerance:  0 = every error within its tolerance, 1 = one is not, 2 = it could not be
+compared (no such object, no reference velocity...); without --tolerance 0 = done.
 check / compare:  0 = every check passed, 1 = a check failed, 2 = a check could not be made (a file or a
 signal missing, a wrong checks file) - so a CI step fails on a broken limit and on broken data.
 """
@@ -305,6 +313,147 @@ def cmd_sweep(a) -> int:
     return 0 if n["holding"] >= a.min_holding else 1
 
 
+# ---- L12: map objects -----------------------------------------------------------------------------
+
+def _clean(v):
+    return None if v is None or (isinstance(v, float) and v != v) else v
+
+
+def cmd_objects(a) -> int:
+    rec = load(a.file)
+    objs = rec.objects(all=a.all)
+    if a.json:
+        print(json.dumps({"file": rec.path, "objects": objs}, ensure_ascii=False, default=str))
+        return 0
+    print(f"{rec.name}: {len(objs)} object(s)")
+    for o in objs:
+        org = f", origin {o['origin']['via']} ({o['origin']['rule']})" if o["origin"] else ""
+        why = o["why"]["class"].get("known") or o["why"]["class"].get("word") or "-"
+        print(f"  {o['name']}: {o['cls']} ({why}), {o['frame'].upper()}{org}, attitude {o['attitude']}"
+              + ("" if o["addable"] else "  [not added by Add all]"))
+    return 0
+
+
+_TOL_UNITS = {"position": ("m",), "velocity": ("m/s", "mps"), "attitude": ("deg", "°")}
+_TOL_COMPS = {"position": None, "velocity": None, "attitude": None}      # None: every error component of it
+
+
+def _tolerances(text: str) -> dict:
+    """position=2m,attitude=1deg,velocity=0.5m/s -> {quantity: limit} (the unit may be left out)."""
+    out = {}
+    for part in filter(None, (x.strip() for x in text.split(","))):
+        if "=" not in part:
+            raise ValueError(f"A tolerance is quantity=value (got {part!r})")
+        q, v = (x.strip() for x in part.split("=", 1))
+        if q not in _TOL_UNITS:
+            raise ValueError(f"A tolerance's quantity is position, velocity or attitude (got {q!r})")
+        for u in _TOL_UNITS[q]:
+            if v.lower().endswith(u):
+                v = v[: -len(u)]
+                break
+        out[q] = float(v)
+    return out
+
+
+def cmd_compare_objects(a) -> int:
+    import signalviewer as sv
+    recs = [load(f) for f in a.files]
+    what = [w.strip() for w in a.what.split(",") if w.strip()]
+    objs = [o.strip() for o in re.split(r",(?![^\[]*\])", a.objects) if o.strip()] if a.objects else None
+    try:
+        tol = _tolerances(a.tolerance) if a.tolerance else {}
+        cmp = sv.compare_objects(recs if len(recs) > 1 else recs[0], reference=a.ref, objects=objs, what=what, frame=a.frame)
+    except (KeyError, ValueError) as e:
+        print(f"error: {e.args[0] if e.args else e}", file=sys.stderr)
+        return 2
+    if a.csv:
+        cmp.to_csv(a.csv)
+    if a.stats:
+        cmp.to_csv(a.stats, "stats")
+    if a.mat:
+        cmp.to_mat(a.mat)
+    rec0 = recs[0]
+    if a.map:
+        sv.map_image(rec0, path=a.map)
+    if a.map_html:
+        sv.map_html(rec0, path=a.map_html)
+    if a.report:
+        sv.report(rec0, a.report, compare=cmp)
+    # pass / fail: every error component of a quantity within its tolerance (largest |error| over the run)
+    results = []
+    for q, lim in tol.items():
+        if q in cmp.reasons:
+            results.append({"name": f"{q} vs {a.ref}", "status": "error", "message": cmp.reasons[q]})
+            continue
+        for obj in dict.fromkeys(r["object"] for r in cmp.raw["stats"] if r["qty"] == q):      # in the order given
+            rows = [r for r in cmp.raw["stats"] if r["qty"] == q and r["object"] == obj and r["max_abs"] is not None]
+            worst = max(rows, key=lambda r: r["max_abs"]) if rows else None
+            ok = worst is not None and worst["max_abs"] <= lim
+            results.append({"name": f"{obj} {q} vs {a.ref}", "status": "pass" if ok else "fail",
+                            "message": f"max |{worst['comp']}| = {worst['max_abs']:.6g} (tolerance {lim:g})" if worst else "no data"})
+    if a.junit:
+        from app.checks import junit_xml
+        with open(a.junit, "w", encoding="utf-8") as fh:
+            fh.write(junit_xml([{"file": ",".join(a.files), "results": results}]))
+    stats = [{k: _clean(v) for k, v in r.items()} for r in cmp.raw["stats"]]
+    if a.json:
+        print(json.dumps({"reference": a.ref, "frame": a.frame, "stats": stats, "reasons": cmp.reasons, "left_out": cmp.left_out,
+                          "checks": results}, ensure_ascii=False))
+    else:
+        print(f"against {a.ref} ({a.frame.upper()}):")
+        for r in stats:
+            print(f"  {r['object']:<16} {r['comp']:<20} rms {r['rms']:.6g}  max {r['max_abs']:.6g} at {r['t_max_abs']:.3f} s" if r["rms"] is not None
+                  else f"  {r['object']:<16} {r['comp']:<20} no data")
+        for q, why in cmp.reasons.items():
+            print(f"  {q}: not compared - {why}")
+        for q, outs in cmp.left_out.items():
+            for x in outs:
+                print(f"  {q}: {x['why']}")
+        for r in results:
+            print(f"  [{r['status'].upper()}] {r['name']}: {r['message']}")
+    if any(r["status"] == "error" for r in results):
+        return 2
+    return 1 if any(r["status"] == "fail" for r in results) else 0
+
+
+def cmd_compare_similar(a) -> int:
+    import signalviewer as sv
+    from svcore.similar import reference_of
+    rec = load(a.file)
+    fams = [f for f in sv.similar(rec, loose=a.loose) if not a.leaf or f["leaf"].endswith(a.leaf)]
+    out = []
+    frames = []
+    for f in fams:
+        ref = next((m for m in f["members"] if a.ref and m["seg"] == a.ref), None) or reference_of(f)
+        if f["unitsDiffer"]:
+            out.append({"leaf": f["leaf"], "how": f["how"], "reference": ref["name"], "stats": [], "note": "units differ - not subtracted"})
+            continue
+        df = sv.compare_signals(rec, [m["name"] for m in f["members"]], reference=ref["name"])
+        frames.append(df)
+        out.append({"leaf": f["leaf"], "how": f["how"], "reference": ref["name"], "stats": [{k: _clean(v) for k, v in s.items()} for s in df.attrs["stats"]]})
+    if a.csv and frames:
+        import pandas as pd
+        pd.concat([d.set_index("Time") for d in frames], axis=1).reset_index().to_csv(a.csv, index=False, encoding="utf-8-sig")
+    if a.json:
+        print(json.dumps({"file": rec.path, "families": out}, ensure_ascii=False))
+    else:
+        print(f"{rec.name}: {len(out)} famil{'y' if len(out) == 1 else 'ies'} of similar signals")
+        for f in out:
+            print(f"  {f['leaf']} ({f['how']}) - reference {f['reference']}" + (f": {f['note']}" if f.get("note") else ""))
+            for s in f["stats"]:
+                print(f"    {s['signal']}: rms {s['rms']:.6g}, max {s['max_abs']:.6g}")
+    return 0
+
+
+def cmd_map(a) -> int:
+    import signalviewer as sv
+    rec = load(a.file)
+    objs = None if a.objects in (None, "all") else [o.strip() for o in re.split(r",(?![^\[]*\])", a.objects) if o.strip()]
+    path = sv.map_html(rec, objs, a.out, a.theme) if a.out.lower().endswith(".html") else sv.map_image(rec, objs, a.out, a.theme)
+    print(path)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="signalviewer", description="Read and export recordings (Signal Viewer).")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -371,6 +520,31 @@ def main(argv=None) -> int:
     p.add_argument("--min-holding", type=int, default=1, help="exit 1 when fewer sets hold")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_sweep)
+    p = sub.add_parser("objects", help="the map objects found in a file, and why (L12)")
+    p.add_argument("file"); p.add_argument("--all", action="store_true", help="also those Add all would not add")
+    p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_objects)
+    p = sub.add_parser("compare-objects", help="objects against a reference: values, errors, statistics (exit code with --tolerance)")
+    p.add_argument("files", nargs="+", help="one file, or several (an object named file:name where two share a name)")
+    p.add_argument("--ref", required=True, help="the reference object, e.g. POS")
+    p.add_argument("--objects", help='the objects compared, e.g. "XKF1[0],XKF1[1]" (default: every other one)')
+    p.add_argument("--what", default="position,velocity,attitude", help="any of position, velocity, attitude")
+    p.add_argument("--frame", default="ned", choices=["ned", "enu", "ecef", "lla", "track"])
+    p.add_argument("--csv", help="the errors, full resolution, one time base"); p.add_argument("--stats", help="the statistics as CSV")
+    p.add_argument("--mat", help="errors, values and statistics as .mat")
+    p.add_argument("--map", help="the objects' map as PNG"); p.add_argument("--map-html", help="the offline map page")
+    p.add_argument("--report", help="a report (.html / .pdf / .docx) with the map and the errors")
+    p.add_argument("--tolerance", help="pass / fail, e.g. position=2m,attitude=1deg,velocity=0.5m/s (largest |error|)")
+    p.add_argument("--junit", help="the pass / fail as JUnit XML"); p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_compare_objects)
+    p = sub.add_parser("compare-similar", help="families of similar signals (nav1 / nav2, XKF1[0] / XKF1[1]) and their differences")
+    p.add_argument("file"); p.add_argument("--leaf", help="only families whose leaf ends so, e.g. att.roll")
+    p.add_argument("--ref", help="the reference segment, e.g. truth (default: a truth-class one, else the first)")
+    p.add_argument("--loose", action="store_true", help="also the looser matches"); p.add_argument("--csv", help="values and differences")
+    p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_compare_similar)
+    p = sub.add_parser("map", help="the map of a file's objects: a picture (.png / .svg) or the offline page (.html)")
+    p.add_argument("file"); p.add_argument("--objects", default="all", help='"all" or names, e.g. "POS,GPS[0]"')
+    p.add_argument("--out", required=True); p.add_argument("--theme", default="light", choices=["light", "dark"])
+    p.set_defaults(fn=cmd_map)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)
     a = ap.parse_args(argv)
