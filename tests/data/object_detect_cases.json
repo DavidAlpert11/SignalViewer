@@ -1,0 +1,888 @@
+{
+ "_about": "L12: names in, objects out - the SAME expectations for the app (Vitest: frontend/src/objectVectors.test.ts) and Python (pytest: backend/tests/test_objects_py.py). Regenerate the expectations from the app's rules with SV_WRITE_VECTORS=1 npx vitest run src/objectVectors.test.ts, then check pytest.",
+ "cases": [
+  {
+   "name": "three objects by class word",
+   "names": [
+    "phys.lat",
+    "phys.lon",
+    "phys.alt",
+    "phys.att.roll",
+    "phys.att.pitch",
+    "phys.att.yaw",
+    "phys.vel.north",
+    "phys.vel.east",
+    "nav.lat",
+    "nav.lon",
+    "nav.alt",
+    "nav.att.roll",
+    "nav.att.pitch",
+    "nav.att.yaw",
+    "nav.vel.north",
+    "nav.vel.east",
+    "gps.lat",
+    "gps.lon",
+    "gps.alt"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "phys",
+      "name": "phys",
+      "cls": "truth",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "phys.alt|prefix",
+       "lat": "phys.lat|prefix",
+       "lon": "phys.lon|prefix",
+       "pitch": "phys.att.pitch|subgroup",
+       "roll": "phys.att.roll|subgroup",
+       "ve": "phys.vel.east|subgroup",
+       "vn": "phys.vel.north|subgroup",
+       "yaw": "phys.att.yaw|subgroup"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "nav",
+      "name": "nav",
+      "cls": "navigation",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "nav.alt|prefix",
+       "lat": "nav.lat|prefix",
+       "lon": "nav.lon|prefix",
+       "pitch": "nav.att.pitch|subgroup",
+       "roll": "nav.att.roll|subgroup",
+       "ve": "nav.vel.east|subgroup",
+       "vn": "nav.vel.north|subgroup",
+       "yaw": "nav.att.yaw|subgroup"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "gps",
+      "name": "gps",
+      "cls": "receiver",
+      "pos": "lla",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "alt": "gps.alt|prefix",
+       "lat": "gps.lat|prefix",
+       "lon": "gps.lon|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "ArduPilot EKF3 lanes with ORGN",
+   "names": [
+    "POS.Lat [deg]",
+    "POS.Lng [deg]",
+    "POS.Alt [m]",
+    "ATT.Roll [deg]",
+    "ATT.Pitch [deg]",
+    "ATT.Yaw [deg]",
+    "XKF1[0].Roll [deg]",
+    "XKF1[0].Pitch [deg]",
+    "XKF1[0].Yaw [deg]",
+    "XKF1[0].VN [m/s]",
+    "XKF1[0].VE [m/s]",
+    "XKF1[0].VD [m/s]",
+    "XKF1[0].PN [m]",
+    "XKF1[0].PE [m]",
+    "XKF1[0].PD [m]",
+    "XKF1[1].Roll [deg]",
+    "XKF1[1].Pitch [deg]",
+    "XKF1[1].Yaw [deg]",
+    "XKF1[1].VN [m/s]",
+    "XKF1[1].VE [m/s]",
+    "XKF1[1].VD [m/s]",
+    "XKF1[1].PN [m]",
+    "XKF1[1].PE [m]",
+    "XKF1[1].PD [m]",
+    "ORGN[0].Lat [deg]",
+    "ORGN[0].Lng [deg]",
+    "ORGN[0].Alt [m]",
+    "GPS[0].Lat [deg]",
+    "GPS[0].Lng [deg]",
+    "GPS[0].Alt [m]"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "POS",
+      "name": "POS",
+      "cls": "navigation",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "POS.Alt [m]|prefix",
+       "lat": "POS.Lat [deg]|prefix",
+       "lon": "POS.Lng [deg]|prefix",
+       "pitch": "ATT.Pitch [deg]|known",
+       "roll": "ATT.Roll [deg]|known",
+       "yaw": "ATT.Yaw [deg]|known"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "XKF1[0]",
+      "name": "XKF1[0]",
+      "cls": "navigation",
+      "pos": "ned",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "pitch": "XKF1[0].Pitch [deg]|prefix",
+       "px": "XKF1[0].PN [m]|prefix",
+       "py": "XKF1[0].PE [m]|prefix",
+       "pz": "XKF1[0].PD [m]|prefix",
+       "roll": "XKF1[0].Roll [deg]|prefix",
+       "vd": "XKF1[0].VD [m/s]|prefix",
+       "ve": "XKF1[0].VE [m/s]|prefix",
+       "vn": "XKF1[0].VN [m/s]|prefix",
+       "yaw": "XKF1[0].Yaw [deg]|prefix"
+      },
+      "origin": "ORGN[0]|known",
+      "badUnit": null,
+      "lane": "EKF3:0",
+      "nearMisses": []
+     },
+     {
+      "prefix": "XKF1[1]",
+      "name": "XKF1[1]",
+      "cls": "navigation",
+      "pos": "ned",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "pitch": "XKF1[1].Pitch [deg]|prefix",
+       "px": "XKF1[1].PN [m]|prefix",
+       "py": "XKF1[1].PE [m]|prefix",
+       "pz": "XKF1[1].PD [m]|prefix",
+       "roll": "XKF1[1].Roll [deg]|prefix",
+       "vd": "XKF1[1].VD [m/s]|prefix",
+       "ve": "XKF1[1].VE [m/s]|prefix",
+       "vn": "XKF1[1].VN [m/s]|prefix",
+       "yaw": "XKF1[1].Yaw [deg]|prefix"
+      },
+      "origin": "ORGN[0]|known",
+      "badUnit": null,
+      "lane": "EKF3:1",
+      "nearMisses": []
+     },
+     {
+      "prefix": "GPS[0]",
+      "name": "GPS[0]",
+      "cls": "receiver",
+      "pos": "lla",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "alt": "GPS[0].Alt [m]|prefix",
+       "lat": "GPS[0].Lat [deg]|prefix",
+       "lon": "GPS[0].Lng [deg]|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "local frames with an origin group",
+   "names": [
+    "time",
+    "tgt.ned.x",
+    "tgt.ned.y",
+    "tgt.ned.z",
+    "ship.ecef_x",
+    "ship.ecef_y",
+    "ship.ecef_z",
+    "boat.pos.north",
+    "boat.pos.east",
+    "boat.pos.up",
+    "rov.pos.n",
+    "rov.pos.e",
+    "rov.pos.d",
+    "origin.lat",
+    "origin.lon",
+    "origin.alt"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "tgt",
+      "name": "tgt",
+      "cls": "other",
+      "pos": "ned",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "tgt.ned.x|subgroup",
+       "py": "tgt.ned.y|subgroup",
+       "pz": "tgt.ned.z|subgroup"
+      },
+      "origin": "origin|sibling",
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "ship",
+      "name": "ship",
+      "cls": "other",
+      "pos": "ecef",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "ship.ecef_x|prefix",
+       "py": "ship.ecef_y|prefix",
+       "pz": "ship.ecef_z|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "boat",
+      "name": "boat",
+      "cls": "other",
+      "pos": "enu",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "boat.pos.east|subgroup",
+       "py": "boat.pos.north|subgroup",
+       "pz": "boat.pos.up|subgroup"
+      },
+      "origin": "origin|sibling",
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "rov",
+      "name": "rov",
+      "cls": "other",
+      "pos": "ned",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "rov.pos.n|subgroup",
+       "py": "rov.pos.e|subgroup",
+       "pz": "rov.pos.d|subgroup"
+      },
+      "origin": "origin|sibling",
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "PX4 local position, own ref, quaternion",
+   "names": [
+    "vehicle_local_position.x",
+    "vehicle_local_position.y",
+    "vehicle_local_position.z",
+    "vehicle_local_position.vx",
+    "vehicle_local_position.vy",
+    "vehicle_local_position.vz",
+    "vehicle_local_position.heading",
+    "vehicle_local_position.ref_lat",
+    "vehicle_local_position.ref_lon",
+    "vehicle_local_position.ref_alt",
+    "vehicle_attitude.q[0]",
+    "vehicle_attitude.q[1]",
+    "vehicle_attitude.q[2]",
+    "vehicle_attitude.q[3]"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "vehicle_local_position",
+      "name": "vehicle_local_position",
+      "cls": "navigation",
+      "pos": "ned",
+      "attitude": "quaternion",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "px": "vehicle_local_position.x|prefix",
+       "py": "vehicle_local_position.y|prefix",
+       "pz": "vehicle_local_position.z|prefix",
+       "qw": "vehicle_attitude.q[0]|known",
+       "qx": "vehicle_attitude.q[1]|known",
+       "qy": "vehicle_attitude.q[2]|known",
+       "qz": "vehicle_attitude.q[3]|known",
+       "vd": "vehicle_local_position.vz|prefix",
+       "ve": "vehicle_local_position.vy|prefix",
+       "vn": "vehicle_local_position.vx|prefix"
+      },
+      "origin": "vehicle_local_position.ref|own|moves",
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "MAVLink local + global origin",
+   "names": [
+    "LOCAL_POSITION_NED.x",
+    "LOCAL_POSITION_NED.y",
+    "LOCAL_POSITION_NED.z",
+    "GPS_GLOBAL_ORIGIN.latitude [deg]",
+    "GPS_GLOBAL_ORIGIN.longitude [deg]",
+    "GPS_GLOBAL_ORIGIN.altitude [m]",
+    "ATTITUDE.roll [rad]",
+    "ATTITUDE.pitch [rad]",
+    "ATTITUDE.yaw [rad]",
+    "GLOBAL_POSITION_INT.lat [deg]",
+    "GLOBAL_POSITION_INT.lon [deg]",
+    "GLOBAL_POSITION_INT.alt [m]"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "GLOBAL_POSITION_INT",
+      "name": "GLOBAL_POSITION_INT",
+      "cls": "navigation",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "GLOBAL_POSITION_INT.alt [m]|prefix",
+       "lat": "GLOBAL_POSITION_INT.lat [deg]|prefix",
+       "lon": "GLOBAL_POSITION_INT.lon [deg]|prefix",
+       "pitch": "ATTITUDE.pitch [rad]|known",
+       "roll": "ATTITUDE.roll [rad]|known",
+       "yaw": "ATTITUDE.yaw [rad]|known"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "LOCAL_POSITION_NED",
+      "name": "LOCAL_POSITION_NED",
+      "cls": "navigation",
+      "pos": "ned",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "pitch": "ATTITUDE.pitch [rad]|known",
+       "px": "LOCAL_POSITION_NED.x|prefix",
+       "py": "LOCAL_POSITION_NED.y|prefix",
+       "pz": "LOCAL_POSITION_NED.z|prefix",
+       "roll": "ATTITUDE.roll [rad]|known",
+       "yaw": "ATTITUDE.yaw [rad]|known"
+      },
+      "origin": "GPS_GLOBAL_ORIGIN|known|moves",
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "frame words in every form",
+   "names": [
+    "a.x_ned",
+    "a.y_ned",
+    "a.z_ned",
+    "b.pos_ned_x",
+    "b.pos_ned_y",
+    "b.pos_ned_z",
+    "c.pos.ned.x",
+    "c.pos.ned.y",
+    "c.pos.ned.z",
+    "d.ecefX",
+    "d.ecefY",
+    "d.ecefZ",
+    "e.X_ECEF [cm]",
+    "e.Y_ECEF [cm]",
+    "e.Z_ECEF [cm]",
+    "f.enu.x",
+    "f.enu.y",
+    "f.enu.z"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "a",
+      "name": "a",
+      "cls": "other",
+      "pos": "ned",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "a.x_ned|prefix",
+       "py": "a.y_ned|prefix",
+       "pz": "a.z_ned|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "b",
+      "name": "b",
+      "cls": "other",
+      "pos": "ned",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "b.pos_ned_x|prefix",
+       "py": "b.pos_ned_y|prefix",
+       "pz": "b.pos_ned_z|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "c",
+      "name": "c",
+      "cls": "other",
+      "pos": "ned",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "c.pos.ned.x|subgroup",
+       "py": "c.pos.ned.y|subgroup",
+       "pz": "c.pos.ned.z|subgroup"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "d",
+      "name": "d",
+      "cls": "other",
+      "pos": "ecef",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "d.ecefX|prefix",
+       "py": "d.ecefY|prefix",
+       "pz": "d.ecefZ|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "e",
+      "name": "e",
+      "cls": "other",
+      "pos": "ecef",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "e.X_ECEF [cm]|prefix",
+       "py": "e.Y_ECEF [cm]|prefix",
+       "pz": "e.Z_ECEF [cm]|prefix"
+      },
+      "origin": null,
+      "badUnit": "cm",
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "f",
+      "name": "f",
+      "cls": "other",
+      "pos": "enu",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "f.enu.x|subgroup",
+       "py": "f.enu.y|subgroup",
+       "pz": "f.enu.z|subgroup"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "flat velocities, aliases, sub-groups",
+   "names": [
+    "nav.latitude",
+    "nav.longitude",
+    "nav.alt_msl",
+    "nav.vel_n",
+    "nav.vel_e",
+    "nav.vel_d",
+    "nav.ori.phi",
+    "nav.ori.theta",
+    "nav.ori.psi",
+    "veh_lat_deg",
+    "veh_lon_deg",
+    "veh_hgt"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "nav",
+      "name": "nav",
+      "cls": "navigation",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "nav.alt_msl|prefix",
+       "lat": "nav.latitude|prefix",
+       "lon": "nav.longitude|prefix",
+       "pitch": "nav.ori.theta|subgroup",
+       "roll": "nav.ori.phi|subgroup",
+       "vd": "nav.vel_d|prefix",
+       "ve": "nav.vel_e|prefix",
+       "vn": "nav.vel_n|prefix",
+       "yaw": "nav.ori.psi|subgroup"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "veh",
+      "name": "veh",
+      "cls": "other",
+      "pos": "lla",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "alt": "veh_hgt|prefix",
+       "lat": "veh_lat_deg|prefix",
+       "lon": "veh_lon_deg|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "near misses and incomplete",
+   "names": [
+    "tgt.lat_cmd",
+    "tgt.lon_cmd",
+    "uav.navLat",
+    "uav.navLon",
+    "sys.lattitude",
+    "x.lat",
+    "y.pos.x",
+    "y.pos.y",
+    "y.pos.z",
+    "/odom.pose.pose.position.x"
+   ],
+   "expect": {
+    "candidates": [],
+    "incomplete": [
+     "x"
+    ],
+    "nearMisses": [
+     "tgt.lat_cmd|lat|suffix",
+     "tgt.lon_cmd|lon|suffix",
+     "uav.navLat|lat|glued",
+     "uav.navLon|lon|glued",
+     "sys.lattitude|lat|spelling",
+     "y.pos.x|px|noframe",
+     "y.pos.y|px|noframe",
+     "y.pos.z|px|noframe",
+     "/odom.pose.pose.position.x|px|noframe"
+    ]
+   }
+  },
+  {
+   "name": "flight-log known pairs",
+   "names": [
+    "GPS.Lat [deg]",
+    "GPS.Lng [deg]",
+    "GPS.Alt [m]",
+    "ATT.Roll [deg]",
+    "ATT.Pitch [deg]",
+    "ATT.Yaw [deg]",
+    "AHR2.Lat",
+    "AHR2.Lng",
+    "AHR2.Alt",
+    "AHR2.Roll",
+    "AHR2.Pitch",
+    "AHR2.Yaw",
+    "SIM.Lat",
+    "SIM.Lng",
+    "SIM.Alt",
+    "SIM.Roll",
+    "SIM.Pitch",
+    "SIM.Yaw"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "SIM",
+      "name": "SIM",
+      "cls": "truth",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "SIM.Alt|prefix",
+       "lat": "SIM.Lat|prefix",
+       "lon": "SIM.Lng|prefix",
+       "pitch": "SIM.Pitch|prefix",
+       "roll": "SIM.Roll|prefix",
+       "yaw": "SIM.Yaw|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "AHR2",
+      "name": "AHR2",
+      "cls": "navigation",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "AHR2.Alt|prefix",
+       "lat": "AHR2.Lat|prefix",
+       "lon": "AHR2.Lng|prefix",
+       "pitch": "AHR2.Pitch|prefix",
+       "roll": "AHR2.Roll|prefix",
+       "yaw": "AHR2.Yaw|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "GPS",
+      "name": "GPS",
+      "cls": "receiver",
+      "pos": "lla",
+      "attitude": "angles",
+      "full": true,
+      "missing": [],
+      "picks": {
+       "alt": "GPS.Alt [m]|prefix",
+       "lat": "GPS.Lat [deg]|prefix",
+       "lon": "GPS.Lng [deg]|prefix",
+       "pitch": "ATT.Pitch [deg]|known",
+       "roll": "ATT.Roll [deg]|known",
+       "yaw": "ATT.Yaw [deg]|known"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  },
+  {
+   "name": "nested sibling origin with class word",
+   "names": [
+    "sim.tgt.ned.x",
+    "sim.tgt.ned.y",
+    "sim.tgt.ned.z",
+    "sim.nav_ref_lat",
+    "sim.nav_ref_lon",
+    "sim.nav_ref_alt",
+    "home.lat",
+    "home.lon",
+    "quat.q_w",
+    "quat.q_x",
+    "quat.q_y",
+    "quat.q_z",
+    "quat.lat",
+    "quat.lon"
+   ],
+   "expect": {
+    "candidates": [
+     {
+      "prefix": "sim.tgt",
+      "name": "sim.tgt",
+      "cls": "truth",
+      "pos": "ned",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "px": "sim.tgt.ned.x|subgroup",
+       "py": "sim.tgt.ned.y|subgroup",
+       "pz": "sim.tgt.ned.z|subgroup"
+      },
+      "origin": "sim.nav_ref|sibling",
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     },
+     {
+      "prefix": "quat",
+      "name": "quat",
+      "cls": "other",
+      "pos": "lla",
+      "attitude": "none",
+      "full": false,
+      "missing": [
+       "alt",
+       "roll",
+       "pitch",
+       "yaw"
+      ],
+      "picks": {
+       "lat": "quat.lat|prefix",
+       "lon": "quat.lon|prefix"
+      },
+      "origin": null,
+      "badUnit": null,
+      "lane": null,
+      "nearMisses": []
+     }
+    ],
+    "incomplete": [],
+    "nearMisses": []
+   }
+  }
+ ]
+}

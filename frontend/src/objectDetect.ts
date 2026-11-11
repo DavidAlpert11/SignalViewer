@@ -1,6 +1,8 @@
 import type { RunInfo } from "./api";
 import type { Role } from "./mapObjects";
 import { pathCuts } from "./signalGroups";
+// L12: the tables live in ONE file, read here at build time and by Python (backend/svcore/objects.py)
+import NAMES from "../../backend/svcore/object_names.json";
 
 /*
  * N5: the map objects of a recording, found from the signal names. An object is a PREFIX: every
@@ -65,19 +67,13 @@ export interface Detection { candidates: Candidate[]; incomplete: Incomplete[]; 
 
 /* ---- the tables (one place, easy to extend) ---------------------------------------------------- */
 
-const ALIASES: Record<DetRole, string[]> = {
-  lat: ["lat", "latitude"], lon: ["lon", "lng", "long", "longitude"],
-  alt: ["alt", "altitude", "height", "hgt", "alt_msl", "altmsl"],
-  roll: ["roll", "phi"], pitch: ["pitch", "theta"], yaw: ["yaw", "heading", "hdg", "psi"],
-  qw: ["qw", "q0", "q[0]", "q_w"], qx: ["qx", "q1", "q[1]", "q_x"], qy: ["qy", "q2", "q[2]", "q_y"], qz: ["qz", "q3", "q[3]", "q_z"],
-  px: [], py: [], pz: [], vn: [], ve: [], vd: [],             // by frame / velocity sub-group, below
-};
-const OWN_WORD: Partial<Record<DetRole, string>> = { lat: "lat", lon: "lon", alt: "alt", roll: "roll", pitch: "pitch", yaw: "yaw" };
+const ALIASES = { ...NAMES.aliases, px: [], py: [], pz: [], vn: [], ve: [], vd: [] } as Record<DetRole, string[]>;
+const OWN_WORD = NAMES.own_words as Partial<Record<DetRole, string>>;
 const WORD_ROLE = new Map<string, DetRole>();
 for (const [r, ws] of Object.entries(ALIASES)) for (const w of ws) WORD_ROLE.set(w, r as DetRole);
 /** Position in metres: the words, by frame. */
 const XYZ: Record<string, DetRole> = { x: "px", y: "py", z: "pz" };
-const FRAME_WORDS = new Set(["ecef", "ned", "enu"]);
+const FRAME_WORDS = new Set(NAMES.frame_words);
 /** L1: the axis words of a local position; NED or ENU is decided by the whole group (down -> NED,
  *  up -> ENU), not by each name. Single letters only right under a position / frame sub-group. */
 type Axis = "n" | "e" | "d" | "u";
@@ -86,28 +82,24 @@ const AXIS_LETTERS: Record<string, Axis> = { n: "n", e: "e", d: "d", u: "u" };
 const LOCAL_ROLE: Record<"ned" | "enu", Partial<Record<Axis, DetRole>>> = { ned: { n: "px", e: "py", d: "pz" }, enu: { e: "px", n: "py", u: "pz" } };
 /** L1: a position in metres must be in metres to be added as it is (Q6: no silent scaling) */
 const GLUED = /^(?:(ecef|ned|enu)([xyz])|([xyz])(ecef|ned|enu))$/i;
-const METRES = new Set(["m", "meter", "meters", "metre", "metres"]);
-const POS_SUB = new Set(["pos", "position", "lla", "geo"]);
+const METRES = new Set(NAMES.metres);
+const POS_SUB = new Set(NAMES.pos_sub);
 /** N7: a velocity sub-group - its north / east / down (vn / ve / vd) compare between objects */
-const VEL_SUB = new Set(["vel", "velocity", "v_ned", "velned"]);
+const VEL_SUB = new Set(NAMES.vel_sub);
 const VEL_WORDS: Record<string, DetRole> = { north: "vn", east: "ve", down: "vd", n: "vn", e: "ve", d: "vd" };
 export const VEL_ROLES: DetRole[] = ["vn", "ve", "vd"];
 /** NED velocity fields right under an object's prefix (XKF1[0].VN, nav.vel_n) - one table, also used by
  *  frames.ts for its conversion suggestions. Taken only by a prefix that has a position. */
-export const NED_VEL: string[][] = [["vn", "ve", "vd"], ["veln", "vele", "veld"], ["vel_n", "vel_e", "vel_d"], ["vel_n_m_s", "vel_e_m_s", "vel_d_m_s"]];
+export const NED_VEL: string[][] = NAMES.ned_vel;
 const FLAT_VEL = new Map<string, DetRole>();
 for (const t of NED_VEL) t.forEach((w, i) => FLAT_VEL.set(w, VEL_ROLES[i]));
 const FLAT_VEL_LAST = new Set([...FLAT_VEL.keys()].map((w) => w.split("_").pop()!));   // a quick test before the table
-const ATT_SUB = new Set(["att", "attitude", "euler", "angles", "ori", "orientation", "q", "quat", "quaternion"]);
-const UNIT_WORDS = new Set(["deg", "degs", "degrees", "rad", "rads", "radians", "m", "ft", "meters", "metres", "feet", "cm", "mm", "km"]);
+const ATT_SUB = new Set(NAMES.att_sub);
+const UNIT_WORDS = new Set(NAMES.unit_words);
 
 /** Class words, matched to WHOLE segments of the prefix (a number may follow: nav2, ekf_3, gps[1]);
  *  the deepest matching segment decides (sim.nav is navigation). "ref" is left out (owner's Q2). */
-export const CLASS_WORDS: Record<Exclude<ObjClass, "other">, string[]> = {
-  truth: ["phys", "truth", "true", "sim", "model", "plant", "dyn"],
-  navigation: ["nav", "ins", "ekf", "ahrs", "est", "kf", "filter", "fusion"],
-  receiver: ["gps", "gnss", "rcv", "rx", "pvt", "ublox", "novatel"],
-};
+export const CLASS_WORDS = NAMES.class_words as Record<Exclude<ObjClass, "other">, string[]>;
 const CLASS_OF = new Map<string, ObjClass>();
 for (const [c, ws] of Object.entries(CLASS_WORDS)) for (const w of ws) CLASS_OF.set(w, c as ObjClass);
 /** L9: the class of one whole path segment (nav2, ekf_3, gps[1] - a number may follow), or undefined. */
@@ -129,34 +121,17 @@ interface Known {
   ned?: [string, string, string]; vel?: [string, string, string]; origin?: string[]; originMoves?: boolean;
   skip?: string[]; order?: number; lane?: string;
 }
-export const KNOWN_GROUPS: Record<string, Known> = {
-  POS: { cls: "navigation", attFrom: ["ATT"], order: 0 },         // ArduPilot: the EKF's output
-  GPS: { cls: "receiver", attFrom: ["ATT"], unlessAlso: "POS" },  // ArduPilot receivers (GPS[n])
-  GPS2: { cls: "receiver" },
-  // ArduPilot EKF3 / EKF2 lanes: NED from the EKF origin (ORGN[0]; ORGN[1] is the AHRS home), own angles
-  XKF1: { cls: "navigation", ned: ["pn", "pe", "pd"], vel: ["vn", "ve", "vd"], origin: ["ORGN[0]", "ORGN"], order: 1, lane: "EKF3" },
-  NKF1: { cls: "navigation", ned: ["pn", "pe", "pd"], vel: ["vn", "ve", "vd"], origin: ["ORGN[0]", "ORGN"], order: 1, lane: "EKF2" },
-  AHR2: { cls: "navigation", order: 2 },                           // the backup AHRS: its own angles
-  SIM: { cls: "truth" }, SIM2: { cls: "truth" },                   // SITL's simulated truth
-  vehicle_global_position: { cls: "navigation", attFrom: ["vehicle_attitude"], order: 0 },   // PX4
-  vehicle_local_position: { cls: "navigation", ned: ["x", "y", "z"], vel: ["vx", "vy", "vz"], attFrom: ["vehicle_attitude"],
-    originMoves: true, skip: ["heading"], order: 1 },              // origin: its own ref_lat / ref_lon / ref_alt
-  vehicle_gps_position: { cls: "receiver" }, sensor_gps: { cls: "receiver" },
-  GLOBAL_POSITION_INT: { cls: "navigation", attFrom: ["ATTITUDE", "ATTITUDE_QUATERNION"], order: 0 },   // MAVLink (.tlog)
-  LOCAL_POSITION_NED: { cls: "navigation", ned: ["x", "y", "z"], vel: ["vx", "vy", "vz"], attFrom: ["ATTITUDE", "ATTITUDE_QUATERNION"],
-    origin: ["GPS_GLOBAL_ORIGIN", "HOME_POSITION"], originMoves: true, order: 1 },
-  GPS_RAW_INT: { cls: "receiver" }, GPS2_RAW: { cls: "receiver" }, SIM_STATE: { cls: "truth" },
-};
+export const KNOWN_GROUPS = NAMES.known_groups as unknown as Record<string, Known>;
 /** The flight-log groups whose plain x / y / z are north / east / down (frames.ts builds its pattern from it). */
 export const NED_XYZ_GROUPS = Object.keys(KNOWN_GROUPS).filter((k) => KNOWN_GROUPS[k].ned?.[0] === "x");
 const baseOf = (prefix: string) => prefix.replace(/\[[^\]]*\]$/, "");
 /** Flight-log groups that only hold an attitude: a top-level "ATT" is that group, not a sub-group.
  *  (XKF1 / NKF1 left it in L2: they are known groups now - a position of their own - and the same
  *  "top-level group" rule protects them through KNOWN_GROUPS.) */
-const ATT_GROUPS = new Set(["ATT", "ATTITUDE", "ATTITUDE_QUATERNION", "vehicle_attitude"]);
+const ATT_GROUPS = new Set(NAMES.att_groups);
 /** L3: origins and home points belong to the object they are the origin of - never objects themselves. */
-const ORIGIN_WORDS = ["origin", "ref", "home", "datum"];
-const ORIGIN_GROUPS = new Set(["ORGN", "HOME_POSITION", "GPS_GLOBAL_ORIGIN", "home_position", "HOME"]);
+const ORIGIN_WORDS = NAMES.origin_words;
+const ORIGIN_GROUPS = new Set(NAMES.origin_groups);
 const lastWord = (prefix: string) => (prefix.split(/[./_]/).pop() ?? "").replace(/\[[^\]]*\]$/, "").toLowerCase();
 const isOriginGroup = (prefix: string) => !!prefix && (ORIGIN_WORDS.includes(lastWord(prefix)) || ORIGIN_GROUPS.has(baseOf(prefix)));
 

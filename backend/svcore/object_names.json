@@ -1,0 +1,332 @@
+{
+ "_about": "L12: the names Signal Viewer finds map objects by - ONE file read by the app (frontend/src/objectDetect.ts, at build time) and by Python (backend/svcore/objects.py). Edit here; both follow. Shared test vectors: tests/data/object_detect_cases.json.",
+ "aliases": {
+  "lat": [
+   "lat",
+   "latitude"
+  ],
+  "lon": [
+   "lon",
+   "lng",
+   "long",
+   "longitude"
+  ],
+  "alt": [
+   "alt",
+   "altitude",
+   "height",
+   "hgt",
+   "alt_msl",
+   "altmsl"
+  ],
+  "roll": [
+   "roll",
+   "phi"
+  ],
+  "pitch": [
+   "pitch",
+   "theta"
+  ],
+  "yaw": [
+   "yaw",
+   "heading",
+   "hdg",
+   "psi"
+  ],
+  "qw": [
+   "qw",
+   "q0",
+   "q[0]",
+   "q_w"
+  ],
+  "qx": [
+   "qx",
+   "q1",
+   "q[1]",
+   "q_x"
+  ],
+  "qy": [
+   "qy",
+   "q2",
+   "q[2]",
+   "q_y"
+  ],
+  "qz": [
+   "qz",
+   "q3",
+   "q[3]",
+   "q_z"
+  ]
+ },
+ "own_words": {
+  "lat": "lat",
+  "lon": "lon",
+  "alt": "alt",
+  "roll": "roll",
+  "pitch": "pitch",
+  "yaw": "yaw"
+ },
+ "frame_words": [
+  "ecef",
+  "ned",
+  "enu"
+ ],
+ "metres": [
+  "m",
+  "meter",
+  "meters",
+  "metre",
+  "metres"
+ ],
+ "pos_sub": [
+  "pos",
+  "position",
+  "lla",
+  "geo"
+ ],
+ "vel_sub": [
+  "vel",
+  "velocity",
+  "v_ned",
+  "velned"
+ ],
+ "att_sub": [
+  "att",
+  "attitude",
+  "euler",
+  "angles",
+  "ori",
+  "orientation",
+  "q",
+  "quat",
+  "quaternion"
+ ],
+ "unit_words": [
+  "deg",
+  "degs",
+  "degrees",
+  "rad",
+  "rads",
+  "radians",
+  "m",
+  "ft",
+  "meters",
+  "metres",
+  "feet",
+  "cm",
+  "mm",
+  "km"
+ ],
+ "ned_vel": [
+  [
+   "vn",
+   "ve",
+   "vd"
+  ],
+  [
+   "veln",
+   "vele",
+   "veld"
+  ],
+  [
+   "vel_n",
+   "vel_e",
+   "vel_d"
+  ],
+  [
+   "vel_n_m_s",
+   "vel_e_m_s",
+   "vel_d_m_s"
+  ]
+ ],
+ "class_words": {
+  "truth": [
+   "phys",
+   "truth",
+   "true",
+   "sim",
+   "model",
+   "plant",
+   "dyn"
+  ],
+  "navigation": [
+   "nav",
+   "ins",
+   "ekf",
+   "ahrs",
+   "est",
+   "kf",
+   "filter",
+   "fusion"
+  ],
+  "receiver": [
+   "gps",
+   "gnss",
+   "rcv",
+   "rx",
+   "pvt",
+   "ublox",
+   "novatel"
+  ]
+ },
+ "known_groups": {
+  "POS": {
+   "cls": "navigation",
+   "attFrom": [
+    "ATT"
+   ],
+   "order": 0
+  },
+  "GPS": {
+   "cls": "receiver",
+   "attFrom": [
+    "ATT"
+   ],
+   "unlessAlso": "POS"
+  },
+  "GPS2": {
+   "cls": "receiver"
+  },
+  "XKF1": {
+   "cls": "navigation",
+   "ned": [
+    "pn",
+    "pe",
+    "pd"
+   ],
+   "vel": [
+    "vn",
+    "ve",
+    "vd"
+   ],
+   "origin": [
+    "ORGN[0]",
+    "ORGN"
+   ],
+   "order": 1,
+   "lane": "EKF3"
+  },
+  "NKF1": {
+   "cls": "navigation",
+   "ned": [
+    "pn",
+    "pe",
+    "pd"
+   ],
+   "vel": [
+    "vn",
+    "ve",
+    "vd"
+   ],
+   "origin": [
+    "ORGN[0]",
+    "ORGN"
+   ],
+   "order": 1,
+   "lane": "EKF2"
+  },
+  "AHR2": {
+   "cls": "navigation",
+   "order": 2
+  },
+  "SIM": {
+   "cls": "truth"
+  },
+  "SIM2": {
+   "cls": "truth"
+  },
+  "vehicle_global_position": {
+   "cls": "navigation",
+   "attFrom": [
+    "vehicle_attitude"
+   ],
+   "order": 0
+  },
+  "vehicle_local_position": {
+   "cls": "navigation",
+   "ned": [
+    "x",
+    "y",
+    "z"
+   ],
+   "vel": [
+    "vx",
+    "vy",
+    "vz"
+   ],
+   "attFrom": [
+    "vehicle_attitude"
+   ],
+   "originMoves": true,
+   "skip": [
+    "heading"
+   ],
+   "order": 1
+  },
+  "vehicle_gps_position": {
+   "cls": "receiver"
+  },
+  "sensor_gps": {
+   "cls": "receiver"
+  },
+  "GLOBAL_POSITION_INT": {
+   "cls": "navigation",
+   "attFrom": [
+    "ATTITUDE",
+    "ATTITUDE_QUATERNION"
+   ],
+   "order": 0
+  },
+  "LOCAL_POSITION_NED": {
+   "cls": "navigation",
+   "ned": [
+    "x",
+    "y",
+    "z"
+   ],
+   "vel": [
+    "vx",
+    "vy",
+    "vz"
+   ],
+   "attFrom": [
+    "ATTITUDE",
+    "ATTITUDE_QUATERNION"
+   ],
+   "origin": [
+    "GPS_GLOBAL_ORIGIN",
+    "HOME_POSITION"
+   ],
+   "originMoves": true,
+   "order": 1
+  },
+  "GPS_RAW_INT": {
+   "cls": "receiver"
+  },
+  "GPS2_RAW": {
+   "cls": "receiver"
+  },
+  "SIM_STATE": {
+   "cls": "truth"
+  }
+ },
+ "att_groups": [
+  "ATT",
+  "ATTITUDE",
+  "ATTITUDE_QUATERNION",
+  "vehicle_attitude"
+ ],
+ "origin_words": [
+  "origin",
+  "ref",
+  "home",
+  "datum"
+ ],
+ "origin_groups": [
+  "ORGN",
+  "HOME_POSITION",
+  "GPS_GLOBAL_ORIGIN",
+  "home_position",
+  "HOME"
+ ]
+}
