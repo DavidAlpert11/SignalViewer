@@ -346,23 +346,7 @@ def _unit_guess(v: np.ndarray) -> str:
     return "rad" if len(f) and np.nanmax(np.abs(f)) <= 2 * np.pi + 0.05 else "deg"
 
 
-def angle_units(raw: Dict[str, tuple]) -> Dict[str, Tuple[str, str]]:
-    """{role: (unit, why)} for an object's angle signals {role: (sig_id, t, values)} (26.A5: shown with
-    "Automatic", so the guess can be checked and corrected). why: "name" - the signal's name says it
-    ("... [rad]", "_deg"); else all the object's angles together - "beyond" (one of them goes beyond
-    2 pi: degrees, one log uses one unit) or "within" (all within 2 pi: radians). (By its own range
-    alone a pitch of a few degrees would pass for radians.)"""
-    beyond = any(len(v[2]) and np.nanmax(np.abs(np.asarray(v[2], dtype=np.float64))) > 2 * np.pi + 0.05 for v in raw.values())
-    out: Dict[str, Tuple[str, str]] = {}
-    for role, (sid, _ts, _vs) in raw.items():
-        name = sid.split("/", 1)[-1].lower()
-        if re.search(r"(\[rad\]|\brad\b|_rad\b|\(rad\))", name):
-            out[role] = ("rad", "name")
-        elif re.search(r"(\[deg\]|\bdeg\b|_deg\b|\(deg\)|°)", name):
-            out[role] = ("deg", "name")
-        else:
-            out[role] = ("deg", "beyond") if beyond else ("rad", "within")
-    return out
+from svcore.objcompare import angle_units  # noqa: E402  L12: one place for the Automatic angle-unit rule
 
 
 class AngleUnitsRequest(BaseModel):
