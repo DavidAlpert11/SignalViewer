@@ -449,7 +449,11 @@ def cmd_map(a) -> int:
     import signalviewer as sv
     rec = load(a.file)
     objs = None if a.objects in (None, "all") else [o.strip() for o in re.split(r",(?![^\[]*\])", a.objects) if o.strip()]
-    path = sv.map_html(rec, objs, a.out, a.theme) if a.out.lower().endswith(".html") else sv.map_image(rec, objs, a.out, a.theme)
+    html = a.out.lower().endswith(".html")
+    if a.three_d:                               # 1.26: the map seen in 3D
+        path = sv.scene_html(rec, objs, a.out, a.theme) if html else sv.scene_image(rec, objs, a.out, a.theme)
+    else:
+        path = sv.map_html(rec, objs, a.out, a.theme) if html else sv.map_image(rec, objs, a.out, a.theme)
     print(path)
     return 0
 
@@ -544,6 +548,7 @@ def main(argv=None) -> int:
     p = sub.add_parser("map", help="the map of a file's objects: a picture (.png / .svg) or the offline page (.html)")
     p.add_argument("file"); p.add_argument("--objects", default="all", help='"all" or names, e.g. "POS,GPS[0]"')
     p.add_argument("--out", required=True); p.add_argument("--theme", default="light", choices=["light", "dark"])
+    p.add_argument("--3d", dest="three_d", action="store_true", help="the map seen in 3D (terrain, models with attitude)")
     p.set_defaults(fn=cmd_map)
     p = sub.add_parser("templates", help="list the templates (built-in and yours)")
     p.add_argument("--json", action="store_true"); p.set_defaults(fn=cmd_templates)

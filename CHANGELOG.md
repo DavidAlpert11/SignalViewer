@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.26.0 – 2026-11-11
+
+Highlights: **an HTML report is one live page** - one time bar for every plot, the map and the 3D view,
+with Play and the log's marks; **the 3D view goes into reports and the replay page** - live in HTML (offline,
+turn, zoom, follow), a picture in PDF, Word and PNG; **one Map with a 2D | 3D switch**, and "3D" alone now
+means three signals on plain axes (XYZ).
+
+### Added
+- **The 3D view in reports, in the replay page and as its own file.** In an HTML report or a replay page the
+  3D view is live: the offline map draped on the terrain, each track with a curtain to the ground and the
+  flown part brighter, the models with their heading, pitch and roll; turn, zoom, *Follow* an object,
+  heights ×1 / ×2 / ×5, hover for time, position, altitude and height above ground. It moves with the page's
+  time like the map. In PDF, Word and PNG it is a picture. Its ⋯ menu also saves it as its own offline HTML
+  page or as the picture reports use. Nothing comes from the internet (three.js is inside the file); a
+  browser without 3D graphics shows the picture.
+- **Every HTML report is live**: the time bar of the replay page at the bottom of the report - a click on
+  any plot or the bar, or Play, moves every plot's cursor, the map and the 3D view; the log's errors,
+  warnings, findings and notes are marks on it. The report keeps its layout, its statistics tables and a
+  zoom per plot. PDF and Word show each plot, the map and the 3D view as an image.
+- Python and the command line: `sv.scene_image(rec, …)`, `sv.scene_html(rec, …)`, `signalviewer-cli map
+  flight.bin --3d --out view.png|view.html`.
+
+### Changed
+- **One Map, two views**: the plot type list has one *Map*; its bar has a **2D | 3D** switch (the objects,
+  the reference and the time stay). *3D (XYZ)* is the plain 3D plot of any three signals. Sessions and
+  templates are unchanged (the saved types are the same).
+
+### Fixed
+- A 3D view was left out of reports and replay pages without a word; it is in now. A plot that still
+  cannot go into a report (a video, occurrences) is listed greyed in the Report panel with the reason, and
+  a replay page says what it left out.
+
 ## 1.25.0 – 2026-11-11
 
 Highlights: **replay pages** - the tab as one HTML page to send, that opens in any browser on the moment

@@ -409,6 +409,10 @@ def motion_attitude(t, lat, lon, alt, i0, i1, min_speed: float = 1.0):
 
 @router.post("/api/object_track")
 def object_track(req: ObjectTrackRequest):
+    return track_of(store, req)
+
+
+def track_of(store, req: ObjectTrackRequest):
     """An object on the map: its signals - possibly from different files - on one time axis (the
     latitude's samples), each one interpolated in time and NaN outside its own time span; angles
     interpolated the short way round. Latitude / longitude in 1e7 degrees (MAVLink integers) are

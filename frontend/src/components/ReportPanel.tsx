@@ -2,10 +2,10 @@ import { useState } from "react";
 import { actions, activeTab, pickPath, rangeKey, useApp, type ReportMeta } from "../store";
 import { investigationSections } from "../investigation";
 import { translate, useT } from "../i18n";
-import { plotSpec } from "../plotSpec";
+import { pagePlots, plotSpec } from "../plotSpec";
 import { runJob } from "../files";
 import { api } from "../api";
-import { makeReplay } from "../replay";
+import { makeReplay, replayInfo } from "../replay";
 import { Icon } from "../icons";
 
 const DEFAULT: ReportMeta = { title: "", intro: "", summary: "", lang: "he", theme: "light", scope: "tab" };
@@ -31,8 +31,8 @@ export default function ReportPanel() {
     // occurrences plots are not drawn in reports yet (they need a condition's stretches)
     const tabSpecs = tabs.map((tab, i) => ({
       name: tab.name || `${translate(meta.lang, "tab")} ${ws.tabs.indexOf(tab) + 1 || i + 1}`,
-      // L11: a map with objects (and no lines) is in the report too - drawn by the server as a map
-      plots: tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => !p.excludeFromReport && (p.signals.length || (p.mode === "geo" && p.objects?.length)) && p.mode !== "occ")
+      // L11 / 1.26: a map with objects - in 2D or in 3D - is in the report too, drawn by the server (plotSpec.ts pagePlot)
+      plots: pagePlots(tab).filter(({ p, include }) => include && !p.excludeFromReport)
         .map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)),
     })).filter((tb) => tb.plots.length);
     // Investigation step 6: each finding with its view - the time plots of that tab, at that zoom
@@ -51,6 +51,8 @@ export default function ReportPanel() {
         ...(withInvestigation ? await investigationSections(meta.lang) : []),
       ],
       tabs: [...(evidence.length ? [{ name: translate(meta.lang, "rFindings"), plots: evidence }] : []), ...tabSpecs],
+      // 1.26: an HTML report is one live page - one time for its plots, maps and 3D views (Play, the marks)
+      ...(format === "html" ? { replay: replayInfo(meta.lang, false) } : {}),
     };
   };
   const preview = async () => {
@@ -117,8 +119,13 @@ export default function ReportPanel() {
         )}
         {withInvestigation && <p className="hint">{t("rIncludeHint")}</p>}
         <h3 className="alist-head">{t("reportPlots")}</h3>
-        {tabs.map((tab) => tab.plots.filter((p) => p.signals.length || (p.mode === "geo" && p.objects?.length)).map((p) => {
-          const idx = tab.plots.indexOf(p);
+        {tabs.map((tab) => pagePlots(tab).filter((x) => x.include || x.why !== "pageWhyEmpty").map(({ p, pi: idx, include, why }) => {
+          if (!include) return (   // 1.26: listed with the reason it cannot be in a report, not left out without a word
+            <div key={p.id} className="rplot off" title={t(why!)}>
+              <label className="acheck"><input type="checkbox" checked={false} disabled />
+                <span className="rplot-name">{p.title || t("plotTitle", { n: idx + 1 })}{meta.scope === "all" && tab.name ? ` · ${tab.name}` : ""} <span className="muted">· {t(why!)}</span></span></label>
+            </div>
+          );
           return (
             <div key={p.id} className={`rplot${p.excludeFromReport ? " off" : ""}`}>
               <label className="acheck">
@@ -132,7 +139,7 @@ export default function ReportPanel() {
             </div>
           );
         }))}
-        {tabs.every((tab) => tab.plots.every((p) => !p.signals.length && !(p.mode === "geo" && p.objects?.length))) && <p className="hint">{t("reportEmpty")}</p>}
+        {tabs.every((tab) => pagePlots(tab).every((x) => !x.include)) && <p className="hint">{t("reportEmpty")}</p>}
 
         <label className="afield" style={{ marginTop: 12 }}><span>{t("summary")}</span>
           <textarea key={"s" + meta.summary} rows={3} defaultValue={meta.summary} onBlur={(e) => e.target.value !== meta.summary && setMeta({ summary: e.target.value })} /></label>

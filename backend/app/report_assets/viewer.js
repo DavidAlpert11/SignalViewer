@@ -199,7 +199,7 @@
     this.renderLegend();
   };
   Plot.prototype.zoom = function (a, b, solo) {
-    if (RP && !solo) { plots.forEach(function (p) { if (p.spec.mode === "time" && p.u) p.zoom(a, b, true); }); return; }   // R1: one zoom
+    if (RP && RP.link !== false && !solo) { plots.forEach(function (p) { if (p.spec.mode === "time" && p.u) p.zoom(a, b, true); }); return; }   // R1: one zoom (a live report: each its own)
     var u = this.u;
     if (a === null) {
       u.setData(this.timeData(null, null), true);
@@ -240,7 +240,7 @@
     var pane = document.querySelectorAll(".tabpane")[i];
     Array.prototype.forEach.call(pane.querySelectorAll(".plot"), function (host) {
       var spec = R.tabs[i].plots[+host.getAttribute("data-p")];
-      if (spec.mode === "spec" || spec.mode === "xyz" || spec.mode === "geo") return;   // an image / the map's own page
+      if (spec.mode === "spec" || spec.mode === "xyz" || spec.mode === "geo" || spec.mode === "3d") return;   // an image / the map's (or 3D view's) own page
       plots.push(new Plot(spec, host));
     });
   }

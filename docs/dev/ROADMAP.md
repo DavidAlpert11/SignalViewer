@@ -859,3 +859,11 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] L11 Map export: PNG (this view / all tracks), standalone offline HTML, maps in HTML / PDF / Word reports. Done 2026-11-10.
 - [x] L12 API: Python (objects, compare_objects, similar, maps, report), CLI (objects, compare-objects with --tolerance / JUnit, compare-similar, map), REST (/api/objects/*); one detection table and shared test vectors; parity to 1e-9. Done 2026-11-10.
 - [x] L13 Docs (guides en + he: the naming convention for metre positions and origins, the rings, Compare objects…, Compare with similar…, moving plots, map export, the API; features.md, limitations.md, README), version 1.25.0, CHANGELOG 1.25.0, `frontend/dist` built. Done 2026-11-11, together with a human-factors review (docs/dev/UX_REVIEW_2026-11-11.md).
+
+## Milestone 29 — one live HTML page, the 3D view in reports, one Map with 2D | 3D (owner's round 2026-11-11). Spec: docs/dev/AGENT_PROMPT_2026-11-11.md.
+- [x] One Map with a 2D | 3D switch; "3D (XYZ)" for three plain signals. Done 2026-11-11.
+- [x] One rule for what goes into a page (`pagePlot`); what cannot is listed with the reason. Done 2026-11-11.
+- [x] The 3D view in reports: picture (PDF / Word / PNG) and live three.js page (HTML, replay, its own file). Done 2026-11-11.
+- [x] Every HTML report is live (one time bar; tables and a zoom per plot kept). Done 2026-11-11.
+- [x] Python / CLI (`scene_image`, `scene_html`, `map --3d`), docs, README. Done 2026-11-11.
+- [ ] XYZ live in the page; shared tiles and a size budget per page; the app's screenshot as the static 3D picture (next round).

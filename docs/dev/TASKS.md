@@ -13,6 +13,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Round of 2026-11-11 (done, 1.26.0)**: one live HTML page (one time bar for the plots, the map and the 3D
+  view), the 3D view in reports and replay pages (three.js, offline; a picture in PDF / Word / PNG), one Map
+  with a 2D | 3D switch ("3D (XYZ)" for three plain signals). Spec and status: `docs/dev/AGENT_PROMPT_2026-11-11.md`;
+  Milestone 29. Left for later: XYZ live in the page, shared tiles / a page budget, the app's screenshot as the picture.
+
 - **Round of 2026-11-10 (done, 1.25.0)**: the owner's round - objects whose position is in metres (NED,
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
@@ -3902,3 +3907,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · L11 done - group C complete (decisions 21-25). Checks: backend 1107 passed / 14 skipped, mypy clean (110 files), tsc, Vitest 102; e2e test_map_export (new), test_findings_report + test_map_objects + test_offline_map (17). Next: L12.
 - 2026-11-10 · L12 done - group D complete (decisions 26-30): one table + shared vectors (10 cases, Vitest and pytest agree), the Python API, four CLI commands, three REST endpoints, docs/api.md. Checks: backend 1122 passed / 14 skipped (the parity test first left derived signals in the shared store and broke two order-dependent tests - cleaned up), mypy clean (114 files), tsc, Vitest 17 files / 112. Next: L13.
 - 2026-11-11 · L13 done, with a human-factors review (`docs/dev/UX_REVIEW_2026-11-11.md`): L8-L12 applied on `e2a75a8` and reviewed on screen; added `flatLine.ts` (the right-axis / own-plot offer from the values), `soloPlot` (M), the start card's Quick look, `plotTabs` `look` (comparison lines named and coloured by object), statistics with units and a link to the time of the largest error, the ⋯ corner, wording and spacing fixes; guides en + he, features, limitations, README, version 1.25.0, CHANGELOG, dist. Checks: backend 1122 passed / 14 skipped, mypy clean, tsc, Vitest 119, mkdocs strict, e2e 381 passed + 1 (`test_sweeps_flow.py`, unstable in the container on every tree - see the review). Left to the owner: `[ci]`, README media, the Windows build, the tag. Proposals waiting: the review's "Proposed, not done".
+- 2026-11-11 · Round of 2026-11-11 (1.26.0): one Map with 2D | 3D (the owner: one switch; "3D" is XYZ), `pagePlot` (a 3D view was dropped from reports without a word), `app/scene3d.py` + `report_assets/scene3d.html` (three.js r159 - the owner chose it), every HTML report live (`replay.compact / link`), `sv.scene_image / scene_html`, `cli map --3d`; the pre-existing token failure (`.tl-edge::after` 2px radius) fixed. Backend 1140 passed / 14 skipped, mypy clean, tsc clean, Vitest 21 files / 132 tests; e2e (relevant files only, 61) green - the whole suite is the owner's.

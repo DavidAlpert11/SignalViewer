@@ -36,7 +36,8 @@ STRINGS = {
            "page": "Page", "plot": "Plot", "peak": "Peak", "visible": "Statistics for the shown time range",
            "limits": "Limits", "pass": "Pass", "fail": "Fail",
            "envNote": "{n} runs · median, {p}–{q} % band, min–max", "envFar": "Far from the rest:",
-           "rpHint": "Click a plot or drag the timeline - every plot and the map follow · Space: play · drag on a plot: zoom them all",
+           "rpHint": "Click a plot or drag the timeline - every plot, the map and the 3D view follow · Space: play · drag on a plot: zoom them all",
+           "lvHint": "Click a plot or drag the timeline at the bottom - every plot, the map and the 3D view follow · Space: play · drag on a plot: zoom it",
            "rpPlay": "Play", "rpPause": "Pause", "rpSpeed": "Speed", "rpStart": "To the start", "rpTimeline": "Timeline",
            "rpMade": "Made with Signal Viewer", "rpTag": "offline flight log & test data analysis", "rpGet": "Get it free"},
     "he": {"generated": "נוצר", "summary": "סיכום", "notes": "הערות", "toggle": "לחיצה להצגה או הסתרה", "theme": "בהיר / כהה",
@@ -45,7 +46,8 @@ STRINGS = {
            "page": "עמוד", "plot": "גרף", "peak": "שיא", "visible": "סטטיסטיקות לטווח הזמן המוצג",
            "limits": "גבולות", "pass": "עבר", "fail": "נכשל",
            "envNote": "{n} ריצות · חציון, רצועת {p}–{q} %, מינ׳–מקס׳", "envFar": "רחוקות מהשאר:",
-           "rpHint": "לחיצה על גרף או גרירה בציר הזמן - כל הגרפים והמפה זזים יחד · רווח: ניגון · גרירה על גרף: זום לכולם",
+           "rpHint": "לחיצה על גרף או גרירה בציר הזמן - כל הגרפים, המפה והתלת-ממד זזים יחד · רווח: ניגון · גרירה על גרף: זום לכולם",
+           "lvHint": "לחיצה על גרף או גרירה בציר הזמן למטה - כל הגרפים, המפה והתלת-ממד זזים יחד · רווח: ניגון · גרירה על גרף: זום שלו",
            "rpPlay": "ניגון", "rpPause": "השהיה", "rpSpeed": "מהירות", "rpStart": "להתחלה", "rpTimeline": "ציר זמן",
            "rpMade": "נוצר ב-Signal Viewer", "rpTag": "ניתוח לוגי טיסה ונתוני ניסוי, אופליין", "rpGet": "להורדה חינם"},
 }
@@ -71,6 +73,8 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
     mode = spec.get("mode") or "time"
     if mode == "geo":                                             # L11: a map's objects, drawn by app/mapimage.py
         return _geo_data(store, spec, for_html)
+    if mode == "3d":                                              # 1.26: the map seen in 3D, drawn by app/scene3d.py
+        return _scene_data(store, spec, for_html)
     rng = spec.get("range")
     out: dict = {"title": spec.get("title") or "", "caption": spec.get("caption") or "", "mode": mode,
            "range": rng, "log": bool(spec.get("fftLog", True)), "signals": [], "notes": spec.get("notes") or []}
@@ -159,6 +163,22 @@ def _geo_data(store, spec: Dict, for_html: bool) -> Dict:
     out["geo_png"] = base64.b64encode(mapimage.render(md, "png", spec.get("theme") or "light", 1.6)).decode()
     if for_html:
         out["geo_html"] = mapimage.build_html(md, spec.get("theme") or "light", budget=4 * 1024 * 1024, lang=spec.get("lang") or "en")
+    return out
+
+
+def _scene_data(store, spec: Dict, for_html: bool) -> Dict:
+    """1.26: a 3D view in a report - its picture (PDF / Word / PNG; also the live page's fallback without WebGL)
+    and, for the HTML report, its live offline page (three.js) in a frame that follows the page's time."""
+    from app import scene3d
+    out: dict = {"title": spec.get("title") or "", "caption": spec.get("caption") or "", "mode": "3d", "signals": []}
+    try:
+        sd = scene3d.scene_data(store, spec)
+    except ValueError:
+        return out
+    png = scene3d.render(sd, "png", spec.get("theme") or "light", 1.6)
+    out["geo_png"] = base64.b64encode(png).decode()
+    if for_html:
+        out["geo_html"] = scene3d.build_html(sd, spec.get("theme") or "light", spec.get("lang") or "en", fallback_png=png)
     return out
 
 
@@ -497,7 +517,7 @@ def build_html(store, req: Dict, progress=None) -> str:
     stats_html = {}
     for ti, tab in enumerate(tabs):
         for pi, p in enumerate(tab["plots"]):
-            stats_html[(ti, pi)] = _stats_table(p["signals"], S) if p["mode"] not in ("xy", "spec", "xyz", "geo") else ""
+            stats_html[(ti, pi)] = _stats_table(p["signals"], S) if p["mode"] not in ("xy", "spec", "xyz", "geo", "3d") else ""
             for s in p["signals"]:
                 s.pop("stats", None)
     payload_tabs = [{"name": t["name"], "plots": [{k: v for k, v in p.items() if k not in ("spec", "xyz", "geo_png", "geo_html")} for p in t["plots"]]} for t in tabs]
@@ -515,7 +535,7 @@ def build_html(store, req: Dict, progress=None) -> str:
         for pi, p in enumerate(t["plots"]):
             heading = html.escape(p["title"] or "%s %d" % (S["plot"], pi + 1))
             caption = '<p class="caption">%s</p>' % html.escape(p["caption"]) if p["caption"] else ""
-            if p["mode"] == "geo":                            # L11: the map's own offline page, in a frame
+            if p["mode"] in ("geo", "3d"):                    # L11 / 1.26: the map's (or the 3D view's) own offline page, in a frame
                 frame = ('<iframe class="mapframe" title="%s" sandbox="allow-scripts" srcdoc="%s"></iframe>' % (heading, html.escape(p["geo_html"], quote=True))) \
                     if p.get("geo_html") else ""
                 items.append('<section class="plot" data-p="%d"><h2>%s</h2>%s%s</section>' % (pi, heading, caption, frame))
@@ -541,9 +561,9 @@ def build_html(store, req: Dict, progress=None) -> str:
     return TEMPLATE.format(
         lang=lang, dir="rtl" if lang == "he" else "ltr", theme="dark" if req.get("theme") == "dark" else "light",
         title=title, uplot_css=read("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else ""), generated=S["generated"],
-        date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=S["rpHint"] if replay else S["hint"],
-        nav=nav, panes="".join(panes), summary=summary, data=data_json, body_class=' class="replay"' if replay else "",
-        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "<footer>Signal Viewer</footer>",
+        date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=(S["rpHint"] if replay["compact"] else S["lvHint"]) if replay else S["hint"],
+        nav=nav, panes="".join(panes), summary=summary, data=data_json, body_class=(' class="replay"' if replay["compact"] else ' class="live"') if replay else "",
+        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay and replay["compact"] else "<footer>Signal Viewer</footer>",
         uplot_js=read("uPlot.iife.min.js"), viewer_js=read("viewer.js"))
 
 
@@ -576,7 +596,10 @@ def _replay(r) -> Optional[Dict]:
             continue
         lvl = e.get("level") if e.get("level") in _LEVELS else "note"
         events.append({"t": num(e["t"]), "text": str(e.get("text") or "")[:200], "level": lvl})
-    return {"t": num(r.get("t")), "extent": extent, "events": events}
+    # 1.26: a replay (compact, one zoom for every time plot - the default, as 1.25 sent it) or a live report
+    # (the report's layout and tables, each plot zooms alone) - the same one time either way
+    return {"t": num(r.get("t")), "extent": extent, "events": events,
+            "compact": r.get("compact") is not False, "link": r.get("link") is not False}
 
 
 def _replay_bar(S: Dict) -> str:
@@ -600,6 +623,7 @@ body.replay header{margin-bottom:8px}body.replay h1{font-size:21px}
 body.replay .tabpane:not([hidden]){display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,620px),1fr));gap:14px;align-items:start}
 body.replay .plot{margin:0}body.replay .plot table{display:none}
 body.replay .mapframe{height:440px}
+body.live main{padding-bottom:88px}
 #rp{position:fixed;inset:auto 0 0 0;display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--panel);border-top:1px solid var(--line);z-index:5;box-shadow:0 -6px 18px rgba(0,0,0,.08)}
 #rp button{border:1px solid var(--line);background:var(--bg);border-radius:8px;width:34px;height:30px;line-height:1}
 #rp-play{background:var(--amber)!important;color:var(--amber-ink);border-color:var(--amber)!important;font-size:13px}
@@ -1007,6 +1031,9 @@ def build_plot_html(store, spec: Dict, theme: str = "light", lang: str = "en") -
     if spec.get("mode") == "geo":
         from app import mapimage
         return mapimage.build_html(mapimage.map_data(store, spec), theme, lang=lang)
+    if spec.get("mode") == "3d":                                  # 1.26: the 3D view's live page (three.js, offline)
+        from app import scene3d
+        return scene3d.build_html(scene3d.scene_data(store, spec), theme, lang)
     return build_html(store, {"title": spec.get("title") or "", "lang": lang, "theme": theme,
                               "tabs": [{"name": "", "plots": [spec]}]})
 
@@ -1017,6 +1044,9 @@ def build_image(store, spec: Dict, fmt: str, theme: str, scale: float = 1.0) -> 
     if spec.get("mode") == "geo":                                 # L11: the map, drawn by app/mapimage.py
         from app import mapimage
         return mapimage.render(mapimage.map_data(store, spec), fmt, theme, scale)
+    if spec.get("mode") == "3d":
+        from app import scene3d
+        return scene3d.render(scene3d.scene_data(store, spec), fmt, theme, scale)
     p = plot_data(store, spec, for_html=False, points=int(4000 * max(1.0, scale)))
     fig = render_figure(p, theme, size=(8, 6) if p.get("mode") == "xyz" else (10, 4), dpi=int(200 * scale) if fmt == "png" else 100)
     if p["title"]:

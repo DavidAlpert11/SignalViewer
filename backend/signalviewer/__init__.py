@@ -41,7 +41,7 @@ from svcore.naming import resolve_signal_name
 
 from .push_client import show
 
-__all__ = ["load", "Recording", "show", "Comparison", "compare_objects", "similar", "compare_signals", "map_image", "map_html", "report"]
+__all__ = ["load", "Recording", "show", "Comparison", "compare_objects", "similar", "compare_signals", "map_image", "map_html", "scene_image", "scene_html", "report"]
 
 _COLORS = ["#e5677a", "#3d8bfd", "#2fbf9f", "#9b7bff", "#f07b3f", "#4fc3e8", "#d4a72c", "#8bc34a"]
 
@@ -342,6 +342,38 @@ def map_html(rec: "Recording", objects=None, path: str = "map.html", theme: str 
     """The standalone offline map page (L11): pan, zoom, a time slider, light / dark - no network needed."""
     from app import mapimage
     text = mapimage.build_html(mapimage.map_data(rec._store, _geo_spec(rec, objects)), theme)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path
+
+
+def _scene_spec(rec, objects=None, cursor: Optional[float] = None) -> Dict:
+    """The map plot seen in 3D (1.26): the objects as on the map, with their own angles when they have them."""
+    spec = _geo_spec(rec, objects, cursor=cursor)
+    objs = []
+    for o in spec["geo"]["objects"]:
+        picks = rec._candidate(o["name"]).get("picks") or {}
+        att = {r: (picks.get(r) or {}).get("id") for r in ("roll", "pitch", "yaw")}
+        objs.append({**o, "kind": "aircraft", **{r: v for r, v in att.items() if v}})
+    return {**spec, "mode": "3d", "scene": {"objects": objs, "follow": None}}
+
+
+def scene_image(rec: "Recording", objects=None, path: str = "view3d.png", theme: str = "light", scale: float = 2.0, cursor: Optional[float] = None) -> str:
+    """The map seen in 3D as a picture (1.26): the offline map on the terrain, the tracks, the objects at `cursor`
+    (else at their end) - as in PDF / Word reports. path: .png or .svg."""
+    from app import scene3d
+    fmt = "svg" if path.lower().endswith(".svg") else "png"
+    data = scene3d.render(scene3d.scene_data(rec._store, _scene_spec(rec, objects, cursor)), fmt, theme, scale)
+    with open(path, "wb") as f:
+        f.write(data)
+    return path
+
+
+def scene_html(rec: "Recording", objects=None, path: str = "view3d.html", theme: str = "light", lang: str = "en") -> str:
+    """The map seen in 3D as a live offline page (1.26, three.js embedded): orbit, zoom, follow an object,
+    a time slider moving the models with their attitude - no network needed."""
+    from app import scene3d
+    text = scene3d.build_html(scene3d.scene_data(rec._store, _scene_spec(rec, objects)), theme, lang)
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
     return path
