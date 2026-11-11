@@ -2,7 +2,10 @@
 
 ## 1.25.0 – 2026-11-11
 
-Highlights: **objects whose position is in metres** - NED, ENU or ECEF - found and added like
+Highlights: **replay pages** - the tab as one HTML page to send, that opens in any browser on the moment
+you were looking at, its plots and map moving together, with Play; **a timeline that maps the
+recording** (the active line along it, what the plots show as a window to drag); **Δ between two cursors
+in the legend**; **objects whose position is in metres** - NED, ENU or ECEF - found and added like
 latitude / longitude ones, so every ArduPilot EKF lane is on the map beside POS; **the rings explained**
 and the pair chosen in one place; **Compare objects…** - position, velocity and attitude of every object
 against a reference, values and errors side by side with their statistics, and one click to the moment
@@ -13,6 +16,20 @@ human-factors pass - a flat line is offered the right axis or its own plot, one 
 plain file opens with a suggestion instead of an empty plot.
 
 ### Added
+- **Send it as a replay** (Report panel, first; Ctrl+K *Send this view as a replay page*): the tab on
+  screen saved as one HTML page that opens in any browser with no install and no network, on the moment
+  you were looking at (the cursor, else the middle of what is shown). One time for the whole page: a click
+  on any plot, the timeline under the plots or **Play** (Space; ×0.5 - ×30) moves the cursor in every plot
+  and the markers on every map, and the plots follow while playing; a drag zooms every time plot. The log's
+  errors and warnings, the health check's findings and your notes are marks on its timeline - a click
+  goes there. The address keeps the moment (`#t=…`), so a link can point at a time. The page says where it
+  came from (*Made with Signal Viewer*, with the link to get it). After saving, *Open it* shows it in your
+  browser. It is the HTML report in one more form - the same numbers, the same offline map.
+- **The timeline maps the recording**: the active plot's first line is drawn faintly along it - where the
+  action is, at a glance - and what the plots show is a window on it: drag it to move along the recording,
+  pull an edge to zoom, double-click it to show everything; one Backspace undoes the move.
+- **Δ in the legend**: with two cursors each line's chip shows how much it changed between them
+  (cursor 2 − cursor 1, in its unit), beside its value - read at a glance, as on a scope.
 - **Objects whose position is in metres - NED, ENU or ECEF - are found and added like latitude /
   longitude ones.** Every ArduPilot EKF lane (`XKF1[n]`, older logs `NKF1[n]`) is offered after POS with
   its own attitude and velocity and placed on the map through the EKF origin (`ORGN`); PX4

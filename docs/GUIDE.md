@@ -226,11 +226,16 @@ are told apart by them.
 With **Link X** on (the default) every plot of the tab shows the same time; **Link Y** does the same
 for the values.
 
+The **timeline** under the plots maps the whole recording: the active plot's first line is drawn faintly
+along it, and what the plots show is a window on it - drag the window to move along the recording, pull
+one of its edges to zoom, double-click it to show everything (Backspace undoes a move).
+
 ## 6. Measure
 
 - **Space** turns the cursor on; click to place it; ← → step sample by sample.
-- **D** adds a second cursor: the Inspector then shows the difference and the statistics between
-  the two (min, max, mean, RMS…).
+- **D** adds a second cursor: each line's chip shows how much it changed between the two (**Δ**,
+  cursor 2 − cursor 1), and the Inspector shows the difference and the statistics between them (min,
+  max, mean, RMS…).
 - Put the cursor on a moment and press **N** to write a note there; with two cursors the note covers
   the time between them (shaded). Notes show on every time plot and in the report.
 
@@ -312,6 +317,12 @@ shown change together – on the axis, in the list, in the legend – and it can
   restores your last work by itself when it starts.
 - **Templates** (the Recordings bar, under the top row): save a tab or a whole set of tabs as a template, and open it later on
   other files with the same signals.
+- **Send it as a replay** (Report, at the top; Ctrl+K): the tab as one HTML page for a colleague. It
+  opens in any browser with no install and no network, on the moment you were looking at; a click on
+  any plot or on its timeline moves the cursor in every plot and on the map, **Play** (or Space) plays
+  it, a drag zooms every plot, and the log's errors, warnings, findings and your notes are marks to jump
+  to. The page's address keeps the moment (`…replay.html#t=125.4`), so a link can point at a time.
+  *Open it* in the message shows it in your browser before you send it.
 - **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
   interactive HTML, PDF or Word.
 - A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), **save an image for a

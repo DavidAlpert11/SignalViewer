@@ -338,11 +338,14 @@
     var play = function () { if (playing) { stop(); return; } if (RP.t >= hi) RP.t = lo; playing = true; label(); last = performance.now(); raf = requestAnimationFrame(tick); };
     playBtn.addEventListener("click", play);
     document.getElementById("rp-start").addEventListener("click", function () { stop(); setTime(lo, true); });
-    document.addEventListener("keydown", function (e) {
-      var tg = e.target && e.target.tagName;
-      if (e.key !== " " || tg === "SELECT" || tg === "INPUT" || tg === "TEXTAREA" || tg === "BUTTON") return;
-      e.preventDefault(); play();
-    });
+    // Space plays anywhere but in a field - also right after a click on the bar's own buttons (a focused
+    // button would otherwise take Space as a click: "to the start" again instead of Play)
+    var spaceIsPlay = function (e) {
+      var tg = e.target && e.target.tagName, inBar = e.target && e.target.closest && e.target.closest("#rp");
+      return e.key === " " && tg !== "SELECT" && tg !== "INPUT" && tg !== "TEXTAREA" && (tg !== "BUTTON" || inBar);
+    };
+    document.addEventListener("keydown", function (e) { if (spaceIsPlay(e)) { e.preventDefault(); if (!e.repeat) play(); } });
+    document.addEventListener("keyup", function (e) { if (spaceIsPlay(e)) e.preventDefault(); });
     document.getElementById("theme").addEventListener("click", function () { frames().forEach(function (f) { tell(f, { dark: root.getAttribute("data-theme") === "dark" }); }); });
     // another tab's plots are new objects: they start on the page's time
     var shown = renderTab;

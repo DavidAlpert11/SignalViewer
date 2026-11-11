@@ -51,6 +51,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - In the file dialog Shift+click selects a range and Ctrl+A every file shown; each use (open files, save a session, a report, an image) keeps its own last folder, and a first save starts where the data is
 - Opening a file that is already open reads it again from the disk (*Open another copy* on request)
 - Several files opened together: the start card suggests Compare open files
+- The timeline maps the recording: the active plot's first line drawn faintly along it, and what the plots show as a window on it - drag it to move along the recording, pull an edge to zoom, double-click it for everything; Backspace undoes a move (1.25)
 - A flight log's health check findings, once the view is open, wait beside the timeline as *N findings* (they no longer cover a plot; a click opens the list, × puts it away) and each is a ◆ mark on the timeline - a click plots its signals in a new tab (findings close together: one mark, a list)
 - Places beside the folder: the folders of the open files, favourite folders (★ next to the path; drag to reorder), recent folders, home / Desktop / Documents / Downloads and the drives
 - Ctrl+P: quick open of recent files and folders
@@ -282,6 +283,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 - Space on/off
 - Click / drag
 - Two cursors with ΔT, Δ and Δ/ΔT
+- With two cursors each line's chip in the legend shows its change between them (Δ, cursor 2 − cursor 1, in its unit) beside its value (1.25)
 - Values at full resolution
 - Values drawn on the plot (optional)
 
@@ -509,6 +511,7 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 
 ### Reports
 
+- **Send it as a replay** (Report panel; Ctrl+K): the tab as one HTML page that opens in any browser offline, on the moment shown - one cursor for every plot and map (a click on a plot or the page's timeline), Play (Space, ×0.5 - ×30) with the plots following, one zoom for every time plot, the log's errors / warnings, the findings and the notes as marks, `#t=` in the address keeps a moment, a *Made with Signal Viewer* line; *Open it* shows it in the browser (1.25)
 - Preview in the app
 - Interactive offline HTML
 - A single plot: PNG, a high-resolution PNG for a report (twice the pixels), SVG, or an interactive page (HTML)
