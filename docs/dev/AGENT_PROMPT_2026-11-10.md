@@ -2,7 +2,7 @@
 
 > ## Status – read this first (update at the end of every session)
 >
-> **Stage reached: everything (L0-L13) done, 2026-11-11 - version 1.25.0, ready to tag.** A human-factors review went on top of L8-L12 (`docs/dev/UX_REVIEW_2026-11-11.md`: `flatLine.ts`, `soloPlot`, the start card's Quick look, `plotTabs` `look`, go to worst, the ⋯ corner). Work order was: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
+> **Stage reached: everything (L0-L13) and group F (R1-R3: the replay page, the timeline's window, Δ in the legend) done, 2026-11-11 - version 1.25.0, ready to tag.** A human-factors review went on top of L8-L12 (`docs/dev/UX_REVIEW_2026-11-11.md`: `flatLine.ts`, `soloPlot`, the start card's Quick look, `plotTabs` `look`, go to worst, the ⋯ corner). Work order was: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
 > The code maps of A, L7-L12, decisions (1-30) and the new question Q14 (`ref` as origin vs trajectory) are in
 > `TASKS.md` → "Owner's plan (2026-11-10)". In short: `objectDetect.ts` (`metricPosition`, per-group
 > NED / ENU decision, `KNOWN_GROUPS` with `ned / vel / origin / order / lane / skip`, `originOf`,
