@@ -43,6 +43,8 @@ datas = [
     (os.path.join(ROOT, "backend", "svcore", "builtin_templates.json"), "svcore"),
     # 1.21: ArduPilot's device / parameter names for the hardware summary (svcore/hardware.py)
     (os.path.join(ROOT, "backend", "svcore", "ap_names.json"), "svcore"),
+    # L12: the names map objects are found by - one table for the app's UI and Python (svcore/objects.py)
+    (os.path.join(ROOT, "backend", "svcore", "object_names.json"), "svcore"),
 ] + collect_data_files("docx") + collect_data_files("webview")
 
 a = Analysis(

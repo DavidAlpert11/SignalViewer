@@ -38,5 +38,6 @@ export default defineConfig({
   // (SV_CESIUM_UNMINIFIED=1: its readable build, for profiling)
   resolve: { alias: [{ find: /^cesium$/, replacement: join(process.cwd(), process.env.SV_CESIUM_UNMINIFIED
     ? join("node_modules", "cesium", "Build", "CesiumUnminified") : CESIUM, "index.js") }] },
-  server: { proxy: { "/api": "http://127.0.0.1:8765" } },
+  // L12: the object names table is in backend/svcore (one file for the app and Python): let the dev server read it
+  server: { proxy: { "/api": "http://127.0.0.1:8765" }, fs: { allow: [".."] } },
 });
