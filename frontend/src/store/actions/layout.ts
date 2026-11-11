@@ -1,11 +1,111 @@
 /* Tabs and the plot grid: add / close / move tabs, layout, linked axes, sizes. Through commit. */
 import { translate } from "../../i18n";
-import { MAX_PLOTS, clone, newPlot, newTab, uid, type Tab } from "../model";
-import { activeTab, rangeKey } from "../selectors";
+import { MAX_PLOTS, clone, newPlot, newTab, uid, type Plot, type Tab, type Workspace } from "../model";
+import { activeTab, plotHasContent, rangeKey } from "../selectors";
 import { useApp } from "../state";
 import { viewActions } from "./view";
 
+/** L10: a plot dragged by its handle carries its id under this type (also PLOT_MIME, its index, for N2's swap) */
+export const PLOT_ID_MIME = "application/x-sv-plot-id";
+/** L10: where a plot is (its tab and cell), or null. */
+function findPlotIn(ws: Workspace, plotId: string): { tab: Tab; i: number } | null {
+  for (const tab of ws.tabs) { const i = tab.plots.findIndex((p) => p.id === plotId); if (i >= 0) return { tab, i }; }
+  return null;
+}
+const isEmpty = (p: Plot) => !plotHasContent(p) && !p.xSignal;
+/** L10: the kind of content a plot holds, for merging: time / XY lines, or the objects of a map / 3D view. */
+export const mergeKind = (p: Plot) => (p.mode === "geo" || p.mode === "3d" ? "objects" : p.mode === "xy" ? "xy" : (p.mode ?? "time") === "time" ? "time" : p.mode);
+/** L10: the grid a full tab grows to for one more plot (a column while it is not wider than tall, else a
+ *  row), within MAX_PLOTS; null when it cannot. */
+function grown(tab: Tab): { rows: number; cols: number } | null {
+  const r = Math.max(1, tab.rows), c = Math.max(1, tab.cols);
+  if (c <= r && r * (c + 1) <= MAX_PLOTS) return { rows: r, cols: c + 1 };
+  if ((r + 1) * c <= MAX_PLOTS) return { rows: r + 1, cols: c };
+  if (r * (c + 1) <= MAX_PLOTS) return { rows: r, cols: c + 1 };
+  return null;
+}
+/** L10: can `tab` take one more plot - an empty cell (`cell` first), or by growing? */
+function hasRoom(tab: Tab, cell?: number): boolean {
+  return (cell !== undefined && !!tab.plots[cell] && isEmpty(tab.plots[cell])) || tab.plots.some(isEmpty) || !!grown(tab);
+}
+/** L10: put `plot` into `tab` (`cell` when empty, else the first empty cell, else after growing the grid,
+ *  every old plot keeping its row and column); returns its index. Assumes hasRoom. */
+function placeIn(tab: Tab, plot: Plot, cell?: number): number {
+  let k = cell !== undefined && tab.plots[cell] && isEmpty(tab.plots[cell]) ? cell : tab.plots.findIndex(isEmpty);
+  if (k < 0) {
+    const g = grown(tab)!;
+    const old = tab.plots, c0 = Math.max(1, tab.cols);
+    tab.plots = Array.from({ length: g.rows * g.cols }, (_, n) => {
+      const row = Math.floor(n / g.cols), col = n % g.cols;
+      return col < c0 ? old[row * c0 + col] ?? newPlot() : newPlot();
+    });
+    tab.rows = g.rows; tab.cols = g.cols; tab.rowSizes = undefined; tab.colSizes = undefined;
+    k = tab.plots.findIndex((p, n) => isEmpty(p) && !old.includes(p) && n >= 0);
+  }
+  tab.plots[k] = plot;
+  return k;
+}
+const toast = (key: "plotMoveFull" | "plotMergeKinds" | "plotMoveSame", vars: Record<string, string | number> = {}) => {
+  const st = useApp.getState();
+  st.toast({ kind: "info", text: translate(st.lang, key, vars) });
+};
+
 export const layoutActions = {
+  /** L10: a plot to another tab (`"new"`: a new tab named after it) - the same plot, so its axes, cursors,
+   *  objects, pair and map state go with it; one Undo. The source cell is left empty (the grid does not
+   *  reflow); the target tab and the plot become active. `copy` (Ctrl while dropping): a copy goes instead.
+   *  Returns false when it cannot (the target full, the same tab) - with a toast that says why. */
+  movePlotToTab(plotId: string, tabId: string | "new", cell?: number, copy = false): boolean {
+    const st = useApp.getState();
+    const at = findPlotIn(st.ws, plotId);
+    if (!at) return false;
+    if (tabId === at.tab.id && !copy) { toast("plotMoveSame"); return false; }
+    const target = tabId === "new" ? null : st.ws.tabs.find((t) => t.id === tabId);
+    if (tabId !== "new" && !target) return false;
+    if (target && !hasRoom(target, cell)) { toast("plotMoveFull", { tab: target.name || translate(st.lang, "tab"), n: MAX_PLOTS }); return false; }
+    st.commit((ws) => {
+      const src = findPlotIn(ws, plotId)!;
+      const plot = src.tab.plots[src.i];
+      const moved: Plot = copy ? { ...clone(plot), id: uid("p") } : plot;
+      if (!copy) src.tab.plots[src.i] = newPlot();
+      let tab: Tab;
+      if (tabId === "new") {
+        tab = { ...newTab(ws.tabs.length + 1), name: plot.title || translate(useApp.getState().lang, "plotMovedTab") };
+        tab.plots = [moved];
+        ws.tabs.push(tab);
+        tab.active = 0;
+      } else {
+        tab = ws.tabs.find((t) => t.id === tabId)!;
+        tab.active = placeIn(tab, moved, cell);
+      }
+      ws.activeTab = tab.id;
+      return ws;
+    });
+    return true;
+  },
+  /** L10: a plot's lines join another plot (time into time, XY into XY, a map's / 3D view's objects into a
+   *  map / 3D view); a line or object already there is not added twice; styles and axes kept. The source
+   *  is emptied (its cell stays), or kept for *Copy into*. One Undo; false (with the reason) otherwise. */
+  mergePlotInto(plotId: string, targetPlotId: string, keepSource = false): boolean {
+    const st = useApp.getState();
+    const a = findPlotIn(st.ws, plotId), b = findPlotIn(st.ws, targetPlotId);
+    if (!a || !b || plotId === targetPlotId) return false;
+    const P = a.tab.plots[a.i], T = b.tab.plots[b.i];
+    if (mergeKind(P) !== mergeKind(T)) { toast("plotMergeKinds", { a: String(mergeKind(P)), b: String(mergeKind(T)) }); return false; }
+    st.commit((ws) => {
+      const src = findPlotIn(ws, plotId)!, dst = findPlotIn(ws, targetPlotId)!;
+      const p = src.tab.plots[src.i], q = dst.tab.plots[dst.i];
+      for (const s of p.signals) if (!q.signals.some((x) => x.sig === s.sig && !!x.state === !!s.state)) q.signals.push(clone(s));
+      if (p.objects?.length) {
+        q.objects ??= [];
+        for (const o of p.objects) if (!q.objects.some((x) => x.lat === o.lat && x.lon === o.lon)) q.objects.push({ ...clone(o), id: q.objects.some((x) => x.id === o.id) ? uid("o") : o.id });
+      }
+      if (!keepSource) src.tab.plots[src.i] = newPlot();
+      ws.activeTab = dst.tab.id; dst.tab.active = dst.i;
+      return ws;
+    });
+    return true;
+  },
   /** N2: two plots of the active tab change places (one Undo). The cells keep their sizes; the active
    *  plot stays the one that moved; everything keyed by plot id (axes, cursors, map / 3D) moves with it. */
   swapPlots(i: number, j: number) {

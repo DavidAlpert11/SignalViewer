@@ -30,6 +30,10 @@
   `XKF1[1]`, `truth` / `nav`), one family per quantity (a group gives roll, pitch and yaw at once), in
   one tab: their values beside each one minus the reference, with the errors' statistics.
 
+- **Move a plot to another tab** - drag its ⠿ handle onto a tab (Ctrl: a copy), or ⋯ → *Move to…* →
+  a tab or *New tab*; the plot keeps everything (axes, cursors, a map's objects and pair). ⋯ → *Add its
+  lines to…* (or Shift+drop onto another plot) puts its lines into a plot of the same kind. One Undo each.
+
 ### Changed
 - Differences of angles are wrapped: 359° − 1° is −2°, not 358° - in Compare with similar…, *Errors
   between two lines* and the error-segments table (degrees or radians, from the unit or the values).

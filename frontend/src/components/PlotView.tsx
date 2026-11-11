@@ -2,6 +2,7 @@ import { RingIcon } from "./RelationPanel";
 import { countRender } from "../perf";
 import TrustBadge, { AngleGuessBadge, AttitudeSourceBadge } from "./TrustBadge";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
+import { mergeKind, PLOT_ID_MIME } from "../store/actions/layout";
 import { plotHasContent, actions, onTimeAxis, tabBandLanes, fileMark, pickPath, rangeKey, showFileTags, signalName, useApp, type MenuItem, type Plot, type PlotMode, type Tab } from "../store";
 import { GEO_BASES, effectiveBase, isOnlineBase } from "../mapBase";
 import { fmtNum, translate, useT } from "../i18n";
@@ -51,7 +52,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   const selected = useApp((s) => s.selected);
   const multi = useApp((s) => s.multi);
   const hover = useApp((s) => (s.hover && s.hover.plotId === plot.id ? s.hover : null));
-  const [moveOver, setMoveOver] = useState(false);
+  const [moveOver, setMoveOver] = useState<boolean | "merge">(false);
   const [dragOver, setDragOver] = useState<null | "y" | "x" | "right" | "bottom">(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -166,10 +167,27 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     // U3: the tab shows its lanes once above the plots; this plot can show them again itself
     ...(onTimeAxis(plot) && tabBandLanes(useApp.getState().ws.globalStates, tab).length
       ? [{ label: (plot.ownBand ? "✓ " : "") + t("bandInPlot"), run: () => actions.updatePlot(plot.id, { ownBand: !plot.ownBand || undefined }) }] : []),
-    // N2: move this plot to another cell of the tab (the two change places)
-    ...(tab.plots.length > 1 ? [{ label: t("plotMoveTo"), run: () => {}, items: tab.plots.map((p, k): MenuItem => ({
-      label: `${t("plotCell", { r: Math.floor(k / Math.max(1, tab.cols)) + 1, c: (k % Math.max(1, tab.cols)) + 1 })}${p.title ? ` · ${p.title}` : ""}`,
-      checked: k === index, disabled: k === index, run: () => actions.swapPlots(index, k) })) }] : []),
+    // N2 / L10: move this plot - another cell of this tab (the two change places), another tab (its first free
+    // cell; the grid grows when it has none), a new tab. One level of submenu (the menu's own limit).
+    { label: t("plotMoveTo"), run: () => {}, items: [
+      ...(tab.plots.length > 1 ? tab.plots.map((p, k): MenuItem => ({
+        label: `${t("plotCell", { r: Math.floor(k / Math.max(1, tab.cols)) + 1, c: (k % Math.max(1, tab.cols)) + 1 })}${p.title ? ` · ${p.title}` : ""}`,
+        checked: k === index, disabled: k === index, run: () => actions.swapPlots(index, k) })) : []),
+      { label: "", run: () => {}, sep: true },
+      ...useApp.getState().ws.tabs.map((tb, n) => ({ tb, n })).filter(({ tb }) => tb.id !== tab.id).map(({ tb, n }): MenuItem => ({
+        label: `→ ${tb.name || `${t("tab")} ${n + 1}`}`, run: () => { actions.movePlotToTab(plot.id, tb.id); } })),
+      { label: `+ ${t("plotMoveNewTab")}`, run: () => { actions.movePlotToTab(plot.id, "new"); } },
+    ] },
+    // L10: its lines (or objects) into a plot of the same kind, on any tab
+    (() => {
+      const kind = mergeKind(plot);
+      const targets = useApp.getState().ws.tabs.flatMap((tb, n) => tb.plots.map((p, k) => ({ tb, n, p, k })))
+        .filter(({ p }) => p.id !== plot.id && plotHasContent(p) && mergeKind(p) === kind);
+      return { label: t("plotAddLinesTo"), run: () => {}, disabled: !plotHasContent(plot) || !targets.length, title: targets.length ? undefined : t("plotNoMergeTarget"),
+        items: targets.map(({ tb, n, p, k }): MenuItem => ({
+          label: `${tb.name || `${t("tab")} ${n + 1}`} · ${p.title || t("plotCell", { r: Math.floor(k / Math.max(1, tb.cols)) + 1, c: (k % Math.max(1, tb.cols)) + 1 })}`,
+          run: () => { actions.mergePlotInto(plot.id, p.id); } })) } as MenuItem;
+    })(),
     { label: t("axisLimits") + ((plot.xlim || plot.ylim) ? " •" : ""), run: () => useApp.setState({ axisDialog: plot.id }) },
     { label: t("legend"), run: () => {}, items: legendItems() },
     ...(showFileTags(runs) ? [{ label: t("colorByFile"), run: () => actions.colorPlotByFile(plot.id),
@@ -373,14 +391,18 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   return (
     <section
       ref={sectionRef}
-      data-plot={plot.id}
-      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${moveOver ? " move-target" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
+      data-plot={plot.id} data-merge-hint={moveOver === "merge" ? t("plotMergeDrop") : undefined}
+      className={`plot${active ? " active" : ""}${dragOver ? " dragover" : ""}${moveOver ? " move-target" : ""}${moveOver === "merge" ? " merge-target" : ""}${dragOver === "right" || dragOver === "bottom" ? ` split-${dragOver}` : ""}`}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(PLOT_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setMoveOver(true); return; }
+        if (e.dataTransfer.types.includes(PLOT_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = e.shiftKey ? "copy" : "move"; setMoveOver(e.shiftKey ? "merge" : true); return; }
         if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); setDragOver(edgeOf(e) ?? "y"); } }}
       onDragLeave={() => { setDragOver(null); setMoveOver(false); }}
       onDrop={(e) => {
         const from = e.dataTransfer.getData(PLOT_MIME);
+        const fromId = e.dataTransfer.getData(PLOT_ID_MIME);
+        // L10: Shift - its lines join this plot; a plot from another tab - it moves into this cell when empty
+        if (from !== "" && e.shiftKey && fromId && fromId !== plot.id) { e.preventDefault(); setMoveOver(false); actions.mergePlotInto(fromId, plot.id); return; }
+        if (fromId && !tab.plots.some((p) => p.id === fromId)) { e.preventDefault(); setMoveOver(false); actions.movePlotToTab(fromId, tab.id, index, e.ctrlKey); return; }
         if (from !== "") { e.preventDefault(); setMoveOver(false); actions.swapPlots(Number(from), index); return; }
         onDrop(e, edgeOf(e) ?? "y");
       }}
@@ -389,10 +411,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       aria-label={title}
     >
       <header className="plot-head" ref={headRef}>
-        {tab.plots.length > 1 && (
-          <span className="plot-grip" draggable role="button" tabIndex={-1} aria-label={t("plotMoveGrip")} title={t("plotMoveGrip")}
-            onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.effectAllowed = "move"; }}>⠿</span>
-        )}
+        {/* L10: also with one plot in the tab - it can go to another tab */}
+        <span className="plot-grip" draggable role="button" tabIndex={-1} aria-label={t("plotMoveGrip")} title={`${t("plotMoveGrip")} · ${t("plotMoveHint")}`}
+          onDragStart={(e) => { e.dataTransfer.setData(PLOT_MIME, String(index)); e.dataTransfer.setData(PLOT_ID_MIME, plot.id); e.dataTransfer.effectAllowed = "copyMove"; useApp.setState({ plotDrag: plot.id }); }}
+          onDragEnd={() => useApp.setState({ plotDrag: null })}>⠿</span>
         {editingTitle ? (
           <input className="plot-title" autoFocus defaultValue={plot.title} placeholder={title}
             onBlur={(e) => { actions.renamePlot(plot.id, e.target.value.trim()); setEditingTitle(false); }}

@@ -43,6 +43,8 @@ export interface UiSlice {
   compareDialog: { plotId: string } | null;
   /** L9: Compare with similar… - a file and the signals it was asked for (a signal, a group's; [] = all) */
   similarDialog: { runId: string; ids: string[] } | null;
+  /** L10: a plot being dragged by its handle (the tabs light up as drop targets) */
+  plotDrag: string | null;
   compareOffer: string | null;     // N7: a map / 3D plot whose objects were just added - offer to compare them
   placeDialog: string | null;      // T17c: putting an XYZ plot's tracks on a map / 3D plot (the XYZ plot's id)
   axisDialog: string | null;            // plot id whose axis limits are being edited
@@ -145,6 +147,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   objSuggestHidden: [],
   compareDialog: null,
   similarDialog: null,
+  plotDrag: null,
   compareOffer: null,
   placeDialog: null,
   axisDialog: null,

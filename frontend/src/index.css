@@ -1802,3 +1802,10 @@ input.fx-input { width: 100%; }
 .sim-member.ref { box-shadow: 0 0 0 1.5px var(--amber); }
 .sim-how { font-size: var(--fs-xs); margin-inline-start: auto; }
 .sim-loose { display: flex; align-items: center; gap: 4px; margin-bottom: var(--sp-2); font-size: var(--fs-s); }
+
+/* L10: a plot dragged by its handle - the tabs it can go to, and the plot its lines can join (Shift) */
+.tab.plot-drop-ok { outline: 1px dashed var(--line-strong); outline-offset: -2px; }
+.tab.plot-drop { outline: 2px solid var(--amber); outline-offset: -2px; background: var(--amber-soft); }
+.plot.merge-target { outline: 2px dashed var(--amber); outline-offset: -3px; }
+.plot.merge-target::after { content: attr(data-merge-hint); position: absolute; inset-block-start: 36px; inset-inline-start: 50%; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--amber); border-radius: var(--r-m); padding: 2px var(--sp-2); font-size: var(--fs-xs); color: var(--ink); pointer-events: none; z-index: 6; }

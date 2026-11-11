@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
   `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
-  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6) and B (L7-L9: rings, Compare objects…, Compare with similar…).** Next: L10. Travels as
+  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6), B (L7-L9) and L10 (moving plots across tabs).** Next: L11. Travels as
   one cumulative patch on `d61ab6d`; the owner pushed up to L7 (`e2a75a8`), so later patches are on that.
 
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
@@ -238,6 +238,22 @@ EKF lanes), test_object_relations (presets in the dialog).
 `app/routes/data.py` (error-segments `wrap`). Tests: `similar.test.ts`, `test_local_objects.py::test_sub_wraps_angles`,
 e2e `test_compare_similar.py` (group menu on three_objects; the EKF lanes' yaw across north +0.5°; Ctrl+K).
 
+**Decisions taken in L10:**
+17. The tab strip that takes a dragged plot is TopBar's (the spec's "TabBand" is the state lanes' band, not the
+    tabs). The handle now shows on a single plot too (it can go to another tab). Drop on a tab: move; Ctrl: copy
+    (Q8's default); Shift on another plot: its lines join that plot (the target is outlined, a hint says so).
+18. *Move to…* is one submenu (the menu has one level): this tab's cells (swap, as before), `→ <tab>` (its first
+    free cell), `+ New tab`. A specific cell of another tab: drag onto that cell in its tab instead.
+19. A full tab grows by a column while it is not wider than tall, else a row (every plot keeps its row and
+    column), up to MAX_PLOTS (9); a 3x3 tab with no empty cell is refused with a toast.
+20. Linked X axes are per tab: a moved plot follows the target tab's link setting.
+
+**Code map of L10:** `store/actions/layout.ts` (`movePlotToTab`, `mergePlotInto`, `mergeKind`, `PLOT_ID_MIME`,
+`hasRoom` / `placeIn` / `grown`), `PlotView.tsx` (menu, grip always, Shift+drop merge, cross-tab drop on a cell),
+`TopBar.tsx` (tabs take a plot), `CommandPalette.tsx` (Move plot to a new tab / to tab: …), `store/slices/ui.ts`
+(`plotDrag`), i18n `plotMove*` (en + he), CSS. Tests: movePlots.test.ts (4 new), e2e test_move_plots_tabs.py
+(new, 3), test_move_plots.py (green).
+
 **Open questions (the work goes on with the default):**
 | # | Question | Default if unanswered |
 |---|---|---|
@@ -314,8 +330,8 @@ Progress board:
 | L7 | Primary / secondary explained, chosen in one place | B | ☑ done |
 | L8 | Compare objects: one dialog, values and errors | B | ☑ done |
 | L9 | Compare similar nested signals | B | ☑ done |
-| L10 | Move a plot to another tab / into another plot | C | ☐ next |
-| L11 | Map export: PNG, HTML, maps in reports | C | ☐ |
+| L10 | Move a plot to another tab / into another plot | C | ☑ done |
+| L11 | Map export: PNG, HTML, maps in reports | C | ☐ next |
 | L12 | A clear API (Python, CLI, REST) | D | ☐ |
 | L13 | Docs, changelog, release, full checks | E | ☐ |
 
@@ -3809,3 +3825,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · L8 done: Compare objects… (dialog, presets, one tab per quantity, statistics, CSV), err_speed, stats abs_max / t_abs_max / p95_abs, plotTabs never drops silently, reuse of relation / frame signals (decisions 9-12). Checks: backend 1100 passed / 14 skipped (test_design_tokens caught a radius fallback in the new CSS - fixed), mypy clean, tsc, Vitest 15 / 91; e2e test_local_objects (4), test_object_relations (6), test_map_objects (10). On ardupilot_lanes.csv: lane 1 north error +1.5 m, lane 0 ~0, yaw error +0.5°, RMS 1.5 in the table, speed error 0. Next: L9.
 - 2026-11-10 · L9 done - group B complete (decisions 13-16). Checks: backend 1101 passed / 14 skipped, mypy clean, tsc, Vitest 16 files / 98; e2e test_compare_similar (2, new), test_error_segments + test_one_per_plot (5). Whole e2e suite at the end of group B: see the next line. Next: L10.
 - 2026-11-10 · **Whole e2e suite at the end of group B (the debt of group A paid too): green.** First run: the first 192 tests passed, then the container's disk filled (8.5 GB of pytest temporary files in /tmp/pytest-of-root - not the app) and the rest errored at setup; one F just before (test_missing_choice::test_sum_propagate_then_skip_is_marked) passes alone and in the rerun. Rerun in two chunks with /tmp cleaned between: test_map_smooth … test_release_1_21 60 passed; test_runs_matrix … test_workflows 122 passed. Note for later runs: clean /tmp/pytest-of-root between big e2e runs in a small container. Next: L10.
+- 2026-11-10 · L10 done (decisions 17-20): movePlotToTab / mergePlotInto (one Undo each), the handle onto a tab, Move to… → tab / New tab, Add its lines to…, Shift+drop merge, Ctrl+K. Checks: tsc, Vitest 16 / 102; e2e test_move_plots_tabs (3, new), test_move_plots (2), test_plot_menus + test_tab_band + test_template_tabs (6). Next: L11.

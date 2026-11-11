@@ -5,6 +5,7 @@ import { mavlinkConnect, mavlinkDisconnect } from "../mavlink";
 import { api } from "../api";
 import { fmtNum } from "../i18n";
 import { actions, setInspectorByUser, useApp } from "../store";
+import { PLOT_ID_MIME } from "../store/actions/layout";
 import { AREAS, areaDef } from "../areas";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
@@ -114,6 +115,7 @@ export function RecordingsBar() {
   const mavOn = !!mav?.running;
   const mavQuiet = mavOn && (mav!.sinceData == null || mav!.sinceData > 3);
   const ws = useApp((s) => s.ws);
+  const plotDrag = useApp((s) => s.plotDrag);
   const past = useApp((s) => s.past.length);
   const future = useApp((s) => s.future.length);
   const inspectorOpen = useApp((s) => s.inspectorOpen);
@@ -180,8 +182,18 @@ export function RecordingsBar() {
           return (
             <div key={tab.id} role="tab" aria-selected={tab.id === ws.activeTab} tabIndex={0} draggable
               onDragStart={(e) => e.dataTransfer.setData("application/x-sv-tab", tab.id)}
-              onDragOver={(e) => { if (e.dataTransfer.types.includes("application/x-sv-tab")) e.preventDefault(); }}
-              onDrop={(e) => { const id = e.dataTransfer.getData("application/x-sv-tab"); if (id) actions.moveTab(id, i); }}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes("application/x-sv-tab")) e.preventDefault();
+                // L10: a plot dragged by its handle moves to this tab (Ctrl: a copy)
+                if (e.dataTransfer.types.includes(PLOT_ID_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? "copy" : "move"; e.currentTarget.classList.add("plot-drop"); }
+              }}
+              onDragLeave={(e) => e.currentTarget.classList.remove("plot-drop")}
+              onDrop={(e) => {
+                e.currentTarget.classList.remove("plot-drop");
+                const pid = e.dataTransfer.getData(PLOT_ID_MIME);
+                if (pid) { e.preventDefault(); useApp.setState({ plotDrag: null }); actions.movePlotToTab(pid, tab.id, undefined, e.ctrlKey); return; }
+                const id = e.dataTransfer.getData("application/x-sv-tab"); if (id) actions.moveTab(id, i);
+              }}
               onContextMenu={(e) => openMenu(e, [
                 { label: t("renameTab"), run: () => setEditing(tab.id) },
                 { label: t("duplicateTab"), run: () => actions.duplicateTab(tab.id) },
@@ -190,7 +202,7 @@ export function RecordingsBar() {
                 { label: t("closeTab"), run: () => actions.closeTab(tab.id) },
                 { label: t("closeOthers"), run: () => actions.closeOtherTabs(tab.id), disabled: ws.tabs.length < 2 },
               ])}
-              className={`tab${tab.id === ws.activeTab ? " active" : ""}`}
+              className={`tab${tab.id === ws.activeTab ? " active" : ""}${plotDrag ? " plot-drop-ok" : ""}`}
               onClick={() => actions.switchTab(tab.id)}
               onDoubleClick={() => setEditing(tab.id)}
               // middle click closes the tab. On mousedown/up, not auxclick: on Windows (Edge / WebView2) a

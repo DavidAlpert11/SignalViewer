@@ -855,7 +855,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] L7 The rings explained (tooltip, icons, Help) and the pair chosen in one place - Reference ⇄ Compared with, in the relation box and the 3D bar; Ctrl+K. Done 2026-11-10.
 - [x] L8 Compare objects… - positions, velocities, angles; values and errors; statistics (CSV); the relation box's four actions as presets; plotsInNewTab never drops silently. Done 2026-11-10.
 - [x] L9 Compare with similar… - families of nested names (instance / number / class word, looser on request); angle-wrapped `sub`, the same rule in Errors between two lines. Done 2026-11-10.
-- [ ] L10 Move a plot to another tab / into another plot.
+- [x] L10 Move a plot to another tab / into another plot (drag onto a tab, Move to…, Add its lines to…, Shift+drop, Ctrl+K). Done 2026-11-10.
 - [ ] L11 Map export: PNG, standalone HTML, maps in reports.
 - [ ] L12 API: Python, CLI, REST; shared detection tables and test vectors.
 - [ ] L13 Docs, changelog, release notes, full checks.
