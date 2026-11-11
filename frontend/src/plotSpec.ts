@@ -2,6 +2,19 @@ import { rangeKey, signalName, useApp, type Plot, type Tab } from "./store";
 import { lineLook, setpointsIn } from "./desired";
 import { effectiveBase } from "./mapBase";
 import { geoViewBounds } from "./globeBridge";
+import { trackRequest } from "./mapObjects";
+
+/** 1.26: why a plot is not in a report / replay page (listed with this reason, never dropped without a word) */
+export type PageWhy = "pageWhyEmpty" | "pageWhyOcc" | "pageWhyVideo";
+/** One rule for what goes into a page - the report (every format), the replay and the report panel's list. */
+export function pagePlot(p: Plot): { include: boolean; why?: PageWhy } {
+  const m = p.mode ?? "time";
+  if (m === "occ") return { include: false, why: "pageWhyOcc" };        // needs a condition's stretches
+  if (m === "video") return { include: false, why: "pageWhyVideo" };    // the video file is not put into the page
+  if (m === "geo" || m === "3d") return (p.objects?.length || (m === "geo" && p.signals.length)) ? { include: true } : { include: false, why: "pageWhyEmpty" };
+  return p.signals.length ? { include: true } : { include: false, why: "pageWhyEmpty" };
+}
+export const pagePlots = (tab: Tab) => tab.plots.map((p, pi) => ({ p, pi, ...pagePlot(p) }));
 
 /** L11: a map with objects is drawn by the server as a map (app/mapimage.py): the objects' positions, the
  *  layer shown (an online one only from the tiles already cached), the cursor, and the view (`view`: what is
@@ -19,6 +32,13 @@ function geoSpec(plot: Plot, view: boolean) {
 /** What the server needs to draw / export one plot (reports, images, CSV). `view`: a map as shown now. */
 export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string, view = false) {
   const st = useApp.getState();
+  // 1.26: the map seen in 3D - the server draws it (app/scene3d.py): a picture in PDF / Word / PNG, a live
+  // three.js page in HTML. The objects as the 3D view fetches them (a borrowed attitude resolved).
+  if (plot.mode === "3d" && plot.objects?.length) {
+    const objs = plot.objects, nameOf = (id?: string | null) => objs.find((o) => o.id === id)?.name ?? null;
+    return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "3d", signals: [], geo: geoSpec(plot, false),
+      scene: { objects: objs.map((o) => trackRequest(o, objs)), follow: nameOf(plot.followObject), primary: nameOf(plot.primaryObject) } };
+  }
   if (plot.mode === "geo" && plot.objects?.length) {
     return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "geo", signals: [], geo: geoSpec(plot, view) };
   }

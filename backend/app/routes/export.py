@@ -227,17 +227,18 @@ def _decode(s, dtype):
     return None if s is None else np.frombuffer(base64.b64decode(s), dtype=dtype).astype(np.float64)
 
 
-def acmi_objects(objects: List[dict]) -> list:
+def acmi_objects(objects: List[dict], st=None) -> list:
     """N8: each map object's position and attitude, as the 3D view draws it: altitude above sea level
     by its reference (above the take-off point / the ground: plus the bundled elevation; none: on the
     ground), angles in degrees (the object's own unit if set, else the one found)."""
-    from app.routes.analysis import ObjectTrackRequest, object_track
+    from app.routes.analysis import ObjectTrackRequest, track_of
+    from app.store import store
     out = []
     for o in objects:
         req = ObjectTrackRequest(lat=o["lat"], lon=o["lon"], alt=o.get("alt"), yaw=o.get("yaw"), pitch=o.get("pitch"),
                                  roll=o.get("roll"), qw=o.get("qw"), qx=o.get("qx"), qy=o.get("qy"), qz=o.get("qz"),
                                  points=10_000_000, attitude=o.get("attitude"), minSpeed=float(o.get("minSpeed") or 1.0))
-        tr = object_track(req)
+        tr = track_of(st if st is not None else store, req)
         t, lat, lon = _decode(tr["t"], np.float64), _decode(tr["lat"], np.float64), _decode(tr["lon"], np.float64)
         ground = _decode(tr.get("ground"), np.float32)
         g = np.where(np.isfinite(ground), ground, 0.0) if ground is not None else np.zeros(len(t))

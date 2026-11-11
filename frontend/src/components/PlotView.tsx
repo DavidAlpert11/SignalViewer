@@ -149,6 +149,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ...(mode === "3d" ? [
       { label: `${t("saveImage")} (PNG)`, run: () => globeImage.get(plot.id)?.(1) },
       { label: t("saveImageHires"), run: () => globeImage.get(plot.id)?.(2) },
+      // 1.26: as reports draw it (the server's picture), and its own live offline page (three.js)
+      ...(plot.objects?.length ? [{ label: t("sceneSavePicture"), run: () => saveImage("png", 2) }, { label: t("sceneSaveHtml"), run: () => saveImage("html") }] : []),
     ] : geoObjects ? [
       { label: t("mapSaveView"), run: () => saveImage("png", 2, true) },
       { label: t("mapSaveFit"), run: () => saveImage("png", 2, false) },
@@ -157,7 +159,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
       { label: `${t("saveImage")} (PNG)`, run: () => saveImage("png"), disabled: !plot.signals.length },
       { label: t("saveImageHires"), run: () => saveImage("png", 2), disabled: !plot.signals.length },
     ]),
-    ...(geoObjects ? [] : [
+    ...(geoObjects || mode === "3d" ? [] : [
       { label: `${t("saveImage")} (SVG)`, run: () => saveImage("svg"), disabled: !plot.signals.length },
       { label: t("saveImageHtml"), run: () => saveImage("html"), disabled: !plot.signals.length },
     ]),
@@ -241,17 +243,20 @@ export default function PlotView({ tab, plot, index, active }: Props) {
     ] : [];
     openMenu(e, [...laneItems, ...timeItems, ...plotItems()]);
   };
-  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["3d", t("mode3d")], ["fft", "FFT"], ["step", t("modeStep")], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")],
+  const modes: [PlotMode, string][] = [["time", t("modeTime")], ["xy", "X-Y"], ["xyz", t("modeXyz")], ["geo", t("modeGeo")], ["fft", "FFT"], ["step", t("modeStep")], ["spec", t("modeSpec")], ["env", t("modeEnv")], ["video", t("modeVideo")],
     // occ is made from the Investigate panel (it needs a condition): listed only on such a plot
     ...(plot.occ ? [["occ", t("modeOcc")] as [PlotMode, string]] : [])];
   /* T49 item 9: the plot type is one button with its name (a menu of the types), not nine buttons on
      every plot - the header keeps room for the legend and the type's own settings */
+  // one Map (2D or 3D - the switch in the map's bar); "3D" alone is XYZ, three signals on plain axes
+  const modeShown = mode === "3d" ? "geo" : mode;
   const openModeMenu = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     e.stopPropagation();
     const rtl = document.documentElement.dir === "rtl";
     useApp.setState({ menu: { x: rtl ? r.right - 160 : r.left, y: r.bottom + 4,
-      items: modes.map(([m, label]) => ({ label, checked: mode === m, run: () => actions.setPlotMode(plot.id, m) })) } });
+      items: modes.map(([m, label]) => ({ label, checked: modeShown === m,
+        run: () => { if (m !== modeShown) actions.setPlotMode(plot.id, m); } })) } });
   };
   const allSignals = runs.flatMap((r) => r.signals.map((s) => ({ id: s.id, label: s.name, group: r.format === "derived" ? undefined : r.name })));
 
@@ -441,10 +446,16 @@ export default function PlotView({ tab, plot, index, active }: Props) {
         ) : (
           <button className="plot-title" onDoubleClick={() => setEditingTitle(true)} title={title}>{title}</button>
         )}
-        <button className={`mode-btn${mode === "time" ? " is-time" : ""}`} aria-haspopup="menu" aria-label={`${t("plotMode")}: ${modes.find(([m]) => m === mode)?.[1] ?? mode}`}
+        <button className={`mode-btn${mode === "time" ? " is-time" : ""}`} aria-haspopup="menu" aria-label={`${t("plotMode")}: ${modes.find(([m]) => m === modeShown)?.[1] ?? mode}`}
           title={t("plotMode")} onClick={openModeMenu}>
-          {modes.find(([m]) => m === mode)?.[1] ?? mode}<Icon.Chevron width={12} height={12} />
+          {modes.find(([m]) => m === modeShown)?.[1] ?? mode}<Icon.Chevron width={12} height={12} />
         </button>
+        {(mode === "geo" || mode === "3d") && (
+          <span className="seg map-view" role="group" aria-label={t("mapView")} title={t("mapViewHint")}>
+            <button className={mode === "geo" ? "on" : ""} aria-pressed={mode === "geo"} onClick={() => mode !== "geo" && actions.setPlotMode(plot.id, "geo")}>{t("mapView2d")}</button>
+            <button className={mode === "3d" ? "on" : ""} aria-pressed={mode === "3d"} onClick={() => mode !== "3d" && actions.setPlotMode(plot.id, "3d")}>{t("mapView3d")}</button>
+          </span>
+        )}
         {(mode === "xy" || (mode === "geo" && !geoPicksHidden)) && (
           <span className={`xpick${dragOver === "x" ? " over" : ""}`}
             onDragOver={(e) => { if (e.dataTransfer.types.includes(SIGNAL_MIME) || e.dataTransfer.types.includes(CHIP_MIME)) { e.preventDefault(); e.stopPropagation(); setDragOver("x"); } }}

@@ -1852,4 +1852,7 @@ input.fx-input { width: 100%; }
 .tl-view:active { cursor: grabbing; }
 .tl-edge { position: absolute; top: -1px; bottom: -1px; width: 7px; cursor: ew-resize; }
 .tl-edge.a { left: -4px; } .tl-edge.b { right: -4px; }
-.tl-edge::after { content: ""; position: absolute; top: 7px; bottom: 7px; left: 2px; width: 3px; border-radius: 2px; background: var(--amber); }
+.tl-edge::after { content: ""; position: absolute; top: 7px; bottom: 7px; left: 2px; width: 3px; border-radius: var(--r-xs); background: var(--amber); }
+/* the map's 2D | 3D switch (one Map, two views) */
+.seg.map-view { margin-inline-start: 4px; }
+.seg.map-view button { padding: 1px 7px; }

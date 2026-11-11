@@ -9,7 +9,7 @@
 import { api, type HealthFinding, type LogInfo } from "./api";
 import { activeTab, pickPath, recordingExtent, useApp, type Tab } from "./store";
 import { translate, type Lang, type TKey } from "./i18n";
-import { plotSpec } from "./plotSpec";
+import { pagePlots, plotSpec } from "./plotSpec";
 import { runJob } from "./files";
 import { findingText } from "./components/HealthRow";
 
@@ -49,11 +49,26 @@ export function replayFileName(tabName: string, fileName: string | undefined): s
   return `${stem.replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 60)}-replay.html`;
 }
 
-/** Plots a replay can draw: lines, or a map with objects (occurrences need a condition's stretches). */
-export const replayPlots = (tab: Tab) =>
-  tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => (p.signals.length || (p.mode === "geo" && p.objects?.length)) && p.mode !== "occ");
+/** Plots a replay can draw: the one rule of every page (plotSpec.ts pagePlot) - lines, a map in 2D or 3D. */
+export const replayPlots = (tab: Tab) => pagePlots(tab).filter((x) => x.include);
+/** What a page left out, and why (a video, occurrences) - said in the toast, not dropped without a word. */
+export const replayLeftOut = (tab: Tab) => pagePlots(tab).filter((x) => !x.include && x.why !== "pageWhyEmpty");
 
 function findingTime(f: HealthFinding): number { return f.t ?? f.spans[0]?.[0] ?? NaN; }
+
+/** The page's one time (1.26: every HTML report is live): the moment it opens on, the recording's span and
+ *  the marks. `compact`: the replay's layout and one zoom for all; a report keeps its layout, each plot zooms alone. */
+export function replayInfo(lang: Lang, compact: boolean) {
+  const st = useApp.getState();
+  const tr = (k: TKey, v?: Record<string, string | number>) => translate(lang, k, v);
+  const files = st.runs.filter((r) => r.format !== "derived" && r.end > r.start);
+  const logs = files.filter((r) => st.logs[r.id]).map((r) => ({ info: st.logs[r.id] }));
+  const findings = files.flatMap((r) => (st.findingMarks[r.id] ?? []).map((f) => ({
+    t: findingTime(f) + (st.logs[r.id]?.timeOffset || 0), text: findingText(tr, f), level: f.level })));
+  const shown = Object.values(st.ranges)[0] ?? null;
+  return { t: replayMoment(st.cursor, shown), extent: recordingExtent(st.runs), events: replayEvents(logs, findings, st.ws.notes ?? []),
+    compact, link: compact };
+}
 
 /** What the server needs (POST /api/report with `replay`). */
 export function replayBody(path: string) {
@@ -63,18 +78,13 @@ export function replayBody(path: string) {
   const tr = (k: TKey, v?: Record<string, string | number>) => translate(lang, k, v);
   const plotLabel = tr("plotTitle", { n: "{n}" });
   const files = st.runs.filter((r) => r.format !== "derived" && r.end > r.start);
-  const logs = files.filter((r) => st.logs[r.id]).map((r) => ({ info: st.logs[r.id] }));
-  const findings = files.flatMap((r) => (st.findingMarks[r.id] ?? []).map((f) => ({
-    t: findingTime(f) + (st.logs[r.id]?.timeOffset || 0), text: findingText(tr, f), level: f.level })));
-  const shown = Object.values(st.ranges)[0] ?? null;
-  const ext = recordingExtent(st.runs);
   const name = tab.name || tr("tab");
   return {
     path, format: "html", lang, theme: st.theme,
     title: files.length ? `${name} · ${files.map((r) => r.name).slice(0, 3).join(", ")}` : name,
     notes: (st.ws.notes ?? []).map((n) => ({ t: n.t, ...(n.t2 !== undefined ? { t2: n.t2 } : {}), text: n.text })),
     tabs: [{ name, plots: replayPlots(tab).map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)) }],
-    replay: { t: replayMoment(st.cursor, shown), extent: ext, events: replayEvents(logs, findings, st.ws.notes ?? []) },
+    replay: replayInfo(lang, true),
   };
 }
 
@@ -90,7 +100,9 @@ export async function makeReplay() {
   try {
     const r = await runJob<{ path: string }>("report", replayBody(path), translate(lang, "replayMaking"));
     if (!r) return;
-    useApp.getState().toast({ kind: "info", text: translate(lang, "replaySaved", { path: r.path }), ms: 12000,
+    const out = replayLeftOut(tab).map(({ p, pi, why }) => `${p.title || translate(lang, "plotTitle", { n: pi + 1 })} (${translate(lang, why!)})`);
+    const saved = translate(lang, "replaySaved", { path: r.path }) + (out.length ? ` · ${translate(lang, "pageLeftOut", { list: out.join(", ") })}` : "");
+    useApp.getState().toast({ kind: "info", text: saved, ms: 12000,
       action: { label: translate(lang, "replayOpen"), run: () => { api.openPage(r.path).catch(() => {}); } } });
   } catch (e) {
     useApp.getState().toast({ kind: "error", text: String((e as Error).message) });

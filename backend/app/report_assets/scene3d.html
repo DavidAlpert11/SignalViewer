@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="__LANG__" dir="__DIR__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<!--__NOTE__-->
+<style>
+  :root { --bg: #ffffff; --ink: #1f2a36; --muted: #5a6979; --line: #d5dce4; --panel: #f7f9fb; --accent: #945d0b; --sky: #dfe9f3; color-scheme: light; }
+  :root.dark { --bg: #151b23; --ink: #e6edf3; --muted: #8e9cad; --line: #2d3a4b; --panel: #1c2430; --accent: #f2a93b; --sky: #0e141b; color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Arial, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  header h1 { font-size: 14px; margin: 0; flex: 1; min-width: 6em; }
+  button, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+  label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+  #wrap { position: relative; flex: 1; min-height: 240px; overflow: hidden; background: var(--sky); }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; display: block; }
+  canvas.drag { cursor: grabbing; }
+  #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #labels span { position: absolute; transform: translate(10px, -50%); white-space: nowrap; font-size: 12px; padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--panel) 80%, transparent); }
+  #tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; display: none; white-space: nowrap; z-index: 2; }
+  #legend { position: absolute; top: 8px; inset-inline-start: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+  #legend div { display: flex; align-items: center; gap: 6px; }
+  #legend i { width: 14px; height: 3px; display: inline-block; border-radius: 2px; }
+  #help { position: absolute; bottom: 6px; inset-inline-end: 8px; font-size: 11px; color: var(--muted); }
+  #fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--bg); }
+  #nogl { position: absolute; top: 8px; inset-inline-end: 8px; max-width: 26em; margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  #time { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--panel); }
+  #time[hidden], [hidden] { display: none !important; }
+  #slider { flex: 1; accent-color: var(--accent); }
+  #tval { min-width: 7em; text-align: end; font-variant-numeric: tabular-nums; }
+  footer { padding: 3px 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <label id="followL"><span id="followT"></span><select id="follow"></select></label>
+  <label><span id="exT"></span><select id="ex"><option value="1">×1</option><option value="2">×2</option><option value="5">×5</option></select></label>
+  <button id="fit">⤢</button><button id="top">⊤</button><button id="theme">◐</button>
+</header>
+<div id="wrap"><canvas id="gl"></canvas><div id="labels"></div><div id="legend"></div><div id="tip" role="tooltip"></div><div id="help"></div>
+  <img id="fallback" alt="" hidden><p id="nogl" role="status" hidden></p></div>
+<div id="time"><span id="timeT">t</span><input id="slider" type="range" min="0" max="1" step="any"><span id="tval"></span></div>
+<footer><span id="att"></span> · <span>__NOTE_TEXT__</span></footer>
+<script>/*__THREE__*/</script>
+<script>
+"use strict";
+const D = /*__DATA__*/null;
+const S = D.S, $ = (id) => document.getElementById(id);
+$("title").textContent = D.title || "3D";
+$("att").textContent = D.attribution;
+$("followT").textContent = S.follow; $("exT").textContent = S.ex; $("timeT").textContent = S.time; $("help").textContent = S.help;
+$("fit").title = S.fit; $("top").title = S.top; $("theme").title = S.theme; $("slider").setAttribute("aria-label", S.time);
+let dark = D.dark || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+const slider = $("slider"), tval = $("tval");
+let t0 = Infinity, t1 = -Infinity;
+for (const o of D.objects) if (o.t.length) { t0 = Math.min(t0, o.t[0]); t1 = Math.max(t1, o.t[o.t.length - 1]); }
+slider.min = t0; slider.max = t1; slider.value = D.cursor ?? t1;
+const legend = $("legend");
+for (const o of D.objects) { const d = document.createElement("div"); const i = document.createElement("i"); i.style.background = o.color; d.append(i, document.createTextNode(o.name)); legend.append(d); }
+const fsel = $("follow");
+for (const [v, txt] of [["", S.none], ...D.objects.map((o) => [o.name, o.name])]) { const op = document.createElement("option"); op.value = v; op.textContent = txt; fsel.append(op); }
+fsel.value = D.objects.some((o) => o.name === D.follow) ? D.follow : "";
+$("ex").value = String(D.ex || 1);
+const idxAt = (o, t) => { let lo = 0, hi = o.t.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (o.t[m] <= t) lo = m; else hi = m - 1; } return lo; };
+let state = () => ({ t: Number(slider.value), gl: false, objects: [] });
+window.__scene = { get t() { return Number(slider.value); }, get state() { return state(); } };   // for tests
+
+function webgl() { try { const c = document.createElement("canvas"); return !!(window.THREE && (c.getContext("webgl2") || c.getContext("webgl"))); } catch (e) { return false; } }
+let draw = () => { tval.textContent = Number(slider.value).toFixed(2) + " s"; };
+if (!webgl()) {
+  // no WebGL (remote desktop, a virtual machine, a blocked driver): the picture made with the page
+  const img = $("fallback"); img.src = D.fallback; img.hidden = false; $("nogl").textContent = S.noGl; $("nogl").hidden = false;
+  for (const id of ["followL", "fit", "top", "help"]) $(id).hidden = true;
+  $("ex").parentElement.hidden = true;
+} else (function () {
+  const T = THREE, canvas = $("gl");
+  const renderer = new T.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(45, 1, 1, 1e7);
+  scene.add(new T.HemisphereLight(0xffffff, 0x556677, 1.6));
+  const sun = new T.DirectionalLight(0xffffff, 1.6); sun.position.set(-0.5, 1, 0.35); scene.add(sun);
+  const [E0, E1, N0, N1] = D.extent, G = D.grid;
+  // three.js axes: x east, y up, z south (-north)
+  let ex = Number($("ex").value) || 1;
+  // ---- the ground: the map picture draped on the terrain heights
+  const geo = new T.PlaneGeometry(E1 - E0, N1 - N0, G - 1, G - 1);
+  geo.rotateX(-Math.PI / 2);
+  geo.translate((E0 + E1) / 2, 0, -(N0 + N1) / 2);
+  const gpos = geo.attributes.position;
+  const setGround = () => { for (let i = 0; i < G * G; i++) gpos.setY(i, D.heights[i] * ex); gpos.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere(); };
+  setGround();
+  const texs = {};
+  for (const [th, url] of Object.entries(D.textures)) { const tx = new T.TextureLoader().load(url, () => need()); tx.colorSpace = T.SRGBColorSpace; tx.anisotropy = 4; texs[th] = tx; }
+  const groundMat = new T.MeshLambertMaterial({ color: 0xffffff });
+  const ground = new T.Mesh(geo, groundMat); scene.add(ground);
+  // the height under a point of the scene (bilinear in the terrain grid) - for the hover's "above ground"
+  // ---- the objects: track, its curtain to the ground, the model, the name
+  const labels = $("labels");
+  const models = {};
+  for (const [kind, m] of Object.entries(D.models || {})) {
+    if (!m) continue;
+    const grp = []; let r0 = 0;
+    for (const p of m.parts) {
+      const g = new T.BufferGeometry();
+      g.setAttribute("position", new T.Float32BufferAttribute(p.p, 3));
+      if (p.n) g.setAttribute("normal", new T.Float32BufferAttribute(p.n, 3)); else g.computeVertexNormals();
+      g.setIndex(p.i); g.computeBoundingSphere(); r0 = Math.max(r0, g.boundingSphere.radius + g.boundingSphere.center.length());
+      grp.push({ g, tint: p.tint, color: p.color });
+    }
+    models[kind] = { parts: grp, r: r0 || 1 };
+  }
+  const objs = D.objects.map((o) => {
+    const n = o.t.length, P = new Float32Array(n * 3), C = new Float32Array(n * 6), B = new Float32Array(n * 6), idx = [];
+    const line = new T.BufferGeometry(); line.setAttribute("position", new T.BufferAttribute(P, 3));
+    const curtain = new T.BufferGeometry(); curtain.setAttribute("position", new T.BufferAttribute(C, 3));
+    for (let i = 0; i + 1 < n; i++) { const a = 2 * i; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    curtain.setIndex(idx);
+    // the part already flown as a ribbon (a line of one pixel is lost on a large view)
+    const ribbon = new T.BufferGeometry(); ribbon.setAttribute("position", new T.BufferAttribute(B, 3)); ribbon.setIndex(idx);
+    const col = new T.Color(o.color);
+    const faint = new T.Line(line, new T.LineBasicMaterial({ color: col, transparent: true, opacity: 0.35 }));
+    const past = new T.Line(line, new T.LineBasicMaterial({ color: col }));
+    const wall = new T.Mesh(curtain, new T.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.07, side: T.DoubleSide, depthWrite: false }));
+    const band = new T.Mesh(ribbon, new T.MeshBasicMaterial({ color: col, side: T.DoubleSide }));
+    scene.add(faint, past, wall, band);
+    const body = new T.Group(), inner = new T.Group();
+    const m = models[o.kind];
+    if (m) {
+      for (const p of m.parts) inner.add(new T.Mesh(p.g, new T.MeshLambertMaterial({ color: p.tint ? col : new T.Color(p.color) })));
+      inner.scale.setScalar(1 / m.r);
+    } else {                                          // no model: a dart pointing forward
+      const dart = new T.Mesh(new T.ConeGeometry(0.35, 1, 12), new T.MeshLambertMaterial({ color: col }));
+      dart.rotation.z = -Math.PI / 2; inner.add(dart);
+    }
+    inner.rotation.y = Math.PI / 2;                   // the model's nose (+x in glTF) to the scene's north (-z)
+    body.add(inner); body.rotation.order = "YXZ"; scene.add(body);
+    const label = document.createElement("span"); label.textContent = o.name; label.style.borderInlineStart = "3px solid " + o.color; labels.append(label);
+    return { o, P, C, B, line, curtain, ribbon, band, past, wall, body, label, size: o.size || 26, at: { x: 0, y: 0, z: 0 } };
+  });
+  const ribbonW = Math.max(1.5, Math.max(E1 - E0, N1 - N0) / 900);   // half its width, metres
+  const setTracks = () => {
+    for (const ob of objs) {
+      const o = ob.o;
+      for (let i = 0; i < o.t.length; i++) {
+        ob.P[3 * i] = o.e[i]; ob.P[3 * i + 1] = o.u[i] * ex; ob.P[3 * i + 2] = -o.n[i];
+        ob.C.set([o.e[i], o.g[i] * ex, -o.n[i], o.e[i], o.u[i] * ex, -o.n[i]], 6 * i);
+        const a = Math.max(0, i - 1), b = Math.min(o.t.length - 1, i + 1), de = o.e[b] - o.e[a], dn = o.n[b] - o.n[a], l = Math.hypot(de, dn) || 1;
+        const w = ribbonW, pe = dn / l * w, pn = -de / l * w;    // across the track, flat
+        ob.B.set([o.e[i] - pe, o.u[i] * ex, -(o.n[i] - pn), o.e[i] + pe, o.u[i] * ex, -(o.n[i] + pn)], 6 * i);
+      }
+      ob.ribbon.attributes.position.needsUpdate = true; ob.ribbon.computeBoundingSphere();
+      ob.line.attributes.position.needsUpdate = true; ob.curtain.attributes.position.needsUpdate = true;
+      ob.line.computeBoundingSphere(); ob.curtain.computeBoundingSphere();
+    }
+  };
+  setTracks();
+  // ---- the camera: orbit around a target (drag), move (right-drag / Shift), zoom (wheel / pinch)
+  const target = new T.Vector3(), sph = { r: 1000, th: -0.7, ph: 0.95 };
+  let follow = fsel.value, followOff = new T.Vector3();
+  function fit() {
+    const b = new T.Box3();
+    for (const ob of objs) { ob.line.computeBoundingBox(); b.union(ob.line.boundingBox); }
+    const c = b.getCenter(new T.Vector3()), s = b.getSize(new T.Vector3());
+    target.copy(c); sph.r = Math.max(200, Math.max(s.x, s.z, s.y) * 1.05); sph.th = -0.7; sph.ph = 0.95; followOff.set(0, 0, 0); need();
+  }
+  const place = () => {
+    if (follow) { const ob = objs.find((x) => x.o.name === follow); if (ob) target.set(ob.at.x, ob.at.y, ob.at.z).add(followOff); }
+    camera.position.set(target.x + sph.r * Math.sin(sph.ph) * Math.sin(sph.th), target.y + sph.r * Math.cos(sph.ph), target.z + sph.r * Math.sin(sph.ph) * Math.cos(sph.th));
+    camera.near = Math.max(0.5, sph.r / 2000); camera.far = sph.r * 200 + 1e5; camera.updateProjectionMatrix();
+    camera.lookAt(target);
+  };
+  const pts = new Map(); let pinch = null, moved = false;
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, sh: e.shiftKey }); canvas.classList.add("drag"); moved = false; $("tip").style.display = "none"; });
+  const up = (e) => { pts.delete(e.pointerId); pinch = null; if (!pts.size) canvas.classList.remove("drag"); };
+  canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("pointermove", (e) => {
+    const p = pts.get(e.pointerId);
+    if (!p) { hover(e); return; }
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY; moved = true;
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch) sph.r = Math.max(5, sph.r * pinch / Math.max(d, 1));
+      pinch = d; pan(dx / 2, dy / 2); need(); return;
+    }
+    if (p.b === 2 || p.sh || e.shiftKey) pan(dx, dy);
+    else { sph.th -= dx * 0.006; sph.ph = Math.min(1.53, Math.max(0.03, sph.ph - dy * 0.006)); }
+    need();
+  });
+  function pan(dx, dy) {
+    const k = sph.r * 0.0016, f = new T.Vector3(-Math.sin(sph.th), 0, -Math.cos(sph.th)), r = new T.Vector3(Math.cos(sph.th), 0, -Math.sin(sph.th));
+    const d = r.multiplyScalar(-dx * k).add(f.multiplyScalar(dy * k));
+    if (follow) followOff.add(d); else target.add(d);
+  }
+  canvas.addEventListener("wheel", (e) => { e.preventDefault(); sph.r = Math.max(5, sph.r * Math.exp(e.deltaY * 0.0012)); need(); }, { passive: false });
+  // ---- the time
+  const lerpAng = (a, b, f) => { if (a === null || b === null) return a ?? b ?? 0; let d = ((b - a + 540) % 360) - 180; return a + d * f; };
+  const R = Math.PI / 180;
+  function update() {
+    const t = Number(slider.value);
+    tval.textContent = t.toFixed(2) + " s";
+    for (const ob of objs) {
+      const o = ob.o, n = o.t.length, k = idxAt(o, t), k2 = Math.min(n - 1, k + 1);
+      const f = k2 > k && o.t[k2] > o.t[k] ? Math.min(1, Math.max(0, (t - o.t[k]) / (o.t[k2] - o.t[k]))) : 0;
+      const L = (a) => a[k] + (a[k2] - a[k]) * f;
+      ob.at = { x: L(o.e), y: L(o.u) * ex, z: -L(o.n), t: o.t[k] };
+      ob.body.position.set(ob.at.x, ob.at.y, ob.at.z);
+      ob.body.rotation.y = -lerpAng(o.yaw[k], o.yaw[k2], f) * R;
+      ob.body.rotation.x = (lerpAng(o.pitch[k], o.pitch[k2], f) || 0) * R;
+      ob.body.rotation.z = -(lerpAng(o.roll[k], o.roll[k2], f) || 0) * R;
+      ob.past.geometry.setDrawRange(0, k + 1);      // the part already flown: full colour
+      ob.wall.geometry.setDrawRange(0, 6 * k);
+      ob.band.geometry.setDrawRange(0, 6 * k);
+      ob.visible = t >= o.t[0] - 1e-9 && t <= o.t[n - 1] + 1e-9;
+      ob.body.visible = ob.visible;
+    }
+  }
+  // ---- hover: the nearest track point - name, time, lat / lon, altitude, height above ground
+  const v = new T.Vector3();
+  function toScreen(x, y, z) { v.set(x, y, z).project(camera); return [(v.x + 1) / 2 * canvas.clientWidth, (1 - v.y) / 2 * canvas.clientHeight, v.z]; }
+  function hover(e) {
+    const b = canvas.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top, tip = $("tip");
+    let best = null, dmin = 10;
+    for (const ob of objs) { const o = ob.o, step = Math.max(1, Math.floor(o.t.length / 1500));
+      for (let i = 0; i < o.t.length; i += step) { const [sx, sy, sz] = toScreen(ob.P[3 * i], ob.P[3 * i + 1], ob.P[3 * i + 2]); if (sz > 1) continue; const d = Math.hypot(sx - mx, sy - my); if (d < dmin) { dmin = d; best = { o, i }; } } }
+    if (!best) { tip.style.display = "none"; return; }
+    const { o, i } = best, [la0, lo0] = D.origin;
+    const lat = la0 + o.n[i] / 6378137 / R, lon = lo0 + o.e[i] / (6378137 * Math.cos(la0 * R)) / R;
+    tip.textContent = `${o.name} · t ${o.t[i].toFixed(2)} s · ${lat.toFixed(6)}, ${lon.toFixed(6)} · ${o.u[i].toFixed(1)} m · ${(o.u[i] - o.g[i]).toFixed(1)} m ${S.agl}`;
+    tip.style.display = "block"; tip.style.left = (mx + 12) + "px"; tip.style.top = (my + 12) + "px";
+  }
+  canvas.addEventListener("pointerleave", () => { $("tip").style.display = "none"; });
+  // ---- drawing (only when something changed)
+  let dirty = false;
+  function frame() {
+    dirty = false;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W || !H) return;
+    const cs = getComputedStyle(document.documentElement);
+    document.documentElement.classList.toggle("dark", dark);
+    renderer.setSize(W, H, false); camera.aspect = W / H;
+    scene.background = new T.Color(cs.getPropertyValue("--sky").trim() || "#dfe9f3");
+    const tx = texs[dark ? "dark" : "light"] || texs.light || texs.dark || null;
+    if (groundMat.map !== tx) { groundMat.map = tx; groundMat.color.set(tx ? 0xffffff : (dark ? 0x2a3a32 : 0x9fb39a)); groundMat.needsUpdate = true; }
+    update(); place();
+    const px = 2 * Math.tan(camera.fov * R / 2) / H;    // world units per pixel at distance 1
+    objs.forEach((ob, i) => {
+      const d = camera.position.distanceTo(ob.body.position);
+      ob.body.scale.setScalar(Math.max(0.5, ob.size * 1.1 * px * d));     // a model keeps its size on screen
+      const [sx, sy, sz] = toScreen(ob.at.x, ob.at.y, ob.at.z);
+      ob.label.style.display = ob.visible && sz < 1 ? "" : "none";
+      ob.label.style.left = sx + "px"; ob.label.style.top = sy + "px";
+    });
+    renderer.render(scene, camera);
+  }
+  const need = () => { if (!dirty) { dirty = true; requestAnimationFrame(frame); } };
+  draw = need;
+  state = () => ({ t: Number(slider.value), gl: true, follow, objects: objs.map((ob) => ({ name: ob.o.name, x: ob.at.x, up: ob.at.y / ex, north: -ob.at.z, t: ob.at.t })) });
+  fsel.addEventListener("change", () => { follow = fsel.value; followOff.set(0, 0, 0); if (follow) sph.r = Math.min(sph.r, 1500); need(); });
+  $("ex").addEventListener("change", () => { ex = Number($("ex").value) || 1; setGround(); setTracks(); need(); });
+  $("fit").onclick = () => { follow = ""; fsel.value = ""; fit(); };
+  $("top").onclick = () => { sph.ph = 0.03; sph.th = 0; need(); };
+  addEventListener("resize", need);
+  fit(); update();
+  if (follow) { sph.r = Math.min(sph.r, 1500); }
+  need();
+})();
+$("theme").onclick = () => { dark = !dark; document.documentElement.classList.toggle("dark", dark); draw(); };
+slider.addEventListener("input", () => draw());
+document.documentElement.classList.toggle("dark", dark);
+// a replay page or a live report (the HTML report with one time) drives the time from outside - the same
+// message as the 2D map's page; its own time row is hidden there (one time control per page)
+addEventListener("message", (e) => {
+  const m = e.data;
+  if (!m || m.sv !== "replay") return;
+  if (m.hideTime) { $("time").hidden = true; $("title").style.visibility = "hidden"; }
+  if (typeof m.dark === "boolean") { dark = m.dark; document.documentElement.classList.toggle("dark", dark); }
+  if (typeof m.t === "number" && isFinite(m.t)) slider.value = Math.min(t1, Math.max(t0, m.t));
+  draw();
+});
+draw();
+</script>
+</body>
+</html>

@@ -468,6 +468,7 @@ Every feature, area by area. Each one is covered by an automated test that drive
 
 ### Map
 
+- One **Map** plot type with a **2D | 3D** switch in its bar (since 1.26): the same objects, reference, follow and time, seen flat or as the earth with its terrain. *3D (XYZ)* is the other plot type - any three signals on plain 3D axes, not a map.
 - The Geo plot (longitude × latitude) on real maps: streets (OpenStreetMap, or Esri), light / dark grey (Esri, with labels); *automatic* is the offline map (since 1.23; nothing is sent), the online layers are grouped as such in the menu and an amber *Online map* sign shows while they are used; *Settings ▸ Never use the network* (or `SV_OFFLINE=1`) turns them off, satellite (Esri World Imagery), topographic (OpenTopoMap). Tiles come through the app and are kept on disk (`~/.signalviewer/tiles`), so places already seen work without internet; without internet the map shows country borders and names (Natural Earth, English / Hebrew). *Borders* (beside the layer, offline map and satellite): country borders with a halo, dashed, and the names, over the satellite photos too - with no internet as well. Track with a halo, start (green) / end (red), the cursor's position, scale bar in metres, the provider's attribution. Wheel = zoom at the pointer, drag = pan, double-click = fit
 - The pointer over a time plot of the same tab shows a faint copy of each object where it was at that moment (on the map; a faint point in 3D) - also with the cursors on; nothing moves the cursor
 - Every object of a recording found by its names (since 1.24) - every prefix with a latitude and a longitude (`phys.*`, `nav.*`, `gps.*`, `ins2_*`; NED / ENU / ECEF positions too), classed as truth, navigation or receiver - and added at once (one Undo) or chosen, with *Why?*: which signals, by which rule, what is missing, what almost matched; each object takes its signals from its own prefix only. A line in the file panel offers them when the file opens. Truth is drawn as a line, a navigation solution dashed, a receiver as points
@@ -513,7 +514,9 @@ overshoot, energy...), with a second, finer sweep to merge. The same answer on t
 
 - **Send it as a replay** (Report panel; Ctrl+K): the tab as one HTML page that opens in any browser offline, on the moment shown - one cursor for every plot and map (a click on a plot or the page's timeline), Play (Space, ×0.5 - ×30) with the plots following, one zoom for every time plot, the log's errors / warnings, the findings and the notes as marks, `#t=` in the address keeps a moment, a *Made with Signal Viewer* line; *Open it* shows it in the browser (1.25)
 - Preview in the app
-- Interactive offline HTML
+- Interactive offline HTML - **one live page** (1.26): one time bar for every plot, the map and the 3D view (Play, the log's marks); each plot keeps its zoom and statistics
+- The 3D view in reports: live in HTML (three.js, offline; its picture without WebGL), a picture in PDF / Word / PNG; its own offline HTML from its ⋯ menu
+- A plot that cannot go into a report (a video, occurrences) is listed with the reason, not left out
 - A single plot: PNG, a high-resolution PNG for a report (twice the pixels), SVG, or an interactive page (HTML)
 - PDF
 - Word

@@ -49,4 +49,14 @@ bundled elevation grids as the offline map: sea at 0 m, the Jordan rift really b
 object models are built by `python tools/make_models.py` into `frontend/public/models/`.
 Graphics: with a graphics card Cesium draws at the display's frame rate; drawn in software (virtual
 machines, remote desktop) it is slow - the app then uses one sample per pixel and less terrain
-detail (about 3x faster) and shows a note. Not in reports.
+detail (about 3x faster) and shows a note.
+
+**Outside the app** (1.26, `backend/app/scene3d.py`): the 3D view in reports, the replay page and its own
+offline HTML file (its ⋯ menu; `signalviewer-cli map --3d`, `sv.scene_html` / `sv.scene_image`). CesiumJS
+cannot go into one file, so the page draws the same data with three.js r159 (MIT, embedded): the offline map
+draped on the bundled terrain (97 × 97 heights over the tracks' box and a margin), each track with a curtain
+down to the ground and the flown part as a ribbon, the app's models with heading, pitch and roll, orbit /
+zoom / follow, heights ×1 / ×2 / ×5. The objects are read as the Tacview export reads them. Where the browser
+has no WebGL the page shows the scene's picture (matplotlib, the same picture as in PDF / Word / PNG). The
+scene is local east / north / up metres around the tracks' middle (a flat earth: fine for tracks of
+kilometres, not for hundreds of them).
