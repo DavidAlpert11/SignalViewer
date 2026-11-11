@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { api, type SignalInfo } from "../api";
 import SignalField from "./SignalField";
+import { wrapFor } from "../similar";
 import { actions, activeTab, rangeKey, useApp } from "../store";
 import { fmtNum, useT } from "../i18n";
 
@@ -21,7 +22,7 @@ export default function ErrorSegments({ a, b, alignment }: { a: string; b: strin
   const stateOnly = useCallback((s: SignalInfo) => !!(s.discrete || s.labels), []);
   const run = async () => {
     setBusy(true); setErr("");
-    try { setRes(await api.errorSegments(a, b, state || null, alignment)); }
+    try { setRes(await api.errorSegments(a, b, state || null, alignment, await wrapFor(useApp.getState().runs, a))); }   // L9: angles wrapped
     catch (e) { setRes(null); setErr(String((e as Error).message)); }
     finally { setBusy(false); }
   };

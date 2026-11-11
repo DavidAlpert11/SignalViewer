@@ -79,6 +79,17 @@ export const en = {
   objAltAgl: "above the ground",
   objects: "Objects",
   // N7: primary / secondary and what is between them
+  // L9: Compare with similar…
+  simMenu: "Compare with similar…", simCmd: "Compare similar signals…", simCmdNone: "Compare similar signals: open a file first",
+  simTitle: "Compare with similar signals", simTab: "{leaf} vs {ref}",
+  simNone: "No similar signals: names that differ in one segment only (nav1 / nav2, GPS[0] / GPS[1], truth / nav). Try More matches.",
+  simNoneLoose: "No similar signals, even with the looser matches.",
+  simLoose: "More matches (a segment 1-2 letters apart, or the same last name under different parents)",
+  simHow_instance: "instances", simHow_number: "numbered", simHow_class: "truth / navigation / receiver",
+  simHow_edit: "names 1-2 letters apart", simHow_leaf: "same last name, different parents",
+  simUnits: "units differ - values only", simWrapHint: "Angle differences are wrapped to ±180° (359° − 1° = −2°, not 358°).",
+  simElsewhere: "The same names are in other open files - comparing files is Compare's job.", simOpenCompare: "Open Compare",
+  simStSignal: "Signal",
   // L8: Compare objects…
   cmpTitle: "Compare objects", cmpOpen: "Compare…", cmpOpenHint: "Compare the objects against the reference: positions, velocities, angles - values, errors, statistics",
   cmpCmdOpen: "Compare objects…", cmpCmdNone: "Compare objects: put two or more objects on a map or 3D view first (+ Object on the map's bar)",
@@ -409,6 +420,17 @@ export const he: typeof en = {
   objAltAgl: "מעל הקרקע",
   objects: "אובייקטים",
   // N7: primary / secondary and what is between them
+  // L9: השוואה לדומים…
+  simMenu: "השוואה לדומים…", simCmd: "השוואת סיגנלים דומים…", simCmdNone: "השוואת סיגנלים דומים: קודם פתחו קובץ",
+  simTitle: "השוואה לסיגנלים דומים", simTab: "{leaf} מול {ref}",
+  simNone: "אין סיגנלים דומים: שמות שנבדלים רק בחלק אחד (nav1 / nav2, GPS[0] / GPS[1], truth / nav). נסו עוד התאמות.",
+  simNoneLoose: "אין סיגנלים דומים, גם עם ההתאמות הרחבות.",
+  simLoose: "עוד התאמות (חלק שנבדל ב-1-2 אותיות, או אותו שם אחרון תחת הורים שונים)",
+  simHow_instance: "מופעים", simHow_number: "ממוספרים", simHow_class: "אמת / ניווט / מקלט",
+  simHow_edit: "שמות שנבדלים ב-1-2 אותיות", simHow_leaf: "אותו שם אחרון, הורים שונים",
+  simUnits: "היחידות שונות - ערכים בלבד", simWrapHint: "הפרשי זוויות נעטפים ל-±180° (359° − 1° = −2°, לא 358°).",
+  simElsewhere: "אותם שמות נמצאים בקבצים פתוחים אחרים - השוואת קבצים היא תפקיד ההשוואה.", simOpenCompare: "פתיחת ההשוואה",
+  simStSignal: "סיגנל",
   // L8: השוואת אובייקטים…
   cmpTitle: "השוואת אובייקטים", cmpOpen: "השוואה…", cmpOpenHint: "השוואת האובייקטים לבסיס: מיקום, מהירות, זוויות - ערכים, שגיאות, סטטיסטיקה",
   cmpCmdOpen: "השוואת אובייקטים…", cmpCmdNone: "השוואת אובייקטים: קודם שימו שני אובייקטים או יותר במפה או בתלת-ממד (+ אובייקט בסרגל המפה)",

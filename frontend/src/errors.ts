@@ -5,6 +5,7 @@
 import { api } from "./api";
 import { translate } from "./i18n";
 import { findDerived } from "./peers";
+import { wrapFor } from "./similar";
 import { record } from "./investigation";
 import { activeTab, signalName, styledSignal, uid, useApp, type Plot, type Tab } from "./store";
 
@@ -29,16 +30,19 @@ export async function errorsOf(plots: Plot[]) {
   const L = st.lang;
   const pairs = plots.map(twoLines).filter((x): x is [string, string] => !!x);
   if (!pairs.length) return;
-  const made: { id: string; a: string; b: string }[] = [];
+  const made: { id: string; a: string; b: string; wrap?: 360 | "2pi" }[] = [];
   try {
     for (const [a, b] of pairs) {
-      let id = findDerived(useApp.getState().runs, "sub", {}, [b, a]);
+      // L9: two angles - the error wrapped to ±180° (359° vs 1° is 2°, not 358°); the same rule as Compare with similar
+      const wrap = await wrapFor(useApp.getState().runs, b);
+      const params = wrap ? { wrap } : {};
+      let id = findDerived(useApp.getState().runs, "sub", params, [b, a]);
       if (!id) {
-        const r = await api.createDerived("sub", [b, a], {});
+        const r = await api.createDerived("sub", [b, a], params);
         useApp.setState({ runs: r.runs });
         id = r.id;
       }
-      made.push({ id, a, b });
+      made.push({ id, a, b, wrap });
     }
   } catch (err) {
     st.toast({ kind: "error", text: String((err as Error).message) });
@@ -53,8 +57,8 @@ export async function errorsOf(plots: Plot[]) {
     const rid = m.b.slice(0, m.b.indexOf("/"));
     if (!(rid in phaseOf)) { try { phaseOf[rid] = (await api.overview(rid, [])).phaseSignal; } catch { phaseOf[rid] = null; } }
     const ph = phaseOf[rid];
-    try { seg[m.id] = await api.errorSegments(m.b, m.a, ph ? `${rid}/${ph}` : null, "linear"); }
-    catch { try { seg[m.id] = await api.errorSegments(m.b, m.a, null, "linear"); } catch { /* a title without numbers */ } }
+    try { seg[m.id] = await api.errorSegments(m.b, m.a, ph ? `${rid}/${ph}` : null, "linear", m.wrap); }
+    catch { try { seg[m.id] = await api.errorSegments(m.b, m.a, null, "linear", m.wrap); } catch { /* a title without numbers */ } }
   }
   const runs = useApp.getState().runs;
   const title = (m: { id: string; a: string; b: string }) => {

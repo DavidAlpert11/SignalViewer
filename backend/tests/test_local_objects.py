@@ -120,3 +120,23 @@ def test_speed_error():
     rows2 = rows[:3] + [(rows[3][0], rows[3][1] * 0)] + rows[4:]           # P's north velocity zeroed
     out2 = compute("relate", rows2, {"what": "err_speed", "p": lay, "s": lay})[1]
     assert np.nanmin(out2) >= -1e-9 and np.nanmax(out2) > 1
+
+
+def test_sub_wraps_angles():
+    """L9: "sub" with wrap - the yaw difference across 0 / 360 is small, not ~360; radians with "2pi";
+    without wrap the plain difference (old sessions unchanged); a bad wrap is refused."""
+    import pytest as _pt
+    from svcore.analysis import OpError
+    t = np.arange(0, 10, 0.1)
+    a = (355.0 + 2 * t) % 360                          # crosses 360 -> 0 at t = 2.5
+    b = (a - 0.5) % 360
+    d = compute("sub", [(t, a), (t, b)], {"wrap": 360})[1]
+    assert np.max(np.abs(d - 0.5)) < 1e-9
+    assert np.nanmax(np.abs(compute("sub", [(t, a), (t, b)], {})[1])) > 300      # no wrap: as before
+    r = compute("sub", [(t, np.radians(a)), (t, np.radians(b))], {"wrap": "2pi"})[1]
+    assert np.max(np.abs(r - np.radians(0.5))) < 1e-9
+    tb = t + 0.05                                      # B between A's samples, across the wrap
+    d2 = compute("sub", [(t, a), (tb, (355.0 + 2 * tb - 0.5) % 360)], {"wrap": 360})[1]
+    assert np.nanmax(np.abs(d2 - 0.5)) < 1e-6
+    with _pt.raises(OpError):
+        compute("sub", [(t, a), (t, b)], {"wrap": 180})

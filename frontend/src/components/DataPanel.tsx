@@ -222,6 +222,8 @@ export default function DataPanel() {
     })(),
     { label: t("newPlot"), run: () => actions.addSignalToNewPlot(sig.id) },
     { label: t("useAsX"), run: () => { const tb = activeTab(useApp.getState().ws); const p = tb.plots[tb.active]; if (p) actions.setAsX(p.id, sig.id); } },
+    // L9: the same name but for one segment (nav1 / nav2, XKF1[0] / XKF1[1], truth / nav)
+    { label: t("simMenu"), run: () => useApp.setState({ similarDialog: { runId: sig.id.slice(0, sig.id.indexOf("/")), ids: [sig.id] } }) },
     { label: "", run: () => {}, sep: true },
     // T49 item 7: one way to change a signal itself (the same as Create signals > Change this signal)
     ...(sig.id.startsWith("derived/") ? [] : [{ label: t("tfEdit"), run: () => useApp.setState({ transformTargets: [sig.id] }) }]),
@@ -545,6 +547,8 @@ export default function DataPanel() {
             { label: "", run: () => {}, sep: true },
             { label: t(allSel ? "unselectGroup" : "selectGroup", { n: row.ids.length }), run: () => toggleMany(row.ids) },
             { label: t("styleLines"), run: () => useApp.setState({ styleDialog: { name: String(row.label ?? row.key.split("|").pop()), sigs: row.ids } }) },
+            // L9: every leaf under the group that has partners (nav1.att -> roll / pitch / yaw of nav2, truth...)
+            { label: t("simMenu"), run: () => useApp.setState({ similarDialog: { runId: row.runId, ids: row.ids } }) },
           ])}>
           <Icon.Chevron className="chev" />
           {picked.length > 0 && (

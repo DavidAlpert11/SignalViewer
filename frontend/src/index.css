@@ -1791,3 +1791,14 @@ input.fx-input { width: 100%; }
 .cmpobj-stats th, .cmpobj-stats td { padding: 2px var(--sp-1_5); text-align: start; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .cmpobj-stats th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; }
 .rel-actions .rel-compare-open { font-weight: 600; }
+
+/* L9: Compare with similar… */
+.sim-list { list-style: none; margin: 0 0 var(--sp-2); padding: 0; max-height: 280px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-s); }
+.sim-fam { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-2); padding: 3px var(--sp-2); border-bottom: 1px solid var(--line); }
+.sim-fam label { display: inline-flex; align-items: center; gap: 4px; }
+.sim-leaf { font-weight: 600; }
+.sim-members { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.sim-member { font-size: var(--fs-xs); background: var(--panel-2); border-radius: var(--r-xs); padding: 0 var(--sp-1); }
+.sim-member.ref { box-shadow: 0 0 0 1.5px var(--amber); }
+.sim-how { font-size: var(--fs-xs); margin-inline-start: auto; }
+.sim-loose { display: flex; align-items: center; gap: 4px; margin-bottom: var(--sp-2); font-size: var(--fs-s); }
