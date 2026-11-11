@@ -79,6 +79,9 @@ export const en = {
   objAltAgl: "above the ground",
   objects: "Objects",
   // N7: primary / secondary and what is between them
+  // L11: the map's picture and its standalone page
+  mapSaveView: "Save image (PNG) - this view…", mapSaveFit: "Save image (PNG) - fit all tracks…",
+  mapSaveHtml: "Save as HTML (opens offline)…",
   // L9: Compare with similar…
   simMenu: "Compare with similar…", simCmd: "Compare similar signals…", simCmdNone: "Compare similar signals: open a file first",
   simTitle: "Compare with similar signals", simTab: "{leaf} vs {ref}",
@@ -420,6 +423,9 @@ export const he: typeof en = {
   objAltAgl: "מעל הקרקע",
   objects: "אובייקטים",
   // N7: primary / secondary and what is between them
+  // L11: תמונת המפה והעמוד העצמאי שלה
+  mapSaveView: "שמירת תמונה (PNG) - התצוגה הזו…", mapSaveFit: "שמירת תמונה (PNG) - כל המסלולים…",
+  mapSaveHtml: "שמירה כ-HTML (נפתח בלי רשת)…",
   // L9: השוואה לדומים…
   simMenu: "השוואה לדומים…", simCmd: "השוואת סיגנלים דומים…", simCmdNone: "השוואת סיגנלים דומים: קודם פתחו קובץ",
   simTitle: "השוואה לסיגנלים דומים", simTab: "{leaf} מול {ref}",

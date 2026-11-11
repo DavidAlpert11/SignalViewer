@@ -34,6 +34,12 @@
   a tab or *New tab*; the plot keeps everything (axes, cursors, a map's objects and pair). ⋯ → *Add its
   lines to…* (or Shift+drop onto another plot) puts its lines into a plot of the same kind. One Undo each.
 
+- **Maps leave the app.** A map's ⋯ menu saves its picture (this view, or every track fitted) with the
+  offline map, the tracks, the objects at the cursor, a legend, a scale bar and a north arrow - and
+  *Save as HTML* makes a page that opens anywhere with no network: pan, zoom, a time slider that moves
+  the objects, light / dark. Online imagery is used only from tiles already seen, always credited.
+- **Reports include maps** - as a picture in PDF / Word, as the interactive offline map in HTML.
+
 ### Changed
 - Differences of angles are wrapped: 359° − 1° is −2°, not 358° - in Compare with similar…, *Errors
   between two lines* and the error-segments table (degrees or radians, from the unit or the values).
@@ -44,6 +50,7 @@
   box, the chips, their menu, Help.
 
 ### Fixed
+- A map of objects was left out of reports: it is now drawn.
 - A request for more plots than a tab holds (or more signals than a plot shows) no longer drops the
   rest silently: it goes on in another tab, and a message says what was left out.
 - An ECEF (or any converted) object is no longer offered again by the suggestion bar after it was added,

@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
   `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
-  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6), B (L7-L9) and L10 (moving plots across tabs).** Next: L11. Travels as
+  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6), B (L7-L9) and C (L10-L11: moving plots, map export).** Next: L12. Travels as
   one cumulative patch on `d61ab6d`; the owner pushed up to L7 (`e2a75a8`), so later patches are on that.
 
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
@@ -254,6 +254,32 @@ e2e `test_compare_similar.py` (group menu on three_objects; the EKF lanes' yaw a
 (`plotDrag`), i18n `plotMove*` (en + he), CSS. Tests: movePlots.test.ts (4 new), e2e test_move_plots_tabs.py
 (new, 3), test_move_plots.py (green).
 
+**Decisions taken in L11:**
+21. The renderer is its own module, `backend/app/mapimage.py` (not report.py): the export route and the three
+    report builders call it, and report.py is already the module of the time / XY / FFT plots.
+22. **What a report did before (recorded):** a map plot with objects and no lines was left out twice - the UI's
+    report list kept only plots with signals, and the server's `_collect` kept only plot data with signals. A
+    map of plain lat / lon lines was drawn as a lon-lat X-Y plot (still so). Now a map with objects is a map.
+23. Imagery (Q9's default): the offline basemap always; an online layer only from the tiles already in the app's
+    tile cache (never fetched here), a missing one falls back to the offline tile; the attribution of every
+    layer used is written on the image / in the page. Note: the fixture's circle lies over the Sea of Galilee,
+    so its picture is all water - expected.
+24. The standalone page embeds the tiles of the tracks' box (25 % margin) from a zoom that shows it all, adding
+    deeper levels while they fit the budget (15 MB for *Save as HTML*, 4 MB per map in an HTML report, half for
+    light and half for dark); it says in a comment and in its footer what it holds. Tracks: ≤ 3000 points each.
+25. The ⋯ menu of a map with objects: *Save image (PNG) - this view…* (GeoChart registers its view's bounds in
+    `globeBridge.geoViewBounds`), *- fit all tracks…*, *Save as HTML (opens offline)…* (SVG / the generic HTML
+    page are not offered for such a map: the map's own page replaces them). The 3D view keeps its PNG.
+
+**Code map of L11:** backend `app/mapimage.py` (new: `map_data`, `render`, `build_html`, `tile_bytes`),
+`app/report_assets/map.html` (new: the offline viewer), `app/report.py` (`_geo_data`, HTML iframe, PDF / Word
+picture, `build_image` / `build_plot_html` for maps), `report_assets/viewer.js` (skips maps),
+`app/routes/export.py` (400 on a map with nothing to draw); frontend `plotSpec.ts` (`geoSpec`, `mode: "geo"`),
+`globeBridge.ts` (`geoViewBounds`), `GeoChart.tsx`, `PlotView.tsx` (menu), `ReportPanel.tsx` (maps kept),
+i18n `mapSave*`. Tests: backend `tests/test_map_export.py` (PNG with the offline basemap and the track's colour,
+standalone HTML, refused empty map, reports HTML / PDF / Word); e2e `test_map_export.py` (the page opened with
+every request blocked, the slider moves the markers, dark mode, the ⋯ menu).
+
 **Open questions (the work goes on with the default):**
 | # | Question | Default if unanswered |
 |---|---|---|
@@ -331,8 +357,8 @@ Progress board:
 | L8 | Compare objects: one dialog, values and errors | B | ☑ done |
 | L9 | Compare similar nested signals | B | ☑ done |
 | L10 | Move a plot to another tab / into another plot | C | ☑ done |
-| L11 | Map export: PNG, HTML, maps in reports | C | ☐ next |
-| L12 | A clear API (Python, CLI, REST) | D | ☐ |
+| L11 | Map export: PNG, HTML, maps in reports | C | ☑ done |
+| L12 | A clear API (Python, CLI, REST) | D | ☐ next |
 | L13 | Docs, changelog, release, full checks | E | ☐ |
 
 ---
@@ -3826,3 +3852,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · L9 done - group B complete (decisions 13-16). Checks: backend 1101 passed / 14 skipped, mypy clean, tsc, Vitest 16 files / 98; e2e test_compare_similar (2, new), test_error_segments + test_one_per_plot (5). Whole e2e suite at the end of group B: see the next line. Next: L10.
 - 2026-11-10 · **Whole e2e suite at the end of group B (the debt of group A paid too): green.** First run: the first 192 tests passed, then the container's disk filled (8.5 GB of pytest temporary files in /tmp/pytest-of-root - not the app) and the rest errored at setup; one F just before (test_missing_choice::test_sum_propagate_then_skip_is_marked) passes alone and in the rerun. Rerun in two chunks with /tmp cleaned between: test_map_smooth … test_release_1_21 60 passed; test_runs_matrix … test_workflows 122 passed. Note for later runs: clean /tmp/pytest-of-root between big e2e runs in a small container. Next: L10.
 - 2026-11-10 · L10 done (decisions 17-20): movePlotToTab / mergePlotInto (one Undo each), the handle onto a tab, Move to… → tab / New tab, Add its lines to…, Shift+drop merge, Ctrl+K. Checks: tsc, Vitest 16 / 102; e2e test_move_plots_tabs (3, new), test_move_plots (2), test_plot_menus + test_tab_band + test_template_tabs (6). Next: L11.
+- 2026-11-10 · L11 done - group C complete (decisions 21-25). Checks: backend 1107 passed / 14 skipped, mypy clean (110 files), tsc, Vitest 102; e2e test_map_export (new), test_findings_report + test_map_objects + test_offline_map (17). Next: L12.

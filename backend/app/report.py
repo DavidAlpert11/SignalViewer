@@ -63,6 +63,8 @@ LINE_STYLES = {"solid": "-", "dash": "--", "dot": ":", "dashdot": "-."}   # N3: 
 def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
     """Resolve a plot spec from the UI into display data + full-resolution statistics."""
     mode = spec.get("mode") or "time"
+    if mode == "geo":                                             # L11: a map's objects, drawn by app/mapimage.py
+        return _geo_data(store, spec, for_html)
     rng = spec.get("range")
     out: dict = {"title": spec.get("title") or "", "caption": spec.get("caption") or "", "mode": mode,
            "range": rng, "log": bool(spec.get("fftLog", True)), "signals": [], "notes": spec.get("notes") or []}
@@ -136,6 +138,21 @@ def plot_data(store, spec: Dict, for_html: bool, points: int = 3000) -> Dict:
         if for_html and "x" in sig:
             sig["x"], sig["y"] = _b64(sig["x"], np.float64), _b64(sig["y"], np.float32)
         out["signals"].append(sig)
+    return out
+
+
+def _geo_data(store, spec: Dict, for_html: bool) -> Dict:
+    """L11: a map plot in a report - the static map (PDF / Word / PNG) and, for the HTML report, the map's own
+    interactive page (offline, tiles embedded within a smaller budget than a saved map: a report has many)."""
+    from app import mapimage
+    out: dict = {"title": spec.get("title") or "", "caption": spec.get("caption") or "", "mode": "geo", "signals": []}
+    try:
+        md = mapimage.map_data(store, spec)
+    except ValueError:
+        return out                                                # nothing to draw: left out like an empty plot
+    out["geo_png"] = base64.b64encode(mapimage.render(md, "png", spec.get("theme") or "light", 1.6)).decode()
+    if for_html:
+        out["geo_html"] = mapimage.build_html(md, spec.get("theme") or "light", budget=4 * 1024 * 1024, lang=spec.get("lang") or "en")
     return out
 
 
@@ -327,6 +344,7 @@ def _num(v) -> str:
 # =============================================================================
 
 CSS = """
+.mapframe { width: 100%; height: 520px; border: 1px solid var(--line, #d5dce4); border-radius: 6px; }
 :root,[data-theme=dark]{--bg:#151b23;--panel:#1c2430;--line:#2d3a4b;--ink:#dde4ec;--ink-strong:#f4f7fa;--muted:#8e9cad;
 --amber:#f2a93b;--amber-ink:#1b1305;--plot:#121820;--grid:#222c39;--axis:#8e9cad}
 [data-theme=light]{--bg:#eef1f4;--panel:#fff;--line:#d5dce4;--ink:#1f2a36;--ink-strong:#0f1822;--muted:#5a6979;
@@ -473,10 +491,10 @@ def build_html(store, req: Dict, progress=None) -> str:
     stats_html = {}
     for ti, tab in enumerate(tabs):
         for pi, p in enumerate(tab["plots"]):
-            stats_html[(ti, pi)] = _stats_table(p["signals"], S) if p["mode"] not in ("xy", "spec", "xyz") else ""
+            stats_html[(ti, pi)] = _stats_table(p["signals"], S) if p["mode"] not in ("xy", "spec", "xyz", "geo") else ""
             for s in p["signals"]:
                 s.pop("stats", None)
-    payload_tabs = [{"name": t["name"], "plots": [{k: v for k, v in p.items() if k not in ("spec", "xyz")} for p in t["plots"]]} for t in tabs]
+    payload_tabs = [{"name": t["name"], "plots": [{k: v for k, v in p.items() if k not in ("spec", "xyz", "geo_png", "geo_html")} for p in t["plots"]]} for t in tabs]
     payload = {"lang": lang, "strings": {"toggle": S["toggle"]}, "tabs": payload_tabs}
     nav_items = []
     for i, t in enumerate(tabs):
@@ -489,6 +507,11 @@ def build_html(store, req: Dict, progress=None) -> str:
         for pi, p in enumerate(t["plots"]):
             heading = html.escape(p["title"] or "%s %d" % (S["plot"], pi + 1))
             caption = '<p class="caption">%s</p>' % html.escape(p["caption"]) if p["caption"] else ""
+            if p["mode"] == "geo":                            # L11: the map's own offline page, in a frame
+                frame = ('<iframe class="mapframe" title="%s" sandbox="allow-scripts" srcdoc="%s"></iframe>' % (heading, html.escape(p["geo_html"], quote=True))) \
+                    if p.get("geo_html") else ""
+                items.append('<section class="plot" data-p="%d"><h2>%s</h2>%s%s</section>' % (pi, heading, caption, frame))
+                continue
             if p["mode"] in ("spec", "xyz"):
                 img = '<img class="specimg%s" alt="%s" src="data:image/png;base64,%s">' % (
                     " xyzimg" if p["mode"] == "xyz" else "", heading, _spec_png(p, req.get("theme", "light"))) \
@@ -657,6 +680,11 @@ class ReportNeedsExtra(RuntimeError):
     """T59: PDF / Word reports and images need matplotlib / python-docx (pip extra "reports")."""
 
 
+def _png_array(b64: str):
+    from PIL import Image
+    return np.asarray(Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB"))
+
+
 def _pyplot():
     try:
         import matplotlib
@@ -690,7 +718,7 @@ def _collect(store, req: Dict, progress=None) -> List[Dict]:
     for tab in req.get("tabs", []):
         for p in tab.get("plots", []):
             pdata = plot_data(store, {**p, "notes": req.get("notes") or [], "lang": req.get("lang", "en")}, for_html=False)
-            if pdata["signals"] or pdata.get("env") is not None:      # an Envelope plot keeps its data in "env"
+            if pdata["signals"] or pdata.get("env") is not None or pdata.get("geo_png"):   # Envelope: "env"; a map: its image
                 items.append(pdata)
             done += 1
             if progress:
@@ -757,7 +785,10 @@ def build_pdf(store, req: Dict, path: str, progress=None):
             fig = page(n)
             fig.text(X, 0.92, _bidi(p["title"] or "%s %d" % (S["plot"], i + 1)), ha=ha, va="top", fontsize=14, weight="bold", color=ink)
             ax = fig.add_axes([0.1, 0.52, 0.82, 0.36])
-            draw_axes(ax, p, "light")
+            if p.get("geo_png"):                               # L11: the map as the server drew it
+                ax.imshow(_png_array(p["geo_png"])); ax.set_axis_off()
+            else:
+                draw_axes(ax, p, "light")
             y = 0.47
             if p["caption"]:
                 y = paragraphs(fig, p["caption"], y, size=9.5, color=muted) - 0.01
@@ -848,7 +879,8 @@ def build_docx(store, req: Dict, path: str, progress=None):
         if progress:
             progress(0.65 + 0.33 * i / max(1, len(items)), "pages")
         rtlize(doc.add_heading(p["title"] or f"{S['plot']} {i + 1}", 1))
-        png = figure_bytes(render_figure(p, "light", size=(7, 5) if p["mode"] == "xyz" else (9, 3.6), dpi=170), "png")
+        png = base64.b64decode(p["geo_png"]) if p.get("geo_png") else \
+            figure_bytes(render_figure(p, "light", size=(7, 5) if p["mode"] == "xyz" else (9, 3.6), dpi=170), "png")
         doc.add_picture(io.BytesIO(png), width=Inches(6.3))
         if p["caption"]:
             rtlize(doc.add_paragraph(p["caption"]))
@@ -890,7 +922,10 @@ def build_docx(store, req: Dict, path: str, progress=None):
 
 def build_plot_html(store, spec: Dict, theme: str = "light", lang: str = "en") -> str:
     """One plot as an interactive page (zoom, the lines on and off, values under the pointer) - the
-    report's page with just this plot."""
+    report's page with just this plot. L11: a map is the map's own offline page (tiles embedded, 15 MB)."""
+    if spec.get("mode") == "geo":
+        from app import mapimage
+        return mapimage.build_html(mapimage.map_data(store, spec), theme, lang=lang)
     return build_html(store, {"title": spec.get("title") or "", "lang": lang, "theme": theme,
                               "tabs": [{"name": "", "plots": [spec]}]})
 
@@ -898,6 +933,9 @@ def build_plot_html(store, spec: Dict, theme: str = "light", lang: str = "en") -
 def build_image(store, spec: Dict, fmt: str, theme: str, scale: float = 1.0) -> bytes:
     """A plot as PNG or SVG; `scale` 2 (or more) gives a PNG with that many times the pixels - for a
     report or a slide (the lines drawn from more points too)."""
+    if spec.get("mode") == "geo":                                 # L11: the map, drawn by app/mapimage.py
+        from app import mapimage
+        return mapimage.render(mapimage.map_data(store, spec), fmt, theme, scale)
     p = plot_data(store, spec, for_html=False, points=int(4000 * max(1.0, scale)))
     fig = render_figure(p, theme, size=(8, 6) if p.get("mode") == "xyz" else (10, 4), dpi=int(200 * scale) if fmt == "png" else 100)
     if p["title"]:

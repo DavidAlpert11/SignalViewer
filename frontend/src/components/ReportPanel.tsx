@@ -29,7 +29,8 @@ export default function ReportPanel() {
     // occurrences plots are not drawn in reports yet (they need a condition's stretches)
     const tabSpecs = tabs.map((tab, i) => ({
       name: tab.name || `${translate(meta.lang, "tab")} ${ws.tabs.indexOf(tab) + 1 || i + 1}`,
-      plots: tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => !p.excludeFromReport && p.signals.length && p.mode !== "occ")
+      // L11: a map with objects (and no lines) is in the report too - drawn by the server as a map
+      plots: tab.plots.map((p, pi) => ({ p, pi })).filter(({ p }) => !p.excludeFromReport && (p.signals.length || (p.mode === "geo" && p.objects?.length)) && p.mode !== "occ")
         .map(({ p, pi }) => plotSpec(tab, p, pi, plotLabel)),
     })).filter((tb) => tb.plots.length);
     // Investigation step 6: each finding with its view - the time plots of that tab, at that zoom
@@ -108,7 +109,7 @@ export default function ReportPanel() {
         )}
         {withInvestigation && <p className="hint">{t("rIncludeHint")}</p>}
         <h3 className="alist-head">{t("reportPlots")}</h3>
-        {tabs.map((tab) => tab.plots.filter((p) => p.signals.length).map((p) => {
+        {tabs.map((tab) => tab.plots.filter((p) => p.signals.length || (p.mode === "geo" && p.objects?.length)).map((p) => {
           const idx = tab.plots.indexOf(p);
           return (
             <div key={p.id} className={`rplot${p.excludeFromReport ? " off" : ""}`}>
@@ -123,7 +124,7 @@ export default function ReportPanel() {
             </div>
           );
         }))}
-        {tabs.every((tab) => tab.plots.every((p) => !p.signals.length)) && <p className="hint">{t("reportEmpty")}</p>}
+        {tabs.every((tab) => tab.plots.every((p) => !p.signals.length && !(p.mode === "geo" && p.objects?.length))) && <p className="hint">{t("reportEmpty")}</p>}
 
         <label className="afield" style={{ marginTop: 12 }}><span>{t("summary")}</span>
           <textarea key={"s" + meta.summary} rows={3} defaultValue={meta.summary} onBlur={(e) => e.target.value !== meta.summary && setMeta({ summary: e.target.value })} /></label>
