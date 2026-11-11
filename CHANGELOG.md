@@ -49,6 +49,9 @@
 - **A line that looks flat beside larger ones is offered a way out - also in files with no units.**
   Adding a current of 12 A to a plot of 3000 rpm says so and offers *To the right axis* or *To its own
   plot* (nothing moves by itself; one Undo). Until now the offer was made only when the units differed.
+- **A plain file no longer opens on an empty plot with no word on what to do.** When no template fits
+  the file, the start card offers *Quick look* (every signal in a plot of its own); it leaves by itself
+  with the first signal you plot.
 - **One plot at a time** (`M`, or the layout button): the active plot fills the tab, `1 - 9` flip through
   the others, `Esc` returns to all of them. The layout is not changed. For small screens and for showing
   one plot to a room.
