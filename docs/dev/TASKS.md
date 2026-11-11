@@ -402,8 +402,11 @@ shown; 33. its marks are what the app's timeline marks (log errors / warnings, f
 34. Space on the replay's bar buttons plays (a focused button took it as a click). README made short
 (306 → 120 lines; the full list is `docs/features.md`). Tests: `backend/tests/test_replay.py` (6),
 `replay.test.ts` (5), `timelineView.test.ts` (5), `tests/e2e/test_replay.py` (2); objectDetect's two
-timing tests take the best of three cold runs. Not done: README pictures of the replay
-(`tools/make_readme_media.py`), the Windows build, the tag.
+timing tests take the best of three cold runs. README pictures `docs/images/32_replay_page.png` and
+`33_send_replay_delta.png` (the ArduPilot example: a tab of map + roll + vibration, the replay made from the
+Report panel; taken with a Playwright script, not yet a step of `tools/make_readme_media.py`). The standalone
+map embeds its tiles with a 75 % margin around the tracks (was 25 %: a frame wider than the tracks showed a
+blank edge - seen in the replay). Not done: the Windows build, the tag.
 
 ---
 

@@ -52,6 +52,12 @@
 
 All changes: [CHANGELOG](CHANGELOG.md).
 
+<p align="center"><img src="docs/images/32_replay_page.png" alt="A replay page as a colleague receives it: an ArduPilot flight in the browser - the map, roll desired against actual and the vibration, one cursor on the vibration burst at 139.2 s, Play and the log's marks on the timeline at the bottom" width="100%"></p>
+
+<p align="center"><sub>The replay page a colleague receives – one file, any browser, no install. Below: making it in the app, with two cursors (Δ in every chip) and the plots' window on the timeline.</sub></p>
+
+<p align="center"><img src="docs/images/33_send_replay_delta.png" alt="The app: the Report panel's Send it as a replay card, the map, roll and vibration zoomed on the burst, two cursors with Δ in every chip, and the window on the timeline" width="100%"></p>
+
 <p align="center"><img src="docs/media/02_flight_map_3d.gif" alt="A UAV flight over the Sea of Galilee played back on the offline map and in 3D" width="100%"></p>
 
 <p align="center"><img src="docs/media/04_flight_log_health.gif" alt="ArduPilot log: vibration template, health findings, events and parameters" width="100%"></p>

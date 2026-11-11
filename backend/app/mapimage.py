@@ -222,8 +222,8 @@ def render(mdata: Dict, fmt: str = "png", theme: str = "light", scale: float = 1
 # ---- standalone HTML ----------------------------------------------------------------------------
 
 def _tiles_for(mdata: Dict, dark: bool, budget: int) -> Tuple[Dict[str, str], List[int], set]:
-    """The tiles of the tracks' box at as many zoom levels as fit `budget` bytes (coarse first)."""
-    s_, w_, n_, e_ = _padded(mdata["bounds"], frac=0.25)
+    """The tiles around the tracks' box at as many zoom levels as fit `budget` bytes (coarse first)."""
+    s_, w_, n_, e_ = _padded(mdata["bounds"], frac=0.75)        # wide: a frame wider than the tracks shows no blank edge
     z0 = max(1, _zoom_for((s_, w_, n_, e_), 900) - 1)
     out: Dict[str, str] = {}
     levels: List[int] = []
