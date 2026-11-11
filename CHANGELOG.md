@@ -19,6 +19,23 @@ means three signals on plain axes (XYZ).
   any plot or the bar, or Play, moves every plot's cursor, the map and the 3D view; the log's errors,
   warnings, findings and notes are marks on it. The report keeps its layout, its statistics tables and a
   zoom per plot. PDF and Word show each plot, the map and the 3D view as an image.
+- **One bar for the map in 2D and in 3D**, in the app and in the offline pages: the camera *General · On the
+  object · Chase* on the object chosen beside it (the reference first), + / − / fit, *Relation*; each view's
+  own extras after it. The camera stays when you switch between 2D and 3D. *Chase* in 3D sits behind the
+  object looking where it goes; in 2D it is on the object, close, with its direction of travel up.
+- **Closest in → go there**: in the relation box (the app and the pages) a click on *Closest in* moves the
+  time to the moment the two objects are closest.
+- **The offline pages**: a *Trail* (the whole track or its last 60 / 20 s), an attitude indicator for the
+  object the 3D camera is on, and an address that keeps the view (`#t=…&cam=…&obj=…` - a link to the same
+  moment, camera and object).
+- **The 2D map's page and the 3D view's page work the same way**: one toolbar in both and the app's relation
+  box in both: choose the reference
+  and the compared object, swap them, fold it, or hide it with its button. The tracks look as in the app
+  (a line, a navigation solution dashed, a receiver as points; a fixed width on screen in 3D); the pair has
+  its rings and a dashed line with the distance.
+- **The relation box in the app's 3D view**, as on the 2D map (the pair is chosen there); a third object
+  stays in the 3D data box. A *Relation* button in both views' bars shows / hides it, and the box has its
+  own ×.
 - Python and the command line: `sv.scene_image(rec, …)`, `sv.scene_html(rec, …)`, `signalviewer-cli map
   flight.bin --3d --out view.png|view.html`.
 
@@ -28,6 +45,7 @@ means three signals on plain axes (XYZ).
   templates are unchanged (the saved types are the same).
 
 ### Fixed
+- `docs/validation.md` says the current version again (the release check failed on it).
 - A 3D view was left out of reports and replay pages without a word; it is in now. A plot that still
   cannot go into a report (a video, occurrences) is listed greyed in the Report panel with the reason, and
   a replay page says what it left out.

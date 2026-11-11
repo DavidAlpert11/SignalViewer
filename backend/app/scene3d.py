@@ -120,6 +120,7 @@ def scene_data(store, spec: Dict) -> Dict:
     except (HTTPException, KeyError) as err:
         raise ValueError(f"A 3D view's object could not be read: {getattr(err, 'detail', err)}") from err
     sizes = {o.get("name"): o.get("size") for o in want}
+    looks = {o.get("name"): o.get("track") for o in want}
     objs: List[Dict] = []
     for o in raw:
         t, lat, lon, alt = (np.asarray(o[k], dtype=np.float64) for k in ("t", "lat", "lon", "alt"))
@@ -131,7 +132,8 @@ def scene_data(store, spec: Dict) -> Dict:
             cols.append(np.asarray(o[r], dtype=np.float64)[ok] if o[r] is not None else np.full(int(ok.sum()), np.nan))
         d = mapimage._decimate(*cols, n=POINTS)
         objs.append({"name": o["name"], "color": o["color"] or "#3d8bfd", "kind": o["kind"] if o["kind"] in KINDS else "aircraft",
-                     "size": float(sizes.get(o["name"]) or 26), "t": d[0], "lat": d[1], "lon": d[2], "alt": d[3],
+                     "size": float(sizes.get(o["name"]) or 26),
+                     "track": looks.get(o["name"]) if looks.get(o["name"]) in ("dash", "points") else None, "t": d[0], "lat": d[1], "lon": d[2], "alt": d[3],
                      "roll": d[4], "pitch": d[5], "yaw": d[6], "own": o["yaw"] is not None})
     if not objs:
         raise ValueError("The 3D view has no object with a position to draw.")
@@ -279,14 +281,7 @@ def _nan_none(a, d):
     return [None if not math.isfinite(v) else v for v in np.round(a, d).tolist()]
 
 
-STRINGS = {
-    "en": {"fit": "Fit all tracks", "top": "From above", "follow": "Follow", "none": "Nothing", "ex": "Heights",
-           "theme": "Light / dark", "noGl": "This browser cannot draw 3D (WebGL is off) - the picture shows the moment the page was made.",
-           "agl": "above ground", "time": "Time", "help": "Drag: turn · right-drag or Shift: move · wheel: zoom"},
-    "he": {"fit": "כל המסלולים", "top": "מלמעלה", "follow": "לעקוב אחרי", "none": "אף אחד", "ex": "גבהים",
-           "theme": "בהיר / כהה", "noGl": "הדפדפן הזה לא יכול לצייר תלת-ממד (WebGL כבוי) - התמונה מראה את הרגע שבו הדף נוצר.",
-           "agl": "מעל הקרקע", "time": "זמן", "help": "גרירה: סיבוב · גרירה ימנית או Shift: הזזה · גלגלת: זום"},
-}
+STRINGS = mapimage.PAGE_STRINGS          # one set of words for both offline map pages
 
 
 def build_html(sd: Dict, theme: str = "light", lang: str = "en", fallback_png: Optional[bytes] = None) -> str:
@@ -303,12 +298,12 @@ def build_html(sd: Dict, theme: str = "light", lang: str = "en", fallback_png: O
     data = {
         "title": sd["title"], "extent": list(sd["extent"]), "origin": list(sd["origin"]), "grid": GRID,
         "heights": _r(sd["heights"].ravel(), 1), "textures": tex, "cursor": sd["cursor"], "dark": dark,
-        "follow": sd.get("follow"), "primary": sd.get("primary"), "secondary": sd.get("secondary"),
+        "follow": sd.get("follow"), "pair": {"primary": sd.get("primary"), "secondary": sd.get("secondary")},
         "models": {k: model(k) for k in kinds}, "ex": 1,
         "attribution": " · ".join(mapimage.ATTRIB[s] for s in sorted(used or {"offline"})),
         "S": STRINGS.get(lang, STRINGS["en"]),
         "fallback": "data:image/png;base64," + base64.b64encode(fallback_png if fallback_png is not None else render(sd, "png", theme, 1.4)).decode(),
-        "objects": [{"name": o["name"], "color": o["color"], "kind": o["kind"], "size": o["size"], "t": _r(o["t"], 3),
+        "objects": [{"name": o["name"], "color": o["color"], "kind": o["kind"], "size": o["size"], "track": o["track"], "t": _r(o["t"], 3),
                      "e": _r(o["e"], 2), "n": _r(o["n"], 2), "u": _r(o["u"], 2), "g": _r(o["g"], 1),
                      "roll": _nan_none(o["roll"], 2), "pitch": _nan_none(o["pitch"], 2), "yaw": _nan_none(o["yaw"], 2)} for o in sd["objects"]],
     }
@@ -319,6 +314,7 @@ def build_html(sd: Dict, theme: str = "light", lang: str = "en", fallback_png: O
     with open(os.path.join(ASSETS, "three.min.js"), encoding="utf-8") as f:
         three = f.read()
     three = three.replace("</script", "<\\/script")
+    page = mapimage.page_parts(page)
     return (page.replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":")).replace("</", "<\\/"))
                 .replace("<!--__NOTE__-->", f"<!-- {note} -->")
                 .replace("__NOTE_TEXT__", mapimage._esc(note))

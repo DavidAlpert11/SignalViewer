@@ -148,15 +148,18 @@ def g3multi(env):
 def test_related_objects_distance_line_and_box(g3multi):
     pg = g3multi
     assert pg.locator(".globe3d-readout b").inner_text() == "A"                # the first object is the primary
-    pg.locator(".globe3d-bar select[aria-label='Compared with']").select_option("B")
+    # 1.26: the pair is chosen in the relation box, as on the 2D map; the compared object's numbers are there
+    pg.locator(".globe3d .rel-panel select[aria-label='Compared with']").select_option("B")
     pg.locator(".globe3d-bar select[aria-label='Third']").select_option("C")
-    pg.wait_for_function("document.querySelectorAll('.globe3d-readout .g3-rel').length === 2")
-    rel = pg.locator(".globe3d-readout .g3-rel").all_inner_texts()
     # A -> B on the WGS84 ellipsoid: 0.01 deg of longitude at 32.5 N = N cos(lat) dlon = 940 m; 200 m higher;
     # slant sqrt(940^2 + 200^2) = 961 m; bearing east
-    assert rel[0].startswith("B: 940 m") and "Δh +200 m" in rel[0] and "slant 961 m" in rel[0] and "90°" in rel[0], rel[0]
-    # A -> C: 0.01 deg of latitude at 32.5 N = 1.109 km, same height, north
-    assert rel[1].startswith("C: 1.11 km") and "Δh +0 m" in rel[1] and " 0°" in rel[1], rel[1]
+    pg.wait_for_function("(document.querySelector('.globe3d .rel-panel .rel-body') || {}).innerText?.includes('961')")
+    box = pg.locator(".globe3d .rel-panel .rel-body").inner_text()
+    assert "961 m" in box and "940 m" in box and "+200 m" in box and "90°" in box, box
+    # A -> C (the third object) stays in the data box: 0.01 deg of latitude at 32.5 N = 1.109 km, same height, north
+    pg.wait_for_function("document.querySelectorAll('.globe3d-readout .g3-rel').length === 1")
+    rel = pg.locator(".globe3d-readout .g3-rel").all_inner_texts()
+    assert rel[0].startswith("C: 1.11 km") and "Δh +0 m" in rel[0] and " 0°" in rel[0], rel[0]
     lines = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe; let n = 0;
       for (let i = 0; i < w.scene.primitives.length; i++) { const p = w.scene.primitives.get(i);
         if (p instanceof C.PolylineCollection) for (let k = 0; k < p.length; k++) if (p.get(k).material.type === 'PolylineDash') n++; } return n; })()""")
@@ -168,7 +171,7 @@ def test_related_objects_distance_line_and_box(g3multi):
 
 def test_camera_on_the_object_zooms_towards_it(g3multi):
     pg = g3multi
-    pg.locator(".globe3d-bar select[aria-label='Reference']").select_option("B")
+    pg.locator(".globe3d .rel-panel select[aria-label='Reference']").select_option("B")
     pg.locator(".globe3d-bar button", has_text="On the object").click()
     probe = """(() => { const { widget: w, Cesium: C } = window.__svGlobe;
       const pos = C.Cartesian3.fromDegrees(34.51, 32.5, 500);
@@ -179,14 +182,14 @@ def test_camera_on_the_object_zooms_towards_it(g3multi):
     assert a["centre"] > 0.999, a                                              # B in the middle
     # zoom in with the wheel away from the middle: the camera still goes towards B
     box = pg.locator(".globe3d-host").bounding_box()
-    pg.mouse.move(box["x"] + box["width"] * 0.85, box["y"] + box["height"] * 0.8)
+    pg.mouse.move(box["x"] + box["width"] * 0.8, box["y"] + box["height"] * 0.45)   # (bottom right: the relation box)
     for _ in range(4):
         pg.mouse.wheel(0, -400)
     pg.wait_for_function(f"(() => {{ const b = {probe}; return b.d < {a['d']} * 0.8 && b.centre > 0.999; }})()", timeout=15000)
     b = pg.evaluate(probe)
     assert b["d"] < a["d"] * 0.8 and b["centre"] > 0.999, (a, b)
     # another primary while centred: the camera moves to it
-    pg.locator(".globe3d-bar select[aria-label='Reference']").select_option("C")
+    pg.locator(".globe3d .rel-panel select[aria-label='Reference']").select_option("C")
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].followObject") == "C"
 
 
@@ -401,7 +404,7 @@ def test_primary_secondary_in_3d(g3multi):
     rings = "window.__svGlobe.widget.scene.primitives._primitives.find((p) => p.length !== undefined && p.get && p.length && p.get(0).id && String(p.get(0).id).startsWith('ring-'))"
     pg.wait_for_function(f"{rings}?.length === 2", timeout=20000)
     assert pg.evaluate(f"[{rings}.get(0).id, {rings}.get(1).id]") == ["ring-A", "ring-B"]
-    assert "Aspect" in pg.locator(".globe3d-readout .g3-rel").first.inner_text()       # (closure: none, at the end of still tracks)
+    assert "Aspect" in pg.locator(".globe3d .rel-panel .rel-body").inner_text()       # (closure: none, at the end of still tracks)
     # click on C: its place on the screen
     xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
         const p = C.SceneTransforms.worldToWindowCoordinates(w.scene, C.Cartesian3.fromDegrees(34.5, 32.51, 300));

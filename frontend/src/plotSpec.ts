@@ -3,6 +3,7 @@ import { lineLook, setpointsIn } from "./desired";
 import { effectiveBase } from "./mapBase";
 import { geoViewBounds } from "./globeBridge";
 import { trackRequest } from "./mapObjects";
+import { pairOf } from "./relation";
 
 /** 1.26: why a plot is not in a report / replay page (listed with this reason, never dropped without a word) */
 export type PageWhy = "pageWhyEmpty" | "pageWhyOcc" | "pageWhyVideo";
@@ -22,11 +23,18 @@ export const pagePlots = (tab: Tab) => tab.plots.map((p, pi) => ({ p, pi, ...pag
 function geoSpec(plot: Plot, view: boolean) {
   const st = useApp.getState();
   return {
-    objects: (plot.objects ?? []).map((o) => ({ name: o.name, color: o.color, lat: o.lat, lon: o.lon, alt: o.alt ?? null })),
+    objects: (plot.objects ?? []).map((o) => ({ name: o.name, color: o.color, lat: o.lat, lon: o.lon, alt: o.alt ?? null, track: o.track ?? null })),
+    ...pairNames(plot),
     base: effectiveBase(st.geoBase, st.offlineOnly || st.offlineForced),
     cursor: st.cursor.on && st.cursor.t1 !== null ? st.cursor.t1 : null,
     bounds: view ? geoViewBounds.get(plot.id)?.() ?? null : null,
   };
+}
+
+/** The reference and the compared object by name (the offline pages' relation box starts on them). */
+function pairNames(plot: Plot) {
+  const { primary, secondary } = pairOf(plot), nameOf = (id?: string | null) => plot.objects?.find((o) => o.id === id)?.name ?? null;
+  return { primary: nameOf(primary), secondary: nameOf(secondary) };
 }
 
 /** What the server needs to draw / export one plot (reports, images, CSV). `view`: a map as shown now. */
@@ -37,7 +45,7 @@ export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string,
   if (plot.mode === "3d" && plot.objects?.length) {
     const objs = plot.objects, nameOf = (id?: string | null) => objs.find((o) => o.id === id)?.name ?? null;
     return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "3d", signals: [], geo: geoSpec(plot, false),
-      scene: { objects: objs.map((o) => trackRequest(o, objs)), follow: nameOf(plot.followObject), primary: nameOf(plot.primaryObject) } };
+      scene: { objects: objs.map((o) => trackRequest(o, objs)), follow: nameOf(plot.followObject), ...pairNames(plot) } };
   }
   if (plot.mode === "geo" && plot.objects?.length) {
     return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "geo", signals: [], geo: geoSpec(plot, view) };

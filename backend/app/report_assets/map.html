@@ -5,57 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
 <!--__NOTE__-->
-<style>
-  :root { --bg: #ffffff; --ink: #1f2a36; --muted: #5a6979; --line: #d5dce4; --panel: #f7f9fb; --accent: #945d0b; color-scheme: light; }
-  :root.dark { --bg: #151b23; --ink: #e6edf3; --muted: #8e9cad; --line: #2d3a4b; --panel: #1c2430; --accent: #f2a93b; color-scheme: dark; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Arial, sans-serif; }
-  body { display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
-  header h1 { font-size: 14px; margin: 0; flex: 1; min-width: 8em; }
-  button { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
-  #wrap { position: relative; flex: 1; min-height: 240px; overflow: hidden; }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
-  canvas.drag { cursor: grabbing; }
-  #tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; display: none; white-space: nowrap; }
-  #time { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--panel); }
-  #time[hidden] { display: none; }
-  #slider { flex: 1; accent-color: var(--accent); }
-  #tval { min-width: 7em; text-align: end; font-variant-numeric: tabular-nums; }
-  footer { padding: 3px 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
-  #legend { position: absolute; top: 8px; inset-inline-start: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
-  #legend div { display: flex; align-items: center; gap: 6px; }
-  #legend i { width: 14px; height: 3px; display: inline-block; border-radius: 2px; }
-</style>
+<style>/*__PAGE_CSS__*/</style>
 </head>
 <body>
 <header>
   <h1 id="title"></h1>
-  <button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="fit" title="Fit all tracks">⤢</button>
-  <button id="theme" title="Light / dark">◐</button>
+  <span class="seg" id="cam" role="radiogroup"><span id="camT"></span><button data-cam="free" role="radio"></button><button data-cam="centre" role="radio"></button><button data-cam="close" role="radio"></button></span>
+  <label><span id="objT"></span><select id="obj"></select></label>
+  <button id="zin">+</button><button id="zout">−</button><button id="fit">⤢</button>
+  <label><span id="trailT"></span><select id="trail"></select></label>
+  <button id="rel" aria-pressed="true"></button>
+  <button id="theme">◐</button>
 </header>
-<div id="wrap"><canvas id="map"></canvas><div id="legend"></div><div id="tip" role="tooltip"></div></div>
-<div id="time"><span>t</span><input id="slider" type="range" min="0" max="1" step="any" aria-label="Time"><span id="tval"></span></div>
+<div id="wrap"><canvas id="map"></canvas><div id="labels"></div><div id="legend"></div><div id="tip" role="tooltip"></div><div id="help"></div></div>
+<div id="time"><span id="timeT">t</span><input id="slider" type="range" min="0" max="1" step="any"><span id="tval"></span></div>
 <footer><span id="att"></span> · <span>__NOTE_TEXT__</span></footer>
+<script>/*__RELATION__*/</script>
 <script>
 "use strict";
 const D = /*__DATA__*/null;
-const LAT_MAX = 85.05112878, TILE = 256;
+const S = D.S, $ = (id) => document.getElementById(id);
+const LAT_MAX = 85.05112878, TILE = 256, R_E = 6378137;
 const mx = (lon) => (lon + 180) / 360;
 const my = (lat) => { const s = Math.sin(Math.max(-LAT_MAX, Math.min(LAT_MAX, lat)) * Math.PI / 180); return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); };
-const cv = document.getElementById("map"), ctx = cv.getContext("2d"), tip = document.getElementById("tip");
-const slider = document.getElementById("slider"), tval = document.getElementById("tval");
-document.getElementById("title").textContent = D.title || "Map";
-document.getElementById("att").textContent = D.attribution;
+const cv = $("map"), ctx = cv.getContext("2d"), tip = $("tip");
+const slider = $("slider"), tval = $("tval");
+$("title").textContent = D.title || "Map";
+$("att").textContent = D.attribution;
 let dark = D.dark || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
 const imgs = { light: {}, dark: {} };
 for (const th of ["light", "dark"]) for (const [k, src] of Object.entries(D.tiles[th])) { const im = new Image(); im.onload = draw; im.src = src; imgs[th][k] = im; }
-// the tracks in Mercator units, once
-const objs = D.objects.map((o) => ({ ...o, X: o.lon.map(mx), Y: o.lat.map(my) }));
-const legend = document.getElementById("legend");
-for (const o of objs) { const d = document.createElement("div"); const i = document.createElement("i"); i.style.background = o.color; d.append(i, document.createTextNode(o.name)); legend.append(d); }
+// the tracks in Mercator units, and in local metres (for the relation box), once
+const [s_, w_, n_, e_] = D.bounds, lat0 = (s_ + n_) / 2, lon0 = (w_ + e_) / 2, kE = Math.PI / 180 * R_E * Math.cos(lat0 * Math.PI / 180), kN = Math.PI / 180 * R_E;
+const objs = D.objects.map((o) => ({ ...o, X: o.lon.map(mx), Y: o.lat.map(my), E: o.lon.map((v) => (v - lon0) * kE), N: o.lat.map((v) => (v - lat0) * kN), U: o.alt, yaw: null }));
+const legend = $("legend");
+for (const o of objs) { const d = document.createElement("div"); const i = document.createElement("i"); i.style.borderTopColor = o.color; if (o.track) i.className = o.track; d.append(i, document.createTextNode(o.name)); legend.append(d); }
 let t0 = Infinity, t1 = -Infinity;
 for (const o of objs) { if (o.t.length) { t0 = Math.min(t0, o.t[0]); t1 = Math.max(t1, o.t[o.t.length - 1]); } }
 slider.min = t0; slider.max = t1; slider.value = D.cursor ?? t1;
+{ const h = svHash.read(); if (h.t !== undefined && isFinite(+h.t)) slider.value = Math.min(t1, Math.max(t0, +h.t)); }   // a link to a moment
 // the view: centre (Mercator) and zoom (a float: 2^z tiles across the world)
 const view = { cx: 0.5, cy: 0.5, z: 2 };
 function fit() {
@@ -66,11 +54,26 @@ function fit() {
 }
 const toPx = (X, Y) => { const s = TILE * 2 ** view.z; return [cv.width / 2 + (X - view.cx) * s * devicePixelRatio, cv.height / 2 + (Y - view.cy) * s * devicePixelRatio]; };
 const idxAt = (o, t) => { let lo = 0, hi = o.t.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (o.t[m] <= t) lo = m; else hi = m - 1; } return lo; };
+const lerpAt = (o, t) => { const k = idxAt(o, t), k2 = Math.min(o.t.length - 1, k + 1), f = o.t[k2] > o.t[k] ? Math.min(1, Math.max(0, (t - o.t[k]) / (o.t[k2] - o.t[k]))) : 0;
+  return [o.X[k] + (o.X[k2] - o.X[k]) * f, o.Y[k] + (o.Y[k2] - o.Y[k]) * f]; };
+// the relation box and the camera (the toolbar both pages share)
+const rel = svRelation($("wrap"), objs, S, D.pair, () => draw(), (t) => svSeek(slider, t, draw));
+const trail = svTrail(S, () => draw());
+if (!rel.el) $("rel").hidden = true;
+rel.onShow = (on) => { $("rel").setAttribute("aria-pressed", String(on)); };
+$("rel").onclick = () => rel.show(!rel.shown());
+const cam = svToolbar(S, objs, { mode: "free", obj: rel.pair.p }, (st, user) => {
+  if (user && st.mode === "close") { const W = cv.clientWidth || 800, k = TILE * 2 ** 0; view.z = Math.log2(W / (900 / (40075016.686 * Math.cos(lat0 * Math.PI / 180))) / k); }
+  draw();
+});
 function draw() {
+  svHash.write(slider.value, cam.st);
   const W = cv.clientWidth, H = cv.clientHeight, r = devicePixelRatio || 1;
   if (cv.width !== Math.round(W * r) || cv.height !== Math.round(H * r)) { cv.width = Math.round(W * r); cv.height = Math.round(H * r); }
   const th = dark ? "dark" : "light";
   document.documentElement.classList.toggle("dark", dark);
+  const t = Number(slider.value);
+  if (cam.st.mode !== "free") { const [X, Y] = lerpAt(objs[cam.st.obj], t); view.cx = X; view.cy = Y; }
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--bg");
   ctx.fillRect(0, 0, cv.width, cv.height);
   // the embedded level nearest below the view's zoom (else the coarsest), its tiles scaled
@@ -86,20 +89,41 @@ function draw() {
       ctx.drawImage(im, px, py, s + 0.5, s + 0.5);
     }
   }
-  const t = Number(slider.value);
   tval.textContent = t.toFixed(2) + " s";
+  // the tracks as the app draws them: a line, a navigation solution dashed, a receiver as points
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
   for (const o of objs) {
-    ctx.lineJoin = "round"; ctx.lineCap = "round";
-    for (const [w, c] of [[4.5 * r, dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.75)"], [2.2 * r, o.color]]) {
-      ctx.beginPath(); ctx.lineWidth = w; ctx.strokeStyle = c;
-      o.X.forEach((X, i) => { const [px, py] = toPx(X, o.Y[i]); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+    const k1 = idxAt(o, t), k0 = trail.sec ? idxAt(o, t - trail.sec) : 0, last = trail.sec ? k1 : o.t.length - 1;
+    const dash = o.track === "dash" ? [9 * r, 6 * r] : o.track === "points" ? [0.1, 6 * r] : [];
+    for (const [w, c] of [[(o.track === "points" ? 6 : 4.5) * r, dark ? "rgba(0,0,0,.55)" : "rgba(255,255,255,.7)"], [(o.track === "points" ? 4 : 2.5) * r, o.color]]) {
+      ctx.setLineDash(dash); ctx.beginPath(); ctx.lineWidth = w; ctx.strokeStyle = c;
+      for (let i = k0; i <= last; i++) { const [px, py] = toPx(o.X[i], o.Y[i]); if (i > k0) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
       ctx.stroke();
     }
-    const k = idxAt(o, t), [px, py] = toPx(o.X[k], o.Y[k]);
+  }
+  ctx.setLineDash([]);
+  const pos = objs.map((o) => toPx(...lerpAt(o, t)));
+  // the pair: a dashed line between them (its distance in the labels layer), the rings
+  const showRel = rel.el && rel.shown();
+  if (showRel) {
+    const a = pos[rel.pair.p], b = pos[rel.pair.s];
+    ctx.setLineDash([6 * r, 5 * r]); ctx.lineWidth = 1.6 * r; ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--amber");
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  objs.forEach((o, i) => {
+    const [px, py] = pos[i];
     ctx.beginPath(); ctx.arc(px, py, 6 * r, 0, 2 * Math.PI); ctx.fillStyle = o.color; ctx.fill();
     ctx.lineWidth = 2 * r; ctx.strokeStyle = dark ? "#151b23" : "#fff"; ctx.stroke();
-    ctx.font = `${12 * r}px system-ui, sans-serif`; ctx.fillStyle = dark ? "#e6edf3" : "#1f2a36";
-    ctx.fillText(o.name, px + 9 * r, py - 7 * r);
+  });
+  // names, rings and the pair's distance: HTML on top (crisp text, the same look as the 3D view)
+  const lab = $("labels"); lab.textContent = "";
+  const put = (cls, x, y, text) => { const d = document.createElement("div"); d.className = cls; d.style.left = x / r + "px"; d.style.top = y / r + "px"; if (text) d.textContent = text; lab.append(d); };
+  objs.forEach((o, i) => put("lab", pos[i][0], pos[i][1], o.name));
+  if (showRel) {
+    put("ring", pos[rel.pair.p][0], pos[rel.pair.p][1]); put("ring s", pos[rel.pair.s][0], pos[rel.pair.s][1]);
+    rel.update(t);
+    const v = rel.value, a = pos[rel.pair.p], b = pos[rel.pair.s];
+    if (v) put("link", (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (v.slant ?? v.horiz) >= 1000 ? ((v.slant ?? v.horiz) / 1000).toFixed(2) + " km" : (v.slant ?? v.horiz).toFixed(0) + " m");
   }
   window.__markers = objs.map((o) => { const k = idxAt(o, t); return [o.lat[k], o.lon[k]]; });   // for tests
 }
@@ -109,7 +133,7 @@ cv.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY,
 cv.addEventListener("pointerup", () => { drag = null; cv.classList.remove("drag"); });
 cv.addEventListener("pointermove", (e) => {
   const s = TILE * 2 ** view.z;
-  if (drag) { view.cx = drag.cx - (e.clientX - drag.x) / s; view.cy = drag.cy - (e.clientY - drag.y) / s; draw(); return; }
+  if (drag) { cam.free(); view.cx = drag.cx - (e.clientX - drag.x) / s; view.cy = drag.cy - (e.clientY - drag.y) / s; draw(); return; }
   const b = cv.getBoundingClientRect(), r = devicePixelRatio || 1, mxp = (e.clientX - b.left) * r, myp = (e.clientY - b.top) * r;
   let best = null, dmin = 10 * r;
   for (const o of objs) o.X.forEach((X, i) => { const [px, py] = toPx(X, o.Y[i]); const d = Math.hypot(px - mxp, py - myp); if (d < dmin) { dmin = d; best = { o, i }; } });
@@ -123,13 +147,14 @@ function zoomAt(dz, px, py) {
   const s0 = TILE * 2 ** view.z, W = cv.clientWidth, H = cv.clientHeight;
   const X = view.cx + (px - W / 2) / s0, Y = view.cy + (py - H / 2) / s0;
   view.z = Math.max(1, Math.min(20, view.z + dz));
-  const s1 = TILE * 2 ** view.z; view.cx = X - (px - W / 2) / s1; view.cy = Y - (py - H / 2) / s1; draw();
+  if (cam.st.mode === "free") { const s1 = TILE * 2 ** view.z; view.cx = X - (px - W / 2) / s1; view.cy = Y - (py - H / 2) / s1; }
+  draw();
 }
 cv.addEventListener("wheel", (e) => { e.preventDefault(); const b = cv.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 0.25 : -0.25, e.clientX - b.left, e.clientY - b.top); }, { passive: false });
-document.getElementById("zin").onclick = () => zoomAt(0.5, cv.clientWidth / 2, cv.clientHeight / 2);
-document.getElementById("zout").onclick = () => zoomAt(-0.5, cv.clientWidth / 2, cv.clientHeight / 2);
-document.getElementById("fit").onclick = () => { fit(); draw(); };
-document.getElementById("theme").onclick = () => { dark = !dark; draw(); };
+$("zin").onclick = () => zoomAt(0.5, cv.clientWidth / 2, cv.clientHeight / 2);
+$("zout").onclick = () => zoomAt(-0.5, cv.clientWidth / 2, cv.clientHeight / 2);
+$("fit").onclick = () => { cam.free(); fit(); draw(); };
+$("theme").onclick = () => { dark = !dark; draw(); };
 slider.addEventListener("input", draw);
 addEventListener("resize", draw);
 // a replay page (the HTML report with one cursor) drives the time from outside: its timeline, plots and
@@ -137,12 +162,13 @@ addEventListener("resize", draw);
 addEventListener("message", (e) => {
   const m = e.data;
   if (!m || m.sv !== "replay") return;
-  if (m.hideTime) { document.getElementById("time").hidden = true; document.getElementById("title").style.visibility = "hidden"; }   // the card has the title
+  if (m.hideTime) { $("time").hidden = true; $("title").style.visibility = "hidden"; }   // the card has the title
   if (typeof m.dark === "boolean") dark = m.dark;
   if (typeof m.t === "number" && isFinite(m.t)) slider.value = Math.min(t1, Math.max(t0, m.t));
   draw();
 });
 fit(); draw();
+window.__page = { trail: () => trail.sec, cam: () => cam.st, rel: () => rel.el ? { shown: rel.shown(), pair: rel.pair, value: rel.value } : null };   // for tests
 </script>
 </body>
 </html>

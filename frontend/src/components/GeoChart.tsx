@@ -8,6 +8,10 @@ import { drawObjectIcon } from "./mapIcons";
 import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
 import RelationPanel, { RingIcon } from "./RelationPanel";
+import MapBar from "./MapBar";
+
+/** 1.26: Track up - chosen, or the camera's Chase (on the object, close, its direction of travel up) */
+const trackUpOf = (p: Plot) => p.mapUp === "track" || (p.camera === "chase" && !!p.followObject);
 import { geoViewBounds } from "../globeBridge";
 import { pairOf, relation } from "../relation";
 import { labelsOf, stateColor } from "../values";
@@ -290,7 +294,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const cursor = useApp.getState().cursor;
     // N6: Track up - the canvas is a square as wide as the view's diagonal, turned (CSS) so the heading
     // points up: turning it costs nothing per frame, and the map drawn on it is the same as north up
-    const up = plot.mapUp === "track";
+    const up = trackUpOf(plot);
     const r = dpr(), W = up ? Math.ceil(Math.hypot(size.w, size.h)) : size.w, H = up ? W : size.h;
     const ang = up ? upHeading() : 0;
     rotRef.current = ang;
@@ -673,7 +677,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
    };
    drawRef.current = draw;
    draw();
-  }, [tracks, view, size.w, size.h, plot.mapUp, plot.followObject, plot.primaryObject, plot.relatedObjects, plot.relLines, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
+  }, [tracks, view, size.w, size.h, plot.mapUp, plot.camera, plot.followObject, plot.primaryObject, plot.relatedObjects, plot.relLines, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
   // the time moves: follow the object (a new view, drawn by the effect above) or just draw again
   useEffect(() => useApp.subscribe((st, prev) => {
     if (st.cursor === prev.cursor) return;
@@ -900,37 +904,47 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     if (g) animateTo({ ...viewRef.current!, cx: g.cx, cy: g.cy }, 220);
   };
 
+  const trackUp = trackUpOf(plot);
+  // Chase: close to the object (about 900 m across), the first time it is chosen for an object
+  const chaseKey = plot.camera === "chase" && plot.followObject ? plot.followObject : "";
+  useEffect(() => {
+    const v = viewRef.current;
+    if (!chaseKey || !v || !size.w) return;
+    const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * v.cy)));
+    const z = Math.log2(size.w * 40075016.686 * Math.cos(lat) / (256 * 900));
+    followOff.current = null; setOffFollow(false);
+    animateTo({ ...v, z: Math.max(1, Math.min(22, z)) }, 260);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaseKey]);
   const prec = view ? Math.max(1, Math.min(8, Math.round(view.z * 0.3 + 1))) : 2;
   return (
     <div className="plot-canvas geo" ref={wrapRef} style={{ position: "relative" }} tabIndex={0} onKeyDown={onKey}
       aria-label={t("mapKeysHint")} data-view={view ? `${view.z.toFixed(4)},${view.cx.toFixed(9)},${view.cy.toFixed(9)}` : undefined}>
       {(() => {
-        const D = plot.mapUp === "track" ? Math.ceil(Math.hypot(size.w, size.h)) : 0;
+        const D = trackUp ? Math.ceil(Math.hypot(size.w, size.h)) : 0;
         return <canvas ref={cvRef} style={D ? { width: D, height: D, display: "block", cursor: "grab", position: "absolute", left: (size.w - D) / 2, top: (size.h - D) / 2 }
           : { width: size.w, height: size.h, display: "block", cursor: "grab" }} />;
       })()}
-      {plot.mapUp === "track" && <canvas ref={topRef} className="geo-top" style={{ width: size.w, height: size.h }} />}
+      {trackUp && <canvas ref={topRef} className="geo-top" style={{ width: size.w, height: size.h }} />}
       {view && (
+        objects.length > 0 ? (
+        <MapBar plot={plot} objects={objects} className="geo-bar" chaseHint="mapCamChaseHint" onZoom={(d) => zoomBy(d)} onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); fitAll(); }}>
+          {objects.length > 0 && (
+            <button className={`geo-up${trackUp ? " on" : ""}`} aria-pressed={trackUp}
+              title={t(trackUp ? "mapTrackUpHint" : "mapNorthUpHint")} aria-label={t(trackUp ? "mapTrackUp" : "mapNorthUp")}
+              onClick={() => actions.updatePlot(plot.id, { mapUp: trackUp ? undefined : "track" })}>
+              <span ref={northRef} className="geo-north" aria-hidden="true">N</span></button>
+          )}
+          {offFollow && plot.followObject && <button className="geo-back" onClick={backToFollow}>{t("mapBackToFollow")}</button>}
+        </MapBar>
+        ) : (
         <div className="geo-ctrl" role="toolbar" aria-label={t("mapControls")} onMouseDown={(e) => e.stopPropagation()}>
           <button className="geo-zoom-in" onClick={() => zoomBy(1)} title={`${t("mapZoomIn")} (+)`} aria-label={t("mapZoomIn")}>+</button>
           <button className="geo-zoom-out" onClick={() => zoomBy(-1)} title={`${t("mapZoomOut")} (−)`} aria-label={t("mapZoomOut")}>−</button>
           <button className="geo-fit" onClick={fitAll} title={`${t("mapFitAll")} (0)`} aria-label={t("mapFitAll")}>
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg></button>
-          {objects.length > 0 && (
-            <select className="geo-follow" value={plot.followObject ?? ""} title={`${t("objFollow")} (F)`} aria-label={t("objFollow")}
-              onChange={(e) => actions.updatePlot(plot.id, { followObject: e.target.value || null })}>
-              <option value="">{t("mapFollowOff")}</option>
-              {objects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
-          )}
-          {objects.length > 0 && (
-            <button className={`geo-up${plot.mapUp === "track" ? " on" : ""}`} aria-pressed={plot.mapUp === "track"}
-              title={t(plot.mapUp === "track" ? "mapTrackUpHint" : "mapNorthUpHint")} aria-label={t(plot.mapUp === "track" ? "mapTrackUp" : "mapNorthUp")}
-              onClick={() => actions.updatePlot(plot.id, { mapUp: plot.mapUp === "track" ? undefined : "track" })}>
-              <span ref={northRef} className="geo-north" aria-hidden="true">N</span></button>
-          )}
-          {offFollow && plot.followObject && <button className="geo-back" onClick={backToFollow}>{t("mapBackToFollow")}</button>}
         </div>
+        )
       )}
       {view && hint && (
         <div className="geo-hint" role="note">{t("mapHint")}
