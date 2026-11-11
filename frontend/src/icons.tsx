@@ -45,6 +45,7 @@ export const Icon = {
   Open: mk(<><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1" /><path d="M3 7v11a2 2 0 0 0 2 2h13l3-9H7l-3 9" /></>),
   Image: mk(<><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5-9 9" /></>),
   Table: mk(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></>),
+  Send: mk(<><path d="M21 3L10 14" /><path d="M21 3l-7 18-4-7-7-4z" /></>),     // R1: a replay page to send
   Download: mk(<><path d="M12 4v11M7 10l5 5 5-5" /><path d="M5 19h14" /></>),
   Merge: mk(<><path d="M6 4v5a5 5 0 0 0 5 5h1v6M18 4v5a5 5 0 0 1-5 5" /><path d="M9 17l3 3 3-3" /></>),
   Keyboard: mk(<><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></>),

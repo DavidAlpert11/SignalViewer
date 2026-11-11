@@ -401,6 +401,8 @@ export const api = {
     return r;
   },
   cursor: (signals: string[], t: number) => call<{ values: Record<string, number | null> }>("/api/cursor", { signals, t }),
+  /** R1: a page the app saved (a replay) in the user's browser - HTML only */
+  openPage: (path: string) => call<{ opened: boolean }>("/api/export/open", { path }),
   sparks: (signals: string[], points = 40) => call<{ sparks: Record<string, { lo: (number | null)[]; hi: (number | null)[] } | null> }>("/api/sparks", { signals, points }),
   stats: (signals: string[], t0: number | null, t1: number | null, where?: { state: string; values: number[]; offset?: number } | null) =>
     call<{ stats: Record<string, Stats> }>("/api/stats", { signals, t0, t1,

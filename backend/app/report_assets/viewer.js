@@ -8,6 +8,8 @@
   var R = JSON.parse(document.getElementById("sv-data").textContent);
   var root = document.documentElement;
   var T = R.strings;
+  // R1: a replay page has one time for the whole page (report.py's _replay); a report keeps a cursor per plot
+  var RP = R.replay || null;
 
   function dec(b64, Ctor) {
     var bin = atob(b64), u = new Uint8Array(bin.length);
@@ -65,7 +67,7 @@
 
   /* ------------------------------------------------------------- one plot */
   function Plot(spec, host) {
-    this.spec = spec; this.host = host; this.cursor = null; this.u = null;
+    this.spec = spec; this.host = host; this.cursor = RP && spec.mode === "time" ? RP.t : null; this.u = null;
     this.legend = host.querySelector(".legend"); this.canvas = host.querySelector(".canvas");
     this.hidden = {};
     this.build();
@@ -186,7 +188,9 @@
       u.over.addEventListener("mousedown", function (e) { downX = e.clientX; });
       u.over.addEventListener("mouseup", function (e) {
         if (Math.abs(e.clientX - downX) > 3) return;
-        self.cursor = u.posToVal(e.clientX - u.over.getBoundingClientRect().left, "x");
+        var v = u.posToVal(e.clientX - u.over.getBoundingClientRect().left, "x");
+        if (RP) { setTime(v, true); return; }                  // R1: every plot and map follows
+        self.cursor = v;
         u.redraw(false); self.renderLegend();
       });
     } else {
@@ -194,7 +198,8 @@
     }
     this.renderLegend();
   };
-  Plot.prototype.zoom = function (a, b) {
+  Plot.prototype.zoom = function (a, b, solo) {
+    if (RP && !solo) { plots.forEach(function (p) { if (p.spec.mode === "time" && p.u) p.zoom(a, b, true); }); return; }   // R1: one zoom
     var u = this.u;
     if (a === null) {
       u.setData(this.timeData(null, null), true);
@@ -251,5 +256,100 @@
     resizeTimer = setTimeout(function () { plots.forEach(function (p) { p.u.setSize({ width: p.canvas.clientWidth, height: 340 }); }); }, 120);
   });
   window.addEventListener("beforeprint", function () { plots.forEach(function (p) { p.u.setSize({ width: 680, height: 300 }); }); });
+
+  /* ------------------------------------------------------------- R1: the replay */
+  var setTime = function () {};
+  if (RP) (function () {
+    // the recording's span: as the app gave it, else every time signal's first and last sample
+    var lo = Infinity, hi = -Infinity;
+    if (RP.extent) { lo = RP.extent[0]; hi = RP.extent[1]; }
+    else R.tabs.forEach(function (tb) { tb.plots.forEach(function (sp) {
+      if (sp.mode !== "time") return;
+      sp.signals.forEach(function (s) { var x = arr(s.levels[0])[0]; if (x.length) { lo = Math.min(lo, x[0]); hi = Math.max(hi, x[x.length - 1]); } });
+    }); });
+    if (!(hi > lo)) { var bar0 = document.getElementById("rp"); if (bar0) bar0.hidden = true; return; }
+    var span = hi - lo;
+    var m = /[#&]t=(-?[\d.]+)/.exec(location.hash || "");      // a link to a later moment wins
+    if (m && isFinite(+m[1])) RP.t = +m[1];
+    if (RP.t === null || !isFinite(RP.t)) RP.t = lo;
+    RP.t = Math.min(hi, Math.max(lo, RP.t));
+    plots.forEach(function (p) { if (p.spec.mode === "time") { p.cursor = RP.t; p.u.redraw(false); p.renderLegend(); } });
+
+    var track = document.getElementById("rp-track"), head = document.getElementById("rp-head"), fill = document.getElementById("rp-fill");
+    var clock = document.getElementById("rp-clock"), playBtn = document.getElementById("rp-play"), speedSel = document.getElementById("rp-speed");
+    var dec = span < 60 ? 2 : span < 3600 ? 1 : 0;
+    var frac = function (v) { return Math.min(1, Math.max(0, (v - lo) / span)); };
+    var frames = function () { return Array.prototype.slice.call(document.querySelectorAll("iframe.mapframe")); };
+    var tell = function (f, extra) { try { f.contentWindow.postMessage(Object.assign({ sv: "replay", t: RP.t }, extra || {}), "*"); } catch (e) { /* not loaded yet */ } };
+    frames().forEach(function (f) { f.addEventListener("load", function () { tell(f, { hideTime: true, dark: root.getAttribute("data-theme") === "dark" }); }); tell(f, { hideTime: true }); });
+    var lastLegend = 0;
+    setTime = function (v, settle) {
+      RP.t = Math.min(hi, Math.max(lo, v));
+      var now = performance.now(), legends = settle || now - lastLegend > 90;   // values: ~10 a second while playing
+      if (legends) lastLegend = now;
+      plots.forEach(function (p) {
+        if (p.spec.mode !== "time" || !p.u) return;
+        p.cursor = RP.t;
+        var sx = p.u.scales.x;                                  // playing past the shown range: the window follows
+        if (playing && sx && isFinite(sx.min) && (RP.t > sx.max || RP.t < sx.min) && (sx.max - sx.min) < span * 0.98) {
+          var w = sx.max - sx.min, a = Math.max(lo, Math.min(hi - w, RP.t - w * 0.1));
+          p.zoom(a, a + w, true);
+        }
+        p.u.redraw(false);
+        if (legends) p.renderLegend();
+      });
+      frames().forEach(function (f) { tell(f); });
+      head.style.left = frac(RP.t) * 100 + "%"; fill.style.width = frac(RP.t) * 100 + "%";
+      clock.textContent = RP.t.toFixed(dec) + " s";
+      track.setAttribute("aria-valuetext", clock.textContent);
+      if (settle) { try { history.replaceState(null, "", "#t=" + RP.t.toFixed(3)); } catch (e) { /* a frame without history */ } }
+    };
+    // the marks: the log's errors and warnings, the health check's findings, the user's notes
+    var marks = document.getElementById("rp-marks");
+    RP.events.forEach(function (ev) {
+      if (ev.t < lo || ev.t > hi) return;
+      var i = document.createElement("i");
+      i.className = ev.level; i.style.left = frac(ev.t) * 100 + "%"; i.title = ev.t.toFixed(dec) + " s · " + ev.text;
+      i.addEventListener("pointerdown", function (e) { e.stopPropagation(); stop(); setTime(ev.t, true); });
+      marks.appendChild(i);
+    });
+    var timeAt = function (x) { var b = track.getBoundingClientRect(); return lo + Math.min(1, Math.max(0, (x - b.left) / b.width)) * span; };
+    track.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      stop(); track.setPointerCapture(e.pointerId); setTime(timeAt(e.clientX));
+      var move = function (ev) { setTime(timeAt(ev.clientX)); };
+      var up = function (ev) { track.removeEventListener("pointermove", move); track.removeEventListener("pointerup", up); setTime(timeAt(ev.clientX), true); };
+      track.addEventListener("pointermove", move); track.addEventListener("pointerup", up);
+    });
+    track.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault(); stop(); setTime(RP.t + (e.key === "ArrowRight" ? 1 : -1) * span / 200, true);
+    });
+    // play: the recording's own pace times the speed; at the end it stops
+    var playing = false, raf = 0, last = 0;
+    var tick = function (now) {
+      var dt = (now - last) / 1000; last = now;
+      var v = RP.t + dt * (+speedSel.value || 1);
+      if (v >= hi) { setTime(hi, true); stop(); return; }
+      setTime(v); raf = requestAnimationFrame(tick);
+    };
+    var label = function () { playBtn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;"; var l = playing ? T.rpPause : T.rpPlay; playBtn.title = l + " (Space)"; playBtn.setAttribute("aria-label", l); playBtn.setAttribute("aria-pressed", String(playing)); };
+    function stop() { if (!playing) return; playing = false; cancelAnimationFrame(raf); label(); setTime(RP.t, true); }
+    var play = function () { if (playing) { stop(); return; } if (RP.t >= hi) RP.t = lo; playing = true; label(); last = performance.now(); raf = requestAnimationFrame(tick); };
+    playBtn.addEventListener("click", play);
+    document.getElementById("rp-start").addEventListener("click", function () { stop(); setTime(lo, true); });
+    document.addEventListener("keydown", function (e) {
+      var tg = e.target && e.target.tagName;
+      if (e.key !== " " || tg === "SELECT" || tg === "INPUT" || tg === "TEXTAREA" || tg === "BUTTON") return;
+      e.preventDefault(); play();
+    });
+    document.getElementById("theme").addEventListener("click", function () { frames().forEach(function (f) { tell(f, { dark: root.getAttribute("data-theme") === "dark" }); }); });
+    // another tab's plots are new objects: they start on the page's time
+    var shown = renderTab;
+    renderTab = function (i) { shown(i); setTime(RP.t, true); };
+    window.__replay = { get t() { return RP.t; }, lo: lo, hi: hi, get playing() { return playing; } };   // for tests
+    setTime(RP.t, true);
+  })();
   renderTab(0);
+  if (RP) setTime(RP.t, true);
 })();

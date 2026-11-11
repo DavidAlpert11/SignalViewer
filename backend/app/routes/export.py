@@ -93,6 +93,7 @@ class ReportRequest(BaseModel):
     tabs: List[dict] = []
     notes: List[dict] = []          # the user's notes: [{t, text}]
     sections: List[dict] = []       # investigation: [{title, text?, items?, table?: {head, rows}}]
+    replay: Optional[dict] = None   # R1: a replay page - {t, extent, events: [{t, text, level}]} (report.build_html)
 
 
 
@@ -122,6 +123,22 @@ async def make_report(req: ReportRequest):
         fail(400, str(e))
     return {"path": path, "size": os.path.getsize(path)}
 
+
+
+class OpenRequest(BaseModel):
+    path: str
+
+
+@router.post("/api/export/open")
+def open_page(req: OpenRequest):
+    """R1: a page the app just wrote (a replay, a report, a map) in the user's own browser - to look at it
+    before sending it. HTML only: nothing else is opened from here."""
+    import webbrowser
+    from pathlib import Path
+    path = os.path.abspath(os.path.expanduser(req.path or ""))
+    if not path.lower().endswith((".html", ".htm")) or not os.path.isfile(path):
+        fail(400, "Only an HTML file the app saved can be opened here.")
+    return {"opened": bool(webbrowser.open(Path(path).as_uri(), new=2))}
 
 
 @router.post("/api/report/preview")

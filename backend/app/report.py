@@ -35,13 +35,19 @@ STRINGS = {
            "signal": "Signal", "hint": "Drag to zoom · wheel to zoom · double-click to reset · click to place the cursor",
            "page": "Page", "plot": "Plot", "peak": "Peak", "visible": "Statistics for the shown time range",
            "limits": "Limits", "pass": "Pass", "fail": "Fail",
-           "envNote": "{n} runs · median, {p}–{q} % band, min–max", "envFar": "Far from the rest:"},
+           "envNote": "{n} runs · median, {p}–{q} % band, min–max", "envFar": "Far from the rest:",
+           "rpHint": "Click a plot or drag the timeline - every plot and the map follow · Space: play · drag on a plot: zoom them all",
+           "rpPlay": "Play", "rpPause": "Pause", "rpSpeed": "Speed", "rpStart": "To the start", "rpTimeline": "Timeline",
+           "rpMade": "Made with Signal Viewer", "rpTag": "offline flight log & test data analysis", "rpGet": "Get it free"},
     "he": {"generated": "נוצר", "summary": "סיכום", "notes": "הערות", "toggle": "לחיצה להצגה או הסתרה", "theme": "בהיר / כהה",
            "min": "מינ׳", "max": "מקס׳", "mean": "ממוצע", "rms": "RMS", "std": "סטיית תקן", "samples": "דגימות",
            "signal": "סיגנל", "hint": "גרירה לזום · גלגלת לזום · לחיצה כפולה לאיפוס · לחיצה למיקום הסמן",
            "page": "עמוד", "plot": "גרף", "peak": "שיא", "visible": "סטטיסטיקות לטווח הזמן המוצג",
            "limits": "גבולות", "pass": "עבר", "fail": "נכשל",
-           "envNote": "{n} ריצות · חציון, רצועת {p}–{q} %, מינ׳–מקס׳", "envFar": "רחוקות מהשאר:"},
+           "envNote": "{n} ריצות · חציון, רצועת {p}–{q} %, מינ׳–מקס׳", "envFar": "רחוקות מהשאר:",
+           "rpHint": "לחיצה על גרף או גרירה בציר הזמן - כל הגרפים והמפה זזים יחד · רווח: ניגון · גרירה על גרף: זום לכולם",
+           "rpPlay": "ניגון", "rpPause": "השהיה", "rpSpeed": "מהירות", "rpStart": "להתחלה", "rpTimeline": "ציר זמן",
+           "rpMade": "נוצר ב-Signal Viewer", "rpTag": "ניתוח לוגי טיסה ונתוני ניסוי, אופליין", "rpGet": "להורדה חינם"},
 }
 
 
@@ -495,7 +501,9 @@ def build_html(store, req: Dict, progress=None) -> str:
             for s in p["signals"]:
                 s.pop("stats", None)
     payload_tabs = [{"name": t["name"], "plots": [{k: v for k, v in p.items() if k not in ("spec", "xyz", "geo_png", "geo_html")} for p in t["plots"]]} for t in tabs]
-    payload = {"lang": lang, "strings": {"toggle": S["toggle"]}, "tabs": payload_tabs}
+    replay = _replay(req.get("replay"))
+    payload = {"lang": lang, "strings": {"toggle": S["toggle"], **({k: S[k] for k in ("rpPlay", "rpPause")} if replay else {})},
+               "tabs": payload_tabs, **({"replay": replay} if replay else {})}
     nav_items = []
     for i, t in enumerate(tabs):
         label = html.escape(t["name"] or str(i + 1))
@@ -532,25 +540,98 @@ def build_html(store, req: Dict, progress=None) -> str:
     summary += _notes_html(req.get("notes") or [], S)
     return TEMPLATE.format(
         lang=lang, dir="rtl" if lang == "he" else "ltr", theme="dark" if req.get("theme") == "dark" else "light",
-        title=title, uplot_css=read("uPlot.min.css"), css=_fonts_css() + CSS, generated=S["generated"],
-        date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=S["hint"],
-        nav=nav, panes="".join(panes), summary=summary, data=data_json,
+        title=title, uplot_css=read("uPlot.min.css"), css=_fonts_css() + CSS + (REPLAY_CSS if replay else ""), generated=S["generated"],
+        date=datetime.now().strftime("%Y-%m-%d %H:%M"), theme_label=S["theme"], intro=intro, hint=S["rpHint"] if replay else S["hint"],
+        nav=nav, panes="".join(panes), summary=summary, data=data_json, body_class=' class="replay"' if replay else "",
+        bar=_replay_bar(S) if replay else "", footer=_brand_footer(S) if replay else "<footer>Signal Viewer</footer>",
         uplot_js=read("uPlot.iife.min.js"), viewer_js=read("viewer.js"))
+
+
+# ---- R1: the replay page ------------------------------------------------------------------------
+# The HTML report of one tab with ONE time for the whole page: a click on any plot, the timeline under
+# the plots or Play moves the cursor in every time plot and the markers on every map; a drag zooms every
+# time plot. It opens on the moment the user was looking at (`t`; `#t=` in the address keeps a later one).
+
+REPLAY_URL = "https://github.com/DavidAlpert11/SignalViewer"
+_LEVELS = ("error", "warning", "note", "finding")
+
+
+def _replay(r) -> Optional[Dict]:
+    """The replay part of a request, checked: numbers finite, at most 500 marks with short texts."""
+    if not isinstance(r, dict):
+        return None
+    def num(v):
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            return None
+        return v if np.isfinite(v) else None
+    ext = r.get("extent")
+    extent = [num(ext[0]), num(ext[1])] if isinstance(ext, (list, tuple)) and len(ext) == 2 else None
+    if extent and (extent[0] is None or extent[1] is None or extent[1] <= extent[0]):
+        extent = None
+    events = []
+    for e in (r.get("events") or [])[:500]:
+        if not isinstance(e, dict) or num(e.get("t")) is None:
+            continue
+        lvl = e.get("level") if e.get("level") in _LEVELS else "note"
+        events.append({"t": num(e["t"]), "text": str(e.get("text") or "")[:200], "level": lvl})
+    return {"t": num(r.get("t")), "extent": extent, "events": events}
+
+
+def _replay_bar(S: Dict) -> str:
+    return ('<div id="rp" role="group" aria-label="%(tl)s"><button id="rp-start" title="%(st)s" aria-label="%(st)s">&#9198;</button>'
+            '<button id="rp-play" title="%(pl)s (Space)" aria-label="%(pl)s">&#9654;</button>'
+            '<div id="rp-track" role="slider" tabindex="0" aria-label="%(tl)s" dir="ltr"><div id="rp-fill"></div><div id="rp-marks"></div><div id="rp-head"></div></div>'
+            '<span id="rp-clock"></span><select id="rp-speed" title="%(sp)s" aria-label="%(sp)s">%(opts)s</select></div>'
+            % {"tl": S["rpTimeline"], "st": S["rpStart"], "pl": S["rpPlay"], "sp": S["rpSpeed"],
+               "opts": "".join('<option value="%s"%s>×%s</option>' % (v, " selected" if v == "1" else "", v) for v in ("0.5", "1", "2", "5", "10", "30"))})
+
+
+def _brand_footer(S: Dict) -> str:
+    """The page says where it came from: the one line a colleague who receives it needs to get the app."""
+    return ('<footer class="brand"><span class="brand-mark" aria-hidden="true">&#8767;</span><span><b>%s</b> · %s</span>'
+            '<a href="%s" target="_blank" rel="noopener">%s &#8594;</a></footer>' % (S["rpMade"], S["rpTag"], REPLAY_URL, S["rpGet"]))
+
+
+REPLAY_CSS = """
+body.replay main{max-width:1680px;padding:20px 20px 88px}
+body.replay header{margin-bottom:8px}body.replay h1{font-size:21px}
+body.replay .tabpane:not([hidden]){display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,620px),1fr));gap:14px;align-items:start}
+body.replay .plot{margin:0}body.replay .plot table{display:none}
+body.replay .mapframe{height:440px}
+#rp{position:fixed;inset:auto 0 0 0;display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--panel);border-top:1px solid var(--line);z-index:5;box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+#rp button{border:1px solid var(--line);background:var(--bg);border-radius:8px;width:34px;height:30px;line-height:1}
+#rp-play{background:var(--amber)!important;color:var(--amber-ink);border-color:var(--amber)!important;font-size:13px}
+#rp-track{position:relative;flex:1;height:30px;cursor:pointer;touch-action:none;outline-offset:3px}
+#rp-track::before{content:"";position:absolute;inset:13px 0;border-radius:3px;background:var(--line)}
+#rp-fill{position:absolute;top:13px;height:4px;left:0;border-radius:3px;background:var(--amber);opacity:.55}
+#rp-head{position:absolute;top:5px;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--amber);box-shadow:0 0 0 3px var(--panel)}
+#rp-marks i{position:absolute;top:3px;width:3px;height:9px;margin-left:-1.5px;border-radius:1px;background:var(--muted);cursor:pointer}
+#rp-marks i.error{background:#d64545}#rp-marks i.warning{background:#d9912b}#rp-marks i.finding{background:#d64545;height:11px;width:7px;margin-left:-3.5px;border-radius:50%}
+#rp-clock{min-width:9ch;text-align:end;font-variant-numeric:tabular-nums;color:var(--ink-strong)}
+#rp-speed{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:3px 4px}
+footer.brand{display:flex;align-items:center;gap:10px;flex-wrap:wrap}footer.brand a{color:var(--amber);font-weight:600;text-decoration:none;margin-inline-start:auto}
+.brand-mark{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--amber);color:var(--amber-ink);font-weight:700}
+@media print{#rp{display:none}}
+@media (prefers-reduced-motion:reduce){#rp-fill,#rp-head{transition:none}}
+"""
 
 
 TEMPLATE = """<!doctype html>
 <html lang="{lang}" dir="{dir}" data-theme="{theme}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title}</title><style>{uplot_css}</style><style>{css}</style></head>
-<body><main>
+<body{body_class}><main>
 <header><div style="flex:1"><h1>{title}</h1><div class="meta">{generated} {date}</div></div>
 <button id="theme" title="{theme_label}">&#9680;</button></header>
 {intro}
 <p class="hint">{hint}</p>
 {nav}{panes}
 {summary}
-<footer>Signal Viewer</footer>
+{footer}
 </main>
+{bar}
 <script type="application/json" id="sv-data">{data}</script>
 <script>{uplot_js}</script>
 <script>{viewer_js}</script>

@@ -18,6 +18,7 @@
   canvas.drag { cursor: grabbing; }
   #tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; display: none; white-space: nowrap; }
   #time { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--panel); }
+  #time[hidden] { display: none; }
   #slider { flex: 1; accent-color: var(--accent); }
   #tval { min-width: 7em; text-align: end; font-variant-numeric: tabular-nums; }
   footer { padding: 3px 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
@@ -131,6 +132,16 @@ document.getElementById("fit").onclick = () => { fit(); draw(); };
 document.getElementById("theme").onclick = () => { dark = !dark; draw(); };
 slider.addEventListener("input", draw);
 addEventListener("resize", draw);
+// a replay page (the HTML report with one cursor) drives the time from outside: its timeline, plots and
+// play move the markers here; its own time row is hidden there - one time control per page
+addEventListener("message", (e) => {
+  const m = e.data;
+  if (!m || m.sv !== "replay") return;
+  if (m.hideTime) { document.getElementById("time").hidden = true; document.getElementById("title").style.visibility = "hidden"; }   // the card has the title
+  if (typeof m.dark === "boolean") dark = m.dark;
+  if (typeof m.t === "number" && isFinite(m.t)) slider.value = Math.min(t1, Math.max(t0, m.t));
+  draw();
+});
 fit(); draw();
 </script>
 </body>
