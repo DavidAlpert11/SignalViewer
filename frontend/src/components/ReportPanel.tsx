@@ -5,6 +5,8 @@ import { translate, useT } from "../i18n";
 import { plotSpec } from "../plotSpec";
 import { runJob } from "../files";
 import { api } from "../api";
+import { makeReplay } from "../replay";
+import { Icon } from "../icons";
 
 const DEFAULT: ReportMeta = { title: "", intro: "", summary: "", lang: "he", theme: "light", scope: "tab" };
 
@@ -78,6 +80,12 @@ export default function ReportPanel() {
     <aside className="side" aria-label={t("report")}>
       <div className="side-head"><h2>{t("report")}</h2></div>
       <div className="tree analysis">
+        {/* R1: the tab as a page to send - first, since it is the quickest thing to make here */}
+        <section className="replay-card" aria-labelledby="replay-h">
+          <h3 id="replay-h"><Icon.Send aria-hidden="true" />{t("replayTitle")}</h3>
+          <p>{t("replayText")}</p>
+          <button className="btn primary replay-make" disabled={!!busy} onClick={() => makeReplay()}>{t("replayMake")}</button>
+        </section>
         <label className="afield"><span>{t("reportTitle")}</span>
           <input key={"t" + meta.title} defaultValue={meta.title} onBlur={(e) => e.target.value !== meta.title && setMeta({ title: e.target.value })} /></label>
         <label className="afield"><span>{t("reportIntro")}</span>

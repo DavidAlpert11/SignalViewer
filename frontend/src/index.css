@@ -1835,3 +1835,10 @@ input.fx-input { width: 100%; }
 .plot.merge-target { outline: 2px dashed var(--amber); outline-offset: -3px; }
 .plot.merge-target::after { content: attr(data-merge-hint); position: absolute; inset-block-start: 36px; inset-inline-start: 50%; transform: translateX(-50%);
   background: var(--panel); border: 1px solid var(--amber); border-radius: var(--r-m); padding: 2px var(--sp-2); font-size: var(--fs-xs); color: var(--ink); pointer-events: none; z-index: 6; }
+
+/* R1: the replay card at the head of the Report panel - the quickest thing to make there */
+.replay-card { border: 1px solid var(--amber); background: var(--amber-soft); border-radius: var(--r-m); padding: 10px 12px; margin: 2px 0 14px; }
+.replay-card h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: var(--fs-ml); font-weight: 600; }
+.replay-card h3 svg { width: 16px; height: 16px; color: var(--amber); }
+.replay-card p { margin: 0 0 8px; font-size: var(--fs-m); color: var(--muted); line-height: 1.45; }
+.replay-card .replay-make { width: 100%; }
