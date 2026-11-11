@@ -72,6 +72,17 @@ export default function CommandPalette() {
       { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
       // F22: every tab is reachable by name, however many there are
+      // L10: the active plot to a new tab / to another tab
+      ...(() => {
+        const tab = activeTab(st().ws);
+        const pl = tab?.plots[tab.active ?? 0];
+        if (!pl || (!pl.signals.length && !(pl.objects?.length))) return [];
+        return [
+          { id: "plotnewtab", label: t("cmdMovePlotNewTab"), group: t("layout"), run: () => { actions.movePlotToTab(pl.id, "new"); } },
+          ...st().ws.tabs.filter((x) => x.id !== tab.id).map((x, n) => ({ id: `plottab-${x.id}`, label: t("cmdMovePlotTab", { name: x.name || `${t("tab")} ${n + 1}` }),
+            group: t("layout"), run: () => { actions.movePlotToTab(pl.id, x.id); } })),
+        ];
+      })(),
       // L9: Compare similar signals… - the file of the active plot's first line, else the newest file
       {
         id: "cmpsimilar", label: t("simCmd"), group: t("compare"), run: () => {

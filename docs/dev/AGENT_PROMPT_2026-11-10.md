@@ -2,8 +2,8 @@
 
 > ## Status – read this first (update at the end of every session)
 >
-> **Stage reached: groups A (L0-L6) and B (L7-L9) done, 2026-11-10.** Next: **L10**. Work order: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
-> The code maps of A, L7, L8 and L9, decisions (1-16) and the new question Q14 (`ref` as origin vs trajectory) are in
+> **Stage reached: groups A (L0-L6), B (L7-L9) and L10 done, 2026-11-10.** Next: **L11**. Work order: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
+> The code maps of A, L7-L10, decisions (1-20) and the new question Q14 (`ref` as origin vs trajectory) are in
 > `TASKS.md` → "Owner's plan (2026-11-10)". In short: `objectDetect.ts` (`metricPosition`, per-group
 > NED / ENU decision, `KNOWN_GROUPS` with `ned / vel / origin / order / lane / skip`, `originOf`,
 > `isOriginGroup`, `Candidate.origin / badUnit / lane`), `objectAdd.ts` (`addable`, `objectSources`,
@@ -16,6 +16,7 @@
 > L8: `CompareObjectsDialog.tsx`, `relation.ts` (`comparable`, `cmpLayout`, `makeComparison`, `statsCsv`),
 > `plotTabs` in `store/actions/plots.ts`, relate `err_speed`, stats `abs_max / t_abs_max / p95_abs`.
 > L9: `similar.ts`, `CompareSimilarDialog.tsx`, the `sub` op's `wrap` (one rule: `angleWrap` / `wrapFor`).
+> L10: `movePlotToTab` / `mergePlotInto` in `store/actions/layout.ts`, the tabs in `TopBar.tsx` take a plot.
 > The whole e2e suite at the end of group B: green (rerun in chunks after the container's disk filled; Log).
 > **Left for L13:** the naming convention in the guides (en + he), `docs/features.md`.
 > The patch does not include `frontend/dist` (built in L13). Pushed up to L7 (`e2a75a8`); apply the next patch on it: `git am < signalviewer-2026-11-10-L8-L9.patch`.
