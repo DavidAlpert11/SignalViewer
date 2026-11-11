@@ -2,7 +2,7 @@
 
 > ## Status – read this first (update at the end of every session)
 >
-> **Stage reached: groups A (L0-L6), B (L7-L9), C (L10-L11) and D (L12) done, 2026-11-10.** Next: **L13** (the release). Work order: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
+> **Stage reached: everything (L0-L13) done, 2026-11-11 - version 1.25.0, ready to tag.** A human-factors review went on top of L8-L12 (`docs/dev/UX_REVIEW_2026-11-11.md`: `flatLine.ts`, `soloPlot`, the start card's Quick look, `plotTabs` `look`, go to worst, the ⋯ corner). Work order was: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
 > The code maps of A, L7-L12, decisions (1-30) and the new question Q14 (`ref` as origin vs trajectory) are in
 > `TASKS.md` → "Owner's plan (2026-11-10)". In short: `objectDetect.ts` (`metricPosition`, per-group
 > NED / ENU decision, `KNOWN_GROUPS` with `ned / vel / origin / order / lane / skip`, `originOf`,
@@ -21,8 +21,8 @@
 > L12: `svcore/object_names.json` (one table) + `objects.py` / `objcompare.py` / `similar.py`, the Python API,
 > four CLI commands, `app/routes/objects.py`, `docs/api.md`; parity Python = CLI = REST = dialog (1e-9).
 > The whole e2e suite at the end of group B: green (rerun in chunks after the container's disk filled; Log).
-> **Left for L13:** the naming convention in the guides (en + he), `docs/features.md`.
-> The patch does not include `frontend/dist` (built in L13). Pushed up to L7 (`e2a75a8`); apply the next patch on it: `git am < signalviewer-2026-11-11.patch` (L8-L12, 9 commits; L13 - the release - not yet).
+> **L13:** guides (en + he), `docs/features.md`, `limitations.md`, README, version 1.25.0, CHANGELOG, `frontend/dist` built.
+> One patch on the last pushed commit (L7, `e2a75a8`): `git am < signalviewer-1.25.0.patch` - L8-L12, the review, L13.
 > Groups (whole e2e at the end of each): **A** = L0–L6 (local positions), **B** = L7–L9 (primary / secondary made clear, comparisons),
 > **C** = L10–L11 (moving plots, map export), **D** = L12 (API), **E** = L13 (release). If time is short,
 > finish a group and stop cleanly rather than start the next one.

@@ -13,12 +13,13 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
-- **Round of 2026-11-10 (in progress)**: the owner's round - objects whose position is in metres (NED,
+- **Round of 2026-11-10 (done, 1.25.0)**: the owner's round - objects whose position is in metres (NED,
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
   `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
-  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6), B (L7-L9), C (L10-L11) and D (L12: the API).** Next: L13 (release). Travels as
-  one cumulative patch on `d61ab6d`; the owner pushed up to L7 (`e2a75a8`), so later patches are on that.
+  in "Owner's plan (2026-11-10)" below. **Done: all of it (L0-L13), version 1.25.0 (2026-11-11), ready to tag**, with a human-factors review on top
+  (`docs/dev/UX_REVIEW_2026-11-11.md`: what was changed, and proposals that wait for the owner). Travels
+  as one patch on `e2a75a8` (L7, the last pushed commit): L8-L12, the review, L13.
 
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
   and added all at once with *Why?*, dot nesting at any depth, smooth motion and an easy map, primary /
@@ -384,7 +385,7 @@ Progress board:
 | L10 | Move a plot to another tab / into another plot | C | ☑ done |
 | L11 | Map export: PNG, HTML, maps in reports | C | ☑ done |
 | L12 | A clear API (Python, CLI, REST) | D | ☑ done |
-| L13 | Docs, changelog, release, full checks | E | ☐ next |
+| L13 | Docs, changelog, release, full checks | E | ☑ done (1.25.0) |
 
 ---
 
@@ -3879,3 +3880,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · L10 done (decisions 17-20): movePlotToTab / mergePlotInto (one Undo each), the handle onto a tab, Move to… → tab / New tab, Add its lines to…, Shift+drop merge, Ctrl+K. Checks: tsc, Vitest 16 / 102; e2e test_move_plots_tabs (3, new), test_move_plots (2), test_plot_menus + test_tab_band + test_template_tabs (6). Next: L11.
 - 2026-11-10 · L11 done - group C complete (decisions 21-25). Checks: backend 1107 passed / 14 skipped, mypy clean (110 files), tsc, Vitest 102; e2e test_map_export (new), test_findings_report + test_map_objects + test_offline_map (17). Next: L12.
 - 2026-11-10 · L12 done - group D complete (decisions 26-30): one table + shared vectors (10 cases, Vitest and pytest agree), the Python API, four CLI commands, three REST endpoints, docs/api.md. Checks: backend 1122 passed / 14 skipped (the parity test first left derived signals in the shared store and broke two order-dependent tests - cleaned up), mypy clean (114 files), tsc, Vitest 17 files / 112. Next: L13.
+- 2026-11-11 · L13 done, with a human-factors review (`docs/dev/UX_REVIEW_2026-11-11.md`): L8-L12 applied on `e2a75a8` and reviewed on screen; added `flatLine.ts` (the right-axis / own-plot offer from the values), `soloPlot` (M), the start card's Quick look, `plotTabs` `look` (comparison lines named and coloured by object), statistics with units and a link to the time of the largest error, the ⋯ corner, wording and spacing fixes; guides en + he, features, limitations, README, version 1.25.0, CHANGELOG, dist. Checks: backend 1122 passed / 14 skipped, mypy clean, tsc, Vitest 119, mkdocs strict, e2e 381 passed + 1 (`test_sweeps_flow.py`, unstable in the container on every tree - see the review). Left to the owner: `[ci]`, README media, the Windows build, the tag. Proposals waiting: the review's "Proposed, not done".

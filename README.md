@@ -42,7 +42,7 @@ report that starts with the verdict. The tolerances are the file `signalviewer-c
 CI gives the same answer. Results say what they rest on (≈ where values were interpolated or a
 filter ran stretch by stretch), and every file gets a data-quality summary as it opens.
 
-### A flight on the map and in 3D (more in 1.24)
+### A flight on the map and in 3D (more in 1.25)
 
 One template turns latitude / longitude / altitude / attitude signals into a map and a 3D view. Press
 play and both follow the timeline; *Up to the time* draws the track as it is flown.
@@ -51,9 +51,18 @@ Every object in the recording is found by its names - truth, each navigation sol
 each from its own prefix - and added in one click, with *Why?* for every guess. Name your signals
 `<object>.lat / lon / alt / roll / pitch / yaw` (sub-groups like `<object>.att.roll` work too) and
 the guess just works: `truth.*`, `nav.*` and `gps.*` become three objects of the right kind.
+Positions in metres are found too (new in 1.25) - `<object>.ned.x / y / z`, `<object>.ecef.x / y / z`,
+with `<object>.origin.lat / lon / alt` - so every ArduPilot EKF lane (`XKF1[n]`) is on the map beside
+POS, placed through the EKF origin, and PX4 / MAVLink local positions likewise.
 
-Pick a primary object and its secondaries to read range, bearing, closure and the angle off at the
-cursor, and plot their errors or differences (NED, ENU, ECEF, along / across the track) in one click.
+Pick the reference object (a solid ring) and the one compared with it (a dashed ring) to read range,
+bearing, closure and the angle off at the cursor. **Compare…** (new in 1.25) then shows how every
+object differs from the reference - position, velocity and attitude, the values and the errors side by
+side (NED, ENU, ECEF, along / across the track), with RMS, 95 % and the largest error of each; a click
+on the time of the largest error puts the cursor there. The same from a script:
+`signalviewer-cli compare-objects flight.bin --ref POS --tolerance position=2m` passes or fails a log
+in CI ([Scripting API](docs/api.md)). A map saves as a PNG or as one HTML file that opens offline, and
+goes into reports.
 The map drags, glides and zooms smoothly, follows an object (north or track up) and the 3D view can
 chase it. *Export for Tacview (.acmi)* in the plot's menu saves the objects for
 [Tacview](https://www.tacview.net/).
@@ -269,7 +278,7 @@ Found a problem or want to help? *Help → Report a problem…* in the app, or [
 - לחקור: מ"משהו השתבש בטיסה" לתשובה שאפשר להראות – לתת שם לרגעים שחשובים (<code dir="ltr">abs(Roll - DesRoll) > 5</code>), לראות איזה סיגנל יצא מהטווח הרגיל שלו ראשון ובכמה זמן לפני, לבדוק מול הריצות האחרות, שגיאה לכל ציר בקליק אחד, ממצאים ודוח חקירה. אפשר לנסות על דוגמה מובנית שהתשובה שלה ידועה.
 - לכייל על פני מעטפת ריצות: טבלת תוצאות עם שורה לכל ריצה – אילו סטים של פרמטרים עומדים בכל התרחישים ומי מהם הכי טוב: מטרות, גרף קואורדינטות מקבילות, מפות, חסינות והריצות הבאות; **חקירה** מנסה את המגבלות והיעדים של מטרה כמחוונים, והגרף והטבלה מתעדכנים בכל הזזה.
 - לעקוב אחרי צי (אזור עבודה משלו): אותה בדיקת תקינות על כל הלוגים בתיקייה – מספר לאורך שבועות (מנוע שנשחק), הטיסה הראשונה שעברה גבול, הטיסות עם ממצא. יש צי דוגמה ו[מדריך](docs/fleet-tutorial.he.md).
-- מפה ותלת־ממד: כל האובייקטים בהקלטה (אמת, פתרונות ניווט, מקלטים) נמצאים לפי השמות שלהם ומתווספים בלחיצה אחת, עם *למה?* לכל ניחוש; אובייקט ראשי ומשניים – טווח, כיוון, קצב התקרבות, ושגיאות או הפרשים ב־NED,‏ ENU,‏ ECEF או לאורך המסלול; מפה שזזה ומתקרבת בצורה חלקה ועוקבת אחרי אובייקט; ייצוא ל־Tacview (‎.acmi).
+- מפה ותלת־ממד: כל האובייקטים בהקלטה (אמת, פתרונות ניווט, מקלטים) נמצאים לפי השמות שלהם ומתווספים בלחיצה אחת, עם *למה?* לכל ניחוש; אובייקט ראשי ומשניים – טווח, כיוון, קצב התקרבות, ושגיאות או הפרשים ב־NED,‏ ENU,‏ ECEF או לאורך המסלול; מפה שזזה ומתקרבת בצורה חלקה ועוקבת אחרי אובייקט; ייצוא ל־Tacview (‎.acmi). נמצאים גם אובייקטים שהמיקום שלהם במטרים (NED,‏ ENU,‏ ECEF – כולל כל lane של ה־EKF ב־ArduPilot), חלון *השוואה…* אחד למיקום, מהירות וזוויות מול אובייקט הבסיס עם סטטיסטיקה, *השוואה לדומים…* לסיגנלים עם שמות דומים, שמירת המפה כ־PNG או כ־HTML שנפתח בלי רשת, ו־API לכל התהליך (Python, שורת פקודה, REST).
 - להזיז גרפים בגרירה, לקבוע עובי וסגנון לקווים חדשים בהגדרות, ולעצב קבוצת סיגנלים שלמה בבת אחת.
 - הרבה סיגנלים בגרף אחד: המקרא עובר לעמודה בצד הגרף והערכים לא מזיזים אותו; קבוצות סיגנלים משלכם עם שם, גם מקוננות; מסלול במפה צבוע לפי מוד הטיסה; פס המודים פעם אחת מעל כל הגרפים של הטאב, עם הסמן עליו; ערך רצוי מול נמדד מקווקו לבד.
 - כמה מטרות יחד במעטפת ריצות: דירוג לפי חזית Pareto וגרף Pareto עם הסט המאוזן.

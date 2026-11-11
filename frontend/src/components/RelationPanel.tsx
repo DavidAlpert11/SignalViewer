@@ -89,7 +89,8 @@ export default function RelationPanel({ plot, objects, tracks }: { plot: Plot; o
         {!folded && (
           <select className="rel-lines" value={plot.relLines ?? "pair"} aria-label={t("relLines")} title={t("relLines")}
             onChange={(e) => actions.updatePlot(plot.id, { relLines: e.target.value === "pair" ? undefined : e.target.value as "all" | "off" })}>
-            <option value="pair">{t("relLinesPair")}</option><option value="all">{t("relLinesAll")}</option><option value="off">{t("relLinesOff")}</option>
+            {/* it stands beside Compare… and read as "Compare… the pair": each choice says what it is about */}
+            <option value="pair">{t("relLinesShort")}: {t("relLinesPair")}</option><option value="all">{t("relLinesShort")}: {t("relLinesAll")}</option><option value="off">{t("relLinesShort")}: {t("relLinesOff")}</option>
           </select>
         )}
       </div>

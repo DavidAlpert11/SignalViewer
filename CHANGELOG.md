@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 1.25.0 – 2026-11-11
+
+Highlights: **objects whose position is in metres** - NED, ENU or ECEF - found and added like
+latitude / longitude ones, so every ArduPilot EKF lane is on the map beside POS; **the rings explained**
+and the pair chosen in one place; **Compare objects…** - position, velocity and attitude of every object
+against a reference, values and errors side by side with their statistics, and one click to the moment
+of the largest error; **Compare with similar…** for signals whose names differ in one part; **plots move
+to other tabs and into other plots**; **a map saves as a PNG or as one offline HTML file** and goes into
+reports; **the whole process from Python, the command line and REST** with the same numbers; and a
+human-factors pass - a flat line is offered the right axis or its own plot, one plot at a time (M), a
+plain file opens with a suggestion instead of an empty plot.
 
 ### Added
 - **Objects whose position is in metres - NED, ENU or ECEF - are found and added like latitude /
@@ -69,6 +79,13 @@
   longer touch its edges, and the one-click presets look like buttons.
 - The start card's suggested view leaves once you have two tabs of your own (it used to stay floating
   over a comparison's tabs).
+- *Compare objects…*: the **time of the largest error** in the statistics is a way there - a click puts
+  the cursor at that moment in every plot and on the map.
+- A plot's ⋯ button is always in the head's far corner (it used to drop to a row of its own under a full
+  row of chips - 30 px of a small plot's height, and a different place from plot to plot).
+- The lines select beside *Compare…* in the relation box says what it chooses ("Lines: the pair"); it read
+  as "Compare… the pair".
+- Command palette: a command with no icon keeps the icons' column, so the labels line up.
 - The overview strip explains its clicks only when it has something to click (a plain file with no flags
   and no state rows no longer opens under a line of instructions).
 - Help ▸ Keyboard shortcuts: the mouse column is readable (long gestures wrap; the dialog is wider).

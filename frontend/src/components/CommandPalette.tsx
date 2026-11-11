@@ -183,7 +183,7 @@ export default function CommandPalette() {
           {items.map((c, i) => (
             <button key={c.id} role="option" aria-selected={i === sel} className={`pal-item${i === sel ? " on" : ""}`}
               onMouseEnter={() => setSel(i)} onClick={() => { c.run(); close(); }}>
-              {c.icon}<span>{c.label}</span>
+              {c.icon ?? <span className="pal-noicon" aria-hidden="true" />}<span>{c.label}</span>
               <span className="grp">{c.keys ? <span className="kbd">{c.keys}</span> : c.group}
                 {runs.some((r) => r.name === c.group) && ` → ${tab.plots[tab.active] ? t("plotTitle", { n: tab.active + 1 }) : ""}`}</span>
             </button>
