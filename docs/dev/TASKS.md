@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
   `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
-  in "Owner's plan (2026-11-10)" below. **Done: group A (L0-L6, local positions), L7 (the rings explained), L8 (Compare objects…).** Next: L9. Travels as
+  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6) and B (L7-L9: rings, Compare objects…, Compare with similar…).** Next: L10. Travels as
   one cumulative patch on `d61ab6d`; the owner pushed up to L7 (`e2a75a8`), so later patches are on that.
 
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
@@ -218,6 +218,26 @@ i18n `cmp*` (en + he), `tabsLeftOut`. Tests: relation.test.ts (layout, availabil
 backend/tests/test_local_objects.py (statistics = numpy, speed error), e2e test_local_objects (the dialog on the
 EKF lanes), test_object_relations (presets in the dialog).
 
+**Decisions taken in L9:**
+13. One bucket of names equal but for one segment can hold several families: it is split by instance base
+    (`XKF1[0]` / `XKF1[1]`), by number base (`nav1` / `nav2`), then the class words (`truth` / `nav`), and
+    with *More matches* the rest within 1-2 edits - so `ATT.Roll` beside the lanes does not hide them.
+14. One reference for all the chosen families (a segment: `phys`, `XKF1[0]`), default a truth-class one,
+    else the first family's first member; a family without that segment uses its own default.
+15. Angle rule (one helper, `similar.ts` `angleWrap` / `wrapFor`): the leaf is roll / pitch / yaw or an alias
+    and the unit says deg / rad → `wrap` 360 / "2pi"; no unit → the backend's angle-unit guess. Used by Compare
+    with similar…, `errors.ts` (Errors between two lines) and the Error segments panel. The backend `sub` op
+    unwraps B before reading it between samples, then wraps A - B; absent `wrap`: exactly as before.
+16. A family whose units differ is shown, values only (no difference made) - said in its row.
+
+**Code map of L9:** `similar.ts` (new: `findFamilies`, `familiesOf`, `referenceOf`, `angleWrap`, `wrapFor`),
+`components/CompareSimilarDialog.tsx` (new), `DataPanel.tsx` (group menu + signal menu item), `CommandPalette.tsx`
+(`Compare similar signals…`), `App.tsx`, `store/slices/ui.ts` (`similarDialog`), `objectDetect.ts`
+(`classOfSegment`, `ANGLE_WORDS` exported), `errors.ts` + `components/ErrorSegments.tsx` + `api.ts`
+(`errorSegments(…, wrap)`); backend `svcore/analysis.py` (`wrap_period`, `wrap_diff`, `sub`'s `wrap`),
+`app/routes/data.py` (error-segments `wrap`). Tests: `similar.test.ts`, `test_local_objects.py::test_sub_wraps_angles`,
+e2e `test_compare_similar.py` (group menu on three_objects; the EKF lanes' yaw across north +0.5°; Ctrl+K).
+
 **Open questions (the work goes on with the default):**
 | # | Question | Default if unanswered |
 |---|---|---|
@@ -293,8 +313,8 @@ Progress board:
 | L6 | Everything downstream still works | A | ☑ done |
 | L7 | Primary / secondary explained, chosen in one place | B | ☑ done |
 | L8 | Compare objects: one dialog, values and errors | B | ☑ done |
-| L9 | Compare similar nested signals | B | ☐ next |
-| L10 | Move a plot to another tab / into another plot | C | ☐ |
+| L9 | Compare similar nested signals | B | ☑ done |
+| L10 | Move a plot to another tab / into another plot | C | ☐ next |
 | L11 | Map export: PNG, HTML, maps in reports | C | ☐ |
 | L12 | A clear API (Python, CLI, REST) | D | ☐ |
 | L13 | Docs, changelog, release, full checks | E | ☐ |
@@ -3787,3 +3807,5 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · Whole e2e at the end of group A: the run was cut off by the session at ~74% (all green until then, no failure); the files of the group (test_local_objects, map_objects, object_frames, object_templates, object_relations, globe3d) passed; the full suite is run again at the end of group B.
 - 2026-11-10 · L7 done: Reference ⇄ Compared with in the relation box's header (`RelationPicker`, also in the 3D bar instead of its Object / Second selects), ring icons in the header and on the chips, the ring tooltip on the map, Ctrl+K "Set reference object: …" / "Swap…", Help rows; words en Reference / Compared with, he בסיס / מושווה (decision 6). Checks: tsc, Vitest 15 / 87; e2e test_object_relations (6, one new), test_globe3d (12), test_file_help_menus + test_map_objects (12). Next: L8.
 - 2026-11-10 · L8 done: Compare objects… (dialog, presets, one tab per quantity, statistics, CSV), err_speed, stats abs_max / t_abs_max / p95_abs, plotTabs never drops silently, reuse of relation / frame signals (decisions 9-12). Checks: backend 1100 passed / 14 skipped (test_design_tokens caught a radius fallback in the new CSS - fixed), mypy clean, tsc, Vitest 15 / 91; e2e test_local_objects (4), test_object_relations (6), test_map_objects (10). On ardupilot_lanes.csv: lane 1 north error +1.5 m, lane 0 ~0, yaw error +0.5°, RMS 1.5 in the table, speed error 0. Next: L9.
+- 2026-11-10 · L9 done - group B complete (decisions 13-16). Checks: backend 1101 passed / 14 skipped, mypy clean, tsc, Vitest 16 files / 98; e2e test_compare_similar (2, new), test_error_segments + test_one_per_plot (5). Whole e2e suite at the end of group B: see the next line. Next: L10.
+- 2026-11-10 · **Whole e2e suite at the end of group B (the debt of group A paid too): green.** First run: the first 192 tests passed, then the container's disk filled (8.5 GB of pytest temporary files in /tmp/pytest-of-root - not the app) and the rest errored at setup; one F just before (test_missing_choice::test_sum_propagate_then_skip_is_marked) passes alone and in the rerun. Rerun in two chunks with /tmp cleaned between: test_map_smooth … test_release_1_21 60 passed; test_runs_matrix … test_workflows 122 passed. Note for later runs: clean /tmp/pytest-of-root between big e2e runs in a small container. Next: L10.

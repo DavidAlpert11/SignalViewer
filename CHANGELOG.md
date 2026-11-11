@@ -25,7 +25,14 @@
   mean, max |error| and when, 95th percentile) to copy or save as CSV. Open it from the relation box's
   *Compare…*, the offer after adding objects, or Ctrl+K "Compare objects…".
 
+- **Compare with similar…** - in a signal's menu and a group's menu in the signal list (and Ctrl+K):
+  the signals of the same file whose names differ in one part only (`nav1` / `nav2`, `XKF1[0]` /
+  `XKF1[1]`, `truth` / `nav`), one family per quantity (a group gives roll, pitch and yaw at once), in
+  one tab: their values beside each one minus the reference, with the errors' statistics.
+
 ### Changed
+- Differences of angles are wrapped: 359° − 1° is −2°, not 358° - in Compare with similar…, *Errors
+  between two lines* and the error-segments table (degrees or radians, from the unit or the values).
 - The relation box's four buttons are now one *Compare…*; *Plot the relation*, *Error signals*,
   *Differences* and *Overlay* are one-click presets at the top of the dialog, with the same results.
 - Making the same relation or comparison again reuses the signals already made instead of adding copies.

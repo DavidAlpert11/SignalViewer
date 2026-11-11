@@ -2,8 +2,8 @@
 
 > ## Status – read this first (update at the end of every session)
 >
-> **Stage reached: group A done (L0-L6), L7 and L8 done, 2026-11-10.** Next: **L9**. Work order: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
-> Group A's, L7's and L8's code maps, decisions (1-12) and the new question Q14 (`ref` as origin vs trajectory) are in
+> **Stage reached: groups A (L0-L6) and B (L7-L9) done, 2026-11-10.** Next: **L10**. Work order: **L0 → L1 → L2 → L3 → L4 → L5 → L6 → L7 → L8 → L9 → L10 → L11 → L12 → L13.**
+> The code maps of A, L7, L8 and L9, decisions (1-16) and the new question Q14 (`ref` as origin vs trajectory) are in
 > `TASKS.md` → "Owner's plan (2026-11-10)". In short: `objectDetect.ts` (`metricPosition`, per-group
 > NED / ENU decision, `KNOWN_GROUPS` with `ned / vel / origin / order / lane / skip`, `originOf`,
 > `isOriginGroup`, `Candidate.origin / badUnit / lane`), `objectAdd.ts` (`addable`, `objectSources`,
@@ -15,9 +15,10 @@
 > `GeoChart.tsx`, chips in `PlotView.tsx`, Ctrl+K, Help; words Reference / Compared with (he בסיס / מושווה).
 > L8: `CompareObjectsDialog.tsx`, `relation.ts` (`comparable`, `cmpLayout`, `makeComparison`, `statsCsv`),
 > `plotTabs` in `store/actions/plots.ts`, relate `err_speed`, stats `abs_max / t_abs_max / p95_abs`.
-> The whole e2e of group A was cut off at ~74% (green until then) - run it in full at the end of group B.
+> L9: `similar.ts`, `CompareSimilarDialog.tsx`, the `sub` op's `wrap` (one rule: `angleWrap` / `wrapFor`).
+> The whole e2e suite at the end of group B: green (rerun in chunks after the container's disk filled; Log).
 > **Left for L13:** the naming convention in the guides (en + he), `docs/features.md`.
-> The patch does not include `frontend/dist` (built in L13). Pushed up to L7 (`e2a75a8`); apply the next patch on it: `git am < signalviewer-2026-11-10-L8.patch`.
+> The patch does not include `frontend/dist` (built in L13). Pushed up to L7 (`e2a75a8`); apply the next patch on it: `git am < signalviewer-2026-11-10-L8-L9.patch`.
 > Groups (whole e2e at the end of each): **A** = L0–L6 (local positions), **B** = L7–L9 (primary / secondary made clear, comparisons),
 > **C** = L10–L11 (moving plots, map export), **D** = L12 (API), **E** = L13 (release). If time is short,
 > finish a group and stop cleanly rather than start the next one.
