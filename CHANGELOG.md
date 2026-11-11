@@ -62,6 +62,13 @@
 - The relation box's four buttons are now one *Compare…*; *Plot the relation*, *Error signals*,
   *Differences* and *Overlay* are one-click presets at the top of the dialog, with the same results.
 - Making the same relation or comparison again reuses the signals already made instead of adding copies.
+- *Compare objects…*: in the tabs it makes, every line is named by its object (`XKF1[0]`, not
+  `XKF1_0_vs_POS.dned.north`) and has the object's colour - the one on the map - in every plot (an
+  object used to be one colour among the values and another among the errors). The statistics table
+  says its units, names an object once per block and lines its numbers up; the dialog's contents no
+  longer touch its edges, and the one-click presets look like buttons.
+- The start card's suggested view leaves once you have two tabs of your own (it used to stay floating
+  over a comparison's tabs).
 - The overview strip explains its clicks only when it has something to click (a plain file with no flags
   and no state rows no longer opens under a line of instructions).
 - Help ▸ Keyboard shortcuts: the mouse column is readable (long gestures wrap; the dialog is wider).

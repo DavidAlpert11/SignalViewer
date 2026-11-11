@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useEscape } from "./Overlays";
 import { actions, pickPath, useApp, type MapObject } from "../store";
+import { signalUnit } from "../units";
 import { api } from "../api";
 import { fmtNum, translate, useT, type TKey } from "../i18n";
 import { copyText } from "../errorReport";
@@ -19,6 +20,7 @@ export default function CompareObjectsDialog() {
   const lang = useApp((s) => s.lang);
   const req = useApp((s) => s.compareDialog);
   const ws = useApp((s) => s.ws);
+  const runs = useApp((s) => s.runs);
   const plot = ws.tabs.flatMap((tb) => tb.plots).find((p) => p.id === req?.plotId);
   const objects = useMemo<MapObject[]>(() => plot?.objects ?? [], [plot]);
   const close = () => useApp.setState({ compareDialog: null });
@@ -113,12 +115,21 @@ export default function CompareObjectsDialog() {
               <h3>{t("cmpStats")}</h3>
               <div className="cmpobj-stats-scroll">
                 <table>
-                  <thead><tr><th>{t("cmpStObject")}</th><th>{t("cmpStComp")}</th><th>RMS</th><th>{t("cmpStMean")}</th><th>{t("cmpStMax")}</th><th>{t("cmpStP95")}</th><th>{t("cmpStTmax")}</th></tr></thead>
+                  <thead><tr><th>{t("cmpStObject")}</th><th>{t("cmpStComp")}</th><th className="num">RMS</th><th className="num">{t("cmpStMean")}</th><th className="num">{t("cmpStMax")}</th><th className="num">{t("cmpStP95")}</th><th className="num">{t("cmpStTmax")}</th></tr></thead>
                   <tbody>
-                    {stats.map((r) => (
-                      <tr key={r.id}><td>{r.object}</td><td>{r.comp}</td>
-                        {[r.s?.rms, r.s?.mean, r.s?.abs_max, r.s?.p95_abs, r.s?.t_abs_max].map((v, i) => <td key={i}><bdi dir="ltr">{num(v)}</bdi></td>)}</tr>
-                    ))}
+                    {/* an object's name once, at the head of its block; the unit beside the component
+                        (1.5 of what?) - read from the error signal itself */}
+                    {stats.map((r, k) => {
+                      const first = k === 0 || stats[k - 1].object !== r.object || stats[k - 1].qty !== r.qty;
+                      // the error signals carry no unit of their own: metres and m/s by definition (relate.py), but
+                      // not in LLA (degrees and metres mixed); angle errors are in degrees
+                      const unit = signalUnit(runs, r.id) ?? (r.qty === "velocity" ? "m/s" : r.qty === "position" && frame !== "lla" ? "m" : r.qty === "attitude" ? "°" : null);
+                      return (
+                        <tr key={r.id} className={first ? "first" : undefined}><td className="obj">{first ? r.object : ""}</td>
+                          <td>{r.comp}{unit && <span className="unit">[{unit}]</span>}</td>
+                          {[r.s?.rms, r.s?.mean, r.s?.abs_max, r.s?.p95_abs, r.s?.t_abs_max].map((v, i) => <td key={i} className="num"><bdi dir="ltr">{num(v)}</bdi></td>)}</tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

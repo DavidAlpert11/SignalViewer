@@ -271,6 +271,13 @@ export async function makeComparison(c: CompareChoice, all: MapObject[]): Promis
   const can = comparable(ref, c.others, all);
   const tabs: { name: string; plots: Cell[]; cols: number }[] = [];
   const stats: CmpStat[] = [];
+  // every line is named by its object and wears the object's colour - the one it has on the map - in
+  // every plot of the comparison (the plot's title says what is compared; the names were
+  // "XKF1_0_vs_POS.dned.north", and an object was blue in the values and orange in the errors)
+  const look: Record<string, { label: string; color: string; lineStyle?: "dash" }> = {};
+  const mark = (o: MapObject, id: string, what = "", dash = false) => {
+    look[id] = { label: what ? `${o.name} · ${what}` : o.name, color: o.color, ...(dash ? { lineStyle: "dash" as const } : {}) };
+  };
   const vs = tr("relVs", { p: ref.name });
   const errLbl = AXES[frame];
   for (const q of c.qty) {
@@ -286,20 +293,21 @@ export async function makeComparison(c: CompareChoice, all: MapObject[]): Promis
       const hz: string[] = [], vt: string[] = [];
       for (const S of others) {
         const d = await makeGroup(ref, S, all, `d${frame}`, errLbl.map((l, axis) => ({ label: l, params: { what: "diff", frame, axis } })));
-        d.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δ${errLbl[k]}`, id); });
+        d.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δ${errLbl[k]}`, id); mark(S, id); });
         const e = await makeGroup(ref, S, all, "err", [["horiz", "err_horiz"], ["vert", "err_vert"], ["3d", "err_3d"]].map(([l, w]) => ({ label: l, params: { what: w } })));
         hz.push(e.ids[0], e.ids[2]); vt.push(e.ids[1]);
+        mark(S, e.ids[0], "horiz"); mark(S, e.ids[2], "3D", true); mark(S, e.ids[1]);
         note(S, tr("cmpHoriz"), e.ids[0]); note(S, tr("cmpVert"), e.ids[1]); note(S, tr("cmp3d"), e.ids[2]);
       }
       extra.push({ title: tr("cmpHoriz3d"), ids: hz }, { title: tr("cmpVert"), ids: vt });
       if (frame !== "track") {
         const per: string[][] = [[], [], []];
         for (const o of [ref, ...others]) {
-          if (frame === "lla") { [o.lat, o.lon, o.alt].forEach((id, k) => { if (id) per[k].push(id); }); continue; }
+          if (frame === "lla") { [o.lat, o.lon, o.alt].forEach((id, k) => { if (id) { per[k].push(id); mark(o, id); } }); continue; }
           if (!o.alt) continue;
           const src = [o.lat, o.lon, o.alt, ...(frame === "ecef" ? [] : [ref.lat, ref.lon, ref.alt ?? o.alt])];
           (await frameOnce(src, { qty: "position", src: "lla", dst: frame, ...(frame === "ecef" ? {} : { ref: "signals" }) }, `${safe(o.name)}_${frame}_from_${safe(ref.name)}`))
-            .forEach((id, k) => per[k].push(id));
+            .forEach((id, k) => { per[k].push(id); mark(o, id); });
         }
         const lbl = frame === "lla" ? ["lat", "lon", "alt"] : errLbl;
         values = lbl.map((l, k) => ({ title: `${l} (${F})`, ids: per[k] }));
@@ -308,9 +316,9 @@ export async function makeComparison(c: CompareChoice, all: MapObject[]): Promis
       const sp: string[] = [];
       for (const S of others) {
         const d = await makeGroup(ref, S, all, `dv${frame}`, errLbl.map((l, axis) => ({ label: l, params: { what: "vdiff", frame, axis } })), true);
-        d.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δv ${errLbl[k]}`, id); });
+        d.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δv ${errLbl[k]}`, id); mark(S, id); });
         const e = await makeGroup(ref, S, all, "dspeed", [{ label: "speed", params: { what: "err_speed" } }], true);
-        sp.push(e.ids[0]); note(S, tr("cmpSpeed"), e.ids[0]);
+        sp.push(e.ids[0]); note(S, tr("cmpSpeed"), e.ids[0]); mark(S, e.ids[0]);
       }
       extra.push({ title: tr("cmpSpeed"), ids: sp });
       // values: the recorded north / east / down; ENU turned by the frame op when there are three of them
@@ -318,8 +326,8 @@ export async function makeComparison(c: CompareChoice, all: MapObject[]): Promis
       const enu = frame === "enu";
       for (const o of [ref, ...others]) {
         const v = ([...(o.vel ?? [])] as (string | null)[]).filter((x): x is string => !!x);
-        if (enu && v.length === 3) (await frameOnce(v, { qty: "vector", src: "ned", dst: "enu" }, `${safe(o.name)}_vel_enu`)).forEach((id, k) => per[k].push(id));
-        else v.forEach((id, k) => per[k].push(id));
+        if (enu && v.length === 3) (await frameOnce(v, { qty: "vector", src: "ned", dst: "enu" }, `${safe(o.name)}_vel_enu`)).forEach((id, k) => { per[k].push(id); mark(o, id); });
+        else v.forEach((id, k) => { per[k].push(id); mark(o, id); });
       }
       const vl = enu ? ["east", "north", "up"] : ["north", "east", "down"];
       values = vl.map((l, k) => ({ title: `v ${l} (${enu ? "ENU" : "NED"})`, ids: per[k] }));
@@ -327,7 +335,7 @@ export async function makeComparison(c: CompareChoice, all: MapObject[]): Promis
       const names = ["roll", "pitch", "yaw"];
       for (const S of others) {
         const e = await makeGroup(ref, S, all, "datt", [["roll", "err_roll"], ["pitch", "err_pitch"], ["yaw", "err_hdg"]].map(([l, w]) => ({ label: l, params: { what: w } })));
-        e.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δ${names[k]}`, id); });
+        e.ids.forEach((id, k) => { errs[k].push(id); note(S, `Δ${names[k]}`, id); mark(S, id); });
       }
       // values in degrees; every yaw wrapped as the reference's is (0..360 or -180..180), so no jumps between them
       const lay = async (o: MapObject) => { const r = trackRequest(o, all); const l = await layout(o, all); return { ids: [r.roll!, r.pitch!, r.yaw!], rad: l.lay.unit === "rad" }; };
@@ -340,7 +348,8 @@ export async function makeComparison(c: CompareChoice, all: MapObject[]): Promis
         for (let k = 0; k < 3; k++) {
           const x = L.rad ? "deg(v0)" : "v0";
           const expr = k === 2 ? `${wrap}(${x})` : x;
-          per[k].push(expr === "v0" ? L.ids[k] : await exprOnce(expr, L.ids[k], `${safe(o.name)}_${names[k]}_deg`));
+          const id = expr === "v0" ? L.ids[k] : await exprOnce(expr, L.ids[k], `${safe(o.name)}_${names[k]}_deg`);
+          per[k].push(id); mark(o, id);
         }
       }
       values = names.map((l, k) => ({ title: `${l} (°)`, ids: per[k] }));
@@ -355,7 +364,7 @@ export async function makeComparison(c: CompareChoice, all: MapObject[]): Promis
       for (const row of stats) row.s = st[row.id];
     } catch { /* the plots are still made */ }
   }
-  const n = tabs.length ? actions.plotTabs(tabs) : 0;
+  const n = tabs.length ? actions.plotTabs(tabs.map((tb) => ({ ...tb, look }))) : 0;
   if (n) {
     const st = useApp.getState();
     st.toast({ kind: "info", undoesWs: true, text: tr("cmpMade", { n }), action: { label: tr("undo"), run: () => useApp.getState().undo() } });

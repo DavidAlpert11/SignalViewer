@@ -559,7 +559,10 @@ export const plotActions = {
   /** L8: new time tabs, one commit (one Undo). A tab with more plots than fit (MAX_PLOTS, in whole rows of
    *  `cols`) goes on in "name (2)"...; a plot with more than PLOT_SIGNALS signals keeps the first ones and the
    *  toast says what was left out - nothing is dropped silently. Returns the number of tabs made. */
-  plotTabs(tabs: { name: string; plots: { title: string; ids: string[] }[]; cols?: number }[]): number {
+  plotTabs(tabs: { name: string; plots: { title: string; ids: string[] }[]; cols?: number;
+    /** how a signal is drawn in these tabs (by its id): a comparison names each line by its object and
+     *  gives it the object's colour in every plot - absent: the signal's own name, colours in order */
+    look?: Record<string, Pick<PlotSignal, "label" | "color" | "lineStyle">> }[]): number {
     const PLOT_SIGNALS = 10;
     const left: string[] = [];
     let made = 0;
@@ -574,7 +577,7 @@ export const plotActions = {
           const ps: Plot[] = list.slice(k * per, (k + 1) * per).map((x) => {
             const p: Plot = { id: uid("p"), title: x.title, signals: [] };
             if (x.ids.length > PLOT_SIGNALS) left.push(`${x.title} (${x.ids.length - PLOT_SIGNALS})`);
-            x.ids.slice(0, PLOT_SIGNALS).forEach((id, i) => p.signals.push({ ...newPlotSignal(id, ws), color: TRACE_COLORS[i % TRACE_COLORS.length] }));
+            x.ids.slice(0, PLOT_SIGNALS).forEach((id, i) => p.signals.push({ ...newPlotSignal(id, ws), color: TRACE_COLORS[i % TRACE_COLORS.length], ...tb.look?.[id] }));
             return p;
           });
           const tab: Tab = { id: uid("t"), name: k ? `${tb.name} (${k + 1})` : tb.name, rows: Math.ceil(ps.length / cols), cols, plots: ps, active: 0, linkX: true };
