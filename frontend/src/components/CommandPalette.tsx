@@ -135,6 +135,7 @@ export default function CommandPalette() {
       { id: "zoomx", label: t("zoomX"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("x"), keys: "Z" },
       { id: "zoomy", label: t("zoomY"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("y"), keys: "Z" },
       { id: "zoomxy", label: t("zoomXY"), group: t("plot"), icon: <Icon.Reset />, run: () => actions.setZoomMode("xy"), keys: "Z" },
+      { id: "soloplot", label: t("soloPlot"), group: t("plot"), icon: <Icon.Layout />, run: () => useApp.setState({ soloPlot: !st().soloPlot }), keys: "M" },
     ];
     // another area: its own commands, and what is the same everywhere (areaCommands.ts)
     const area = st().area;

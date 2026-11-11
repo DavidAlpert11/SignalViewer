@@ -50,6 +50,7 @@ export function useShortcuts() {
       else if (e.key.toLowerCase() === "d") actions.toggleDual();
       else if (e.key.toLowerCase() === "r") actions.resetZoom();
       else if (e.key.toLowerCase() === "z") actions.cycleZoomMode();
+      else if (e.key.toLowerCase() === "m") useApp.setState({ soloPlot: !st.soloPlot });   // one plot at a time (1-9 then flips through them)
       else if (e.key.toLowerCase() === "n") { e.preventDefault(); actions.addNoteAtCursor(); }
       else if ((e.key === "]" || e.key === "[") && st.condFocus) { e.preventDefault(); stepOccurrence(st.condFocus, e.key === "]" ? 1 : -1); }
       // 26.U8: the next / previous event of any kind (modes, log events, findings, conditions, limits)
@@ -70,6 +71,7 @@ export function useShortcuts() {
         // one step back per press: the selection, then the newest message, then the start card
         // (the start card used to stay over the plots until its × was clicked)
         if (st.selected) useApp.setState({ selected: null });
+        else if (st.soloPlot) useApp.setState({ soloPlot: false });
         else if (st.toasts.length) st.dismiss(st.toasts[st.toasts.length - 1].id);
         else if (st.startCard) useApp.setState({ startCard: null });
       }
