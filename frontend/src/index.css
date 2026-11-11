@@ -403,6 +403,7 @@ table.vals .sw { display: inline-block; width: 8px; height: 8px; border-radius: 
 .pal-item.on { background: var(--panel-2); }
 .pal-item .grp { margin-inline-start: auto; color: var(--faint); font-size: var(--fs-sm); }
 .pal-item svg { width: 15px; height: 15px; color: var(--muted); flex: none; }
+.pal-noicon { width: 15px; flex: none; }   /* a command with no icon keeps the column: the labels line up */
 .crumbs { display: flex; align-items: center; gap: var(--sp-1_5); padding: 6px 14px; color: var(--muted); border-bottom: 1px solid var(--line); direction: ltr; }
 .fs-path { position: relative; flex: 1; display: flex; }
 .fs-complete { position: absolute; top: calc(100% + 3px); inset-inline: 0; z-index: 30; max-height: 280px; overflow: auto; margin: 0; padding: 4px; list-style: none; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-l); box-shadow: var(--shadow); }
@@ -627,6 +628,14 @@ table.keys td.mouse { color: var(--muted); white-space: normal; width: 42%; }   
 .plot-title { flex-shrink: 0; }
 .plot-head .legend { order: 4; flex: 1 1 240px; }   /* T49 9: next to the type button when they fit (a short plot keeps more room for the curves), else on their own line */
 .plot-more { order: 5; }
+/* the ⋯ button has one place - the head's far corner - whatever the head holds: it used to wrap to a
+   row of its own under a full row of chips (30 px of a small plot's height for one button), so its
+   place moved from plot to plot. The head keeps the corner free for it. */
+.plot-head { padding-inline-end: 36px; }
+.plot-head > .plot-more { position: absolute; inset-inline-end: 8px; top: 5px; margin: 0; }
+/* the button gave the head's first row its height (24 px); a strut of that height keeps every chip
+   and title exactly where it was (no width: its gap is taken back) */
+.plot-head::before { content: ""; height: 24px; width: 0; margin-inline-end: -6px; order: -1; }
 .stage-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .stage-bar::-webkit-scrollbar { display: none; }
 @media (max-width: 1599px) { .hide-narrow { display: none; } }

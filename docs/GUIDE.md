@@ -112,7 +112,16 @@ are told apart by them.
   the same from the Inspector (*Style these lines…*). One Undo takes it back.
 - **Moving plots:** drag a plot by the ⠿ beside its title onto another plot, or *Move to…* in the plot's
   menu, or Ctrl+Shift+arrows on the active plot: the two plots change places (Undo puts them back); the
-  sizes of the cells stay.
+  sizes of the cells stay. *Move to…* also lists the other tabs and *New tab* - the plot goes there as it
+  is (its lines, axes, cursors, a map's objects); dropping it on a tab's name does the same (Ctrl: a
+  copy). *Add its lines to…* joins a plot's lines to another plot of the same kind (Shift+drop on that
+  plot); the source plot is then removed.
+- **One plot at a time:** **M** (or the layout button ▸ *One plot at a time*) fills the tab with the
+  active plot - for a small screen, or to show one plot to a room. 1 - 9 show the others; M or Esc brings
+  all of them back. The layout itself is not changed.
+- **A line that looks flat:** adding a small signal to a plot of large ones (a current of 12 A beside
+  3000 rpm) brings a message with *To the right axis* and *To its own plot*. Nothing moves until you
+  choose; it is said once per plot and signal.
 - **Tacview:** *Export for Tacview (.acmi)…* in a map's or a 3D view's menu saves its objects as a
   Tacview ACMI 2.2 file - each object's position (altitude above sea level, by its altitude reference)
   and attitude as the 3D view draws it (from its motion or borrowed from another object when it has
@@ -130,22 +139,46 @@ are told apart by them.
 - **The 3D camera:** *General* (move freely), *On the object* (turn around it, wheel towards it), *Chase*
   (behind and above it, turning with it), *Look at* (from it towards the second object). A change of mode
   or object flies there; a line at the bottom says what the mouse does.
-- **Primary and secondary objects:** with two objects or more on a map, one is the *primary* (a ring)
-  and one the *secondary* (a dashed ring) - by default the truth and the first navigation solution.
-  Click an object to make it the primary, Shift+click for the secondary (or the chip's right-click menu;
-  Q / Shift+Q change the primary, X swaps them while the map has the focus). The box in the map's corner
-  shows, at the cursor: the **range** (straight line), the **horizontal** distance, **Δalt**, the
-  **bearing** from the primary, the **relative bearing** (from its heading, + = right), the **closure**
-  rate (+ while they close) and the time to the **closest approach**, the **heading difference**
-  (0-180°) and the secondary's **aspect**: the angle at the secondary between its tail and the line to
-  the primary - 0° the primary right behind it, 180° nose to nose, with L / R. *Plot over time* makes
-  these as signals in a new tab; *Error signals* makes the secondary's position, heading, roll and pitch
-  errors against the primary (`nav_vs_phys.err.*`); *Differences* plots each object minus the primary
-  in the frame chosen beside it - NED / ENU in the primary's local frame at each moment, ECEF, LLA (in
-  metres) or the track frame (along / across its heading) - and *Overlay* puts the same component of
-  every object on one plot, NED / ENU from one origin (the primary's first position). Objects with a
-  velocity (`<object>.vel.north / east / down`) get their velocity difference as well. In 3D the same:
-  rings, a click (Shift+click) on an object, Q / X once the view has the focus.
+- **The rings - the reference and the compared object:** with two objects or more on a map, one is the
+  *reference* (a solid ring; also called the primary) and one is *compared with* it (a dashed ring; the
+  secondary) - by default the truth and the first navigation solution. The relation box, the
+  comparisons and the errors are measured from the reference. Point at a ring to read this; the chips
+  above the map carry the same ring marks. **Choose them in the box's first line**: *Reference*,
+  *Compared with*, and ⇄ to swap - the same in the 3D view. Shortcuts: click an object (Shift+click for
+  the compared one), the chip's right-click menu, Q / Shift+Q and X while the map has the focus.
+  The box in the map's corner shows, at the cursor: the **range** (straight line), the **horizontal**
+  distance, **Δalt**, the **bearing** from the reference, the **relative bearing** (from its heading, +
+  = right), the **closure** rate (+ while they close) and the time to the **closest approach**, the
+  **heading difference** (0-180°) and the compared object's **aspect**: the angle at it between its
+  tail and the line to the reference - 0° the reference right behind it, 180° nose to nose, with L / R.
+- **Compare objects…** (the **Compare…** button of the relation box; Ctrl+K ▸ *Compare objects…*): one
+  dialog for "how does each object differ from the one I trust". Choose the *Reference*, tick the
+  objects to compare and the quantities - *Position*, *Velocity*, *Attitude* (one that an object does
+  not have is greyed with the reason) - then *Values*, *Errors vs the reference* or *Both*, and the
+  frame: NED / ENU in the reference's local frame at each moment, ECEF, LLA (in metres) or the track
+  frame (along / across its heading). **Make** opens a tab per quantity: a row per component, the values
+  of every object on the left and each object's error on the right, and a row of horizontal / vertical
+  / 3D error. Every line is named by its object and has the object's colour from the map. The dialog
+  then shows the **statistics** of each error on the full data - RMS, mean, largest |error|, 95 %, and
+  the time of the largest: click that time and the cursor goes there in every plot and on the map.
+  *Copy* and *Save CSV…* take the table out. *One click* at the top keeps the four earlier actions:
+  *Plot over time* (the box's values as signals), *Error signals* (`nav_vs_phys.err.*`), *Differences*
+  and *Overlay*. One Undo takes a comparison back.
+- **Compare with similar…** (right-click a signal or a group in the list; Ctrl+K): finds the signals of
+  the same file whose names differ in one part only - `nav1.att.roll`, `nav2.att.roll`,
+  `truth.att.roll`; `XKF1[0].Roll`, `XKF1[1].Roll` - and lists them as families. Tick the families,
+  choose the reference member (a *truth* one is suggested) and *Values* / *Errors* / *Both*; **Make**
+  opens one tab, a row per family. Angle differences are wrapped (359° − 1° = −2°, not 358°). *More
+  matches* also offers names one or two letters apart, each with why it matched. The same signal across
+  *files* is the Compare panel's job.
+- **A map out of the app:** a map's menu has *Save image (PNG)* - this view, or fitted to all the tracks
+  - and *Save as HTML (opens offline)*: one file with the map, the tracks, a time slider that moves the
+  objects and their values on hover; it needs no network and no Signal Viewer. Reports (PDF, Word,
+  HTML) now include the tab's maps.
+- **From a script:** everything above - finding the objects, comparing them, the statistics, the map and
+  the report - is also a Python call, a command (`signalviewer-cli objects | compare-objects |
+  compare-similar | map`) and a local REST request, with the same numbers. See *Scripting API* and
+  *Command line* in the documentation.
 - **An attitude for a position-only object** (*Attitude* in its row or its form): *from motion* points it
   along its course over ground and pitches it by its climb (roll unknown; below *Hold the heading below*,
   1 m/s by default, the heading stays as it was, so a hovering drone does not spin); *from <object>*
@@ -157,6 +190,14 @@ are told apart by them.
   truth / phys / sim, nav / ins / ekf / ahrs and gps / gnss in the prefix set the class. Example with
   three objects: `truth.lat, truth.lon, truth.alt, truth.att.roll, …, nav.lat, nav.lon, …, gps.lat,
   gps.lon, gps.alt`. Flight logs (ArduPilot, PX4, MAVLink) are paired as before (POS with ATT).
+  **A position in metres** is found the same way: `<object>.ned.x / y / z` (or `<object>.pos.north /
+  east / down`; `… / up` makes it ENU), `<object>.ecef.x / y / z`; the forms `x_ned`, `ned_x`, `ecefX`
+  work too. NED and ENU need an origin: `<object>.origin.lat / lon / alt` (or `ref_lat / ref_lon /
+  ref_alt` inside the object, or a group named `origin`, `ref`, `home` or `datum` beside it) - an origin
+  is never offered as an object. Every ArduPilot EKF lane (`XKF1[n]`, `NKF1[n]`) is found with its own
+  attitude and placed through `ORGN`; PX4 and MAVLink local positions through their own origin. A row
+  that says *needs an origin* opens *Advanced…* with a suggestion; a position in cm or mm is listed but
+  not added until it is converted to metres (ƒ). Bare `x / y / z` with no frame word are not guessed.
 - **One object by hand:** *Advanced…* on a found row (or *Add one by hand…*) opens the full form. Its
   position and attitude are filled in from the signals' names; to choose another, type part of its
   name in the field. Beside each field

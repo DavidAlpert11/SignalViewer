@@ -127,7 +127,12 @@ export default function CompareObjectsDialog() {
                       return (
                         <tr key={r.id} className={first ? "first" : undefined}><td className="obj">{first ? r.object : ""}</td>
                           <td>{r.comp}{unit && <span className="unit">[{unit}]</span>}</td>
-                          {[r.s?.rms, r.s?.mean, r.s?.abs_max, r.s?.p95_abs, r.s?.t_abs_max].map((v, i) => <td key={i} className="num"><bdi dir="ltr">{num(v)}</bdi></td>)}</tr>
+                          {[r.s?.rms, r.s?.mean, r.s?.abs_max, r.s?.p95_abs].map((v, i) => <td key={i} className="num"><bdi dir="ltr">{num(v)}</bdi></td>)}
+                          {/* where it went wrong: the time of the largest error is a way there - the cursor
+                              goes to it in every plot (and on the map), the dialog steps aside */}
+                          <td className="num">{typeof r.s?.t_abs_max === "number"
+                            ? <button className="linklike cmpobj-goto" title={t("cmpGoWorst")} onClick={() => { actions.goToTime(r.s!.t_abs_max!); close(); }}><bdi dir="ltr">{num(r.s.t_abs_max)}</bdi></button>
+                            : "-"}</td></tr>
                       );
                     })}
                   </tbody>

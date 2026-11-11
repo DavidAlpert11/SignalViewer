@@ -165,3 +165,28 @@ def test_comparison_lines_wear_their_object(pg):
 def re_any():
     import re
     return re.compile(r"\S")
+
+
+def test_second_pass_go_to_worst_menu_corner_lines_wording(pg):
+    """The statistics' time of the largest error is a way there; the ⋯ button keeps the head's corner
+    under a full row of chips; the lines select beside Compare… says what it chooses."""
+    import os
+    import shutil
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
+    open_files(pg, "three_objects.csv")
+    pg.locator(".obj-suggest-add").click()
+    pg.wait_for_selector(".rel-panel")
+    assert pg.locator(".rel-panel .rel-lines option:checked").inner_text() == "Lines: the pair"
+    head = pg.locator(".plot .plot-head").first.bounding_box()
+    more = pg.locator(".plot .plot-more").first.bounding_box()
+    assert more["y"] - head["y"] < 12 and (head["x"] + head["width"]) - (more["x"] + more["width"]) < 14, (head, more)
+    pg.locator(".rel-panel .rel-compare-open").click()
+    pg.locator(".cmpobj-make").click()
+    pg.locator(".cmpobj-stats").wait_for()
+    go = pg.locator(".cmpobj-goto").first
+    t = float(go.inner_text())
+    go.click()
+    pg.wait_for_selector(".cmpobj", state="detached")
+    cur = S(pg, "[s.cursor.on, s.cursor.t1]")
+    assert cur[0] is True and abs(cur[1] - t) < 0.06, (cur, t)
