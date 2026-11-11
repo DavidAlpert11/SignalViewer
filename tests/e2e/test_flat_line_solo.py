@@ -134,3 +134,34 @@ def test_quick_look_opens_from_the_card(pg):
     pg.locator(".start-card .btn.primary").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.filter(p => p.signals.length).length === 2)")
     pg.wait_for_selector(".start-card", state="detached")
+
+
+def test_comparison_lines_wear_their_object(pg):
+    """After the merge with L8: in a comparison's tabs a line is named by its object and has the object's
+    colour (the map's) in every plot; the statistics say their unit; the start card does not float on."""
+    import os
+    import shutil
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
+    open_files(pg, "three_objects.csv")
+    pg.locator(".obj-suggest-add").click()
+    pg.wait_for_selector(".rel-panel")
+    objs = S(pg, "Object.fromEntries(s.ws.tabs[0].plots.find((p) => p.mode === 'geo').objects.map((o) => [o.name, o.color]))")
+    pg.locator(".rel-panel .rel-compare-open").click()
+    dlg = pg.locator(".cmpobj")
+    box = dlg.locator(".cmpobj-grid").bounding_box(); outer = dlg.bounding_box()
+    assert box["x"] - outer["x"] >= 10 and (outer["x"] + outer["width"]) - (box["x"] + box["width"]) >= 10   # not on the dialog's edges
+    dlg.locator(".cmpobj-make").click()
+    dlg.locator(".cmpobj-stats").wait_for()
+    assert dlg.locator(".cmpobj-stats .unit").first.inner_text() == "[m]"
+    assert dlg.locator(".cmpobj-stats td.obj").filter(has_text=re_any()).count() < dlg.locator(".cmpobj-stats tbody tr").count()   # a name once per block
+    lines = S(pg, "s.ws.tabs.slice(1).flatMap((t) => t.plots.flatMap((p) => p.signals.map((x) => [x.label || '', x.color])))")
+    assert lines and all(lbl.split(" · ")[0] in objs for lbl, _ in lines), lines
+    assert all(color == objs[lbl.split(" · ")[0]] for lbl, color in lines), lines
+    dlg.locator(".btn", has_text="Close").click()
+    assert pg.locator(".start-card").count() == 0
+
+
+def re_any():
+    import re
+    return re.compile(r"\S")

@@ -22,9 +22,12 @@ export default function StartCard() {
   // the Quick look is for an empty workspace: the user's first own line answers it - the card leaves
   // (findings, if any, stay docked)
   const plotted = useApp((s) => s.ws.tabs.some(tabHasContent));
+  // ... and any suggested view is for the start: with two tabs of the user's own (a comparison's tabs,
+  // a plot moved to a new tab) it was still floating over them, on every tab
+  const underWay = useApp((s) => s.ws.tabs.filter(tabHasContent).length >= 2);
   useEffect(() => {
-    if (card?.quick && card.template && plotted) useApp.setState({ startCard: card.health?.length || card.golden ? { ...card, template: null, quick: false } : null });
-  }, [card, plotted]);
+    if (card?.template && !card.files && ((card.quick && plotted) || underWay)) useApp.setState({ startCard: card.health?.length || card.golden ? { ...card, template: null, quick: false } : null });
+  }, [card, plotted, underWay]);
   if (!card || !runs.some((r) => r.id === card.runId)) return null;
   if (!card.template && !card.golden && !open) return null;   // docked: FindingsDock
   // findings only: X folds them back into the dock; with a suggestion it closes the card, as before

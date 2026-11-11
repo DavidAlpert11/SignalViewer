@@ -1779,6 +1779,10 @@ input.fx-input { width: 100%; }
 
 /* L8: Compare objects… */
 .dialog.cmpobj { width: min(760px, 96vw); }
+/* the body had no side padding: labels sat on the dialog's edge and the selects ran into the other one */
+.cmpobj .dialog-body { padding: var(--sp-3) 14px; }
+.cmpobj-ref, .simdlg .sim-ref { width: max-content; min-width: 14em; max-width: 100%; }
+.cmpobj-presets .btn { border-color: var(--line-strong); }   /* one-click actions read as buttons, not as words */
 .cmpobj-presets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); padding-bottom: var(--sp-2); margin-bottom: var(--sp-2); border-bottom: 1px solid var(--line); }
 .cmpobj-grid { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-2) var(--sp-3); align-items: start; }
 .cmpobj-label { color: var(--muted); font-size: var(--fs-s); display: inline-flex; align-items: center; gap: 4px; padding-top: 2px; }
@@ -1797,6 +1801,11 @@ input.fx-input { width: 100%; }
 .cmpobj-stats-scroll { overflow: auto; max-height: 260px; border: 1px solid var(--line); border-radius: var(--r-s); }
 .cmpobj-stats table { border-collapse: collapse; width: 100%; font-size: var(--fs-xs); }
 .cmpobj-stats th, .cmpobj-stats td { padding: 2px var(--sp-1_5); text-align: start; border-bottom: 1px solid var(--line); white-space: nowrap; }
+/* numbers are compared down a column: right-aligned, equal-width digits; one block per object */
+.cmpobj-stats td.num, .cmpobj-stats th.num { text-align: end; font-variant-numeric: tabular-nums; }
+.cmpobj-stats tr.first td { border-top: 1px solid var(--line-strong); }
+.cmpobj-stats td.obj { font-weight: 600; color: var(--ink-strong); }
+.cmpobj-stats .unit { color: var(--muted); margin-inline-start: 4px; }
 .cmpobj-stats th { position: sticky; top: 0; background: var(--panel); color: var(--muted); font-weight: 600; }
 .rel-actions .rel-compare-open { font-weight: 600; }
 
