@@ -54,9 +54,14 @@ detail (about 3x faster) and shows a note.
 **Outside the app** (1.26, `backend/app/scene3d.py`): the 3D view in reports, the replay page and its own
 offline HTML file (its ⋯ menu; `signalviewer-cli map --3d`, `sv.scene_html` / `sv.scene_image`). CesiumJS
 cannot go into one file, so the page draws the same data with three.js r159 (MIT, embedded): the offline map
-draped on the bundled terrain (97 × 97 heights over the tracks' box and a margin), each track with a curtain
-down to the ground and the flown part as a ribbon, the app's models with heading, pitch and roll, orbit /
-zoom / follow, heights ×1 / ×2 / ×5. The objects are read as the Tacview export reads them. Where the browser
+draped on the bundled terrain (97 × 97 heights over the tracks' box and a margin), each track drawn as the app draws it (a fixed
+width on screen; a navigation solution dashed, a receiver as points), the app's models with heading, pitch
+and roll, heights ×1 / ×2 / ×5. The 2D map's page and the 3D page share one toolbar and one relation box
+(`report_assets/relation.js`, `mappage.css`, the words in `mapimage.PAGE_STRINGS`): the camera *General · On the
+object · Chase* on a chosen object (3D *Chase*: behind it, along its heading), + / −, *Fit*, *Trail* (whole / 60 s /
+20 s), *Relation* (show / hide), light / dark; an attitude indicator in 3D; the address keeps the view
+(`#t=…&cam=…&obj=…`); *Closest in* moves the time (inside a report: the report's time, `replay-seek`); the box is the app's (range, horizontal, Δalt, bearing, relative bearing, closure, closest-in,
+heading Δ) with the pair's rings and a dashed line with the distance. The objects are read as the Tacview export reads them. Where the browser
 has no WebGL the page shows the scene's picture (matplotlib, the same picture as in PDF / Word / PNG). The
 scene is local east / north / up metres around the tracks' middle (a flat earth: fine for tracks of
 kilometres, not for hundreds of them).

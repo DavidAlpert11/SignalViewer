@@ -100,8 +100,6 @@ def shoot(path_html: str) -> None:
         pg.screenshot(path=out)
         print("image", os.path.relpath(out, ROOT))
         # the 3D view alone, its own page: following the truth, a bit closer
-        fr = pg.frames[1]
-        fr.evaluate("() => document.getElementById('follow').value")
         pg2 = b.new_page(viewport={"width": 1400, "height": 800}, device_scale_factor=2)
         html = pg.locator("iframe.mapframe").first.get_attribute("srcdoc")
         tmp = path_html.replace(".html", "_3d.html")
@@ -110,6 +108,8 @@ def shoot(path_html: str) -> None:
         pg2.goto("file://" + tmp)
         pg2.wait_for_timeout(2500)
         pg2.evaluate("() => { const s = document.getElementById('slider'); s.value = 150; s.dispatchEvent(new Event('input')); }")
+        pg2.wait_for_timeout(1500)
+        pg2.locator('#cam [data-cam="close"]').click()                 # the camera close behind the reference
         pg2.wait_for_timeout(2500)
         out = os.path.join(IMAGES, "35_live_3d.png")
         pg2.screenshot(path=out)

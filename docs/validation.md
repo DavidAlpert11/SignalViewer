@@ -44,7 +44,7 @@ signalviewer-cli validate --junit v.xml    # the same as JUnit XML, for a qualif
 | V28 | **Formulas** – Sum and norm of three signals with one missing input: values that are not missing at that sample | a missing input makes the result missing: 0 | 0 | 0 | exact | ✓ |
 | V29 | **Plots** – A plot request (a zoomed window of 5 million samples) on a run with a time offset: time relative to the same request without one | the offset shifts the window and the drawn points, not the whole time vector: within 2 (the median of 9 requests; reported as 1 when within 2, the measured ratio when not - so the page does not change with the machine) | 1 x | 1 x | exact | ✓ |
 
-**29 of 29 cases within tolerance** (Signal Viewer 1.25.0).
+**29 of 29 cases within tolerance** (Signal Viewer 1.26.0).
 
 *Measured* is what this version computes, rounded for the page. *Tolerance* is the largest allowed
 |measured − expected|; where a case reads a spectrum or a time from samples, it is the resolution of

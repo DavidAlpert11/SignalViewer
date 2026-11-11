@@ -74,6 +74,7 @@ def map_data(store, spec: Dict) -> Dict:
         cols = [tl[ok], la[ok], lo[ok]] + ([al[ok]] if al is not None else [])
         d = _decimate(*cols)
         objs.append({"name": str(o.get("name") or ""), "color": str(o.get("color") or "#3d8bfd"),
+                     "track": o.get("track") if o.get("track") in ("dash", "points") else None,
                      "t": d[0], "lat": d[1], "lon": d[2], "alt": d[3] if al is not None else None})
     if not objs:
         raise ValueError("The map has no object with a position to draw.")
@@ -90,7 +91,7 @@ def map_data(store, spec: Dict) -> Dict:
         o["at"] = k
     base = str(geo.get("base") or "offline")
     return {"title": spec.get("title") or "", "objects": objs, "bounds": (s_, w_, n_, e_), "cursor": cur,
-            "base": base if base in ATTRIB else "offline"}
+            "base": base if base in ATTRIB else "offline", "pair": {"primary": geo.get("primary"), "secondary": geo.get("secondary")}}
 
 
 # ---- tiles ---------------------------------------------------------------------------------------
@@ -221,6 +222,45 @@ def render(mdata: Dict, fmt: str = "png", theme: str = "light", scale: float = 1
 
 # ---- standalone HTML ----------------------------------------------------------------------------
 
+# The words of the offline map pages - the 2D map and the 3D view share their toolbar and relation box
+# (report_assets/relation.js, mappage.css); the relation's words are the app's (i18n/mapsAnd3d.ts rel*).
+PAGE_STRINGS = {
+    "en": {"camera": "Camera", "camFree": "General", "camCentre": "On the object", "camClose": "Chase",
+           "trail": "Trail", "trailAll": "whole", "tcaGo": "Go to the closest moment",
+           "camFreeHint": "Move the view yourself", "camCentreHint": "Keep the chosen object in the middle",
+           "camCloseHint": "Close to the chosen object (in 3D: behind it, looking where it goes)",
+           "object": "Object", "zin": "Zoom in", "zout": "Zoom out", "fit": "Fit all tracks", "theme": "Light / dark",
+           "relation": "Relation", "relationHint": "Show / hide the relation box (reference and compared object)",
+           "ref": "Reference", "cmp": "Compared with", "swap": "Swap reference and compared", "hide": "Hide the box",
+           "fold": "Fold the box", "unfold": "Unfold the box", "noTime": "— not both at this time —",
+           "range": "Range", "horiz": "Horizontal", "dalt": "Δalt", "bearing": "Bearing", "relBearing": "Rel. bearing",
+           "closure": "Closure", "tca": "Closest in", "hdgDiff": "Heading Δ", "time": "Time",
+           "help": "Drag: move · wheel: zoom", "help3d": "Drag: turn · right-drag or Shift: move · wheel: zoom", "top": "From above", "ex": "Heights",
+           "noGl": "This browser cannot draw 3D (WebGL is off) - the picture shows the moment the page was made.",
+           "agl": "above ground"},
+    "he": {"camera": "מצלמה", "camFree": "כללית", "camCentre": "על האובייקט", "camClose": "מרדף",
+           "trail": "שובל", "trailAll": "כולו", "tcaGo": "לעבור לרגע הכי קרוב",
+           "camFreeHint": "להזיז את התצוגה בעצמכם", "camCentreHint": "האובייקט שנבחר באמצע",
+           "camCloseHint": "קרוב לאובייקט שנבחר (בתלת-ממד: מאחוריו, מסתכל לאן שהוא טס)",
+           "object": "אובייקט", "zin": "התקרבות", "zout": "התרחקות", "fit": "כל המסלולים", "theme": "בהיר / כהה",
+           "relation": "יחס", "relationHint": "הצגה / הסתרה של תיבת היחס (בסיס ומושווה)",
+           "ref": "בסיס", "cmp": "מושווה", "swap": "החלפת הבסיס והמושווה", "hide": "הסתרת התיבה",
+           "fold": "קיפול התיבה", "unfold": "פתיחת התיבה", "noTime": "— לא שניהם בזמן הזה —",
+           "range": "טווח", "horiz": "אופקי", "dalt": "Δגובה", "bearing": "כיוון", "relBearing": "כיוון יחסי",
+           "closure": "קצב התקרבות", "tca": "הכי קרוב בעוד", "hdgDiff": "Δכיוון", "time": "זמן",
+           "help": "גרירה: הזזה · גלגלת: זום", "help3d": "גרירה: סיבוב · גרירה ימנית או Shift: הזזה · גלגלת: זום", "top": "מלמעלה", "ex": "גבהים",
+           "noGl": "הדפדפן הזה לא יכול לצייר תלת-ממד (WebGL כבוי) - התמונה מראה את הרגע שבו הדף נוצר.",
+           "agl": "מעל הקרקע"},
+}
+
+
+def page_parts(page: str) -> str:
+    """The shared parts of an offline map page: its stylesheet and the toolbar / relation box script."""
+    def read(n):
+        with open(os.path.join(os.path.dirname(__file__), "report_assets", n), encoding="utf-8") as f:
+            return f.read()
+    return page.replace("/*__PAGE_CSS__*/", read("mappage.css")).replace("/*__RELATION__*/", read("relation.js"))
+
 def _tiles_for(mdata: Dict, dark: bool, budget: int) -> Tuple[Dict[str, str], List[int], set]:
     """The tiles around the tracks' box at as many zoom levels as fit `budget` bytes (coarse first)."""
     s_, w_, n_, e_ = _padded(mdata["bounds"], frac=0.75)        # wide: a frame wider than the tracks shows no blank edge
@@ -259,15 +299,17 @@ def build_html(mdata: Dict, theme: str = "light", budget: int = 15 * 1024 * 1024
     alt, light / dark. Says in a comment and in its footer what was embedded."""
     light_t, light_lv, used_l = _tiles_for(mdata, False, budget // 2)
     dark_t, dark_lv, used_d = _tiles_for(mdata, True, budget // 2)
-    objs = [{"name": o["name"], "color": o["color"], "t": np.round(o["t"], 3).tolist(), "lat": np.round(o["lat"], 7).tolist(),
+    objs = [{"name": o["name"], "color": o["color"], "track": o.get("track"), "t": np.round(o["t"], 3).tolist(), "lat": np.round(o["lat"], 7).tolist(),
              "lon": np.round(o["lon"], 7).tolist(), "alt": None if o["alt"] is None else np.round(o["alt"], 2).tolist()} for o in mdata["objects"]]
     data = {"title": mdata["title"], "objects": objs, "bounds": list(_padded(mdata["bounds"])), "cursor": mdata["cursor"],
             "tiles": {"light": light_t, "dark": dark_t}, "levels": {"light": light_lv, "dark": dark_lv},
-            "attribution": " · ".join(ATTRIB[s] for s in sorted((used_l | used_d) or {"offline"})), "dark": theme == "dark"}
+            "attribution": " · ".join(ATTRIB[s] for s in sorted((used_l | used_d) or {"offline"})), "dark": theme == "dark",
+            "pair": mdata.get("pair") or {}, "S": PAGE_STRINGS["he" if lang == "he" else "en"]}
     note = (f"Embedded: {len(light_t)} light and {len(dark_t)} dark map tiles, zoom levels {light_lv or '-'} / {dark_lv or '-'} "
             f"(budget {budget // (1024 * 1024)} MB); {len(objs)} tracks of at most 3000 points.")
     with open(os.path.join(os.path.dirname(__file__), "report_assets", "map.html"), encoding="utf-8") as f:
         page = f.read()
+    page = page_parts(page)
     return (page.replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":")).replace("</", "<\\/"))
                 .replace("<!--__NOTE__-->", f"<!-- {note} -->")
                 .replace("__NOTE_TEXT__", note)

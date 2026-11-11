@@ -54,6 +54,7 @@ export interface Plot {
   relLines?: "all" | "off";
   /** N7: the relation box on the map folded (absent: open) */
   relFolded?: boolean;
+  relHidden?: boolean;             // 1.26: the relation box hidden (its Relation button in the map's / 3D view's bar brings it back)
   showReadout?: boolean;           // 3D: the box with the primary object's current values (default shown)
   ownTime?: number | null;         // 3D: a time of its own (not the timeline's) - null / absent: the shared time
   /** T15 video mode: a local video file played with the timeline. data time = video time + offset (s). */

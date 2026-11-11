@@ -350,6 +350,8 @@
     // another tab's plots are new objects: they start on the page's time
     var shown = renderTab;
     renderTab = function (i) { shown(i); setTime(RP.t, true); };
+    // a map's or a 3D view's page asks for a moment (its relation box: "Closest in")
+    addEventListener("message", function (e) { var m = e.data; if (m && m.sv === "replay-seek" && isFinite(m.t)) { stop(); setTime(+m.t, true); } });
     window.__replay = { get t() { return RP.t; }, lo: lo, hi: hi, get playing() { return playing; } };   // for tests
     setTime(RP.t, true);
   })();

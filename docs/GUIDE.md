@@ -53,7 +53,9 @@ are told apart by them.
 - The button next to the plot's title (**Time ▾**) changes the plot's type: Time, X-Y, 3D (XYZ - any
   three signals on plain axes), Map, FFT, Spectrogram, Envelope (many runs of one quantity), Video. A **Map**
   has its own **2D | 3D** switch in its bar: the same objects, reference and time, seen flat or as the earth
-  with its terrain.
+  with its terrain. Both have the same bar: the camera *General · On the object · Chase* on the object beside
+  it, + / − / fit, and *Relation* (the relation box shown or hidden); 2D adds north / track up, 3D its own
+  extras (look at, a third object, data, events, measure, its own time).
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
 - **Many signals in one plot?** The legend moves into a column beside the plot by itself (a row per
   signal, the values aligned, a filter); the plot's menu ▸ *Legend* puts it above, beside or hides it.
@@ -328,8 +330,9 @@ shown change together – on the axis, in the list, in the legend – and it can
 - **Report** (left): a report of the plots, statistics and notes – previewed in the app, saved as
   interactive HTML, PDF or Word. **The HTML report is one live page**: a time bar at the bottom moves every
   plot's cursor, the map and the 3D view together, with Play and the log's marks, while each plot keeps its
-  own zoom and statistics. The 3D view is in it live (turn, zoom, follow an object; where the browser has
-  no 3D graphics, its picture); in PDF and Word every plot, the map and the 3D view are pictures. A plot that
+  own zoom and statistics. The 3D view is in it live (turn, zoom, the camera *General · On the object · Chase* on an
+  object - *Chase* sits behind it; *Closest in* goes to that moment; a *Trail* of the last seconds; an attitude indicator; where the browser has no 3D graphics, its picture), and the map and the 3D
+  view have the same buttons and the same relation box as in the app (hide it with *Relation*); in PDF and Word every plot, the map and the 3D view are pictures. A plot that
   cannot go into a report (a video, occurrences) is listed greyed with the reason.
 - A plot's **⋯** menu: export the data (CSV), save the image (PNG, SVG), **save an image for a
   report** (a PNG with twice the pixels), **save as an interactive page** (HTML: the plot alone - zoom,

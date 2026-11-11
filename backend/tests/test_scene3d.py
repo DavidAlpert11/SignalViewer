@@ -133,3 +133,25 @@ def test_python_and_cli(tmp_path):
                        capture_output=True, text=True, env=env, cwd=os.path.join(ROOT, "backend"))
     assert r.returncode == 0, r.stderr
     assert base64.b64encode(out.read_bytes()[:4]) == base64.b64encode(b"\x89PNG")
+
+
+def test_both_pages_share_the_toolbar_and_the_relation_box(rid):
+    """1.26: the 2D map's page and the 3D view's page have the same toolbar (camera Free / Centre / Close, the
+    object, + − ⤢, Relation, theme) and the same relation box, started on the app's pair; tracks keep their look."""
+    from app import mapimage
+    sp = spec3d(rid)
+    sp["geo"]["objects"][1]["track"] = "points"
+    sp["scene"]["objects"][1]["track"] = "points"
+    sp["geo"].update(primary="GPS[0]", secondary="POS")
+    sp["scene"].update(primary="GPS[0]", secondary="POS")
+    p3 = scene3d.build_html(scene3d.scene_data(store, sp), "light", "en")
+    p2 = mapimage.build_html(mapimage.map_data(store, {**sp, "mode": "geo"}), "light", lang="he")
+    for page in (p2, p3):
+        for ident in ('id="cam"', 'data-cam="close"', 'id="obj"', 'id="zin"', 'id="zout"', 'id="fit"', 'id="rel"', 'id="theme"'):
+            assert ident in page, ident
+        assert "function svRelation" in page and ".svrel" in page and "/*__" not in page
+    d3 = json.loads(re.search(r"const D = (\{.*?\});\n", p3, re.S).group(1))
+    d2 = json.loads(re.search(r"const D = (\{.*?\});\n", p2, re.S).group(1))
+    assert d3["pair"] == d2["pair"] == {"primary": "GPS[0]", "secondary": "POS"}
+    assert [o["track"] for o in d3["objects"]] == [o["track"] for o in d2["objects"]] == [None, "points"]
+    assert d2["S"]["camClose"] == "מרדף" and d3["S"]["camClose"] == "Chase"            # the app's words (g3CamChase)

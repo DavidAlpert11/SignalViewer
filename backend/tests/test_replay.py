@@ -75,8 +75,9 @@ def test_report_without_replay_is_unchanged(rid):
 
 def test_map_follows_the_page():
     """The map's own page listens for the replay's time and hides its slider there (one time control)."""
+    from app import mapimage
     with open(os.path.join(os.path.dirname(report.__file__), "report_assets", "map.html"), encoding="utf-8") as f:
-        page = f.read()
+        page = mapimage.page_parts(f.read())                  # 1.26: with the pages' shared stylesheet and toolbar
     assert 'm.sv !== "replay"' in page and "hideTime" in page and "#time[hidden]" in page
 
 

@@ -1856,3 +1856,19 @@ input.fx-input { width: 100%; }
 /* the map's 2D | 3D switch (one Map, two views) */
 .seg.map-view { margin-inline-start: 4px; }
 .seg.map-view button { padding: 1px 7px; }
+/* 1.26: the relation box's show / hide - the same button on the 2D map and in the 3D view */
+.rel-toggle { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: var(--r-s); padding: 1px 8px; font-size: var(--fs-xs); cursor: pointer; }
+.rel-toggle.on { color: var(--ink-strong); border-color: var(--amber); }
+.rel-hide { margin-inline-start: auto; }
+/* 1.26: one bar for the map in 2D and in 3D (MapBar.tsx) - the 3D view's look on both */
+.map-bar.geo-bar { position: absolute; right: 8px; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; z-index: 2;
+  padding: 5px 8px; border-radius: var(--r-l); background: var(--overlay-bg); color: var(--overlay-ink); font-size: var(--fs-s); justify-content: flex-end; }
+.map-bar select { max-width: 130px; background: var(--overlay-control-bg); color: var(--overlay-control-ink); border: 0; border-radius: var(--r-s); padding: 1px 4px; }
+.map-bar .map-zoom { display: inline-flex; gap: 2px; }
+.map-bar .map-zoom button, .map-bar .geo-up, .map-bar .geo-back, .map-bar .rel-toggle { border: 1px solid rgba(255,255,255,.35); background: transparent; color: inherit;
+  padding: 1px 7px; min-width: 24px; height: 24px; font: inherit; border-radius: var(--r-m); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.map-bar .rel-toggle.on, .map-bar .geo-up.on { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+.plot-canvas.geo .geo-readout { top: 46px; }
+.rel-tca { width: 100%; border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: start; }
+.rel-tca bdi { color: var(--amber); text-decoration: underline dotted; }
+.rel-tca:hover { background: var(--panel-2); }

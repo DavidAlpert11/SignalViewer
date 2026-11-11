@@ -52,6 +52,7 @@ export default function RelationPanel({ plot, objects, tracks }: { plot: Plot; o
   const P = objects.find((o) => o.id === primary), S = objects.find((o) => o.id === secondary);
   if (!P || !S) return null;
   const folded = !!plot.relFolded;
+  if (plot.relHidden) return null;
   const at = (o: MapObject, dt = 0): At | null => {
     const tr = tracks[o.id];
     if (!tr) return null;
@@ -69,6 +70,7 @@ export default function RelationPanel({ plot, objects, tracks }: { plot: Plot; o
         <button className="iconbtn sm rel-fold" aria-expanded={!folded} aria-label={t(folded ? "relUnfold" : "relFold")} title={t(folded ? "relUnfold" : "relFold")}
           onClick={() => actions.updatePlot(plot.id, { relFolded: !folded || undefined })}>{folded ? "▸" : "▾"}</button>
         <RelationPicker plot={plot} objects={objects} />
+        <button className="iconbtn sm rel-hide" aria-label={t("relHide")} title={t("relHide")} onClick={() => actions.updatePlot(plot.id, { relHidden: true })}>×</button>
       </div>
       {!folded && r && (
         <div className="rel-body">
@@ -78,7 +80,13 @@ export default function RelationPanel({ plot, objects, tracks }: { plot: Plot; o
           {row("relBearing", deg(r.bearing))}
           {r.relBearing !== null && row("relRelBearing", deg(r.relBearing))}
           {r.closure !== null && row("relClosure", `${fmtNum(r.closure, lang, 4)} m/s`)}
-          {r.tca !== null && row("relTca", `${fmtNum(r.tca, lang, 4)} s`)}
+          {r.tca !== null && (
+            // 1.26: a click goes to the closest moment (the cursor there, every plot and the map follow)
+            <button className="rel-row rel-tca" title={t("relTcaGo")} onClick={() => {
+              const c = useApp.getState().cursor, base = trackTime(tracks[P.id], c.on ? c.t1 : null, streaming);
+              useApp.setState({ cursor: { ...c, on: true, t1: base + r.tca!, active: 1 } });
+            }}><span>{t("relTca")}</span><bdi dir="ltr">{fmtNum(r.tca, lang, 4)} s</bdi></button>
+          )}
           {r.hdgDiff !== null && row("relHdgDiff", deg(r.hdgDiff))}
           {r.aspect !== null && row("relAspect", `${deg(r.aspect)}${r.aspectSide ? ` ${r.aspectSide}` : ""}`)}
         </div>
@@ -96,4 +104,13 @@ export default function RelationPanel({ plot, objects, tracks }: { plot: Plot; o
       </div>
     </div>
   );
+}
+
+/** 1.26: the relation box shown / hidden - the same button in the 2D map's and the 3D view's bars. */
+export function RelationToggle({ plot, objects }: { plot: Plot; objects: MapObject[] }) {
+  const t = useT();
+  if (objects.length < 2) return null;
+  const on = !plot.relHidden;
+  return <button className={`rel-toggle${on ? " on" : ""}`} aria-pressed={on} title={t("relToggleHint")}
+    onClick={() => actions.updatePlot(plot.id, { relHidden: on || undefined })}>{t("relPanel")}</button>;
 }

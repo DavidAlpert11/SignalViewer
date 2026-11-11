@@ -9,7 +9,8 @@ import { globeImage } from "../globeBridge";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
 import { pairOf, relation, type At } from "../relation";
-import { RelationPicker } from "./RelationPanel";
+import RelationPanel from "./RelationPanel";
+import MapBar from "./MapBar";
 import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
@@ -755,7 +756,19 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const primaryId = pairOf(plot).primary ?? "";
   const centred = !!plot.followObject;
   const showBox = plot.showReadout !== false;
+  const secondaryName = plot.relHidden ? null : objects.find((o) => o.id === pairOf(plot).secondary)?.name;
   const reFit = () => { scene3.current.fitted = false; setTracks((x) => ({ ...x })); };
+  /** + / − of the map bar: towards / away from what the camera is on (the followed object, else the ground) */
+  const zoom3d = (dir: 1 | -1) => {
+    const w = widgetRef.current, cz0 = cz;
+    if (!w || !cz0) return;
+    const fs = plot.followObject ? scene3.current.drawn.get(plot.followObject) : undefined;
+    const c = w.camera, h = c.positionCartographic?.height ?? 1000;
+    const d = fs && fs.label ? cz0.Cartesian3.distance(c.positionWC, fs.label.position) : h;
+    c.zoomIn(dir * Math.max(5, d * 0.35));
+    if (plot.camera === "chase") chaseRange.current = Math.max(20, (chaseRange.current ?? d) * (dir > 0 ? 0.65 : 1.5));
+    updateRef.current();
+  };
 
   if (failed) return <Globe3DFallback plot={plot} index={index} onLoading={onLoading} reason={failed} />;
   return (
@@ -769,21 +782,13 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       {lightMode && <div className="globe3d-light" title={t("globeLightHint")}>{t("globeLight")}</div>}
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
-        <div className="globe3d-bar" role="toolbar" aria-label={t("g3Bar")}>
-          {/* L7: the pair is chosen in one place - the same Reference ⇄ Compared with as the map's relation box */}
-          <RelationPicker plot={plot} objects={objects} />
-          <span className="g3-seg" role="radiogroup" aria-label={t("g3Camera")}>
-            <span className="g3-seg-label">{t("g3Camera")}</span>
-            <button role="radio" aria-checked={!centred} className={!centred ? "on" : ""} onClick={() => actions.updatePlot(plot.id, { followObject: null, camera: undefined })}>{t("g3CamFree")}</button>
-            <button role="radio" aria-checked={centred && !plot.camera} className={centred && !plot.camera ? "on" : ""} title={t("g3CamCentreHint")}
-              onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: undefined })}>{t("g3CamCentre")}</button>
-            <button role="radio" aria-checked={centred && plot.camera === "chase"} className={`g3-cam-chase${centred && plot.camera === "chase" ? " on" : ""}`} title={t("g3CamChaseHint")}
-              onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: "chase" })}>{t("g3CamChase")}</button>
-            {objects.length > 1 && <button role="radio" aria-checked={centred && plot.camera === "lookat"} className={`g3-cam-lookat${centred && plot.camera === "lookat" ? " on" : ""}`}
+        <MapBar plot={plot} objects={objects} className="globe3d-bar" chaseHint="g3CamChaseHint" onZoom={zoom3d}
+          onFit={() => { actions.updatePlot(plot.id, { followObject: null, camera: undefined }); reFit(); }}>
+          {/* 3D only: from the reference, looking at the compared object */}
+          {objects.length > 1 && <button aria-pressed={centred && plot.camera === "lookat"} className={`g3-toggle g3-cam-lookat${centred && plot.camera === "lookat" ? " on" : ""}`}
               title={t("g3CamLookAtHint")} onClick={() => actions.updatePlot(plot.id, { followObject: primaryId, camera: "lookat",
                 // looking needs something to look at: the first other object when none is chosen
                 ...((plot.relatedObjects ?? []).some((x) => x !== primaryId) ? {} : { relatedObjects: [objects.find((o) => o.id !== primaryId)!.id] }) })}>{t("g3CamLookAt")}</button>}
-          </span>
           {objects.length > 2 && (() => {
             // a third object: a second dashed line from the reference (the compared one is chosen in the picker)
             const sec = pairOf(plot).secondary;
@@ -806,7 +811,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
             <button role="radio" aria-checked={!detached} className={!detached ? "on" : ""} onClick={attach} title={t("g3TimeSharedHint")}>{t("g3TimeShared")}</button>
             <button role="radio" aria-checked={detached} className={detached ? "on" : ""} onClick={() => { if (!detached) detach(); }} title={t("g3TimeOwnHint")}>{t("g3TimeOwn")}</button>
           </span>
-        </div>
+        </MapBar>
       )}
       {cz && objects.length > 0 && !measuring && !detached && (
         <div className="g3-cam-hint" role="note">{t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre")}</div>
@@ -834,6 +839,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           </select>
         </div>
       )}
+      {objects.length > 1 && <RelationPanel plot={plot} objects={objects} tracks={tracks} />}
       {readout && showBox && (
         // in the UI's direction; every number set left-to-right on its own (Hebrew names around them)
         <div className="globe3d-readout" dir={lang === "he" ? "rtl" : "ltr"} aria-live="off">
@@ -847,7 +853,8 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           {(readout.primary.gs !== null || readout.primary.vs !== null) && <span>
             {readout.primary.gs !== null && <>{t("g3Gs")} <bdi dir="ltr">{fmtNum(readout.primary.gs, lang, 4)} m/s</bdi></>}
             {readout.primary.vs !== null && <> · {t("g3Vs")} <bdi dir="ltr">{fmtNum(readout.primary.vs, lang, 3)} m/s</bdi></>}</span>}
-          {readout.rel.map((r) => (
+          {/* 1.26: the compared object is in the relation box; a third one stays here */}
+          {readout.rel.filter((r) => r.name !== secondaryName).map((r) => (
             <span key={r.name} className="g3-rel">
               <i style={{ background: r.color }} />{r.name}: <bdi dir="ltr">{fmtDistance(r.horiz, lang)}</bdi>
               {" "}· Δh <bdi dir="ltr">{r.dz >= 0 ? "+" : ""}{fmtDistance(r.dz, lang)}</bdi>

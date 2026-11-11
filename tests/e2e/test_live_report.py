@@ -19,7 +19,8 @@ def map_and_line(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].signals.length === 1")
     pg.evaluate("""() => { const s = window.__sv.state(), run = s.runs.find(r => r.name === 'geo.csv');
       s.commit((ws) => { const p = ws.tabs[0].plots[1]; p.mode = 'geo';
-        p.objects = [{ id: 'o1', name: 'Plane', kind: 'aircraft', color: '#e5677a', lat: run.id + '/Lat', lon: run.id + '/Lon' }]; return ws; }); }""")
+        p.objects = [{ id: 'o1', name: 'Plane', kind: 'aircraft', color: '#e5677a', lat: run.id + '/Lat', lon: run.id + '/Lon' },
+                     { id: 'o2', name: 'Chase', kind: 'aircraft', color: '#3d8bfd', track: 'dash', lat: run.id + '/Lat', lon: run.id + '/Lon' }]; return ws; }); }""")
     pg.wait_for_selector(".plot .map-view")
 
 
@@ -30,7 +31,12 @@ def test_one_map_two_views(pg):
     geo.locator(".map-view button", has_text="3D").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].mode === '3d'")
     assert geo.locator(".mode-btn").inner_text().strip() == "Map"                  # still the Map, seen in 3D
-    assert S(pg, "s.ws.tabs[0].plots[1].objects.length") == 1                       # the objects stay
+    assert S(pg, "s.ws.tabs[0].plots[1].objects.length") == 2                       # the objects stay
+    # 1.26: the relation box in 3D as on the 2D map; the same Relation button hides / shows it in both
+    pg.wait_for_selector(".plot .rel-panel")
+    geo.locator(".rel-toggle").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].relHidden === true")
+    assert pg.locator(".plot .rel-panel").count() == 0
     geo.locator(".mode-btn").click()
     items = pg.locator(".menu.ctx button").all_inner_texts()
     assert any("Map" in i for i in items) and any(i.strip().startswith("3D (XYZ)") for i in items)
@@ -38,6 +44,33 @@ def test_one_map_two_views(pg):
     pg.keyboard.press("Escape")
     geo.locator(".map-view button", has_text="2D").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].mode === 'geo'")
+    assert pg.locator(".plot .rel-panel").count() == 0                             # hidden on the 2D map too
+    geo.locator(".rel-toggle").click()
+    pg.wait_for_selector(".plot .rel-panel")
+
+
+def test_one_bar_for_2d_and_3d(pg):
+    """1.26: the map's bar is the same in 2D and in 3D - camera General / On the object / Chase on the chosen
+    object, + − fit, Relation - and the camera stays when the view changes; Chase in 2D is close and track up;
+    "Closest in" in the relation box moves the cursor."""
+    map_and_line(pg)
+    geo = pg.locator(".plot").nth(1)
+    def bar():
+        b = geo.locator(".map-bar")
+        b.locator(".g3-seg").first.locator("button").first.wait_for()
+        return [b.locator(".g3-seg").first.locator("button").all_inner_texts(), b.locator(".geo-zoom-in, .geo-zoom-out, .geo-fit, .rel-toggle").count(),
+                b.locator("select.geo-follow option").all_inner_texts()]
+    two = bar()
+    assert two == [["General", "On the object", "Chase"], 4, ["Plane", "Chase"]], two
+    geo.locator(".map-bar .g3-cam-chase").click()
+    pg.wait_for_function("(() => { const p = window.__sv.state().ws.tabs[0].plots[1]; return p.camera === 'chase' && p.followObject === 'o1'; })()")
+    assert "on" in (geo.locator(".geo-up").get_attribute("class") or "")             # Chase in 2D: track up
+    geo.locator(".map-view button", has_text="3D").click()
+    pg.wait_for_selector(".plot .globe3d-bar")
+    assert bar() == two                                                               # the same bar in 3D
+    assert "on" in (geo.locator(".globe3d-bar .g3-cam-chase").get_attribute("class") or "")   # the camera kept
+    geo.locator(".map-bar button", has_text="General").click()
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[1].followObject === null")
 
 
 def test_live_html_report_with_the_3d_view(pg):
@@ -65,5 +98,18 @@ def test_live_html_report_with_the_3d_view(pg):
         gl = fr.evaluate("window.__scene.state.gl")
         if not gl:                                                                   # no WebGL here: its picture
             assert fr.locator("#fallback").is_visible()
+        # 1.26: the page's relation box - shown, hidden by its button; the camera close to the reference
+        assert fr.evaluate("window.__page.rel().shown") is True and fr.locator(".svrel").is_visible()
+        assert fr.evaluate("window.__page.rel().pair") == {"p": 0, "s": 1}
+        fr.locator("#rel").click()
+        assert fr.evaluate("window.__page.rel().shown") is False and fr.locator("#rel").get_attribute("aria-pressed") == "false"
+        if gl:
+            fr.locator('#cam [data-cam="close"]').click()
+            fr.wait_for_function("window.__scene.state.cam === 'close' && window.__scene.state.camDist < 100")
+        # the trail: the last 20 s only
+        fr.locator("#trail").select_option("20")
+        assert fr.evaluate("window.__page.trail()") == 20
+        # the same toolbar in the 3D page as in the 2D map's page, with the app's words
+        assert fr.locator("#cam button").all_inner_texts() == ["General", "On the object", "Chase"]
     finally:
         page.close()
