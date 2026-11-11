@@ -46,6 +46,12 @@
   `sv.report`), the command line (`objects`, `compare-objects` with `--tolerance` and JUnit for CI,
   `compare-similar`, `map`) and local REST (`/api/objects/detect`, `/compare`, `/similar`). Walk-through:
   [API](docs/api.md).
+- **A line that looks flat beside larger ones is offered a way out - also in files with no units.**
+  Adding a current of 12 A to a plot of 3000 rpm says so and offers *To the right axis* or *To its own
+  plot* (nothing moves by itself; one Undo). Until now the offer was made only when the units differed.
+- **One plot at a time** (`M`, or the layout button): the active plot fills the tab, `1 - 9` flip through
+  the others, `Esc` returns to all of them. The layout is not changed. For small screens and for showing
+  one plot to a room.
 
 ### Changed
 - Differences of angles are wrapped: 359° − 1° is −2°, not 358° - in Compare with similar…, *Errors
@@ -53,6 +59,10 @@
 - The relation box's four buttons are now one *Compare…*; *Plot the relation*, *Error signals*,
   *Differences* and *Overlay* are one-click presets at the top of the dialog, with the same results.
 - Making the same relation or comparison again reuses the signals already made instead of adding copies.
+- The overview strip explains its clicks only when it has something to click (a plain file with no flags
+  and no state rows no longer opens under a line of instructions).
+- Help ▸ Keyboard shortcuts: the mouse column is readable (long gestures wrap; the dialog is wider).
+- A message with two buttons keeps its text readable (the buttons go under it when they do not fit).
 - "Primary / secondary" is now "Reference / Compared with" (Hebrew: בסיס / מושווה) everywhere - the
   box, the chips, their menu, Help.
 

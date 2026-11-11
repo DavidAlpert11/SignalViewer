@@ -1,12 +1,14 @@
 /* Signals and objects in plots: add, remove, move, style, plot modes. Workspace changes, through commit. */
 import { translate } from "../../i18n";
 import { clone, MAX_PLOTS, TRACE_COLORS, newPlot, uid, type MapObject, type Plot, type PlotMode, type PlotSignal, type Tab } from "../model";
-import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, tabFullMessage } from "../selectors";
+import { activeTab, colorByFile, emptyPlot, findPlot, fitLayout, forgetObjects, newPlotSignal, placePlot, signalName, tabFullMessage } from "../selectors";
 import { useApp } from "../state";
 import { signalUnit } from "../../units";
 import { peersOf } from "../../peers";
 import { contrastColor, pairWithPlots } from "../../pairing";
 import { applyLook, type LineLook, type LineRef } from "../../styleLines";
+import { api } from "../../api";
+import { flatOnSharedAxis, rangeOf } from "../../flatLine";
 
 /** T46 (owner): a signal joining the same-named signal of ANOTHER file in a plot is a comparison -
  *  that group is coloured by file, so "which line is which file" is the colour. */
@@ -17,7 +19,8 @@ function sameNameByFile(plot: Plot, sig: string) {
 }
 
 /** T47: a signal in other units than the plot's lines (km/h and V) is a flat line on a shared axis -
- *  offer the right axis once per plot and unit (a toast with the action; nothing moves by itself). */
+ *  offer the right axis once per plot and unit (a toast with the action; nothing moves by itself).
+ *  No such difference in the units: the values' ranges are asked (offerRightAxisByRange). */
 const offeredRight = new Set<string>();
 function offerRightAxis(plotId: string, sig: string) {
   const st = useApp.getState();
@@ -26,12 +29,43 @@ function offerRightAxis(plotId: string, sig: string) {
   const ps = plot.signals.find((s) => s.sig === sig);
   const unit = (s: PlotSignal) => signalUnit(st.runs, s.sig, s.label);
   const u = ps && !ps.state ? unit(ps) : null;
-  if (!u || plot.signals.some((s) => s.axis === "right")) return;
+  if (!ps || ps.state || ps.axis === "right") return;
+  const rightUsed = plot.signals.some((s) => s.axis === "right");
+  const toRight = { label: translate(st.lang, "toRightAxis"), run: () => plotActions.updateSignal(plotId, sig, { axis: "right" }) };
   const others = new Set(plot.signals.filter((s) => s.sig !== sig && !s.state).map(unit));
-  if (others.size !== 1 || others.has(null) || others.has(u) || offeredRight.has(`${plotId}|${u}`)) return;
-  offeredRight.add(`${plotId}|${u}`);
-  st.toast({ kind: "info", text: translate(st.lang, "rightAxisOffer", { unit: u, other: [...others][0] ?? "" }),
-    action: { label: translate(st.lang, "toRightAxis"), run: () => plotActions.updateSignal(plotId, sig, { axis: "right" }) } });
+  if (!rightUsed && u && others.size === 1 && !others.has(null) && !others.has(u)) {
+    if (offeredRight.has(`${plotId}|${u}`)) return;
+    offeredRight.add(`${plotId}|${u}`);
+    st.toast({ kind: "info", text: translate(st.lang, "rightAxisOffer", { unit: u, other: [...others][0] ?? "" }), action: toRight });
+    return;
+  }
+  void offerRightAxisByRange(plotId, sig, toRight);
+}
+
+/** The same offer from the values themselves (flatLine.ts): files without units, or lines of one unit
+ *  and very different sizes. Once per plot and signal; the ranges are the file list's small pictures. */
+async function offerRightAxisByRange(plotId: string, sig: string, toRight: { label: string; run: () => void }) {
+  const lines = (p?: Plot | null) => (p ? p.signals.filter((s) => !s.state && s.axis !== "right") : []);
+  const before = lines(findPlot(useApp.getState().ws, plotId));
+  if (before.length < 2 || offeredRight.has(`${plotId}|~${sig}`)) return;
+  let sparks: Awaited<ReturnType<typeof api.sparks>>["sparks"];
+  try { sparks = (await api.sparks(before.map((s) => s.sig))).sparks; } catch { return; }
+  // the plot as it is now: the line may have been removed, or moved to the right axis, meanwhile
+  const st = useApp.getState();
+  const plot = findPlot(st.ws, plotId);
+  const now = lines(plot);
+  const ps = now.find((s) => s.sig === sig);
+  if (!plot || !ps) return;
+  const range = (s: PlotSignal) => rangeOf(sparks[s.sig], s.scale, s.offset);
+  const flat = flatOnSharedAxis(range(ps), now.filter((s) => s !== ps).map(range));
+  if (!flat) return;
+  offeredRight.add(`${plotId}|~${sig}`);
+  // three sizes do not fit two axes: the other way out is a plot of its own, right below - the only
+  // one offered when the right axis is taken
+  const ownPlot = { label: translate(st.lang, "toOwnPlot"), run: () => plotActions.splitPlot(plotId, sig, "bottom", plotId) };
+  const rightUsed = plot.signals.some((s) => s.axis === "right");
+  st.toast({ kind: "info", key: `flat|${plotId}`, ...(rightUsed ? { action: ownPlot } : { action: toRight, action2: ownPlot }),
+    text: translate(st.lang, flat === "added" ? "rightAxisOfferSmall" : "rightAxisOfferLarge", { name: ps.label || signalName(st.runs, sig, false) }) });
 }
 
 export const plotActions = {

@@ -31,6 +31,8 @@ export interface UiSlice {
   /** U2: the start card's findings (no template left to offer) are docked as "N findings" beside the
    *  timeline; this opens them over the plots (UI only) */
   findingsOpen: boolean;
+  /** One plot at a time: the active plot fills the tab's grid (M, the layout button). UI only. */
+  soloPlot: boolean;
   /** U2: a flight log's health findings as marks on the timeline, by file (UI only) */
   findingMarks: Record<string, import("../../api").HealthFinding[]>;
   syncFor: string | null;          // the file whose time the sync dialog aligns
@@ -138,6 +140,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   menu: null,
   startCard: null,
   findingsOpen: false,
+  soloPlot: false,
   findingMarks: {},
   syncFor: null,
   templatesTarget: null,

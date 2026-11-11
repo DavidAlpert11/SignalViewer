@@ -235,7 +235,9 @@ export default function OverviewStrip() {
         {ov && <span className="muted">{t("ovSummary2", { d: fmtNum(ov.end - ov.start, lang, 4), f: ov.flags.length })}
           {ov.partial ? ` ${t("ovPartial", { n: ov.scanned })}` : ""}</span>}
         {/* U7: the how-to line until the strip is first used; then only in the tooltip */}
-        {!hintSeen && <span className="ov-hint muted">{t("ovPickHint")}</span>}
+        {/* ... and only when there is something to click: over a file with no flags and no state rows
+            the line explained clicks on an empty band (a plain CSV's first screen) */}
+        {!hintSeen && (clusters.length > 0 || rows.length > 0) && <span className="ov-hint muted">{t("ovPickHint")}</span>}
         <button className="iconbtn sm ov-add" aria-label={t("ovAdd")} title={t("ovAdd")} onClick={addMenu}>+</button>
         <button className="iconbtn sm ov-hide" aria-label={t("ovHide")} title={t("ovHide")} onClick={() => { setPref("overviewOff", true); setHidden(true); }}>×</button>
       </div>

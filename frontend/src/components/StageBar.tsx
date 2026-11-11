@@ -16,7 +16,8 @@ function LayoutIcon({ r, c }: { r: number; c: number }) {
 
 /** Any rows x columns with at most MAX_PLOTS plots (V-02): hover the grid or type. */
 /** The layout popover (T20): the common layouts, then any rows × columns. */
-function GridPicker({ rows, cols, anchor, onPick, onClose }: { rows: number; cols: number; anchor: DOMRect | null; onPick: (r: number, c: number) => void; onClose: () => void }) {
+function GridPicker({ rows, cols, anchor, onPick, onClose, solo, onSolo }: { rows: number; cols: number; anchor: DOMRect | null; onPick: (r: number, c: number) => void; onClose: () => void;
+  solo?: boolean; onSolo?: () => void }) {
   const t = useT();
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -64,6 +65,10 @@ function GridPicker({ rows, cols, anchor, onPick, onClose }: { rows: number; col
         <button className="btn outline" disabled={!ok(nr, nc)} onClick={() => onPick(nr, nc)}>{t("apply")}</button>
       </div>
       <div className="gridpick-hint">{t("maxPlots", { n: MAX_PLOTS })}</div>
+      {/* one plot at a time is a way to lay the tab out, so it is chosen here (and with M) */}
+      {onSolo && <button className="btn outline gridpick-solo" aria-pressed={!!solo} onClick={onSolo} title={t("soloHint")}>
+        <LayoutIcon r={1} c={1} /><span>{t("soloPlot")}</span><span className="kbd">M</span>
+      </button>}
     </div>
   );
 }
@@ -99,6 +104,7 @@ export default function StageBar() {
   const [picker, setPicker] = useState(false);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const zoomMode = useApp((s) => s.zoomMode);
+  const solo = useApp((s) => s.soloPlot) && tab.plots.length > 1;
   const [zoomMenu, setZoomMenu] = useState(false);
   const [zoomAnchor, setZoomAnchor] = useState<DOMRect | null>(null);
 
@@ -106,11 +112,15 @@ export default function StageBar() {
     <div className="stage-bar">
       {/* T20: one layout button: the current layout; the popover has the common ones and any size */}
       <span className="pick-wrap">
-        <button className="btn layout-btn" aria-expanded={picker} aria-haspopup="dialog" title={t("layoutHint")} aria-label={t("layout")}
+        {/* enlarged, the button says so (which plot of how many) - the mode is never invisible */}
+        <button className="btn layout-btn" aria-pressed={solo || undefined} aria-expanded={picker} aria-haspopup="dialog" title={solo ? t("soloOnHint") : t("layoutHint")} aria-label={t("layout")}
           onClick={(e) => { setAnchor((e.currentTarget as HTMLElement).getBoundingClientRect()); setPicker(!picker); }}>
-          <LayoutIcon r={Math.min(tab.rows, 3)} c={Math.min(tab.cols, 3)} /><span>{tab.rows} × {tab.cols}</span>
+          <LayoutIcon r={solo ? 1 : Math.min(tab.rows, 3)} c={solo ? 1 : Math.min(tab.cols, 3)} />
+          <span>{solo ? t("soloOf", { i: tab.active + 1, n: tab.plots.length }) : `${tab.rows} × ${tab.cols}`}</span>
         </button>
-        {picker && <GridPicker rows={tab.rows} cols={tab.cols} anchor={anchor} onPick={(r, c) => { actions.setLayout(r, c); setPicker(false); }} onClose={() => setPicker(false)} />}
+        {picker && <GridPicker rows={tab.rows} cols={tab.cols} anchor={anchor} onClose={() => setPicker(false)}
+          onPick={(r, c) => { useApp.setState({ soloPlot: false }); actions.setLayout(r, c); setPicker(false); }}
+          solo={solo} onSolo={tab.plots.length > 1 ? () => { useApp.setState({ soloPlot: !solo }); setPicker(false); } : undefined} />}
       </span>
       <span className="sep" />
       <button className="btn" aria-pressed={tab.linkX} onClick={actions.toggleLinkX} title={t("linkX")}><Icon.Link /> X</button>

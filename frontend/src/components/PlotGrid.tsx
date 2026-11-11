@@ -30,6 +30,13 @@ export default function PlotGrid() {
     const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
     window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
   };
+  // one plot at a time: the active plot alone, as large as the grid (the others keep their place in the tab)
+  const solo = useApp((s) => s.soloPlot) && tab.plots.length > 1;
+  if (solo) return (
+    <div className="grid solo" ref={ref}>
+      <PlotView key={tab.plots[tab.active].id} tab={tab} plot={tab.plots[tab.active]} index={tab.active} active />
+    </div>
+  );
   const frac = (arr: number[]) => arr.map((v) => `minmax(0, ${v}fr)`).join(" ");
   const sum = (arr: number[], n: number) => arr.slice(0, n).reduce((a, b) => a + b, 0) / arr.reduce((a, b) => a + b, 0);
   return (

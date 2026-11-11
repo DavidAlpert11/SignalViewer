@@ -444,6 +444,10 @@ table.preview th.time { color: var(--amber); }
 .toast.error { border-inline-start: 3px solid var(--danger); }
 .toast .btn { height: 26px; }
 .toast-text { flex: 1; min-width: 0; white-space: pre-line; overflow-wrap: anywhere; }   /* a line per file */
+/* a message with two actions left its text a column a few words wide: the text keeps a readable
+   width and the buttons go under it when they do not fit beside it */
+.toast { flex-wrap: wrap; }
+.toast-text { flex-basis: 15em; }
 /* Q123: when the file on the row was saved; amber (a button) when a newer version is on the disk */
 .run-ftime { flex: none; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--faint); padding: 0 2px; }
 button.run-ftime.newer { font: inherit; font-size: var(--fs-xs); color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber);
@@ -526,13 +530,13 @@ table.vals.cmp2 th:first-child { width: auto; }
 .job .btn { height: 26px; }
 .bar { height: 4px; border-radius: var(--r-xs); background: var(--panel-2); overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--ink-strong); transition: width .2s; }
-.help { width: min(760px, 94vw); }
+.help { width: min(860px, 94vw); }
 .help-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; padding: 8px 18px 14px; }
 table.keys { border-collapse: collapse; width: 100%; align-self: start; }
 table.keys td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.keys td:first-child { white-space: nowrap; padding-inline-end: 12px; width: 1%; }
 table.keys .kbd { font-size: var(--fs-s); color: var(--ink); background: var(--panel-2); padding: 1px 6px; direction: ltr; display: inline-block; }
-table.keys td.mouse { color: var(--muted); }
+table.keys td.mouse { color: var(--muted); white-space: normal; width: 42%; }   /* a long gesture wraps: it used to squeeze what it does into a few words a line */
 .status-help { display: inline-flex; align-items: center; gap: var(--sp-1); border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: inherit; }
 .status-help:hover { color: var(--ink); }
 @media (max-width: 720px) { .help-body { grid-template-columns: 1fr; } }
@@ -614,6 +618,10 @@ table.keys td.mouse { color: var(--muted); }
 .gridpick-type input { width: 38px; height: 26px; text-align: center; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-s); color: var(--ink); }
 .gridpick-type .btn { height: 26px; }
 .gridpick-hint { color: var(--muted); font-size: var(--fs-sm); margin-top: 6px; text-align: center; }
+.gridpick-solo { width: 100%; margin-top: 8px; justify-content: flex-start; gap: 6px; }
+.gridpick-solo svg { width: 16px; height: 16px; }
+.gridpick-solo .kbd { margin-inline-start: auto; font-size: var(--fs-s); color: var(--muted); }
+.grid.solo { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
 .stage-body { position: relative; flex: 1; min-height: 0; }
 /* review fixes */
 .plot-title { flex-shrink: 0; }
