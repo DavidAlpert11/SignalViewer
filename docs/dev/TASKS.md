@@ -386,6 +386,24 @@ Progress board:
 | L11 | Map export: PNG, HTML, maps in reports | C | ☑ done |
 | L12 | A clear API (Python, CLI, REST) | D | ☑ done |
 | L13 | Docs, changelog, release, full checks | E | ☑ done (1.25.0) |
+| R1 | Replay page: the tab as one HTML page to send (one time, Play, marks, `#t=`) | F | ☑ done (1.25.0) |
+| R2 | Δ between two cursors in the legend's chips | F | ☑ done (1.25.0) |
+| R3 | The timeline maps the recording: the active line along it, the plots' window to drag | F | ☑ done (1.25.0) |
+
+**Group F (2026-11-11, second session, folded into 1.25.0 - the owner's choice):** the design round after the
+UX review. Code map: `frontend/src/replay.ts` (`replayBody`, `replayEvents`, `replayMoment`, `makeReplay`) +
+the Report panel's `.replay-card` and Ctrl+K; backend `app/report.py` (`_replay`, `REPLAY_CSS`, `_replay_bar`,
+`_brand_footer`; `ReportRequest.replay`), `report_assets/viewer.js` (the `RP` block: `setTime`, linked zoom,
+Play, marks, `#t=`), `report_assets/map.html` (listens to `{sv: "replay"}`: time, theme, hides its own
+slider), `/api/export/open` (HTML files only); `frontend/src/timelineView.ts` + `Timeline.tsx` (`.tl-env`,
+`.tl-view`); `PlotView.tsx` (`.chip .dlt`, one narrow `dual` subscription). Decisions: 31. a replay is the
+HTML report in one more form, not a second viewer; 32. it opens on the cursor, else the middle of what is
+shown; 33. its marks are what the app's timeline marks (log errors / warnings, findings, notes; max 500);
+34. Space on the replay's bar buttons plays (a focused button took it as a click). README made short
+(306 → 120 lines; the full list is `docs/features.md`). Tests: `backend/tests/test_replay.py` (6),
+`replay.test.ts` (5), `timelineView.test.ts` (5), `tests/e2e/test_replay.py` (2); objectDetect's two
+timing tests take the best of three cold runs. Not done: README pictures of the replay
+(`tools/make_readme_media.py`), the Windows build, the tag.
 
 ---
 
