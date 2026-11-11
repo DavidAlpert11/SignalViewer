@@ -440,11 +440,11 @@ def detect(signals: Sequence[Tuple[str, str]], run_id: str = "", run_name: str =
     loose: List[Dict] = []
     for m in misses:
         up = m["prefix"][:m["prefix"].rfind(".")] if "." in m["prefix"] else ""
-        c = by_prefix.get(m["prefix"]) or by_prefix.get(up)
+        hit = by_prefix.get(m["prefix"]) or by_prefix.get(up)
         nm = {k: v for k, v in m.items() if k != "prefix"}
-        if c:
-            if len(c["nearMisses"]) < 8:
-                c["nearMisses"].append(nm)
+        if hit:
+            if len(hit["nearMisses"]) < 8:
+                hit["nearMisses"].append(nm)
         elif len(loose) < 20:
             loose.append(nm)
     at = {id(c): i for i, c in enumerate(candidates)}

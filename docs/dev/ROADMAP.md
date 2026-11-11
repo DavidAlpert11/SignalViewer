@@ -857,5 +857,5 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] L9 Compare with similar… - families of nested names (instance / number / class word, looser on request); angle-wrapped `sub`, the same rule in Errors between two lines. Done 2026-11-10.
 - [x] L10 Move a plot to another tab / into another plot (drag onto a tab, Move to…, Add its lines to…, Shift+drop, Ctrl+K). Done 2026-11-10.
 - [x] L11 Map export: PNG (this view / all tracks), standalone offline HTML, maps in HTML / PDF / Word reports. Done 2026-11-10.
-- [ ] L12 API: Python, CLI, REST; shared detection tables and test vectors.
+- [x] L12 API: Python (objects, compare_objects, similar, maps, report), CLI (objects, compare-objects with --tolerance / JUnit, compare-similar, map), REST (/api/objects/*); one detection table and shared test vectors; parity to 1e-9. Done 2026-11-10.
 - [ ] L13 Docs, changelog, release notes, full checks.

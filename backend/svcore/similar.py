@@ -18,7 +18,7 @@ def _split(name: str) -> Optional[Tuple[List[str], str]]:
         return None
     m = _UNIT.search(name)
     unit = m.group(1).strip() if m and not re.fullmatch(r"\d*", m.group(1)) else ""
-    end = m.start() if unit else len(name)
+    end = m.start() if (m and unit) else len(name)
     start, cuts = p
     segs, frm = [], start
     for c in cuts:
@@ -52,7 +52,7 @@ def families(signals: Sequence[Tuple[str, str]], loose: bool = False) -> List[Di
             key = f"{i}|" + ".".join("*" if j == i else g for j, g in enumerate(segs))
             buckets.setdefault(key, []).append((x, i))
     out: List[Dict] = []
-    in_family = set()
+    in_family: set = set()
     for key, all_ in buckets.items():
         if len(all_) < 2:
             continue
@@ -70,8 +70,9 @@ def families(signals: Sequence[Tuple[str, str]], loose: bool = False) -> List[Di
                 r = rx.match(y[0][2][0][y[1]])
                 if r and r.group(1):
                     m.setdefault(r.group(1).lower(), []).append(y)
-            for b in m.values():
-                take(b, how, fmt.format(rx.match(b[0][0][2][0][b[0][1]]).group(1)))
+            for k, b in m.items():
+                first = rx.match(b[0][0][2][0][b[0][1]])
+                take(b, how, fmt.format(first.group(1) if first else k))
         take([y for y in left if class_of_segment(y[0][2][0][y[1]])], "class", "*")
         if loose and len(left) >= 2:
             segs0 = [y[0][2][0][y[1]] for y in left]

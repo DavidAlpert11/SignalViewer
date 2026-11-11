@@ -138,6 +138,35 @@ Spectra, filters, derivative and integral, statistics, decimation, Compare and c
 each against a reference that does not come from the app. Exit code 0 = every case within its
 tolerance, 1 = one is not. The cases and the conventions behind them: [Validation](validation.md).
 
+## Map objects: `objects`, `compare-objects`, `compare-similar`, `map`
+
+The objects a file holds - found by their names with the app's rules (one table, `backend/svcore/object_names.json`)
+- and their comparison, with the same numbers as the app's *Compare objects…* dialog. The whole process with
+Python, the command line and REST, step by step: [API](api.md).
+
+```bash
+signalviewer-cli objects flight.bin                 # POS: navigation (POS), LLA ... XKF1[1]: NED, origin ORGN[0] (known)
+signalviewer-cli objects flight.bin --all --json    # also what Add all would not add; the reasons as data
+signalviewer-cli compare-objects flight.bin --ref POS --objects "XKF1[0],XKF1[1]" \
+    --what position,velocity,attitude --frame ned \
+    --csv errors.csv --stats stats.csv --map map.png --map-html map.html --report report.html
+signalviewer-cli compare-objects flight.bin --ref POS --tolerance position=2m,attitude=1deg --junit r.xml   # CI
+signalviewer-cli compare-objects truth.csv flight.bin --ref truth:phys --objects POS   # two files
+signalviewer-cli compare-similar flight.bin --leaf Yaw --ref "XKF1[0]" --csv yaw.csv   # nav1 / nav2, XKF1[0] / XKF1[1]
+signalviewer-cli map flight.bin --out map.html      # the offline map page (or .png / .svg)
+```
+
+`compare-objects`: `--frame` is `ned`, `enu`, `ecef`, `lla` (north / east / up) or `track` (along / cross / up).
+Each object's errors against the reference: the differences per component, the horizontal / vertical / 3D
+error, the velocity differences and the speed error, the roll / pitch / yaw errors (yaw wrapped to ±180°),
+and their statistics on the full data (RMS, mean, largest |error| and when, 95th percentile). Quantities that
+cannot be compared (no velocity, no attitude of its own) are left out and named. With `--tolerance`, every
+error component of a quantity must stay within it (its largest |error|): exit code 0 = all within, 1 = one
+is not, 2 = it could not be compared; `--junit` writes one test case per object and quantity.
+
+Several files: the objects of each, an object named `file:name` where two files share a name; each on its
+own recorded time (no offset), the compared object read onto the reference's samples (linear) - as the app.
+
 ## Python
 
 ```python
@@ -146,6 +175,16 @@ rec = sv.load("flight.bin")
 t, roll = rec.signal("ATT.Roll")
 df = rec.to_dataframe(["ATT.Roll", "ATT.Pitch"], t0=10, t1=60)     # one time base
 sv.show(t, {"roll x2": 2 * roll}, name="from my notebook")         # into the open app
+
+rec.objects()                                    # the map objects: name, class, frame, origin, why
+nav = rec.object("XKF1[0]")                      # t, lat, lon, alt (NED placed on Earth), roll, pitch, yaw, vn, ve, vd
+cmp = sv.compare_objects(rec, reference="POS", objects=["XKF1[0]", "XKF1[1]"], what=("position", "attitude"))
+cmp.stats()                                      # object x component -> rms, mean, max_abs, p95_abs, t_max_abs
+cmp.errors(); cmp.values(); cmp.to_csv("errors.csv"); cmp.to_mat("errors.mat")
+sv.similar(rec)                                  # families of similar signals
+sv.compare_signals(rec, ["XKF1[1].Yaw [deg]"], reference="XKF1[0].Yaw [deg]")   # angles wrapped
+sv.map_image(rec, path="map.png"); sv.map_html(rec, path="map.html")
+sv.report(rec, "report.pdf", compare=cmp)        # the map, the error plots, the statistics table
 ```
 
 ## Your own formats

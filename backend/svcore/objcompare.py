@@ -49,12 +49,20 @@ def _pick(o: Dict, role: str) -> Optional[str]:
     return p["id"] if p else None
 
 
+def _id(o: Dict, role: str) -> str:
+    """A role's signal id that the object is known to have."""
+    i = _pick(o, role)
+    if i is None:
+        raise KeyError(f"{o['name']} has no {role} signal")
+    return i
+
+
 def position(sig: Callable[[str], Series], o: Dict) -> List[Series]:
     """lat, lon (and alt) of an object: recorded, or its position in metres through the frame op as the app
     adds it (NED / ENU: from its origin's first valid sample, ECEF: by itself)."""
     if o["pos"] == "lla":
         return [sig(i) for i in (_pick(o, "lat"), _pick(o, "lon"), _pick(o, "alt")) if i]
-    vec = [sig(_pick(o, r)) for r in ("px", "py", "pz")]
+    vec = [sig(_id(o, r)) for r in ("px", "py", "pz")]
     if o["pos"] == "ecef":
         params = {"qty": "position", "src": "ecef", "dst": "lla"}
         srcs = vec
@@ -69,13 +77,13 @@ def position(sig: Callable[[str], Series], o: Dict) -> List[Series]:
 def layout(sig: Callable[[str], Series], o: Dict, with_vel: bool) -> Tuple[List[Series], Dict]:
     """The relate op's sources and layout for one object - as the app's relation.ts layout()."""
     pos = position(sig, o)
-    att_ids = [_pick(o, r) for r in ("roll", "pitch", "yaw")]
-    att = o.get("attitude") == "angles" and all(att_ids)
+    att = o.get("attitude") == "angles" and all(_pick(o, r) for r in ("roll", "pitch", "yaw"))
+    att_ids = [_id(o, r) for r in ("roll", "pitch", "yaw")] if att else []
     unit = "deg"
     if att:
         raw = {r: (i, *sig(i)) for r, i in zip(("roll", "pitch", "yaw"), att_ids)}
         unit = angle_units({"yaw": raw["yaw"], "pitch": raw["pitch"], "roll": raw["roll"]})["yaw"][0]
-    vel_ids = [i for i in (_pick(o, "vn"), _pick(o, "ve"), _pick(o, "vd")) if i] if with_vel and _pick(o, "vn") and _pick(o, "ve") else []
+    vel_ids: List[str] = [i for i in (_pick(o, "vn"), _pick(o, "ve"), _pick(o, "vd")) if i] if with_vel and _pick(o, "vn") and _pick(o, "ve") else []
     src = pos + ([sig(i) for i in att_ids] if att else []) + [sig(i) for i in vel_ids]
     lay: Dict = {"alt": len(pos) == 3, "att": att, "unit": unit}
     if vel_ids:
@@ -167,9 +175,9 @@ def compare(sig: Callable[[str], Series], objects: Sequence[Dict], reference: st
                 pos = position(sig, o)
                 values[q][o["name"]] = dict(zip(("lat", "lon", "alt"), pos))
             elif q == "velocity":
-                values[q][o["name"]] = {f"v {a}": sig(i) for a, i in zip(("north", "east", "down"), (_pick(o, "vn"), _pick(o, "ve"), _pick(o, "vd"))) if i}
+                values[q][o["name"]] = {f"v {a}": sig(i) for a, i in zip(("north", "east", "down"), (_pick(o, "vn"), _pick(o, "ve"), _pick(o, "vd"))) if i is not None}
             else:
-                values[q][o["name"]] = {r: sig(_pick(o, r)) for r in ("roll", "pitch", "yaw")}
+                values[q][o["name"]] = {r: sig(_id(o, r)) for r in ("roll", "pitch", "yaw")}
     return {"reference": reference, "frame": frame, "values": values, "errors": errors, "stats": stats,
             "reasons": {q: can[q]["reason"] for q in what if can[q].get("reason")},
             "left_out": {q: can[q]["left_out"] for q in what if can[q]["left_out"]}}

@@ -58,6 +58,7 @@ nav:
   - Features:
       - What works: features.md
       - Command line, Python and formats: command-line.md
+      - "API: objects, comparisons, maps": api.md
       - Offline map and 3D: maps-and-3d.md
       - Simulation against flight: sim-vs-flight.md
       - Gallery: gallery.md

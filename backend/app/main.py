@@ -30,6 +30,7 @@ from app.routes import (
     jobs,
     live,
     maps,
+    objects,
     push,
     pyops,
     readers,
@@ -168,6 +169,7 @@ app.include_router(templates.router)
 app.include_router(fs.router)
 app.include_router(session.router)
 app.include_router(video.router)
+app.include_router(objects.router)
 
 # =============================================================================
 # STATIC UI

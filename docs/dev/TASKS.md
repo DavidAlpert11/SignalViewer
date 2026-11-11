@@ -17,7 +17,7 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   ENU, ECEF: every ArduPilot EKF lane through ORGN, PX4 / MAVLink local positions), the rings explained,
   comparisons, moving plots across tabs, map export, a scripting API. Spec:
   `docs/dev/AGENT_PROMPT_2026-11-10.md`; board, decisions, open questions (Q1-Q13 with defaults) and notes
-  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6), B (L7-L9) and C (L10-L11: moving plots, map export).** Next: L12. Travels as
+  in "Owner's plan (2026-11-10)" below. **Done: groups A (L0-L6), B (L7-L9), C (L10-L11) and D (L12: the API).** Next: L13 (release). Travels as
   one cumulative patch on `d61ab6d`; the owner pushed up to L7 (`e2a75a8`), so later patches are on that.
 
 - **Round of 2026-11-09 (in progress)**: the owner's and a Tacview user's review - map objects found
@@ -280,6 +280,31 @@ i18n `mapSave*`. Tests: backend `tests/test_map_export.py` (PNG with the offline
 standalone HTML, refused empty map, reports HTML / PDF / Word); e2e `test_map_export.py` (the page opened with
 every request blocked, the slider moves the markers, dark mode, the ⋯ menu).
 
+**Decisions taken in L12:**
+26. Q10's default: the tables in one JSON file, `backend/svcore/object_names.json`, imported by objectDetect.ts at
+    build time (tsconfig `resolveJsonModule`; the dev server may read `..`: `server.fs.allow`) and read by
+    `svcore/objects.py` (the same algorithm, ported); packaged by SignalViewer.spec and (the whole svcore) by
+    tools/make_pypi.py. The shared vectors: `tests/data/object_detect_cases.json`, expectations written from the
+    app's rules (`SV_WRITE_VECTORS=1 npx vitest run src/objectVectors.test.ts`), checked by pytest.
+27. The dialog's statistics (L8) stay on `/api/stats` over the very signals it plots; `svcore/objcompare.py` calls
+    the same operations (`frame`, `relate`) and the same `compute_signal_stats`, and
+    `backend/tests/test_api_parity.py` proves Python = CLI = REST = the dialog's path to 1e-9. (Routing the
+    dialog through `/api/objects/compare` would compute the errors twice: once to plot, once to measure.)
+28. The Automatic angle-unit rule moved to `svcore/objcompare.angle_units` (the route imports it): one place.
+29. The API compares each object's own angles only (no borrowed attitude: the dialog's *from another row* is a
+    UI choice); several files: an object named `file:name` where two files share a name, each on its recorded
+    time, the compared object read onto the reference's samples (linear) - as the app's relation signals.
+30. `--tolerance` (Q11's default): per quantity, the largest |error| of every component of it must stay within;
+    exit 0 / 1 / 2 (2: not comparable), JUnit through `app.checks.junit_xml`, checks in the objects' order.
+
+**Code map of L12:** `backend/svcore/object_names.json`, `objects.py`, `objcompare.py`, `similar.py` (new);
+`backend/signalviewer/__init__.py` (`Recording.objects / object`, `Comparison`, `compare_objects`, `similar`,
+`compare_signals`, `map_image`, `map_html`, `report`); `signalviewer/cli.py` (`objects`, `compare-objects`,
+`compare-similar`, `map`); `app/routes/objects.py` (new: `/api/objects/detect`, `/compare`, `/similar`);
+`app/routes/analysis.py` (angle_units imported); `frontend/src/objectDetect.ts` (tables from the JSON),
+`objectVectors.test.ts`; docs `docs/api.md` (new, in mkdocs.yml), `docs/command-line.md`. Tests:
+`backend/tests/test_objects_py.py` (the vectors), `test_api_parity.py` (four paths, 1e-9).
+
 **Open questions (the work goes on with the default):**
 | # | Question | Default if unanswered |
 |---|---|---|
@@ -358,8 +383,8 @@ Progress board:
 | L9 | Compare similar nested signals | B | ☑ done |
 | L10 | Move a plot to another tab / into another plot | C | ☑ done |
 | L11 | Map export: PNG, HTML, maps in reports | C | ☑ done |
-| L12 | A clear API (Python, CLI, REST) | D | ☐ next |
-| L13 | Docs, changelog, release, full checks | E | ☐ |
+| L12 | A clear API (Python, CLI, REST) | D | ☑ done |
+| L13 | Docs, changelog, release, full checks | E | ☐ next |
 
 ---
 
@@ -3853,3 +3878,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-10 · **Whole e2e suite at the end of group B (the debt of group A paid too): green.** First run: the first 192 tests passed, then the container's disk filled (8.5 GB of pytest temporary files in /tmp/pytest-of-root - not the app) and the rest errored at setup; one F just before (test_missing_choice::test_sum_propagate_then_skip_is_marked) passes alone and in the rerun. Rerun in two chunks with /tmp cleaned between: test_map_smooth … test_release_1_21 60 passed; test_runs_matrix … test_workflows 122 passed. Note for later runs: clean /tmp/pytest-of-root between big e2e runs in a small container. Next: L10.
 - 2026-11-10 · L10 done (decisions 17-20): movePlotToTab / mergePlotInto (one Undo each), the handle onto a tab, Move to… → tab / New tab, Add its lines to…, Shift+drop merge, Ctrl+K. Checks: tsc, Vitest 16 / 102; e2e test_move_plots_tabs (3, new), test_move_plots (2), test_plot_menus + test_tab_band + test_template_tabs (6). Next: L11.
 - 2026-11-10 · L11 done - group C complete (decisions 21-25). Checks: backend 1107 passed / 14 skipped, mypy clean (110 files), tsc, Vitest 102; e2e test_map_export (new), test_findings_report + test_map_objects + test_offline_map (17). Next: L12.
+- 2026-11-10 · L12 done - group D complete (decisions 26-30): one table + shared vectors (10 cases, Vitest and pytest agree), the Python API, four CLI commands, three REST endpoints, docs/api.md. Checks: backend 1122 passed / 14 skipped (the parity test first left derived signals in the shared store and broke two order-dependent tests - cleaned up), mypy clean (114 files), tsc, Vitest 17 files / 112. Next: L13.
