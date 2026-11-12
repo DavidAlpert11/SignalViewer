@@ -16,9 +16,6 @@ export interface StartCard {
   files?: number;                      // F20: opened together with others - the card offers Compare
   /** 26.U4: a golden run with this file's signals - "Judge it against …" */
   golden?: (Golden & { share: number }) | null;
-  /** No template fits the file (a plain CSV): the suggestion is the Quick look - every signal in a
-   *  plot of its own. Offered only while nothing is plotted (the card leaves with the first line). */
-  quick?: boolean;
 }
 
 const FIT_MIN = 0.5;                   // a suggestion must have at least half of what it plots
@@ -30,7 +27,6 @@ export async function offerStart(runId: string, files = 1, auto = false) {
   const run = st.runs.find((r) => r.id === runId);
   if (!run || st.mavlink?.running) return;            // a live link opens its own recording: no card
   let template: StartCard["template"] = null;
-  let quick = false;
   if (files >= 2) {                                    // F20: files opened together are compared
     try {
       const cmp = (await api.templates()).builtin.find((x) => x.generator === "compare");
@@ -47,13 +43,8 @@ export async function offerStart(runId: string, files = 1, auto = false) {
     const all = [...r.builtin, ...r.templates];
     const fitOf = await fits(all, useApp.getState().runs);
     const best = rankTemplates(all.filter((x) => !x.generator && (fitOf.get(x.id) ?? 0) >= FIT_MIN), fitOf, run.format)[0];
+    // nothing fits: no card - the empty plot itself offers Quick look and the views that fit (W3)
     if (best) template = { id: best.id, name: best.name, fit: fitOf.get(best.id) ?? 0 };
-    // nothing fits: the file's first screen was an empty plot and no word on what to do - offer the
-    // Quick look (the template strip's chip, said where the eye is). Two signals at least: one is a click.
-    else if (run.signals.length >= 2) {
-      const q = all.find((x) => x.generator === "quicklook" && !x.broken);
-      if (q) { template = { id: q.id, name: q.name, fit: 1 }; quick = true; }
-    }
   } catch { /* no suggestion */ }
   let health: HealthFinding[] | null = null;
   if (FLIGHT.has(run.format) && run.log) {
@@ -70,10 +61,9 @@ export async function offerStart(runId: string, files = 1, auto = false) {
   try { golden = await goldenFor(runId); } catch { /* no golden run */ }
   if (!template && health === null && !golden) return;
   if (!useApp.getState().runs.some((r) => r.id === runId)) return;      // closed meanwhile
-  if (quick && !isEmptyStart()) { if (health === null && !golden) return; template = null; quick = false; }   // plotted meanwhile
-  const card: StartCard = { runId, template, health, golden, ...(quick ? { quick } : {}) };
+  const card: StartCard = { runId, template, health, golden };
   useApp.setState({ startCard: card, findingsOpen: false });
-  if (auto && template && !golden && !quick) await openSuggested(card);      // T48: an example opens ready to look at
+  if (auto && template && !golden) await openSuggested(card);      // T48: an example opens ready to look at
 }
 
 /** Whether openPaths should offer a start: the workspace has nothing plotted yet. */

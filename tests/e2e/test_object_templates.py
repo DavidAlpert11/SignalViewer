@@ -69,17 +69,17 @@ def test_template_keeps_objects_by_name_and_recreates_them_from_another_file(pg)
 
 def test_position_template_only_for_a_file_with_a_position(pg):
     open_files(pg, "run_a.csv")
-    pg.wait_for_selector(".tpl-strip")
-    assert pg.locator(".tpl-strip .chipbtn", has_text="Position on the map").count() == 0
+    pg.wait_for_selector(".tpl-chips .chipbtn")
+    assert pg.locator(".tpl-chips .chipbtn", has_text="Position on the map").count() == 0
     # an ArduPilot-like file is offered the ArduPilot flight template (the more exact one)
     open_files(pg, "tpl_flight_a.csv")
-    pg.locator(".tpl-strip .chipbtn", has_text="ArduPilot · Flight on the map").wait_for()
+    pg.locator(".tpl-chips .chipbtn", has_text="ArduPilot · Flight on the map").wait_for()
     # a plain file with a position (alone): the automatic one
     for name in ("run_a.csv", "tpl_flight_a.csv"):
         pg.locator(".run-head", has_text=name).click(button="right"); menu_item(pg, "Remove")
     pg.wait_for_function("window.__sv.state().runs.filter(r => r.format !== 'derived').length === 0")
     open_files(pg, "tpl_track.csv", clear=False)
-    chip = pg.locator(".tpl-strip .chipbtn", has_text="Position on the map")
+    chip = pg.locator(".tpl-chips .chipbtn", has_text="Position on the map")
     chip.wait_for()
     chip.click()                                           # T48: one file, nothing to choose - opens at once
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.mode === '3d' && (p.objects || []).length))")
@@ -116,7 +116,7 @@ def test_position_template_adds_every_object_with_why(pg):
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     shutil.copy(os.path.join(root, "examples", "three_objects.csv"), pg.env["data"])
     open_files(pg, "three_objects.csv")
-    chip = pg.locator(".tpl-strip .chipbtn", has_text="Position on the map")
+    chip = pg.locator(".tpl-chips .chipbtn", has_text="Position on the map")
     chip.wait_for(); chip.click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 3))")
     toast = pg.locator(".toast", has_text="3 objects")

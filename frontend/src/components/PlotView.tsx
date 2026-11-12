@@ -12,6 +12,7 @@ import { signalUnit, withUnit } from "../units";
 import { labelsOf, labelText } from "../values";
 import { Icon } from "../icons";
 import TimeChart from "./TimeChart";
+import { EmptyPlotSuggestions } from "./TemplateStrip";
 import SignalPicker from "./SignalPicker";
 import { createSignalItem } from "../createSignalMenu";
 import { errorsOf, plotsWithTwoLines, twoLines } from "../errors";
@@ -49,6 +50,7 @@ export default function PlotView({ tab, plot, index, active }: Props) {
   countRender("PlotView");
   const t = useT();
   const lang = useApp((s) => s.lang);
+  const hasFiles = useApp((s) => s.runs.some((r) => r.format !== "derived"));
   const runs = useApp((s) => s.runs);
   // N6: whether the cursor is on, not where - the plot's head is not redrawn every frame of playback
   const cursor = { on: useApp((s) => s.cursor.on) };
@@ -637,7 +639,10 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           {mode === "spec" && <SpecChart tab={tab} plot={plot} index={index} onLoading={setLoading} />}
           {mode === "video" && <Suspense fallback={null}><VideoView plot={plot} /></Suspense>}
         </PlotBoundary>
-        {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && mode !== "xyz" && mode !== "video" && <div className="plot-empty">{t("emptyPlot")}</div>}
+        {!plot.signals.length && mode !== "xy" && mode !== "geo" && mode !== "3d" && mode !== "xyz" && mode !== "video" && (
+          // W3: an empty tab's active plot offers the views that fit the open files, where the eye is
+          !tab.plots.some(plotHasContent) && tab.plots[tab.active ?? 0]?.id === plot.id && hasFiles
+            ? <EmptyPlotSuggestions /> : <div className="plot-empty">{t("emptyPlot")}</div>)}
         {loading && <div className="plot-loading">{t("loading")}</div>}
         {hover && mode === "time" && <span className="hover-t" title={t("hoverValue")}>t = {fmtNum(hover.t, lang, 7)}</span>}
         {legendAt === "side" && (

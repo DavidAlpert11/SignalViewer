@@ -99,7 +99,7 @@ def test_auto_open_takes_the_default_tabs_and_offers_the_rest(pg):
 def test_chip_asks_which_tabs_unless_settings_say_defaults(pg):
     open_ardupilot_example(pg)
     pg.locator(".tpl-strip-fold").click()                          # U7: folded once something is plotted
-    pg.locator(".tpl-strip .chipbtn", has_text="Rates (PID)").click()
+    pg.locator(".tpl-chips .chipbtn", has_text="Rates (PID)").click()
     dlg = pg.locator(".tab-choice")
     dlg.wait_for(timeout=10000)
     boxes = dlg.locator("input[type=checkbox]")
@@ -115,7 +115,7 @@ def test_chip_asks_which_tabs_unless_settings_say_defaults(pg):
     assert pg.locator(".more-tabs").get_attribute("aria-label").startswith(f"+{REVIEW_TABS - 2 + 1} more tabs")
     # Settings: open the default tabs at once - the chip asks nothing (and it is kept)
     pg.evaluate("window.__sv.setState({ tplTabChoice: 'defaults' })")
-    pg.locator(".tpl-strip .chipbtn", has_text="Rates (PID)").click()
+    pg.locator(".tpl-chips .chipbtn", has_text="Rates (PID)").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.length === 5", timeout=20000)
     assert pg.locator(".tab-choice").count() == 0
 

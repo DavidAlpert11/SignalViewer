@@ -698,7 +698,9 @@ export default function DataPanel() {
       <div className="tree" ref={treeRef}
         onKeyDown={(e) => { if (e.key === "Escape" && picked.length) { clearSel(); e.stopPropagation(); } }}
         onScroll={(e) => setView({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight })}>
-        {!runs.length && <p className="empty-note">{t("noFilesHint")}</p>}
+        {/* W13.5: one sentence and one action */}
+        {!runs.length && <div className="empty-state empty-tree"><p>{t("noFilesHint")}</p>
+          <button className="btn outline sm" onClick={() => useApp.setState({ browserOpen: true })}>{t("emptyTreeAction")}</button></div>}
         {runs.length > 0 && !anyMatch && <p className="empty-note">{t("noMatches", { q })}</p>}
         <div className="vlist" style={{ height: total }}>
           {rows.slice(first, last).map((row, i) => {

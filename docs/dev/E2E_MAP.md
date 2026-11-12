@@ -13,6 +13,14 @@ inside your lane's block.
 - `tests/e2e/test_fresh_user.py`, `test_compare_diff.py`, `test_compare_tolerances.py` – W1 changed the cards (titles kept as text; run unchanged) (L1)
 
 <!-- lane L2 -->
+- `tests/e2e/test_first_minute.py` – W3, W4, W5, W6, W13.5 (L2)
+- `tests/e2e/test_flat_line_solo.py` – W3: the two Quick-look tests now check the empty plot (the start card no longer offers it) (L2)
+- `tests/e2e/test_templates_recent_badfiles.py` – W3 selector change by L2
+- `tests/e2e/test_workflows.py` – W3 selector change by L2 (`.tpl-strip .chipbtn` → `.tpl-chips .chipbtn`)
+- `tests/e2e/test_object_templates.py` – W3 selector change by L2
+- `tests/e2e/test_template_tabs.py` – W3 selector change by L2
+- `tests/e2e/test_one_per_plot.py` – W3: the strip shows only once something is plotted (run it) (L2)
+- `tests/e2e/test_settings.py` – W5 adds a Settings row (run it) (L2)
 
 <!-- lane L3 -->
 

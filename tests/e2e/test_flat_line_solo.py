@@ -115,25 +115,24 @@ def test_keys_list_keeps_its_words(pg):
 
 
 def test_quick_look_offered_when_no_template_fits(pg):
-    """A plain file with no fitting template opened on an empty plot and no word on what to do: the
-    start card offers the Quick look, and leaves by itself with the user's first own line."""
+    """A plain file with no fitting template: W3 - the empty plot itself offers the Quick look (no start
+    card for it any more: one place at a time); the file panel's strip takes over with the first line."""
     open_files(pg, "semi.csv", clear=False)
-    card = pg.locator(".start-card")
-    card.wait_for()
-    assert "Quick look" in card.inner_text() and "every signal in a plot of its own" in card.inner_text()
-    sig(pg, "A").click()
-    pg.wait_for_selector(".start-card", state="detached")
-    # answered once: emptying the plot does not bring it back
-    pg.evaluate("window.__sv.state().commit((ws) => { ws.tabs[0].plots[0].signals = []; return ws; })")
-    pg.wait_for_timeout(400)
+    chip = pg.locator(".plot-empty-start .tpl-chips .chipbtn", has_text="Quick look")
+    chip.wait_for()
     assert pg.locator(".start-card").count() == 0
+    assert pg.locator(".tpl-strip").count() == 0
+    sig(pg, "A").click()
+    pg.wait_for_selector(".plot-empty-start", state="detached")
+    pg.wait_for_selector(".tpl-strip")
 
 
-def test_quick_look_opens_from_the_card(pg):
+def test_quick_look_opens_from_the_empty_plot_and_undo_returns_to_it(pg):
     open_files(pg, "semi.csv", clear=False)
-    pg.locator(".start-card .btn.primary").click()
+    pg.locator(".plot-empty-start .tpl-chips .chipbtn", has_text="Quick look").click()
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.filter(p => p.signals.length).length === 2)")
-    pg.wait_for_selector(".start-card", state="detached")
+    pg.keyboard.press("Control+z")
+    pg.wait_for_selector(".plot-empty-start .tpl-chips .chipbtn")
 
 
 def test_comparison_lines_wear_their_object(pg):

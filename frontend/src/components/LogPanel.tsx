@@ -314,6 +314,11 @@ function Health({ runId, runKey }: { runId: string; runKey: string }) {
       <p className={`health-sum ${rep.errors ? "error" : rep.warnings ? "warning" : "ok"}`}>
         {rep.errors || rep.warnings ? t("healthSummary", { e: rep.errors, w: rep.warnings }) : t("healthAllOk")}
       </p>
+      {/* W13.5: nothing found is not a dead end - one sentence, one action (every event of the log on the plots) */}
+      {!rep.findings.some((f) => f.level !== "ok") && (
+        <p className="empty-state"><span>{t("emptyFindingsText")}</span>
+          <button className="linklike" onClick={() => useApp.setState({ logMarkers: "all" })}>{t("emptyFindingsAction")}</button></p>
+      )}
       <ol className="health-list">
         {rep.findings.map((f, i) => <HealthRow key={i} f={f} runId={runId} />)}
       </ol>
