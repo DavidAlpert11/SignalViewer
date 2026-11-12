@@ -44,5 +44,5 @@ def test_python_dash_m_signalviewer_cli_runs():
     import sys
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     r = subprocess.run([sys.executable, "-m", "signalviewer.cli", "templates"], cwd=here,
-                       capture_output=True, text=True, timeout=120)
+                       capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert r.returncode == 0 and r.stdout.strip()

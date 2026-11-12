@@ -130,7 +130,7 @@ def test_python_and_cli(tmp_path):
     out = tmp_path / "c.png"
     env = {**os.environ, "PYTHONPATH": os.path.join(ROOT, "backend")}
     r = subprocess.run([sys.executable, "-m", "signalviewer.cli", "map", EX, "--3d", "--objects", "POS", "--out", str(out)],
-                       capture_output=True, text=True, env=env, cwd=os.path.join(ROOT, "backend"))
+                       capture_output=True, text=True, encoding="utf-8", env=env, cwd=os.path.join(ROOT, "backend"))
     assert r.returncode == 0, r.stderr
     assert base64.b64encode(out.read_bytes()[:4]) == base64.b64encode(b"\x89PNG")
 

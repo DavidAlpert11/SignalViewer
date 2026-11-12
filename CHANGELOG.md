@@ -92,6 +92,9 @@ means three signals on plain axes (XYZ).
 
 
 ### Fixed
+- **The command line on Windows writes UTF-8**: `signalviewer-cli … --json` printed nothing (and failed) when
+  a name held a character outside the Windows code page (`Δnorth`, Hebrew); its output is now UTF-8 on any
+  console or pipe.
 - **Tacview shows the aircraft, not triangles, and the file opens cleanly**: each object's `Name` is now a
   model Tacview has a 3D shape for (C172, MQ-9, DJI300, AIM-9M, Zodiac, Pickup by its kind) and its own
   name is the call sign; an object with no attitude is written without one (it no longer flies sideways
