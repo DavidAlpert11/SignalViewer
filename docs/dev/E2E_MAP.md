@@ -9,6 +9,8 @@ inside your lane's block.
 - `tests/e2e/test_settings.py` – W11: `test_line_defaults_and_apply_to_all` waits on the legend, the file, the toast (run 10×)
 
 <!-- lane L1 -->
+- `tests/e2e/test_welcome_cards.py` – W1 (L1)
+- `tests/e2e/test_fresh_user.py`, `test_compare_diff.py`, `test_compare_tolerances.py` – W1 changed the cards (titles kept as text; run unchanged) (L1)
 
 <!-- lane L2 -->
 

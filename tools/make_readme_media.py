@@ -5,6 +5,7 @@ and records. Run it before a release so the pictures show the current interface.
 
     python tools/make_readme_media.py                 # everything
     python tools/make_readme_media.py --only 01 14    # names starting with these
+    python tools/make_readme_media.py --only examples # W1 / W2: the welcome screen's card pictures
     SV_CHROMIUM=/path/to/chrome python tools/make_readme_media.py
 
 Needs: playwright (+ a Chromium), ffmpeg on PATH for the videos (MP4 + GIF).
@@ -91,10 +92,10 @@ def reset(app):
             pass
 
 
-def page(browser, app, dark=True, video=None):   # owner (1.22.0): every picture in the dark theme
+def page(browser, app, dark=True, video=None, scale=1):   # owner (1.22.0): every picture in the dark theme
     reset(app)
     t0 = time.time()
-    ctx = browser.new_context(viewport={"width": W, "height": H}, color_scheme="dark" if dark else "light",
+    ctx = browser.new_context(viewport={"width": W, "height": H}, color_scheme="dark" if dark else "light", device_scale_factor=scale,
                               **({"record_video_dir": video, "record_video_size": {"width": W, "height": H}} if video else {}))
     pg = ctx.new_page()
     pg._t0 = t0                                                # recording start, for trimming the video
@@ -759,6 +760,79 @@ def vid_08_sweeps_pareto(b, app, tmp):
     _pareto(pg); pg.wait_for_timeout(800)
     pg.locator(".sw-rankby .btn").click(); pg.wait_for_timeout(2500)
     finish_video(ctx, pg, "08_sweeps_pareto", since)
+
+
+# ----------------------------------------------------------------------------- W2: the example cards' pictures
+EX_PICS = os.path.join(ROOT, "frontend", "public", "examples")
+EX_W, EX_H, EX_MAX_BYTES = 480, 270, 40_000
+# what is hidden while the picture is taken: every text of the interface, so a picture serves both languages
+EX_NO_TEXT = """.plot-head, .legend, .plot-title, .mode-bar, .plot-mode, .stage-bar, .toasts, .start-card, .tpl-strip, .plot-empty,
+  .u-legend, .readout, .cursor-bar, .tl, .map-bar, .relation, .sw-shot-text, .geo-hint, .geo-readout, .globe3d-readout,
+  .g3-readout, .g3-cam-hint, .g3-seg-label, .globe3d-light { visibility: hidden !important; }"""
+
+
+def _ex_ready(pg, ex):
+    """The example's view has settled: nothing loading, the plots (or the study's view) drawn."""
+    pg.wait_for_function("window.__sv.state().busy === 0 && !document.querySelector('.job')", timeout=60000)
+    if ex.get("open") == "study":                      # the Sweeps panel marks its picture area when its answer is in
+        pg.wait_for_selector("[data-shot][data-settled='1']", timeout=120000)
+    else:
+        pg.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length || (p.objects || []).length))", timeout=60000)
+        pg.wait_for_selector(".grid canvas, .grid svg", timeout=30000)
+    pg.evaluate("n => new Promise((r) => { const f = (k) => (k ? requestAnimationFrame(() => f(k - 1)) : r(true)); f(n); })", 6)
+    pg.wait_for_timeout(600)                               # the first draw-in (W13.2) is done
+
+
+def _ex_save(png: bytes, path: str) -> int:
+    """The shot cropped to 16:9 around its centre, 480 x 270, WebP within 40 kB (lower quality if needed)."""
+    import io
+    from PIL import Image
+    im = Image.open(io.BytesIO(png)).convert("RGB")
+    w, h = im.size
+    if w / h > 16 / 9:
+        nw = int(h * 16 / 9)
+        im = im.crop(((w - nw) // 2, 0, (w - nw) // 2 + nw, h))
+    else:
+        nh = int(w * 9 / 16)
+        im = im.crop((0, (h - nh) // 2, w, (h - nh) // 2 + nh))
+    im = im.resize((EX_W, EX_H), Image.LANCZOS)
+    for q in (80, 72, 64, 56, 48, 40):
+        buf = io.BytesIO()
+        im.save(buf, "WEBP", quality=q, method=6)
+        if buf.tell() <= EX_MAX_BYTES:
+            break
+    with open(path, "wb") as f:
+        f.write(buf.getvalue())
+    return buf.tell()
+
+
+def img_examples(browser, app):
+    """W2: the welcome screen's card pictures (frontend/public/examples/<id>.<theme>.webp), made by opening each
+    example as a new user would, in both themes - the plot or map area (a study: its panel's picture area)
+    only, no interface text. Run it before a release, with the README pictures (Releasing step 1)."""
+    os.makedirs(EX_PICS, exist_ok=True)
+    sets = json.loads(urllib.request.urlopen(app.url + "/api/examples").read())
+    for ex in sets:
+        for theme in ("dark", "light"):
+            ctx, pg = page(browser, app, dark=theme == "dark", scale=2)
+            try:
+                pg.evaluate(f"window.__sv.setState({{ theme: '{theme}', geoBase: 'offline' }})")   # maps: the built-in basemap
+                pg.locator(f".ex-card[data-example='{ex['id']}']").click()
+                _ex_ready(pg, ex)
+                # texts drawn inside the plots and the map (the log's event names, object names): off for the picture
+                pg.evaluate("(() => { const s = window.__sv.state(); window.__sv.setState({ logMarkers: 'off', mapPrefs: { ...s.mapPrefs, names: 'hidden' } }); })()")
+                pg.evaluate("n => new Promise((r) => { const f = (k) => (k ? requestAnimationFrame(() => f(k - 1)) : r(true)); f(n); })", 6)
+                pg.wait_for_timeout(400)
+                pg.add_style_tag(content=EX_NO_TEXT)
+                no_toasts(pg)
+                pg.mouse.move(W - 5, 5)
+                area = pg.locator("[data-shot]").first if ex.get("open") == "study" else pg.locator(".grid").first
+                size = _ex_save(area.screenshot(), os.path.join(EX_PICS, f"{ex['id']}.{theme}.webp"))
+                print("example picture", ex["id"], theme, f"{size / 1000:.1f} kB")
+            except Exception as e:                          # one card failing must not stop the others
+                print("FAILED example", ex["id"], theme, "-", str(e)[:300])
+            finally:
+                ctx.close()
 
 
 SCENES = [(n, f) for n, f in sorted(globals().items()) if n.startswith(("img_", "vid_"))]

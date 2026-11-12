@@ -205,7 +205,8 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 0. Run **ci** by hand first (Actions -> ci -> Run workflow, or `gh workflow run ci`; or put `[ci]` in
    the last commit's message): since 2026-11-01 a push to main runs it only when asked.
-1. `python tools/make_readme_media.py` (needs Playwright + ffmpeg) refreshes `docs/images` and
+1. `python tools/make_readme_media.py` (needs Playwright + ffmpeg) refreshes `docs/images`, the welcome cards' pictures
+   (`frontend/public/examples`, `--only examples`: W2) and
    `docs/media` from the app itself; it does not make `06_3d_terrain.png` and the
    `02_flight_map_3d` clip (headless, the 3D view runs on software WebGL) - keep or retake those
    by hand.
