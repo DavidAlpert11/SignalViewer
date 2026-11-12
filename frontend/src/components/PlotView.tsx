@@ -616,6 +616,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
             title={legendAt === "off" ? t("legendShow") : t("legendTop")}>
             {legendAt === "off" ? t("legendHiddenN", { n: plot.signals.length }) : t("legendBesideN", { n: plot.signals.length })}</button>
         )}
+        {/* W7: the two cursors' bar has its place here, right of the legend (TimeChart puts it in) */}
+        <span className="sel-slot" />
         <button className="iconbtn plot-more" aria-haspopup="menu" aria-label={t("plotMenu")} title={t("plotMenu")}
           onClick={openPlotMenu}><Icon.More /></button>
       </header>
@@ -643,7 +645,8 @@ export default function PlotView({ tab, plot, index, active }: Props) {
           // W3: an empty tab's active plot offers the views that fit the open files, where the eye is
           !tab.plots.some(plotHasContent) && tab.plots[tab.active ?? 0]?.id === plot.id && hasFiles
             ? <EmptyPlotSuggestions /> : <div className="plot-empty">{t("emptyPlot")}</div>)}
-        {loading && <div className="plot-loading">{t("loading")}</div>}
+        {/* W13.4: a skeleton, not a word, while the plot's data comes */}
+        {loading && <div className="plot-loading skeleton" role="status" aria-label={t("loading")}><i /><i /><i /></div>}
         {hover && mode === "time" && <span className="hover-t" title={t("hoverValue")}>t = {fmtNum(hover.t, lang, 7)}</span>}
         {legendAt === "side" && (
           <aside className="legend-side" style={{ width: sideW }} aria-label={t("legend")}

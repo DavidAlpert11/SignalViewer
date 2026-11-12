@@ -59,6 +59,12 @@
   its group's header; shortcuts in a column of their own; an icon on every row.
 
 <!-- lane L7 -->
+- **Plots, polished**: with two cursors their bar (note, find similar, what changed) sits in the plot's head,
+  right of the legend, and no longer covers the log's event texts; a tab's plots draw in once, left to right,
+  the first time (never on a zoom; off for reduced motion and big data); a skeleton while a plot or the first
+  file loads; the cursor buttons sit next to the zoom; the tab bar's badge reads "+8 views"; a flight log's
+  signals listed flat show their message part dimmed; in 3D the log's event labels make way for the objects'
+  names and the modes where they would overlap.
 
 <!-- lane L8 -->
 

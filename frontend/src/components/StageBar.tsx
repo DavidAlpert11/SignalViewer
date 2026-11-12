@@ -145,6 +145,10 @@ export default function StageBar() {
         </Popover>}
       </span>
       <button className="btn" onClick={actions.resetZoom} title={`${t("resetZoom")} (R)`}><Icon.Reset /><span className="hide-narrow">{t("resetZoom")}</span></button>
+      {/* T49 item 10: the cursors next to the zoom (they are used together), icon + name, key in the tooltip */}
+      <span className="sep" />
+      <button className="btn cursor-btn" aria-pressed={cursor.on} onClick={actions.toggleCursor} title={`${t("cursor")} (Space)`}><Icon.Cursor /><span className="hide-narrow">{t("cursor")}</span></button>
+      <button className="btn cursor-btn" aria-pressed={cursor.on && cursor.dual} onClick={actions.toggleDual} title={`${t("dualCursor")} (D)`}><Icon.Dual /><span className="hide-narrow">{t("dualCursor")}</span></button>
       {/* U7: the two icon-only buttons (zoom back, clear the plots) in one labelled menu */}
       <button className="iconbtn stage-more" aria-haspopup="menu" aria-label={t("stageMore")} title={t("stageMore")}
         onClick={(e) => openMenu(e, [
@@ -160,8 +164,6 @@ export default function StageBar() {
         </select>
       </>}
       <div className="spacer" />
-      <button className="btn cursor-btn" aria-pressed={cursor.on} onClick={actions.toggleCursor} title={`${t("cursor")} (Space)`}><Icon.Cursor /><span className="hide-narrow">{t("cursor")}</span></button>
-      <button className="btn cursor-btn" aria-pressed={cursor.on && cursor.dual} onClick={actions.toggleDual} title={`${t("dualCursor")} (D)`}><Icon.Dual /><span className="hide-narrow">{t("dualCursor")}</span></button>
     </div>
   );
 }

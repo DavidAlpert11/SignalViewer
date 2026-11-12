@@ -1,5 +1,6 @@
+import { createPortal } from "react-dom";
 import { countRender } from "../perf";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import uPlot from "uplot";
 import { api, isAborted, type Series } from "../api";
 import { joinTables } from "../joinTables";
@@ -25,6 +26,10 @@ const LANE_H = 18;
 function laneCss(plotH: number, n: number): number {
   return Math.max(8, Math.min(LANE_H, (0.25 * plotH - 4) / Math.max(1, n) - 2));
 }
+
+/** W13.2: the tabs whose first plot drew in already (this session), and the size above which it does not */
+const drawnIn = new Map<string, number>();
+const DRAW_IN_MAX = 400_000;
 
 export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: Props) {
   countRender("TimeChart");
@@ -87,6 +92,8 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const condFocus = useApp((s) => s.condFocus);
   const stripSel = useApp((s) => s.stripSel);
   const barRef = useRef<HTMLDivElement>(null);
+  const [selSlot, setSelSlot] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => { setSelSlot(wrapRef.current?.closest(".plot")?.querySelector<HTMLElement>(".plot-head .sel-slot") ?? null); }, []);
   const changeMarks = useApp((s) => s.changeMarks);
   const changeRef = useRef<{ t: number; color: string }[]>([]);
 
@@ -180,6 +187,23 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
   const alignedRef = useRef(aligned);
   alignedRef.current = aligned;
   const builtWith = useRef<typeof aligned>(null);
+  /* W13.2: the first time a tab's plot draws, its traces draw in left to right (~400 ms) - once per tab,
+     never on a zoom / pan / refresh, not for big data (above DRAW_IN_MAX points) nor for reduced motion */
+  const hasLines = !!aligned && aligned.sigs.length > 0;
+  useEffect(() => {
+    const el = wrapRef.current;
+    // the tab's plots that draw together (within a second of its first) draw in together
+    const first = drawnIn.get(tab.id);
+    if (!hasLines || !el || previewOnly || (first !== undefined && performance.now() - first > 1000)) return;
+    if (first === undefined) drawnIn.set(tab.id, performance.now());
+    const points = series.reduce((a, x) => a + x.n, 0);
+    if (points > DRAW_IN_MAX || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    el.classList.add("draw-in");
+    (window as unknown as { __svDrawIn?: number }).__svDrawIn = ((window as unknown as { __svDrawIn?: number }).__svDrawIn ?? 0) + 1;
+    const h = window.setTimeout(() => el.classList.remove("draw-in"), 450);
+    return () => window.clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasLines]);
   /* what the plot is BUILT from (series, their styles, a preview line): new data alone is set
      into the existing plot instead of destroying and recreating it on every zoom step */
   const structKey = aligned
@@ -541,6 +565,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
       const x0 = u.scales.x.min!, x1 = u.scales.x.max!;
       if (b < x0 || a > x1) { bar.hidden = true; return; }
       bar.hidden = false;
+      if (bar.parentElement?.classList.contains("sel-slot")) return;      // W7: in the plot's head - it stays put
       const mid = (u.valToPos(Math.max(a, x0), "x") + u.valToPos(Math.min(b, x1), "x")) / 2 + u.over.offsetLeft;
       const w = bar.offsetWidth || 220;
       bar.style.left = `${Math.max(4, Math.min(mid - w / 2, (wrapRef.current?.clientWidth ?? w) - w - 4))}px`;
@@ -1049,8 +1074,7 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     useApp.setState({ panel: "investigate", condEdit: { id: "new", draft } });
   };
 
-  return (
-    <div className="plot-canvas" ref={wrapRef}>
+  const selBar = (
       <div ref={barRef} className="sel-bar" hidden role="toolbar" aria-label={translate(useApp.getState().lang, "selBar")}
         onMouseDown={(e) => e.stopPropagation()}>
         <button className="btn sm" onClick={() => actions.addNoteAtCursor()}>✎ {translate(useApp.getState().lang, "selNote")}</button>
@@ -1060,7 +1084,11 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
           if (c.t1 === null || c.t2 === null) return;
           useApp.setState({ panel: "investigate", whatChanged: { a: Math.min(c.t1, c.t2), b: Math.max(c.t1, c.t2) } });
         }}>? {translate(useApp.getState().lang, "selWhatChanged")}</button>
-      </div>
+      </div>);
+  return (
+    <div className="plot-canvas" ref={wrapRef}>
+      {/* W7: in the plot's head, right of the legend (a preview or a chart outside a plot: over the span, as before) */}
+      {selSlot ? createPortal(selBar, selSlot) : selBar}
     </div>
   );
 }

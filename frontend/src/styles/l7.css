@@ -1,1 +1,32 @@
 /* Lane L7 of the 2026-11-13 round: its own rules (W0). Tokens from index.css only. */
+
+/* W13.2: the first draw of a tab's plots - the traces drawn in left to right (the time axis is left to right
+   in both languages); the axes and labels are there at once */
+.plot-canvas.draw-in .u-over ~ canvas, .plot-canvas.draw-in canvas { animation: sv-draw-in 400ms var(--ease-out) both; }
+@keyframes sv-draw-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@media (prefers-reduced-motion: reduce) { .plot-canvas.draw-in canvas { animation: none; } }
+
+/* W13.6: the cursor's readout - tabular figures (set in index.css), a subtle fade when the value moves to the
+   hover value and back, no width jitter (the reserved width in PlotView) */
+.chip .val, .chip .dlt { transition: color var(--motion-fast) var(--ease-out), opacity var(--motion-fast) var(--ease-out); }
+.chip .dlt { font-variant-numeric: tabular-nums; display: inline-block; text-align: end; }
+.chip .val.hov { opacity: .85; }
+
+/* W7: the two cursors' bar in the plot's head, right of the legend - it no longer floats over the event texts */
+.plot-head .sel-slot { display: contents; }
+.plot-head .sel-bar { position: static; box-shadow: none; padding: 1px; margin-inline-start: auto; }
+.plot-head .sel-bar + .plot-more, .plot-head .sel-slot + .plot-more { margin-inline-start: 0; }
+
+/* W9: the tab bar's views badge reads "+8 views"; a flight log's message part dimmed in a flat list */
+.more-tabs .more-count { width: auto; }
+.sig .nm .nm-grp { color: var(--faint); opacity: .75; }
+
+/* W13.4: skeletons instead of spinners while a file loads (the signal list and the plot) */
+.skeleton { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); }
+.skeleton i { display: block; height: 10px; border-radius: var(--r-s); background: linear-gradient(90deg, var(--panel-2), var(--raised), var(--panel-2));
+  background-size: 200% 100%; animation: sv-shimmer 1.2s linear infinite; }
+.skeleton i:nth-child(3n) { width: 60%; } .skeleton i:nth-child(3n+1) { width: 85%; } .skeleton i:nth-child(3n+2) { width: 72%; }
+.plot-loading.skeleton { position: absolute; inset: 0; justify-content: center; background: transparent; pointer-events: none; }
+.plot-loading.skeleton i { height: 2px; width: 100%; opacity: .6; }
+@keyframes sv-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton i { animation: none; } }

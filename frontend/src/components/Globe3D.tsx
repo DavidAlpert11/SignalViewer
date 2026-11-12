@@ -1,3 +1,4 @@
+import { declutter, type LabelBox } from "../declutter";
 import { countRender } from "../perf";
 import { runsDataKey } from "../values";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -365,6 +366,29 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
     S.links = w.scene.primitives.add(new cz.PolylineCollection());
     S.linkLabels = w.scene.primitives.add(new cz.LabelCollection());
     S.labels = w.scene.primitives.add(new cz.LabelCollection());
+    // W9: the log's event labels yield where they would overlap - an object's name first, then a mode, then the
+    // events (declutter.ts), checked a few times a second after a frame, not every frame
+    let lastDeclutter = 0;
+    w.scene.postRender.addEventListener(() => {
+      const now = performance.now();
+      const G = scene3.current;
+      if (now - lastDeclutter < 150 || !G.eventLabels || !G.eventLabels.length) return;
+      lastDeclutter = now;
+      const labels: import("cesium").Label[] = [];
+      const boxes: LabelBox[] = [];
+      const box = (l: import("cesium").Label, prio: number) => {
+        const p = cz.SceneTransforms.worldToWindowCoordinates(w.scene, l.position);
+        const wpx = l.text.length * 6.4 + 8, hpx = 15;
+        boxes.push({ x: p ? p.x + l.pixelOffset.x : NaN, y: p ? p.y + l.pixelOffset.y - hpx / 2 : NaN, w: wpx, h: hpx, prio });
+      };
+      for (const d of G.drawn.values()) { const l = (d as { label?: import("cesium").Label }).label; if (l?.show) box(l, 0); }
+      const n0 = boxes.length;
+      for (let i = 0; i < G.eventLabels.length; i++) { const l = G.eventLabels.get(i); labels.push(l); box(l, (l as unknown as { svPrio?: number }).svPrio ?? 2); }
+      const keep = declutter(boxes);
+      let changed = false;
+      labels.forEach((l, i) => { const v = keep[n0 + i]; if (l.show !== v) { l.show = v; changed = true; } });
+      if (changed) w.scene.requestRender();
+    });
     if (S.ghosts) w.scene.primitives.remove(S.ghosts);
     S.ghosts = w.scene.primitives.add(new cz.PointPrimitiveCollection());
     if (S.rings) w.scene.primitives.remove(S.rings);
@@ -485,9 +509,10 @@ export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
         const pos = cz.Cartesian3.fromDegrees(p.lon, p.lat, hh);
         pts.add({ position: pos, pixelSize: 9, color: cz.Color.fromCssColorString(col[kind]), outlineColor: cz.Color.WHITE, outlineWidth: 1.5,
           disableDepthTestDistance: Number.POSITIVE_INFINITY });
-        labs.add({ position: pos, text: visualOrder(ev.text.length > 40 ? ev.text.slice(0, 39) + "…" : ev.text), font, fillColor: cz.Color.WHITE,
+        const lab = labs.add({ position: pos, text: visualOrder(ev.text.length > 40 ? ev.text.slice(0, 39) + "…" : ev.text), font, fillColor: cz.Color.WHITE,
           outlineColor: cz.Color.fromCssColorString("#0b1118"), outlineWidth: 3, style: cz.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new cz.Cartesian2(8, 10),
           disableDepthTestDistance: Number.POSITIVE_INFINITY, translucencyByDistance: new cz.NearFarScalar(2e3, 1, 6e4, 0) });
+        (lab as unknown as { svPrio: number }).svPrio = kind === "mode" ? 1 : 2;      // W9: declutter by priority
       }
     }
     w.scene.requestRender();
