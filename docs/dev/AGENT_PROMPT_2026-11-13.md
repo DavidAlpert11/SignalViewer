@@ -18,13 +18,13 @@
 >
 > | Session | Tasks | Branch | State (not started / running / pushed / merged) | Note |
 > |---|---|---|---|---|
-> | W0 – plan, contracts, W11 fix | P0, contracts, W11 | `sv1113/base` | pushed | backend 1226 passed; W11 runs are FINAL's |
-> | L1 Welcome | W1, W2 | `sv1113/l1` | not started | |
+> | W0 – plan, contracts, W11 fix | P0, contracts, W11 | `sv1113/base` | committed (push refused: GitHub not linked to the session – patch instead) | backend 1226 passed; W11 runs are FINAL's |
+> | L1 Welcome | W1, W2 | `sv1113/l1` | committed (push refused) | W1 + W2; study-card pictures in FINAL |
 > | L2 First minute | W3, W4, W6, W5, W13.5 | `sv1113/l2` | not started | |
-> | L3 Sweeps engine | W14 core, W15 core, CLI, drone example | `sv1113/l3` | not started | |
-> | L4 Farm + demo engine | W17, W18 engine | `sv1113/l4` | not started | |
-> | L5 Sweeps panel | W14, W15, W17, W18 UI | `sv1113/l5` | not started | |
-> | L6 Robustness + palette | W10, W8 | `sv1113/l6` | not started | |
+> | L3 Sweeps engine | W14 core, W15 core, CLI, drone example | `sv1113/l3` | committed (push refused) | W14/W15 core, CLI, drone example; own pytest green |
+> | L4 Farm + demo engine | W17, W18 engine | `sv1113/l4` | committed (push refused) | launcher, demo engine, CLI; own pytest green; Portable not verified |
+> | L5 Sweeps panel | W14, W15, W17, W18 UI | `sv1113/l5` | committed (push refused) | panel + demo view; e2e in FINAL |
+> | L6 Robustness + palette | W10, W8 | `sv1113/l6` | committed (push refused) | W10 + W8; pywebview close: manual check |
 > | L7 Plot polish + motion | W7, W9, W13.2/3/4/6/9 | `sv1113/l7` | not started | |
 > | L8 Calm screen | W16 (its share), W13.7, W13.8 | `sv1113/l8` | not started | |
 > | FINAL – merge, all tests, W12, release prep | W12, all checks | `sv1113/release` | not started | |
