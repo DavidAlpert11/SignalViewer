@@ -23,3 +23,6 @@ export function onStudyRequest(f: () => void): () => void {
   listeners.add(f);
   return () => { listeners.delete(f); };
 }
+
+// the e2e tests open a study the way the welcome card does
+(window as unknown as { __svRequestStudy: unknown }).__svRequestStudy = requestStudy;

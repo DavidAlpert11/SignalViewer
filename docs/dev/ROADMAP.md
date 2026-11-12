@@ -901,6 +901,7 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] W18 engine: `examples/smart_sweep_demo/`, `svcore/demo.py`, `/api/sweeps/demo/*`, `study demo / demo-sim`. Done 2026-11-13 (view: L5, card: L1).
 
 <!-- lane L5 -->
+- [x] W14 panel, W15 *Suggest next runs*, W17 *Send to launcher* + run states, W18 demo view (`StudyPanel.tsx`, `DemoView.tsx`, `SpaceView.tsx`, `ConvergenceChart.tsx`, `sweeps/studyStore.ts`). Done 2026-11-13.
 
 <!-- lane L6 -->
 - [x] W8 Command palette: recent first, group headers, keys column, icons. Done 2026-11-13.

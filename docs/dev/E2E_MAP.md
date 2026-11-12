@@ -19,6 +19,8 @@ inside your lane's block.
 <!-- lane L4 -->
 
 <!-- lane L5 -->
+- `tests/e2e/test_study_common.py` – W14 card → panel → best value → runs; edit + undo; W15 Suggest next runs (L5)
+- `tests/e2e/test_study_demo.py` – W18 card → Next round twice → two points, run counter (L5)
 
 <!-- lane L6 -->
 - `tests/e2e/test_unsaved_close.py` – W10 (browser prompt, window dialog, setting), W8 (palette) (L6)

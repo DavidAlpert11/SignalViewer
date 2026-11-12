@@ -49,6 +49,9 @@ import ParallelPlot from "./ParallelPlot";
 import PlotToolbar from "./PlotToolbar";
 import SetDetail from "./SetDetail";
 import SetsTable from "./SetsTable";
+import StudyPanel, { openStudyDialog } from "./StudyPanel";
+import { newStudy, openStudyFile, useStudyPanel } from "../../sweeps/studyStore";
+import { onStudyRequest, takeStudy } from "../../sweeps/studyOpen";
 import "./sweeps.css";
 
 /** the middle (plot, tables) never narrower than this when a panel is dragged wider */
@@ -102,6 +105,8 @@ registerArea("sweeps", {
       { id: "sw-open-table", label: t("swOpenTable"), group: g, icon: "open" as const, run: () => { openTable(t("swOpenTable")); } },
       { id: "sw-open-folder", label: t("swOpenFolder"), group: g, icon: "open" as const, run: () => { openFolder(t("swOpenFolder")); } },
       { id: "sw-open-study", label: t("swOpenStudy"), group: g, icon: "open" as const, run: () => { openStudy(t("swOpenStudy")).then((m) => m && notify(m, "error")); } },
+      { id: "cp-new", label: `${t("cpTitle")}: ${t("cpNew")}`, group: g, icon: "open" as const, run: newStudy },
+      { id: "cp-open", label: `${t("cpTitle")}: ${t("cpOpen")}`, group: g, icon: "open" as const, run: () => { void openStudyDialog(tNow); } },
     ];
     if (!study) return open;
     return [
@@ -128,7 +133,14 @@ export default function SweepsScreen() {
         : translate(lang, "swReopenFailed", { name: f.name, why: f.why }), "error", 15000);
     });
   }, []);
-  return <><SweepsBar />{study ? <StudyView study={study} /> : <SweepsWelcome />}</>;
+  // W14 / W18: a study asked for from outside the area (the welcome screen's cards)
+  useEffect(() => {
+    const take = () => { const r = takeStudy(); if (r) void openStudyFile(r.path, r.demo); };
+    take();
+    return onStudyRequest(take);
+  }, []);
+  const common = useStudyPanel((s) => s.open);
+  return <><SweepsBar />{common ? <StudyPanel /> : study ? <StudyView study={study} /> : <SweepsWelcome />}</>;
 }
 
 function SweepsBar() {
@@ -145,6 +157,12 @@ function SweepsBar() {
     { label: t("swOpenTable"), run: () => openTable(t("swOpenTable")) },
     { label: t("swOpenFolder"), run: () => openFolder(t("swOpenFolder")) },
     { label: t("swOpenStudy"), run: () => say(openStudy(t("swOpenStudy")).then((m) => { if (m) throw new Error(m); })) },
+    { label: "", sep: true, run: () => {} },
+    // W14: one parameter set for several tables - its own study file (.svstudy.json)
+    { label: t("cpOpenMenu"), run: () => {}, items: [
+      { label: t("cpNew"), run: newStudy },
+      { label: t("cpOpen"), run: () => openStudyDialog(t) },
+    ] },
   ]);
   // what is kept of the study: the study itself, a template, a report
   const studyMenu = (e: React.MouseEvent) => {
