@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.27.0 – unreleased
+
+<!-- lane W0 -->
+- The study file (`.svstudy.json`, version 1, `docs/dev/study.schema.json`): one definition of a "one parameter
+  set for many systems" study, read by the Sweeps panel, the API and the `study` command line.
+
+<!-- lane L1 -->
+
+<!-- lane L2 -->
+
+<!-- lane L3 -->
+
+<!-- lane L4 -->
+
+<!-- lane L5 -->
+
+<!-- lane L6 -->
+
+<!-- lane L7 -->
+
+<!-- lane L8 -->
+
 ## 1.26.0 – 2026-11-11
 
 Highlights: **an HTML report is one live page** - one time bar for every plot, the map and the 3D view,

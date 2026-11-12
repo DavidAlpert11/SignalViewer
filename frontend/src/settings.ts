@@ -5,7 +5,15 @@ import { useApp } from "./store";
 import { inspectorPref } from "./store/inspector";
 import { getPrefValue, offlineForcedByEnv, setPref } from "./prefs";
 
-const KEYS = ["theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly", "smoothFollow", "lineWidth", "lineStyle"] as const;
+const KEYS = [
+  "theme", "lang", "uiScale", "timeFormat", "liveAutoStop", "liveNewFiles", "tplTabChoice", "offlineOnly", "smoothFollow", "lineWidth", "lineStyle",
+  // --- lane L2 ---
+
+  // --- lane L6 ---
+
+  // --- lane L8 ---
+
+] as const;
 type Key = (typeof KEYS)[number];
 
 const VALID: Record<Key, (v: unknown) => boolean> = {
@@ -20,6 +28,12 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   smoothFollow: (v) => typeof v === "boolean",
   lineWidth: (v) => typeof v === "number" && v >= 0.5 && v <= 6,
   lineStyle: (v) => v === "solid" || v === "dash" || v === "dot" || v === "dashdot",
+  // --- lane L2 ---
+
+  // --- lane L6 ---
+
+  // --- lane L8 ---
+
 };
 
 /** True when the user has chosen this setting (a session file then leaves it alone). */

@@ -360,6 +360,7 @@ function onTable(s: Study, i: number, from?: Record<string, { role: Role; scale:
 
 let timer = 0;
 let seq = 0;
+let askPending = false;      // W11: an evaluate asked for, still in its debounce
 
 export const useSweeps = create<SweepsState>((set, get) => {
   /** Change the active study. A change to its roles, question or what is shown is one undo step
@@ -381,7 +382,7 @@ export const useSweeps = create<SweepsState>((set, get) => {
     return { ...n, history: { past, future: [], kind, at: now } };
   }) }));
   const forget = (x: Study): Study => ({ ...x, history: emptyHistory() });
-  const ask = () => { window.clearTimeout(timer); timer = window.setTimeout(() => get().evaluate(), 200); };
+  const ask = () => { window.clearTimeout(timer); askPending = true; timer = window.setTimeout(() => { askPending = false; get().evaluate(); }, 200); };
   const patchQ = (f: (q: Question) => Question) => { patch((s) => ({ ...s, question: f(s.question) })); ask(); };
   /** change the active goal; the question's goal, conditions and objectives follow it */
   const patchG = (f: (g: GoalVariant) => GoalVariant) => patchQ((q) => {
@@ -916,21 +917,30 @@ export const useSweeps = create<SweepsState>((set, get) => {
 interface AutosaveDoc { version: 1; active: number; studies: SavedStudy[] }
 let restoreStarted = false;
 let restored = false;
+let savePending = false;
 let lastSaved = "";
 let saveTimer = 0;
 useSweeps.subscribe((st, prev) => {
   if (!restored || (st.studies === prev.studies && st.active === prev.active)) return;
   window.clearTimeout(saveTimer);
+  savePending = true;
   saveTimer = window.setTimeout(() => {
     const now = useSweeps.getState();
     const kept = now.studies.filter((s) => s.path || s.tables.some((x) => recipeFiles(x.recipe).length));
     const doc: AutosaveDoc = { version: 1, active: Math.max(0, kept.indexOf(now.studies[now.active])), studies: kept.map(savedOf) };
     const text = JSON.stringify(doc);
-    if (text === lastSaved) return;
+    if (text === lastSaved) { savePending = false; return; }
     lastSaved = text;
-    sweepApi.autosaveSave(doc).catch(() => { lastSaved = ""; });
+    sweepApi.autosaveSave(doc).catch(() => { lastSaved = ""; }).finally(() => { savePending = false; });
   }, 800);
 });
+
+/* W11: what the e2e tests wait on instead of a sleep - an answer asked for (the 200 ms debounce
+   before evaluate, when `evaluating` is still false) or on its way, and the autosave written. */
+(window as unknown as { __svSweeps: unknown }).__svSweeps = {
+  idle: () => !askPending && !useSweeps.getState().studies.some((s) => s.evaluating) && !useSweeps.getState().busy,
+  saved: () => !savePending,
+};
 
 /** The active study (or undefined), for components. */
 export const useStudy = () => useSweeps((s) => s.studies[s.active]);

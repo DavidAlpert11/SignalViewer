@@ -77,6 +77,10 @@
   --fs-glyph: 0.55rem;              /* a sign inside an 8 px dot */
   --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
+/* W13.1: motion - one speed for small things (hover, press), one for things that appear, one easing.
+   Every transition this round touches uses these; reduced motion zeroes them (and the rule below). */
+:root { --motion-fast: 120ms; --motion-base: 220ms; --ease-out: cubic-bezier(.2, .7, .2, 1); }
+@media (prefers-reduced-motion: reduce) { :root { --motion-fast: 0ms; --motion-base: 0ms; } }
 :root, [data-theme="dark"] { --info: #6cb6ff; }
 [data-theme="light"] { --info: #0969da; }
 

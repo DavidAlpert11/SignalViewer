@@ -36,6 +36,8 @@ from app.routes import (
     readers,
     session,
     sweep,
+    sweeps_common,
+    sweeps_farm,
     system,
     templates,
     video,
@@ -154,6 +156,8 @@ async def _unexpected_error(request: Request, exc: Exception):
 app.include_router(files.router)
 app.include_router(fleet.router)
 app.include_router(sweep.router)
+app.include_router(sweeps_common.router)    # W14 / W15 (lane L3)
+app.include_router(sweeps_farm.router)      # W17 / W18 (lane L4)
 app.include_router(live.router)
 app.include_router(data.router)
 app.include_router(analysis.router)

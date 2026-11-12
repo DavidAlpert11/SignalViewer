@@ -3,6 +3,13 @@ import "./polyfills";              // before any code that calls them (old offli
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+// W0 (2026-11-13): one stylesheet per lane of the round, after the global one - a line each
+import "./styles/l1.css";
+import "./styles/l2.css";
+import "./styles/l5.css";
+import "./styles/l6.css";
+import "./styles/l7.css";
+import "./styles/l8.css";
 import App from "./App";
 import { useApp } from "./store";
 import { installErrorReporting } from "./errorReport";

@@ -11,6 +11,23 @@ pytest.importorskip("playwright.sync_api")
 from test_features import S, env, open_files, pg, sig  # noqa: E402,F401
 
 
+def _settings_file_when(pg, ok, timeout=10.0):
+    """W11: the settings file is written 300 ms after a change (prefs.ts) - poll it, not a sleep."""
+    import time
+    path = os.path.join(pg.env["home"], ".signalviewer", "ui_settings.json")
+    end = time.monotonic() + timeout
+    d: dict = {}
+    while time.monotonic() < end:
+        try:
+            d = json.load(open(path, encoding="utf-8"))
+            if ok(d):
+                return d
+        except (OSError, ValueError):
+            pass
+        pg.wait_for_timeout(50)
+    return d
+
+
 def test_settings_kept_and_one_time_format(pg):
     open_files(pg, "run_a.csv")
     sig(pg, "Speed").click()
@@ -64,14 +81,13 @@ def test_line_defaults_and_apply_to_all(pg):
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.signals.some((s) => s.sig.endsWith('/RPM')))")
     rpm = S(pg, "s.ws.tabs[0].plots.flatMap((p) => p.signals).find((s) => s.sig.endsWith('/RPM'))")
     assert rpm["width"] == 3 and rpm["lineStyle"] == "dot"
-    assert pg.locator(".legend .sw.ls-dot").count() >= 1                   # the legend shows it dotted
-    pg.wait_for_timeout(800)
-    saved = json.load(open(os.path.join(pg.env["home"], ".signalviewer", "ui_settings.json")))
+    pg.wait_for_selector(".legend .sw.ls-dot")                              # the legend shows it dotted (W11: waited for)
+    saved = _settings_file_when(pg, lambda d: d.get("lineWidth") == 3 and d.get("lineStyle") == "dot")
     assert saved["lineWidth"] == 3 and saved["lineStyle"] == "dot"
     pg.click(".topbar [aria-label='Settings']")
     pg.locator(".set-lines-apply").click()
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.flatMap((p) => p.signals).every((s) => s.width === 3 && s.lineStyle === 'dot')")
-    assert "restyled" in pg.locator(".toast").last.inner_text()
+    pg.wait_for_selector(".toast:has-text('restyled')")
     pg.keyboard.press("Escape")
     pg.keyboard.press("Control+z")
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.flatMap((p) => p.signals).find((s) => s.sig.endsWith('/Speed')).width === 1.5")

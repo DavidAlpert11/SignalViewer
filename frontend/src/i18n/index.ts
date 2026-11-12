@@ -11,13 +11,22 @@ import * as app from "./app";
 import * as signals from "./signals";
 import * as plots from "./plots";
 import * as common from "./common";
+// W0 (2026-11-13): one module per lane of the round
+import * as l1Welcome from "./l1Welcome";
+import * as l2FirstMinute from "./l2FirstMinute";
+import * as l5Sweeps from "./l5Sweeps";
+import * as l6Robust from "./l6Robust";
+import * as l7Plot from "./l7Plot";
+import * as l8Calm from "./l8Calm";
 
 export type Lang = "en" | "he";
 
 /* A2: the texts live by area in i18n/*.ts (each with en and he); here they are merged - the Sweeps
    area's own (sweeps/i18n.ts) first, as before. */
-const en = { ...swEn, ...templates.en, ...flightlog.en, ...investigate.en, ...compare.en, ...mapsAnd3d.en, ...files.en, ...liveAndFleet.en, ...app.en, ...signals.en, ...plots.en, ...common.en };
-const he: typeof en = { ...swHe, ...templates.he, ...flightlog.he, ...investigate.he, ...compare.he, ...mapsAnd3d.he, ...files.he, ...liveAndFleet.he, ...app.he, ...signals.he, ...plots.he, ...common.he };
+const en = { ...swEn, ...templates.en, ...flightlog.en, ...investigate.en, ...compare.en, ...mapsAnd3d.en, ...files.en, ...liveAndFleet.en, ...app.en, ...signals.en, ...plots.en, ...common.en,
+  ...l1Welcome.en, ...l2FirstMinute.en, ...l5Sweeps.en, ...l6Robust.en, ...l7Plot.en, ...l8Calm.en };
+const he: typeof en = { ...swHe, ...templates.he, ...flightlog.he, ...investigate.he, ...compare.he, ...mapsAnd3d.he, ...files.he, ...liveAndFleet.he, ...app.he, ...signals.he, ...plots.he, ...common.he,
+  ...l1Welcome.he, ...l2FirstMinute.he, ...l5Sweeps.he, ...l6Robust.he, ...l7Plot.he, ...l8Calm.he };
 
 export const dictionaries = { en, he };
 export type TKey = keyof typeof en;

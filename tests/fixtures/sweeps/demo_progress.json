@@ -1,0 +1,59 @@
+{
+ "study": "smart sweep demo",
+ "round": 1,
+ "running": false,
+ "converged": false,
+ "exhausted": false,
+ "runs": {
+  "done": 12,
+  "running": 0,
+  "failed": 0
+ },
+ "points": [
+  {
+   "round": 1,
+   "runs": 12,
+   "best": 6.5,
+   "gap_pct": 3.2
+  }
+ ],
+ "best": {
+  "values": {
+   "Kp": 1.0,
+   "Ki": 0.5,
+   "Kd": 0.1
+  },
+  "score": 6.5
+ },
+ "optimum": {
+  "values": {
+   "Kp": 1.1,
+   "Ki": 0.5,
+   "Kd": 0.12
+  },
+  "score": 6.3
+ },
+ "full_grid": {
+  "values": 9261,
+  "runs": 111132
+ },
+ "tried": [
+  {
+   "values": {
+    "Kp": 1.0,
+    "Ki": 0.5,
+    "Kd": 0.1
+   },
+   "round": 1,
+   "feasible": true
+  }
+ ],
+ "axes": [
+  "Kp",
+  "Ki",
+  "Kd"
+ ],
+ "saving": 9261.0,
+ "tolerance_pct": 0.5,
+ "seconds": 0.4
+}

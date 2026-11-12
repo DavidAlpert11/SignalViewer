@@ -137,6 +137,10 @@ export default function SettingsDialog() {
             </span></div>
           <div className="set-row"><span>{t("setSmoothFollow")}<small>{t("setSmoothFollowHint")}</small></span>
             {seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow"))}</div>
+          {/* --- lane L2 --- */}
+
+          {/* --- lane L6 --- */}
+
           <MapSection seg={seg} />
           <p className="hint">{t("setKept")}</p>
           <StorageSection />

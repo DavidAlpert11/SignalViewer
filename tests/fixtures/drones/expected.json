@@ -1,0 +1,307 @@
+{
+ "mode": "pareto",
+ "values": [
+  {
+   "values": {
+    "Kp": 1.0,
+    "Ki": 0.5
+   },
+   "feasible": true,
+   "tables": {
+    "A": {
+     "status": "pass",
+     "score": 6.5,
+     "worst": {
+      "wind": 5
+     },
+     "local": null
+    },
+    "B": {
+     "status": "pass",
+     "score": 19.5,
+     "worst": {
+      "mass": 4
+     },
+     "local": null
+    },
+    "C": {
+     "status": "pass",
+     "score": 5.75,
+     "worst": {
+      "wind": 5
+     },
+     "local": {
+      "filter_hz": 20
+     }
+    }
+   }
+  },
+  {
+   "values": {
+    "Kp": 1.0,
+    "Ki": 1.0
+   },
+   "feasible": true,
+   "tables": {
+    "A": {
+     "status": "pass",
+     "score": 5.5,
+     "worst": {
+      "wind": 5
+     },
+     "local": null
+    },
+    "B": {
+     "status": "pass",
+     "score": 21.0,
+     "worst": {
+      "mass": 4
+     },
+     "local": null
+    },
+    "C": {
+     "status": "pass",
+     "score": 5.25,
+     "worst": {
+      "wind": 5
+     },
+     "local": {
+      "filter_hz": 10
+     }
+    }
+   }
+  },
+  {
+   "values": {
+    "Kp": 2.0,
+    "Ki": 0.5
+   },
+   "feasible": true,
+   "tables": {
+    "A": {
+     "status": "pass",
+     "score": 4.5,
+     "worst": {
+      "wind": 5
+     },
+     "local": null
+    },
+    "B": {
+     "status": "pass",
+     "score": 27.5,
+     "worst": {
+      "mass": 4
+     },
+     "local": null
+    },
+    "C": {
+     "status": "pass",
+     "score": 4.25,
+     "worst": {
+      "wind": 5
+     },
+     "local": {
+      "filter_hz": 20
+     }
+    }
+   }
+  },
+  {
+   "values": {
+    "Kp": 2.0,
+    "Ki": 1.0
+   },
+   "feasible": true,
+   "tables": {
+    "A": {
+     "status": "pass",
+     "score": 3.5,
+     "worst": {
+      "wind": 5
+     },
+     "local": null
+    },
+    "B": {
+     "status": "pass",
+     "score": 29.0,
+     "worst": {
+      "mass": 4
+     },
+     "local": null
+    },
+    "C": {
+     "status": "pass",
+     "score": 3.25,
+     "worst": {
+      "wind": 5
+     },
+     "local": {
+      "filter_hz": 20
+     }
+    }
+   }
+  },
+  {
+   "values": {
+    "Kp": 3.0,
+    "Ki": 0.5
+   },
+   "feasible": false,
+   "tables": {
+    "A": {
+     "status": "fail",
+     "scenario": {
+      "wind": 0
+     },
+     "constraint": "overshoot < 10",
+     "by": 0.0
+    },
+    "B": {
+     "status": "fail",
+     "scenario": {
+      "mass": 4
+     },
+     "constraint": "overshoot < 12 and motor_sat < 0.9"
+    },
+    "C": {
+     "status": "pass",
+     "score": 3.75,
+     "worst": {
+      "wind": 5
+     },
+     "local": {
+      "filter_hz": 20
+     }
+    }
+   }
+  },
+  {
+   "values": {
+    "Kp": 3.0,
+    "Ki": 1.0
+   },
+   "feasible": false,
+   "tables": {
+    "A": {
+     "status": "fail",
+     "scenario": {
+      "wind": 5
+     },
+     "constraint": "overshoot < 10",
+     "by": 1.0
+    },
+    "B": {
+     "status": "fail",
+     "scenario": {
+      "mass": 4
+     },
+     "constraint": "overshoot < 12 and motor_sat < 0.9"
+    },
+    "C": {
+     "status": "pass",
+     "score": 2.75,
+     "worst": {
+      "wind": 5
+     },
+     "local": {
+      "filter_hz": 20
+     }
+    }
+   }
+  },
+  {
+   "values": {
+    "Kp": 4.0,
+    "Ki": 0.5
+   },
+   "feasible": false,
+   "tables": {
+    "A": {
+     "status": "fail",
+     "scenario": {
+      "wind": 0
+     },
+     "constraint": "overshoot < 10",
+     "by": 3.0
+    },
+    "B": {
+     "status": "not_run"
+    },
+    "C": {
+     "status": "not_run"
+    }
+   }
+  },
+  {
+   "values": {
+    "Kp": 4.0,
+    "Ki": 1.0
+   },
+   "feasible": false,
+   "tables": {
+    "A": {
+     "status": "fail",
+     "scenario": {
+      "wind": 0
+     },
+     "constraint": "overshoot < 10",
+     "by": 2.0
+    },
+    "B": {
+     "status": "not_run"
+    },
+    "C": {
+     "status": "not_run"
+    }
+   }
+  }
+ ],
+ "feasible": [
+  {
+   "Kp": 1.0,
+   "Ki": 0.5
+  },
+  {
+   "Kp": 1.0,
+   "Ki": 1.0
+  },
+  {
+   "Kp": 2.0,
+   "Ki": 0.5
+  },
+  {
+   "Kp": 2.0,
+   "Ki": 1.0
+  }
+ ],
+ "pareto": [
+  {
+   "Kp": 1.0,
+   "Ki": 0.5
+  },
+  {
+   "Kp": 1.0,
+   "Ki": 1.0
+  },
+  {
+   "Kp": 2.0,
+   "Ki": 0.5
+  },
+  {
+   "Kp": 2.0,
+   "Ki": 1.0
+  }
+ ],
+ "mapping": [
+  {
+   "table": "C",
+   "column": "P_gain",
+   "name": "Kp"
+  },
+  {
+   "table": "C",
+   "column": "I_gain",
+   "name": "Ki"
+  }
+ ]
+}

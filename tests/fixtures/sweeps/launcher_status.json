@@ -1,0 +1,21 @@
+{
+ "study": "fixture drones",
+ "round": 1,
+ "counts": {
+  "submitted": 0,
+  "done": 1,
+  "failed": 0,
+  "missing": 0
+ },
+ "runs": [
+  {
+   "run_id": "a1b2c3d4e5",
+   "table": "A",
+   "state": "done",
+   "result": "results/A/a1b2c3d4e5.csv"
+  }
+ ],
+ "duplicates": 0,
+ "timed_out": false,
+ "finished": true
+}
