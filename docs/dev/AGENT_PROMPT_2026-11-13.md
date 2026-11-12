@@ -14,11 +14,11 @@
 > another; in the parallel way L1…L8 run at once between W0 and FINAL. Tests are written in every task and run once,
 > in FINAL.
 >
-> **Base commit (main):** _(W0 writes the hash)_
+> **Base commit (main):** `950b0a9` · W0 commit on `sv1113/base`: `efa88b2` · mode: `SESSION: ALL` · release 1.27.0
 >
 > | Session | Tasks | Branch | State (not started / running / pushed / merged) | Note |
 > |---|---|---|---|---|
-> | W0 – plan, contracts, W11 fix | P0, contracts, W11 | `sv1113/base` | not started | |
+> | W0 – plan, contracts, W11 fix | P0, contracts, W11 | `sv1113/base` | pushed | backend 1226 passed; W11 runs are FINAL's |
 > | L1 Welcome | W1, W2 | `sv1113/l1` | not started | |
 > | L2 First minute | W3, W4, W6, W5, W13.5 | `sv1113/l2` | not started | |
 > | L3 Sweeps engine | W14 core, W15 core, CLI, drone example | `sv1113/l3` | not started | |
