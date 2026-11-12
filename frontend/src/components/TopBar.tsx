@@ -232,7 +232,7 @@ export function RecordingsBar() {
             onContextMenu={viewsMenu}><Icon.Plus /></button>
           <button className={`iconbtn more-tabs${moreN ? " has" : ""}`} aria-haspopup="menu" onClick={viewsMenu}
             title={moreN ? `${t("viewsMenu")}\n${moreLabel}` : t("viewsMenu")} aria-label={moreN ? moreLabel : t("viewsMenu")}>
-            <Icon.Chevron width={12} height={12} />{moreN > 0 && <span className="more-count">{moreN}</span>}
+            <Icon.Chevron width={12} height={12} />{moreN > 0 && <span className="more-count">{t("moreViewsBadge", { n: moreN })}</span>}
           </button>
         </span>
       </nav>

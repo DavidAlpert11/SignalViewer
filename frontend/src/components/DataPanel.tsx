@@ -51,7 +51,10 @@ function Highlight({ text, q }: { text: string; q: string }) {
   return <>{text.slice(0, i)}<mark>{text.slice(i, i + tok.length)}</mark>{text.slice(i + tok.length)}</>;
 }
 
+const FLIGHT_FORMATS = new Set(["bin", "tlog", "ulg"]);
+
 export default function DataPanel() {
+  const busyNow = useApp((s) => s.busy);
   countRender("DataPanel");
   const t = useT();
   const lang = useApp((s) => s.lang);
@@ -588,7 +591,14 @@ export default function DataPanel() {
         onContextMenu={(e) => sigMenu(e, s, row.ugroup)}
         title={`${s.formula ?? s.name}${rateLine(s, lang)}\n${t("listSelHint")}`} aria-label={s.name}>
         <span className="dot" style={color ? { background: color } : undefined} />
-        <span className="nm"><Highlight text={nameOnly(row.label ?? (row.group ? memberLabel(s.name, row.group) : s.name))} q={q} /></span>
+        <span className="nm">{(() => {
+          const label = nameOnly(row.label ?? (row.group ? memberLabel(s.name, row.group) : s.name));
+          // W9: a flight log's row outside its group (a search lists them flat) - its message part dimmed
+          const dot = label.lastIndexOf(".");
+          const fromLog = !row.group && row.label === undefined && dot > 0 && FLIGHT_FORMATS.has(runs.find((r) => r.id === s.id.split("/")[0])?.format ?? "");
+          return fromLog ? <><span className="nm-grp">{label.slice(0, dot + 1)}</span><Highlight text={label.slice(dot + 1)} q={q} /></>
+            : <Highlight text={label} q={q} />;
+        })()}</span>
         {row.ugroup && fileOfSig(s.id) && <span className="sig-file" title={fileOfSig(s.id)!}>{fileOfSig(s.id)}</span>}
         {/* T22: the unit stays visible however long the name; the rate and a small picture of the signal */}
         {(s.transform?.unit || unitOf(s.name)) && <span className="sig-unit">{s.transform?.unit || unitOf(s.name)}</span>}
@@ -699,7 +709,9 @@ export default function DataPanel() {
         onKeyDown={(e) => { if (e.key === "Escape" && picked.length) { clearSel(); e.stopPropagation(); } }}
         onScroll={(e) => setView({ top: e.currentTarget.scrollTop, height: e.currentTarget.clientHeight })}>
         {/* W13.5: one sentence and one action */}
-        {!runs.length && <div className="empty-state empty-tree"><p>{t("noFilesHint")}</p>
+        {/* W13.4: while the first file loads, a skeleton of the list */}
+        {!runs.length && busyNow > 0 && <div className="skeleton tree-skeleton" role="status" aria-label={t("loading")}><i /><i /><i /><i /><i /><i /></div>}
+        {!runs.length && !busyNow && <div className="empty-state empty-tree"><p>{t("noFilesHint")}</p>
           <button className="btn outline sm" onClick={() => useApp.setState({ browserOpen: true })}>{t("emptyTreeAction")}</button></div>}
         {runs.length > 0 && !anyMatch && <p className="empty-note">{t("noMatches", { q })}</p>}
         <div className="vlist" style={{ height: total }}>

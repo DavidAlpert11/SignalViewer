@@ -913,6 +913,11 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] W10 Ask before closing with unsaved changes (revision counter, browser prompt, window dialog, setting). Done 2026-11-13 (the pywebview close: needs a manual check).
 
 <!-- lane L7 -->
+- [x] W7 Two cursors' bar in the plot's head. Done 2026-11-13.
+- [x] W9 "+8 views", dimmed message part, 3D labels declutter by priority. Done 2026-11-13.
+- [x] W13.2 draw-in, W13.4 skeletons, W13.6 readout, W13.9 performance test (threshold set in FINAL). Done 2026-11-13.
+- [ ] W13.3 Smooth zoom / pan easing - not shipped: 60 fps on a 1M-sample signal cannot be measured in a headless browser (software rendering, no real frame rate).
+- [x] T49 item 10 the cursor buttons next to the zoom (icons + tooltips). Done 2026-11-13.
 
 <!-- lane L8 -->
 

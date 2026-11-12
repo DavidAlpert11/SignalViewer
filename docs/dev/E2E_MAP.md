@@ -36,6 +36,9 @@ inside your lane's block.
 - `tests/e2e/test_workflows.py` – W8 palette rendering changed; its palette lines unchanged (run it) (L6)
 
 <!-- lane L7 -->
+- `tests/e2e/test_plot_polish.py` – W7, W9, W13.2, T49 item 10 (L7)
+- `tests/e2e/test_perf_budget.py` – W13.9 (L7; FINAL sets the threshold)
+- `tests/e2e/test_tab_band.py`, `test_timeline.py`, `test_plot_style.py`, `test_globe3d.py` – touched areas (stage bar order, plot head, 3D labels): run them (L7)
 
 <!-- lane L8 -->
 
