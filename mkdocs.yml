@@ -67,6 +67,10 @@ nav:
       - "סט פרמטרים אחד לכמה מערכות": common-gains.he.md
 
       # --- lane L4 ---
+      - "Launcher mode: the study on your farm": launcher.md
+      - "מצב Launcher": launcher.he.md
+      - The smart-sweep demo: smart-sweep-demo.md
+      - "הדגמת הסריקה החכמה": smart-sweep-demo.he.md
 
   - Quality:
       - Validation: validation.md

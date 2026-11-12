@@ -142,6 +142,8 @@ class Demo:
     tolerance_pct: float = 0.5         # "reached the full-grid optimum" = within this % of it
     max_rounds: int = 12
     reference: str = "reference.json"  # the cached full-grid reference, next to the study
+    start_grid: int = 4                # the start round: this many values per shared parameter (L4)
+    scenarios: Dict[str, Dict[str, List[Any]]] = field(default_factory=dict)   # table -> scenario / local column -> values (L4)
     extra: Dict[str, Any] = field(default_factory=dict)
 
 

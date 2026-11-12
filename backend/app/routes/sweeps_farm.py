@@ -4,36 +4,83 @@ from typing import Optional
 
 from fastapi import APIRouter
 
-from app.routes.sweeps_common import StudyReq, _fixture
+from app.common import fail
+from app.routes.sweeps_common import StudyReq, study_of
+from svcore import demo, launcher, sweeps_common
+from svcore import study as studies
 
 router = APIRouter()
 
 
 class SubmitReq(StudyReq):
     round: Optional[int] = None            # default: the last round
-    confirmed: bool = False                # the user saw the exact command this session
+    confirmed: bool = False                # the user saw the exact command this session (the panel asks once)
+    dry_run: bool = False
 
 
 class DemoReq(StudyReq):
-    action: str = "next"                   # "next" | "run" (until converged) | "reset"
+    action: str = "next"                   # "next" | "run" (until converged) | "reset" | "stop"
     max_rounds: Optional[int] = None
 
 
 @router.post("/api/sweeps/launcher/submit")
 def launcher_submit(req: SubmitReq):
-    return _fixture("launcher_submit.json")
+    """Write the round's parameter files and run the launcher command from the SAVED study (never from a
+    table or a result). Not confirmed yet: the exact command comes back with needs_confirm, nothing runs."""
+    if req.study is not None:
+        fail(400, "The launcher runs only a saved study: save it, then send study_path.")
+    s = study_of(req)
+    try:
+        if req.dry_run or not req.confirmed:
+            out = launcher.submit(s, req.round, dry_run=True)
+            out["needs_confirm"] = not req.dry_run
+            return out
+        return launcher.submit(s, req.round, wait=False)
+    except launcher.LauncherError as e:
+        fail(409, str(e))
 
 
 @router.get("/api/sweeps/launcher/status")
 def launcher_status(study_path: str, round: Optional[int] = None):
-    return _fixture("launcher_status.json")
+    s = study_of(StudyReq(study_path=study_path))
+    try:
+        return launcher.status(s, round)
+    except launcher.LauncherError as e:
+        fail(409, str(e))
+
+
+def _demo_study(req_path: Optional[str], reset: bool = False) -> studies.Study:
+    if not req_path:
+        fail(400, "No demo study: send study_path.")
+    try:
+        return demo.prepare(req_path, reset=reset)
+    except (OSError, ValueError, launcher.LauncherError) as e:
+        fail(409, str(e))
+
+
+def _progress(s: studies.Study) -> dict:
+    try:
+        return demo.progress(s)
+    except (launcher.LauncherError, sweeps_common.StudyError) as e:
+        fail(409, str(e))
 
 
 @router.post("/api/sweeps/demo/step")
 def demo_step(req: DemoReq):
-    return _fixture("demo_step.json")
+    """Next round / Run until converged (in the background; poll /progress), Reset, Stop."""
+    s = _demo_study(req.study_path, reset=req.action == "reset")
+    try:
+        if req.action in ("next", "run"):
+            demo.start_background(s, req.action, req.max_rounds)
+        elif req.action == "stop":
+            demo.stop(s)
+        elif req.action != "reset":
+            fail(400, f"Unknown demo action '{req.action}' (next, run, reset, stop).")
+    except launcher.LauncherError as e:
+        fail(409, str(e))
+    return _progress(s)
 
 
 @router.get("/api/sweeps/demo/progress")
 def demo_progress(study_path: str):
-    return _fixture("demo_progress.json")
+    return _progress(_demo_study(study_path))

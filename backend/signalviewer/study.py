@@ -127,6 +127,137 @@ def cmd_status(a: argparse.Namespace) -> int:
 COMMANDS.update({"rank": cmd_rank, "next": cmd_next, "status": cmd_status})
 
 
+# ------------------------------------------------------------------ L4: submit / wait / loop / demo / demo-sim
+
+def cmd_submit(a: argparse.Namespace) -> int:
+    from svcore import launcher as L
+    s = _load(a.study)
+    try:
+        dry = L.submit(s, a.round, dry_run=True)
+        print(f"Round {dry['round']}: {dry['submitted']} runs; the launcher command ({dry['mode']} mode, in {dry['cwd']}):")
+        print("  " + " ".join(dry["command"]))
+        if not a.yes:
+            if not sys.stdin.isatty():
+                return _err("Not run: add --yes to run the command without asking (it comes from the study file).")
+            if input("Run it? [y/N] ").strip().lower() not in ("y", "yes"):
+                return _err("Not run.")
+        r = L.submit(studies_load(a.study), a.round, wait=False)
+    except L.LauncherError as e:
+        return _err(str(e))
+    print(f"Submitted; log: {r['log']}" + ("" if r["exit_code"] in (0, None) else f" - the launcher exited with {r['exit_code']}"))
+    return EXIT_OK if r["exit_code"] in (0, None) else EXIT_FAILED
+
+
+def studies_load(path: str):
+    return _load(path)
+
+
+def _print_status(st: dict) -> None:
+    c = st["counts"]
+    print(f"Round {st['round']}: done {c['done']}, failed {c['failed']}, running {c['submitted']}, missing {c['missing']}"
+          + (f" ({st['duplicates']} duplicate results counted once)" if st["duplicates"] else ""), flush=True)
+
+
+def cmd_wait(a: argparse.Namespace) -> int:
+    from svcore import launcher as L
+    s = _load(a.study)
+    try:
+        code, st = L.wait(s, a.round, timeout=a.timeout)
+    except L.LauncherError as e:
+        return _err(str(e))
+    if a.json:
+        print(json.dumps(st))
+    else:
+        _print_status(st)
+        if code == EXIT_TIMEOUT:
+            print("Timed out.")
+    return code
+
+
+def _local(s, on: bool) -> None:
+    if on and not s.launcher.local_workers:
+        import os
+        s.launcher.local_workers = max(1, (os.cpu_count() or 2) - 1)
+
+
+def cmd_loop(a: argparse.Namespace) -> int:
+    from svcore import launcher as L
+    from svcore import study as studies
+    from svcore.sweeps_common import StudyError
+    from svcore.sweeps_next import next_runs
+    code = EXIT_OK
+    rounds = 0
+    while a.max_rounds is None or rounds < a.max_rounds:
+        s = _load(a.study)
+        try:
+            prop = next_runs(s, write=True)
+            if prop["exhausted"]:
+                print("Nothing left to propose at the smallest step.")
+                return EXIT_EXHAUSTED
+            s = studies.load(a.study)
+            _local(s, a.local)
+            L.submit(s, wait=False)
+            c, st = L.wait(s, timeout=a.timeout)
+        except (L.LauncherError, StudyError) as e:
+            return _err(str(e))
+        rounds += 1
+        _print_status(st)
+        if c == EXIT_TIMEOUT:
+            return EXIT_TIMEOUT
+        code = c if c == EXIT_FAILED else code
+    return code
+
+
+def cmd_demo(a: argparse.Namespace) -> int:
+    from svcore import demo
+    from svcore.launcher import LauncherError
+    try:
+        s = demo.prepare(a.study, reset=True)
+        ref = demo.reference(s)
+        print(f"The full grid: {ref['values_count']:,} values x their runs = {ref['runs']:,} runs; its optimum "
+              f"{ref['score']:.4f} at {_fmt_values(ref['values'])} ({ref['seconds']:.2f} s in-process)", flush=True)
+
+        def line(out: dict) -> None:
+            pt = out.get("point") or {}
+            gap = pt.get("gap_pct")
+            print(f"round {out['round']:>2}: {out['runs']:>4} runs ({out['candidates']} values), total {pt.get('runs', 0):>5}, "
+                  f"best {pt.get('best') if pt.get('best') is None else format(pt['best'], '.4f')}, "
+                  f"gap {'-' if gap is None else format(gap, '.2f') + ' %'}", flush=True)
+
+        code = demo.run_until(s, a.max_rounds, on_round=line)
+        p = demo.progress(demo.prepare(a.study))
+    except LauncherError as e:
+        return _err(str(e))
+    if a.json:
+        print(json.dumps(p))
+    print(demo.sentence(p))
+    return code
+
+
+def cmd_demo_sim(a: argparse.Namespace) -> int:
+    """One run of the demo simulator: the sim.py the parameters file names (else the bundled one)."""
+    import importlib.util
+    import os
+    try:
+        with open(a.params, encoding="utf-8") as f:
+            sim_path = json.load(f).get("sim")
+    except (OSError, ValueError) as e:
+        return _err(f"{a.params}: {e}")
+    if not sim_path or not os.path.isfile(sim_path):
+        base = os.environ.get("SV_EXAMPLES") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "examples")
+        sim_path = os.path.join(base, "smart_sweep_demo", "sim.py")
+    spec = importlib.util.spec_from_file_location("sv_demo_sim", sim_path)
+    if spec is None or spec.loader is None:
+        return _err(f"The demo simulator {sim_path} could not be loaded.")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.run(a.params)
+    return EXIT_OK
+
+
+COMMANDS.update({"submit": cmd_submit, "wait": cmd_wait, "loop": cmd_loop, "demo": cmd_demo, "demo-sim": cmd_demo_sim})
+
+
 def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="study", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
