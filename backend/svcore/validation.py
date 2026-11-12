@@ -370,9 +370,13 @@ def _v28() -> Result:
 # ------------------------------------------------------------------ performance (P1)
 
 @case("V29", "Plots", "A plot request (a zoomed window of 5 million samples) on a run with a time offset: time relative to the same request without one",
-      "the offset shifts the window and the drawn points, not the whole time vector: within 2 (the median of 9 requests; "
-      "reported as 1 when within 2, the measured ratio when not - so the page does not change with the machine)")
+      "the offset shifts the window and the drawn points, not the whole time vector: the offset adds less than a quarter of "
+      "what shifting the whole vector costs on the same machine (the fastest of 9 requests each; reported as 1 when so, "
+      "else the offset's cost in units of that shift - so the page does not change with the machine)")
 def _v29() -> Result:
+    # Requests of a zoomed window take ~0.2 ms: a ratio of two such times is noise on a busy CI machine (a
+    # macOS runner read 2.5 x). What the case guards is that the offset is not applied to all 5 million
+    # samples, so the yardstick is that very cost, measured here, and the fastest run of each is compared.
     import time as _time
     from svcore.decimate import view_shifted
     from svcore.models import Run, Signal
@@ -386,13 +390,19 @@ def _v29() -> Result:
         view_shifted(x, y, off, (2500.0, 2510.0), 4000)
         return _time.perf_counter() - a
 
-    def median(offset: float) -> float:
+    def fastest(offset: float) -> float:
         run.time_offset = offset
         request()                                    # warm
-        return float(np.median([request() for _ in range(9)]))
-    base, shifted = median(0.0), median(12.5)
-    ratio = shifted / max(base, 1e-6)
-    return Result(1.0, 1.0 if ratio <= 2.0 else ratio, 0.0, "x")
+        return min(request() for _ in range(9))
+
+    def whole_shift() -> float:
+        a = _time.perf_counter()
+        _ = t + 12.5
+        return _time.perf_counter() - a
+    base, shifted = fastest(0.0), fastest(12.5)
+    full = min(whole_shift() for _ in range(3))
+    extra = max(0.0, shifted - base) / max(full, 1e-6)
+    return Result(1.0, 1.0 if extra < 0.25 else extra, 0.0, "x")
 
 
 def run_all() -> List[Dict]:
