@@ -20,6 +20,7 @@ import { applySettings } from "./settings";
 import { watchNewerOnDisk } from "./fileTimes";
 import { watchReadAs } from "./readAs";
 import { installClosePrompt } from "./unsaved";
+import { maybeStartTour } from "./components/Tour";
 
 installErrorReporting();             // T38: UI errors into the local log
 installClosePrompt();                // W10: ask before closing with unsaved work
@@ -30,6 +31,7 @@ installClosePrompt();                // W10: ask before closing with unsaved wor
 // T18 / F30: the user's settings first (the UI reads them while it starts)
 loadPrefs().finally(() => {
   applySettings();
+  maybeStartTour();                  // W13.8: once, for a new user
   watchNewerOnDisk();          // Q123: a file saved again on the disk - its time turns amber, click to read it
   watchReadAs();               // 26.A5: the user's "read as a state / a value" -> the backend
   void loadMyPlaces();         // P7: My places (the app's places.json)

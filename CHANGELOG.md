@@ -67,6 +67,12 @@
   names and the modes where they would overlap.
 
 <!-- lane L8 -->
+- **A calmer screen**: fewer controls on the welcome screen, a plotted tab, Settings and Sweeps, nothing taken
+  away – *Link value axes* is in the plot bar's ⋯ menu (and shows while on), the keyboard shortcuts are in Help
+  and on the ? key, Settings' *Storage* is folded, the Sweeps welcome opens a table (a folder or a saved study
+  from Open ▾). A plot area too short to read says so and offers one plot at a time.
+- **Focus and press**: every kind of button shows a focus ring in both themes and presses in; cards lift alike.
+- **A 30-second tour** for a new user (four coach marks, skippable, once; Help → Tour shows it again).
 
 ## 1.26.0 – 2026-11-11
 

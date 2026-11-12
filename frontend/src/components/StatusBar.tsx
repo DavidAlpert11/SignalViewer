@@ -1,7 +1,6 @@
 import { countRender } from "../perf";
 import { activeTab, useApp } from "../store";
 import { fmtInt, fmtNum, useT } from "../i18n";
-import { Icon } from "../icons";
 import { effectiveBase, isOnlineBase } from "../mapBase";
 
 export default function StatusBar() {
@@ -46,9 +45,7 @@ export default function StatusBar() {
       {netOff && <span className="net-state off" title={t("netOffHint")}>{t("netOff")}</span>}
       {streaming && <span className={`live${updating ? " on" : ""}`}>● {t("streamOn")} · {t("liveCount", { n: updating, total: followed.length })}
         {autoStop && idle > 5 ? ` · ${t("liveStopsIn", { s: Math.max(0, Math.ceil(autoStop - idle)) })}` : ""}</span>}
-      <button className="status-help" onClick={() => useApp.setState({ helpOpen: true })} title={`${t("shortcuts")} (?)`} aria-label={t("shortcuts")}>
-        <Icon.Keyboard width={14} height={14} /> ?
-      </button>
+      {/* W16: the shortcuts are in Help ▾ and on the ? key (and the palette) - not a third button here */}
       {cursor.on && cursor.t1 !== null && <span className="ct">T1 {fmtNum(cursor.t1, lang, 7)}{cursor.dual && cursor.t2 !== null ? `   T2 ${fmtNum(cursor.t2, lang, 7)}   ΔT ${fmtNum(cursor.t2 - cursor.t1, lang, 6)}` : ""}</span>}
     </footer>
   );

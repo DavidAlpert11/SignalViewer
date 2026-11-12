@@ -508,3 +508,8 @@ each with its shortcut.
 <!-- lane L7 -->
 
 <!-- lane L8 -->
+## Where things are
+
+The plot bar keeps what you use with the plots: layout, link the time axes, zoom, the cursors; rarer things
+(zoom back, link the value axes, clear the plots) are in its ⋯ menu. The keyboard shortcuts are in Help and on
+the ? key. Every command is in the command search (Ctrl+K). Help → *Tour* shows the 30-second tour again.

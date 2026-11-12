@@ -124,7 +124,8 @@ export default function StageBar() {
       </span>
       <span className="sep" />
       <button className="btn" aria-pressed={tab.linkX} onClick={actions.toggleLinkX} title={t("linkX")}><Icon.Link /> X</button>
-      <button className="btn" aria-pressed={!!tab.linkY} onClick={actions.toggleLinkY} title={t("linkY")}><Icon.Link /> Y</button>
+      {/* W16: linking the value axes is rare - in the More menu (and the palette); shown here while it is on */}
+      {tab.linkY && <button className="btn" aria-pressed onClick={actions.toggleLinkY} title={t("linkY")}><Icon.Link /> Y</button>}
       <span className="sep" />
       {/* T19: the zoom mode in a menu; for one drag Shift = values, Ctrl = a box */}
       <span className="pick-wrap">
@@ -153,6 +154,7 @@ export default function StageBar() {
       <button className="iconbtn stage-more" aria-haspopup="menu" aria-label={t("stageMore")} title={t("stageMore")}
         onClick={(e) => openMenu(e, [
           { label: `${t("zoomBack")} (Backspace)`, run: actions.zoomBack, disabled: !canBack },
+          { label: t("linkY"), run: actions.toggleLinkY, checked: !!tab.linkY },
           { label: t("clearAll"), run: actions.clearAllPlots },
         ])}><Icon.More /></button>
       {streaming && <>

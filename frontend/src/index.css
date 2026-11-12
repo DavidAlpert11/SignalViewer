@@ -534,8 +534,6 @@ table.keys td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-a
 table.keys td:first-child { white-space: nowrap; padding-inline-end: 12px; width: 1%; }
 table.keys .kbd { font-size: var(--fs-s); color: var(--ink); background: var(--panel-2); padding: 1px 6px; direction: ltr; display: inline-block; }
 table.keys td.mouse { color: var(--muted); white-space: normal; width: 42%; }   /* a long gesture wraps: it used to squeeze what it does into a few words a line */
-.status-help { display: inline-flex; align-items: center; gap: var(--sp-1); border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: inherit; }
-.status-help:hover { color: var(--ink); }
 @media (max-width: 720px) { .help-body { grid-template-columns: 1fr; } }
 .help-foot { display: flex; align-items: center; gap: var(--sp-3); padding: 10px 18px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--fs-s); }
 .help-foot span { flex: 1; }

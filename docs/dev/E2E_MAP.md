@@ -41,5 +41,10 @@ inside your lane's block.
 - `tests/e2e/test_tab_band.py`, `test_timeline.py`, `test_plot_style.py`, `test_globe3d.py` – touched areas (stage bar order, plot head, 3D labels): run them (L7)
 
 <!-- lane L8 -->
+- `tests/e2e/test_calm_screen.py` – W16, T50, W13.7 (L8)
+- `tests/e2e/test_tour.py` – W13.8 (L8)
+- `tests/e2e/test_features.py` – W16 selector change by L8 (`test_V06_link_x_and_y`: Link Y from the More menu); also run for the stage bar / status bar changes (W16, L7)
+- `tests/e2e/test_sweeps_data_columns.py` – W16 selector change by L8 (Open a saved study from Open ▾)
+- `tests/e2e/test_settings.py`, `test_file_help_menus.py`, `test_less_clutter.py` – Settings fold, Help menu entry, moved controls: run them (L8)
 
 <!-- lane FINAL -->

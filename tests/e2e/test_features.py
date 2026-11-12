@@ -542,7 +542,7 @@ def test_V05_titles(pg):
 
 
 def test_V06_link_x_and_y(pg):
-    pg.click(".stage-bar .btn:has-text('Y')")
+    pg.click(".stage-bar .stage-more"); menu_item(pg, "Link value axes")      # W16: in the More menu (selector change by L8)
     assert S(pg, "s.ws.tabs[0].linkY") is True and S(pg, "s.ws.tabs[0].linkX") is True
 
 

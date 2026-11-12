@@ -594,8 +594,8 @@ Found by the review after 1.6.0 (TASKS.md "Review 2026-10-18"). Order there.
   Done 2026-10-19: examples apply their suggested view (Undo to the empty plot), the start card
   keeps the findings after a view opens; chips open at once when every slot has a clear file
   (`openTemplateNow`), else the library; right-click a chip for the library.
-- [ ] T49 Duplicate and unclear controls (13 items). Spec: TASKS.md Q48.
-- [ ] T50 Small windows and crowded headers. Spec: TASKS.md Q49.
+- [x] T49 Duplicate and unclear controls (13 items). Spec: TASKS.md Q48. Done 2026-11-13 (item 10: the cursor buttons by the zoom, round 2026-11-13 L7).
+- [x] T50 Small windows and crowded headers. Spec: TASKS.md Q49. Done 2026-11-13 (the "too many plots" hint, round 2026-11-13 L8).
 - [x] T51 Built-in templates in Hebrew. Spec: TASKS.md Q50. Done 2026-10-19: `tx()` / `BUILTIN_HE` in templates.ts.
 - [x] T52 e2e "fresh user" with an empty profile. Spec: TASKS.md Q51. Done 2026-10-19: `tests/e2e/test_fresh_user.py`.
 
@@ -920,5 +920,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] T49 item 10 the cursor buttons next to the zoom (icons + tooltips). Done 2026-11-13.
 
 <!-- lane L8 -->
+- [x] W16 A calmer screen: the audit (`tools/count_controls.py`, before → after: welcome 44 → 42, plotted 118 → 116, Settings 59 → 58, Sweeps 14 → 12), the moved controls; T49 ticked (item 10 in L7), T50's hint. Done 2026-11-13.
+- [x] W13.7 Focus-visible and pressed states, card lift. Done 2026-11-13.
+- [x] W13.8 The tour. Done 2026-11-13.
 
 <!-- lane FINAL -->

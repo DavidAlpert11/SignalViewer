@@ -19,7 +19,6 @@ export const en = {
   setClickCursorOn: "On",
   setClickCursorOff: "Off",
   // W13.5: empty states - one sentence and one action
-  emptyTreeAction: "Open files…",
   emptyFindingsText: "No findings: the health check found nothing worth a look in this log.",
   emptyFindingsAction: "Show every event of the log on the plots",
 };
@@ -39,7 +38,6 @@ export const he: typeof en = {
   setClickCursorHint: "פעיל: הלחיצה הראשונה על גרף מציבה בו את הסמן (רווח עדיין מדליק ומכבה אותו)",
   setClickCursorOn: "פעיל",
   setClickCursorOff: "כבוי",
-  emptyTreeAction: "פתח קבצים…",
   emptyFindingsText: "אין ממצאים: בדיקת התקינות לא מצאה ביומן הזה משהו שכדאי לראות.",
   emptyFindingsAction: "הצג את כל אירועי היומן על הגרפים",
 };

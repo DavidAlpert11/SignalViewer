@@ -56,6 +56,7 @@ const GuideDialog = lazyPreload(() => import("./components/GuideDialog"));
 const SettingsDialog = lazyPreload(() => import("./components/SettingsDialog"));
 import { AxisDialog, ContextMenu, ModalFocus, PromptDialog } from "./components/Overlays";
 import UnsavedDialog from "./components/UnsavedDialog";
+import Tour from "./components/Tour";
 import TabChoiceDialog from "./components/TabChoice";
 import Welcome from "./components/Welcome";
 import PlotGrid from "./components/PlotGrid";
@@ -342,6 +343,7 @@ export default function App() {
             const off = r.id === "log" && logErrors === null;
             return (
               <button key={r.id} className={`${panel === r.id ? "on" : ""}${r.id === "log" ? " rail-log" : ""}`} title={off ? t("railLogNone") : t(r.key)}
+                data-tour={r.id === "compare" ? "compare" : undefined}
                 aria-label={t(r.key)} aria-pressed={panel === r.id} disabled={off}
                 onClick={() => useApp.setState({ panel: panel === r.id ? null : r.id })}><I /><span className="rail-label" aria-hidden="true">{t(r.short)}</span>
                 {r.id === "log" && !!logErrors && <span className="rail-badge" aria-label={t("logErrorsN", { n: logErrors })} />}
@@ -406,6 +408,7 @@ export default function App() {
       <ModalFocus />
       <PromptDialog />
       <UnsavedDialog />
+      <Tour />
       <TabChoiceDialog />
       <AxisDialog />
       {dropping && <div className="drop-overlay"><div>{t("dropOverlay")}</div></div>}
