@@ -78,12 +78,21 @@ def test_study_matches_its_schema():
 @pytest.mark.parametrize("method,url,fixture,body", [
     ("post", "/api/sweeps/common", "common.json", {"study_path": STUDY}),
     ("post", "/api/sweeps/next-runs", "next_runs.json", {"study_path": STUDY}),
-    ("post", "/api/sweeps/launcher/submit", "launcher_submit.json", {"study_path": STUDY, "dry_run": True}),
-    ("get", "/api/sweeps/launcher/status", "launcher_status.json", {"study_path": STUDY}),
+    ("post", "/api/sweeps/launcher/submit", "launcher_submit.json", "launcher"),
+    ("get", "/api/sweeps/launcher/status", "launcher_status.json", "launcher"),
     ("post", "/api/sweeps/demo/step", "demo_step.json", None),
     ("get", "/api/sweeps/demo/progress", "demo_progress.json", None),
 ])
-def test_route_shapes(method, url, fixture, body):
+def test_route_shapes(method, url, fixture, body, tmp_path):
+    if body == "launcher":                                        # a study with a launcher block and a round (L4)
+        import shutil
+        from svcore import demo
+        src = os.path.join(ROOT, "examples", "smart_sweep_demo")
+        for f in ("demo.svstudy.json", "sim.py"):
+            shutil.copy(os.path.join(src, f), tmp_path / f)
+        s = S.load(str(tmp_path / "demo.svstudy.json"))
+        demo.start_round(s)
+        body = {"study_path": s.path, "dry_run": True} if method == "post" else {"study_path": s.path}
     if body is None:                                              # the demo routes: the demo's own study
         demo = os.path.join(ROOT, "examples", "smart_sweep_demo", "demo.svstudy.json")
         if not os.path.isfile(demo):

@@ -21,6 +21,13 @@
 - Example data: three drones, one set of gains (`examples/drones/`, `tools/make_drone_sweeps.py`).
 
 <!-- lane L4 -->
+- **Launcher mode**: hand a study's runs to your own farm launcher – a parameters file per run from your template
+  (`{{column}}` placeholders, XML / JSON escaped), your launcher's command line (no shell), results found by
+  `run_id` or by values, failure markers and a timeout, or a local pool of workers on this PC;
+  `study submit / wait / loop`, also as `SignalViewer.exe study …` from the Portable. `tools/launcher_mock.py`
+  to try it without a farm.
+- **The smart-sweep demo engine**: a real (stdlib) simulator, the start grid, the full-grid reference and the
+  saving; `study demo` prints each round and the result sentence.
 
 <!-- lane L5 -->
 

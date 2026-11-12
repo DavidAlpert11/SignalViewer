@@ -358,6 +358,20 @@
     },
     "reference": {
      "type": "string"
+    },
+    "start_grid": {
+     "type": "integer",
+     "minimum": 2
+    },
+    "scenarios": {
+     "type": "object",
+     "additionalProperties": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "array"
+      }
+     },
+     "description": "table -> scenario / local column -> its values (the demo has no runs to read them from)"
     }
    },
    "additionalProperties": true

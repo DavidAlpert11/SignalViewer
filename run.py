@@ -158,10 +158,28 @@ def _log_to_file_when_windowless():
         sys.stderr = sys.stderr or f
 
 
+def _attach_console():
+    """The Portable is a windowed exe (no console): `SignalViewer.exe study ...` writes to the console it was
+    started from (cmd / PowerShell), or, started without one, to the log file like the app."""
+    if sys.platform == "win32" and getattr(sys, "frozen", False):
+        try:
+            import ctypes
+            if ctypes.windll.kernel32.AttachConsole(-1):          # ATTACH_PARENT_PROCESS
+                sys.stdout = open("CONOUT$", "w", encoding="utf-8", buffering=1)
+                sys.stderr = open("CONOUT$", "w", encoding="utf-8", buffering=1)
+                sys.stdin = open("CONIN$", "r", encoding="utf-8")
+        except (OSError, AttributeError):
+            pass
+    _log_to_file_when_windowless()
+
+
 def main():
     # W17 / W18: `SignalViewer.exe study ...` runs the study command line headless (the Portable has no
     # Python of its own to run `python -m signalviewer.study` with)
+    import multiprocessing
+    multiprocessing.freeze_support()        # the study's local pool (W17) starts workers from this same exe
     if len(sys.argv) > 1 and sys.argv[1] == "study":
+        _attach_console()
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend"))
         from signalviewer.study import main as study_main
         sys.exit(study_main(sys.argv[2:]))

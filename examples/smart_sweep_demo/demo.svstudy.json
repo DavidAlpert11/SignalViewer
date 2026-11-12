@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "name": "Smart-sweep demo: three drones, one set of gains",
+  "tables": [
+    {
+      "id": "A",
+      "name": "Drone A - light quad",
+      "paths": [
+        "next/round_*/collected_A.csv"
+      ],
+      "roles": {
+        "wind": "scenario",
+        "overshoot": "output",
+        "settling_time": "output",
+        "motor_sat": "output",
+        "energy": "output",
+        "phase_margin": "output"
+      },
+      "constraints": [
+        "overshoot < 8"
+      ],
+      "objective": {
+        "expr": "settling_time",
+        "sense": "min"
+      },
+      "aggregate": "worst",
+      "params_template": "{\"run_id\": \"{{run_id}}\", \"table\": \"A\", \"Kp\": {{Kp}}, \"Ki\": {{Ki}}, \"Kd\": {{Kd}}, \"wind\": {{wind}},\n \"out\": \"{{study_dir}}/results/A/{{run_id}}.csv\", \"sim\": \"{{study_dir}}/sim.py\", \"sleep_ms\": {{sleep_ms}}, \"noise\": {{noise}}, \"seed\": {{seed}}}\n"
+    },
+    {
+      "id": "B",
+      "name": "Drone B - heavy hexa",
+      "paths": [
+        "next/round_*/collected_B.csv"
+      ],
+      "roles": {
+        "mass": "scenario",
+        "wind": "scenario",
+        "overshoot": "output",
+        "settling_time": "output",
+        "motor_sat": "output",
+        "energy": "output",
+        "phase_margin": "output"
+      },
+      "constraints": [
+        "overshoot < 12 and motor_sat < 0.9"
+      ],
+      "objective": {
+        "expr": "settling_time",
+        "sense": "min"
+      },
+      "aggregate": "worst",
+      "params_template": "{\"run_id\": \"{{run_id}}\", \"table\": \"B\", \"Kp\": {{Kp}}, \"Ki\": {{Ki}}, \"Kd\": {{Kd}}, \"mass\": {{mass}}, \"wind\": {{wind}},\n \"out\": \"{{study_dir}}/results/B/{{run_id}}.csv\", \"sim\": \"{{study_dir}}/sim.py\", \"sleep_ms\": {{sleep_ms}}, \"noise\": {{noise}}, \"seed\": {{seed}}}\n"
+    },
+    {
+      "id": "C",
+      "name": "Drone C - VTOL",
+      "paths": [
+        "next/round_*/collected_C.csv"
+      ],
+      "rename": {
+        "P_gain": "Kp",
+        "I_gain": "Ki",
+        "D_gain": "Kd"
+      },
+      "roles": {
+        "wind": "scenario",
+        "filter_hz": "local",
+        "overshoot": "output",
+        "settling_time": "output",
+        "motor_sat": "output",
+        "energy": "output",
+        "phase_margin": "output"
+      },
+      "constraints": [
+        "phase_margin > 45"
+      ],
+      "objective": {
+        "expr": "settling_time",
+        "sense": "min"
+      },
+      "aggregate": "worst",
+      "params_template": "{\"run_id\": \"{{run_id}}\", \"table\": \"C\", \"Kp\": {{P_gain}}, \"Ki\": {{I_gain}}, \"Kd\": {{D_gain}}, \"filter_hz\": {{filter_hz}}, \"wind\": {{wind}},\n \"out\": \"{{study_dir}}/results/C/{{run_id}}.csv\", \"sim\": \"{{study_dir}}/sim.py\", \"sleep_ms\": {{sleep_ms}}, \"noise\": {{noise}}, \"seed\": {{seed}}}\n"
+    }
+  ],
+  "shared": [
+    {
+      "name": "Kp"
+    },
+    {
+      "name": "Ki"
+    },
+    {
+      "name": "Kd"
+    }
+  ],
+  "combine": {
+    "mode": "minworst"
+  },
+  "search": {
+    "params": {
+      "Kp": {
+        "min": 0.5,
+        "max": 5.0,
+        "step": 0.225
+      },
+      "Ki": {
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.1
+      },
+      "Kd": {
+        "min": 0.05,
+        "max": 2.05,
+        "step": 0.1
+      }
+    },
+    "constraints": []
+  },
+  "next": {
+    "batch": 20,
+    "folder": "next/round_{{round}}"
+  },
+  "launcher": {
+    "params_name": "params/{{table}}/{{run_id}}.json",
+    "submit": [
+      "{{study_cli}}",
+      "demo-sim",
+      "{{params_file}}"
+    ],
+    "submit_mode": "run",
+    "results": {
+      "glob": "results/{{table}}/{{run_id}}.csv",
+      "format": "csv_row"
+    },
+    "status": {
+      "timeout_s": 300
+    },
+    "local_workers": 3
+  },
+  "demo": {
+    "sleep_ms": 30,
+    "noise": 0.005,
+    "seed": 1,
+    "tolerance_pct": 0.5,
+    "max_rounds": 12,
+    "reference": "reference.json",
+    "start_grid": 4,
+    "scenarios": {
+      "A": {
+        "wind": [
+          0,
+          5
+        ]
+      },
+      "B": {
+        "mass": [
+          2.0,
+          5.0
+        ],
+        "wind": [
+          0,
+          5
+        ]
+      },
+      "C": {
+        "wind": [
+          0,
+          5
+        ],
+        "filter_hz": [
+          15,
+          30,
+          60
+        ]
+      }
+    }
+  }
+}

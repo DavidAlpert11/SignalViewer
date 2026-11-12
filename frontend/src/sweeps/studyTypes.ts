@@ -23,7 +23,7 @@ export interface LauncherBlock extends Extra {
   status?: { failed_glob?: string; timeout_s?: number | null };
   local_workers?: number | null;
 }
-export interface DemoBlock extends Extra { sleep_ms?: number; noise?: number; seed?: number; tolerance_pct?: number; max_rounds?: number; reference?: string }
+export interface DemoBlock extends Extra { sleep_ms?: number; noise?: number; seed?: number; tolerance_pct?: number; max_rounds?: number; reference?: string; start_grid?: number; scenarios?: Record<string, Record<string, (number | string)[]>> }
 export interface StudyProposal extends Extra { run_id: string; table: string; values: Values; reason: Reason; state: RunState }
 export interface StudyRound extends Extra { round: number; date: string; folder: string; proposals: StudyProposal[] }
 export interface Study extends Extra {

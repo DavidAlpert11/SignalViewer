@@ -895,6 +895,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] W15 core: `svcore/sweeps_next.py`, `/api/sweeps/next-runs`, `study next / status`; the CLI loop finds the fine-grid optimum in 4 rounds of 20. Done 2026-11-13 (button: L5).
 
 <!-- lane L4 -->
+- [x] W17 engine: `svcore/placeholders.py`, `svcore/launcher.py`, `/api/sweeps/launcher/*`, `study submit / wait / loop`, `tools/launcher_mock.py`, run.py `study` routing. Done 2026-11-13 (button: L5; the Portable and a real launcher: owner).
+- [x] W18 engine: `examples/smart_sweep_demo/`, `svcore/demo.py`, `/api/sweeps/demo/*`, `study demo / demo-sim`. Done 2026-11-13 (view: L5, card: L1).
 
 <!-- lane L5 -->
 
