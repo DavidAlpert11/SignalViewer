@@ -475,6 +475,15 @@ template for the next table. In CI: `signalviewer-cli sweep results.csv --questi
 <!-- lane L5 -->
 
 <!-- lane L6 -->
+## Closing with unsaved work
+
+When the window closes and your plots changed since the session was last saved, Signal Viewer asks
+*Save / Don't save / Cancel* (in a browser tab the browser asks in its own words). The work is kept for the
+next start either way (autosave); this is about a session file. Undo back to what was saved counts as saved.
+*Settings → Ask before closing with unsaved changes* turns it off.
+
+**The command palette** (Ctrl+K): with nothing typed it lists your last 5 commands, then every command by group,
+each with its shortcut.
 
 <!-- lane L7 -->
 

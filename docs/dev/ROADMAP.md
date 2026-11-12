@@ -901,6 +901,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 <!-- lane L5 -->
 
 <!-- lane L6 -->
+- [x] W8 Command palette: recent first, group headers, keys column, icons. Done 2026-11-13.
+- [x] W10 Ask before closing with unsaved changes (revision counter, browser prompt, window dialog, setting). Done 2026-11-13 (the pywebview close: needs a manual check).
 
 <!-- lane L7 -->
 

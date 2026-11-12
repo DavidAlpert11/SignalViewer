@@ -32,6 +32,11 @@
 <!-- lane L5 -->
 
 <!-- lane L6 -->
+- **Ask before closing with unsaved changes**: closing the window when the work is not in a session file asks
+  *Save / Don't save / Cancel* (in a browser tab, the browser's own question); Undo back to what was saved
+  counts as saved; Settings can turn it off. Autosave stays as it was.
+- **The command palette** (Ctrl+K) with nothing typed: your last 5 commands first, then every command under
+  its group's header; shortcuts in a column of their own; an icon on every row.
 
 <!-- lane L7 -->
 

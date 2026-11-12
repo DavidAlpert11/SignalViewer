@@ -1,1 +1,13 @@
 /* Lane L6 of the 2026-11-13 round: its own rules (W0). Tokens from index.css only. */
+
+/* W8: the palette with nothing typed - group headers; the keys in a column of their own */
+.pal-head { padding: var(--sp-2) 16px var(--sp-1); font-size: var(--fs-xs); font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .04em; border-top: 1px solid var(--line); }
+.pal-head:first-child { border-top: 0; }
+.pal-item .pal-keys { flex: none; min-width: 64px; text-align: end; }
+.pal-item .grp:empty { display: none; }
+.pal-item .grp + .pal-keys { margin-inline-start: var(--sp-2); }
+.pal-item .grp:empty + .pal-keys { margin-inline-start: auto; }
+
+/* W10: the close prompt's three choices */
+.unsaved-foot .btn.discard { margin-inline-end: auto; }

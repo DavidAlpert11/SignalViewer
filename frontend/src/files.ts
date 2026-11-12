@@ -368,6 +368,7 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
     if (!ws.tabs.length) return;
     useApp.setState({ ws, past: [], future: [], runs: await api.listRuns(), ranges: {}, yRanges: {}, selected: null,
       dataVersion: useApp.getState().dataVersion + 1 });
+    useApp.getState().markSaved();                          // W10: a session (or the autosave) just opened is not unsaved work
     const L = useApp.getState().lang;
     if (opts.announce !== false && res.restored.length) useApp.getState().toast({ kind: "info", text: translate(L, "restored") });
     if (res.missing.length) useApp.getState().toast({
@@ -392,14 +393,17 @@ export async function applyState(state: any, opts: { announce?: boolean } = {}) 
   }
 }
 
-export async function saveSession() {
+export async function saveSession(): Promise<boolean> {
   const L = useApp.getState().lang;
   const path = await pickPath({ mode: "save", title: translate(L, "saveSession"), exts: [".svsession"], defaultName: "session.svsession" });
-  if (!path) return;
+  if (!path) return false;
   try {
     const r = await api.saveSession(path, currentState());
+    useApp.getState().markSaved();                        // W10: nothing unsaved now
     useApp.getState().toast({ kind: "info", text: translate(L, "savedTo", { path: r.path }) });
+    return true;
   } catch (e) { useApp.getState().toast({ kind: "error", text: String((e as Error).message) }); }
+  return false;
 }
 
 /** Open a session: the one at `given` (T54: a .svsession opened from outside), else one chosen in the dialog. */
