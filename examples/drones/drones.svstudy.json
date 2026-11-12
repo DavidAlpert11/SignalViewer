@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "name": "Three drones, one set of gains",
+  "tables": [
+    {
+      "id": "A",
+      "name": "Drone A - light quad",
+      "paths": [
+        "drone_a.csv"
+      ],
+      "roles": {
+        "wind": "scenario",
+        "overshoot": "output",
+        "settling_time": "output"
+      },
+      "constraints": [
+        "overshoot < 8"
+      ],
+      "objective": {
+        "expr": "settling_time",
+        "sense": "min"
+      },
+      "aggregate": "worst"
+    },
+    {
+      "id": "B",
+      "name": "Drone B - heavy hexa",
+      "paths": [
+        "drone_b.csv"
+      ],
+      "roles": {
+        "mass": "scenario",
+        "wind": "scenario",
+        "overshoot": "output",
+        "motor_sat": "output",
+        "energy": "output",
+        "settling_time": "output"
+      },
+      "constraints": [
+        "overshoot < 12 and motor_sat < 0.9"
+      ],
+      "objective": {
+        "expr": "energy",
+        "sense": "min"
+      },
+      "aggregate": "worst"
+    },
+    {
+      "id": "C",
+      "name": "Drone C - VTOL",
+      "paths": [
+        "drone_c.csv"
+      ],
+      "rename": {
+        "P_gain": "Kp",
+        "I_gain": "Ki",
+        "D_gain": "Kd"
+      },
+      "roles": {
+        "filter_hz": "local",
+        "wind": "scenario",
+        "phase_margin": "output",
+        "overshoot": "output",
+        "settling_time": "output"
+      },
+      "constraints": [
+        "phase_margin > 45"
+      ],
+      "objective": {
+        "expr": "settling_time",
+        "sense": "min"
+      },
+      "aggregate": "worst"
+    }
+  ],
+  "shared": [
+    {
+      "name": "Kp"
+    },
+    {
+      "name": "Ki"
+    },
+    {
+      "name": "Kd"
+    }
+  ],
+  "combine": {
+    "mode": "auto"
+  },
+  "search": {
+    "params": {
+      "Kp": {
+        "min": 0.5,
+        "max": 5.0,
+        "step": 0.05
+      },
+      "Ki": {
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.025
+      },
+      "Kd": {
+        "min": 0.05,
+        "max": 1.05,
+        "step": 0.0125
+      }
+    },
+    "constraints": []
+  },
+  "next": {
+    "batch": 20
+  }
+}

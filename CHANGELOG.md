@@ -11,6 +11,14 @@
 <!-- lane L2 -->
 
 <!-- lane L3 -->
+- **One parameter set for many systems** (Sweeps): give N sweep tables - each with its own scenarios,
+  constraints and goal - and get the values of the shared parameters that hold in every table, ranked by the
+  worst table (one goal) or on a Pareto front (different goals); each rejected value says which table,
+  scenario and constraint failed and by how much; similar column names (`P_gain` / `Kp`) are paired.
+- **Next runs to try**: the next batch of candidate values (refine / boundary / gap, each with its reason),
+  inside the search space, written per table with a stable `run_id`; `python -m signalviewer.study rank /
+  next / status`.
+- Example data: three drones, one set of gains (`examples/drones/`, `tools/make_drone_sweeps.py`).
 
 <!-- lane L4 -->
 
