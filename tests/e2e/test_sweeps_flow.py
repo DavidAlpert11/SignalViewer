@@ -14,6 +14,17 @@ STEP = {"raw": 0, "clean": 1, "roles": 1, "goals": 2, "results": 3, "report": 3}
 NAV = {"raw": "raw", "clean": "roles", "roles": "roles", "goals": "goals", "results": "results", "report": "results"}
 
 
+def _idle(pg):
+    """W11: every answer asked for has arrived (the evaluate debounce included) - not a sleep."""
+    pg.wait_for_function("window.__svSweeps && window.__svSweeps.idle()")
+
+
+def _saved(pg):
+    """W11: the autosave of the last change is written - before a reload."""
+    _idle(pg)
+    pg.wait_for_function("window.__svSweeps && window.__svSweeps.saved()")
+
+
 def _to_sweeps(pg):
     pg.locator(".areas .area-btn", has_text="Sweeps").click()
     pg.wait_for_selector(".sw-welcome, .sw-study-wrap")
@@ -405,7 +416,8 @@ def test_take_out_a_merged_table_delete_a_goal_and_column_groups(pg):
     pg.locator(".sw-plotbar .sw-colpick-btn").click()
     pg.locator(".sw-colpick-pop .linklike", has_text="Parameters and the goal").click()
     pg.keyboard.press("Escape")
-    pg.wait_for_timeout(300)
+    _idle(pg)
+    pg.wait_for_function("[...document.querySelectorAll('.pp-axis-name')].filter((e) => e.innerText.trim() !== 'rank').length === 6")
     names = [x.strip() for x in pg.locator(".pp-axis-name").all_inner_texts()]
     # (the rank's axis is added when an answer with it arrives after the choice: S19)
     names = [x for x in names if x != "rank"]
@@ -460,7 +472,7 @@ def test_undo_redo_and_the_studies_open_again(pg):
     pg.fill(".palette-input", "Undo"); pg.keyboard.press("Enter")
     pg.wait_for_function("document.querySelectorAll('.sw-goal-table tr.sw-goal-on').length === 0")
     _condition(pg, "overshoot_pct", "<=", 15)
-    pg.wait_for_timeout(1500)                                        # the autosave, a moment after the change
+    _saved(pg)                                                       # the autosave, a moment after the change
     pg.reload()
     pg.wait_for_selector(".app")
     _to_sweeps(pg)
@@ -594,7 +606,7 @@ def test_optimize_says_how_it_ranks_and_weights_count(pg):
         _step(pg, "results")
         pg.wait_for_selector(".sw-sets-table tbody tr")
         pg.wait_for_function("!document.querySelector('.sw-step-btn.on').innerText.includes('…')")
-        pg.wait_for_timeout(600)
+        _idle(pg)
         heads = pg.locator(".sw-sets-table thead th").all_inner_texts()
         cells = pg.locator(".sw-sets-table tbody tr").first.locator("td").all_inner_texts()
         return tuple(cells[heads.index(h)] for h in heads if h.strip() in ("kp_roll", "ki_roll", "filter_hz"))
@@ -640,7 +652,7 @@ def test_robust_to_a_parameter_and_next_runs_on_chosen_ones(pg):
         assert heads[idx] == "ki_roll"
     n = pg.locator(".sw-next .sw-table tbody tr").count()
     # kept with the study: after a restart they are still there
-    pg.wait_for_timeout(1500)
+    _saved(pg)
     pg.reload(); pg.wait_for_selector(".app"); _to_sweeps(pg)
     pg.wait_for_selector(".sw-steps")
     _tab(pg, "next")
@@ -732,7 +744,7 @@ def test_the_whole_process_in_the_report(pg):
         assert want in html, want
     # the report itself is in the journal now, and the journal survives a restart
     pg.wait_for_function("document.querySelector('.sw-journal').innerText.includes('Report made')")
-    pg.wait_for_timeout(1500)
+    _saved(pg)
     pg.reload(); pg.wait_for_selector(".app"); _to_sweeps(pg)
     pg.wait_for_selector(".sw-steps")
     _step(pg, "report")
@@ -942,7 +954,7 @@ def test_the_best_set_while_editing_a_goal(pg):
     w = lambda i, v: (pg.locator(".sw-goal-table input[aria-label^='Weight of']").nth(i).fill(v),
                       pg.locator(".sw-goal-table input[aria-label^='Weight of']").nth(i).press("Tab"))
     w(0, "10"); w(1, "0")
-    pg.wait_for_timeout(800)
+    _idle(pg)
     a = pg.locator(".sw-side-step .sw-best-params").inner_text()
     w(0, "0"); w(1, "10")
     pg.wait_for_function(f"document.querySelector('.sw-side-step .sw-best-params').innerText !== {a!r}")

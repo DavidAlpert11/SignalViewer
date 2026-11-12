@@ -467,3 +467,15 @@ template for the next table. In CI: `signalviewer-cli sweep results.csv --questi
 - Windows warns about an unknown publisher on the first start: *More info → Run anyway*.
 - macOS refuses to open it the first time: right-click → *Open*, or run
   `xattr -dr com.apple.quarantine SignalViewer` once.
+
+<!-- lane L1 -->
+
+<!-- lane L2 -->
+
+<!-- lane L5 -->
+
+<!-- lane L6 -->
+
+<!-- lane L7 -->
+
+<!-- lane L8 -->

@@ -1,0 +1,121 @@
+{
+ "study": "fixture drones",
+ "mode": "pareto",
+ "shared": [
+  "Kp",
+  "Ki"
+ ],
+ "tables": [
+  {
+   "id": "A",
+   "name": "Drone A - light quad",
+   "files": [
+    "drone_a.csv"
+   ],
+   "rows": 16,
+   "objective": "settling_time",
+   "sense": "min"
+  }
+ ],
+ "mapping": [
+  {
+   "table": "C",
+   "column": "P_gain",
+   "name": "Kp",
+   "score": 0.8,
+   "confirmed": true
+  }
+ ],
+ "rows": [
+  {
+   "values": {
+    "Kp": 1.0,
+    "Ki": 0.5
+   },
+   "feasible": true,
+   "rank": 1,
+   "pareto": true,
+   "score": 0.0,
+   "tables": [
+    {
+     "table": "A",
+     "status": "pass",
+     "score": 6.5,
+     "local": null,
+     "worst": {
+      "wind": 5
+     },
+     "failed": null,
+     "runs": [
+      0,
+      1
+     ]
+    },
+    {
+     "table": "C",
+     "status": "pass",
+     "score": 6.5,
+     "local": {
+      "filter_hz": 20
+     },
+     "worst": {
+      "wind": 5
+     },
+     "failed": null,
+     "runs": [
+      4,
+      5
+     ]
+    }
+   ]
+  },
+  {
+   "values": {
+    "Kp": 3.0,
+    "Ki": 0.5
+   },
+   "feasible": false,
+   "rank": null,
+   "pareto": false,
+   "score": null,
+   "tables": [
+    {
+     "table": "A",
+     "status": "fail",
+     "score": null,
+     "local": null,
+     "worst": null,
+     "failed": {
+      "scenario": {
+       "wind": 5
+      },
+      "constraint": "overshoot < 10",
+      "by": 1.0
+     },
+     "runs": [
+      8,
+      9
+     ]
+    },
+    {
+     "table": "B",
+     "status": "not_run",
+     "score": null,
+     "local": null,
+     "worst": null,
+     "failed": {
+      "scenario": null,
+      "constraint": "not run",
+      "by": null
+     },
+     "runs": []
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "values": 9,
+  "feasible": 4
+ },
+ "seconds": 0.01
+}

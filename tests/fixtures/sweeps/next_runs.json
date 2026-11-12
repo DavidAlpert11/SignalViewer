@@ -1,0 +1,39 @@
+{
+ "study": "fixture drones",
+ "round": 1,
+ "written": false,
+ "folder": "next/round_1",
+ "files": [],
+ "candidates": [
+  {
+   "values": {
+    "Kp": 1.25,
+    "Ki": 0.5
+   },
+   "reason": "refine",
+   "note": "between the best feasible values"
+  }
+ ],
+ "runs": [
+  {
+   "run_id": "a1b2c3d4e5",
+   "table": "A",
+   "round": 1,
+   "reason": "refine",
+   "values": {
+    "Kp": 1.25,
+    "Ki": 0.5,
+    "wind": 0
+   }
+  }
+ ],
+ "counts": {
+  "candidates": 1,
+  "runs": 1,
+  "refine": 1,
+  "boundary": 0,
+  "gap": 0
+ },
+ "pending": 0,
+ "exhausted": false
+}

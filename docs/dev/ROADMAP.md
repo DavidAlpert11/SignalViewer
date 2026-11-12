@@ -881,3 +881,25 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] P10 Story mode: moments (`svcore/story.py`), the live page's player, the app's Story, PDF / Word "The flight in N moments". Done 2026-11-12.
 - [x] P11 Docs, guides, README pictures 36 / 37, the full backend and e2e runs. Done 2026-11-12.
 - [ ] Next (owner to choose): the default theme / language of an exported page, *Ask before closing with unsaved changes*, the app's *Heights* (Cesium exaggeration with the tracks), arrows in 3D, the mouse readout in the offline 3D page, the frame-rate check of P9 on a real graphics card; the ideas of the spec's §H.
+
+## Milestone 31 — welcome pictures, the first minute, one gain set for many systems, the farm, a calmer screen, a "wow" pass (owner's round 2026-11-13). Spec: docs/dev/AGENT_PROMPT_2026-11-13.md; plan: docs/dev/PLAN_2026-11-13.md.
+<!-- lane W0 -->
+- [x] W11 The two flaky e2e files (wait on state, not a sleep), `tools/quick_check.py`, `docs/dev/E2E_MAP.md`. Code done 2026-11-13; the 10-of-10 measurement is FINAL's.
+
+<!-- lane L1 -->
+
+<!-- lane L2 -->
+
+<!-- lane L3 -->
+
+<!-- lane L4 -->
+
+<!-- lane L5 -->
+
+<!-- lane L6 -->
+
+<!-- lane L7 -->
+
+<!-- lane L8 -->
+
+<!-- lane FINAL -->

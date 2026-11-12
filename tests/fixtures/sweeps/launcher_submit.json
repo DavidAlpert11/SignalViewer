@@ -1,0 +1,18 @@
+{
+ "study": "fixture drones",
+ "round": 1,
+ "mode": "round",
+ "command": [
+  "launcher.exe",
+  "--list",
+  "params_files.txt"
+ ],
+ "cwd": "next/round_1",
+ "params_files": [
+  "A/a1b2c3d4e5.xml"
+ ],
+ "submitted": 1,
+ "log": "next/round_1/submit.log",
+ "exit_code": 0,
+ "needs_confirm": false
+}

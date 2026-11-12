@@ -159,6 +159,12 @@ def _log_to_file_when_windowless():
 
 
 def main():
+    # W17 / W18: `SignalViewer.exe study ...` runs the study command line headless (the Portable has no
+    # Python of its own to run `python -m signalviewer.study` with)
+    if len(sys.argv) > 1 and sys.argv[1] == "study":
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "backend"))
+        from signalviewer.study import main as study_main
+        sys.exit(study_main(sys.argv[2:]))
     _log_to_file_when_windowless()
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0)
