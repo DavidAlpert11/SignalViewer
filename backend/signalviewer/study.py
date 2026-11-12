@@ -18,6 +18,7 @@ Exit codes: 0 done / ok, 1 an error (the message says what to do), 3 nothing lef
 step, 4 some runs failed, 5 timed out.
 """
 import argparse
+import json
 import sys
 from typing import Callable, Dict, List, Optional
 
@@ -34,6 +35,96 @@ def _not_implemented(name: str) -> Callable[[argparse.Namespace], int]:
 # each command's implementation (filled in by lanes L3: rank / next / status, L4: submit / wait / loop / demo / demo-sim)
 COMMANDS: Dict[str, Callable[[argparse.Namespace], int]] = {
     n: _not_implemented(n) for n in ("rank", "next", "status", "submit", "wait", "loop", "demo", "demo-sim")}
+
+
+# ------------------------------------------------------------------ L3: rank / next / status
+
+def _load(path: str):
+    from svcore import study as studies
+    try:
+        return studies.load(path)
+    except (OSError, ValueError) as e:
+        raise SystemExit(_err(f"The study '{path}' could not be read: {e}"))
+
+
+def _err(msg: str) -> int:
+    print(msg, file=sys.stderr)
+    return EXIT_ERROR
+
+
+def _fmt_values(v: dict) -> str:
+    return ", ".join(f"{k}={x:g}" if isinstance(x, (int, float)) else f"{k}={x}" for k, x in v.items())
+
+
+def cmd_rank(a: argparse.Namespace) -> int:
+    from svcore.sweeps_common import StudyError, rank, to_csv_rows
+    s = _load(a.study)
+    try:
+        r = rank(s)
+    except StudyError as e:
+        return _err(str(e))
+    if a.csv:
+        to_csv_rows(r).to_csv(a.csv, index=False, encoding="utf-8-sig")
+    if a.json:
+        print(json.dumps(r, ensure_ascii=False, default=float))
+        return EXIT_OK
+    print(f"{s.name or a.study}: {r['counts']['feasible']} of {r['counts']['values']} values hold in every table "
+          f"({'the worst table minimised' if r['mode'] == 'minworst' else 'Pareto front over the tables'}), {r['seconds']:.2f} s")
+    for row in r["rows"][:10]:
+        if not row["feasible"]:
+            break
+        per = "; ".join(f"{p['table']} {p['score']:.4g}" + (f" ({_fmt_values(p['local'])})" if p["local"] else "") for p in row["tables"])
+        print(f"  {row['rank']:>3}{'*' if row['pareto'] and r['mode'] == 'pareto' else ' '} {_fmt_values(row['values'])}  ->  {per}")
+    return EXIT_OK
+
+
+def cmd_next(a: argparse.Namespace) -> int:
+    from svcore.sweeps_common import StudyError
+    from svcore.sweeps_next import next_runs
+    s = _load(a.study)
+    try:
+        r = next_runs(s, write=True)
+    except StudyError as e:
+        return _err(str(e))
+    if a.json:
+        print(json.dumps(r, ensure_ascii=False, default=float))
+    elif r["exhausted"]:
+        print("Nothing left to propose at the smallest step of the search space.")
+    else:
+        c = r["counts"]
+        print(f"Round {r['round']}: {c['candidates']} candidate values -> {c['runs']} runs "
+              f"(refine {c['refine']}, boundary {c['boundary']}, gap {c['gap']}); written: {', '.join(r['files'])}")
+    return EXIT_EXHAUSTED if r["exhausted"] else EXIT_OK
+
+
+def cmd_status(a: argparse.Namespace) -> int:
+    from svcore import study as studies
+    from svcore.sweeps_common import StudyError, rank
+    from svcore.sweeps_next import mark_done
+    s = _load(a.study)
+    try:
+        counts = mark_done(s)
+        r = rank(s)
+    except StudyError as e:
+        return _err(str(e))
+    if s.path and s.history:
+        studies.save(s)
+    best = next((x for x in r["rows"] if x["feasible"]), None)
+    last = s.history[-1].round if s.history else 0
+    out = {"study": s.name, "rounds": last, "proposals": counts, "values": r["counts"]["values"],
+           "feasible": r["counts"]["feasible"], "best": best and {"values": best["values"], "score": best["score"]}}
+    if a.json:
+        print(json.dumps(out, ensure_ascii=False, default=float))
+        return EXIT_OK
+    pend = counts.get("pending", 0) + counts.get("submitted", 0)
+    print(f"{s.name or a.study}: {last} round(s); proposals " + (", ".join(f"{k} {v}" for k, v in counts.items()) or "none")
+          + (f" - {pend} runs still to come from round {last}" if pend else ""))
+    print(f"  {r['counts']['feasible']} of {r['counts']['values']} values hold in every table"
+          + (f"; best: {_fmt_values(best['values'])} (score {best['score']:.4g})" if best else ""))
+    return EXIT_OK
+
+
+COMMANDS.update({"rank": cmd_rank, "next": cmd_next, "status": cmd_status})
 
 
 def parser() -> argparse.ArgumentParser:

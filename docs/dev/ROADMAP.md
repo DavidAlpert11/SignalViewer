@@ -891,6 +891,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 <!-- lane L2 -->
 
 <!-- lane L3 -->
+- [x] W14 core: `svcore/sweeps_common.py` (vectorised; reference with loops in the tests), mapping, `/api/sweeps/common`, `study rank`; the drone example. Done 2026-11-13 (panel: L5).
+- [x] W15 core: `svcore/sweeps_next.py`, `/api/sweeps/next-runs`, `study next / status`; the CLI loop finds the fine-grid optimum in 4 rounds of 20. Done 2026-11-13 (button: L5).
 
 <!-- lane L4 -->
 
