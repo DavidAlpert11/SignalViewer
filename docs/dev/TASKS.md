@@ -106,6 +106,11 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   CLI printed its JSON (with "Δnorth") to a cp1252 pipe and died (`charmap`), stdout empty. Not new code (the
   CLI and the test are from 1.25); fixed at the root: `signalviewer/cli.py` `_utf8_streams()` makes stdout /
   stderr UTF-8; the tests that read the CLI's output decode it as UTF-8. Checked with PYTHONIOENCODING=cp1252.
+  Then the macOS CI failed `test_the_validation_page_is_current`: V29 (1.25's plot-request timing) measured
+  2.5 x there - a ratio of two ~0.2 ms requests is noise on a busy runner. V29 now compares the fastest of 9
+  requests and measures the offset's extra cost against the cost of shifting the whole 5-million-sample
+  vector on the same machine (the regression it guards); 15 runs under full CPU load: 1 x each. Validation
+  page regenerated (the case's wording), still 29 of 29.
 
 - **Round of 2026-11-11 (done, 1.26.0)**: one live HTML page (one time bar for the plots, the map and the 3D
   view), the 3D view in reports and replay pages (three.js, offline; a picture in PDF / Word / PNG), one Map
