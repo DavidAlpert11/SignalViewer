@@ -60,7 +60,7 @@ def test_python_gives_the_fixture_numbers(py_stats):
 def test_cli_same_as_python(py_stats, tmp_path):
     out = subprocess.run([sys.executable, os.path.join(ROOT, "cli.py"), "compare-objects", EX, "--ref", REF, "--objects", ",".join(OBJS),
                           "--what", ",".join(WHAT), "--json", "--stats", str(tmp_path / "s.csv"), "--tolerance", "position=1m"],
-                         capture_output=True, text=True, timeout=180)
+                         capture_output=True, text=True, encoding="utf-8", timeout=180)
     assert out.returncode == 1, out.stderr                                     # lane 1 is 1.5 m off: a failed tolerance
     doc = json.loads(out.stdout)
     _close(_key(doc["stats"]), py_stats)

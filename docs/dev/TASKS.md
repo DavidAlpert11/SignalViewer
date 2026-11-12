@@ -102,6 +102,10 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
   Cockpit button (`test_live_report.py` lists), all 5 fixed and passing; 3 failed only under the whole
   suite's load and pass alone and in their files (`test_object_templates` keeps-objects, `test_settings`
   line defaults, `test_sweeps_flow` templates dialog - the same tests pass on the round's first patch too).
+  After the tag (owner, 2026-11-12): the Windows CI failed `test_api_parity.py::test_cli_same_as_python` - the
+  CLI printed its JSON (with "Δnorth") to a cp1252 pipe and died (`charmap`), stdout empty. Not new code (the
+  CLI and the test are from 1.25); fixed at the root: `signalviewer/cli.py` `_utf8_streams()` makes stdout /
+  stderr UTF-8; the tests that read the CLI's output decode it as UTF-8. Checked with PYTHONIOENCODING=cp1252.
 
 - **Round of 2026-11-11 (done, 1.26.0)**: one live HTML page (one time bar for the plots, the map and the 3D
   view), the 3D view in reports and replay pages (three.js, offline; a picture in PDF / Word / PNG), one Map

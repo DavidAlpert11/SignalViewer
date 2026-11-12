@@ -458,7 +458,21 @@ def cmd_map(a) -> int:
     return 0
 
 
+def _utf8_streams() -> None:
+    """The output is UTF-8 everywhere: a Windows console or pipe defaults to the ANSI code page (cp1252), where
+    printing a name like "Δnorth" or a Hebrew word fails ("charmap codec can't encode") and --json writes
+    nothing. Python 3.7+ can switch the streams in place."""
+    for st in (sys.stdout, sys.stderr):
+        enc = (getattr(st, "encoding", None) or "").lower().replace("-", "")
+        if enc != "utf8" and hasattr(st, "reconfigure"):
+            try:
+                st.reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):        # a stream that cannot change (already written to): leave it
+                pass
+
+
 def main(argv=None) -> int:
+    _utf8_streams()
     ap = argparse.ArgumentParser(prog="signalviewer", description="Read and export recordings (Signal Viewer).")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("info", help="list the signals of a file")
