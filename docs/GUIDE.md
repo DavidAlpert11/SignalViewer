@@ -476,6 +476,15 @@ and *Smart sweep demo* open in the Sweeps area (see *One parameter set for many 
 demo*); the others open their recordings with the view that suits them.
 
 <!-- lane L2 -->
+## The first minute
+
+Open a file and the empty plot offers the views that fit it – *Quick look* (every signal in a plot of its own)
+and the templates that match its signals; click one, or click signals in the list. Once something is plotted the
+suggestions move to the file panel's *Views for these files*. The start card says what to do next: compare
+the files you opened together, look at a log's findings, or judge the run against a golden one.
+*Settings → Click places the cursor* makes the first click on a plot put the cursor there (Space turns it on
+and off either way). The status bar says when a plot is drawn reduced (lowest and highest per pixel) – hover
+for the numbers.
 
 <!-- lane L5 -->
 ## One parameter set for many systems, the next runs, the farm, the demo

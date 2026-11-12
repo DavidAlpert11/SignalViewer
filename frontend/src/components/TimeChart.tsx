@@ -906,8 +906,10 @@ export default function TimeChart({ tab, plot, index, onLoading, previewOnly }: 
     const onUp = (e: MouseEvent) => {
       if (laneClick) { laneClick = false; return; }
       const c = cursorRef.current;
-      if (!c.on || Math.abs(e.clientX - downX) > 3 || e.button !== 0) return;
+      if (Math.abs(e.clientX - downX) > 3 || e.button !== 0) return;
       const v = u.posToVal(posOf(e), "x");
+      // W5: with "Click places the cursor" on, the first click on a plot puts the cursor there
+      if (!c.on) { if (useApp.getState().clickPlacesCursor) useApp.setState({ cursor: { ...c, on: true, t1: v, active: 1 } }); return; }
       if (e.shiftKey || (c.dual && c.t2 !== null && c.t1 !== null && Math.abs(v - c.t2) < Math.abs(v - c.t1))) {
         useApp.setState({ cursor: { ...c, dual: true, t2: v, active: 2 } });
       } else useApp.setState({ cursor: { ...c, t1: v, active: 1 } });

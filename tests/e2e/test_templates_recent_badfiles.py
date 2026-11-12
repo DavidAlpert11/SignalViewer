@@ -14,7 +14,7 @@ from test_features import S, template_strip, env, goto_folder, menu_item, open_f
 def test_templates_in_file_panel_for_csv(pg):
     open_files(pg, "run_a.csv")
     # the flight-log panel is not needed: the file panel offers templates for a plain CSV
-    strip = pg.locator(".tpl-strip")
+    strip = pg.locator(".plot-empty-start .tpl-chips")              # W3: in the empty plot, where the eye is
     strip.wait_for()
     assert strip.locator(".chipbtn").count() >= 1               # at least "Quick look"
     strip.locator(".chipbtn").first.click(button="right")         # T48: right-click = the library on it
@@ -23,7 +23,7 @@ def test_templates_in_file_panel_for_csv(pg):
     strip.locator(".chipbtn").first.click()                       # a click opens it at once (one file)
     pg.wait_for_function("window.__sv.state().ws.tabs.some(t => t.plots.some(p => p.signals.length))")
     template_strip(pg)                                            # 26.U3: folded once something is plotted
-    strip.locator(".linkbtn").click()                             # "All templates…"
+    pg.locator(".tpl-strip .linkbtn").click()                     # "All templates…" (W3: the file panel's strip now)
     pg.wait_for_selector(".tpl-lib")
 
 

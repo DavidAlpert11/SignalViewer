@@ -891,6 +891,11 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] W2 The pictures made by the tool (`make_readme_media.py --only examples`). Done 2026-11-13 (FINAL reruns it for all cards).
 
 <!-- lane L2 -->
+- [x] W3 The chips in the empty plot (one place at a time; the start card's Quick look removed). Done 2026-11-13.
+- [x] W4 The start card's next step. Done 2026-11-13.
+- [x] W5 *Click places the cursor* (default off). Done 2026-11-13.
+- [x] W6 The status bar's sentence. Done 2026-11-13.
+- [x] W13.5 Empty states (plot, file list, findings). Done 2026-11-13.
 
 <!-- lane L3 -->
 - [x] W14 core: `svcore/sweeps_common.py` (vectorised; reference with loops in the tests), mapping, `/api/sweeps/common`, `study rank`; the drone example. Done 2026-11-13 (panel: L5).

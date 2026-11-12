@@ -32,7 +32,10 @@ export default function StatusBar() {
     <footer className="status" role="status">
       <span>{runs.length === 1 ? t("filesOpenOne") : t("filesOpen", { n: runs.length })}</span>
       <span>{t("samples", { n: fmtInt(samples, lang) })}</span>
-      {d && d.total > 0 && <span title={d.shown < d.total ? t("shownPointsHint") : undefined}>{d.shown < d.total ? t("shownPoints", { n: fmtInt(d.shown, lang), total: fmtInt(d.total, lang) }) : t("allPoints")}</span>}
+      {/* W6: a sentence; the numbers one hover away */}
+      {d && d.total > 0 && <span className="status-points" data-reduced={d.shown < d.total ? "1" : "0"}
+        title={d.shown < d.total ? `${t("shownPoints", { n: fmtInt(d.shown, lang), total: fmtInt(d.total, lang) })}. ${t("shownPointsHint")}` : t("statusEveryHint", { total: fmtInt(d.total, lang) })}>
+        {d.shown < d.total ? t("statusReduced") : t("allPoints")}</span>}
       {busy > 0 && <span>{t("loading")}</span>}
       <span style={{ flex: 1 }} />
       {/* 26.U8: the event ] / [ went to, while the cursor is on it */}

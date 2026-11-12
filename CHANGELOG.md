@@ -13,6 +13,12 @@
   The pictures are made by the app itself (`tools/make_readme_media.py --only examples`).
 
 <!-- lane L2 -->
+- **The first minute with your own file**: an empty plot offers the views that fit the open files (*Quick
+  look* and the templates) in its middle, where the eye is; the file panel's strip takes over once something
+  is plotted. The start card names the next step for the file (compare the files, the log's findings, judge
+  it against a golden run). The status bar says *Shown reduced (min–max) – zoom in for every sample* (the
+  numbers on hover). An empty file list and a log with no findings each offer one action.
+- **Settings → Click places the cursor** (off by default): the first click on a plot puts the cursor there.
 
 <!-- lane L3 -->
 - **One parameter set for many systems** (Sweeps): give N sweep tables - each with its own scenarios,

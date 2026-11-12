@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { tabHasContent, useApp, fileLabel } from "../store";
 import { fmtNum, useT } from "../i18n";
 import { Icon } from "../icons";
@@ -19,15 +19,12 @@ export default function StartCard() {
   const card = useApp((s) => s.startCard);
   const runs = useApp((s) => s.runs);
   const open = useApp((s) => s.findingsOpen);
-  // the Quick look is for an empty workspace: the user's first own line answers it - the card leaves
-  // (findings, if any, stay docked)
-  const plotted = useApp((s) => s.ws.tabs.some(tabHasContent));
-  // ... and any suggested view is for the start: with two tabs of the user's own (a comparison's tabs,
-  // a plot moved to a new tab) it was still floating over them, on every tab
+  // a suggested view is for the start: with two tabs of the user's own (a comparison's tabs, a plot
+  // moved to a new tab) it was still floating over them, on every tab
   const underWay = useApp((s) => s.ws.tabs.filter(tabHasContent).length >= 2);
   useEffect(() => {
-    if (card?.template && !card.files && ((card.quick && plotted) || underWay)) useApp.setState({ startCard: card.health?.length || card.golden ? { ...card, template: null, quick: false } : null });
-  }, [card, plotted, underWay]);
+    if (card?.template && !card.files && underWay) useApp.setState({ startCard: card.health?.length || card.golden ? { ...card, template: null } : null });
+  }, [card, underWay]);
   if (!card || !runs.some((r) => r.id === card.runId)) return null;
   if (!card.template && !card.golden && !open) return null;   // docked: FindingsDock
   // findings only: X folds them back into the dock; with a suggestion it closes the card, as before
@@ -43,6 +40,7 @@ export default function StartCard() {
         <h3>{t("startTitle")} <span className="muted">{card.files ? t("startFiles", { n: card.files }) : fileLabel(runs, card.runId)}</span></h3>
         <button className="iconbtn" onClick={close} aria-label={t("close")} title={t("close")}><Icon.X /></button>
       </div>
+      <NextStep card={card} />
       {card.golden && (
         <div className="start-tpl start-judge">
           <p>★ <b>{t("startJudge", { name: card.golden.name })}</b>
@@ -53,7 +51,7 @@ export default function StartCard() {
       {card.template && (
         <div className="start-tpl">
           <p>{t("startSuggest")} <b>{tx(card.template.name, lang)}</b>
-            <span className="muted"> · {card.files ? t("startCompare") : card.quick ? t("startQuick") : t("startFits", { p: fmtNum(Math.round(card.template.fit * 100), lang) })}</span></p>
+            <span className="muted"> · {card.files ? t("startCompare") : t("startFits", { p: fmtNum(Math.round(card.template.fit * 100), lang) })}</span></p>
           <div className="arow">
             <button className={`btn ${card.golden ? "outline" : "primary"}`} onClick={() => openSuggested(card)}>{t("startOpen")}</button>
             <button className="btn outline" onClick={() => { openTemplates(card.template!.id); close(); }}>{t("startOther")}</button>
@@ -94,4 +92,26 @@ export function FindingsDock() {
         title={t("findingsHide")} aria-label={t("findingsHide")}><Icon.X width={12} height={12} /></button>
     </span>
   );
+}
+
+/* W4: the start card's second line names the next step for this file - several files: Compare; a flight log
+   with findings: its N findings; a golden run fits: Judge it; otherwise nothing. One sentence, a link to the
+   place; each reason is said once per session. */
+const said = new Set<string>();
+type Next = { reason: string; text: string; link: string; go: () => void };
+export function nextStepOf(t: ReturnType<typeof useT>, card: NonNullable<ReturnType<typeof useApp.getState>["startCard"]>): Next | null {
+  if (card.files && card.files >= 2) return { reason: "compare", text: t("nextCompare", { n: card.files }), link: t("nextCompareLink"), go: () => useApp.setState({ panel: "compare" }) };
+  if (card.health?.length) return { reason: "findings", text: card.health.length === 1 ? t("nextFindingsOne") : t("nextFindings", { n: card.health.length }),
+    link: t("nextFindingsLink"), go: () => useApp.setState({ panel: "log" }) };
+  if (card.golden) return { reason: "judge", text: t("nextJudge", { name: card.golden.name }), link: t("nextJudgeLink"), go: () => { const g = card.golden!; useApp.setState({ startCard: { ...card, golden: null } }); void judgeAgainst(card.runId, g); } };
+  return null;
+}
+
+function NextStep({ card }: { card: NonNullable<ReturnType<typeof useApp.getState>["startCard"]> }) {
+  const t = useT();
+  const next = nextStepOf(t, card);
+  // once per session per reason: the first card that has it keeps it while it is open
+  const [mine] = useState(() => (next && !said.has(next.reason) ? (said.add(next.reason), next.reason) : null));
+  if (!next || next.reason !== mine) return null;
+  return <p className="start-next" data-reason={next.reason}>{next.text} · <button className="linklike" onClick={next.go}>{next.link}</button></p>;
 }

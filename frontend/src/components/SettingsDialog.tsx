@@ -96,6 +96,7 @@ export default function SettingsDialog() {
   const timeFormat = useApp((s) => s.timeFormat);
   const smoothFollow = useApp((s) => s.smoothFollow);
   const askBeforeClose = useApp((s) => s.askBeforeClose);
+  const clickPlacesCursor = useApp((s) => s.clickPlacesCursor);
   const lineWidth = useApp((s) => s.lineWidth);
   const lineStyle = useApp((s) => s.lineStyle);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
@@ -139,6 +140,8 @@ export default function SettingsDialog() {
           <div className="set-row"><span>{t("setSmoothFollow")}<small>{t("setSmoothFollowHint")}</small></span>
             {seg(smoothFollow ? "on" : "off", [["on", t("setSmoothFollowOn")], ["off", t("setSmoothFollowOff")]], (v) => useApp.setState({ smoothFollow: v === "on" }), t("setSmoothFollow"))}</div>
           {/* --- lane L2 --- */}
+          <div className="set-row"><span>{t("setClickCursor")}<small>{t("setClickCursorHint")}</small></span>
+            {seg(clickPlacesCursor ? "on" : "off", [["on", t("setClickCursorOn")], ["off", t("setClickCursorOff")]], (v) => useApp.setState({ clickPlacesCursor: v === "on" }), t("setClickCursor"))}</div>
 
           {/* --- lane L6 --- */}
           <div className="set-row"><span>{t("setAskClose")}<small>{t("setAskCloseHint")}</small></span>

@@ -265,7 +265,7 @@ def test_compare_open_files_gives_each_file_its_colour(page, server):
     """F13: a template without stored colours (Compare open files) gave every signal the same
     colour - the runs could not be told apart. Now each file has one colour, the same in every plot."""
     _open(page, server["data"], ["run_a.csv", "run_b.csv", "run_c.csv"])
-    page.locator(".tpl-strip .chipbtn", has_text="Compare open files").click()      # T48: opens at once
+    page.locator(".tpl-chips .chipbtn", has_text="Compare open files").click()      # T48: opens at once
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length === 3))")
     plots = page.evaluate("""window.__sv.state().ws.tabs.flatMap((t) => t.plots).filter((p) => p.signals.length)
         .map((p) => p.signals.map((s) => [s.sig.split('/')[0], s.color]))""")
@@ -533,13 +533,13 @@ def test_template_chip_opens_at_once_or_asks(page, server):
     _open(page, server["data"], ["run_a.csv"])
     page.evaluate("window.__sv.state().clearAllPlots ? 0 : 0")
     page.locator(".stage-more").click(); page.locator(".menu.ctx button", has_text="Clear all plots").click()     # U7: in the stage bar's ⋯
-    page.locator(".tpl-strip .chipbtn", has_text="Quick look").click()
+    page.locator(".tpl-chips .chipbtn", has_text="Quick look").click()
     page.wait_for_function("window.__sv.state().ws.tabs.some((t) => t.plots.some((p) => p.signals.length))")
     assert page.locator(".dialog").count() == 0
     page.locator(".toast", has_text="Quick look").wait_for()
     _open(page, server["data"], ["run_b.csv"])
     page.locator(".tpl-strip-fold").click()                                 # U7: folded while plots show
-    page.locator(".tpl-strip .chipbtn", has_text="Quick look").click()
+    page.locator(".tpl-chips .chipbtn", has_text="Quick look").click()
     page.locator(".dialog", has_text="Templates").wait_for()               # which file? - the library asks
 
 
@@ -590,7 +590,7 @@ def test_builtin_templates_in_hebrew(page, server):
     _open(page, server["data"], ["run_a.csv"])
     page.get_by_role("button", name="עברית").click()
     page.wait_for_function("document.documentElement.dir === 'rtl'")
-    chip = page.locator(".tpl-strip .chipbtn", has_text="מבט מהיר")
+    chip = page.locator(".tpl-chips .chipbtn", has_text="מבט מהיר")
     chip.wait_for()
     page.locator(".stage-more").click(); page.locator(".menu.ctx button").nth(1).click()     # U7: ⋯ > clear the plots (in Hebrew)
     chip.click()
