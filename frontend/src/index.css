@@ -882,7 +882,7 @@ table.cmp-sub tr.base td { color: var(--muted); }
 .xyz-hint { position: absolute; left: 8px; bottom: 4px; font-size: var(--fs-2xs); color: var(--muted); pointer-events: none; }
 /* P4: the Map drawn flat (no WebGL) says so, quietly; the 3D view's mouse readout sits where the flat one did */
 .map-flat-note { position: absolute; inset-inline-start: 50%; bottom: 8px; transform: translateX(-50%); z-index: 3; padding: 1px 8px; border-radius: var(--r-s); background: var(--raised); color: var(--muted); font-size: var(--fs-s); pointer-events: none; }
-.g3-readout { top: auto; bottom: 34px; z-index: 3; }
+.geo-readout.g3-readout { top: auto; bottom: 34px; z-index: 3; }   /* two classes: wins over .geo-readout's top whatever the order (else top + bottom stretch it over the map) */
 .geo-readout { position: absolute; inset-inline-end: 8px; top: 6px; padding: 1px 6px; border-radius: var(--r-s); background: var(--raised); color: var(--muted); font-variant-numeric: tabular-nums; font-size: var(--fs-m); pointer-events: none; direction: ltr; }
 
 /* draggable divider of the side panels */
