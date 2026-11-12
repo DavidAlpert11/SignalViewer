@@ -399,7 +399,7 @@ def rank(s: studies.Study, frames: Optional[Dict[str, pd.DataFrame]] = None) -> 
     mode = combine_mode(s)
     rows: List[Dict[str, Any]] = []
     for v in values:
-        per = []
+        per: List[Dict[str, Any]] = []
         for td, a in zip(tds, answers):
             r = a.by_s.get(v)
             if r is None:

@@ -13,6 +13,32 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Round of 2026-11-13 (1.27.0 prepared, not tagged)**: spec and status box `docs/dev/AGENT_PROMPT_2026-11-13.md`,
+  plan `docs/dev/PLAN_2026-11-13.md`, per-lane notes `docs/dev/lanes/*.md`, e2e map `docs/dev/E2E_MAP.md`. Done in
+  one session (stacked branches `sv1113/base` → `l3` → `l4` → `l6` → `l1` → `l5` → `l2` → `l7` → `l8` → `release`;
+  pushing was refused in the sandbox – the round comes as one patch). W0 contracts (the study file
+  `.svstudy.json` + schema, `/api/sweeps/*`, `python -m signalviewer.study`), W11 (flaky e2e: state hooks
+  `__svSweeps.idle()/saved()`), W14/W15 (`svcore/sweeps_common.py`, `sweeps_next.py`), W17/W18
+  (`svcore/launcher.py`, `placeholders.py`, `demo.py`, `examples/smart_sweep_demo/`), the Sweeps → Common
+  parameters panel and the demo view, W1/W2 (pictures on the welcome cards), W3–W6 (the first minute), W8/W10
+  (palette, ask before closing), W7/W9/W13 (polish, motion), W16 (a calmer screen; T49 and T50 closed), W12.
+  Not verified here: the Portable (`SignalViewer.exe study …`), the pywebview close prompt, a real launcher,
+  W13.3 (not shipped). See the Log line of 2026-11-13 and the final report.
+- **Repository size – a proposal (owner's decision; nothing moved)**: the pack is 226 MB for 383 commits.
+  What each part adds to the history (all versions, on disk): `docs/media` **142 MB**, `docs/images` 46 MB,
+  `backend` 19.5 MB, `frontend/dist` 10 MB, `examples` 4.8 MB. The videos and GIFs are the size, not the build.
+  (a) Build `frontend/dist` in the release workflow (not committed): saves ~10 MB of history growth (~1 MB a
+  release); breaks offline `pip install` from a git checkout and `run.py` without Node (it falls back to
+  building; a checkout without Node could not start) – keep a built `dist` in the sdist/wheel and the Portable
+  only. (b) Git LFS for `docs/media` + `docs/images`: a clone drops from ~226 MB to ~40 MB (LFS files fetched on
+  demand); needs LFS on every machine that builds docs or the README pictures; GitHub's free LFS quota (1 GB
+  storage / 1 GB transfer a month) is enough today. (c) Docs media only on `gh-pages` (README links to the
+  published pictures): the main history stops growing by ~10–20 MB a release; the README shows pictures only
+  online (GitHub renders the links), the offline docs (`mkdocs serve`) lose the videos. Either way the past
+  history keeps its 190 MB unless it is rewritten (a filter-repo pass, as on 2026-11-13). Recommendation: (c) for
+  `docs/media` (the videos are for the web anyway) + keep `dist` committed (offline install matters more than
+  1 MB a release).
+
 - **Round of 2026-11-12 (done, 1.26.0 - ready to release)**: spec and status box `docs/dev/AGENT_PROMPT_2026-11-12.md`.
   **Group A done** (one patch on `5e2e8ff`): P1 Tacview that opens and shows models (owner: "some objects
   show as triangles" - Tacview draws an unknown `Name` as its generic triangle; each kind now has a model
@@ -3622,6 +3648,7 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 
 ## Log
 
+
 - 2026-10-15 · T17f frames as one nested group + preview (in the plot, a plot per axis under
   the grid) + "Add the result to" · `7400e45`, `2a4c321`, dist `80fc362` · done.
 - 2026-10-15 · This file created; queue Q1–Q11 · next: Q1.
@@ -4010,3 +4037,4 @@ https://davidalpert11.github.io/SignalViewer/ (the README badge and links alread
 - 2026-11-11 · Round of 2026-11-11 (1.26.0): one Map with 2D | 3D (the owner: one switch; "3D" is XYZ), `pagePlot` (a 3D view was dropped from reports without a word), `app/scene3d.py` + `report_assets/scene3d.html` (three.js r159 - the owner chose it), every HTML report live (`replay.compact / link`), `sv.scene_image / scene_html`, `cli map --3d`; the pre-existing token failure (`.tl-edge::after` 2px radius) fixed. Backend 1140 passed / 14 skipped, mypy clean, tsc clean, Vitest 21 files / 132 tests; e2e (relevant files only, 61) green - the whole suite is the owner's.
 - 2026-11-11 · 1.26 after the owner's review: the offline pages share one toolbar (camera Free / Centre / Close, object, + − ⤢, Relation, theme) and the app's relation box (`relation.js`, `mappage.css`); 3D tracks as screen-width lines with the app's looks; the app's 3D view has the relation box (pair chosen there, `Plot.relHidden`, `RelationToggle` in both bars; a third object stays in the data box); `docs/validation.md` regenerated (the version). Backend 1135 passed / 14 skipped, mypy clean, Vitest 132; e2e: test_live_report, test_globe3d (3 adapted: the picker moved into the box), test_object_relations, test_map_export, test_replay, test_less_clutter, test_map_objects, test_object_templates, test_hover_ghost - green.
 - 2026-11-11 · 1.26, the owner's "continue": `components/MapBar.tsx` - one bar for the map in 2D and 3D (camera General / On the object / Chase on a chosen object, + − fit, Relation; 2D Chase = close + track up via `trackUpOf`; 3D `zoom3d`); "Closest in" goes to the moment (app `RelationPanel`, pages `svSeek` → viewer.js `replay-seek`); pages: Trail (`svTrail`), attitude indicator (3D), the address keeps the view (`svHash`), the app's camera words. Backend 1135 passed / 14 skipped, mypy clean, Vitest 132; e2e green: test_live_report (3), test_globe3d, test_map_smooth, test_object_relations, test_less_clutter, test_map_objects, test_offline_map, test_hover_ghost, test_object_templates (one timeout in the long batch, green alone twice), test_map_export, test_replay, test_features / test_heuristics / test_object_frames / test_local_objects (-k map, mode, report, 3D).
+- 2026-11-13 · Round 2026-11-13 (W0, L1–L8, FINAL) – 1.27.0 prepared: see the status box in `docs/dev/AGENT_PROMPT_2026-11-13.md` and `docs/dev/lanes/final.md` for every check run (quick_check green: tsc, Vitest 173, backend 1263 passed / 14 skipped, mypy; the e2e files of `E2E_MAP.md`; W11's two files 10×) · next: the owner applies the patch, checks the Portable / pywebview close / a real launcher, tags v1.27.0.

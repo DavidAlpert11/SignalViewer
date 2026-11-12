@@ -883,45 +883,35 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [ ] Next (owner to choose): the default theme / language of an exported page, *Ask before closing with unsaved changes*, the app's *Heights* (Cesium exaggeration with the tracks), arrows in 3D, the mouse readout in the offline 3D page, the frame-rate check of P9 on a real graphics card; the ideas of the spec's §H.
 
 ## Milestone 31 — welcome pictures, the first minute, one gain set for many systems, the farm, a calmer screen, a "wow" pass (owner's round 2026-11-13). Spec: docs/dev/AGENT_PROMPT_2026-11-13.md; plan: docs/dev/PLAN_2026-11-13.md.
-<!-- lane W0 -->
 - [x] W11 The two flaky e2e files (wait on state, not a sleep), `tools/quick_check.py`, `docs/dev/E2E_MAP.md`. Code done 2026-11-13; the 10-of-10 measurement is FINAL's.
 
-<!-- lane L1 -->
 - [x] W1 Example cards with a picture (both themes, fallback to the icon card, 3 / 2 / 1 columns). Done 2026-11-13.
 - [x] W2 The pictures made by the tool (`make_readme_media.py --only examples`). Done 2026-11-13 (FINAL reruns it for all cards).
 
-<!-- lane L2 -->
 - [x] W3 The chips in the empty plot (one place at a time; the start card's Quick look removed). Done 2026-11-13.
 - [x] W4 The start card's next step. Done 2026-11-13.
 - [x] W5 *Click places the cursor* (default off). Done 2026-11-13.
 - [x] W6 The status bar's sentence. Done 2026-11-13.
 - [x] W13.5 Empty states (plot, file list, findings). Done 2026-11-13.
 
-<!-- lane L3 -->
 - [x] W14 core: `svcore/sweeps_common.py` (vectorised; reference with loops in the tests), mapping, `/api/sweeps/common`, `study rank`; the drone example. Done 2026-11-13 (panel: L5).
 - [x] W15 core: `svcore/sweeps_next.py`, `/api/sweeps/next-runs`, `study next / status`; the CLI loop finds the fine-grid optimum in 4 rounds of 20. Done 2026-11-13 (button: L5).
 
-<!-- lane L4 -->
 - [x] W17 engine: `svcore/placeholders.py`, `svcore/launcher.py`, `/api/sweeps/launcher/*`, `study submit / wait / loop`, `tools/launcher_mock.py`, run.py `study` routing. Done 2026-11-13 (button: L5; the Portable and a real launcher: owner).
 - [x] W18 engine: `examples/smart_sweep_demo/`, `svcore/demo.py`, `/api/sweeps/demo/*`, `study demo / demo-sim`. Done 2026-11-13 (view: L5, card: L1).
 
-<!-- lane L5 -->
 - [x] W14 panel, W15 *Suggest next runs*, W17 *Send to launcher* + run states, W18 demo view (`StudyPanel.tsx`, `DemoView.tsx`, `SpaceView.tsx`, `ConvergenceChart.tsx`, `sweeps/studyStore.ts`). Done 2026-11-13.
 
-<!-- lane L6 -->
 - [x] W8 Command palette: recent first, group headers, keys column, icons. Done 2026-11-13.
 - [x] W10 Ask before closing with unsaved changes (revision counter, browser prompt, window dialog, setting). Done 2026-11-13 (the pywebview close: needs a manual check).
 
-<!-- lane L7 -->
 - [x] W7 Two cursors' bar in the plot's head. Done 2026-11-13.
 - [x] W9 "+8 views", dimmed message part, 3D labels declutter by priority. Done 2026-11-13.
 - [x] W13.2 draw-in, W13.4 skeletons, W13.6 readout, W13.9 performance test (threshold set in FINAL). Done 2026-11-13.
 - [ ] W13.3 Smooth zoom / pan easing - not shipped: 60 fps on a 1M-sample signal cannot be measured in a headless browser (software rendering, no real frame rate).
 - [x] T49 item 10 the cursor buttons next to the zoom (icons + tooltips). Done 2026-11-13.
 
-<!-- lane L8 -->
 - [x] W16 A calmer screen: the audit (`tools/count_controls.py`, before → after: welcome 44 → 42, plotted 118 → 116, Settings 59 → 58, Sweeps 14 → 12), the moved controls; T49 ticked (item 10 in L7), T50's hint. Done 2026-11-13.
 - [x] W13.7 Focus-visible and pressed states, card lift. Done 2026-11-13.
 - [x] W13.8 The tour. Done 2026-11-13.
 
-<!-- lane FINAL -->

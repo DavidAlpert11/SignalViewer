@@ -29,10 +29,12 @@ def test_fewer_buttons_and_clearer_words(pg):
     assert controls <= 54, controls               # 26.U3: 58 -> 54 (the folded template strip, the strip's + / hide on hover)
     assert total < 90, total                      # 107 on 1.21.0; the rest is data (see TASKS U7)
     # the count of drawn points comes with the plot's data (after the file's sample count)
-    pg.wait_for_function("document.querySelector('.status')?.innerText.includes('drawn for')")
+    # W6 (2026-11-13): a sentence; the numbers in its tooltip
+    pg.wait_for_selector(".status .status-points[data-reduced='1']")
     status = pg.locator(".status").inner_text()
     assert "1 file" in status and "1 files" not in status
-    assert "drawn for" in status and "Showing" not in status
+    assert "Shown reduced" in status and "Showing" not in status
+    assert "drawn for" in pg.locator(".status .status-points").get_attribute("title")
     # the strip's how-to line until it is first used; automatic flags say what they are
     assert pg.locator(".ov-hint").count() == 1
     assert "Automatic flag" in (pg.locator(".ov-flag").first.get_attribute("title") or "")

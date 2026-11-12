@@ -2,6 +2,8 @@
 
 | | |
 |---|---|
+| <img src="images/38_welcome_cards.png" alt="The welcome screen with a picture on every example"><br>**The welcome screen** (1.27) – every example with a picture of what it opens | <img src="images/39_smart_sweep_demo.png" alt="The smart-sweep demo converging against the full grid"><br>**The smart-sweep demo** – the next runs converge on the full grid's optimum with ~64× fewer runs |
+| <img src="images/40_common_gains.png" alt="One set of gains for three drones"><br>**One set of gains for three drones** – the values that hold in every table, why the others fail, the runs of a value | |
 | <img src="images/32_replay_page.png" alt="A replay page in the browser"><br>**Replay page** (1.25) – the tab as one page to send: map and plots on one cursor, Play, the log's marks | <img src="images/33_send_replay_delta.png" alt="Send it as a replay, Δ in the chips, the window on the timeline"><br>**Send it as a replay** – from the Report panel; two cursors with Δ in every chip, the plots' window on the timeline |
 | <img src="images/05_map_and_3d.png" alt="Map and 3D view side by side"><br>**Map + 3D** – offline map with terrain, roads and place names; 3D view with the vehicle and a live data box | <img src="images/06_3d_terrain.png" alt="3D terrain view"><br>**3D terrain** – the bundled elevation (the Jordan rift really is below sea level) |
 | <img src="images/03_compare_runs.png" alt="Compare runs"><br>**Compare** – similarity list, overlay of every run, RMS Δ / max Δ / correlation per run | <img src="images/04_comparison_table.png" alt="Comparison table"><br>**Comparison table** – every shared signal, coloured by how different it is |

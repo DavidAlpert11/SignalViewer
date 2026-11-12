@@ -1,78 +1,70 @@
 # Changelog
 
-## 1.27.0 – unreleased
+## 1.27.0 – 2026-11-13
 
-<!-- lane W0 -->
-- The study file (`.svstudy.json`, version 1, `docs/dev/study.schema.json`): one definition of a "one parameter
-  set for many systems" study, read by the Sweeps panel, the API and the `study` command line.
+Highlights: **one set of parameters for many systems** – give several sweep tables (three drones, say) and get
+the gains that hold for all of them, the next runs that improve the choice, and the loop on your own farm
+launcher; **the smart-sweep demo** shows it converge on your PC against the whole grid; **a welcome screen with
+pictures**, a first minute that says what to do next, and a calmer screen.
 
-<!-- lane L1 -->
-- **The welcome screen's examples show what they are**: each card has a picture of the example's view (light and
-  dark, the same in every language), the title and a line under it; 3 cards a row on a wide screen, 2 on a
-  laptop, 1 on a narrow window. Two new examples: **one gain set, three drones** and the **smart sweep demo**.
-  The pictures are made by the app itself (`tools/make_readme_media.py --only examples`).
+### Welcome
+- **The examples show what they are**: each card has a picture of the example's view (light and dark, the same
+  in every language), the title and a line under it; 3 cards a row on a wide screen, 2 on a laptop, 1 on a
+  narrow window. Two new examples: **one gain set, three drones** and the **smart sweep demo**. The pictures
+  are made by the app itself (`tools/make_readme_media.py --only examples`).
+- **A 30-second tour** for a new user (four marks, skippable, shown once; Help → *Tour* shows it again).
 
-<!-- lane L2 -->
-- **The first minute with your own file**: an empty plot offers the views that fit the open files (*Quick
-  look* and the templates) in its middle, where the eye is; the file panel's strip takes over once something
-  is plotted. The start card names the next step for the file (compare the files, the log's findings, judge
-  it against a golden run). The status bar says *Shown reduced (min–max) – zoom in for every sample* (the
-  numbers on hover). An empty file list and a log with no findings each offer one action.
+### The first minute with your own file
+- An empty plot offers the views that fit the open files (*Quick look* and the templates) in its middle,
+  where the eye is; the file panel's strip takes over once something is plotted.
+- The start card names the next step for the file: compare the files, the log's findings, or judge it against
+  a golden run.
+- The status bar says *Shown reduced (min–max) – zoom in for every sample* – the numbers on hover.
+- An empty file list and a log with no findings each say what to do.
 - **Settings → Click places the cursor** (off by default): the first click on a plot puts the cursor there.
 
-<!-- lane L3 -->
-- **One parameter set for many systems** (Sweeps): give N sweep tables - each with its own scenarios,
-  constraints and goal - and get the values of the shared parameters that hold in every table, ranked by the
-  worst table (one goal) or on a Pareto front (different goals); each rejected value says which table,
-  scenario and constraint failed and by how much; similar column names (`P_gain` / `Kp`) are paired.
-- **Next runs to try**: the next batch of candidate values (refine / boundary / gap, each with its reason),
-  inside the search space, written per table with a stable `run_id`; `python -m signalviewer.study rank /
-  next / status`.
-- Example data: three drones, one set of gains (`examples/drones/`, `tools/make_drone_sweeps.py`).
+### Sweeps and the farm
+- **Sweeps → Common parameters** (Open ▾): N sweep tables, each with its own scenarios, constraints and goal;
+  the values of the shared parameters that hold in every table, ranked by the worst table (one goal) or on a
+  Pareto front (different goals); each rejected value says which table, scenario and constraint failed and by
+  how much; similar names (`P_gain` / `Kp`) are paired; a value's runs, the deciding one marked; CSV export.
+  The whole question is a study file (`.svstudy.json`) built in the panel – the same file the API and the
+  command line read.
+- **Suggest next runs**: the next batch of candidate values (refine / boundary / gap, each with its reason)
+  inside the search space, written per table with a stable `run_id`; done runs are recognised when their
+  results come back.
+- **Launcher mode**: hand a round to your own farm launcher – a parameters file per run from your template
+  (`{{column}}` placeholders, XML / JSON escaped), your launcher's command line (shown once a session, run
+  without a shell), results found by `run_id` or by values, failure markers and a timeout, or a local pool of
+  workers on this PC. `tools/launcher_mock.py` to try it without a farm.
+- **The smart-sweep demo**: a real (standard-library) simulator, a coarse start grid, then rounds of 20
+  candidates; the workers filling and emptying, the tried gains by round, the convergence chart against the
+  full grid, and the result in one sentence (here: the full-grid optimum after 1,728 runs instead of 111,132).
+- Command line: `python -m signalviewer.study rank | next | status | submit | wait | loop | demo | demo-sim`,
+  also `SignalViewer.exe study …` from the Portable. Example data: `examples/drones/`, `examples/smart_sweep_demo/`.
 
-<!-- lane L4 -->
-- **Launcher mode**: hand a study's runs to your own farm launcher – a parameters file per run from your template
-  (`{{column}}` placeholders, XML / JSON escaped), your launcher's command line (no shell), results found by
-  `run_id` or by values, failure markers and a timeout, or a local pool of workers on this PC;
-  `study submit / wait / loop`, also as `SignalViewer.exe study …` from the Portable. `tools/launcher_mock.py`
-  to try it without a farm.
-- **The smart-sweep demo engine**: a real (stdlib) simulator, the start grid, the full-grid reference and the
-  saving; `study demo` prints each round and the result sentence.
+### Polish
+- **A calmer screen**: fewer controls on the welcome screen, a plotted tab, Settings and Sweeps, nothing taken
+  away – *Link value axes* is in the plot bar's ⋯ menu (and shows while on), the keyboard shortcuts in Help and
+  on the ? key, Settings' *Storage* folded, the Sweeps welcome opens a table (a folder or a saved study from
+  Open ▾). A plot area too short to read says so and offers one plot at a time.
+- With two cursors their bar (note, find similar, what changed) sits in the plot's head, right of the legend,
+  and no longer covers the log's event texts; the cursor buttons sit next to the zoom.
+- The command palette (Ctrl+K) with nothing typed: your last 5 commands, then every command under its group's
+  header; shortcuts in a column of their own; an icon on every row.
+- The tab bar's badge reads "+8 views"; a flight log's signals listed flat show their message part dimmed; in
+  3D the log's event labels make way for the objects' names and the modes.
 
-<!-- lane L5 -->
-- **Sweeps → Common parameters** (Open ▾): build a study of several sweep tables in the panel – the columns'
-  roles, paired names, constraints, goal, scenario values left out, the search space – save it as a
-  `.svstudy.json`, and see the ranked values (holds / fails per table, the score, the local choice, the deciding
-  scenario, why a value fails), the shared values' space, and the runs of a value with the deciding one marked;
-  CSV export; Undo / Redo of every edit.
-- **Suggest next runs** writes the next round (20 candidate values, each with its reason, shown in the
-  ranking and on the space); **Send to launcher** shows the exact command once per session, runs it and shows
-  each run as submitted / done / failed / missing.
-- **The smart-sweep demo view**: Next round, Run until converged, Reset; the workers filling and emptying, the
-  tried gains by round, the convergence chart against the full grid, and the result in one sentence.
-
-<!-- lane L6 -->
+### Safety
 - **Ask before closing with unsaved changes**: closing the window when the work is not in a session file asks
   *Save / Don't save / Cancel* (in a browser tab, the browser's own question); Undo back to what was saved
   counts as saved; Settings can turn it off. Autosave stays as it was.
-- **The command palette** (Ctrl+K) with nothing typed: your last 5 commands first, then every command under
-  its group's header; shortcuts in a column of their own; an icon on every row.
 
-<!-- lane L7 -->
-- **Plots, polished**: with two cursors their bar (note, find similar, what changed) sits in the plot's head,
-  right of the legend, and no longer covers the log's event texts; a tab's plots draw in once, left to right,
-  the first time (never on a zoom; off for reduced motion and big data); a skeleton while a plot or the first
-  file loads; the cursor buttons sit next to the zoom; the tab bar's badge reads "+8 views"; a flight log's
-  signals listed flat show their message part dimmed; in 3D the log's event labels make way for the objects'
-  names and the modes where they would overlap.
-
-<!-- lane L8 -->
-- **A calmer screen**: fewer controls on the welcome screen, a plotted tab, Settings and Sweeps, nothing taken
-  away – *Link value axes* is in the plot bar's ⋯ menu (and shows while on), the keyboard shortcuts are in Help
-  and on the ? key, Settings' *Storage* is folded, the Sweeps welcome opens a table (a folder or a saved study
-  from Open ▾). A plot area too short to read says so and offers one plot at a time.
-- **Focus and press**: every kind of button shows a focus ring in both themes and presses in; cards lift alike.
-- **A 30-second tour** for a new user (four coach marks, skippable, once; Help → Tour shows it again).
+### Wow
+- A tab's plots draw in once, left to right, the first time (never on a zoom; off for reduced motion and big
+  data); skeletons while a plot or the first file loads; the cursor readout fades without jitter; every kind
+  of button shows a focus ring in both themes and presses in; cards lift alike. All motion follows *reduce
+  motion*.
 
 ## 1.26.0 – 2026-11-11
 
