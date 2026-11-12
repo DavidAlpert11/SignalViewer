@@ -114,6 +114,8 @@ curl -s localhost:8765/api/objects/similar -H 'Content-Type: application/json' -
 ```python
 sv.map_image(rec, path="map.png")      # offline basemap, tracks, legend, scale bar, north arrow, attribution
 sv.map_html(rec, path="map.html")      # opens with no network: pan, zoom, time slider, light / dark
+sv.tacview_csv(rec, folder="tacview")  # Tacview CSV files, one per object ("C172 (POS) [Blue].csv"); File > Open, File > Merge
+sv.kml(rec, path="flight.kml")         # Google Earth: a timed track per object (a line when the log has no dates)
 sv.report(rec, "report.pdf", compare=cmp)   # .html / .pdf / .docx: the map, the error plots, the statistics
 ```
 
@@ -125,6 +127,13 @@ signalviewer-cli compare-objects examples/ardupilot_lanes.csv --ref POS --map ma
 Over REST the map is the image export of a map plot (`POST /api/export/image` with `"plot": {"mode": "geo",
 "geo": {"objects": [{"name", "color", "lat", "lon", "alt"}], "base": "offline"}}`, `format` png / svg / html) and
 reports include such a plot (`POST /api/report`). The full reference with every field: `/api/docs` in the app.
+
+1.26: a map plot's `geo` also takes `places` (`[{name, kind: "point" | "line" | "area", lat, lon, alt?, points?}]`),
+`names`, `trackWidth` and `units` ("metric" / "imperial"); a live report's `replay` takes `story` (false: no
+Story) and `storyLength` (s). Places: `GET / PUT /api/places` (My places), `POST /api/places/import` and
+`/api/places/export` (`{path}`), `GET /api/places/parse?q=32°41'13"N 35°23'24"E`. Story mode's moments:
+`POST /api/story` (`{objects, places, primary, secondary, events, units, lang}`) - the same as
+`svcore.story.moments`.
 
 ## Naming your signals so objects are found
 

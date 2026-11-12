@@ -11,16 +11,17 @@ import shutil
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import S, env, menu_item, open_files, pg  # noqa: E402,F401
+from test_features import S, env, flat_maps, menu_item, open_files, pg  # noqa: E402,F401
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-GEO = "s.ws.tabs[0].plots.find((p) => p.mode === 'geo')"
+GEO = "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d'))"
 
 
 @pytest.fixture()
 def three(pg):
     shutil.copy(os.path.join(ROOT, "examples", "three_objects.csv"), pg.env["data"])
     open_files(pg, "three_objects.csv")
+    flat_maps(pg)                                                                 # P4: the rings on the flat drawing
     pg.locator(".obj-suggest-add").click()
     pg.wait_for_selector(".rel-panel")
     pg.evaluate("window.__sv.setState({ cursor: { ...window.__sv.state().cursor, on: true, t1: 60 } })")

@@ -6,6 +6,19 @@ export type StorageKind = "cache" | "uploads" | "tiles" | "memory";
 export type StorageInfo = Record<StorageKind, { path: string; bytes: number; limit?: number; kinds?: Record<string, { bytes: number; entries: number }> }>;
 /** The welcome screen's examples (backend routes/fs.py EXAMPLE_SETS). */
 export type ExampleId = "flight" | "twoFlights" | "car" | "ardupilot" | "simVsFlight" | "investigate";
+/** P1: what an export of a map's objects reports: the rate used (lowered for a long recording) and the
+ *  objects left out because they have no position (P2). */
+export interface FlightExport { path: string; objects: number; size?: number; rate: number; lowered: boolean; leftOut: string[] }
+
+/** P3: a message type the firmware wrote with another length than its FMT (written), or unreadable. */
+export interface FaultyMessage {
+  name: string;
+  declared?: number;          // the length its FMT says
+  written?: number;           // the length really written (or a type with no FMT: its length)
+  names?: number; fields?: number;   // its FMT lists `names` column names for `fields` values
+  noFormat?: boolean;         // no usable FMT at all: "#<type number>"
+}
+
 export interface SignalTransform { expr?: string; scale?: number; offset?: number; dt?: number;
   unit?: string }                          // the unit shown after a unit conversion (units.ts)
 export interface SignalInfo {
@@ -51,7 +64,7 @@ export interface RunInfo {
   timeAxis?: TimeAxisInfo;
   signals: SignalInfo[];
   report?: { skipped?: string[]; skippedColumns?: string[]; droppedRows?: number; sorted?: boolean; fromCache?: boolean; rememberedSettings?: boolean;
-    textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; damaged?: boolean; droppedMessages?: number; phantomInstances?: string[]; badTimestamps?: number; damagedParams?: number; damagedTexts?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
+    textColumns?: string[]; tooManyTexts?: string[]; timePairs?: number; vehicle?: string | null; corruptBytes?: number; damaged?: boolean; droppedMessages?: number; phantomInstances?: string[]; faultyMessages?: FaultyMessage[]; readableShare?: number; badTimestamps?: number; damagedParams?: number; damagedTexts?: number; cutOff?: boolean; damagedText?: boolean; damagedObjects?: number; noTime?: boolean; params?: number;
     paramValues?: Record<string, number>; logMessages?: { t: number; text: string }[] };
   description?: string;
   copy?: boolean;                        // opened from a dragged-in copy, not the original file
@@ -196,12 +209,16 @@ export interface ResolvedTab {
 /** A condition kept in a template (by signal NAME, so it holds in any file that has the names). */
 export interface TplCondition { id: string; name: string; color: string; text: string; exit?: string; minDur?: number; mergeGap?: number;
   combine?: { op: "and" | "or"; ids: string[] } }
+/** P10: one moment of a Story (svcore/story.py) */
+export interface StoryMoment { t: number; kind: string; title: string; text: string; object: string | null; level: string }
+
 export interface Template {
   version: 2; id: string; name: string; description?: string; group?: string;
   slots: TplSlot[]; tabs: TplTab[]; includes?: string[];
   /** U1: the tabs (by name, over the included templates too) opened without asking; absent = all */
   defaultTabs?: string[];
   conditions?: TplCondition[];       // the investigation's conditions: added (by name) when the template opens
+  places?: import("./store").Place[];   // P7: the session's places: added (by name and position) when the template opens
   generator?: "quicklook" | "compare" | "objects";   // built-in templates whose tabs are made from the files themselves
   builtin?: boolean; saved?: number; file?: string; broken?: boolean;
 }
@@ -386,13 +403,13 @@ export const api = {
     const { trackColor, colorSig, attitude, minSpeed, ...rest } = o;
     const colored = trackColor && trackColor !== "object" && colorSig;
     const r = await call<{ n: number; t: string; lat: string; lon: string; alt?: string; yaw?: string; pitch?: string; roll?: string;
-      course: string; ground?: string; color?: string; units: Record<string, "deg" | "rad">; derived?: "motion" }>("/api/object_track",
+      course: string; ground?: string; color?: string; units: Record<string, "deg" | "rad">; derived?: "motion"; valid?: number }>("/api/object_track",
       { ...rest, ...(colored ? { color: colorSig, colorStep: trackColor === "state" } : {}),
         ...(attitude === "motion" ? { attitude, ...(minSpeed !== undefined ? { minSpeed } : {}) } : {}) });
     const f = (s?: string) => (s ? decode(s, Float32Array) : null);
     return { n: r.n, t: decode(r.t, Float64Array), lat: decode(r.lat, Float64Array), lon: decode(r.lon, Float64Array),
       alt: f(r.alt), yaw: f(r.yaw), pitch: f(r.pitch), roll: f(r.roll), course: decode(r.course, Float32Array), ground: f(r.ground), units: r.units,
-      color: f(r.color), derived: r.derived ?? null };
+      color: f(r.color), derived: r.derived ?? null, valid: r.valid ?? null };
   },
   states: (signals: string[], x0: number | null, x1: number | null, bins = 1500) =>
     call<{ states: Record<string, { points: [number, number | null][]; tooMany: boolean; end: number | null }> }>("/api/states", { signals, x0, x1, bins }),
@@ -438,8 +455,27 @@ export const api = {
     call<{ signals: CompareAllRow[] }>("/api/compare/all", { runs, baselineRun, alignment, tolerances }),
   shift: (base: string, other: string) => call<{ shift: number }>("/api/compare/shift", { base, other }),
   /** N8: a map / 3D view's objects as a Tacview ACMI 2.2 text file */
-  exportAcmi: (path: string, title: string, objects: object[], rate = 10) =>
-    call<{ path: string; objects: number; size: number }>("/api/export/acmi", { path, title, objects, rate }),
+  exportAcmi: (path: string, title: string, objects: object[], rate = 10, places: object[] = []) =>
+    call<FlightExport>("/api/export/acmi", { path, title, objects, rate, places }),
+  /** P2: how many samples of each candidate are positions (before it is added) */
+  objectPositions: (objects: { lat: string; lon: string }[]) =>
+    call<{ objects: { valid: number; total: number }[] }>("/api/object_positions", { objects }),
+  /** P1: Tacview CSV files, one per object, into a folder */
+  exportTacviewCsv: (folder: string, title: string, objects: object[], rate = 10) =>
+    call<FlightExport & { files: string[] }>("/api/export/tacview_csv", { path: folder, title, objects, rate }),
+  /** P7: My places (the app's places.json), import / export, a typed position, the ground at a point */
+  myPlaces: () => call<{ places: import("./store").Place[]; path: string }>("/api/places"),
+  putMyPlaces: (places: import("./store").Place[]) => call<{ places: import("./store").Place[] }>("/api/places", { places }, "PUT"),
+  importPlaces: (path: string) => call<{ places: import("./store").Place[]; skipped: number }>("/api/places/import", { path }),
+  exportPlaces: (path: string, places: import("./store").Place[], title = "") => call<{ path: string; places: number }>("/api/places/export", { path, places, title }),
+  parsePlace: (q: string) => call<{ ok: boolean; lat?: number; lon?: number }>(`/api/places/parse?q=${encodeURIComponent(q)}`),
+  groundAt: (lat: number, lon: number) => call<{ ground: number | null }>(`/api/ground?lat=${lat}&lon=${lon}`),
+  /** P10: Story mode - the moments of a Map (its objects, the pair, places, the timeline's marks) */
+  story: (body: { objects: object[]; places: object[]; primary: string | null; secondary: string | null; events: object[]; units: string; lang: string }) =>
+    call<{ moments: StoryMoment[] }>("/api/story", body),
+  /** P1: the objects (and places) as one KML file for Google Earth */
+  exportKml: (path: string, title: string, objects: object[], rate = 10, places: object[] = []) =>
+    call<FlightExport>("/api/export/kml", { path, title, objects, rate, places }),
   exportCsv: (path: string, signals: { id: string; label: string; scale: number; offset: number; tOffset?: number }[], t0: number | null, t1: number | null) =>
     call<{ path: string; rows: number }>("/api/export/csv", { path, signals, t0, t1 }),
   report: (body: Record<string, unknown>) => call<{ path: string; size: number }>("/api/report", body),

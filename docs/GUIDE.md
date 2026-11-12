@@ -51,11 +51,14 @@ are told apart by them.
 - Click a signal in the list to add it to the **active plot** (the one with the coloured frame), or
   drag it onto any plot. Drop on a plot's right or bottom edge to make a new plot there.
 - The button next to the plot's title (**Time ▾**) changes the plot's type: Time, X-Y, 3D (XYZ - any
-  three signals on plain axes), Map, FFT, Spectrogram, Envelope (many runs of one quantity), Video. A **Map**
-  has its own **2D | 3D** switch in its bar: the same objects, reference and time, seen flat or as the earth
-  with its terrain. Both have the same bar: the camera *General · On the object · Chase* on the object beside
-  it, + / − / fit, and *Relation* (the relation box shown or hidden); 2D adds north / track up, 3D its own
-  extras (look at, a third object, data, events, measure, its own time).
+  three signals on plain axes), Map, FFT, Spectrogram, Envelope (many runs of one quantity), Video. The **Map**
+  is the earth with its terrain; its bar has the camera *General · From above · On the object · Chase* on the
+  object beside it (*From above*: straight down, north up, the whole flight framed - *Track up* beside it),
+  + / − / fit, *Relation* (the relation box shown or hidden), and its extras (look at, a third object, data,
+  events, measure, its own time). The mouse's position is shown in a corner: latitude, longitude, the ground
+  height there and the distance / bearing from the reference. A map saved by an earlier version opens *From
+  above*. Where the computer cannot draw 3D (remote desktops, some virtual machines) the Map is drawn flat
+  and says so in one quiet line.
 - **Right-click a legend chip** for its options: second value axis, show as states, move, remove…
 - **Many signals in one plot?** The legend moves into a column beside the plot by itself (a row per
   signal, the values aligned, a filter); the plot's menu ▸ *Legend* puts it above, beside or hides it.
@@ -126,12 +129,48 @@ are told apart by them.
 - **A line that looks flat:** adding a small signal to a plot of large ones (a current of 12 A beside
   3000 rpm) brings a message with *To the right axis* and *To its own plot*. Nothing moves until you
   choose; it is said once per plot and signal.
-- **Tacview:** *Export for Tacview (.acmi)…* in a map's or a 3D view's menu saves its objects as a
-  Tacview ACMI 2.2 file - each object's position (altitude above sea level, by its altitude reference)
-  and attitude as the 3D view draws it (from its motion or borrowed from another object when it has
-  none), 10 samples a second, with its kind (plane, rotorcraft, ship, ground vehicle, missile), name
-  and the nearest of Tacview's colours. Times that are Unix clock seconds become the file's reference
-  time; otherwise the flight starts at 2000-01-01 00:00 UTC in Tacview.
+- **Hiding an object:** the eye before an object's name in the chips above the map hides it (Alt+click: only
+  this one; again: all). It is not drawn and *Fit* ignores it; its chip stays, struck through, for one click
+  back. In the offline pages a click on the legend does the same.
+- **Export the flight** (a map's or a 3D view's ⋯ menu) has three ways out, all from the same samples:
+  - *Tacview (.acmi)…* - a Tacview ACMI 2.2 file: each object's position (altitude above sea level, by
+    its altitude reference) and attitude as the 3D view draws it, 10 samples a second (fewer for a very
+    long recording - the message says so). Each object gets a model Tacview has a 3D shape for (C172,
+    MQ-9, DJI300, AIM-9M, Zodiac, Pickup by its kind) and its own name as the call sign, so Tacview no
+    longer draws it as its plain triangle. An object with no attitude of its own is written without one.
+  - *Tacview CSV files (a folder)…* - one CSV per object, named as Tacview's CSV import wants
+    (`C172 (POS) [Blue].csv`). In Tacview: File → Open the first, File → Merge the others (Tacview
+    Standard).
+  - *Google Earth (.kml)…* - a track per object; with real dates in the log Google Earth plays it with
+    its time slider.
+
+  Times that are Unix clock seconds become the file's reference time; otherwise the flight starts at
+  2000-01-01 00:00 UTC in Tacview. An object with no position in the file (latitude and longitude 0, 0
+  in every sample - ArduPilot's EAHR without an external AHRS) is left out, and the message names it.
+  The shown places go too: the ACMI file has the points as stationary waypoints, the KML every shape.
+- **Places** (the Map's ⋯ → *Places…*, or Ctrl+K *Go to a place…*): named points, lines and areas on every
+  Map - the airfield, the range, the ground station. Right-click on the Map → *Add a place here…*; *Add a
+  place…* takes a typed position (`32.687, 35.39` or `32°41'13"N 35°23'24"E`); *Mark this spot* on an
+  object's chip puts one where it is at the cursor; *Import…* reads `.kml`, `.kmz`, `.geojson` and `.csv`
+  (`name, lat, lon[, alt]`). The panel has two lists: *Places of this session* (saved with it and its
+  template) and *My places* (yours, in every session - ★ moves a place there). A click flies the camera there;
+  the search box also takes a position; *Save this view* keeps the camera by name. The mouse readout says
+  how far the nearest place is, and the relation box can compare the reference with a place.
+- **The Map's cameras:** *General · From above · On the object · Chase · Cockpit* (from the object, looking
+  where it points, rolling with it). Every change flies there. *Display* shows the flight display of the
+  object the camera is on (attitude, ground speed, altitude, heading; on by default in Chase and Cockpit);
+  a mini-map shows the whole flight while the camera is near an object (a click flies there). When the
+  reference and the compared object are one vehicle (truth and a navigation solution), an **error
+  surface** between their tracks shows where the solution left the truth (its scale and toggle are in the
+  relation box). On a computer without graphics acceleration the sky, shadows and surfaces stay off.
+- **▶ Story** (the Map's bar, and beside Play in a live HTML page): the flight tells itself - the time runs
+  and stops at each moment that matters, the camera flies to the object, a card says what happened. ◀ ▶ step
+  through the moments, Esc ends it, a click on the card stays there.
+- **Settings → Map and objects** (for new things only - a session already open does not change): the icon
+  a new object gets by its class (truth, navigation, receiver, other), the camera of a new Map, *Always
+  flat* (the light drawing), the relation box and names shown or hidden, the track's width, the model size,
+  m / km or ft / NM, coordinates as decimal degrees, degrees-minutes-seconds or MGRS, the folder of your
+  elevation files, the export rate for Tacview / KML and the Story's length. *Reset this group* restores them.
 - **Moving the map:** drag it (a quick drag glides on), zoom with the wheel or **+ / −** in its corner,
   **Fit everything** (or a double-click) shows every track, **Follow ▾** keeps an object in the middle -
   dragging while following moves the map around it, *Back to following* centres it again. Click the map

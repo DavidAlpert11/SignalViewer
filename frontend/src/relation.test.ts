@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cmpLayout, comparable, defaultPair, pairOf, relation, statsCsv, type At } from "./relation";
+import { cmpLayout, comparable, defaultPair, errorAlong, errorColor, pairOf, relation, statsCsv, type At } from "./relation";
 import type { MapObject } from "./store";
 
 // a point n / e metres from (lat, lon) - meridian and prime-vertical radii (WGS84), good to a few mm here
@@ -98,5 +98,28 @@ describe("Compare objects (L8)", () => {
   it("statistics as CSV", () => {
     const csv = statsCsv([{ object: "lane 1", qty: "position", comp: "Δnorth", id: "x", s: { rms: 1.5, mean: 1.5, abs_max: 1.5004, p95_abs: 1.5, t_abs_max: 12, samples: 3001 } as never }]);
     expect(csv.split("\n")[1]).toBe('"lane 1","position","Δnorth",1.5,1.5,1.5004,1.5,12,3001');
+  });
+});
+
+describe("errorAlong (P9)", () => {
+  const t = Array.from({ length: 101 }, (_, i) => i * 0.1);
+  const truth = { t, lat: t.map(() => 32), lon: t.map((x) => 35 + x * 1e-4) };
+  it("a solution 6 m north at the end: p95 near 6 m, one vehicle", () => {
+    const nav = { t, lat: t.map((x) => 32 + (6 * x / 10) / 111_320), lon: truth.lon };
+    const e = errorAlong(truth, () => 100, nav, () => 100)!;
+    expect(e.same).toBe(true);
+    expect(e.rows.length).toBe(101);
+    expect(e.rows[100].d).toBeCloseTo(6, 1);
+    expect(e.p95).toBeGreaterThan(5.3);
+    expect(e.median).toBeCloseTo(3, 0);
+  });
+  it("two vehicles 500 m apart are not one; no overlap in time: none", () => {
+    const other = { t, lat: t.map(() => 32 + 500 / 111_320), lon: truth.lon };
+    expect(errorAlong(truth, () => 0, other, () => 0)!.same).toBe(false);
+    const later = { t: t.map((x) => x + 100), lat: truth.lat, lon: truth.lon };
+    expect(errorAlong(truth, () => 0, later, () => 0)).toBeNull();
+  });
+  it("colours: green, amber at half, red at p95", () => {
+    expect([errorColor(0), errorColor(0.5), errorColor(1), errorColor(3)]).toEqual(["rgb(45, 164, 78)", "rgb(242, 169, 59)", "rgb(229, 83, 75)", "rgb(229, 83, 75)"]);
   });
 });

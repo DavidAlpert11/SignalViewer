@@ -5,6 +5,7 @@ import { refreshAll, toggleLive } from "../live";
 import { mavlinkDisconnect } from "../mavlink";
 import { actions, activeTab, useApp } from "../store";
 import { pairOf } from "../relation";
+import { isMapPlot } from "../mapObjects";
 import { useT } from "../i18n";
 import { newCollection, openTemplates, saveAsTemplate } from "../templateMenu";
 import { Icon } from "../icons";
@@ -73,6 +74,15 @@ export default function CommandPalette() {
       { id: "clearalltabs", label: `${t("clearMenu")}: ${t("clearAllTabs", { n: useApp.getState().ws.tabs.length })}`, group: t("tab"), icon: <Icon.Eraser />, run: clearAllTabs },
       { id: "clearwork", label: `${t("clearMenu")}: ${t("clearWork", { d: useApp.getState().runs.find((r) => r.format === "derived")?.signals.length ?? 0, e: useApp.getState().runs.reduce((n, r) => n + r.signals.filter((s) => s.transform).length, 0) })}`, group: t("files"), icon: <Icon.Trash />, run: () => { clearWork(); } },
       { id: "closetab", label: t("closeTab"), group: t("tab"), icon: <Icon.X />, run: () => actions.closeTab(st().ws.activeTab) },
+      // P7: places - the panel of the tab's (first) Map, or a new place
+      ...(() => {
+        const mapId = () => activeTab(st().ws)?.plots.find(isMapPlot)?.id ?? null;
+        const need = (f: (id: string) => void) => () => { const id = mapId(); if (id) f(id); else st().toast({ kind: "info", text: t("plNoMap") }); };
+        return [
+          { id: "placeGo", label: t("plCmdGo"), group: t("plPanel"), icon: <Icon.Globe />, run: need((id) => useApp.setState({ placesPanel: id })) },
+          { id: "placeAdd", label: t("plCmdAdd"), group: t("plPanel"), icon: <Icon.Plus />, run: () => useApp.setState({ placeEdit: { plotId: mapId(), place: { kind: "point" } } }) },
+        ];
+      })(),
       // F22: every tab is reachable by name, however many there are
       // L10: the active plot to a new tab / to another tab
       ...(() => {

@@ -3,6 +3,9 @@ loopback names (see LocalOnlyMiddleware), so the tests add that one name on purp
 import os
 
 os.environ.setdefault("SV_ALLOWED_HOSTS", "testserver")
+# P5: no test touches the real network (the ground now fetches elevation when allowed); a test that wants
+# the online path removes this with monkeypatch and fakes urlopen
+os.environ.setdefault("SV_OFFLINE", "1")
 
 # T38: the tests' error log goes to a temporary folder, not the developer's ~/.signalviewer/logs
 import tempfile  # noqa: E402

@@ -7,6 +7,8 @@ import App from "./App";
 import { useApp } from "./store";
 import { installErrorReporting } from "./errorReport";
 import { loadPrefs } from "./prefs";
+import { loadMyPlaces } from "./places";
+import { loadMapPrefs } from "./mapDefaults";
 import { applySettings } from "./settings";
 import { watchNewerOnDisk } from "./fileTimes";
 import { watchReadAs } from "./readAs";
@@ -21,5 +23,7 @@ loadPrefs().finally(() => {
   applySettings();
   watchNewerOnDisk();          // Q123: a file saved again on the disk - its time turns amber, click to read it
   watchReadAs();               // 26.A5: the user's "read as a state / a value" -> the backend
+  void loadMyPlaces();         // P7: My places (the app's places.json)
+  loadMapPrefs();              // P8: Settings > Map and objects
   createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);
 });

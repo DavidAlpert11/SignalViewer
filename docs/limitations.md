@@ -49,3 +49,8 @@
 * *Compare with similar…* reads names of one file; the same signal across files is the Compare panel. *One plot at a time* is a way to look, not part of a session or a report.
 * The 3D *Chase* / *Look at* cameras and the map's smoothness depend on the graphics: on software rendering (no GPU) the 3D view uses lighter settings.
 * Line styles: opacity is not a line setting (a setpoint's faded look is automatic).
+* The Map's flat drawing (where 3D cannot draw, or *Always flat*) has no terrain relief, sky, shadows, cockpit camera or error surface; the error is shown by colouring the compared track instead.
+* The offline 3D page draws the ground as a flat local plane (no earth curvature) - right for a flight of tens of kilometres, increasingly off beyond ~100 km.
+* MGRS covers 80° S to 84° N; near the poles (the UPS grid) positions are shown in decimal degrees.
+* Places: KML styles, folders and time spans are not imported (the shapes and names are); a polygon's holes are left out. Lines and areas are drawn 2 m over the ground in the light mode.
+* Story mode picks at most 12 moments; the reference object's track gives the computed ones (the other objects only through the pair).

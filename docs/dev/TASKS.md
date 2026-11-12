@@ -13,6 +13,96 @@ developer or agent can pick up a task cold. `ROADMAP.md` is the catalogue (every
 
 ## Current state
 
+- **Round of 2026-11-12 (done, 1.26.0 - ready to release)**: spec and status box `docs/dev/AGENT_PROMPT_2026-11-12.md`.
+  **Group A done** (one patch on `5e2e8ff`): P1 Tacview that opens and shows models (owner: "some objects
+  show as triangles" - Tacview draws an unknown `Name` as its generic triangle; each kind now has a model
+  of Tacview's database: C172, MQ-9, DJI300, AIM-9M, Zodiac, Pickup; the name goes to `CallSign`), an ACMI
+  checker, Tacview CSV and KML exports in one *Export the flight* submenu; P2 one "is this a position" rule
+  (0, 0 is a gap; EAHR is not added); P3 a .bin with one mis-written message type loads, that type left out.
+  Next: group B (P4-P6). Log: baseline backend 1134 passed / 14 skipped / 1 failed
+  (`test_scene3d.py::test_reports_have_the_3d_view`: the PDF is 41.7 kB here, the test wants > 50 kB -
+  the environment's fonts; fails on the base too); after group A: 1165 passed, the same one failing, mypy
+  clean, tsc clean, Vitest 136 passed; e2e touched (6 files) 34 passed. Loader time (`/tmp` 55 MB synthetic log, median of 5): framing
+  0.097 -> 0.110 s, whole load 0.29-0.34 s before and after (noise). The owner (2026-11-12): Tacview opens
+  the files (the earlier failure was his computer) - Q1 answered. Q2 (the damaged .bin) still open: P3 was
+  built on generated fixtures.
+  Follow-up (owner, 2026-11-12): the real fault - a Write() call in ArduPilot got three more labels than
+  its format / values. The loader refused such an FMT (names != fields), so every message of that type
+  broke the chain; a long log was refused, and the type before it was taken for a mis-written one. Now
+  `_parse_fmt_payload` keeps such an FMT (`MsgFormat.names_off`), the chain uses its length and the type
+  is left out ("lists 12 column names for 9 values"); a type with no usable FMT at all is learned from the
+  headers its neighbours end on (`DataFlash._learn_nameless`, `nameless`) and skipped. On a 55 MB log with
+  IMU's names wrong: the base refuses it ("too damaged"), now 0.16 s with IMU left out. Q2 closed (the
+  owner: no sample file needed). Backend 1170 passed (+ the same environment failure).
+  Then group B, in the order P6, P5 (P4 last - the largest; the others do not depend on it): P6 hide / show
+  an object (eye on the chip, Alt+click only this one, pages' legend); P5 world elevation (terrarium when
+  the network is allowed, `.hgt` files, `step_at`), the page's far ground with fog / sky / sun / ×10 / notes.
+  Owner (2026-11-12): run only the relevant backend tests and e2e files per step; the whole suites at the
+  end of all steps. The environment failure of `test_reports_have_the_3d_view` is gone (the picture holds
+  the far ground now: > 50 kB). Left of P5: *Heights* in the app's MapBar (Cesium's exaggeration does not
+  lift the tracks with the ground - needs its own work), the *Elevation files* setting (P8).
+  P4 the Map is 3D (owner: keep the 2D engine as the fallback - decided): no 2D | 3D switch; From above; the
+  mouse readout; flat with a line without WebGL; reports From above = the flat picture. e2e adapted: the
+  2D | 3D switch tests in `test_live_report.py` (test_one_map, test_one_bar, the live report); the flat-map
+  tests draw flat on purpose (`flat_maps(pg)` in test_features: test_map_smooth, test_object_relations,
+  test_map_objects' icons / follow, test_map_export, the hide test, the Compare dialog on EKF lanes - there the
+  software-rendered 3D view slowed the job past the waits); mode checks accept "3d" (new maps are 3D).
+  **Group C, P7 done** (places): `svcore/places.py` (the one coordinate parser `parse_coords`, readers for
+  KML / KMZ / GeoJSON / CSV, `clean`), `/api/places` (My places in `~/.signalviewer/places.json`), import /
+  export / parse / `/api/ground`; `Workspace.places`, `Plot.relPlace`, `places.ts`, `store/actions/places.ts`,
+  `PlacesPanel.tsx`, `PlaceDialog.tsx`; drawn by Globe3D (billboard + pole, ground primitives; light mode:
+  lines 2 m over the ground), GeoChart, both pages (`svPlaceTag` in relation.js) and the pictures; KML and
+  ACMI (`Navaid+Static+Waypoint`, an airfield `Ground+Static+Aerodrome`) exports; templates carry them.
+  Tests: `test_places_p7.py` (30), `places.test.ts` (7), e2e `test_places_add_fly_and_page`.
+  Owner (2026-11-12, this round's second agent): a patch after each task, the full backend / e2e only at the end.
+  **P8 done** (Settings > Map and objects): `mapDefaults.ts` - the one reader / writer of `sv3.map.*`
+  (`readMapPrefs`, `setMapPref`, `setIconFor`, `resetMapPrefs`, `newObjectLook`, `newMapFields`), the app's
+  one distance formatter (`fmtDistance`: m / km or ft / NM - `mapObjects.fmtDistance` calls it) and
+  position formatter (`fmtCoord`: decimal, DMS, MGRS - `mgrs()`, ~30 lines, checked against GeoTrans);
+  the pages' `svDist` (relation.js) with `S.units`; `ui.mapPrefs` (the store's copy); the spec carries
+  `names`, `trackWidth`, `units` (`mapimage.page_look`). The *Elevation files* folder is the
+  `elevationFolder` setting the backend already read (P5). Not done (each more than a few lines - for the
+  owner to choose): the default theme / language of an exported page, *Ask before closing with unsaved
+  changes* (needs an "unsaved" state the app does not keep). Tests: `mapDefaults.test.ts` (13), e2e
+  `test_settings_icon_of_a_new_object`.
+  **P9 done** (the wow), app and page: sun (`scene3d.sun_position` - NOAA, tested; the app: Cesium's clock),
+  sky / lighting / fog and model shadows (shadows only with an object-bound camera), drop line + disc + last
+  10 s, flights (FLY_MS 1200, Fit flies; page `glideTo`), Cockpit (`Plot.camera = "cockpit"`, 70°),
+  `FlightDisplay.tsx` (`Plot.display`), `MiniMap.tsx`, the error surface (`relation.errorAlong` /
+  `errorColor`, `Plot.errorSurface`; Globe3D one Primitive drawn within 3 km; GeoChart colours the compared
+  track; the page's ribbon + `#errscale`). Test state: `window.__svWow[plotId]`, page `__scene.state.wow`.
+  Frame rates (this container has only software WebGL): the page (three.js, Tabor flight, 1300 x 800)
+  3.7-4.0 fps before, 3.3-3.7 after; the app's light mode (the real software case - effects off) General
+  4.25 -> 5.25, Chase 2.5 -> 2.75 (no loss); the app with the light mode forced off (every effect on, in
+  software) General 4-4.75 -> 2.5-2.75, Chase 1.75-2.75 -> 1.25-1.75 - the GPU's render rate after the
+  shaders compile is the same (~200-400 renders/s both), the loss is CPU (updating the trail / drop lines
+  per frame competes with software rendering). Not measurable here on a real GPU - for the owner. Note: the
+  page was 5.3-6.7 fps on `5e2e8ff` (before P5's far ground). Decision: the flight display, the mini-map,
+  the cockpit and flights stay in the light mode (2D canvases / camera, no GPU cost); every GPU effect is
+  off there. Picture `docs/images/36_map_wow.png`. Tests: `test_scene3d.py` (sun, page), `relation.test.ts`
+  (errorAlong), e2e `test_the_wow_in_the_3d_page`.
+  **P10 done** (Story mode): `svcore/story.py` `moments` (events, takeoff / landing with a 3 s hold, highest /
+  fastest with near-equal stand-ins when a stronger moment is within 3 s - the Tabor flight is as fast at
+  each crossing and a note sits on the middle one -, steepest bank over 30°, a place within 200 m, the pair:
+  largest error / closest + farthest; at most 12, never two within 3 s; en + he table); `report.story_of`
+  (a tab's first Map; ground from the bundled grids) -> `replay.story` per tab + `storyLength`; the player in
+  `viewer.js` (`#rp-storybtn`, `#rp-story` card, diamonds `i.story`, `#story=1`, `window.__replay.story`),
+  the frames' `focus` message (scene3d.html `__scene.focus`, map.html centres; `svToolbar().to`); the 3D
+  page's `D.story`; the app: `POST /api/story`, `MapStory.tsx` on the Map's bar (cursor + `mapFly`, no Undo,
+  `window.__svStory`); PDF / Word `_story_parts` (table + the 3D picture at the first four moments).
+  Picture `docs/images/37_story.png`. Tests: `test_story.py` (5), e2e `test_story_in_the_live_page`,
+  `test_story_in_the_app`.
+  **P11 done** (docs, checks): CHANGELOG 1.26.0, GUIDE en + he (places, cameras, Story, Settings > Map and
+  objects), features.md, api.md (REST: places, story, the spec's new `geo` fields), limitations.md,
+  maps-and-3d.md, README (pictures 36 / 37, "Map" wording), ROADMAP Milestone 30. Final checks: backend
+  **1217 passed / 14 skipped**, mypy clean, `tsc -b` clean, Vitest **164 passed**, `mkdocs build --strict`
+  clean, the **whole e2e suite**: 389 passed / 8 failed on the first run - 3 were tests the previous patch
+  (P4) left outdated (`test_globe_without_webgl_falls_back` - the fallback is the flat drawing now;
+  `test_comparison_lines_wear_their_object` and `test_what_does_not_apply_is_hidden` - new maps are 3D), 2 my
+  Cockpit button (`test_live_report.py` lists), all 5 fixed and passing; 3 failed only under the whole
+  suite's load and pass alone and in their files (`test_object_templates` keeps-objects, `test_settings`
+  line defaults, `test_sweeps_flow` templates dialog - the same tests pass on the round's first patch too).
+
 - **Round of 2026-11-11 (done, 1.26.0)**: one live HTML page (one time bar for the plots, the map and the 3D
   view), the 3D view in reports and replay pages (three.js, offline; a picture in PDF / Word / PNG), one Map
   with a 2D | 3D switch ("3D (XYZ)" for three plain signals). Spec and status: `docs/dev/AGENT_PROMPT_2026-11-11.md`;

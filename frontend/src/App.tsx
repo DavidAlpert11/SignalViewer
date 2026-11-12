@@ -15,6 +15,7 @@ const SweepsStatus = lazyPreload(() => import("./components/sweeps/SweepsStatus"
 const TemplateLibrary = lazyPreload(() => import("./components/TemplateLibrary"));
 const ObjectDialog = lazyPreload(() => import("./components/ObjectDialog"));
 const CompareObjectsDialog = lazyPreload(() => import("./components/CompareObjectsDialog"));
+const PlaceDialog = lazyPreload(() => import("./components/PlaceDialog"));
 const CompareSimilarDialog = lazyPreload(() => import("./components/CompareSimilarDialog"));
 const PlaceOnMapDialog = lazyPreload(() => import("./components/PlaceOnMapDialog"));
 const TransformDialog = lazyPreload(() => import("./components/TransformDialog"));
@@ -87,6 +88,7 @@ export default function App() {
   const templatesOpen = useApp((s) => s.templatesOpen);
   const objectDialog = useApp((s) => s.objectDialog);
   const compareDialog = useApp((s) => s.compareDialog);
+  const placeEdit = useApp((s) => s.placeEdit);
   const similarDialog = useApp((s) => s.similarDialog);
   const placeDialog = useApp((s) => s.placeDialog);
   const transformOpen = useApp((s) => !!s.transformTargets);
@@ -386,6 +388,7 @@ export default function App() {
         {templatesOpen && <TemplateLibrary />}
         {objectDialog && <ObjectDialog key={`${objectDialog.plotId}/${objectDialog.objectId ?? "new"}`} />}
         {compareDialog && <CompareObjectsDialog key={compareDialog.plotId} />}
+        {placeEdit && <PlaceDialog key={placeEdit.id ?? "new"} />}
         {similarDialog && <CompareSimilarDialog key={`${similarDialog.runId}/${similarDialog.ids.join(",")}`} />}
         {placeDialog && <PlaceOnMapDialog key={placeDialog} />}
         {syncFor && <SyncDialog />}

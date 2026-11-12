@@ -1,3 +1,12 @@
+/* P8 (1.26): the pages' one formatter of distances and heights - metres / km, or feet / nautical miles (the
+   app's Settings > Map and objects; the app's own is mapDefaults.ts fmtDistance). */
+function svDist(m, units) {
+  "use strict";
+  const a = Math.abs(m);
+  if (units === "imperial") return a >= 1852 ? (m / 1852).toFixed(2) + " NM" : (m / 0.3048).toFixed(0) + " ft";
+  return a >= 1000 ? (m / 1000).toFixed(a >= 10000 ? 1 : 2) + " km" : m.toFixed(a >= 100 ? 0 : 1) + " m";
+}
+
 /* The relation box of the offline pages (the 2D map and the 3D view, 1.26) - the app's relation box
    (RelationPanel.tsx) in plain JS: the reference and the compared object at the page's time - range,
    horizontal distance, Δalt, bearing, relative bearing, closure, closest-approach time, heading Δ. The
@@ -24,7 +33,7 @@ function svRelation(host, objs, S, pair, onPair, onSeek) {
   api.pair.s = idx(pair && pair.secondary, api.pair.p === 0 ? 1 : 0);
   if (api.pair.s === api.pair.p) api.pair.s = api.pair.p === 0 ? 1 : 0;
   if (objs.length < 2) return api;
-  const dist = function (m) { const a = Math.abs(m); return a >= 1000 ? (m / 1000).toFixed(a >= 10000 ? 1 : 2) + " km" : m.toFixed(a >= 100 ? 0 : 1) + " m"; };
+  const dist = function (m) { return svDist(m, S.units); };
   const deg = function (v) { return v === null ? "—" : v.toFixed(1) + "°"; };
   const box = document.createElement("div"); box.className = "svrel"; box.setAttribute("role", "region"); box.setAttribute("aria-label", S.relation);
   const head = document.createElement("div"); head.className = "svrel-head";
@@ -99,19 +108,22 @@ function svToolbar(S, objs, start, set) {
   if ($("rel")) $("rel").textContent = S.relation;
   if ($("slider")) $("slider").setAttribute("aria-label", S.time);
   const cams = Array.prototype.slice.call(document.querySelectorAll("#cam button"));
-  const label = { free: S.camFree, centre: S.camCentre, close: S.camClose }, hint = { free: S.camFreeHint, centre: S.camCentreHint, close: S.camCloseHint };
+  const label = { free: S.camFree, centre: S.camCentre, close: S.camClose, cockpit: S.camCockpit }, hint = { free: S.camFreeHint, centre: S.camCentreHint, close: S.camCloseHint, cockpit: S.camCockpitHint };
   cams.forEach(function (b) { b.textContent = label[b.dataset.cam]; b.title = hint[b.dataset.cam]; });
   const sel = $("obj");
   objs.forEach(function (o, i) { const op = document.createElement("option"); op.value = i; op.textContent = o.name; sel.append(op); });
   sel.value = String(start.obj);
   const h = svHash.read();
-  const st = { mode: ["free", "centre", "close"].indexOf(h.cam) >= 0 ? h.cam : start.mode, obj: h.obj !== undefined && objs[+h.obj] ? +h.obj : start.obj };
+  const modes = cams.map(function (b) { return b.dataset.cam; });
+  const st = { mode: modes.indexOf(h.cam) >= 0 ? h.cam : start.mode, obj: h.obj !== undefined && objs[+h.obj] ? +h.obj : start.obj };
   sel.value = String(st.obj);
   const show = function () { cams.forEach(function (b) { const on = b.dataset.cam === st.mode; b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); }); };
   cams.forEach(function (b) { b.addEventListener("click", function () { st.mode = b.dataset.cam; show(); set(st, true); }); });
   sel.addEventListener("change", function () { st.obj = +sel.value; if (st.mode === "free") st.mode = "centre"; show(); set(st, true); });
   show();
-  return { st: st, free: function () { if (st.mode !== "free") { st.mode = "free"; show(); set(st, false); } } };
+  return { st: st, free: function () { if (st.mode !== "free") { st.mode = "free"; show(); set(st, false); } },
+    // P10: the Story moves the camera itself (no user's choice: no glide of the toolbar's own)
+    to: function (mode, obj) { st.mode = mode; st.obj = obj; sel.value = String(obj); show(); } };
 }
 
 /* The time a page moves to: its own slider, or - inside a replay page or a live report - the page's one time
@@ -147,3 +159,44 @@ const svHash = {
     try { history.replaceState(null, "", "#t=" + (+t).toFixed(2) + "&cam=" + cam.mode + "&obj=" + cam.obj); } catch (e) { /* a page without history */ }
   },
 };
+
+/* P6 (1.26): the legend of the offline pages - each row a button: a click hides / shows that object, Alt+click
+   shows only it (again: all). One rule as in the app: a hidden object is not drawn and keeps its place
+   (greyed, struck through). `objs`: [{name, color, track, hidden}]; onChange() redraws. Returns
+   {hidden(i), list()}. */
+function svLegend(host, objs, S, onChange) {
+  "use strict";
+  const off = objs.map(function (o) { return !!o.hidden; });
+  const rows = [];
+  const paint = function () { rows.forEach(function (b, i) { b.classList.toggle("off", off[i]); b.setAttribute("aria-pressed", String(!off[i])); }); };
+  objs.forEach(function (o, i) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "lg";
+    b.title = (S.legendHint || "Click: hide / show · Alt+click: only this one");
+    const sw = document.createElement("i"); sw.style.borderTopColor = o.color; if (o.track) sw.className = o.track;
+    b.append(sw, document.createTextNode(o.name));
+    b.addEventListener("click", function (e) {
+      if (e.altKey) {
+        const alone = off.every(function (h, j) { return h === (j !== i); });
+        for (let j = 0; j < off.length; j++) off[j] = alone ? false : j !== i;
+      } else off[i] = !off[i];
+      paint(); onChange();
+    });
+    rows.push(b); host.append(b);
+  });
+  paint();
+  return { hidden: function (i) { return off[i]; }, list: function () { return objs.filter(function (_, i) { return off[i]; }).map(function (o) { return o.name; }); } };
+}
+
+/* P7 (1.26): a place's tag over the map / scene - its icon (the app's shape, embedded by the app) or a dot, and
+   its name; both pages draw them with this. `p`: {name, kind, color, img}. */
+function svPlaceTag(host, x, y, p) {
+  "use strict";
+  const d = document.createElement("div");
+  d.className = "place-tag " + (p.kind || "point");
+  d.style.left = x + "px"; d.style.top = y + "px";
+  if (p.kind === "point" && p.img) { const im = document.createElement("img"); im.src = p.img; im.alt = ""; d.append(im); }
+  else if (p.kind === "point") { const i = document.createElement("i"); i.style.background = p.color || "#d29922"; d.append(i); }
+  const s = document.createElement("span"); s.textContent = p.name; d.append(s);
+  host.append(d);
+  return d;
+}

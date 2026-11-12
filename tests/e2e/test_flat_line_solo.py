@@ -146,7 +146,7 @@ def test_comparison_lines_wear_their_object(pg):
     open_files(pg, "three_objects.csv")
     pg.locator(".obj-suggest-add").click()
     pg.wait_for_selector(".rel-panel")
-    objs = S(pg, "Object.fromEntries(s.ws.tabs[0].plots.find((p) => p.mode === 'geo').objects.map((o) => [o.name, o.color]))")
+    objs = S(pg, "Object.fromEntries(s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d') && (p.objects ?? []).length).objects.map((o) => [o.name, o.color]))")
     pg.locator(".rel-panel .rel-compare-open").click()
     dlg = pg.locator(".cmpobj")
     box = dlg.locator(".cmpobj-grid").bounding_box(); outer = dlg.bounding_box()

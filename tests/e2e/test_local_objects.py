@@ -13,7 +13,7 @@ import struct
 import pytest
 
 pytest.importorskip("playwright.sync_api")
-from test_features import env, open_files, pg, S  # noqa: E402,F401
+from test_features import flat_maps, env, open_files, pg, S  # noqa: E402,F401
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,7 +23,7 @@ def _copy(pg, name):
 
 
 def _geo(pg):
-    return S(pg, "s.ws.tabs[0].plots.find((p) => p.mode === 'geo')")
+    return S(pg, "s.ws.tabs[0].plots.find((p) => (p.mode === 'geo' || p.mode === '3d'))")
 
 
 def _lats(pg, o):
@@ -41,7 +41,7 @@ def test_ekf_lanes_found_added_once_and_placed_through_orgn(pg):
     bar.wait_for()
     assert "4 objects found: POS, XKF1[0], XKF1[1], GPS[0]" in bar.inner_text()
     bar.locator(".obj-suggest-add").click()
-    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => p.mode === 'geo' && (p.objects ?? []).length === 4)")
+    pg.wait_for_function("window.__sv.state().ws.tabs[0].plots.some((p) => (p.mode === 'geo' || p.mode === '3d') && (p.objects ?? []).length === 4)")
     objs = {o["name"]: o for o in _geo(pg)["objects"]}
     assert set(objs) == {"POS", "XKF1[0]", "XKF1[1]", "GPS[0]"}
     lane0, lane1 = objs["XKF1[0]"], objs["XKF1[1]"]
@@ -117,6 +117,7 @@ def test_compare_objects_dialog_on_ekf_lanes(pg):
     with its reason (POS has none); the same choice made again reuses the signals; Velocity from lane 0."""
     _copy(pg, "ardupilot_lanes.csv")
     open_files(pg, "ardupilot_lanes.csv")
+    flat_maps(pg)                    # P4: the light drawing - the software-rendered 3D view slowed the job past the waits here
     pg.locator(".obj-suggest-add").click()
     pg.wait_for_selector(".rel-panel")
     pg.locator(".rel-panel .rel-compare-open").click()

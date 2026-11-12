@@ -38,13 +38,76 @@ means three signals on plain axes (XYZ).
   own ×.
 - Python and the command line: `sv.scene_image(rec, …)`, `sv.scene_html(rec, …)`, `signalviewer-cli map
   flight.bin --3d --out view.png|view.html`.
+- **Hide an object on the map**: the eye on its chip (Alt+click: only this one, again: all) - it is not
+  drawn and not fitted, and keeps its place in the list, struck through; the relation box says "— hidden —".
+  The offline pages' legend works the same way; pictures leave it out; a session keeps it.
+- **A ground with relief anywhere**: when the network is allowed the 3D ground uses world elevation tiles
+  (~30 m, kept in the tile cache), and your own SRTM `.hgt` files (`~/.signalviewer/terrain/`) work offline.
+  The offline 3D page's ground reaches the horizon (fog, a sky, the sun from the north-west), has Heights
+  ×10, says "flat here" when it is, says when only coarse heights are there, and names its grid in the
+  footer. The PDF / Word picture shows the ground around the tracks too.
+- **Export the flight** - one submenu in a map's ⋯ menu with three ways out: *Tacview (.acmi)*, **Tacview
+  CSV files** (one per object, named as Tacview's CSV import wants; File → Open, then File → Merge) and
+  **Google Earth (.kml)** (a track per object that plays with Google Earth's time slider when the log has
+  dates). In Python: `sv.tacview_csv(rec, …)`, `sv.kml(rec, …)`.
+- **Places, as in Google Earth**: the airfield, the range, the target, the ground station - named points
+  (with an icon), lines and areas that are on every Map. Right-click on the Map → *Add a place here…*, type a
+  position (`32.687, 35.39` or `32°41'13"N 35°23'24"E`), *Mark this spot* on an object's chip, or import
+  `.kml`, `.kmz`, `.geojson` or `.csv`. The **Places** panel (the Map's ⋯ → *Places…*, or Ctrl+K "Go to a
+  place…") lists *Places of this session* (saved with it and its template) and *My places* (yours, in
+  every session); click one and the camera flies there; *Save this view* keeps a camera position by name.
+  The mouse readout says "1.2 km from Runway 27"; the relation box can compare the reference with a place.
+  Places go into the HTML pages, the pictures, the KML file and the ACMI file (as stationary waypoints).
+- **Settings > Map and objects**: the icon a new object gets by its class (truth, navigation, receiver,
+  other - no longer always an aircraft), the camera of a new Map, *Always flat* (the light drawing), the
+  relation box and names shown or hidden, the track's width, the model size, distances and heights in
+  m / km or ft / NM, coordinates as decimal degrees, degrees-minutes-seconds or MGRS, the folder of your
+  elevation files, the export rate for Tacview / KML, and the Story. They apply to new things only - an open
+  session or an object already made is not changed; *Reset this group* brings the defaults back.
+- **The Map, worth stopping to look at**: a sky and the sun where it was over the flight (the recording's
+  date when it has one, else mid-morning), soft shadows of the models when the camera is near them; a drop
+  line and a dark disc under each object; its last 10 s brighter over the whole track; every camera change
+  flies there; a **Cockpit** camera (looking where the object points, rolling with it); a **flight display**
+  (attitude, ground speed and altitude tapes, heading) for the object the camera is on; a **mini-map** of the
+  whole flight while the camera is close (a click flies there); and **the error, drawn** - when the pair
+  in the relation box is one vehicle (truth and a navigation solution) a surface between their tracks
+  coloured by the distance shows where the solution left the truth and by how much (the flat drawing
+  colours the compared track). The same in the offline 3D page. On a computer without graphics
+  acceleration (the light mode) the effects stay off.
+- **Story mode - the flight tells itself**: *▶ Story* beside Play in a live HTML page (and on the Map's bar
+  in the app) plays the flight as a short guided film: the time runs, slows at each moment that matters,
+  the camera flies to the object, and a card says what happened in one sentence with its number - "nav is
+  6.1 m north of truth", "Closest: 41 m", the log's errors and warnings, your notes, takeoff and landing,
+  the highest and fastest points, the steepest bank, passing a place. The moments are diamonds on the
+  timeline; ◀ ▶ step through them, Esc ends it, a click on the card stays there; a link with `#story=1`
+  starts it. PDF and Word reports get "The flight in N moments": the table and the 3D picture at the first
+  four. Settings > Map and objects: Story on / off and about 90 s · 45 s · 3 min.
 
 ### Changed
-- **One Map, two views**: the plot type list has one *Map*; its bar has a **2D | 3D** switch (the objects,
-  the reference and the time stay). *3D (XYZ)* is the plain 3D plot of any three signals. Sessions and
-  templates are unchanged (the saved types are the same).
+- **The Map is 3D**: no more 2D | 3D switch - the Map is the earth with its terrain, and "2D" is its camera
+  **From above** (straight down, north up, the whole flight framed; *Track up* beside it). The mouse's
+  position (latitude, longitude, ground height, distance / bearing from the reference) is shown in a corner.
+  Maps saved before open From above; reports draw a From above map as the clear flat picture. Where the
+  computer cannot draw 3D, the Map is drawn flat and says so.
+
 
 ### Fixed
+- **Tacview shows the aircraft, not triangles, and the file opens cleanly**: each object's `Name` is now a
+  model Tacview has a 3D shape for (C172, MQ-9, DJI300, AIM-9M, Zodiac, Pickup by its kind) and its own
+  name is the call sign; an object with no attitude is written without one (it no longer flies sideways
+  with a frozen nose); a missing altitude or angle keeps the last value (no empty fields); an object that
+  is gone for more than 2 s is removed and comes back as a new object; a long recording is written at a
+  lower rate so Tacview stays responsive. Every file is checked against the ACMI 2.2 rules by the tests.
+- **An object with no position is no object**: latitude and longitude 0, 0 (ArduPilot's EAHR without an
+  external AHRS, a GPS before its fix) are a gap, not a point at 0° N 0° E. *Add all* leaves such an object
+  out and says so; it is not drawn, not fitted and not exported.
+- **A log with one faulty message type loads**: when the firmware writes one message type with a length
+  other than its format says, that type is left out (the message says which, with both lengths) and
+  everything else is read; before, a long log was refused as too damaged. The same when a message's
+  format lists more (or fewer) column names than it has values - a Write() call in the firmware that got
+  three more labels than values: which name is which value cannot be known, so that message alone is left
+  out and the message says so. A message type with no format at all is skipped the same way. A log that is mostly damage is
+  still refused, and a damaged one says how much of it was readable.
 - `docs/validation.md` says the current version again (the release check failed on it).
 - A 3D view was left out of reports and replay pages without a word; it is in now. A plot that still
   cannot go into a report (a video, occurrences) is listed greyed in the Report panel with the reason, and

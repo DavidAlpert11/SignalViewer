@@ -2,8 +2,13 @@ import { rangeKey, signalName, useApp, type Plot, type Tab } from "./store";
 import { lineLook, setpointsIn } from "./desired";
 import { effectiveBase } from "./mapBase";
 import { geoViewBounds } from "./globeBridge";
-import { trackRequest } from "./mapObjects";
+import { trackRequest, isMapPlot, mapCamera } from "./mapObjects";
 import { pairOf } from "./relation";
+import { placeIconSvg, shownPlaces } from "./places";
+
+/** P7: the places a page / picture / export draws - the shown points, lines and areas (no saved views); a
+ *  point carries its icon (the app's shape, an SVG data URL) for the offline pages. */
+export const placesSpec = () => shownPlaces().map(({ mine: _m, hidden: _h, ...p }) => (p.kind === "point" ? { ...p, img: placeIconSvg(p.icon, p.color, 48) } : p));
 
 /** 1.26: why a plot is not in a report / replay page (listed with this reason, never dropped without a word) */
 export type PageWhy = "pageWhyEmpty" | "pageWhyOcc" | "pageWhyVideo";
@@ -23,10 +28,14 @@ export const pagePlots = (tab: Tab) => tab.plots.map((p, pi) => ({ p, pi, ...pag
 function geoSpec(plot: Plot, view: boolean) {
   const st = useApp.getState();
   return {
-    objects: (plot.objects ?? []).map((o) => ({ name: o.name, color: o.color, lat: o.lat, lon: o.lon, alt: o.alt ?? null, track: o.track ?? null })),
+    objects: (plot.objects ?? []).map((o) => ({ name: o.name, color: o.color, lat: o.lat, lon: o.lon, alt: o.alt ?? null, track: o.track ?? null,
+      ...(o.hidden ? { hidden: true } : {}) })),   // P6: pictures skip it, the pages start with it hidden
     ...pairNames(plot),
     base: effectiveBase(st.geoBase, st.offlineOnly || st.offlineForced),
     cursor: st.cursor.on && st.cursor.t1 !== null ? st.cursor.t1 : null,
+    places: placesSpec(),
+    // P8: how the pages and pictures draw it - names, the track's width, distances in metres or feet / NM
+    names: st.mapPrefs.names !== "hidden", trackWidth: st.mapPrefs.trackWidth, units: st.mapPrefs.units,
     bounds: view ? geoViewBounds.get(plot.id)?.() ?? null : null,
   };
 }
@@ -42,10 +51,14 @@ export function plotSpec(tab: Tab, plot: Plot, index: number, plotLabel: string,
   const st = useApp.getState();
   // 1.26: the map seen in 3D - the server draws it (app/scene3d.py): a picture in PDF / Word / PNG, a live
   // three.js page in HTML. The objects as the 3D view fetches them (a borrowed attitude resolved).
-  if (plot.mode === "3d" && plot.objects?.length) {
+  // P4: the Map (a 3D map, or a 2D-era map with objects) goes out as the 3D view on its camera - the server
+  // draws From above as the flat map picture and opens the live page From above; `view` (this view of the
+  // flat drawing) stays the flat map
+  if (isMapPlot(plot) && plot.objects?.length && !view) {
     const objs = plot.objects, nameOf = (id?: string | null) => objs.find((o) => o.id === id)?.name ?? null;
     return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "3d", signals: [], geo: geoSpec(plot, false),
-      scene: { objects: objs.map((o) => trackRequest(o, objs)), follow: nameOf(plot.followObject), ...pairNames(plot) } };
+      scene: { objects: objs.map((o) => ({ ...trackRequest(o, objs), ...(o.hidden ? { hidden: true } : {}) })), follow: nameOf(plot.followObject),
+        camera: mapCamera(plot), ...pairNames(plot) } };
   }
   if (plot.mode === "geo" && plot.objects?.length) {
     return { title: plot.title || plotLabel.replace("{n}", String(index + 1)), caption: plot.caption || "", mode: "geo", signals: [], geo: geoSpec(plot, view) };

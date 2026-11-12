@@ -415,3 +415,24 @@ def test_primary_secondary_in_3d(g3multi):
     pg.keyboard.press("x")                                     # the click gave the view the focus
     pg.wait_for_function("window.__sv.state().ws.tabs[0].plots[0].primaryObject === 'B'", timeout=20000)
     assert pg.evaluate("window.__sv.state().ws.tabs[0].plots[0].relatedObjects[0]") == "C"
+
+
+def test_the_map_from_above_and_the_mouse_readout(g3):
+    """P4: a 2D-era map (mode "geo" with objects) is drawn by the 3D view From above (straight down); the
+    mouse's readout shows the latitude / longitude under it - within 0.01° of the object under the mouse -
+    the ground height there, and hides when the mouse leaves."""
+    pg, _ = g3
+    pg.evaluate("window.__sv.setState({ ws: (() => { const ws = structuredClone(window.__sv.state().ws); ws.tabs[0].plots[0].mode = 'geo'; return ws; })() })")
+    pg.wait_for_function("""(() => { const g = window.__svGlobe; return g && g.widget && !g.widget.isDestroyed() && g.widget.camera.pitch < -1.45; })()""", timeout=90000)
+    xy = pg.evaluate("""(() => { const { widget: w, Cesium: C } = window.__svGlobe;
+      const T = C.SceneTransforms.worldToWindowCoordinates || C.SceneTransforms.wgs84ToWindowCoordinates;
+      const p = T(w.scene, C.Cartesian3.fromDegrees(34.5, 32.5, 0)); const b = w.canvas.getBoundingClientRect();
+      return [b.left + p.x, b.top + p.y]; })()""")
+    pg.mouse.move(xy[0], xy[1])
+    pg.wait_for_function("window.__svReadout && document.querySelector('.g3-readout')", timeout=30000)
+    r = pg.evaluate("window.__svReadout")
+    assert abs(r["lat"] - 32.5) < 0.01 and abs(r["lon"] - 34.5) < 0.01, r
+    assert "ground" in pg.inner_text(".g3-readout")
+    assert pg.locator(".map-bar .g3-cam-top.on").count() == 1
+    pg.mouse.move(2, 2)
+    pg.wait_for_function("!document.querySelector('.g3-readout')", timeout=10000)

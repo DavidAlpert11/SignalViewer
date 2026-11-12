@@ -221,6 +221,7 @@ class AcmiRequest(BaseModel):
     title: str = ""
     rate: float = 10.0               # samples a second in the file
     objects: List[dict]              # MapObject as the views fetch it (trackRequest: borrowed attitude resolved)
+    places: List[dict] = []          # P7: the map's shown places (svcore/places.py) - in the ACMI and KML files
 
 
 def _decode(s, dtype):
@@ -268,26 +269,118 @@ def acmi_objects(objects: List[dict], st=None) -> list:
     return out
 
 
-@router.post("/api/export/acmi")
-async def export_acmi(req: AcmiRequest):
-    """N8: the objects of a map / 3D view as a Tacview ACMI 2.2 text file (svcore/acmi.py)."""
+def _export_meta(req) -> dict:
     from datetime import datetime, timezone
 
     from app.version import __version__
-    from svcore.acmi import write_acmi
+    return {"recorder": f"Signal Viewer {__version__}", "title": req.title,
+            "recording_time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
+@router.post("/api/export/acmi")
+async def export_acmi(req: AcmiRequest):
+    """N8: the objects of a map / 3D view as a Tacview ACMI 2.2 text file (svcore/acmi.py). P1: the
+    reply says the rate used (lowered for a long recording, svcore.acmi.fit_rate) and the objects left
+    out because they have no position (P2)."""
+    from svcore.acmi import fit_rate, write_acmi
     path = _check_target(req.path, ".acmi")
 
     def work():
         objs = acmi_objects(req.objects)
-        body = write_acmi(objs, rate=req.rate, title=req.title, recorder=f"Signal Viewer {__version__}",
-                          recording_time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        rate = fit_rate(objs, req.rate)
+        left: List[str] = []
+        meta = _export_meta(req)
+        body = write_acmi(objs, rate=rate, title=meta["title"], recorder=meta["recorder"],
+                          recording_time=meta["recording_time"], left_out=left, places=req.places)
         with atomic_open(path, "w", "utf-8-sig", "\n") as f:
             f.write(body)
-        return len(objs)
+        return len(objs) - len(left), rate, left
     try:
-        n = await asyncio.to_thread(work)
+        n, rate, left = await asyncio.to_thread(work)
     except KeyError:
         fail(404, "A signal of one of the objects is no longer open.")
     except ValueError as e:
         fail(400, str(e))
-    return {"path": path, "objects": n, "size": os.path.getsize(path)}
+    return {"path": path, "objects": n, "size": os.path.getsize(path), "rate": rate,
+            "lowered": rate < min(req.rate, 100.0) - 1e-9, "leftOut": left}
+
+
+class TacviewCsvRequest(AcmiRequest):
+    pass                              # `path` is the folder the files go into
+
+
+@router.post("/api/export/tacview_csv")
+async def export_tacview_csv(req: TacviewCsvRequest):
+    """P1: Tacview CSV files - one per object - into a folder (svcore/tacview_csv.py)."""
+    from svcore.acmi import fit_rate
+    from svcore.tacview_csv import write_csvs
+    folder = os.path.abspath(os.path.expanduser(req.path or ""))
+    if not req.path:
+        fail(400, "Choose the folder for the files.")
+    parent = os.path.dirname(folder.rstrip(os.sep)) or folder
+    if not os.path.isdir(folder) and not os.path.isdir(parent):
+        fail(400, f"Folder not found: {parent}")
+
+    def work():
+        objs = acmi_objects(req.objects)
+        rate = fit_rate(objs, req.rate)
+        left: List[str] = []
+        paths = write_csvs(objs, folder, rate, left_out=left)
+        return paths, rate, left
+    try:
+        paths, rate, left = await asyncio.to_thread(work)
+    except KeyError:
+        fail(404, "A signal of one of the objects is no longer open.")
+    except ValueError as e:
+        fail(400, str(e))
+    return {"path": folder, "files": paths, "objects": len(paths), "rate": rate,
+            "lowered": rate < min(req.rate, 100.0) - 1e-9, "leftOut": left}
+
+
+class KmlRequest(AcmiRequest):
+    pass
+
+
+@router.post("/api/export/kml")
+async def export_kml(req: KmlRequest):
+    """P1: the objects (and places) as one KML file for Google Earth (svcore/kml.py)."""
+    from svcore.acmi import fit_rate
+    from svcore.kml import write_kml
+    path = _check_target(req.path, ".kml")
+
+    def work():
+        objs = acmi_objects(req.objects)
+        rate = fit_rate(objs, req.rate)
+        left: List[str] = []
+        body = write_kml(objs, req.places, rate=rate, title=req.title, left_out=left)
+        with atomic_open(path, "w", "utf-8", "\n") as f:
+            f.write(body)
+        return len(objs) - len(left), rate, left
+    try:
+        n, rate, left = await asyncio.to_thread(work)
+    except KeyError:
+        fail(404, "A signal of one of the objects is no longer open.")
+    except ValueError as e:
+        fail(400, str(e))
+    return {"path": path, "objects": n, "size": os.path.getsize(path), "rate": rate,
+            "lowered": rate < min(req.rate, 100.0) - 1e-9, "leftOut": left}
+
+
+class StoryRequest(BaseModel):
+    objects: List[dict] = []          # the Map's shown objects as the views fetch them (trackRequest), with names
+    places: List[dict] = []
+    primary: Optional[str] = None     # names
+    secondary: Optional[str] = None
+    events: List[dict] = []           # the app's timeline marks: [{t, text, level}]
+    units: str = "metric"
+    lang: str = "en"
+
+
+@router.post("/api/story")
+async def story(req: StoryRequest):
+    """P10: the Story's moments of a Map in the app (svcore/story.py) - the same as the live page's."""
+    from app import report as reports
+    tab = {"plots": [{"mode": "3d", "scene": {"objects": req.objects, "primary": req.primary, "secondary": req.secondary},
+                      "geo": {"places": req.places, "units": req.units}}]}
+    replay = reports._replay({"events": req.events}) or {"events": []}
+    return {"moments": await asyncio.to_thread(reports.story_of, store, tab, replay, "he" if req.lang == "he" else "en")}

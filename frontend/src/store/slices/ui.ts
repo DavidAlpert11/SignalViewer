@@ -40,6 +40,16 @@ export interface UiSlice {
   templatesNew: "tab" | "all" | "collection" | null;   // open the library on a new template (current / all tabs) or collection
   templatesSelect: string | null;  // open the library with this template selected (suggestions in the file panel)
   objectDialog: { plotId: string; objectId?: string; why?: boolean } | null;   // adding / editing a map object (N5 why: the found list, explanations open)
+  objNoPosition: string[];
+  /** P7: My places - the user's own, in every session (the app's places.json; loaded at start, saved on change) */
+  myPlaces: import("../model").Place[];
+  /** P8: Settings > Map and objects (mapDefaults.ts keeps them; this copy re-renders the views) */
+  mapPrefs: import("../../mapDefaults").MapPrefs;
+  /** P7: the Places panel, open in this Map plot */
+  placesPanel: string | null;
+  /** P7: the place dialog - a new place (its position filled in) or an existing one (`id`) */
+  placeEdit: { plotId: string | null; place: Partial<import("../model").Place>; id?: string; where?: "session" | "mine" } | null;
+  mapFlat: boolean;                // P4: draw the Map flat (the light drawing) - P8's setting "Map drawing: Always flat"         // P2: map objects whose track has no position (always 0, 0) - chips say so
   objSuggestHidden: string[];      // N5: files whose "objects found" bar was dismissed (this run of the app only)
   /** L8: Compare objects… open for this map / 3D plot */
   compareDialog: { plotId: string } | null;
@@ -147,6 +157,13 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   templatesNew: null,
   templatesSelect: null,
   objectDialog: null,
+  objNoPosition: [],
+  myPlaces: [],
+  mapPrefs: { icon: { truth: "aircraft", navigation: "aircraft", receiver: "aircraft", other: "aircraft" }, camera: "free", drawing: "auto", relation: "shown",
+    names: "shown", trackWidth: 2.5, modelSize: 26, units: "metric", coords: "dd", rate: 10, story: "on", storyLength: 90 },   // = MAP_DEFAULTS
+  placesPanel: null,
+  placeEdit: null,
+  mapFlat: false,
   objSuggestHidden: [],
   compareDialog: null,
   similarDialog: null,

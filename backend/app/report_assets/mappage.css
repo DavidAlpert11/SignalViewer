@@ -25,7 +25,10 @@ canvas.drag { cursor: grabbing; }
   text-shadow: 0 0 3px #0b1118, 0 0 3px #0b1118; }
 #tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; display: none; white-space: nowrap; z-index: 3; }
 #legend { position: absolute; top: 8px; inset-inline-start: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
-#legend div { display: flex; align-items: center; gap: 6px; }
+#legend div, #legend .lg { display: flex; align-items: center; gap: 6px; }
+#legend .lg { border: 0; background: none; color: inherit; font: inherit; padding: 1px 0; cursor: pointer; text-align: start; }
+#legend .lg.off { color: var(--muted, #8e9cad); text-decoration: line-through; }
+#legend .lg.off i { opacity: .4; }
 #legend i { width: 16px; height: 0; display: inline-block; border-top: 3px solid; }
 #legend i.dash { border-top-style: dashed; } #legend i.points { border-top-style: dotted; border-top-width: 4px; }
 #help { position: absolute; bottom: 6px; inset-inline-start: 8px; font-size: 11px; color: var(--muted); text-shadow: 0 0 2px var(--bg); }
@@ -48,4 +51,10 @@ footer { padding: 3px 10px; font-size: 11px; color: var(--muted); border-top: 1p
 .svrel-body .seek { cursor: pointer; border-radius: 4px; }
 .svrel-body .seek bdi { color: var(--accent); text-decoration: underline dotted; }
 .svrel-body .seek:hover, .svrel-body .seek:focus-visible { background: color-mix(in srgb, var(--accent) 14%, transparent); outline: none; }
-#adi { position: absolute; inset: auto auto 26px 8px; width: 118px; height: 136px; pointer-events: none; }
+#adi { position: absolute; inset: auto auto 26px 8px; width: 236px; height: 136px; pointer-events: none; }
+/* P7: places */
+#labels .place-tag { position: absolute; display: flex; align-items: flex-end; gap: 3px; transform: translate(-11px, -22px); pointer-events: none;
+  white-space: nowrap; font-size: 11px; font-weight: 600; color: #fff; text-shadow: 0 0 3px #0b1118, 0 0 3px #0b1118; }
+#labels .place-tag img { width: 22px; height: 22px; }
+#labels .place-tag i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #fff; margin: 0 0 4px 6px; }
+#labels .place-tag.line, #labels .place-tag.area { transform: translate(-50%, -50%); }

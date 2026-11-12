@@ -5,16 +5,22 @@ import "cesium/Build/Cesium/Widgets/CesiumWidget/CesiumWidget.css";
 import { api } from "../api";
 import { actions, activeTab, pickPath, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { useMapBase } from "../mapBase";
-import { globeImage } from "../globeBridge";
+import { globeImage, mapCameraNow, mapFly, mapObjectAt, type FlyTarget } from "../globeBridge";
+import { nearestPlace, placeIconSvg, placesBounds, shownPlaces } from "../places";
+import { fmtCoord } from "../mapDefaults";
 import { fmtNum, useT } from "../i18n";
 import { indexSpan } from "./chartUtil";
 import { pairOf, relation, type At } from "../relation";
 import RelationPanel from "./RelationPanel";
 import MapBar from "./MapBar";
-import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors } from "../mapObjects";
+import { altAt, angleUnitOf, bearing, colorRuns, derivedAttitude, fmtDistance, groundDistance, objectAt, trackColors, trackKey, trackRequest, trackTime, visualOrder, type ObjTrack, type TrackColors, shownObjects, mapCamera } from "../mapObjects";
 import { labelsOf, stateColor } from "../values";
 import TrackKeys from "./TrackKeys";
-import Globe3DFallback from "./Globe3DFallback";
+import { hasWebGL } from "../webgl";
+import { markNoPosition } from "../noPosition";
+import FlightDisplay from "./FlightDisplay";
+import MiniMap from "./MiniMap";
+import { errorAlong, errorColor } from "../relation";
 
 /* The 3D view: the earth with the app's own terrain (bundled elevation) and map tiles (offline or
    online, as the map plot), the plot's objects as 3D models at the timeline's time - position,
@@ -30,17 +36,6 @@ const loadCesium = () => (cesiumP ??= (async () => {
   m.Ion.defaultAccessToken = "";
   return m;
 })());
-
-/** Can this browser make a WebGL context at all? (No: an old / blocked graphics driver, a virtual
- *  machine or remote desktop - and Chrome / Edge 139+ no longer fall back to software WebGL.) */
-function hasWebGL(): boolean {
-  try {
-    const c = document.createElement("canvas");
-    const gl = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
-    gl?.getExtension("WEBGL_lose_context")?.loseContext();
-    return !!gl;
-  } catch { return false; }
-}
 
 /** WebGL drawn by the processor (no graphics acceleration: virtual machines, remote desktop, blocked
  *  drivers). There every full-screen pass is expensive, so the 3D view uses lighter settings - one
@@ -78,7 +73,7 @@ function heightAt(o: MapObject, tr: Track3, i: number): number {
   return a;
 }
 
-interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string }
+interface Props { plot: Plot; index: number; onLoading: (b: boolean) => void; emptyText: string; onFlat?: (reason: string) => void }
 
 /** An object's values at the time (for the data box and the relations). */
 interface ObjState { id: string; name: string; color: string; pos: import("cesium").Cartesian3; lat: number; lon: number; alt: number;
@@ -99,10 +94,10 @@ function ratesAt(o: MapObject, tr: Track3, t: number): { gs: number | null; vs: 
   return { gs: Number.isFinite(d) ? d / dt : null, vs: Number.isFinite(dh) ? dh / dt : null };
 }
 
-const FLY_MS = 700;
+const FLY_MS = 1200;                            // P9: every camera change flies (~1.2 s, eased)
 const reducedMotion = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
 
-export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
+export default function Globe3D({ plot, onLoading, emptyText, onFlat }: Props) {
   countRender("Globe3D");
   const t = useT();
   const lang = useApp((s) => s.lang);
@@ -123,26 +118,49 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const [failed, setFailed] = useState<string | null>(null);
   const [lightMode, setLightMode] = useState(false);
   const widgetRef = useRef<import("cesium").CesiumWidget | null>(null);
-  const objects: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
-  const objKey = objects.map((o) => trackKey(o, objects)).join("|");
+  const terrainV = useRef(0);
+  // P4: the mouse's position, as the 2D map's readout had it - lat / lon (decimals by the camera's height),
+  // the ground there, and distance / bearing from the reference
+  const refState = useRef<{ name: string; lat: number; lon: number } | null>(null);
+  const [mouseAt, setMouseAt] = useState<{ lat: number; lon: number; ground: number | null; prec: number; from: { name: string; d: number; brg: number } | null;
+    place: { name: string; d: number } | null } | null>(null);                                    // P5: the terrain version the tiles were asked with
+  const terrainMake = useRef<((v: number) => import("cesium").CustomHeightmapTerrainProvider) | null>(null);
+  const offline = useApp((s) => s.offlineOnly || s.offlineForced);   // no fetching: nothing finer can arrive
+  // P6: `objects` are the ones drawn (and fitted); `allObjs` every one, for lookups (a borrowed attitude)
+  const allObjs: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
+  const objects: MapObject[] = useMemo(() => shownObjects(plot), [plot.objects]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const objKey = objects.map((o) => trackKey(o, allObjs)).join("|");
+  const tw = useApp((s) => s.mapPrefs.trackWidth);          // P8: the track's width
+  const mapNames = useApp((s) => s.mapPrefs.names);
+  useApp((s) => s.mapPrefs.coords);                         // the readout re-renders with it
+  useApp((s) => s.mapPrefs.units);
+  // P7: the places drawn on this Map (the session's and My places, shown ones)
+  useApp((s) => s.ws.places);
+  useApp((s) => s.myPlaces);
+  const places = shownPlaces();
+  const placesKey = JSON.stringify(places.map((p) => [p.id, p.kind, p.lat, p.lon, p.alt, p.icon, p.color, p.name, p.points]));
+  const placesRef = useRef(places);
+  placesRef.current = places;
   /* what the models, lines and labels are built from: they are rebuilt only when this changes - not
      for every change of the plot (time of its own, camera, primary object...), which gives a new
      objects array each time and made the models vanish while they loaded again */
-  const objLook = objects.map((o) => [o.id, o.kind, o.color, o.name, o.size, o.trail, o.altRef, angleUnitOf(o, objects), o.track, derivedAttitude(o, objects)].join(":")).join("|");
+  const objLook = objects.map((o) => [o.id, o.kind, o.color, o.name, o.size, o.trail, o.altRef, angleUnitOf(o, allObjs), o.track, derivedAttitude(o, allObjs)].join(":")).join("|");
   const [tracks, setTracks] = useState<Record<string, Track3>>({});
   /* per object, built once (when the objects or their data change) and only moved as time passes:
      rebuilding lines, colours (materials) and labels every frame held playback below 1 fps */
   interface Drawn { idx: number[]; pos: import("cesium").Cartesian3[]; full: import("cesium").Polyline | null; part: import("cesium").Polyline | null;
-    fullMat: import("cesium").Material | null; label: import("cesium").Label | null }
+    fullMat: import("cesium").Material | null; label: import("cesium").Label | null;
+    recent?: import("cesium").Polyline | null; drop?: import("cesium").Polyline | null; disc?: import("cesium").PointPrimitive | null }
   // two line collections: the whole tracks (only rebuilt with the data) and the parts shown (change as time passes)
   const scene3 = useRef<{ models: Map<string, import("cesium").Model>; lines: import("cesium").PolylineCollection | null; parts: import("cesium").PolylineCollection | null;
     labels: import("cesium").LabelCollection | null; links: import("cesium").PolylineCollection | null; linkLabels: import("cesium").LabelCollection | null;
     events: import("cesium").PointPrimitiveCollection | null; eventLabels: import("cesium").LabelCollection | null;
     measure: import("cesium").PolylineCollection | null; measurePts: import("cesium").PointPrimitiveCollection | null;
     ghosts: import("cesium").PointPrimitiveCollection | null;      // U6: each object at the time under the pointer
+    drops: import("cesium").PolylineCollection | null; discs: import("cesium").PointPrimitiveCollection | null; recent: import("cesium").PolylineCollection | null;   // P9
     rings: import("cesium").PointPrimitiveCollection | null;       // N7: the primary and the secondary marked
     drawn: Map<string, Drawn>; fitted: boolean }>({ models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
-      events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drawn: new Map(), fitted: false });
+      events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drops: null, discs: null, recent: null, drawn: new Map(), fitted: false });
   /* the dashed line material of each colour, made once (a new material per frame is costly) */
   const linkMats = useRef(new Map<string, import("cesium").Material>());
   const linkMat = (c: import("cesium").Color) => {
@@ -185,11 +203,15 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const light = softwareWebGL();
       setLightMode(light);
       try {
-        const terrain = new Cz.CustomHeightmapTerrainProvider({
+        // P5: the tiles' URL carries the terrain version - when finer heights arrive (fetched in the
+        // background) the provider is made again and the browser's cache does not keep the coarse tile
+        const makeTerrain = (v: number) => new Cz.CustomHeightmapTerrainProvider({
           width: 65, height: 65, tilingScheme: new Cz.GeographicTilingScheme(),
-          callback: (x: number, y: number, level: number) => fetch(`/api/terrain/${level}/${x}/${y}`)
+          callback: (x: number, y: number, level: number) => fetch(`/api/terrain/${level}/${x}/${y}?v=${v}`)
             .then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => (b ? new Float32Array(b) : new Float32Array(65 * 65))),
         });
+        terrainMake.current = makeTerrain;
+        const terrain = makeTerrain(terrainV.current);
         const w = new Cz.CesiumWidget(hostRef.current, {
           baseLayer: false, terrainProvider: terrain, skyBox: false, skyAtmosphere: false, scene3DOnly: true,
           requestRenderMode: true, maximumRenderTimeChange: Infinity, creditContainer: creditRef.current ?? undefined,
@@ -200,11 +222,25 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           msaaSamples: light ? 1 : 4,
         });
         if (light) w.scene.globe.maximumScreenSpaceError = 4;
+        else {
+          // P9: sky, sunlight and shadows. The viewer was made without the sky atmosphere (with the sun and the
+          // moon, whose textures are not shipped, and to keep software rendering light); the atmosphere is a
+          // shader - no files - so it is on outside the light mode, with lighting from the sun of the scene's
+          // clock and soft shadows of the models on the ground
+          w.scene.skyAtmosphere = new Cz.SkyAtmosphere();
+          w.scene.globe.enableLighting = true;
+          w.scene.globe.dynamicAtmosphereLighting = true;
+          w.scene.shadowMap.enabled = false;              // on while the camera is near an object (update)
+          w.scene.shadowMap.softShadows = true;
+          w.scene.shadowMap.size = 2048;
+          w.scene.shadowMap.maximumDistance = 20000;
+          w.scene.globe.shadows = Cz.ShadowMode.RECEIVE_ONLY;
+        }
         if (w.scene.sun) w.scene.sun.show = false;          // (their textures are not shipped)
         if (w.scene.moon) w.scene.moon.show = false;
         w.scene.globe.depthTestAgainstTerrain = true;
-        w.scene.globe.showGroundAtmosphere = false;
-        w.scene.fog.enabled = false;
+        w.scene.globe.showGroundAtmosphere = !light;
+        w.scene.fog.enabled = !light;
         widgetRef.current = w;
         const S0 = scene3.current;
         S0.measure = w.scene.primitives.add(new Cz.PolylineCollection());
@@ -238,7 +274,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const w = widgetRef.current;
       widgetRef.current = null;
       scene3.current = { models: new Map(), lines: null, parts: null, labels: null, links: null, linkLabels: null,
-        events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drawn: new Map(), fitted: false };
+        events: null, eventLabels: null, measure: null, measurePts: null, ghosts: null, rings: null, drops: null, discs: null, recent: null, drawn: new Map(), fitted: false };
       mats.clear();
       if (w && !w.isDestroyed()) w.destroy();
     };
@@ -264,19 +300,36 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     w.scene.requestRender();
   }, [cz, base, theme]);
 
+  /* P5: finer ground arrived (terrarium fetched in the background): ask the terrain again */
+  useEffect(() => {
+    if (!cz || offline) return;
+    const h = window.setInterval(() => {
+      void fetch("/api/terrain/version").then((r) => (r.ok ? r.json() : null)).then((d: { version: number } | null) => {
+        const w = widgetRef.current;
+        if (!d || d.version === terrainV.current || !w || !terrainMake.current) return;
+        terrainV.current = d.version;
+        w.scene.terrainProvider = terrainMake.current(d.version);
+        w.scene.requestRender();
+      }).catch(() => {});
+    }, 4000);
+    return () => window.clearInterval(h);
+  }, [cz, offline]);
+
   /* ------------------------------------------------------------- objects */
   useEffect(() => {
     if (failed) return;                                 // the simplified view (no WebGL) fetches its own
     let cancelled = false;
     (async () => {
       const out: Record<string, Track3> = {};
-      for (const o of plot.objects ?? []) {
+      const empty: string[] = [];
+      for (const o of shownObjects(plot)) {
         try {
           const r = await api.objectTrack(trackRequest(o, plot.objects ?? []));
+          if (r.valid === 0) { empty.push(o.id); continue; }           // P2: no position - drawn as nothing, not in Fit
           out[o.id] = { t: r.t, lat: r.lat, lon: r.lon, yaw: r.yaw, course: r.course, units: r.units, alt: r.alt, pitch: r.pitch, roll: r.roll, ground: r.ground, color: r.color };
         } catch { /* a signal no longer open */ }
       }
-      if (!cancelled) setTracks(out);
+      if (!cancelled) { setTracks(out); markNoPosition(shownObjects(plot).map((o) => o.id), empty); }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -316,6 +369,11 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     S.ghosts = w.scene.primitives.add(new cz.PointPrimitiveCollection());
     if (S.rings) w.scene.primitives.remove(S.rings);
     S.rings = w.scene.primitives.add(new cz.PointPrimitiveCollection());
+    // P9: each object reads in space - a drop line to the ground, a soft dark disc under it, its last 10 s
+    for (const c of [S.drops, S.discs, S.recent]) if (c) w.scene.primitives.remove(c);
+    S.drops = w.scene.primitives.add(new cz.PolylineCollection());
+    S.discs = w.scene.primitives.add(new cz.PointPrimitiveCollection());
+    S.recent = w.scene.primitives.add(new cz.PolylineCollection());
     let alive = true;
     (async () => {
       for (const o of objects) {
@@ -324,8 +382,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
             id: o.id,                                       // N7: a click on it picks it (scene.pick)
             url: `/models/${o.kind}.glb`, minimumPixelSize: Math.round((o.size ?? 26) * 1.8), maximumScale: 50000,
             forwardAxis: cz.Axis.X, colorBlendMode: cz.ColorBlendMode.MIX, colorBlendAmount: 0.75,
+            shadows: lightMode ? cz.ShadowMode.DISABLED : cz.ShadowMode.ENABLED,                 // P9
             // N5: an attitude not its own (from motion, borrowed) - see-through, with an outline in its colour
-            ...(derivedAttitude(o, objects)
+            ...(derivedAttitude(o, allObjs)
               ? { color: cz.Color.fromCssColorString(o.color).withAlpha(0.3), silhouetteColor: cz.Color.fromCssColorString(o.color), silhouetteSize: 2 }
               : { color: cz.Color.fromCssColorString(o.color) }),
           });
@@ -367,16 +426,24 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         // coloured: a line per stretch of one colour, the whole track (no faint / shown parts)
         const at = idx.map((i) => cols.at[i]);
         for (const r of colorRuns(at, 0, at.length)) if (r.b - r.a > 0)
-          S.lines.add({ positions: pos.slice(r.a, Math.min(pos.length, r.b + 1)), width: 3, material: cz.Material.fromType("Color", { color: cz.Color.fromCssColorString(r.color) }) });
+          S.lines.add({ positions: pos.slice(r.a, Math.min(pos.length, r.b + 1)), width: tw + 0.5, material: cz.Material.fromType("Color", { color: cz.Color.fromCssColorString(r.color) }) });
       } else if (o.trail !== false && pos.length > 1) {
         // N5: a navigation solution dashed, a receiver as points (short dashes: one per fix at most zooms)
         const mat = () => (o.track === "dash" ? cz.Material.fromType("PolylineDash", { color: col, dashLength: 18 })
           : o.track === "points" ? cz.Material.fromType("PolylineDash", { color: col, dashLength: 8, dashPattern: 0x000f })
           : cz.Material.fromType("Color", { color: col }));
-        const wd = o.track === "points" ? 4 : 2.5;
+        const wd = o.track === "points" ? tw * 1.6 : tw;
         d.fullMat = mat();
         d.full = S.lines.add({ positions: pos, width: wd, material: d.fullMat });
         d.part = S.parts.add({ positions: pos, width: wd, material: mat(), show: false });
+      }
+      if (!lightMode && S.recent && S.drops && S.discs && pos.length > 1) {
+        // P9: the last 10 s brighter and wider over the whole track (a glow that fades to its sides), the drop
+        // line and the disc - moved as the time passes (update)
+        d.recent = S.recent.add({ positions: pos.slice(0, 2), width: tw + 5, show: false,
+          material: cz.Material.fromType("PolylineGlow", { color: col.brighten(0.35, new cz.Color()), glowPower: 0.22, taperPower: 1 }) });
+        d.drop = S.drops.add({ positions: pos.slice(0, 2), width: 1.2, show: false, material: cz.Material.fromType("PolylineDash", { color: col.withAlpha(0.8), dashLength: 8 }) });
+        d.disc = S.discs.add({ position: pos[0], pixelSize: 18, color: cz.Color.BLACK.withAlpha(0.3), show: false });
       }
       d.label = S.labels.add({ position: pos[0] ?? cz.Cartesian3.ZERO, text: visualOrder(o.name), font, fillColor: cz.Color.WHITE, show: false,
         outlineColor: cz.Color.fromCssColorString("#0b1118"), outlineWidth: 3, style: cz.LabelStyle.FILL_AND_OUTLINE,
@@ -385,7 +452,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     }
     updateRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cz, tracks, objKey, objLook, objColors]);
+  }, [cz, tracks, objKey, objLook, objColors, tw, lightMode]);
 
   /* the log's events on the tracks: a mark where the object was at each event (errors red, warnings
      amber, mode changes blue), with its text */
@@ -409,7 +476,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         const kind = ev.kind === "mode" ? "mode" : ev.level === "error" ? "error" : ev.level === "warning" ? "warning" : null;
         if (!kind) continue;
         const te = ev.t + (L.timeOffset || 0);
-        const p = objectAt(tr, te, angleUnitOf(o, objects));
+        const p = objectAt(tr, te, angleUnitOf(o, allObjs));
         if (!p) continue;
         let i = 0;
         while (i < tr.t.length - 1 && tr.t[i + 1] <= te) i++;
@@ -427,6 +494,102 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cz, tracks, objKey, objLook, logs, plot.showEvents]);
   const hasEvents = objects.some((o) => (logs[o.lat.slice(0, o.lat.indexOf("/"))]?.events.length ?? 0) > 0);
+
+  /* P7: the places - a point is its icon on a thin pole from the ground, with its name; a line / an area is
+     draped on the ground (ground primitives; in the light mode, for the frame rate, plain lines 2 m over the
+     ground the terrain has under each vertex) */
+  const placeGfx = useRef<{ bills: import("cesium").BillboardCollection | null; labels: import("cesium").LabelCollection | null;
+    poles: import("cesium").PolylineCollection | null; ground: import("cesium").Primitive[] }>({ bills: null, labels: null, poles: null, ground: [] });
+  useEffect(() => {
+    const w = widgetRef.current;
+    if (!cz || !w) return;
+    const G = placeGfx.current;
+    for (const c of [G.bills, G.labels, G.poles]) if (c) w.scene.primitives.remove(c);
+    for (const g of G.ground) w.scene.primitives.remove(g);
+    G.ground = [];
+    G.bills = w.scene.primitives.add(new cz.BillboardCollection());
+    G.labels = w.scene.primitives.add(new cz.LabelCollection());
+    G.poles = w.scene.primitives.add(new cz.PolylineCollection());
+    const font = `600 12px ${getComputedStyle(document.body).fontFamily}`;
+    const ground = (lat: number, lon: number) => w.scene.globe.getHeight(cz.Cartographic.fromDegrees(lon, lat)) ?? 0;
+    const POLE = 30;                                       // m: the icon stands this high over its point
+    for (const p of placesRef.current) {
+      const col = cz.Color.fromCssColorString(p.color || "#d29922");
+      if (p.kind === "point") {
+        const h = p.alt ?? ground(p.lat, p.lon);
+        const base = cz.Cartesian3.fromDegrees(p.lon, p.lat, h), top = cz.Cartesian3.fromDegrees(p.lon, p.lat, h + POLE);
+        G.poles!.add({ positions: [base, top], width: 1.5, material: cz.Material.fromType("Color", { color: col.withAlpha(0.85) }) });
+        G.bills!.add({ id: `place-${p.id}`, position: top, image: placeIconSvg(p.icon, p.color, 48), width: 26, height: 26,
+          verticalOrigin: cz.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY });
+        G.labels!.add({ position: top, text: visualOrder(p.name), font, fillColor: cz.Color.WHITE, outlineColor: cz.Color.fromCssColorString("#0b1118"),
+          outlineWidth: 3, style: cz.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new cz.Cartesian2(16, -14), verticalOrigin: cz.VerticalOrigin.CENTER,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY, translucencyByDistance: new cz.NearFarScalar(5e4, 1, 4e5, 0) });
+      } else if (p.points && p.points.length > 1) {
+        const area = p.kind === "area";
+        const deg = p.points.flatMap(([a, b]) => [b, a]);
+        if (lightMode) {
+          const pos = p.points.map(([a, b]) => cz.Cartesian3.fromDegrees(b, a, ground(a, b) + 2));
+          G.poles!.add({ positions: area ? [...pos, pos[0]] : pos, width: 2.5, material: cz.Material.fromType("Color", { color: col }) });
+        } else {
+          try {
+            G.ground.push(w.scene.primitives.add(new cz.GroundPolylinePrimitive({
+              geometryInstances: new cz.GeometryInstance({ geometry: new cz.GroundPolylineGeometry({ positions: cz.Cartesian3.fromDegreesArray(deg), width: 3, loop: area }),
+                attributes: { color: cz.ColorGeometryInstanceAttribute.fromColor(col) } }),
+              appearance: new cz.PolylineColorAppearance() })));
+            if (area) G.ground.push(w.scene.primitives.add(new cz.GroundPrimitive({
+              geometryInstances: new cz.GeometryInstance({ geometry: new cz.PolygonGeometry({ polygonHierarchy: new cz.PolygonHierarchy(cz.Cartesian3.fromDegreesArray(deg)) }),
+                attributes: { color: cz.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(0.2)) } }),
+              appearance: new cz.PerInstanceColorAppearance({ flat: true, translucent: true }) })));
+          } catch { /* a degenerate shape: left out */ }
+        }
+        const mid = p.points[Math.floor(p.points.length / 2)];
+        G.labels!.add({ position: cz.Cartesian3.fromDegrees(mid[1], mid[0], ground(mid[0], mid[1]) + 5), text: visualOrder(p.name), font, fillColor: cz.Color.WHITE,
+          outlineColor: cz.Color.fromCssColorString("#0b1118"), outlineWidth: 3, style: cz.LabelStyle.FILL_AND_OUTLINE,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY, translucencyByDistance: new cz.NearFarScalar(5e4, 1, 4e5, 0) });
+      }
+    }
+    (window as unknown as { __svPlacesDrawn?: string[] }).__svPlacesDrawn = placesRef.current.map((p) => p.name);   // for tests
+    w.scene.requestRender();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cz, placesKey, lightMode]);
+
+  /* P7 (P9.3 makes every camera change fly): the one camera flight of this view - to a place, a saved view,
+     a typed position. A flight leaves the object-bound cameras for General (the user then looks around). */
+  const flyTo = (to: FlyTarget) => {
+    const w = widgetRef.current;
+    if (!cz || !w) return;
+    if (plot.followObject || (plot.camera && plot.camera !== "free")) {
+      ownFlight.current = true;
+      actions.updatePlot(plot.id, { followObject: null, camera: "free" });
+    }
+    w.camera.lookAtTransform(cz.Matrix4.IDENTITY);
+    const duration = reducedMotion() ? 0 : 1.2;
+    const rad = cz.Math.toRadians;
+    if (to.range === 0 && to.heading !== undefined) {
+      // a saved view: the camera where it was, looking where it looked
+      w.camera.flyTo({ destination: cz.Cartesian3.fromDegrees(to.lon, to.lat, to.alt ?? 1000), orientation: { heading: rad(to.heading), pitch: rad(to.pitch ?? -35), roll: 0 }, duration });
+    } else {
+      const h = to.alt ?? w.scene.globe.getHeight(cz.Cartographic.fromDegrees(to.lon, to.lat)) ?? 0;
+      w.camera.flyToBoundingSphere(new cz.BoundingSphere(cz.Cartesian3.fromDegrees(to.lon, to.lat, h), 1), { duration,
+        offset: new cz.HeadingPitchRange(to.heading !== undefined ? rad(to.heading) : w.camera.heading, rad(to.pitch ?? -35), to.range ?? 1500) });
+    }
+    (window as unknown as { __svFly?: FlyTarget }).__svFly = to;          // for tests
+    w.scene.requestRender();
+  };
+  const flyRef2 = useRef(flyTo);
+  flyRef2.current = flyTo;
+  useEffect(() => {
+    if (!cz) return;
+    mapFly.set(plot.id, (to) => flyRef2.current(to));
+    mapCameraNow.set(plot.id, () => {
+      const w = widgetRef.current, c = w?.camera.positionCartographic;
+      if (!w || !c) return null;
+      return { lat: cz.Math.toDegrees(c.latitude), lon: cz.Math.toDegrees(c.longitude), alt: c.height, heading: cz.Math.toDegrees(w.camera.heading),
+        pitch: cz.Math.toDegrees(w.camera.pitch), range: 0 };
+    });
+    mapObjectAt.set(plot.id, (id) => { const q = lastStates.current.get(id); return q ? { lat: q.lat, lon: q.lon, alt: Number.isFinite(q.alt) ? q.alt : null } : null; });
+    return () => { mapFly.delete(plot.id); mapCameraNow.delete(plot.id); mapObjectAt.delete(plot.id); };
+  }, [cz, plot.id]);
 
   /* the measured points: a line and the distances */
   const measured = useMemo(() => {
@@ -477,6 +640,48 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     return () => { globeImage.delete(plot.id); };
   });
 
+  /* P9: the error, drawn - when the relation box is shown and its pair is one vehicle (median distance under
+     20 m: truth and a navigation solution), a see-through surface between the two tracks coloured by the
+     distance (green, amber, red at its 95th percentile); off in the light mode */
+  const pairNow = pairOf(plot);
+  const errKey = `${pairNow.primary}|${pairNow.secondary}|${plot.relHidden ? 1 : 0}|${plot.errorSurface === false ? 0 : 1}|${plot.relPlace ?? ""}`;
+  const errPrim = useRef<import("cesium").Primitive | null>(null);
+  const [errInfo, setErrInfo] = useState<{ p95: number; shown: boolean } | null>(null);
+  useEffect(() => {
+    const w = widgetRef.current;
+    if (!cz || !w) return;
+    if (errPrim.current) { w.scene.primitives.remove(errPrim.current); errPrim.current = null; }
+    const P = objects.find((o) => o.id === pairNow.primary), Q = objects.find((o) => o.id === pairNow.secondary);
+    const tp = P && tracks[P.id], tq = Q && tracks[Q.id];
+    if (!P || !Q || !tp || !tq || plot.relPlace) { setErrInfo(null); w.scene.requestRender(); return; }
+    const e = errorAlong(tp, (i) => heightAt(P, tp, i), tq, (j) => heightAt(Q, tq, j));
+    if (!e || !e.same) { setErrInfo(null); w.scene.requestRender(); return; }
+    const on = !plot.relHidden && plot.errorSurface !== false && !lightMode;
+    setErrInfo({ p95: e.p95, shown: on });
+    if (on) {
+      const inst: import("cesium").GeometryInstance[] = [];
+      for (let k = 1; k < e.rows.length; k++) {
+        const a = e.rows[k - 1], b = e.rows[k];
+        const pa = cz.Cartesian3.fromDegrees(tp.lon[a.i], tp.lat[a.i], heightAt(P, tp, a.i)), pb = cz.Cartesian3.fromDegrees(tp.lon[b.i], tp.lat[b.i], heightAt(P, tp, b.i));
+        const qa = cz.Cartesian3.fromDegrees(a.lon, a.lat, Number.isFinite(a.h) ? a.h : heightAt(P, tp, a.i)), qb = cz.Cartesian3.fromDegrees(b.lon, b.lat, Number.isFinite(b.h) ? b.h : heightAt(P, tp, b.i));
+        if (![pa, pb, qa, qb].every((v) => Number.isFinite(v.x))) continue;
+        const pos = new Float64Array([pa.x, pa.y, pa.z, qa.x, qa.y, qa.z, pb.x, pb.y, pb.z, qb.x, qb.y, qb.z]);
+        inst.push(new cz.GeometryInstance({
+          geometry: new cz.Geometry({ attributes: { position: new cz.GeometryAttribute({ componentDatatype: cz.ComponentDatatype.DOUBLE, componentsPerAttribute: 3, values: pos }) } as never,
+            indices: new Uint16Array([0, 1, 2, 1, 3, 2]), primitiveType: cz.PrimitiveType.TRIANGLES, boundingSphere: cz.BoundingSphere.fromPoints([pa, pb, qa, qb]) }),
+          attributes: { color: cz.ColorGeometryInstanceAttribute.fromColor(cz.Color.fromCssColorString(errorColor(e.p95 > 0 ? (a.d + b.d) / 2 / e.p95 : 0)).withAlpha(0.45)) },
+        }));
+      }
+      try {
+        if (inst.length) errPrim.current = w.scene.primitives.add(new cz.Primitive({ geometryInstances: inst, asynchronous: false,
+          appearance: new cz.PerInstanceColorAppearance({ flat: true, translucent: true, closed: false }) }));
+      } catch { /* a degenerate track: no surface */ }
+    }
+    updateRef.current();                                  // shown or not by the camera's distance
+    w.scene.requestRender();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cz, tracks, errKey, lightMode]);
+
   /* fit the camera to the tracks the first time they arrive */
   useEffect(() => {
     const w = widgetRef.current;
@@ -491,13 +696,21 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         if (Number.isFinite(tr.lat[i]) && Number.isFinite(tr.lon[i]) && Number.isFinite(h)) pts.push(cz.Cartesian3.fromDegrees(tr.lon[i], tr.lat[i], h));
       }
     }
+    if (!pts.length && !objects.length) {
+      // P7: places take part in Fit only when the Map has no objects
+      const b = placesBounds(placesRef.current);
+      if (b) for (const [la, lo] of [[b[0], b[1]], [b[2], b[3]], [b[0], b[3]], [b[2], b[1]]]) pts.push(cz.Cartesian3.fromDegrees(lo, la, 0));
+    }
     if (!pts.length) return;
     const bs = cz.BoundingSphere.fromPoints(pts);
-    w.camera.flyToBoundingSphere(bs, { duration: 0, offset: new cz.HeadingPitchRange(0, cz.Math.toRadians(-35), Math.max(bs.radius * 2.6, 1500)) });
+    // P4: From above - straight down, north up, the whole flight framed; General - from the south-west
+    const top = mapCamera(plot) === "top";
+    w.camera.flyToBoundingSphere(bs, { duration: fitFlies.current && !reducedMotion() ? 1.2 : 0, offset: new cz.HeadingPitchRange(0, cz.Math.toRadians(top ? -89.9 : -35), Math.max(bs.radius * (top ? 3.2 : 2.6), 1500)) });
     scene3.current.fitted = true;
+    fitFlies.current = true;                              // P9: every later Fit flies there
     w.scene.requestRender();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cz, tracks]);
+  }, [cz, tracks, objects.length ? "" : placesKey]);
 
   /* the time (the cursor), the timeline's mode, following: place everything */
   const update = () => {
@@ -535,7 +748,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         }
       }
       const tNow = trackTime(tr, cur.on ? cur.t1 : null, st.streaming && own === null);
-      const gp = pt !== null && own === null && Math.abs(pt - tNow) > 1e-9 ? objectAt(tr, pt, angleUnitOf(o, objects)) : null;
+      const gp = pt !== null && own === null && Math.abs(pt - tNow) > 1e-9 ? objectAt(tr, pt, angleUnitOf(o, allObjs)) : null;
       if (gp && S.ghosts) {
         let a = 0, z = tr.t.length - 1;
         while (z - a > 1) { const k = (a + z) >> 1; if (tr.t[k] <= pt!) a = k; else z = k; }
@@ -544,7 +757,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           color: cz.Color.fromCssColorString(o.color).withAlpha(0.45), outlineColor: cz.Color.WHITE.withAlpha(0.6), outlineWidth: 1.5,
           disableDepthTestDistance: Number.POSITIVE_INFINITY });
       }
-      const p = objectAt(tr, tNow, angleUnitOf(o, objects));
+      const p = objectAt(tr, tNow, angleUnitOf(o, allObjs));
       const m = S.models.get(o.id);
       if (!p) { if (m) m.show = false; if (d.label) d.label.show = false; continue; }
       // values at the time, by the nearest samples (altitude / attitude)
@@ -557,7 +770,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       const rad = (arr: Float32Array | null, key: string) => {
         if (!arr) return 0;
         const v = lerp(arr[lo], arr[hi]);
-        const u = angleUnitOf(o, objects);
+        const u = angleUnitOf(o, allObjs);
         const isRad = u === "rad" || ((u ?? "auto") === "auto" && tr.units[key] === "rad");
         return Number.isFinite(v) ? (isRad ? v : cz.Math.toRadians(v)) : 0;
       };
@@ -574,21 +787,48 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       }
       const g = tr.ground ? lerp(tr.ground[lo], tr.ground[hi]) : NaN;
       const agl = Number.isFinite(g) ? h - g : null;
-      if (d.label) { d.label.position = pos; d.label.show = true; }
+      if (d.label) { d.label.position = pos; d.label.show = useApp.getState().mapPrefs.names !== "hidden"; }   // P8: Names on the Map
       const { gs, vs } = ratesAt(o, tr, tNow);
       states.set(o.id, { id: o.id, name: o.name, color: o.color, pos, lat: p.lat, lon: p.lon, alt: h, agl, hdg: p.heading,
         pitch: tr.pitch ? cz.Math.toDegrees(pitch) : null, roll: tr.roll ? cz.Math.toDegrees(roll) : null, gs, vs });
+      // P9: the drop line to the ground and the disc under it; the last 10 s
+      if (d.drop && d.disc) {
+        const gp = cz.Cartesian3.fromDegrees(p.lon, p.lat, Number.isFinite(g) ? g : 0);
+        const up = agl === null || agl > 3;
+        d.drop.positions = [pos, gp]; d.drop.show = up; d.disc.position = gp; d.disc.show = up;
+      }
+      if (d.recent) {
+        let a = 0, b = d.idx.length;
+        while (a < b && tr.t[d.idx[a]] < tNow - 10) a++;
+        while (b > a && tr.t[d.idx[b - 1]] > tNow) b--;
+        const seg = [...d.pos.slice(a, b), pos];
+        d.recent.show = seg.length > 1;
+        if (seg.length > 1) d.recent.positions = seg;
+      }
     }
+    lastStates.current = states;
     // the camera on the followed object (N6: chase it, or look from it at the second one), flying to a
     // new mode / object over a moment instead of jumping
     const fs = follow ? states.get(follow) : undefined;
     const cam = w.camera;
     const fly = flyRef.current;
     const from = fly ? { pos: cam.positionWC.clone(), dir: cam.directionWC.clone(), up: cam.upWC.clone() } : null;
-    if (fs) {
+    const camMode = mapCamera(plot);
+    if (camMode === "top") {
+      // P4: From above - on the chosen object (track up: its heading points up), straight down at the user's height
+      if (fs) {
+        const range = Math.max(60, cz.Cartesian3.distance(cam.positionWC, fs.pos));
+        const hdg = plot.mapUp === "track" && fs.hdg !== null && fs.hdg !== undefined ? cz.Math.toRadians(fs.hdg) : 0;
+        cam.lookAt(fs.pos, new cz.HeadingPitchRange(hdg, cz.Math.toRadians(-89.9), range));
+      }
+    } else if (fs) {
       const range = cam.positionCartographic ? Math.max(30, cz.Cartesian3.distance(cam.positionWC, fs.pos)) : 2000;
       const second = plot.camera === "lookat" ? states.get((plot.relatedObjects ?? []).find((x) => x !== fs.id) ?? "") : undefined;
-      if (plot.camera === "chase") {
+      if (plot.camera === "cockpit") {
+        // P9: the cockpit - at the object, looking along its heading and pitch, rolling with it
+        cam.lookAtTransform(cz.Matrix4.IDENTITY);
+        cam.setView({ destination: fs.pos, orientation: { heading: cz.Math.toRadians(fs.hdg ?? 0), pitch: cz.Math.toRadians(fs.pitch ?? 0), roll: cz.Math.toRadians(fs.roll ?? 0) } });
+      } else if (plot.camera === "chase") {
         // behind and a little above, along its heading (eased while playing, so noise does not shake it)
         const goal = fs.hdg ?? 0, now = performance.now(), last = chaseHdg.current;
         let hdg = goal;
@@ -639,9 +879,37 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
         if (!fly.raf) fly.raf = requestAnimationFrame(() => { fly.raf = 0; updateRef.current(); });
       } else flyRef.current = null;
     }
+    // P9: the cockpit hides its own model (and any within 20 m - a solution of the same vehicle would fill
+    // the view) and widens the view to 70°
+    const ck = plot.camera === "cockpit" && fs ? fs : null;
+    for (const [id, q] of states) {
+      const m = S.models.get(id);
+      if (m && ck) m.show = !(id === ck.id || cz.Cartesian3.distance(q.pos, ck.pos) < 20);
+      const dr = S.drawn.get(id);
+      if (dr?.label && ck && id === ck.id) dr.label.show = false;
+    }
+    // P9: the models' shadows only while the camera is near an object (On the object, Chase, Cockpit, Look at):
+    // from far they are a pixel, and the shadow pass is the effects' largest cost
+    const nearCam = !lightMode && !!fs && camMode !== "top" && camMode !== "free";
+    if (w.scene.shadowMap.enabled !== nearCam) w.scene.shadowMap.enabled = nearCam;
+    const fr = cam.frustum as import("cesium").PerspectiveFrustum;
+    const fov = cz.Math.toRadians(ck ? 70 : 60);
+    if (fr.fov !== undefined && Math.abs(fr.fov - fov) > 1e-6) fr.fov = fov;
+    // P9: the sun where it was - the recording's own time when it has real dates (Unix seconds), else a
+    // mid-morning sun (10:00 local solar time at an equinox, over the scene)
+    if (!lightMode) {
+      const any = states.values().next().value as ObjState | undefined;
+      const tr0 = Object.values(tracks)[0];
+      if (any && tr0) {
+        const tt = trackTime(tr0, cur.on ? cur.t1 : null, st.streaming && own === null);
+        const ms = tt > 1e9 ? tt * 1000 : Date.UTC(2026, 2, 20, 10, 0, 0) - (any.lon / 15) * 3600_000;
+        if (!(Math.abs(ms - sunMs.current) <= 20_000)) { sunMs.current = ms; w.clock.currentTime = cz.JulianDate.fromDate(new Date(ms)); }
+      }
+    }
     // the primary object, and the related ones: a dashed line from it to each, with the distance on it
     const pair = pairOf(plot);                              // N7: the plot's choice, else by class
     const primary = states.get(pair.primary ?? "") ?? null;
+    refState.current = primary ? { name: primary.name, lat: primary.lat, lon: primary.lon } : null;   // P4: the readout's "from"
     const rel: Readout["rel"] = [];
     const related = (plot.relatedObjects?.length ? plot.relatedObjects : pair.secondary ? [pair.secondary] : []).filter((id) => id !== primary?.id).slice(0, 2);
     S.links?.removeAll();
@@ -658,7 +926,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           const tr = tracks[oid], o = objects.find((x) => x.id === oid);
           if (!tr || !o) return null;
           const tt = trackTime(tr, cur.on ? cur.t1 : null, st.streaming && own === null) + dt;
-          const p = objectAt(tr, tt, angleUnitOf(o, objects));
+          const p = objectAt(tr, tt, angleUnitOf(o, allObjs));
           return p ? { lat: p.lat, lon: p.lon, alt: o.alt ? altAt(tr, tt) : null, hdg: p.heading } : null;
         };
         const p0 = at(primary.id, 0), q0 = at(id, 0), p1 = at(primary.id, 0.5), q1 = at(id, 0.5);
@@ -671,6 +939,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           outlineWidth: 3, style: cz.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY });
       }
     }
+    // P9: the error surface is metres wide - drawn while the camera is within 3 km of the reference (from
+    // further it is under a pixel, and a see-through surface is not free on a slow graphics card)
+    if (errPrim.current) errPrim.current.show = !!primary && cz.Cartesian3.distance(cam.positionWC, primary.pos) < 3000;
     setReadout(primary ? { primary, rel } : null);
     // N7: a ring round the primary, a fainter one round the secondary
     S.rings?.removeAll();
@@ -685,6 +956,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   };
   const updateRef = useRef(update);
   updateRef.current = update;
+  const lastStates = useRef<Map<string, ObjState>>(new Map());
+  const fitFlies = useRef(false);
+  const sunMs = useRef(NaN);
   /** N7: an object made the primary (or the secondary) - shared with the tab's map. */
   const pick = (id: string, second: boolean) => {
     if (!objects.some((o) => o.id === id)) return;
@@ -714,14 +988,76 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const chaseRange = useRef<number | null>(null);
   const camKey = `${plot.followObject ?? ""}|${plot.camera ?? ""}|${plot.camera === "lookat" ? (plot.relatedObjects ?? [])[0] ?? "" : ""}`;
   const camKeyRef = useRef(camKey);
+  const ownFlight = useRef(false);          // P7: flyTo set the camera free itself - no blend from the old mode
   if (camKeyRef.current !== camKey) {
     camKeyRef.current = camKey;
-    if (!reducedMotion()) { if (flyRef.current?.raf) cancelAnimationFrame(flyRef.current.raf); flyRef.current = { t0: performance.now(), fresh: true, raf: 0, start: null }; }
+    if (ownFlight.current) { ownFlight.current = false; flyRef.current = null; }
+    else if (!reducedMotion()) { if (flyRef.current?.raf) cancelAnimationFrame(flyRef.current.raf); flyRef.current = { t0: performance.now(), fresh: true, raf: 0, start: null }; }
     chaseHdg.current = null; chaseRange.current = null;
   }
+  useEffect(() => {
+    const w = widgetRef.current, host = hostRef.current;
+    if (!w || !host || !cz) return;
+    let raf = 0, last: { x: number; y: number } | null = null;
+    const pick = () => {
+      raf = 0;
+      if (!last || w.isDestroyed()) return;
+      const ray = w.camera.getPickRay(new cz.Cartesian2(last.x, last.y));
+      // the terrain under the mouse; where its tiles are not drawn yet, the ellipsoid
+      const p = (ray ? w.scene.globe.pick(ray, w.scene) : undefined) ?? w.camera.pickEllipsoid(new cz.Cartesian2(last.x, last.y));
+      if (!p) { setMouseAt(null); return; }
+      const c = cz.Cartographic.fromCartesian(p);
+      const lat = cz.Math.toDegrees(c.latitude), lon = cz.Math.toDegrees(c.longitude);
+      const g = w.scene.globe.getHeight(c);
+      const h = w.camera.positionCartographic?.height ?? 1000;
+      const prec = Math.max(1, Math.min(8, Math.ceil(-Math.log10(Math.max(h, 1) / 1000 / 111_000))));
+      const r = refState.current;
+      let from = null;
+      if (r) {
+        const g1 = cz.Cartographic.fromDegrees(r.lon, r.lat), g2 = cz.Cartographic.fromDegrees(lon, lat);
+        const geo = new cz.EllipsoidGeodesic(g1, g2);
+        from = { name: r.name, d: geo.surfaceDistance, brg: (cz.Math.toDegrees(geo.startHeading) + 360) % 360 };
+      }
+      const np = nearestPlace(lat, lon, placesRef.current);         // P7: "1.24 km from Runway 27"
+      setMouseAt({ lat, lon, ground: g === undefined ? null : g, prec, from, place: np ? { name: np.place.name, d: np.d } : null });
+      (window as unknown as { __svReadout?: object }).__svReadout = { lat, lon, ground: g ?? null };   // for tests
+    };
+    const move = (e: PointerEvent) => {
+      const b = host.getBoundingClientRect();
+      last = { x: e.clientX - b.left, y: e.clientY - b.top };
+      if (!raf) raf = requestAnimationFrame(pick);                       // one update a frame
+    };
+    const leave = () => { last = null; setMouseAt(null); };
+    // P7: a right-click on the ground: its position rides on the event to the plot's menu (Add a place here…)
+    const ctx = (e: MouseEvent) => {
+      const b = host.getBoundingClientRect(), xy = new cz.Cartesian2(e.clientX - b.left, e.clientY - b.top);
+      const ray = w.camera.getPickRay(xy);
+      const p = (ray ? w.scene.globe.pick(ray, w.scene) : undefined) ?? w.camera.pickEllipsoid(xy);
+      if (!p) return;
+      const c = cz.Cartographic.fromCartesian(p), g = w.scene.globe.getHeight(c);
+      (e as MouseEvent & { svGeo?: unknown }).svGeo = { lat: cz.Math.toDegrees(c.latitude), lon: cz.Math.toDegrees(c.longitude), ground: g === undefined ? null : Math.round(g * 10) / 10 };
+    };
+    host.addEventListener("contextmenu", ctx);
+    host.addEventListener("pointermove", move);
+    host.addEventListener("pointerleave", leave);
+    return () => { host.removeEventListener("pointermove", move); host.removeEventListener("pointerleave", leave); host.removeEventListener("contextmenu", ctx); if (raf) cancelAnimationFrame(raf); };
+  }, [cz]);
+  // P4: choosing From above (no object) frames the whole flight from straight above; tilting there turns the
+  // camera to General (middle-drag or Ctrl+drag are Cesium's tilt)
+  const camTop = mapCamera(plot) === "top";
+  useEffect(() => { if (camTop && !plot.followObject && cz) reFit(); }, [camTop, plot.followObject, cz]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const w = widgetRef.current, host = hostRef.current;
+    if (!w || !host || !cz) return;
+    w.scene.screenSpaceCameraController.enableTilt = !camTop;
+    if (!camTop) return;
+    const down = (e: PointerEvent) => { if (e.button === 1 || e.ctrlKey) actions.updatePlot(plot.id, { camera: "free", followObject: null }); };
+    host.addEventListener("pointerdown", down, true);
+    return () => host.removeEventListener("pointerdown", down, true);
+  }, [camTop, cz]);   // eslint-disable-line react-hooks/exhaustive-deps
   // N6: the time moves the scene without a React render (playback re-rendered this 2-3 times a frame)
   useEffect(() => useApp.subscribe((s, p) => { if (s.cursor !== p.cursor) updateRef.current(); }), []);
-  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.camera, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT]);
+  useEffect(() => { updateRef.current(); }, [cz, tracks, playMode, windowSec, plot.followObject, plot.camera, plot.primaryObject, plot.relatedObjects, objects, lang, ownT, pointerT, mapNames]);
 
   /* the span of the objects' own tracks (the independent time runs over that) */
   const ownExt = useMemo((): [number, number] | null => {
@@ -754,6 +1090,24 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
   const keepOwn = (v: number) => actions.updatePlot(plot.id, { ownTime: v });
 
   const primaryId = pairOf(plot).primary ?? "";
+  // P9: the camera's object - its flight display (a toggle; by default in Chase and Cockpit) and the mini-map
+  const camNowMode = mapCamera(plot);
+  const close = camNowMode === "centre" || camNowMode === "chase" || camNowMode === "cockpit" || camNowMode === "lookat";
+  const dispOn = !!plot.followObject && (plot.display ?? (camNowMode === "chase" || camNowMode === "cockpit"));
+  const dispSrc = plot.followObject ? lastStates.current.get(plot.followObject) : undefined;
+  const dispState = dispOn && dispSrc ? { name: dispSrc.name, roll: dispSrc.roll, pitch: dispSrc.pitch, hdg: dispSrc.hdg, gs: dispSrc.gs, alt: dispSrc.alt, agl: dispSrc.agl } : null;
+  const miniTracks = useMemo(() => objects.filter((o) => tracks[o.id]).map((o) => ({ color: o.color, lat: tracks[o.id].lat, lon: tracks[o.id].lon })), [objects, tracks]);
+  const wc = widgetRef.current && !widgetRef.current.isDestroyed() ? widgetRef.current : null, cc = wc ? wc.camera.positionCartographic : null;
+  const fovNow = wc ? ((wc.camera.frustum as import("cesium").PerspectiveFrustum).fov ?? 1) : 1;
+  const camNow = cz && wc && cc ? { lat: cz.Math.toDegrees(cc.latitude), lon: cz.Math.toDegrees(cc.longitude), heading: wc.camera.heading,
+    fov: fovNow * Math.max(1, wc.canvas.clientWidth / Math.max(1, wc.canvas.clientHeight)) } : null;
+  // for tests: what the wow shows (P9) - every GPU effect is off in the light mode
+  const wowAll = (window as unknown as { __svWow?: Record<string, unknown> });
+  wowAll.__svWow = { ...wowAll.__svWow, [plot.id]: {
+    light: lightMode, sky: !!wc?.scene.skyAtmosphere && !lightMode, lighting: !!wc?.scene.globe.enableLighting, shadows: !!wc?.scene.shadowMap?.enabled,
+    sunMs: Number.isFinite(sunMs.current) ? sunMs.current : null, drop: [...scene3.current.drawn.values()].some((d) => d.drop?.show),
+    recent: [...scene3.current.drawn.values()].some((d) => d.recent?.show), cockpit: camNowMode === "cockpit", fov: (fovNow * 180) / Math.PI,
+    display: !!dispState, mini: close && miniTracks.length > 0, errorSurface: errInfo } };
   const centred = !!plot.followObject;
   const showBox = plot.showReadout !== false;
   const secondaryName = plot.relHidden ? null : objects.find((o) => o.id === pairOf(plot).secondary)?.name;
@@ -770,7 +1124,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
     updateRef.current();
   };
 
-  if (failed) return <Globe3DFallback plot={plot} index={index} onLoading={onLoading} reason={failed} />;
+  // P4: 3D cannot draw here (no WebGL, the context lost): the Map is drawn flat by the plot (GeoChart)
+  useEffect(() => { if (failed) onFlat?.(failed); }, [failed]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (failed) return null;
   return (
     <div ref={rootRef} className={`globe3d${detached ? " own-time" : ""}`} onDoubleClick={reFit} tabIndex={-1} onKeyDown={onKey}
       onPointerDownCapture={(e) => { if (!(e.target as HTMLElement).closest("button, select, input, a")) rootRef.current?.focus({ preventScroll: true }); }}>
@@ -778,7 +1134,7 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
       <div ref={creditRef} className="globe3d-credits" />
       {!cz && <div className="plot-empty">{t("globeLoading")}</div>}
       <TrackKeys objects={objects} colors={objColors} />
-      {cz && !objects.length && <div className="plot-empty">{emptyText}</div>}
+      {cz && !objects.length && !places.length && <div className="plot-empty">{emptyText}</div>}
       {lightMode && <div className="globe3d-light" title={t("globeLightHint")}>{t("globeLight")}</div>}
       {/* the camera, the primary object and the related ones, the data box */}
       {cz && objects.length > 0 && (
@@ -802,6 +1158,9 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
             );
           })()}
           <button className={`g3-toggle${showBox ? " on" : ""}`} aria-pressed={showBox} onClick={() => actions.updatePlot(plot.id, { showReadout: !showBox })}>{t("g3Data")}</button>
+          {/* P9: the flight display of the object the camera is on - by default in Chase and Cockpit */}
+          {centred && <button className={`g3-toggle g3-display${dispOn ? " on" : ""}`} aria-pressed={dispOn} title={t("g3DisplayHint")}
+            onClick={() => actions.updatePlot(plot.id, { display: !dispOn })}>{t("g3Display")}</button>}
           {hasEvents && <button className={`g3-toggle${plot.showEvents !== false ? " on" : ""}`} aria-pressed={plot.showEvents !== false}
             onClick={() => actions.updatePlot(plot.id, { showEvents: plot.showEvents === false })} title={t("g3EventsHint")}>{t("g3Events")}</button>}
           <button className={`g3-toggle${measuring ? " on" : ""}`} aria-pressed={measuring} title={t("g3MeasureHint")}
@@ -813,8 +1172,16 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           </span>
         </MapBar>
       )}
+      {mouseAt && (
+        <div className="geo-readout g3-readout" role="status">
+          {fmtCoord(mouseAt.lat, mouseAt.lon, mouseAt.prec)}
+          {mouseAt.ground !== null && <> · {t("mapReadoutGround")} {fmtDistance(mouseAt.ground, lang)}</>}
+          {mouseAt.from && <> · {t("mapReadoutFrom", { name: mouseAt.from.name })} {fmtDistance(mouseAt.from.d, lang)} {Math.round(mouseAt.from.brg)}°</>}
+          {mouseAt.place && <> · {t("plFrom", { d: fmtDistance(mouseAt.place.d, lang), name: mouseAt.place.name })}</>}
+        </div>
+      )}
       {cz && objects.length > 0 && !measuring && !detached && (
-        <div className="g3-cam-hint" role="note">{t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre")}</div>
+        <div className="g3-cam-hint" role="note">{camTop ? t("g3CamTopHint") : t(!centred ? "g3HintFree" : plot.camera === "chase" ? "g3HintChase" : plot.camera === "cockpit" ? "g3CamCockpitHint" : plot.camera === "lookat" ? "g3HintLookAt" : "g3HintCentre")}</div>
       )}
       {measuring && (
         <div className="g3-measure" dir={lang === "he" ? "rtl" : "ltr"} role="status">
@@ -839,7 +1206,11 @@ export default function Globe3D({ plot, index, onLoading, emptyText }: Props) {
           </select>
         </div>
       )}
-      {objects.length > 1 && <RelationPanel plot={plot} objects={objects} tracks={tracks} />}
+      {dispState && <div className="g3-fd"><FlightDisplay s={dispState} /></div>}
+      {close && miniTracks.length > 0 && <div className="g3-mini"><MiniMap tracks={miniTracks} camera={camNow}
+        focus={dispSrc ? { lat: dispSrc.lat, lon: dispSrc.lon, hdg: dispSrc.hdg, color: dispSrc.color } : null}
+        onPick={(lat, lon) => flyTo({ lat, lon, range: 1500, pitch: -40 })} /></div>}
+      {(allObjs.length > 1 || (allObjs.length > 0 && places.length > 0)) && <RelationPanel plot={plot} objects={allObjs} tracks={tracks} />}
       {readout && showBox && (
         // in the UI's direction; every number set left-to-right on its own (Hebrew names around them)
         <div className="globe3d-readout" dir={lang === "he" ? "rtl" : "ltr"} aria-live="off">

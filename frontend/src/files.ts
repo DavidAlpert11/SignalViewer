@@ -2,10 +2,23 @@ import { checkQuality } from "./quality";
 import { DATA_EXTS } from "./values";
 import { hasSetting } from "./settings";
 import { isEmptyStart, offerStart } from "./smartStart";
-import { api, type JobInfo, type LoadErrorInfo } from "./api";
+import { api, type FaultyMessage, type JobInfo, type LoadErrorInfo } from "./api";
 import { actions, useApp } from "./store";
 import { clock, forgetNewer } from "./fileTimes";
 import { dictionaries, translate, type Lang, type TKey } from "./i18n";
+
+/** P3: what the load report says about message types left out because the firmware wrote them with
+ *  another length than their format (or unreadably), and how much of the log could be read. */
+export function faultyNotes(rep: { faultyMessages?: FaultyMessage[]; readableShare?: number }, lang: Lang): string[] {
+  const out = (rep.faultyMessages ?? []).map((f) => f.names != null && f.fields != null
+    ? translate(lang, "faultyMessageNames", { name: f.name, names: f.names, fields: f.fields })
+    : f.noFormat ? translate(lang, "faultyMessageNoFormat", { name: f.name, written: f.written ?? 0 })
+    : f.written && f.declared != null
+    ? translate(lang, "faultyMessage", { name: f.name, written: f.written, declared: f.declared })
+    : translate(lang, "faultyMessageUnreadable", { name: f.name }));
+  if (rep.readableShare != null && rep.readableShare < 1) out.push(translate(lang, "readableShare", { pct: Math.floor(rep.readableShare * 100) }));
+  return out;
+}
 
 /** Run a long operation as a background job: progress panel + cancel (N-04).
  *  Resolves with the job's result, or null when the user cancelled. Throws on errors. */
@@ -162,6 +175,7 @@ export async function openPaths(paths: string[], settings?: Record<string, unkno
       // O2: a ULog reports only THAT it was damaged (pyulog gives no count) - not "1 damaged bytes"
       if (rep.corruptBytes) parts.push(rep.damaged ? translate(lang, "damagedFile") : translate(lang, "corruptBytes", { n: rep.corruptBytes }));
       if (rep.droppedMessages) parts.push(translate(lang, "droppedMessages", { n: rep.droppedMessages }));
+      parts.push(...faultyNotes(rep, lang));
       if (rep.phantomInstances?.length) parts.push(translate(lang, "phantomInstances", { list: rep.phantomInstances.slice(0, 4).join(", ") + (rep.phantomInstances.length > 4 ? " …" : "") }));
       if (rep.badTimestamps) parts.push(translate(lang, "badTimestamps", { n: rep.badTimestamps }));
       if (rep.damagedParams) parts.push(translate(lang, "damagedParams", { n: rep.damagedParams }));

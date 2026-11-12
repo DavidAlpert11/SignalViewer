@@ -5,15 +5,19 @@ import { api } from "../api";
 import { actions, activeTab, shownSpan, useApp, type MapObject, type Plot } from "../store";
 import { useMapBase } from "../mapBase";
 import { drawObjectIcon } from "./mapIcons";
-import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors } from "../mapObjects";
+import { altAt, angleUnitOf, colorRuns, fmtDistance as fmtDistanceShort, derivedAttitude, objectAt, trackColors, trackKey, trackRequest, trackTime, type ObjTrack, type TrackColors, shownObjects } from "../mapObjects";
 import TrackKeys from "./TrackKeys";
 import RelationPanel, { RingIcon } from "./RelationPanel";
 import MapBar from "./MapBar";
+import { markNoPosition } from "../noPosition";
+import { isMapPlot } from "../mapObjects";
 
 /** 1.26: Track up - chosen, or the camera's Chase (on the object, close, its direction of travel up) */
-const trackUpOf = (p: Plot) => p.mapUp === "track" || (p.camera === "chase" && !!p.followObject);
-import { geoViewBounds } from "../globeBridge";
-import { pairOf, relation } from "../relation";
+const trackUpOf = (p: Plot) => p.mapUp === "track" || ((p.camera === "chase" || p.camera === "cockpit") && !!p.followObject);
+import { geoViewBounds, mapCameraNow, mapFly, mapObjectAt } from "../globeBridge";
+import { nearestPlace, placeIconSvg, shownPlaces } from "../places";
+import { fmtCoord } from "../mapDefaults";
+import { errorAlong, errorColor, pairOf, relation } from "../relation";
 import { labelsOf, stateColor } from "../values";
 import { fmtNum, useT } from "../i18n";
 import { getPrefValue, setPref } from "../prefs";
@@ -138,16 +142,31 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const [view, setView] = useState<View | null>(null);
   const baseRef = useRef<{ hard: string; tick: number; view: View; canvas: HTMLCanvasElement } | null>(null);
   /* objects: each one's signals on one time axis, fetched when its signals change */
-  const objects: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
+  // P6: `objects` are the ones drawn (and fitted); `allObjs` every one, for lookups (a borrowed attitude)
+  const allObjs: MapObject[] = useMemo(() => plot.objects ?? [], [plot.objects]);
+  const objects: MapObject[] = useMemo(() => shownObjects(plot), [plot.objects]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [objTracks, setObjTracks] = useState<Record<string, ObjTrack>>({});
   const objTracksRef = useRef(objTracks);
   objTracksRef.current = objTracks;
-  const objKey = objects.map((o) => trackKey(o, objects)).join("|");
+  const objKey = objects.map((o) => trackKey(o, allObjs)).join("|");
   const [countries, setCountries] = useState<Country[] | null>(null);
   const [places, setPlaces] = useState<Place[] | null>(null);
   const [tick, setTick] = useState(0);
   const userView = useRef(false);               // the user zoomed / panned: stop auto-fitting
   const [mouse, setMouse] = useState<{ lon: number; lat: number } | null>(null);
+  const mp = useApp((s) => s.mapPrefs);                    // P8: names, track width, units, coordinates
+  const mouseRef = useRef(mouse);                // P7: the right-click's position (set as the mouse moves)
+  // P7: the places drawn here as on the 3D view (icons from the same shapes, loaded once per look)
+  useApp((s) => s.ws.places);
+  useApp((s) => s.myPlaces);
+  const userPlaces = shownPlaces();
+  const userPlacesKey = JSON.stringify(userPlaces);
+  const placeImgs = useRef(new Map<string, HTMLImageElement>());
+  const placeImg = (url: string) => {
+    let im = placeImgs.current.get(url);
+    if (!im) { im = new Image(); im.onload = () => drawRef.current(); im.src = url; placeImgs.current.set(url, im); }
+    return im;
+  };
   /** L7: what the ring under the mouse means (solid: the reference, dashed: compared with it) */
   const [ringTip, setRingTip] = useState<{ kind: "primary" | "secondary" | "none"; name: string; x: number; y: number } | null>(null);
 
@@ -182,13 +201,19 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     let cancelled = false;
     (async () => {
       const out: Record<string, ObjTrack> = {};
-      for (const o of plot.objects ?? []) {
+      const empty: string[] = [];
+      for (const o of shownObjects(plot)) {
         try {
           const r = await api.objectTrack(trackRequest(o, plot.objects ?? []));
+          if (r.valid === 0) { empty.push(o.id); continue; }           // P2: no position - drawn as nothing, not in Fit
           out[o.id] = { t: r.t, lat: r.lat, lon: normLon(r.lon), yaw: r.yaw, course: r.course, units: r.units, color: r.color, alt: r.alt };
         } catch { /* a signal no longer open: the object is skipped */ }
       }
-      if (!cancelled) setObjTracks(out);
+      if (!cancelled) {
+        setObjTracks(out); markNoPosition(shownObjects(plot).map((o) => o.id), empty);
+        // for tests: the objects this map draws (and fits) - P6
+        (window as unknown as { __svMapDrawn?: Record<string, string[]> }).__svMapDrawn = { ...(window as unknown as { __svMapDrawn?: Record<string, string[]> }).__svMapDrawn, [plot.id]: Object.keys(out) };
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,8 +227,21 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       const c = trackColors(o.trackColor, tr.color, labelsOf(runs, o.colorSig) ?? null, (x) => fmtNum(x, lang, 4), (x) => stateColor(x, theme));
       if (c) out[o.id] = c;
     }
+    // P9: the pair is one vehicle (truth and a solution) and the relation box is shown - the compared track
+    // coloured by its distance from the reference (the 3D view draws a surface between them)
+    const pr = pairOf(plot);
+    const P = pr.primary ? objTracks[pr.primary] : undefined, Q = pr.secondary ? objTracks[pr.secondary] : undefined;
+    if (P && Q && pr.secondary && !plot.relHidden && !plot.relPlace && plot.errorSurface !== false && !out[pr.secondary]) {
+      const alt = (tr: ObjTrack) => (i: number) => (tr.alt ? tr.alt[i] : NaN);
+      const e = errorAlong(Q, alt(Q), P, alt(P), Q.t.length);
+      if (e?.same) {
+        const at: (string | null)[] = new Array(Q.t.length).fill(null);
+        for (const r of e.rows) at[r.i] = errorColor(e.p95 > 0 ? r.d / e.p95 : 0);
+        out[pr.secondary] = { at, key: [], ramp: { lo: 0, hi: e.p95, colors: [errorColor(0), errorColor(0.5), errorColor(1)] } };
+      }
+    }
     return out;
-  }, [objects, objTracks, runs, lang, theme]);
+  }, [objects, objTracks, runs, lang, theme, plot.primaryObject, plot.relatedObjects, plot.relHidden, plot.relPlace, plot.errorSurface]);   // eslint-disable-line react-hooks/exhaustive-deps
   /** Tracks and objects, for fitting the view. */
   const allTracks = (): Track[] => [...tracks, ...Object.entries(objTracks).map(([id, o]) => ({ id, lon: o.lon, lat: o.lat, t: o.t }))];
   const allTracksRef = useRef(allTracks);
@@ -228,7 +266,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const c = useApp.getState().cursor;
     if (!tr || !c.on || c.t1 === null) return null;
     const o = objects.find((x) => x.id === id);
-    const st = objectAt(tr, trackTime(tr, c.t1, streaming), o ? angleUnitOf(o, objects) : undefined);
+    const st = objectAt(tr, trackTime(tr, c.t1, streaming), o ? angleUnitOf(o, allObjs) : undefined);
     if (!st) return null;
     const off = followOff.current;
     const goal = { cx: mx(st.lon) + (off?.x ?? 0), cy: my(st.lat) + (off?.y ?? 0) };
@@ -274,7 +312,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     const tr = id ? objTracksRef.current[id] : undefined;
     const app = useApp.getState(), c = app.cursor;
     const o = objects.find((x) => x.id === id);
-    const st = tr && o ? objectAt(tr, trackTime(tr, c.on ? c.t1 : null, streaming), angleUnitOf(o, objects)) : null;
+    const st = tr && o ? objectAt(tr, trackTime(tr, c.on ? c.t1 : null, streaming), angleUnitOf(o, allObjs)) : null;
     const last = upEased.current, now = performance.now();
     let h = st?.heading ?? last?.h ?? 0;
     if (st?.heading != null && last && app.smoothFollow && app.playing && now - last.t < 250) {
@@ -592,30 +630,51 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
           else for (const r of colorRuns(cols.at, i0, i1)) { pathIn(r.a, r.b); ctx.strokeStyle = r.color; ctx.lineWidth = w; ctx.stroke(); }
           ctx.setLineDash([]);
         };
-        if (span5) { ctx.globalAlpha = 0.28; stroke(0, tr.t.length, 2); ctx.globalAlpha = 1; }
+        const tw = mp.trackWidth / 2.5;                 // P8: the track's width (2.5 px = as before)
+        if (span5) { ctx.globalAlpha = 0.28; stroke(0, tr.t.length, 2 * tw); ctx.globalAlpha = 1; }
         if (o.track === "points") dots(a0, a1, 3.2, () => (dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"));
-        else { ctx.setLineDash(dash); pathIn(a0, a1); ctx.strokeStyle = dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"; ctx.lineWidth = cols ? 5.5 : 4.5; ctx.stroke(); ctx.setLineDash([]); }
-        stroke(a0, a1, cols ? 3 : 2);
+        else { ctx.setLineDash(dash); pathIn(a0, a1); ctx.strokeStyle = dark ? "rgba(0,0,0,.6)" : "rgba(255,255,255,.85)"; ctx.lineWidth = (cols ? 5.5 : 4.5) * tw; ctx.stroke(); ctx.setLineDash([]); }
+        stroke(a0, a1, (cols ? 3 : 2) * tw);
       }
       const tNow = trackTime(tr, cursor.on ? cursor.t1 : null, streaming);
       const sz = (o.size ?? 26) * uiScale();
-      const ghost = pointerT !== null && Math.abs(pointerT - tNow) > 1e-9 ? objectAt(tr, pointerT, angleUnitOf(o, objects)) : null;
+      const ghost = pointerT !== null && Math.abs(pointerT - tNow) > 1e-9 ? objectAt(tr, pointerT, angleUnitOf(o, allObjs)) : null;
       if (ghost) {                    // where it was at the moment under the pointer: faint, no name
         ctx.save(); ctx.globalAlpha = 0.45;
-        drawObjectIcon(ctx, o.kind, X(mx(ghost.lon)), Y(my(ghost.lat)), ghost.heading, sz * 0.9, o.color, dark, derivedAttitude(o, objects));
+        drawObjectIcon(ctx, o.kind, X(mx(ghost.lon)), Y(my(ghost.lat)), ghost.heading, sz * 0.9, o.color, dark, derivedAttitude(o, allObjs));
         ctx.restore();
       }
-      const st = objectAt(tr, tNow, angleUnitOf(o, objects));
+      const st = objectAt(tr, tNow, angleUnitOf(o, allObjs));
       if (!st) continue;
       const px = X(mx(st.lon)), py = Y(my(st.lat));
       at5.set(o.id, { px, py, lat: st.lat, lon: st.lon, alt: altAt(tr, tNow), sz });
-      drawObjectIcon(ctx, o.kind, px, py, st.heading, sz, o.color, dark, derivedAttitude(o, objects));
+      drawObjectIcon(ctx, o.kind, px, py, st.heading, sz, o.color, dark, derivedAttitude(o, allObjs));
       ctx.font = `600 ${Math.round(11.5 * uiScale())}px ${family}`;
       ctx.textAlign = "left"; ctx.textBaseline = "middle";
       ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)";
-      ctx.strokeText(o.name, px + sz * 0.6, py - sz * 0.45);
-      ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(o.name, px + sz * 0.6, py - sz * 0.45);
+      if (mp.names !== "hidden") {                        // P8: Names on the Map
+        ctx.strokeText(o.name, px + sz * 0.6, py - sz * 0.45);
+        ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(o.name, px + sz * 0.6, py - sz * 0.45);
+      }
     }
+    // P7: places - lines and areas on the map, points as their icon with the name
+    for (const pl of userPlaces) {
+      const col = pl.color || "#d29922";
+      if (pl.points && pl.points.length > 1) {
+        ctx.beginPath();
+        pl.points.forEach(([a, b], i) => { const px = X(mx(b)), py = Y(my(a)); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+        if (pl.kind === "area") { ctx.closePath(); ctx.globalAlpha = 0.2; ctx.fillStyle = col; ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.lineWidth = 2.5; ctx.strokeStyle = col; ctx.stroke();
+      }
+      const [la, lo] = pl.points?.length ? pl.points[Math.floor(pl.points.length / 2)] : [pl.lat, pl.lon];
+      const px = X(mx(lo)), py = Y(my(la)), sz = 22 * uiScale();
+      if (pl.kind === "point") { const im = placeImg(placeIconSvg(pl.icon, pl.color, 48)); if (im.complete) ctx.drawImage(im, px - sz / 2, py - sz, sz, sz); }
+      ctx.font = `600 ${Math.round(11 * uiScale())}px ${family}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.lineWidth = 3; ctx.strokeStyle = dark ? "rgba(14,22,32,.9)" : "rgba(255,255,255,.92)";
+      ctx.strokeText(pl.name, px + sz * 0.55, py - sz * 0.55);
+      ctx.fillStyle = dark ? "#e6edf3" : "#24292f"; ctx.fillText(pl.name, px + sz * 0.55, py - sz * 0.55);
+    }
+    (window as unknown as { __svMapPlaces?: string[] }).__svMapPlaces = userPlaces.map((p) => p.name);   // for tests
     // N7: the primary (a ring) and the secondary (a dashed ring), and a line between them with the range
     // (or from the primary to every object, or none - plot.relLines)
     const pair = pairOf(plot);
@@ -677,7 +736,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
    };
    drawRef.current = draw;
    draw();
-  }, [tracks, view, size.w, size.h, plot.mapUp, plot.camera, plot.followObject, plot.primaryObject, plot.relatedObjects, plot.relLines, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT]);
+  }, [tracks, view, size.w, size.h, plot.mapUp, plot.camera, plot.followObject, plot.primaryObject, plot.relatedObjects, plot.relLines, theme, scale, cvals, plot.signals, plot.xSignal, countries, places, base, tick, lang, playMode, windowSec, objTracks, objects, streaming, objColors, borders, pointerT, userPlacesKey, mp]);
   // the time moves: follow the object (a new view, drawn by the effect above) or just draw again
   useEffect(() => useApp.subscribe((st, prev) => {
     if (st.cursor === prev.cursor) return;
@@ -701,7 +760,22 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       const S = 256 * 2 ** v.z, hw = cv.clientWidth / 2 / S, hh = cv.clientHeight / 2 / S;
       return [latOf(v.cy + hh), lonOf(v.cx - hw), latOf(v.cy - hh), lonOf(v.cx + hw)];
     });
-    return () => { geoViewBounds.delete(plot.id); };
+    // P7: fly to a place / a typed position (the view's width about the range), the view now, an object's position
+    mapFly.set(plot.id, (to) => {
+      const cv = cvRef.current, W = cv?.clientWidth || 600, v = viewRef.current;
+      const m = Math.max(200, to.range || 1500) * 1.4;
+      const z = Math.max(2, Math.min(20, Math.log2((W * 40075016.686 * Math.cos((to.lat * Math.PI) / 180)) / m / 256)));
+      if (plot.followObject) actions.updatePlot(plot.id, { followObject: null, camera: "free" });
+      flyToRef.current({ z: v ? z : z, cx: mx(to.lon), cy: my(to.lat) });
+    });
+    mapCameraNow.set(plot.id, () => {
+      const v = viewRef.current, cv = cvRef.current;
+      if (!v || !cv) return null;
+      const m = (cv.clientWidth * 40075016.686 * Math.cos((latOf(v.cy) * Math.PI) / 180)) / (256 * 2 ** v.z);
+      return { lat: latOf(v.cy), lon: lonOf(v.cx), heading: 0, pitch: -90, range: m / 1.4 };
+    });
+    mapObjectAt.set(plot.id, (id) => { const q = objAt.current.get(id); return q ? { lat: q.lat, lon: q.lon, alt: q.alt } : null; });
+    return () => { geoViewBounds.delete(plot.id); mapFly.delete(plot.id); mapCameraNow.delete(plot.id); mapObjectAt.delete(plot.id); };
   }, [plot.id]);
   const anim = useRef(0);
   const zoomGoal = useRef<View | null>(null);
@@ -751,6 +825,8 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
     }
     setView({ z: v.z, cx: v.cx - dx / S, cy: Math.max(0, Math.min(1, v.cy - dy / S)) });
   };
+  const flyToRef = useRef((v: View) => animateTo(v, 1200));
+  flyToRef.current = (v: View) => animateTo(v, 1200);
   const fitAll = () => { stopAnim(); userView.current = false; const f = fitView(allTracksRef.current(), size.w, size.h); if (f) animateTo(f, 220); };
   const panRef = useRef(panBy); panRef.current = panBy;
   const zoomRef = useRef(zoomBy); zoomRef.current = zoomBy;
@@ -812,7 +888,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
       };
       window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
     };
-    const onMove = (e: MouseEvent) => { const v = viewRef.current; if (v) { const g = at(e, v); setMouse({ lon: lonOf(g.wx), lat: latOf(g.wy) }); } hoverRef.current(e); };
+    const onMove = (e: MouseEvent) => { const v = viewRef.current; if (v) { const g = at(e, v); mouseRef.current = { lon: lonOf(g.wx), lat: latOf(g.wy) }; setMouse(mouseRef.current); } hoverRef.current(e); };
     const onLeave = () => { setMouse(null); setRingTip(null); };
     const onDbl = () => fitRef.current();
     cv.addEventListener("wheel", onWheel, { passive: false });
@@ -906,7 +982,7 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
 
   const trackUp = trackUpOf(plot);
   // Chase: close to the object (about 900 m across), the first time it is chosen for an object
-  const chaseKey = plot.camera === "chase" && plot.followObject ? plot.followObject : "";
+  const chaseKey = (plot.camera === "chase" || plot.camera === "cockpit") && plot.followObject ? plot.followObject : "";
   useEffect(() => {
     const v = viewRef.current;
     if (!chaseKey || !v || !size.w) return;
@@ -919,6 +995,14 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
   const prec = view ? Math.max(1, Math.min(8, Math.round(view.z * 0.3 + 1))) : 2;
   return (
     <div className="plot-canvas geo" ref={wrapRef} style={{ position: "relative" }} tabIndex={0} onKeyDown={onKey}
+      onContextMenu={(e) => {
+        // P7: the position under the right-click rides on the event to the plot's menu (Add a place here…)
+        const v = viewRef.current, cv = cvRef.current;
+        if (!v || !cv || !isMapPlot(plot)) return;
+        const b = (rotRef.current && wrapRef.current ? wrapRef.current : cv).getBoundingClientRect();
+        const { bx, by } = toCanvas(e.clientX - b.left - b.width / 2, e.clientY - b.top - b.height / 2), S = 256 * 2 ** v.z;
+        (e.nativeEvent as MouseEvent & { svGeo?: unknown }).svGeo = { lat: latOf(v.cy + by / S), lon: lonOf(v.cx + bx / S), ground: null };
+      }}
       aria-label={t("mapKeysHint")} data-view={view ? `${view.z.toFixed(4)},${view.cx.toFixed(9)},${view.cy.toFixed(9)}` : undefined}>
       {(() => {
         const D = trackUp ? Math.ceil(Math.hypot(size.w, size.h)) : 0;
@@ -950,9 +1034,10 @@ export default function GeoChart({ plot, index, onLoading, emptyText, notDegrees
         <div className="geo-hint" role="note">{t("mapHint")}
           <button className="iconbtn sm" onClick={markHintSeen} aria-label={t("close")} title={t("close")}>×</button></div>
       )}
-      {mouse && <div className="geo-readout">{mouse.lat.toFixed(prec)}°, {mouse.lon.toFixed(prec)}°</div>}
+      {mouse && <div className="geo-readout">{fmtCoord(mouse.lat, mouse.lon, prec)}
+        {(() => { const np = nearestPlace(mouse.lat, mouse.lon, userPlaces); return np ? <> · {t("plFrom", { d: fmtDistanceShort(np.d, lang), name: np.place.name })}</> : null; })()}</div>}
       <TrackKeys objects={objects} colors={objColors} />
-      {objects.length > 1 && <RelationPanel plot={plot} objects={objects} tracks={objTracks} />}
+      {(allObjs.length > 1 || (allObjs.length > 0 && userPlaces.length > 0)) && <RelationPanel plot={plot} objects={allObjs} tracks={objTracks} />}
       {ringTip && (
         <div className="ring-tip" role="tooltip" style={{ left: ringTip.x + 14, top: ringTip.y + 14 }}>
           {ringTip.kind !== "none" && <RingIcon kind={ringTip.kind} />}<b>{ringTip.name}</b>
