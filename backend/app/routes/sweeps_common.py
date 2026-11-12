@@ -106,3 +106,43 @@ def open_study(req: StudyReq):
     """W14: a saved study as the panel edits it (defaults filled in), with its path."""
     s = study_of(req)
     return {"path": s.path, "study": studies.to_dict(s)}
+
+
+class RunsReq(StudyReq):
+    table: str
+    rows: List[int]
+
+
+@router.post("/api/sweeps/common/runs")
+def common_runs(req: RunsReq):
+    """W14: the runs of one value in one table (row indices from /api/sweeps/common), as the table has them -
+    what the panel shows when a ranked row is opened."""
+    s = study_of(req)
+    try:
+        t = s.table(req.table)
+        df = sweeps_common.read_table_files(s.table_files(t)).rename(columns=t.rename)
+    except (KeyError, sweeps_common.StudyError) as e:
+        fail(400, str(e))
+    rows = [r for r in req.rows if 0 <= r < len(df)][:500]
+    sub = df.iloc[rows]
+    cols = [str(c) for c in sub.columns]
+    return {"table": t.id, "columns": cols,
+            "rows": [[None if (isinstance(v, float) and v != v) else (v.item() if hasattr(v, "item") else v) for v in r]
+                     for r in sub.itertuples(index=False, name=None)]}
+
+
+class ExportReq(StudyReq):
+    path: str
+
+
+@router.post("/api/sweeps/common/export")
+def common_export(req: ExportReq):
+    """W14: the ranked table as a CSV (one row per value, a group of columns per table)."""
+    s = study_of(req)
+    try:
+        df = sweeps_common.to_csv_rows(sweeps_common.rank(s))
+    except sweeps_common.StudyError as e:
+        fail(400, str(e))
+    path = req.path if req.path.lower().endswith(".csv") else req.path + ".csv"
+    df.to_csv(path, index=False, encoding="utf-8-sig")
+    return {"path": path, "rows": int(len(df))}

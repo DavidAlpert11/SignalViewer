@@ -478,6 +478,12 @@ demo*); the others open their recordings with the view that suits them.
 <!-- lane L2 -->
 
 <!-- lane L5 -->
+## One parameter set for many systems, the next runs, the farm, the demo
+
+*Sweeps → Open ▾ → Common parameters (several tables)*: a study of several sweep tables, saved as a
+`.svstudy.json`. The ranked values, why a value fails, *Suggest next runs* and *Send to launcher* are explained in
+[One parameter set for many systems](common-gains.md) and [Launcher mode](launcher.md); the welcome screen's
+*Smart sweep demo* in [The smart-sweep demo](smart-sweep-demo.md).
 
 <!-- lane L6 -->
 ## Closing with unsaved work

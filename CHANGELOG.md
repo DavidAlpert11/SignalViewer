@@ -34,6 +34,16 @@
   saving; `study demo` prints each round and the result sentence.
 
 <!-- lane L5 -->
+- **Sweeps → Common parameters** (Open ▾): build a study of several sweep tables in the panel – the columns'
+  roles, paired names, constraints, goal, scenario values left out, the search space – save it as a
+  `.svstudy.json`, and see the ranked values (holds / fails per table, the score, the local choice, the deciding
+  scenario, why a value fails), the shared values' space, and the runs of a value with the deciding one marked;
+  CSV export; Undo / Redo of every edit.
+- **Suggest next runs** writes the next round (20 candidate values, each with its reason, shown in the
+  ranking and on the space); **Send to launcher** shows the exact command once per session, runs it and shows
+  each run as submitted / done / failed / missing.
+- **The smart-sweep demo view**: Next round, Run until converged, Reset; the workers filling and emptying, the
+  tried gains by round, the convergence chart against the full grid, and the result in one sentence.
 
 <!-- lane L6 -->
 - **Ask before closing with unsaved changes**: closing the window when the work is not in a session file asks
