@@ -20,7 +20,7 @@
 > |---|---|---|---|---|
 > | W0 – plan, contracts, W11 fix | P0, contracts, W11 | `sv1113/base` | committed (push refused: GitHub not linked to the session – patch instead) | backend 1226 passed; W11 runs are FINAL's |
 > | L1 Welcome | W1, W2 | `sv1113/l1` | committed (push refused) | W1 + W2; study-card pictures in FINAL |
-> | L2 First minute | W3, W4, W6, W5, W13.5 | `sv1113/l2` | not started | |
+> | L2 First minute | W3, W4, W6, W5, W13.5 | `sv1113/l2` | committed (push refused) | W3–W6, W13.5; e2e in FINAL |
 > | L3 Sweeps engine | W14 core, W15 core, CLI, drone example | `sv1113/l3` | committed (push refused) | W14/W15 core, CLI, drone example; own pytest green |
 > | L4 Farm + demo engine | W17, W18 engine | `sv1113/l4` | committed (push refused) | launcher, demo engine, CLI; own pytest green; Portable not verified |
 > | L5 Sweeps panel | W14, W15, W17, W18 UI | `sv1113/l5` | committed (push refused) | panel + demo view; e2e in FINAL |
