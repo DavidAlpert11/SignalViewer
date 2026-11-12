@@ -9,10 +9,11 @@ import { PLOT_ID_MIME } from "../store/actions/layout";
 import { AREAS, areaDef } from "../areas";
 import { useT } from "../i18n";
 import { BrandMark, Icon } from "../icons";
-import { openPaths, openSession, saveSession } from "../files";
+import { openSession, saveSession } from "../files";
 import { copyErrorDetails, reportProblem } from "../errorReport";
 import type { MenuItem, MoreTabs } from "../store";
 import { openMenu } from "./Overlays";
+import { EXAMPLE_LABEL, openExample } from "./Welcome";
 import { openTemplates, templateMenuItems } from "../templateMenu";
 import { forgetMore, moreUsable, openMoreTabs, tx } from "../templates";
 import { getPref, setPref } from "../prefs";
@@ -40,12 +41,11 @@ export default function TopBar() {
     const pos = at(e);
     let ex: Awaited<ReturnType<typeof api.examples>> = [];
     try { ex = await api.examples(); } catch { /* no examples folder */ }
-    const EX = { flight: "exampleFlight", twoFlights: "exampleTwoFlights", car: "exampleCar", ardupilot: "exampleArdupilot", simVsFlight: "exampleSimVsFlight", investigate: "exampleInvestigate" } as const;
     const items: MenuItem[] = [
       { label: t("menuGuide"), keys: "F1", run: () => useApp.setState({ guideOpen: true }) },
       { label: t("shortcuts"), keys: "?", run: () => useApp.setState({ helpOpen: true }) },
       ...(ex.length ? [{ label: t("menuExamples"), run: () => {},
-        items: ex.map((x) => ({ label: t(EX[x.id]), run: () => openPaths(x.paths, undefined, { autoView: true }) })) }] : []),
+        items: ex.filter((x) => x.id in EXAMPLE_LABEL).map((x) => ({ label: t(EXAMPLE_LABEL[x.id]), run: () => openExample(x) })) }] : []),
       { label: "", run: () => {}, sep: true },
       { label: t("copyErrorDetails"), run: () => copyErrorDetails(t, useApp.getState().toast) },
       { label: t("menuReportProblem"), run: () => reportProblem(t, useApp.getState().toast) },

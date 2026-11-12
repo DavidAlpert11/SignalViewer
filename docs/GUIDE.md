@@ -469,6 +469,11 @@ template for the next table. In CI: `signalviewer-cli sweep results.csv --questi
   `xattr -dr com.apple.quarantine SignalViewer` once.
 
 <!-- lane L1 -->
+## Start from an example
+
+The welcome screen shows each example as a card with a picture of what it opens. *One gain set, three drones*
+and *Smart sweep demo* open in the Sweeps area (see *One parameter set for many systems* and *The smart-sweep
+demo*); the others open their recordings with the view that suits them.
 
 <!-- lane L2 -->
 

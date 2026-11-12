@@ -7,6 +7,10 @@
   set for many systems" study, read by the Sweeps panel, the API and the `study` command line.
 
 <!-- lane L1 -->
+- **The welcome screen's examples show what they are**: each card has a picture of the example's view (light and
+  dark, the same in every language), the title and a line under it; 3 cards a row on a wide screen, 2 on a
+  laptop, 1 on a narrow window. Two new examples: **one gain set, three drones** and the **smart sweep demo**.
+  The pictures are made by the app itself (`tools/make_readme_media.py --only examples`).
 
 <!-- lane L2 -->
 

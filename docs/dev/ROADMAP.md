@@ -887,6 +887,8 @@ The owner opened Sweeps after Milestone 23 and found it a mess. Redone, and the 
 - [x] W11 The two flaky e2e files (wait on state, not a sleep), `tools/quick_check.py`, `docs/dev/E2E_MAP.md`. Code done 2026-11-13; the 10-of-10 measurement is FINAL's.
 
 <!-- lane L1 -->
+- [x] W1 Example cards with a picture (both themes, fallback to the icon card, 3 / 2 / 1 columns). Done 2026-11-13.
+- [x] W2 The pictures made by the tool (`make_readme_media.py --only examples`). Done 2026-11-13 (FINAL reruns it for all cards).
 
 <!-- lane L2 -->
 
