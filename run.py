@@ -158,6 +158,30 @@ def _log_to_file_when_windowless():
         sys.stderr = sys.stderr or f
 
 
+def _ask_before_close(window, app_system):
+    """W10: closing the window with unsaved work asks the page first (Save / Don't save / Cancel); the page
+    then closes the window through /api/window/close. Nothing unsaved (the page keeps WINDOW_STATE current):
+    the window closes at once. NEEDS A MANUAL CHECK on each GUI backend (not run in the tests)."""
+    def on_closing():
+        st = app_system.WINDOW_STATE
+        if st["close_ok"] or not st["dirty"]:
+            return True
+        # not from inside the closing event (a JS call there can block the GUI thread): a moment later
+        threading.Thread(target=lambda: window.evaluate_js("window.__svCloseRequest && window.__svCloseRequest()"),
+                         daemon=True).start()
+        return False
+
+    def close():
+        app_system.WINDOW_STATE["close_ok"] = True
+        window.destroy()
+
+    try:
+        window.events.closing += on_closing
+        app_system.CLOSE_WINDOW.append(close)
+    except AttributeError:          # an old pywebview without events: the window closes as before
+        pass
+
+
 def _attach_console():
     """The Portable is a windowed exe (no console): `SignalViewer.exe study ...` writes to the console it was
     started from (cmd / PowerShell), or, started without one, to the log file like the app."""
@@ -250,6 +274,7 @@ def main():
             import webview  # pywebview
             window = webview.create_window("Signal Viewer", url, width=1440, height=900, min_size=(1024, 640))
             push.ON_OPEN.append(lambda: _to_front(window))
+            _ask_before_close(window, app_system)
             app_system.WINDOW_NOTE["mode"] = "window"
             # Windows (pywebview 6, WinForms) needs a real .ico; GTK / Qt take a png
             assets = os.path.join(getattr(sys, "_MEIPASS", HERE), "assets")

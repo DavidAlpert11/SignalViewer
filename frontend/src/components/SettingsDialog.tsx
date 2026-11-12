@@ -95,6 +95,7 @@ export default function SettingsDialog() {
   const uiScale = useApp((s) => s.uiScale);
   const timeFormat = useApp((s) => s.timeFormat);
   const smoothFollow = useApp((s) => s.smoothFollow);
+  const askBeforeClose = useApp((s) => s.askBeforeClose);
   const lineWidth = useApp((s) => s.lineWidth);
   const lineStyle = useApp((s) => s.lineStyle);
   const tplTabChoice = useApp((s) => s.tplTabChoice);
@@ -140,6 +141,8 @@ export default function SettingsDialog() {
           {/* --- lane L2 --- */}
 
           {/* --- lane L6 --- */}
+          <div className="set-row"><span>{t("setAskClose")}<small>{t("setAskCloseHint")}</small></span>
+            {seg(askBeforeClose ? "on" : "off", [["on", t("setAskCloseOn")], ["off", t("setAskCloseOff")]], (v) => useApp.setState({ askBeforeClose: v === "on" }), t("setAskClose"))}</div>
 
           <MapSection seg={seg} />
           <p className="hint">{t("setKept")}</p>

@@ -19,8 +19,10 @@ import { loadMapPrefs } from "./mapDefaults";
 import { applySettings } from "./settings";
 import { watchNewerOnDisk } from "./fileTimes";
 import { watchReadAs } from "./readAs";
+import { installClosePrompt } from "./unsaved";
 
 installErrorReporting();             // T38: UI errors into the local log
+installClosePrompt();                // W10: ask before closing with unsaved work
 
 // read-only hook for the automated conformance tests (tests/e2e)
 (window as unknown as { __sv: unknown }).__sv = { state: () => useApp.getState(), setState: useApp.setState };   // for the end-to-end tests

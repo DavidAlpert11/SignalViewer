@@ -408,7 +408,6 @@ table.vals .sw { display: inline-block; width: 8px; height: 8px; border-radius: 
 .pal-item.on { background: var(--panel-2); }
 .pal-item .grp { margin-inline-start: auto; color: var(--faint); font-size: var(--fs-sm); }
 .pal-item svg { width: 15px; height: 15px; color: var(--muted); flex: none; }
-.pal-noicon { width: 15px; flex: none; }   /* a command with no icon keeps the column: the labels line up */
 .crumbs { display: flex; align-items: center; gap: var(--sp-1_5); padding: 6px 14px; color: var(--muted); border-bottom: 1px solid var(--line); direction: ltr; }
 .fs-path { position: relative; flex: 1; display: flex; }
 .fs-complete { position: absolute; top: calc(100% + 3px); inset-inline: 0; z-index: 30; max-height: 280px; overflow: auto; margin: 0; padding: 4px; list-style: none; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-l); box-shadow: var(--shadow); }

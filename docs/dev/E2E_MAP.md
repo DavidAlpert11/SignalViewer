@@ -19,6 +19,9 @@ inside your lane's block.
 <!-- lane L5 -->
 
 <!-- lane L6 -->
+- `tests/e2e/test_unsaved_close.py` – W10 (browser prompt, window dialog, setting), W8 (palette) (L6)
+- `tests/e2e/test_settings.py` – W10 adds a Settings row; existing tests unchanged (run it) (L6)
+- `tests/e2e/test_workflows.py` – W8 palette rendering changed; its palette lines unchanged (run it) (L6)
 
 <!-- lane L7 -->
 

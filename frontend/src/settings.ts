@@ -10,7 +10,7 @@ const KEYS = [
   // --- lane L2 ---
 
   // --- lane L6 ---
-
+  "askBeforeClose",
   // --- lane L8 ---
 
 ] as const;
@@ -31,7 +31,7 @@ const VALID: Record<Key, (v: unknown) => boolean> = {
   // --- lane L2 ---
 
   // --- lane L6 ---
-
+  askBeforeClose: (v) => typeof v === "boolean",
   // --- lane L8 ---
 
 };

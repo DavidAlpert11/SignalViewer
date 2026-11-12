@@ -108,6 +108,7 @@ export interface UiSlice {
   timeFormat: "seconds" | "clock";
   smoothFollow: boolean;           // N6: a camera following an object eases after it (Settings; default on)
   lineWidth: number;               // N3: a new line's width (Settings; 0.5-6, default 1.5)
+  askBeforeClose: boolean;         // W10: Save / Don't save / Cancel when closing with unsaved work (Settings; default on)
   lineStyle: "solid" | "dash" | "dot" | "dashdot";   // N3: a new line's style (Settings; default solid)
   /** U1: a template with several tabs opened from its chip - ask which tabs, or open its default tabs */
   tplTabChoice: "ask" | "defaults";
@@ -204,6 +205,7 @@ export const uiSlice = (set: StoreApi<AppState>["setState"], get: StoreApi<AppSt
   timeFormat: "seconds",
   smoothFollow: true,
   lineWidth: 1.5,
+  askBeforeClose: true,
   lineStyle: "solid",
   tplTabChoice: "ask",
   offlineOnly: false,

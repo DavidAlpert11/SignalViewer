@@ -1,8 +1,9 @@
 """Browser-mode watchdog: stop the server when no tab has been open for a while."""
 
+import threading
 import time
 
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -39,6 +40,31 @@ def ping():
     WATCHDOG["bye"] = None
     return {"ok": True}
 
+
+
+# W10: the app window asks before closing with unsaved work. The page tells the window whether there is any
+# (so a close needs no round trip while nothing is unsaved); run.py registers how to close the window.
+WINDOW_STATE: Dict[str, bool] = {"dirty": False, "close_ok": False}
+CLOSE_WINDOW: List[Callable[[], None]] = []
+
+
+class DirtyReq(BaseModel):
+    dirty: bool
+
+
+@router.post("/api/window/dirty")
+def window_dirty(req: DirtyReq):
+    WINDOW_STATE["dirty"] = bool(req.dirty)
+    return {"ok": True}
+
+
+@router.post("/api/window/close")
+def window_close():
+    """The user chose Save (done) or Don't save: close the app's window, asking nothing more."""
+    WINDOW_STATE["close_ok"] = True
+    for f in CLOSE_WINDOW:
+        threading.Thread(target=f, daemon=True).start()
+    return {"ok": True, "window": bool(CLOSE_WINDOW)}
 
 
 @router.post("/api/bye")

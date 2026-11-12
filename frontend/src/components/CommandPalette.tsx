@@ -14,6 +14,7 @@ import { api, type FsPlaces } from "../api";
 import { fuzzySort } from "../fuzzy";
 import { areaCommands, type AreaCommand } from "../areaCommands";
 import { makeReplay } from "../replay";
+import { getPrefValue, setPref } from "../prefs";
 
 const AREA_ICON: Record<NonNullable<AreaCommand["icon"]>, React.ReactNode> = {
   undo: <Icon.Undo />, redo: <Icon.Redo />, open: <Icon.Open />, save: <Icon.Save />, report: <Icon.Report />,
@@ -22,6 +23,22 @@ const AREA_ICON: Record<NonNullable<AreaCommand["icon"]>, React.ReactNode> = {
 const EVERYWHERE = new Set(["settings", "guide", "help", "text1", "text2", "text3", "theme", "lang"]);
 
 interface Cmd { id: string; label: string; group: string; icon?: React.ReactNode; run: () => void; keys?: string }
+
+/* W8: the last commands run, newest first (kept in the app folder), shown first when nothing is typed */
+const RECENT_KEY = "paletteRecent";
+const RECENT_N = 5;
+export function recentCommands(): string[] {
+  const v = getPrefValue<unknown>(RECENT_KEY);
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, RECENT_N) : [];
+}
+export function rememberCommand(id: string, kept: string[] = recentCommands()): string[] {
+  const next = [id, ...kept.filter((x) => x !== id)].slice(0, RECENT_N);
+  setPref(RECENT_KEY, next);
+  return next;
+}
+
+/** A row of the list: a command, or (nothing typed) a group's header. */
+type Row = { head: string } | { cmd: Cmd; n: number };
 
 export default function CommandPalette() {
   const t = useT();
@@ -172,7 +189,27 @@ export default function CommandPalette() {
     for (const r of recentToOpen(12)) if (r.exists) quick.push({ id: `file:${r.path}`, label: r.name, group: r.folder, icon: <Icon.File />, run: () => { openPaths([r.path]); } });
     for (const f of places?.recent ?? []) if (f.exists && once(f.path)) quick.push({ id: `dir:${f.path}`, label: f.path, group: t("placesRecent"), icon: <Icon.Folder />, run: folder(f.path) });
   }
-  const items = fuzzySort(mode === "open" ? quick : cmds, (c) => `${c.label} ${c.group}`, q).slice(0, 60);
+  const items0 = fuzzySort(mode === "open" ? quick : cmds, (c) => `${c.label} ${c.group}`, q).slice(0, 60);
+  // W8: nothing typed - the recent commands first, then every command under its group's header
+  const grouped = mode !== "open" && !q.trim();
+  const rows: Row[] = [];
+  let items: Cmd[] = items0;
+  if (grouped) {
+    const byId = new Map(cmds.map((c) => [c.id, c]));
+    const recent = recentCommands().map((id) => byId.get(id)).filter((c): c is Cmd => !!c);
+    const groups = new Map<string, Cmd[]>();
+    for (const c of cmds.filter((c) => !runs.some((r) => r.name === c.group))) groups.set(c.group, [...(groups.get(c.group) ?? []), c]);
+    items = [];
+    const add = (head: string, cs: Cmd[]) => { if (!cs.length) return; rows.push({ head }); for (const c of cs) { rows.push({ cmd: c, n: items.length }); items.push(c); } };
+    add(t("palRecent"), recent);
+    for (const [g, cs] of groups) add(g, cs);
+  } else items.forEach((c, n) => rows.push({ cmd: c, n }));
+  const groupIcon: Record<string, React.ReactNode> = {
+    [t("layout")]: <Icon.Layout />, [t("logEvents")]: <Icon.Log />, [t("plot")]: <Icon.Reset />, [t("objects")]: <Icon.Globe />,
+    [t("files")]: <Icon.File />, [t("tab")]: <Icon.Layout />, [t("cursor")]: <Icon.Cursor />, [t("theme")]: <Icon.Settings />,
+  };
+  const iconOf = (c: Cmd) => c.icon ?? groupIcon[c.group] ?? <Icon.Chevron />;
+  const runCmd = (c: Cmd) => { if (mode !== "open") rememberCommand(c.id); c.run(); };
 
   useEffect(() => { setSel(0); }, [q]);
   useEffect(() => { listRef.current?.querySelector(".pal-item.on")?.scrollIntoView({ block: "nearest" }); }, [sel]);
@@ -188,18 +225,22 @@ export default function CommandPalette() {
             if (e.key === "Escape") close();
             else if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(items.length - 1, s + 1)); }
             else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(0, s - 1)); }
-            else if (e.key === "Enter" && items[sel]) { items[sel].run(); close(); }
+            else if (e.key === "Enter" && items[sel]) { runCmd(items[sel]); close(); }
           }} />
         <div className="dialog-body" ref={listRef} role="listbox">
           {!items.length && <p className="empty-note">{mode === "open" ? t("quickOpenNone") : t("noCommands")}</p>}
-          {items.map((c, i) => (
-            <button key={c.id} role="option" aria-selected={i === sel} className={`pal-item${i === sel ? " on" : ""}`}
-              onMouseEnter={() => setSel(i)} onClick={() => { c.run(); close(); }}>
-              {c.icon ?? <span className="pal-noicon" aria-hidden="true" />}<span>{c.label}</span>
-              <span className="grp">{c.keys ? <span className="kbd">{c.keys}</span> : c.group}
-                {runs.some((r) => r.name === c.group) && ` → ${tab.plots[tab.active] ? t("plotTitle", { n: tab.active + 1 }) : ""}`}</span>
-            </button>
-          ))}
+          {rows.map((r) => "head" in r ? <div key={`h-${r.head}`} className="pal-head" role="presentation">{r.head}</div> : (() => {
+            const c = r.cmd, i = r.n;
+            return (
+              <button key={`${c.id}-${i}`} role="option" aria-selected={i === sel} className={`pal-item${i === sel ? " on" : ""}`} data-cmd={c.id}
+                onMouseEnter={() => setSel(i)} onClick={() => { runCmd(c); close(); }}>
+                {iconOf(c)}<span>{c.label}</span>
+                <span className="grp">{!grouped && c.group}
+                  {runs.some((rn) => rn.name === c.group) && ` → ${tab.plots[tab.active] ? t("plotTitle", { n: tab.active + 1 }) : ""}`}</span>
+                <span className="pal-keys">{c.keys && <span className="kbd">{c.keys}</span>}</span>
+              </button>
+            );
+          })())}
         </div>
       </div>
     </div>
